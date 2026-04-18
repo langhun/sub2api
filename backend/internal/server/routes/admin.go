@@ -88,6 +88,9 @@ func RegisterAdminRoutes(
 
 		// 渠道管理
 		registerChannelRoutes(admin, h)
+
+		// 模型定价管理
+		registerModelPricingRoutes(admin, h)
 	}
 }
 
@@ -561,5 +564,19 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		channels.POST("", h.Admin.Channel.Create)
 		channels.PUT("/:id", h.Admin.Channel.Update)
 		channels.DELETE("/:id", h.Admin.Channel.Delete)
+	}
+}
+
+func registerModelPricingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	pricing := admin.Group("/model-pricing")
+	{
+		pricing.GET("", h.Admin.ModelPricing.List)
+		pricing.POST("", h.Admin.ModelPricing.Create)
+		pricing.PUT("/:id", h.Admin.ModelPricing.Update)
+		pricing.DELETE("/:id", h.Admin.ModelPricing.Delete)
+		pricing.POST("/bulk-delete", h.Admin.ModelPricing.BulkDelete)
+		pricing.POST("/sync", h.Admin.ModelPricing.SyncFromRemote)
+		pricing.GET("/sync-status", h.Admin.ModelPricing.GetSyncStatus)
+		pricing.PUT("/auto-sync", h.Admin.ModelPricing.SetAutoSync)
 	}
 }
