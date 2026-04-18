@@ -97,6 +97,7 @@ func provideCleanup(
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	backupSvc *service.BackupService,
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
+	modelPricingAdmin *service.ModelPricingAdminService,
 ) func() {
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -183,6 +184,12 @@ func provideCleanup(
 			}},
 			{"PricingService", func() error {
 				pricing.Stop()
+				return nil
+			}},
+			{"ModelPricingAdminService", func() error {
+				if modelPricingAdmin != nil {
+					modelPricingAdmin.Stop()
+				}
 				return nil
 			}},
 			{"EmailQueueService", func() error {

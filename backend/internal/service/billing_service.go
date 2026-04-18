@@ -112,17 +112,18 @@ type CostBreakdown struct {
 
 // BillingService 计费服务
 type BillingService struct {
-	cfg            *config.Config
-	pricingService *PricingService
-	fallbackPrices map[string]*ModelPricing // 硬编码回退价格
+	cfg                       *config.Config
+	pricingService            *PricingService
+	modelPricingAdminService  *ModelPricingAdminService
+	fallbackPrices            map[string]*ModelPricing
 }
 
-// NewBillingService 创建计费服务实例
-func NewBillingService(cfg *config.Config, pricingService *PricingService) *BillingService {
+func NewBillingService(cfg *config.Config, pricingService *PricingService, modelPricingAdminService *ModelPricingAdminService) *BillingService {
 	s := &BillingService{
-		cfg:            cfg,
-		pricingService: pricingService,
-		fallbackPrices: make(map[string]*ModelPricing),
+		cfg:                      cfg,
+		pricingService:           pricingService,
+		modelPricingAdminService: modelPricingAdminService,
+		fallbackPrices:           make(map[string]*ModelPricing),
 	}
 
 	// 初始化硬编码回退价格（当动态价格不可用时使用）
@@ -340,39 +341,22 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 
 // GetModelPricing 获取模型价格配置
 func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
-	// 标准化模型名称（转小写）
 	model = strings.ToLower(model)
 
-	// 1. 优先从动态价格服务获取
-	if s.pricingService != nil {
-		litellmPricing := s.pricingService.GetModelPricing(model)
+	if s.modelPricingAdminService != nil {
+		litellmPricing := s.modelPricingAdminService.GetPricingFromCache(model)
 		if litellmPricing != nil {
-			// 启用 5m/1h 分类计费的条件：
-			// 1. 存在 1h 价格
-			// 2. 1h 价格 > 5m 价格（防止 LiteLLM 数据错误导致少收费）
-			price5m := litellmPricing.CacheCreationInputTokenCost
-			price1h := litellmPricing.CacheCreationInputTokenCostAbove1hr
-			enableBreakdown := price1h > 0 && price1h > price5m
-			return s.applyModelSpecificPricingPolicy(model, &ModelPricing{
-				InputPricePerToken:             litellmPricing.InputCostPerToken,
-				InputPricePerTokenPriority:     litellmPricing.InputCostPerTokenPriority,
-				OutputPricePerToken:            litellmPricing.OutputCostPerToken,
-				OutputPricePerTokenPriority:    litellmPricing.OutputCostPerTokenPriority,
-				CacheCreationPricePerToken:     litellmPricing.CacheCreationInputTokenCost,
-				CacheReadPricePerToken:         litellmPricing.CacheReadInputTokenCost,
-				CacheReadPricePerTokenPriority: litellmPricing.CacheReadInputTokenCostPriority,
-				CacheCreation5mPrice:           price5m,
-				CacheCreation1hPrice:           price1h,
-				SupportsCacheBreakdown:         enableBreakdown,
-				LongContextInputThreshold:      litellmPricing.LongContextInputTokenThreshold,
-				LongContextInputMultiplier:     litellmPricing.LongContextInputCostMultiplier,
-				LongContextOutputMultiplier:    litellmPricing.LongContextOutputCostMultiplier,
-				ImageOutputPricePerToken:       litellmPricing.OutputCostPerImageToken,
-			}), nil
+			return s.litellmToBillingPricing(model, litellmPricing), nil
 		}
 	}
 
-	// 2. 使用硬编码回退价格
+	if s.pricingService != nil {
+		litellmPricing := s.pricingService.GetModelPricing(model)
+		if litellmPricing != nil {
+			return s.litellmToBillingPricing(model, litellmPricing), nil
+		}
+	}
+
 	fallback := s.getFallbackPricing(model)
 	if fallback != nil {
 		log.Printf("[Billing] Using fallback pricing for model: %s", model)
@@ -380,6 +364,28 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 	}
 
 	return nil, fmt.Errorf("pricing not found for model: %s", model)
+}
+
+func (s *BillingService) litellmToBillingPricing(model string, litellmPricing *LiteLLMModelPricing) *ModelPricing {
+	price5m := litellmPricing.CacheCreationInputTokenCost
+	price1h := litellmPricing.CacheCreationInputTokenCostAbove1hr
+	enableBreakdown := price1h > 0 && price1h > price5m
+	return s.applyModelSpecificPricingPolicy(model, &ModelPricing{
+		InputPricePerToken:             litellmPricing.InputCostPerToken,
+		InputPricePerTokenPriority:     litellmPricing.InputCostPerTokenPriority,
+		OutputPricePerToken:            litellmPricing.OutputCostPerToken,
+		OutputPricePerTokenPriority:    litellmPricing.OutputCostPerTokenPriority,
+		CacheCreationPricePerToken:     litellmPricing.CacheCreationInputTokenCost,
+		CacheReadPricePerToken:         litellmPricing.CacheReadInputTokenCost,
+		CacheReadPricePerTokenPriority: litellmPricing.CacheReadInputTokenCostPriority,
+		CacheCreation5mPrice:           price5m,
+		CacheCreation1hPrice:           price1h,
+		SupportsCacheBreakdown:         enableBreakdown,
+		LongContextInputThreshold:      litellmPricing.LongContextInputTokenThreshold,
+		LongContextInputMultiplier:     litellmPricing.LongContextInputCostMultiplier,
+		LongContextOutputMultiplier:    litellmPricing.LongContextOutputCostMultiplier,
+		ImageOutputPricePerToken:       litellmPricing.OutputCostPerImageToken,
+	})
 }
 
 // GetModelPricingWithChannel 获取模型定价，渠道配置的价格覆盖默认值

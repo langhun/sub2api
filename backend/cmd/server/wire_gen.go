@@ -169,7 +169,11 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	billingService := service.NewBillingService(configConfig, pricingService)
+	modelPricingAdminService, errModelPricing := service.ProvideModelPricingAdminService(client, configConfig, pricingRemoteClient)
+	if errModelPricing != nil {
+		return nil, errModelPricing
+	}
+	billingService := service.NewBillingService(configConfig, pricingService, modelPricingAdminService)
 	identityService := service.NewIdentityService(identityCache)
 	deferredService := service.ProvideDeferredService(accountRepository, timingWheelService)
 	claudeTokenProvider := service.ProvideClaudeTokenProvider(accountRepository, geminiTokenCache, oAuthService, oAuthRefreshAPI)
@@ -224,7 +228,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	paymentHandler := admin.NewPaymentHandler(paymentService, paymentConfigService)
 	monitoringService := service.NewMonitoringService(db)
 	monitoringHandler := admin.NewMonitoringHandler(monitoringService)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, paymentHandler, monitoringHandler)
+	modelPricingHandler := admin.NewModelPricingHandler(modelPricingAdminService)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, paymentHandler, monitoringHandler, modelPricingHandler)
 	usageRecordWorkerPool := service.NewUsageRecordWorkerPool(configConfig)
 	userMsgQueueCache := repository.NewUserMsgQueueCache(redisClient)
 	userMessageQueueService := service.ProvideUserMessageQueueService(userMsgQueueCache, rpmCache, configConfig)
@@ -252,7 +257,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	accountExpiryService := service.ProvideAccountExpiryService(accountRepository)
 	subscriptionExpiryService := service.ProvideSubscriptionExpiryService(userSubscriptionRepository)
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, modelPricingAdminService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -306,6 +311,7 @@ func provideCleanup(
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	backupSvc *service.BackupService,
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
+	modelPricingAdmin *service.ModelPricingAdminService,
 ) func() {
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -391,6 +397,12 @@ func provideCleanup(
 			}},
 			{"PricingService", func() error {
 				pricing.Stop()
+				return nil
+			}},
+			{"ModelPricingAdminService", func() error {
+				if modelPricingAdmin != nil {
+					modelPricingAdmin.Stop()
+				}
 				return nil
 			}},
 			{"EmailQueueService", func() error {

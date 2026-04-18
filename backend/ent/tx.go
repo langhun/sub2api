@@ -32,6 +32,8 @@ type Tx struct {
 	Group *GroupClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
 	IdempotencyRecord *IdempotencyRecordClient
+	// ModelPricing is the client for interacting with the ModelPricing builders.
+	ModelPricing *ModelPricingClient
 	// PaymentAuditLog is the client for interacting with the PaymentAuditLog builders.
 	PaymentAuditLog *PaymentAuditLogClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
@@ -208,6 +210,7 @@ func (tx *Tx) init() {
 	tx.ErrorPassthroughRule = NewErrorPassthroughRuleClient(tx.config)
 	tx.Group = NewGroupClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
+	tx.ModelPricing = NewModelPricingClient(tx.config)
 	tx.PaymentAuditLog = NewPaymentAuditLogClient(tx.config)
 	tx.PaymentOrder = NewPaymentOrderClient(tx.config)
 	tx.PaymentProviderInstance = NewPaymentProviderInstanceClient(tx.config)

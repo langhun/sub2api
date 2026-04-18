@@ -36,6 +36,7 @@ func ProvideAdminHandlers(
 	channelHandler *admin.ChannelHandler,
 	paymentHandler *admin.PaymentHandler,
 	monitoringHandler *admin.MonitoringHandler,
+	modelPricingHandler *admin.ModelPricingHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:             dashboardHandler,
@@ -65,6 +66,7 @@ func ProvideAdminHandlers(
 		Channel:               channelHandler,
 		Payment:               paymentHandler,
 		Monitoring:            monitoringHandler,
+		ModelPricing:          modelPricingHandler,
 	}
 }
 
