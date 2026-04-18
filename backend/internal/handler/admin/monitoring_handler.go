@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"log"
+
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -18,6 +20,7 @@ func NewMonitoringHandler(monitoringService *service.MonitoringService) *Monitor
 func (h *MonitoringHandler) GetOverview(c *gin.Context) {
 	overview, err := h.monitoringService.GetOverview(c.Request.Context())
 	if err != nil {
+		log.Printf("[Monitoring] GetOverview failed: %v", err)
 		response.InternalError(c, "Failed to get monitoring data")
 		return
 	}

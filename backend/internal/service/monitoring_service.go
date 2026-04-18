@@ -116,11 +116,11 @@ func (s *MonitoringService) queryModelLatency(ctx context.Context, overview *Mon
 		SELECT
 			model,
 			COUNT(*) as cnt,
-			COALESCE(AVG(duration_ms), 0),
-			COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_ms), 0),
-			COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms), 0),
-			COALESCE(percentile_cont(0.99) WITHIN GROUP (ORDER BY duration_ms), 0),
-			COALESCE(AVG(first_token_ms), 0)
+			COALESCE(AVG(duration_ms), 0)::float8,
+			COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_ms), 0)::float8,
+			COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms), 0)::float8,
+			COALESCE(percentile_cont(0.99) WITHIN GROUP (ORDER BY duration_ms), 0)::float8,
+			COALESCE(AVG(first_token_ms), 0)::float8
 		FROM usage_logs
 		WHERE created_at >= $1
 		  AND duration_ms IS NOT NULL
@@ -194,7 +194,7 @@ func (s *MonitoringService) queryTodaySummary(ctx context.Context, overview *Mon
 	query := `
 		SELECT
 			COUNT(*),
-			COALESCE(AVG(duration_ms), 0)
+			COALESCE(AVG(duration_ms), 0)::float8
 		FROM usage_logs
 		WHERE created_at >= $1
 		  AND duration_ms IS NOT NULL`
