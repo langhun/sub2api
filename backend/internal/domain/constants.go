@@ -56,6 +56,9 @@ const (
 // Checkin type constant
 const AdjustmentTypeCheckin = "checkin" // 签到奖励
 
+// Registration type constant
+const AdjustmentTypeRegistration = "registration" // 注册赠送
+
 // Group subscription type constants
 const (
 	SubscriptionTypeStandard     = "standard"     // 标准计费模式（按余额扣费）

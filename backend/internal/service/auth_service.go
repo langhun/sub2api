@@ -1294,7 +1294,7 @@ func (s *AuthService) createRegistrationBonusRecord(ctx context.Context, userID 
 	now := time.Now()
 	record := &RedeemCode{
 		Code:   code,
-		Type:   RedeemTypeInvitation,
+		Type:   AdjustmentTypeRegistration,
 		Value:  defaultBalance,
 		Status: StatusUsed,
 		UsedBy: &userID,
