@@ -443,6 +443,18 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'admin.usage.description'
     }
   },
+  {
+    path: '/admin/monitoring',
+    name: 'AdminMonitoring',
+    component: () => import('@/views/admin/MonitoringView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Monitoring',
+      titleKey: 'admin.monitoring.title',
+      descriptionKey: 'admin.monitoring.description'
+    }
+  },
 
 
   // ==================== Payment Admin Routes ====================

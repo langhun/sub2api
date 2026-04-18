@@ -468,6 +468,7 @@ var ProviderSet = wire.NewSet(
 	ProvidePaymentOrderExpiryService,
 	ProvideBalanceNotifyService,
 	NewCheckinService,
+	NewMonitoringService,
 )
 
 // ProvidePaymentConfigService wraps NewPaymentConfigService to accept the named

@@ -363,7 +363,8 @@ export default {
     orderManagement: '订单管理',
     paymentDashboard: '支付概览',
     paymentConfig: '支付配置',
-    paymentPlans: '订阅套餐'
+    paymentPlans: '订阅套餐',
+    monitoring: '平台监控'
   },
 
   // Auth
@@ -3644,6 +3645,33 @@ export default {
           canceled: '已取消'
         }
       }
+    },
+
+    // Platform Monitoring
+    monitoring: {
+      title: '平台监控',
+      description: '账号健康状态、模型延迟与请求量监控',
+      todayRequests: '今日请求',
+      avgLatency: '平均延迟',
+      errorAccounts: '异常账号',
+      totalGroups: '监控分组',
+      groupHealth: '分组账号健康',
+      groupName: '分组',
+      total: '总计',
+      active: '正常',
+      error: '错误',
+      rateLimited: '限流',
+      overload: '过载',
+      disabled: '禁用',
+      modelLatency: '模型延迟 (24h)',
+      modelLatencyHint: '基于过去 24 小时的 usage_logs 数据统计',
+      model: '模型',
+      requests: '请求数',
+      errorAccountsList: '异常账号详情',
+      accountName: '账号',
+      status: '状态',
+      errorMessage: '错误信息',
+      noData: '暂无数据'
     },
 
     // Ops Monitoring
