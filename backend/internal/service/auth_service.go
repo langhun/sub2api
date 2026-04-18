@@ -207,6 +207,8 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	}
 	s.assignDefaultSubscriptions(ctx, user.ID)
 
+	s.createRegistrationBonusRecord(ctx, user.ID, defaultBalance)
+
 	// 标记邀请码为已使用（如果使用了邀请码）
 	if invitationRedeemCode != nil {
 		if err := s.redeemRepo.Use(ctx, invitationRedeemCode.ID, user.ID); err != nil {
@@ -631,6 +633,7 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					}
 					user = newUser
 					s.assignDefaultSubscriptions(ctx, user.ID)
+					s.createRegistrationBonusRecord(ctx, user.ID, defaultBalance)
 				}
 			} else {
 				if err := s.userRepo.Create(ctx, newUser); err != nil {
@@ -647,6 +650,7 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				} else {
 					user = newUser
 					s.assignDefaultSubscriptions(ctx, user.ID)
+					s.createRegistrationBonusRecord(ctx, user.ID, defaultBalance)
 					if invitationRedeemCode != nil {
 						if err := s.redeemRepo.Use(ctx, invitationRedeemCode.ID, user.ID); err != nil {
 							return nil, nil, ErrInvitationCodeInvalid
@@ -1276,4 +1280,27 @@ func (s *AuthService) RevokeAllUserSessions(ctx context.Context, userID int64) e
 func hashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
+}
+
+func (s *AuthService) createRegistrationBonusRecord(ctx context.Context, userID int64, defaultBalance float64) {
+	if defaultBalance <= 0 {
+		return
+	}
+	code, err := GenerateRedeemCode()
+	if err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to generate registration bonus code: %v", err)
+		return
+	}
+	now := time.Now()
+	record := &RedeemCode{
+		Code:   code,
+		Type:   RedeemTypeInvitation,
+		Value:  defaultBalance,
+		Status: StatusUsed,
+		UsedBy: &userID,
+		UsedAt: &now,
+	}
+	if createErr := s.redeemRepo.Create(ctx, record); createErr != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to create registration bonus redeem code for user %d: %v", userID, createErr)
+	}
 }
