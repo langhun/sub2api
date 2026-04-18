@@ -10,12 +10,12 @@
     <!-- Navigation -->
     <header class="fixed left-0 right-0 top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-xl dark:border-dark-800 dark:bg-dark-950/80">
       <nav class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <div class="flex items-center gap-3">
+        <router-link to="/home" class="flex items-center gap-3">
           <div class="h-8 w-8 overflow-hidden rounded-lg">
             <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
           </div>
           <span class="text-lg font-bold text-gray-900 dark:text-white">{{ siteName }}</span>
-        </div>
+        </router-link>
         <div class="flex items-center gap-2">
           <router-link to="/key-usage"
             class="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-white sm:flex">
