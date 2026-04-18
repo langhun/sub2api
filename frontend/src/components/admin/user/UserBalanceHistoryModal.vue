@@ -197,10 +197,11 @@ const typeOptions = computed(() => [
   { value: '', label: t('admin.users.allTypes') },
   { value: 'balance', label: t('admin.users.typeBalance') },
   { value: 'admin_balance', label: t('admin.users.typeAdminBalance') },
+  { value: 'registration', label: t('admin.users.typeRegistration') },
   { value: 'checkin', label: t('admin.users.typeCheckin') },
+  { value: 'invitation', label: t('admin.users.typeInvitation') },
   { value: 'concurrency', label: t('admin.users.typeConcurrency') },
   { value: 'admin_concurrency', label: t('admin.users.typeAdminConcurrency') },
-  { value: 'invitation', label: t('admin.users.typeInvitation') },
   { value: 'subscription', label: t('admin.users.typeSubscription') }
 ])
 
@@ -236,7 +237,7 @@ const loadHistory = async (page: number) => {
 // Helper: check if admin type
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'
 
-const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'checkin' || type === 'invitation'
+const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'checkin' || type === 'registration' || type === 'invitation'
 
 // Helper: check if subscription type
 const isSubscriptionType = (type: string) => type === 'subscription'
@@ -244,7 +245,8 @@ const isSubscriptionType = (type: string) => type === 'subscription'
 // Icon name based on type
 const getIconName = (item: BalanceHistoryItem) => {
   if (item.type === 'checkin') return 'calendar'
-  if (item.type === 'invitation') return 'gift'
+  if (item.type === 'registration') return 'gift'
+  if (item.type === 'invitation') return 'link'
   if (isBalanceType(item.type)) return 'dollar'
   if (isSubscriptionType(item.type)) return 'badge'
   return 'bolt'
@@ -253,6 +255,7 @@ const getIconName = (item: BalanceHistoryItem) => {
 // Icon background color
 const getIconBg = (item: BalanceHistoryItem) => {
   if (item.type === 'checkin') return 'bg-amber-100 dark:bg-amber-900/30'
+  if (item.type === 'registration') return 'bg-sky-100 dark:bg-sky-900/30'
   if (item.type === 'invitation') return 'bg-rose-100 dark:bg-rose-900/30'
   if (isBalanceType(item.type)) {
     return item.value >= 0
@@ -268,6 +271,7 @@ const getIconBg = (item: BalanceHistoryItem) => {
 // Icon text color
 const getIconColor = (item: BalanceHistoryItem) => {
   if (item.type === 'checkin') return 'text-amber-600 dark:text-amber-400'
+  if (item.type === 'registration') return 'text-sky-600 dark:text-sky-400'
   if (item.type === 'invitation') return 'text-rose-600 dark:text-rose-400'
   if (isBalanceType(item.type)) {
     return item.value >= 0
@@ -283,6 +287,7 @@ const getIconColor = (item: BalanceHistoryItem) => {
 // Value text color
 const getValueColor = (item: BalanceHistoryItem) => {
   if (item.type === 'checkin') return 'text-amber-600 dark:text-amber-400'
+  if (item.type === 'registration') return 'text-sky-600 dark:text-sky-400'
   if (item.type === 'invitation') return 'text-rose-600 dark:text-rose-400'
   if (isBalanceType(item.type)) {
     return item.value >= 0
@@ -304,6 +309,8 @@ const getItemTitle = (item: BalanceHistoryItem) => {
       return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
     case 'checkin':
       return t('admin.users.typeCheckin')
+    case 'registration':
+      return t('admin.users.typeRegistration')
     case 'invitation':
       return t('admin.users.typeInvitation')
     case 'concurrency':
