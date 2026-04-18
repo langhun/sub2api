@@ -90,7 +90,9 @@
                   ? 'badge-success'
                   : value === 'subscription'
                     ? 'badge-warning'
-                    : 'badge-primary'
+                    : value === 'checkin'
+                      ? 'badge-warning'
+                      : 'badge-primary'
               ]"
             >
               {{ t('admin.redeem.types.' + value) }}
@@ -521,7 +523,9 @@ const filterTypeOptions = computed(() => [
   { value: 'balance', label: t('admin.redeem.balance') },
   { value: 'concurrency', label: t('admin.redeem.concurrency') },
   { value: 'subscription', label: t('admin.redeem.subscription') },
-  { value: 'invitation', label: t('admin.redeem.invitation') }
+  { value: 'invitation', label: t('admin.redeem.invitation') },
+  { value: 'checkin', label: t('admin.redeem.types.checkin') },
+  { value: 'registration', label: t('admin.redeem.types.registration') }
 ])
 
 const filterStatusOptions = computed(() => [
