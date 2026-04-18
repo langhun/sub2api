@@ -40,12 +40,12 @@ type ModelLatency struct {
 }
 
 type GroupModelStats struct {
-	GroupID      int64  `json:"group_id"`
-	GroupName    string `json:"group_name"`
-	Model        string `json:"model"`
-	RequestCount int    `json:"request_count"`
-	SuccessCount int    `json:"success_count"`
-	ErrorCount   int    `json:"error_count"`
+	GroupID      int64   `json:"group_id"`
+	GroupName    string  `json:"group_name"`
+	Model        string  `json:"model"`
+	RequestCount int     `json:"request_count"`
+	SuccessCount int     `json:"success_count"`
+	ErrorCount   int     `json:"error_count"`
 	AvgLatencyMs float64 `json:"avg_latency_ms"`
 	P50LatencyMs float64 `json:"p50_latency_ms"`
 	P95LatencyMs float64 `json:"p95_latency_ms"`
@@ -104,17 +104,18 @@ func (s *MonitoringService) queryGroupHealth(ctx context.Context, overview *Moni
 		SELECT
 			g.id,
 			COALESCE(g.name, ''),
-			COUNT(a.id),
-			COUNT(a.id) FILTER (WHERE a.status = 'active' AND a.schedulable = true
+			COUNT(DISTINCT ag.account_id),
+			COUNT(DISTINCT ag.account_id) FILTER (WHERE a.status = 'active' AND a.schedulable = true
 				AND (a.rate_limited_at IS NULL OR a.rate_limit_reset_at <= $1)
 				AND (a.overload_until IS NULL OR a.overload_until <= $1)
 				AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $1)),
-			COUNT(a.id) FILTER (WHERE a.status = 'error'),
-			COUNT(a.id) FILTER (WHERE a.rate_limited_at IS NOT NULL AND a.rate_limit_reset_at > $1),
-			COUNT(a.id) FILTER (WHERE a.overload_until IS NOT NULL AND a.overload_until > $1),
-			COUNT(a.id) FILTER (WHERE a.status = 'disabled' OR a.schedulable = false)
+			COUNT(DISTINCT ag.account_id) FILTER (WHERE a.status = 'error'),
+			COUNT(DISTINCT ag.account_id) FILTER (WHERE a.rate_limited_at IS NOT NULL AND a.rate_limit_reset_at > $1),
+			COUNT(DISTINCT ag.account_id) FILTER (WHERE a.overload_until IS NOT NULL AND a.overload_until > $1),
+			COUNT(DISTINCT ag.account_id) FILTER (WHERE a.status = 'disabled' OR a.schedulable = false)
 		FROM groups g
-		LEFT JOIN accounts a ON a.group_accounts = g.id AND a.deleted_at IS NULL
+		LEFT JOIN account_groups ag ON ag.group_id = g.id
+		LEFT JOIN accounts a ON a.id = ag.account_id AND a.deleted_at IS NULL
 		WHERE g.deleted_at IS NULL
 		GROUP BY g.id, g.name
 		ORDER BY g.name`
@@ -219,7 +220,8 @@ func (s *MonitoringService) queryErrorAccounts(ctx context.Context, overview *Mo
 			a.rate_limited_at,
 			a.overload_until
 		FROM accounts a
-		LEFT JOIN groups g ON a.group_accounts = g.id
+		LEFT JOIN account_groups ag ON ag.account_id = a.id
+		LEFT JOIN groups g ON g.id = ag.group_id
 		WHERE a.deleted_at IS NULL
 		  AND (a.status = 'error'
 		       OR (a.rate_limited_at IS NOT NULL AND a.rate_limit_reset_at > NOW())
