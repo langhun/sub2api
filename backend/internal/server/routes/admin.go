@@ -88,6 +88,9 @@ func RegisterAdminRoutes(
 
 		// 渠道管理
 		registerChannelRoutes(admin, h)
+
+		// 监控面板
+		registerMonitoringRoutes(admin, h)
 	}
 }
 
@@ -561,5 +564,12 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		channels.POST("", h.Admin.Channel.Create)
 		channels.PUT("/:id", h.Admin.Channel.Update)
 		channels.DELETE("/:id", h.Admin.Channel.Delete)
+	}
+}
+
+func registerMonitoringRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	monitoring := admin.Group("/monitoring")
+	{
+		monitoring.GET("/overview", h.Admin.Monitoring.GetOverview)
 	}
 }

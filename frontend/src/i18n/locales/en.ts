@@ -363,7 +363,8 @@ export default {
     orderManagement: 'Orders',
     paymentDashboard: 'Payment Dashboard',
     paymentConfig: 'Payment Config',
-    paymentPlans: 'Plans'
+    paymentPlans: 'Plans',
+    monitoring: 'Monitoring'
   },
 
   // Auth
@@ -3486,6 +3487,33 @@ export default {
           canceled: 'Canceled'
         }
       }
+    },
+
+    // Platform Monitoring
+    monitoring: {
+      title: 'Platform Monitoring',
+      description: 'Account health, model latency and request volume monitoring',
+      todayRequests: 'Requests Today',
+      avgLatency: 'Avg Latency',
+      errorAccounts: 'Error Accounts',
+      totalGroups: 'Groups',
+      groupHealth: 'Group Account Health',
+      groupName: 'Group',
+      total: 'Total',
+      active: 'Active',
+      error: 'Error',
+      rateLimited: 'Rate Limited',
+      overload: 'Overload',
+      disabled: 'Disabled',
+      modelLatency: 'Model Latency (24h)',
+      modelLatencyHint: 'Based on usage_logs from the past 24 hours',
+      model: 'Model',
+      requests: 'Requests',
+      errorAccountsList: 'Error Account Details',
+      accountName: 'Account',
+      status: 'Status',
+      errorMessage: 'Error Message',
+      noData: 'No data available'
     },
 
     // Ops Monitoring
