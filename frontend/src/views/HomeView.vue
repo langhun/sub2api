@@ -17,6 +17,14 @@
           <span class="text-lg font-bold text-gray-900 dark:text-white">{{ siteName }}</span>
         </div>
         <div class="flex items-center gap-2">
+          <router-link to="/key-usage"
+            class="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-white sm:flex">
+            {{ t('home.keyUsage') }}
+          </router-link>
+          <router-link to="/monitoring"
+            class="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-white sm:flex">
+            {{ t('admin.monitoring.title') }}
+          </router-link>
           <LocaleSwitcher />
           <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer"
             class="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-white sm:flex">
@@ -111,7 +119,9 @@
         </p>
         <div class="flex flex-wrap items-center justify-center gap-10">
           <div v-for="p in providers" :key="p.name" class="flex flex-col items-center gap-2">
-            <img :src="p.icon" :alt="p.name" class="h-8 w-8 dark:invert" />
+            <div class="flex h-10 w-10 items-center justify-center">
+              <ModelIcon :model="p.model" size="32px" />
+            </div>
             <span class="text-sm font-semibold text-gray-700 dark:text-dark-200">{{ p.name }}</span>
           </div>
         </div>
@@ -242,17 +252,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
-import claudeIcon from '@/assets/icons/claude.svg'
-import openaiIcon from '@/assets/icons/openai.svg'
-import geminiIcon from '@/assets/icons/gemini.svg'
-import deepseekIcon from '@/assets/icons/deepseek.svg'
-import glmIcon from '@/assets/icons/glm.svg'
-import qwenIcon from '@/assets/icons/qwen.svg'
-import kimiIcon from '@/assets/icons/kimi.svg'
-import minimaxIcon from '@/assets/icons/minimax.svg'
-import yiIcon from '@/assets/icons/yi.svg'
-import mistralIcon from '@/assets/icons/mistral.svg'
-import llamaIcon from '@/assets/icons/llama.svg'
+import ModelIcon from '@/components/common/ModelIcon.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -275,17 +275,17 @@ const dashboardPath = computed(() => isAdmin.value ? '/admin/dashboard' : '/dash
 const currentYear = computed(() => new Date().getFullYear())
 
 const providers = [
-  { name: 'Claude', icon: claudeIcon },
-  { name: 'OpenAI', icon: openaiIcon },
-  { name: 'Gemini', icon: geminiIcon },
-  { name: 'DeepSeek', icon: deepseekIcon },
-  { name: 'GLM', icon: glmIcon },
-  { name: 'Qwen', icon: qwenIcon },
-  { name: 'Kimi', icon: kimiIcon },
-  { name: 'MiniMax', icon: minimaxIcon },
-  { name: 'Yi', icon: yiIcon },
-  { name: 'Mistral', icon: mistralIcon },
-  { name: 'Llama', icon: llamaIcon },
+  { name: 'Claude', model: 'claude-sonnet-4-5' },
+  { name: 'OpenAI', model: 'gpt-4o' },
+  { name: 'Gemini', model: 'gemini-2.5-pro' },
+  { name: 'DeepSeek', model: 'deepseek-chat' },
+  { name: 'GLM', model: 'glm-4' },
+  { name: 'Qwen', model: 'qwen-max' },
+  { name: 'Kimi', model: 'kimi' },
+  { name: 'MiniMax', model: 'minimax' },
+  { name: 'Yi', model: 'yi-lightning' },
+  { name: 'Mistral', model: 'mistral-large' },
+  { name: 'Llama', model: 'llama-4' },
 ]
 
 const featureItems = computed(() => [
