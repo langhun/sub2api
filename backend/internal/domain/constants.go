@@ -53,6 +53,9 @@ const (
 	AdjustmentTypeAdminConcurrency = "admin_concurrency" // 管理员调整并发数
 )
 
+// Checkin type constant
+const AdjustmentTypeCheckin = "checkin" // 签到奖励
+
 // Group subscription type constants
 const (
 	SubscriptionTypeStandard     = "standard"     // 标准计费模式（按余额扣费）

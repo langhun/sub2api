@@ -10,6 +10,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
 var (
@@ -36,6 +37,7 @@ type CheckinStatus struct {
 type CheckinService struct {
 	entClient            *dbent.Client
 	userRepo             UserRepository
+	redeemCodeRepo       RedeemCodeRepository
 	settingService       *SettingService
 	billingCacheService  *BillingCacheService
 	authCacheInvalidator APIKeyAuthCacheInvalidator
@@ -44,6 +46,7 @@ type CheckinService struct {
 func NewCheckinService(
 	entClient *dbent.Client,
 	userRepo UserRepository,
+	redeemCodeRepo RedeemCodeRepository,
 	settingService *SettingService,
 	billingCacheService *BillingCacheService,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
@@ -51,6 +54,7 @@ func NewCheckinService(
 	return &CheckinService{
 		entClient:            entClient,
 		userRepo:             userRepo,
+		redeemCodeRepo:       redeemCodeRepo,
 		settingService:       settingService,
 		billingCacheService:  billingCacheService,
 		authCacheInvalidator: authCacheInvalidator,
@@ -119,6 +123,22 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 
 	if err := s.userRepo.UpdateBalance(txCtx, userID, rewardAmount); err != nil {
 		return nil, fmt.Errorf("update user balance: %w", err)
+	}
+
+	code, err := GenerateRedeemCode()
+	if err == nil {
+		now := time.Now()
+		adjustmentRecord := &RedeemCode{
+			Code:   code,
+			Type:   AdjustmentTypeCheckin,
+			Value:  rewardAmount,
+			Status: StatusUsed,
+			UsedBy: &userID,
+			UsedAt: &now,
+		}
+		if createErr := s.redeemCodeRepo.Create(txCtx, adjustmentRecord); createErr != nil {
+			logger.LegacyPrintf("service.checkin", "failed to create checkin redeem code record: %v", createErr)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

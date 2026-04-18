@@ -1566,6 +1566,7 @@ export default {
       allTypes: '全部类型',
       typeBalance: '余额（兑换码）',
       typeAdminBalance: '余额（管理员调整）',
+      typeCheckin: '每日签到奖励',
       typeConcurrency: '并发（兑换码）',
       typeAdminConcurrency: '并发（管理员调整）',
       typeSubscription: '订阅',

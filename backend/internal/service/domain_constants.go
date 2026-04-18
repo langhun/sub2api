@@ -53,6 +53,7 @@ const (
 const (
 	AdjustmentTypeAdminBalance     = domain.AdjustmentTypeAdminBalance     // 管理员调整余额
 	AdjustmentTypeAdminConcurrency = domain.AdjustmentTypeAdminConcurrency // 管理员调整并发数
+	AdjustmentTypeCheckin          = domain.AdjustmentTypeCheckin          // 签到奖励
 )
 
 // Group subscription type constants

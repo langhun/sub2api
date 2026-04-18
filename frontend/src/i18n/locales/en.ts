@@ -1507,6 +1507,7 @@ export default {
       allTypes: 'All Types',
       typeBalance: 'Balance (Redeem)',
       typeAdminBalance: 'Balance (Admin)',
+      typeCheckin: 'Daily Check-in Reward',
       typeConcurrency: 'Concurrency (Redeem)',
       typeAdminConcurrency: 'Concurrency (Admin)',
       typeSubscription: 'Subscription',
