@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -27,13 +28,28 @@ type GroupHealth struct {
 }
 
 type ModelLatency struct {
-	Model         string  `json:"model"`
-	RequestCount  int     `json:"request_count"`
-	AvgLatencyMs  float64 `json:"avg_latency_ms"`
-	P50LatencyMs  float64 `json:"p50_latency_ms"`
-	P95LatencyMs  float64 `json:"p95_latency_ms"`
-	P99LatencyMs  float64 `json:"p99_latency_ms"`
+	Model           string  `json:"model"`
+	RequestCount    int     `json:"request_count"`
+	SuccessCount    int     `json:"success_count"`
+	ErrorCount      int     `json:"error_count"`
+	AvgLatencyMs    float64 `json:"avg_latency_ms"`
+	P50LatencyMs    float64 `json:"p50_latency_ms"`
+	P95LatencyMs    float64 `json:"p95_latency_ms"`
+	P99LatencyMs    float64 `json:"p99_latency_ms"`
 	AvgFirstTokenMs float64 `json:"avg_first_token_ms"`
+}
+
+type GroupModelStats struct {
+	GroupID      int64  `json:"group_id"`
+	GroupName    string `json:"group_name"`
+	Model        string `json:"model"`
+	RequestCount int    `json:"request_count"`
+	SuccessCount int    `json:"success_count"`
+	ErrorCount   int    `json:"error_count"`
+	AvgLatencyMs float64 `json:"avg_latency_ms"`
+	P50LatencyMs float64 `json:"p50_latency_ms"`
+	P95LatencyMs float64 `json:"p95_latency_ms"`
+	AvgTTFT      float64 `json:"avg_ttft"`
 }
 
 type ErrorAccount struct {
@@ -47,26 +63,35 @@ type ErrorAccount struct {
 }
 
 type MonitoringOverview struct {
-	Groups         []GroupHealth  `json:"groups"`
-	ModelLatencies []ModelLatency `json:"model_latencies"`
-	ErrorAccounts  []ErrorAccount `json:"error_accounts"`
-	TotalRequests  int64          `json:"total_requests_today"`
-	AvgLatencyMs   float64        `json:"avg_latency_ms_today"`
+	Groups         []GroupHealth     `json:"groups"`
+	GroupModels    []GroupModelStats `json:"group_models"`
+	ModelLatencies []ModelLatency    `json:"model_latencies"`
+	ErrorAccounts  []ErrorAccount    `json:"error_accounts"`
+	TotalRequests  int64             `json:"total_requests_today"`
+	AvgLatencyMs   float64           `json:"avg_latency_ms_today"`
 }
 
 func (s *MonitoringService) GetOverview(ctx context.Context) (*MonitoringOverview, error) {
 	overview := &MonitoringOverview{}
 
 	if err := s.queryGroupHealth(ctx, overview); err != nil {
+		log.Printf("[Monitoring] queryGroupHealth error: %v", err)
 		return nil, fmt.Errorf("query group health: %w", err)
 	}
+	if err := s.queryGroupModelStats(ctx, overview); err != nil {
+		log.Printf("[Monitoring] queryGroupModelStats error: %v", err)
+		return nil, fmt.Errorf("query group model stats: %w", err)
+	}
 	if err := s.queryModelLatency(ctx, overview); err != nil {
+		log.Printf("[Monitoring] queryModelLatency error: %v", err)
 		return nil, fmt.Errorf("query model latency: %w", err)
 	}
 	if err := s.queryErrorAccounts(ctx, overview); err != nil {
+		log.Printf("[Monitoring] queryErrorAccounts error: %v", err)
 		return nil, fmt.Errorf("query error accounts: %w", err)
 	}
 	if err := s.queryTodaySummary(ctx, overview); err != nil {
+		log.Printf("[Monitoring] queryTodaySummary error: %v", err)
 		return nil, fmt.Errorf("query today summary: %w", err)
 	}
 
@@ -110,24 +135,62 @@ func (s *MonitoringService) queryGroupHealth(ctx context.Context, overview *Moni
 	return rows.Err()
 }
 
+func (s *MonitoringService) queryGroupModelStats(ctx context.Context, overview *MonitoringOverview) error {
+	since := time.Now().UTC().Add(-24 * time.Hour)
+	query := `
+		SELECT
+			g.id,
+			COALESCE(g.name, ''),
+			u.model,
+			COUNT(*) as cnt,
+			COUNT(*) FILTER (WHERE u.output_tokens > 0) as success_cnt,
+			COUNT(*) FILTER (WHERE u.output_tokens = 0) as error_cnt,
+			COALESCE(AVG(u.duration_ms) FILTER (WHERE u.duration_ms IS NOT NULL AND u.duration_ms > 0), 0)::float8,
+			COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY u.duration_ms) FILTER (WHERE u.duration_ms IS NOT NULL AND u.duration_ms > 0), 0)::float8,
+			COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY u.duration_ms) FILTER (WHERE u.duration_ms IS NOT NULL AND u.duration_ms > 0), 0)::float8,
+			COALESCE(AVG(u.first_token_ms) FILTER (WHERE u.first_token_ms IS NOT NULL AND u.first_token_ms > 0), 0)::float8
+		FROM usage_logs u
+		JOIN groups g ON u.group_id = g.id
+		WHERE u.created_at >= $1
+		  AND g.deleted_at IS NULL
+		GROUP BY g.id, g.name, u.model
+		HAVING COUNT(*) > 0
+		ORDER BY g.name, cnt DESC`
+
+	rows, err := s.db.QueryContext(ctx, query, since)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var m GroupModelStats
+		if err := rows.Scan(&m.GroupID, &m.GroupName, &m.Model, &m.RequestCount, &m.SuccessCount, &m.ErrorCount, &m.AvgLatencyMs, &m.P50LatencyMs, &m.P95LatencyMs, &m.AvgTTFT); err != nil {
+			return err
+		}
+		overview.GroupModels = append(overview.GroupModels, m)
+	}
+	return rows.Err()
+}
+
 func (s *MonitoringService) queryModelLatency(ctx context.Context, overview *MonitoringOverview) error {
 	since := time.Now().UTC().Add(-24 * time.Hour)
 	query := `
 		SELECT
 			model,
 			COUNT(*) as cnt,
-			COALESCE(AVG(duration_ms), 0)::float8,
-			COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_ms), 0)::float8,
-			COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms), 0)::float8,
-			COALESCE(percentile_cont(0.99) WITHIN GROUP (ORDER BY duration_ms), 0)::float8,
-			COALESCE(AVG(first_token_ms), 0)::float8
+			COUNT(*) FILTER (WHERE output_tokens > 0) as success_cnt,
+			COUNT(*) FILTER (WHERE output_tokens = 0) as error_cnt,
+			COALESCE(AVG(duration_ms) FILTER (WHERE duration_ms IS NOT NULL AND duration_ms > 0), 0)::float8,
+			COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_ms) FILTER (WHERE duration_ms IS NOT NULL AND duration_ms > 0), 0)::float8,
+			COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) FILTER (WHERE duration_ms IS NOT NULL AND duration_ms > 0), 0)::float8,
+			COALESCE(percentile_cont(0.99) WITHIN GROUP (ORDER BY duration_ms) FILTER (WHERE duration_ms IS NOT NULL AND duration_ms > 0), 0)::float8,
+			COALESCE(AVG(first_token_ms) FILTER (WHERE first_token_ms IS NOT NULL AND first_token_ms > 0), 0)::float8
 		FROM usage_logs
 		WHERE created_at >= $1
-		  AND duration_ms IS NOT NULL
-		  AND duration_ms > 0
 		GROUP BY model
 		ORDER BY cnt DESC
-		LIMIT 20`
+		LIMIT 30`
 
 	rows, err := s.db.QueryContext(ctx, query, since)
 	if err != nil {
@@ -137,7 +200,7 @@ func (s *MonitoringService) queryModelLatency(ctx context.Context, overview *Mon
 
 	for rows.Next() {
 		var m ModelLatency
-		if err := rows.Scan(&m.Model, &m.RequestCount, &m.AvgLatencyMs, &m.P50LatencyMs, &m.P95LatencyMs, &m.P99LatencyMs, &m.AvgFirstTokenMs); err != nil {
+		if err := rows.Scan(&m.Model, &m.RequestCount, &m.SuccessCount, &m.ErrorCount, &m.AvgLatencyMs, &m.P50LatencyMs, &m.P95LatencyMs, &m.P99LatencyMs, &m.AvgFirstTokenMs); err != nil {
 			return err
 		}
 		overview.ModelLatencies = append(overview.ModelLatencies, m)

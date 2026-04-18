@@ -3513,7 +3513,8 @@ export default {
       accountName: 'Account',
       status: 'Status',
       errorMessage: 'Error Message',
-      noData: 'No data available'
+      noData: 'No data available',
+      last24h: 'Last 24 hours'
     },
 
     // Ops Monitoring

@@ -3671,7 +3671,8 @@ export default {
       accountName: '账号',
       status: '状态',
       errorMessage: '错误信息',
-      noData: '暂无数据'
+      noData: '暂无数据',
+      last24h: '近 24 小时数据'
     },
 
     // Ops Monitoring
