@@ -66,11 +66,11 @@
             <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ data?.total_requests_today?.toLocaleString() ?? '-' }}</p>
           </div>
           <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-            <p class="text-sm text-green-600 dark:text-green-400">Success</p>
+            <p class="text-sm text-green-600 dark:text-green-400">{{ t('admin.monitoring.success') }}</p>
             <p class="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">{{ data?.success_count_today?.toLocaleString() ?? '-' }}</p>
           </div>
           <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-            <p class="text-sm text-red-500 dark:text-red-400">Errors</p>
+            <p class="text-sm text-red-500 dark:text-red-400">{{ t('admin.monitoring.errors') }}</p>
             <p class="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">{{ data?.error_count_today?.toLocaleString() ?? '-' }}</p>
           </div>
           <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
@@ -80,6 +80,33 @@
           <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.totalGroups') }}</p>
             <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ data?.groups?.length ?? 0 }}</p>
+          </div>
+        </div>
+
+        <!-- 24h Hourly Success Rate Bar -->
+        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+          <div class="mb-3 flex items-center justify-between">
+            <p class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('admin.monitoring.hourlySuccessRate') }}</p>
+            <div class="flex items-center gap-3 text-xs text-gray-400 dark:text-dark-500">
+              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-green-500"></span> ≥95%</span>
+              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-amber-500"></span> ≥80%</span>
+              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-red-500"></span> &lt;80%</span>
+              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-gray-300 dark:bg-dark-600"></span> {{ t('admin.monitoring.noData') }}</span>
+            </div>
+          </div>
+          <div class="flex gap-0.5" style="height: 32px;">
+            <div v-for="(h, i) in hourlyData" :key="i"
+              class="relative flex-1 rounded-sm transition-colors cursor-pointer group"
+              :class="hourColor(h.rate)"
+              :title="hourTooltip(i, h)">
+              <div class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 shadow-lg group-hover:opacity-100 dark:bg-dark-700">
+                {{ hourTooltip(i, h) }}
+              </div>
+            </div>
+          </div>
+          <div class="mt-1.5 flex justify-between text-xs text-gray-400 dark:text-dark-500">
+            <span>-24h</span>
+            <span>now</span>
           </div>
         </div>
 
@@ -95,11 +122,11 @@
             <table class="w-full">
               <thead>
                 <tr class="border-b border-gray-100 bg-gray-50 dark:border-dark-700 dark:bg-dark-800">
-                  <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">Model</th>
-                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">Requests</th>
-                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-green-600 dark:text-green-400">Success</th>
-                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-red-500 dark:text-red-400">Errors</th>
-                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">Success Rate</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.model') }}</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.requests') }}</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-green-600 dark:text-green-400">{{ t('admin.monitoring.success') }}</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-red-500 dark:text-red-400">{{ t('admin.monitoring.errors') }}</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.successRate') }}</th>
                   <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">AVG</th>
                   <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-amber-500 dark:text-amber-400">P95</th>
                   <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">TTFT</th>
@@ -148,9 +175,9 @@
                 <tr class="border-b border-gray-100 bg-gray-50 dark:border-dark-700 dark:bg-dark-800">
                   <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.model') }}</th>
                   <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.requests') }}</th>
-                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-green-600 dark:text-green-400">Success</th>
-                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-red-500 dark:text-red-400">Errors</th>
-                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">Success Rate</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-green-600 dark:text-green-400">{{ t('admin.monitoring.success') }}</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-red-500 dark:text-red-400">{{ t('admin.monitoring.errors') }}</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.successRate') }}</th>
                   <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">AVG</th>
                   <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-amber-500 dark:text-amber-400">P95</th>
                   <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-red-500 dark:text-red-400">P99</th>
@@ -293,6 +320,50 @@ function successRateTextColor(success: number, total: number): string {
   if (rate >= 0.95) return 'text-green-600 dark:text-green-400'
   if (rate >= 0.8) return 'text-amber-600 dark:text-amber-400'
   return 'text-red-600 dark:text-red-400'
+}
+
+interface HourBucket {
+  total: number
+  success: number
+  rate: number | null
+}
+
+const hourlyData = computed<HourBucket[]>(() => {
+  const buckets: HourBucket[] = []
+  const now = new Date()
+  for (let i = 23; i >= 0; i--) {
+    const hourStart = new Date(now.getTime() - (i + 1) * 3600000)
+    const hourEnd = new Date(now.getTime() - i * 3600000)
+    let total = 0
+    let success = 0
+    if (data.value?.hourly_stats) {
+      for (const h of data.value.hourly_stats) {
+        const d = new Date(h.hour)
+        if (d >= hourStart && d < hourEnd) {
+          total = h.total
+          success = h.success
+          break
+        }
+      }
+    }
+    buckets.push({ total, success, rate: total > 0 ? success / total : null })
+  }
+  return buckets
+})
+
+function hourColor(rate: number | null): string {
+  if (rate === null) return 'bg-gray-200 dark:bg-dark-600'
+  if (rate >= 0.95) return 'bg-green-500'
+  if (rate >= 0.8) return 'bg-amber-500'
+  return 'bg-red-500'
+}
+
+function hourTooltip(index: number, h: HourBucket): string {
+  const now = new Date()
+  const hourStart = new Date(now.getTime() - (24 - index) * 3600000)
+  const hStr = hourStart.getHours().toString().padStart(2, '0') + ':00'
+  if (h.rate === null) return `${hStr} - ${t('admin.monitoring.noData')}`
+  return `${hStr} | ${h.total} ${t('admin.monitoring.requests')} | ${(h.rate * 100).toFixed(1)}% ${t('admin.monitoring.successRate')}`
 }
 
 onMounted(refresh)

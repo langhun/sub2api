@@ -36,11 +36,18 @@ export interface GroupModelStats {
   avg_ttft: number
 }
 
+export interface HourlyStats {
+  hour: string
+  total: number
+  success: number
+}
+
 export interface MonitoringOverview {
   groups: GroupHealth[]
   group_models: GroupModelStats[]
   model_latencies: ModelLatency[]
   error_accounts: ErrorAccount[]
+  hourly_stats: HourlyStats[]
   total_requests_today: number
   success_count_today: number
   error_count_today: number
