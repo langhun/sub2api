@@ -84,29 +84,33 @@
         </div>
 
         <!-- 24h Hourly Success Rate Bar -->
-        <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-          <div class="mb-3 flex items-center justify-between">
+        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+          <div class="mb-4 flex items-center justify-between">
             <p class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('admin.monitoring.hourlySuccessRate') }}</p>
-            <div class="flex items-center gap-3 text-xs text-gray-400 dark:text-dark-500">
-              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-green-500"></span> ≥95%</span>
-              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-amber-500"></span> ≥80%</span>
-              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-red-500"></span> &lt;80%</span>
-              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-gray-300 dark:bg-dark-600"></span> {{ t('admin.monitoring.noData') }}</span>
+            <div class="flex items-center gap-4 text-xs text-gray-400 dark:text-dark-500">
+              <span class="flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-sm bg-green-500"></span> ≥95%</span>
+              <span class="flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500"></span> ≥80%</span>
+              <span class="flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-sm bg-red-500"></span> &lt;80%</span>
+              <span class="flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-sm bg-gray-200 dark:bg-dark-700"></span> {{ t('admin.monitoring.noData') }}</span>
             </div>
           </div>
-          <div class="flex gap-0.5" style="height: 32px;">
+          <div class="flex gap-[3px]" style="height: 40px;">
             <div v-for="(h, i) in hourlyData" :key="i"
-              class="relative flex-1 rounded-sm transition-colors cursor-pointer group"
+              class="relative flex-1 rounded transition-all cursor-pointer group hover:opacity-80"
               :class="hourColor(h.rate)"
               :title="hourTooltip(i, h)">
-              <div class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 shadow-lg group-hover:opacity-100 dark:bg-dark-700">
+              <div class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-dark-600">
                 {{ hourTooltip(i, h) }}
+                <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-dark-600"></div>
               </div>
             </div>
           </div>
-          <div class="mt-1.5 flex justify-between text-xs text-gray-400 dark:text-dark-500">
-            <span>-24h</span>
-            <span>now</span>
+          <div class="mt-2 flex justify-between text-[10px] tabular-nums text-gray-400 dark:text-dark-500">
+            <span>{{ hourLabel(0) }}</span>
+            <span>{{ hourLabel(6) }}</span>
+            <span>{{ hourLabel(12) }}</span>
+            <span>{{ hourLabel(18) }}</span>
+            <span>{{ hourLabel(23) }}</span>
           </div>
         </div>
 
@@ -127,6 +131,7 @@
                   <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-green-600 dark:text-green-400">{{ t('admin.monitoring.success') }}</th>
                   <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-red-500 dark:text-red-400">{{ t('admin.monitoring.errors') }}</th>
                   <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.successRate') }}</th>
+                  <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.hourlySuccessRate') }}</th>
                   <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">AVG</th>
                   <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-amber-500 dark:text-amber-400">P95</th>
                   <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">TTFT</th>
@@ -148,6 +153,18 @@
                         <div class="h-full rounded-full" :class="successRateColor(m.success_count, m.request_count)" :style="{ width: successRateWidth(m.success_count, m.request_count) }"></div>
                       </div>
                       <span class="text-sm" :class="successRateTextColor(m.success_count, m.request_count)">{{ successRate(m.success_count, m.request_count) }}</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex gap-[1px]" style="height: 16px; min-width: 100px;">
+                      <div v-for="(h, hi) in getModelHourly(m.group_id, m.model)" :key="hi"
+                        class="relative flex-1 rounded-[1px] transition-colors cursor-pointer group/cell"
+                        :class="hourColorMini(h.rate)"
+                        :title="modelHourTooltip(m.model, hi, h)">
+                        <div class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-[10px] text-white opacity-0 shadow-lg group-hover/cell:opacity-100 dark:bg-dark-600">
+                          {{ modelHourTooltip(m.model, hi, h) }}
+                        </div>
+                      </div>
                     </div>
                   </td>
                   <td class="px-6 py-3 text-right text-sm text-gray-700 dark:text-dark-200">{{ formatMs(m.avg_latency_ms) }}</td>
@@ -351,11 +368,47 @@ const hourlyData = computed<HourBucket[]>(() => {
   return buckets
 })
 
+function getModelHourly(groupId: number, model: string): HourBucket[] {
+  const now = new Date()
+  const stats = data.value?.model_hourly_stats ?? []
+  const buckets: HourBucket[] = []
+  for (let i = 23; i >= 0; i--) {
+    const hourStart = new Date(now.getTime() - (i + 1) * 3600000)
+    const hourEnd = new Date(now.getTime() - i * 3600000)
+    let total = 0
+    let success = 0
+    for (const h of stats) {
+      if (h.group_id !== groupId || h.model !== model) continue
+      const d = new Date(h.hour)
+      if (d >= hourStart && d < hourEnd) {
+        total = h.total
+        success = h.success
+        break
+      }
+    }
+    buckets.push({ total, success, rate: total > 0 ? success / total : null })
+  }
+  return buckets
+}
+
 function hourColor(rate: number | null): string {
-  if (rate === null) return 'bg-gray-200 dark:bg-dark-600'
+  if (rate === null) return 'bg-gray-200 dark:bg-dark-700'
   if (rate >= 0.95) return 'bg-green-500'
   if (rate >= 0.8) return 'bg-amber-500'
   return 'bg-red-500'
+}
+
+function hourColorMini(rate: number | null): string {
+  if (rate === null) return 'bg-gray-200 dark:bg-dark-700'
+  if (rate >= 0.95) return 'bg-green-400'
+  if (rate >= 0.8) return 'bg-amber-400'
+  return 'bg-red-400'
+}
+
+function hourLabel(index: number): string {
+  const now = new Date()
+  const hourStart = new Date(now.getTime() - (24 - index) * 3600000)
+  return hourStart.getHours().toString().padStart(2, '0') + ':00'
 }
 
 function hourTooltip(index: number, h: HourBucket): string {
@@ -364,6 +417,14 @@ function hourTooltip(index: number, h: HourBucket): string {
   const hStr = hourStart.getHours().toString().padStart(2, '0') + ':00'
   if (h.rate === null) return `${hStr} - ${t('admin.monitoring.noData')}`
   return `${hStr} | ${h.total} ${t('admin.monitoring.requests')} | ${(h.rate * 100).toFixed(1)}% ${t('admin.monitoring.successRate')}`
+}
+
+function modelHourTooltip(model: string, index: number, h: HourBucket): string {
+  const now = new Date()
+  const hourStart = new Date(now.getTime() - (24 - index) * 3600000)
+  const hStr = hourStart.getHours().toString().padStart(2, '0') + ':00'
+  if (h.rate === null) return `${model} ${hStr} - ${t('admin.monitoring.noData')}`
+  return `${model} ${hStr} | ${h.total} req | ${(h.rate * 100).toFixed(1)}%`
 }
 
 onMounted(refresh)

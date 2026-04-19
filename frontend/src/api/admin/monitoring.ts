@@ -42,12 +42,21 @@ export interface HourlyStats {
   success: number
 }
 
+export interface ModelHourlyStats {
+  group_id: number
+  model: string
+  hour: string
+  total: number
+  success: number
+}
+
 export interface MonitoringOverview {
   groups: GroupHealth[]
   group_models: GroupModelStats[]
   model_latencies: ModelLatency[]
   error_accounts: ErrorAccount[]
   hourly_stats: HourlyStats[]
+  model_hourly_stats: ModelHourlyStats[]
   total_requests_today: number
   success_count_today: number
   error_count_today: number
