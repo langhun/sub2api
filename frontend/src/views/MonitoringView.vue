@@ -1,5 +1,5 @@
 <template>
-  <div class="relative flex min-h-screen flex-col bg-gray-50 dark:bg-dark-950">
+  <div class="relative flex min-h-screen flex-col overflow-x-hidden bg-gray-50 dark:bg-dark-950">
     <header class="relative z-20 border-b border-gray-100 bg-white/80 backdrop-blur-xl dark:border-dark-800 dark:bg-dark-950/80">
       <nav class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <router-link to="/home" class="flex items-center gap-3">
@@ -65,33 +65,33 @@
 
         <!-- Summary Cards -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
-          <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-            <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.todayRequests') }}</p>
-            <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ data?.total_requests_today?.toLocaleString() ?? '-' }}</p>
+          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+            <p class="text-xs text-gray-500 dark:text-dark-400 sm:text-sm">{{ t('admin.monitoring.todayRequests') }}</p>
+            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ data?.total_requests_today?.toLocaleString() ?? '-' }}</p>
           </div>
-          <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-            <p class="text-sm text-green-600 dark:text-green-400">{{ t('admin.monitoring.success') }}</p>
-            <p class="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">{{ data?.success_count_today?.toLocaleString() ?? '-' }}</p>
+          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+            <p class="text-xs text-green-600 dark:text-green-400 sm:text-sm">{{ t('admin.monitoring.success') }}</p>
+            <p class="mt-1 text-lg font-bold text-green-600 dark:text-green-400 sm:text-2xl">{{ data?.success_count_today?.toLocaleString() ?? '-' }}</p>
           </div>
-          <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-            <p class="text-sm text-red-500 dark:text-red-400">{{ t('admin.monitoring.errors') }}</p>
-            <p class="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">{{ data?.error_count_today?.toLocaleString() ?? '-' }}</p>
+          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+            <p class="text-xs text-red-500 dark:text-red-400 sm:text-sm">{{ t('admin.monitoring.errors') }}</p>
+            <p class="mt-1 text-lg font-bold text-red-600 dark:text-red-400 sm:text-2xl">{{ data?.error_count_today?.toLocaleString() ?? '-' }}</p>
           </div>
-          <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-            <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.avgLatency') }}</p>
-            <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ data ? Math.round(data.avg_latency_ms_today) + 'ms' : '-' }}</p>
+          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+            <p class="text-xs text-gray-500 dark:text-dark-400 sm:text-sm">{{ t('admin.monitoring.avgLatency') }}</p>
+            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ data ? Math.round(data.avg_latency_ms_today) + 'ms' : '-' }}</p>
           </div>
-          <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-            <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.totalGroups') }}</p>
-            <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ data?.groups?.length ?? 0 }}</p>
+          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+            <p class="text-xs text-gray-500 dark:text-dark-400 sm:text-sm">{{ t('admin.monitoring.totalGroups') }}</p>
+            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ data?.groups?.length ?? 0 }}</p>
           </div>
         </div>
 
         <!-- 24h Hourly Success Rate Bar -->
-        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-900">
-          <div class="mb-4 flex items-center justify-between">
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-6">
+          <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('admin.monitoring.hourlySuccessRate') }}</p>
-            <div class="flex items-center gap-4 text-xs text-gray-400 dark:text-dark-500">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 dark:text-dark-500 sm:gap-4">
               <span class="flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-sm bg-green-500"></span> ≥95%</span>
               <span class="flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500"></span> ≥80%</span>
               <span class="flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-sm bg-red-500"></span> &lt;80%</span>
