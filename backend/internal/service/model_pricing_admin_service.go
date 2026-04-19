@@ -808,10 +808,10 @@ func (s *ModelPricingAdminService) GetGroupsWithModelsAndPricing(ctx context.Con
 				json_agg(
 					json_build_object(
 						'model_name', gm.model_name,
-						'input_cost_per_million', CASE WHEN p.input_cost_per_token IS NOT NULL THEN p.input_cost_per_token * 1000000 ELSE 0 END,
-						'output_cost_per_million', CASE WHEN p.output_cost_per_token IS NOT NULL THEN p.output_cost_per_token * 1000000 ELSE 0 END,
-						'effective_input', CASE WHEN p.input_cost_per_token IS NOT NULL THEN p.input_cost_per_token * g.rate_multiplier * 1000000 ELSE 0 END,
-						'effective_output', CASE WHEN p.output_cost_per_token IS NOT NULL THEN p.output_cost_per_token * g.rate_multiplier * 1000000 ELSE 0 END,
+						'input_cost_per_million', CASE WHEN mp.input_cost_per_token IS NOT NULL THEN mp.input_cost_per_token * 1000000 ELSE 0 END,
+						'output_cost_per_million', CASE WHEN mp.output_cost_per_token IS NOT NULL THEN mp.output_cost_per_token * 1000000 ELSE 0 END,
+						'effective_input', CASE WHEN mp.input_cost_per_token IS NOT NULL THEN mp.input_cost_per_token * g.rate_multiplier * 1000000 ELSE 0 END,
+						'effective_output', CASE WHEN mp.output_cost_per_token IS NOT NULL THEN mp.output_cost_per_token * g.rate_multiplier * 1000000 ELSE 0 END,
 						'request_count', COALESCE(gm.request_count, 0)
 					) ORDER BY gm.request_count DESC
 				),
@@ -820,16 +820,11 @@ func (s *ModelPricingAdminService) GetGroupsWithModelsAndPricing(ctx context.Con
 		FROM groups g
 		LEFT JOIN group_models gm ON gm.group_id = g.id
 		LEFT JOIN LATERAL (
-				SELECT input_cost_per_token, output_cost_per_token, model_name
-				FROM (
-					SELECT DISTINCT ON (model_name)
-						lower(model_name) AS model_name,
-						input_cost_per_token,
-						output_cost_per_token
-					FROM model_pricing
-					ORDER BY model_name
-				) sub
-			) p ON lower(p.model_name) = lower(COALESCE(gm.model_name, ''))
+			SELECT input_cost_per_token, output_cost_per_token
+			FROM model_pricing
+			WHERE lower(model_name) = lower(gm.model_name)
+			LIMIT 1
+		) mp ON true
 		WHERE g.status = 'active'
 		  AND g.deleted_at IS NULL
 		GROUP BY g.id, g.name, g.platform, g.rate_multiplier
