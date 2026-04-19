@@ -36,6 +36,9 @@ func RegisterCommonRoutes(r *gin.Engine, h *handler.Handlers) {
 	monitoring := r.Group("/api/v1/monitoring")
 	{
 		monitoring.GET("/overview", h.Admin.Monitoring.GetOverview)
+		monitoring.GET("/summary", h.Admin.Monitoring.GetSummary)
+		monitoring.GET("/group-models", h.Admin.Monitoring.GetGroupModels)
+		monitoring.GET("/model-latency", h.Admin.Monitoring.GetModelLatency)
 	}
 
 	// 公开模型定价查询
