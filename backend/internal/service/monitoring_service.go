@@ -62,11 +62,18 @@ type ErrorAccount struct {
 	OverloadUntil string `json:"overload_until,omitempty"`
 }
 
+type HourlyStats struct {
+	Hour    string `json:"hour"`
+	Total   int    `json:"total"`
+	Success int    `json:"success"`
+}
+
 type MonitoringOverview struct {
 	Groups         []GroupHealth     `json:"groups"`
 	GroupModels    []GroupModelStats `json:"group_models"`
 	ModelLatencies []ModelLatency    `json:"model_latencies"`
 	ErrorAccounts  []ErrorAccount    `json:"error_accounts"`
+	HourlyStats    []HourlyStats     `json:"hourly_stats"`
 	TotalRequests  int64             `json:"total_requests_today"`
 	SuccessCount   int64             `json:"success_count_today"`
 	ErrorCount     int64             `json:"error_count_today"`
@@ -95,6 +102,10 @@ func (s *MonitoringService) GetOverview(ctx context.Context) (*MonitoringOvervie
 	if err := s.queryTodaySummary(ctx, overview); err != nil {
 		log.Printf("[Monitoring] queryTodaySummary error: %v", err)
 		return nil, fmt.Errorf("query today summary: %w", err)
+	}
+	if err := s.queryHourlyStats(ctx, overview); err != nil {
+		log.Printf("[Monitoring] queryHourlyStats error: %v", err)
+		return nil, fmt.Errorf("query hourly stats: %w", err)
 	}
 
 	return overview, nil
@@ -393,4 +404,49 @@ func (s *MonitoringService) queryTodaySummary(ctx context.Context, overview *Mon
 	overview.TotalRequests += opsErrorCount
 
 	return nil
+}
+
+func (s *MonitoringService) queryHourlyStats(ctx context.Context, overview *MonitoringOverview) error {
+	since := time.Now().UTC().Add(-24 * time.Hour)
+	query := `
+		WITH usage_hours AS (
+			SELECT
+				DATE_TRUNC('hour', created_at) AS hour,
+				COUNT(*) AS total,
+				COUNT(*) FILTER (WHERE output_tokens > 0) AS success
+			FROM usage_logs
+			WHERE created_at >= $1
+			GROUP BY DATE_TRUNC('hour', created_at)
+		),
+		error_hours AS (
+			SELECT
+				DATE_TRUNC('hour', created_at) AS hour,
+				COUNT(*) AS total
+			FROM ops_error_logs
+			WHERE created_at >= $1
+			  AND is_count_tokens = false
+			GROUP BY DATE_TRUNC('hour', created_at)
+		)
+		SELECT
+			COALESCE(u.hour, e.hour) AS hour,
+			COALESCE(u.total, 0) + COALESCE(e.total, 0) AS total,
+			COALESCE(u.success, 0) AS success
+		FROM usage_hours u
+		FULL OUTER JOIN error_hours e ON u.hour = e.hour
+		ORDER BY hour`
+
+	rows, err := s.db.QueryContext(ctx, query, since)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var h HourlyStats
+		if err := rows.Scan(&h.Hour, &h.Total, &h.Success); err != nil {
+			return err
+		}
+		overview.HourlyStats = append(overview.HourlyStats, h)
+	}
+	return rows.Err()
 }

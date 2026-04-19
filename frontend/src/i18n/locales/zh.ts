@@ -3673,12 +3673,16 @@ export default {
       modelLatencyHint: '基于过去 24 小时的 usage_logs 数据统计',
       model: '模型',
       requests: '请求数',
+      success: '成功',
+      errors: '错误',
+      successRate: '成功率',
       errorAccountsList: '异常账号详情',
       accountName: '账号',
       status: '状态',
       errorMessage: '错误信息',
       noData: '暂无数据',
-      last24h: '近 24 小时数据'
+      last24h: '近 24 小时数据',
+      hourlySuccessRate: '24小时成功率趋势'
     },
 
     modelPricing: {

@@ -3514,12 +3514,16 @@ export default {
       modelLatencyHint: 'Based on usage_logs from the past 24 hours',
       model: 'Model',
       requests: 'Requests',
+      success: 'Success',
+      errors: 'Errors',
+      successRate: 'Success Rate',
       errorAccountsList: 'Error Account Details',
       accountName: 'Account',
       status: 'Status',
       errorMessage: 'Error Message',
       noData: 'No data available',
-      last24h: 'Last 24 hours'
+      last24h: 'Last 24 hours',
+      hourlySuccessRate: '24h Success Rate Trend'
     },
 
     modelPricing: {
