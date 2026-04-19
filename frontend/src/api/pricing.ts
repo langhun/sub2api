@@ -6,7 +6,6 @@ export interface PublicPricingModel {
   output_cost_per_million: number
   effective_input: number
   effective_output: number
-  request_count: number
 }
 
 export interface PublicPricingGroup {
