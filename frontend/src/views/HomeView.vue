@@ -6,9 +6,8 @@
   </div>
 
   <!-- Default Home Page - Professional Business Style -->
-  <div v-else class="min-h-screen bg-white dark:bg-dark-950">
-    <!-- Navigation -->
-    <header class="fixed left-0 right-0 top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-xl dark:border-dark-800 dark:bg-dark-950/80">
+  <div v-else class="relative flex min-h-screen flex-col bg-gray-50 dark:bg-dark-950">
+    <header class="relative z-20 border-b border-gray-100 bg-white/80 backdrop-blur-xl dark:border-dark-800 dark:bg-dark-950/80">
       <nav class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <router-link to="/home" class="flex items-center gap-3">
           <div class="h-8 w-8 overflow-hidden rounded-lg">
@@ -53,7 +52,7 @@
     </header>
 
     <!-- Hero Section -->
-    <section class="relative overflow-hidden pt-16">
+    <section class="relative overflow-hidden">
       <div class="absolute inset-0 bg-gradient-to-b from-primary-50/40 to-transparent dark:from-primary-950/20 dark:to-transparent"></div>
       <div class="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:py-40">
         <div class="mx-auto max-w-3xl text-center">
@@ -243,6 +242,10 @@
           <router-link to="/monitoring"
             class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white">
             {{ t('admin.monitoring.title') }}
+          </router-link>
+          <router-link to="/pricing"
+            class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white">
+            {{ t('pricing.title') }}
           </router-link>
         </div>
       </div>
