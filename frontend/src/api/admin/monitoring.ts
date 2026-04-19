@@ -50,6 +50,16 @@ export interface ModelHourlyStats {
   success: number
 }
 
+export interface ErrorAccount {
+  account_id: number
+  account_name: string
+  group_name: string
+  status: string
+  error_message: string
+  rate_limited_at?: string
+  overload_until?: string
+}
+
 export interface MonitoringOverview {
   groups: GroupHealth[]
   group_models: GroupModelStats[]
@@ -63,14 +73,23 @@ export interface MonitoringOverview {
   avg_latency_ms_today: number
 }
 
-export interface ErrorAccount {
-  account_id: number
-  account_name: string
-  group_name: string
-  status: string
-  error_message: string
-  rate_limited_at?: string
-  overload_until?: string
+export interface MonitoringSummary {
+  groups: GroupHealth[]
+  error_accounts: ErrorAccount[]
+  hourly_stats: HourlyStats[]
+  total_requests_today: number
+  success_count_today: number
+  error_count_today: number
+  avg_latency_ms_today: number
+}
+
+export interface MonitoringGroupModels {
+  group_models: GroupModelStats[]
+  model_hourly_stats: ModelHourlyStats[]
+}
+
+export interface MonitoringModelLatency {
+  model_latencies: ModelLatency[]
 }
 
 export async function getMonitoringOverview(): Promise<MonitoringOverview> {
@@ -78,8 +97,26 @@ export async function getMonitoringOverview(): Promise<MonitoringOverview> {
   return data
 }
 
+export async function getMonitoringSummary(): Promise<MonitoringSummary> {
+  const { data } = await apiClient.get<MonitoringSummary>('/monitoring/summary')
+  return data
+}
+
+export async function getMonitoringGroupModels(): Promise<MonitoringGroupModels> {
+  const { data } = await apiClient.get<MonitoringGroupModels>('/monitoring/group-models')
+  return data
+}
+
+export async function getMonitoringModelLatency(): Promise<MonitoringModelLatency> {
+  const { data } = await apiClient.get<MonitoringModelLatency>('/monitoring/model-latency')
+  return data
+}
+
 export const monitoringAPI = {
   getOverview: getMonitoringOverview,
+  getSummary: getMonitoringSummary,
+  getGroupModels: getMonitoringGroupModels,
+  getModelLatency: getMonitoringModelLatency,
 }
 
 export default monitoringAPI

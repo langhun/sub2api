@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -89,39 +88,98 @@ type MonitoringOverview struct {
 	AvgLatencyMs      float64             `json:"avg_latency_ms_today"`
 }
 
+type MonitoringSummary struct {
+	Groups           []GroupHealth   `json:"groups"`
+	ErrorAccounts    []ErrorAccount  `json:"error_accounts"`
+	HourlyStats      []HourlyStats   `json:"hourly_stats"`
+	TotalRequests    int64           `json:"total_requests_today"`
+	SuccessCount     int64           `json:"success_count_today"`
+	ErrorCount       int64           `json:"error_count_today"`
+	AvgLatencyMs     float64         `json:"avg_latency_ms_today"`
+}
+
+type MonitoringGroupModels struct {
+	GroupModels      []GroupModelStats  `json:"group_models"`
+	ModelHourlyStats []ModelHourlyStats `json:"model_hourly_stats"`
+}
+
+type MonitoringModelLatency struct {
+	ModelLatencies []ModelLatency `json:"model_latencies"`
+}
+
 func (s *MonitoringService) GetOverview(ctx context.Context) (*MonitoringOverview, error) {
 	overview := &MonitoringOverview{}
-
+	if err := s.queryTodaySummary(ctx, overview); err != nil {
+		return nil, fmt.Errorf("query today summary: %w", err)
+	}
 	if err := s.queryGroupHealth(ctx, overview); err != nil {
-		log.Printf("[Monitoring] queryGroupHealth error: %v", err)
 		return nil, fmt.Errorf("query group health: %w", err)
 	}
 	if err := s.queryGroupModelStats(ctx, overview); err != nil {
-		log.Printf("[Monitoring] queryGroupModelStats error: %v", err)
 		return nil, fmt.Errorf("query group model stats: %w", err)
 	}
 	if err := s.queryModelLatency(ctx, overview); err != nil {
-		log.Printf("[Monitoring] queryModelLatency error: %v", err)
 		return nil, fmt.Errorf("query model latency: %w", err)
 	}
 	if err := s.queryErrorAccounts(ctx, overview); err != nil {
-		log.Printf("[Monitoring] queryErrorAccounts error: %v", err)
 		return nil, fmt.Errorf("query error accounts: %w", err)
 	}
-	if err := s.queryTodaySummary(ctx, overview); err != nil {
-		log.Printf("[Monitoring] queryTodaySummary error: %v", err)
-		return nil, fmt.Errorf("query today summary: %w", err)
-	}
 	if err := s.queryHourlyStats(ctx, overview); err != nil {
-		log.Printf("[Monitoring] queryHourlyStats error: %v", err)
 		return nil, fmt.Errorf("query hourly stats: %w", err)
 	}
 	if err := s.queryModelHourlyStats(ctx, overview); err != nil {
-		log.Printf("[Monitoring] queryModelHourlyStats error: %v", err)
 		return nil, fmt.Errorf("query model hourly stats: %w", err)
 	}
-
 	return overview, nil
+}
+
+func (s *MonitoringService) GetSummary(ctx context.Context) (*MonitoringSummary, error) {
+	tmp := &MonitoringOverview{}
+	if err := s.queryTodaySummary(ctx, tmp); err != nil {
+		return nil, fmt.Errorf("query today summary: %w", err)
+	}
+	if err := s.queryGroupHealth(ctx, tmp); err != nil {
+		return nil, fmt.Errorf("query group health: %w", err)
+	}
+	if err := s.queryErrorAccounts(ctx, tmp); err != nil {
+		return nil, fmt.Errorf("query error accounts: %w", err)
+	}
+	if err := s.queryHourlyStats(ctx, tmp); err != nil {
+		return nil, fmt.Errorf("query hourly stats: %w", err)
+	}
+	return &MonitoringSummary{
+		Groups:        tmp.Groups,
+		ErrorAccounts: tmp.ErrorAccounts,
+		HourlyStats:   tmp.HourlyStats,
+		TotalRequests: tmp.TotalRequests,
+		SuccessCount:  tmp.SuccessCount,
+		ErrorCount:    tmp.ErrorCount,
+		AvgLatencyMs:  tmp.AvgLatencyMs,
+	}, nil
+}
+
+func (s *MonitoringService) GetGroupModels(ctx context.Context) (*MonitoringGroupModels, error) {
+	tmp := &MonitoringOverview{}
+	if err := s.queryGroupModelStats(ctx, tmp); err != nil {
+		return nil, fmt.Errorf("query group model stats: %w", err)
+	}
+	if err := s.queryModelHourlyStats(ctx, tmp); err != nil {
+		return nil, fmt.Errorf("query model hourly stats: %w", err)
+	}
+	return &MonitoringGroupModels{
+		GroupModels:      tmp.GroupModels,
+		ModelHourlyStats: tmp.ModelHourlyStats,
+	}, nil
+}
+
+func (s *MonitoringService) GetModelLatency(ctx context.Context) (*MonitoringModelLatency, error) {
+	tmp := &MonitoringOverview{}
+	if err := s.queryModelLatency(ctx, tmp); err != nil {
+		return nil, fmt.Errorf("query model latency: %w", err)
+	}
+	return &MonitoringModelLatency{
+		ModelLatencies: tmp.ModelLatencies,
+	}, nil
 }
 
 func (s *MonitoringService) queryGroupHealth(ctx context.Context, overview *MonitoringOverview) error {

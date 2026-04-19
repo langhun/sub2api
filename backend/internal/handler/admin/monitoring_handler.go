@@ -26,3 +26,33 @@ func (h *MonitoringHandler) GetOverview(c *gin.Context) {
 	}
 	response.Success(c, overview)
 }
+
+func (h *MonitoringHandler) GetSummary(c *gin.Context) {
+	data, err := h.monitoringService.GetSummary(c.Request.Context())
+	if err != nil {
+		log.Printf("[Monitoring] GetSummary failed: %v", err)
+		response.InternalError(c, "Failed to get summary data")
+		return
+	}
+	response.Success(c, data)
+}
+
+func (h *MonitoringHandler) GetGroupModels(c *gin.Context) {
+	data, err := h.monitoringService.GetGroupModels(c.Request.Context())
+	if err != nil {
+		log.Printf("[Monitoring] GetGroupModels failed: %v", err)
+		response.InternalError(c, "Failed to get group model data")
+		return
+	}
+	response.Success(c, data)
+}
+
+func (h *MonitoringHandler) GetModelLatency(c *gin.Context) {
+	data, err := h.monitoringService.GetModelLatency(c.Request.Context())
+	if err != nil {
+		log.Printf("[Monitoring] GetModelLatency failed: %v", err)
+		response.InternalError(c, "Failed to get model latency data")
+		return
+	}
+	response.Success(c, data)
+}

@@ -67,23 +67,23 @@
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
           <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
             <p class="text-xs text-gray-500 dark:text-dark-400 sm:text-sm">{{ t('admin.monitoring.todayRequests') }}</p>
-            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ data?.total_requests_today?.toLocaleString() ?? '-' }}</p>
+            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ summary?.total_requests_today?.toLocaleString() ?? '-' }}</p>
           </div>
           <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
             <p class="text-xs text-green-600 dark:text-green-400 sm:text-sm">{{ t('admin.monitoring.success') }}</p>
-            <p class="mt-1 text-lg font-bold text-green-600 dark:text-green-400 sm:text-2xl">{{ data?.success_count_today?.toLocaleString() ?? '-' }}</p>
+            <p class="mt-1 text-lg font-bold text-green-600 dark:text-green-400 sm:text-2xl">{{ summary?.success_count_today?.toLocaleString() ?? '-' }}</p>
           </div>
           <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
             <p class="text-xs text-red-500 dark:text-red-400 sm:text-sm">{{ t('admin.monitoring.errors') }}</p>
-            <p class="mt-1 text-lg font-bold text-red-600 dark:text-red-400 sm:text-2xl">{{ data?.error_count_today?.toLocaleString() ?? '-' }}</p>
+            <p class="mt-1 text-lg font-bold text-red-600 dark:text-red-400 sm:text-2xl">{{ summary?.error_count_today?.toLocaleString() ?? '-' }}</p>
           </div>
           <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
             <p class="text-xs text-gray-500 dark:text-dark-400 sm:text-sm">{{ t('admin.monitoring.avgLatency') }}</p>
-            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ data ? Math.round(data.avg_latency_ms_today) + 'ms' : '-' }}</p>
+            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ summary ? Math.round(summary.avg_latency_ms_today) + 'ms' : '-' }}</p>
           </div>
           <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
             <p class="text-xs text-gray-500 dark:text-dark-400 sm:text-sm">{{ t('admin.monitoring.totalGroups') }}</p>
-            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ data?.groups?.length ?? 0 }}</p>
+            <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ summary?.groups?.length ?? 0 }}</p>
           </div>
         </div>
 
@@ -218,12 +218,12 @@
           </div>
         </div>
 
-        <div v-if="data && (!data.group_models || data.group_models.length === 0)" class="rounded-xl border border-gray-200 bg-white py-16 text-center shadow-sm dark:border-dark-700 dark:bg-dark-900">
+        <div v-if="summary && (!groupModels?.group_models || groupModels.group_models.length === 0)" class="rounded-xl border border-gray-200 bg-white py-16 text-center shadow-sm dark:border-dark-700 dark:bg-dark-900">
           <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.noData') }}</p>
         </div>
 
         <!-- Model Latency Overview -->
-        <div v-if="data?.model_latencies?.length" class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900 overflow-hidden">
+        <div v-if="modelLatency?.model_latencies?.length" class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900 overflow-hidden">
           <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-3 dark:border-dark-700 sm:px-6 sm:py-4">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white sm:text-lg">{{ t('admin.monitoring.modelLatency') }}</h2>
             <span class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.monitoring.modelLatencyHint') }}</span>
@@ -245,7 +245,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="m in data.model_latencies" :key="m.model" class="border-b border-gray-50 dark:border-dark-800">
+                  <tr v-for="m in modelLatency.model_latencies" :key="m.model" class="border-b border-gray-50 dark:border-dark-800">
                     <td class="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white font-mono">{{ m.model }}</td>
                     <td class="px-6 py-3 text-center text-sm text-gray-700 dark:text-dark-200">{{ m.request_count.toLocaleString() }}</td>
                     <td class="px-6 py-3 text-center">
@@ -271,7 +271,7 @@
               </table>
             </div>
             <div class="sm:hidden divide-y divide-gray-100 dark:divide-dark-700">
-              <div v-for="m in data.model_latencies" :key="'ml-'+m.model" class="px-4 py-3 space-y-2">
+              <div v-for="m in modelLatency.model_latencies" :key="'ml-'+m.model" class="px-4 py-3 space-y-2">
                 <div class="flex items-center justify-between">
                   <p class="text-sm font-medium text-gray-900 dark:text-white font-mono break-all">{{ m.model }}</p>
                   <span class="ml-2 flex-shrink-0 text-sm tabular-nums font-semibold" :class="successRateTextColor(m.success_count, m.request_count)">{{ successRate(m.success_count, m.request_count) }}</span>
@@ -309,7 +309,7 @@ import { useAppStore } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { monitoringAPI, type MonitoringOverview } from '@/api/admin/monitoring'
+import { monitoringAPI, type MonitoringSummary, type MonitoringGroupModels, type MonitoringModelLatency, type GroupModelStats } from '@/api/admin/monitoring'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -336,19 +336,21 @@ if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-s
   document.documentElement.classList.add('dark')
 }
 
-const data = ref<MonitoringOverview | null>(null)
+const summary = ref<MonitoringSummary | null>(null)
+const groupModels = ref<MonitoringGroupModels | null>(null)
+const modelLatency = ref<MonitoringModelLatency | null>(null)
 const loading = ref(false)
 
 interface GroupedModels {
   groupId: number
   groupName: string
-  models: NonNullable<MonitoringOverview['group_models']>
+  models: GroupModelStats[]
 }
 
 const groupedModels = computed<GroupedModels[]>(() => {
-  if (!data.value?.group_models) return []
+  if (!groupModels.value?.group_models) return []
   const map = new Map<number, GroupedModels>()
-  for (const m of data.value.group_models) {
+  for (const m of groupModels.value.group_models) {
     let g = map.get(m.group_id)
     if (!g) {
       g = { groupId: m.group_id, groupName: m.group_name, models: [] }
@@ -362,9 +364,14 @@ const groupedModels = computed<GroupedModels[]>(() => {
 async function refresh() {
   loading.value = true
   try {
-    data.value = await monitoringAPI.getOverview()
-  } catch {
-    data.value = null
+    const [summaryRes, gmRes, mlRes] = await Promise.all([
+      monitoringAPI.getSummary().catch(() => null),
+      monitoringAPI.getGroupModels().catch(() => null),
+      monitoringAPI.getModelLatency().catch(() => null),
+    ])
+    summary.value = summaryRes
+    groupModels.value = gmRes
+    modelLatency.value = mlRes
   } finally {
     loading.value = false
   }
@@ -416,8 +423,8 @@ const hourlyData = computed<HourBucket[]>(() => {
     const hourEnd = new Date(now.getTime() - i * 3600000)
     let total = 0
     let success = 0
-    if (data.value?.hourly_stats) {
-      for (const h of data.value.hourly_stats) {
+    if (summary.value?.hourly_stats) {
+      for (const h of summary.value.hourly_stats) {
         const d = new Date(h.hour)
         if (d >= hourStart && d < hourEnd) {
           total = h.total
@@ -433,7 +440,7 @@ const hourlyData = computed<HourBucket[]>(() => {
 
 function getModelHourly(groupId: number, model: string): HourBucket[] {
   const now = new Date()
-  const stats = data.value?.model_hourly_stats ?? []
+  const stats = groupModels.value?.model_hourly_stats ?? []
   const buckets: HourBucket[] = []
   for (let i = 23; i >= 0; i--) {
     const hourStart = new Date(now.getTime() - (i + 1) * 3600000)
