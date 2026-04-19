@@ -68,16 +68,25 @@ type HourlyStats struct {
 	Success int    `json:"success"`
 }
 
+type ModelHourlyStats struct {
+	GroupID int64  `json:"group_id"`
+	Model   string `json:"model"`
+	Hour    string `json:"hour"`
+	Total   int    `json:"total"`
+	Success int    `json:"success"`
+}
+
 type MonitoringOverview struct {
-	Groups         []GroupHealth     `json:"groups"`
-	GroupModels    []GroupModelStats `json:"group_models"`
-	ModelLatencies []ModelLatency    `json:"model_latencies"`
-	ErrorAccounts  []ErrorAccount    `json:"error_accounts"`
-	HourlyStats    []HourlyStats     `json:"hourly_stats"`
-	TotalRequests  int64             `json:"total_requests_today"`
-	SuccessCount   int64             `json:"success_count_today"`
-	ErrorCount     int64             `json:"error_count_today"`
-	AvgLatencyMs   float64           `json:"avg_latency_ms_today"`
+	Groups            []GroupHealth       `json:"groups"`
+	GroupModels       []GroupModelStats   `json:"group_models"`
+	ModelLatencies    []ModelLatency      `json:"model_latencies"`
+	ErrorAccounts     []ErrorAccount      `json:"error_accounts"`
+	HourlyStats       []HourlyStats       `json:"hourly_stats"`
+	ModelHourlyStats  []ModelHourlyStats  `json:"model_hourly_stats"`
+	TotalRequests     int64               `json:"total_requests_today"`
+	SuccessCount      int64               `json:"success_count_today"`
+	ErrorCount        int64               `json:"error_count_today"`
+	AvgLatencyMs      float64             `json:"avg_latency_ms_today"`
 }
 
 func (s *MonitoringService) GetOverview(ctx context.Context) (*MonitoringOverview, error) {
@@ -106,6 +115,10 @@ func (s *MonitoringService) GetOverview(ctx context.Context) (*MonitoringOvervie
 	if err := s.queryHourlyStats(ctx, overview); err != nil {
 		log.Printf("[Monitoring] queryHourlyStats error: %v", err)
 		return nil, fmt.Errorf("query hourly stats: %w", err)
+	}
+	if err := s.queryModelHourlyStats(ctx, overview); err != nil {
+		log.Printf("[Monitoring] queryModelHourlyStats error: %v", err)
+		return nil, fmt.Errorf("query model hourly stats: %w", err)
 	}
 
 	return overview, nil
@@ -447,6 +460,58 @@ func (s *MonitoringService) queryHourlyStats(ctx context.Context, overview *Moni
 			return err
 		}
 		overview.HourlyStats = append(overview.HourlyStats, h)
+	}
+	return rows.Err()
+}
+
+func (s *MonitoringService) queryModelHourlyStats(ctx context.Context, overview *MonitoringOverview) error {
+	since := time.Now().UTC().Add(-24 * time.Hour)
+	query := `
+		WITH usage_hours AS (
+			SELECT
+				u.group_id,
+				COALESCE(u.requested_model, u.model) AS model,
+				DATE_TRUNC('hour', u.created_at) AS hour,
+				COUNT(*) AS total,
+				COUNT(*) FILTER (WHERE u.output_tokens > 0) AS success
+			FROM usage_logs u
+			WHERE u.created_at >= $1
+			GROUP BY u.group_id, COALESCE(u.requested_model, u.model), DATE_TRUNC('hour', u.created_at)
+		),
+		error_hours AS (
+			SELECT
+				e.group_id,
+				COALESCE(e.requested_model, e.model) AS model,
+				DATE_TRUNC('hour', e.created_at) AS hour,
+				COUNT(*) AS total
+			FROM ops_error_logs e
+			WHERE e.created_at >= $1
+			  AND e.is_count_tokens = false
+			GROUP BY e.group_id, COALESCE(e.requested_model, e.model), DATE_TRUNC('hour', e.created_at)
+		)
+		SELECT
+			COALESCE(u.group_id, e.group_id) AS group_id,
+			COALESCE(u.model, e.model) AS model,
+			COALESCE(u.hour, e.hour) AS hour,
+			COALESCE(u.total, 0) + COALESCE(e.total, 0) AS total,
+			COALESCE(u.success, 0) AS success
+		FROM usage_hours u
+		FULL OUTER JOIN error_hours e
+			ON u.group_id = e.group_id AND u.model = e.model AND u.hour = e.hour
+		ORDER BY group_id, model, hour`
+
+	rows, err := s.db.QueryContext(ctx, query, since)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var m ModelHourlyStats
+		if err := rows.Scan(&m.GroupID, &m.Model, &m.Hour, &m.Total, &m.Success); err != nil {
+			return err
+		}
+		overview.ModelHourlyStats = append(overview.ModelHourlyStats, m)
 	}
 	return rows.Err()
 }
