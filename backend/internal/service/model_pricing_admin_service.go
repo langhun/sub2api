@@ -792,10 +792,19 @@ func (s *ModelPricingAdminService) GetGroupsWithModelsAndPricing(ctx context.Con
 	query := `
 		WITH group_models AS (
 			SELECT DISTINCT
-				u.group_id,
-				COALESCE(u.requested_model, u.model) AS model_name
-			FROM usage_logs u
-			WHERE u.output_tokens > 0
+				ag.group_id,
+				mk.key AS model_name
+			FROM account_groups ag
+			JOIN accounts a ON a.id = ag.account_id
+			CROSS JOIN LATERAL jsonb_object_keys(
+				CASE
+					WHEN a.credentials->'model_mapping' IS NOT NULL
+					THEN a.credentials->'model_mapping'
+					ELSE '{}'::jsonb
+				END
+			) AS mk(key)
+			WHERE a.deleted_at IS NULL
+			  AND mk.key NOT LIKE '%*%'
 		)
 		SELECT
 			g.id,
@@ -809,8 +818,7 @@ func (s *ModelPricingAdminService) GetGroupsWithModelsAndPricing(ctx context.Con
 						'input_cost_per_million', CASE WHEN mp.input_cost_per_token IS NOT NULL THEN mp.input_cost_per_token * 1000000 ELSE 0 END,
 						'output_cost_per_million', CASE WHEN mp.output_cost_per_token IS NOT NULL THEN mp.output_cost_per_token * 1000000 ELSE 0 END,
 						'effective_input', CASE WHEN mp.input_cost_per_token IS NOT NULL THEN mp.input_cost_per_token * g.rate_multiplier * 1000000 ELSE 0 END,
-						'effective_output', CASE WHEN mp.output_cost_per_token IS NOT NULL THEN mp.output_cost_per_token * g.rate_multiplier * 1000000 ELSE 0 END,
-						'request_count', 0
+						'effective_output', CASE WHEN mp.output_cost_per_token IS NOT NULL THEN mp.output_cost_per_token * g.rate_multiplier * 1000000 ELSE 0 END
 					) ORDER BY gm.model_name
 				),
 				'[]'::json
