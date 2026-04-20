@@ -205,8 +205,11 @@ export default {
     hudStep4: '4. Add the following to ~/.claude/settings.json',
     hudCopy: 'Copy',
     codexHudTitle: 'Codex CLI HUD Setup Guide',
-    codexStep4Desc: 'Open a new terminal window in your Codex project directory to run the HUD:',
-    codexNewTerminal: 'Open a new terminal and run (choose one):',
+    codexStepLauncher: '3. Save the launcher as codex-hud.bat (in project dir or PATH)',
+    codexStepLauncherDesc: 'Double-click or run this bat file — it opens Windows Terminal with Codex (top) and HUD (bottom) split pane:',
+    codexStepRun: '4. Run in your project directory',
+    codexStepRunDesc: 'Open a terminal in any project directory and run:',
+    codexRunExamples: 'Launch options (choose one)',
   },
 
   // Setup Wizard

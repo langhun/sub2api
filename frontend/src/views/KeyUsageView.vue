@@ -264,8 +264,12 @@
                         ⟳ {{ formatResetTime(ring.resetAt) }}
                       </p>
                     </template>
-                  </div>
-                </div>
+          </div>
+          <div v-if="hudType !== 'codex'">
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep4') }}</h4>
+            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap"><code>{{ hudSettingsJson }}</code></pre>
+          </div>
+        </div>
               </div>
             </div>
           </div>
@@ -405,17 +409,19 @@
             </div>
           </div>
           <div v-if="hudType === 'codex'">
-            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep3') }}</h4>
-            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap"><code>{{ codexStep3Commands }}</code></pre>
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.codexStepLauncher') }}</h4>
+            <p class="text-gray-500 dark:text-dark-400 text-xs mb-2">{{ t('keyUsage.codexStepLauncherDesc') }}</p>
+            <div class="relative">
+              <button @click="copyLauncherScript" class="absolute top-2 right-2 px-2 py-1 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors z-10">
+                {{ launcherCopied ? '✓' : t('keyUsage.hudCopy') }}
+              </button>
+              <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto max-h-40"><code>{{ codexLauncherScript }}</code></pre>
+            </div>
           </div>
-          <div v-if="hudType !== 'codex'">
-            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep4') }}</h4>
-            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap"><code>{{ hudSettingsJson }}</code></pre>
-          </div>
-          <div v-else>
-            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep4') }}</h4>
-            <p class="text-gray-500 dark:text-dark-400 text-xs mb-2">{{ t('keyUsage.codexStep4Desc') }}</p>
-            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto"><code>start cmd /k "node %USERPROFILE%\.codex\plugins\sub2api-hud\hud.mjs"</code></pre>
+          <div v-if="hudType === 'codex'">
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.codexStepRun') }}</h4>
+            <p class="text-gray-500 dark:text-dark-400 text-xs mb-2">{{ t('keyUsage.codexStepRunDesc') }}</p>
+            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto"><code>{{ codexRunCommand }}</code></pre>
           </div>
         </div>
       </div>
@@ -833,9 +839,19 @@ const hudSettingsJson = computed(() => {
   }, null, 2)
 })
 
-const codexStep3Commands = computed(() => {
-  return `${t('keyUsage.codexNewTerminal')}:\n\nCMD:\n  start cmd /k "node %USERPROFILE%\\.codex\\plugins\\sub2api-hud\\hud.mjs"\n\nPowerShell:\n  Start-Process pwsh -ArgumentList "-NoExit","-Command","node ~/.codex/plugins/sub2api-hud/hud.mjs"\n\nWindows Terminal (split pane):\n  wt -w 0 sp -V -s 0.15 cmd /k "node %USERPROFILE%\\.codex\\plugins\\sub2api-hud\\hud.mjs"\n\nLinux/macOS (tmux):\n  tmux split-window -v -l 3 "node ~/.codex/plugins/sub2api-hud/hud.mjs"`
+const codexLauncherScript = computed(() => {
+  return `@echo off
+chcp 65001 >nul 2>&1
+title Codex + HUD
+echo Starting Codex with HUD...
+wt -w 0 -d "%cd%" --title "Codex" cmd /k "codex" ; split-pane -V -s 0.12 --title "sub2api HUD" cmd /k "node %USERPROFILE%\\.codex\\plugins\\sub2api-hud\\hud.mjs"`
 })
+
+const codexRunCommand = computed(() => {
+  return `${t('keyUsage.codexRunExamples')}\n\ncodex-hud.bat          (in your project directory)\nstart cmd /k "node %USERPROFILE%\\.codex\\plugins\\sub2api-hud\\hud.mjs"  (HUD only)`
+})
+
+const launcherCopied = ref(false)
 
 function generateHudScript() {
   if (hudType.value === 'codex') {
@@ -1361,6 +1377,13 @@ function copyHudScript() {
   navigator.clipboard.writeText(hudScript.value).then(() => {
     hudCopied.value = true
     setTimeout(() => { hudCopied.value = false }, 2000)
+  })
+}
+
+function copyLauncherScript() {
+  navigator.clipboard.writeText(codexLauncherScript.value).then(() => {
+    launcherCopied.value = true
+    setTimeout(() => { launcherCopied.value = false }, 2000)
   })
 }
 

@@ -205,8 +205,11 @@ export default {
     hudStep4: '4. 将以下内容添加到 ~/.claude/settings.json',
     hudCopy: '复制',
     codexHudTitle: 'Codex CLI HUD 安装指南',
-    codexStep4Desc: '在 Codex 工作目录打开一个新的终端窗口运行 HUD：',
-    codexNewTerminal: '打开新终端窗口运行（任选一种）',
+    codexStepLauncher: '3. 保存启动器脚本为 codex-hud.bat（放到项目目录或 PATH 中）',
+    codexStepLauncherDesc: '双击或在终端运行此 bat 文件，会自动用 Windows Terminal 分屏打开 Codex（上方）和 HUD（下方）：',
+    codexStepRun: '4. 在项目目录中运行',
+    codexStepRunDesc: '在任意项目目录打开终端，运行以下命令即可启动 Codex + HUD：',
+    codexRunExamples: '启动方式（二选一）',
   },
 
   // Setup Wizard
