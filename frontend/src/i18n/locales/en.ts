@@ -205,7 +205,8 @@ export default {
     hudStep4: '4. Add the following to ~/.claude/settings.json',
     hudCopy: 'Copy',
     codexHudTitle: 'Codex CLI HUD Setup Guide',
-    codexStep4Desc: 'Add the alias to ~/.bashrc or ~/.zshrc, then run codex-hud to launch HUD in a tmux split:',
+    codexStep4Desc: 'Open a new terminal window in your Codex project directory to run the HUD:',
+    codexNewTerminal: 'Open a new terminal and run (choose one):',
   },
 
   // Setup Wizard
