@@ -821,7 +821,6 @@ const hudSettingsJson = computed(() => {
 function generateHudScript() {
   const key = apiKey.value.trim()
   const baseUrl = window.location.origin
-  const lang = locale.value
 
   hudScript.value = `#!/usr/bin/env node
 // sub2api-hud: Claude Code statusline plugin
