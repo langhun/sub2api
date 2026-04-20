@@ -404,10 +404,9 @@
               <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto max-h-64"><code>{{ hudScript }}</code></pre>
             </div>
           </div>
-          <div>
+          <div v-if="hudType === 'codex'">
             <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep3') }}</h4>
-            <pre v-if="hudType === 'codex'" class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap"><code>{{ codexRunCommand }}</code></pre>
-            <pre v-else class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto"><code>node ~/.claude/plugins/sub2api-hud/hud.mjs</code></pre>
+            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap"><code>{{ codexStep3Commands }}</code></pre>
           </div>
           <div v-if="hudType !== 'codex'">
             <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep4') }}</h4>
@@ -415,8 +414,8 @@
           </div>
           <div v-else>
             <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep4') }}</h4>
-            <p class="text-gray-500 dark:text-dark-400 text-xs">{{ t('keyUsage.codexStep4Desc') }}</p>
-            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto mt-2"><code>{{ codexAlias }}</code></pre>
+            <p class="text-gray-500 dark:text-dark-400 text-xs mb-2">{{ t('keyUsage.codexStep4Desc') }}</p>
+            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto"><code>start cmd /k "node %USERPROFILE%\.codex\plugins\sub2api-hud\hud.mjs"</code></pre>
           </div>
         </div>
       </div>
@@ -838,8 +837,8 @@ const codexRunCommand = computed(() => {
   return 'node ~/.codex/plugins/sub2api-hud/hud.mjs'
 })
 
-const codexAlias = computed(() => {
-  return 'alias codex-hud=\'tmux split-window -v -l 3 "node ~/.codex/plugins/sub2api-hud/hud.mjs"\''
+const codexStep3Commands = computed(() => {
+  return `${t('keyUsage.codexNewTerminal')}:\n\nCMD:\n  start cmd /k "node %USERPROFILE%\\.codex\\plugins\\sub2api-hud\\hud.mjs"\n\nPowerShell:\n  Start-Process pwsh -ArgumentList "-NoExit","-Command","node ~/.codex/plugins/sub2api-hud/hud.mjs"\n\nWindows Terminal (split pane):\n  wt -w 0 sp -V -s 0.15 cmd /k "node %USERPROFILE%\\.codex\\plugins\\sub2api-hud\\hud.mjs"\n\nLinux/macOS (tmux):\n  tmux split-window -v -l 3 "node ~/.codex/plugins/sub2api-hud/hud.mjs"`
 })
 
 function generateHudScript() {
