@@ -183,6 +183,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		CheckinEnabled:                       settings.CheckinEnabled,
 		CheckinMinBalance:                    settings.CheckinMinBalance,
 		CheckinMaxBalance:                    settings.CheckinMaxBalance,
+		CheckinLuckEnabled:                   settings.CheckinLuckEnabled,
+		CheckinLuckMinMultiplier:             settings.CheckinLuckMinMultiplier,
+		CheckinLuckMaxMultiplier:             settings.CheckinLuckMaxMultiplier,
 		PaymentEnabled:                       paymentCfg.Enabled,
 		PaymentMinAmount:                     paymentCfg.MinAmount,
 		PaymentMaxAmount:                     paymentCfg.MaxAmount,
@@ -349,6 +352,11 @@ type UpdateSettingsRequest struct {
 	CheckinEnabled    *bool    `json:"checkin_enabled"`
 	CheckinMinBalance *float64 `json:"checkin_min_balance"`
 	CheckinMaxBalance *float64 `json:"checkin_max_balance"`
+
+	// Checkin Luck 运气签到设置
+	CheckinLuckEnabled       *bool    `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier *float64 `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier *float64 `json:"checkin_luck_max_multiplier"`
 }
 
 // UpdateSettings 更新系统设置
@@ -953,6 +961,24 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.CheckinMaxBalance
 		}(),
+		CheckinLuckEnabled: func() bool {
+			if req.CheckinLuckEnabled != nil {
+				return *req.CheckinLuckEnabled
+			}
+			return previousSettings.CheckinLuckEnabled
+		}(),
+		CheckinLuckMinMultiplier: func() float64 {
+			if req.CheckinLuckMinMultiplier != nil {
+				return *req.CheckinLuckMinMultiplier
+			}
+			return previousSettings.CheckinLuckMinMultiplier
+		}(),
+		CheckinLuckMaxMultiplier: func() float64 {
+			if req.CheckinLuckMaxMultiplier != nil {
+				return *req.CheckinLuckMaxMultiplier
+			}
+			return previousSettings.CheckinLuckMaxMultiplier
+		}(),
 	}
 
 	if err := h.settingService.UpdateSettings(c.Request.Context(), settings); err != nil {
@@ -1109,6 +1135,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CheckinEnabled:                       updatedSettings.CheckinEnabled,
 		CheckinMinBalance:                    updatedSettings.CheckinMinBalance,
 		CheckinMaxBalance:                    updatedSettings.CheckinMaxBalance,
+		CheckinLuckEnabled:                   updatedSettings.CheckinLuckEnabled,
+		CheckinLuckMinMultiplier:             updatedSettings.CheckinLuckMinMultiplier,
+		CheckinLuckMaxMultiplier:             updatedSettings.CheckinLuckMaxMultiplier,
 		PaymentEnabled:                       updatedPaymentCfg.Enabled,
 		PaymentMinAmount:                     updatedPaymentCfg.MinAmount,
 		PaymentMaxAmount:                     updatedPaymentCfg.MaxAmount,

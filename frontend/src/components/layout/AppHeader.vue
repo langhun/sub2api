@@ -70,20 +70,34 @@
         <!-- Checkin Button (desktop) -->
         <div
           v-if="user && checkinEnabled"
-          class="hidden items-center sm:flex"
+          class="hidden items-center gap-2 sm:flex"
         >
-          <button
-            v-if="canCheckin"
-            type="button"
-            :disabled="checkinLoading"
-            class="flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700 transition-all hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
-            @click="handleCheckin"
-          >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-            </svg>
-            <span>{{ checkinLoading ? '...' : t('checkin.button') }}</span>
-          </button>
+          <template v-if="canCheckin">
+            <button
+              v-if="normalEnabled"
+              type="button"
+              :disabled="checkinLoading"
+              class="flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700 transition-all hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
+              @click="handleCheckin"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+              </svg>
+              <span>{{ checkinLoading ? '...' : t('checkin.normalCheckin') }}</span>
+            </button>
+            <button
+              v-if="luckEnabled"
+              type="button"
+              :disabled="checkinLoading"
+              class="flex items-center gap-1.5 rounded-xl bg-purple-50 px-3 py-1.5 text-sm font-semibold text-purple-700 transition-all hover:bg-purple-100 disabled:opacity-50 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
+              @click="showLuckModal = true"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+              </svg>
+              <span>{{ t('checkin.luckCheckin') }}</span>
+            </button>
+          </template>
           <div
             v-else-if="checkedInToday"
             class="flex items-center gap-1.5 rounded-xl bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700 dark:bg-green-900/20 dark:text-green-300"
@@ -94,6 +108,72 @@
             <span>+${{ todayReward?.toFixed(2) }}</span>
           </div>
         </div>
+
+        <!-- Luck Checkin Modal -->
+        <transition name="modal">
+          <div v-if="showLuckModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showLuckModal = false">
+            <div class="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-dark-800">
+              <div class="mb-4 flex items-center gap-3">
+                <div class="rounded-xl bg-purple-100 p-2.5 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+                  <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('checkin.luckTitle') }}</h3>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('checkin.multiplierRange', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('checkin.betAmount') }}</label>
+                  <input
+                    v-model.number="luckBetAmount"
+                    type="number"
+                    step="0.01"
+                    :min="0.01"
+                    :max="checkinStore.status?.balance ?? 0"
+                    class="input"
+                    :placeholder="t('checkin.betAmountPlaceholder')"
+                    @keyup.enter="submitLuckCheckin"
+                  />
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                  <span>{{ t('profile.accountBalance') }}: ${{ checkinStore.status?.balance?.toFixed(2) ?? '0.00' }}</span>
+                  <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="luckBetAmount = checkinStore.status?.balance ?? 0">
+                    {{ t('checkin.betAmount') }} MAX
+                  </button>
+                </div>
+
+                <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.luckDesc', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}</p>
+                </div>
+              </div>
+
+              <div class="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-600 dark:text-dark-300 dark:hover:bg-dark-700"
+                  @click="showLuckModal = false"
+                >
+                  {{ t('common.cancel') || 'Cancel' }}
+                </button>
+                <button
+                  type="button"
+                  :disabled="checkinLoading || !luckBetAmount || luckBetAmount <= 0 || luckBetAmount > (checkinStore.status?.balance ?? 0)"
+                  class="flex-1 rounded-xl bg-purple-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50"
+                  @click="submitLuckCheckin"
+                >
+                  {{ checkinLoading ? '...' : t('checkin.luckButton') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
@@ -242,14 +322,27 @@ const checkinStore = useCheckinStore()
 const user = computed(() => authStore.user)
 const checkinLoading = computed(() => checkinStore.loading)
 const checkinEnabled = computed(() => checkinStore.enabled)
+const normalEnabled = computed(() => checkinStore.normalEnabled)
+const luckEnabled = computed(() => checkinStore.luckEnabled)
 const canCheckin = computed(() => checkinStore.canCheckin)
 const checkedInToday = computed(() => checkinStore.checkedInToday)
 const todayReward = computed(() => checkinStore.todayReward)
+const showLuckModal = ref(false)
+const luckBetAmount = ref<number>(0)
 
 async function handleCheckin() {
   const result = await checkinStore.doCheckin()
   if (result) {
     // success feedback is handled by the UI state change
+  }
+}
+
+async function submitLuckCheckin() {
+  if (!luckBetAmount.value || luckBetAmount.value <= 0) return
+  const result = await checkinStore.doLuckCheckin(luckBetAmount.value)
+  if (result) {
+    showLuckModal.value = false
+    luckBetAmount.value = 0
   }
 }
 const dropdownOpen = ref(false)
@@ -364,5 +457,15 @@ onBeforeUnmount(() => {
 .dropdown-leave-to {
   opacity: 0;
   transform: scale(0.95) translateY(-4px);
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: all 0.2s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
 }
 </style>

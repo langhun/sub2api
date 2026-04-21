@@ -75,6 +75,21 @@ func StreakDays(v int) predicate.Checkin {
 	return predicate.Checkin(sql.FieldEQ(FieldStreakDays, v))
 }
 
+// CheckinType applies equality check predicate on the "checkin_type" field. It's identical to CheckinTypeEQ.
+func CheckinType(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldCheckinType, v))
+}
+
+// BetAmount applies equality check predicate on the "bet_amount" field. It's identical to BetAmountEQ.
+func BetAmount(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldBetAmount, v))
+}
+
+// Multiplier applies equality check predicate on the "multiplier" field. It's identical to MultiplierEQ.
+func Multiplier(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldMultiplier, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Checkin {
 	return predicate.Checkin(sql.FieldEQ(FieldCreatedAt, v))
@@ -218,6 +233,151 @@ func StreakDaysLT(v int) predicate.Checkin {
 // StreakDaysLTE applies the LTE predicate on the "streak_days" field.
 func StreakDaysLTE(v int) predicate.Checkin {
 	return predicate.Checkin(sql.FieldLTE(FieldStreakDays, v))
+}
+
+// CheckinTypeEQ applies the EQ predicate on the "checkin_type" field.
+func CheckinTypeEQ(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldCheckinType, v))
+}
+
+// CheckinTypeNEQ applies the NEQ predicate on the "checkin_type" field.
+func CheckinTypeNEQ(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldCheckinType, v))
+}
+
+// CheckinTypeIn applies the In predicate on the "checkin_type" field.
+func CheckinTypeIn(vs ...string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldCheckinType, vs...))
+}
+
+// CheckinTypeNotIn applies the NotIn predicate on the "checkin_type" field.
+func CheckinTypeNotIn(vs ...string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldCheckinType, vs...))
+}
+
+// CheckinTypeGT applies the GT predicate on the "checkin_type" field.
+func CheckinTypeGT(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGT(FieldCheckinType, v))
+}
+
+// CheckinTypeGTE applies the GTE predicate on the "checkin_type" field.
+func CheckinTypeGTE(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGTE(FieldCheckinType, v))
+}
+
+// CheckinTypeLT applies the LT predicate on the "checkin_type" field.
+func CheckinTypeLT(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLT(FieldCheckinType, v))
+}
+
+// CheckinTypeLTE applies the LTE predicate on the "checkin_type" field.
+func CheckinTypeLTE(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLTE(FieldCheckinType, v))
+}
+
+// CheckinTypeContains applies the Contains predicate on the "checkin_type" field.
+func CheckinTypeContains(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldContains(FieldCheckinType, v))
+}
+
+// CheckinTypeHasPrefix applies the HasPrefix predicate on the "checkin_type" field.
+func CheckinTypeHasPrefix(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldHasPrefix(FieldCheckinType, v))
+}
+
+// CheckinTypeHasSuffix applies the HasSuffix predicate on the "checkin_type" field.
+func CheckinTypeHasSuffix(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldHasSuffix(FieldCheckinType, v))
+}
+
+// CheckinTypeEqualFold applies the EqualFold predicate on the "checkin_type" field.
+func CheckinTypeEqualFold(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEqualFold(FieldCheckinType, v))
+}
+
+// CheckinTypeContainsFold applies the ContainsFold predicate on the "checkin_type" field.
+func CheckinTypeContainsFold(v string) predicate.Checkin {
+	return predicate.Checkin(sql.FieldContainsFold(FieldCheckinType, v))
+}
+
+// BetAmountEQ applies the EQ predicate on the "bet_amount" field.
+func BetAmountEQ(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldBetAmount, v))
+}
+
+// BetAmountNEQ applies the NEQ predicate on the "bet_amount" field.
+func BetAmountNEQ(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldBetAmount, v))
+}
+
+// BetAmountIn applies the In predicate on the "bet_amount" field.
+func BetAmountIn(vs ...float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldBetAmount, vs...))
+}
+
+// BetAmountNotIn applies the NotIn predicate on the "bet_amount" field.
+func BetAmountNotIn(vs ...float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldBetAmount, vs...))
+}
+
+// BetAmountGT applies the GT predicate on the "bet_amount" field.
+func BetAmountGT(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGT(FieldBetAmount, v))
+}
+
+// BetAmountGTE applies the GTE predicate on the "bet_amount" field.
+func BetAmountGTE(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGTE(FieldBetAmount, v))
+}
+
+// BetAmountLT applies the LT predicate on the "bet_amount" field.
+func BetAmountLT(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLT(FieldBetAmount, v))
+}
+
+// BetAmountLTE applies the LTE predicate on the "bet_amount" field.
+func BetAmountLTE(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLTE(FieldBetAmount, v))
+}
+
+// MultiplierEQ applies the EQ predicate on the "multiplier" field.
+func MultiplierEQ(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldEQ(FieldMultiplier, v))
+}
+
+// MultiplierNEQ applies the NEQ predicate on the "multiplier" field.
+func MultiplierNEQ(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNEQ(FieldMultiplier, v))
+}
+
+// MultiplierIn applies the In predicate on the "multiplier" field.
+func MultiplierIn(vs ...float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldIn(FieldMultiplier, vs...))
+}
+
+// MultiplierNotIn applies the NotIn predicate on the "multiplier" field.
+func MultiplierNotIn(vs ...float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldNotIn(FieldMultiplier, vs...))
+}
+
+// MultiplierGT applies the GT predicate on the "multiplier" field.
+func MultiplierGT(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGT(FieldMultiplier, v))
+}
+
+// MultiplierGTE applies the GTE predicate on the "multiplier" field.
+func MultiplierGTE(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldGTE(FieldMultiplier, v))
+}
+
+// MultiplierLT applies the LT predicate on the "multiplier" field.
+func MultiplierLT(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLT(FieldMultiplier, v))
+}
+
+// MultiplierLTE applies the LTE predicate on the "multiplier" field.
+func MultiplierLTE(v float64) predicate.Checkin {
+	return predicate.Checkin(sql.FieldLTE(FieldMultiplier, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

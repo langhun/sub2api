@@ -22,6 +22,12 @@ const (
 	FieldRewardAmount = "reward_amount"
 	// FieldStreakDays holds the string denoting the streak_days field in the database.
 	FieldStreakDays = "streak_days"
+	// FieldCheckinType holds the string denoting the checkin_type field in the database.
+	FieldCheckinType = "checkin_type"
+	// FieldBetAmount holds the string denoting the bet_amount field in the database.
+	FieldBetAmount = "bet_amount"
+	// FieldMultiplier holds the string denoting the multiplier field in the database.
+	FieldMultiplier = "multiplier"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -44,6 +50,9 @@ var Columns = []string{
 	FieldCheckinDate,
 	FieldRewardAmount,
 	FieldStreakDays,
+	FieldCheckinType,
+	FieldBetAmount,
+	FieldMultiplier,
 	FieldCreatedAt,
 }
 
@@ -60,6 +69,12 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultStreakDays holds the default value on creation for the "streak_days" field.
 	DefaultStreakDays int
+	// DefaultCheckinType holds the default value on creation for the "checkin_type" field.
+	DefaultCheckinType string
+	// DefaultBetAmount holds the default value on creation for the "bet_amount" field.
+	DefaultBetAmount float64
+	// DefaultMultiplier holds the default value on creation for the "multiplier" field.
+	DefaultMultiplier float64
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
@@ -90,6 +105,21 @@ func ByRewardAmount(opts ...sql.OrderTermOption) OrderOption {
 // ByStreakDays orders the results by the streak_days field.
 func ByStreakDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStreakDays, opts...).ToFunc()
+}
+
+// ByCheckinType orders the results by the checkin_type field.
+func ByCheckinType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCheckinType, opts...).ToFunc()
+}
+
+// ByBetAmount orders the results by the bet_amount field.
+func ByBetAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBetAmount, opts...).ToFunc()
+}
+
+// ByMultiplier orders the results by the multiplier field.
+func ByMultiplier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMultiplier, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

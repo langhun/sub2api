@@ -344,6 +344,9 @@ var (
 		{Name: "checkin_date", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "date"}},
 		{Name: "reward_amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "streak_days", Type: field.TypeInt, Default: 1},
+		{Name: "checkin_type", Type: field.TypeString, Default: "normal", SchemaType: map[string]string{"postgres": "varchar(20)"}},
+		{Name: "bet_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "multiplier", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "user_id", Type: field.TypeInt64},
 	}
@@ -355,7 +358,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "checkins_users_checkins",
-				Columns:    []*schema.Column{CheckinsColumns[5]},
+				Columns:    []*schema.Column{CheckinsColumns[8]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -364,12 +367,12 @@ var (
 			{
 				Name:    "checkin_user_id_checkin_date",
 				Unique:  true,
-				Columns: []*schema.Column{CheckinsColumns[5], CheckinsColumns[1]},
+				Columns: []*schema.Column{CheckinsColumns[8], CheckinsColumns[1]},
 			},
 			{
 				Name:    "checkin_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{CheckinsColumns[5]},
+				Columns: []*schema.Column{CheckinsColumns[8]},
 			},
 		},
 	}

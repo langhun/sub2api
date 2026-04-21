@@ -54,6 +54,7 @@ const (
 	AdjustmentTypeAdminBalance     = domain.AdjustmentTypeAdminBalance     // 管理员调整余额
 	AdjustmentTypeAdminConcurrency = domain.AdjustmentTypeAdminConcurrency // 管理员调整并发数
 	AdjustmentTypeCheckin          = domain.AdjustmentTypeCheckin          // 签到奖励
+	AdjustmentTypeCheckinLuck      = domain.AdjustmentTypeCheckinLuck      // 运气签到
 	AdjustmentTypeRegistration     = domain.AdjustmentTypeRegistration     // 注册赠送
 )
 
@@ -268,6 +269,11 @@ const (
 	SettingKeyCheckinEnabled    = "checkin_enabled"     // 是否启用签到功能
 	SettingKeyCheckinMinBalance = "checkin_min_balance"  // 签到最小奖励额度
 	SettingKeyCheckinMaxBalance = "checkin_max_balance"  // 签到最大奖励额度
+
+	// Checkin Luck 运气签到设置
+	SettingKeyCheckinLuckEnabled       = "checkin_luck_enabled"        // 是否启用运气签到
+	SettingKeyCheckinLuckMinMultiplier = "checkin_luck_min_multiplier" // 运气签到最小倍率
+	SettingKeyCheckinLuckMaxMultiplier = "checkin_luck_max_multiplier" // 运气签到最大倍率
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).

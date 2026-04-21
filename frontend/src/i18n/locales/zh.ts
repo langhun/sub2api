@@ -882,7 +882,21 @@ export default {
     streakDays: '连续 {days} 天',
     rangeHint: '奖励范围 ${min} ~ ${max}',
     success: '签到成功！获得 ${amount}',
-    alreadyChecked: '今日已签到'
+    alreadyChecked: '今日已签到',
+    luckTitle: '运气签到',
+    luckButton: '运气签到',
+    luckDesc: '选择下注金额，获得 ${min}~${max} 倍随机倍率',
+    luckSuccess: '运气签到成功！倍率 ${multiplier}x，获得 ${amount}',
+    luckLoss: '运气签到成功！倍率 ${multiplier}x，失去 ${amount}',
+    luckEven: '运气签到成功！倍率 1.00x，不赚不赔',
+    betAmount: '下注金额',
+    betAmountPlaceholder: '输入下注金额',
+    multiplierRange: '倍率范围 ${min}x ~ ${max}x',
+    selectType: '选择签到方式',
+    normalCheckin: '普通签到',
+    luckCheckin: '运气签到',
+    normalDesc: '随机获得 ${min}~${max} 奖励',
+    insufficientBalance: '余额不足'
   },
 
   // Profile
@@ -4688,7 +4702,13 @@ export default {
         minBalance: '签到最小额度',
         minBalanceHint: '每日签到随机奖励下限（USD）',
         maxBalance: '签到最大额度',
-        maxBalanceHint: '每日签到随机奖励上限（USD）'
+        maxBalanceHint: '每日签到随机奖励上限（USD）',
+        luckEnabled: '启用运气签到',
+        luckEnabledHint: '允许用户以下注金额进行运气签到，获得随机倍率奖励（可能亏损）',
+        luckMinMultiplier: '最小倍率',
+        luckMinMultiplierHint: '运气签到随机倍率下限（0.1 表示可能只获得下注金额的 10%）',
+        luckMaxMultiplier: '最大倍率',
+        luckMaxMultiplierHint: '运气签到随机倍率上限（3.0 表示最高获得下注金额的 3 倍）'
       },
       claudeCode: {
         title: 'Claude Code 设置',
