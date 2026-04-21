@@ -143,21 +143,21 @@
           </div>
           <template #footer>
             <div class="flex gap-3">
-              <button
-                type="button"
-                class="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-600 dark:text-dark-300 dark:hover:bg-dark-700"
-                @click="showLuckModal = false"
-              >
-                {{ t('common.cancel') }}
-              </button>
-              <button
-                type="button"
-                :disabled="checkinLoading || !luckBetAmount || luckBetAmount <= 0 || luckBetAmount > (checkinStore.status?.balance ?? 0)"
-                class="flex-1 rounded-xl bg-purple-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50"
-                @click="submitLuckCheckin"
-              >
-                {{ checkinLoading ? '...' : t('checkin.luckButton') }}
-              </button>
+                <button
+                  type="button"
+                  class="flex-1 whitespace-nowrap rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-600 dark:text-dark-300 dark:hover:bg-dark-700"
+                  @click="showLuckModal = false"
+                >
+                  {{ t('common.cancel') }}
+                </button>
+                <button
+                  type="button"
+                  :disabled="checkinLoading || !luckBetAmount || luckBetAmount <= 0 || luckBetAmount > (checkinStore.status?.balance ?? 0)"
+                  class="flex-1 whitespace-nowrap rounded-xl bg-purple-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50"
+                  @click="submitLuckCheckin"
+                >
+                  {{ checkinLoading ? '...' : t('checkin.luckButton') }}
+                </button>
             </div>
           </template>
         </BaseDialog>
