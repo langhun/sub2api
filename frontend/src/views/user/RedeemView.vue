@@ -283,6 +283,9 @@
                   </p>
                   <p class="text-xs text-gray-500 dark:text-dark-400">
                     {{ formatDateTime(item.used_at) }}
+                    <span v-if="item.type === 'checkin_luck' && item.multiplier" class="ml-1 text-amber-600 dark:text-amber-400">
+                      · {{ t('checkin.multiplier') }} {{ item.multiplier.toFixed(2) }}x
+                    </span>
                   </p>
                 </div>
               </div>
@@ -399,13 +402,7 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
     return t('admin.users.typeCheckin')
   } else if (item.type === 'checkin_luck') {
     const m = item.multiplier?.toFixed(2) ?? '—'
-    const a = Math.abs(item.value).toFixed(2)
-    if (item.value > 0) {
-      return t('checkin.luckSuccess', { multiplier: m, amount: a })
-    } else if (item.value < 0) {
-      return t('checkin.luckLoss', { multiplier: m, amount: a })
-    }
-    return t('checkin.luckEven')
+    return t('checkin.luckRewardTitle', { multiplier: m })
   } else if (item.type === 'registration') {
     return t('admin.users.typeRegistration')
   } else if (item.type === 'invitation') {
