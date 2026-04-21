@@ -311,7 +311,7 @@ const getItemTitle = (item: BalanceHistoryItem) => {
     case 'checkin':
       return t('admin.users.typeCheckin')
     case 'checkin_luck':
-      return t('checkin.luckTitle')
+      return t('checkin.luckCheckinReward')
     case 'registration':
       return t('admin.users.typeRegistration')
     case 'invitation':

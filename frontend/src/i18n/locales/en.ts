@@ -885,6 +885,7 @@ export default {
     luckSuccess: 'Lucky check-in! Multiplier ${multiplier}x, earned ${amount}',
     luckLoss: 'Lucky check-in! Multiplier ${multiplier}x, lost ${amount}',
     luckEven: 'Lucky check-in! Multiplier 1.00x, no change',
+    luckCheckinReward: 'Lucky Check-in Reward',
     betAmount: 'Bet Amount',
     betAmountPlaceholder: 'Enter bet amount',
     multiplierRange: 'Multiplier range ${min}x ~ ${max}x',
