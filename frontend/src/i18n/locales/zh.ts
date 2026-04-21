@@ -889,6 +889,7 @@ export default {
     luckSuccess: '运气签到成功！倍率 ${multiplier}x，获得 ${amount}',
     luckLoss: '运气签到成功！倍率 ${multiplier}x，失去 ${amount}',
     luckEven: '运气签到成功！倍率 1.00x，不赚不赔',
+    luckCheckinReward: '运气签到奖励',
     betAmount: '下注金额',
     betAmountPlaceholder: '输入下注金额',
     multiplierRange: '倍率范围 ${min}x ~ ${max}x',
