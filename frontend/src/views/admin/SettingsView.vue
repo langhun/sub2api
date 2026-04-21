@@ -1632,6 +1632,48 @@
                     </div>
                   </div>
                 </template>
+
+                <div class="flex items-center justify-between border-t pt-4 dark:border-dark-700">
+                  <div>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.checkin.luckEnabled') }}
+                    </label>
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.checkin.luckEnabledHint') }}
+                    </p>
+                  </div>
+                  <button type="button"
+                    :class="form.checkin_luck_enabled ? 'bg-primary-600' : 'bg-gray-300 dark:bg-dark-600'"
+                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                    @click="form.checkin_luck_enabled = !form.checkin_luck_enabled">
+                    <span :class="form.checkin_luck_enabled ? 'translate-x-5' : 'translate-x-0'"
+                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out" />
+                  </button>
+                </div>
+                <template v-if="form.checkin_luck_enabled">
+                  <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.checkin.luckMinMultiplier') }}
+                      </label>
+                      <input v-model.number="form.checkin_luck_min_multiplier" type="number" step="0.01" min="0"
+                        class="input" placeholder="0.10" />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.checkin.luckMinMultiplierHint') }}
+                      </p>
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.checkin.luckMaxMultiplier') }}
+                      </label>
+                      <input v-model.number="form.checkin_luck_max_multiplier" type="number" step="0.01" min="0"
+                        class="input" placeholder="3.00" />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.checkin.luckMaxMultiplierHint') }}
+                      </p>
+                    </div>
+                  </div>
+                </template>
               </div>
             </div>
           </div>
@@ -3027,6 +3069,9 @@ const form = reactive<SettingsForm>({
   checkin_enabled: false,
   checkin_min_balance: 0.1,
   checkin_max_balance: 1.0,
+  checkin_luck_enabled: false,
+  checkin_luck_min_multiplier: 0.1,
+  checkin_luck_max_multiplier: 3.0,
   site_name: 'Sub2API',
   site_logo: '',
   site_subtitle: 'Subscription to API Conversion Platform',
@@ -3493,6 +3538,9 @@ async function loadSettings() {
     form.checkin_enabled = settings.checkin_enabled ?? false
     form.checkin_min_balance = settings.checkin_min_balance ?? 0.1
     form.checkin_max_balance = settings.checkin_max_balance ?? 1.0
+    form.checkin_luck_enabled = settings.checkin_luck_enabled ?? false
+    form.checkin_luck_min_multiplier = settings.checkin_luck_min_multiplier ?? 0.1
+    form.checkin_luck_max_multiplier = settings.checkin_luck_max_multiplier ?? 3.0
     registrationEmailSuffixWhitelistTags.value = normalizeRegistrationEmailSuffixDomains(
       settings.registration_email_suffix_whitelist
     )
@@ -3630,6 +3678,9 @@ async function saveSettings() {
       checkin_enabled: form.checkin_enabled,
       checkin_min_balance: form.checkin_min_balance,
       checkin_max_balance: form.checkin_max_balance,
+      checkin_luck_enabled: form.checkin_luck_enabled,
+      checkin_luck_min_multiplier: form.checkin_luck_min_multiplier,
+      checkin_luck_max_multiplier: form.checkin_luck_max_multiplier,
       site_name: form.site_name,
       site_logo: form.site_logo,
       site_subtitle: form.site_subtitle,

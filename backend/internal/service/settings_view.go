@@ -123,6 +123,11 @@ type SystemSettings struct {
 	CheckinEnabled    bool
 	CheckinMinBalance float64
 	CheckinMaxBalance float64
+
+	// Checkin Luck 运气签到设置
+	CheckinLuckEnabled       bool
+	CheckinLuckMinMultiplier float64
+	CheckinLuckMaxMultiplier float64
 }
 
 type DefaultSubscriptionSetting struct {

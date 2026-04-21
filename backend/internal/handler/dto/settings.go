@@ -162,6 +162,11 @@ type SystemSettings struct {
 	CheckinEnabled    bool    `json:"checkin_enabled"`
 	CheckinMinBalance float64 `json:"checkin_min_balance"`
 	CheckinMaxBalance float64 `json:"checkin_max_balance"`
+
+	// Checkin Luck 运气签到设置
+	CheckinLuckEnabled       bool    `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier float64 `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier float64 `json:"checkin_luck_max_multiplier"`
 }
 
 type DefaultSubscriptionSetting struct {

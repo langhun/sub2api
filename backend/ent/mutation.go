@@ -6902,6 +6902,11 @@ type CheckinMutation struct {
 	addreward_amount *float64
 	streak_days      *int
 	addstreak_days   *int
+	checkin_type     *string
+	bet_amount       *float64
+	addbet_amount    *float64
+	multiplier       *float64
+	addmultiplier    *float64
 	created_at       *time.Time
 	clearedFields    map[string]struct{}
 	user             *int64
@@ -7193,6 +7198,154 @@ func (m *CheckinMutation) ResetStreakDays() {
 	m.addstreak_days = nil
 }
 
+// SetCheckinType sets the "checkin_type" field.
+func (m *CheckinMutation) SetCheckinType(s string) {
+	m.checkin_type = &s
+}
+
+// CheckinType returns the value of the "checkin_type" field in the mutation.
+func (m *CheckinMutation) CheckinType() (r string, exists bool) {
+	v := m.checkin_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckinType returns the old "checkin_type" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldCheckinType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckinType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckinType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckinType: %w", err)
+	}
+	return oldValue.CheckinType, nil
+}
+
+// ResetCheckinType resets all changes to the "checkin_type" field.
+func (m *CheckinMutation) ResetCheckinType() {
+	m.checkin_type = nil
+}
+
+// SetBetAmount sets the "bet_amount" field.
+func (m *CheckinMutation) SetBetAmount(f float64) {
+	m.bet_amount = &f
+	m.addbet_amount = nil
+}
+
+// BetAmount returns the value of the "bet_amount" field in the mutation.
+func (m *CheckinMutation) BetAmount() (r float64, exists bool) {
+	v := m.bet_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBetAmount returns the old "bet_amount" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldBetAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBetAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBetAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBetAmount: %w", err)
+	}
+	return oldValue.BetAmount, nil
+}
+
+// AddBetAmount adds f to the "bet_amount" field.
+func (m *CheckinMutation) AddBetAmount(f float64) {
+	if m.addbet_amount != nil {
+		*m.addbet_amount += f
+	} else {
+		m.addbet_amount = &f
+	}
+}
+
+// AddedBetAmount returns the value that was added to the "bet_amount" field in this mutation.
+func (m *CheckinMutation) AddedBetAmount() (r float64, exists bool) {
+	v := m.addbet_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBetAmount resets all changes to the "bet_amount" field.
+func (m *CheckinMutation) ResetBetAmount() {
+	m.bet_amount = nil
+	m.addbet_amount = nil
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (m *CheckinMutation) SetMultiplier(f float64) {
+	m.multiplier = &f
+	m.addmultiplier = nil
+}
+
+// Multiplier returns the value of the "multiplier" field in the mutation.
+func (m *CheckinMutation) Multiplier() (r float64, exists bool) {
+	v := m.multiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMultiplier returns the old "multiplier" field's value of the Checkin entity.
+// If the Checkin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinMutation) OldMultiplier(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMultiplier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMultiplier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMultiplier: %w", err)
+	}
+	return oldValue.Multiplier, nil
+}
+
+// AddMultiplier adds f to the "multiplier" field.
+func (m *CheckinMutation) AddMultiplier(f float64) {
+	if m.addmultiplier != nil {
+		*m.addmultiplier += f
+	} else {
+		m.addmultiplier = &f
+	}
+}
+
+// AddedMultiplier returns the value that was added to the "multiplier" field in this mutation.
+func (m *CheckinMutation) AddedMultiplier() (r float64, exists bool) {
+	v := m.addmultiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMultiplier resets all changes to the "multiplier" field.
+func (m *CheckinMutation) ResetMultiplier() {
+	m.multiplier = nil
+	m.addmultiplier = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *CheckinMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -7290,7 +7443,7 @@ func (m *CheckinMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CheckinMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 8)
 	if m.user != nil {
 		fields = append(fields, checkin.FieldUserID)
 	}
@@ -7302,6 +7455,15 @@ func (m *CheckinMutation) Fields() []string {
 	}
 	if m.streak_days != nil {
 		fields = append(fields, checkin.FieldStreakDays)
+	}
+	if m.checkin_type != nil {
+		fields = append(fields, checkin.FieldCheckinType)
+	}
+	if m.bet_amount != nil {
+		fields = append(fields, checkin.FieldBetAmount)
+	}
+	if m.multiplier != nil {
+		fields = append(fields, checkin.FieldMultiplier)
 	}
 	if m.created_at != nil {
 		fields = append(fields, checkin.FieldCreatedAt)
@@ -7322,6 +7484,12 @@ func (m *CheckinMutation) Field(name string) (ent.Value, bool) {
 		return m.RewardAmount()
 	case checkin.FieldStreakDays:
 		return m.StreakDays()
+	case checkin.FieldCheckinType:
+		return m.CheckinType()
+	case checkin.FieldBetAmount:
+		return m.BetAmount()
+	case checkin.FieldMultiplier:
+		return m.Multiplier()
 	case checkin.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -7341,6 +7509,12 @@ func (m *CheckinMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldRewardAmount(ctx)
 	case checkin.FieldStreakDays:
 		return m.OldStreakDays(ctx)
+	case checkin.FieldCheckinType:
+		return m.OldCheckinType(ctx)
+	case checkin.FieldBetAmount:
+		return m.OldBetAmount(ctx)
+	case checkin.FieldMultiplier:
+		return m.OldMultiplier(ctx)
 	case checkin.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -7380,6 +7554,27 @@ func (m *CheckinMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStreakDays(v)
 		return nil
+	case checkin.FieldCheckinType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckinType(v)
+		return nil
+	case checkin.FieldBetAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBetAmount(v)
+		return nil
+	case checkin.FieldMultiplier:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMultiplier(v)
+		return nil
 	case checkin.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -7401,6 +7596,12 @@ func (m *CheckinMutation) AddedFields() []string {
 	if m.addstreak_days != nil {
 		fields = append(fields, checkin.FieldStreakDays)
 	}
+	if m.addbet_amount != nil {
+		fields = append(fields, checkin.FieldBetAmount)
+	}
+	if m.addmultiplier != nil {
+		fields = append(fields, checkin.FieldMultiplier)
+	}
 	return fields
 }
 
@@ -7413,6 +7614,10 @@ func (m *CheckinMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedRewardAmount()
 	case checkin.FieldStreakDays:
 		return m.AddedStreakDays()
+	case checkin.FieldBetAmount:
+		return m.AddedBetAmount()
+	case checkin.FieldMultiplier:
+		return m.AddedMultiplier()
 	}
 	return nil, false
 }
@@ -7435,6 +7640,20 @@ func (m *CheckinMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddStreakDays(v)
+		return nil
+	case checkin.FieldBetAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBetAmount(v)
+		return nil
+	case checkin.FieldMultiplier:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMultiplier(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Checkin numeric field %s", name)
@@ -7474,6 +7693,15 @@ func (m *CheckinMutation) ResetField(name string) error {
 		return nil
 	case checkin.FieldStreakDays:
 		m.ResetStreakDays()
+		return nil
+	case checkin.FieldCheckinType:
+		m.ResetCheckinType()
+		return nil
+	case checkin.FieldBetAmount:
+		m.ResetBetAmount()
+		return nil
+	case checkin.FieldMultiplier:
+		m.ResetMultiplier()
 		return nil
 	case checkin.FieldCreatedAt:
 		m.ResetCreatedAt()

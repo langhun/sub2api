@@ -54,7 +54,8 @@ const (
 )
 
 // Checkin type constant
-const AdjustmentTypeCheckin = "checkin" // 签到奖励
+const AdjustmentTypeCheckin = "checkin"         // 签到奖励
+const AdjustmentTypeCheckinLuck = "checkin_luck" // 运气签到
 
 // Registration type constant
 const AdjustmentTypeRegistration = "registration" // 注册赠送

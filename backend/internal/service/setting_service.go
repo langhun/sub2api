@@ -639,6 +639,11 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyCheckinMinBalance] = strconv.FormatFloat(settings.CheckinMinBalance, 'f', 8, 64)
 	updates[SettingKeyCheckinMaxBalance] = strconv.FormatFloat(settings.CheckinMaxBalance, 'f', 8, 64)
 
+	// Checkin Luck 运气签到设置
+	updates[SettingKeyCheckinLuckEnabled] = strconv.FormatBool(settings.CheckinLuckEnabled)
+	updates[SettingKeyCheckinLuckMinMultiplier] = strconv.FormatFloat(settings.CheckinLuckMinMultiplier, 'f', 8, 64)
+	updates[SettingKeyCheckinLuckMaxMultiplier] = strconv.FormatFloat(settings.CheckinLuckMaxMultiplier, 'f', 8, 64)
+
 	err = s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil {
 		// 先使 inflight singleflight 失效，再刷新缓存，缩小旧值覆盖新值的竞态窗口
@@ -948,6 +953,30 @@ func (s *SettingService) GetCheckinBalanceRange(ctx context.Context) (float64, f
 	return minVal, maxVal
 }
 
+// IsCheckinLuckEnabled 获取运气签到功能是否启用
+func (s *SettingService) IsCheckinLuckEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyCheckinLuckEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// GetCheckinLuckMultiplierRange 获取运气签到倍率范围 (min, max)
+func (s *SettingService) GetCheckinLuckMultiplierRange(ctx context.Context) (float64, float64) {
+	minVal, maxVal := 0.1, 3.0
+	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinLuckMinMultiplier, "0.1"), 64); err == nil && v >= 0 {
+		minVal = v
+	}
+	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinLuckMaxMultiplier, "3.0"), 64); err == nil && v >= 0 {
+		maxVal = v
+	}
+	if minVal > maxVal {
+		minVal, maxVal = maxVal, minVal
+	}
+	return minVal, maxVal
+}
+
 func (s *SettingService) getStringWithDefault(ctx context.Context, key, fallback string) string {
 	value, err := s.settingRepo.GetValue(ctx, key)
 	if err != nil || value == "" {
@@ -1016,6 +1045,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyCheckinEnabled:    "false",
 		SettingKeyCheckinMinBalance: "0.10",
 		SettingKeyCheckinMaxBalance: "1.00",
+
+		// Checkin Luck 运气签到设置（默认关闭）
+		SettingKeyCheckinLuckEnabled:       "false",
+		SettingKeyCheckinLuckMinMultiplier: "0.10",
+		SettingKeyCheckinLuckMaxMultiplier: "3.00",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -1333,6 +1367,19 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.CheckinMaxBalance = v
 	} else {
 		result.CheckinMaxBalance = 1.0
+	}
+
+	// Checkin Luck 运气签到设置
+	result.CheckinLuckEnabled = settings[SettingKeyCheckinLuckEnabled] == "true"
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinLuckMinMultiplier], 64); err == nil && v >= 0 {
+		result.CheckinLuckMinMultiplier = v
+	} else {
+		result.CheckinLuckMinMultiplier = 0.1
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinLuckMaxMultiplier], 64); err == nil && v >= 0 {
+		result.CheckinLuckMaxMultiplier = v
+	} else {
+		result.CheckinLuckMaxMultiplier = 3.0
 	}
 
 	return result

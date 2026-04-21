@@ -9,10 +9,13 @@ export const useCheckinStore = defineStore('checkin', () => {
   const checkinResult = ref<CheckinResult | null>(null)
 
   const canCheckin = computed(() => status.value?.can_checkin ?? false)
-  const enabled = computed(() => status.value?.enabled ?? false)
+  const enabled = computed(() => (status.value?.enabled ?? false) || (status.value?.luck_enabled ?? false))
+  const normalEnabled = computed(() => status.value?.enabled ?? false)
+  const luckEnabled = computed(() => status.value?.luck_enabled ?? false)
   const checkedInToday = computed(() => enabled.value && !canCheckin.value && status.value !== null)
   const streakDays = computed(() => status.value?.streak_days ?? 0)
   const todayReward = computed(() => status.value?.today_reward ?? null)
+  const todayCheckinType = computed(() => status.value?.today_checkin_type ?? null)
 
   async function fetchStatus() {
     try {
@@ -33,6 +36,32 @@ export const useCheckinStore = defineStore('checkin', () => {
         status.value.can_checkin = false
         status.value.streak_days = result.streak_days
         status.value.today_reward = result.reward_amount
+        status.value.today_checkin_type = result.checkin_type
+      }
+
+      const authStore = useAuthStore()
+      await authStore.refreshUser()
+
+      return result
+    } catch {
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function doLuckCheckin(betAmount: number): Promise<CheckinResult | null> {
+    if (loading.value) return null
+    loading.value = true
+    try {
+      const result = await checkinAPI.luckCheckin(betAmount)
+      checkinResult.value = result
+
+      if (status.value) {
+        status.value.can_checkin = false
+        status.value.streak_days = result.streak_days
+        status.value.today_reward = result.reward_amount
+        status.value.today_checkin_type = result.checkin_type
       }
 
       const authStore = useAuthStore()
@@ -58,11 +87,15 @@ export const useCheckinStore = defineStore('checkin', () => {
     checkinResult,
     canCheckin,
     enabled,
+    normalEnabled,
+    luckEnabled,
     checkedInToday,
     streakDays,
     todayReward,
+    todayCheckinType,
     fetchStatus,
     doCheckin,
+    doLuckCheckin,
     $reset
   }
 })

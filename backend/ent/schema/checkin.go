@@ -33,6 +33,15 @@ func (Checkin) Fields() []ent.Field {
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
 		field.Int("streak_days").
 			Default(1),
+		field.String("checkin_type").
+			Default("normal").
+			SchemaType(map[string]string{dialect.Postgres: "varchar(20)"}),
+		field.Float("bet_amount").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
+		field.Float("multiplier").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
 		field.Time("created_at").
 			Immutable().
 			Default(time.Now).

@@ -55,6 +55,48 @@ func (_c *CheckinCreate) SetNillableStreakDays(v *int) *CheckinCreate {
 	return _c
 }
 
+// SetCheckinType sets the "checkin_type" field.
+func (_c *CheckinCreate) SetCheckinType(v string) *CheckinCreate {
+	_c.mutation.SetCheckinType(v)
+	return _c
+}
+
+// SetNillableCheckinType sets the "checkin_type" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillableCheckinType(v *string) *CheckinCreate {
+	if v != nil {
+		_c.SetCheckinType(*v)
+	}
+	return _c
+}
+
+// SetBetAmount sets the "bet_amount" field.
+func (_c *CheckinCreate) SetBetAmount(v float64) *CheckinCreate {
+	_c.mutation.SetBetAmount(v)
+	return _c
+}
+
+// SetNillableBetAmount sets the "bet_amount" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillableBetAmount(v *float64) *CheckinCreate {
+	if v != nil {
+		_c.SetBetAmount(*v)
+	}
+	return _c
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (_c *CheckinCreate) SetMultiplier(v float64) *CheckinCreate {
+	_c.mutation.SetMultiplier(v)
+	return _c
+}
+
+// SetNillableMultiplier sets the "multiplier" field if the given value is not nil.
+func (_c *CheckinCreate) SetNillableMultiplier(v *float64) *CheckinCreate {
+	if v != nil {
+		_c.SetMultiplier(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *CheckinCreate) SetCreatedAt(v time.Time) *CheckinCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -113,6 +155,18 @@ func (_c *CheckinCreate) defaults() {
 		v := checkin.DefaultStreakDays
 		_c.mutation.SetStreakDays(v)
 	}
+	if _, ok := _c.mutation.CheckinType(); !ok {
+		v := checkin.DefaultCheckinType
+		_c.mutation.SetCheckinType(v)
+	}
+	if _, ok := _c.mutation.BetAmount(); !ok {
+		v := checkin.DefaultBetAmount
+		_c.mutation.SetBetAmount(v)
+	}
+	if _, ok := _c.mutation.Multiplier(); !ok {
+		v := checkin.DefaultMultiplier
+		_c.mutation.SetMultiplier(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := checkin.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -132,6 +186,15 @@ func (_c *CheckinCreate) check() error {
 	}
 	if _, ok := _c.mutation.StreakDays(); !ok {
 		return &ValidationError{Name: "streak_days", err: errors.New(`ent: missing required field "Checkin.streak_days"`)}
+	}
+	if _, ok := _c.mutation.CheckinType(); !ok {
+		return &ValidationError{Name: "checkin_type", err: errors.New(`ent: missing required field "Checkin.checkin_type"`)}
+	}
+	if _, ok := _c.mutation.BetAmount(); !ok {
+		return &ValidationError{Name: "bet_amount", err: errors.New(`ent: missing required field "Checkin.bet_amount"`)}
+	}
+	if _, ok := _c.mutation.Multiplier(); !ok {
+		return &ValidationError{Name: "multiplier", err: errors.New(`ent: missing required field "Checkin.multiplier"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Checkin.created_at"`)}
@@ -177,6 +240,18 @@ func (_c *CheckinCreate) createSpec() (*Checkin, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.StreakDays(); ok {
 		_spec.SetField(checkin.FieldStreakDays, field.TypeInt, value)
 		_node.StreakDays = value
+	}
+	if value, ok := _c.mutation.CheckinType(); ok {
+		_spec.SetField(checkin.FieldCheckinType, field.TypeString, value)
+		_node.CheckinType = value
+	}
+	if value, ok := _c.mutation.BetAmount(); ok {
+		_spec.SetField(checkin.FieldBetAmount, field.TypeFloat64, value)
+		_node.BetAmount = value
+	}
+	if value, ok := _c.mutation.Multiplier(); ok {
+		_spec.SetField(checkin.FieldMultiplier, field.TypeFloat64, value)
+		_node.Multiplier = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(checkin.FieldCreatedAt, field.TypeTime, value)
@@ -311,6 +386,54 @@ func (u *CheckinUpsert) AddStreakDays(v int) *CheckinUpsert {
 	return u
 }
 
+// SetCheckinType sets the "checkin_type" field.
+func (u *CheckinUpsert) SetCheckinType(v string) *CheckinUpsert {
+	u.Set(checkin.FieldCheckinType, v)
+	return u
+}
+
+// UpdateCheckinType sets the "checkin_type" field to the value that was provided on create.
+func (u *CheckinUpsert) UpdateCheckinType() *CheckinUpsert {
+	u.SetExcluded(checkin.FieldCheckinType)
+	return u
+}
+
+// SetBetAmount sets the "bet_amount" field.
+func (u *CheckinUpsert) SetBetAmount(v float64) *CheckinUpsert {
+	u.Set(checkin.FieldBetAmount, v)
+	return u
+}
+
+// UpdateBetAmount sets the "bet_amount" field to the value that was provided on create.
+func (u *CheckinUpsert) UpdateBetAmount() *CheckinUpsert {
+	u.SetExcluded(checkin.FieldBetAmount)
+	return u
+}
+
+// AddBetAmount adds v to the "bet_amount" field.
+func (u *CheckinUpsert) AddBetAmount(v float64) *CheckinUpsert {
+	u.Add(checkin.FieldBetAmount, v)
+	return u
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (u *CheckinUpsert) SetMultiplier(v float64) *CheckinUpsert {
+	u.Set(checkin.FieldMultiplier, v)
+	return u
+}
+
+// UpdateMultiplier sets the "multiplier" field to the value that was provided on create.
+func (u *CheckinUpsert) UpdateMultiplier() *CheckinUpsert {
+	u.SetExcluded(checkin.FieldMultiplier)
+	return u
+}
+
+// AddMultiplier adds v to the "multiplier" field.
+func (u *CheckinUpsert) AddMultiplier(v float64) *CheckinUpsert {
+	u.Add(checkin.FieldMultiplier, v)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -423,6 +546,62 @@ func (u *CheckinUpsertOne) AddStreakDays(v int) *CheckinUpsertOne {
 func (u *CheckinUpsertOne) UpdateStreakDays() *CheckinUpsertOne {
 	return u.Update(func(s *CheckinUpsert) {
 		s.UpdateStreakDays()
+	})
+}
+
+// SetCheckinType sets the "checkin_type" field.
+func (u *CheckinUpsertOne) SetCheckinType(v string) *CheckinUpsertOne {
+	return u.Update(func(s *CheckinUpsert) {
+		s.SetCheckinType(v)
+	})
+}
+
+// UpdateCheckinType sets the "checkin_type" field to the value that was provided on create.
+func (u *CheckinUpsertOne) UpdateCheckinType() *CheckinUpsertOne {
+	return u.Update(func(s *CheckinUpsert) {
+		s.UpdateCheckinType()
+	})
+}
+
+// SetBetAmount sets the "bet_amount" field.
+func (u *CheckinUpsertOne) SetBetAmount(v float64) *CheckinUpsertOne {
+	return u.Update(func(s *CheckinUpsert) {
+		s.SetBetAmount(v)
+	})
+}
+
+// AddBetAmount adds v to the "bet_amount" field.
+func (u *CheckinUpsertOne) AddBetAmount(v float64) *CheckinUpsertOne {
+	return u.Update(func(s *CheckinUpsert) {
+		s.AddBetAmount(v)
+	})
+}
+
+// UpdateBetAmount sets the "bet_amount" field to the value that was provided on create.
+func (u *CheckinUpsertOne) UpdateBetAmount() *CheckinUpsertOne {
+	return u.Update(func(s *CheckinUpsert) {
+		s.UpdateBetAmount()
+	})
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (u *CheckinUpsertOne) SetMultiplier(v float64) *CheckinUpsertOne {
+	return u.Update(func(s *CheckinUpsert) {
+		s.SetMultiplier(v)
+	})
+}
+
+// AddMultiplier adds v to the "multiplier" field.
+func (u *CheckinUpsertOne) AddMultiplier(v float64) *CheckinUpsertOne {
+	return u.Update(func(s *CheckinUpsert) {
+		s.AddMultiplier(v)
+	})
+}
+
+// UpdateMultiplier sets the "multiplier" field to the value that was provided on create.
+func (u *CheckinUpsertOne) UpdateMultiplier() *CheckinUpsertOne {
+	return u.Update(func(s *CheckinUpsert) {
+		s.UpdateMultiplier()
 	})
 }
 
@@ -704,6 +883,62 @@ func (u *CheckinUpsertBulk) AddStreakDays(v int) *CheckinUpsertBulk {
 func (u *CheckinUpsertBulk) UpdateStreakDays() *CheckinUpsertBulk {
 	return u.Update(func(s *CheckinUpsert) {
 		s.UpdateStreakDays()
+	})
+}
+
+// SetCheckinType sets the "checkin_type" field.
+func (u *CheckinUpsertBulk) SetCheckinType(v string) *CheckinUpsertBulk {
+	return u.Update(func(s *CheckinUpsert) {
+		s.SetCheckinType(v)
+	})
+}
+
+// UpdateCheckinType sets the "checkin_type" field to the value that was provided on create.
+func (u *CheckinUpsertBulk) UpdateCheckinType() *CheckinUpsertBulk {
+	return u.Update(func(s *CheckinUpsert) {
+		s.UpdateCheckinType()
+	})
+}
+
+// SetBetAmount sets the "bet_amount" field.
+func (u *CheckinUpsertBulk) SetBetAmount(v float64) *CheckinUpsertBulk {
+	return u.Update(func(s *CheckinUpsert) {
+		s.SetBetAmount(v)
+	})
+}
+
+// AddBetAmount adds v to the "bet_amount" field.
+func (u *CheckinUpsertBulk) AddBetAmount(v float64) *CheckinUpsertBulk {
+	return u.Update(func(s *CheckinUpsert) {
+		s.AddBetAmount(v)
+	})
+}
+
+// UpdateBetAmount sets the "bet_amount" field to the value that was provided on create.
+func (u *CheckinUpsertBulk) UpdateBetAmount() *CheckinUpsertBulk {
+	return u.Update(func(s *CheckinUpsert) {
+		s.UpdateBetAmount()
+	})
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (u *CheckinUpsertBulk) SetMultiplier(v float64) *CheckinUpsertBulk {
+	return u.Update(func(s *CheckinUpsert) {
+		s.SetMultiplier(v)
+	})
+}
+
+// AddMultiplier adds v to the "multiplier" field.
+func (u *CheckinUpsertBulk) AddMultiplier(v float64) *CheckinUpsertBulk {
+	return u.Update(func(s *CheckinUpsert) {
+		s.AddMultiplier(v)
+	})
+}
+
+// UpdateMultiplier sets the "multiplier" field to the value that was provided on create.
+func (u *CheckinUpsertBulk) UpdateMultiplier() *CheckinUpsertBulk {
+	return u.Update(func(s *CheckinUpsert) {
+		s.UpdateMultiplier()
 	})
 }
 

@@ -26,6 +26,12 @@ type Checkin struct {
 	RewardAmount float64 `json:"reward_amount,omitempty"`
 	// StreakDays holds the value of the "streak_days" field.
 	StreakDays int `json:"streak_days,omitempty"`
+	// CheckinType holds the value of the "checkin_type" field.
+	CheckinType string `json:"checkin_type,omitempty"`
+	// BetAmount holds the value of the "bet_amount" field.
+	BetAmount float64 `json:"bet_amount,omitempty"`
+	// Multiplier holds the value of the "multiplier" field.
+	Multiplier float64 `json:"multiplier,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -59,10 +65,12 @@ func (*Checkin) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case checkin.FieldRewardAmount:
+		case checkin.FieldRewardAmount, checkin.FieldBetAmount, checkin.FieldMultiplier:
 			values[i] = new(sql.NullFloat64)
 		case checkin.FieldID, checkin.FieldUserID, checkin.FieldStreakDays:
 			values[i] = new(sql.NullInt64)
+		case checkin.FieldCheckinType:
+			values[i] = new(sql.NullString)
 		case checkin.FieldCheckinDate, checkin.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
@@ -109,6 +117,24 @@ func (_m *Checkin) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field streak_days", values[i])
 			} else if value.Valid {
 				_m.StreakDays = int(value.Int64)
+			}
+		case checkin.FieldCheckinType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field checkin_type", values[i])
+			} else if value.Valid {
+				_m.CheckinType = value.String
+			}
+		case checkin.FieldBetAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field bet_amount", values[i])
+			} else if value.Valid {
+				_m.BetAmount = value.Float64
+			}
+		case checkin.FieldMultiplier:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field multiplier", values[i])
+			} else if value.Valid {
+				_m.Multiplier = value.Float64
 			}
 		case checkin.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -168,6 +194,15 @@ func (_m *Checkin) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("streak_days=")
 	builder.WriteString(fmt.Sprintf("%v", _m.StreakDays))
+	builder.WriteString(", ")
+	builder.WriteString("checkin_type=")
+	builder.WriteString(_m.CheckinType)
+	builder.WriteString(", ")
+	builder.WriteString("bet_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BetAmount))
+	builder.WriteString(", ")
+	builder.WriteString("multiplier=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Multiplier))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

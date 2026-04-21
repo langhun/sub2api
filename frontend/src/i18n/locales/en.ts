@@ -878,7 +878,21 @@ export default {
     streakDays: '{days} day streak',
     rangeHint: 'Reward: ${min} ~ ${max}',
     success: 'Check-in successful! Earned ${amount}',
-    alreadyChecked: 'Already checked in today'
+    alreadyChecked: 'Already checked in today',
+    luckTitle: 'Lucky Check-in',
+    luckButton: 'Lucky Check-in',
+    luckDesc: 'Bet an amount, get a random ${min}~${max}x multiplier',
+    luckSuccess: 'Lucky check-in! Multiplier ${multiplier}x, earned ${amount}',
+    luckLoss: 'Lucky check-in! Multiplier ${multiplier}x, lost ${amount}',
+    luckEven: 'Lucky check-in! Multiplier 1.00x, no change',
+    betAmount: 'Bet Amount',
+    betAmountPlaceholder: 'Enter bet amount',
+    multiplierRange: 'Multiplier range ${min}x ~ ${max}x',
+    selectType: 'Select check-in type',
+    normalCheckin: 'Normal Check-in',
+    luckCheckin: 'Lucky Check-in',
+    normalDesc: 'Random reward ${min}~${max}',
+    insufficientBalance: 'Insufficient balance'
   },
 
   // Profile
@@ -4523,7 +4537,13 @@ export default {
         minBalance: 'Min Reward Amount',
         minBalanceHint: 'Minimum random reward per check-in (USD)',
         maxBalance: 'Max Reward Amount',
-        maxBalanceHint: 'Maximum random reward per check-in (USD)'
+        maxBalanceHint: 'Maximum random reward per check-in (USD)',
+        luckEnabled: 'Enable Lucky Check-in',
+        luckEnabledHint: 'Allow users to bet an amount for a random multiplier reward (may result in loss)',
+        luckMinMultiplier: 'Min Multiplier',
+        luckMinMultiplierHint: 'Minimum random multiplier (0.1 means user may only get 10% of bet back)',
+        luckMaxMultiplier: 'Max Multiplier',
+        luckMaxMultiplierHint: 'Maximum random multiplier (3.0 means up to 3x the bet amount)'
       },
       claudeCode: {
         title: 'Claude Code Settings',

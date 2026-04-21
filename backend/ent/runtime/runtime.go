@@ -317,8 +317,20 @@ func init() {
 	checkinDescStreakDays := checkinFields[3].Descriptor()
 	// checkin.DefaultStreakDays holds the default value on creation for the streak_days field.
 	checkin.DefaultStreakDays = checkinDescStreakDays.Default.(int)
+	// checkinDescCheckinType is the schema descriptor for checkin_type field.
+	checkinDescCheckinType := checkinFields[4].Descriptor()
+	// checkin.DefaultCheckinType holds the default value on creation for the checkin_type field.
+	checkin.DefaultCheckinType = checkinDescCheckinType.Default.(string)
+	// checkinDescBetAmount is the schema descriptor for bet_amount field.
+	checkinDescBetAmount := checkinFields[5].Descriptor()
+	// checkin.DefaultBetAmount holds the default value on creation for the bet_amount field.
+	checkin.DefaultBetAmount = checkinDescBetAmount.Default.(float64)
+	// checkinDescMultiplier is the schema descriptor for multiplier field.
+	checkinDescMultiplier := checkinFields[6].Descriptor()
+	// checkin.DefaultMultiplier holds the default value on creation for the multiplier field.
+	checkin.DefaultMultiplier = checkinDescMultiplier.Default.(float64)
 	// checkinDescCreatedAt is the schema descriptor for created_at field.
-	checkinDescCreatedAt := checkinFields[4].Descriptor()
+	checkinDescCreatedAt := checkinFields[7].Descriptor()
 	// checkin.DefaultCreatedAt holds the default value on creation for the created_at field.
 	checkin.DefaultCreatedAt = checkinDescCreatedAt.Default.(func() time.Time)
 	errorpassthroughruleMixin := schema.ErrorPassthroughRule{}.Mixin()

@@ -99,6 +99,62 @@ func (_u *CheckinUpdate) AddStreakDays(v int) *CheckinUpdate {
 	return _u
 }
 
+// SetCheckinType sets the "checkin_type" field.
+func (_u *CheckinUpdate) SetCheckinType(v string) *CheckinUpdate {
+	_u.mutation.SetCheckinType(v)
+	return _u
+}
+
+// SetNillableCheckinType sets the "checkin_type" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillableCheckinType(v *string) *CheckinUpdate {
+	if v != nil {
+		_u.SetCheckinType(*v)
+	}
+	return _u
+}
+
+// SetBetAmount sets the "bet_amount" field.
+func (_u *CheckinUpdate) SetBetAmount(v float64) *CheckinUpdate {
+	_u.mutation.ResetBetAmount()
+	_u.mutation.SetBetAmount(v)
+	return _u
+}
+
+// SetNillableBetAmount sets the "bet_amount" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillableBetAmount(v *float64) *CheckinUpdate {
+	if v != nil {
+		_u.SetBetAmount(*v)
+	}
+	return _u
+}
+
+// AddBetAmount adds value to the "bet_amount" field.
+func (_u *CheckinUpdate) AddBetAmount(v float64) *CheckinUpdate {
+	_u.mutation.AddBetAmount(v)
+	return _u
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (_u *CheckinUpdate) SetMultiplier(v float64) *CheckinUpdate {
+	_u.mutation.ResetMultiplier()
+	_u.mutation.SetMultiplier(v)
+	return _u
+}
+
+// SetNillableMultiplier sets the "multiplier" field if the given value is not nil.
+func (_u *CheckinUpdate) SetNillableMultiplier(v *float64) *CheckinUpdate {
+	if v != nil {
+		_u.SetMultiplier(*v)
+	}
+	return _u
+}
+
+// AddMultiplier adds value to the "multiplier" field.
+func (_u *CheckinUpdate) AddMultiplier(v float64) *CheckinUpdate {
+	_u.mutation.AddMultiplier(v)
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *CheckinUpdate) SetUser(v *User) *CheckinUpdate {
 	return _u.SetUserID(v.ID)
@@ -176,6 +232,21 @@ func (_u *CheckinUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedStreakDays(); ok {
 		_spec.AddField(checkin.FieldStreakDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CheckinType(); ok {
+		_spec.SetField(checkin.FieldCheckinType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BetAmount(); ok {
+		_spec.SetField(checkin.FieldBetAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBetAmount(); ok {
+		_spec.AddField(checkin.FieldBetAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Multiplier(); ok {
+		_spec.SetField(checkin.FieldMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMultiplier(); ok {
+		_spec.AddField(checkin.FieldMultiplier, field.TypeFloat64, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -296,6 +367,62 @@ func (_u *CheckinUpdateOne) AddStreakDays(v int) *CheckinUpdateOne {
 	return _u
 }
 
+// SetCheckinType sets the "checkin_type" field.
+func (_u *CheckinUpdateOne) SetCheckinType(v string) *CheckinUpdateOne {
+	_u.mutation.SetCheckinType(v)
+	return _u
+}
+
+// SetNillableCheckinType sets the "checkin_type" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillableCheckinType(v *string) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetCheckinType(*v)
+	}
+	return _u
+}
+
+// SetBetAmount sets the "bet_amount" field.
+func (_u *CheckinUpdateOne) SetBetAmount(v float64) *CheckinUpdateOne {
+	_u.mutation.ResetBetAmount()
+	_u.mutation.SetBetAmount(v)
+	return _u
+}
+
+// SetNillableBetAmount sets the "bet_amount" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillableBetAmount(v *float64) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetBetAmount(*v)
+	}
+	return _u
+}
+
+// AddBetAmount adds value to the "bet_amount" field.
+func (_u *CheckinUpdateOne) AddBetAmount(v float64) *CheckinUpdateOne {
+	_u.mutation.AddBetAmount(v)
+	return _u
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (_u *CheckinUpdateOne) SetMultiplier(v float64) *CheckinUpdateOne {
+	_u.mutation.ResetMultiplier()
+	_u.mutation.SetMultiplier(v)
+	return _u
+}
+
+// SetNillableMultiplier sets the "multiplier" field if the given value is not nil.
+func (_u *CheckinUpdateOne) SetNillableMultiplier(v *float64) *CheckinUpdateOne {
+	if v != nil {
+		_u.SetMultiplier(*v)
+	}
+	return _u
+}
+
+// AddMultiplier adds value to the "multiplier" field.
+func (_u *CheckinUpdateOne) AddMultiplier(v float64) *CheckinUpdateOne {
+	_u.mutation.AddMultiplier(v)
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *CheckinUpdateOne) SetUser(v *User) *CheckinUpdateOne {
 	return _u.SetUserID(v.ID)
@@ -403,6 +530,21 @@ func (_u *CheckinUpdateOne) sqlSave(ctx context.Context) (_node *Checkin, err er
 	}
 	if value, ok := _u.mutation.AddedStreakDays(); ok {
 		_spec.AddField(checkin.FieldStreakDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CheckinType(); ok {
+		_spec.SetField(checkin.FieldCheckinType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BetAmount(); ok {
+		_spec.SetField(checkin.FieldBetAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBetAmount(); ok {
+		_spec.AddField(checkin.FieldBetAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Multiplier(); ok {
+		_spec.SetField(checkin.FieldMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedMultiplier(); ok {
+		_spec.AddField(checkin.FieldMultiplier, field.TypeFloat64, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{

@@ -95,6 +95,7 @@ func RegisterUserRoutes(
 		checkin := authenticated.Group("/checkin")
 		{
 			checkin.POST("", h.Checkin.Checkin)
+			checkin.POST("/luck", h.Checkin.LuckCheckin)
 			checkin.GET("/status", h.Checkin.GetStatus)
 		}
 
