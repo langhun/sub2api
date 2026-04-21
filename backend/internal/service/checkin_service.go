@@ -11,6 +11,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 )
 
 const (
@@ -89,7 +90,7 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 		return nil, ErrCheckinNotAllowed
 	}
 
-	today := time.Now().UTC().Truncate(24 * time.Hour)
+	today := timezone.Today()
 	todayDate := today.Format("2006-01-02")
 
 	existing, err := s.entClient.Checkin.
@@ -181,7 +182,7 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 		return nil, ErrInvalidBetAmount
 	}
 
-	today := time.Now().UTC().Truncate(24 * time.Hour)
+	today := timezone.Today()
 	todayDate := today.Format("2006-01-02")
 
 	existing, err := s.entClient.Checkin.
@@ -286,7 +287,7 @@ func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinS
 		}, nil
 	}
 
-	today := time.Now().UTC().Truncate(24 * time.Hour)
+	today := timezone.Today()
 
 	todayCheckin, err := s.entClient.Checkin.
 		Query().
