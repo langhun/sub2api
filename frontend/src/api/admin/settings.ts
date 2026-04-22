@@ -153,6 +153,11 @@ export interface SystemSettings {
   checkin_luck_enabled: boolean
   checkin_luck_min_multiplier: number
   checkin_luck_max_multiplier: number
+
+  // Checkin Blind Box
+  checkin_blindbox_enabled: boolean
+  checkin_blindbox_trigger_type: string
+  checkin_blindbox_interval: number
 }
 
 export interface UpdateSettingsRequest {
@@ -268,6 +273,10 @@ export interface UpdateSettingsRequest {
   checkin_luck_enabled?: boolean
   checkin_luck_min_multiplier?: number
   checkin_luck_max_multiplier?: number
+  // Checkin Blind Box
+  checkin_blindbox_enabled?: boolean
+  checkin_blindbox_trigger_type?: string
+  checkin_blindbox_interval?: number
 }
 
 /**

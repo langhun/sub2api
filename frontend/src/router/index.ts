@@ -485,6 +485,18 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'admin.modelPricing.description'
     }
   },
+  {
+    path: '/admin/blindbox',
+    name: 'AdminBlindbox',
+    component: () => import('@/views/admin/BlindboxView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Blind Box',
+      titleKey: 'admin.blindbox.title',
+      descriptionKey: 'admin.blindbox.description'
+    }
+  },
 
 
   // ==================== Payment Admin Routes ====================

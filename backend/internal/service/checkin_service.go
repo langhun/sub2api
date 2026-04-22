@@ -28,27 +28,31 @@ var (
 )
 
 type CheckinResult struct {
-	RewardAmount float64 `json:"reward_amount"`
-	StreakDays   int     `json:"streak_days"`
-	CheckedAt    string  `json:"checked_at"`
-	CheckinType  string  `json:"checkin_type"`
-	BetAmount    float64 `json:"bet_amount,omitempty"`
-	Multiplier   float64 `json:"multiplier,omitempty"`
+	RewardAmount float64        `json:"reward_amount"`
+	StreakDays   int            `json:"streak_days"`
+	CheckedAt    string         `json:"checked_at"`
+	CheckinType  string         `json:"checkin_type"`
+	BetAmount    float64        `json:"bet_amount,omitempty"`
+	Multiplier   float64        `json:"multiplier,omitempty"`
+	Blindbox     *BlindboxResult `json:"blindbox,omitempty"`
 }
 
 type CheckinStatus struct {
-	Enabled          bool     `json:"enabled"`
-	LuckEnabled      bool     `json:"luck_enabled"`
-	CanCheckin       bool     `json:"can_checkin"`
-	StreakDays       int      `json:"streak_days"`
-	TodayReward      *float64 `json:"today_reward,omitempty"`
-	TodayCheckinType string   `json:"today_checkin_type,omitempty"`
-	TodayMultiplier  *float64 `json:"today_multiplier,omitempty"`
-	MinReward        float64  `json:"min_reward"`
-	MaxReward        float64  `json:"max_reward"`
-	MinMultiplier    float64  `json:"min_multiplier"`
-	MaxMultiplier    float64  `json:"max_multiplier"`
-	Balance          float64  `json:"balance"`
+	Enabled              bool     `json:"enabled"`
+	LuckEnabled          bool     `json:"luck_enabled"`
+	BlindboxEnabled      bool     `json:"blindbox_enabled"`
+	BlindboxTriggerType  string   `json:"blindbox_trigger_type,omitempty"`
+	BlindboxInterval     int      `json:"blindbox_interval,omitempty"`
+	CanCheckin           bool     `json:"can_checkin"`
+	StreakDays           int      `json:"streak_days"`
+	TodayReward          *float64 `json:"today_reward,omitempty"`
+	TodayCheckinType     string   `json:"today_checkin_type,omitempty"`
+	TodayMultiplier      *float64 `json:"today_multiplier,omitempty"`
+	MinReward            float64  `json:"min_reward"`
+	MaxReward            float64  `json:"max_reward"`
+	MinMultiplier        float64  `json:"min_multiplier"`
+	MaxMultiplier        float64  `json:"max_multiplier"`
+	Balance              float64  `json:"balance"`
 }
 
 type CheckinService struct {
@@ -58,6 +62,7 @@ type CheckinService struct {
 	settingService       *SettingService
 	billingCacheService  *BillingCacheService
 	authCacheInvalidator APIKeyAuthCacheInvalidator
+	blindboxService      *BlindBoxService
 }
 
 func NewCheckinService(
@@ -67,6 +72,7 @@ func NewCheckinService(
 	settingService *SettingService,
 	billingCacheService *BillingCacheService,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	blindboxService *BlindBoxService,
 ) *CheckinService {
 	return &CheckinService{
 		entClient:            entClient,
@@ -75,6 +81,7 @@ func NewCheckinService(
 		settingService:       settingService,
 		billingCacheService:  billingCacheService,
 		authCacheInvalidator: authCacheInvalidator,
+		blindboxService:      blindboxService,
 	}
 }
 
@@ -154,12 +161,21 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 
 	s.invalidateCaches(ctx, userID)
 
-	return &CheckinResult{
+	result := &CheckinResult{
 		RewardAmount: rewardAmount,
 		StreakDays:   streakDays,
 		CheckedAt:    todayDate,
 		CheckinType:  CheckinTypeNormal,
-	}, nil
+	}
+
+	if s.blindboxService != nil && s.blindboxService.ShouldTriggerBlindbox(ctx, userID, streakDays) {
+		blindboxResult, err := s.blindboxService.Draw(ctx, userID, streakDays)
+		if err == nil && blindboxResult != nil {
+			result.Blindbox = blindboxResult
+		}
+	}
+
+	return result, nil
 }
 
 func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmount float64) (*CheckinResult, error) {
@@ -252,14 +268,23 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 
 	s.invalidateCaches(ctx, userID)
 
-	return &CheckinResult{
+	result := &CheckinResult{
 		RewardAmount: rewardAmount,
 		StreakDays:   streakDays,
 		CheckedAt:    todayDate,
 		CheckinType:  CheckinTypeLuck,
 		BetAmount:    betAmount,
 		Multiplier:   multiplier,
-	}, nil
+	}
+
+	if s.blindboxService != nil && s.blindboxService.ShouldTriggerBlindbox(ctx, userID, streakDays) {
+		blindboxResult, err := s.blindboxService.Draw(ctx, userID, streakDays)
+		if err == nil && blindboxResult != nil {
+			result.Blindbox = blindboxResult
+		}
+	}
+
+	return result, nil
 }
 
 func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinStatus, error) {
@@ -277,14 +302,15 @@ func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinS
 
 	if !anyEnabled {
 		return &CheckinStatus{
-			Enabled:       normalEnabled,
-			LuckEnabled:   luckEnabled,
-			CanCheckin:    false,
-			MinReward:     minReward,
-			MaxReward:     maxReward,
-			MinMultiplier: minMultiplier,
-			MaxMultiplier: maxMultiplier,
-			Balance:       user.Balance,
+			Enabled:             normalEnabled,
+			LuckEnabled:         luckEnabled,
+			BlindboxEnabled:     s.settingService.IsCheckinBlindboxEnabled(ctx),
+			CanCheckin:          false,
+			MinReward:           minReward,
+			MaxReward:           maxReward,
+			MinMultiplier:       minMultiplier,
+			MaxMultiplier:       maxMultiplier,
+			Balance:             user.Balance,
 		}, nil
 	}
 
@@ -302,14 +328,17 @@ func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinS
 	}
 
 	status := &CheckinStatus{
-		Enabled:       normalEnabled,
-		LuckEnabled:   luckEnabled,
-		CanCheckin:    true,
-		MinReward:     minReward,
-		MaxReward:     maxReward,
-		MinMultiplier: minMultiplier,
-		MaxMultiplier: maxMultiplier,
-		Balance:       user.Balance,
+		Enabled:             normalEnabled,
+		LuckEnabled:         luckEnabled,
+		BlindboxEnabled:     s.settingService.IsCheckinBlindboxEnabled(ctx),
+		BlindboxTriggerType: s.settingService.GetCheckinBlindboxTriggerType(ctx),
+		BlindboxInterval:    s.settingService.GetCheckinBlindboxInterval(ctx),
+		CanCheckin:          true,
+		MinReward:           minReward,
+		MaxReward:           maxReward,
+		MinMultiplier:       minMultiplier,
+		MaxMultiplier:       maxMultiplier,
+		Balance:             user.Balance,
 	}
 
 	if todayCheckin != nil {

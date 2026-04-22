@@ -24,6 +24,12 @@ type AnnouncementRead func(*sql.Selector)
 // Checkin is the predicate function for checkin builders.
 type Checkin func(*sql.Selector)
 
+// CheckinBlindboxRecord is the predicate function for checkinblindboxrecord builders.
+type CheckinBlindboxRecord func(*sql.Selector)
+
+// CheckinPrizeItem is the predicate function for checkinprizeitem builders.
+type CheckinPrizeItem func(*sql.Selector)
+
 // ErrorPassthroughRule is the predicate function for errorpassthroughrule builders.
 type ErrorPassthroughRule func(*sql.Selector)
 

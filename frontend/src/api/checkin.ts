@@ -1,5 +1,12 @@
 import { apiClient } from './client'
 
+export interface BlindboxResult {
+  prize_name: string
+  rarity: string
+  reward_type: string
+  reward_value: number
+}
+
 export interface CheckinResult {
   reward_amount: number
   streak_days: number
@@ -7,11 +14,15 @@ export interface CheckinResult {
   checkin_type: string
   bet_amount?: number
   multiplier?: number
+  blindbox?: BlindboxResult
 }
 
 export interface CheckinStatus {
   enabled: boolean
   luck_enabled: boolean
+  blindbox_enabled: boolean
+  blindbox_trigger_type?: string
+  blindbox_interval?: number
   can_checkin: boolean
   streak_days: number
   today_reward: number | null

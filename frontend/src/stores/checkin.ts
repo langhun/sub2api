@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { checkinAPI, type CheckinStatus, type CheckinResult } from '@/api/checkin'
+import { checkinAPI, type CheckinStatus, type CheckinResult, type BlindboxResult } from '@/api/checkin'
 import { useAuthStore } from './auth'
 
 export const useCheckinStore = defineStore('checkin', () => {
   const status = ref<CheckinStatus | null>(null)
   const loading = ref(false)
   const checkinResult = ref<CheckinResult | null>(null)
+  const blindboxResult = ref<BlindboxResult | null>(null)
 
   const canCheckin = computed(() => status.value?.can_checkin ?? false)
   const enabled = computed(() => (status.value?.enabled ?? false) || (status.value?.luck_enabled ?? false))
@@ -32,6 +33,7 @@ export const useCheckinStore = defineStore('checkin', () => {
     try {
       const result = await checkinAPI.checkin()
       checkinResult.value = result
+      blindboxResult.value = result.blindbox ?? null
 
       if (status.value) {
         status.value.can_checkin = false
@@ -57,6 +59,7 @@ export const useCheckinStore = defineStore('checkin', () => {
     try {
       const result = await checkinAPI.luckCheckin(betAmount)
       checkinResult.value = result
+      blindboxResult.value = result.blindbox ?? null
 
       if (status.value) {
         status.value.can_checkin = false
@@ -83,12 +86,14 @@ export const useCheckinStore = defineStore('checkin', () => {
     status.value = null
     loading.value = false
     checkinResult.value = null
+    blindboxResult.value = null
   }
 
   return {
     status,
     loading,
     checkinResult,
+    blindboxResult,
     canCheckin,
     enabled,
     normalEnabled,

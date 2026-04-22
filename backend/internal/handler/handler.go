@@ -34,6 +34,7 @@ type AdminHandlers struct {
 	Payment               *admin.PaymentHandler
 	Monitoring             *admin.MonitoringHandler
 	ModelPricing           *admin.ModelPricingHandler
+	Blindbox               *admin.BlindboxHandler
 }
 
 // Handlers contains all HTTP handlers

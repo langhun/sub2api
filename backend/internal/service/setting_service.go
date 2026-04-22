@@ -644,6 +644,11 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyCheckinLuckMinMultiplier] = strconv.FormatFloat(settings.CheckinLuckMinMultiplier, 'f', 8, 64)
 	updates[SettingKeyCheckinLuckMaxMultiplier] = strconv.FormatFloat(settings.CheckinLuckMaxMultiplier, 'f', 8, 64)
 
+	// Checkin Blind Box 签到盲盒设置
+	updates[SettingKeyCheckinBlindboxEnabled] = strconv.FormatBool(settings.CheckinBlindboxEnabled)
+	updates[SettingKeyCheckinBlindboxTriggerType] = settings.CheckinBlindboxTriggerType
+	updates[SettingKeyCheckinBlindboxInterval] = strconv.Itoa(settings.CheckinBlindboxInterval)
+
 	err = s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil {
 		// 先使 inflight singleflight 失效，再刷新缓存，缩小旧值覆盖新值的竞态窗口
@@ -977,6 +982,27 @@ func (s *SettingService) GetCheckinLuckMultiplierRange(ctx context.Context) (flo
 	return minVal, maxVal
 }
 
+func (s *SettingService) IsCheckinBlindboxEnabled(ctx context.Context) bool {
+	return s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxEnabled, "false") == "true"
+}
+
+func (s *SettingService) GetCheckinBlindboxTriggerType(ctx context.Context) string {
+	v := s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxTriggerType, "streak")
+	if v != "streak" && v != "total" {
+		return "streak"
+	}
+	return v
+}
+
+func (s *SettingService) GetCheckinBlindboxInterval(ctx context.Context) int {
+	v := s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxInterval, "7")
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return 7
+	}
+	return n
+}
+
 func (s *SettingService) getStringWithDefault(ctx context.Context, key, fallback string) string {
 	value, err := s.settingRepo.GetValue(ctx, key)
 	if err != nil || value == "" {
@@ -1050,6 +1076,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyCheckinLuckEnabled:       "false",
 		SettingKeyCheckinLuckMinMultiplier: "0.10",
 		SettingKeyCheckinLuckMaxMultiplier: "3.00",
+
+		// Checkin Blind Box 签到盲盒设置（默认关闭）
+		SettingKeyCheckinBlindboxEnabled:     "false",
+		SettingKeyCheckinBlindboxTriggerType: "streak",
+		SettingKeyCheckinBlindboxInterval:    "7",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -1380,6 +1411,18 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.CheckinLuckMaxMultiplier = v
 	} else {
 		result.CheckinLuckMaxMultiplier = 3.0
+	}
+
+	// Checkin Blind Box 签到盲盒设置
+	result.CheckinBlindboxEnabled = settings[SettingKeyCheckinBlindboxEnabled] == "true"
+	result.CheckinBlindboxTriggerType = settings[SettingKeyCheckinBlindboxTriggerType]
+	if result.CheckinBlindboxTriggerType != "streak" && result.CheckinBlindboxTriggerType != "total" {
+		result.CheckinBlindboxTriggerType = "streak"
+	}
+	if v, err := strconv.Atoi(settings[SettingKeyCheckinBlindboxInterval]); err == nil && v > 0 {
+		result.CheckinBlindboxInterval = v
+	} else {
+		result.CheckinBlindboxInterval = 7
 	}
 
 	return result

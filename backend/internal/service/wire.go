@@ -480,6 +480,7 @@ var ProviderSet = wire.NewSet(
 	ProvideBalanceNotifyService,
 	NewCheckinService,
 	NewLeaderboardService,
+	NewBlindBoxService,
 	NewMonitoringService,
 	ProvideModelPricingAdminService,
 )

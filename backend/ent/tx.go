@@ -26,6 +26,10 @@ type Tx struct {
 	AnnouncementRead *AnnouncementReadClient
 	// Checkin is the client for interacting with the Checkin builders.
 	Checkin *CheckinClient
+	// CheckinBlindboxRecord is the client for interacting with the CheckinBlindboxRecord builders.
+	CheckinBlindboxRecord *CheckinBlindboxRecordClient
+	// CheckinPrizeItem is the client for interacting with the CheckinPrizeItem builders.
+	CheckinPrizeItem *CheckinPrizeItemClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -207,6 +211,8 @@ func (tx *Tx) init() {
 	tx.Announcement = NewAnnouncementClient(tx.config)
 	tx.AnnouncementRead = NewAnnouncementReadClient(tx.config)
 	tx.Checkin = NewCheckinClient(tx.config)
+	tx.CheckinBlindboxRecord = NewCheckinBlindboxRecordClient(tx.config)
+	tx.CheckinPrizeItem = NewCheckinPrizeItemClient(tx.config)
 	tx.ErrorPassthroughRule = NewErrorPassthroughRuleClient(tx.config)
 	tx.Group = NewGroupClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)

@@ -81,6 +81,30 @@ func (f CheckinFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CheckinMutation", m)
 }
 
+// The CheckinBlindboxRecordFunc type is an adapter to allow the use of ordinary
+// function as CheckinBlindboxRecord mutator.
+type CheckinBlindboxRecordFunc func(context.Context, *ent.CheckinBlindboxRecordMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CheckinBlindboxRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CheckinBlindboxRecordMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CheckinBlindboxRecordMutation", m)
+}
+
+// The CheckinPrizeItemFunc type is an adapter to allow the use of ordinary
+// function as CheckinPrizeItem mutator.
+type CheckinPrizeItemFunc func(context.Context, *ent.CheckinPrizeItemMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CheckinPrizeItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CheckinPrizeItemMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CheckinPrizeItemMutation", m)
+}
+
 // The ErrorPassthroughRuleFunc type is an adapter to allow the use of ordinary
 // function as ErrorPassthroughRule mutator.
 type ErrorPassthroughRuleFunc func(context.Context, *ent.ErrorPassthroughRuleMutation) (ent.Value, error)

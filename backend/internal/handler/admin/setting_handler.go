@@ -186,6 +186,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		CheckinLuckEnabled:                   settings.CheckinLuckEnabled,
 		CheckinLuckMinMultiplier:             settings.CheckinLuckMinMultiplier,
 		CheckinLuckMaxMultiplier:             settings.CheckinLuckMaxMultiplier,
+		CheckinBlindboxEnabled:               settings.CheckinBlindboxEnabled,
+		CheckinBlindboxTriggerType:           settings.CheckinBlindboxTriggerType,
+		CheckinBlindboxInterval:              settings.CheckinBlindboxInterval,
 		PaymentEnabled:                       paymentCfg.Enabled,
 		PaymentMinAmount:                     paymentCfg.MinAmount,
 		PaymentMaxAmount:                     paymentCfg.MaxAmount,
@@ -357,6 +360,11 @@ type UpdateSettingsRequest struct {
 	CheckinLuckEnabled       *bool    `json:"checkin_luck_enabled"`
 	CheckinLuckMinMultiplier *float64 `json:"checkin_luck_min_multiplier"`
 	CheckinLuckMaxMultiplier *float64 `json:"checkin_luck_max_multiplier"`
+
+	// Checkin Blind Box 签到盲盒设置
+	CheckinBlindboxEnabled      *bool   `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType  *string `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval     *int    `json:"checkin_blindbox_interval"`
 }
 
 // UpdateSettings 更新系统设置
@@ -979,6 +987,24 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.CheckinLuckMaxMultiplier
 		}(),
+		CheckinBlindboxEnabled: func() bool {
+			if req.CheckinBlindboxEnabled != nil {
+				return *req.CheckinBlindboxEnabled
+			}
+			return previousSettings.CheckinBlindboxEnabled
+		}(),
+		CheckinBlindboxTriggerType: func() string {
+			if req.CheckinBlindboxTriggerType != nil {
+				return *req.CheckinBlindboxTriggerType
+			}
+			return previousSettings.CheckinBlindboxTriggerType
+		}(),
+		CheckinBlindboxInterval: func() int {
+			if req.CheckinBlindboxInterval != nil {
+				return *req.CheckinBlindboxInterval
+			}
+			return previousSettings.CheckinBlindboxInterval
+		}(),
 	}
 
 	if err := h.settingService.UpdateSettings(c.Request.Context(), settings); err != nil {
@@ -1138,6 +1164,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CheckinLuckEnabled:                   updatedSettings.CheckinLuckEnabled,
 		CheckinLuckMinMultiplier:             updatedSettings.CheckinLuckMinMultiplier,
 		CheckinLuckMaxMultiplier:             updatedSettings.CheckinLuckMaxMultiplier,
+		CheckinBlindboxEnabled:               updatedSettings.CheckinBlindboxEnabled,
+		CheckinBlindboxTriggerType:           updatedSettings.CheckinBlindboxTriggerType,
+		CheckinBlindboxInterval:              updatedSettings.CheckinBlindboxInterval,
 		PaymentEnabled:                       updatedPaymentCfg.Enabled,
 		PaymentMinAmount:                     updatedPaymentCfg.MinAmount,
 		PaymentMaxAmount:                     updatedPaymentCfg.MaxAmount,

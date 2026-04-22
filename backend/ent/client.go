@@ -21,6 +21,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -64,6 +66,10 @@ type Client struct {
 	AnnouncementRead *AnnouncementReadClient
 	// Checkin is the client for interacting with the Checkin builders.
 	Checkin *CheckinClient
+	// CheckinBlindboxRecord is the client for interacting with the CheckinBlindboxRecord builders.
+	CheckinBlindboxRecord *CheckinBlindboxRecordClient
+	// CheckinPrizeItem is the client for interacting with the CheckinPrizeItem builders.
+	CheckinPrizeItem *CheckinPrizeItemClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -125,6 +131,8 @@ func (c *Client) init() {
 	c.Announcement = NewAnnouncementClient(c.config)
 	c.AnnouncementRead = NewAnnouncementReadClient(c.config)
 	c.Checkin = NewCheckinClient(c.config)
+	c.CheckinBlindboxRecord = NewCheckinBlindboxRecordClient(c.config)
+	c.CheckinPrizeItem = NewCheckinPrizeItemClient(c.config)
 	c.ErrorPassthroughRule = NewErrorPassthroughRuleClient(c.config)
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
@@ -245,6 +253,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Announcement:            NewAnnouncementClient(cfg),
 		AnnouncementRead:        NewAnnouncementReadClient(cfg),
 		Checkin:                 NewCheckinClient(cfg),
+		CheckinBlindboxRecord:   NewCheckinBlindboxRecordClient(cfg),
+		CheckinPrizeItem:        NewCheckinPrizeItemClient(cfg),
 		ErrorPassthroughRule:    NewErrorPassthroughRuleClient(cfg),
 		Group:                   NewGroupClient(cfg),
 		IdempotencyRecord:       NewIdempotencyRecordClient(cfg),
@@ -292,6 +302,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Announcement:            NewAnnouncementClient(cfg),
 		AnnouncementRead:        NewAnnouncementReadClient(cfg),
 		Checkin:                 NewCheckinClient(cfg),
+		CheckinBlindboxRecord:   NewCheckinBlindboxRecordClient(cfg),
+		CheckinPrizeItem:        NewCheckinPrizeItemClient(cfg),
 		ErrorPassthroughRule:    NewErrorPassthroughRuleClient(cfg),
 		Group:                   NewGroupClient(cfg),
 		IdempotencyRecord:       NewIdempotencyRecordClient(cfg),
@@ -344,12 +356,13 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.Checkin, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.ModelPricing, c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
-		c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret,
-		c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask,
-		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
-		c.UserAttributeValue, c.UserSubscription,
+		c.Checkin, c.CheckinBlindboxRecord, c.CheckinPrizeItem, c.ErrorPassthroughRule,
+		c.Group, c.IdempotencyRecord, c.ModelPricing, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PromoCode, c.PromoCodeUsage,
+		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
+		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
+		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -360,12 +373,13 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.Checkin, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.ModelPricing, c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
-		c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret,
-		c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask,
-		c.UsageLog, c.User, c.UserAllowedGroup, c.UserAttributeDefinition,
-		c.UserAttributeValue, c.UserSubscription,
+		c.Checkin, c.CheckinBlindboxRecord, c.CheckinPrizeItem, c.ErrorPassthroughRule,
+		c.Group, c.IdempotencyRecord, c.ModelPricing, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PromoCode, c.PromoCodeUsage,
+		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
+		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
+		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -386,6 +400,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AnnouncementRead.mutate(ctx, m)
 	case *CheckinMutation:
 		return c.Checkin.mutate(ctx, m)
+	case *CheckinBlindboxRecordMutation:
+		return c.CheckinBlindboxRecord.mutate(ctx, m)
+	case *CheckinPrizeItemMutation:
+		return c.CheckinPrizeItem.mutate(ctx, m)
 	case *ErrorPassthroughRuleMutation:
 		return c.ErrorPassthroughRule.mutate(ctx, m)
 	case *GroupMutation:
@@ -1393,6 +1411,272 @@ func (c *CheckinClient) mutate(ctx context.Context, m *CheckinMutation) (Value, 
 		return (&CheckinDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Checkin mutation op: %q", m.Op())
+	}
+}
+
+// CheckinBlindboxRecordClient is a client for the CheckinBlindboxRecord schema.
+type CheckinBlindboxRecordClient struct {
+	config
+}
+
+// NewCheckinBlindboxRecordClient returns a client for the CheckinBlindboxRecord from the given config.
+func NewCheckinBlindboxRecordClient(c config) *CheckinBlindboxRecordClient {
+	return &CheckinBlindboxRecordClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `checkinblindboxrecord.Hooks(f(g(h())))`.
+func (c *CheckinBlindboxRecordClient) Use(hooks ...Hook) {
+	c.hooks.CheckinBlindboxRecord = append(c.hooks.CheckinBlindboxRecord, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `checkinblindboxrecord.Intercept(f(g(h())))`.
+func (c *CheckinBlindboxRecordClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CheckinBlindboxRecord = append(c.inters.CheckinBlindboxRecord, interceptors...)
+}
+
+// Create returns a builder for creating a CheckinBlindboxRecord entity.
+func (c *CheckinBlindboxRecordClient) Create() *CheckinBlindboxRecordCreate {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpCreate)
+	return &CheckinBlindboxRecordCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CheckinBlindboxRecord entities.
+func (c *CheckinBlindboxRecordClient) CreateBulk(builders ...*CheckinBlindboxRecordCreate) *CheckinBlindboxRecordCreateBulk {
+	return &CheckinBlindboxRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CheckinBlindboxRecordClient) MapCreateBulk(slice any, setFunc func(*CheckinBlindboxRecordCreate, int)) *CheckinBlindboxRecordCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CheckinBlindboxRecordCreateBulk{err: fmt.Errorf("calling to CheckinBlindboxRecordClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CheckinBlindboxRecordCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CheckinBlindboxRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CheckinBlindboxRecord.
+func (c *CheckinBlindboxRecordClient) Update() *CheckinBlindboxRecordUpdate {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpUpdate)
+	return &CheckinBlindboxRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CheckinBlindboxRecordClient) UpdateOne(_m *CheckinBlindboxRecord) *CheckinBlindboxRecordUpdateOne {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpUpdateOne, withCheckinBlindboxRecord(_m))
+	return &CheckinBlindboxRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CheckinBlindboxRecordClient) UpdateOneID(id int64) *CheckinBlindboxRecordUpdateOne {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpUpdateOne, withCheckinBlindboxRecordID(id))
+	return &CheckinBlindboxRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CheckinBlindboxRecord.
+func (c *CheckinBlindboxRecordClient) Delete() *CheckinBlindboxRecordDelete {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpDelete)
+	return &CheckinBlindboxRecordDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CheckinBlindboxRecordClient) DeleteOne(_m *CheckinBlindboxRecord) *CheckinBlindboxRecordDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CheckinBlindboxRecordClient) DeleteOneID(id int64) *CheckinBlindboxRecordDeleteOne {
+	builder := c.Delete().Where(checkinblindboxrecord.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CheckinBlindboxRecordDeleteOne{builder}
+}
+
+// Query returns a query builder for CheckinBlindboxRecord.
+func (c *CheckinBlindboxRecordClient) Query() *CheckinBlindboxRecordQuery {
+	return &CheckinBlindboxRecordQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCheckinBlindboxRecord},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CheckinBlindboxRecord entity by its id.
+func (c *CheckinBlindboxRecordClient) Get(ctx context.Context, id int64) (*CheckinBlindboxRecord, error) {
+	return c.Query().Where(checkinblindboxrecord.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CheckinBlindboxRecordClient) GetX(ctx context.Context, id int64) *CheckinBlindboxRecord {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CheckinBlindboxRecordClient) Hooks() []Hook {
+	return c.hooks.CheckinBlindboxRecord
+}
+
+// Interceptors returns the client interceptors.
+func (c *CheckinBlindboxRecordClient) Interceptors() []Interceptor {
+	return c.inters.CheckinBlindboxRecord
+}
+
+func (c *CheckinBlindboxRecordClient) mutate(ctx context.Context, m *CheckinBlindboxRecordMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CheckinBlindboxRecordCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CheckinBlindboxRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CheckinBlindboxRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CheckinBlindboxRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CheckinBlindboxRecord mutation op: %q", m.Op())
+	}
+}
+
+// CheckinPrizeItemClient is a client for the CheckinPrizeItem schema.
+type CheckinPrizeItemClient struct {
+	config
+}
+
+// NewCheckinPrizeItemClient returns a client for the CheckinPrizeItem from the given config.
+func NewCheckinPrizeItemClient(c config) *CheckinPrizeItemClient {
+	return &CheckinPrizeItemClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `checkinprizeitem.Hooks(f(g(h())))`.
+func (c *CheckinPrizeItemClient) Use(hooks ...Hook) {
+	c.hooks.CheckinPrizeItem = append(c.hooks.CheckinPrizeItem, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `checkinprizeitem.Intercept(f(g(h())))`.
+func (c *CheckinPrizeItemClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CheckinPrizeItem = append(c.inters.CheckinPrizeItem, interceptors...)
+}
+
+// Create returns a builder for creating a CheckinPrizeItem entity.
+func (c *CheckinPrizeItemClient) Create() *CheckinPrizeItemCreate {
+	mutation := newCheckinPrizeItemMutation(c.config, OpCreate)
+	return &CheckinPrizeItemCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CheckinPrizeItem entities.
+func (c *CheckinPrizeItemClient) CreateBulk(builders ...*CheckinPrizeItemCreate) *CheckinPrizeItemCreateBulk {
+	return &CheckinPrizeItemCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CheckinPrizeItemClient) MapCreateBulk(slice any, setFunc func(*CheckinPrizeItemCreate, int)) *CheckinPrizeItemCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CheckinPrizeItemCreateBulk{err: fmt.Errorf("calling to CheckinPrizeItemClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CheckinPrizeItemCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CheckinPrizeItemCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CheckinPrizeItem.
+func (c *CheckinPrizeItemClient) Update() *CheckinPrizeItemUpdate {
+	mutation := newCheckinPrizeItemMutation(c.config, OpUpdate)
+	return &CheckinPrizeItemUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CheckinPrizeItemClient) UpdateOne(_m *CheckinPrizeItem) *CheckinPrizeItemUpdateOne {
+	mutation := newCheckinPrizeItemMutation(c.config, OpUpdateOne, withCheckinPrizeItem(_m))
+	return &CheckinPrizeItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CheckinPrizeItemClient) UpdateOneID(id int64) *CheckinPrizeItemUpdateOne {
+	mutation := newCheckinPrizeItemMutation(c.config, OpUpdateOne, withCheckinPrizeItemID(id))
+	return &CheckinPrizeItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CheckinPrizeItem.
+func (c *CheckinPrizeItemClient) Delete() *CheckinPrizeItemDelete {
+	mutation := newCheckinPrizeItemMutation(c.config, OpDelete)
+	return &CheckinPrizeItemDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CheckinPrizeItemClient) DeleteOne(_m *CheckinPrizeItem) *CheckinPrizeItemDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CheckinPrizeItemClient) DeleteOneID(id int64) *CheckinPrizeItemDeleteOne {
+	builder := c.Delete().Where(checkinprizeitem.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CheckinPrizeItemDeleteOne{builder}
+}
+
+// Query returns a query builder for CheckinPrizeItem.
+func (c *CheckinPrizeItemClient) Query() *CheckinPrizeItemQuery {
+	return &CheckinPrizeItemQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCheckinPrizeItem},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CheckinPrizeItem entity by its id.
+func (c *CheckinPrizeItemClient) Get(ctx context.Context, id int64) (*CheckinPrizeItem, error) {
+	return c.Query().Where(checkinprizeitem.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CheckinPrizeItemClient) GetX(ctx context.Context, id int64) *CheckinPrizeItem {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CheckinPrizeItemClient) Hooks() []Hook {
+	return c.hooks.CheckinPrizeItem
+}
+
+// Interceptors returns the client interceptors.
+func (c *CheckinPrizeItemClient) Interceptors() []Interceptor {
+	return c.inters.CheckinPrizeItem
+}
+
+func (c *CheckinPrizeItemClient) mutate(ctx context.Context, m *CheckinPrizeItemMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CheckinPrizeItemCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CheckinPrizeItemUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CheckinPrizeItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CheckinPrizeItemDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CheckinPrizeItem mutation op: %q", m.Op())
 	}
 }
 
@@ -4943,17 +5227,19 @@ func (c *UserSubscriptionClient) mutate(ctx context.Context, m *UserSubscription
 type (
 	hooks struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, Checkin,
-		ErrorPassthroughRule, Group, IdempotencyRecord, ModelPricing, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PromoCode, PromoCodeUsage, Proxy,
-		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		CheckinBlindboxRecord, CheckinPrizeItem, ErrorPassthroughRule, Group,
+		IdempotencyRecord, ModelPricing, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
 		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
 		UserAttributeValue, UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, Checkin,
-		ErrorPassthroughRule, Group, IdempotencyRecord, ModelPricing, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PromoCode, PromoCodeUsage, Proxy,
-		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		CheckinBlindboxRecord, CheckinPrizeItem, ErrorPassthroughRule, Group,
+		IdempotencyRecord, ModelPricing, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
 		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
 		UserAttributeValue, UserSubscription []ent.Interceptor
 	}
