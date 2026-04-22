@@ -66,7 +66,7 @@
                 </div>
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ entry.username }}</p>
-                  <p v-if="entry.subtitle" class="mt-0.5 truncate text-xs text-gray-400 dark:text-dark-500">{{ entry.subtitle }}</p>
+                  <p v-if="getSubtitle(entry)" class="mt-0.5 truncate text-xs text-gray-400 dark:text-dark-500">{{ getSubtitle(entry) }}</p>
                 </div>
                 <div class="shrink-0 text-right">
                   <template v-if="activeTab === 'checkin'">
@@ -124,6 +124,19 @@ function rankClass(rank: number): string {
   if (rank === 2) return 'bg-gray-200 dark:bg-dark-700'
   if (rank === 3) return 'bg-orange-100 dark:bg-orange-900/30'
   return 'bg-gray-100 dark:bg-dark-800'
+}
+
+function getSubtitle(entry: LeaderboardEntry): string {
+  if (activeTab.value === 'balance') {
+    if (entry.extra_int) return t('leaderboard.balanceSubtitle', { count: entry.extra_int })
+  } else if (activeTab.value === 'consumption') {
+    if (entry.extra_int) return t('leaderboard.consumptionSubtitle', { count: entry.extra_int })
+  } else if (activeTab.value === 'checkin') {
+    if (entry.extra_int || entry.extra_date) {
+      return t('leaderboard.checkinSubtitle', { total: entry.extra_int || 0, date: entry.extra_date || '' })
+    }
+  }
+  return ''
 }
 
 async function fetchData() {
