@@ -22,11 +22,15 @@
 
               <div class="blindbox-prize-name">{{ result.prize_name }}</div>
 
-              <div class="blindbox-rarity-badge" :class="rarityBadgeClass">
-                {{ rarityLabel }}
+              <div class="blindbox-rarity-row">
+                <span class="blindbox-rarity-label">{{ t('checkin.blindboxRarity') }}</span>
+                <span class="blindbox-rarity-badge" :class="rarityBadgeClass">
+                  {{ rarityLabel }}
+                </span>
               </div>
 
               <div class="blindbox-reward" :class="rarityTextClass">
+                <span class="blindbox-reward-label">{{ t('checkin.blindboxReward') }}</span>
                 {{ rewardText }}
               </div>
 
@@ -36,7 +40,7 @@
                 :class="rarityBtnClass"
                 @click="handleClose"
               >
-                {{ t('checkin.normalCheckin') === t('checkin.normalCheckin') ? t('common.confirm') : t('common.confirm') }}
+                {{ t('common.confirm') }}
               </button>
             </div>
           </div>
@@ -225,6 +229,21 @@ html.dark .blindbox-title {
   animation: prize-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
 }
 
+.blindbox-rarity-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.blindbox-rarity-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+html.dark .blindbox-rarity-label {
+  color: #9ca3af;
+}
+
 .blindbox-rarity-badge {
   padding: 4px 16px;
   border-radius: 9999px;
@@ -237,6 +256,15 @@ html.dark .blindbox-title {
   font-size: 20px;
   font-weight: 700;
   text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.blindbox-reward-label {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.7;
 }
 
 .blindbox-close-btn {

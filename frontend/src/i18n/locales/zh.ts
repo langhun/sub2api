@@ -4751,11 +4751,8 @@ export default {
         blindboxTriggerTotal: '累计签到',
         blindboxInterval: '触发间隔',
         blindboxIntervalHint: '每签到满 N 天/次触发一次盲盒',
-        blindboxManagePool: '管理奖池'
       },
       blindbox: {
-        title: '签到盲盒奖池',
-        description: '配置签到盲盒的奖品和权重',
         createItem: '添加奖品',
         editItem: '编辑奖品',
         empty: '暂无奖品，点击上方按钮添加',

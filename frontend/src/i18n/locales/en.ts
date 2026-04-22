@@ -4586,11 +4586,8 @@ export default {
         blindboxTriggerTotal: 'Total Check-ins',
         blindboxInterval: 'Trigger Interval',
         blindboxIntervalHint: 'Trigger a blind box every N days/check-ins',
-        blindboxManagePool: 'Manage Prize Pool'
       },
       blindbox: {
-        title: 'Blind Box Prize Pool',
-        description: 'Configure blind box prizes and weights',
         createItem: 'Add Prize',
         editItem: 'Edit Prize',
         empty: 'No prizes yet. Click the button above to add one.',
