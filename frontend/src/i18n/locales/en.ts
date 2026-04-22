@@ -903,9 +903,9 @@ export default {
     subtitle: 'See who are the top users',
     empty: 'No data yet',
     streakDays: '{days} days',
-    totalCheckins: '{count} total',
-    requests: '{count} requests',
-    lastCheckin: 'Last {date}',
+    balanceSubtitle: '{count} check-ins',
+    consumptionSubtitle: '{count} requests',
+    checkinSubtitle: '{total} total · last {date}',
     tabs: {
       balance: 'Balance',
       consumption: 'Consumption',

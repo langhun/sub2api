@@ -13,10 +13,12 @@ import (
 )
 
 type LeaderboardEntry struct {
-	Rank     int     `json:"rank"`
-	Username string  `json:"username"`
-	Value    float64 `json:"value"`
-	Subtitle string  `json:"subtitle,omitempty"`
+	Rank          int     `json:"rank"`
+	Username      string  `json:"username"`
+	Value         float64 `json:"value"`
+	ExtraInt      int     `json:"extra_int,omitempty"`
+	ExtraInt2     int     `json:"extra_int2,omitempty"`
+	ExtraDate     string  `json:"extra_date,omitempty"`
 }
 
 type LeaderboardResult struct {
@@ -68,10 +70,13 @@ func (s *LeaderboardService) GetBalanceLeaderboard(ctx context.Context, page, pa
 
 	entries := make([]LeaderboardEntry, 0, len(users))
 	for i, u := range users {
+		var checkinCount int
+		s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM checkins WHERE user_id = $1`, u.ID).Scan(&checkinCount)
 		entries = append(entries, LeaderboardEntry{
 			Rank:     offset + i + 1,
 			Username: maskUsername(u.Username, u.Email),
 			Value:    math.Round(u.Balance*100) / 100,
+			ExtraInt: checkinCount,
 		})
 	}
 
@@ -139,7 +144,7 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 			Rank:     rank,
 			Username: maskUsername(username, email),
 			Value:    math.Round(totalCost*100) / 100,
-			Subtitle: fmt.Sprintf("%d requests", requestCount),
+			ExtraInt: requestCount,
 		})
 	}
 
@@ -202,12 +207,12 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 		if err := rows.Scan(&username, &email, &streakDays, &totalCheckins, &lastDate); err != nil {
 			return nil, fmt.Errorf("scan checkin row: %w", err)
 		}
-		subtitle := fmt.Sprintf("%d total · last %s", totalCheckins, lastDate.Format("2006-01-02"))
 		entries = append(entries, LeaderboardEntry{
-			Rank:     rank,
-			Username: maskUsername(username, email),
-			Value:    float64(streakDays),
-			Subtitle: subtitle,
+			Rank:      rank,
+			Username:  maskUsername(username, email),
+			Value:     float64(streakDays),
+			ExtraInt:  totalCheckins,
+			ExtraDate: lastDate.Format("2006-01-02"),
 		})
 	}
 
