@@ -11,6 +11,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -333,6 +335,72 @@ func init() {
 	checkinDescCreatedAt := checkinFields[7].Descriptor()
 	// checkin.DefaultCreatedAt holds the default value on creation for the created_at field.
 	checkin.DefaultCreatedAt = checkinDescCreatedAt.Default.(func() time.Time)
+	checkinblindboxrecordFields := schema.CheckinBlindboxRecord{}.Fields()
+	_ = checkinblindboxrecordFields
+	// checkinblindboxrecordDescPrizeName is the schema descriptor for prize_name field.
+	checkinblindboxrecordDescPrizeName := checkinblindboxrecordFields[2].Descriptor()
+	// checkinblindboxrecord.DefaultPrizeName holds the default value on creation for the prize_name field.
+	checkinblindboxrecord.DefaultPrizeName = checkinblindboxrecordDescPrizeName.Default.(string)
+	// checkinblindboxrecordDescRarity is the schema descriptor for rarity field.
+	checkinblindboxrecordDescRarity := checkinblindboxrecordFields[3].Descriptor()
+	// checkinblindboxrecord.DefaultRarity holds the default value on creation for the rarity field.
+	checkinblindboxrecord.DefaultRarity = checkinblindboxrecordDescRarity.Default.(string)
+	// checkinblindboxrecordDescRewardType is the schema descriptor for reward_type field.
+	checkinblindboxrecordDescRewardType := checkinblindboxrecordFields[4].Descriptor()
+	// checkinblindboxrecord.DefaultRewardType holds the default value on creation for the reward_type field.
+	checkinblindboxrecord.DefaultRewardType = checkinblindboxrecordDescRewardType.Default.(string)
+	// checkinblindboxrecordDescRewardValue is the schema descriptor for reward_value field.
+	checkinblindboxrecordDescRewardValue := checkinblindboxrecordFields[5].Descriptor()
+	// checkinblindboxrecord.DefaultRewardValue holds the default value on creation for the reward_value field.
+	checkinblindboxrecord.DefaultRewardValue = checkinblindboxrecordDescRewardValue.Default.(float64)
+	// checkinblindboxrecordDescStreakDays is the schema descriptor for streak_days field.
+	checkinblindboxrecordDescStreakDays := checkinblindboxrecordFields[6].Descriptor()
+	// checkinblindboxrecord.DefaultStreakDays holds the default value on creation for the streak_days field.
+	checkinblindboxrecord.DefaultStreakDays = checkinblindboxrecordDescStreakDays.Default.(int)
+	// checkinblindboxrecordDescCreatedAt is the schema descriptor for created_at field.
+	checkinblindboxrecordDescCreatedAt := checkinblindboxrecordFields[7].Descriptor()
+	// checkinblindboxrecord.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkinblindboxrecord.DefaultCreatedAt = checkinblindboxrecordDescCreatedAt.Default.(func() time.Time)
+	checkinprizeitemFields := schema.CheckinPrizeItem{}.Fields()
+	_ = checkinprizeitemFields
+	// checkinprizeitemDescRarity is the schema descriptor for rarity field.
+	checkinprizeitemDescRarity := checkinprizeitemFields[1].Descriptor()
+	// checkinprizeitem.DefaultRarity holds the default value on creation for the rarity field.
+	checkinprizeitem.DefaultRarity = checkinprizeitemDescRarity.Default.(string)
+	// checkinprizeitemDescRewardType is the schema descriptor for reward_type field.
+	checkinprizeitemDescRewardType := checkinprizeitemFields[2].Descriptor()
+	// checkinprizeitem.DefaultRewardType holds the default value on creation for the reward_type field.
+	checkinprizeitem.DefaultRewardType = checkinprizeitemDescRewardType.Default.(string)
+	// checkinprizeitemDescRewardValue is the schema descriptor for reward_value field.
+	checkinprizeitemDescRewardValue := checkinprizeitemFields[3].Descriptor()
+	// checkinprizeitem.DefaultRewardValue holds the default value on creation for the reward_value field.
+	checkinprizeitem.DefaultRewardValue = checkinprizeitemDescRewardValue.Default.(float64)
+	// checkinprizeitemDescRewardValueMax is the schema descriptor for reward_value_max field.
+	checkinprizeitemDescRewardValueMax := checkinprizeitemFields[4].Descriptor()
+	// checkinprizeitem.DefaultRewardValueMax holds the default value on creation for the reward_value_max field.
+	checkinprizeitem.DefaultRewardValueMax = checkinprizeitemDescRewardValueMax.Default.(float64)
+	// checkinprizeitemDescSubscriptionDays is the schema descriptor for subscription_days field.
+	checkinprizeitemDescSubscriptionDays := checkinprizeitemFields[6].Descriptor()
+	// checkinprizeitem.DefaultSubscriptionDays holds the default value on creation for the subscription_days field.
+	checkinprizeitem.DefaultSubscriptionDays = checkinprizeitemDescSubscriptionDays.Default.(int)
+	// checkinprizeitemDescWeight is the schema descriptor for weight field.
+	checkinprizeitemDescWeight := checkinprizeitemFields[7].Descriptor()
+	// checkinprizeitem.DefaultWeight holds the default value on creation for the weight field.
+	checkinprizeitem.DefaultWeight = checkinprizeitemDescWeight.Default.(int)
+	// checkinprizeitemDescIsEnabled is the schema descriptor for is_enabled field.
+	checkinprizeitemDescIsEnabled := checkinprizeitemFields[8].Descriptor()
+	// checkinprizeitem.DefaultIsEnabled holds the default value on creation for the is_enabled field.
+	checkinprizeitem.DefaultIsEnabled = checkinprizeitemDescIsEnabled.Default.(bool)
+	// checkinprizeitemDescCreatedAt is the schema descriptor for created_at field.
+	checkinprizeitemDescCreatedAt := checkinprizeitemFields[9].Descriptor()
+	// checkinprizeitem.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkinprizeitem.DefaultCreatedAt = checkinprizeitemDescCreatedAt.Default.(func() time.Time)
+	// checkinprizeitemDescUpdatedAt is the schema descriptor for updated_at field.
+	checkinprizeitemDescUpdatedAt := checkinprizeitemFields[10].Descriptor()
+	// checkinprizeitem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	checkinprizeitem.DefaultUpdatedAt = checkinprizeitemDescUpdatedAt.Default.(func() time.Time)
+	// checkinprizeitem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	checkinprizeitem.UpdateDefaultUpdatedAt = checkinprizeitemDescUpdatedAt.UpdateDefault.(func() time.Time)
 	errorpassthroughruleMixin := schema.ErrorPassthroughRule{}.Mixin()
 	errorpassthroughruleMixinFields0 := errorpassthroughruleMixin[0].Fields()
 	_ = errorpassthroughruleMixinFields0

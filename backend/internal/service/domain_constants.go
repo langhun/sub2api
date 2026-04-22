@@ -274,6 +274,11 @@ const (
 	SettingKeyCheckinLuckEnabled       = "checkin_luck_enabled"        // 是否启用运气签到
 	SettingKeyCheckinLuckMinMultiplier = "checkin_luck_min_multiplier" // 运气签到最小倍率
 	SettingKeyCheckinLuckMaxMultiplier = "checkin_luck_max_multiplier" // 运气签到最大倍率
+
+	// Checkin Blind Box 签到盲盒设置
+	SettingKeyCheckinBlindboxEnabled      = "checkin_blindbox_enabled"       // 是否启用签到盲盒
+	SettingKeyCheckinBlindboxTriggerType  = "checkin_blindbox_trigger_type"  // 触发类型: streak/total
+	SettingKeyCheckinBlindboxInterval     = "checkin_blindbox_interval"      // 触发间隔: 每N天/次
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).

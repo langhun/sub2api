@@ -376,6 +376,65 @@ var (
 			},
 		},
 	}
+	// CheckinBlindboxRecordsColumns holds the columns for the "checkin_blindbox_records" table.
+	CheckinBlindboxRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "prize_item_id", Type: field.TypeInt64},
+		{Name: "prize_name", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "varchar(100)"}},
+		{Name: "rarity", Type: field.TypeString, Default: "common", SchemaType: map[string]string{"postgres": "varchar(20)"}},
+		{Name: "reward_type", Type: field.TypeString, Default: "balance", SchemaType: map[string]string{"postgres": "varchar(30)"}},
+		{Name: "reward_value", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "streak_days", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// CheckinBlindboxRecordsTable holds the schema information for the "checkin_blindbox_records" table.
+	CheckinBlindboxRecordsTable = &schema.Table{
+		Name:       "checkin_blindbox_records",
+		Columns:    CheckinBlindboxRecordsColumns,
+		PrimaryKey: []*schema.Column{CheckinBlindboxRecordsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "checkinblindboxrecord_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinBlindboxRecordsColumns[1]},
+			},
+			{
+				Name:    "checkinblindboxrecord_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinBlindboxRecordsColumns[8]},
+			},
+		},
+	}
+	// CheckinPrizeItemsColumns holds the columns for the "checkin_prize_items" table.
+	CheckinPrizeItemsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "name", Type: field.TypeString, SchemaType: map[string]string{"postgres": "varchar(100)"}},
+		{Name: "rarity", Type: field.TypeString, Default: "common", SchemaType: map[string]string{"postgres": "varchar(20)"}},
+		{Name: "reward_type", Type: field.TypeString, Default: "balance", SchemaType: map[string]string{"postgres": "varchar(30)"}},
+		{Name: "reward_value", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "reward_value_max", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "subscription_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "subscription_days", Type: field.TypeInt, Default: 0},
+		{Name: "weight", Type: field.TypeInt, Default: 100},
+		{Name: "is_enabled", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// CheckinPrizeItemsTable holds the schema information for the "checkin_prize_items" table.
+	CheckinPrizeItemsTable = &schema.Table{
+		Name:       "checkin_prize_items",
+		Columns:    CheckinPrizeItemsColumns,
+		PrimaryKey: []*schema.Column{CheckinPrizeItemsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "checkinprizeitem_is_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinPrizeItemsColumns[9]},
+			},
+		},
+	}
 	// ErrorPassthroughRulesColumns holds the columns for the "error_passthrough_rules" table.
 	ErrorPassthroughRulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1398,6 +1457,8 @@ var (
 		AnnouncementsTable,
 		AnnouncementReadsTable,
 		CheckinsTable,
+		CheckinBlindboxRecordsTable,
+		CheckinPrizeItemsTable,
 		ErrorPassthroughRulesTable,
 		GroupsTable,
 		IdempotencyRecordsTable,
@@ -1449,6 +1510,12 @@ func init() {
 	CheckinsTable.ForeignKeys[0].RefTable = UsersTable
 	CheckinsTable.Annotation = &entsql.Annotation{
 		Table: "checkins",
+	}
+	CheckinBlindboxRecordsTable.Annotation = &entsql.Annotation{
+		Table: "checkin_blindbox_records",
+	}
+	CheckinPrizeItemsTable.Annotation = &entsql.Annotation{
+		Table: "checkin_prize_items",
 	}
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",

@@ -18,6 +18,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -59,6 +61,8 @@ const (
 	TypeAnnouncement            = "Announcement"
 	TypeAnnouncementRead        = "AnnouncementRead"
 	TypeCheckin                 = "Checkin"
+	TypeCheckinBlindboxRecord   = "CheckinBlindboxRecord"
+	TypeCheckinPrizeItem        = "CheckinPrizeItem"
 	TypeErrorPassthroughRule    = "ErrorPassthroughRule"
 	TypeGroup                   = "Group"
 	TypeIdempotencyRecord       = "IdempotencyRecord"
@@ -7782,6 +7786,1975 @@ func (m *CheckinMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Checkin edge %s", name)
+}
+
+// CheckinBlindboxRecordMutation represents an operation that mutates the CheckinBlindboxRecord nodes in the graph.
+type CheckinBlindboxRecordMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int64
+	user_id          *int64
+	adduser_id       *int64
+	prize_item_id    *int64
+	addprize_item_id *int64
+	prize_name       *string
+	rarity           *string
+	reward_type      *string
+	reward_value     *float64
+	addreward_value  *float64
+	streak_days      *int
+	addstreak_days   *int
+	created_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*CheckinBlindboxRecord, error)
+	predicates       []predicate.CheckinBlindboxRecord
+}
+
+var _ ent.Mutation = (*CheckinBlindboxRecordMutation)(nil)
+
+// checkinblindboxrecordOption allows management of the mutation configuration using functional options.
+type checkinblindboxrecordOption func(*CheckinBlindboxRecordMutation)
+
+// newCheckinBlindboxRecordMutation creates new mutation for the CheckinBlindboxRecord entity.
+func newCheckinBlindboxRecordMutation(c config, op Op, opts ...checkinblindboxrecordOption) *CheckinBlindboxRecordMutation {
+	m := &CheckinBlindboxRecordMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCheckinBlindboxRecord,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCheckinBlindboxRecordID sets the ID field of the mutation.
+func withCheckinBlindboxRecordID(id int64) checkinblindboxrecordOption {
+	return func(m *CheckinBlindboxRecordMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CheckinBlindboxRecord
+		)
+		m.oldValue = func(ctx context.Context) (*CheckinBlindboxRecord, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CheckinBlindboxRecord.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCheckinBlindboxRecord sets the old CheckinBlindboxRecord of the mutation.
+func withCheckinBlindboxRecord(node *CheckinBlindboxRecord) checkinblindboxrecordOption {
+	return func(m *CheckinBlindboxRecordMutation) {
+		m.oldValue = func(context.Context) (*CheckinBlindboxRecord, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CheckinBlindboxRecordMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CheckinBlindboxRecordMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CheckinBlindboxRecordMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CheckinBlindboxRecordMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CheckinBlindboxRecord.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *CheckinBlindboxRecordMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *CheckinBlindboxRecordMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the CheckinBlindboxRecord entity.
+// If the CheckinBlindboxRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinBlindboxRecordMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *CheckinBlindboxRecordMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *CheckinBlindboxRecordMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *CheckinBlindboxRecordMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetPrizeItemID sets the "prize_item_id" field.
+func (m *CheckinBlindboxRecordMutation) SetPrizeItemID(i int64) {
+	m.prize_item_id = &i
+	m.addprize_item_id = nil
+}
+
+// PrizeItemID returns the value of the "prize_item_id" field in the mutation.
+func (m *CheckinBlindboxRecordMutation) PrizeItemID() (r int64, exists bool) {
+	v := m.prize_item_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrizeItemID returns the old "prize_item_id" field's value of the CheckinBlindboxRecord entity.
+// If the CheckinBlindboxRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinBlindboxRecordMutation) OldPrizeItemID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrizeItemID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrizeItemID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrizeItemID: %w", err)
+	}
+	return oldValue.PrizeItemID, nil
+}
+
+// AddPrizeItemID adds i to the "prize_item_id" field.
+func (m *CheckinBlindboxRecordMutation) AddPrizeItemID(i int64) {
+	if m.addprize_item_id != nil {
+		*m.addprize_item_id += i
+	} else {
+		m.addprize_item_id = &i
+	}
+}
+
+// AddedPrizeItemID returns the value that was added to the "prize_item_id" field in this mutation.
+func (m *CheckinBlindboxRecordMutation) AddedPrizeItemID() (r int64, exists bool) {
+	v := m.addprize_item_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPrizeItemID resets all changes to the "prize_item_id" field.
+func (m *CheckinBlindboxRecordMutation) ResetPrizeItemID() {
+	m.prize_item_id = nil
+	m.addprize_item_id = nil
+}
+
+// SetPrizeName sets the "prize_name" field.
+func (m *CheckinBlindboxRecordMutation) SetPrizeName(s string) {
+	m.prize_name = &s
+}
+
+// PrizeName returns the value of the "prize_name" field in the mutation.
+func (m *CheckinBlindboxRecordMutation) PrizeName() (r string, exists bool) {
+	v := m.prize_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrizeName returns the old "prize_name" field's value of the CheckinBlindboxRecord entity.
+// If the CheckinBlindboxRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinBlindboxRecordMutation) OldPrizeName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrizeName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrizeName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrizeName: %w", err)
+	}
+	return oldValue.PrizeName, nil
+}
+
+// ResetPrizeName resets all changes to the "prize_name" field.
+func (m *CheckinBlindboxRecordMutation) ResetPrizeName() {
+	m.prize_name = nil
+}
+
+// SetRarity sets the "rarity" field.
+func (m *CheckinBlindboxRecordMutation) SetRarity(s string) {
+	m.rarity = &s
+}
+
+// Rarity returns the value of the "rarity" field in the mutation.
+func (m *CheckinBlindboxRecordMutation) Rarity() (r string, exists bool) {
+	v := m.rarity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRarity returns the old "rarity" field's value of the CheckinBlindboxRecord entity.
+// If the CheckinBlindboxRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinBlindboxRecordMutation) OldRarity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRarity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRarity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRarity: %w", err)
+	}
+	return oldValue.Rarity, nil
+}
+
+// ResetRarity resets all changes to the "rarity" field.
+func (m *CheckinBlindboxRecordMutation) ResetRarity() {
+	m.rarity = nil
+}
+
+// SetRewardType sets the "reward_type" field.
+func (m *CheckinBlindboxRecordMutation) SetRewardType(s string) {
+	m.reward_type = &s
+}
+
+// RewardType returns the value of the "reward_type" field in the mutation.
+func (m *CheckinBlindboxRecordMutation) RewardType() (r string, exists bool) {
+	v := m.reward_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRewardType returns the old "reward_type" field's value of the CheckinBlindboxRecord entity.
+// If the CheckinBlindboxRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinBlindboxRecordMutation) OldRewardType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRewardType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRewardType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRewardType: %w", err)
+	}
+	return oldValue.RewardType, nil
+}
+
+// ResetRewardType resets all changes to the "reward_type" field.
+func (m *CheckinBlindboxRecordMutation) ResetRewardType() {
+	m.reward_type = nil
+}
+
+// SetRewardValue sets the "reward_value" field.
+func (m *CheckinBlindboxRecordMutation) SetRewardValue(f float64) {
+	m.reward_value = &f
+	m.addreward_value = nil
+}
+
+// RewardValue returns the value of the "reward_value" field in the mutation.
+func (m *CheckinBlindboxRecordMutation) RewardValue() (r float64, exists bool) {
+	v := m.reward_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRewardValue returns the old "reward_value" field's value of the CheckinBlindboxRecord entity.
+// If the CheckinBlindboxRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinBlindboxRecordMutation) OldRewardValue(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRewardValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRewardValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRewardValue: %w", err)
+	}
+	return oldValue.RewardValue, nil
+}
+
+// AddRewardValue adds f to the "reward_value" field.
+func (m *CheckinBlindboxRecordMutation) AddRewardValue(f float64) {
+	if m.addreward_value != nil {
+		*m.addreward_value += f
+	} else {
+		m.addreward_value = &f
+	}
+}
+
+// AddedRewardValue returns the value that was added to the "reward_value" field in this mutation.
+func (m *CheckinBlindboxRecordMutation) AddedRewardValue() (r float64, exists bool) {
+	v := m.addreward_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRewardValue resets all changes to the "reward_value" field.
+func (m *CheckinBlindboxRecordMutation) ResetRewardValue() {
+	m.reward_value = nil
+	m.addreward_value = nil
+}
+
+// SetStreakDays sets the "streak_days" field.
+func (m *CheckinBlindboxRecordMutation) SetStreakDays(i int) {
+	m.streak_days = &i
+	m.addstreak_days = nil
+}
+
+// StreakDays returns the value of the "streak_days" field in the mutation.
+func (m *CheckinBlindboxRecordMutation) StreakDays() (r int, exists bool) {
+	v := m.streak_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStreakDays returns the old "streak_days" field's value of the CheckinBlindboxRecord entity.
+// If the CheckinBlindboxRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinBlindboxRecordMutation) OldStreakDays(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStreakDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStreakDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStreakDays: %w", err)
+	}
+	return oldValue.StreakDays, nil
+}
+
+// AddStreakDays adds i to the "streak_days" field.
+func (m *CheckinBlindboxRecordMutation) AddStreakDays(i int) {
+	if m.addstreak_days != nil {
+		*m.addstreak_days += i
+	} else {
+		m.addstreak_days = &i
+	}
+}
+
+// AddedStreakDays returns the value that was added to the "streak_days" field in this mutation.
+func (m *CheckinBlindboxRecordMutation) AddedStreakDays() (r int, exists bool) {
+	v := m.addstreak_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetStreakDays resets all changes to the "streak_days" field.
+func (m *CheckinBlindboxRecordMutation) ResetStreakDays() {
+	m.streak_days = nil
+	m.addstreak_days = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CheckinBlindboxRecordMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CheckinBlindboxRecordMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CheckinBlindboxRecord entity.
+// If the CheckinBlindboxRecord object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinBlindboxRecordMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CheckinBlindboxRecordMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the CheckinBlindboxRecordMutation builder.
+func (m *CheckinBlindboxRecordMutation) Where(ps ...predicate.CheckinBlindboxRecord) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CheckinBlindboxRecordMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CheckinBlindboxRecordMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CheckinBlindboxRecord, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CheckinBlindboxRecordMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CheckinBlindboxRecordMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CheckinBlindboxRecord).
+func (m *CheckinBlindboxRecordMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CheckinBlindboxRecordMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.user_id != nil {
+		fields = append(fields, checkinblindboxrecord.FieldUserID)
+	}
+	if m.prize_item_id != nil {
+		fields = append(fields, checkinblindboxrecord.FieldPrizeItemID)
+	}
+	if m.prize_name != nil {
+		fields = append(fields, checkinblindboxrecord.FieldPrizeName)
+	}
+	if m.rarity != nil {
+		fields = append(fields, checkinblindboxrecord.FieldRarity)
+	}
+	if m.reward_type != nil {
+		fields = append(fields, checkinblindboxrecord.FieldRewardType)
+	}
+	if m.reward_value != nil {
+		fields = append(fields, checkinblindboxrecord.FieldRewardValue)
+	}
+	if m.streak_days != nil {
+		fields = append(fields, checkinblindboxrecord.FieldStreakDays)
+	}
+	if m.created_at != nil {
+		fields = append(fields, checkinblindboxrecord.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CheckinBlindboxRecordMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case checkinblindboxrecord.FieldUserID:
+		return m.UserID()
+	case checkinblindboxrecord.FieldPrizeItemID:
+		return m.PrizeItemID()
+	case checkinblindboxrecord.FieldPrizeName:
+		return m.PrizeName()
+	case checkinblindboxrecord.FieldRarity:
+		return m.Rarity()
+	case checkinblindboxrecord.FieldRewardType:
+		return m.RewardType()
+	case checkinblindboxrecord.FieldRewardValue:
+		return m.RewardValue()
+	case checkinblindboxrecord.FieldStreakDays:
+		return m.StreakDays()
+	case checkinblindboxrecord.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CheckinBlindboxRecordMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case checkinblindboxrecord.FieldUserID:
+		return m.OldUserID(ctx)
+	case checkinblindboxrecord.FieldPrizeItemID:
+		return m.OldPrizeItemID(ctx)
+	case checkinblindboxrecord.FieldPrizeName:
+		return m.OldPrizeName(ctx)
+	case checkinblindboxrecord.FieldRarity:
+		return m.OldRarity(ctx)
+	case checkinblindboxrecord.FieldRewardType:
+		return m.OldRewardType(ctx)
+	case checkinblindboxrecord.FieldRewardValue:
+		return m.OldRewardValue(ctx)
+	case checkinblindboxrecord.FieldStreakDays:
+		return m.OldStreakDays(ctx)
+	case checkinblindboxrecord.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CheckinBlindboxRecord field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CheckinBlindboxRecordMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case checkinblindboxrecord.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case checkinblindboxrecord.FieldPrizeItemID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrizeItemID(v)
+		return nil
+	case checkinblindboxrecord.FieldPrizeName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrizeName(v)
+		return nil
+	case checkinblindboxrecord.FieldRarity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRarity(v)
+		return nil
+	case checkinblindboxrecord.FieldRewardType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRewardType(v)
+		return nil
+	case checkinblindboxrecord.FieldRewardValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRewardValue(v)
+		return nil
+	case checkinblindboxrecord.FieldStreakDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStreakDays(v)
+		return nil
+	case checkinblindboxrecord.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinBlindboxRecord field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CheckinBlindboxRecordMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, checkinblindboxrecord.FieldUserID)
+	}
+	if m.addprize_item_id != nil {
+		fields = append(fields, checkinblindboxrecord.FieldPrizeItemID)
+	}
+	if m.addreward_value != nil {
+		fields = append(fields, checkinblindboxrecord.FieldRewardValue)
+	}
+	if m.addstreak_days != nil {
+		fields = append(fields, checkinblindboxrecord.FieldStreakDays)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CheckinBlindboxRecordMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case checkinblindboxrecord.FieldUserID:
+		return m.AddedUserID()
+	case checkinblindboxrecord.FieldPrizeItemID:
+		return m.AddedPrizeItemID()
+	case checkinblindboxrecord.FieldRewardValue:
+		return m.AddedRewardValue()
+	case checkinblindboxrecord.FieldStreakDays:
+		return m.AddedStreakDays()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CheckinBlindboxRecordMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case checkinblindboxrecord.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case checkinblindboxrecord.FieldPrizeItemID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPrizeItemID(v)
+		return nil
+	case checkinblindboxrecord.FieldRewardValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRewardValue(v)
+		return nil
+	case checkinblindboxrecord.FieldStreakDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStreakDays(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinBlindboxRecord numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CheckinBlindboxRecordMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CheckinBlindboxRecordMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CheckinBlindboxRecordMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown CheckinBlindboxRecord nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CheckinBlindboxRecordMutation) ResetField(name string) error {
+	switch name {
+	case checkinblindboxrecord.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case checkinblindboxrecord.FieldPrizeItemID:
+		m.ResetPrizeItemID()
+		return nil
+	case checkinblindboxrecord.FieldPrizeName:
+		m.ResetPrizeName()
+		return nil
+	case checkinblindboxrecord.FieldRarity:
+		m.ResetRarity()
+		return nil
+	case checkinblindboxrecord.FieldRewardType:
+		m.ResetRewardType()
+		return nil
+	case checkinblindboxrecord.FieldRewardValue:
+		m.ResetRewardValue()
+		return nil
+	case checkinblindboxrecord.FieldStreakDays:
+		m.ResetStreakDays()
+		return nil
+	case checkinblindboxrecord.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinBlindboxRecord field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CheckinBlindboxRecordMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CheckinBlindboxRecordMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CheckinBlindboxRecordMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CheckinBlindboxRecordMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CheckinBlindboxRecordMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CheckinBlindboxRecordMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CheckinBlindboxRecordMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CheckinBlindboxRecord unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CheckinBlindboxRecordMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CheckinBlindboxRecord edge %s", name)
+}
+
+// CheckinPrizeItemMutation represents an operation that mutates the CheckinPrizeItem nodes in the graph.
+type CheckinPrizeItemMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int64
+	name                 *string
+	rarity               *string
+	reward_type          *string
+	reward_value         *float64
+	addreward_value      *float64
+	reward_value_max     *float64
+	addreward_value_max  *float64
+	subscription_id      *int64
+	addsubscription_id   *int64
+	subscription_days    *int
+	addsubscription_days *int
+	weight               *int
+	addweight            *int
+	is_enabled           *bool
+	created_at           *time.Time
+	updated_at           *time.Time
+	deleted_at           *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*CheckinPrizeItem, error)
+	predicates           []predicate.CheckinPrizeItem
+}
+
+var _ ent.Mutation = (*CheckinPrizeItemMutation)(nil)
+
+// checkinprizeitemOption allows management of the mutation configuration using functional options.
+type checkinprizeitemOption func(*CheckinPrizeItemMutation)
+
+// newCheckinPrizeItemMutation creates new mutation for the CheckinPrizeItem entity.
+func newCheckinPrizeItemMutation(c config, op Op, opts ...checkinprizeitemOption) *CheckinPrizeItemMutation {
+	m := &CheckinPrizeItemMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCheckinPrizeItem,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCheckinPrizeItemID sets the ID field of the mutation.
+func withCheckinPrizeItemID(id int64) checkinprizeitemOption {
+	return func(m *CheckinPrizeItemMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CheckinPrizeItem
+		)
+		m.oldValue = func(ctx context.Context) (*CheckinPrizeItem, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CheckinPrizeItem.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCheckinPrizeItem sets the old CheckinPrizeItem of the mutation.
+func withCheckinPrizeItem(node *CheckinPrizeItem) checkinprizeitemOption {
+	return func(m *CheckinPrizeItemMutation) {
+		m.oldValue = func(context.Context) (*CheckinPrizeItem, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CheckinPrizeItemMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CheckinPrizeItemMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CheckinPrizeItemMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CheckinPrizeItemMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CheckinPrizeItem.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetName sets the "name" field.
+func (m *CheckinPrizeItemMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *CheckinPrizeItemMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *CheckinPrizeItemMutation) ResetName() {
+	m.name = nil
+}
+
+// SetRarity sets the "rarity" field.
+func (m *CheckinPrizeItemMutation) SetRarity(s string) {
+	m.rarity = &s
+}
+
+// Rarity returns the value of the "rarity" field in the mutation.
+func (m *CheckinPrizeItemMutation) Rarity() (r string, exists bool) {
+	v := m.rarity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRarity returns the old "rarity" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldRarity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRarity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRarity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRarity: %w", err)
+	}
+	return oldValue.Rarity, nil
+}
+
+// ResetRarity resets all changes to the "rarity" field.
+func (m *CheckinPrizeItemMutation) ResetRarity() {
+	m.rarity = nil
+}
+
+// SetRewardType sets the "reward_type" field.
+func (m *CheckinPrizeItemMutation) SetRewardType(s string) {
+	m.reward_type = &s
+}
+
+// RewardType returns the value of the "reward_type" field in the mutation.
+func (m *CheckinPrizeItemMutation) RewardType() (r string, exists bool) {
+	v := m.reward_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRewardType returns the old "reward_type" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldRewardType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRewardType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRewardType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRewardType: %w", err)
+	}
+	return oldValue.RewardType, nil
+}
+
+// ResetRewardType resets all changes to the "reward_type" field.
+func (m *CheckinPrizeItemMutation) ResetRewardType() {
+	m.reward_type = nil
+}
+
+// SetRewardValue sets the "reward_value" field.
+func (m *CheckinPrizeItemMutation) SetRewardValue(f float64) {
+	m.reward_value = &f
+	m.addreward_value = nil
+}
+
+// RewardValue returns the value of the "reward_value" field in the mutation.
+func (m *CheckinPrizeItemMutation) RewardValue() (r float64, exists bool) {
+	v := m.reward_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRewardValue returns the old "reward_value" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldRewardValue(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRewardValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRewardValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRewardValue: %w", err)
+	}
+	return oldValue.RewardValue, nil
+}
+
+// AddRewardValue adds f to the "reward_value" field.
+func (m *CheckinPrizeItemMutation) AddRewardValue(f float64) {
+	if m.addreward_value != nil {
+		*m.addreward_value += f
+	} else {
+		m.addreward_value = &f
+	}
+}
+
+// AddedRewardValue returns the value that was added to the "reward_value" field in this mutation.
+func (m *CheckinPrizeItemMutation) AddedRewardValue() (r float64, exists bool) {
+	v := m.addreward_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRewardValue resets all changes to the "reward_value" field.
+func (m *CheckinPrizeItemMutation) ResetRewardValue() {
+	m.reward_value = nil
+	m.addreward_value = nil
+}
+
+// SetRewardValueMax sets the "reward_value_max" field.
+func (m *CheckinPrizeItemMutation) SetRewardValueMax(f float64) {
+	m.reward_value_max = &f
+	m.addreward_value_max = nil
+}
+
+// RewardValueMax returns the value of the "reward_value_max" field in the mutation.
+func (m *CheckinPrizeItemMutation) RewardValueMax() (r float64, exists bool) {
+	v := m.reward_value_max
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRewardValueMax returns the old "reward_value_max" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldRewardValueMax(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRewardValueMax is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRewardValueMax requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRewardValueMax: %w", err)
+	}
+	return oldValue.RewardValueMax, nil
+}
+
+// AddRewardValueMax adds f to the "reward_value_max" field.
+func (m *CheckinPrizeItemMutation) AddRewardValueMax(f float64) {
+	if m.addreward_value_max != nil {
+		*m.addreward_value_max += f
+	} else {
+		m.addreward_value_max = &f
+	}
+}
+
+// AddedRewardValueMax returns the value that was added to the "reward_value_max" field in this mutation.
+func (m *CheckinPrizeItemMutation) AddedRewardValueMax() (r float64, exists bool) {
+	v := m.addreward_value_max
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRewardValueMax resets all changes to the "reward_value_max" field.
+func (m *CheckinPrizeItemMutation) ResetRewardValueMax() {
+	m.reward_value_max = nil
+	m.addreward_value_max = nil
+}
+
+// SetSubscriptionID sets the "subscription_id" field.
+func (m *CheckinPrizeItemMutation) SetSubscriptionID(i int64) {
+	m.subscription_id = &i
+	m.addsubscription_id = nil
+}
+
+// SubscriptionID returns the value of the "subscription_id" field in the mutation.
+func (m *CheckinPrizeItemMutation) SubscriptionID() (r int64, exists bool) {
+	v := m.subscription_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionID returns the old "subscription_id" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldSubscriptionID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionID: %w", err)
+	}
+	return oldValue.SubscriptionID, nil
+}
+
+// AddSubscriptionID adds i to the "subscription_id" field.
+func (m *CheckinPrizeItemMutation) AddSubscriptionID(i int64) {
+	if m.addsubscription_id != nil {
+		*m.addsubscription_id += i
+	} else {
+		m.addsubscription_id = &i
+	}
+}
+
+// AddedSubscriptionID returns the value that was added to the "subscription_id" field in this mutation.
+func (m *CheckinPrizeItemMutation) AddedSubscriptionID() (r int64, exists bool) {
+	v := m.addsubscription_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSubscriptionID clears the value of the "subscription_id" field.
+func (m *CheckinPrizeItemMutation) ClearSubscriptionID() {
+	m.subscription_id = nil
+	m.addsubscription_id = nil
+	m.clearedFields[checkinprizeitem.FieldSubscriptionID] = struct{}{}
+}
+
+// SubscriptionIDCleared returns if the "subscription_id" field was cleared in this mutation.
+func (m *CheckinPrizeItemMutation) SubscriptionIDCleared() bool {
+	_, ok := m.clearedFields[checkinprizeitem.FieldSubscriptionID]
+	return ok
+}
+
+// ResetSubscriptionID resets all changes to the "subscription_id" field.
+func (m *CheckinPrizeItemMutation) ResetSubscriptionID() {
+	m.subscription_id = nil
+	m.addsubscription_id = nil
+	delete(m.clearedFields, checkinprizeitem.FieldSubscriptionID)
+}
+
+// SetSubscriptionDays sets the "subscription_days" field.
+func (m *CheckinPrizeItemMutation) SetSubscriptionDays(i int) {
+	m.subscription_days = &i
+	m.addsubscription_days = nil
+}
+
+// SubscriptionDays returns the value of the "subscription_days" field in the mutation.
+func (m *CheckinPrizeItemMutation) SubscriptionDays() (r int, exists bool) {
+	v := m.subscription_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionDays returns the old "subscription_days" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldSubscriptionDays(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionDays: %w", err)
+	}
+	return oldValue.SubscriptionDays, nil
+}
+
+// AddSubscriptionDays adds i to the "subscription_days" field.
+func (m *CheckinPrizeItemMutation) AddSubscriptionDays(i int) {
+	if m.addsubscription_days != nil {
+		*m.addsubscription_days += i
+	} else {
+		m.addsubscription_days = &i
+	}
+}
+
+// AddedSubscriptionDays returns the value that was added to the "subscription_days" field in this mutation.
+func (m *CheckinPrizeItemMutation) AddedSubscriptionDays() (r int, exists bool) {
+	v := m.addsubscription_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSubscriptionDays resets all changes to the "subscription_days" field.
+func (m *CheckinPrizeItemMutation) ResetSubscriptionDays() {
+	m.subscription_days = nil
+	m.addsubscription_days = nil
+}
+
+// SetWeight sets the "weight" field.
+func (m *CheckinPrizeItemMutation) SetWeight(i int) {
+	m.weight = &i
+	m.addweight = nil
+}
+
+// Weight returns the value of the "weight" field in the mutation.
+func (m *CheckinPrizeItemMutation) Weight() (r int, exists bool) {
+	v := m.weight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWeight returns the old "weight" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldWeight(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWeight is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWeight requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWeight: %w", err)
+	}
+	return oldValue.Weight, nil
+}
+
+// AddWeight adds i to the "weight" field.
+func (m *CheckinPrizeItemMutation) AddWeight(i int) {
+	if m.addweight != nil {
+		*m.addweight += i
+	} else {
+		m.addweight = &i
+	}
+}
+
+// AddedWeight returns the value that was added to the "weight" field in this mutation.
+func (m *CheckinPrizeItemMutation) AddedWeight() (r int, exists bool) {
+	v := m.addweight
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWeight resets all changes to the "weight" field.
+func (m *CheckinPrizeItemMutation) ResetWeight() {
+	m.weight = nil
+	m.addweight = nil
+}
+
+// SetIsEnabled sets the "is_enabled" field.
+func (m *CheckinPrizeItemMutation) SetIsEnabled(b bool) {
+	m.is_enabled = &b
+}
+
+// IsEnabled returns the value of the "is_enabled" field in the mutation.
+func (m *CheckinPrizeItemMutation) IsEnabled() (r bool, exists bool) {
+	v := m.is_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsEnabled returns the old "is_enabled" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldIsEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsEnabled: %w", err)
+	}
+	return oldValue.IsEnabled, nil
+}
+
+// ResetIsEnabled resets all changes to the "is_enabled" field.
+func (m *CheckinPrizeItemMutation) ResetIsEnabled() {
+	m.is_enabled = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CheckinPrizeItemMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CheckinPrizeItemMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CheckinPrizeItemMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CheckinPrizeItemMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CheckinPrizeItemMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CheckinPrizeItemMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *CheckinPrizeItemMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *CheckinPrizeItemMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the CheckinPrizeItem entity.
+// If the CheckinPrizeItem object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CheckinPrizeItemMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *CheckinPrizeItemMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[checkinprizeitem.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *CheckinPrizeItemMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[checkinprizeitem.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *CheckinPrizeItemMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, checkinprizeitem.FieldDeletedAt)
+}
+
+// Where appends a list predicates to the CheckinPrizeItemMutation builder.
+func (m *CheckinPrizeItemMutation) Where(ps ...predicate.CheckinPrizeItem) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CheckinPrizeItemMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CheckinPrizeItemMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CheckinPrizeItem, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CheckinPrizeItemMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CheckinPrizeItemMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CheckinPrizeItem).
+func (m *CheckinPrizeItemMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CheckinPrizeItemMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.name != nil {
+		fields = append(fields, checkinprizeitem.FieldName)
+	}
+	if m.rarity != nil {
+		fields = append(fields, checkinprizeitem.FieldRarity)
+	}
+	if m.reward_type != nil {
+		fields = append(fields, checkinprizeitem.FieldRewardType)
+	}
+	if m.reward_value != nil {
+		fields = append(fields, checkinprizeitem.FieldRewardValue)
+	}
+	if m.reward_value_max != nil {
+		fields = append(fields, checkinprizeitem.FieldRewardValueMax)
+	}
+	if m.subscription_id != nil {
+		fields = append(fields, checkinprizeitem.FieldSubscriptionID)
+	}
+	if m.subscription_days != nil {
+		fields = append(fields, checkinprizeitem.FieldSubscriptionDays)
+	}
+	if m.weight != nil {
+		fields = append(fields, checkinprizeitem.FieldWeight)
+	}
+	if m.is_enabled != nil {
+		fields = append(fields, checkinprizeitem.FieldIsEnabled)
+	}
+	if m.created_at != nil {
+		fields = append(fields, checkinprizeitem.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, checkinprizeitem.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, checkinprizeitem.FieldDeletedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CheckinPrizeItemMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case checkinprizeitem.FieldName:
+		return m.Name()
+	case checkinprizeitem.FieldRarity:
+		return m.Rarity()
+	case checkinprizeitem.FieldRewardType:
+		return m.RewardType()
+	case checkinprizeitem.FieldRewardValue:
+		return m.RewardValue()
+	case checkinprizeitem.FieldRewardValueMax:
+		return m.RewardValueMax()
+	case checkinprizeitem.FieldSubscriptionID:
+		return m.SubscriptionID()
+	case checkinprizeitem.FieldSubscriptionDays:
+		return m.SubscriptionDays()
+	case checkinprizeitem.FieldWeight:
+		return m.Weight()
+	case checkinprizeitem.FieldIsEnabled:
+		return m.IsEnabled()
+	case checkinprizeitem.FieldCreatedAt:
+		return m.CreatedAt()
+	case checkinprizeitem.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case checkinprizeitem.FieldDeletedAt:
+		return m.DeletedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CheckinPrizeItemMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case checkinprizeitem.FieldName:
+		return m.OldName(ctx)
+	case checkinprizeitem.FieldRarity:
+		return m.OldRarity(ctx)
+	case checkinprizeitem.FieldRewardType:
+		return m.OldRewardType(ctx)
+	case checkinprizeitem.FieldRewardValue:
+		return m.OldRewardValue(ctx)
+	case checkinprizeitem.FieldRewardValueMax:
+		return m.OldRewardValueMax(ctx)
+	case checkinprizeitem.FieldSubscriptionID:
+		return m.OldSubscriptionID(ctx)
+	case checkinprizeitem.FieldSubscriptionDays:
+		return m.OldSubscriptionDays(ctx)
+	case checkinprizeitem.FieldWeight:
+		return m.OldWeight(ctx)
+	case checkinprizeitem.FieldIsEnabled:
+		return m.OldIsEnabled(ctx)
+	case checkinprizeitem.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case checkinprizeitem.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case checkinprizeitem.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CheckinPrizeItem field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CheckinPrizeItemMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case checkinprizeitem.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case checkinprizeitem.FieldRarity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRarity(v)
+		return nil
+	case checkinprizeitem.FieldRewardType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRewardType(v)
+		return nil
+	case checkinprizeitem.FieldRewardValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRewardValue(v)
+		return nil
+	case checkinprizeitem.FieldRewardValueMax:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRewardValueMax(v)
+		return nil
+	case checkinprizeitem.FieldSubscriptionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionID(v)
+		return nil
+	case checkinprizeitem.FieldSubscriptionDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionDays(v)
+		return nil
+	case checkinprizeitem.FieldWeight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWeight(v)
+		return nil
+	case checkinprizeitem.FieldIsEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsEnabled(v)
+		return nil
+	case checkinprizeitem.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case checkinprizeitem.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case checkinprizeitem.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinPrizeItem field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CheckinPrizeItemMutation) AddedFields() []string {
+	var fields []string
+	if m.addreward_value != nil {
+		fields = append(fields, checkinprizeitem.FieldRewardValue)
+	}
+	if m.addreward_value_max != nil {
+		fields = append(fields, checkinprizeitem.FieldRewardValueMax)
+	}
+	if m.addsubscription_id != nil {
+		fields = append(fields, checkinprizeitem.FieldSubscriptionID)
+	}
+	if m.addsubscription_days != nil {
+		fields = append(fields, checkinprizeitem.FieldSubscriptionDays)
+	}
+	if m.addweight != nil {
+		fields = append(fields, checkinprizeitem.FieldWeight)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CheckinPrizeItemMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case checkinprizeitem.FieldRewardValue:
+		return m.AddedRewardValue()
+	case checkinprizeitem.FieldRewardValueMax:
+		return m.AddedRewardValueMax()
+	case checkinprizeitem.FieldSubscriptionID:
+		return m.AddedSubscriptionID()
+	case checkinprizeitem.FieldSubscriptionDays:
+		return m.AddedSubscriptionDays()
+	case checkinprizeitem.FieldWeight:
+		return m.AddedWeight()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CheckinPrizeItemMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case checkinprizeitem.FieldRewardValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRewardValue(v)
+		return nil
+	case checkinprizeitem.FieldRewardValueMax:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRewardValueMax(v)
+		return nil
+	case checkinprizeitem.FieldSubscriptionID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubscriptionID(v)
+		return nil
+	case checkinprizeitem.FieldSubscriptionDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubscriptionDays(v)
+		return nil
+	case checkinprizeitem.FieldWeight:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWeight(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinPrizeItem numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CheckinPrizeItemMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(checkinprizeitem.FieldSubscriptionID) {
+		fields = append(fields, checkinprizeitem.FieldSubscriptionID)
+	}
+	if m.FieldCleared(checkinprizeitem.FieldDeletedAt) {
+		fields = append(fields, checkinprizeitem.FieldDeletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CheckinPrizeItemMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CheckinPrizeItemMutation) ClearField(name string) error {
+	switch name {
+	case checkinprizeitem.FieldSubscriptionID:
+		m.ClearSubscriptionID()
+		return nil
+	case checkinprizeitem.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinPrizeItem nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CheckinPrizeItemMutation) ResetField(name string) error {
+	switch name {
+	case checkinprizeitem.FieldName:
+		m.ResetName()
+		return nil
+	case checkinprizeitem.FieldRarity:
+		m.ResetRarity()
+		return nil
+	case checkinprizeitem.FieldRewardType:
+		m.ResetRewardType()
+		return nil
+	case checkinprizeitem.FieldRewardValue:
+		m.ResetRewardValue()
+		return nil
+	case checkinprizeitem.FieldRewardValueMax:
+		m.ResetRewardValueMax()
+		return nil
+	case checkinprizeitem.FieldSubscriptionID:
+		m.ResetSubscriptionID()
+		return nil
+	case checkinprizeitem.FieldSubscriptionDays:
+		m.ResetSubscriptionDays()
+		return nil
+	case checkinprizeitem.FieldWeight:
+		m.ResetWeight()
+		return nil
+	case checkinprizeitem.FieldIsEnabled:
+		m.ResetIsEnabled()
+		return nil
+	case checkinprizeitem.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case checkinprizeitem.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case checkinprizeitem.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CheckinPrizeItem field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CheckinPrizeItemMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CheckinPrizeItemMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CheckinPrizeItemMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CheckinPrizeItemMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CheckinPrizeItemMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CheckinPrizeItemMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CheckinPrizeItemMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CheckinPrizeItem unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CheckinPrizeItemMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CheckinPrizeItem edge %s", name)
 }
 
 // ErrorPassthroughRuleMutation represents an operation that mutates the ErrorPassthroughRule nodes in the graph.

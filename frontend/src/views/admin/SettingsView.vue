@@ -1676,6 +1676,53 @@
                 </template>
               </div>
             </div>
+
+            <!-- Blind Box Settings -->
+            <div class="card">
+              <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                      {{ t('admin.settings.checkin.blindboxTitle') }}
+                    </h2>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.checkin.blindboxDescription') }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.checkin_blindbox_enabled" />
+                </div>
+              </div>
+              <template v-if="form.checkin_blindbox_enabled">
+                <div class="space-y-4 p-6">
+                  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.checkin.blindboxTriggerType') }}
+                      </label>
+                      <select v-model="form.checkin_blindbox_trigger_type" class="input">
+                        <option value="streak">{{ t('admin.settings.checkin.blindboxTriggerStreak') }}</option>
+                        <option value="total">{{ t('admin.settings.checkin.blindboxTriggerTotal') }}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.checkin.blindboxInterval') }}
+                      </label>
+                      <input v-model.number="form.checkin_blindbox_interval" type="number" min="1"
+                        class="input" placeholder="7" />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.checkin.blindboxIntervalHint') }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <router-link to="/admin/blindbox" class="btn btn-primary text-sm">
+                      {{ t('admin.settings.checkin.blindboxManagePool') }}
+                    </router-link>
+                  </div>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
         </div><!-- /Tab: Users -->
@@ -3072,6 +3119,9 @@ const form = reactive<SettingsForm>({
   checkin_luck_enabled: false,
   checkin_luck_min_multiplier: 0.1,
   checkin_luck_max_multiplier: 3.0,
+  checkin_blindbox_enabled: false,
+  checkin_blindbox_trigger_type: 'streak',
+  checkin_blindbox_interval: 7,
   site_name: 'Sub2API',
   site_logo: '',
   site_subtitle: 'Subscription to API Conversion Platform',
@@ -3541,6 +3591,9 @@ async function loadSettings() {
     form.checkin_luck_enabled = settings.checkin_luck_enabled ?? false
     form.checkin_luck_min_multiplier = settings.checkin_luck_min_multiplier ?? 0.1
     form.checkin_luck_max_multiplier = settings.checkin_luck_max_multiplier ?? 3.0
+    form.checkin_blindbox_enabled = settings.checkin_blindbox_enabled ?? false
+    form.checkin_blindbox_trigger_type = settings.checkin_blindbox_trigger_type ?? 'streak'
+    form.checkin_blindbox_interval = settings.checkin_blindbox_interval ?? 7
     registrationEmailSuffixWhitelistTags.value = normalizeRegistrationEmailSuffixDomains(
       settings.registration_email_suffix_whitelist
     )
@@ -3681,6 +3734,9 @@ async function saveSettings() {
       checkin_luck_enabled: form.checkin_luck_enabled,
       checkin_luck_min_multiplier: form.checkin_luck_min_multiplier,
       checkin_luck_max_multiplier: form.checkin_luck_max_multiplier,
+      checkin_blindbox_enabled: form.checkin_blindbox_enabled,
+      checkin_blindbox_trigger_type: form.checkin_blindbox_trigger_type,
+      checkin_blindbox_interval: form.checkin_blindbox_interval,
       site_name: form.site_name,
       site_logo: form.site_logo,
       site_subtitle: form.site_subtitle,

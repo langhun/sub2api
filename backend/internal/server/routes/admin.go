@@ -91,6 +91,9 @@ func RegisterAdminRoutes(
 
 		// 模型定价管理
 		registerModelPricingRoutes(admin, h)
+
+		// 签到盲盒奖池管理
+		registerBlindboxRoutes(admin, h)
 	}
 }
 
@@ -578,5 +581,16 @@ func registerModelPricingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		pricing.POST("/sync", h.Admin.ModelPricing.SyncFromRemote)
 		pricing.GET("/sync-status", h.Admin.ModelPricing.GetSyncStatus)
 		pricing.PUT("/auto-sync", h.Admin.ModelPricing.SetAutoSync)
+	}
+}
+
+func registerBlindboxRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	blindbox := admin.Group("/blindbox")
+	{
+		blindbox.GET("/prize-items", h.Admin.Blindbox.ListPrizeItems)
+		blindbox.POST("/prize-items", h.Admin.Blindbox.CreatePrizeItem)
+		blindbox.PUT("/prize-items/:id", h.Admin.Blindbox.UpdatePrizeItem)
+		blindbox.DELETE("/prize-items/:id", h.Admin.Blindbox.DeletePrizeItem)
+		blindbox.GET("/stats", h.Admin.Blindbox.GetStats)
 	}
 }

@@ -128,6 +128,11 @@ type SystemSettings struct {
 	CheckinLuckEnabled       bool
 	CheckinLuckMinMultiplier float64
 	CheckinLuckMaxMultiplier float64
+
+	// Checkin Blind Box 签到盲盒设置
+	CheckinBlindboxEnabled      bool
+	CheckinBlindboxTriggerType  string
+	CheckinBlindboxInterval     int
 }
 
 type DefaultSubscriptionSetting struct {

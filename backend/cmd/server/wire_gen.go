@@ -72,7 +72,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	userService := service.NewUserService(userRepository, settingRepository, apiKeyAuthCacheInvalidator, billingCache)
 	redeemCache := repository.NewRedeemCache(redisClient)
 	redeemService := service.NewRedeemService(redeemCodeRepository, userRepository, subscriptionService, redeemCache, billingCacheService, client, apiKeyAuthCacheInvalidator)
-	checkinService := service.NewCheckinService(client, userRepository, redeemCodeRepository, settingService, billingCacheService, apiKeyAuthCacheInvalidator)
+	blindboxService := service.NewBlindBoxService(client, db, settingService, userRepository, billingCacheService)
+	checkinService := service.NewCheckinService(client, userRepository, redeemCodeRepository, settingService, billingCacheService, apiKeyAuthCacheInvalidator, blindboxService)
 	secretEncryptor, err := repository.NewAESEncryptor(configConfig)
 	if err != nil {
 		return nil, err
@@ -229,7 +230,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	monitoringService := service.NewMonitoringService(db)
 	monitoringHandler := admin.NewMonitoringHandler(monitoringService)
 	modelPricingHandler := admin.NewModelPricingHandler(modelPricingAdminService)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, paymentHandler, monitoringHandler, modelPricingHandler)
+	blindboxHandler := admin.NewBlindboxHandler(blindboxService)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, paymentHandler, monitoringHandler, modelPricingHandler, blindboxHandler)
 	usageRecordWorkerPool := service.NewUsageRecordWorkerPool(configConfig)
 	userMsgQueueCache := repository.NewUserMsgQueueCache(redisClient)
 	userMessageQueueService := service.ProvideUserMessageQueueService(userMsgQueueCache, rpmCache, configConfig)
