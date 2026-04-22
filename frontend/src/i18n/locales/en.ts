@@ -390,8 +390,7 @@ export default {
     paymentConfig: 'Payment Config',
     paymentPlans: 'Plans',
     monitoring: 'Monitoring',
-    modelPricing: 'Model Pricing',
-    blindbox: 'Blind Box'
+    modelPricing: 'Model Pricing'
   },
 
   // Auth
