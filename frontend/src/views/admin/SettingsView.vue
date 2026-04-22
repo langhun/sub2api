@@ -1679,52 +1679,12 @@
           </div>
         </div>
 
-        <!-- Blind Box Settings -->
-        <div class="card">
-          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-            <div class="flex items-center justify-between">
-              <div>
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                  {{ t('admin.settings.checkin.blindboxTitle') }}
-                </h2>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {{ t('admin.settings.checkin.blindboxDescription') }}
-                </p>
-              </div>
-              <Toggle v-model="form.checkin_blindbox_enabled" />
-            </div>
-          </div>
-          <template v-if="form.checkin_blindbox_enabled">
-            <div class="space-y-4 p-6">
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t('admin.settings.checkin.blindboxTriggerType') }}
-                  </label>
-                  <select v-model="form.checkin_blindbox_trigger_type" class="input">
-                    <option value="streak">{{ t('admin.settings.checkin.blindboxTriggerStreak') }}</option>
-                    <option value="total">{{ t('admin.settings.checkin.blindboxTriggerTotal') }}</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t('admin.settings.checkin.blindboxInterval') }}
-                  </label>
-                  <input v-model.number="form.checkin_blindbox_interval" type="number" min="1"
-                    class="input" placeholder="7" />
-                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('admin.settings.checkin.blindboxIntervalHint') }}
-                  </p>
-                </div>
-              </div>
-              <div class="flex items-center gap-3 border-t pt-4 dark:border-dark-700">
-                <router-link to="/admin/blindbox" class="btn btn-primary text-sm">
-                  {{ t('admin.settings.checkin.blindboxManagePool') }}
-                </router-link>
-              </div>
-            </div>
-          </template>
-        </div>
+        <!-- Blind Box Settings + Prize Pool Management -->
+        <BlindboxPrizePoolCard
+          v-model:enabled="form.checkin_blindbox_enabled"
+          v-model:trigger-type="form.checkin_blindbox_trigger_type"
+          v-model:interval="form.checkin_blindbox_interval"
+        />
 
         </div><!-- /Tab: Check-in -->
 
@@ -2988,6 +2948,7 @@ import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import ImageUpload from '@/components/common/ImageUpload.vue'
+import BlindboxPrizePoolCard from '@/components/admin/BlindboxPrizePoolCard.vue'
 import BackupSettings from '@/views/admin/BackupView.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
