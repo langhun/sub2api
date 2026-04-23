@@ -376,6 +376,20 @@ func attachOpsRequestBodyToEntry(c *gin.Context, entry *service.OpsInsertErrorLo
 	opsErrorLogSanitized.Add(1)
 }
 
+// extractModelFromRequestBody 从 JSON 请求体中解析 model 字段（仅提取原始请求中的模型名）
+func extractModelFromRequestBody(body []byte) string {
+	if len(body) == 0 {
+		return ""
+	}
+	var req struct {
+		Model string `json:"model"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(req.Model)
+}
+
 func setOpsSelectedAccount(c *gin.Context, accountID int64, platform ...string) {
 	if c == nil || accountID <= 0 {
 		return
@@ -529,6 +543,14 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			var modelName string
 			if s, ok := model.(string); ok {
 				modelName = s
+			}
+			// 如果上下文中没有模型名，尝试从请求体解析（handler 可能尚未执行或解析失败）
+			if modelName == "" {
+				if bodyV, ok := c.Get(opsRequestBodyKey); ok {
+					if bodyBytes, ok := bodyV.([]byte); ok {
+						modelName = extractModelFromRequestBody(bodyBytes)
+					}
+				}
 			}
 			stream := false
 			if b, ok := streamV.(bool); ok {
@@ -755,6 +777,14 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 		var modelName string
 		if s, ok := model.(string); ok {
 			modelName = s
+		}
+		// 如果上下文中没有模型名，尝试从请求体解析（handler 可能尚未执行或解析失败）
+		if modelName == "" {
+			if bodyV, ok := c.Get(opsRequestBodyKey); ok {
+				if bodyBytes, ok := bodyV.([]byte); ok {
+					modelName = extractModelFromRequestBody(bodyBytes)
+				}
+			}
 		}
 		stream := false
 		if b, ok := streamV.(bool); ok {
