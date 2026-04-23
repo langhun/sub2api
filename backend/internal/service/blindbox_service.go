@@ -51,14 +51,15 @@ type BlindboxResult struct {
 }
 
 type BlindboxRecord struct {
-	ID           int64   `json:"id"`
-	PrizeName    string  `json:"prize_name"`
-	Rarity       string  `json:"rarity"`
-	RewardType   string  `json:"reward_type"`
-	RewardValue  float64 `json:"reward_value"`
-	RewardDetail string  `json:"reward_detail,omitempty"`
-	StreakDays   int     `json:"streak_days"`
-	CreatedAt    string  `json:"created_at"`
+	ID              int64   `json:"id"`
+	PrizeName       string  `json:"prize_name"`
+	Rarity          string  `json:"rarity"`
+	RewardType      string  `json:"reward_type"`
+	RewardValue     float64 `json:"reward_value"`
+	RewardDetail    string  `json:"reward_detail,omitempty"`
+	SubscriptionDays int    `json:"subscription_days,omitempty"`
+	StreakDays      int     `json:"streak_days"`
+	CreatedAt       string  `json:"created_at"`
 }
 
 type BlindboxRecordList struct {
@@ -441,7 +442,7 @@ func (s *BlindBoxService) GetUserRecords(ctx context.Context, userID int64, page
 
 	items := make([]BlindboxRecord, 0, len(records))
 	for _, r := range records {
-		items = append(items, BlindboxRecord{
+		rec := BlindboxRecord{
 			ID:           r.ID,
 			PrizeName:    r.PrizeName,
 			Rarity:       r.Rarity,
@@ -450,7 +451,14 @@ func (s *BlindBoxService) GetUserRecords(ctx context.Context, userID int64, page
 			RewardDetail: r.RewardDetail,
 			StreakDays:   r.StreakDays,
 			CreatedAt:    r.CreatedAt.Format("2006-01-02 15:04:05"),
-		})
+		}
+		if r.RewardType == BlindboxRewardSubscription && r.PrizeItemID > 0 {
+			prize, err := s.entClient.CheckinPrizeItem.Get(ctx, r.PrizeItemID)
+			if err == nil {
+				rec.SubscriptionDays = prize.SubscriptionDays
+			}
+		}
+		items = append(items, rec)
 	}
 
 	return &BlindboxRecordList{Items: items, Total: int64(total)}, nil

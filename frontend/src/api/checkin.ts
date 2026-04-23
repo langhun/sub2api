@@ -68,6 +68,7 @@ export interface BlindboxRecordItem {
   reward_type: string
   reward_value: number
   reward_detail?: string
+  subscription_days?: number
   streak_days: number
   created_at: string
 }
