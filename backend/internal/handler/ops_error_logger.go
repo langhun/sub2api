@@ -766,6 +766,11 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			return
 		}
 
+		// Skip logging for authentication/authorization errors (invalid key, expired, disabled, etc.)
+		if isAuthErrorCode(parsed.Code) {
+			return
+		}
+
 		apiKey, _ := middleware2.GetAPIKeyFromContext(c)
 
 		clientRequestID, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string)
@@ -959,6 +964,18 @@ var opsRetryRequestHeaderAllowlist = []string{
 }
 
 // isCountTokensRequest checks if the request is a count_tokens request
+// isAuthErrorCode 判断错误码是否为认证/授权类错误（key 无效、过期、禁用、用户不存在等）
+func isAuthErrorCode(code string) bool {
+	switch code {
+	case "INVALID_API_KEY", "API_KEY_REQUIRED", "API_KEY_DISABLED",
+		"API_KEY_EXPIRED", "API_KEY_QUOTA_EXHAUSTED",
+		"USER_NOT_FOUND", "USER_INACTIVE",
+		"ACCESS_DENIED", "INVALID_AUTH_HEADER", "INVALID_TOKEN":
+		return true
+	}
+	return false
+}
+
 func isCountTokensRequest(c *gin.Context) bool {
 	if c == nil || c.Request == nil || c.Request.URL == nil {
 		return false
