@@ -4599,6 +4599,106 @@
         </div>
         <!-- /Tab: Email -->
 
+        <!-- Tab: Check-in -->
+        <div v-show="activeTab === 'checkin'" class="space-y-6">
+
+        <!-- Checkin 签到设置 -->
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.checkin.title') }}
+            </h2>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.checkin.enabled') }}
+                </label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.checkin.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.checkin_enabled" />
+            </div>
+            <template v-if="form.checkin_enabled">
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2 border-t pt-4 dark:border-dark-700">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.checkin.minBalance') }}
+                  </label>
+                  <input v-model.number="form.checkin_min_balance" type="number" step="0.01" min="0"
+                    class="input" placeholder="0.10" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.checkin.minBalanceHint') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.checkin.maxBalance') }}
+                  </label>
+                  <input v-model.number="form.checkin_max_balance" type="number" step="0.01" min="0"
+                    class="input" placeholder="1.00" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.checkin.maxBalanceHint') }}
+                  </p>
+                </div>
+              </div>
+            </template>
+
+            <div class="flex items-center justify-between border-t pt-4 dark:border-dark-700">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.checkin.luckEnabled') }}
+                </label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.checkin.luckEnabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.checkin_luck_enabled" />
+            </div>
+            <template v-if="form.checkin_luck_enabled">
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2 border-t pt-4 dark:border-dark-700">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.checkin.luckMinMultiplier') }}
+                  </label>
+                  <input v-model.number="form.checkin_luck_min_multiplier" type="number" step="0.01" min="0"
+                    class="input" placeholder="0.10" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.checkin.luckMinMultiplierHint') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.checkin.luckMaxMultiplier') }}
+                  </label>
+                  <input v-model.number="form.checkin_luck_max_multiplier" type="number" step="0.01" min="0"
+                    class="input" placeholder="3.00" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.checkin.luckMaxMultiplierHint') }}
+                  </p>
+                </div>
+              </div>
+            </template>
+
+            <div class="flex justify-end border-t pt-4 dark:border-dark-700">
+              <button type="button" @click="saveSettings" :disabled="saving" class="btn btn-primary btn-sm">
+                {{ saving ? t('common.saving') : t('common.save') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Blind Box Settings + Prize Pool Management -->
+        <BlindboxPrizePoolCard
+          v-model:enabled="form.checkin_blindbox_enabled"
+          v-model:trigger-type="form.checkin_blindbox_trigger_type"
+          v-model:interval="form.checkin_blindbox_interval"
+        />
+
+        </div><!-- /Tab: Check-in -->
+
         <!-- Tab: Backup -->
         <div v-show="activeTab === 'backup'">
           <BackupSettings />
@@ -4703,6 +4803,7 @@ import Toggle from "@/components/common/Toggle.vue";
 import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
+import BlindboxPrizePoolCard from "@/components/admin/BlindboxPrizePoolCard.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
 import { useAppStore } from "@/stores";
@@ -4740,6 +4841,7 @@ type SettingsTab =
   | "security"
   | "users"
   | "gateway"
+  | "checkin"
   | "payment"
   | "email"
   | "backup";
@@ -4749,6 +4851,7 @@ const settingsTabs = [
   { key: "security" as SettingsTab, icon: "shield" as const },
   { key: "users" as SettingsTab, icon: "user" as const },
   { key: "gateway" as SettingsTab, icon: "server" as const },
+  { key: "checkin" as SettingsTab, icon: "gift" as const },
   { key: "payment" as SettingsTab, icon: "creditCard" as const },
   { key: "email" as SettingsTab, icon: "mail" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
@@ -4866,14 +4969,14 @@ const form = reactive<SettingsForm>({
   default_balance: 0,
   default_concurrency: 1,
   checkin_enabled: false,
-  checkin_min_balance: 0,
-  checkin_max_balance: 0,
+  checkin_min_balance: 0.1,
+  checkin_max_balance: 1.0,
   checkin_luck_enabled: false,
-  checkin_luck_min_multiplier: 0,
-  checkin_luck_max_multiplier: 0,
+  checkin_luck_min_multiplier: 0.1,
+  checkin_luck_max_multiplier: 3.0,
   checkin_blindbox_enabled: false,
   checkin_blindbox_trigger_type: "streak",
-  checkin_blindbox_interval: 0,
+  checkin_blindbox_interval: 7,
   default_subscriptions: [],
   force_email_on_third_party_signup: false,
   site_name: "Sub2API",
@@ -5921,6 +6024,16 @@ async function saveSettings() {
       account_quota_notify_emails: (
         form.account_quota_notify_emails || []
       ).filter((e) => e.email.trim() !== ""),
+      // Checkin configuration
+      checkin_enabled: form.checkin_enabled,
+      checkin_min_balance: Number(form.checkin_min_balance) || 0,
+      checkin_max_balance: Number(form.checkin_max_balance) || 0,
+      checkin_luck_enabled: form.checkin_luck_enabled,
+      checkin_luck_min_multiplier: Number(form.checkin_luck_min_multiplier) || 0,
+      checkin_luck_max_multiplier: Number(form.checkin_luck_max_multiplier) || 0,
+      checkin_blindbox_enabled: form.checkin_blindbox_enabled,
+      checkin_blindbox_trigger_type: form.checkin_blindbox_trigger_type,
+      checkin_blindbox_interval: Number(form.checkin_blindbox_interval) || 0,
     };
 
     appendAuthSourceDefaultsToUpdateRequest(payload, authSourceDefaults);
