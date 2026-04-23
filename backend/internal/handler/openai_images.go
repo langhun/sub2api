@@ -126,6 +126,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
 
+	downgradedToBasic := false
 	for {
 		reqLog.Debug("openai.images.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForImages(
@@ -141,6 +142,17 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 				zap.Error(err),
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
+			if len(failedAccountIDs) == 0 && !downgradedToBasic && parsed.RequiredCapability == service.OpenAIImagesCapabilityNative {
+				parsed.ExplicitModel = false
+				parsed.ExplicitSize = false
+				parsed.Model = "gpt-image-2"
+				parsed.Size = ""
+				parsed.RequiredCapability = service.OpenAIImagesCapabilityBasic
+				channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, parsed.Model)
+				downgradedToBasic = true
+				reqLog.Info("openai.images.native_unavailable_downgrading_to_basic")
+				continue
+			}
 			if len(failedAccountIDs) == 0 {
 				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available compatible accounts", streamStarted)
 				return
