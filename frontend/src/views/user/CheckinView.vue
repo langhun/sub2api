@@ -195,18 +195,42 @@
 
         <!-- Right Sidebar: Stats & Info -->
         <div class="space-y-6">
-          <!-- Blindbox Stats -->
+          <!-- Today's Check-in Result -->
           <div class="card p-5">
-            <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.rewardStats') }}</h4>
-            <div class="space-y-3">
-              <div v-for="stat in rewardStats" :key="stat.label" class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <span class="text-base">{{ stat.icon }}</span>
-                  <span class="text-xs text-gray-600 dark:text-gray-400">{{ stat.label }}</span>
-                </div>
-                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ stat.value }}</span>
+            <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.todayResult') }}</h4>
+            <div v-if="checkinStore.todayReward !== null && !checkinStore.canCheckin" class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.page.todayReward') }}</span>
+                <span class="text-sm font-bold" :class="checkinStore.todayReward >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'">
+                  {{ checkinStore.todayReward >= 0 ? '+' : '' }}${{ checkinStore.todayReward?.toFixed(2) }}
+                </span>
               </div>
-              <div v-if="rewardStats.length === 0" class="text-center text-xs text-gray-400 dark:text-dark-500 py-2">{{ t('checkin.page.noStats') }}</div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.checkinType') }}</span>
+                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="checkinStore.todayCheckinType === 'luck' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'">
+                  {{ checkinStore.todayCheckinType === 'luck' ? t('checkin.page.todayLuck') : t('checkin.page.todayNormal') }}
+                </span>
+              </div>
+              <div v-if="checkinStore.todayCheckinType === 'luck' && checkinStore.todayMultiplier" class="flex items-center justify-between">
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.page.todayMultiplier') }}</span>
+                <span class="text-sm font-semibold text-purple-600 dark:text-purple-400">{{ checkinStore.todayMultiplier?.toFixed(2) }}×</span>
+              </div>
+              <div v-if="checkinStore.blindboxResult" class="mt-2 rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-3 dark:border-purple-800/50 dark:from-purple-900/20 dark:to-indigo-900/20">
+                <div class="mb-1.5 flex items-center justify-between">
+                  <span class="text-xs font-medium text-purple-600 dark:text-purple-400">{{ t('checkin.page.todayBlindbox') }}</span>
+                  <span class="blindbox-rarity-badge text-[10px]" :class="getRarityBadgeClass(checkinStore.blindboxResult.rarity)">{{ getRarityLabel(checkinStore.blindboxResult.rarity) }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ checkinStore.blindboxResult.prize_name }}</span>
+                  <span class="text-sm font-semibold" :class="getRecordRewardColor({ rarity: checkinStore.blindboxResult.rarity })">{{ formatBlindboxReward(checkinStore.blindboxResult) }}</span>
+                </div>
+                <div v-if="checkinStore.blindboxResult.reward_type === 'invitation_code' && checkinStore.blindboxResult.reward_detail" class="mt-1.5 rounded bg-indigo-50 px-2 py-1 text-xs font-mono text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+                  {{ checkinStore.blindboxResult.reward_detail }}
+                </div>
+              </div>
+            </div>
+            <div v-else class="py-3 text-center">
+              <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('checkin.page.todayNoResult') }}</p>
             </div>
           </div>
 
@@ -252,7 +276,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useCheckinStore } from '@/stores/checkin'
-import { getBlindboxRecords, type BlindboxRecordItem } from '@/api/checkin'
+import { getBlindboxRecords, type BlindboxRecordItem, type BlindboxResult } from '@/api/checkin'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 
@@ -324,7 +348,7 @@ function getRecordBorderClass(rarity: string) {
   return map[rarity] || map.common
 }
 
-function getRecordRewardColor(record: BlindboxRecordItem) {
+function getRecordRewardColor(record: { rarity: string }) {
   const map: Record<string, string> = {
     common: 'text-gray-600 dark:text-gray-400',
     rare: 'text-blue-600 dark:text-blue-400',
@@ -344,19 +368,15 @@ function formatRecordReward(record: BlindboxRecordItem) {
   }
 }
 
-const rewardStats = computed(() => {
-  const stats: { icon: string; label: string; value: string }[] = []
-  const balanceTotal = blindboxRecords.value.filter(r => r.reward_type === 'balance').reduce((s, r) => s + r.reward_value, 0)
-  const concurrencyTotal = blindboxRecords.value.filter(r => r.reward_type === 'concurrency').reduce((s, r) => s + r.reward_value, 0)
-  const subscriptionTotal = blindboxRecords.value.filter(r => r.reward_type === 'subscription').length
-  const inviteTotal = blindboxRecords.value.filter(r => r.reward_type === 'invitation_code').length
-
-  if (balanceTotal > 0) stats.push({ icon: '💰', label: t('checkin.page.statBalance'), value: `+$${balanceTotal.toFixed(2)}` })
-  if (concurrencyTotal > 0) stats.push({ icon: '⚡', label: t('checkin.page.statConcurrency'), value: `+${Math.round(concurrencyTotal)}` })
-  if (subscriptionTotal > 0) stats.push({ icon: '🎫', label: t('checkin.page.statSubscription'), value: `${subscriptionTotal}` })
-  if (inviteTotal > 0) stats.push({ icon: '💌', label: t('checkin.page.statInvitation'), value: `${inviteTotal}` })
-  return stats
-})
+function formatBlindboxReward(result: BlindboxResult) {
+  switch (result.reward_type) {
+    case 'balance': return `+$${result.reward_value.toFixed(2)}`
+    case 'concurrency': return `+${Math.round(result.reward_value)}`
+    case 'subscription': return `${result.subscription_days || Math.round(result.reward_value)}${t('checkin.blindboxDays')}`
+    case 'invitation_code': return '×1'
+    default: return `${result.reward_value}`
+  }
+}
 
 const rarityBreakdown = computed(() => {
   const total = blindboxTotal.value || blindboxRecords.value.length
