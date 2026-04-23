@@ -163,144 +163,143 @@
           <div
             v-for="(day, i) in calendarGrid"
             :key="i"
-            class="calendar-cell relative flex flex-col items-center justify-center rounded-lg py-2 text-center transition-colors"
+            class="calendar-cell relative flex flex-col items-center justify-center rounded-lg py-1.5 text-center transition-colors"
             :class="getCalendarCellClass(day)"
           >
-            <span class="text-xs font-medium" :class="day.isCurrentMonth ? 'text-gray-700 dark:text-gray-300' : 'text-gray-300 dark:text-dark-600'">{{ day.dayNum }}</span>
-            <div v-if="day.checkedIn" class="mt-0.5 flex items-center justify-center">
-              <div v-if="day.rewardType === 'luck'" class="h-1.5 w-1.5 rounded-full bg-purple-500"></div>
-              <div v-else class="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
-            </div>
+            <span class="text-[11px] font-medium" :class="day.isCurrentMonth ? 'text-gray-700 dark:text-gray-300' : 'text-gray-300 dark:text-dark-600'">{{ day.dayNum }}</span>
+            <span v-if="day.checkedIn" class="mt-0.5 text-[10px] font-semibold leading-none" :class="day.rewardType === 'luck' ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400'">
+              {{ formatCalendarReward(day) }}
+            </span>
           </div>
         </div>
 
         <div class="mt-3 flex items-center justify-center gap-5 text-xs text-gray-400 dark:text-dark-500">
-          <div class="flex items-center gap-1.5"><div class="h-2 w-2 rounded-full bg-emerald-500"></div>{{ t('checkin.normalCheckin') }}</div>
-          <div class="flex items-center gap-1.5"><div class="h-2 w-2 rounded-full bg-purple-500"></div>{{ t('checkin.luckCheckin') }}</div>
-          <div class="flex items-center gap-1.5"><div class="h-2 w-2 rounded-full bg-gray-200 dark:bg-dark-700"></div>{{ t('checkin.page.todayNoResult') }}</div>
+          <div class="flex items-center gap-1.5"><span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">+$0.00</span>{{ t('checkin.normalCheckin') }}</div>
+          <div class="flex items-center gap-1.5"><span class="text-[10px] font-semibold text-purple-600 dark:text-purple-400">+$0.00</span>{{ t('checkin.luckCheckin') }}</div>
         </div>
       </div>
 
-      <!-- Two Column: Blindbox History + Reward Stats -->
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <!-- Blindbox History (2/3 width) -->
-        <div class="lg:col-span-2">
-          <div class="card p-6">
-            <div class="mb-4 flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="rounded-xl bg-purple-100 p-2.5 dark:bg-purple-900/30">
-                  <svg class="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('checkin.blindboxHistory') }}</h3>
-                  <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('checkin.blindboxHistoryDesc') }}</p>
-                </div>
+      <!-- Three Column: Today + Rarity + Blindbox Info -->
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <!-- Today's Check-in Result -->
+        <div class="card p-5">
+          <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.todayResult') }}</h4>
+          <div v-if="checkinStore.todayReward !== null && !checkinStore.canCheckin" class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.page.todayReward') }}</span>
+              <span class="text-sm font-bold" :class="checkinStore.todayReward >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'">
+                {{ checkinStore.todayReward >= 0 ? '+' : '' }}${{ checkinStore.todayReward?.toFixed(2) }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.checkinType') }}</span>
+              <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="checkinStore.todayCheckinType === 'luck' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'">
+                {{ checkinStore.todayCheckinType === 'luck' ? t('checkin.page.todayLuck') : t('checkin.page.todayNormal') }}
+              </span>
+            </div>
+            <div v-if="checkinStore.todayCheckinType === 'luck' && checkinStore.todayMultiplier" class="flex items-center justify-between">
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.page.todayMultiplier') }}</span>
+              <span class="text-sm font-semibold text-purple-600 dark:text-purple-400">{{ checkinStore.todayMultiplier?.toFixed(2) }}×</span>
+            </div>
+            <div v-if="checkinStore.blindboxResult" class="mt-2 rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-3 dark:border-purple-800/50 dark:from-purple-900/20 dark:to-indigo-900/20">
+              <div class="mb-1.5 flex items-center justify-between">
+                <span class="text-xs font-medium text-purple-600 dark:text-purple-400">{{ t('checkin.page.todayBlindbox') }}</span>
+                <span class="blindbox-rarity-badge text-[10px]" :class="getRarityBadgeClass(checkinStore.blindboxResult.rarity)">{{ getRarityLabel(checkinStore.blindboxResult.rarity) }}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ checkinStore.blindboxResult.prize_name }}</span>
+                <span class="text-sm font-semibold" :class="getRecordRewardColor({ rarity: checkinStore.blindboxResult.rarity })">{{ formatBlindboxReward(checkinStore.blindboxResult) }}</span>
+              </div>
+              <div v-if="checkinStore.blindboxResult.reward_type === 'invitation_code' && checkinStore.blindboxResult.reward_detail" class="mt-1.5 rounded bg-indigo-50 px-2 py-1 text-xs font-mono text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+                {{ checkinStore.blindboxResult.reward_detail }}
               </div>
             </div>
+          </div>
+          <div v-else class="py-3 text-center">
+            <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('checkin.page.todayNoResult') }}</p>
+          </div>
+        </div>
 
-            <div v-if="blindboxRecords.length === 0" class="py-8 text-center">
-              <svg class="mx-auto h-12 w-12 text-gray-300 dark:text-dark-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+        <!-- Rarity Breakdown -->
+        <div class="card p-5">
+          <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.rarityBreakdown') }}</h4>
+          <div v-if="blindboxRecords.length > 0" class="space-y-2.5">
+            <div v-for="r in rarityBreakdown" :key="r.key" class="flex items-center gap-2.5">
+              <span class="blindbox-rarity-badge text-[10px]" :class="r.badgeClass">{{ r.label }}</span>
+              <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+                <div class="h-full rounded-full transition-all duration-500" :class="r.barClass" :style="{ width: r.percent + '%' }"></div>
+              </div>
+              <span class="text-xs font-medium tabular-nums text-gray-600 dark:text-gray-400">{{ r.count }}</span>
+            </div>
+          </div>
+          <div v-else class="py-3 text-center">
+            <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('checkin.page.noBlindbox') }}</p>
+          </div>
+        </div>
+
+        <!-- Blindbox Trigger Info -->
+        <div class="card p-5">
+          <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.blindboxInfo') }}</h4>
+          <div v-if="checkinStore.status?.blindbox_enabled" class="space-y-2 text-xs text-gray-600 dark:text-gray-400">
+            <div class="flex justify-between">
+              <span>{{ t('checkin.page.triggerType') }}</span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ checkinStore.status.blindbox_trigger_type === 'total' ? t('checkin.page.triggerTotal') : t('checkin.page.triggerStreak') }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span>{{ t('checkin.page.triggerInterval') }}</span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ checkinStore.status.blindbox_interval }}{{ t('checkin.page.days') }}</span>
+            </div>
+            <div v-if="nextBlindboxHint" class="mt-2 rounded-lg bg-purple-50 p-2.5 text-center dark:bg-purple-900/20">
+              <span class="text-purple-700 dark:text-purple-300">{{ nextBlindboxHint }}</span>
+            </div>
+          </div>
+          <div v-else class="py-3 text-center">
+            <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('checkin.page.noBlindbox') }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blindbox History (full width) -->
+      <div class="card p-6">
+        <div class="mb-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="rounded-xl bg-purple-100 p-2.5 dark:bg-purple-900/30">
+              <svg class="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v-1.5c0 .621.504 1.125 1.125 1.125z" />
               </svg>
-              <p class="mt-2 text-sm text-gray-400 dark:text-dark-500">{{ t('checkin.page.noBlindbox') }}</p>
             </div>
-
-            <div v-else class="space-y-2">
-              <div v-for="record in blindboxRecords" :key="record.id" class="flex items-center justify-between rounded-lg border px-4 py-3 blindbox-record" :class="getRecordBorderClass(record.rarity)">
-                <div class="flex items-center gap-3">
-                  <span class="blindbox-rarity-badge text-xs" :class="getRarityBadgeClass(record.rarity)">{{ getRarityLabel(record.rarity) }}</span>
-                  <div>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">{{ record.prize_name }}</span>
-                    <span v-if="record.reward_type === 'invitation_code' && record.reward_detail" class="ml-2 rounded bg-indigo-50 px-2 py-0.5 text-xs font-mono text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{{ record.reward_detail }}</span>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <div class="text-sm font-semibold" :class="getRecordRewardColor(record)">{{ formatRecordReward(record) }}</div>
-                  <div class="text-xs text-gray-400 dark:text-dark-500">{{ record.created_at }}</div>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="blindboxTotal > blindboxRecords.length" class="mt-4 text-center">
-              <button type="button" class="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="loadMoreBlindboxRecords">{{ t('common.loadMore') }}</button>
+            <div>
+              <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('checkin.blindboxHistory') }}</h3>
+              <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('checkin.blindboxHistoryDesc') }}</p>
             </div>
           </div>
         </div>
 
-        <!-- Right Sidebar: Stats & Info -->
-        <div class="space-y-6">
-          <!-- Today's Check-in Result -->
-          <div class="card p-5">
-            <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.todayResult') }}</h4>
-            <div v-if="checkinStore.todayReward !== null && !checkinStore.canCheckin" class="space-y-3">
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.page.todayReward') }}</span>
-                <span class="text-sm font-bold" :class="checkinStore.todayReward >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'">
-                  {{ checkinStore.todayReward >= 0 ? '+' : '' }}${{ checkinStore.todayReward?.toFixed(2) }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.checkinType') }}</span>
-                <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="checkinStore.todayCheckinType === 'luck' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'">
-                  {{ checkinStore.todayCheckinType === 'luck' ? t('checkin.page.todayLuck') : t('checkin.page.todayNormal') }}
-                </span>
-              </div>
-              <div v-if="checkinStore.todayCheckinType === 'luck' && checkinStore.todayMultiplier" class="flex items-center justify-between">
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.page.todayMultiplier') }}</span>
-                <span class="text-sm font-semibold text-purple-600 dark:text-purple-400">{{ checkinStore.todayMultiplier?.toFixed(2) }}×</span>
-              </div>
-              <div v-if="checkinStore.blindboxResult" class="mt-2 rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-3 dark:border-purple-800/50 dark:from-purple-900/20 dark:to-indigo-900/20">
-                <div class="mb-1.5 flex items-center justify-between">
-                  <span class="text-xs font-medium text-purple-600 dark:text-purple-400">{{ t('checkin.page.todayBlindbox') }}</span>
-                  <span class="blindbox-rarity-badge text-[10px]" :class="getRarityBadgeClass(checkinStore.blindboxResult.rarity)">{{ getRarityLabel(checkinStore.blindboxResult.rarity) }}</span>
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ checkinStore.blindboxResult.prize_name }}</span>
-                  <span class="text-sm font-semibold" :class="getRecordRewardColor({ rarity: checkinStore.blindboxResult.rarity })">{{ formatBlindboxReward(checkinStore.blindboxResult) }}</span>
-                </div>
-                <div v-if="checkinStore.blindboxResult.reward_type === 'invitation_code' && checkinStore.blindboxResult.reward_detail" class="mt-1.5 rounded bg-indigo-50 px-2 py-1 text-xs font-mono text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
-                  {{ checkinStore.blindboxResult.reward_detail }}
-                </div>
-              </div>
-            </div>
-            <div v-else class="py-3 text-center">
-              <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('checkin.page.todayNoResult') }}</p>
-            </div>
-          </div>
+        <div v-if="blindboxRecords.length === 0" class="py-8 text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-300 dark:text-dark-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+          </svg>
+          <p class="mt-2 text-sm text-gray-400 dark:text-dark-500">{{ t('checkin.page.noBlindbox') }}</p>
+        </div>
 
-          <!-- Rarity Breakdown -->
-          <div v-if="blindboxRecords.length > 0" class="card p-5">
-            <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.rarityBreakdown') }}</h4>
-            <div class="space-y-2.5">
-              <div v-for="r in rarityBreakdown" :key="r.key" class="flex items-center gap-2.5">
-                <span class="blindbox-rarity-badge text-[10px]" :class="r.badgeClass">{{ r.label }}</span>
-                <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
-                  <div class="h-full rounded-full transition-all duration-500" :class="r.barClass" :style="{ width: r.percent + '%' }"></div>
-                </div>
-                <span class="text-xs font-medium tabular-nums text-gray-600 dark:text-gray-400">{{ r.count }}</span>
+        <div v-else class="space-y-2">
+          <div v-for="record in blindboxRecords" :key="record.id" class="flex items-center justify-between rounded-lg border px-4 py-3 blindbox-record" :class="getRecordBorderClass(record.rarity)">
+            <div class="flex items-center gap-3">
+              <span class="blindbox-rarity-badge text-xs" :class="getRarityBadgeClass(record.rarity)">{{ getRarityLabel(record.rarity) }}</span>
+              <div>
+                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ record.prize_name }}</span>
+                <span v-if="record.reward_type === 'invitation_code' && record.reward_detail" class="ml-2 rounded bg-indigo-50 px-2 py-0.5 text-xs font-mono text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{{ record.reward_detail }}</span>
               </div>
             </div>
+            <div class="text-right">
+              <div class="text-sm font-semibold" :class="getRecordRewardColor(record)">{{ formatRecordReward(record) }}</div>
+              <div class="text-xs text-gray-400 dark:text-dark-500">{{ record.created_at }}</div>
+            </div>
           </div>
+        </div>
 
-          <!-- Blindbox Trigger Info -->
-          <div v-if="checkinStore.status?.blindbox_enabled" class="card p-5">
-            <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.blindboxInfo') }}</h4>
-            <div class="space-y-2 text-xs text-gray-600 dark:text-gray-400">
-              <div class="flex justify-between">
-                <span>{{ t('checkin.page.triggerType') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ checkinStore.status.blindbox_trigger_type === 'total' ? t('checkin.page.triggerTotal') : t('checkin.page.triggerStreak') }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>{{ t('checkin.page.triggerInterval') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ checkinStore.status.blindbox_interval }}{{ t('checkin.page.days') }}</span>
-              </div>
-              <div v-if="nextBlindboxHint" class="mt-2 rounded-lg bg-purple-50 p-2.5 text-center dark:bg-purple-900/20">
-                <span class="text-purple-700 dark:text-purple-300">{{ nextBlindboxHint }}</span>
-              </div>
-            </div>
-          </div>
+        <div v-if="blindboxTotal > blindboxRecords.length" class="mt-4 text-center">
+          <button type="button" class="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="loadMoreBlindboxRecords">{{ t('common.loadMore') }}</button>
         </div>
       </div>
     </div>
@@ -403,6 +402,15 @@ function getCalendarCellClass(day: CalendarCell): string {
     classes.push('calendar-cell-missed')
   }
   return classes.join(' ')
+}
+
+function formatCalendarReward(day: CalendarCell): string {
+  const v = day.rewardValue
+  if (day.rewardType === 'luck') {
+    const prefix = v >= 0 ? '+' : ''
+    return `${prefix}$${v.toFixed(2)}`
+  }
+  return `+$${v.toFixed(2)}`
 }
 
 const streakColor = computed(() => {
