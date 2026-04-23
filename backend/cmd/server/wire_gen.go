@@ -172,7 +172,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	modelPricingAdminService, errModelPricing := service.ProvideModelPricingAdminService(client, db, configConfig, pricingRemoteClient, channelService)
+	modelPricingAdminService, errModelPricing := service.ProvideModelPricingAdminService(client, db, configConfig, pricingRemoteClient, channelService, pricingService)
 	if errModelPricing != nil {
 		return nil, errModelPricing
 	}

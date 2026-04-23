@@ -69,6 +69,7 @@ type ModelPricingAdminService struct {
 	db             *sql.DB
 	cfg            *config.Config
 	channelService *ChannelService
+	pricingService *PricingService
 	mu             sync.RWMutex
 	cache          map[string]*LiteLLMModelPricing
 
@@ -80,12 +81,13 @@ type ModelPricingAdminService struct {
 	lastSyncedAt    time.Time
 }
 
-func NewModelPricingAdminService(client *ent.Client, db *sql.DB, cfg *config.Config, remoteClient PricingRemoteClient, channelService *ChannelService) *ModelPricingAdminService {
+func NewModelPricingAdminService(client *ent.Client, db *sql.DB, cfg *config.Config, remoteClient PricingRemoteClient, channelService *ChannelService, pricingService *PricingService) *ModelPricingAdminService {
 	return &ModelPricingAdminService{
 		client:          client,
 		db:              db,
 		cfg:             cfg,
 		channelService:  channelService,
+		pricingService:  pricingService,
 		remoteClient:    remoteClient,
 		cache:           make(map[string]*LiteLLMModelPricing),
 		stopCh:          make(chan struct{}),
@@ -817,25 +819,11 @@ func (s *ModelPricingAdminService) GetGroupsWithModelsAndPricing(ctx context.Con
 			COALESCE(g.platform, '') AS platform,
 			g.rate_multiplier,
 			COALESCE(
-				json_agg(
-					json_build_object(
-						'model_name', gm.model_name,
-						'input_cost_per_million', CASE WHEN mp.input_cost_per_token IS NOT NULL THEN mp.input_cost_per_token * 1000000 ELSE 0 END,
-						'output_cost_per_million', CASE WHEN mp.output_cost_per_token IS NOT NULL THEN mp.output_cost_per_token * 1000000 ELSE 0 END,
-						'effective_input', CASE WHEN mp.input_cost_per_token IS NOT NULL THEN mp.input_cost_per_token * g.rate_multiplier * 1000000 ELSE 0 END,
-						'effective_output', CASE WHEN mp.output_cost_per_token IS NOT NULL THEN mp.output_cost_per_token * g.rate_multiplier * 1000000 ELSE 0 END
-					) ORDER BY gm.model_name
-				),
+				json_agg(gm.model_name ORDER BY gm.model_name),
 				'[]'::json
 			) AS models
 		FROM groups g
 		LEFT JOIN group_models gm ON gm.group_id = g.id
-		LEFT JOIN LATERAL (
-			SELECT input_cost_per_token, output_cost_per_token
-			FROM model_pricings
-			WHERE lower(model) = lower(gm.model_name)
-			LIMIT 1
-		) mp ON true
 		WHERE g.status = 'active'
 		  AND g.deleted_at IS NULL
 		GROUP BY g.id, g.name, g.platform, g.rate_multiplier
@@ -856,11 +844,23 @@ func (s *ModelPricingAdminService) GetGroupsWithModelsAndPricing(ctx context.Con
 		if err := rows.Scan(&g.ID, &g.Name, &g.Platform, &g.RateMultiplier, &modelsJSON); err != nil {
 			return nil, fmt.Errorf("scan group row: %w", err)
 		}
-		if err := json.Unmarshal([]byte(modelsJSON), &g.Models); err != nil {
+
+		var modelNames []string
+		if err := json.Unmarshal([]byte(modelsJSON), &modelNames); err != nil {
 			g.Models = []PublicPricingModel{}
+		} else {
+			g.Models = make([]PublicPricingModel, len(modelNames))
+			for idx, name := range modelNames {
+				g.Models[idx].ModelName = name
+			}
 		}
+
 		for i := range g.Models {
-			basePricing := s.GetPricingFromCache(g.Models[i].ModelName)
+			modelName := g.Models[i].ModelName
+			basePricing := s.GetPricingFromCache(modelName)
+			if basePricing == nil && s.pricingService != nil {
+				basePricing = s.pricingService.GetModelPricing(modelName)
+			}
 			if basePricing != nil {
 				if basePricing.InputCostPerToken > 0 {
 					g.Models[i].InputCostPerMillion = basePricing.InputCostPerToken * 1000000
@@ -880,7 +880,7 @@ func (s *ModelPricingAdminService) GetGroupsWithModelsAndPricing(ctx context.Con
 			if s.channelService == nil {
 				continue
 			}
-			channelPricing := s.channelService.GetChannelModelPricing(ctx, g.ID, g.Models[i].ModelName)
+			channelPricing := s.channelService.GetChannelModelPricing(ctx, g.ID, modelName)
 			if channelPricing == nil {
 				continue
 			}
