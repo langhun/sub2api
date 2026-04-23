@@ -536,7 +536,8 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 
 	// For admin_balance/admin_concurrency types, include notes so users can see
 	// why they were charged or credited by admin
-	if (rc.Type == "admin_balance" || rc.Type == "admin_concurrency") && rc.Notes != "" {
+	// For checkin_blindbox type, include notes for rarity/prize display
+	if rc.Notes != "" && (rc.Type == "admin_balance" || rc.Type == "admin_concurrency" || rc.Type == "checkin_blindbox") {
 		out.Notes = &rc.Notes
 	}
 
