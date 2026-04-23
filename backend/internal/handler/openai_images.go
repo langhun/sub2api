@@ -127,7 +127,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 	var lastFailoverErr *service.UpstreamFailoverError
 
 	if parsed.RequiredCapability == service.OpenAIImagesCapabilityNative {
-		probeSelection, _, probeErr := h.gatewayService.SelectAccountWithSchedulerForImages(
+		probeSelection, _, probeErr := h.gatewayService.SelectAccountWithSchedulerForImagesStrict(
 			c.Request.Context(),
 			apiKey.GroupID,
 			"",
