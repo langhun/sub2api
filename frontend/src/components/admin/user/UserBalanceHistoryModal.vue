@@ -291,6 +291,8 @@ const getIconColor = (item: BalanceHistoryItem) => {
 
 // Value text color
 const getValueColor = (item: BalanceHistoryItem) => {
+  if (isBlindboxConcurrency(item)) return 'text-blue-600 dark:text-blue-400'
+  if (isBlindboxSubscription(item)) return 'text-purple-600 dark:text-purple-400'
   if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'text-amber-600 dark:text-amber-400'
   if (item.type === 'registration') return 'text-sky-600 dark:text-sky-400'
   if (item.type === 'invitation') return 'text-rose-600 dark:text-rose-400'
@@ -333,8 +335,21 @@ const getItemTitle = (item: BalanceHistoryItem) => {
   }
 }
 
+const isBlindboxConcurrency = (item: BalanceHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Concurrency') || item.notes?.includes('并发'))
+
+const isBlindboxSubscription = (item: BalanceHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Subscription') || item.notes?.includes('订阅'))
+
 // Format display value
 const formatValue = (item: BalanceHistoryItem) => {
+  if (isBlindboxConcurrency(item)) {
+    const sign = item.value >= 0 ? '+' : ''
+    return `${sign}${Math.round(item.value)}`
+  }
+  if (isBlindboxSubscription(item)) {
+    const days = item.validity_days || Math.round(item.value)
+    const groupName = item.group?.name || ''
+    return groupName ? `${days}d - ${groupName}` : `${days}d`
+  }
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
     return `${sign}$${item.value.toFixed(2)}`
