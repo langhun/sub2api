@@ -142,6 +142,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 			parsed.Size = ""
 			parsed.RequiredCapability = service.OpenAIImagesCapabilityBasic
 			channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, parsed.Model)
+			sessionHash = h.gatewayService.GenerateSessionHashWithFallback(c, nil, parsed.StickySessionSeed())
 			reqLog.Info("openai.images.no_native_accounts_downgrading_to_basic")
 		} else if probeSelection.ReleaseFunc != nil {
 			probeSelection.ReleaseFunc()
