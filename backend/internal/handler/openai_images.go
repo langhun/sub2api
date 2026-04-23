@@ -113,11 +113,23 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		return
 	}
 
+	if parsed.RequiredCapability == service.OpenAIImagesCapabilityNative {
+		if !h.gatewayService.HasStrictOpenAINativeImageAccounts(c.Request.Context(), apiKey.GroupID, parsed.Model) {
+			parsed.ExplicitModel = false
+			parsed.ExplicitSize = false
+			parsed.Model = "gpt-image-2"
+			parsed.Size = ""
+			parsed.RequiredCapability = service.OpenAIImagesCapabilityBasic
+			channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, parsed.Model)
+			reqLog.Info("openai.images.no_native_accounts_downgrading_to_basic")
+		}
+	}
+
 	sessionHash := ""
 	if parsed.Multipart {
 		sessionHash = h.gatewayService.GenerateSessionHashWithFallback(c, nil, parsed.StickySessionSeed())
 	} else {
-		sessionHash = h.gatewayService.GenerateSessionHash(c, body)
+		sessionHash = h.gatewayService.GenerateSessionHashWithFallback(c, nil, parsed.StickySessionSeed())
 	}
 
 	maxAccountSwitches := h.maxAccountSwitches
@@ -125,29 +137,6 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
-
-	if parsed.RequiredCapability == service.OpenAIImagesCapabilityNative {
-		probeSelection, _, probeErr := h.gatewayService.SelectAccountWithSchedulerForImagesStrict(
-			c.Request.Context(),
-			apiKey.GroupID,
-			"",
-			parsed.Model,
-			nil,
-			service.OpenAIImagesCapabilityNative,
-		)
-		if probeErr != nil || probeSelection == nil || probeSelection.Account == nil {
-			parsed.ExplicitModel = false
-			parsed.ExplicitSize = false
-			parsed.Model = "gpt-image-2"
-			parsed.Size = ""
-			parsed.RequiredCapability = service.OpenAIImagesCapabilityBasic
-			channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, parsed.Model)
-			sessionHash = h.gatewayService.GenerateSessionHashWithFallback(c, nil, parsed.StickySessionSeed())
-			reqLog.Info("openai.images.no_native_accounts_downgrading_to_basic")
-		} else if probeSelection.ReleaseFunc != nil {
-			probeSelection.ReleaseFunc()
-		}
-	}
 
 	for {
 		reqLog.Debug("openai.images.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
