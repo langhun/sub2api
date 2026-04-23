@@ -472,7 +472,7 @@ func (s *MonitoringService) queryTodaySummary(ctx context.Context, overview *Mon
 	}
 
 	var opsErrorCount int64
-	errQ := `SELECT COUNT(*) FROM ops_error_logs WHERE created_at >= $1 AND is_count_tokens = false`
+	errQ := `SELECT COUNT(*) FROM ops_error_logs WHERE created_at >= $1 AND is_count_tokens = false AND group_id IS NOT NULL AND COALESCE(requested_model, model) IS NOT NULL`
 	if err := s.db.QueryRowContext(ctx, errQ, since).Scan(&opsErrorCount); err != nil {
 		return err
 	}
@@ -501,6 +501,8 @@ func (s *MonitoringService) queryHourlyStats(ctx context.Context, overview *Moni
 			FROM ops_error_logs
 			WHERE created_at >= $1
 			  AND is_count_tokens = false
+			  AND group_id IS NOT NULL
+			  AND COALESCE(requested_model, model) IS NOT NULL
 			GROUP BY DATE_TRUNC('hour', created_at)
 		)
 		SELECT
