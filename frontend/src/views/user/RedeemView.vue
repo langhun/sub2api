@@ -517,7 +517,7 @@ const formatHistoryValue = (item: RedeemHistoryItem) => {
   if (isBlindboxSubscription(item)) {
     const days = item.validity_days || Math.round(item.value)
     const groupName = item.group?.name || ''
-    return groupName ? `${days}${t('redeem.days')} - ${groupName}` : `${days}${t('redeem.days')}`
+    return groupName ? `${days}d - ${groupName}` : `${days}d`
   }
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
@@ -525,10 +525,10 @@ const formatHistoryValue = (item: RedeemHistoryItem) => {
   } else if (isSubscriptionType(item.type)) {
     const days = item.validity_days || Math.round(item.value)
     const groupName = item.group?.name || ''
-    return groupName ? `${days}${t('redeem.days')} - ${groupName}` : `${days}${t('redeem.days')}`
+    return groupName ? `${days}d - ${groupName}` : `${days}d`
   } else {
     const sign = item.value >= 0 ? '+' : ''
-    return `${sign}${item.value} ${t('redeem.requests')}`
+    return `${sign}${item.value}`
   }
 }
 
