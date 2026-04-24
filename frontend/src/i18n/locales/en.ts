@@ -407,6 +407,10 @@ export default {
     channelPricing: 'Channel Pricing',
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
+    transfer: 'Transfer',
+    redpacket: 'Red Packet',
+    transferManage: 'Transfer Mgmt',
+    leaderboard: 'Leaderboard',
   },
 
   // Auth

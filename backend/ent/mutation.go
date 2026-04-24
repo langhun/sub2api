@@ -19,6 +19,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacketclaim"
+	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
@@ -70,6 +73,9 @@ const (
 	TypeAnnouncementRead              = "AnnouncementRead"
 	TypeAuthIdentity                  = "AuthIdentity"
 	TypeAuthIdentityChannel           = "AuthIdentityChannel"
+	TypeBalanceRedPacket              = "BalanceRedPacket"
+	TypeBalanceRedPacketClaim         = "BalanceRedPacketClaim"
+	TypeBalanceTransfer               = "BalanceTransfer"
 	TypeChannelMonitor                = "ChannelMonitor"
 	TypeChannelMonitorDailyRollup     = "ChannelMonitorDailyRollup"
 	TypeChannelMonitorHistory         = "ChannelMonitorHistory"
@@ -8748,6 +8754,3492 @@ func (m *AuthIdentityChannelMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown AuthIdentityChannel edge %s", name)
+}
+
+// BalanceRedPacketMutation represents an operation that mutates the BalanceRedPacket nodes in the graph.
+type BalanceRedPacketMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int64
+	total_amount        *float64
+	addtotal_amount     *float64
+	total_count         *int
+	addtotal_count      *int
+	remaining_amount    *float64
+	addremaining_amount *float64
+	remaining_count     *int
+	addremaining_count  *int
+	redpacket_type      *string
+	fee                 *float64
+	addfee              *float64
+	fee_rate            *float64
+	addfee_rate         *float64
+	code                *string
+	status              *string
+	memo                *string
+	expire_at           *time.Time
+	created_at          *time.Time
+	clearedFields       map[string]struct{}
+	sender              *int64
+	clearedsender       bool
+	claims              map[int64]struct{}
+	removedclaims       map[int64]struct{}
+	clearedclaims       bool
+	done                bool
+	oldValue            func(context.Context) (*BalanceRedPacket, error)
+	predicates          []predicate.BalanceRedPacket
+}
+
+var _ ent.Mutation = (*BalanceRedPacketMutation)(nil)
+
+// balanceredpacketOption allows management of the mutation configuration using functional options.
+type balanceredpacketOption func(*BalanceRedPacketMutation)
+
+// newBalanceRedPacketMutation creates new mutation for the BalanceRedPacket entity.
+func newBalanceRedPacketMutation(c config, op Op, opts ...balanceredpacketOption) *BalanceRedPacketMutation {
+	m := &BalanceRedPacketMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBalanceRedPacket,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBalanceRedPacketID sets the ID field of the mutation.
+func withBalanceRedPacketID(id int64) balanceredpacketOption {
+	return func(m *BalanceRedPacketMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BalanceRedPacket
+		)
+		m.oldValue = func(ctx context.Context) (*BalanceRedPacket, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BalanceRedPacket.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBalanceRedPacket sets the old BalanceRedPacket of the mutation.
+func withBalanceRedPacket(node *BalanceRedPacket) balanceredpacketOption {
+	return func(m *BalanceRedPacketMutation) {
+		m.oldValue = func(context.Context) (*BalanceRedPacket, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BalanceRedPacketMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BalanceRedPacketMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BalanceRedPacketMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BalanceRedPacketMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BalanceRedPacket.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSenderID sets the "sender_id" field.
+func (m *BalanceRedPacketMutation) SetSenderID(i int64) {
+	m.sender = &i
+}
+
+// SenderID returns the value of the "sender_id" field in the mutation.
+func (m *BalanceRedPacketMutation) SenderID() (r int64, exists bool) {
+	v := m.sender
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSenderID returns the old "sender_id" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldSenderID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSenderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSenderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSenderID: %w", err)
+	}
+	return oldValue.SenderID, nil
+}
+
+// ResetSenderID resets all changes to the "sender_id" field.
+func (m *BalanceRedPacketMutation) ResetSenderID() {
+	m.sender = nil
+}
+
+// SetTotalAmount sets the "total_amount" field.
+func (m *BalanceRedPacketMutation) SetTotalAmount(f float64) {
+	m.total_amount = &f
+	m.addtotal_amount = nil
+}
+
+// TotalAmount returns the value of the "total_amount" field in the mutation.
+func (m *BalanceRedPacketMutation) TotalAmount() (r float64, exists bool) {
+	v := m.total_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalAmount returns the old "total_amount" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldTotalAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalAmount: %w", err)
+	}
+	return oldValue.TotalAmount, nil
+}
+
+// AddTotalAmount adds f to the "total_amount" field.
+func (m *BalanceRedPacketMutation) AddTotalAmount(f float64) {
+	if m.addtotal_amount != nil {
+		*m.addtotal_amount += f
+	} else {
+		m.addtotal_amount = &f
+	}
+}
+
+// AddedTotalAmount returns the value that was added to the "total_amount" field in this mutation.
+func (m *BalanceRedPacketMutation) AddedTotalAmount() (r float64, exists bool) {
+	v := m.addtotal_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalAmount resets all changes to the "total_amount" field.
+func (m *BalanceRedPacketMutation) ResetTotalAmount() {
+	m.total_amount = nil
+	m.addtotal_amount = nil
+}
+
+// SetTotalCount sets the "total_count" field.
+func (m *BalanceRedPacketMutation) SetTotalCount(i int) {
+	m.total_count = &i
+	m.addtotal_count = nil
+}
+
+// TotalCount returns the value of the "total_count" field in the mutation.
+func (m *BalanceRedPacketMutation) TotalCount() (r int, exists bool) {
+	v := m.total_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalCount returns the old "total_count" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldTotalCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalCount: %w", err)
+	}
+	return oldValue.TotalCount, nil
+}
+
+// AddTotalCount adds i to the "total_count" field.
+func (m *BalanceRedPacketMutation) AddTotalCount(i int) {
+	if m.addtotal_count != nil {
+		*m.addtotal_count += i
+	} else {
+		m.addtotal_count = &i
+	}
+}
+
+// AddedTotalCount returns the value that was added to the "total_count" field in this mutation.
+func (m *BalanceRedPacketMutation) AddedTotalCount() (r int, exists bool) {
+	v := m.addtotal_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalCount resets all changes to the "total_count" field.
+func (m *BalanceRedPacketMutation) ResetTotalCount() {
+	m.total_count = nil
+	m.addtotal_count = nil
+}
+
+// SetRemainingAmount sets the "remaining_amount" field.
+func (m *BalanceRedPacketMutation) SetRemainingAmount(f float64) {
+	m.remaining_amount = &f
+	m.addremaining_amount = nil
+}
+
+// RemainingAmount returns the value of the "remaining_amount" field in the mutation.
+func (m *BalanceRedPacketMutation) RemainingAmount() (r float64, exists bool) {
+	v := m.remaining_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemainingAmount returns the old "remaining_amount" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldRemainingAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemainingAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemainingAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemainingAmount: %w", err)
+	}
+	return oldValue.RemainingAmount, nil
+}
+
+// AddRemainingAmount adds f to the "remaining_amount" field.
+func (m *BalanceRedPacketMutation) AddRemainingAmount(f float64) {
+	if m.addremaining_amount != nil {
+		*m.addremaining_amount += f
+	} else {
+		m.addremaining_amount = &f
+	}
+}
+
+// AddedRemainingAmount returns the value that was added to the "remaining_amount" field in this mutation.
+func (m *BalanceRedPacketMutation) AddedRemainingAmount() (r float64, exists bool) {
+	v := m.addremaining_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRemainingAmount resets all changes to the "remaining_amount" field.
+func (m *BalanceRedPacketMutation) ResetRemainingAmount() {
+	m.remaining_amount = nil
+	m.addremaining_amount = nil
+}
+
+// SetRemainingCount sets the "remaining_count" field.
+func (m *BalanceRedPacketMutation) SetRemainingCount(i int) {
+	m.remaining_count = &i
+	m.addremaining_count = nil
+}
+
+// RemainingCount returns the value of the "remaining_count" field in the mutation.
+func (m *BalanceRedPacketMutation) RemainingCount() (r int, exists bool) {
+	v := m.remaining_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemainingCount returns the old "remaining_count" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldRemainingCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemainingCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemainingCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemainingCount: %w", err)
+	}
+	return oldValue.RemainingCount, nil
+}
+
+// AddRemainingCount adds i to the "remaining_count" field.
+func (m *BalanceRedPacketMutation) AddRemainingCount(i int) {
+	if m.addremaining_count != nil {
+		*m.addremaining_count += i
+	} else {
+		m.addremaining_count = &i
+	}
+}
+
+// AddedRemainingCount returns the value that was added to the "remaining_count" field in this mutation.
+func (m *BalanceRedPacketMutation) AddedRemainingCount() (r int, exists bool) {
+	v := m.addremaining_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRemainingCount resets all changes to the "remaining_count" field.
+func (m *BalanceRedPacketMutation) ResetRemainingCount() {
+	m.remaining_count = nil
+	m.addremaining_count = nil
+}
+
+// SetRedpacketType sets the "redpacket_type" field.
+func (m *BalanceRedPacketMutation) SetRedpacketType(s string) {
+	m.redpacket_type = &s
+}
+
+// RedpacketType returns the value of the "redpacket_type" field in the mutation.
+func (m *BalanceRedPacketMutation) RedpacketType() (r string, exists bool) {
+	v := m.redpacket_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRedpacketType returns the old "redpacket_type" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldRedpacketType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRedpacketType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRedpacketType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRedpacketType: %w", err)
+	}
+	return oldValue.RedpacketType, nil
+}
+
+// ResetRedpacketType resets all changes to the "redpacket_type" field.
+func (m *BalanceRedPacketMutation) ResetRedpacketType() {
+	m.redpacket_type = nil
+}
+
+// SetFee sets the "fee" field.
+func (m *BalanceRedPacketMutation) SetFee(f float64) {
+	m.fee = &f
+	m.addfee = nil
+}
+
+// Fee returns the value of the "fee" field in the mutation.
+func (m *BalanceRedPacketMutation) Fee() (r float64, exists bool) {
+	v := m.fee
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFee returns the old "fee" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldFee(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFee is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFee requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFee: %w", err)
+	}
+	return oldValue.Fee, nil
+}
+
+// AddFee adds f to the "fee" field.
+func (m *BalanceRedPacketMutation) AddFee(f float64) {
+	if m.addfee != nil {
+		*m.addfee += f
+	} else {
+		m.addfee = &f
+	}
+}
+
+// AddedFee returns the value that was added to the "fee" field in this mutation.
+func (m *BalanceRedPacketMutation) AddedFee() (r float64, exists bool) {
+	v := m.addfee
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFee resets all changes to the "fee" field.
+func (m *BalanceRedPacketMutation) ResetFee() {
+	m.fee = nil
+	m.addfee = nil
+}
+
+// SetFeeRate sets the "fee_rate" field.
+func (m *BalanceRedPacketMutation) SetFeeRate(f float64) {
+	m.fee_rate = &f
+	m.addfee_rate = nil
+}
+
+// FeeRate returns the value of the "fee_rate" field in the mutation.
+func (m *BalanceRedPacketMutation) FeeRate() (r float64, exists bool) {
+	v := m.fee_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFeeRate returns the old "fee_rate" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldFeeRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFeeRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFeeRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFeeRate: %w", err)
+	}
+	return oldValue.FeeRate, nil
+}
+
+// AddFeeRate adds f to the "fee_rate" field.
+func (m *BalanceRedPacketMutation) AddFeeRate(f float64) {
+	if m.addfee_rate != nil {
+		*m.addfee_rate += f
+	} else {
+		m.addfee_rate = &f
+	}
+}
+
+// AddedFeeRate returns the value that was added to the "fee_rate" field in this mutation.
+func (m *BalanceRedPacketMutation) AddedFeeRate() (r float64, exists bool) {
+	v := m.addfee_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFeeRate resets all changes to the "fee_rate" field.
+func (m *BalanceRedPacketMutation) ResetFeeRate() {
+	m.fee_rate = nil
+	m.addfee_rate = nil
+}
+
+// SetCode sets the "code" field.
+func (m *BalanceRedPacketMutation) SetCode(s string) {
+	m.code = &s
+}
+
+// Code returns the value of the "code" field in the mutation.
+func (m *BalanceRedPacketMutation) Code() (r string, exists bool) {
+	v := m.code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCode returns the old "code" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCode: %w", err)
+	}
+	return oldValue.Code, nil
+}
+
+// ResetCode resets all changes to the "code" field.
+func (m *BalanceRedPacketMutation) ResetCode() {
+	m.code = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *BalanceRedPacketMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *BalanceRedPacketMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *BalanceRedPacketMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetMemo sets the "memo" field.
+func (m *BalanceRedPacketMutation) SetMemo(s string) {
+	m.memo = &s
+}
+
+// Memo returns the value of the "memo" field in the mutation.
+func (m *BalanceRedPacketMutation) Memo() (r string, exists bool) {
+	v := m.memo
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMemo returns the old "memo" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldMemo(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMemo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMemo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMemo: %w", err)
+	}
+	return oldValue.Memo, nil
+}
+
+// ClearMemo clears the value of the "memo" field.
+func (m *BalanceRedPacketMutation) ClearMemo() {
+	m.memo = nil
+	m.clearedFields[balanceredpacket.FieldMemo] = struct{}{}
+}
+
+// MemoCleared returns if the "memo" field was cleared in this mutation.
+func (m *BalanceRedPacketMutation) MemoCleared() bool {
+	_, ok := m.clearedFields[balanceredpacket.FieldMemo]
+	return ok
+}
+
+// ResetMemo resets all changes to the "memo" field.
+func (m *BalanceRedPacketMutation) ResetMemo() {
+	m.memo = nil
+	delete(m.clearedFields, balanceredpacket.FieldMemo)
+}
+
+// SetExpireAt sets the "expire_at" field.
+func (m *BalanceRedPacketMutation) SetExpireAt(t time.Time) {
+	m.expire_at = &t
+}
+
+// ExpireAt returns the value of the "expire_at" field in the mutation.
+func (m *BalanceRedPacketMutation) ExpireAt() (r time.Time, exists bool) {
+	v := m.expire_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpireAt returns the old "expire_at" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldExpireAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpireAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpireAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpireAt: %w", err)
+	}
+	return oldValue.ExpireAt, nil
+}
+
+// ResetExpireAt resets all changes to the "expire_at" field.
+func (m *BalanceRedPacketMutation) ResetExpireAt() {
+	m.expire_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *BalanceRedPacketMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *BalanceRedPacketMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the BalanceRedPacket entity.
+// If the BalanceRedPacket object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *BalanceRedPacketMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearSender clears the "sender" edge to the User entity.
+func (m *BalanceRedPacketMutation) ClearSender() {
+	m.clearedsender = true
+	m.clearedFields[balanceredpacket.FieldSenderID] = struct{}{}
+}
+
+// SenderCleared reports if the "sender" edge to the User entity was cleared.
+func (m *BalanceRedPacketMutation) SenderCleared() bool {
+	return m.clearedsender
+}
+
+// SenderIDs returns the "sender" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SenderID instead. It exists only for internal usage by the builders.
+func (m *BalanceRedPacketMutation) SenderIDs() (ids []int64) {
+	if id := m.sender; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSender resets all changes to the "sender" edge.
+func (m *BalanceRedPacketMutation) ResetSender() {
+	m.sender = nil
+	m.clearedsender = false
+}
+
+// AddClaimIDs adds the "claims" edge to the BalanceRedPacketClaim entity by ids.
+func (m *BalanceRedPacketMutation) AddClaimIDs(ids ...int64) {
+	if m.claims == nil {
+		m.claims = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.claims[ids[i]] = struct{}{}
+	}
+}
+
+// ClearClaims clears the "claims" edge to the BalanceRedPacketClaim entity.
+func (m *BalanceRedPacketMutation) ClearClaims() {
+	m.clearedclaims = true
+}
+
+// ClaimsCleared reports if the "claims" edge to the BalanceRedPacketClaim entity was cleared.
+func (m *BalanceRedPacketMutation) ClaimsCleared() bool {
+	return m.clearedclaims
+}
+
+// RemoveClaimIDs removes the "claims" edge to the BalanceRedPacketClaim entity by IDs.
+func (m *BalanceRedPacketMutation) RemoveClaimIDs(ids ...int64) {
+	if m.removedclaims == nil {
+		m.removedclaims = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.claims, ids[i])
+		m.removedclaims[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedClaims returns the removed IDs of the "claims" edge to the BalanceRedPacketClaim entity.
+func (m *BalanceRedPacketMutation) RemovedClaimsIDs() (ids []int64) {
+	for id := range m.removedclaims {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ClaimsIDs returns the "claims" edge IDs in the mutation.
+func (m *BalanceRedPacketMutation) ClaimsIDs() (ids []int64) {
+	for id := range m.claims {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetClaims resets all changes to the "claims" edge.
+func (m *BalanceRedPacketMutation) ResetClaims() {
+	m.claims = nil
+	m.clearedclaims = false
+	m.removedclaims = nil
+}
+
+// Where appends a list predicates to the BalanceRedPacketMutation builder.
+func (m *BalanceRedPacketMutation) Where(ps ...predicate.BalanceRedPacket) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BalanceRedPacketMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BalanceRedPacketMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BalanceRedPacket, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BalanceRedPacketMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BalanceRedPacketMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BalanceRedPacket).
+func (m *BalanceRedPacketMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BalanceRedPacketMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.sender != nil {
+		fields = append(fields, balanceredpacket.FieldSenderID)
+	}
+	if m.total_amount != nil {
+		fields = append(fields, balanceredpacket.FieldTotalAmount)
+	}
+	if m.total_count != nil {
+		fields = append(fields, balanceredpacket.FieldTotalCount)
+	}
+	if m.remaining_amount != nil {
+		fields = append(fields, balanceredpacket.FieldRemainingAmount)
+	}
+	if m.remaining_count != nil {
+		fields = append(fields, balanceredpacket.FieldRemainingCount)
+	}
+	if m.redpacket_type != nil {
+		fields = append(fields, balanceredpacket.FieldRedpacketType)
+	}
+	if m.fee != nil {
+		fields = append(fields, balanceredpacket.FieldFee)
+	}
+	if m.fee_rate != nil {
+		fields = append(fields, balanceredpacket.FieldFeeRate)
+	}
+	if m.code != nil {
+		fields = append(fields, balanceredpacket.FieldCode)
+	}
+	if m.status != nil {
+		fields = append(fields, balanceredpacket.FieldStatus)
+	}
+	if m.memo != nil {
+		fields = append(fields, balanceredpacket.FieldMemo)
+	}
+	if m.expire_at != nil {
+		fields = append(fields, balanceredpacket.FieldExpireAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, balanceredpacket.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BalanceRedPacketMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case balanceredpacket.FieldSenderID:
+		return m.SenderID()
+	case balanceredpacket.FieldTotalAmount:
+		return m.TotalAmount()
+	case balanceredpacket.FieldTotalCount:
+		return m.TotalCount()
+	case balanceredpacket.FieldRemainingAmount:
+		return m.RemainingAmount()
+	case balanceredpacket.FieldRemainingCount:
+		return m.RemainingCount()
+	case balanceredpacket.FieldRedpacketType:
+		return m.RedpacketType()
+	case balanceredpacket.FieldFee:
+		return m.Fee()
+	case balanceredpacket.FieldFeeRate:
+		return m.FeeRate()
+	case balanceredpacket.FieldCode:
+		return m.Code()
+	case balanceredpacket.FieldStatus:
+		return m.Status()
+	case balanceredpacket.FieldMemo:
+		return m.Memo()
+	case balanceredpacket.FieldExpireAt:
+		return m.ExpireAt()
+	case balanceredpacket.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BalanceRedPacketMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case balanceredpacket.FieldSenderID:
+		return m.OldSenderID(ctx)
+	case balanceredpacket.FieldTotalAmount:
+		return m.OldTotalAmount(ctx)
+	case balanceredpacket.FieldTotalCount:
+		return m.OldTotalCount(ctx)
+	case balanceredpacket.FieldRemainingAmount:
+		return m.OldRemainingAmount(ctx)
+	case balanceredpacket.FieldRemainingCount:
+		return m.OldRemainingCount(ctx)
+	case balanceredpacket.FieldRedpacketType:
+		return m.OldRedpacketType(ctx)
+	case balanceredpacket.FieldFee:
+		return m.OldFee(ctx)
+	case balanceredpacket.FieldFeeRate:
+		return m.OldFeeRate(ctx)
+	case balanceredpacket.FieldCode:
+		return m.OldCode(ctx)
+	case balanceredpacket.FieldStatus:
+		return m.OldStatus(ctx)
+	case balanceredpacket.FieldMemo:
+		return m.OldMemo(ctx)
+	case balanceredpacket.FieldExpireAt:
+		return m.OldExpireAt(ctx)
+	case balanceredpacket.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown BalanceRedPacket field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BalanceRedPacketMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case balanceredpacket.FieldSenderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSenderID(v)
+		return nil
+	case balanceredpacket.FieldTotalAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalAmount(v)
+		return nil
+	case balanceredpacket.FieldTotalCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalCount(v)
+		return nil
+	case balanceredpacket.FieldRemainingAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemainingAmount(v)
+		return nil
+	case balanceredpacket.FieldRemainingCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemainingCount(v)
+		return nil
+	case balanceredpacket.FieldRedpacketType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRedpacketType(v)
+		return nil
+	case balanceredpacket.FieldFee:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFee(v)
+		return nil
+	case balanceredpacket.FieldFeeRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFeeRate(v)
+		return nil
+	case balanceredpacket.FieldCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCode(v)
+		return nil
+	case balanceredpacket.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case balanceredpacket.FieldMemo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMemo(v)
+		return nil
+	case balanceredpacket.FieldExpireAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpireAt(v)
+		return nil
+	case balanceredpacket.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacket field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BalanceRedPacketMutation) AddedFields() []string {
+	var fields []string
+	if m.addtotal_amount != nil {
+		fields = append(fields, balanceredpacket.FieldTotalAmount)
+	}
+	if m.addtotal_count != nil {
+		fields = append(fields, balanceredpacket.FieldTotalCount)
+	}
+	if m.addremaining_amount != nil {
+		fields = append(fields, balanceredpacket.FieldRemainingAmount)
+	}
+	if m.addremaining_count != nil {
+		fields = append(fields, balanceredpacket.FieldRemainingCount)
+	}
+	if m.addfee != nil {
+		fields = append(fields, balanceredpacket.FieldFee)
+	}
+	if m.addfee_rate != nil {
+		fields = append(fields, balanceredpacket.FieldFeeRate)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BalanceRedPacketMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case balanceredpacket.FieldTotalAmount:
+		return m.AddedTotalAmount()
+	case balanceredpacket.FieldTotalCount:
+		return m.AddedTotalCount()
+	case balanceredpacket.FieldRemainingAmount:
+		return m.AddedRemainingAmount()
+	case balanceredpacket.FieldRemainingCount:
+		return m.AddedRemainingCount()
+	case balanceredpacket.FieldFee:
+		return m.AddedFee()
+	case balanceredpacket.FieldFeeRate:
+		return m.AddedFeeRate()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BalanceRedPacketMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case balanceredpacket.FieldTotalAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalAmount(v)
+		return nil
+	case balanceredpacket.FieldTotalCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalCount(v)
+		return nil
+	case balanceredpacket.FieldRemainingAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRemainingAmount(v)
+		return nil
+	case balanceredpacket.FieldRemainingCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRemainingCount(v)
+		return nil
+	case balanceredpacket.FieldFee:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFee(v)
+		return nil
+	case balanceredpacket.FieldFeeRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFeeRate(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacket numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BalanceRedPacketMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(balanceredpacket.FieldMemo) {
+		fields = append(fields, balanceredpacket.FieldMemo)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BalanceRedPacketMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BalanceRedPacketMutation) ClearField(name string) error {
+	switch name {
+	case balanceredpacket.FieldMemo:
+		m.ClearMemo()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacket nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BalanceRedPacketMutation) ResetField(name string) error {
+	switch name {
+	case balanceredpacket.FieldSenderID:
+		m.ResetSenderID()
+		return nil
+	case balanceredpacket.FieldTotalAmount:
+		m.ResetTotalAmount()
+		return nil
+	case balanceredpacket.FieldTotalCount:
+		m.ResetTotalCount()
+		return nil
+	case balanceredpacket.FieldRemainingAmount:
+		m.ResetRemainingAmount()
+		return nil
+	case balanceredpacket.FieldRemainingCount:
+		m.ResetRemainingCount()
+		return nil
+	case balanceredpacket.FieldRedpacketType:
+		m.ResetRedpacketType()
+		return nil
+	case balanceredpacket.FieldFee:
+		m.ResetFee()
+		return nil
+	case balanceredpacket.FieldFeeRate:
+		m.ResetFeeRate()
+		return nil
+	case balanceredpacket.FieldCode:
+		m.ResetCode()
+		return nil
+	case balanceredpacket.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case balanceredpacket.FieldMemo:
+		m.ResetMemo()
+		return nil
+	case balanceredpacket.FieldExpireAt:
+		m.ResetExpireAt()
+		return nil
+	case balanceredpacket.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacket field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BalanceRedPacketMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.sender != nil {
+		edges = append(edges, balanceredpacket.EdgeSender)
+	}
+	if m.claims != nil {
+		edges = append(edges, balanceredpacket.EdgeClaims)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BalanceRedPacketMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case balanceredpacket.EdgeSender:
+		if id := m.sender; id != nil {
+			return []ent.Value{*id}
+		}
+	case balanceredpacket.EdgeClaims:
+		ids := make([]ent.Value, 0, len(m.claims))
+		for id := range m.claims {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BalanceRedPacketMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedclaims != nil {
+		edges = append(edges, balanceredpacket.EdgeClaims)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BalanceRedPacketMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case balanceredpacket.EdgeClaims:
+		ids := make([]ent.Value, 0, len(m.removedclaims))
+		for id := range m.removedclaims {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BalanceRedPacketMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedsender {
+		edges = append(edges, balanceredpacket.EdgeSender)
+	}
+	if m.clearedclaims {
+		edges = append(edges, balanceredpacket.EdgeClaims)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BalanceRedPacketMutation) EdgeCleared(name string) bool {
+	switch name {
+	case balanceredpacket.EdgeSender:
+		return m.clearedsender
+	case balanceredpacket.EdgeClaims:
+		return m.clearedclaims
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BalanceRedPacketMutation) ClearEdge(name string) error {
+	switch name {
+	case balanceredpacket.EdgeSender:
+		m.ClearSender()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacket unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BalanceRedPacketMutation) ResetEdge(name string) error {
+	switch name {
+	case balanceredpacket.EdgeSender:
+		m.ResetSender()
+		return nil
+	case balanceredpacket.EdgeClaims:
+		m.ResetClaims()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacket edge %s", name)
+}
+
+// BalanceRedPacketClaimMutation represents an operation that mutates the BalanceRedPacketClaim nodes in the graph.
+type BalanceRedPacketClaimMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int64
+	user_id          *int64
+	adduser_id       *int64
+	amount           *float64
+	addamount        *float64
+	transfer_id      *int64
+	addtransfer_id   *int64
+	created_at       *time.Time
+	clearedFields    map[string]struct{}
+	redpacket        *int64
+	clearedredpacket bool
+	done             bool
+	oldValue         func(context.Context) (*BalanceRedPacketClaim, error)
+	predicates       []predicate.BalanceRedPacketClaim
+}
+
+var _ ent.Mutation = (*BalanceRedPacketClaimMutation)(nil)
+
+// balanceredpacketclaimOption allows management of the mutation configuration using functional options.
+type balanceredpacketclaimOption func(*BalanceRedPacketClaimMutation)
+
+// newBalanceRedPacketClaimMutation creates new mutation for the BalanceRedPacketClaim entity.
+func newBalanceRedPacketClaimMutation(c config, op Op, opts ...balanceredpacketclaimOption) *BalanceRedPacketClaimMutation {
+	m := &BalanceRedPacketClaimMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBalanceRedPacketClaim,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBalanceRedPacketClaimID sets the ID field of the mutation.
+func withBalanceRedPacketClaimID(id int64) balanceredpacketclaimOption {
+	return func(m *BalanceRedPacketClaimMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BalanceRedPacketClaim
+		)
+		m.oldValue = func(ctx context.Context) (*BalanceRedPacketClaim, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BalanceRedPacketClaim.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBalanceRedPacketClaim sets the old BalanceRedPacketClaim of the mutation.
+func withBalanceRedPacketClaim(node *BalanceRedPacketClaim) balanceredpacketclaimOption {
+	return func(m *BalanceRedPacketClaimMutation) {
+		m.oldValue = func(context.Context) (*BalanceRedPacketClaim, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BalanceRedPacketClaimMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BalanceRedPacketClaimMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BalanceRedPacketClaimMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BalanceRedPacketClaimMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BalanceRedPacketClaim.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRedpacketID sets the "redpacket_id" field.
+func (m *BalanceRedPacketClaimMutation) SetRedpacketID(i int64) {
+	m.redpacket = &i
+}
+
+// RedpacketID returns the value of the "redpacket_id" field in the mutation.
+func (m *BalanceRedPacketClaimMutation) RedpacketID() (r int64, exists bool) {
+	v := m.redpacket
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRedpacketID returns the old "redpacket_id" field's value of the BalanceRedPacketClaim entity.
+// If the BalanceRedPacketClaim object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketClaimMutation) OldRedpacketID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRedpacketID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRedpacketID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRedpacketID: %w", err)
+	}
+	return oldValue.RedpacketID, nil
+}
+
+// ResetRedpacketID resets all changes to the "redpacket_id" field.
+func (m *BalanceRedPacketClaimMutation) ResetRedpacketID() {
+	m.redpacket = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *BalanceRedPacketClaimMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *BalanceRedPacketClaimMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the BalanceRedPacketClaim entity.
+// If the BalanceRedPacketClaim object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketClaimMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *BalanceRedPacketClaimMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *BalanceRedPacketClaimMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *BalanceRedPacketClaimMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *BalanceRedPacketClaimMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *BalanceRedPacketClaimMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the BalanceRedPacketClaim entity.
+// If the BalanceRedPacketClaim object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketClaimMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *BalanceRedPacketClaimMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *BalanceRedPacketClaimMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *BalanceRedPacketClaimMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetTransferID sets the "transfer_id" field.
+func (m *BalanceRedPacketClaimMutation) SetTransferID(i int64) {
+	m.transfer_id = &i
+	m.addtransfer_id = nil
+}
+
+// TransferID returns the value of the "transfer_id" field in the mutation.
+func (m *BalanceRedPacketClaimMutation) TransferID() (r int64, exists bool) {
+	v := m.transfer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTransferID returns the old "transfer_id" field's value of the BalanceRedPacketClaim entity.
+// If the BalanceRedPacketClaim object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketClaimMutation) OldTransferID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTransferID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTransferID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTransferID: %w", err)
+	}
+	return oldValue.TransferID, nil
+}
+
+// AddTransferID adds i to the "transfer_id" field.
+func (m *BalanceRedPacketClaimMutation) AddTransferID(i int64) {
+	if m.addtransfer_id != nil {
+		*m.addtransfer_id += i
+	} else {
+		m.addtransfer_id = &i
+	}
+}
+
+// AddedTransferID returns the value that was added to the "transfer_id" field in this mutation.
+func (m *BalanceRedPacketClaimMutation) AddedTransferID() (r int64, exists bool) {
+	v := m.addtransfer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTransferID clears the value of the "transfer_id" field.
+func (m *BalanceRedPacketClaimMutation) ClearTransferID() {
+	m.transfer_id = nil
+	m.addtransfer_id = nil
+	m.clearedFields[balanceredpacketclaim.FieldTransferID] = struct{}{}
+}
+
+// TransferIDCleared returns if the "transfer_id" field was cleared in this mutation.
+func (m *BalanceRedPacketClaimMutation) TransferIDCleared() bool {
+	_, ok := m.clearedFields[balanceredpacketclaim.FieldTransferID]
+	return ok
+}
+
+// ResetTransferID resets all changes to the "transfer_id" field.
+func (m *BalanceRedPacketClaimMutation) ResetTransferID() {
+	m.transfer_id = nil
+	m.addtransfer_id = nil
+	delete(m.clearedFields, balanceredpacketclaim.FieldTransferID)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *BalanceRedPacketClaimMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *BalanceRedPacketClaimMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the BalanceRedPacketClaim entity.
+// If the BalanceRedPacketClaim object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceRedPacketClaimMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *BalanceRedPacketClaimMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearRedpacket clears the "redpacket" edge to the BalanceRedPacket entity.
+func (m *BalanceRedPacketClaimMutation) ClearRedpacket() {
+	m.clearedredpacket = true
+	m.clearedFields[balanceredpacketclaim.FieldRedpacketID] = struct{}{}
+}
+
+// RedpacketCleared reports if the "redpacket" edge to the BalanceRedPacket entity was cleared.
+func (m *BalanceRedPacketClaimMutation) RedpacketCleared() bool {
+	return m.clearedredpacket
+}
+
+// RedpacketIDs returns the "redpacket" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// RedpacketID instead. It exists only for internal usage by the builders.
+func (m *BalanceRedPacketClaimMutation) RedpacketIDs() (ids []int64) {
+	if id := m.redpacket; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetRedpacket resets all changes to the "redpacket" edge.
+func (m *BalanceRedPacketClaimMutation) ResetRedpacket() {
+	m.redpacket = nil
+	m.clearedredpacket = false
+}
+
+// Where appends a list predicates to the BalanceRedPacketClaimMutation builder.
+func (m *BalanceRedPacketClaimMutation) Where(ps ...predicate.BalanceRedPacketClaim) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BalanceRedPacketClaimMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BalanceRedPacketClaimMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BalanceRedPacketClaim, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BalanceRedPacketClaimMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BalanceRedPacketClaimMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BalanceRedPacketClaim).
+func (m *BalanceRedPacketClaimMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BalanceRedPacketClaimMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.redpacket != nil {
+		fields = append(fields, balanceredpacketclaim.FieldRedpacketID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, balanceredpacketclaim.FieldUserID)
+	}
+	if m.amount != nil {
+		fields = append(fields, balanceredpacketclaim.FieldAmount)
+	}
+	if m.transfer_id != nil {
+		fields = append(fields, balanceredpacketclaim.FieldTransferID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, balanceredpacketclaim.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BalanceRedPacketClaimMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case balanceredpacketclaim.FieldRedpacketID:
+		return m.RedpacketID()
+	case balanceredpacketclaim.FieldUserID:
+		return m.UserID()
+	case balanceredpacketclaim.FieldAmount:
+		return m.Amount()
+	case balanceredpacketclaim.FieldTransferID:
+		return m.TransferID()
+	case balanceredpacketclaim.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BalanceRedPacketClaimMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case balanceredpacketclaim.FieldRedpacketID:
+		return m.OldRedpacketID(ctx)
+	case balanceredpacketclaim.FieldUserID:
+		return m.OldUserID(ctx)
+	case balanceredpacketclaim.FieldAmount:
+		return m.OldAmount(ctx)
+	case balanceredpacketclaim.FieldTransferID:
+		return m.OldTransferID(ctx)
+	case balanceredpacketclaim.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown BalanceRedPacketClaim field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BalanceRedPacketClaimMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case balanceredpacketclaim.FieldRedpacketID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRedpacketID(v)
+		return nil
+	case balanceredpacketclaim.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case balanceredpacketclaim.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case balanceredpacketclaim.FieldTransferID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTransferID(v)
+		return nil
+	case balanceredpacketclaim.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacketClaim field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BalanceRedPacketClaimMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, balanceredpacketclaim.FieldUserID)
+	}
+	if m.addamount != nil {
+		fields = append(fields, balanceredpacketclaim.FieldAmount)
+	}
+	if m.addtransfer_id != nil {
+		fields = append(fields, balanceredpacketclaim.FieldTransferID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BalanceRedPacketClaimMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case balanceredpacketclaim.FieldUserID:
+		return m.AddedUserID()
+	case balanceredpacketclaim.FieldAmount:
+		return m.AddedAmount()
+	case balanceredpacketclaim.FieldTransferID:
+		return m.AddedTransferID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BalanceRedPacketClaimMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case balanceredpacketclaim.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case balanceredpacketclaim.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	case balanceredpacketclaim.FieldTransferID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTransferID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacketClaim numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BalanceRedPacketClaimMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(balanceredpacketclaim.FieldTransferID) {
+		fields = append(fields, balanceredpacketclaim.FieldTransferID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BalanceRedPacketClaimMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BalanceRedPacketClaimMutation) ClearField(name string) error {
+	switch name {
+	case balanceredpacketclaim.FieldTransferID:
+		m.ClearTransferID()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacketClaim nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BalanceRedPacketClaimMutation) ResetField(name string) error {
+	switch name {
+	case balanceredpacketclaim.FieldRedpacketID:
+		m.ResetRedpacketID()
+		return nil
+	case balanceredpacketclaim.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case balanceredpacketclaim.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case balanceredpacketclaim.FieldTransferID:
+		m.ResetTransferID()
+		return nil
+	case balanceredpacketclaim.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacketClaim field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BalanceRedPacketClaimMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.redpacket != nil {
+		edges = append(edges, balanceredpacketclaim.EdgeRedpacket)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BalanceRedPacketClaimMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case balanceredpacketclaim.EdgeRedpacket:
+		if id := m.redpacket; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BalanceRedPacketClaimMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BalanceRedPacketClaimMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BalanceRedPacketClaimMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedredpacket {
+		edges = append(edges, balanceredpacketclaim.EdgeRedpacket)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BalanceRedPacketClaimMutation) EdgeCleared(name string) bool {
+	switch name {
+	case balanceredpacketclaim.EdgeRedpacket:
+		return m.clearedredpacket
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BalanceRedPacketClaimMutation) ClearEdge(name string) error {
+	switch name {
+	case balanceredpacketclaim.EdgeRedpacket:
+		m.ClearRedpacket()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacketClaim unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BalanceRedPacketClaimMutation) ResetEdge(name string) error {
+	switch name {
+	case balanceredpacketclaim.EdgeRedpacket:
+		m.ResetRedpacket()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceRedPacketClaim edge %s", name)
+}
+
+// BalanceTransferMutation represents an operation that mutates the BalanceTransfer nodes in the graph.
+type BalanceTransferMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int64
+	amount          *float64
+	addamount       *float64
+	fee             *float64
+	addfee          *float64
+	fee_rate        *float64
+	addfee_rate     *float64
+	gross_amount    *float64
+	addgross_amount *float64
+	transfer_type   *string
+	status          *string
+	memo            *string
+	redpacket_id    *int64
+	addredpacket_id *int64
+	frozen_at       *time.Time
+	frozen_by       *int64
+	addfrozen_by    *int64
+	revoke_reason   *string
+	created_at      *time.Time
+	clearedFields   map[string]struct{}
+	sender          *int64
+	clearedsender   bool
+	receiver        *int64
+	clearedreceiver bool
+	done            bool
+	oldValue        func(context.Context) (*BalanceTransfer, error)
+	predicates      []predicate.BalanceTransfer
+}
+
+var _ ent.Mutation = (*BalanceTransferMutation)(nil)
+
+// balancetransferOption allows management of the mutation configuration using functional options.
+type balancetransferOption func(*BalanceTransferMutation)
+
+// newBalanceTransferMutation creates new mutation for the BalanceTransfer entity.
+func newBalanceTransferMutation(c config, op Op, opts ...balancetransferOption) *BalanceTransferMutation {
+	m := &BalanceTransferMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeBalanceTransfer,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withBalanceTransferID sets the ID field of the mutation.
+func withBalanceTransferID(id int64) balancetransferOption {
+	return func(m *BalanceTransferMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *BalanceTransfer
+		)
+		m.oldValue = func(ctx context.Context) (*BalanceTransfer, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().BalanceTransfer.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withBalanceTransfer sets the old BalanceTransfer of the mutation.
+func withBalanceTransfer(node *BalanceTransfer) balancetransferOption {
+	return func(m *BalanceTransferMutation) {
+		m.oldValue = func(context.Context) (*BalanceTransfer, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m BalanceTransferMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m BalanceTransferMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *BalanceTransferMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *BalanceTransferMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().BalanceTransfer.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSenderID sets the "sender_id" field.
+func (m *BalanceTransferMutation) SetSenderID(i int64) {
+	m.sender = &i
+}
+
+// SenderID returns the value of the "sender_id" field in the mutation.
+func (m *BalanceTransferMutation) SenderID() (r int64, exists bool) {
+	v := m.sender
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSenderID returns the old "sender_id" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldSenderID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSenderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSenderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSenderID: %w", err)
+	}
+	return oldValue.SenderID, nil
+}
+
+// ResetSenderID resets all changes to the "sender_id" field.
+func (m *BalanceTransferMutation) ResetSenderID() {
+	m.sender = nil
+}
+
+// SetReceiverID sets the "receiver_id" field.
+func (m *BalanceTransferMutation) SetReceiverID(i int64) {
+	m.receiver = &i
+}
+
+// ReceiverID returns the value of the "receiver_id" field in the mutation.
+func (m *BalanceTransferMutation) ReceiverID() (r int64, exists bool) {
+	v := m.receiver
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReceiverID returns the old "receiver_id" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldReceiverID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReceiverID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReceiverID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReceiverID: %w", err)
+	}
+	return oldValue.ReceiverID, nil
+}
+
+// ResetReceiverID resets all changes to the "receiver_id" field.
+func (m *BalanceTransferMutation) ResetReceiverID() {
+	m.receiver = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *BalanceTransferMutation) SetAmount(f float64) {
+	m.amount = &f
+	m.addamount = nil
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *BalanceTransferMutation) Amount() (r float64, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// AddAmount adds f to the "amount" field.
+func (m *BalanceTransferMutation) AddAmount(f float64) {
+	if m.addamount != nil {
+		*m.addamount += f
+	} else {
+		m.addamount = &f
+	}
+}
+
+// AddedAmount returns the value that was added to the "amount" field in this mutation.
+func (m *BalanceTransferMutation) AddedAmount() (r float64, exists bool) {
+	v := m.addamount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *BalanceTransferMutation) ResetAmount() {
+	m.amount = nil
+	m.addamount = nil
+}
+
+// SetFee sets the "fee" field.
+func (m *BalanceTransferMutation) SetFee(f float64) {
+	m.fee = &f
+	m.addfee = nil
+}
+
+// Fee returns the value of the "fee" field in the mutation.
+func (m *BalanceTransferMutation) Fee() (r float64, exists bool) {
+	v := m.fee
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFee returns the old "fee" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldFee(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFee is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFee requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFee: %w", err)
+	}
+	return oldValue.Fee, nil
+}
+
+// AddFee adds f to the "fee" field.
+func (m *BalanceTransferMutation) AddFee(f float64) {
+	if m.addfee != nil {
+		*m.addfee += f
+	} else {
+		m.addfee = &f
+	}
+}
+
+// AddedFee returns the value that was added to the "fee" field in this mutation.
+func (m *BalanceTransferMutation) AddedFee() (r float64, exists bool) {
+	v := m.addfee
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFee resets all changes to the "fee" field.
+func (m *BalanceTransferMutation) ResetFee() {
+	m.fee = nil
+	m.addfee = nil
+}
+
+// SetFeeRate sets the "fee_rate" field.
+func (m *BalanceTransferMutation) SetFeeRate(f float64) {
+	m.fee_rate = &f
+	m.addfee_rate = nil
+}
+
+// FeeRate returns the value of the "fee_rate" field in the mutation.
+func (m *BalanceTransferMutation) FeeRate() (r float64, exists bool) {
+	v := m.fee_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFeeRate returns the old "fee_rate" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldFeeRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFeeRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFeeRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFeeRate: %w", err)
+	}
+	return oldValue.FeeRate, nil
+}
+
+// AddFeeRate adds f to the "fee_rate" field.
+func (m *BalanceTransferMutation) AddFeeRate(f float64) {
+	if m.addfee_rate != nil {
+		*m.addfee_rate += f
+	} else {
+		m.addfee_rate = &f
+	}
+}
+
+// AddedFeeRate returns the value that was added to the "fee_rate" field in this mutation.
+func (m *BalanceTransferMutation) AddedFeeRate() (r float64, exists bool) {
+	v := m.addfee_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFeeRate resets all changes to the "fee_rate" field.
+func (m *BalanceTransferMutation) ResetFeeRate() {
+	m.fee_rate = nil
+	m.addfee_rate = nil
+}
+
+// SetGrossAmount sets the "gross_amount" field.
+func (m *BalanceTransferMutation) SetGrossAmount(f float64) {
+	m.gross_amount = &f
+	m.addgross_amount = nil
+}
+
+// GrossAmount returns the value of the "gross_amount" field in the mutation.
+func (m *BalanceTransferMutation) GrossAmount() (r float64, exists bool) {
+	v := m.gross_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrossAmount returns the old "gross_amount" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldGrossAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrossAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrossAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrossAmount: %w", err)
+	}
+	return oldValue.GrossAmount, nil
+}
+
+// AddGrossAmount adds f to the "gross_amount" field.
+func (m *BalanceTransferMutation) AddGrossAmount(f float64) {
+	if m.addgross_amount != nil {
+		*m.addgross_amount += f
+	} else {
+		m.addgross_amount = &f
+	}
+}
+
+// AddedGrossAmount returns the value that was added to the "gross_amount" field in this mutation.
+func (m *BalanceTransferMutation) AddedGrossAmount() (r float64, exists bool) {
+	v := m.addgross_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGrossAmount resets all changes to the "gross_amount" field.
+func (m *BalanceTransferMutation) ResetGrossAmount() {
+	m.gross_amount = nil
+	m.addgross_amount = nil
+}
+
+// SetTransferType sets the "transfer_type" field.
+func (m *BalanceTransferMutation) SetTransferType(s string) {
+	m.transfer_type = &s
+}
+
+// TransferType returns the value of the "transfer_type" field in the mutation.
+func (m *BalanceTransferMutation) TransferType() (r string, exists bool) {
+	v := m.transfer_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTransferType returns the old "transfer_type" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldTransferType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTransferType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTransferType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTransferType: %w", err)
+	}
+	return oldValue.TransferType, nil
+}
+
+// ResetTransferType resets all changes to the "transfer_type" field.
+func (m *BalanceTransferMutation) ResetTransferType() {
+	m.transfer_type = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *BalanceTransferMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *BalanceTransferMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *BalanceTransferMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetMemo sets the "memo" field.
+func (m *BalanceTransferMutation) SetMemo(s string) {
+	m.memo = &s
+}
+
+// Memo returns the value of the "memo" field in the mutation.
+func (m *BalanceTransferMutation) Memo() (r string, exists bool) {
+	v := m.memo
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMemo returns the old "memo" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldMemo(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMemo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMemo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMemo: %w", err)
+	}
+	return oldValue.Memo, nil
+}
+
+// ClearMemo clears the value of the "memo" field.
+func (m *BalanceTransferMutation) ClearMemo() {
+	m.memo = nil
+	m.clearedFields[balancetransfer.FieldMemo] = struct{}{}
+}
+
+// MemoCleared returns if the "memo" field was cleared in this mutation.
+func (m *BalanceTransferMutation) MemoCleared() bool {
+	_, ok := m.clearedFields[balancetransfer.FieldMemo]
+	return ok
+}
+
+// ResetMemo resets all changes to the "memo" field.
+func (m *BalanceTransferMutation) ResetMemo() {
+	m.memo = nil
+	delete(m.clearedFields, balancetransfer.FieldMemo)
+}
+
+// SetRedpacketID sets the "redpacket_id" field.
+func (m *BalanceTransferMutation) SetRedpacketID(i int64) {
+	m.redpacket_id = &i
+	m.addredpacket_id = nil
+}
+
+// RedpacketID returns the value of the "redpacket_id" field in the mutation.
+func (m *BalanceTransferMutation) RedpacketID() (r int64, exists bool) {
+	v := m.redpacket_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRedpacketID returns the old "redpacket_id" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldRedpacketID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRedpacketID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRedpacketID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRedpacketID: %w", err)
+	}
+	return oldValue.RedpacketID, nil
+}
+
+// AddRedpacketID adds i to the "redpacket_id" field.
+func (m *BalanceTransferMutation) AddRedpacketID(i int64) {
+	if m.addredpacket_id != nil {
+		*m.addredpacket_id += i
+	} else {
+		m.addredpacket_id = &i
+	}
+}
+
+// AddedRedpacketID returns the value that was added to the "redpacket_id" field in this mutation.
+func (m *BalanceTransferMutation) AddedRedpacketID() (r int64, exists bool) {
+	v := m.addredpacket_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRedpacketID clears the value of the "redpacket_id" field.
+func (m *BalanceTransferMutation) ClearRedpacketID() {
+	m.redpacket_id = nil
+	m.addredpacket_id = nil
+	m.clearedFields[balancetransfer.FieldRedpacketID] = struct{}{}
+}
+
+// RedpacketIDCleared returns if the "redpacket_id" field was cleared in this mutation.
+func (m *BalanceTransferMutation) RedpacketIDCleared() bool {
+	_, ok := m.clearedFields[balancetransfer.FieldRedpacketID]
+	return ok
+}
+
+// ResetRedpacketID resets all changes to the "redpacket_id" field.
+func (m *BalanceTransferMutation) ResetRedpacketID() {
+	m.redpacket_id = nil
+	m.addredpacket_id = nil
+	delete(m.clearedFields, balancetransfer.FieldRedpacketID)
+}
+
+// SetFrozenAt sets the "frozen_at" field.
+func (m *BalanceTransferMutation) SetFrozenAt(t time.Time) {
+	m.frozen_at = &t
+}
+
+// FrozenAt returns the value of the "frozen_at" field in the mutation.
+func (m *BalanceTransferMutation) FrozenAt() (r time.Time, exists bool) {
+	v := m.frozen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenAt returns the old "frozen_at" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldFrozenAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenAt: %w", err)
+	}
+	return oldValue.FrozenAt, nil
+}
+
+// ClearFrozenAt clears the value of the "frozen_at" field.
+func (m *BalanceTransferMutation) ClearFrozenAt() {
+	m.frozen_at = nil
+	m.clearedFields[balancetransfer.FieldFrozenAt] = struct{}{}
+}
+
+// FrozenAtCleared returns if the "frozen_at" field was cleared in this mutation.
+func (m *BalanceTransferMutation) FrozenAtCleared() bool {
+	_, ok := m.clearedFields[balancetransfer.FieldFrozenAt]
+	return ok
+}
+
+// ResetFrozenAt resets all changes to the "frozen_at" field.
+func (m *BalanceTransferMutation) ResetFrozenAt() {
+	m.frozen_at = nil
+	delete(m.clearedFields, balancetransfer.FieldFrozenAt)
+}
+
+// SetFrozenBy sets the "frozen_by" field.
+func (m *BalanceTransferMutation) SetFrozenBy(i int64) {
+	m.frozen_by = &i
+	m.addfrozen_by = nil
+}
+
+// FrozenBy returns the value of the "frozen_by" field in the mutation.
+func (m *BalanceTransferMutation) FrozenBy() (r int64, exists bool) {
+	v := m.frozen_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenBy returns the old "frozen_by" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldFrozenBy(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenBy: %w", err)
+	}
+	return oldValue.FrozenBy, nil
+}
+
+// AddFrozenBy adds i to the "frozen_by" field.
+func (m *BalanceTransferMutation) AddFrozenBy(i int64) {
+	if m.addfrozen_by != nil {
+		*m.addfrozen_by += i
+	} else {
+		m.addfrozen_by = &i
+	}
+}
+
+// AddedFrozenBy returns the value that was added to the "frozen_by" field in this mutation.
+func (m *BalanceTransferMutation) AddedFrozenBy() (r int64, exists bool) {
+	v := m.addfrozen_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFrozenBy clears the value of the "frozen_by" field.
+func (m *BalanceTransferMutation) ClearFrozenBy() {
+	m.frozen_by = nil
+	m.addfrozen_by = nil
+	m.clearedFields[balancetransfer.FieldFrozenBy] = struct{}{}
+}
+
+// FrozenByCleared returns if the "frozen_by" field was cleared in this mutation.
+func (m *BalanceTransferMutation) FrozenByCleared() bool {
+	_, ok := m.clearedFields[balancetransfer.FieldFrozenBy]
+	return ok
+}
+
+// ResetFrozenBy resets all changes to the "frozen_by" field.
+func (m *BalanceTransferMutation) ResetFrozenBy() {
+	m.frozen_by = nil
+	m.addfrozen_by = nil
+	delete(m.clearedFields, balancetransfer.FieldFrozenBy)
+}
+
+// SetRevokeReason sets the "revoke_reason" field.
+func (m *BalanceTransferMutation) SetRevokeReason(s string) {
+	m.revoke_reason = &s
+}
+
+// RevokeReason returns the value of the "revoke_reason" field in the mutation.
+func (m *BalanceTransferMutation) RevokeReason() (r string, exists bool) {
+	v := m.revoke_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevokeReason returns the old "revoke_reason" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldRevokeReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevokeReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevokeReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevokeReason: %w", err)
+	}
+	return oldValue.RevokeReason, nil
+}
+
+// ClearRevokeReason clears the value of the "revoke_reason" field.
+func (m *BalanceTransferMutation) ClearRevokeReason() {
+	m.revoke_reason = nil
+	m.clearedFields[balancetransfer.FieldRevokeReason] = struct{}{}
+}
+
+// RevokeReasonCleared returns if the "revoke_reason" field was cleared in this mutation.
+func (m *BalanceTransferMutation) RevokeReasonCleared() bool {
+	_, ok := m.clearedFields[balancetransfer.FieldRevokeReason]
+	return ok
+}
+
+// ResetRevokeReason resets all changes to the "revoke_reason" field.
+func (m *BalanceTransferMutation) ResetRevokeReason() {
+	m.revoke_reason = nil
+	delete(m.clearedFields, balancetransfer.FieldRevokeReason)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *BalanceTransferMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *BalanceTransferMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the BalanceTransfer entity.
+// If the BalanceTransfer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BalanceTransferMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *BalanceTransferMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearSender clears the "sender" edge to the User entity.
+func (m *BalanceTransferMutation) ClearSender() {
+	m.clearedsender = true
+	m.clearedFields[balancetransfer.FieldSenderID] = struct{}{}
+}
+
+// SenderCleared reports if the "sender" edge to the User entity was cleared.
+func (m *BalanceTransferMutation) SenderCleared() bool {
+	return m.clearedsender
+}
+
+// SenderIDs returns the "sender" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SenderID instead. It exists only for internal usage by the builders.
+func (m *BalanceTransferMutation) SenderIDs() (ids []int64) {
+	if id := m.sender; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSender resets all changes to the "sender" edge.
+func (m *BalanceTransferMutation) ResetSender() {
+	m.sender = nil
+	m.clearedsender = false
+}
+
+// ClearReceiver clears the "receiver" edge to the User entity.
+func (m *BalanceTransferMutation) ClearReceiver() {
+	m.clearedreceiver = true
+	m.clearedFields[balancetransfer.FieldReceiverID] = struct{}{}
+}
+
+// ReceiverCleared reports if the "receiver" edge to the User entity was cleared.
+func (m *BalanceTransferMutation) ReceiverCleared() bool {
+	return m.clearedreceiver
+}
+
+// ReceiverIDs returns the "receiver" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ReceiverID instead. It exists only for internal usage by the builders.
+func (m *BalanceTransferMutation) ReceiverIDs() (ids []int64) {
+	if id := m.receiver; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetReceiver resets all changes to the "receiver" edge.
+func (m *BalanceTransferMutation) ResetReceiver() {
+	m.receiver = nil
+	m.clearedreceiver = false
+}
+
+// Where appends a list predicates to the BalanceTransferMutation builder.
+func (m *BalanceTransferMutation) Where(ps ...predicate.BalanceTransfer) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the BalanceTransferMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *BalanceTransferMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.BalanceTransfer, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *BalanceTransferMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *BalanceTransferMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (BalanceTransfer).
+func (m *BalanceTransferMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *BalanceTransferMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.sender != nil {
+		fields = append(fields, balancetransfer.FieldSenderID)
+	}
+	if m.receiver != nil {
+		fields = append(fields, balancetransfer.FieldReceiverID)
+	}
+	if m.amount != nil {
+		fields = append(fields, balancetransfer.FieldAmount)
+	}
+	if m.fee != nil {
+		fields = append(fields, balancetransfer.FieldFee)
+	}
+	if m.fee_rate != nil {
+		fields = append(fields, balancetransfer.FieldFeeRate)
+	}
+	if m.gross_amount != nil {
+		fields = append(fields, balancetransfer.FieldGrossAmount)
+	}
+	if m.transfer_type != nil {
+		fields = append(fields, balancetransfer.FieldTransferType)
+	}
+	if m.status != nil {
+		fields = append(fields, balancetransfer.FieldStatus)
+	}
+	if m.memo != nil {
+		fields = append(fields, balancetransfer.FieldMemo)
+	}
+	if m.redpacket_id != nil {
+		fields = append(fields, balancetransfer.FieldRedpacketID)
+	}
+	if m.frozen_at != nil {
+		fields = append(fields, balancetransfer.FieldFrozenAt)
+	}
+	if m.frozen_by != nil {
+		fields = append(fields, balancetransfer.FieldFrozenBy)
+	}
+	if m.revoke_reason != nil {
+		fields = append(fields, balancetransfer.FieldRevokeReason)
+	}
+	if m.created_at != nil {
+		fields = append(fields, balancetransfer.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *BalanceTransferMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case balancetransfer.FieldSenderID:
+		return m.SenderID()
+	case balancetransfer.FieldReceiverID:
+		return m.ReceiverID()
+	case balancetransfer.FieldAmount:
+		return m.Amount()
+	case balancetransfer.FieldFee:
+		return m.Fee()
+	case balancetransfer.FieldFeeRate:
+		return m.FeeRate()
+	case balancetransfer.FieldGrossAmount:
+		return m.GrossAmount()
+	case balancetransfer.FieldTransferType:
+		return m.TransferType()
+	case balancetransfer.FieldStatus:
+		return m.Status()
+	case balancetransfer.FieldMemo:
+		return m.Memo()
+	case balancetransfer.FieldRedpacketID:
+		return m.RedpacketID()
+	case balancetransfer.FieldFrozenAt:
+		return m.FrozenAt()
+	case balancetransfer.FieldFrozenBy:
+		return m.FrozenBy()
+	case balancetransfer.FieldRevokeReason:
+		return m.RevokeReason()
+	case balancetransfer.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *BalanceTransferMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case balancetransfer.FieldSenderID:
+		return m.OldSenderID(ctx)
+	case balancetransfer.FieldReceiverID:
+		return m.OldReceiverID(ctx)
+	case balancetransfer.FieldAmount:
+		return m.OldAmount(ctx)
+	case balancetransfer.FieldFee:
+		return m.OldFee(ctx)
+	case balancetransfer.FieldFeeRate:
+		return m.OldFeeRate(ctx)
+	case balancetransfer.FieldGrossAmount:
+		return m.OldGrossAmount(ctx)
+	case balancetransfer.FieldTransferType:
+		return m.OldTransferType(ctx)
+	case balancetransfer.FieldStatus:
+		return m.OldStatus(ctx)
+	case balancetransfer.FieldMemo:
+		return m.OldMemo(ctx)
+	case balancetransfer.FieldRedpacketID:
+		return m.OldRedpacketID(ctx)
+	case balancetransfer.FieldFrozenAt:
+		return m.OldFrozenAt(ctx)
+	case balancetransfer.FieldFrozenBy:
+		return m.OldFrozenBy(ctx)
+	case balancetransfer.FieldRevokeReason:
+		return m.OldRevokeReason(ctx)
+	case balancetransfer.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown BalanceTransfer field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BalanceTransferMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case balancetransfer.FieldSenderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSenderID(v)
+		return nil
+	case balancetransfer.FieldReceiverID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReceiverID(v)
+		return nil
+	case balancetransfer.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case balancetransfer.FieldFee:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFee(v)
+		return nil
+	case balancetransfer.FieldFeeRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFeeRate(v)
+		return nil
+	case balancetransfer.FieldGrossAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrossAmount(v)
+		return nil
+	case balancetransfer.FieldTransferType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTransferType(v)
+		return nil
+	case balancetransfer.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case balancetransfer.FieldMemo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMemo(v)
+		return nil
+	case balancetransfer.FieldRedpacketID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRedpacketID(v)
+		return nil
+	case balancetransfer.FieldFrozenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenAt(v)
+		return nil
+	case balancetransfer.FieldFrozenBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenBy(v)
+		return nil
+	case balancetransfer.FieldRevokeReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevokeReason(v)
+		return nil
+	case balancetransfer.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceTransfer field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *BalanceTransferMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount != nil {
+		fields = append(fields, balancetransfer.FieldAmount)
+	}
+	if m.addfee != nil {
+		fields = append(fields, balancetransfer.FieldFee)
+	}
+	if m.addfee_rate != nil {
+		fields = append(fields, balancetransfer.FieldFeeRate)
+	}
+	if m.addgross_amount != nil {
+		fields = append(fields, balancetransfer.FieldGrossAmount)
+	}
+	if m.addredpacket_id != nil {
+		fields = append(fields, balancetransfer.FieldRedpacketID)
+	}
+	if m.addfrozen_by != nil {
+		fields = append(fields, balancetransfer.FieldFrozenBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *BalanceTransferMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case balancetransfer.FieldAmount:
+		return m.AddedAmount()
+	case balancetransfer.FieldFee:
+		return m.AddedFee()
+	case balancetransfer.FieldFeeRate:
+		return m.AddedFeeRate()
+	case balancetransfer.FieldGrossAmount:
+		return m.AddedGrossAmount()
+	case balancetransfer.FieldRedpacketID:
+		return m.AddedRedpacketID()
+	case balancetransfer.FieldFrozenBy:
+		return m.AddedFrozenBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *BalanceTransferMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case balancetransfer.FieldAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmount(v)
+		return nil
+	case balancetransfer.FieldFee:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFee(v)
+		return nil
+	case balancetransfer.FieldFeeRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFeeRate(v)
+		return nil
+	case balancetransfer.FieldGrossAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGrossAmount(v)
+		return nil
+	case balancetransfer.FieldRedpacketID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRedpacketID(v)
+		return nil
+	case balancetransfer.FieldFrozenBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFrozenBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceTransfer numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *BalanceTransferMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(balancetransfer.FieldMemo) {
+		fields = append(fields, balancetransfer.FieldMemo)
+	}
+	if m.FieldCleared(balancetransfer.FieldRedpacketID) {
+		fields = append(fields, balancetransfer.FieldRedpacketID)
+	}
+	if m.FieldCleared(balancetransfer.FieldFrozenAt) {
+		fields = append(fields, balancetransfer.FieldFrozenAt)
+	}
+	if m.FieldCleared(balancetransfer.FieldFrozenBy) {
+		fields = append(fields, balancetransfer.FieldFrozenBy)
+	}
+	if m.FieldCleared(balancetransfer.FieldRevokeReason) {
+		fields = append(fields, balancetransfer.FieldRevokeReason)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *BalanceTransferMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *BalanceTransferMutation) ClearField(name string) error {
+	switch name {
+	case balancetransfer.FieldMemo:
+		m.ClearMemo()
+		return nil
+	case balancetransfer.FieldRedpacketID:
+		m.ClearRedpacketID()
+		return nil
+	case balancetransfer.FieldFrozenAt:
+		m.ClearFrozenAt()
+		return nil
+	case balancetransfer.FieldFrozenBy:
+		m.ClearFrozenBy()
+		return nil
+	case balancetransfer.FieldRevokeReason:
+		m.ClearRevokeReason()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceTransfer nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *BalanceTransferMutation) ResetField(name string) error {
+	switch name {
+	case balancetransfer.FieldSenderID:
+		m.ResetSenderID()
+		return nil
+	case balancetransfer.FieldReceiverID:
+		m.ResetReceiverID()
+		return nil
+	case balancetransfer.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case balancetransfer.FieldFee:
+		m.ResetFee()
+		return nil
+	case balancetransfer.FieldFeeRate:
+		m.ResetFeeRate()
+		return nil
+	case balancetransfer.FieldGrossAmount:
+		m.ResetGrossAmount()
+		return nil
+	case balancetransfer.FieldTransferType:
+		m.ResetTransferType()
+		return nil
+	case balancetransfer.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case balancetransfer.FieldMemo:
+		m.ResetMemo()
+		return nil
+	case balancetransfer.FieldRedpacketID:
+		m.ResetRedpacketID()
+		return nil
+	case balancetransfer.FieldFrozenAt:
+		m.ResetFrozenAt()
+		return nil
+	case balancetransfer.FieldFrozenBy:
+		m.ResetFrozenBy()
+		return nil
+	case balancetransfer.FieldRevokeReason:
+		m.ResetRevokeReason()
+		return nil
+	case balancetransfer.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceTransfer field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *BalanceTransferMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.sender != nil {
+		edges = append(edges, balancetransfer.EdgeSender)
+	}
+	if m.receiver != nil {
+		edges = append(edges, balancetransfer.EdgeReceiver)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *BalanceTransferMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case balancetransfer.EdgeSender:
+		if id := m.sender; id != nil {
+			return []ent.Value{*id}
+		}
+	case balancetransfer.EdgeReceiver:
+		if id := m.receiver; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *BalanceTransferMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *BalanceTransferMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *BalanceTransferMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedsender {
+		edges = append(edges, balancetransfer.EdgeSender)
+	}
+	if m.clearedreceiver {
+		edges = append(edges, balancetransfer.EdgeReceiver)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *BalanceTransferMutation) EdgeCleared(name string) bool {
+	switch name {
+	case balancetransfer.EdgeSender:
+		return m.clearedsender
+	case balancetransfer.EdgeReceiver:
+		return m.clearedreceiver
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *BalanceTransferMutation) ClearEdge(name string) error {
+	switch name {
+	case balancetransfer.EdgeSender:
+		m.ClearSender()
+		return nil
+	case balancetransfer.EdgeReceiver:
+		m.ClearReceiver()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceTransfer unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *BalanceTransferMutation) ResetEdge(name string) error {
+	switch name {
+	case balancetransfer.EdgeSender:
+		m.ResetSender()
+		return nil
+	case balancetransfer.EdgeReceiver:
+		m.ResetReceiver()
+		return nil
+	}
+	return fmt.Errorf("unknown BalanceTransfer edge %s", name)
 }
 
 // ChannelMonitorMutation represents an operation that mutates the ChannelMonitor nodes in the graph.
@@ -42819,6 +46311,15 @@ type UserMutation struct {
 	checkins                      map[int64]struct{}
 	removedcheckins               map[int64]struct{}
 	clearedcheckins               bool
+	sent_transfers                map[int64]struct{}
+	removedsent_transfers         map[int64]struct{}
+	clearedsent_transfers         bool
+	received_transfers            map[int64]struct{}
+	removedreceived_transfers     map[int64]struct{}
+	clearedreceived_transfers     bool
+	redpackets                    map[int64]struct{}
+	removedredpackets             map[int64]struct{}
+	clearedredpackets             bool
 	auth_identities               map[int64]struct{}
 	removedauth_identities        map[int64]struct{}
 	clearedauth_identities        bool
@@ -44529,6 +48030,168 @@ func (m *UserMutation) ResetCheckins() {
 	m.removedcheckins = nil
 }
 
+// AddSentTransferIDs adds the "sent_transfers" edge to the BalanceTransfer entity by ids.
+func (m *UserMutation) AddSentTransferIDs(ids ...int64) {
+	if m.sent_transfers == nil {
+		m.sent_transfers = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.sent_transfers[ids[i]] = struct{}{}
+	}
+}
+
+// ClearSentTransfers clears the "sent_transfers" edge to the BalanceTransfer entity.
+func (m *UserMutation) ClearSentTransfers() {
+	m.clearedsent_transfers = true
+}
+
+// SentTransfersCleared reports if the "sent_transfers" edge to the BalanceTransfer entity was cleared.
+func (m *UserMutation) SentTransfersCleared() bool {
+	return m.clearedsent_transfers
+}
+
+// RemoveSentTransferIDs removes the "sent_transfers" edge to the BalanceTransfer entity by IDs.
+func (m *UserMutation) RemoveSentTransferIDs(ids ...int64) {
+	if m.removedsent_transfers == nil {
+		m.removedsent_transfers = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.sent_transfers, ids[i])
+		m.removedsent_transfers[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedSentTransfers returns the removed IDs of the "sent_transfers" edge to the BalanceTransfer entity.
+func (m *UserMutation) RemovedSentTransfersIDs() (ids []int64) {
+	for id := range m.removedsent_transfers {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// SentTransfersIDs returns the "sent_transfers" edge IDs in the mutation.
+func (m *UserMutation) SentTransfersIDs() (ids []int64) {
+	for id := range m.sent_transfers {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetSentTransfers resets all changes to the "sent_transfers" edge.
+func (m *UserMutation) ResetSentTransfers() {
+	m.sent_transfers = nil
+	m.clearedsent_transfers = false
+	m.removedsent_transfers = nil
+}
+
+// AddReceivedTransferIDs adds the "received_transfers" edge to the BalanceTransfer entity by ids.
+func (m *UserMutation) AddReceivedTransferIDs(ids ...int64) {
+	if m.received_transfers == nil {
+		m.received_transfers = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.received_transfers[ids[i]] = struct{}{}
+	}
+}
+
+// ClearReceivedTransfers clears the "received_transfers" edge to the BalanceTransfer entity.
+func (m *UserMutation) ClearReceivedTransfers() {
+	m.clearedreceived_transfers = true
+}
+
+// ReceivedTransfersCleared reports if the "received_transfers" edge to the BalanceTransfer entity was cleared.
+func (m *UserMutation) ReceivedTransfersCleared() bool {
+	return m.clearedreceived_transfers
+}
+
+// RemoveReceivedTransferIDs removes the "received_transfers" edge to the BalanceTransfer entity by IDs.
+func (m *UserMutation) RemoveReceivedTransferIDs(ids ...int64) {
+	if m.removedreceived_transfers == nil {
+		m.removedreceived_transfers = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.received_transfers, ids[i])
+		m.removedreceived_transfers[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedReceivedTransfers returns the removed IDs of the "received_transfers" edge to the BalanceTransfer entity.
+func (m *UserMutation) RemovedReceivedTransfersIDs() (ids []int64) {
+	for id := range m.removedreceived_transfers {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ReceivedTransfersIDs returns the "received_transfers" edge IDs in the mutation.
+func (m *UserMutation) ReceivedTransfersIDs() (ids []int64) {
+	for id := range m.received_transfers {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetReceivedTransfers resets all changes to the "received_transfers" edge.
+func (m *UserMutation) ResetReceivedTransfers() {
+	m.received_transfers = nil
+	m.clearedreceived_transfers = false
+	m.removedreceived_transfers = nil
+}
+
+// AddRedpacketIDs adds the "redpackets" edge to the BalanceRedPacket entity by ids.
+func (m *UserMutation) AddRedpacketIDs(ids ...int64) {
+	if m.redpackets == nil {
+		m.redpackets = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.redpackets[ids[i]] = struct{}{}
+	}
+}
+
+// ClearRedpackets clears the "redpackets" edge to the BalanceRedPacket entity.
+func (m *UserMutation) ClearRedpackets() {
+	m.clearedredpackets = true
+}
+
+// RedpacketsCleared reports if the "redpackets" edge to the BalanceRedPacket entity was cleared.
+func (m *UserMutation) RedpacketsCleared() bool {
+	return m.clearedredpackets
+}
+
+// RemoveRedpacketIDs removes the "redpackets" edge to the BalanceRedPacket entity by IDs.
+func (m *UserMutation) RemoveRedpacketIDs(ids ...int64) {
+	if m.removedredpackets == nil {
+		m.removedredpackets = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.redpackets, ids[i])
+		m.removedredpackets[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedRedpackets returns the removed IDs of the "redpackets" edge to the BalanceRedPacket entity.
+func (m *UserMutation) RemovedRedpacketsIDs() (ids []int64) {
+	for id := range m.removedredpackets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// RedpacketsIDs returns the "redpackets" edge IDs in the mutation.
+func (m *UserMutation) RedpacketsIDs() (ids []int64) {
+	for id := range m.redpackets {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetRedpackets resets all changes to the "redpackets" edge.
+func (m *UserMutation) ResetRedpackets() {
+	m.redpackets = nil
+	m.clearedredpackets = false
+	m.removedredpackets = nil
+}
+
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by ids.
 func (m *UserMutation) AddAuthIdentityIDs(ids ...int64) {
 	if m.auth_identities == nil {
@@ -45246,7 +48909,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 16)
 	if m.api_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -45279,6 +48942,15 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.checkins != nil {
 		edges = append(edges, user.EdgeCheckins)
+	}
+	if m.sent_transfers != nil {
+		edges = append(edges, user.EdgeSentTransfers)
+	}
+	if m.received_transfers != nil {
+		edges = append(edges, user.EdgeReceivedTransfers)
+	}
+	if m.redpackets != nil {
+		edges = append(edges, user.EdgeRedpackets)
 	}
 	if m.auth_identities != nil {
 		edges = append(edges, user.EdgeAuthIdentities)
@@ -45359,6 +49031,24 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeSentTransfers:
+		ids := make([]ent.Value, 0, len(m.sent_transfers))
+		for id := range m.sent_transfers {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeReceivedTransfers:
+		ids := make([]ent.Value, 0, len(m.received_transfers))
+		for id := range m.received_transfers {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeRedpackets:
+		ids := make([]ent.Value, 0, len(m.redpackets))
+		for id := range m.redpackets {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeAuthIdentities:
 		ids := make([]ent.Value, 0, len(m.auth_identities))
 		for id := range m.auth_identities {
@@ -45377,7 +49067,7 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 16)
 	if m.removedapi_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -45410,6 +49100,15 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedcheckins != nil {
 		edges = append(edges, user.EdgeCheckins)
+	}
+	if m.removedsent_transfers != nil {
+		edges = append(edges, user.EdgeSentTransfers)
+	}
+	if m.removedreceived_transfers != nil {
+		edges = append(edges, user.EdgeReceivedTransfers)
+	}
+	if m.removedredpackets != nil {
+		edges = append(edges, user.EdgeRedpackets)
 	}
 	if m.removedauth_identities != nil {
 		edges = append(edges, user.EdgeAuthIdentities)
@@ -45490,6 +49189,24 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeSentTransfers:
+		ids := make([]ent.Value, 0, len(m.removedsent_transfers))
+		for id := range m.removedsent_transfers {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeReceivedTransfers:
+		ids := make([]ent.Value, 0, len(m.removedreceived_transfers))
+		for id := range m.removedreceived_transfers {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeRedpackets:
+		ids := make([]ent.Value, 0, len(m.removedredpackets))
+		for id := range m.removedredpackets {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeAuthIdentities:
 		ids := make([]ent.Value, 0, len(m.removedauth_identities))
 		for id := range m.removedauth_identities {
@@ -45508,7 +49225,7 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 13)
+	edges := make([]string, 0, 16)
 	if m.clearedapi_keys {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -45541,6 +49258,15 @@ func (m *UserMutation) ClearedEdges() []string {
 	}
 	if m.clearedcheckins {
 		edges = append(edges, user.EdgeCheckins)
+	}
+	if m.clearedsent_transfers {
+		edges = append(edges, user.EdgeSentTransfers)
+	}
+	if m.clearedreceived_transfers {
+		edges = append(edges, user.EdgeReceivedTransfers)
+	}
+	if m.clearedredpackets {
+		edges = append(edges, user.EdgeRedpackets)
 	}
 	if m.clearedauth_identities {
 		edges = append(edges, user.EdgeAuthIdentities)
@@ -45577,6 +49303,12 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedpayment_orders
 	case user.EdgeCheckins:
 		return m.clearedcheckins
+	case user.EdgeSentTransfers:
+		return m.clearedsent_transfers
+	case user.EdgeReceivedTransfers:
+		return m.clearedreceived_transfers
+	case user.EdgeRedpackets:
+		return m.clearedredpackets
 	case user.EdgeAuthIdentities:
 		return m.clearedauth_identities
 	case user.EdgePendingAuthSessions:
@@ -45629,6 +49361,15 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeCheckins:
 		m.ResetCheckins()
+		return nil
+	case user.EdgeSentTransfers:
+		m.ResetSentTransfers()
+		return nil
+	case user.EdgeReceivedTransfers:
+		m.ResetReceivedTransfers()
+		return nil
+	case user.EdgeRedpackets:
+		m.ResetRedpackets()
 		return nil
 	case user.EdgeAuthIdentities:
 		m.ResetAuthIdentities()

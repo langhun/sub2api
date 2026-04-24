@@ -250,6 +250,17 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+
+		TransferEnabled:            settings.TransferEnabled,
+		TransferFeeRate:            settings.TransferFeeRate,
+		TransferMinAmount:          settings.TransferMinAmount,
+		TransferMaxAmount:          settings.TransferMaxAmount,
+		TransferDailyLimit:         settings.TransferDailyLimit,
+		TransferDailyCountLimit:    settings.TransferDailyCountLimit,
+		TransferVIPFeeExempt:       settings.TransferVIPFeeExempt,
+		RedPacketEnabled:           settings.RedPacketEnabled,
+		RedPacketMaxCount:          settings.RedPacketMaxCount,
+		RedPacketExpireHours:       settings.RedPacketExpireHours,
 	}
 	response.Success(c, systemSettingsResponseData(payload, authSourceDefaults))
 }
@@ -463,6 +474,18 @@ type UpdateSettingsRequest struct {
 
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
+
+	// Balance Transfer 余额流转设置
+	TransferEnabled            *bool    `json:"transfer_enabled"`
+	TransferFeeRate            *float64 `json:"transfer_fee_rate"`
+	TransferMinAmount          *float64 `json:"transfer_min_amount"`
+	TransferMaxAmount          *float64 `json:"transfer_max_amount"`
+	TransferDailyLimit         *float64 `json:"transfer_daily_limit"`
+	TransferDailyCountLimit    *int     `json:"transfer_daily_count_limit"`
+	TransferVIPFeeExempt       *bool    `json:"transfer_vip_fee_exempt"`
+	RedPacketEnabled           *bool    `json:"redpacket_enabled"`
+	RedPacketMaxCount          *int     `json:"redpacket_max_count"`
+	RedPacketExpireHours       *int     `json:"redpacket_expire_hours"`
 }
 
 // UpdateSettings 更新系统设置
@@ -1329,6 +1352,66 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return *req.AvailableChannelsEnabled
 			}
 			return previousSettings.AvailableChannelsEnabled
+		}(),
+		TransferEnabled: func() bool {
+			if req.TransferEnabled != nil {
+				return *req.TransferEnabled
+			}
+			return previousSettings.TransferEnabled
+		}(),
+		TransferFeeRate: func() float64 {
+			if req.TransferFeeRate != nil && *req.TransferFeeRate >= 0 {
+				return *req.TransferFeeRate
+			}
+			return previousSettings.TransferFeeRate
+		}(),
+		TransferMinAmount: func() float64 {
+			if req.TransferMinAmount != nil && *req.TransferMinAmount >= 0 {
+				return *req.TransferMinAmount
+			}
+			return previousSettings.TransferMinAmount
+		}(),
+		TransferMaxAmount: func() float64 {
+			if req.TransferMaxAmount != nil && *req.TransferMaxAmount >= 0 {
+				return *req.TransferMaxAmount
+			}
+			return previousSettings.TransferMaxAmount
+		}(),
+		TransferDailyLimit: func() float64 {
+			if req.TransferDailyLimit != nil && *req.TransferDailyLimit >= 0 {
+				return *req.TransferDailyLimit
+			}
+			return previousSettings.TransferDailyLimit
+		}(),
+		TransferDailyCountLimit: func() int {
+			if req.TransferDailyCountLimit != nil && *req.TransferDailyCountLimit > 0 {
+				return *req.TransferDailyCountLimit
+			}
+			return previousSettings.TransferDailyCountLimit
+		}(),
+		TransferVIPFeeExempt: func() bool {
+			if req.TransferVIPFeeExempt != nil {
+				return *req.TransferVIPFeeExempt
+			}
+			return previousSettings.TransferVIPFeeExempt
+		}(),
+		RedPacketEnabled: func() bool {
+			if req.RedPacketEnabled != nil {
+				return *req.RedPacketEnabled
+			}
+			return previousSettings.RedPacketEnabled
+		}(),
+		RedPacketMaxCount: func() int {
+			if req.RedPacketMaxCount != nil && *req.RedPacketMaxCount > 0 {
+				return *req.RedPacketMaxCount
+			}
+			return previousSettings.RedPacketMaxCount
+		}(),
+		RedPacketExpireHours: func() int {
+			if req.RedPacketExpireHours != nil && *req.RedPacketExpireHours > 0 {
+				return *req.RedPacketExpireHours
+			}
+			return previousSettings.RedPacketExpireHours
 		}(),
 	}
 

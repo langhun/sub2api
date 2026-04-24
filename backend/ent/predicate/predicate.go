@@ -27,6 +27,15 @@ type AuthIdentity func(*sql.Selector)
 // AuthIdentityChannel is the predicate function for authidentitychannel builders.
 type AuthIdentityChannel func(*sql.Selector)
 
+// BalanceRedPacket is the predicate function for balanceredpacket builders.
+type BalanceRedPacket func(*sql.Selector)
+
+// BalanceRedPacketClaim is the predicate function for balanceredpacketclaim builders.
+type BalanceRedPacketClaim func(*sql.Selector)
+
+// BalanceTransfer is the predicate function for balancetransfer builders.
+type BalanceTransfer func(*sql.Selector)
+
 // ChannelMonitor is the predicate function for channelmonitor builders.
 type ChannelMonitor func(*sql.Selector)
 

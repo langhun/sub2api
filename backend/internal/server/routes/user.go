@@ -126,5 +126,26 @@ func RegisterUserRoutes(
 			monitors.GET("", h.ChannelMonitor.List)
 			monitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
 		}
+
+		// 余额转账
+		transfer := authenticated.Group("/transfer")
+		{
+			transfer.POST("", h.Transfer.Transfer)
+			transfer.POST("/validate", h.Transfer.ValidateTransfer)
+			transfer.GET("/history", h.Transfer.GetHistory)
+			transfer.GET("/stats", h.Transfer.GetStats)
+		}
+
+		// 红包
+		redpacket := authenticated.Group("/redpacket")
+		{
+			redpacket.POST("", h.Transfer.CreateRedPacket)
+			redpacket.POST("/claim", h.Transfer.ClaimRedPacket)
+			redpacket.GET("/:id", h.Transfer.GetRedPacketDetail)
+			redpacket.GET("/my", h.Transfer.GetMyRedPackets)
+		}
+
+		// 转账排行榜
+		authenticated.GET("/transfer/leaderboard", h.Transfer.GetLeaderboard)
 	}
 }

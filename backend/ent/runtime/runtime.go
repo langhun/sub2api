@@ -12,6 +12,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacketclaim"
+	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
@@ -435,6 +438,52 @@ func init() {
 	authidentitychannelDescMetadata := authidentitychannelFields[6].Descriptor()
 	// authidentitychannel.DefaultMetadata holds the default value on creation for the metadata field.
 	authidentitychannel.DefaultMetadata = authidentitychannelDescMetadata.Default.(func() map[string]interface{})
+	balanceredpacketFields := schema.BalanceRedPacket{}.Fields()
+	_ = balanceredpacketFields
+	// balanceredpacketDescRedpacketType is the schema descriptor for redpacket_type field.
+	balanceredpacketDescRedpacketType := balanceredpacketFields[5].Descriptor()
+	// balanceredpacket.DefaultRedpacketType holds the default value on creation for the redpacket_type field.
+	balanceredpacket.DefaultRedpacketType = balanceredpacketDescRedpacketType.Default.(string)
+	// balanceredpacket.RedpacketTypeValidator is a validator for the "redpacket_type" field. It is called by the builders before save.
+	balanceredpacket.RedpacketTypeValidator = balanceredpacketDescRedpacketType.Validators[0].(func(string) error)
+	// balanceredpacketDescCode is the schema descriptor for code field.
+	balanceredpacketDescCode := balanceredpacketFields[8].Descriptor()
+	// balanceredpacket.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	balanceredpacket.CodeValidator = balanceredpacketDescCode.Validators[0].(func(string) error)
+	// balanceredpacketDescStatus is the schema descriptor for status field.
+	balanceredpacketDescStatus := balanceredpacketFields[9].Descriptor()
+	// balanceredpacket.DefaultStatus holds the default value on creation for the status field.
+	balanceredpacket.DefaultStatus = balanceredpacketDescStatus.Default.(string)
+	// balanceredpacket.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	balanceredpacket.StatusValidator = balanceredpacketDescStatus.Validators[0].(func(string) error)
+	// balanceredpacketDescCreatedAt is the schema descriptor for created_at field.
+	balanceredpacketDescCreatedAt := balanceredpacketFields[12].Descriptor()
+	// balanceredpacket.DefaultCreatedAt holds the default value on creation for the created_at field.
+	balanceredpacket.DefaultCreatedAt = balanceredpacketDescCreatedAt.Default.(func() time.Time)
+	balanceredpacketclaimFields := schema.BalanceRedPacketClaim{}.Fields()
+	_ = balanceredpacketclaimFields
+	// balanceredpacketclaimDescCreatedAt is the schema descriptor for created_at field.
+	balanceredpacketclaimDescCreatedAt := balanceredpacketclaimFields[4].Descriptor()
+	// balanceredpacketclaim.DefaultCreatedAt holds the default value on creation for the created_at field.
+	balanceredpacketclaim.DefaultCreatedAt = balanceredpacketclaimDescCreatedAt.Default.(func() time.Time)
+	balancetransferFields := schema.BalanceTransfer{}.Fields()
+	_ = balancetransferFields
+	// balancetransferDescTransferType is the schema descriptor for transfer_type field.
+	balancetransferDescTransferType := balancetransferFields[6].Descriptor()
+	// balancetransfer.DefaultTransferType holds the default value on creation for the transfer_type field.
+	balancetransfer.DefaultTransferType = balancetransferDescTransferType.Default.(string)
+	// balancetransfer.TransferTypeValidator is a validator for the "transfer_type" field. It is called by the builders before save.
+	balancetransfer.TransferTypeValidator = balancetransferDescTransferType.Validators[0].(func(string) error)
+	// balancetransferDescStatus is the schema descriptor for status field.
+	balancetransferDescStatus := balancetransferFields[7].Descriptor()
+	// balancetransfer.DefaultStatus holds the default value on creation for the status field.
+	balancetransfer.DefaultStatus = balancetransferDescStatus.Default.(string)
+	// balancetransfer.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	balancetransfer.StatusValidator = balancetransferDescStatus.Validators[0].(func(string) error)
+	// balancetransferDescCreatedAt is the schema descriptor for created_at field.
+	balancetransferDescCreatedAt := balancetransferFields[13].Descriptor()
+	// balancetransfer.DefaultCreatedAt holds the default value on creation for the created_at field.
+	balancetransfer.DefaultCreatedAt = balancetransferDescCreatedAt.Default.(func() time.Time)
 	channelmonitorMixin := schema.ChannelMonitor{}.Mixin()
 	channelmonitorMixinFields0 := channelmonitorMixin[0].Fields()
 	_ = channelmonitorMixinFields0

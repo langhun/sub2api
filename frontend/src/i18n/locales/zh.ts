@@ -407,6 +407,10 @@ export default {
     channelPricing: '渠道定价',
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',
+    transfer: '余额转账',
+    redpacket: '红包中心',
+    transferManage: '转账管理',
+    leaderboard: '排行榜',
   },
 
   // Auth

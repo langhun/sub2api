@@ -37,6 +37,7 @@ type AdminHandlers struct {
 	Monitoring             *admin.MonitoringHandler
 	ModelPricing           *admin.ModelPricingHandler
 	Blindbox               *admin.BlindboxHandler
+	TransferAdmin          *admin.TransferAdminHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -59,6 +60,7 @@ type Handlers struct {
 	Checkin          *CheckinHandler
 	Leaderboard      *LeaderboardHandler
 	AvailableChannel *AvailableChannelHandler
+	Transfer         *BalanceTransferHandler
 }
 
 // BuildInfo contains build-time information

@@ -342,6 +342,18 @@ const (
 	SettingKeyCheckinBlindboxEnabled      = "checkin_blindbox_enabled"       // 是否启用签到盲盒
 	SettingKeyCheckinBlindboxTriggerType  = "checkin_blindbox_trigger_type"  // 触发类型: streak/total
 	SettingKeyCheckinBlindboxInterval     = "checkin_blindbox_interval"      // 触发间隔: 每N天/次
+
+	// Balance Transfer 余额流转设置
+	SettingKeyTransferEnabled             = "transfer_enabled"
+	SettingKeyTransferFeeRate             = "transfer_fee_rate"
+	SettingKeyTransferMinAmount           = "transfer_min_amount"
+	SettingKeyTransferMaxAmount           = "transfer_max_amount"
+	SettingKeyTransferDailyLimit          = "transfer_daily_limit"
+	SettingKeyTransferDailyCountLimit     = "transfer_daily_count_limit"
+	SettingKeyTransferVIPFeeExempt        = "transfer_vip_fee_exempt"
+	SettingKeyRedPacketEnabled            = "redpacket_enabled"
+	SettingKeyRedPacketMaxCount           = "redpacket_max_count"
+	SettingKeyRedPacketExpireHours        = "redpacket_expire_hours"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).

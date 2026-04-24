@@ -1,0 +1,126 @@
+import { apiClient } from '../client'
+
+export interface TransferRecord {
+  id: number
+  sender_id: number
+  receiver_id: number
+  amount: number
+  fee: number
+  fee_rate: number
+  gross_amount: number
+  transfer_type: 'direct' | 'redpacket' | 'batch'
+  status: 'completed' | 'frozen' | 'revoked'
+  memo: string | null
+  redpacket_id: number | null
+  created_at: string
+}
+
+export interface TransferStats {
+  total_sent: number
+  total_received: number
+  total_fee_paid: number
+}
+
+export interface TransferLeaderboardEntry {
+  rank: number
+  user_id: number
+  email: string
+  total_amount: number
+  total_count: number
+}
+
+export async function transferBalance(receiverId: number, amount: number, memo?: string): Promise<TransferRecord> {
+  const { data } = await apiClient.post<TransferRecord>('/user/transfer', {
+    receiver_id: receiverId,
+    amount,
+    memo,
+  })
+  return data
+}
+
+export async function validateTransfer(receiverId: number, amount: number): Promise<{ fee: number; fee_rate: number }> {
+  const { data } = await apiClient.post<{ fee: number; fee_rate: number }>('/user/transfer/validate', {
+    receiver_id: receiverId,
+    amount,
+  })
+  return data
+}
+
+export async function getTransferHistory(params: {
+  role?: string
+  page?: number
+  page_size?: number
+}): Promise<{ items: TransferRecord[]; total: number; page: number; page_size: number }> {
+  const { data } = await apiClient.get('/user/transfer/history', { params })
+  return data
+}
+
+export async function getTransferStats(): Promise<TransferStats> {
+  const { data } = await apiClient.get<TransferStats>('/user/transfer/stats')
+  return data
+}
+
+export async function getTransferLeaderboard(params: {
+  period?: string
+  limit?: number
+}): Promise<TransferLeaderboardEntry[]> {
+  const { data } = await apiClient.get<TransferLeaderboardEntry[]>('/user/transfer/leaderboard', { params })
+  return data
+}
+
+export interface RedPacketRecord {
+  id: number
+  sender_id: number
+  total_amount: number
+  total_count: number
+  remaining_amount: number
+  remaining_count: number
+  redpacket_type: 'equal' | 'random'
+  fee: number
+  fee_rate: number
+  code: string
+  status: 'active' | 'expired' | 'exhausted'
+  memo: string | null
+  expire_at: string
+  created_at: string
+}
+
+export interface RedPacketClaimRecord {
+  id: number
+  redpacket_id: number
+  user_id: number
+  amount: number
+  transfer_id: number | null
+  created_at: string
+}
+
+export async function createRedPacket(params: {
+  total_amount: number
+  count: number
+  redpacket_type?: 'equal' | 'random'
+  memo?: string
+}): Promise<RedPacketRecord> {
+  const { data } = await apiClient.post<RedPacketRecord>('/user/redpacket', params)
+  return data
+}
+
+export async function claimRedPacket(code: string): Promise<RedPacketClaimRecord> {
+  const { data } = await apiClient.post<RedPacketClaimRecord>('/user/redpacket/claim', { code })
+  return data
+}
+
+export async function getRedPacketDetail(id: number): Promise<{
+  redpacket: RedPacketRecord
+  claims: RedPacketClaimRecord[]
+}> {
+  const { data } = await apiClient.get(`/user/redpacket/${id}`)
+  return data
+}
+
+export async function getMyRedPackets(params: {
+  page?: number
+  page_size?: number
+}): Promise<{ items: RedPacketRecord[]; total: number; page: number; page_size: number }> {
+  const { data } = await apiClient.get('/user/redpacket/my', { params })
+  return data
+}

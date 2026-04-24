@@ -1244,6 +1244,18 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyCheckinBlindboxTriggerType] = settings.CheckinBlindboxTriggerType
 	updates[SettingKeyCheckinBlindboxInterval] = strconv.Itoa(settings.CheckinBlindboxInterval)
 
+	// Transfer settings
+	updates[SettingKeyTransferEnabled] = strconv.FormatBool(settings.TransferEnabled)
+	updates[SettingKeyTransferFeeRate] = strconv.FormatFloat(settings.TransferFeeRate, 'f', 6, 64)
+	updates[SettingKeyTransferMinAmount] = strconv.FormatFloat(settings.TransferMinAmount, 'f', 8, 64)
+	updates[SettingKeyTransferMaxAmount] = strconv.FormatFloat(settings.TransferMaxAmount, 'f', 8, 64)
+	updates[SettingKeyTransferDailyLimit] = strconv.FormatFloat(settings.TransferDailyLimit, 'f', 8, 64)
+	updates[SettingKeyTransferDailyCountLimit] = strconv.Itoa(settings.TransferDailyCountLimit)
+	updates[SettingKeyTransferVIPFeeExempt] = strconv.FormatBool(settings.TransferVIPFeeExempt)
+	updates[SettingKeyRedPacketEnabled] = strconv.FormatBool(settings.RedPacketEnabled)
+	updates[SettingKeyRedPacketMaxCount] = strconv.Itoa(settings.RedPacketMaxCount)
+	updates[SettingKeyRedPacketExpireHours] = strconv.Itoa(settings.RedPacketExpireHours)
+
 	return updates, nil
 }
 
@@ -1885,6 +1897,18 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyCheckinBlindboxEnabled:     "false",
 		SettingKeyCheckinBlindboxTriggerType: "streak",
 		SettingKeyCheckinBlindboxInterval:    "7",
+
+		// Balance Transfer 余额流转设置（默认关闭）
+		SettingKeyTransferEnabled:          "false",
+		SettingKeyTransferFeeRate:          "0.010000",
+		SettingKeyTransferMinAmount:        "0.01000000",
+		SettingKeyTransferMaxAmount:        "1000.00000000",
+		SettingKeyTransferDailyLimit:       "1000.00000000",
+		SettingKeyTransferDailyCountLimit:  "50",
+		SettingKeyTransferVIPFeeExempt:     "false",
+		SettingKeyRedPacketEnabled:         "false",
+		SettingKeyRedPacketMaxCount:        "100",
+		SettingKeyRedPacketExpireHours:     "24",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -2270,6 +2294,46 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.CheckinBlindboxInterval = v
 	} else {
 		result.CheckinBlindboxInterval = 7
+	}
+
+	// Balance Transfer 余额流转设置
+	result.TransferEnabled = settings[SettingKeyTransferEnabled] == "true"
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferFeeRate], 64); err == nil && v >= 0 {
+		result.TransferFeeRate = v
+	} else {
+		result.TransferFeeRate = 0.01
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferMinAmount], 64); err == nil && v >= 0 {
+		result.TransferMinAmount = v
+	} else {
+		result.TransferMinAmount = 0.01
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferMaxAmount], 64); err == nil && v >= 0 {
+		result.TransferMaxAmount = v
+	} else {
+		result.TransferMaxAmount = 1000
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferDailyLimit], 64); err == nil && v >= 0 {
+		result.TransferDailyLimit = v
+	} else {
+		result.TransferDailyLimit = 1000
+	}
+	if v, err := strconv.Atoi(settings[SettingKeyTransferDailyCountLimit]); err == nil && v > 0 {
+		result.TransferDailyCountLimit = v
+	} else {
+		result.TransferDailyCountLimit = 50
+	}
+	result.TransferVIPFeeExempt = settings[SettingKeyTransferVIPFeeExempt] == "true"
+	result.RedPacketEnabled = settings[SettingKeyRedPacketEnabled] == "true"
+	if v, err := strconv.Atoi(settings[SettingKeyRedPacketMaxCount]); err == nil && v > 0 {
+		result.RedPacketMaxCount = v
+	} else {
+		result.RedPacketMaxCount = 100
+	}
+	if v, err := strconv.Atoi(settings[SettingKeyRedPacketExpireHours]); err == nil && v > 0 {
+		result.RedPacketExpireHours = v
+	} else {
+		result.RedPacketExpireHours = 24
 	}
 
 	return result

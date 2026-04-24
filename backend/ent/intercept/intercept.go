@@ -15,6 +15,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacketclaim"
+	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
@@ -292,6 +295,87 @@ func (f TraverseAuthIdentityChannel) Traverse(ctx context.Context, q ent.Query) 
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.AuthIdentityChannelQuery", q)
+}
+
+// The BalanceRedPacketFunc type is an adapter to allow the use of ordinary function as a Querier.
+type BalanceRedPacketFunc func(context.Context, *ent.BalanceRedPacketQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f BalanceRedPacketFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.BalanceRedPacketQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.BalanceRedPacketQuery", q)
+}
+
+// The TraverseBalanceRedPacket type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseBalanceRedPacket func(context.Context, *ent.BalanceRedPacketQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseBalanceRedPacket) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseBalanceRedPacket) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BalanceRedPacketQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.BalanceRedPacketQuery", q)
+}
+
+// The BalanceRedPacketClaimFunc type is an adapter to allow the use of ordinary function as a Querier.
+type BalanceRedPacketClaimFunc func(context.Context, *ent.BalanceRedPacketClaimQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f BalanceRedPacketClaimFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.BalanceRedPacketClaimQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.BalanceRedPacketClaimQuery", q)
+}
+
+// The TraverseBalanceRedPacketClaim type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseBalanceRedPacketClaim func(context.Context, *ent.BalanceRedPacketClaimQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseBalanceRedPacketClaim) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseBalanceRedPacketClaim) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BalanceRedPacketClaimQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.BalanceRedPacketClaimQuery", q)
+}
+
+// The BalanceTransferFunc type is an adapter to allow the use of ordinary function as a Querier.
+type BalanceTransferFunc func(context.Context, *ent.BalanceTransferQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f BalanceTransferFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.BalanceTransferQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.BalanceTransferQuery", q)
+}
+
+// The TraverseBalanceTransfer type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseBalanceTransfer func(context.Context, *ent.BalanceTransferQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseBalanceTransfer) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseBalanceTransfer) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.BalanceTransferQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.BalanceTransferQuery", q)
 }
 
 // The ChannelMonitorFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1148,6 +1232,12 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.AuthIdentityQuery, predicate.AuthIdentity, authidentity.OrderOption]{typ: ent.TypeAuthIdentity, tq: q}, nil
 	case *ent.AuthIdentityChannelQuery:
 		return &query[*ent.AuthIdentityChannelQuery, predicate.AuthIdentityChannel, authidentitychannel.OrderOption]{typ: ent.TypeAuthIdentityChannel, tq: q}, nil
+	case *ent.BalanceRedPacketQuery:
+		return &query[*ent.BalanceRedPacketQuery, predicate.BalanceRedPacket, balanceredpacket.OrderOption]{typ: ent.TypeBalanceRedPacket, tq: q}, nil
+	case *ent.BalanceRedPacketClaimQuery:
+		return &query[*ent.BalanceRedPacketClaimQuery, predicate.BalanceRedPacketClaim, balanceredpacketclaim.OrderOption]{typ: ent.TypeBalanceRedPacketClaim, tq: q}, nil
+	case *ent.BalanceTransferQuery:
+		return &query[*ent.BalanceTransferQuery, predicate.BalanceTransfer, balancetransfer.OrderOption]{typ: ent.TypeBalanceTransfer, tq: q}, nil
 	case *ent.ChannelMonitorQuery:
 		return &query[*ent.ChannelMonitorQuery, predicate.ChannelMonitor, channelmonitor.OrderOption]{typ: ent.TypeChannelMonitor, tq: q}, nil
 	case *ent.ChannelMonitorDailyRollupQuery:

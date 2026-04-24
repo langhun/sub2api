@@ -97,6 +97,9 @@ func RegisterAdminRoutes(
 
 		// 渠道监控
 		registerChannelMonitorRoutes(admin, h)
+
+		// 转账管理
+		registerTransferAdminRoutes(admin, h)
 	}
 }
 
@@ -623,5 +626,20 @@ func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		templates.DELETE("/:id", h.Admin.ChannelMonitorTemplate.Delete)
 		templates.GET("/:id/monitors", h.Admin.ChannelMonitorTemplate.AssociatedMonitors)
 		templates.POST("/:id/apply", h.Admin.ChannelMonitorTemplate.Apply)
+	}
+}
+
+func registerTransferAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	transfers := admin.Group("/transfers")
+	{
+		transfers.GET("", h.Admin.TransferAdmin.ListTransfers)
+		transfers.GET("/stats", h.Admin.TransferAdmin.GetFeeStats)
+		transfers.PUT("/:id/freeze", h.Admin.TransferAdmin.FreezeTransfer)
+		transfers.PUT("/:id/revoke", h.Admin.TransferAdmin.RevokeTransfer)
+		transfers.POST("/batch", h.Admin.TransferAdmin.BatchDistribute)
+	}
+	redpackets := admin.Group("/redpackets")
+	{
+		redpackets.GET("", h.Admin.TransferAdmin.ListRedPackets)
 	}
 }

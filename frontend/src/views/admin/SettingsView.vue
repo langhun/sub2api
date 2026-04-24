@@ -3850,8 +3850,67 @@
               </div>
               <Toggle v-model="form.available_channels_enabled" />
             </div>
+            </div>
           </div>
-        </div>
+
+          <!-- Balance Transfer -->
+          <div class="space-y-4">
+            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {{ t('admin.settings.features.transfer.title', '余额流转') }}
+            </h4>
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.transfer.enabled', '启用余额转账') }}
+                </label>
+              </div>
+              <Toggle v-model="form.transfer_enabled" />
+            </div>
+            <div v-if="form.transfer_enabled" class="grid grid-cols-2 gap-4 pl-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">手续费率 (%)</label>
+                <input v-model.number="form.transfer_fee_rate" type="number" step="0.001" min="0" class="input-field" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">最小转账金额</label>
+                <input v-model.number="form.transfer_min_amount" type="number" step="0.01" min="0" class="input-field" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">最大转账金额</label>
+                <input v-model.number="form.transfer_max_amount" type="number" step="0.01" min="0" class="input-field" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">每日转账限额</label>
+                <input v-model.number="form.transfer_daily_limit" type="number" step="0.01" min="0" class="input-field" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">每日转账次数</label>
+                <input v-model.number="form.transfer_daily_count_limit" type="number" min="1" class="input-field" />
+              </div>
+              <div class="flex items-center gap-2 pt-4">
+                <Toggle v-model="form.transfer_vip_fee_exempt" />
+                <label class="text-xs text-gray-600 dark:text-gray-400">VIP免手续费</label>
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.transfer.redpacketEnabled', '启用红包功能') }}
+                </label>
+              </div>
+              <Toggle v-model="form.redpacket_enabled" />
+            </div>
+            <div v-if="form.redpacket_enabled" class="grid grid-cols-2 gap-4 pl-4">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">红包最大份数</label>
+                <input v-model.number="form.redpacket_max_count" type="number" min="1" class="input-field" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">过期时间(小时)</label>
+                <input v-model.number="form.redpacket_expire_hours" type="number" min="1" class="input-field" />
+              </div>
+            </div>
+          </div>
 
         </div><!-- /Tab: Features -->
 
@@ -5231,6 +5290,17 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   // Available Channels feature switch
   available_channels_enabled: false,
+  // Transfer settings
+  transfer_enabled: false,
+  transfer_fee_rate: 0.01,
+  transfer_min_amount: 0.01,
+  transfer_max_amount: 1000,
+  transfer_daily_limit: 1000,
+  transfer_daily_count_limit: 50,
+  transfer_vip_fee_exempt: false,
+  redpacket_enabled: false,
+  redpacket_max_count: 100,
+  redpacket_expire_hours: 24,
 });
 
 const authSourceDefaults = reactive<AuthSourceDefaultsState>(
@@ -6155,6 +6225,17 @@ async function saveSettings() {
         Number(form.channel_monitor_default_interval_seconds) || 60,
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
+      // Transfer settings
+      transfer_enabled: form.transfer_enabled,
+      transfer_fee_rate: Number(form.transfer_fee_rate) || 0.01,
+      transfer_min_amount: Number(form.transfer_min_amount) || 0.01,
+      transfer_max_amount: Number(form.transfer_max_amount) || 1000,
+      transfer_daily_limit: Number(form.transfer_daily_limit) || 1000,
+      transfer_daily_count_limit: Number(form.transfer_daily_count_limit) || 50,
+      transfer_vip_fee_exempt: form.transfer_vip_fee_exempt,
+      redpacket_enabled: form.redpacket_enabled,
+      redpacket_max_count: Number(form.redpacket_max_count) || 100,
+      redpacket_expire_hours: Number(form.redpacket_expire_hours) || 24,
     };
 
     appendAuthSourceDefaultsToUpdateRequest(payload, authSourceDefaults);
