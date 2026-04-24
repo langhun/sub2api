@@ -17,7 +17,7 @@
 
       <!-- Action Cards -->
       <div class="grid grid-cols-2 gap-4">
-        <button @click="showCreate = true; createError = ''; createdRp = null"
+        <button @click="openCreate"
           class="group card flex flex-col items-center gap-3 p-5 transition-all hover:shadow-md hover:shadow-red-100 dark:hover:shadow-red-900/10">
           <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 transition-transform group-hover:scale-110 dark:bg-red-900/30">
             <Icon name="plus" size="lg" class="text-red-600 dark:text-red-400" />
@@ -27,7 +27,7 @@
             <p class="mt-0.5 text-xs text-gray-400 dark:text-dark-500">{{ t('redpacket.createDesc', '发送余额红包给好友') }}</p>
           </div>
         </button>
-        <button @click="showClaim = true; claimError = ''; claimResult = null; claimCode = ''"
+        <button @click="openClaim"
           class="group card flex flex-col items-center gap-3 p-5 transition-all hover:shadow-md hover:shadow-amber-100 dark:hover:shadow-amber-900/10">
           <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 transition-transform group-hover:scale-110 dark:bg-amber-900/30">
             <Icon name="gift" size="lg" class="text-amber-600 dark:text-amber-400" />
@@ -57,7 +57,7 @@
                   <label class="input-label">{{ t('redpacket.totalAmount', '总金额') }}</label>
                   <div class="relative mt-1">
                     <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                      <span class="text-sm text-gray-400 dark:text-dark-500">$</span>
+                      <span class="text-sm text-gray-400">$</span>
                     </div>
                     <input v-model.number="createForm.total_amount" type="number" step="0.01" min="0.01" required
                       :disabled="createLoading" class="input pl-7" />
@@ -78,14 +78,14 @@
                       createForm.redpacket_type === 'equal'
                         ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300'
                         : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300 dark:hover:bg-dark-700']">
-                    <span>🀄</span> {{ t('redpacket.equal', '等分红包') }}
+                    🀄 {{ t('redpacket.equal', '等分红包') }}
                   </button>
                   <button type="button" @click="createForm.redpacket_type = 'random'"
                     :class="['flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all',
                       createForm.redpacket_type === 'random'
                         ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300'
                         : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300 dark:hover:bg-dark-700']">
-                    <span>🎲</span> {{ t('redpacket.random', '拼手气红包') }}
+                    🎲 {{ t('redpacket.random', '拼手气红包') }}
                   </button>
                 </div>
               </div>
@@ -111,6 +111,7 @@
               </div>
             </form>
 
+            <!-- Success Result -->
             <div v-if="createdRp" class="mt-4 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-4 dark:border-emerald-800/50 dark:from-emerald-900/20 dark:to-teal-900/20">
               <div class="flex items-start gap-3">
                 <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
@@ -190,8 +191,9 @@
           </div>
 
           <div v-else-if="myPackets.length > 0" class="space-y-3">
-            <div v-for="rp in myPackets" :key="rp.id" class="rounded-xl border border-gray-100 bg-gradient-to-r from-white to-gray-50/50 p-4 transition-colors hover:border-gray-200 dark:border-dark-700 dark:from-dark-800 dark:to-dark-800/50 dark:hover:border-dark-600">
-              <div class="flex items-start justify-between">
+            <div v-for="rp in myPackets" :key="rp.id" class="rounded-xl border border-gray-100 bg-gradient-to-r from-white to-gray-50/50 transition-colors hover:border-gray-200 dark:border-dark-700 dark:from-dark-800 dark:to-dark-800/50 dark:hover:border-dark-600">
+              <!-- Main Row -->
+              <div class="flex items-center justify-between p-4">
                 <div class="flex items-start gap-3">
                   <div :class="['flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl', rpStatusStyle(rp.status).bg]">
                     <span v-if="rp.status === 'active'" class="text-lg">🧧</span>
@@ -215,19 +217,69 @@
                     <p v-if="rp.memo" class="mt-1 text-xs text-gray-500 dark:text-dark-400">「{{ rp.memo }}」</p>
                   </div>
                 </div>
-                <div class="text-right">
-                  <p class="text-base font-bold text-red-600 dark:text-red-400">${{ rp.total_amount.toFixed(2) }}</p>
-                  <p v-if="rp.status === 'active' && rp.remaining_amount > 0" class="text-xs text-gray-400 dark:text-dark-500">
-                    {{ t('redpacket.remainingAmount', '剩余') }} ${{ rp.remaining_amount.toFixed(2) }}
-                  </p>
+                <div class="flex items-center gap-3">
+                  <div class="text-right">
+                    <p class="text-base font-bold text-red-600 dark:text-red-400">${{ rp.total_amount.toFixed(2) }}</p>
+                    <p v-if="rp.status === 'active' && rp.remaining_amount > 0" class="text-xs text-gray-400 dark:text-dark-500">
+                      {{ t('redpacket.remainingAmount', '剩余') }} ${{ rp.remaining_amount.toFixed(2) }}
+                    </p>
+                  </div>
+                  <button @click="toggleDetail(rp)"
+                    :class="['flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700 dark:hover:text-dark-300',
+                      detailExpandedId === rp.id ? 'rotate-180' : '']">
+                    <Icon name="chevronDown" size="sm" />
+                  </button>
                 </div>
               </div>
-              <div v-if="rp.status === 'active' && rp.code" class="mt-3 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5 dark:bg-dark-700/50">
+
+              <!-- Code Bar (active only) -->
+              <div v-if="rp.status === 'active' && rp.code" class="mx-4 mb-2 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5 dark:bg-dark-700/50">
                 <code class="flex-1 text-xs text-gray-600 select-all dark:text-dark-300">{{ rp.code }}</code>
                 <button @click="copyCode(rp.code)" class="text-gray-400 hover:text-primary-500 dark:hover:text-primary-400">
                   <Icon :name="copiedCode === rp.code ? 'checkCircle' : 'copy'" size="xs" />
                 </button>
               </div>
+
+              <!-- Detail: Claims -->
+              <transition name="fade">
+                <div v-if="detailExpandedId === rp.id" class="border-t border-gray-100 dark:border-dark-700">
+                  <div v-if="loadingDetail" class="flex items-center justify-center py-6">
+                    <svg class="h-5 w-5 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                  <div v-else-if="detailClaims.length > 0" class="p-4">
+                    <p class="mb-3 text-xs font-medium text-gray-500 dark:text-dark-400">
+                      {{ t('redpacket.claimDetail', '领取详情') }}
+                      ({{ detailClaims.length }}/{{ rp.total_count }})
+                    </p>
+                    <div class="space-y-2">
+                      <div v-for="claim in detailClaims" :key="claim.id"
+                        class="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 dark:bg-dark-700/50">
+                        <div class="flex items-center gap-2">
+                          <div class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
+                            <Icon name="user" size="xs" class="text-primary-600 dark:text-primary-400" />
+                          </div>
+                          <span class="text-sm text-gray-700 dark:text-gray-300">{{ claim.user_email || '#' + claim.user_id }}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                          <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400">+${{ claim.amount.toFixed(2) }}</span>
+                          <span class="text-xs text-gray-400 dark:text-dark-500">{{ formatDateTime(claim.created_at) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="rp.status === 'active' && rp.remaining_count > 0" class="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-center dark:bg-dark-700/50">
+                      <span class="text-xs text-gray-400 dark:text-dark-500">
+                        {{ t('redpacket.waitingClaims', '还有 {n} 份等待领取').replace('{n}', String(rp.remaining_count)) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div v-else class="py-6 text-center">
+                    <p class="text-xs text-gray-400 dark:text-dark-500">{{ t('redpacket.noClaimsYet', '暂无人领取') }}</p>
+                  </div>
+                </div>
+              </transition>
             </div>
           </div>
 
@@ -248,10 +300,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
-import { createRedPacket, claimRedPacket, getMyRedPackets } from '@/api/transfer'
+import { createRedPacket, claimRedPacket, getMyRedPackets, getRedPacketDetail } from '@/api/transfer'
 import type { RedPacketRecord, RedPacketClaimRecord } from '@/api/transfer'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { formatDateTime } from '@/utils/format'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -270,12 +323,31 @@ const myPackets = ref<RedPacketRecord[]>([])
 const loadingPackets = ref(false)
 const copiedCode = ref('')
 
+const detailExpandedId = ref<number | null>(null)
+const detailClaims = ref<RedPacketClaimRecord[]>([])
+const loadingDetail = ref(false)
+
 const createForm = reactive({
   total_amount: 0,
   count: 1,
   redpacket_type: 'equal' as 'equal' | 'random',
   memo: '',
 })
+
+function openCreate() {
+  showCreate.value = true
+  showClaim.value = false
+  createError.value = ''
+  createdRp.value = null
+}
+
+function openClaim() {
+  showClaim.value = true
+  showCreate.value = false
+  claimError.value = ''
+  claimResult.value = null
+  claimCode.value = ''
+}
 
 function rpStatusStyle(status: string) {
   switch (status) {
@@ -317,6 +389,25 @@ async function copyCode(code: string) {
     copiedCode.value = code
     setTimeout(() => { copiedCode.value = '' }, 2000)
   } catch {}
+}
+
+async function toggleDetail(rp: RedPacketRecord) {
+  if (detailExpandedId.value === rp.id) {
+    detailExpandedId.value = null
+    detailClaims.value = []
+    return
+  }
+  detailExpandedId.value = rp.id
+  loadingDetail.value = true
+  detailClaims.value = []
+  try {
+    const res = await getRedPacketDetail(rp.id)
+    detailClaims.value = res.claims || []
+  } catch {
+    detailClaims.value = []
+  } finally {
+    loadingDetail.value = false
+  }
 }
 
 async function loadMyPackets() {
@@ -371,11 +462,11 @@ onMounted(loadMyPackets)
 <style scoped>
 .fade-enter-active,
 .fade-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-6px);
 }
 </style>
