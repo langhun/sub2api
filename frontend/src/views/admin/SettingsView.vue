@@ -3854,61 +3854,103 @@
           </div>
 
           <!-- Balance Transfer -->
-          <div class="space-y-4">
-            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {{ t('admin.settings.features.transfer.title', '余额流转') }}
-            </h4>
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('admin.settings.features.transfer.enabled', '启用余额转账') }}
-                </label>
-              </div>
-              <Toggle v-model="form.transfer_enabled" />
+          <div class="card">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t('admin.settings.features.transfer.title', '余额流转') }}
+              </h2>
             </div>
-            <div v-if="form.transfer_enabled" class="grid grid-cols-2 gap-4 pl-4">
-              <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">手续费率 (%)</label>
-                <input v-model.number="form.transfer_fee_rate" type="number" step="0.001" min="0" class="input-field" />
+            <div class="space-y-5 p-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.settings.features.transfer.enabled', '启用余额转账') }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.features.transfer.enabledHint', '允许用户之间进行余额转账') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.transfer_enabled" />
               </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">最小转账金额</label>
-                <input v-model.number="form.transfer_min_amount" type="number" step="0.01" min="0" class="input-field" />
+              <template v-if="form.transfer_enabled">
+                <div class="grid grid-cols-1 gap-6 border-t pt-4 md:grid-cols-2 dark:border-dark-700">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.feeRate', '手续费率 (%)') }}
+                    </label>
+                    <input v-model.number="form.transfer_fee_rate" type="number" step="0.001" min="0" class="input" placeholder="0.01" />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.features.transfer.feeRateHint', '每笔转账收取的手续费百分比') }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.minAmount', '最小转账金额') }}
+                    </label>
+                    <input v-model.number="form.transfer_min_amount" type="number" step="0.01" min="0" class="input" placeholder="0.01" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.maxAmount', '最大转账金额') }}
+                    </label>
+                    <input v-model.number="form.transfer_max_amount" type="number" step="0.01" min="0" class="input" placeholder="1000.00" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.dailyLimit', '每日转账限额') }}
+                    </label>
+                    <input v-model.number="form.transfer_daily_limit" type="number" step="0.01" min="0" class="input" placeholder="1000.00" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.dailyCountLimit', '每日转账次数') }}
+                    </label>
+                    <input v-model.number="form.transfer_daily_count_limit" type="number" min="1" class="input" placeholder="50" />
+                  </div>
+                  <div class="flex items-center gap-3 pt-6">
+                    <Toggle v-model="form.transfer_vip_fee_exempt" />
+                    <div>
+                      <label class="font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.features.transfer.vipFeeExempt', 'VIP免手续费') }}
+                      </label>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.features.transfer.vipFeeExemptHint', 'VIP用户转账免收手续费') }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <div class="flex items-center justify-between border-t pt-4 dark:border-dark-700">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.settings.features.transfer.redpacketEnabled', '启用红包功能') }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.features.transfer.redpacketEnabledHint', '允许用户创建和领取红包') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.redpacket_enabled" />
               </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">最大转账金额</label>
-                <input v-model.number="form.transfer_max_amount" type="number" step="0.01" min="0" class="input-field" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">每日转账限额</label>
-                <input v-model.number="form.transfer_daily_limit" type="number" step="0.01" min="0" class="input-field" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">每日转账次数</label>
-                <input v-model.number="form.transfer_daily_count_limit" type="number" min="1" class="input-field" />
-              </div>
-              <div class="flex items-center gap-2 pt-4">
-                <Toggle v-model="form.transfer_vip_fee_exempt" />
-                <label class="text-xs text-gray-600 dark:text-gray-400">VIP免手续费</label>
-              </div>
-            </div>
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('admin.settings.features.transfer.redpacketEnabled', '启用红包功能') }}
-                </label>
-              </div>
-              <Toggle v-model="form.redpacket_enabled" />
-            </div>
-            <div v-if="form.redpacket_enabled" class="grid grid-cols-2 gap-4 pl-4">
-              <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">红包最大份数</label>
-                <input v-model.number="form.redpacket_max_count" type="number" min="1" class="input-field" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">过期时间(小时)</label>
-                <input v-model.number="form.redpacket_expire_hours" type="number" min="1" class="input-field" />
-              </div>
+              <template v-if="form.redpacket_enabled">
+                <div class="grid grid-cols-1 gap-6 border-t pt-4 md:grid-cols-2 dark:border-dark-700">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.redpacketMaxCount', '红包最大份数') }}
+                    </label>
+                    <input v-model.number="form.redpacket_max_count" type="number" min="1" class="input" placeholder="100" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.redpacketExpireHours', '过期时间(小时)') }}
+                    </label>
+                    <input v-model.number="form.redpacket_expire_hours" type="number" min="1" class="input" placeholder="24" />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.features.transfer.redpacketExpireHoursHint', '超时未领完的金额将退回发送方') }}
+                    </p>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
 
