@@ -33,8 +33,14 @@ export async function getCheckinLeaderboard(page = 1, pageSize = 10): Promise<Le
   return data
 }
 
+export async function getTransferLeaderboard(period = 'day', page = 1, pageSize = 20): Promise<LeaderboardData> {
+  const { data } = await apiClient.get<LeaderboardData>('/public/leaderboard/transfer', { params: { period, page, page_size: pageSize } })
+  return data
+}
+
 export const leaderboardAPI = {
   getBalanceLeaderboard,
   getConsumptionLeaderboard,
   getCheckinLeaderboard,
+  getTransferLeaderboard,
 }

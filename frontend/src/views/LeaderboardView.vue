@@ -26,7 +26,7 @@
             </button>
           </div>
 
-          <div v-if="activeTab === 'consumption'" class="flex gap-1 border-b border-gray-100 px-4 py-2 dark:border-dark-800">
+          <div v-if="activeTab === 'consumption' || activeTab === 'transfer'" class="flex gap-1 border-b border-gray-100 px-4 py-2 dark:border-dark-800">
             <button
               v-for="p in periods"
               :key="p.key"
@@ -73,6 +73,10 @@
                     <span class="text-sm font-bold text-amber-600 dark:text-amber-400">{{ entry.value }}</span>
                     <span class="text-xs text-amber-500/70 dark:text-amber-400/50"> {{ t('leaderboard.streakDays', { days: '' }).trim() }}</span>
                   </template>
+                  <template v-else-if="activeTab === 'transfer'">
+                    <span class="text-sm font-bold text-blue-600 dark:text-blue-400">${{ entry.value.toFixed(2) }}</span>
+                    <span v-if="entry.extra_int" class="block text-xs text-gray-400 dark:text-dark-500">{{ entry.extra_int }} {{ t('leaderboard.transferCount', '笔') }}</span>
+                  </template>
                   <template v-else>
                     <span class="text-sm font-bold text-gray-900 dark:text-white">${{ entry.value.toFixed(2) }}</span>
                   </template>
@@ -99,8 +103,8 @@ import { leaderboardAPI, type LeaderboardEntry } from '@/api/leaderboard'
 const { t } = useI18n()
 const appStore = useAppStore()
 
-type TabKey = 'balance' | 'consumption' | 'checkin'
-type PeriodKey = 'daily' | 'weekly' | 'monthly'
+type TabKey = 'balance' | 'consumption' | 'checkin' | 'transfer'
+type PeriodKey = 'daily' | 'weekly' | 'monthly' | 'day' | 'week' | 'month'
 
 const activeTab = ref<TabKey>('balance')
 const activePeriod = ref<PeriodKey>('daily')
@@ -110,14 +114,24 @@ const loading = ref(false)
 const tabs = computed(() => [
   { key: 'balance' as TabKey, label: t('leaderboard.tabs.balance') },
   { key: 'consumption' as TabKey, label: t('leaderboard.tabs.consumption') },
+  { key: 'transfer' as TabKey, label: t('leaderboard.tabs.transfer', 'Transfer') },
   { key: 'checkin' as TabKey, label: t('leaderboard.tabs.checkin') },
 ])
 
-const periods = computed(() => [
-  { key: 'daily' as PeriodKey, label: t('leaderboard.periods.daily') },
-  { key: 'weekly' as PeriodKey, label: t('leaderboard.periods.weekly') },
-  { key: 'monthly' as PeriodKey, label: t('leaderboard.periods.monthly') },
-])
+const periods = computed(() => {
+  if (activeTab.value === 'transfer') {
+    return [
+      { key: 'day' as PeriodKey, label: t('leaderboard.periods.daily') },
+      { key: 'week' as PeriodKey, label: t('leaderboard.periods.weekly') },
+      { key: 'month' as PeriodKey, label: t('leaderboard.periods.monthly') },
+    ]
+  }
+  return [
+    { key: 'daily' as PeriodKey, label: t('leaderboard.periods.daily') },
+    { key: 'weekly' as PeriodKey, label: t('leaderboard.periods.weekly') },
+    { key: 'monthly' as PeriodKey, label: t('leaderboard.periods.monthly') },
+  ]
+})
 
 function rankClass(rank: number): string {
   if (rank === 1) return 'bg-amber-100 dark:bg-amber-900/30'
@@ -131,6 +145,8 @@ function getSubtitle(entry: LeaderboardEntry): string {
     if (entry.extra_int) return t('leaderboard.balanceSubtitle', { count: entry.extra_int })
   } else if (activeTab.value === 'consumption') {
     if (entry.extra_int) return t('leaderboard.consumptionSubtitle', { count: entry.extra_int })
+  } else if (activeTab.value === 'transfer') {
+    return ''
   } else if (activeTab.value === 'checkin') {
     if (entry.extra_int || entry.extra_date) {
       return t('leaderboard.checkinSubtitle', { total: entry.extra_int || 0, date: entry.extra_date || '', reward: entry.extra_float?.toFixed(2) || '0.00' })
@@ -148,7 +164,10 @@ async function fetchData() {
         res = await leaderboardAPI.getBalanceLeaderboard(1, 20)
         break
       case 'consumption':
-        res = await leaderboardAPI.getConsumptionLeaderboard(activePeriod.value, 1, 20)
+        res = await leaderboardAPI.getConsumptionLeaderboard(activePeriod.value as 'daily' | 'weekly' | 'monthly', 1, 20)
+        break
+      case 'transfer':
+        res = await leaderboardAPI.getTransferLeaderboard(activePeriod.value as 'day' | 'week' | 'month', 1, 20)
         break
       case 'checkin':
         res = await leaderboardAPI.getCheckinLeaderboard(1, 20)
