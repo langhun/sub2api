@@ -685,6 +685,7 @@ export interface UpdateSettingsRequest {
   redpacket_max_count?: number;
   redpacket_expire_hours?: number;
 }
+/**
  * @returns System settings
  */
 export async function getSettings(): Promise<SystemSettings> {
