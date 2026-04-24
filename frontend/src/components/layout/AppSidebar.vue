@@ -684,6 +684,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/checkin', label: t('nav.checkin'), icon: StarIcon },
     { path: '/transfer', label: t('nav.transfer'), icon: DollarIcon, hideInSimpleMode: true },
     { path: '/redpacket', label: t('nav.redpacket'), icon: GiftIcon, hideInSimpleMode: true },
+    { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
