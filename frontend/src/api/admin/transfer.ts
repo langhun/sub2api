@@ -1,5 +1,7 @@
 import { apiClient } from '../client'
-import type { TransferRecord } from './transfer'
+import type { TransferRecord } from '../transfer'
+
+export type { TransferRecord }
 
 export interface DailyFeeStat {
   date: string
@@ -7,47 +9,42 @@ export interface DailyFeeStat {
   count: number
 }
 
-export async function listTransfers(params: {
-  page?: number
-  page_size?: number
-  status?: string
-  transfer_type?: string
-  user_id?: number
-  start_time?: string
-  end_time?: string
-}): Promise<{ items: TransferRecord[]; total: number; page: number; page_size: number }> {
-  const { data } = await apiClient.get('/admin/transfers', { params })
-  return data
+const adminTransferAPI = {
+  listTransfers(params: {
+    page?: number
+    page_size?: number
+    status?: string
+    transfer_type?: string
+    user_id?: number
+    start_time?: string
+    end_time?: string
+  }) {
+    return apiClient.get<{ items: TransferRecord[]; total: number; page: number; page_size: number }>('/admin/transfers', { params })
+      .then(res => res.data)
+  },
+
+  freezeTransfer(id: number) {
+    return apiClient.put(`/admin/transfers/${id}/freeze`)
+  },
+
+  revokeTransfer(id: number, reason: string) {
+    return apiClient.put(`/admin/transfers/${id}/revoke`, { reason })
+  },
+
+  batchDistribute(targets: { user_id: number; amount: number }[], memo?: string) {
+    return apiClient.post<{ items: TransferRecord[]; count: number }>('/admin/transfers/batch', { targets, memo })
+      .then(res => res.data)
+  },
+
+  getFeeStats(params: { start_time?: string; end_time?: string }) {
+    return apiClient.get<DailyFeeStat[]>('/admin/transfers/stats', { params })
+      .then(res => res.data)
+  },
+
+  listRedPackets(params: { page?: number; page_size?: number }) {
+    return apiClient.get<{ items: any[]; total: number; page: number; page_size: number }>('/admin/redpackets', { params })
+      .then(res => res.data)
+  },
 }
 
-export async function freezeTransfer(id: number): Promise<void> {
-  await apiClient.put(`/admin/transfers/${id}/freeze`)
-}
-
-export async function revokeTransfer(id: number, reason: string): Promise<void> {
-  await apiClient.put(`/admin/transfers/${id}/revoke`, { reason })
-}
-
-export async function batchDistribute(
-  targets: { user_id: number; amount: number }[],
-  memo?: string,
-): Promise<{ items: TransferRecord[]; count: number }> {
-  const { data } = await apiClient.post('/admin/transfers/batch', { targets, memo })
-  return data
-}
-
-export async function getFeeStats(params: {
-  start_time?: string
-  end_time?: string
-}): Promise<DailyFeeStat[]> {
-  const { data } = await apiClient.get('/admin/transfers/stats', { params })
-  return data
-}
-
-export async function listRedPackets(params: {
-  page?: number
-  page_size?: number
-}): Promise<{ items: any[]; total: number; page: number; page_size: number }> {
-  const { data } = await apiClient.get('/admin/redpackets', { params })
-  return data
-}
+export default adminTransferAPI

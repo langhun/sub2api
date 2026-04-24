@@ -51,7 +51,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { transferAPI, getTransferStats, validateTransfer } from '@/api/transfer'
+import { transferBalance, getTransferStats, validateTransfer } from '@/api'
 import type { TransferStats } from '@/api/transfer'
 
 const { t } = useI18n()
@@ -89,7 +89,7 @@ async function handleTransfer() {
   success.value = false
   loading.value = true
   try {
-    await transferAPI(form.receiverId, form.amount, form.memo || undefined)
+    await transferBalance(form.receiverId, form.amount, form.memo || undefined)
     success.value = true
     form.receiverId = 0
     form.amount = 0
