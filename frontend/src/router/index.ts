@@ -294,6 +294,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
+      title: 'Transfer',
       titleKey: 'nav.transfer',
     }
   },
@@ -304,17 +305,8 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
+      title: 'Red Packet',
       titleKey: 'nav.redpacket',
-    }
-  },
-  {
-    path: '/leaderboard',
-    name: 'Leaderboard',
-    component: () => import('@/views/user/TransferLeaderboardView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      titleKey: 'nav.leaderboard',
     }
   },
   {
