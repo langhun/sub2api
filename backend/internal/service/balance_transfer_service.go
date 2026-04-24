@@ -404,6 +404,11 @@ func (s *BalanceTransferService) GetRedPacketDetail(ctx context.Context, redPack
 	if err != nil {
 		claims = []*RedPacketClaimRecord{}
 	}
+	for _, c := range claims {
+		if u, err := s.userRepo.GetByID(ctx, c.UserID); err == nil {
+			c.UserEmail = u.Email
+		}
+	}
 	return rp, claims, nil
 }
 

@@ -100,6 +100,7 @@ export interface RedPacketClaimRecord {
   id: number
   redpacket_id: number
   user_id: number
+  user_email: string
   amount: number
   transfer_id: number | null
   created_at: string
