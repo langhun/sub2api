@@ -288,6 +288,36 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/transfer',
+    name: 'Transfer',
+    component: () => import('@/views/user/TransferView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      titleKey: 'nav.transfer',
+    }
+  },
+  {
+    path: '/redpacket',
+    name: 'RedPacket',
+    component: () => import('@/views/user/RedPacketView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      titleKey: 'nav.redpacket',
+    }
+  },
+  {
+    path: '/leaderboard',
+    name: 'Leaderboard',
+    component: () => import('@/views/user/TransferLeaderboardView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      titleKey: 'nav.leaderboard',
+    }
+  },
+  {
     path: '/orders',
     name: 'OrderList',
     component: () => import('@/views/user/UserOrdersView.vue'),
@@ -508,6 +538,17 @@ const routes: RouteRecordRaw[] = [
       title: 'Redeem Code Management',
       titleKey: 'admin.redeem.title',
       descriptionKey: 'admin.redeem.description'
+    }
+  },
+  {
+    path: '/admin/transfer',
+    name: 'AdminTransfer',
+    component: () => import('@/views/admin/TransferManageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Transfer Management',
+      titleKey: 'nav.transferManage',
     }
   },
   {

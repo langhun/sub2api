@@ -206,6 +206,18 @@ type SystemSettings struct {
 
 	// Available Channels feature switch (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	// Balance Transfer 余额流转设置
+	TransferEnabled            bool    `json:"transfer_enabled"`
+	TransferFeeRate            float64 `json:"transfer_fee_rate"`
+	TransferMinAmount          float64 `json:"transfer_min_amount"`
+	TransferMaxAmount          float64 `json:"transfer_max_amount"`
+	TransferDailyLimit         float64 `json:"transfer_daily_limit"`
+	TransferDailyCountLimit    int     `json:"transfer_daily_count_limit"`
+	TransferVIPFeeExempt       bool    `json:"transfer_vip_fee_exempt"`
+	RedPacketEnabled           bool    `json:"redpacket_enabled"`
+	RedPacketMaxCount          int     `json:"redpacket_max_count"`
+	RedPacketExpireHours       int     `json:"redpacket_expire_hours"`
 }
 
 type DefaultSubscriptionSetting struct {

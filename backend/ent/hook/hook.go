@@ -93,6 +93,42 @@ func (f AuthIdentityChannelFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuthIdentityChannelMutation", m)
 }
 
+// The BalanceRedPacketFunc type is an adapter to allow the use of ordinary
+// function as BalanceRedPacket mutator.
+type BalanceRedPacketFunc func(context.Context, *ent.BalanceRedPacketMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BalanceRedPacketFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BalanceRedPacketMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BalanceRedPacketMutation", m)
+}
+
+// The BalanceRedPacketClaimFunc type is an adapter to allow the use of ordinary
+// function as BalanceRedPacketClaim mutator.
+type BalanceRedPacketClaimFunc func(context.Context, *ent.BalanceRedPacketClaimMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BalanceRedPacketClaimFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BalanceRedPacketClaimMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BalanceRedPacketClaimMutation", m)
+}
+
+// The BalanceTransferFunc type is an adapter to allow the use of ordinary
+// function as BalanceTransfer mutator.
+type BalanceTransferFunc func(context.Context, *ent.BalanceTransferMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BalanceTransferFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BalanceTransferMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BalanceTransferMutation", m)
+}
+
 // The ChannelMonitorFunc type is an adapter to allow the use of ordinary
 // function as ChannelMonitor mutator.
 type ChannelMonitorFunc func(context.Context, *ent.ChannelMonitorMutation) (ent.Value, error)

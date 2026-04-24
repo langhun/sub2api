@@ -22,6 +22,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacketclaim"
+	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
@@ -76,6 +79,12 @@ type Client struct {
 	AuthIdentity *AuthIdentityClient
 	// AuthIdentityChannel is the client for interacting with the AuthIdentityChannel builders.
 	AuthIdentityChannel *AuthIdentityChannelClient
+	// BalanceRedPacket is the client for interacting with the BalanceRedPacket builders.
+	BalanceRedPacket *BalanceRedPacketClient
+	// BalanceRedPacketClaim is the client for interacting with the BalanceRedPacketClaim builders.
+	BalanceRedPacketClaim *BalanceRedPacketClaimClient
+	// BalanceTransfer is the client for interacting with the BalanceTransfer builders.
+	BalanceTransfer *BalanceTransferClient
 	// ChannelMonitor is the client for interacting with the ChannelMonitor builders.
 	ChannelMonitor *ChannelMonitorClient
 	// ChannelMonitorDailyRollup is the client for interacting with the ChannelMonitorDailyRollup builders.
@@ -156,6 +165,9 @@ func (c *Client) init() {
 	c.AnnouncementRead = NewAnnouncementReadClient(c.config)
 	c.AuthIdentity = NewAuthIdentityClient(c.config)
 	c.AuthIdentityChannel = NewAuthIdentityChannelClient(c.config)
+	c.BalanceRedPacket = NewBalanceRedPacketClient(c.config)
+	c.BalanceRedPacketClaim = NewBalanceRedPacketClaimClient(c.config)
+	c.BalanceTransfer = NewBalanceTransferClient(c.config)
 	c.ChannelMonitor = NewChannelMonitorClient(c.config)
 	c.ChannelMonitorDailyRollup = NewChannelMonitorDailyRollupClient(c.config)
 	c.ChannelMonitorHistory = NewChannelMonitorHistoryClient(c.config)
@@ -286,6 +298,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AnnouncementRead:              NewAnnouncementReadClient(cfg),
 		AuthIdentity:                  NewAuthIdentityClient(cfg),
 		AuthIdentityChannel:           NewAuthIdentityChannelClient(cfg),
+		BalanceRedPacket:              NewBalanceRedPacketClient(cfg),
+		BalanceRedPacketClaim:         NewBalanceRedPacketClaimClient(cfg),
+		BalanceTransfer:               NewBalanceTransferClient(cfg),
 		ChannelMonitor:                NewChannelMonitorClient(cfg),
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
@@ -343,6 +358,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AnnouncementRead:              NewAnnouncementReadClient(cfg),
 		AuthIdentity:                  NewAuthIdentityClient(cfg),
 		AuthIdentityChannel:           NewAuthIdentityChannelClient(cfg),
+		BalanceRedPacket:              NewBalanceRedPacketClient(cfg),
+		BalanceRedPacketClaim:         NewBalanceRedPacketClaimClient(cfg),
+		BalanceTransfer:               NewBalanceTransferClient(cfg),
 		ChannelMonitor:                NewChannelMonitorClient(cfg),
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
@@ -404,7 +422,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.AuthIdentity, c.AuthIdentityChannel, c.ChannelMonitor,
+		c.AuthIdentity, c.AuthIdentityChannel, c.BalanceRedPacket,
+		c.BalanceRedPacketClaim, c.BalanceTransfer, c.ChannelMonitor,
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
 		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
@@ -424,7 +443,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.AuthIdentity, c.AuthIdentityChannel, c.ChannelMonitor,
+		c.AuthIdentity, c.AuthIdentityChannel, c.BalanceRedPacket,
+		c.BalanceRedPacketClaim, c.BalanceTransfer, c.ChannelMonitor,
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
 		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
@@ -456,6 +476,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuthIdentity.mutate(ctx, m)
 	case *AuthIdentityChannelMutation:
 		return c.AuthIdentityChannel.mutate(ctx, m)
+	case *BalanceRedPacketMutation:
+		return c.BalanceRedPacket.mutate(ctx, m)
+	case *BalanceRedPacketClaimMutation:
+		return c.BalanceRedPacketClaim.mutate(ctx, m)
+	case *BalanceTransferMutation:
+		return c.BalanceTransfer.mutate(ctx, m)
 	case *ChannelMonitorMutation:
 		return c.ChannelMonitor.mutate(ctx, m)
 	case *ChannelMonitorDailyRollupMutation:
@@ -1662,6 +1688,485 @@ func (c *AuthIdentityChannelClient) mutate(ctx context.Context, m *AuthIdentityC
 		return (&AuthIdentityChannelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AuthIdentityChannel mutation op: %q", m.Op())
+	}
+}
+
+// BalanceRedPacketClient is a client for the BalanceRedPacket schema.
+type BalanceRedPacketClient struct {
+	config
+}
+
+// NewBalanceRedPacketClient returns a client for the BalanceRedPacket from the given config.
+func NewBalanceRedPacketClient(c config) *BalanceRedPacketClient {
+	return &BalanceRedPacketClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `balanceredpacket.Hooks(f(g(h())))`.
+func (c *BalanceRedPacketClient) Use(hooks ...Hook) {
+	c.hooks.BalanceRedPacket = append(c.hooks.BalanceRedPacket, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `balanceredpacket.Intercept(f(g(h())))`.
+func (c *BalanceRedPacketClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BalanceRedPacket = append(c.inters.BalanceRedPacket, interceptors...)
+}
+
+// Create returns a builder for creating a BalanceRedPacket entity.
+func (c *BalanceRedPacketClient) Create() *BalanceRedPacketCreate {
+	mutation := newBalanceRedPacketMutation(c.config, OpCreate)
+	return &BalanceRedPacketCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BalanceRedPacket entities.
+func (c *BalanceRedPacketClient) CreateBulk(builders ...*BalanceRedPacketCreate) *BalanceRedPacketCreateBulk {
+	return &BalanceRedPacketCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BalanceRedPacketClient) MapCreateBulk(slice any, setFunc func(*BalanceRedPacketCreate, int)) *BalanceRedPacketCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BalanceRedPacketCreateBulk{err: fmt.Errorf("calling to BalanceRedPacketClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BalanceRedPacketCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BalanceRedPacketCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BalanceRedPacket.
+func (c *BalanceRedPacketClient) Update() *BalanceRedPacketUpdate {
+	mutation := newBalanceRedPacketMutation(c.config, OpUpdate)
+	return &BalanceRedPacketUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BalanceRedPacketClient) UpdateOne(_m *BalanceRedPacket) *BalanceRedPacketUpdateOne {
+	mutation := newBalanceRedPacketMutation(c.config, OpUpdateOne, withBalanceRedPacket(_m))
+	return &BalanceRedPacketUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BalanceRedPacketClient) UpdateOneID(id int64) *BalanceRedPacketUpdateOne {
+	mutation := newBalanceRedPacketMutation(c.config, OpUpdateOne, withBalanceRedPacketID(id))
+	return &BalanceRedPacketUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BalanceRedPacket.
+func (c *BalanceRedPacketClient) Delete() *BalanceRedPacketDelete {
+	mutation := newBalanceRedPacketMutation(c.config, OpDelete)
+	return &BalanceRedPacketDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BalanceRedPacketClient) DeleteOne(_m *BalanceRedPacket) *BalanceRedPacketDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BalanceRedPacketClient) DeleteOneID(id int64) *BalanceRedPacketDeleteOne {
+	builder := c.Delete().Where(balanceredpacket.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BalanceRedPacketDeleteOne{builder}
+}
+
+// Query returns a query builder for BalanceRedPacket.
+func (c *BalanceRedPacketClient) Query() *BalanceRedPacketQuery {
+	return &BalanceRedPacketQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBalanceRedPacket},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BalanceRedPacket entity by its id.
+func (c *BalanceRedPacketClient) Get(ctx context.Context, id int64) (*BalanceRedPacket, error) {
+	return c.Query().Where(balanceredpacket.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BalanceRedPacketClient) GetX(ctx context.Context, id int64) *BalanceRedPacket {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySender queries the sender edge of a BalanceRedPacket.
+func (c *BalanceRedPacketClient) QuerySender(_m *BalanceRedPacket) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balanceredpacket.Table, balanceredpacket.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, balanceredpacket.SenderTable, balanceredpacket.SenderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryClaims queries the claims edge of a BalanceRedPacket.
+func (c *BalanceRedPacketClient) QueryClaims(_m *BalanceRedPacket) *BalanceRedPacketClaimQuery {
+	query := (&BalanceRedPacketClaimClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balanceredpacket.Table, balanceredpacket.FieldID, id),
+			sqlgraph.To(balanceredpacketclaim.Table, balanceredpacketclaim.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, balanceredpacket.ClaimsTable, balanceredpacket.ClaimsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BalanceRedPacketClient) Hooks() []Hook {
+	return c.hooks.BalanceRedPacket
+}
+
+// Interceptors returns the client interceptors.
+func (c *BalanceRedPacketClient) Interceptors() []Interceptor {
+	return c.inters.BalanceRedPacket
+}
+
+func (c *BalanceRedPacketClient) mutate(ctx context.Context, m *BalanceRedPacketMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BalanceRedPacketCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BalanceRedPacketUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BalanceRedPacketUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BalanceRedPacketDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BalanceRedPacket mutation op: %q", m.Op())
+	}
+}
+
+// BalanceRedPacketClaimClient is a client for the BalanceRedPacketClaim schema.
+type BalanceRedPacketClaimClient struct {
+	config
+}
+
+// NewBalanceRedPacketClaimClient returns a client for the BalanceRedPacketClaim from the given config.
+func NewBalanceRedPacketClaimClient(c config) *BalanceRedPacketClaimClient {
+	return &BalanceRedPacketClaimClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `balanceredpacketclaim.Hooks(f(g(h())))`.
+func (c *BalanceRedPacketClaimClient) Use(hooks ...Hook) {
+	c.hooks.BalanceRedPacketClaim = append(c.hooks.BalanceRedPacketClaim, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `balanceredpacketclaim.Intercept(f(g(h())))`.
+func (c *BalanceRedPacketClaimClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BalanceRedPacketClaim = append(c.inters.BalanceRedPacketClaim, interceptors...)
+}
+
+// Create returns a builder for creating a BalanceRedPacketClaim entity.
+func (c *BalanceRedPacketClaimClient) Create() *BalanceRedPacketClaimCreate {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpCreate)
+	return &BalanceRedPacketClaimCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BalanceRedPacketClaim entities.
+func (c *BalanceRedPacketClaimClient) CreateBulk(builders ...*BalanceRedPacketClaimCreate) *BalanceRedPacketClaimCreateBulk {
+	return &BalanceRedPacketClaimCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BalanceRedPacketClaimClient) MapCreateBulk(slice any, setFunc func(*BalanceRedPacketClaimCreate, int)) *BalanceRedPacketClaimCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BalanceRedPacketClaimCreateBulk{err: fmt.Errorf("calling to BalanceRedPacketClaimClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BalanceRedPacketClaimCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BalanceRedPacketClaimCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BalanceRedPacketClaim.
+func (c *BalanceRedPacketClaimClient) Update() *BalanceRedPacketClaimUpdate {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpUpdate)
+	return &BalanceRedPacketClaimUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BalanceRedPacketClaimClient) UpdateOne(_m *BalanceRedPacketClaim) *BalanceRedPacketClaimUpdateOne {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpUpdateOne, withBalanceRedPacketClaim(_m))
+	return &BalanceRedPacketClaimUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BalanceRedPacketClaimClient) UpdateOneID(id int64) *BalanceRedPacketClaimUpdateOne {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpUpdateOne, withBalanceRedPacketClaimID(id))
+	return &BalanceRedPacketClaimUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BalanceRedPacketClaim.
+func (c *BalanceRedPacketClaimClient) Delete() *BalanceRedPacketClaimDelete {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpDelete)
+	return &BalanceRedPacketClaimDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BalanceRedPacketClaimClient) DeleteOne(_m *BalanceRedPacketClaim) *BalanceRedPacketClaimDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BalanceRedPacketClaimClient) DeleteOneID(id int64) *BalanceRedPacketClaimDeleteOne {
+	builder := c.Delete().Where(balanceredpacketclaim.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BalanceRedPacketClaimDeleteOne{builder}
+}
+
+// Query returns a query builder for BalanceRedPacketClaim.
+func (c *BalanceRedPacketClaimClient) Query() *BalanceRedPacketClaimQuery {
+	return &BalanceRedPacketClaimQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBalanceRedPacketClaim},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BalanceRedPacketClaim entity by its id.
+func (c *BalanceRedPacketClaimClient) Get(ctx context.Context, id int64) (*BalanceRedPacketClaim, error) {
+	return c.Query().Where(balanceredpacketclaim.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BalanceRedPacketClaimClient) GetX(ctx context.Context, id int64) *BalanceRedPacketClaim {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryRedpacket queries the redpacket edge of a BalanceRedPacketClaim.
+func (c *BalanceRedPacketClaimClient) QueryRedpacket(_m *BalanceRedPacketClaim) *BalanceRedPacketQuery {
+	query := (&BalanceRedPacketClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balanceredpacketclaim.Table, balanceredpacketclaim.FieldID, id),
+			sqlgraph.To(balanceredpacket.Table, balanceredpacket.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, balanceredpacketclaim.RedpacketTable, balanceredpacketclaim.RedpacketColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BalanceRedPacketClaimClient) Hooks() []Hook {
+	return c.hooks.BalanceRedPacketClaim
+}
+
+// Interceptors returns the client interceptors.
+func (c *BalanceRedPacketClaimClient) Interceptors() []Interceptor {
+	return c.inters.BalanceRedPacketClaim
+}
+
+func (c *BalanceRedPacketClaimClient) mutate(ctx context.Context, m *BalanceRedPacketClaimMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BalanceRedPacketClaimCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BalanceRedPacketClaimUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BalanceRedPacketClaimUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BalanceRedPacketClaimDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BalanceRedPacketClaim mutation op: %q", m.Op())
+	}
+}
+
+// BalanceTransferClient is a client for the BalanceTransfer schema.
+type BalanceTransferClient struct {
+	config
+}
+
+// NewBalanceTransferClient returns a client for the BalanceTransfer from the given config.
+func NewBalanceTransferClient(c config) *BalanceTransferClient {
+	return &BalanceTransferClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `balancetransfer.Hooks(f(g(h())))`.
+func (c *BalanceTransferClient) Use(hooks ...Hook) {
+	c.hooks.BalanceTransfer = append(c.hooks.BalanceTransfer, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `balancetransfer.Intercept(f(g(h())))`.
+func (c *BalanceTransferClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BalanceTransfer = append(c.inters.BalanceTransfer, interceptors...)
+}
+
+// Create returns a builder for creating a BalanceTransfer entity.
+func (c *BalanceTransferClient) Create() *BalanceTransferCreate {
+	mutation := newBalanceTransferMutation(c.config, OpCreate)
+	return &BalanceTransferCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BalanceTransfer entities.
+func (c *BalanceTransferClient) CreateBulk(builders ...*BalanceTransferCreate) *BalanceTransferCreateBulk {
+	return &BalanceTransferCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BalanceTransferClient) MapCreateBulk(slice any, setFunc func(*BalanceTransferCreate, int)) *BalanceTransferCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BalanceTransferCreateBulk{err: fmt.Errorf("calling to BalanceTransferClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BalanceTransferCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BalanceTransferCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BalanceTransfer.
+func (c *BalanceTransferClient) Update() *BalanceTransferUpdate {
+	mutation := newBalanceTransferMutation(c.config, OpUpdate)
+	return &BalanceTransferUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BalanceTransferClient) UpdateOne(_m *BalanceTransfer) *BalanceTransferUpdateOne {
+	mutation := newBalanceTransferMutation(c.config, OpUpdateOne, withBalanceTransfer(_m))
+	return &BalanceTransferUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BalanceTransferClient) UpdateOneID(id int64) *BalanceTransferUpdateOne {
+	mutation := newBalanceTransferMutation(c.config, OpUpdateOne, withBalanceTransferID(id))
+	return &BalanceTransferUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BalanceTransfer.
+func (c *BalanceTransferClient) Delete() *BalanceTransferDelete {
+	mutation := newBalanceTransferMutation(c.config, OpDelete)
+	return &BalanceTransferDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BalanceTransferClient) DeleteOne(_m *BalanceTransfer) *BalanceTransferDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BalanceTransferClient) DeleteOneID(id int64) *BalanceTransferDeleteOne {
+	builder := c.Delete().Where(balancetransfer.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BalanceTransferDeleteOne{builder}
+}
+
+// Query returns a query builder for BalanceTransfer.
+func (c *BalanceTransferClient) Query() *BalanceTransferQuery {
+	return &BalanceTransferQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBalanceTransfer},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BalanceTransfer entity by its id.
+func (c *BalanceTransferClient) Get(ctx context.Context, id int64) (*BalanceTransfer, error) {
+	return c.Query().Where(balancetransfer.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BalanceTransferClient) GetX(ctx context.Context, id int64) *BalanceTransfer {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySender queries the sender edge of a BalanceTransfer.
+func (c *BalanceTransferClient) QuerySender(_m *BalanceTransfer) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balancetransfer.Table, balancetransfer.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, balancetransfer.SenderTable, balancetransfer.SenderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryReceiver queries the receiver edge of a BalanceTransfer.
+func (c *BalanceTransferClient) QueryReceiver(_m *BalanceTransfer) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balancetransfer.Table, balancetransfer.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, balancetransfer.ReceiverTable, balancetransfer.ReceiverColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BalanceTransferClient) Hooks() []Hook {
+	return c.hooks.BalanceTransfer
+}
+
+// Interceptors returns the client interceptors.
+func (c *BalanceTransferClient) Interceptors() []Interceptor {
+	return c.inters.BalanceTransfer
+}
+
+func (c *BalanceTransferClient) mutate(ctx context.Context, m *BalanceTransferMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BalanceTransferCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BalanceTransferUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BalanceTransferUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BalanceTransferDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BalanceTransfer mutation op: %q", m.Op())
 	}
 }
 
@@ -5907,6 +6412,54 @@ func (c *UserClient) QueryCheckins(_m *User) *CheckinQuery {
 	return query
 }
 
+// QuerySentTransfers queries the sent_transfers edge of a User.
+func (c *UserClient) QuerySentTransfers(_m *User) *BalanceTransferQuery {
+	query := (&BalanceTransferClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SentTransfersTable, user.SentTransfersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryReceivedTransfers queries the received_transfers edge of a User.
+func (c *UserClient) QueryReceivedTransfers(_m *User) *BalanceTransferQuery {
+	query := (&BalanceTransferClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ReceivedTransfersTable, user.ReceivedTransfersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRedpackets queries the redpackets edge of a User.
+func (c *UserClient) QueryRedpackets(_m *User) *BalanceRedPacketQuery {
+	query := (&BalanceRedPacketClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(balanceredpacket.Table, balanceredpacket.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.RedpacketsTable, user.RedpacketsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryAuthIdentities queries the auth_identities edge of a User.
 func (c *UserClient) QueryAuthIdentities(_m *User) *AuthIdentityQuery {
 	query := (&AuthIdentityClient{config: c.config}).Query()
@@ -6617,25 +7170,27 @@ func (c *UserSubscriptionClient) mutate(ctx context.Context, m *UserSubscription
 type (
 	hooks struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
-		AuthIdentityChannel, ChannelMonitor, ChannelMonitorDailyRollup,
-		ChannelMonitorHistory, ChannelMonitorRequestTemplate, Checkin,
-		CheckinBlindboxRecord, CheckinPrizeItem, ErrorPassthroughRule, Group,
-		IdempotencyRecord, IdentityAdoptionDecision, ModelPricing, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserSubscription []ent.Hook
+		AuthIdentityChannel, BalanceRedPacket, BalanceRedPacketClaim, BalanceTransfer,
+		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
+		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
+		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
+		IdentityAdoptionDecision, ModelPricing, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
-		AuthIdentityChannel, ChannelMonitor, ChannelMonitorDailyRollup,
-		ChannelMonitorHistory, ChannelMonitorRequestTemplate, Checkin,
-		CheckinBlindboxRecord, CheckinPrizeItem, ErrorPassthroughRule, Group,
-		IdempotencyRecord, IdentityAdoptionDecision, ModelPricing, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserSubscription []ent.Interceptor
+		AuthIdentityChannel, BalanceRedPacket, BalanceRedPacketClaim, BalanceTransfer,
+		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
+		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
+		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
+		IdentityAdoptionDecision, ModelPricing, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserSubscription []ent.Interceptor
 	}
 )
 

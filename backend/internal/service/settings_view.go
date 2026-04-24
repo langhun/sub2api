@@ -183,6 +183,18 @@ type SystemSettings struct {
 	CheckinBlindboxEnabled      bool
 	CheckinBlindboxTriggerType  string
 	CheckinBlindboxInterval     int
+
+	// Balance Transfer 余额流转设置
+	TransferEnabled            bool
+	TransferFeeRate            float64
+	TransferMinAmount          float64
+	TransferMaxAmount          float64
+	TransferDailyLimit         float64
+	TransferDailyCountLimit    int
+	TransferVIPFeeExempt       bool
+	RedPacketEnabled           bool
+	RedPacketMaxCount          int
+	RedPacketExpireHours       int
 }
 
 type DefaultSubscriptionSetting struct {

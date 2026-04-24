@@ -491,6 +491,18 @@ export interface SystemSettings {
 
   // Available Channels feature switch
   available_channels_enabled: boolean;
+
+  // Balance Transfer 余额流转设置
+  transfer_enabled: boolean;
+  transfer_fee_rate: number;
+  transfer_min_amount: number;
+  transfer_max_amount: number;
+  transfer_daily_limit: number;
+  transfer_daily_count_limit: number;
+  transfer_vip_fee_exempt: boolean;
+  redpacket_enabled: boolean;
+  redpacket_max_count: number;
+  redpacket_expire_hours: number;
 }
 
 export interface UpdateSettingsRequest {
@@ -660,10 +672,19 @@ export interface UpdateSettingsRequest {
 
   // Available Channels feature switch
   available_channels_enabled?: boolean;
-}
 
-/**
- * Get all system settings
+  // Balance Transfer 余额流转设置
+  transfer_enabled?: boolean;
+  transfer_fee_rate?: number;
+  transfer_min_amount?: number;
+  transfer_max_amount?: number;
+  transfer_daily_limit?: number;
+  transfer_daily_count_limit?: number;
+  transfer_vip_fee_exempt?: boolean;
+  redpacket_enabled?: boolean;
+  redpacket_max_count?: number;
+  redpacket_expire_hours?: number;
+}
  * @returns System settings
  */
 export async function getSettings(): Promise<SystemSettings> {
