@@ -1048,7 +1048,7 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImagesStrict(
 	excludedIDs map[int64]struct{},
 	requiredCapability OpenAIImagesCapability,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
-	return s.selectAccountWithScheduler(ctx, groupID, "", sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportHTTPSSE, requiredCapability)
+	return s.selectAccountWithScheduler(ctx, groupID, "", sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportHTTPSSE, requiredCapability, false)
 }
 
 func (s *OpenAIGatewayService) HasStrictOpenAINativeImageAccounts(ctx context.Context, groupID *int64, requestedModel string) bool {
