@@ -42,6 +42,7 @@ func ProvideAdminHandlers(
 	blindboxHandler *admin.BlindboxHandler,
 	transferAdminHandler *admin.TransferAdminHandler,
 	affiliateHandler *admin.AffiliateHandler,
+) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,
