@@ -37,6 +37,8 @@ func ProvideAdminHandlers(
 	channelMonitorHandler *admin.ChannelMonitorHandler,
 	channelMonitorTemplateHandler *admin.ChannelMonitorRequestTemplateHandler,
 	paymentHandler *admin.PaymentHandler,
+	blindboxHandler *admin.BlindboxHandler,
+	transferAdminHandler *admin.TransferAdminHandler,
 	affiliateHandler *admin.AffiliateHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
@@ -68,6 +70,8 @@ func ProvideAdminHandlers(
 		ChannelMonitor:         channelMonitorHandler,
 		ChannelMonitorTemplate: channelMonitorTemplateHandler,
 		Payment:                paymentHandler,
+		Blindbox:               blindboxHandler,
+		TransferAdmin:          transferAdminHandler,
 		Affiliate:              affiliateHandler,
 	}
 }

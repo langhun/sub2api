@@ -4095,11 +4095,11 @@
                             <button
                               v-if="entry.aff_code_custom"
                               class="text-yellow-600 hover:underline"
-                              @click="resetAffiliateCode(entry)"
+                              @click="askResetAffiliateUser(entry)"
                             >
                               {{ t('admin.settings.features.affiliate.customUsers.resetCode') }}
                             </button>
-                            <button class="text-red-600 hover:underline" @click="clearAffiliateUser(entry)">
+                            <button class="text-red-600 hover:underline" @click="askClearAffiliateUser(entry)">
                               {{ t('common.delete') }}
                             </button>
                           </div>
@@ -7872,11 +7872,6 @@ const affiliateBatchModal = reactive<{
   rate: "",
 });
 
-// runAffiliateAction wraps the common confirm → call → toast → reload pattern
-// for row-level mutations (reset code, clear settings). Returns true on success.
-async function runAffiliateAction(confirmKey: string, fn: () => Promise<unknown>): Promise<boolean> {
-  if (confirmKey && !window.confirm(t(confirmKey))) return false;
-=======
 // affiliateConfirmDialog drives the project-standard <ConfirmDialog>. We can't
 // `await` the user's response from the dialog component, so the confirm action
 // runs from the @confirm callback once the user clicks the dialog's confirm
@@ -8116,6 +8111,17 @@ function askResetAffiliateUser(entry: AffiliateAdminEntry) {
   openAffiliateConfirm(
     t("admin.settings.features.affiliate.customUsers.resetTitle"),
     t("admin.settings.features.affiliate.customUsers.resetMessage", {
+      email: entry.email || `#${entry.user_id}`,
+    }),
+    t("common.delete"),
+    () => affiliatesAPI.clearUserSettings(entry.user_id),
+  );
+}
+
+function askClearAffiliateUser(entry: AffiliateAdminEntry) {
+  openAffiliateConfirm(
+    t("admin.settings.features.affiliate.customUsers.clearTitle"),
+    t("admin.settings.features.affiliate.customUsers.clearMessage", {
       email: entry.email || `#${entry.user_id}`,
     }),
     t("common.delete"),
