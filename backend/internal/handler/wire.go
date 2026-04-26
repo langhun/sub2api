@@ -40,6 +40,8 @@ func ProvideAdminHandlers(
 	blindboxHandler *admin.BlindboxHandler,
 	transferAdminHandler *admin.TransferAdminHandler,
 	affiliateHandler *admin.AffiliateHandler,
+	monitoringHandler *admin.MonitoringHandler,
+	modelPricingHandler *admin.ModelPricingHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
@@ -73,6 +75,8 @@ func ProvideAdminHandlers(
 		Blindbox:               blindboxHandler,
 		TransferAdmin:          transferAdminHandler,
 		Affiliate:              affiliateHandler,
+		Monitoring:             monitoringHandler,
+		ModelPricing:           modelPricingHandler,
 	}
 }
 
