@@ -157,6 +157,22 @@ vi.mock("vue-i18n", async () => {
     "admin.settings.openaiExperimentalScheduler.description": "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑，不代表上游 OpenAI 官方能力。",
     "admin.settings.site.uploadImage": "上传图片",
     "admin.settings.site.remove": "移除",
+    "admin.settings.site.homeNavLeaderboardEnabled": "显示排行榜入口",
+    "admin.settings.site.homeNavLeaderboardEnabledHint": "在公开首页顶部显示或隐藏排行榜入口。",
+    "admin.settings.site.homeNavKeyUsageEnabled": "显示用量查询入口",
+    "admin.settings.site.homeNavKeyUsageEnabledHint": "在公开首页顶部显示或隐藏用量查询入口。",
+    "admin.settings.site.homeNavMonitoringEnabled": "显示平台监控入口",
+    "admin.settings.site.homeNavMonitoringEnabledHint": "在公开首页顶部显示或隐藏平台监控入口。",
+    "admin.settings.site.homeNavPricingEnabled": "显示模型定价入口",
+    "admin.settings.site.homeNavPricingEnabledHint": "在公开首页顶部显示或隐藏模型定价入口。",
+    "admin.settings.site.leaderboardBalanceEnabled": "显示余额排行榜",
+    "admin.settings.site.leaderboardBalanceEnabledHint": "控制排行榜页面是否显示余额标签。",
+    "admin.settings.site.leaderboardConsumptionEnabled": "显示消费排行榜",
+    "admin.settings.site.leaderboardConsumptionEnabledHint": "控制排行榜页面是否显示消费标签。",
+    "admin.settings.site.leaderboardTransferEnabled": "显示转账排行榜",
+    "admin.settings.site.leaderboardTransferEnabledHint": "控制排行榜页面是否显示转账标签。",
+    "admin.settings.site.leaderboardCheckinEnabled": "显示签到排行榜",
+    "admin.settings.site.leaderboardCheckinEnabledHint": "控制排行榜页面是否显示签到标签。",
   };
   return {
     ...actual,
@@ -293,6 +309,14 @@ const baseSettingsResponse = {
   doc_url: "",
   home_content: "",
   home_nav_links_enabled: true,
+  home_nav_leaderboard_enabled: true,
+  home_nav_key_usage_enabled: true,
+  home_nav_monitoring_enabled: true,
+  home_nav_pricing_enabled: true,
+  leaderboard_balance_enabled: true,
+  leaderboard_consumption_enabled: true,
+  leaderboard_transfer_enabled: true,
+  leaderboard_checkin_enabled: true,
   hide_ccs_import_button: false,
   table_default_page_size: 20,
   table_page_size_options: [10, 20, 50, 100],
@@ -568,6 +592,77 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_source");
     expect(payload).not.toHaveProperty("payment_visible_method_alipay_enabled");
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_enabled");
+  });
+
+  it("renders and submits split home nav link switches", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      home_nav_leaderboard_enabled: false,
+      home_nav_key_usage_enabled: true,
+      home_nav_monitoring_enabled: false,
+      home_nav_pricing_enabled: true,
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("显示排行榜入口");
+    expect(wrapper.text()).toContain("显示用量查询入口");
+    expect(wrapper.text()).toContain("显示平台监控入口");
+    expect(wrapper.text()).toContain("显示模型定价入口");
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        home_nav_leaderboard_enabled: false,
+        home_nav_key_usage_enabled: true,
+        home_nav_monitoring_enabled: false,
+        home_nav_pricing_enabled: true,
+      }),
+    );
+    expect(updateSettings.mock.calls[0]?.[0]).not.toHaveProperty(
+      "home_nav_links_enabled",
+    );
+  });
+
+  it("renders and submits leaderboard tab switches independently from home nav entry", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      home_nav_leaderboard_enabled: false,
+      leaderboard_balance_enabled: true,
+      leaderboard_consumption_enabled: false,
+      leaderboard_transfer_enabled: true,
+      leaderboard_checkin_enabled: false,
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("显示排行榜入口");
+    expect(wrapper.text()).toContain("显示余额排行榜");
+    expect(wrapper.text()).toContain("显示消费排行榜");
+    expect(wrapper.text()).toContain("显示转账排行榜");
+    expect(wrapper.text()).toContain("显示签到排行榜");
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    // 首页入口开关和排行榜标签开关要分别提交，避免再次耦合。
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        home_nav_leaderboard_enabled: false,
+        leaderboard_balance_enabled: true,
+        leaderboard_consumption_enabled: false,
+        leaderboard_transfer_enabled: true,
+        leaderboard_checkin_enabled: false,
+      }),
+    );
   });
 
   it("updates provider enablement immediately and reloads providers", async () => {

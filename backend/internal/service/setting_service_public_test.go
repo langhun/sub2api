@@ -78,6 +78,86 @@ func TestSettingService_GetPublicSettings_ExposesTablePreferences(t *testing.T) 
 	require.Equal(t, []int{20, 50, 100}, settings.TablePageSizeOptions)
 }
 
+func TestSettingService_GetPublicSettings_HomeNavLinksFallbackToLegacySwitch(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyHomeNavLinksEnabled: "false",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.False(t, settings.HomeNavLinksEnabled)
+	require.False(t, settings.HomeNavLeaderboardEnabled)
+	require.False(t, settings.HomeNavKeyUsageEnabled)
+	require.False(t, settings.HomeNavMonitoringEnabled)
+	require.False(t, settings.HomeNavPricingEnabled)
+}
+
+func TestSettingService_GetPublicSettings_HomeNavLinksPreferSplitSwitches(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyHomeNavLinksEnabled:       "true",
+			SettingKeyHomeNavLeaderboardEnabled: "false",
+			SettingKeyHomeNavKeyUsageEnabled:    "true",
+			SettingKeyHomeNavMonitoringEnabled:  "true",
+			SettingKeyHomeNavPricingEnabled:     "true",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.False(t, settings.HomeNavLinksEnabled)
+	require.False(t, settings.HomeNavLeaderboardEnabled)
+	require.True(t, settings.HomeNavKeyUsageEnabled)
+	require.True(t, settings.HomeNavMonitoringEnabled)
+	require.True(t, settings.HomeNavPricingEnabled)
+}
+
+func TestSettingService_GetPublicSettings_LeaderboardTabsDefaultIndependentlyFromHomeNav(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyHomeNavLeaderboardEnabled: "false",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+
+	// 首页排行榜入口关闭时，排行榜页四个标签仍按独立开关处理；新键缺失默认展示。
+	require.False(t, settings.HomeNavLeaderboardEnabled)
+	require.True(t, settings.LeaderboardBalanceEnabled)
+	require.True(t, settings.LeaderboardConsumptionEnabled)
+	require.True(t, settings.LeaderboardTransferEnabled)
+	require.True(t, settings.LeaderboardCheckinEnabled)
+}
+
+func TestSettingService_GetPublicSettings_LeaderboardTabsUseExplicitSplitSwitches(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyHomeNavLeaderboardEnabled:     "true",
+			SettingKeyLeaderboardBalanceEnabled:     "false",
+			SettingKeyLeaderboardConsumptionEnabled: "true",
+			SettingKeyLeaderboardTransferEnabled:    "false",
+			SettingKeyLeaderboardCheckinEnabled:     "true",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+
+	// 首页入口和排行榜页标签是两组开关，显式标签值不受入口开关影响。
+	require.True(t, settings.HomeNavLeaderboardEnabled)
+	require.False(t, settings.LeaderboardBalanceEnabled)
+	require.True(t, settings.LeaderboardConsumptionEnabled)
+	require.False(t, settings.LeaderboardTransferEnabled)
+	require.True(t, settings.LeaderboardCheckinEnabled)
+}
+
 func TestSettingService_GetPublicSettings_ExposesForceEmailOnThirdPartySignup(t *testing.T) {
 	repo := &settingPublicRepoStub{
 		values: map[string]string{

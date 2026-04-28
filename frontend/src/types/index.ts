@@ -195,7 +195,15 @@ export interface PublicSettings {
   contact_info: string
   doc_url: string
   home_content: string
-  home_nav_links_enabled: boolean
+  home_nav_links_enabled?: boolean
+  home_nav_leaderboard_enabled?: boolean
+  home_nav_key_usage_enabled?: boolean
+  home_nav_monitoring_enabled?: boolean
+  home_nav_pricing_enabled?: boolean
+  leaderboard_balance_enabled?: boolean
+  leaderboard_consumption_enabled?: boolean
+  leaderboard_transfer_enabled?: boolean
+  leaderboard_checkin_enabled?: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean
   table_default_page_size: number

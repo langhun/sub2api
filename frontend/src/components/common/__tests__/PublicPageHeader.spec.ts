@@ -10,6 +10,14 @@ const storeMocks = vi.hoisted(() => ({
       site_logo: '',
       doc_url: '/docs',
       home_nav_links_enabled: true,
+      home_nav_leaderboard_enabled: true,
+      home_nav_key_usage_enabled: true,
+      home_nav_monitoring_enabled: true,
+      home_nav_pricing_enabled: true,
+      leaderboard_balance_enabled: true,
+      leaderboard_consumption_enabled: true,
+      leaderboard_transfer_enabled: true,
+      leaderboard_checkin_enabled: true,
     },
     siteName: 'Sub2API',
     siteLogo: '',
@@ -82,8 +90,30 @@ describe('PublicPageHeader', () => {
     expect(wrapper.text()).toContain('模型定价')
   })
 
-  it('关闭开关时隐藏首页顶部入口并保留文档入口', () => {
-    const wrapper = mountHeader({ showNavLinks: false })
+  it.each([
+    [{ leaderboard: false }, '排行榜', ['用量查询', '平台监控', '模型定价']],
+    [{ keyUsage: false }, '用量查询', ['排行榜', '平台监控', '模型定价']],
+    [{ monitoring: false }, '平台监控', ['排行榜', '用量查询', '模型定价']],
+    [{ pricing: false }, '模型定价', ['排行榜', '用量查询', '平台监控']],
+  ])('关闭单个入口时只隐藏对应入口 %#', (navLinkVisibility, hiddenLabel, visibleLabels) => {
+    const wrapper = mountHeader({ navLinkVisibility })
+
+    expect(wrapper.text()).not.toContain(hiddenLabel)
+    for (const label of visibleLabels) {
+      expect(wrapper.text()).toContain(label)
+    }
+    expect(wrapper.text()).toContain('文档')
+  })
+
+  it('全部关闭时隐藏四个首页顶部入口并保留文档入口', () => {
+    const wrapper = mountHeader({
+      navLinkVisibility: {
+        leaderboard: false,
+        keyUsage: false,
+        monitoring: false,
+        pricing: false,
+      },
+    })
 
     expect(wrapper.text()).not.toContain('排行榜')
     expect(wrapper.text()).not.toContain('用量查询')

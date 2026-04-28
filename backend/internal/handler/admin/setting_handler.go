@@ -177,6 +177,14 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		DocURL:                                 settings.DocURL,
 		HomeContent:                            settings.HomeContent,
 		HomeNavLinksEnabled:                    settings.HomeNavLinksEnabled,
+		HomeNavLeaderboardEnabled:              settings.HomeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:                 settings.HomeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:               settings.HomeNavMonitoringEnabled,
+		HomeNavPricingEnabled:                  settings.HomeNavPricingEnabled,
+		LeaderboardBalanceEnabled:              settings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:          settings.LeaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:             settings.LeaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:              settings.LeaderboardCheckinEnabled,
 		HideCcsImportButton:                    settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                settings.PurchaseSubscriptionURL,
@@ -389,21 +397,29 @@ type UpdateSettingsRequest struct {
 	OIDCConnectUserInfoUsernamePath string `json:"oidc_connect_userinfo_username_path"`
 
 	// OEM设置
-	SiteName                    string                `json:"site_name"`
-	SiteLogo                    string                `json:"site_logo"`
-	SiteSubtitle                string                `json:"site_subtitle"`
-	APIBaseURL                  string                `json:"api_base_url"`
-	ContactInfo                 string                `json:"contact_info"`
-	DocURL                      string                `json:"doc_url"`
-	HomeContent                 string                `json:"home_content"`
-	HomeNavLinksEnabled         *bool                 `json:"home_nav_links_enabled"`
-	HideCcsImportButton         bool                  `json:"hide_ccs_import_button"`
-	PurchaseSubscriptionEnabled *bool                 `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL     *string               `json:"purchase_subscription_url"`
-	TableDefaultPageSize        int                   `json:"table_default_page_size"`
-	TablePageSizeOptions        []int                 `json:"table_page_size_options"`
-	CustomMenuItems             *[]dto.CustomMenuItem `json:"custom_menu_items"`
-	CustomEndpoints             *[]dto.CustomEndpoint `json:"custom_endpoints"`
+	SiteName                      string                `json:"site_name"`
+	SiteLogo                      string                `json:"site_logo"`
+	SiteSubtitle                  string                `json:"site_subtitle"`
+	APIBaseURL                    string                `json:"api_base_url"`
+	ContactInfo                   string                `json:"contact_info"`
+	DocURL                        string                `json:"doc_url"`
+	HomeContent                   string                `json:"home_content"`
+	HomeNavLinksEnabled           *bool                 `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled     *bool                 `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled        *bool                 `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled      *bool                 `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled         *bool                 `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled     *bool                 `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled *bool                 `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled    *bool                 `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled     *bool                 `json:"leaderboard_checkin_enabled"`
+	HideCcsImportButton           bool                  `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled   *bool                 `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL       *string               `json:"purchase_subscription_url"`
+	TableDefaultPageSize          int                   `json:"table_default_page_size"`
+	TablePageSizeOptions          []int                 `json:"table_page_size_options"`
+	CustomMenuItems               *[]dto.CustomMenuItem `json:"custom_menu_items"`
+	CustomEndpoints               *[]dto.CustomEndpoint `json:"custom_endpoints"`
 
 	// 默认配置
 	DefaultConcurrency                       int                               `json:"default_concurrency"`
@@ -1186,6 +1202,30 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	resolveHomeNavLink := func(requested *bool, fallback bool) bool {
+		if requested != nil {
+			return *requested
+		}
+		if req.HomeNavLinksEnabled != nil {
+			return *req.HomeNavLinksEnabled
+		}
+		return fallback
+	}
+	homeNavLeaderboardEnabled := resolveHomeNavLink(req.HomeNavLeaderboardEnabled, previousSettings.HomeNavLeaderboardEnabled)
+	homeNavKeyUsageEnabled := resolveHomeNavLink(req.HomeNavKeyUsageEnabled, previousSettings.HomeNavKeyUsageEnabled)
+	homeNavMonitoringEnabled := resolveHomeNavLink(req.HomeNavMonitoringEnabled, previousSettings.HomeNavMonitoringEnabled)
+	homeNavPricingEnabled := resolveHomeNavLink(req.HomeNavPricingEnabled, previousSettings.HomeNavPricingEnabled)
+	resolveOptionalBool := func(requested *bool, fallback bool) bool {
+		if requested != nil {
+			return *requested
+		}
+		return fallback
+	}
+	leaderboardBalanceEnabled := resolveOptionalBool(req.LeaderboardBalanceEnabled, previousSettings.LeaderboardBalanceEnabled)
+	leaderboardConsumptionEnabled := resolveOptionalBool(req.LeaderboardConsumptionEnabled, previousSettings.LeaderboardConsumptionEnabled)
+	leaderboardTransferEnabled := resolveOptionalBool(req.LeaderboardTransferEnabled, previousSettings.LeaderboardTransferEnabled)
+	leaderboardCheckinEnabled := resolveOptionalBool(req.LeaderboardCheckinEnabled, previousSettings.LeaderboardCheckinEnabled)
+
 	settings := &service.SystemSettings{
 		RegistrationEnabled:              req.RegistrationEnabled,
 		EmailVerifyEnabled:               req.EmailVerifyEnabled,
@@ -1254,38 +1294,41 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ContactInfo:                      req.ContactInfo,
 		DocURL:                           req.DocURL,
 		HomeContent:                      req.HomeContent,
-		HomeNavLinksEnabled: func() bool {
-			if req.HomeNavLinksEnabled != nil {
-				return *req.HomeNavLinksEnabled
-			}
-			return previousSettings.HomeNavLinksEnabled
-		}(),
-		HideCcsImportButton:          req.HideCcsImportButton,
-		PurchaseSubscriptionEnabled:  purchaseEnabled,
-		PurchaseSubscriptionURL:      purchaseURL,
-		TableDefaultPageSize:         req.TableDefaultPageSize,
-		TablePageSizeOptions:         req.TablePageSizeOptions,
-		CustomMenuItems:              customMenuJSON,
-		CustomEndpoints:              customEndpointsJSON,
-		DefaultConcurrency:           req.DefaultConcurrency,
-		DefaultBalance:               req.DefaultBalance,
-		AffiliateRebateRate:          affiliateRebateRate,
-		AffiliateRebateFreezeHours:   affiliateRebateFreezeHours,
-		AffiliateRebateDurationDays:  affiliateRebateDurationDays,
-		AffiliateRebatePerInviteeCap: affiliateRebatePerInviteeCap,
-		DefaultUserRPMLimit:          req.DefaultUserRPMLimit,
-		DefaultSubscriptions:         defaultSubscriptions,
-		EnableModelFallback:          req.EnableModelFallback,
-		FallbackModelAnthropic:       req.FallbackModelAnthropic,
-		FallbackModelOpenAI:          req.FallbackModelOpenAI,
-		FallbackModelGemini:          req.FallbackModelGemini,
-		FallbackModelAntigravity:     req.FallbackModelAntigravity,
-		EnableIdentityPatch:          req.EnableIdentityPatch,
-		IdentityPatchPrompt:          req.IdentityPatchPrompt,
-		MinClaudeCodeVersion:         req.MinClaudeCodeVersion,
-		MaxClaudeCodeVersion:         req.MaxClaudeCodeVersion,
-		AllowUngroupedKeyScheduling:  req.AllowUngroupedKeyScheduling,
-		BackendModeEnabled:           req.BackendModeEnabled,
+		HomeNavLinksEnabled:              homeNavLeaderboardEnabled && homeNavKeyUsageEnabled && homeNavMonitoringEnabled && homeNavPricingEnabled,
+		HomeNavLeaderboardEnabled:        homeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:           homeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:         homeNavMonitoringEnabled,
+		HomeNavPricingEnabled:            homeNavPricingEnabled,
+		LeaderboardBalanceEnabled:        leaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:    leaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:       leaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:        leaderboardCheckinEnabled,
+		HideCcsImportButton:              req.HideCcsImportButton,
+		PurchaseSubscriptionEnabled:      purchaseEnabled,
+		PurchaseSubscriptionURL:          purchaseURL,
+		TableDefaultPageSize:             req.TableDefaultPageSize,
+		TablePageSizeOptions:             req.TablePageSizeOptions,
+		CustomMenuItems:                  customMenuJSON,
+		CustomEndpoints:                  customEndpointsJSON,
+		DefaultConcurrency:               req.DefaultConcurrency,
+		DefaultBalance:                   req.DefaultBalance,
+		AffiliateRebateRate:              affiliateRebateRate,
+		AffiliateRebateFreezeHours:       affiliateRebateFreezeHours,
+		AffiliateRebateDurationDays:      affiliateRebateDurationDays,
+		AffiliateRebatePerInviteeCap:     affiliateRebatePerInviteeCap,
+		DefaultUserRPMLimit:              req.DefaultUserRPMLimit,
+		DefaultSubscriptions:             defaultSubscriptions,
+		EnableModelFallback:              req.EnableModelFallback,
+		FallbackModelAnthropic:           req.FallbackModelAnthropic,
+		FallbackModelOpenAI:              req.FallbackModelOpenAI,
+		FallbackModelGemini:              req.FallbackModelGemini,
+		FallbackModelAntigravity:         req.FallbackModelAntigravity,
+		EnableIdentityPatch:              req.EnableIdentityPatch,
+		IdentityPatchPrompt:              req.IdentityPatchPrompt,
+		MinClaudeCodeVersion:             req.MinClaudeCodeVersion,
+		MaxClaudeCodeVersion:             req.MaxClaudeCodeVersion,
+		AllowUngroupedKeyScheduling:      req.AllowUngroupedKeyScheduling,
+		BackendModeEnabled:               req.BackendModeEnabled,
 		OpsMonitoringEnabled: func() bool {
 			if req.OpsMonitoringEnabled != nil {
 				return *req.OpsMonitoringEnabled
@@ -1708,6 +1751,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		DocURL:                                 updatedSettings.DocURL,
 		HomeContent:                            updatedSettings.HomeContent,
 		HomeNavLinksEnabled:                    updatedSettings.HomeNavLinksEnabled,
+		HomeNavLeaderboardEnabled:              updatedSettings.HomeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:                 updatedSettings.HomeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:               updatedSettings.HomeNavMonitoringEnabled,
+		HomeNavPricingEnabled:                  updatedSettings.HomeNavPricingEnabled,
+		LeaderboardBalanceEnabled:              updatedSettings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:          updatedSettings.LeaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:             updatedSettings.LeaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:              updatedSettings.LeaderboardCheckinEnabled,
 		HideCcsImportButton:                    updatedSettings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            updatedSettings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                updatedSettings.PurchaseSubscriptionURL,
@@ -2033,8 +2084,29 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.HomeContent != after.HomeContent {
 		changed = append(changed, "home_content")
 	}
-	if before.HomeNavLinksEnabled != after.HomeNavLinksEnabled {
-		changed = append(changed, "home_nav_links_enabled")
+	if before.HomeNavLeaderboardEnabled != after.HomeNavLeaderboardEnabled {
+		changed = append(changed, "home_nav_leaderboard_enabled")
+	}
+	if before.HomeNavKeyUsageEnabled != after.HomeNavKeyUsageEnabled {
+		changed = append(changed, "home_nav_key_usage_enabled")
+	}
+	if before.HomeNavMonitoringEnabled != after.HomeNavMonitoringEnabled {
+		changed = append(changed, "home_nav_monitoring_enabled")
+	}
+	if before.HomeNavPricingEnabled != after.HomeNavPricingEnabled {
+		changed = append(changed, "home_nav_pricing_enabled")
+	}
+	if before.LeaderboardBalanceEnabled != after.LeaderboardBalanceEnabled {
+		changed = append(changed, "leaderboard_balance_enabled")
+	}
+	if before.LeaderboardConsumptionEnabled != after.LeaderboardConsumptionEnabled {
+		changed = append(changed, "leaderboard_consumption_enabled")
+	}
+	if before.LeaderboardTransferEnabled != after.LeaderboardTransferEnabled {
+		changed = append(changed, "leaderboard_transfer_enabled")
+	}
+	if before.LeaderboardCheckinEnabled != after.LeaderboardCheckinEnabled {
+		changed = append(changed, "leaderboard_checkin_enabled")
 	}
 	if before.HideCcsImportButton != after.HideCcsImportButton {
 		changed = append(changed, "hide_ccs_import_button")

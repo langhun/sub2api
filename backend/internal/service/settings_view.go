@@ -89,21 +89,29 @@ type SystemSettings struct {
 	OIDCConnectUserInfoIDPath         string
 	OIDCConnectUserInfoUsernamePath   string
 
-	SiteName                    string
-	SiteLogo                    string
-	SiteSubtitle                string
-	APIBaseURL                  string
-	ContactInfo                 string
-	DocURL                      string
-	HomeContent                 string
-	HomeNavLinksEnabled         bool
-	HideCcsImportButton         bool
-	PurchaseSubscriptionEnabled bool
-	PurchaseSubscriptionURL     string
-	TableDefaultPageSize        int
-	TablePageSizeOptions        []int
-	CustomMenuItems             string // JSON array of custom menu items
-	CustomEndpoints             string // JSON array of custom endpoints
+	SiteName                      string
+	SiteLogo                      string
+	SiteSubtitle                  string
+	APIBaseURL                    string
+	ContactInfo                   string
+	DocURL                        string
+	HomeContent                   string
+	HomeNavLinksEnabled           bool
+	HomeNavLeaderboardEnabled     bool
+	HomeNavKeyUsageEnabled        bool
+	HomeNavMonitoringEnabled      bool
+	HomeNavPricingEnabled         bool
+	LeaderboardBalanceEnabled     bool
+	LeaderboardConsumptionEnabled bool
+	LeaderboardTransferEnabled    bool
+	LeaderboardCheckinEnabled     bool
+	HideCcsImportButton           bool
+	PurchaseSubscriptionEnabled   bool
+	PurchaseSubscriptionURL       string
+	TableDefaultPageSize          int
+	TablePageSizeOptions          []int
+	CustomMenuItems               string // JSON array of custom menu items
+	CustomEndpoints               string // JSON array of custom endpoints
 
 	DefaultConcurrency           int
 	DefaultBalance               float64
@@ -227,6 +235,14 @@ type PublicSettings struct {
 	DocURL                           string
 	HomeContent                      string
 	HomeNavLinksEnabled              bool
+	HomeNavLeaderboardEnabled        bool
+	HomeNavKeyUsageEnabled           bool
+	HomeNavMonitoringEnabled         bool
+	HomeNavPricingEnabled            bool
+	LeaderboardBalanceEnabled        bool
+	LeaderboardConsumptionEnabled    bool
+	LeaderboardTransferEnabled       bool
+	LeaderboardCheckinEnabled        bool
 	HideCcsImportButton              bool
 
 	PurchaseSubscriptionEnabled bool

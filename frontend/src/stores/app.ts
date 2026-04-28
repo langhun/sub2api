@@ -287,18 +287,43 @@ export const useAppStore = defineStore('app', () => {
   /**
    * Apply settings to store state (internal helper to avoid code duplication)
    */
-  function applySettings(config: PublicSettings): void {
-    if (typeof window !== 'undefined') {
-      window.__APP_CONFIG__ = { ...config }
+  function normalizePublicSettings(config: PublicSettings): PublicSettings {
+    const legacyHomeNavEnabled = config.home_nav_links_enabled !== false
+    const normalized = {
+      ...config,
+      home_nav_leaderboard_enabled: config.home_nav_leaderboard_enabled ?? legacyHomeNavEnabled,
+      home_nav_key_usage_enabled: config.home_nav_key_usage_enabled ?? legacyHomeNavEnabled,
+      home_nav_monitoring_enabled: config.home_nav_monitoring_enabled ?? legacyHomeNavEnabled,
+      home_nav_pricing_enabled: config.home_nav_pricing_enabled ?? legacyHomeNavEnabled,
+      leaderboard_balance_enabled: config.leaderboard_balance_enabled ?? true,
+      leaderboard_consumption_enabled: config.leaderboard_consumption_enabled ?? true,
+      leaderboard_transfer_enabled: config.leaderboard_transfer_enabled ?? true,
+      leaderboard_checkin_enabled: config.leaderboard_checkin_enabled ?? true,
     }
-    cachedPublicSettings.value = config
-    siteName.value = config.site_name || 'Sub2API'
-    siteLogo.value = config.site_logo || ''
-    siteVersion.value = config.version || ''
-    contactInfo.value = config.contact_info || ''
-    apiBaseUrl.value = config.api_base_url || ''
-    docUrl.value = config.doc_url || ''
+
+    // 旧版注入配置没有拆分字段时，运行时也保持一个一致的总开关。
+    normalized.home_nav_links_enabled = normalized.home_nav_leaderboard_enabled &&
+      normalized.home_nav_key_usage_enabled &&
+      normalized.home_nav_monitoring_enabled &&
+      normalized.home_nav_pricing_enabled
+
+    return normalized
+  }
+
+  function applySettings(config: PublicSettings): PublicSettings {
+    const normalized = normalizePublicSettings(config)
+    if (typeof window !== 'undefined') {
+      window.__APP_CONFIG__ = { ...normalized }
+    }
+    cachedPublicSettings.value = normalized
+    siteName.value = normalized.site_name || 'Sub2API'
+    siteLogo.value = normalized.site_logo || ''
+    siteVersion.value = normalized.version || ''
+    contactInfo.value = normalized.contact_info || ''
+    apiBaseUrl.value = normalized.api_base_url || ''
+    docUrl.value = normalized.doc_url || ''
     publicSettingsLoaded.value = true
+    return normalized
   }
 
   /**
@@ -308,8 +333,7 @@ export const useAppStore = defineStore('app', () => {
   async function fetchPublicSettings(force = false): Promise<PublicSettings | null> {
     // Check for injected config from server (eliminates flash)
     if (!publicSettingsLoaded.value && !force && window.__APP_CONFIG__) {
-      applySettings(window.__APP_CONFIG__)
-      return window.__APP_CONFIG__
+      return applySettings(window.__APP_CONFIG__)
     }
 
     // Return cached data if available and not forcing refresh
@@ -335,6 +359,14 @@ export const useAppStore = defineStore('app', () => {
         doc_url: docUrl.value,
         home_content: '',
         home_nav_links_enabled: true,
+        home_nav_leaderboard_enabled: true,
+        home_nav_key_usage_enabled: true,
+        home_nav_monitoring_enabled: true,
+        home_nav_pricing_enabled: true,
+        leaderboard_balance_enabled: true,
+        leaderboard_consumption_enabled: true,
+        leaderboard_transfer_enabled: true,
+        leaderboard_checkin_enabled: true,
         hide_ccs_import_button: false,
         payment_enabled: false,
         table_default_page_size: 20,
@@ -368,8 +400,7 @@ export const useAppStore = defineStore('app', () => {
     publicSettingsLoading.value = true
     try {
       const data = await fetchPublicSettingsAPI()
-      applySettings(data)
-      return data
+      return applySettings(data)
     } catch (error) {
       console.error('Failed to fetch public settings:', error)
       return null

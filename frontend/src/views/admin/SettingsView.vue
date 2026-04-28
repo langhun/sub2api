@@ -3837,18 +3837,49 @@
               </div>
 
               <!-- 首页顶部入口 -->
-              <div
-                class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
-              >
+              <div class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div
+                  v-for="item in homeNavLinkToggles"
+                  :key="item.field"
+                  class="flex items-center justify-between gap-4"
+                >
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">{{
+                      t(item.labelKey)
+                    }}</label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t(item.hintKey) }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form[item.field]" />
+                </div>
+              </div>
+
+              <!-- 排行榜页标签 -->
+              <div class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700">
                 <div>
-                  <label class="font-medium text-gray-900 dark:text-white">{{
-                    t("admin.settings.site.homeNavLinksEnabled")
-                  }}</label>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.site.homeNavLinksEnabledHint") }}
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                    {{ t("admin.settings.site.leaderboardTabsTitle") }}
+                  </h3>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.site.leaderboardTabsHint") }}
                   </p>
                 </div>
-                <Toggle v-model="form.home_nav_links_enabled" />
+                <div
+                  v-for="item in leaderboardTabToggles"
+                  :key="item.field"
+                  class="flex items-center justify-between gap-4"
+                >
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">{{
+                      t(item.labelKey)
+                    }}</label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t(item.hintKey) }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form[item.field]" />
+                </div>
               </div>
 
               <!-- Hide CCS Import Button -->
@@ -6201,6 +6232,52 @@ type SettingsForm = Omit<
   openai_advanced_scheduler_enabled: boolean;
 };
 
+const homeNavLinkToggles = [
+  {
+    field: "home_nav_leaderboard_enabled",
+    labelKey: "admin.settings.site.homeNavLeaderboardEnabled",
+    hintKey: "admin.settings.site.homeNavLeaderboardEnabledHint",
+  },
+  {
+    field: "home_nav_key_usage_enabled",
+    labelKey: "admin.settings.site.homeNavKeyUsageEnabled",
+    hintKey: "admin.settings.site.homeNavKeyUsageEnabledHint",
+  },
+  {
+    field: "home_nav_monitoring_enabled",
+    labelKey: "admin.settings.site.homeNavMonitoringEnabled",
+    hintKey: "admin.settings.site.homeNavMonitoringEnabledHint",
+  },
+  {
+    field: "home_nav_pricing_enabled",
+    labelKey: "admin.settings.site.homeNavPricingEnabled",
+    hintKey: "admin.settings.site.homeNavPricingEnabledHint",
+  },
+] as const;
+
+const leaderboardTabToggles = [
+  {
+    field: "leaderboard_balance_enabled",
+    labelKey: "admin.settings.site.leaderboardBalanceEnabled",
+    hintKey: "admin.settings.site.leaderboardBalanceEnabledHint",
+  },
+  {
+    field: "leaderboard_consumption_enabled",
+    labelKey: "admin.settings.site.leaderboardConsumptionEnabled",
+    hintKey: "admin.settings.site.leaderboardConsumptionEnabledHint",
+  },
+  {
+    field: "leaderboard_transfer_enabled",
+    labelKey: "admin.settings.site.leaderboardTransferEnabled",
+    hintKey: "admin.settings.site.leaderboardTransferEnabledHint",
+  },
+  {
+    field: "leaderboard_checkin_enabled",
+    labelKey: "admin.settings.site.leaderboardCheckinEnabled",
+    hintKey: "admin.settings.site.leaderboardCheckinEnabledHint",
+  },
+] as const;
+
 const form = reactive<SettingsForm>({
   registration_enabled: true,
   email_verify_enabled: false,
@@ -6235,7 +6312,14 @@ const form = reactive<SettingsForm>({
   contact_info: "",
   doc_url: "",
   home_content: "",
-  home_nav_links_enabled: true,
+  home_nav_leaderboard_enabled: true,
+  home_nav_key_usage_enabled: true,
+  home_nav_monitoring_enabled: true,
+  home_nav_pricing_enabled: true,
+  leaderboard_balance_enabled: true,
+  leaderboard_consumption_enabled: true,
+  leaderboard_transfer_enabled: true,
+  leaderboard_checkin_enabled: true,
   backend_mode_enabled: false,
   hide_ccs_import_button: false,
   payment_enabled: false,
@@ -7195,7 +7279,14 @@ async function saveSettings() {
       contact_info: form.contact_info,
       doc_url: form.doc_url,
       home_content: form.home_content,
-      home_nav_links_enabled: form.home_nav_links_enabled,
+      home_nav_leaderboard_enabled: form.home_nav_leaderboard_enabled,
+      home_nav_key_usage_enabled: form.home_nav_key_usage_enabled,
+      home_nav_monitoring_enabled: form.home_nav_monitoring_enabled,
+      home_nav_pricing_enabled: form.home_nav_pricing_enabled,
+      leaderboard_balance_enabled: form.leaderboard_balance_enabled,
+      leaderboard_consumption_enabled: form.leaderboard_consumption_enabled,
+      leaderboard_transfer_enabled: form.leaderboard_transfer_enabled,
+      leaderboard_checkin_enabled: form.leaderboard_checkin_enabled,
       backend_mode_enabled: form.backend_mode_enabled,
       hide_ccs_import_button: form.hide_ccs_import_button,
       table_default_page_size: form.table_default_page_size,

@@ -82,11 +82,14 @@ import { useAuthStore } from '@/stores/auth'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 
+type NavLinkKey = 'leaderboard' | 'keyUsage' | 'monitoring' | 'pricing'
+type NavLinkVisibility = Partial<Record<NavLinkKey, boolean>>
+
 const props = withDefaults(defineProps<{
   activePath?: string
-  showNavLinks?: boolean
+  navLinkVisibility?: NavLinkVisibility
 }>(), {
-  showNavLinks: true,
+  navLinkVisibility: () => ({}),
 })
 
 const { t } = useI18n()
@@ -104,13 +107,13 @@ const isDark = ref(document.documentElement.classList.contains('dark'))
 const mobileMenuOpen = ref(false)
 
 const navLinks = computed(() => [
-  { path: '/leaderboard', label: t('leaderboard.title') },
-  { path: '/key-usage', label: t('home.keyUsage') },
-  { path: '/monitoring', label: t('admin.monitoring.title') },
-  { path: '/pricing', label: t('pricing.title') },
+  { key: 'leaderboard' as const, path: '/leaderboard', label: t('leaderboard.title') },
+  { key: 'keyUsage' as const, path: '/key-usage', label: t('home.keyUsage') },
+  { key: 'monitoring' as const, path: '/monitoring', label: t('admin.monitoring.title') },
+  { key: 'pricing' as const, path: '/pricing', label: t('pricing.title') },
 ])
 
-const visibleNavLinks = computed(() => props.showNavLinks ? navLinks.value : [])
+const visibleNavLinks = computed(() => navLinks.value.filter(link => props.navLinkVisibility[link.key] !== false))
 
 function toggleTheme() {
   isDark.value = !isDark.value

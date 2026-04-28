@@ -420,6 +420,14 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
 		SettingKeyHomeNavLinksEnabled,
+		SettingKeyHomeNavLeaderboardEnabled,
+		SettingKeyHomeNavKeyUsageEnabled,
+		SettingKeyHomeNavMonitoringEnabled,
+		SettingKeyHomeNavPricingEnabled,
+		SettingKeyLeaderboardBalanceEnabled,
+		SettingKeyLeaderboardConsumptionEnabled,
+		SettingKeyLeaderboardTransferEnabled,
+		SettingKeyLeaderboardCheckinEnabled,
 		SettingKeyHideCcsImportButton,
 		SettingKeyPurchaseSubscriptionEnabled,
 		SettingKeyPurchaseSubscriptionURL,
@@ -494,6 +502,14 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		settings[SettingKeyTableDefaultPageSize],
 		settings[SettingKeyTablePageSizeOptions],
 	)
+	homeNavLeaderboardEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavLeaderboardEnabled)
+	homeNavKeyUsageEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavKeyUsageEnabled)
+	homeNavMonitoringEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavMonitoringEnabled)
+	homeNavPricingEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavPricingEnabled)
+	leaderboardBalanceEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardBalanceEnabled)
+	leaderboardConsumptionEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardConsumptionEnabled)
+	leaderboardTransferEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardTransferEnabled)
+	leaderboardCheckinEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardCheckinEnabled)
 
 	var balanceLowNotifyThreshold float64
 	if v, err := strconv.ParseFloat(settings[SettingKeyBalanceLowNotifyThreshold], 64); err == nil && v >= 0 {
@@ -518,7 +534,15 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
-		HomeNavLinksEnabled:              settings[SettingKeyHomeNavLinksEnabled] != "false",
+		HomeNavLinksEnabled:              homeNavLeaderboardEnabled && homeNavKeyUsageEnabled && homeNavMonitoringEnabled && homeNavPricingEnabled,
+		HomeNavLeaderboardEnabled:        homeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:           homeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:         homeNavMonitoringEnabled,
+		HomeNavPricingEnabled:            homeNavPricingEnabled,
+		LeaderboardBalanceEnabled:        leaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:    leaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:       leaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:        leaderboardCheckinEnabled,
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
@@ -665,6 +689,14 @@ type PublicSettingsInjectionPayload struct {
 	DocURL                           string          `json:"doc_url"`
 	HomeContent                      string          `json:"home_content"`
 	HomeNavLinksEnabled              bool            `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled        bool            `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled           bool            `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled         bool            `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled            bool            `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled        bool            `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled    bool            `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled       bool            `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled        bool            `json:"leaderboard_checkin_enabled"`
 	HideCcsImportButton              bool            `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool            `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string          `json:"purchase_subscription_url"`
@@ -722,6 +754,14 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
 		HomeNavLinksEnabled:              settings.HomeNavLinksEnabled,
+		HomeNavLeaderboardEnabled:        settings.HomeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:           settings.HomeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:         settings.HomeNavMonitoringEnabled,
+		HomeNavPricingEnabled:            settings.HomeNavPricingEnabled,
+		LeaderboardBalanceEnabled:        settings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:    settings.LeaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:       settings.LeaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:        settings.LeaderboardCheckinEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
@@ -1158,7 +1198,16 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyContactInfo] = settings.ContactInfo
 	updates[SettingKeyDocURL] = settings.DocURL
 	updates[SettingKeyHomeContent] = settings.HomeContent
-	updates[SettingKeyHomeNavLinksEnabled] = strconv.FormatBool(settings.HomeNavLinksEnabled)
+	homeNavLinksEnabled := settings.HomeNavLeaderboardEnabled && settings.HomeNavKeyUsageEnabled && settings.HomeNavMonitoringEnabled && settings.HomeNavPricingEnabled
+	updates[SettingKeyHomeNavLinksEnabled] = strconv.FormatBool(homeNavLinksEnabled)
+	updates[SettingKeyHomeNavLeaderboardEnabled] = strconv.FormatBool(settings.HomeNavLeaderboardEnabled)
+	updates[SettingKeyHomeNavKeyUsageEnabled] = strconv.FormatBool(settings.HomeNavKeyUsageEnabled)
+	updates[SettingKeyHomeNavMonitoringEnabled] = strconv.FormatBool(settings.HomeNavMonitoringEnabled)
+	updates[SettingKeyHomeNavPricingEnabled] = strconv.FormatBool(settings.HomeNavPricingEnabled)
+	updates[SettingKeyLeaderboardBalanceEnabled] = strconv.FormatBool(settings.LeaderboardBalanceEnabled)
+	updates[SettingKeyLeaderboardConsumptionEnabled] = strconv.FormatBool(settings.LeaderboardConsumptionEnabled)
+	updates[SettingKeyLeaderboardTransferEnabled] = strconv.FormatBool(settings.LeaderboardTransferEnabled)
+	updates[SettingKeyLeaderboardCheckinEnabled] = strconv.FormatBool(settings.LeaderboardCheckinEnabled)
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
@@ -1884,6 +1933,14 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeySiteName:                                 "Sub2API",
 		SettingKeySiteLogo:                                 "",
 		SettingKeyHomeNavLinksEnabled:                      "true",
+		SettingKeyHomeNavLeaderboardEnabled:                "true",
+		SettingKeyHomeNavKeyUsageEnabled:                   "true",
+		SettingKeyHomeNavMonitoringEnabled:                 "true",
+		SettingKeyHomeNavPricingEnabled:                    "true",
+		SettingKeyLeaderboardBalanceEnabled:                "true",
+		SettingKeyLeaderboardConsumptionEnabled:            "true",
+		SettingKeyLeaderboardTransferEnabled:               "true",
+		SettingKeyLeaderboardCheckinEnabled:                "true",
 		SettingKeyPurchaseSubscriptionEnabled:              "false",
 		SettingKeyPurchaseSubscriptionURL:                  "",
 		SettingKeyTableDefaultPageSize:                     "20",
@@ -2031,6 +2088,14 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 // parseSettings 解析设置到结构体
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
+	homeNavLeaderboardEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavLeaderboardEnabled)
+	homeNavKeyUsageEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavKeyUsageEnabled)
+	homeNavMonitoringEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavMonitoringEnabled)
+	homeNavPricingEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavPricingEnabled)
+	leaderboardBalanceEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardBalanceEnabled)
+	leaderboardConsumptionEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardConsumptionEnabled)
+	leaderboardTransferEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardTransferEnabled)
+	leaderboardCheckinEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardCheckinEnabled)
 	result := &SystemSettings{
 		RegistrationEnabled:              settings[SettingKeyRegistrationEnabled] == "true",
 		EmailVerifyEnabled:               emailVerifyEnabled,
@@ -2056,7 +2121,15 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
-		HomeNavLinksEnabled:              settings[SettingKeyHomeNavLinksEnabled] != "false",
+		HomeNavLinksEnabled:              homeNavLeaderboardEnabled && homeNavKeyUsageEnabled && homeNavMonitoringEnabled && homeNavPricingEnabled,
+		HomeNavLeaderboardEnabled:        homeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:           homeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:         homeNavMonitoringEnabled,
+		HomeNavPricingEnabled:            homeNavPricingEnabled,
+		LeaderboardBalanceEnabled:        leaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:    leaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:       leaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:        leaderboardCheckinEnabled,
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
@@ -2497,6 +2570,22 @@ func isFalseSettingValue(value string) bool {
 	default:
 		return false
 	}
+}
+
+func homeNavLinkEnabled(settings map[string]string, key string) bool {
+	if raw, ok := settings[key]; ok && strings.TrimSpace(raw) != "" {
+		return !isFalseSettingValue(raw)
+	}
+	// 新字段缺失时沿用旧版总开关，避免升级后已经隐藏的入口重新显示。
+	return !isFalseSettingValue(settings[SettingKeyHomeNavLinksEnabled])
+}
+
+func leaderboardTabEnabled(settings map[string]string, key string) bool {
+	if raw, ok := settings[key]; ok && strings.TrimSpace(raw) != "" {
+		return !isFalseSettingValue(raw)
+	}
+	// 排行榜 Tab 是新增独立开关，缺失时默认显示，避免升级后改变现有页面。
+	return true
 }
 
 func normalizeVisibleMethodSettingSource(method, source string, enabled bool) (string, error) {

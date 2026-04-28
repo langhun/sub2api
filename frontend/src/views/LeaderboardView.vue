@@ -1,6 +1,6 @@
 <template>
   <div class="relative flex min-h-screen flex-col bg-gray-50 dark:bg-dark-950">
-    <PublicPageHeader active-path="/leaderboard" />
+    <PublicPageHeader active-path="/leaderboard" :nav-link-visibility="homeNavLinkVisibility" />
 
     <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
       <div class="space-y-6">
@@ -10,7 +10,7 @@
         </div>
 
         <div class="card overflow-hidden p-0">
-          <div class="flex border-b border-gray-200 dark:border-dark-700">
+          <div v-if="tabs.length > 0" class="flex border-b border-gray-200 dark:border-dark-700">
             <button
               v-for="tab in tabs"
               :key="tab.key"
@@ -26,7 +26,7 @@
             </button>
           </div>
 
-          <div v-if="activeTab === 'consumption' || activeTab === 'transfer'" class="flex gap-1 border-b border-gray-100 px-4 py-2 dark:border-dark-800">
+          <div v-if="tabs.length > 0 && (activeTab === 'consumption' || activeTab === 'transfer')" class="flex gap-1 border-b border-gray-100 px-4 py-2 dark:border-dark-800">
             <button
               v-for="p in periods"
               :key="p.key"
@@ -50,7 +50,11 @@
               </div>
             </div>
 
-            <div v-if="!loading && entries.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
+            <div v-if="!loading && tabs.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
+              {{ t('leaderboard.tabsDisabled') }}
+            </div>
+
+            <div v-else-if="!loading && entries.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
               {{ t('leaderboard.empty') }}
             </div>
 
@@ -110,13 +114,42 @@ const activeTab = ref<TabKey>('balance')
 const activePeriod = ref<PeriodKey>('daily')
 const entries = ref<LeaderboardEntry[]>([])
 const loading = ref(false)
+let fetchSequence = 0
 
-const tabs = computed(() => [
+const homeNavLinkVisibility = computed(() => {
+  const settings = appStore.cachedPublicSettings
+  const legacyEnabled = settings?.home_nav_links_enabled !== false
+  const resolve = (value?: boolean) => value ?? legacyEnabled
+
+  return {
+    leaderboard: resolve(settings?.home_nav_leaderboard_enabled),
+    keyUsage: resolve(settings?.home_nav_key_usage_enabled),
+    monitoring: resolve(settings?.home_nav_monitoring_enabled),
+    pricing: resolve(settings?.home_nav_pricing_enabled),
+  }
+})
+
+const leaderboardTabVisibility = computed<Record<TabKey, boolean>>(() => {
+  const settings = appStore.cachedPublicSettings
+  const resolve = (value?: boolean) => value ?? true
+
+  return {
+    balance: resolve(settings?.leaderboard_balance_enabled),
+    consumption: resolve(settings?.leaderboard_consumption_enabled),
+    transfer: resolve(settings?.leaderboard_transfer_enabled),
+    checkin: resolve(settings?.leaderboard_checkin_enabled),
+  }
+})
+
+const allTabs = computed(() => [
   { key: 'balance' as TabKey, label: t('leaderboard.tabs.balance') },
   { key: 'consumption' as TabKey, label: t('leaderboard.tabs.consumption') },
   { key: 'transfer' as TabKey, label: t('leaderboard.tabs.transfer', 'Transfer') },
   { key: 'checkin' as TabKey, label: t('leaderboard.tabs.checkin') },
 ])
+
+const tabs = computed(() => allTabs.value.filter((tab) => leaderboardTabVisibility.value[tab.key] !== false))
+const visibleTabKeys = computed(() => tabs.value.map((tab) => tab.key).join(','))
 
 const periods = computed(() => {
   if (activeTab.value === 'transfer') {
@@ -156,6 +189,7 @@ function getSubtitle(entry: LeaderboardEntry): string {
 }
 
 async function fetchData() {
+  const currentFetch = ++fetchSequence
   loading.value = true
   try {
     let res
@@ -173,20 +207,68 @@ async function fetchData() {
         res = await leaderboardAPI.getCheckinLeaderboard(1, 20)
         break
     }
-    entries.value = res.items || []
+    if (currentFetch === fetchSequence) {
+      entries.value = res.items || []
+    }
   } catch {
-    entries.value = []
+    if (currentFetch === fetchSequence) {
+      entries.value = []
+    }
   } finally {
-    loading.value = false
+    if (currentFetch === fetchSequence) {
+      loading.value = false
+    }
   }
 }
 
-watch([activeTab, activePeriod], () => fetchData())
+function clearLeaderboardData() {
+  fetchSequence += 1
+  entries.value = []
+  loading.value = false
+}
 
-onMounted(() => {
-  if (!appStore.publicSettingsLoaded) {
-    appStore.fetchPublicSettings()
+function ensureActiveTabVisible(): boolean {
+  const visibleTabs = tabs.value
+  if (visibleTabs.length === 0) {
+    clearLeaderboardData()
+    return false
   }
+  if (!visibleTabs.some((tab) => tab.key === activeTab.value)) {
+    activeTab.value = visibleTabs[0].key
+    return false
+  }
+  return true
+}
+
+function ensureActivePeriodValid(): boolean {
+  if (activeTab.value === 'transfer') {
+    if (!['day', 'week', 'month'].includes(activePeriod.value)) {
+      activePeriod.value = 'day'
+      return false
+    }
+    return true
+  }
+
+  if (!['daily', 'weekly', 'monthly'].includes(activePeriod.value)) {
+    activePeriod.value = 'daily'
+    return false
+  }
+  return true
+}
+
+function refreshLeaderboard() {
+  if (!ensureActiveTabVisible()) return
+  if (!ensureActivePeriodValid()) return
   fetchData()
+}
+
+watch([activeTab, activePeriod], () => refreshLeaderboard())
+watch(visibleTabKeys, () => refreshLeaderboard())
+
+onMounted(async () => {
+  if (!appStore.publicSettingsLoaded) {
+    await appStore.fetchPublicSettings()
+  }
+  refreshLeaderboard()
 })
 </script>
