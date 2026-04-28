@@ -10,6 +10,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -141,7 +142,7 @@ func (r *balanceTransferRepo) ListAll(ctx context.Context, filter *service.Trans
 }
 
 func (r *balanceTransferRepo) GetDailyTransferTotal(ctx context.Context, userID int64) (float64, int, error) {
-	startOfDay := time.Now().Truncate(24 * time.Hour)
+	startOfDay := timezone.Today()
 	var total float64
 	var count int
 	err := r.db.QueryRowContext(ctx,

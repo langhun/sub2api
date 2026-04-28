@@ -11,7 +11,7 @@ import (
 )
 
 func newTestBillingService() *BillingService {
-	return NewBillingService(&config.Config{}, nil)
+	return NewBillingService(&config.Config{}, nil, nil)
 }
 
 func TestCalculateCost_BasicComputation(t *testing.T) {
@@ -336,7 +336,7 @@ func TestCalculateCost_ZeroTokens(t *testing.T) {
 func TestCalculateCostWithConfig(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Default.RateMultiplier = 1.5
-	svc := NewBillingService(cfg, nil)
+	svc := NewBillingService(cfg, nil, nil)
 
 	tokens := UsageTokens{InputTokens: 1000, OutputTokens: 500}
 	cost, err := svc.CalculateCostWithConfig("claude-sonnet-4", tokens)
@@ -349,7 +349,7 @@ func TestCalculateCostWithConfig(t *testing.T) {
 func TestCalculateCostWithConfig_ZeroMultiplier(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Default.RateMultiplier = 0
-	svc := NewBillingService(cfg, nil)
+	svc := NewBillingService(cfg, nil, nil)
 
 	tokens := UsageTokens{InputTokens: 1000}
 	cost, err := svc.CalculateCostWithConfig("claude-sonnet-4", tokens)
@@ -559,7 +559,7 @@ func TestBillingServiceGetModelPricing_UsesDynamicPriorityFields(t *testing.T) {
 			},
 		},
 	}
-	svc := NewBillingService(&config.Config{}, pricingSvc)
+	svc := NewBillingService(&config.Config{}, pricingSvc, nil)
 
 	pricing, err := svc.GetModelPricing("gpt-5.4")
 	require.NoError(t, err)
@@ -601,7 +601,7 @@ func TestCalculateCostWithServiceTier_PriorityFallsBackToTierMultiplierWhenExpli
 				CacheReadInputTokenCost:     0.25e-6,
 			},
 		},
-	})
+	}, nil)
 	tokens := UsageTokens{InputTokens: 100, OutputTokens: 50, CacheCreationTokens: 40, CacheReadTokens: 20}
 
 	baseCost, err := svc.CalculateCost("custom-no-priority", tokens, 1.0)
@@ -652,7 +652,7 @@ func TestGetModelPricing_MapsDynamicPriorityFieldsIntoBillingPricing(t *testing.
 				LongContextOutputCostMultiplier:     1.25,
 			},
 		},
-	})
+	}, nil)
 
 	pricing, err := svc.GetModelPricing("dynamic-tier-model")
 	require.NoError(t, err)

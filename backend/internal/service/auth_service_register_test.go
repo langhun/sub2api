@@ -71,6 +71,12 @@ type defaultSubscriptionAssignerStub struct {
 	err   error
 }
 
+type authRedeemRepoStub struct {
+	redeemRepoStub
+	createErr error
+	created   []*RedeemCode
+}
+
 type refreshTokenCacheStub struct{}
 
 func (s *defaultSubscriptionAssignerStub) AssignOrExtendSubscription(_ context.Context, input *AssignSubscriptionInput) (*UserSubscription, bool, error) {
@@ -81,6 +87,18 @@ func (s *defaultSubscriptionAssignerStub) AssignOrExtendSubscription(_ context.C
 		return nil, false, s.err
 	}
 	return &UserSubscription{UserID: input.UserID, GroupID: input.GroupID}, false, nil
+}
+
+func (s *authRedeemRepoStub) Create(ctx context.Context, code *RedeemCode) error {
+	if s.createErr != nil {
+		return s.createErr
+	}
+	if code == nil {
+		return nil
+	}
+	clone := *code
+	s.created = append(s.created, &clone)
+	return nil
 }
 
 func (s *refreshTokenCacheStub) StoreRefreshToken(context.Context, string, *RefreshTokenData, time.Duration) error {
@@ -200,10 +218,12 @@ func newAuthService(repo *userRepoStub, settings map[string]string, emailCache E
 		emailService = NewEmailService(&settingRepoStub{values: settings}, emailCache)
 	}
 
+	redeemRepo := &authRedeemRepoStub{}
+
 	return NewAuthService(
 		nil, // entClient
 		repo,
-		nil, // redeemRepo
+		redeemRepo,
 		nil, // refreshTokenCache
 		cfg,
 		settingService,
@@ -390,6 +410,14 @@ func TestAuthService_Register_Success(t *testing.T) {
 	require.Equal(t, 2, user.Concurrency)
 	require.Len(t, repo.created, 1)
 	require.True(t, user.CheckPassword("password"))
+	redeemRepo, ok := service.redeemRepo.(*authRedeemRepoStub)
+	require.True(t, ok)
+	require.Len(t, redeemRepo.created, 1)
+	require.Equal(t, AdjustmentTypeRegistration, redeemRepo.created[0].Type)
+	require.Equal(t, 3.5, redeemRepo.created[0].Value)
+	require.Equal(t, StatusUsed, redeemRepo.created[0].Status)
+	require.NotNil(t, redeemRepo.created[0].UsedBy)
+	require.Equal(t, user.ID, *redeemRepo.created[0].UsedBy)
 }
 
 func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {
@@ -633,6 +661,11 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesLinuxDoAuthSourceDefa
 	require.Len(t, assigner.calls, 1)
 	require.Equal(t, int64(22), assigner.calls[0].GroupID)
 	require.Equal(t, 14, assigner.calls[0].ValidityDays)
+	redeemRepo, ok := service.redeemRepo.(*authRedeemRepoStub)
+	require.True(t, ok)
+	require.Len(t, redeemRepo.created, 1)
+	require.Equal(t, 21.75, redeemRepo.created[0].Value)
+	require.Equal(t, user.ID, *redeemRepo.created[0].UsedBy)
 }
 
 func TestAuthService_LoginOrRegisterOAuthWithTokenPair_ExistingUserDoesNotGrantAgain(t *testing.T) {

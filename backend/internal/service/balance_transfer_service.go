@@ -4,34 +4,36 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
 	"sync"
 	"time"
 
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
 
 var (
-	ErrTransferDisabled       = infraerrors.Forbidden("TRANSFER_DISABLED", "transfer feature is disabled")
-	ErrTransferSelf           = infraerrors.BadRequest("TRANSFER_SELF", "cannot transfer to yourself")
-	ErrTransferAmountInvalid  = infraerrors.BadRequest("TRANSFER_AMOUNT_INVALID", "invalid transfer amount")
-	ErrTransferInsufficient   = infraerrors.BadRequest("TRANSFER_INSUFFICIENT", "insufficient balance")
-	ErrTransferDailyLimit     = infraerrors.Forbidden("TRANSFER_DAILY_LIMIT", "daily transfer limit exceeded")
-	ErrTransferDailyCount     = infraerrors.Forbidden("TRANSFER_DAILY_COUNT", "daily transfer count limit exceeded")
+	ErrTransferDisabled         = infraerrors.Forbidden("TRANSFER_DISABLED", "transfer feature is disabled")
+	ErrTransferSelf             = infraerrors.BadRequest("TRANSFER_SELF", "cannot transfer to yourself")
+	ErrTransferAmountInvalid    = infraerrors.BadRequest("TRANSFER_AMOUNT_INVALID", "invalid transfer amount")
+	ErrTransferInsufficient     = infraerrors.BadRequest("TRANSFER_INSUFFICIENT", "insufficient balance")
+	ErrTransferDailyLimit       = infraerrors.Forbidden("TRANSFER_DAILY_LIMIT", "daily transfer limit exceeded")
+	ErrTransferDailyCount       = infraerrors.Forbidden("TRANSFER_DAILY_COUNT", "daily transfer count limit exceeded")
 	ErrTransferReceiverNotFound = infraerrors.NotFound("RECEIVER_NOT_FOUND", "receiver not found")
-	ErrTransferNotFound       = infraerrors.NotFound("TRANSFER_NOT_FOUND", "transfer not found")
-	ErrTransferAlreadyFrozen  = infraerrors.BadRequest("TRANSFER_ALREADY_FROZEN", "transfer already frozen")
-	ErrTransferAlreadyRevoked = infraerrors.BadRequest("TRANSFER_ALREADY_REVOKED", "transfer already revoked")
-	ErrRedPacketDisabled      = infraerrors.Forbidden("REDPACKET_DISABLED", "red packet feature is disabled")
-	ErrRedPacketNotFound      = infraerrors.NotFound("REDPACKET_NOT_FOUND", "red packet not found")
-	ErrRedPacketExpired       = infraerrors.BadRequest("REDPACKET_EXPIRED", "red packet has expired")
-	ErrRedPacketExhausted     = infraerrors.BadRequest("REDPACKET_EXHAUSTED", "red packet has been fully claimed")
-	ErrRedPacketAlreadyClaimed = infraerrors.BadRequest("REDPACKET_ALREADY_CLAIMED", "you have already claimed this red packet")
-	ErrRedPacketSelfClaim     = infraerrors.BadRequest("REDPACKET_SELF_CLAIM", "cannot claim your own red packet")
-	ErrRedPacketCountInvalid  = infraerrors.BadRequest("REDPACKET_COUNT_INVALID", "invalid red packet count")
+	ErrTransferNotFound         = infraerrors.NotFound("TRANSFER_NOT_FOUND", "transfer not found")
+	ErrTransferAlreadyFrozen    = infraerrors.BadRequest("TRANSFER_ALREADY_FROZEN", "transfer already frozen")
+	ErrTransferAlreadyRevoked   = infraerrors.BadRequest("TRANSFER_ALREADY_REVOKED", "transfer already revoked")
+	ErrRedPacketDisabled        = infraerrors.Forbidden("REDPACKET_DISABLED", "red packet feature is disabled")
+	ErrRedPacketNotFound        = infraerrors.NotFound("REDPACKET_NOT_FOUND", "red packet not found")
+	ErrRedPacketExpired         = infraerrors.BadRequest("REDPACKET_EXPIRED", "red packet has expired")
+	ErrRedPacketExhausted       = infraerrors.BadRequest("REDPACKET_EXHAUSTED", "red packet has been fully claimed")
+	ErrRedPacketAlreadyClaimed  = infraerrors.BadRequest("REDPACKET_ALREADY_CLAIMED", "you have already claimed this red packet")
+	ErrRedPacketSelfClaim       = infraerrors.BadRequest("REDPACKET_SELF_CLAIM", "cannot claim your own red packet")
+	ErrRedPacketCountInvalid    = infraerrors.BadRequest("REDPACKET_COUNT_INVALID", "invalid red packet count")
 )
 
 type BalanceTransferService struct {
@@ -376,6 +378,14 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 	mu.Lock()
 	defer mu.Unlock()
 
+	claimed, err = s.redPacketRepo.HasClaimed(ctx, rp.ID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("recheck claimed: %w", err)
+	}
+	if claimed {
+		return nil, ErrRedPacketAlreadyClaimed
+	}
+
 	freshRp, err := s.redPacketRepo.GetByID(ctx, rp.ID)
 	if err != nil {
 		return nil, ErrRedPacketNotFound
@@ -420,6 +430,9 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 		}
 		claimRecord.TransferID = &transferRecord.ID
 		if err := s.redPacketRepo.CreateClaim(txCtx, claimRecord); err != nil {
+			if dbent.IsConstraintError(err) {
+				return ErrRedPacketAlreadyClaimed
+			}
 			return fmt.Errorf("create claim record: %w", err)
 		}
 		if remainingCount <= 1 {
@@ -458,8 +471,9 @@ func (s *BalanceTransferService) ExpireRedPackets(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	var expireErr error
 	for _, rp := range rps {
-		_ = s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
+		if err := s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
 			remaining, err := s.redPacketRepo.ReturnRemaining(txCtx, rp.ID, rp.SenderID)
 			if err != nil {
 				return err
@@ -468,9 +482,11 @@ func (s *BalanceTransferService) ExpireRedPackets(ctx context.Context) error {
 				return s.userRepo.UpdateBalance(txCtx, rp.SenderID, remaining)
 			}
 			return nil
-		})
+		}); err != nil {
+			expireErr = errors.Join(expireErr, fmt.Errorf("expire red packet %d: %w", rp.ID, err))
+		}
 	}
-	return nil
+	return expireErr
 }
 
 func (s *BalanceTransferService) GetAllRedPackets(ctx context.Context, page, pageSize int) ([]*RedPacketRecord, int, error) {
