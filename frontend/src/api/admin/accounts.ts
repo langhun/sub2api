@@ -32,6 +32,7 @@ export async function list(
   pageSize: number = 20,
   filters?: {
     platform?: string
+    tier?: string
     type?: string
     status?: string
     group?: string
@@ -67,6 +68,7 @@ export async function listWithEtag(
   pageSize: number = 20,
   filters?: {
     platform?: string
+    tier?: string
     type?: string
     status?: string
     group?: string
@@ -502,6 +504,7 @@ export async function exportData(options?: {
   ids?: number[]
   filters?: {
     platform?: string
+    tier?: string
     type?: string
     status?: string
     group?: string
@@ -516,8 +519,9 @@ export async function exportData(options?: {
   if (options?.ids && options.ids.length > 0) {
     params.ids = options.ids.join(',')
   } else if (options?.filters) {
-    const { platform, type, status, group, privacy_mode, search, sort_by, sort_order } = options.filters
+    const { platform, tier, type, status, group, privacy_mode, search, sort_by, sort_order } = options.filters
     if (platform) params.platform = platform
+    if (tier) params.tier = tier
     if (type) params.type = type
     if (status) params.status = status
     if (group) params.group = group

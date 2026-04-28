@@ -642,6 +642,7 @@ const {
   fetchFn: adminAPI.accounts.list,
   initialParams: {
     platform: '',
+    tier: '',
     type: '',
     status: '',
     privacy_mode: '',
@@ -845,6 +846,7 @@ const refreshAccountsIncrementally = async () => {
       pagination.page_size,
       toRaw(params) as {
         platform?: string
+        tier?: string
         type?: string
         status?: string
         privacy_mode?: string
@@ -916,8 +918,23 @@ const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
 )
 
 // Antigravity 订阅等级辅助函数
+function normalizeTierText(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  return value.trim().toLowerCase().replace(/[\s-]+/g, '_')
+}
+
+function normalizeAntigravityPlanTier(value: unknown): string {
+  const tier = normalizeTierText(value)
+  if (tier === 'free' || tier === 'free_tier') return 'free-tier'
+  if (tier === 'pro' || tier === 'g1_pro_tier') return 'g1-pro-tier'
+  if (tier === 'ultra' || tier === 'g1_ultra_tier') return 'g1-ultra-tier'
+  return ''
+}
+
 function getAntigravityTierFromRow(row: any): string | null {
   if (row.platform !== 'antigravity') return null
+  const planTier = normalizeAntigravityPlanTier(row.credentials?.plan_type)
+  if (planTier) return planTier
   const extra = row.extra as Record<string, unknown> | undefined
   if (!extra) return null
   const lca = extra.load_code_assist as Record<string, unknown> | undefined
@@ -1220,8 +1237,87 @@ const handleBulkUpdated = () => { showBulkEdit.value = false; clearSelection(); 
 const handleDataImported = () => { showImportData.value = false; reload() }
 const ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE = 'ungrouped'
 const ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE = '__unset__'
+const OPENAI_TIER_ALIASES: Record<string, string> = {
+  free: 'free',
+  free_plan: 'free',
+  chatgpt_free: 'free',
+  plus: 'plus',
+  plus_plan: 'plus',
+  chatgpt_plus: 'plus',
+  team: 'team',
+  team_plan: 'team',
+  chatgpt_team: 'team',
+  business: 'team',
+  pro: 'pro',
+  pro_plan: 'pro',
+  chatgpt_pro: 'pro',
+  enterprise: 'enterprise',
+  enterprise_plan: 'enterprise',
+  chatgpt_enterprise: 'enterprise'
+}
+const GEMINI_TIER_ALIASES: Record<string, string> = {
+  google_one_free: 'google_one_free',
+  google_ai_pro: 'google_ai_pro',
+  google_ai_ultra: 'google_ai_ultra',
+  gcp_standard: 'gcp_standard',
+  gcp_enterprise: 'gcp_enterprise',
+  aistudio_free: 'aistudio_free',
+  aistudio_paid: 'aistudio_paid',
+  google_one_unknown: 'google_one_unknown',
+  free: 'google_one_free',
+  google_one_basic: 'google_one_free',
+  google_one_standard: 'google_one_free',
+  ai_premium: 'google_ai_pro',
+  pro: 'google_ai_pro',
+  ultra: 'google_ai_ultra'
+}
+
+const normalizeOpenAITier = (value: unknown) => {
+  const tier = normalizeTierText(value)
+  return OPENAI_TIER_ALIASES[tier] || tier
+}
+
+const normalizeGeminiTier = (value: unknown) => {
+  const tier = normalizeTierText(value)
+  return GEMINI_TIER_ALIASES[tier] || tier
+}
+
+const parseSelectedTier = (tier: string, fallbackPlatform: string) => {
+  const trimmed = String(tier || '').trim()
+  if (!trimmed) return null
+  const separator = trimmed.indexOf(':')
+  if (separator >= 0) {
+    return {
+      platform: trimmed.slice(0, separator),
+      value: trimmed.slice(separator + 1)
+    }
+  }
+  return {
+    platform: fallbackPlatform,
+    value: trimmed
+  }
+}
+
+const accountMatchesTier = (account: Account, selectedTier: string, fallbackPlatform: string) => {
+  const tier = parseSelectedTier(selectedTier, fallbackPlatform)
+  if (!tier || !tier.value) return true
+  if (tier.platform && account.platform !== tier.platform) return false
+
+  if (account.platform === 'openai') {
+    return normalizeOpenAITier(account.credentials?.plan_type) === normalizeOpenAITier(tier.value)
+  }
+  if (account.platform === 'gemini') {
+    return normalizeGeminiTier(account.credentials?.tier_id) === normalizeGeminiTier(tier.value)
+  }
+  if (account.platform === 'antigravity') {
+    return getAntigravityTierFromRow(account) === tier.value
+  }
+  return false
+}
+
 const buildAccountQueryFilters = () => ({
   platform: params.platform || '',
+  tier: params.tier || '',
   type: params.type || '',
   status: params.status || '',
   group: params.group || '',
@@ -1233,6 +1329,7 @@ const buildAccountQueryFilters = () => ({
 const accountMatchesCurrentFilters = (account: Account) => {
   const filters = buildAccountQueryFilters()
   if (filters.platform && account.platform !== filters.platform) return false
+  if (filters.tier && !accountMatchesTier(account, filters.tier, filters.platform)) return false
   if (filters.type && account.type !== filters.type) return false
   if (filters.status) {
     const now = Date.now()

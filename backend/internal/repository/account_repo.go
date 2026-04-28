@@ -457,10 +457,10 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *accountRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
-	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "")
+	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "", "")
 }
 
-func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
+func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, tier string) ([]service.Account, *pagination.PaginationResult, error) {
 	q := r.client.Account.Query()
 
 	if platform != "" {
@@ -552,6 +552,9 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 			}
 		}))
 	}
+	if tier != "" {
+		q = applyAccountTierFilter(q, platform, tier)
+	}
 
 	total, err := q.Count(ctx)
 	if err != nil {
@@ -575,6 +578,169 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 		return nil, nil, err
 	}
 	return outAccounts, paginationResultFromTotal(int64(total), params), nil
+}
+
+type accountTierFilter struct {
+	platform string
+	value    string
+}
+
+func parseAccountTierFilter(tier, fallbackPlatform string) accountTierFilter {
+	trimmed := strings.TrimSpace(tier)
+	if trimmed == "" {
+		return accountTierFilter{}
+	}
+	platform := strings.TrimSpace(fallbackPlatform)
+	value := trimmed
+	if parts := strings.SplitN(trimmed, ":", 2); len(parts) == 2 {
+		platform = strings.TrimSpace(parts[0])
+		value = strings.TrimSpace(parts[1])
+	}
+	return accountTierFilter{platform: platform, value: value}
+}
+
+func applyAccountTierFilter(q *dbent.AccountQuery, platform, tier string) *dbent.AccountQuery {
+	filter := parseAccountTierFilter(tier, platform)
+	if filter.value == "" {
+		return q
+	}
+	switch filter.platform {
+	case service.PlatformOpenAI:
+		values := openAIAccountTierValues(filter.value)
+		return q.Where(
+			dbaccount.PlatformEQ(service.PlatformOpenAI),
+			dbpredicate.Account(func(s *entsql.Selector) {
+				s.Where(jsonStringValuesPredicate(dbaccount.FieldCredentials, sqljson.Path("plan_type"), values))
+			}),
+		)
+	case service.PlatformGemini:
+		values := geminiAccountTierValues(filter.value)
+		return q.Where(
+			dbaccount.PlatformEQ(service.PlatformGemini),
+			dbpredicate.Account(func(s *entsql.Selector) {
+				s.Where(jsonStringValuesPredicate(dbaccount.FieldCredentials, sqljson.Path("tier_id"), values))
+			}),
+		)
+	case service.PlatformAntigravity:
+		tierIDs, planTypes := antigravityAccountTierValues(filter.value)
+		return q.Where(
+			dbaccount.PlatformEQ(service.PlatformAntigravity),
+			dbpredicate.Account(func(s *entsql.Selector) {
+				preds := []*entsql.Predicate{
+					jsonStringValuesPredicate(dbaccount.FieldExtra, sqljson.Path("load_code_assist", "paidTier", "id"), tierIDs),
+					jsonStringValuesPredicate(dbaccount.FieldExtra, sqljson.Path("load_code_assist", "currentTier", "id"), tierIDs),
+					jsonStringValuesPredicate(dbaccount.FieldCredentials, sqljson.Path("plan_type"), planTypes),
+				}
+				s.Where(entsql.Or(preds...))
+			}),
+		)
+	default:
+		return q.Where(dbaccount.IDEQ(-1))
+	}
+}
+
+func jsonStringValuesPredicate(field string, path sqljson.Option, values []string) *entsql.Predicate {
+	values = uniqueStringValues(values)
+	if len(values) == 0 {
+		return entsql.False()
+	}
+	preds := make([]*entsql.Predicate, 0, len(values))
+	for _, value := range values {
+		preds = append(preds, sqljson.ValueEQ(field, value, path))
+	}
+	if len(preds) == 1 {
+		return preds[0]
+	}
+	return entsql.Or(preds...)
+}
+
+func openAIAccountTierValues(value string) []string {
+	switch normalizeAccountTierValue(value) {
+	case "free":
+		return tierCaseVariants("free", "free_plan", "chatgpt_free", "ChatGPT Free")
+	case "plus":
+		return tierCaseVariants("plus", "plus_plan", "chatgpt_plus", "ChatGPT Plus")
+	case "team":
+		return tierCaseVariants("team", "team_plan", "chatgpt_team", "ChatGPT Team", "business")
+	case "pro":
+		return tierCaseVariants("pro", "pro_plan", "chatgpt_pro", "ChatGPT Pro")
+	case "enterprise":
+		return tierCaseVariants("enterprise", "enterprise_plan", "chatgpt_enterprise", "ChatGPT Enterprise")
+	default:
+		return tierCaseVariants(value)
+	}
+}
+
+func geminiAccountTierValues(value string) []string {
+	switch normalizeAccountTierValue(value) {
+	case "google_one_free", "free", "google_one_basic", "google_one_standard":
+		return tierCaseVariants("google_one_free", "FREE", "GOOGLE_ONE_BASIC", "GOOGLE_ONE_STANDARD")
+	case "google_ai_pro", "ai_premium", "pro":
+		return tierCaseVariants("google_ai_pro", "AI_PREMIUM", "PRO")
+	case "google_ai_ultra", "google_one_unlimited", "ultra":
+		return tierCaseVariants("google_ai_ultra", "GOOGLE_ONE_UNLIMITED", "ULTRA")
+	case "gcp_standard":
+		return tierCaseVariants("gcp_standard")
+	case "gcp_enterprise":
+		return tierCaseVariants("gcp_enterprise")
+	case "aistudio_free":
+		return tierCaseVariants("aistudio_free")
+	case "aistudio_paid":
+		return tierCaseVariants("aistudio_paid")
+	case "google_one_unknown", "unknown":
+		return tierCaseVariants("google_one_unknown")
+	default:
+		return tierCaseVariants(value)
+	}
+}
+
+func antigravityAccountTierValues(value string) ([]string, []string) {
+	switch normalizeAccountTierValue(value) {
+	case "free", "free_tier":
+		return tierCaseVariants("free-tier", "free_tier"), tierCaseVariants("Free", "free")
+	case "pro", "g1_pro_tier":
+		return tierCaseVariants("g1-pro-tier", "g1_pro_tier"), tierCaseVariants("Pro", "PRO", "pro")
+	case "ultra", "g1_ultra_tier":
+		return tierCaseVariants("g1-ultra-tier", "g1_ultra_tier"), tierCaseVariants("Ultra", "ULTRA", "ultra")
+	default:
+		return tierCaseVariants(value), tierCaseVariants(value)
+	}
+}
+
+func normalizeAccountTierValue(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	value = strings.ReplaceAll(value, "-", "_")
+	value = strings.ReplaceAll(value, " ", "_")
+	return value
+}
+
+func tierCaseVariants(values ...string) []string {
+	out := make([]string, 0, len(values)*3)
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		out = append(out, value, strings.ToLower(value), strings.ToUpper(value))
+	}
+	return uniqueStringValues(out)
+}
+
+func uniqueStringValues(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func accountListOrder(params pagination.PaginationParams) []func(*entsql.Selector) {
