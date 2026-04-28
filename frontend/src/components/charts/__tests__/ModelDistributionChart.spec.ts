@@ -17,6 +17,7 @@ const messages: Record<string, string> = {
   'admin.dashboard.requests': 'Requests',
   'admin.dashboard.tokens': 'Tokens',
   'admin.dashboard.actual': 'Actual',
+  'admin.dashboard.accountCost': 'Account Cost',
   'admin.dashboard.standard': 'Standard',
   'admin.dashboard.metricTokens': 'By Tokens',
   'admin.dashboard.metricActualCost': 'By Actual Cost',
@@ -52,6 +53,7 @@ describe('ModelDistributionChart', () => {
       cache_read_tokens: 0,
       total_tokens: 1000,
       cost: 1.5,
+      account_cost: 0.3,
       actual_cost: 0.2,
     },
     {
@@ -63,6 +65,7 @@ describe('ModelDistributionChart', () => {
       cache_read_tokens: 0,
       total_tokens: 500,
       cost: 0.5,
+      account_cost: 0.6,
       actual_cost: 1.4,
     },
   ]
@@ -132,8 +135,8 @@ describe('ModelDistributionChart', () => {
         modelStats: [],
         enableRankingView: true,
         rankingItems: [
-          { user_id: 1, email: 'alpha@example.com', actual_cost: 12, requests: 10, tokens: 1000 },
-          { user_id: 2, email: 'beta@example.com', actual_cost: 8, requests: 6, tokens: 600 },
+          { user_id: 1, email: 'alpha@example.com', username: 'Alpha User', actual_cost: 12, requests: 10, tokens: 1000 },
+          { user_id: 2, email: 'beta@example.com', username: '', actual_cost: 8, requests: 6, tokens: 600 },
         ],
         rankingTotalActualCost: 30,
         rankingTotalRequests: 20,
@@ -152,7 +155,7 @@ describe('ModelDistributionChart', () => {
 
     const chartData = JSON.parse(wrapper.find('.chart-data').text())
     expect(chartData.labels).toEqual([
-      '#1 alpha@example.com',
+      '#1 Alpha User',
       '#2 beta@example.com',
       'Others',
     ])
@@ -163,6 +166,8 @@ describe('ModelDistributionChart', () => {
 
     const rows = wrapper.findAll('tbody tr')
     expect(rows).toHaveLength(3)
+    expect(rows[0].text()).toContain('Alpha User')
+    expect(rows[1].text()).toContain('beta@example.com')
     expect(rows[2].text()).toContain('Others')
     expect(rows[2].text()).toContain('4')
     expect(rows[2].text()).toContain('400')
