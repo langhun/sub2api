@@ -75,6 +75,20 @@ export function formatCurrency(amount: number | null | undefined, currency: stri
 }
 
 /**
+ * 格式化带正负号的美元金额，避免出现 "+$-1.00" 这类重复符号。
+ * @param amount 金额
+ * @returns 格式化后的字符串，如 "+$1.25", "-$1.25", "$0.00"
+ */
+export function formatSignedCurrency(amount: number | null | undefined): string {
+  const value = Number(amount ?? 0)
+  const sign = value > 0 ? '+' : value < 0 ? '-' : ''
+  const absValue = Math.abs(value)
+  const fractionDigits = absValue > 0 && absValue < 0.01 ? 6 : 2
+
+  return `${sign}$${absValue.toFixed(fractionDigits)}`
+}
+
+/**
  * 格式化字节大小
  * @param bytes 字节数
  * @param decimals 小数位数
