@@ -73,6 +73,7 @@ function buildPublicSettings(overrides: Partial<WeChatPublicSettings> = {}): WeC
     contact_info: '',
     doc_url: '',
     home_content: '',
+    home_nav_links_enabled: true,
     hide_ccs_import_button: false,
     payment_enabled: false,
     table_default_page_size: 20,

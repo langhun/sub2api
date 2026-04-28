@@ -419,6 +419,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyContactInfo,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
+		SettingKeyHomeNavLinksEnabled,
 		SettingKeyHideCcsImportButton,
 		SettingKeyPurchaseSubscriptionEnabled,
 		SettingKeyPurchaseSubscriptionURL,
@@ -517,6 +518,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
+		HomeNavLinksEnabled:              settings[SettingKeyHomeNavLinksEnabled] != "false",
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
@@ -662,6 +664,7 @@ type PublicSettingsInjectionPayload struct {
 	ContactInfo                      string          `json:"contact_info"`
 	DocURL                           string          `json:"doc_url"`
 	HomeContent                      string          `json:"home_content"`
+	HomeNavLinksEnabled              bool            `json:"home_nav_links_enabled"`
 	HideCcsImportButton              bool            `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool            `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string          `json:"purchase_subscription_url"`
@@ -718,6 +721,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ContactInfo:                      settings.ContactInfo,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
+		HomeNavLinksEnabled:              settings.HomeNavLinksEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
@@ -1154,6 +1158,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyContactInfo] = settings.ContactInfo
 	updates[SettingKeyDocURL] = settings.DocURL
 	updates[SettingKeyHomeContent] = settings.HomeContent
+	updates[SettingKeyHomeNavLinksEnabled] = strconv.FormatBool(settings.HomeNavLinksEnabled)
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
@@ -1878,6 +1883,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyPromoCodeEnabled:                         "true", // 默认启用优惠码功能
 		SettingKeySiteName:                                 "Sub2API",
 		SettingKeySiteLogo:                                 "",
+		SettingKeyHomeNavLinksEnabled:                      "true",
 		SettingKeyPurchaseSubscriptionEnabled:              "false",
 		SettingKeyPurchaseSubscriptionURL:                  "",
 		SettingKeyTableDefaultPageSize:                     "20",
@@ -2007,16 +2013,16 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyCheckinBlindboxInterval:    "7",
 
 		// Balance Transfer 余额流转设置（默认关闭）
-		SettingKeyTransferEnabled:          "false",
-		SettingKeyTransferFeeRate:          "0.010000",
-		SettingKeyTransferMinAmount:        "0.01000000",
-		SettingKeyTransferMaxAmount:        "1000.00000000",
-		SettingKeyTransferDailyLimit:       "1000.00000000",
-		SettingKeyTransferDailyCountLimit:  "50",
-		SettingKeyTransferVIPFeeExempt:     "false",
-		SettingKeyRedPacketEnabled:         "false",
-		SettingKeyRedPacketMaxCount:        "100",
-		SettingKeyRedPacketExpireHours:     "24",
+		SettingKeyTransferEnabled:         "false",
+		SettingKeyTransferFeeRate:         "0.010000",
+		SettingKeyTransferMinAmount:       "0.01000000",
+		SettingKeyTransferMaxAmount:       "1000.00000000",
+		SettingKeyTransferDailyLimit:      "1000.00000000",
+		SettingKeyTransferDailyCountLimit: "50",
+		SettingKeyTransferVIPFeeExempt:    "false",
+		SettingKeyRedPacketEnabled:        "false",
+		SettingKeyRedPacketMaxCount:       "100",
+		SettingKeyRedPacketExpireHours:    "24",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -2050,6 +2056,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
+		HomeNavLinksEnabled:              settings[SettingKeyHomeNavLinksEnabled] != "false",
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),

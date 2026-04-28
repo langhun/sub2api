@@ -195,6 +195,7 @@ export interface PublicSettings {
   contact_info: string
   doc_url: string
   home_content: string
+  home_nav_links_enabled: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean
   table_default_page_size: number

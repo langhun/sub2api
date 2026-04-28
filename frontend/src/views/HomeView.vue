@@ -7,7 +7,7 @@
 
   <!-- Default Home Page - Professional Business Style -->
   <div v-else class="relative flex min-h-screen flex-col bg-gray-50 dark:bg-dark-950">
-    <PublicPageHeader />
+    <PublicPageHeader :show-nav-links="homeNavLinksEnabled" />
 
     <!-- Hero Section -->
     <section class="relative overflow-hidden">
@@ -197,6 +197,7 @@ const appStore = useAppStore()
 
 const docUrl = computed(() => appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
+const homeNavLinksEnabled = computed(() => appStore.cachedPublicSettings?.home_nav_links_enabled !== false)
 
 const isHomeContentUrl = computed(() => {
   const content = homeContent.value.trim()

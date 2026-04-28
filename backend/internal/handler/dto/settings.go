@@ -98,6 +98,7 @@ type SystemSettings struct {
 	ContactInfo                 string           `json:"contact_info"`
 	DocURL                      string           `json:"doc_url"`
 	HomeContent                 string           `json:"home_content"`
+	HomeNavLinksEnabled         bool             `json:"home_nav_links_enabled"`
 	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
@@ -200,9 +201,9 @@ type SystemSettings struct {
 	CheckinLuckMaxMultiplier float64 `json:"checkin_luck_max_multiplier"`
 
 	// Checkin Blind Box 签到盲盒设置
-	CheckinBlindboxEnabled      bool   `json:"checkin_blindbox_enabled"`
-	CheckinBlindboxTriggerType  string `json:"checkin_blindbox_trigger_type"`
-	CheckinBlindboxInterval     int    `json:"checkin_blindbox_interval"`
+	CheckinBlindboxEnabled     bool   `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType string `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval    int    `json:"checkin_blindbox_interval"`
 
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
@@ -253,6 +254,7 @@ type PublicSettings struct {
 	ContactInfo                      string           `json:"contact_info"`
 	DocURL                           string           `json:"doc_url"`
 	HomeContent                      string           `json:"home_content"`
+	HomeNavLinksEnabled              bool             `json:"home_nav_links_enabled"`
 	HideCcsImportButton              bool             `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string           `json:"purchase_subscription_url"`
