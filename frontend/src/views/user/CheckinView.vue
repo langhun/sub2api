@@ -188,7 +188,7 @@
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.page.todayReward') }}</span>
               <span class="text-sm font-bold" :class="checkinStore.todayReward >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'">
-                {{ checkinStore.todayReward >= 0 ? '+' : '' }}${{ checkinStore.todayReward?.toFixed(2) }}
+                {{ formatSignedCurrency(checkinStore.todayReward) }}
               </span>
             </div>
             <div class="flex items-center justify-between">
@@ -314,6 +314,7 @@ import { useCheckinStore } from '@/stores/checkin'
 import { getBlindboxRecords, getCheckinCalendar, type BlindboxRecordItem, type BlindboxResult, type CheckinCalendarDay } from '@/api/checkin'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import { formatSignedCurrency } from '@/utils/format'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -412,12 +413,7 @@ function getCalendarCellClass(day: CalendarCell): string {
 }
 
 function formatCalendarReward(day: CalendarCell): string {
-  const v = day.rewardValue
-  if (day.rewardType === 'luck') {
-    const prefix = v >= 0 ? '+' : ''
-    return `${prefix}$${v.toFixed(2)}`
-  }
-  return `+$${v.toFixed(2)}`
+  return formatSignedCurrency(day.rewardValue)
 }
 
 const streakColor = computed(() => {

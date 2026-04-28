@@ -105,7 +105,7 @@
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>+${{ todayReward?.toFixed(2) }}</span>
+            <span>{{ formatSignedCurrency(todayReward) }}</span>
           </div>
         </div>
 
@@ -307,6 +307,7 @@ import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMi
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import BlindboxModal from '@/components/user/profile/BlindboxModal.vue'
+import { formatSignedCurrency } from '@/utils/format'
 
 const router = useRouter()
 const route = useRoute()
