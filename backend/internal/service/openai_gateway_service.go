@@ -1799,6 +1799,9 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, PlatformOpenAI, false)
 		return accounts, err
 	}
+	if s.accountRepo == nil {
+		return nil, ErrNoAvailableAccounts
+	}
 	var accounts []Account
 	var err error
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
@@ -1812,6 +1815,33 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
 	return accounts, nil
+}
+
+func (s *OpenAIGatewayService) GetAvailableModels(ctx context.Context, groupID *int64) []string {
+	accounts, err := s.listSchedulableAccounts(ctx, groupID)
+	if err != nil || len(accounts) == 0 {
+		return nil
+	}
+	modelSet := make(map[string]struct{})
+	hasAnyMapping := false
+	for _, acc := range accounts {
+		mapping := acc.GetModelMapping()
+		if len(mapping) > 0 {
+			hasAnyMapping = true
+			for model := range mapping {
+				modelSet[model] = struct{}{}
+			}
+		}
+	}
+	if !hasAnyMapping {
+		return nil
+	}
+	models := make([]string, 0, len(modelSet))
+	for model := range modelSet {
+		models = append(models, model)
+	}
+	sort.Strings(models)
+	return models
 }
 
 func (s *OpenAIGatewayService) tryAcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int) (*AcquireResult, error) {

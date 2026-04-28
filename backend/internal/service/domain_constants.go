@@ -66,6 +66,10 @@ const (
 const (
 	AdjustmentTypeAdminBalance     = domain.AdjustmentTypeAdminBalance     // 管理员调整余额
 	AdjustmentTypeAdminConcurrency = domain.AdjustmentTypeAdminConcurrency // 管理员调整并发数
+	AdjustmentTypeCheckin          = domain.AdjustmentTypeCheckin          // 签到奖励
+	AdjustmentTypeCheckinLuck      = domain.AdjustmentTypeCheckinLuck      // 运气签到
+	AdjustmentTypeCheckinBlindbox  = domain.AdjustmentTypeCheckinBlindbox  // 签到盲盒奖励
+	AdjustmentTypeRegistration     = domain.AdjustmentTypeRegistration     // 注册赠送
 )
 
 // Group subscription type constants
@@ -341,6 +345,33 @@ const (
 
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
+
+	// Checkin 签到设置
+	SettingKeyCheckinEnabled    = "checkin_enabled"     // 是否启用签到功能
+	SettingKeyCheckinMinBalance = "checkin_min_balance"  // 签到最小奖励额度
+	SettingKeyCheckinMaxBalance = "checkin_max_balance"  // 签到最大奖励额度
+
+	// Checkin Luck 运气签到设置
+	SettingKeyCheckinLuckEnabled       = "checkin_luck_enabled"        // 是否启用运气签到
+	SettingKeyCheckinLuckMinMultiplier = "checkin_luck_min_multiplier" // 运气签到最小倍率
+	SettingKeyCheckinLuckMaxMultiplier = "checkin_luck_max_multiplier" // 运气签到最大倍率
+
+	// Checkin Blind Box 签到盲盒设置
+	SettingKeyCheckinBlindboxEnabled      = "checkin_blindbox_enabled"       // 是否启用签到盲盒
+	SettingKeyCheckinBlindboxTriggerType  = "checkin_blindbox_trigger_type"  // 触发类型: streak/total
+	SettingKeyCheckinBlindboxInterval     = "checkin_blindbox_interval"      // 触发间隔: 每N天/次
+
+	// Balance Transfer 余额流转设置
+	SettingKeyTransferEnabled             = "transfer_enabled"
+	SettingKeyTransferFeeRate             = "transfer_fee_rate"
+	SettingKeyTransferMinAmount           = "transfer_min_amount"
+	SettingKeyTransferMaxAmount           = "transfer_max_amount"
+	SettingKeyTransferDailyLimit          = "transfer_daily_limit"
+	SettingKeyTransferDailyCountLimit     = "transfer_daily_count_limit"
+	SettingKeyTransferVIPFeeExempt        = "transfer_vip_fee_exempt"
+	SettingKeyRedPacketEnabled            = "redpacket_enabled"
+	SettingKeyRedPacketMaxCount           = "redpacket_max_count"
+	SettingKeyRedPacketExpireHours        = "redpacket_expire_hours"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).

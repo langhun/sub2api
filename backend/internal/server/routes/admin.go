@@ -89,8 +89,17 @@ func RegisterAdminRoutes(
 		// 渠道管理
 		registerChannelRoutes(admin, h)
 
+		// 模型定价管理
+		registerModelPricingRoutes(admin, h)
+
+		// 签到盲盒奖池管理
+		registerBlindboxRoutes(admin, h)
+
 		// 渠道监控
 		registerChannelMonitorRoutes(admin, h)
+
+		// 转账管理
+		registerTransferAdminRoutes(admin, h)
 
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
@@ -574,6 +583,31 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
+func registerModelPricingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	pricing := admin.Group("/model-pricing")
+	{
+		pricing.GET("", h.Admin.ModelPricing.List)
+		pricing.POST("", h.Admin.ModelPricing.Create)
+		pricing.PUT("/:id", h.Admin.ModelPricing.Update)
+		pricing.DELETE("/:id", h.Admin.ModelPricing.Delete)
+		pricing.POST("/bulk-delete", h.Admin.ModelPricing.BulkDelete)
+		pricing.POST("/sync", h.Admin.ModelPricing.SyncFromRemote)
+		pricing.GET("/sync-status", h.Admin.ModelPricing.GetSyncStatus)
+		pricing.PUT("/auto-sync", h.Admin.ModelPricing.SetAutoSync)
+	}
+}
+
+func registerBlindboxRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	blindbox := admin.Group("/blindbox")
+	{
+		blindbox.GET("/prize-items", h.Admin.Blindbox.ListPrizeItems)
+		blindbox.POST("/prize-items", h.Admin.Blindbox.CreatePrizeItem)
+		blindbox.PUT("/prize-items/:id", h.Admin.Blindbox.UpdatePrizeItem)
+		blindbox.DELETE("/prize-items/:id", h.Admin.Blindbox.DeletePrizeItem)
+		blindbox.GET("/stats", h.Admin.Blindbox.GetStats)
+	}
+}
+
 func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	monitors := admin.Group("/channel-monitors")
 	{
@@ -595,6 +629,21 @@ func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		templates.DELETE("/:id", h.Admin.ChannelMonitorTemplate.Delete)
 		templates.GET("/:id/monitors", h.Admin.ChannelMonitorTemplate.AssociatedMonitors)
 		templates.POST("/:id/apply", h.Admin.ChannelMonitorTemplate.Apply)
+	}
+}
+
+func registerTransferAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	transfers := admin.Group("/transfers")
+	{
+		transfers.GET("", h.Admin.TransferAdmin.ListTransfers)
+		transfers.GET("/stats", h.Admin.TransferAdmin.GetFeeStats)
+		transfers.PUT("/:id/freeze", h.Admin.TransferAdmin.FreezeTransfer)
+		transfers.PUT("/:id/revoke", h.Admin.TransferAdmin.RevokeTransfer)
+		transfers.POST("/batch", h.Admin.TransferAdmin.BatchDistribute)
+	}
+	redpackets := admin.Group("/redpackets")
+	{
+		redpackets.GET("", h.Admin.TransferAdmin.ListRedPackets)
 	}
 }
 

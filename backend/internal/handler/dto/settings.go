@@ -189,12 +189,39 @@ type SystemSettings struct {
 	AccountQuotaNotifyEnabled   bool               `json:"account_quota_notify_enabled"`
 	AccountQuotaNotifyEmails    []NotifyEmailEntry `json:"account_quota_notify_emails"`
 
+	// Checkin 签到设置
+	CheckinEnabled    bool    `json:"checkin_enabled"`
+	CheckinMinBalance float64 `json:"checkin_min_balance"`
+	CheckinMaxBalance float64 `json:"checkin_max_balance"`
+
+	// Checkin Luck 运气签到设置
+	CheckinLuckEnabled       bool    `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier float64 `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier float64 `json:"checkin_luck_max_multiplier"`
+
+	// Checkin Blind Box 签到盲盒设置
+	CheckinBlindboxEnabled      bool   `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType  string `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval     int    `json:"checkin_blindbox_interval"`
+
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
 	// Available Channels feature switch (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	// Balance Transfer 余额流转设置
+	TransferEnabled         bool    `json:"transfer_enabled"`
+	TransferFeeRate         float64 `json:"transfer_fee_rate"`
+	TransferMinAmount       float64 `json:"transfer_min_amount"`
+	TransferMaxAmount       float64 `json:"transfer_max_amount"`
+	TransferDailyLimit      float64 `json:"transfer_daily_limit"`
+	TransferDailyCountLimit int     `json:"transfer_daily_count_limit"`
+	TransferVIPFeeExempt    bool    `json:"transfer_vip_fee_exempt"`
+	RedPacketEnabled        bool    `json:"redpacket_enabled"`
+	RedPacketMaxCount       int     `json:"redpacket_max_count"`
+	RedPacketExpireHours    int     `json:"redpacket_expire_hours"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled bool `json:"affiliate_enabled"`

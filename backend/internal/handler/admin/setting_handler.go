@@ -220,6 +220,15 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		BalanceLowNotifyRechargeURL:            settings.BalanceLowNotifyRechargeURL,
 		AccountQuotaNotifyEnabled:              settings.AccountQuotaNotifyEnabled,
 		AccountQuotaNotifyEmails:               dto.NotifyEmailEntriesFromService(settings.AccountQuotaNotifyEmails),
+		CheckinEnabled:                         settings.CheckinEnabled,
+		CheckinMinBalance:                      settings.CheckinMinBalance,
+		CheckinMaxBalance:                      settings.CheckinMaxBalance,
+		CheckinLuckEnabled:                     settings.CheckinLuckEnabled,
+		CheckinLuckMinMultiplier:               settings.CheckinLuckMinMultiplier,
+		CheckinLuckMaxMultiplier:               settings.CheckinLuckMaxMultiplier,
+		CheckinBlindboxEnabled:                 settings.CheckinBlindboxEnabled,
+		CheckinBlindboxTriggerType:             settings.CheckinBlindboxTriggerType,
+		CheckinBlindboxInterval:                settings.CheckinBlindboxInterval,
 		PaymentEnabled:                         paymentCfg.Enabled,
 		PaymentMinAmount:                       paymentCfg.MinAmount,
 		PaymentMaxAmount:                       paymentCfg.MaxAmount,
@@ -245,6 +254,17 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+
+		TransferEnabled:         settings.TransferEnabled,
+		TransferFeeRate:         settings.TransferFeeRate,
+		TransferMinAmount:       settings.TransferMinAmount,
+		TransferMaxAmount:       settings.TransferMaxAmount,
+		TransferDailyLimit:      settings.TransferDailyLimit,
+		TransferDailyCountLimit: settings.TransferDailyCountLimit,
+		TransferVIPFeeExempt:    settings.TransferVIPFeeExempt,
+		RedPacketEnabled:        settings.RedPacketEnabled,
+		RedPacketMaxCount:       settings.RedPacketMaxCount,
+		RedPacketExpireHours:    settings.RedPacketExpireHours,
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 	}
@@ -443,12 +463,39 @@ type UpdateSettingsRequest struct {
 	PaymentCancelRateLimitUnit    *string `json:"payment_cancel_rate_limit_unit"`
 	PaymentCancelRateLimitMode    *string `json:"payment_cancel_rate_limit_window_mode"`
 
+	// Checkin 签到设置
+	CheckinEnabled    *bool    `json:"checkin_enabled"`
+	CheckinMinBalance *float64 `json:"checkin_min_balance"`
+	CheckinMaxBalance *float64 `json:"checkin_max_balance"`
+
+	// Checkin Luck 运气签到设置
+	CheckinLuckEnabled       *bool    `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier *float64 `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier *float64 `json:"checkin_luck_max_multiplier"`
+
+	// Checkin Blind Box 签到盲盒设置
+	CheckinBlindboxEnabled      *bool   `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType  *string `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval     *int    `json:"checkin_blindbox_interval"`
+
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                *bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds *int  `json:"channel_monitor_default_interval_seconds"`
 
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
+
+	// Balance Transfer 余额流转设置
+	TransferEnabled         *bool    `json:"transfer_enabled"`
+	TransferFeeRate         *float64 `json:"transfer_fee_rate"`
+	TransferMinAmount       *float64 `json:"transfer_min_amount"`
+	TransferMaxAmount       *float64 `json:"transfer_max_amount"`
+	TransferDailyLimit      *float64 `json:"transfer_daily_limit"`
+	TransferDailyCountLimit *int     `json:"transfer_daily_count_limit"`
+	TransferVIPFeeExempt    *bool    `json:"transfer_vip_fee_exempt"`
+	RedPacketEnabled        *bool    `json:"redpacket_enabled"`
+	RedPacketMaxCount       *int     `json:"redpacket_max_count"`
+	RedPacketExpireHours    *int     `json:"redpacket_expire_hours"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
@@ -1288,6 +1335,60 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AccountQuotaNotifyEmails
 		}(),
+		CheckinEnabled: func() bool {
+			if req.CheckinEnabled != nil {
+				return *req.CheckinEnabled
+			}
+			return previousSettings.CheckinEnabled
+		}(),
+		CheckinMinBalance: func() float64 {
+			if req.CheckinMinBalance != nil {
+				return *req.CheckinMinBalance
+			}
+			return previousSettings.CheckinMinBalance
+		}(),
+		CheckinMaxBalance: func() float64 {
+			if req.CheckinMaxBalance != nil {
+				return *req.CheckinMaxBalance
+			}
+			return previousSettings.CheckinMaxBalance
+		}(),
+		CheckinLuckEnabled: func() bool {
+			if req.CheckinLuckEnabled != nil {
+				return *req.CheckinLuckEnabled
+			}
+			return previousSettings.CheckinLuckEnabled
+		}(),
+		CheckinLuckMinMultiplier: func() float64 {
+			if req.CheckinLuckMinMultiplier != nil {
+				return *req.CheckinLuckMinMultiplier
+			}
+			return previousSettings.CheckinLuckMinMultiplier
+		}(),
+		CheckinLuckMaxMultiplier: func() float64 {
+			if req.CheckinLuckMaxMultiplier != nil {
+				return *req.CheckinLuckMaxMultiplier
+			}
+			return previousSettings.CheckinLuckMaxMultiplier
+		}(),
+		CheckinBlindboxEnabled: func() bool {
+			if req.CheckinBlindboxEnabled != nil {
+				return *req.CheckinBlindboxEnabled
+			}
+			return previousSettings.CheckinBlindboxEnabled
+		}(),
+		CheckinBlindboxTriggerType: func() string {
+			if req.CheckinBlindboxTriggerType != nil {
+				return *req.CheckinBlindboxTriggerType
+			}
+			return previousSettings.CheckinBlindboxTriggerType
+		}(),
+		CheckinBlindboxInterval: func() int {
+			if req.CheckinBlindboxInterval != nil {
+				return *req.CheckinBlindboxInterval
+			}
+			return previousSettings.CheckinBlindboxInterval
+		}(),
 		ChannelMonitorEnabled: func() bool {
 			if req.ChannelMonitorEnabled != nil {
 				return *req.ChannelMonitorEnabled
@@ -1306,6 +1407,67 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
+		TransferEnabled: func() bool {
+			if req.TransferEnabled != nil {
+				return *req.TransferEnabled
+			}
+			return previousSettings.TransferEnabled
+		}(),
+		TransferFeeRate: func() float64 {
+			if req.TransferFeeRate != nil && *req.TransferFeeRate >= 0 {
+				return *req.TransferFeeRate
+			}
+			return previousSettings.TransferFeeRate
+		}(),
+		TransferMinAmount: func() float64 {
+			if req.TransferMinAmount != nil && *req.TransferMinAmount >= 0 {
+				return *req.TransferMinAmount
+			}
+			return previousSettings.TransferMinAmount
+		}(),
+		TransferMaxAmount: func() float64 {
+			if req.TransferMaxAmount != nil && *req.TransferMaxAmount >= 0 {
+				return *req.TransferMaxAmount
+			}
+			return previousSettings.TransferMaxAmount
+		}(),
+		TransferDailyLimit: func() float64 {
+			if req.TransferDailyLimit != nil && *req.TransferDailyLimit >= 0 {
+				return *req.TransferDailyLimit
+			}
+			return previousSettings.TransferDailyLimit
+		}(),
+		TransferDailyCountLimit: func() int {
+			if req.TransferDailyCountLimit != nil && *req.TransferDailyCountLimit > 0 {
+				return *req.TransferDailyCountLimit
+			}
+			return previousSettings.TransferDailyCountLimit
+		}(),
+		TransferVIPFeeExempt: func() bool {
+			if req.TransferVIPFeeExempt != nil {
+				return *req.TransferVIPFeeExempt
+			}
+			return previousSettings.TransferVIPFeeExempt
+		}(),
+		RedPacketEnabled: func() bool {
+			if req.RedPacketEnabled != nil {
+				return *req.RedPacketEnabled
+			}
+			return previousSettings.RedPacketEnabled
+		}(),
+		RedPacketMaxCount: func() int {
+			if req.RedPacketMaxCount != nil && *req.RedPacketMaxCount > 0 {
+				return *req.RedPacketMaxCount
+			}
+			return previousSettings.RedPacketMaxCount
+		}(),
+		RedPacketExpireHours: func() int {
+			if req.RedPacketExpireHours != nil && *req.RedPacketExpireHours > 0 {
+				return *req.RedPacketExpireHours
+			}
+			return previousSettings.RedPacketExpireHours
+		}(),
+
 		AffiliateEnabled: func() bool {
 			if req.AffiliateEnabled != nil {
 				return *req.AffiliateEnabled
@@ -1527,6 +1689,15 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		BalanceLowNotifyRechargeURL:            updatedSettings.BalanceLowNotifyRechargeURL,
 		AccountQuotaNotifyEnabled:              updatedSettings.AccountQuotaNotifyEnabled,
 		AccountQuotaNotifyEmails:               dto.NotifyEmailEntriesFromService(updatedSettings.AccountQuotaNotifyEmails),
+		CheckinEnabled:                         updatedSettings.CheckinEnabled,
+		CheckinMinBalance:                      updatedSettings.CheckinMinBalance,
+		CheckinMaxBalance:                      updatedSettings.CheckinMaxBalance,
+		CheckinLuckEnabled:                     updatedSettings.CheckinLuckEnabled,
+		CheckinLuckMinMultiplier:               updatedSettings.CheckinLuckMinMultiplier,
+		CheckinLuckMaxMultiplier:               updatedSettings.CheckinLuckMaxMultiplier,
+		CheckinBlindboxEnabled:                 updatedSettings.CheckinBlindboxEnabled,
+		CheckinBlindboxTriggerType:             updatedSettings.CheckinBlindboxTriggerType,
+		CheckinBlindboxInterval:                updatedSettings.CheckinBlindboxInterval,
 		PaymentEnabled:                         updatedPaymentCfg.Enabled,
 		PaymentMinAmount:                       updatedPaymentCfg.MinAmount,
 		PaymentMaxAmount:                       updatedPaymentCfg.MaxAmount,

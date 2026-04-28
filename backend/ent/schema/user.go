@@ -128,6 +128,10 @@ func (User) Edges() []ent.Edge {
 		edge.To("attribute_values", UserAttributeValue.Type),
 		edge.To("promo_code_usages", PromoCodeUsage.Type),
 		edge.To("payment_orders", PaymentOrder.Type),
+		edge.To("checkins", Checkin.Type),
+		edge.To("sent_transfers", BalanceTransfer.Type),
+		edge.To("received_transfers", BalanceTransfer.Type),
+		edge.To("redpackets", BalanceRedPacket.Type),
 		edge.To("auth_identities", AuthIdentity.Type).
 			Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.To("pending_auth_sessions", PendingAuthSession.Type),
