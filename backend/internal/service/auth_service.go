@@ -1551,7 +1551,7 @@ func hashToken(token string) string {
 }
 
 func (s *AuthService) createRegistrationBonusRecord(ctx context.Context, userID int64, defaultBalance float64) {
-	if defaultBalance <= 0 {
+	if defaultBalance <= 0 || s.redeemRepo == nil {
 		return
 	}
 	code, err := GenerateRedeemCode()
