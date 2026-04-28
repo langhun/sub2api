@@ -14,6 +14,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
+	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
+	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
@@ -487,6 +490,66 @@ func (_c *UserCreate) AddPaymentOrders(v ...*PaymentOrder) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddPaymentOrderIDs(ids...)
+}
+
+// AddCheckinIDs adds the "checkins" edge to the Checkin entity by IDs.
+func (_c *UserCreate) AddCheckinIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddCheckinIDs(ids...)
+	return _c
+}
+
+// AddCheckins adds the "checkins" edges to the Checkin entity.
+func (_c *UserCreate) AddCheckins(v ...*Checkin) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCheckinIDs(ids...)
+}
+
+// AddSentTransferIDs adds the "sent_transfers" edge to the BalanceTransfer entity by IDs.
+func (_c *UserCreate) AddSentTransferIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddSentTransferIDs(ids...)
+	return _c
+}
+
+// AddSentTransfers adds the "sent_transfers" edges to the BalanceTransfer entity.
+func (_c *UserCreate) AddSentTransfers(v ...*BalanceTransfer) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddSentTransferIDs(ids...)
+}
+
+// AddReceivedTransferIDs adds the "received_transfers" edge to the BalanceTransfer entity by IDs.
+func (_c *UserCreate) AddReceivedTransferIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddReceivedTransferIDs(ids...)
+	return _c
+}
+
+// AddReceivedTransfers adds the "received_transfers" edges to the BalanceTransfer entity.
+func (_c *UserCreate) AddReceivedTransfers(v ...*BalanceTransfer) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddReceivedTransferIDs(ids...)
+}
+
+// AddRedpacketIDs adds the "redpackets" edge to the BalanceRedPacket entity by IDs.
+func (_c *UserCreate) AddRedpacketIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddRedpacketIDs(ids...)
+	return _c
+}
+
+// AddRedpackets adds the "redpackets" edges to the BalanceRedPacket entity.
+func (_c *UserCreate) AddRedpackets(v ...*BalanceRedPacket) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddRedpacketIDs(ids...)
 }
 
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by IDs.
@@ -984,6 +1047,70 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(paymentorder.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CheckinsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinsTable,
+			Columns: []string{user.CheckinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkin.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SentTransfersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentTransfersTable,
+			Columns: []string{user.SentTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ReceivedTransfersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReceivedTransfersTable,
+			Columns: []string{user.ReceivedTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.RedpacketsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedpacketsTable,
+			Columns: []string{user.RedpacketsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balanceredpacket.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

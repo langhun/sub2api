@@ -1258,6 +1258,33 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyAccountQuotaNotifyEnabled] = strconv.FormatBool(settings.AccountQuotaNotifyEnabled)
 	updates[SettingKeyAccountQuotaNotifyEmails] = MarshalNotifyEmails(settings.AccountQuotaNotifyEmails)
 
+	// Checkin 签到设置
+	updates[SettingKeyCheckinEnabled] = strconv.FormatBool(settings.CheckinEnabled)
+	updates[SettingKeyCheckinMinBalance] = strconv.FormatFloat(settings.CheckinMinBalance, 'f', 8, 64)
+	updates[SettingKeyCheckinMaxBalance] = strconv.FormatFloat(settings.CheckinMaxBalance, 'f', 8, 64)
+
+	// Checkin Luck 运气签到设置
+	updates[SettingKeyCheckinLuckEnabled] = strconv.FormatBool(settings.CheckinLuckEnabled)
+	updates[SettingKeyCheckinLuckMinMultiplier] = strconv.FormatFloat(settings.CheckinLuckMinMultiplier, 'f', 8, 64)
+	updates[SettingKeyCheckinLuckMaxMultiplier] = strconv.FormatFloat(settings.CheckinLuckMaxMultiplier, 'f', 8, 64)
+
+	// Checkin Blind Box 签到盲盒设置
+	updates[SettingKeyCheckinBlindboxEnabled] = strconv.FormatBool(settings.CheckinBlindboxEnabled)
+	updates[SettingKeyCheckinBlindboxTriggerType] = settings.CheckinBlindboxTriggerType
+	updates[SettingKeyCheckinBlindboxInterval] = strconv.Itoa(settings.CheckinBlindboxInterval)
+
+	// Transfer settings
+	updates[SettingKeyTransferEnabled] = strconv.FormatBool(settings.TransferEnabled)
+	updates[SettingKeyTransferFeeRate] = strconv.FormatFloat(settings.TransferFeeRate, 'f', 6, 64)
+	updates[SettingKeyTransferMinAmount] = strconv.FormatFloat(settings.TransferMinAmount, 'f', 8, 64)
+	updates[SettingKeyTransferMaxAmount] = strconv.FormatFloat(settings.TransferMaxAmount, 'f', 8, 64)
+	updates[SettingKeyTransferDailyLimit] = strconv.FormatFloat(settings.TransferDailyLimit, 'f', 8, 64)
+	updates[SettingKeyTransferDailyCountLimit] = strconv.Itoa(settings.TransferDailyCountLimit)
+	updates[SettingKeyTransferVIPFeeExempt] = strconv.FormatBool(settings.TransferVIPFeeExempt)
+	updates[SettingKeyRedPacketEnabled] = strconv.FormatBool(settings.RedPacketEnabled)
+	updates[SettingKeyRedPacketMaxCount] = strconv.Itoa(settings.RedPacketMaxCount)
+	updates[SettingKeyRedPacketExpireHours] = strconv.Itoa(settings.RedPacketExpireHours)
+
 	return updates, nil
 }
 
@@ -1661,6 +1688,83 @@ func (s *SettingService) GetDefaultSubscriptions(ctx context.Context) []DefaultS
 	return parseDefaultSubscriptions(value)
 }
 
+// IsCheckinEnabled 获取签到功能是否启用
+func (s *SettingService) IsCheckinEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyCheckinEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// GetCheckinBalanceRange 获取签到奖励金额范围 (min, max)
+func (s *SettingService) GetCheckinBalanceRange(ctx context.Context) (float64, float64) {
+	minVal, maxVal := 0.1, 1.0
+	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinMinBalance, "0.1"), 64); err == nil && v >= 0 {
+		minVal = v
+	}
+	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinMaxBalance, "1.0"), 64); err == nil && v >= 0 {
+		maxVal = v
+	}
+	if minVal > maxVal {
+		minVal, maxVal = maxVal, minVal
+	}
+	return minVal, maxVal
+}
+
+// IsCheckinLuckEnabled 获取运气签到功能是否启用
+func (s *SettingService) IsCheckinLuckEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyCheckinLuckEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// GetCheckinLuckMultiplierRange 获取运气签到倍率范围 (min, max)
+func (s *SettingService) GetCheckinLuckMultiplierRange(ctx context.Context) (float64, float64) {
+	minVal, maxVal := 0.1, 3.0
+	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinLuckMinMultiplier, "0.1"), 64); err == nil && v >= 0 {
+		minVal = v
+	}
+	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinLuckMaxMultiplier, "3.0"), 64); err == nil && v >= 0 {
+		maxVal = v
+	}
+	if minVal > maxVal {
+		minVal, maxVal = maxVal, minVal
+	}
+	return minVal, maxVal
+}
+
+func (s *SettingService) IsCheckinBlindboxEnabled(ctx context.Context) bool {
+	return s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxEnabled, "false") == "true"
+}
+
+func (s *SettingService) GetCheckinBlindboxTriggerType(ctx context.Context) string {
+	v := s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxTriggerType, "streak")
+	if v != "streak" && v != "total" {
+		return "streak"
+	}
+	return v
+}
+
+func (s *SettingService) GetCheckinBlindboxInterval(ctx context.Context) int {
+	v := s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxInterval, "7")
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return 7
+	}
+	return n
+}
+
+func (s *SettingService) getStringWithDefault(ctx context.Context, key, fallback string) string {
+	value, err := s.settingRepo.GetValue(ctx, key)
+	if err != nil || value == "" {
+		return fallback
+	}
+	return value
+}
+
 func (s *SettingService) GetAuthSourceDefaultSettings(ctx context.Context) (*AuthSourceDefaultSettings, error) {
 	keys := []string{
 		SettingKeyAuthSourceDefaultEmailBalance,
@@ -1886,6 +1990,33 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingPaymentVisibleMethodAlipayEnabled: "false",
 		SettingPaymentVisibleMethodWxpayEnabled:  "false",
 		openAIAdvancedSchedulerSettingKey:        "false",
+
+		// Checkin 签到设置（默认关闭）
+		SettingKeyCheckinEnabled:    "false",
+		SettingKeyCheckinMinBalance: "0.10",
+		SettingKeyCheckinMaxBalance: "1.00",
+
+		// Checkin Luck 运气签到设置（默认关闭）
+		SettingKeyCheckinLuckEnabled:       "false",
+		SettingKeyCheckinLuckMinMultiplier: "0.10",
+		SettingKeyCheckinLuckMaxMultiplier: "3.00",
+
+		// Checkin Blind Box 签到盲盒设置（默认关闭）
+		SettingKeyCheckinBlindboxEnabled:     "false",
+		SettingKeyCheckinBlindboxTriggerType: "streak",
+		SettingKeyCheckinBlindboxInterval:    "7",
+
+		// Balance Transfer 余额流转设置（默认关闭）
+		SettingKeyTransferEnabled:          "false",
+		SettingKeyTransferFeeRate:          "0.010000",
+		SettingKeyTransferMinAmount:        "0.01000000",
+		SettingKeyTransferMaxAmount:        "1000.00000000",
+		SettingKeyTransferDailyLimit:       "1000.00000000",
+		SettingKeyTransferDailyCountLimit:  "50",
+		SettingKeyTransferVIPFeeExempt:     "false",
+		SettingKeyRedPacketEnabled:         "false",
+		SettingKeyRedPacketMaxCount:        "100",
+		SettingKeyRedPacketExpireHours:     "24",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -2256,6 +2387,84 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	if result.AccountQuotaNotifyEmails == nil {
 		result.AccountQuotaNotifyEmails = []NotifyEmailEntry{}
+	}
+
+	// Checkin 签到设置
+	result.CheckinEnabled = settings[SettingKeyCheckinEnabled] == "true"
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinMinBalance], 64); err == nil && v >= 0 {
+		result.CheckinMinBalance = v
+	} else {
+		result.CheckinMinBalance = 0.1
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinMaxBalance], 64); err == nil && v >= 0 {
+		result.CheckinMaxBalance = v
+	} else {
+		result.CheckinMaxBalance = 1.0
+	}
+
+	// Checkin Luck 运气签到设置
+	result.CheckinLuckEnabled = settings[SettingKeyCheckinLuckEnabled] == "true"
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinLuckMinMultiplier], 64); err == nil && v >= 0 {
+		result.CheckinLuckMinMultiplier = v
+	} else {
+		result.CheckinLuckMinMultiplier = 0.1
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinLuckMaxMultiplier], 64); err == nil && v >= 0 {
+		result.CheckinLuckMaxMultiplier = v
+	} else {
+		result.CheckinLuckMaxMultiplier = 3.0
+	}
+
+	// Checkin Blind Box 签到盲盒设置
+	result.CheckinBlindboxEnabled = settings[SettingKeyCheckinBlindboxEnabled] == "true"
+	result.CheckinBlindboxTriggerType = settings[SettingKeyCheckinBlindboxTriggerType]
+	if result.CheckinBlindboxTriggerType != "streak" && result.CheckinBlindboxTriggerType != "total" {
+		result.CheckinBlindboxTriggerType = "streak"
+	}
+	if v, err := strconv.Atoi(settings[SettingKeyCheckinBlindboxInterval]); err == nil && v > 0 {
+		result.CheckinBlindboxInterval = v
+	} else {
+		result.CheckinBlindboxInterval = 7
+	}
+
+	// Balance Transfer 余额流转设置
+	result.TransferEnabled = settings[SettingKeyTransferEnabled] == "true"
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferFeeRate], 64); err == nil && v >= 0 {
+		result.TransferFeeRate = v
+	} else {
+		result.TransferFeeRate = 0.01
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferMinAmount], 64); err == nil && v >= 0 {
+		result.TransferMinAmount = v
+	} else {
+		result.TransferMinAmount = 0.01
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferMaxAmount], 64); err == nil && v >= 0 {
+		result.TransferMaxAmount = v
+	} else {
+		result.TransferMaxAmount = 1000
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferDailyLimit], 64); err == nil && v >= 0 {
+		result.TransferDailyLimit = v
+	} else {
+		result.TransferDailyLimit = 1000
+	}
+	if v, err := strconv.Atoi(settings[SettingKeyTransferDailyCountLimit]); err == nil && v > 0 {
+		result.TransferDailyCountLimit = v
+	} else {
+		result.TransferDailyCountLimit = 50
+	}
+	result.TransferVIPFeeExempt = settings[SettingKeyTransferVIPFeeExempt] == "true"
+	result.RedPacketEnabled = settings[SettingKeyRedPacketEnabled] == "true"
+	if v, err := strconv.Atoi(settings[SettingKeyRedPacketMaxCount]); err == nil && v > 0 {
+		result.RedPacketMaxCount = v
+	} else {
+		result.RedPacketMaxCount = 100
+	}
+	if v, err := strconv.Atoi(settings[SettingKeyRedPacketExpireHours]); err == nil && v > 0 {
+		result.RedPacketExpireHours = v
+	} else {
+		result.RedPacketExpireHours = 24
 	}
 
 	return result

@@ -78,6 +78,13 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 	reqStream := gjson.GetBytes(body, "stream").Bool()
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
 
+	// 验证模型是否存在（不存在的模型直接返回错误，不记录失败日志）
+	if !h.isModelAvailableForGroup(c, apiKey, reqModel) {
+		c.Set(service.OpsSkipPassthroughKey, true)
+		h.chatCompletionsErrorResponse(c, http.StatusNotFound, "not_found_error", "model '"+reqModel+"' does not exist")
+		return
+	}
+
 	setOpsRequestContext(c, reqModel, reqStream, body)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(reqStream, false)))
 

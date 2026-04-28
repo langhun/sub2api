@@ -37,7 +37,11 @@ func ProvideAdminHandlers(
 	channelMonitorHandler *admin.ChannelMonitorHandler,
 	channelMonitorTemplateHandler *admin.ChannelMonitorRequestTemplateHandler,
 	paymentHandler *admin.PaymentHandler,
+	blindboxHandler *admin.BlindboxHandler,
+	transferAdminHandler *admin.TransferAdminHandler,
 	affiliateHandler *admin.AffiliateHandler,
+	monitoringHandler *admin.MonitoringHandler,
+	modelPricingHandler *admin.ModelPricingHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
@@ -68,7 +72,11 @@ func ProvideAdminHandlers(
 		ChannelMonitor:         channelMonitorHandler,
 		ChannelMonitorTemplate: channelMonitorTemplateHandler,
 		Payment:                paymentHandler,
+		Blindbox:               blindboxHandler,
+		TransferAdmin:          transferAdminHandler,
 		Affiliate:              affiliateHandler,
+		Monitoring:             monitoringHandler,
+		ModelPricing:           modelPricingHandler,
 	}
 }
 
@@ -99,7 +107,10 @@ func ProvideHandlers(
 	totpHandler *TotpHandler,
 	paymentHandler *PaymentHandler,
 	paymentWebhookHandler *PaymentWebhookHandler,
+	checkinHandler *CheckinHandler,
+	leaderboardHandler *LeaderboardHandler,
 	availableChannelHandler *AvailableChannelHandler,
+	transferHandler *BalanceTransferHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -119,7 +130,10 @@ func ProvideHandlers(
 		Totp:             totpHandler,
 		Payment:          paymentHandler,
 		PaymentWebhook:   paymentWebhookHandler,
+		Checkin:          checkinHandler,
+		Leaderboard:      leaderboardHandler,
 		AvailableChannel: availableChannelHandler,
+		Transfer:         transferHandler,
 	}
 }
 
@@ -140,7 +154,10 @@ var ProviderSet = wire.NewSet(
 	ProvideSettingHandler,
 	NewPaymentHandler,
 	NewPaymentWebhookHandler,
+	NewCheckinHandler,
+	NewLeaderboardHandler,
 	NewAvailableChannelHandler,
+	NewBalanceTransferHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -171,6 +188,10 @@ var ProviderSet = wire.NewSet(
 	admin.NewChannelMonitorHandler,
 	admin.NewChannelMonitorRequestTemplateHandler,
 	admin.NewPaymentHandler,
+	admin.NewMonitoringHandler,
+	admin.NewModelPricingHandler,
+	admin.NewBlindboxHandler,
+	admin.NewTransferAdminHandler,
 	admin.NewAffiliateHandler,
 
 	// AdminHandlers and Handlers constructors

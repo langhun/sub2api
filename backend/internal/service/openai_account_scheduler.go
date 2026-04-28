@@ -1040,6 +1040,35 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImages(
 	return selection, decision, err
 }
 
+func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImagesStrict(
+	ctx context.Context,
+	groupID *int64,
+	sessionHash string,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+	requiredCapability OpenAIImagesCapability,
+) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	return s.selectAccountWithScheduler(ctx, groupID, "", sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportHTTPSSE, requiredCapability, false)
+}
+
+func (s *OpenAIGatewayService) HasStrictOpenAINativeImageAccounts(ctx context.Context, groupID *int64, requestedModel string) bool {
+	accounts, err := s.listSchedulableAccounts(ctx, groupID)
+	if err != nil {
+		return false
+	}
+	for i := range accounts {
+		account := &accounts[i]
+		if !account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityNative) {
+			continue
+		}
+		if requestedModel != "" && !account.IsModelSupported(requestedModel) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
 func (s *OpenAIGatewayService) selectAccountWithScheduler(
 	ctx context.Context,
 	groupID *int64,
