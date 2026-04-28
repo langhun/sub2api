@@ -165,6 +165,13 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	}
 	reqModel := modelResult.String()
 
+	// 验证模型是否存在（不存在的模型直接返回错误，不记录失败日志）
+	if !h.isModelAvailableForGroup(c, apiKey, reqModel) {
+		c.Set(service.OpsSkipPassthroughKey, true)
+		h.errorResponse(c, http.StatusNotFound, "not_found_error", "model '"+reqModel+"' does not exist")
+		return
+	}
+
 	streamResult := gjson.GetBytes(body, "stream")
 	if streamResult.Exists() && streamResult.Type != gjson.True && streamResult.Type != gjson.False {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "invalid stream field type")
@@ -1629,4 +1636,15 @@ func summarizeWSCloseErrorForLog(err error) (string, string) {
 		}
 	}
 	return closeStatus, closeReason
+}
+
+func (h *OpenAIGatewayHandler) isModelAvailableForGroup(c *gin.Context, apiKey *service.APIKey, model string) bool {
+	if apiKey == nil || model == "" {
+		return true
+	}
+	available := h.gatewayService.GetAvailableModels(c.Request.Context(), apiKey.GroupID)
+	if available == nil {
+		return true
+	}
+	return containsString(available, model)
 }

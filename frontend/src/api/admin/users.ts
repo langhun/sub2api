@@ -237,6 +237,9 @@ export interface BalanceHistoryItem {
   notes: string
   user?: { id: number; email: string } | null
   group?: { id: number; name: string } | null
+  // Checkin luck-specific fields
+  multiplier?: number
+  bet_amount?: number
 }
 
 // Balance history response extends pagination with total_recharged summary

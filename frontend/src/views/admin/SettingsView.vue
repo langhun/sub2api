@@ -3850,6 +3850,429 @@
               </div>
               <Toggle v-model="form.available_channels_enabled" />
             </div>
+            </div>
+          </div>
+
+          <!-- Balance Transfer -->
+          <div class="card">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t('admin.settings.features.transfer.title', '余额流转') }}
+              </h2>
+            </div>
+            <div class="space-y-5 p-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.settings.features.transfer.enabled', '启用余额转账') }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.features.transfer.enabledHint', '允许用户之间进行余额转账') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.transfer_enabled" />
+              </div>
+              <template v-if="form.transfer_enabled">
+                <div class="grid grid-cols-1 gap-6 border-t pt-4 md:grid-cols-2 dark:border-dark-700">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.feeRate', '手续费率 (%)') }}
+                    </label>
+                    <input v-model.number="form.transfer_fee_rate" type="number" step="0.001" min="0" class="input" placeholder="0.01" />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.features.transfer.feeRateHint', '每笔转账收取的手续费百分比') }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.minAmount', '最小转账金额') }}
+                    </label>
+                    <input v-model.number="form.transfer_min_amount" type="number" step="0.01" min="0" class="input" placeholder="0.01" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.maxAmount', '最大转账金额') }}
+                    </label>
+                    <input v-model.number="form.transfer_max_amount" type="number" step="0.01" min="0" class="input" placeholder="1000.00" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.dailyLimit', '每日转账限额') }}
+                    </label>
+                    <input v-model.number="form.transfer_daily_limit" type="number" step="0.01" min="0" class="input" placeholder="1000.00" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.dailyCountLimit', '每日转账次数') }}
+                    </label>
+                    <input v-model.number="form.transfer_daily_count_limit" type="number" min="1" class="input" placeholder="50" />
+                  </div>
+                  <div class="flex items-center gap-3 pt-6">
+                    <Toggle v-model="form.transfer_vip_fee_exempt" />
+                    <div>
+                      <label class="font-medium text-gray-700 dark:text-gray-300">
+                        {{ t('admin.settings.features.transfer.vipFeeExempt', 'VIP免手续费') }}
+                      </label>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ t('admin.settings.features.transfer.vipFeeExemptHint', 'VIP用户转账免收手续费') }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <div class="flex items-center justify-between border-t pt-4 dark:border-dark-700">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.settings.features.transfer.redpacketEnabled', '启用红包功能') }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.features.transfer.redpacketEnabledHint', '允许用户创建和领取红包') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.redpacket_enabled" />
+              </div>
+              <template v-if="form.redpacket_enabled">
+                <div class="grid grid-cols-1 gap-6 border-t pt-4 md:grid-cols-2 dark:border-dark-700">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.redpacketMaxCount', '红包最大份数') }}
+                    </label>
+                    <input v-model.number="form.redpacket_max_count" type="number" min="1" class="input" placeholder="100" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t('admin.settings.features.transfer.redpacketExpireHours', '过期时间(小时)') }}
+                    </label>
+                    <input v-model.number="form.redpacket_expire_hours" type="number" min="1" class="input" placeholder="24" />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.features.transfer.redpacketExpireHoursHint', '超时未领完的金额将退回发送方') }}
+                    </p>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+        <!-- Affiliate (邀请返利) feature card -->
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.features.affiliate.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.features.affiliate.description') }}
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.affiliate.enabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.affiliate.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.affiliate_enabled" />
+            </div>
+
+            <div v-if="form.affiliate_enabled" class="space-y-6">
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.affiliate.rebateRate') }}
+                </label>
+                <div class="relative">
+                  <input
+                    v-model.number="form.affiliate_rebate_rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="input pr-8"
+                    placeholder="20"
+                  />
+                  <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                </div>
+                <p class="mt-1 text-xs text-gray-400">
+                  {{ t('admin.settings.features.affiliate.rebateRateHint') }}
+                </p>
+              </div>
+
+              <!-- 专属用户管理 -->
+              <div class="border-t border-gray-100 pt-6 dark:border-dark-700">
+                <div class="mb-3 flex items-center justify-between">
+                  <div>
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                      {{ t('admin.settings.features.affiliate.customUsers.title') }}
+                    </h3>
+                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.settings.features.affiliate.customUsers.description') }}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn-primary btn-sm"
+                    @click="openAffiliateModal(null)"
+                  >
+                    + {{ t('admin.settings.features.affiliate.customUsers.addButton') }}
+                  </button>
+                </div>
+
+                <div class="mb-3 flex items-center gap-2">
+                  <input
+                    v-model="affiliateState.search"
+                    type="text"
+                    class="input flex-1"
+                    :placeholder="t('admin.settings.features.affiliate.customUsers.searchPlaceholder')"
+                    @input="onAffiliateSearchInput"
+                  />
+                  <button
+                    v-if="affiliateState.selected.length > 0"
+                    type="button"
+                    class="btn-secondary btn-sm"
+                    @click="openAffiliateBatchModal"
+                  >
+                    {{ t('admin.settings.features.affiliate.customUsers.batchButton', { count: affiliateState.selected.length }) }}
+                  </button>
+                </div>
+
+                <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-dark-700">
+                  <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-700">
+                    <thead class="bg-gray-50 dark:bg-dark-800">
+                      <tr>
+                        <th class="px-3 py-2 text-left">
+                          <input
+                            type="checkbox"
+                            :checked="affiliateState.entries.length > 0 && affiliateState.selected.length === affiliateState.entries.length"
+                            @change="toggleAffiliateSelectAll"
+                          />
+                        </th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.email') }}</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.username') }}</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.code') }}</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.rate') }}</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.actions') }}</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
+                      <tr v-if="affiliateState.loading">
+                        <td colspan="6" class="px-3 py-6 text-center text-sm text-gray-500">
+                          {{ t('common.loading') }}
+                        </td>
+                      </tr>
+                      <tr v-else-if="affiliateState.entries.length === 0">
+                        <td colspan="6" class="px-3 py-6 text-center text-sm text-gray-500">
+                          {{ t('admin.settings.features.affiliate.customUsers.empty') }}
+                        </td>
+                      </tr>
+                      <tr v-for="entry in affiliateState.entries" :key="entry.user_id">
+                        <td class="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            :checked="affiliateState.selected.includes(entry.user_id)"
+                            @change="toggleAffiliateSelect(entry.user_id)"
+                          />
+                        </td>
+                        <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">{{ entry.email }}</td>
+                        <td class="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">{{ entry.username }}</td>
+                        <td class="px-3 py-2 text-sm font-mono">
+                          {{ entry.aff_code }}
+                          <span
+                            v-if="entry.aff_code_custom"
+                            class="ml-1 inline-block rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                          >{{ t('admin.settings.features.affiliate.customUsers.customBadge') }}</span>
+                        </td>
+                        <td class="px-3 py-2 text-sm">
+                          <span v-if="entry.aff_rebate_rate_percent != null">{{ entry.aff_rebate_rate_percent }}%</span>
+                          <span v-else class="text-gray-400">{{ t('admin.settings.features.affiliate.customUsers.useGlobal') }}</span>
+                        </td>
+                        <td class="px-3 py-2 text-sm">
+                          <div class="flex items-center gap-2">
+                            <button class="text-primary-600 hover:underline" @click="openAffiliateModal(entry)">
+                              {{ t('common.edit') }}
+                            </button>
+                            <button
+                              v-if="entry.aff_code_custom"
+                              class="text-yellow-600 hover:underline"
+                              @click="askResetAffiliateUser(entry)"
+                            >
+                              {{ t('admin.settings.features.affiliate.customUsers.resetCode') }}
+                            </button>
+                            <button class="text-red-600 hover:underline" @click="askClearAffiliateUser(entry)">
+                              {{ t('common.delete') }}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div v-if="affiliateState.total > affiliateState.pageSize" class="mt-3 flex items-center justify-between text-sm">
+                  <span class="text-gray-500">
+                    {{ t('admin.settings.features.affiliate.customUsers.totalLabel', { total: affiliateState.total }) }}
+                  </span>
+                  <div class="flex items-center gap-2">
+                    <button
+                      class="btn-secondary btn-sm"
+                      :disabled="affiliateState.page <= 1"
+                      @click="changeAffiliatePage(affiliateState.page - 1)"
+                    >
+                      {{ t('pagination.previous') }}
+                    </button>
+                    <span class="text-gray-500">{{ affiliateState.page }} / {{ Math.max(1, Math.ceil(affiliateState.total / affiliateState.pageSize)) }}</span>
+                    <button
+                      class="btn-secondary btn-sm"
+                      :disabled="affiliateState.page >= Math.ceil(affiliateState.total / affiliateState.pageSize)"
+                      @click="changeAffiliatePage(affiliateState.page + 1)"
+                    >
+                      {{ t('pagination.next') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Affiliate add/edit modal -->
+        <div
+          v-if="affiliateModal.open"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          @click.self="closeAffiliateModal"
+        >
+          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dark-900">
+            <h3 class="mb-4 text-lg font-semibold">
+              {{ affiliateModal.mode === 'add' ? t('admin.settings.features.affiliate.modal.addTitle') : t('admin.settings.features.affiliate.modal.editTitle') }}
+            </h3>
+            <div class="space-y-4">
+              <div v-if="affiliateModal.mode === 'add'">
+                <label class="input-label">{{ t('admin.settings.features.affiliate.modal.userLabel') }}</label>
+                <input
+                  v-model="affiliateModal.userQuery"
+                  type="text"
+                  class="input"
+                  :placeholder="t('admin.settings.features.affiliate.modal.userPlaceholder')"
+                  @input="onAffiliateUserSearchInput"
+                />
+                <div v-if="affiliateModal.userResults.length > 0" class="mt-1 max-h-40 overflow-y-auto rounded border border-gray-200 dark:border-dark-700">
+                  <button
+                    v-for="u in affiliateModal.userResults"
+                    :key="u.id"
+                    type="button"
+                    class="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-dark-800"
+                    :class="{ 'bg-primary-50 dark:bg-primary-900/20': affiliateModal.selectedUser?.id === u.id }"
+                    @click="affiliateModal.selectedUser = u"
+                  >
+                    {{ u.email }} <span class="text-xs text-gray-500">({{ u.username }})</span>
+                  </button>
+                </div>
+                <p v-if="affiliateModal.selectedUser" class="mt-1 text-xs text-gray-500">
+                  {{ t('admin.settings.features.affiliate.modal.selectedUser', { email: affiliateModal.selectedUser.email }) }}
+                </p>
+              </div>
+              <div v-else>
+                <label class="input-label">{{ t('admin.settings.features.affiliate.modal.userLabel') }}</label>
+                <input
+                  type="text"
+                  class="input"
+                  :value="affiliateModal.editingEntry ? affiliateModal.editingEntry.email : ''"
+                  disabled
+                />
+              </div>
+
+              <div>
+                <label class="input-label">{{ t('admin.settings.features.affiliate.modal.codeLabel') }}</label>
+                <input
+                  v-model="affiliateModal.code"
+                  type="text"
+                  class="input font-mono"
+                  :placeholder="t('admin.settings.features.affiliate.modal.codePlaceholder')"
+                  maxlength="32"
+                />
+                <p class="mt-1 text-xs text-gray-400">
+                  {{ t('admin.settings.features.affiliate.modal.codeHint') }}
+                </p>
+              </div>
+
+              <div>
+                <label class="input-label">{{ t('admin.settings.features.affiliate.modal.rateLabel') }}</label>
+                <div class="relative">
+                  <input
+                    v-model="affiliateModal.rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    class="input pr-8"
+                    :placeholder="t('admin.settings.features.affiliate.modal.ratePlaceholder')"
+                  />
+                  <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+                </div>
+                <p class="mt-1 text-xs text-gray-400">
+                  {{ t('admin.settings.features.affiliate.modal.rateHint') }}
+                </p>
+              </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-2">
+              <button type="button" class="btn-secondary" @click="closeAffiliateModal">
+                {{ t('common.cancel') }}
+              </button>
+              <button
+                type="button"
+                class="btn-primary"
+                :disabled="affiliateModal.saving"
+                @click="submitAffiliateModal"
+              >
+                {{ affiliateModal.saving ? t('common.saving') : t('common.save') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Affiliate batch rate modal -->
+        <div
+          v-if="affiliateBatchModal.open"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          @click.self="affiliateBatchModal.open = false"
+        >
+          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dark-900">
+            <h3 class="mb-4 text-lg font-semibold">
+              {{ t('admin.settings.features.affiliate.batchModal.title', { count: affiliateState.selected.length }) }}
+            </h3>
+            <p class="mb-4 text-sm text-gray-500">
+              {{ t('admin.settings.features.affiliate.batchModal.hint') }}
+            </p>
+            <div class="relative">
+              <input
+                v-model="affiliateBatchModal.rate"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                class="input pr-8"
+                :placeholder="t('admin.settings.features.affiliate.batchModal.placeholder')"
+              />
+              <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+            </div>
+            <p class="mt-2 text-xs text-gray-400">
+              {{ t('admin.settings.features.affiliate.batchModal.clearHint') }}
+            </p>
+            <div class="mt-6 flex justify-end gap-2">
+              <button type="button" class="btn-secondary" @click="affiliateBatchModal.open = false">
+                {{ t('common.cancel') }}
+              </button>
+              <button
+                type="button"
+                class="btn-primary"
+                :disabled="affiliateBatchModal.saving"
+                @click="submitAffiliateBatchModal"
+              >
+                {{ affiliateBatchModal.saving ? t('common.saving') : t('common.save') }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -5105,6 +5528,106 @@
         </div>
         <!-- /Tab: Email -->
 
+        <!-- Tab: Check-in -->
+        <div v-show="activeTab === 'checkin'" class="space-y-6">
+
+        <!-- Checkin 签到设置 -->
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.checkin.title') }}
+            </h2>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.checkin.enabled') }}
+                </label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.checkin.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.checkin_enabled" />
+            </div>
+            <template v-if="form.checkin_enabled">
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2 border-t pt-4 dark:border-dark-700">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.checkin.minBalance') }}
+                  </label>
+                  <input v-model.number="form.checkin_min_balance" type="number" step="0.01" min="0"
+                    class="input" placeholder="0.10" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.checkin.minBalanceHint') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.checkin.maxBalance') }}
+                  </label>
+                  <input v-model.number="form.checkin_max_balance" type="number" step="0.01" min="0"
+                    class="input" placeholder="1.00" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.checkin.maxBalanceHint') }}
+                  </p>
+                </div>
+              </div>
+            </template>
+
+            <div class="flex items-center justify-between border-t pt-4 dark:border-dark-700">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.checkin.luckEnabled') }}
+                </label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.checkin.luckEnabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.checkin_luck_enabled" />
+            </div>
+            <template v-if="form.checkin_luck_enabled">
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2 border-t pt-4 dark:border-dark-700">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.checkin.luckMinMultiplier') }}
+                  </label>
+                  <input v-model.number="form.checkin_luck_min_multiplier" type="number" step="0.01" min="0"
+                    class="input" placeholder="0.10" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.checkin.luckMinMultiplierHint') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.checkin.luckMaxMultiplier') }}
+                  </label>
+                  <input v-model.number="form.checkin_luck_max_multiplier" type="number" step="0.01" min="0"
+                    class="input" placeholder="3.00" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.checkin.luckMaxMultiplierHint') }}
+                  </p>
+                </div>
+              </div>
+            </template>
+
+            <div class="flex justify-end border-t pt-4 dark:border-dark-700">
+              <button type="button" @click="saveSettings" :disabled="saving" class="btn btn-primary btn-sm">
+                {{ saving ? t('common.saving') : t('common.save') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Blind Box Settings + Prize Pool Management -->
+        <BlindboxPrizePoolCard
+          v-model:enabled="form.checkin_blindbox_enabled"
+          v-model:trigger-type="form.checkin_blindbox_trigger_type"
+          v-model:interval="form.checkin_blindbox_interval"
+        />
+
+        </div><!-- /Tab: Check-in -->
+
         <!-- Tab: Backup -->
         <div v-show="activeTab === 'backup'">
           <BackupSettings />
@@ -5218,6 +5741,7 @@ import Toggle from "@/components/common/Toggle.vue";
 import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
+import BlindboxPrizePoolCard from "@/components/admin/BlindboxPrizePoolCard.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSimpleUser } from "@/api/admin/affiliates";
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
@@ -5257,6 +5781,7 @@ type SettingsTab =
   | "security"
   | "users"
   | "gateway"
+  | "checkin"
   | "payment"
   | "email"
   | "backup";
@@ -5267,6 +5792,7 @@ const settingsTabs = [
   { key: "security" as SettingsTab, icon: "shield" as const },
   { key: "users" as SettingsTab, icon: "user" as const },
   { key: "gateway" as SettingsTab, icon: "server" as const },
+  { key: "checkin" as SettingsTab, icon: "gift" as const },
   { key: "payment" as SettingsTab, icon: "creditCard" as const },
   { key: "email" as SettingsTab, icon: "mail" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
@@ -5387,6 +5913,15 @@ const form = reactive<SettingsForm>({
   affiliate_rebate_duration_days: 0,
   affiliate_rebate_per_invitee_cap: 0,
   default_concurrency: 1,
+  checkin_enabled: false,
+  checkin_min_balance: 0.1,
+  checkin_max_balance: 1.0,
+  checkin_luck_enabled: false,
+  checkin_luck_min_multiplier: 0.1,
+  checkin_luck_max_multiplier: 3.0,
+  checkin_blindbox_enabled: false,
+  checkin_blindbox_trigger_type: "streak",
+  checkin_blindbox_interval: 7,
   default_subscriptions: [],
   force_email_on_third_party_signup: false,
   default_user_rpm_limit: 0,
@@ -5533,6 +6068,17 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   // Available Channels feature switch
   available_channels_enabled: false,
+  // Transfer settings
+  transfer_enabled: false,
+  transfer_fee_rate: 0.01,
+  transfer_min_amount: 0.01,
+  transfer_max_amount: 1000,
+  transfer_daily_limit: 1000,
+  transfer_daily_count_limit: 50,
+  transfer_vip_fee_exempt: false,
+  redpacket_enabled: false,
+  redpacket_max_count: 100,
+  redpacket_expire_hours: 24,
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
 });
@@ -6450,12 +6996,33 @@ async function saveSettings() {
       account_quota_notify_emails: (
         form.account_quota_notify_emails || []
       ).filter((e) => e.email.trim() !== ""),
+      // Checkin configuration
+      checkin_enabled: form.checkin_enabled,
+      checkin_min_balance: Number(form.checkin_min_balance) || 0,
+      checkin_max_balance: Number(form.checkin_max_balance) || 0,
+      checkin_luck_enabled: form.checkin_luck_enabled,
+      checkin_luck_min_multiplier: Number(form.checkin_luck_min_multiplier) || 0,
+      checkin_luck_max_multiplier: Number(form.checkin_luck_max_multiplier) || 0,
+      checkin_blindbox_enabled: form.checkin_blindbox_enabled,
+      checkin_blindbox_trigger_type: form.checkin_blindbox_trigger_type,
+      checkin_blindbox_interval: Number(form.checkin_blindbox_interval) || 0,
       // Channel Monitor feature switch
       channel_monitor_enabled: form.channel_monitor_enabled,
       channel_monitor_default_interval_seconds:
         Number(form.channel_monitor_default_interval_seconds) || 60,
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
+      // Transfer settings
+      transfer_enabled: form.transfer_enabled,
+      transfer_fee_rate: Number(form.transfer_fee_rate) || 0.01,
+      transfer_min_amount: Number(form.transfer_min_amount) || 0.01,
+      transfer_max_amount: Number(form.transfer_max_amount) || 1000,
+      transfer_daily_limit: Number(form.transfer_daily_limit) || 1000,
+      transfer_daily_count_limit: Number(form.transfer_daily_count_limit) || 50,
+      transfer_vip_fee_exempt: form.transfer_vip_fee_exempt,
+      redpacket_enabled: form.redpacket_enabled,
+      redpacket_max_count: Number(form.redpacket_max_count) || 100,
+      redpacket_expire_hours: Number(form.redpacket_expire_hours) || 24,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
     };
@@ -7544,6 +8111,17 @@ function askResetAffiliateUser(entry: AffiliateAdminEntry) {
   openAffiliateConfirm(
     t("admin.settings.features.affiliate.customUsers.resetTitle"),
     t("admin.settings.features.affiliate.customUsers.resetMessage", {
+      email: entry.email || `#${entry.user_id}`,
+    }),
+    t("common.delete"),
+    () => affiliatesAPI.clearUserSettings(entry.user_id),
+  );
+}
+
+function askClearAffiliateUser(entry: AffiliateAdminEntry) {
+  openAffiliateConfirm(
+    t("admin.settings.features.affiliate.customUsers.clearTitle"),
+    t("admin.settings.features.affiliate.customUsers.clearMessage", {
       email: entry.email || `#${entry.user_id}`,
     }),
     t("common.delete"),

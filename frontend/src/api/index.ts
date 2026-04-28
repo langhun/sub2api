@@ -19,7 +19,10 @@ export { userGroupsAPI } from './groups'
 export { userChannelsAPI } from './channels'
 export { totpAPI } from './totp'
 export { default as announcementsAPI } from './announcements'
+export { checkinAPI } from './checkin'
 export { channelMonitorUserAPI } from './channelMonitor'
+export * as transferAPI from './transfer'
+export { transferBalance, validateTransfer, getTransferStats, getTransferHistory, getTransferLeaderboard, searchUsers } from './transfer'
 
 // Admin APIs
 export { adminAPI } from './admin'

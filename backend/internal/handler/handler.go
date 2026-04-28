@@ -34,6 +34,10 @@ type AdminHandlers struct {
 	ChannelMonitor         *admin.ChannelMonitorHandler
 	ChannelMonitorTemplate *admin.ChannelMonitorRequestTemplateHandler
 	Payment                *admin.PaymentHandler
+	Monitoring             *admin.MonitoringHandler
+	ModelPricing           *admin.ModelPricingHandler
+	Blindbox               *admin.BlindboxHandler
+	TransferAdmin          *admin.TransferAdminHandler
 	Affiliate              *admin.AffiliateHandler
 }
 
@@ -54,7 +58,10 @@ type Handlers struct {
 	Totp             *TotpHandler
 	Payment          *PaymentHandler
 	PaymentWebhook   *PaymentWebhookHandler
+	Checkin          *CheckinHandler
+	Leaderboard      *LeaderboardHandler
 	AvailableChannel *AvailableChannelHandler
+	Transfer         *BalanceTransferHandler
 }
 
 // BuildInfo contains build-time information

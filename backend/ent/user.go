@@ -91,6 +91,14 @@ type UserEdges struct {
 	PromoCodeUsages []*PromoCodeUsage `json:"promo_code_usages,omitempty"`
 	// PaymentOrders holds the value of the payment_orders edge.
 	PaymentOrders []*PaymentOrder `json:"payment_orders,omitempty"`
+	// Checkins holds the value of the checkins edge.
+	Checkins []*Checkin `json:"checkins,omitempty"`
+	// SentTransfers holds the value of the sent_transfers edge.
+	SentTransfers []*BalanceTransfer `json:"sent_transfers,omitempty"`
+	// ReceivedTransfers holds the value of the received_transfers edge.
+	ReceivedTransfers []*BalanceTransfer `json:"received_transfers,omitempty"`
+	// Redpackets holds the value of the redpackets edge.
+	Redpackets []*BalanceRedPacket `json:"redpackets,omitempty"`
 	// AuthIdentities holds the value of the auth_identities edge.
 	AuthIdentities []*AuthIdentity `json:"auth_identities,omitempty"`
 	// PendingAuthSessions holds the value of the pending_auth_sessions edge.
@@ -99,7 +107,7 @@ type UserEdges struct {
 	UserAllowedGroups []*UserAllowedGroup `json:"user_allowed_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [13]bool
+	loadedTypes [17]bool
 }
 
 // APIKeysOrErr returns the APIKeys value or an error if the edge
@@ -192,10 +200,46 @@ func (e UserEdges) PaymentOrdersOrErr() ([]*PaymentOrder, error) {
 	return nil, &NotLoadedError{edge: "payment_orders"}
 }
 
+// CheckinsOrErr returns the Checkins value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) CheckinsOrErr() ([]*Checkin, error) {
+	if e.loadedTypes[10] {
+		return e.Checkins, nil
+	}
+	return nil, &NotLoadedError{edge: "checkins"}
+}
+
+// SentTransfersOrErr returns the SentTransfers value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) SentTransfersOrErr() ([]*BalanceTransfer, error) {
+	if e.loadedTypes[11] {
+		return e.SentTransfers, nil
+	}
+	return nil, &NotLoadedError{edge: "sent_transfers"}
+}
+
+// ReceivedTransfersOrErr returns the ReceivedTransfers value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ReceivedTransfersOrErr() ([]*BalanceTransfer, error) {
+	if e.loadedTypes[12] {
+		return e.ReceivedTransfers, nil
+	}
+	return nil, &NotLoadedError{edge: "received_transfers"}
+}
+
+// RedpacketsOrErr returns the Redpackets value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) RedpacketsOrErr() ([]*BalanceRedPacket, error) {
+	if e.loadedTypes[13] {
+		return e.Redpackets, nil
+	}
+	return nil, &NotLoadedError{edge: "redpackets"}
+}
+
 // AuthIdentitiesOrErr returns the AuthIdentities value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) AuthIdentitiesOrErr() ([]*AuthIdentity, error) {
-	if e.loadedTypes[10] {
+	if e.loadedTypes[14] {
 		return e.AuthIdentities, nil
 	}
 	return nil, &NotLoadedError{edge: "auth_identities"}
@@ -204,7 +248,7 @@ func (e UserEdges) AuthIdentitiesOrErr() ([]*AuthIdentity, error) {
 // PendingAuthSessionsOrErr returns the PendingAuthSessions value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PendingAuthSessionsOrErr() ([]*PendingAuthSession, error) {
-	if e.loadedTypes[11] {
+	if e.loadedTypes[15] {
 		return e.PendingAuthSessions, nil
 	}
 	return nil, &NotLoadedError{edge: "pending_auth_sessions"}
@@ -213,7 +257,7 @@ func (e UserEdges) PendingAuthSessionsOrErr() ([]*PendingAuthSession, error) {
 // UserAllowedGroupsOrErr returns the UserAllowedGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) UserAllowedGroupsOrErr() ([]*UserAllowedGroup, error) {
-	if e.loadedTypes[12] {
+	if e.loadedTypes[16] {
 		return e.UserAllowedGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "user_allowed_groups"}
@@ -460,6 +504,26 @@ func (_m *User) QueryPromoCodeUsages() *PromoCodeUsageQuery {
 // QueryPaymentOrders queries the "payment_orders" edge of the User entity.
 func (_m *User) QueryPaymentOrders() *PaymentOrderQuery {
 	return NewUserClient(_m.config).QueryPaymentOrders(_m)
+}
+
+// QueryCheckins queries the "checkins" edge of the User entity.
+func (_m *User) QueryCheckins() *CheckinQuery {
+	return NewUserClient(_m.config).QueryCheckins(_m)
+}
+
+// QuerySentTransfers queries the "sent_transfers" edge of the User entity.
+func (_m *User) QuerySentTransfers() *BalanceTransferQuery {
+	return NewUserClient(_m.config).QuerySentTransfers(_m)
+}
+
+// QueryReceivedTransfers queries the "received_transfers" edge of the User entity.
+func (_m *User) QueryReceivedTransfers() *BalanceTransferQuery {
+	return NewUserClient(_m.config).QueryReceivedTransfers(_m)
+}
+
+// QueryRedpackets queries the "redpackets" edge of the User entity.
+func (_m *User) QueryRedpackets() *BalanceRedPacketQuery {
+	return NewUserClient(_m.config).QueryRedpackets(_m)
 }
 
 // QueryAuthIdentities queries the "auth_identities" edge of the User entity.

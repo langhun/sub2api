@@ -475,12 +475,38 @@ export interface SystemSettings {
   account_quota_notify_enabled: boolean;
   account_quota_notify_emails: NotifyEmailEntry[];
 
+  // Checkin 签到设置
+  checkin_enabled: boolean;
+  checkin_min_balance: number;
+  checkin_max_balance: number;
+  // Checkin Luck 运气签到设置
+  checkin_luck_enabled: boolean;
+  checkin_luck_min_multiplier: number;
+  checkin_luck_max_multiplier: number;
+
+  // Checkin Blind Box
+  checkin_blindbox_enabled: boolean;
+  checkin_blindbox_trigger_type: string;
+  checkin_blindbox_interval: number;
+
   // Channel Monitor feature switch
   channel_monitor_enabled: boolean;
   channel_monitor_default_interval_seconds: number;
 
   // Available Channels feature switch
   available_channels_enabled: boolean;
+
+  // Balance Transfer 余额流转设置
+  transfer_enabled: boolean;
+  transfer_fee_rate: number;
+  transfer_min_amount: number;
+  transfer_max_amount: number;
+  transfer_daily_limit: number;
+  transfer_daily_count_limit: number;
+  transfer_vip_fee_exempt: boolean;
+  redpacket_enabled: boolean;
+  redpacket_max_count: number;
+  redpacket_expire_hours: number;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
@@ -638,6 +664,18 @@ export interface UpdateSettingsRequest {
   balance_low_notify_recharge_url?: string;
   account_quota_notify_enabled?: boolean;
   account_quota_notify_emails?: NotifyEmailEntry[];
+  // Checkin 签到设置
+  checkin_enabled?: boolean;
+  checkin_min_balance?: number;
+  checkin_max_balance?: number;
+  // Checkin Luck 运气签到设置
+  checkin_luck_enabled?: boolean;
+  checkin_luck_min_multiplier?: number;
+  checkin_luck_max_multiplier?: number;
+  // Checkin Blind Box
+  checkin_blindbox_enabled?: boolean;
+  checkin_blindbox_trigger_type?: string;
+  checkin_blindbox_interval?: number;
 
   // Channel Monitor feature switch
   channel_monitor_enabled?: boolean;
@@ -648,10 +686,20 @@ export interface UpdateSettingsRequest {
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;
-}
 
+  // Balance Transfer 余额流转设置
+  transfer_enabled?: boolean;
+  transfer_fee_rate?: number;
+  transfer_min_amount?: number;
+  transfer_max_amount?: number;
+  transfer_daily_limit?: number;
+  transfer_daily_count_limit?: number;
+  transfer_vip_fee_exempt?: boolean;
+  redpacket_enabled?: boolean;
+  redpacket_max_count?: number;
+  redpacket_expire_hours?: number;
+}
 /**
- * Get all system settings
  * @returns System settings
  */
 export async function getSettings(): Promise<SystemSettings> {

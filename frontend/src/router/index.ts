@@ -143,6 +143,36 @@ const routes: RouteRecordRaw[] = [
       title: 'Key Usage',
     }
   },
+  {
+    path: '/monitoring',
+    name: 'Monitoring',
+    component: () => import('@/views/MonitoringView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Monitoring',
+      titleKey: 'admin.monitoring.title',
+    }
+  },
+  {
+    path: '/pricing',
+    name: 'Pricing',
+    component: () => import('@/views/PricingView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model Pricing',
+      titleKey: 'pricing.title',
+    }
+  },
+  {
+    path: '/leaderboard',
+    name: 'Leaderboard',
+    component: () => import('@/views/LeaderboardView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Leaderboard',
+      titleKey: 'leaderboard.title',
+    }
+  },
 
   // ==================== User Routes ====================
   {
@@ -256,6 +286,39 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'nav.buySubscription',
       descriptionKey: 'purchase.description',
       requiresPayment: true
+    }
+  },
+  {
+    path: '/checkin',
+    name: 'Checkin',
+    component: () => import('@/views/user/CheckinView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      titleKey: 'nav.checkin',
+      descriptionKey: 'checkin.page.description'
+    }
+  },
+  {
+    path: '/transfer',
+    name: 'Transfer',
+    component: () => import('@/views/user/TransferView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Transfer',
+      titleKey: 'nav.transfer',
+    }
+  },
+  {
+    path: '/redpacket',
+    name: 'RedPacket',
+    component: () => import('@/views/user/RedPacketView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Red Packet',
+      titleKey: 'nav.redpacket',
     }
   },
   {
@@ -482,6 +545,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/transfer',
+    name: 'AdminTransfer',
+    component: () => import('@/views/admin/TransferManageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Transfer Management',
+      titleKey: 'nav.transferManage',
+    }
+  },
+  {
     path: '/admin/promo-codes',
     name: 'AdminPromoCodes',
     component: () => import('@/views/admin/PromoCodesView.vue'),
@@ -515,6 +589,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Usage Records',
       titleKey: 'admin.usage.title',
       descriptionKey: 'admin.usage.description'
+    }
+  },
+  {
+    path: '/admin/model-pricing',
+    name: 'AdminModelPricing',
+    component: () => import('@/views/admin/ModelPricingView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Model Pricing',
+      titleKey: 'admin.modelPricing.title',
+      descriptionKey: 'admin.modelPricing.description'
     }
   },
 
@@ -593,7 +679,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/monitoring', '/pricing', '/leaderboard', '/setup', '/payment/result']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',

@@ -173,6 +173,33 @@ type SystemSettings struct {
 	// Account quota notification
 	AccountQuotaNotifyEnabled bool
 	AccountQuotaNotifyEmails  []NotifyEmailEntry
+
+	// Checkin 签到设置
+	CheckinEnabled    bool
+	CheckinMinBalance float64
+	CheckinMaxBalance float64
+
+	// Checkin Luck 运气签到设置
+	CheckinLuckEnabled       bool
+	CheckinLuckMinMultiplier float64
+	CheckinLuckMaxMultiplier float64
+
+	// Checkin Blind Box 签到盲盒设置
+	CheckinBlindboxEnabled      bool
+	CheckinBlindboxTriggerType  string
+	CheckinBlindboxInterval     int
+
+	// Balance Transfer 余额流转设置
+	TransferEnabled            bool
+	TransferFeeRate            float64
+	TransferMinAmount          float64
+	TransferMaxAmount          float64
+	TransferDailyLimit         float64
+	TransferDailyCountLimit    int
+	TransferVIPFeeExempt       bool
+	RedPacketEnabled           bool
+	RedPacketMaxCount          int
+	RedPacketExpireHours       int
 }
 
 type DefaultSubscriptionSetting struct {

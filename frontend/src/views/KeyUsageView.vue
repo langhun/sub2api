@@ -1,40 +1,9 @@
 <template>
   <div class="relative flex min-h-screen flex-col bg-gray-50 dark:bg-dark-950">
-    <!-- Header (same pattern as HomeView) -->
-    <header class="relative z-20 px-6 py-4">
-      <nav class="mx-auto flex max-w-6xl items-center justify-between">
-        <router-link to="/home" class="flex items-center gap-3">
-          <div class="h-10 w-10 overflow-hidden rounded-xl shadow-md">
-            <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
-          </div>
-          <span class="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">{{ siteName }}</span>
-        </router-link>
-        <div class="flex items-center gap-3">
-          <LocaleSwitcher />
-          <a
-            v-if="docUrl"
-            :href="docUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
-            :title="t('home.viewDocs')"
-          >
-            <Icon name="book" size="md" />
-          </a>
-          <button
-            @click="toggleTheme"
-            class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
-            :title="isDark ? t('home.switchToLight') : t('home.switchToDark')"
-          >
-            <Icon v-if="isDark" name="sun" size="md" />
-            <Icon v-else name="moon" size="md" />
-          </button>
-        </div>
-      </nav>
-    </header>
+    <PublicPageHeader active-path="/key-usage" />
 
     <!-- Main Content -->
-    <main class="flex-1 w-full max-w-5xl mx-auto px-6 py-12">
+    <main class="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
       <!-- Hero -->
       <div class="text-center mb-12">
         <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mb-3 text-gray-900 dark:text-white">
@@ -165,6 +134,19 @@
               <span class="text-xs text-gray-400 dark:text-dark-500">|</span>
               <span class="text-xs text-gray-500 dark:text-dark-400">{{ statusInfo.statusText }}</span>
             </div>
+          </div>
+
+          <!-- Generate HUD Button -->
+          <div v-if="statusInfo" class="fade-up flex items-center justify-center mb-2 mt-4">
+            <button
+              @click="generateHudScript"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-200 dark:hover:bg-dark-800"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+              </svg>
+              {{ t('keyUsage.generateHud') }}
+            </button>
           </div>
 
           <!-- Ring Cards Grid -->
@@ -334,29 +316,42 @@
       </div>
     </main>
 
-    <!-- Footer (same pattern as HomeView) -->
-    <footer class="relative z-10 border-t border-gray-200/50 px-6 py-8 dark:border-dark-800/50">
-      <div class="mx-auto flex max-w-6xl flex-col items-center justify-center gap-4 text-center sm:flex-row sm:text-left">
-        <p class="text-sm text-gray-500 dark:text-dark-400">
-          &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
-        </p>
-        <div class="flex items-center gap-4">
-          <a
-            v-if="docUrl"
-            :href="docUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >{{ t('home.docs') }}</a>
-          <a
-            :href="githubUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >GitHub</a>
+    <PublicPageFooter />
+
+    <!-- HUD Script Modal (at root level for full-screen overlay) -->
+    <div v-if="showHudModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="showHudModal = false">
+      <div class="bg-white dark:bg-dark-900 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col border border-gray-200 dark:border-dark-700">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-dark-700 flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('keyUsage.hudTitle') }}</h3>
+          <button @click="showHudModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="px-6 py-4 overflow-y-auto space-y-4 text-sm text-gray-700 dark:text-dark-200">
+          <div>
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep1') }}</h4>
+            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto"><code>mkdir -p ~/.claude/plugins/sub2api-hud</code></pre>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep2') }}</h4>
+            <div class="relative">
+              <button @click="copyHudScript" class="absolute top-2 right-2 px-2 py-1 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">
+                {{ hudCopied ? '✓' : t('keyUsage.hudCopy') }}
+              </button>
+              <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto max-h-64"><code>{{ hudScript }}</code></pre>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep3') }}</h4>
+            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto"><code>node ~/.claude/plugins/sub2api-hud/hud.mjs</code></pre>
+          </div>
+          <div>
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep4') }}</h4>
+            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap"><code>{{ hudSettingsJson }}</code></pre>
+          </div>
         </div>
       </div>
-    </footer>
+    </div>
   </div>
 </template>
 
@@ -364,30 +359,13 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
-import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
-import Icon from '@/components/icons/Icon.vue'
+import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
+import PublicPageFooter from '@/components/common/PublicPageFooter.vue'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
 
-// ==================== Site Settings (same as HomeView) ====================
-
-const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'Sub2API')
-const siteLogo = computed(() => appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '')
-const docUrl = computed(() => appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
-const githubUrl = 'https://github.com/Wei-Shaw/sub2api'
-
-// ==================== Theme (same as HomeView) ====================
-
 const isDark = ref(document.documentElement.classList.contains('dark'))
-
-function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
-}
-
-const currentYear = computed(() => new Date().getFullYear())
 
 // ==================== Key Query State ====================
 
@@ -397,6 +375,9 @@ const isQuerying = ref(false)
 const showResults = ref(false)
 const showLoading = ref(false)
 const showDatePicker = ref(false)
+const showHudModal = ref(false)
+const hudScript = ref('')
+const hudCopied = ref(false)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const resultData = ref<any>(null)
 const now = ref(new Date())
@@ -569,9 +550,7 @@ const ringItems = computed<RingItem[]>(() => {
         }
       }
     }
-    if (!data.subscription && data.balance != null) {
-      items.push({ title: t('keyUsage.walletBalance'), pct: 0, amount: usd(data.balance), isBalance: true, iconType: 'dollar' })
-    }
+
   }
 
   return items
@@ -750,6 +729,205 @@ function formatDate(iso: string | null | undefined): string {
   return d.toLocaleDateString(loc, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
+// ==================== HUD Script Generation ====================
+
+const hudSettingsJson = computed(() => {
+  return JSON.stringify({
+    statusLine: {
+      type: "command",
+      command: "bash -c 'exec node \"$HOME/.claude/plugins/sub2api-hud/hud.mjs\"'"
+    }
+  }, null, 2)
+})
+
+function generateHudScript() {
+  const key = apiKey.value.trim()
+  const baseUrl = window.location.origin
+
+  hudScript.value = `#!/usr/bin/env node
+// sub2api-hud: Claude Code statusline plugin
+// Generated at ${new Date().toISOString()}
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const https = require('https');
+const http = require('http');
+
+const API_URL = '${baseUrl}/v1/usage';
+const API_KEY = '${key}';
+
+const RESET = '\\x1b[0m';
+const DIM = '\\x1b[2m';
+const RED = '\\x1b[31m';
+const GREEN = '\\x1b[32m';
+const YELLOW = '\\x1b[33m';
+const CYAN = '\\x1b[36m';
+const BRIGHT_BLUE = '\\x1b[94m';
+const BRIGHT_MAGENTA = '\\x1b[95m';
+const CLAUDE_ORANGE = '\\x1b[38;5;208m';
+
+function colorize(text, color) { return color + text + RESET; }
+function bar(pct, width = 10) {
+  const p = Math.min(100, Math.max(0, Math.round(pct)));
+  const f = Math.round((p / 100) * width);
+  const c = p >= 85 ? RED : p >= 70 ? YELLOW : GREEN;
+  return c + '\\u2588'.repeat(f) + DIM + '\\u2591'.repeat(width - f) + RESET;
+}
+function quotaBar(pct, width = 8) {
+  const p = Math.min(100, Math.max(0, Math.round(pct)));
+  const f = Math.round((p / 100) * width);
+  const c = p >= 90 ? RED : p >= 75 ? BRIGHT_MAGENTA : BRIGHT_BLUE;
+  return c + '\\u2588'.repeat(f) + DIM + '\\u2591'.repeat(width - f) + RESET;
+}
+function fmt(n) {
+  if (n == null) return '-';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+  return String(n);
+}
+function usd(v) { return v == null ? '-' : '$' + Number(v).toFixed(2); }
+
+let cachedUsage = null;
+let lastFetch = 0;
+const CACHE_TTL = 30000;
+
+function fetchUsage() {
+  return new Promise((resolve) => {
+    const now = Date.now();
+    if (cachedUsage && (now - lastFetch) < CACHE_TTL) {
+      resolve(cachedUsage);
+      return;
+    }
+    const mod = API_URL.startsWith('https') ? https : http;
+    const url = API_URL + '?start_date=' + new Date().toISOString().split('T')[0];
+    const req = mod.get(url, { headers: { 'Authorization': 'Bearer ' + API_KEY }, timeout: 5000 }, (res) => {
+      let body = '';
+      res.on('data', (c) => body += c);
+      res.on('end', () => {
+        try {
+          cachedUsage = JSON.parse(body);
+          lastFetch = now;
+          resolve(cachedUsage);
+        } catch { resolve(cachedUsage); }
+      });
+    });
+    req.on('error', () => resolve(cachedUsage));
+    req.on('timeout', () => { req.destroy(); resolve(cachedUsage); });
+  });
+}
+
+async function readStdin() {
+  if (process.stdin.isTTY) return null;
+  return new Promise((resolve) => {
+    let raw = '';
+    let timer = setTimeout(() => { resolve(null); process.stdin.pause(); }, 250);
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (c) => {
+      raw += c;
+      if (timer) { clearTimeout(timer); timer = null; }
+      timer = setTimeout(() => {
+        try { resolve(JSON.parse(raw.trim())); } catch { resolve(null); }
+        process.stdin.pause();
+      }, 30);
+    });
+    process.stdin.on('end', () => {
+      if (timer) clearTimeout(timer);
+      try { resolve(JSON.parse(raw.trim())); } catch { resolve(null); }
+    });
+    process.stdin.on('error', () => resolve(null));
+  });
+}
+
+(async () => {
+  const [stdin, usage] = await Promise.all([readStdin(), fetchUsage()]);
+  const parts = [];
+
+  if (stdin) {
+    const modelName = stdin.model?.display_name || stdin.model?.id || 'Unknown';
+    const name = modelName.replace(/^Claude\\s+/i, '');
+    parts.push(colorize('[' + name + ']', CYAN));
+
+    const cw = stdin.context_window;
+    if (cw) {
+      const pct = cw.used_percentage != null ? Math.round(cw.used_percentage) :
+        (cw.context_window_size > 0 ? Math.round(((cw.current_usage?.input_tokens || 0) + (cw.current_usage?.cache_creation_input_tokens || 0) + (cw.current_usage?.cache_read_input_tokens || 0)) / cw.context_window_size * 100) : 0);
+      const p = Math.min(100, Math.max(0, pct));
+      parts.push(bar(p) + ' ' + colorize(p + '%', p >= 85 ? RED : p >= 70 ? YELLOW : GREEN));
+    }
+
+    if (stdin.rate_limits) {
+      const rl = stdin.rate_limits;
+      const rates = [];
+      if (rl.five_hour?.used_percentage != null) {
+        const p = Math.round(rl.five_hour.used_percentage);
+        rates.push('5h:' + quotaBar(p, 6) + ' ' + colorize(p + '%', p >= 90 ? RED : p >= 75 ? BRIGHT_MAGENTA : BRIGHT_BLUE));
+      }
+      if (rl.seven_day?.used_percentage != null) {
+        const p = Math.round(rl.seven_day.used_percentage);
+        rates.push('7d:' + quotaBar(p, 6) + ' ' + colorize(p + '%', p >= 90 ? RED : p >= 75 ? BRIGHT_MAGENTA : BRIGHT_BLUE));
+      }
+      if (rates.length) parts.push(colorize('usage', DIM) + ' ' + rates.join(' '));
+    }
+
+    if (stdin.cost?.total_cost_usd != null) {
+      parts.push(colorize('\\u2b50 ' + usd(stdin.cost.total_cost_usd), CLAUDE_ORANGE));
+    }
+  }
+
+  if (usage && !usage.error) {
+    const u = usage;
+    const quotaParts = [];
+
+    if (u.mode === 'quota_limited' && u.quota) {
+      const pct = u.quota.limit > 0 ? Math.round((u.quota.used / u.quota.limit) * 100) : 0;
+      quotaParts.push(colorize('quota', DIM) + ' ' + quotaBar(pct, 8) + ' ' + colorize(pct + '% ' + usd(u.quota.used) + '/' + usd(u.quota.limit), pct >= 90 ? RED : pct >= 70 ? YELLOW : BRIGHT_BLUE));
+      if (u.rate_limits) {
+        for (const rl of u.rate_limits) {
+          const rp = rl.limit > 0 ? Math.round((rl.used / rl.limit) * 100) : 0;
+          quotaParts.push(colorize(rl.window, DIM) + ' ' + quotaBar(rp, 6) + ' ' + usd(rl.used) + '/' + usd(rl.limit));
+        }
+      }
+    } else if (u.subscription) {
+      const s = u.subscription;
+      if (s.daily_limit_usd > 0) {
+        const p = Math.round((s.daily_usage_usd / s.daily_limit_usd) * 100);
+        quotaParts.push(colorize('daily', DIM) + ' ' + quotaBar(p, 6) + ' ' + usd(s.daily_usage_usd) + '/' + usd(s.daily_limit_usd));
+      }
+      if (s.monthly_limit_usd > 0) {
+        const p = Math.round((s.monthly_usage_usd / s.monthly_limit_usd) * 100);
+        quotaParts.push(colorize('monthly', DIM) + ' ' + quotaBar(p, 6) + ' ' + usd(s.monthly_usage_usd) + '/' + usd(s.monthly_limit_usd));
+      }
+    }
+
+    if (u.remaining != null) {
+      const rc = u.remaining <= 0 ? RED : u.remaining < 10 ? YELLOW : GREEN;
+      quotaParts.push(colorize('remain', DIM) + ' ' + colorize(usd(u.remaining), rc));
+    }
+
+    if (quotaParts.length) parts.push(quotaParts.join(' | '));
+
+    const today = u.usage?.today;
+    if (today && today.requests > 0) {
+      parts.push(colorize('today', DIM) + ' ' + today.requests + 'req ' + fmt(today.total_tokens) + 'tok ' + usd(today.actual_cost || today.cost));
+    }
+  }
+
+  if (parts.length) {
+    console.log(parts.join(' | '));
+  } else {
+    console.log(colorize('[sub2api] connecting...', DIM));
+  }
+})();`
+  showHudModal.value = true
+}
+
+function copyHudScript() {
+  navigator.clipboard.writeText(hudScript.value).then(() => {
+    hudCopied.value = true
+    setTimeout(() => { hudCopied.value = false }, 2000)
+  })
+}
+
 // ==================== API Query ====================
 
 async function fetchUsage(key: string) {
@@ -802,14 +980,6 @@ async function queryKey() {
 
 // ==================== Lifecycle ====================
 
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    isDark.value = true
-    document.documentElement.classList.add('dark')
-  }
-}
-
 function formatResetTime(resetAt: string | null | undefined): string {
   if (!resetAt) return ''
   const diff = new Date(resetAt).getTime() - now.value.getTime()
@@ -823,7 +993,6 @@ function formatResetTime(resetAt: string | null | undefined): string {
 }
 
 onMounted(() => {
-  initTheme()
   if (!appStore.publicSettingsLoaded) {
     appStore.fetchPublicSettings()
   }

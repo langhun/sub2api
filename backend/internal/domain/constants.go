@@ -53,6 +53,14 @@ const (
 	AdjustmentTypeAdminConcurrency = "admin_concurrency" // 管理员调整并发数
 )
 
+// Checkin type constant
+const AdjustmentTypeCheckin = "checkin"              // 签到奖励
+const AdjustmentTypeCheckinLuck = "checkin_luck"     // 运气签到
+const AdjustmentTypeCheckinBlindbox = "checkin_blindbox" // 签到盲盒奖励
+
+// Registration type constant
+const AdjustmentTypeRegistration = "registration" // 注册赠送
+
 // Group subscription type constants
 const (
 	SubscriptionTypeStandard     = "standard"     // 标准计费模式（按余额扣费）

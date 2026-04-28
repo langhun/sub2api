@@ -376,6 +376,20 @@ func attachOpsRequestBodyToEntry(c *gin.Context, entry *service.OpsInsertErrorLo
 	opsErrorLogSanitized.Add(1)
 }
 
+// extractModelFromRequestBody 从 JSON 请求体中解析 model 字段（仅提取原始请求中的模型名）
+func extractModelFromRequestBody(body []byte) string {
+	if len(body) == 0 {
+		return ""
+	}
+	var req struct {
+		Model string `json:"model"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(req.Model)
+}
+
 func setOpsSelectedAccount(c *gin.Context, accountID int64, platform ...string) {
 	if c == nil || accountID <= 0 {
 		return
@@ -529,6 +543,14 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			var modelName string
 			if s, ok := model.(string); ok {
 				modelName = s
+			}
+			// 如果上下文中没有模型名，尝试从请求体解析（handler 可能尚未执行或解析失败）
+			if modelName == "" {
+				if bodyV, ok := c.Get(opsRequestBodyKey); ok {
+					if bodyBytes, ok := bodyV.([]byte); ok {
+						modelName = extractModelFromRequestBody(bodyBytes)
+					}
+				}
 			}
 			stream := false
 			if b, ok := streamV.(bool); ok {
@@ -744,6 +766,11 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			return
 		}
 
+		// Skip logging for authentication/authorization errors (invalid key, expired, disabled, etc.)
+		if isAuthErrorCode(parsed.Code) {
+			return
+		}
+
 		apiKey, _ := middleware2.GetAPIKeyFromContext(c)
 
 		clientRequestID, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string)
@@ -755,6 +782,14 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 		var modelName string
 		if s, ok := model.(string); ok {
 			modelName = s
+		}
+		// 如果上下文中没有模型名，尝试从请求体解析（handler 可能尚未执行或解析失败）
+		if modelName == "" {
+			if bodyV, ok := c.Get(opsRequestBodyKey); ok {
+				if bodyBytes, ok := bodyV.([]byte); ok {
+					modelName = extractModelFromRequestBody(bodyBytes)
+				}
+			}
 		}
 		stream := false
 		if b, ok := streamV.(bool); ok {
@@ -929,6 +964,18 @@ var opsRetryRequestHeaderAllowlist = []string{
 }
 
 // isCountTokensRequest checks if the request is a count_tokens request
+// isAuthErrorCode 判断错误码是否为认证/授权类错误（key 无效、过期、禁用、用户不存在等）
+func isAuthErrorCode(code string) bool {
+	switch code {
+	case "INVALID_API_KEY", "API_KEY_REQUIRED", "API_KEY_DISABLED",
+		"API_KEY_EXPIRED", "API_KEY_QUOTA_EXHAUSTED",
+		"USER_NOT_FOUND", "USER_INACTIVE",
+		"ACCESS_DENIED", "INVALID_AUTH_HEADER", "INVALID_TOKEN":
+		return true
+	}
+	return false
+}
+
 func isCountTokensRequest(c *gin.Context) bool {
 	if c == nil || c.Request == nil || c.Request.URL == nil {
 		return false
