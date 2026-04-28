@@ -43,6 +43,24 @@ func TestIsMigrationChecksumCompatible(t *testing.T) {
 		require.True(t, ok)
 	})
 
+	t.Run("108历史checksum可兼容checkin顺序修复版本", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"108_add_checkin_luck_columns.sql",
+			"42f587590caab70558687f934b7d4a4e6cf53be00e359534597978259f9806ac",
+			"bcad80f916385e54a0f5947f3f7f69be74cc144705f8185601b2efaf69f129c7",
+		)
+		require.True(t, ok)
+	})
+
+	t.Run("108回滚到历史文件后仍兼容已应用的顺序修复checksum", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"108_add_checkin_luck_columns.sql",
+			"bcad80f916385e54a0f5947f3f7f69be74cc144705f8185601b2efaf69f129c7",
+			"42f587590caab70558687f934b7d4a4e6cf53be00e359534597978259f9806ac",
+		)
+		require.True(t, ok)
+	})
+
 	t.Run("非白名单迁移不兼容", func(t *testing.T) {
 		ok := isMigrationChecksumCompatible(
 			"001_init.sql",
