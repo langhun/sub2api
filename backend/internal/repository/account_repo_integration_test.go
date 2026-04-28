@@ -216,6 +216,7 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 		search      string
 		groupID     int64
 		privacyMode string
+		tier        string
 		wantCount   int
 		validate    func(accounts []service.Account)
 	}{
@@ -403,6 +404,51 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 				s.ElementsMatch([]string{"privacy-unset", "privacy-empty"}, names)
 			},
 		},
+		{
+			name: "filter_by_openai_plus_tier",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "openai-plus", Platform: service.PlatformOpenAI, Credentials: map[string]any{"plan_type": "plus"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "openai-team", Platform: service.PlatformOpenAI, Credentials: map[string]any{"plan_type": "team"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "gemini-pro", Platform: service.PlatformGemini, Credentials: map[string]any{"tier_id": "google_ai_pro"}})
+			},
+			tier:      "openai:plus",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("openai-plus", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_gemini_legacy_ai_premium_tier",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "gemini-pro", Platform: service.PlatformGemini, Credentials: map[string]any{"tier_id": "AI_PREMIUM"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "gemini-free", Platform: service.PlatformGemini, Credentials: map[string]any{"tier_id": "google_one_free"}})
+			},
+			tier:      "gemini:google_ai_pro",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("gemini-pro", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_antigravity_extra_tier",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "ag-pro", Platform: service.PlatformAntigravity, Extra: map[string]any{
+					"load_code_assist": map[string]any{
+						"paidTier": map[string]any{"id": "g1-pro-tier"},
+					},
+				}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "ag-free", Platform: service.PlatformAntigravity, Extra: map[string]any{
+					"load_code_assist": map[string]any{
+						"currentTier": map[string]any{"id": "free-tier"},
+					},
+				}})
+			},
+			tier:      "antigravity:g1-pro-tier",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("ag-pro", accounts[0].Name)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -415,7 +461,7 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 
 			tt.setup(client)
 
-			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID, tt.privacyMode)
+			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID, tt.privacyMode, tt.tier)
 			s.Require().NoError(err)
 			s.Require().Len(accounts, tt.wantCount)
 			if tt.validate != nil {
@@ -482,7 +528,7 @@ func (s *AccountRepoSuite) TestPreload_And_VirtualFields() {
 	s.Require().Len(got.Groups, 1, "expected Groups to be populated")
 	s.Require().Equal(group.ID, got.Groups[0].ID)
 
-	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0, "")
+	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0, "", "")
 	s.Require().NoError(err, "ListWithFilters")
 	s.Require().Equal(int64(1), page.Total)
 	s.Require().Len(accounts, 1)

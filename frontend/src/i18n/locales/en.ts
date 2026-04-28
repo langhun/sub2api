@@ -687,7 +687,6 @@ export default {
     noKeysYet: 'No API keys yet',
     createFirstKey: 'Create your first API key to get started with the API.',
     keyCreatedSuccess: 'API key created successfully',
-    keysCreatedSuccess: '{count} API keys created successfully',
     keyUpdatedSuccess: 'API key updated successfully',
     keyDeletedSuccess: 'API key deleted successfully',
     keyEnabledSuccess: 'API key enabled successfully',
@@ -700,7 +699,6 @@ export default {
     groupChangedSuccess: 'Group changed successfully',
     failedToChangeGroup: 'Failed to change group',
     groupRequired: 'Please select a group',
-    customKeySingleGroupOnly: 'Custom keys can only be used with one group at a time',
     usage: 'Usage',
     today: 'Today',
     total: 'Last 30d',
@@ -3662,14 +3660,26 @@ export default {
         activeQuery: 'Query'
       },
       tier: {
+        all: 'All Tiers',
         free: 'Free',
+        plus: 'Plus',
+        team: 'Team',
         pro: 'Pro',
         ultra: 'Ultra',
+        enterprise: 'Enterprise',
         aiPremium: 'AI Premium',
         standard: 'Standard',
         basic: 'Basic',
         personal: 'Personal',
-        unlimited: 'Unlimited'
+        unlimited: 'Unlimited',
+        googleOneFree: 'Google One Free',
+        googleAIPro: 'Google AI Pro',
+        googleAIUltra: 'Google AI Ultra',
+        gcpStandard: 'GCP Standard',
+        gcpEnterprise: 'GCP Enterprise',
+        aiStudioFree: 'Google AI Free',
+        aiStudioPaid: 'Google AI Pay-as-you-go',
+        unknown: 'Unknown Tier'
       },
       ineligibleWarning:
         'This account is not eligible for Antigravity, but API forwarding still works. Use at your own risk.',

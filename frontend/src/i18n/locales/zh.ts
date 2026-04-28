@@ -686,7 +686,6 @@ export default {
     noKeysYet: '暂无 API 密钥',
     createFirstKey: '创建您的第一个 API 密钥以开始使用 API。',
     keyCreatedSuccess: 'API 密钥创建成功',
-    keysCreatedSuccess: '已创建 {count} 个 API 密钥',
     keyUpdatedSuccess: 'API 密钥更新成功',
     keyDeletedSuccess: 'API 密钥删除成功',
     keyEnabledSuccess: 'API 密钥已启用',
@@ -699,7 +698,6 @@ export default {
     groupChangedSuccess: '分组更换成功',
     failedToChangeGroup: '更换分组失败',
     groupRequired: '请选择分组',
-    customKeySingleGroupOnly: '自定义密钥一次只能选择一个分组',
     usage: '用量',
     today: '今日',
     total: '近30天',
@@ -3039,14 +3037,26 @@ export default {
         activeQuery: '查询'
       },
       tier: {
+        all: '全部等级',
         free: 'Free',
+        plus: 'Plus',
+        team: 'Team',
         pro: 'Pro',
         ultra: 'Ultra',
+        enterprise: 'Enterprise',
         aiPremium: 'AI Premium',
         standard: '标准版',
         basic: '基础版',
         personal: '个人版',
-        unlimited: '无限制'
+        unlimited: '无限制',
+        googleOneFree: 'Google One Free',
+        googleAIPro: 'Google AI Pro',
+        googleAIUltra: 'Google AI Ultra',
+        gcpStandard: 'GCP Standard',
+        gcpEnterprise: 'GCP Enterprise',
+        aiStudioFree: 'Google AI Free',
+        aiStudioPaid: 'Google AI Pay-as-you-go',
+        unknown: '未知等级'
       },
       ineligibleWarning:
         '该账号无 Antigravity 使用权限，但仍能进行 API 转发。继续使用请自行承担风险。',
