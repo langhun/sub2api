@@ -13,12 +13,12 @@
         <template #cell-user="{ row }">
           <div class="text-sm">
             <button
-              v-if="row.user?.email"
+              v-if="getUserDisplayName(row)"
               class="font-medium text-primary-600 underline decoration-dashed underline-offset-2 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
               @click="$emit('userClick', row.user_id, row.user?.email)"
               :title="t('admin.usage.clickToViewBalance')"
             >
-              {{ row.user.email }}
+              {{ getUserDisplayName(row) }}
             </button>
             <span v-else class="font-medium text-gray-900 dark:text-white">-</span>
             <span class="ml-1 text-gray-500 dark:text-gray-400">#{{ row.user_id }}</span>
@@ -386,6 +386,10 @@ defineEmits<{
   sort: [key: string, order: 'asc' | 'desc']
 }>()
 const { t } = useI18n()
+
+const getUserDisplayName = (row: AdminUsageLog): string => {
+  return row.user?.username?.trim() || row.user?.email?.trim() || ''
+}
 
 // Tooltip state - cost
 const tooltipVisible = ref(false)
