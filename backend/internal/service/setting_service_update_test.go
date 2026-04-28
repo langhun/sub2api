@@ -224,6 +224,57 @@ func TestSettingService_UpdateSettings_TablePreferences(t *testing.T) {
 	require.Equal(t, "[20,100]", repo.updates[SettingKeyTablePageSizeOptions])
 }
 
+func TestSettingService_UpdateSettings_HomeNavLinksPersistSplitSwitchesAndLegacyAggregate(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		HomeNavLeaderboardEnabled: true,
+		HomeNavKeyUsageEnabled:    true,
+		HomeNavMonitoringEnabled:  false,
+		HomeNavPricingEnabled:     true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "false", repo.updates[SettingKeyHomeNavLinksEnabled])
+	require.Equal(t, "true", repo.updates[SettingKeyHomeNavLeaderboardEnabled])
+	require.Equal(t, "true", repo.updates[SettingKeyHomeNavKeyUsageEnabled])
+	require.Equal(t, "false", repo.updates[SettingKeyHomeNavMonitoringEnabled])
+	require.Equal(t, "true", repo.updates[SettingKeyHomeNavPricingEnabled])
+
+	err = svc.UpdateSettings(context.Background(), &SystemSettings{
+		HomeNavLeaderboardEnabled: true,
+		HomeNavKeyUsageEnabled:    true,
+		HomeNavMonitoringEnabled:  true,
+		HomeNavPricingEnabled:     true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "true", repo.updates[SettingKeyHomeNavLinksEnabled])
+}
+
+func TestSettingService_UpdateSettings_LeaderboardTabsPersistIndependentlyFromHomeNav(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		HomeNavLeaderboardEnabled:     false,
+		HomeNavKeyUsageEnabled:        true,
+		HomeNavMonitoringEnabled:      true,
+		HomeNavPricingEnabled:         true,
+		LeaderboardBalanceEnabled:     false,
+		LeaderboardConsumptionEnabled: true,
+		LeaderboardTransferEnabled:    false,
+		LeaderboardCheckinEnabled:     true,
+	})
+	require.NoError(t, err)
+
+	// 首页入口只写 home_nav_leaderboard_enabled，排行榜页四个标签写各自的新键。
+	require.Equal(t, "false", repo.updates[SettingKeyHomeNavLeaderboardEnabled])
+	require.Equal(t, "false", repo.updates[SettingKeyLeaderboardBalanceEnabled])
+	require.Equal(t, "true", repo.updates[SettingKeyLeaderboardConsumptionEnabled])
+	require.Equal(t, "false", repo.updates[SettingKeyLeaderboardTransferEnabled])
+	require.Equal(t, "true", repo.updates[SettingKeyLeaderboardCheckinEnabled])
+}
+
 func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	svc := NewSettingService(repo, &config.Config{})

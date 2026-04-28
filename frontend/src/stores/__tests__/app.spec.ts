@@ -261,6 +261,10 @@ describe('useAppStore', () => {
         contact_info: 'test@test.com',
         api_base_url: 'https://api.test.com',
         doc_url: 'https://docs.test.com',
+        leaderboard_balance_enabled: true,
+        leaderboard_consumption_enabled: true,
+        leaderboard_transfer_enabled: true,
+        leaderboard_checkin_enabled: true,
       }
 
       const store = useAppStore()
@@ -271,6 +275,33 @@ describe('useAppStore', () => {
       expect(store.siteLogo).toBe('/logo.png')
       expect(store.siteVersion).toBe('1.0.0')
       expect(store.publicSettingsLoaded).toBe(true)
+      expect(store.cachedPublicSettings?.leaderboard_balance_enabled).toBe(true)
+      expect(store.cachedPublicSettings?.leaderboard_consumption_enabled).toBe(true)
+      expect(store.cachedPublicSettings?.leaderboard_transfer_enabled).toBe(true)
+      expect(store.cachedPublicSettings?.leaderboard_checkin_enabled).toBe(true)
+    })
+
+    it('兼容缺少拆分开关的旧版注入配置', () => {
+      const windowAny = window as any
+      windowAny.__APP_CONFIG__ = {
+        site_name: 'LegacySite',
+        home_nav_links_enabled: false,
+      }
+
+      const store = useAppStore()
+      const result = store.initFromInjectedConfig()
+
+      expect(result).toBe(true)
+      expect(store.cachedPublicSettings?.home_nav_links_enabled).toBe(false)
+      expect(store.cachedPublicSettings?.home_nav_leaderboard_enabled).toBe(false)
+      expect(store.cachedPublicSettings?.home_nav_key_usage_enabled).toBe(false)
+      expect(store.cachedPublicSettings?.home_nav_monitoring_enabled).toBe(false)
+      expect(store.cachedPublicSettings?.home_nav_pricing_enabled).toBe(false)
+      expect(store.cachedPublicSettings?.leaderboard_balance_enabled).toBe(true)
+      expect(store.cachedPublicSettings?.leaderboard_consumption_enabled).toBe(true)
+      expect(store.cachedPublicSettings?.leaderboard_transfer_enabled).toBe(true)
+      expect(store.cachedPublicSettings?.leaderboard_checkin_enabled).toBe(true)
+      expect(windowAny.__APP_CONFIG__.leaderboard_balance_enabled).toBe(true)
     })
 
     it('无注入配置时返回 false', () => {
@@ -313,6 +344,14 @@ describe('useAppStore', () => {
         doc_url: '',
         home_content: '',
         home_nav_links_enabled: true,
+        home_nav_leaderboard_enabled: false,
+        home_nav_key_usage_enabled: true,
+        home_nav_monitoring_enabled: false,
+        home_nav_pricing_enabled: true,
+        leaderboard_balance_enabled: true,
+        leaderboard_consumption_enabled: false,
+        leaderboard_transfer_enabled: true,
+        leaderboard_checkin_enabled: false,
         hide_ccs_import_button: false,
         purchase_subscription_enabled: false,
         purchase_subscription_url: '',
@@ -330,6 +369,12 @@ describe('useAppStore', () => {
 
       expect((window as any).__APP_CONFIG__.table_default_page_size).toBe(1000)
       expect((window as any).__APP_CONFIG__.table_page_size_options).toEqual([20, 100, 1000])
+      expect((window as any).__APP_CONFIG__.home_nav_leaderboard_enabled).toBe(false)
+      expect((window as any).__APP_CONFIG__.home_nav_monitoring_enabled).toBe(false)
+      expect((window as any).__APP_CONFIG__.leaderboard_balance_enabled).toBe(true)
+      expect((window as any).__APP_CONFIG__.leaderboard_consumption_enabled).toBe(false)
+      expect((window as any).__APP_CONFIG__.leaderboard_transfer_enabled).toBe(true)
+      expect((window as any).__APP_CONFIG__.leaderboard_checkin_enabled).toBe(false)
       expect(localStorage.getItem('table-page-size')).toBeNull()
       expect(localStorage.getItem('table-page-size-source')).toBeNull()
     })

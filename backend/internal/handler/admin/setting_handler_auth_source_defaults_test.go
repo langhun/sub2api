@@ -284,6 +284,117 @@ func TestSettingHandler_UpdateSettings_PreservesLegacyBlankPaymentVisibleMethodS
 	require.Equal(t, "true", repo.values[service.SettingPaymentVisibleMethodAlipayEnabled])
 }
 
+func TestSettingHandler_UpdateSettings_ExpandsLegacyHomeNavSwitch(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &settingHandlerRepoStub{
+		values: map[string]string{
+			service.SettingKeyPromoCodeEnabled:              "true",
+			service.SettingKeyHomeNavLeaderboardEnabled:     "true",
+			service.SettingKeyHomeNavKeyUsageEnabled:        "true",
+			service.SettingKeyHomeNavMonitoringEnabled:      "true",
+			service.SettingKeyHomeNavPricingEnabled:         "true",
+			service.SettingKeyLeaderboardBalanceEnabled:     "false",
+			service.SettingKeyLeaderboardConsumptionEnabled: "true",
+			service.SettingKeyLeaderboardTransferEnabled:    "false",
+			service.SettingKeyLeaderboardCheckinEnabled:     "true",
+		},
+	}
+	svc := service.NewSettingService(repo, &config.Config{Default: config.DefaultConfig{UserConcurrency: 5}})
+	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil)
+
+	body := map[string]any{
+		"promo_code_enabled":     true,
+		"home_nav_links_enabled": false,
+	}
+	rawBody, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings", bytes.NewReader(rawBody))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler.UpdateSettings(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "false", repo.values[service.SettingKeyHomeNavLinksEnabled])
+	require.Equal(t, "false", repo.values[service.SettingKeyHomeNavLeaderboardEnabled])
+	require.Equal(t, "false", repo.values[service.SettingKeyHomeNavKeyUsageEnabled])
+	require.Equal(t, "false", repo.values[service.SettingKeyHomeNavMonitoringEnabled])
+	require.Equal(t, "false", repo.values[service.SettingKeyHomeNavPricingEnabled])
+	// 兼容旧首页总开关时，不触碰排行榜页四个独立标签开关。
+	require.Equal(t, "false", repo.values[service.SettingKeyLeaderboardBalanceEnabled])
+	require.Equal(t, "true", repo.values[service.SettingKeyLeaderboardConsumptionEnabled])
+	require.Equal(t, "false", repo.values[service.SettingKeyLeaderboardTransferEnabled])
+	require.Equal(t, "true", repo.values[service.SettingKeyLeaderboardCheckinEnabled])
+
+	var resp response.Response
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, false, data["home_nav_links_enabled"])
+	require.Equal(t, false, data["home_nav_leaderboard_enabled"])
+	require.Equal(t, false, data["home_nav_key_usage_enabled"])
+	require.Equal(t, false, data["home_nav_monitoring_enabled"])
+	require.Equal(t, false, data["home_nav_pricing_enabled"])
+	require.Equal(t, false, data["leaderboard_balance_enabled"])
+	require.Equal(t, true, data["leaderboard_consumption_enabled"])
+	require.Equal(t, false, data["leaderboard_transfer_enabled"])
+	require.Equal(t, true, data["leaderboard_checkin_enabled"])
+}
+
+func TestSettingHandler_UpdateSettings_PersistsLeaderboardTabsIndependently(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &settingHandlerRepoStub{
+		values: map[string]string{
+			service.SettingKeyPromoCodeEnabled:              "true",
+			service.SettingKeyHomeNavLeaderboardEnabled:     "true",
+			service.SettingKeyLeaderboardBalanceEnabled:     "true",
+			service.SettingKeyLeaderboardConsumptionEnabled: "true",
+			service.SettingKeyLeaderboardTransferEnabled:    "true",
+			service.SettingKeyLeaderboardCheckinEnabled:     "true",
+		},
+	}
+	svc := service.NewSettingService(repo, &config.Config{Default: config.DefaultConfig{UserConcurrency: 5}})
+	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil)
+
+	body := map[string]any{
+		"promo_code_enabled":              true,
+		"home_nav_leaderboard_enabled":    false,
+		"leaderboard_balance_enabled":     false,
+		"leaderboard_consumption_enabled": true,
+		"leaderboard_transfer_enabled":    false,
+		"leaderboard_checkin_enabled":     true,
+	}
+	rawBody, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings", bytes.NewReader(rawBody))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler.UpdateSettings(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	// 显式提交时，首页入口和排行榜页标签分别落到不同设置键。
+	require.Equal(t, "false", repo.values[service.SettingKeyHomeNavLeaderboardEnabled])
+	require.Equal(t, "false", repo.values[service.SettingKeyLeaderboardBalanceEnabled])
+	require.Equal(t, "true", repo.values[service.SettingKeyLeaderboardConsumptionEnabled])
+	require.Equal(t, "false", repo.values[service.SettingKeyLeaderboardTransferEnabled])
+	require.Equal(t, "true", repo.values[service.SettingKeyLeaderboardCheckinEnabled])
+
+	var resp response.Response
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, false, data["home_nav_leaderboard_enabled"])
+	require.Equal(t, false, data["leaderboard_balance_enabled"])
+	require.Equal(t, true, data["leaderboard_consumption_enabled"])
+	require.Equal(t, false, data["leaderboard_transfer_enabled"])
+	require.Equal(t, true, data["leaderboard_checkin_enabled"])
+}
+
 func TestSettingHandler_UpdateSettings_PersistsExplicitFalseOIDCCompatibilityFlags(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repo := &settingHandlerRepoStub{

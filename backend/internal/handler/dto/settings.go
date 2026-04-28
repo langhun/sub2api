@@ -91,21 +91,29 @@ type SystemSettings struct {
 	OIDCConnectUserInfoIDPath         string `json:"oidc_connect_userinfo_id_path"`
 	OIDCConnectUserInfoUsernamePath   string `json:"oidc_connect_userinfo_username_path"`
 
-	SiteName                    string           `json:"site_name"`
-	SiteLogo                    string           `json:"site_logo"`
-	SiteSubtitle                string           `json:"site_subtitle"`
-	APIBaseURL                  string           `json:"api_base_url"`
-	ContactInfo                 string           `json:"contact_info"`
-	DocURL                      string           `json:"doc_url"`
-	HomeContent                 string           `json:"home_content"`
-	HomeNavLinksEnabled         bool             `json:"home_nav_links_enabled"`
-	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
-	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
-	TableDefaultPageSize        int              `json:"table_default_page_size"`
-	TablePageSizeOptions        []int            `json:"table_page_size_options"`
-	CustomMenuItems             []CustomMenuItem `json:"custom_menu_items"`
-	CustomEndpoints             []CustomEndpoint `json:"custom_endpoints"`
+	SiteName                      string           `json:"site_name"`
+	SiteLogo                      string           `json:"site_logo"`
+	SiteSubtitle                  string           `json:"site_subtitle"`
+	APIBaseURL                    string           `json:"api_base_url"`
+	ContactInfo                   string           `json:"contact_info"`
+	DocURL                        string           `json:"doc_url"`
+	HomeContent                   string           `json:"home_content"`
+	HomeNavLinksEnabled           bool             `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled     bool             `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled        bool             `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled      bool             `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled         bool             `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled     bool             `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled bool             `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled    bool             `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled     bool             `json:"leaderboard_checkin_enabled"`
+	HideCcsImportButton           bool             `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled   bool             `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL       string           `json:"purchase_subscription_url"`
+	TableDefaultPageSize          int              `json:"table_default_page_size"`
+	TablePageSizeOptions          []int            `json:"table_page_size_options"`
+	CustomMenuItems               []CustomMenuItem `json:"custom_menu_items"`
+	CustomEndpoints               []CustomEndpoint `json:"custom_endpoints"`
 
 	DefaultConcurrency           int                          `json:"default_concurrency"`
 	DefaultBalance               float64                      `json:"default_balance"`
@@ -255,6 +263,14 @@ type PublicSettings struct {
 	DocURL                           string           `json:"doc_url"`
 	HomeContent                      string           `json:"home_content"`
 	HomeNavLinksEnabled              bool             `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled        bool             `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled           bool             `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled         bool             `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled            bool             `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled        bool             `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled    bool             `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled       bool             `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled        bool             `json:"leaderboard_checkin_enabled"`
 	HideCcsImportButton              bool             `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string           `json:"purchase_subscription_url"`
