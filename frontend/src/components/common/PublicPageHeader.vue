@@ -8,7 +8,7 @@
         <span class="text-lg font-bold text-gray-900 dark:text-white">{{ siteName }}</span>
       </router-link>
       <div class="flex items-center gap-2">
-        <router-link v-for="link in navLinks" :key="link.path" :to="link.path"
+        <router-link v-for="link in visibleNavLinks" :key="link.path" :to="link.path"
           :class="[
             'hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors sm:flex',
             activePath === link.path
@@ -45,7 +45,7 @@
     </nav>
     <div v-if="mobileMenuOpen" class="border-t border-gray-100 bg-white px-4 pb-4 pt-2 dark:border-dark-800 dark:bg-dark-950 sm:hidden">
       <div class="flex flex-col gap-1">
-        <router-link v-for="link in navLinks" :key="link.path" :to="link.path"
+        <router-link v-for="link in visibleNavLinks" :key="link.path" :to="link.path"
           @click="mobileMenuOpen = false"
           :class="[
             'rounded-lg px-3 py-2.5 text-sm transition-colors',
@@ -82,9 +82,12 @@ import { useAuthStore } from '@/stores/auth'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   activePath?: string
-}>()
+  showNavLinks?: boolean
+}>(), {
+  showNavLinks: true,
+})
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -106,6 +109,8 @@ const navLinks = computed(() => [
   { path: '/monitoring', label: t('admin.monitoring.title') },
   { path: '/pricing', label: t('pricing.title') },
 ])
+
+const visibleNavLinks = computed(() => props.showNavLinks ? navLinks.value : [])
 
 function toggleTheme() {
   isDark.value = !isDark.value

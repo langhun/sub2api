@@ -96,6 +96,7 @@ type SystemSettings struct {
 	ContactInfo                 string
 	DocURL                      string
 	HomeContent                 string
+	HomeNavLinksEnabled         bool
 	HideCcsImportButton         bool
 	PurchaseSubscriptionEnabled bool
 	PurchaseSubscriptionURL     string
@@ -185,21 +186,21 @@ type SystemSettings struct {
 	CheckinLuckMaxMultiplier float64
 
 	// Checkin Blind Box 签到盲盒设置
-	CheckinBlindboxEnabled      bool
-	CheckinBlindboxTriggerType  string
-	CheckinBlindboxInterval     int
+	CheckinBlindboxEnabled     bool
+	CheckinBlindboxTriggerType string
+	CheckinBlindboxInterval    int
 
 	// Balance Transfer 余额流转设置
-	TransferEnabled            bool
-	TransferFeeRate            float64
-	TransferMinAmount          float64
-	TransferMaxAmount          float64
-	TransferDailyLimit         float64
-	TransferDailyCountLimit    int
-	TransferVIPFeeExempt       bool
-	RedPacketEnabled           bool
-	RedPacketMaxCount          int
-	RedPacketExpireHours       int
+	TransferEnabled         bool
+	TransferFeeRate         float64
+	TransferMinAmount       float64
+	TransferMaxAmount       float64
+	TransferDailyLimit      float64
+	TransferDailyCountLimit int
+	TransferVIPFeeExempt    bool
+	RedPacketEnabled        bool
+	RedPacketMaxCount       int
+	RedPacketExpireHours    int
 }
 
 type DefaultSubscriptionSetting struct {
@@ -225,6 +226,7 @@ type PublicSettings struct {
 	ContactInfo                      string
 	DocURL                           string
 	HomeContent                      string
+	HomeNavLinksEnabled              bool
 	HideCcsImportButton              bool
 
 	PurchaseSubscriptionEnabled bool

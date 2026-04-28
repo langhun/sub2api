@@ -292,6 +292,7 @@ const baseSettingsResponse = {
   contact_info: "",
   doc_url: "",
   home_content: "",
+  home_nav_links_enabled: true,
   hide_ccs_import_button: false,
   table_default_page_size: 20,
   table_page_size_options: [10, 20, 50, 100],
@@ -410,6 +411,8 @@ function mountView() {
         ProxySelector: true,
         ImageUpload: ImageUploadStub,
         BackupSettings: true,
+        BlindboxPrizePoolCard: true,
+        RouterLink: true,
       },
     },
   });
@@ -617,6 +620,8 @@ describe("admin SettingsView payment visible method controls", () => {
           ProxySelector: true,
           ImageUpload: ImageUploadStub,
           BackupSettings: true,
+          BlindboxPrizePoolCard: true,
+          RouterLink: true,
         },
       },
     });

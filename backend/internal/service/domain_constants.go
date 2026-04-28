@@ -183,6 +183,7 @@ const (
 	SettingKeyContactInfo                 = "contact_info"                  // 客服联系方式
 	SettingKeyDocURL                      = "doc_url"                       // 文档链接
 	SettingKeyHomeContent                 = "home_content"                  // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
+	SettingKeyHomeNavLinksEnabled         = "home_nav_links_enabled"        // 是否显示首页顶部导航入口
 	SettingKeyHideCcsImportButton         = "hide_ccs_import_button"        // 是否隐藏 API Keys 页面的导入 CCS 按钮
 	SettingKeyPurchaseSubscriptionEnabled = "purchase_subscription_enabled" // 是否展示"购买订阅"页面入口
 	SettingKeyPurchaseSubscriptionURL     = "purchase_subscription_url"     // "购买订阅"页面 URL（作为 iframe src）
@@ -354,8 +355,8 @@ const (
 
 	// Checkin 签到设置
 	SettingKeyCheckinEnabled    = "checkin_enabled"     // 是否启用签到功能
-	SettingKeyCheckinMinBalance = "checkin_min_balance"  // 签到最小奖励额度
-	SettingKeyCheckinMaxBalance = "checkin_max_balance"  // 签到最大奖励额度
+	SettingKeyCheckinMinBalance = "checkin_min_balance" // 签到最小奖励额度
+	SettingKeyCheckinMaxBalance = "checkin_max_balance" // 签到最大奖励额度
 
 	// Checkin Luck 运气签到设置
 	SettingKeyCheckinLuckEnabled       = "checkin_luck_enabled"        // 是否启用运气签到
@@ -363,21 +364,21 @@ const (
 	SettingKeyCheckinLuckMaxMultiplier = "checkin_luck_max_multiplier" // 运气签到最大倍率
 
 	// Checkin Blind Box 签到盲盒设置
-	SettingKeyCheckinBlindboxEnabled      = "checkin_blindbox_enabled"       // 是否启用签到盲盒
-	SettingKeyCheckinBlindboxTriggerType  = "checkin_blindbox_trigger_type"  // 触发类型: streak/total
-	SettingKeyCheckinBlindboxInterval     = "checkin_blindbox_interval"      // 触发间隔: 每N天/次
+	SettingKeyCheckinBlindboxEnabled     = "checkin_blindbox_enabled"      // 是否启用签到盲盒
+	SettingKeyCheckinBlindboxTriggerType = "checkin_blindbox_trigger_type" // 触发类型: streak/total
+	SettingKeyCheckinBlindboxInterval    = "checkin_blindbox_interval"     // 触发间隔: 每N天/次
 
 	// Balance Transfer 余额流转设置
-	SettingKeyTransferEnabled             = "transfer_enabled"
-	SettingKeyTransferFeeRate             = "transfer_fee_rate"
-	SettingKeyTransferMinAmount           = "transfer_min_amount"
-	SettingKeyTransferMaxAmount           = "transfer_max_amount"
-	SettingKeyTransferDailyLimit          = "transfer_daily_limit"
-	SettingKeyTransferDailyCountLimit     = "transfer_daily_count_limit"
-	SettingKeyTransferVIPFeeExempt        = "transfer_vip_fee_exempt"
-	SettingKeyRedPacketEnabled            = "redpacket_enabled"
-	SettingKeyRedPacketMaxCount           = "redpacket_max_count"
-	SettingKeyRedPacketExpireHours        = "redpacket_expire_hours"
+	SettingKeyTransferEnabled         = "transfer_enabled"
+	SettingKeyTransferFeeRate         = "transfer_fee_rate"
+	SettingKeyTransferMinAmount       = "transfer_min_amount"
+	SettingKeyTransferMaxAmount       = "transfer_max_amount"
+	SettingKeyTransferDailyLimit      = "transfer_daily_limit"
+	SettingKeyTransferDailyCountLimit = "transfer_daily_count_limit"
+	SettingKeyTransferVIPFeeExempt    = "transfer_vip_fee_exempt"
+	SettingKeyRedPacketEnabled        = "redpacket_enabled"
+	SettingKeyRedPacketMaxCount       = "redpacket_max_count"
+	SettingKeyRedPacketExpireHours    = "redpacket_expire_hours"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).
