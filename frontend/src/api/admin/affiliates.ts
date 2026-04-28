@@ -87,6 +87,15 @@ export async function clearUserSettings(
   return data
 }
 
+export async function resetUserCode(
+  userId: number,
+): Promise<{ user_id: number; aff_code: string }> {
+  const { data } = await apiClient.post<{ user_id: number; aff_code: string }>(
+    `/admin/affiliates/users/${userId}/reset-code`,
+  )
+  return data
+}
+
 export async function batchSetRate(
   payload: BatchSetRateRequest,
 ): Promise<{ affected: number }> {
@@ -102,6 +111,7 @@ export const affiliatesAPI = {
   lookupUsers,
   updateUserSettings,
   clearUserSettings,
+  resetUserCode,
   batchSetRate,
 }
 

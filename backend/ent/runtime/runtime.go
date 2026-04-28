@@ -12,14 +12,21 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacketclaim"
+	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/checkin"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/modelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
@@ -431,6 +438,52 @@ func init() {
 	authidentitychannelDescMetadata := authidentitychannelFields[6].Descriptor()
 	// authidentitychannel.DefaultMetadata holds the default value on creation for the metadata field.
 	authidentitychannel.DefaultMetadata = authidentitychannelDescMetadata.Default.(func() map[string]interface{})
+	balanceredpacketFields := schema.BalanceRedPacket{}.Fields()
+	_ = balanceredpacketFields
+	// balanceredpacketDescRedpacketType is the schema descriptor for redpacket_type field.
+	balanceredpacketDescRedpacketType := balanceredpacketFields[5].Descriptor()
+	// balanceredpacket.DefaultRedpacketType holds the default value on creation for the redpacket_type field.
+	balanceredpacket.DefaultRedpacketType = balanceredpacketDescRedpacketType.Default.(string)
+	// balanceredpacket.RedpacketTypeValidator is a validator for the "redpacket_type" field. It is called by the builders before save.
+	balanceredpacket.RedpacketTypeValidator = balanceredpacketDescRedpacketType.Validators[0].(func(string) error)
+	// balanceredpacketDescCode is the schema descriptor for code field.
+	balanceredpacketDescCode := balanceredpacketFields[8].Descriptor()
+	// balanceredpacket.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	balanceredpacket.CodeValidator = balanceredpacketDescCode.Validators[0].(func(string) error)
+	// balanceredpacketDescStatus is the schema descriptor for status field.
+	balanceredpacketDescStatus := balanceredpacketFields[9].Descriptor()
+	// balanceredpacket.DefaultStatus holds the default value on creation for the status field.
+	balanceredpacket.DefaultStatus = balanceredpacketDescStatus.Default.(string)
+	// balanceredpacket.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	balanceredpacket.StatusValidator = balanceredpacketDescStatus.Validators[0].(func(string) error)
+	// balanceredpacketDescCreatedAt is the schema descriptor for created_at field.
+	balanceredpacketDescCreatedAt := balanceredpacketFields[12].Descriptor()
+	// balanceredpacket.DefaultCreatedAt holds the default value on creation for the created_at field.
+	balanceredpacket.DefaultCreatedAt = balanceredpacketDescCreatedAt.Default.(func() time.Time)
+	balanceredpacketclaimFields := schema.BalanceRedPacketClaim{}.Fields()
+	_ = balanceredpacketclaimFields
+	// balanceredpacketclaimDescCreatedAt is the schema descriptor for created_at field.
+	balanceredpacketclaimDescCreatedAt := balanceredpacketclaimFields[4].Descriptor()
+	// balanceredpacketclaim.DefaultCreatedAt holds the default value on creation for the created_at field.
+	balanceredpacketclaim.DefaultCreatedAt = balanceredpacketclaimDescCreatedAt.Default.(func() time.Time)
+	balancetransferFields := schema.BalanceTransfer{}.Fields()
+	_ = balancetransferFields
+	// balancetransferDescTransferType is the schema descriptor for transfer_type field.
+	balancetransferDescTransferType := balancetransferFields[6].Descriptor()
+	// balancetransfer.DefaultTransferType holds the default value on creation for the transfer_type field.
+	balancetransfer.DefaultTransferType = balancetransferDescTransferType.Default.(string)
+	// balancetransfer.TransferTypeValidator is a validator for the "transfer_type" field. It is called by the builders before save.
+	balancetransfer.TransferTypeValidator = balancetransferDescTransferType.Validators[0].(func(string) error)
+	// balancetransferDescStatus is the schema descriptor for status field.
+	balancetransferDescStatus := balancetransferFields[7].Descriptor()
+	// balancetransfer.DefaultStatus holds the default value on creation for the status field.
+	balancetransfer.DefaultStatus = balancetransferDescStatus.Default.(string)
+	// balancetransfer.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	balancetransfer.StatusValidator = balancetransferDescStatus.Validators[0].(func(string) error)
+	// balancetransferDescCreatedAt is the schema descriptor for created_at field.
+	balancetransferDescCreatedAt := balancetransferFields[13].Descriptor()
+	// balancetransfer.DefaultCreatedAt holds the default value on creation for the created_at field.
+	balancetransfer.DefaultCreatedAt = balancetransferDescCreatedAt.Default.(func() time.Time)
 	channelmonitorMixin := schema.ChannelMonitor{}.Mixin()
 	channelmonitorMixinFields0 := channelmonitorMixin[0].Fields()
 	_ = channelmonitorMixinFields0
@@ -677,6 +730,98 @@ func init() {
 	channelmonitorrequesttemplate.DefaultBodyOverrideMode = channelmonitorrequesttemplateDescBodyOverrideMode.Default.(string)
 	// channelmonitorrequesttemplate.BodyOverrideModeValidator is a validator for the "body_override_mode" field. It is called by the builders before save.
 	channelmonitorrequesttemplate.BodyOverrideModeValidator = channelmonitorrequesttemplateDescBodyOverrideMode.Validators[0].(func(string) error)
+	checkinFields := schema.Checkin{}.Fields()
+	_ = checkinFields
+	// checkinDescStreakDays is the schema descriptor for streak_days field.
+	checkinDescStreakDays := checkinFields[3].Descriptor()
+	// checkin.DefaultStreakDays holds the default value on creation for the streak_days field.
+	checkin.DefaultStreakDays = checkinDescStreakDays.Default.(int)
+	// checkinDescCheckinType is the schema descriptor for checkin_type field.
+	checkinDescCheckinType := checkinFields[4].Descriptor()
+	// checkin.DefaultCheckinType holds the default value on creation for the checkin_type field.
+	checkin.DefaultCheckinType = checkinDescCheckinType.Default.(string)
+	// checkinDescBetAmount is the schema descriptor for bet_amount field.
+	checkinDescBetAmount := checkinFields[5].Descriptor()
+	// checkin.DefaultBetAmount holds the default value on creation for the bet_amount field.
+	checkin.DefaultBetAmount = checkinDescBetAmount.Default.(float64)
+	// checkinDescMultiplier is the schema descriptor for multiplier field.
+	checkinDescMultiplier := checkinFields[6].Descriptor()
+	// checkin.DefaultMultiplier holds the default value on creation for the multiplier field.
+	checkin.DefaultMultiplier = checkinDescMultiplier.Default.(float64)
+	// checkinDescCreatedAt is the schema descriptor for created_at field.
+	checkinDescCreatedAt := checkinFields[7].Descriptor()
+	// checkin.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkin.DefaultCreatedAt = checkinDescCreatedAt.Default.(func() time.Time)
+	checkinblindboxrecordFields := schema.CheckinBlindboxRecord{}.Fields()
+	_ = checkinblindboxrecordFields
+	// checkinblindboxrecordDescPrizeName is the schema descriptor for prize_name field.
+	checkinblindboxrecordDescPrizeName := checkinblindboxrecordFields[2].Descriptor()
+	// checkinblindboxrecord.DefaultPrizeName holds the default value on creation for the prize_name field.
+	checkinblindboxrecord.DefaultPrizeName = checkinblindboxrecordDescPrizeName.Default.(string)
+	// checkinblindboxrecordDescRarity is the schema descriptor for rarity field.
+	checkinblindboxrecordDescRarity := checkinblindboxrecordFields[3].Descriptor()
+	// checkinblindboxrecord.DefaultRarity holds the default value on creation for the rarity field.
+	checkinblindboxrecord.DefaultRarity = checkinblindboxrecordDescRarity.Default.(string)
+	// checkinblindboxrecordDescRewardType is the schema descriptor for reward_type field.
+	checkinblindboxrecordDescRewardType := checkinblindboxrecordFields[4].Descriptor()
+	// checkinblindboxrecord.DefaultRewardType holds the default value on creation for the reward_type field.
+	checkinblindboxrecord.DefaultRewardType = checkinblindboxrecordDescRewardType.Default.(string)
+	// checkinblindboxrecordDescRewardValue is the schema descriptor for reward_value field.
+	checkinblindboxrecordDescRewardValue := checkinblindboxrecordFields[5].Descriptor()
+	// checkinblindboxrecord.DefaultRewardValue holds the default value on creation for the reward_value field.
+	checkinblindboxrecord.DefaultRewardValue = checkinblindboxrecordDescRewardValue.Default.(float64)
+	// checkinblindboxrecordDescStreakDays is the schema descriptor for streak_days field.
+	checkinblindboxrecordDescStreakDays := checkinblindboxrecordFields[6].Descriptor()
+	// checkinblindboxrecord.DefaultStreakDays holds the default value on creation for the streak_days field.
+	checkinblindboxrecord.DefaultStreakDays = checkinblindboxrecordDescStreakDays.Default.(int)
+	// checkinblindboxrecordDescRewardDetail is the schema descriptor for reward_detail field.
+	checkinblindboxrecordDescRewardDetail := checkinblindboxrecordFields[7].Descriptor()
+	// checkinblindboxrecord.DefaultRewardDetail holds the default value on creation for the reward_detail field.
+	checkinblindboxrecord.DefaultRewardDetail = checkinblindboxrecordDescRewardDetail.Default.(string)
+	// checkinblindboxrecordDescCreatedAt is the schema descriptor for created_at field.
+	checkinblindboxrecordDescCreatedAt := checkinblindboxrecordFields[8].Descriptor()
+	// checkinblindboxrecord.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkinblindboxrecord.DefaultCreatedAt = checkinblindboxrecordDescCreatedAt.Default.(func() time.Time)
+	checkinprizeitemFields := schema.CheckinPrizeItem{}.Fields()
+	_ = checkinprizeitemFields
+	// checkinprizeitemDescRarity is the schema descriptor for rarity field.
+	checkinprizeitemDescRarity := checkinprizeitemFields[1].Descriptor()
+	// checkinprizeitem.DefaultRarity holds the default value on creation for the rarity field.
+	checkinprizeitem.DefaultRarity = checkinprizeitemDescRarity.Default.(string)
+	// checkinprizeitemDescRewardType is the schema descriptor for reward_type field.
+	checkinprizeitemDescRewardType := checkinprizeitemFields[2].Descriptor()
+	// checkinprizeitem.DefaultRewardType holds the default value on creation for the reward_type field.
+	checkinprizeitem.DefaultRewardType = checkinprizeitemDescRewardType.Default.(string)
+	// checkinprizeitemDescRewardValue is the schema descriptor for reward_value field.
+	checkinprizeitemDescRewardValue := checkinprizeitemFields[3].Descriptor()
+	// checkinprizeitem.DefaultRewardValue holds the default value on creation for the reward_value field.
+	checkinprizeitem.DefaultRewardValue = checkinprizeitemDescRewardValue.Default.(float64)
+	// checkinprizeitemDescRewardValueMax is the schema descriptor for reward_value_max field.
+	checkinprizeitemDescRewardValueMax := checkinprizeitemFields[4].Descriptor()
+	// checkinprizeitem.DefaultRewardValueMax holds the default value on creation for the reward_value_max field.
+	checkinprizeitem.DefaultRewardValueMax = checkinprizeitemDescRewardValueMax.Default.(float64)
+	// checkinprizeitemDescSubscriptionDays is the schema descriptor for subscription_days field.
+	checkinprizeitemDescSubscriptionDays := checkinprizeitemFields[6].Descriptor()
+	// checkinprizeitem.DefaultSubscriptionDays holds the default value on creation for the subscription_days field.
+	checkinprizeitem.DefaultSubscriptionDays = checkinprizeitemDescSubscriptionDays.Default.(int)
+	// checkinprizeitemDescWeight is the schema descriptor for weight field.
+	checkinprizeitemDescWeight := checkinprizeitemFields[7].Descriptor()
+	// checkinprizeitem.DefaultWeight holds the default value on creation for the weight field.
+	checkinprizeitem.DefaultWeight = checkinprizeitemDescWeight.Default.(int)
+	// checkinprizeitemDescIsEnabled is the schema descriptor for is_enabled field.
+	checkinprizeitemDescIsEnabled := checkinprizeitemFields[8].Descriptor()
+	// checkinprizeitem.DefaultIsEnabled holds the default value on creation for the is_enabled field.
+	checkinprizeitem.DefaultIsEnabled = checkinprizeitemDescIsEnabled.Default.(bool)
+	// checkinprizeitemDescCreatedAt is the schema descriptor for created_at field.
+	checkinprizeitemDescCreatedAt := checkinprizeitemFields[9].Descriptor()
+	// checkinprizeitem.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkinprizeitem.DefaultCreatedAt = checkinprizeitemDescCreatedAt.Default.(func() time.Time)
+	// checkinprizeitemDescUpdatedAt is the schema descriptor for updated_at field.
+	checkinprizeitemDescUpdatedAt := checkinprizeitemFields[10].Descriptor()
+	// checkinprizeitem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	checkinprizeitem.DefaultUpdatedAt = checkinprizeitemDescUpdatedAt.Default.(func() time.Time)
+	// checkinprizeitem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	checkinprizeitem.UpdateDefaultUpdatedAt = checkinprizeitemDescUpdatedAt.UpdateDefault.(func() time.Time)
 	errorpassthroughruleMixin := schema.ErrorPassthroughRule{}.Mixin()
 	errorpassthroughruleMixinFields0 := errorpassthroughruleMixin[0].Fields()
 	_ = errorpassthroughruleMixinFields0
@@ -911,6 +1056,118 @@ func init() {
 	identityadoptiondecisionDescDecidedAt := identityadoptiondecisionFields[4].Descriptor()
 	// identityadoptiondecision.DefaultDecidedAt holds the default value on creation for the decided_at field.
 	identityadoptiondecision.DefaultDecidedAt = identityadoptiondecisionDescDecidedAt.Default.(func() time.Time)
+	modelpricingFields := schema.ModelPricing{}.Fields()
+	_ = modelpricingFields
+	// modelpricingDescModel is the schema descriptor for model field.
+	modelpricingDescModel := modelpricingFields[0].Descriptor()
+	// modelpricing.ModelValidator is a validator for the "model" field. It is called by the builders before save.
+	modelpricing.ModelValidator = func() func(string) error {
+		validators := modelpricingDescModel.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(model string) error {
+			for _, fn := range fns {
+				if err := fn(model); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// modelpricingDescInputCostPerToken is the schema descriptor for input_cost_per_token field.
+	modelpricingDescInputCostPerToken := modelpricingFields[1].Descriptor()
+	// modelpricing.DefaultInputCostPerToken holds the default value on creation for the input_cost_per_token field.
+	modelpricing.DefaultInputCostPerToken = modelpricingDescInputCostPerToken.Default.(float64)
+	// modelpricingDescOutputCostPerToken is the schema descriptor for output_cost_per_token field.
+	modelpricingDescOutputCostPerToken := modelpricingFields[2].Descriptor()
+	// modelpricing.DefaultOutputCostPerToken holds the default value on creation for the output_cost_per_token field.
+	modelpricing.DefaultOutputCostPerToken = modelpricingDescOutputCostPerToken.Default.(float64)
+	// modelpricingDescCacheCreationInputTokenCost is the schema descriptor for cache_creation_input_token_cost field.
+	modelpricingDescCacheCreationInputTokenCost := modelpricingFields[3].Descriptor()
+	// modelpricing.DefaultCacheCreationInputTokenCost holds the default value on creation for the cache_creation_input_token_cost field.
+	modelpricing.DefaultCacheCreationInputTokenCost = modelpricingDescCacheCreationInputTokenCost.Default.(float64)
+	// modelpricingDescCacheCreationInputTokenCostAbove1hr is the schema descriptor for cache_creation_input_token_cost_above_1hr field.
+	modelpricingDescCacheCreationInputTokenCostAbove1hr := modelpricingFields[4].Descriptor()
+	// modelpricing.DefaultCacheCreationInputTokenCostAbove1hr holds the default value on creation for the cache_creation_input_token_cost_above_1hr field.
+	modelpricing.DefaultCacheCreationInputTokenCostAbove1hr = modelpricingDescCacheCreationInputTokenCostAbove1hr.Default.(float64)
+	// modelpricingDescCacheReadInputTokenCost is the schema descriptor for cache_read_input_token_cost field.
+	modelpricingDescCacheReadInputTokenCost := modelpricingFields[5].Descriptor()
+	// modelpricing.DefaultCacheReadInputTokenCost holds the default value on creation for the cache_read_input_token_cost field.
+	modelpricing.DefaultCacheReadInputTokenCost = modelpricingDescCacheReadInputTokenCost.Default.(float64)
+	// modelpricingDescInputCostPerTokenPriority is the schema descriptor for input_cost_per_token_priority field.
+	modelpricingDescInputCostPerTokenPriority := modelpricingFields[6].Descriptor()
+	// modelpricing.DefaultInputCostPerTokenPriority holds the default value on creation for the input_cost_per_token_priority field.
+	modelpricing.DefaultInputCostPerTokenPriority = modelpricingDescInputCostPerTokenPriority.Default.(float64)
+	// modelpricingDescOutputCostPerTokenPriority is the schema descriptor for output_cost_per_token_priority field.
+	modelpricingDescOutputCostPerTokenPriority := modelpricingFields[7].Descriptor()
+	// modelpricing.DefaultOutputCostPerTokenPriority holds the default value on creation for the output_cost_per_token_priority field.
+	modelpricing.DefaultOutputCostPerTokenPriority = modelpricingDescOutputCostPerTokenPriority.Default.(float64)
+	// modelpricingDescCacheReadInputTokenCostPriority is the schema descriptor for cache_read_input_token_cost_priority field.
+	modelpricingDescCacheReadInputTokenCostPriority := modelpricingFields[8].Descriptor()
+	// modelpricing.DefaultCacheReadInputTokenCostPriority holds the default value on creation for the cache_read_input_token_cost_priority field.
+	modelpricing.DefaultCacheReadInputTokenCostPriority = modelpricingDescCacheReadInputTokenCostPriority.Default.(float64)
+	// modelpricingDescOutputCostPerImage is the schema descriptor for output_cost_per_image field.
+	modelpricingDescOutputCostPerImage := modelpricingFields[9].Descriptor()
+	// modelpricing.DefaultOutputCostPerImage holds the default value on creation for the output_cost_per_image field.
+	modelpricing.DefaultOutputCostPerImage = modelpricingDescOutputCostPerImage.Default.(float64)
+	// modelpricingDescOutputCostPerImageToken is the schema descriptor for output_cost_per_image_token field.
+	modelpricingDescOutputCostPerImageToken := modelpricingFields[10].Descriptor()
+	// modelpricing.DefaultOutputCostPerImageToken holds the default value on creation for the output_cost_per_image_token field.
+	modelpricing.DefaultOutputCostPerImageToken = modelpricingDescOutputCostPerImageToken.Default.(float64)
+	// modelpricingDescLongContextInputTokenThreshold is the schema descriptor for long_context_input_token_threshold field.
+	modelpricingDescLongContextInputTokenThreshold := modelpricingFields[11].Descriptor()
+	// modelpricing.DefaultLongContextInputTokenThreshold holds the default value on creation for the long_context_input_token_threshold field.
+	modelpricing.DefaultLongContextInputTokenThreshold = modelpricingDescLongContextInputTokenThreshold.Default.(int)
+	// modelpricingDescLongContextInputCostMultiplier is the schema descriptor for long_context_input_cost_multiplier field.
+	modelpricingDescLongContextInputCostMultiplier := modelpricingFields[12].Descriptor()
+	// modelpricing.DefaultLongContextInputCostMultiplier holds the default value on creation for the long_context_input_cost_multiplier field.
+	modelpricing.DefaultLongContextInputCostMultiplier = modelpricingDescLongContextInputCostMultiplier.Default.(float64)
+	// modelpricingDescLongContextOutputCostMultiplier is the schema descriptor for long_context_output_cost_multiplier field.
+	modelpricingDescLongContextOutputCostMultiplier := modelpricingFields[13].Descriptor()
+	// modelpricing.DefaultLongContextOutputCostMultiplier holds the default value on creation for the long_context_output_cost_multiplier field.
+	modelpricing.DefaultLongContextOutputCostMultiplier = modelpricingDescLongContextOutputCostMultiplier.Default.(float64)
+	// modelpricingDescSupportsServiceTier is the schema descriptor for supports_service_tier field.
+	modelpricingDescSupportsServiceTier := modelpricingFields[14].Descriptor()
+	// modelpricing.DefaultSupportsServiceTier holds the default value on creation for the supports_service_tier field.
+	modelpricing.DefaultSupportsServiceTier = modelpricingDescSupportsServiceTier.Default.(bool)
+	// modelpricingDescLitellmProvider is the schema descriptor for litellm_provider field.
+	modelpricingDescLitellmProvider := modelpricingFields[15].Descriptor()
+	// modelpricing.DefaultLitellmProvider holds the default value on creation for the litellm_provider field.
+	modelpricing.DefaultLitellmProvider = modelpricingDescLitellmProvider.Default.(string)
+	// modelpricing.LitellmProviderValidator is a validator for the "litellm_provider" field. It is called by the builders before save.
+	modelpricing.LitellmProviderValidator = modelpricingDescLitellmProvider.Validators[0].(func(string) error)
+	// modelpricingDescMode is the schema descriptor for mode field.
+	modelpricingDescMode := modelpricingFields[16].Descriptor()
+	// modelpricing.DefaultMode holds the default value on creation for the mode field.
+	modelpricing.DefaultMode = modelpricingDescMode.Default.(string)
+	// modelpricing.ModeValidator is a validator for the "mode" field. It is called by the builders before save.
+	modelpricing.ModeValidator = modelpricingDescMode.Validators[0].(func(string) error)
+	// modelpricingDescSupportsPromptCaching is the schema descriptor for supports_prompt_caching field.
+	modelpricingDescSupportsPromptCaching := modelpricingFields[17].Descriptor()
+	// modelpricing.DefaultSupportsPromptCaching holds the default value on creation for the supports_prompt_caching field.
+	modelpricing.DefaultSupportsPromptCaching = modelpricingDescSupportsPromptCaching.Default.(bool)
+	// modelpricingDescLocked is the schema descriptor for locked field.
+	modelpricingDescLocked := modelpricingFields[18].Descriptor()
+	// modelpricing.DefaultLocked holds the default value on creation for the locked field.
+	modelpricing.DefaultLocked = modelpricingDescLocked.Default.(bool)
+	// modelpricingDescSource is the schema descriptor for source field.
+	modelpricingDescSource := modelpricingFields[19].Descriptor()
+	// modelpricing.DefaultSource holds the default value on creation for the source field.
+	modelpricing.DefaultSource = modelpricingDescSource.Default.(string)
+	// modelpricing.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	modelpricing.SourceValidator = modelpricingDescSource.Validators[0].(func(string) error)
+	// modelpricingDescCreatedAt is the schema descriptor for created_at field.
+	modelpricingDescCreatedAt := modelpricingFields[20].Descriptor()
+	// modelpricing.DefaultCreatedAt holds the default value on creation for the created_at field.
+	modelpricing.DefaultCreatedAt = modelpricingDescCreatedAt.Default.(func() time.Time)
+	// modelpricingDescUpdatedAt is the schema descriptor for updated_at field.
+	modelpricingDescUpdatedAt := modelpricingFields[21].Descriptor()
+	// modelpricing.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	modelpricing.DefaultUpdatedAt = modelpricingDescUpdatedAt.Default.(func() time.Time)
+	// modelpricing.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	modelpricing.UpdateDefaultUpdatedAt = modelpricingDescUpdatedAt.UpdateDefault.(func() time.Time)
 	paymentauditlogFields := schema.PaymentAuditLog{}.Fields()
 	_ = paymentauditlogFields
 	// paymentauditlogDescOrderID is the schema descriptor for order_id field.
@@ -1377,6 +1634,14 @@ func init() {
 	redeemcodeDescValidityDays := redeemcodeFields[9].Descriptor()
 	// redeemcode.DefaultValidityDays holds the default value on creation for the validity_days field.
 	redeemcode.DefaultValidityDays = redeemcodeDescValidityDays.Default.(int)
+	// redeemcodeDescMultiplier is the schema descriptor for multiplier field.
+	redeemcodeDescMultiplier := redeemcodeFields[10].Descriptor()
+	// redeemcode.DefaultMultiplier holds the default value on creation for the multiplier field.
+	redeemcode.DefaultMultiplier = redeemcodeDescMultiplier.Default.(float64)
+	// redeemcodeDescBetAmount is the schema descriptor for bet_amount field.
+	redeemcodeDescBetAmount := redeemcodeFields[11].Descriptor()
+	// redeemcode.DefaultBetAmount holds the default value on creation for the bet_amount field.
+	redeemcode.DefaultBetAmount = redeemcodeDescBetAmount.Default.(float64)
 	securitysecretMixin := schema.SecuritySecret{}.Mixin()
 	securitysecretMixinFields0 := securitysecretMixin[0].Fields()
 	_ = securitysecretMixinFields0

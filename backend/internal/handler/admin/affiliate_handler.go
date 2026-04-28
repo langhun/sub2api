@@ -90,6 +90,23 @@ func (h *AffiliateHandler) UpdateUserSettings(c *gin.Context) {
 	response.Success(c, gin.H{"user_id": userID})
 }
 
+// ResetUserCode regenerates the user's affiliate code as a system random one
+// and clears the aff_code_custom flag.
+// POST /api/v1/admin/affiliates/users/:user_id/reset-code
+func (h *AffiliateHandler) ResetUserCode(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "Invalid user_id")
+		return
+	}
+	newCode, err := h.affiliateService.AdminResetUserAffCode(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"user_id": userID, "aff_code": newCode})
+}
+
 // ClearUserSettings removes ALL of a user's custom affiliate settings — clears
 // the exclusive rebate rate AND regenerates the invite code as a new system
 // random one. Conceptually this "removes the user from the custom list".

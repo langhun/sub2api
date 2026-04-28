@@ -230,96 +230,75 @@
             <div
               v-for="item in history"
               :key="item.id"
-              class="flex items-center justify-between rounded-xl bg-gray-50 p-4 dark:bg-dark-800"
+              :class="[
+                'rounded-xl border p-4',
+                getBlindboxRarityStyle(item)
+                  ? [getBlindboxRarityStyle(item)!.border, getBlindboxRarityStyle(item)!.bg, getBlindboxRarityStyle(item)!.darkBorder, getBlindboxRarityStyle(item)!.darkBg]
+                  : 'border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800'
+              ]"
             >
-              <div class="flex items-center gap-4">
-                <div
-                  :class="[
-                    'flex h-10 w-10 items-center justify-center rounded-xl',
-                    isBalanceType(item.type)
-                      ? item.value >= 0
-                        ? 'bg-emerald-100 dark:bg-emerald-900/30'
-                        : 'bg-red-100 dark:bg-red-900/30'
-                      : isSubscriptionType(item.type)
-                        ? 'bg-purple-100 dark:bg-purple-900/30'
-                        : item.value >= 0
-                          ? 'bg-blue-100 dark:bg-blue-900/30'
-                          : 'bg-orange-100 dark:bg-orange-900/30'
-                  ]"
-                >
-                  <!-- 余额类型图标 -->
-                  <Icon
-                    v-if="isBalanceType(item.type)"
-                    name="dollar"
-                    size="md"
-                    :class="
-                      item.value >= 0
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-red-600 dark:text-red-400'
-                    "
-                  />
-                  <!-- 订阅类型图标 -->
-                  <Icon
-                    v-else-if="isSubscriptionType(item.type)"
-                    name="badge"
-                    size="md"
-                    class="text-purple-600 dark:text-purple-400"
-                  />
-                  <!-- 并发类型图标 -->
-                  <Icon
+              <div class="flex items-start justify-between">
+                <div class="flex items-start gap-3">
+                  <div
+                    :class="[
+                      'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg',
+                      getBlindboxRarityStyle(item)
+                        ? [getBlindboxRarityStyle(item)!.badge, getBlindboxRarityStyle(item)!.badgeText, getBlindboxRarityStyle(item)!.darkBadge, getBlindboxRarityStyle(item)!.darkBadgeText]
+                        : getIconBg(item)
+                    ]"
+                  >
+                    <Icon :name="getIconName(item)" size="sm" :class="getIconColor(item)" />
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">
+                        {{ getHistoryItemTitle(item) }}
+                      </p>
+                      <span
+                        v-if="getBlindboxRarity(item)"
+                        class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                        :class="[
+                          rarityColorMap[getBlindboxRarity(item)!].badge,
+                          rarityColorMap[getBlindboxRarity(item)!].badgeText,
+                          rarityColorMap[getBlindboxRarity(item)!].darkBadge,
+                          rarityColorMap[getBlindboxRarity(item)!].darkBadgeText
+                        ]"
+                      >
+                        {{ getRarityLabel(getBlindboxRarity(item)!) }}
+                      </span>
+                    </div>
+                    <p
+                      v-if="item.notes"
+                      class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
+                      :title="item.notes"
+                    >
+                      {{ item.notes.length > 60 ? item.notes.substring(0, 55) + '...' : item.notes }}
+                    </p>
+                    <p class="mt-0.5 text-xs text-gray-400 dark:text-dark-500">
+                      {{ formatDateTime(item.used_at) }}
+                      <span v-if="item.type === 'checkin_luck' && item.multiplier" class="ml-1 text-amber-600 dark:text-amber-400">
+                        · {{ t('checkin.multiplier') }} {{ item.multiplier.toFixed(2) }}x
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <p :class="['text-sm font-semibold', getBlindboxRarityStyle(item) ? [getBlindboxRarityStyle(item)!.valueText, getBlindboxRarityStyle(item)!.darkValueText] : getValueColor(item)]">
+                    {{ formatHistoryValue(item) }}
+                  </p>
+                  <p
+                    v-if="isAdminAdjustment(item.type)"
+                    class="text-xs text-gray-400 dark:text-dark-500"
+                  >
+                    {{ t('redeem.adminAdjustment') }}
+                  </p>
+                  <p
                     v-else
-                    name="bolt"
-                    size="md"
-                    :class="
-                      item.value >= 0
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-orange-600 dark:text-orange-400'
-                    "
-                  />
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">
-                    {{ getHistoryItemTitle(item) }}
-                  </p>
-                  <p class="text-xs text-gray-500 dark:text-dark-400">
-                    {{ formatDateTime(item.used_at) }}
+                    class="font-mono text-xs text-gray-400 dark:text-dark-500"
+                  >
+                    {{ item.code.slice(0, 8) }}...
                   </p>
                 </div>
-              </div>
-              <div class="text-right">
-                <p
-                  :class="[
-                    'text-sm font-semibold',
-                    isBalanceType(item.type)
-                      ? item.value >= 0
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-red-600 dark:text-red-400'
-                      : isSubscriptionType(item.type)
-                        ? 'text-purple-600 dark:text-purple-400'
-                        : item.value >= 0
-                          ? 'text-blue-600 dark:text-blue-400'
-                          : 'text-orange-600 dark:text-orange-400'
-                  ]"
-                >
-                  {{ formatHistoryValue(item) }}
-                </p>
-                <p
-                  v-if="!isAdminAdjustment(item.type)"
-                  class="font-mono text-xs text-gray-400 dark:text-dark-500"
-                >
-                  {{ item.code.slice(0, 8) }}...
-                </p>
-                <p v-else class="text-xs text-gray-400 dark:text-dark-500">
-                  {{ t('redeem.adminAdjustment') }}
-                </p>
-                <!-- Display notes for admin adjustments -->
-                <p
-                  v-if="item.notes"
-                  class="mt-1 text-xs text-gray-500 dark:text-dark-400 italic max-w-[200px] truncate"
-                  :title="item.notes"
-                >
-                  {{ item.notes }}
-                </p>
               </div>
             </div>
           </div>
@@ -379,7 +358,7 @@ const contactInfo = ref('')
 
 // Helper functions for history display
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'admin_balance'
+  return type === 'balance' || type === 'admin_balance' || type === 'checkin' || type === 'checkin_luck' || type === 'checkin_blindbox' || type === 'registration' || type === 'invitation'
 }
 
 const isSubscriptionType = (type: string) => {
@@ -390,11 +369,135 @@ const isAdminAdjustment = (type: string) => {
   return type === 'admin_balance' || type === 'admin_concurrency'
 }
 
+const isBlindboxConcurrency = (item: RedeemHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Concurrency') || item.notes?.includes('并发'))
+
+const isBlindboxSubscription = (item: RedeemHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Subscription') || item.notes?.includes('订阅'))
+
+const isBlindboxInvitationCode = (item: RedeemHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Invitation Code') || item.notes?.includes('邀请码'))
+
+const getBlindboxRarity = (item: RedeemHistoryItem): string | null => {
+  if (item.type !== 'checkin_blindbox' || !item.notes) return null
+  const parts = item.notes.split(' · ')
+  if (parts.length < 2) return null
+  const rarityMap: Record<string, string> = {
+    Common: 'common', Rare: 'rare', Epic: 'epic', Legendary: 'legendary',
+  }
+  return rarityMap[parts[1]] || null
+}
+
+const rarityColorMap: Record<string, { border: string; bg: string; badge: string; badgeText: string; darkBorder: string; darkBg: string; darkBadge: string; darkBadgeText: string; valueText: string; darkValueText: string }> = {
+  common: {
+    border: 'border-gray-300', bg: 'bg-gray-50', badge: 'bg-gray-200', badgeText: 'text-gray-600',
+    darkBorder: 'dark:border-gray-600', darkBg: 'dark:bg-gray-800/50', darkBadge: 'dark:bg-gray-700', darkBadgeText: 'dark:text-gray-400',
+    valueText: 'text-gray-700', darkValueText: 'dark:text-gray-300',
+  },
+  rare: {
+    border: 'border-blue-300', bg: 'bg-blue-50', badge: 'bg-blue-100', badgeText: 'text-blue-700',
+    darkBorder: 'dark:border-blue-800', darkBg: 'dark:bg-blue-950/30', darkBadge: 'dark:bg-blue-900/50', darkBadgeText: 'dark:text-blue-300',
+    valueText: 'text-blue-700', darkValueText: 'dark:text-blue-300',
+  },
+  epic: {
+    border: 'border-purple-300', bg: 'bg-purple-50', badge: 'bg-purple-100', badgeText: 'text-purple-700',
+    darkBorder: 'dark:border-purple-800', darkBg: 'dark:bg-purple-950/30', darkBadge: 'dark:bg-purple-900/50', darkBadgeText: 'dark:text-purple-300',
+    valueText: 'text-purple-700', darkValueText: 'dark:text-purple-300',
+  },
+  legendary: {
+    border: 'border-amber-300', bg: 'bg-amber-50', badge: 'bg-amber-100', badgeText: 'text-amber-700',
+    darkBorder: 'dark:border-amber-800', darkBg: 'dark:bg-amber-950/30', darkBadge: 'dark:bg-amber-900/50', darkBadgeText: 'dark:text-amber-300',
+    valueText: 'text-amber-700', darkValueText: 'dark:text-amber-300',
+  },
+}
+
+const getBlindboxRarityStyle = (item: RedeemHistoryItem) => {
+  const rarity = getBlindboxRarity(item)
+  if (!rarity) return null
+  return rarityColorMap[rarity]
+}
+
+const rarityLabelMap: Record<string, string> = {
+  common: t('checkin.blindboxCommon'),
+  rare: t('checkin.blindboxRare'),
+  epic: t('checkin.blindboxEpic'),
+  legendary: t('checkin.blindboxLegendary'),
+}
+
+const getRarityLabel = (rarity: string) => rarityLabelMap[rarity] || rarity
+
+const getIconName = (item: RedeemHistoryItem) => {
+  if (isBlindboxInvitationCode(item)) return 'link'
+  if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'calendar'
+  if (item.type === 'registration') return 'gift'
+  if (item.type === 'invitation') return 'link'
+  if (isBalanceType(item.type)) return 'dollar'
+  if (isSubscriptionType(item.type)) return 'badge'
+  return 'bolt'
+}
+
+const getIconBg = (item: RedeemHistoryItem) => {
+  if (isBlindboxInvitationCode(item)) return 'bg-indigo-100 dark:bg-indigo-900/30'
+  if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'bg-amber-100 dark:bg-amber-900/30'
+  if (item.type === 'registration') return 'bg-sky-100 dark:bg-sky-900/30'
+  if (item.type === 'invitation') return 'bg-rose-100 dark:bg-rose-900/30'
+  if (isBalanceType(item.type)) {
+    return item.value >= 0
+      ? 'bg-emerald-100 dark:bg-emerald-900/30'
+      : 'bg-red-100 dark:bg-red-900/30'
+  }
+  if (isSubscriptionType(item.type)) return 'bg-purple-100 dark:bg-purple-900/30'
+  return item.value >= 0
+    ? 'bg-blue-100 dark:bg-blue-900/30'
+    : 'bg-orange-100 dark:bg-orange-900/30'
+}
+
+const getIconColor = (item: RedeemHistoryItem) => {
+  if (isBlindboxInvitationCode(item)) return 'text-indigo-600 dark:text-indigo-400'
+  if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'text-amber-600 dark:text-amber-400'
+  if (item.type === 'registration') return 'text-sky-600 dark:text-sky-400'
+  if (item.type === 'invitation') return 'text-rose-600 dark:text-rose-400'
+  if (isBalanceType(item.type)) {
+    return item.value >= 0
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : 'text-red-600 dark:text-red-400'
+  }
+  if (isSubscriptionType(item.type)) return 'text-purple-600 dark:text-purple-400'
+  return item.value >= 0
+    ? 'text-blue-600 dark:text-blue-400'
+    : 'text-orange-600 dark:text-orange-400'
+}
+
+const getValueColor = (item: RedeemHistoryItem) => {
+  if (isBlindboxInvitationCode(item)) return 'text-indigo-600 dark:text-indigo-400'
+  if (isBlindboxConcurrency(item)) return 'text-blue-600 dark:text-blue-400'
+  if (isBlindboxSubscription(item)) return 'text-purple-600 dark:text-purple-400'
+  if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'text-amber-600 dark:text-amber-400'
+  if (item.type === 'registration') return 'text-sky-600 dark:text-sky-400'
+  if (item.type === 'invitation') return 'text-rose-600 dark:text-rose-400'
+  if (isBalanceType(item.type)) {
+    return item.value >= 0
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : 'text-red-600 dark:text-red-400'
+  }
+  if (isSubscriptionType(item.type)) return 'text-purple-600 dark:text-purple-400'
+  return item.value >= 0
+    ? 'text-blue-600 dark:text-blue-400'
+    : 'text-orange-600 dark:text-orange-400'
+}
+
 const getHistoryItemTitle = (item: RedeemHistoryItem) => {
   if (item.type === 'balance') {
     return t('redeem.balanceAddedRedeem')
   } else if (item.type === 'admin_balance') {
     return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
+  } else if (item.type === 'checkin') {
+    return t('admin.users.typeCheckin')
+  } else if (item.type === 'checkin_luck') {
+    return t('checkin.luckCheckinReward')
+  } else if (item.type === 'checkin_blindbox') {
+    return t('admin.users.typeCheckinBlindbox')
+  } else if (item.type === 'registration') {
+    return t('admin.users.typeRegistration')
+  } else if (item.type === 'invitation') {
+    return t('admin.users.typeInvitation')
   } else if (item.type === 'concurrency') {
     return t('redeem.concurrencyAddedRedeem')
   } else if (item.type === 'admin_concurrency') {
@@ -406,17 +509,26 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
 }
 
 const formatHistoryValue = (item: RedeemHistoryItem) => {
+  if (isBlindboxInvitationCode(item)) return '×1'
+  if (isBlindboxConcurrency(item)) {
+    const sign = item.value >= 0 ? '+' : ''
+    return `${sign}${Math.round(item.value)}`
+  }
+  if (isBlindboxSubscription(item)) {
+    const days = item.validity_days || Math.round(item.value)
+    const groupName = item.group?.name || ''
+    return groupName ? `${days}d - ${groupName}` : `${days}d`
+  }
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
     return `${sign}$${item.value.toFixed(2)}`
   } else if (isSubscriptionType(item.type)) {
-    // 订阅类型显示有效天数和分组名称
     const days = item.validity_days || Math.round(item.value)
     const groupName = item.group?.name || ''
-    return groupName ? `${days}${t('redeem.days')} - ${groupName}` : `${days}${t('redeem.days')}`
+    return groupName ? `${days}d - ${groupName}` : `${days}d`
   } else {
     const sign = item.value >= 0 ? '+' : ''
-    return `${sign}${item.value} ${t('redeem.requests')}`
+    return `${sign}${item.value}`
   }
 }
 

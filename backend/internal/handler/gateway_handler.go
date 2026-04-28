@@ -189,6 +189,13 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		return
 	}
 
+	// 验证模型是否存在（不存在的模型直接返回错误，不记录失败日志）
+	if !h.isModelAvailableForGroup(c, apiKey, reqModel) {
+		c.Set(service.OpsSkipPassthroughKey, true)
+		h.errorResponse(c, http.StatusNotFound, "not_found_error", "model '"+reqModel+"' does not exist")
+		return
+	}
+
 	// Track if we've started streaming (for error handling)
 	streamStarted := false
 
@@ -1819,4 +1826,19 @@ func (h *GatewayHandler) getUserMsgQueueMode(account *service.Account, parsed *s
 		mode = h.cfg.Gateway.UserMessageQueue.GetEffectiveMode()
 	}
 	return mode
+}
+
+func (h *GatewayHandler) isModelAvailableForGroup(c *gin.Context, apiKey *service.APIKey, model string) bool {
+	if apiKey == nil || model == "" {
+		return true
+	}
+	var platform string
+	if apiKey.Group != nil {
+		platform = apiKey.Group.Platform
+	}
+	available := h.gatewayService.GetAvailableModels(c.Request.Context(), apiKey.GroupID, platform)
+	if available == nil {
+		return true
+	}
+	return containsString(available, model)
 }

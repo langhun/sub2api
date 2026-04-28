@@ -29,6 +29,17 @@ func ProvidePricingService(cfg *config.Config, remoteClient PricingRemoteClient)
 	return svc, nil
 }
 
+// ProvideModelPricingAdminService creates and initializes ModelPricingAdminService
+func ProvideModelPricingAdminService(client *dbent.Client, db *sql.DB, cfg *config.Config, remoteClient PricingRemoteClient, channelService *ChannelService, pricingService *PricingService) (*ModelPricingAdminService, error) {
+	svc := NewModelPricingAdminService(client, db, cfg, remoteClient, channelService, pricingService)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	if err := svc.Initialize(ctx); err != nil {
+		println("[Service] Warning: ModelPricingAdminService initialization failed:", err.Error())
+	}
+	return svc, nil
+}
+
 // ProvideUpdateService creates UpdateService with BuildInfo
 func ProvideUpdateService(cache UpdateCache, githubClient GitHubReleaseClient, buildInfo BuildInfo) *UpdateService {
 	return NewUpdateService(cache, githubClient, buildInfo.Version, buildInfo.BuildType)
@@ -491,9 +502,15 @@ var ProviderSet = wire.NewSet(
 	NewPaymentService,
 	ProvidePaymentOrderExpiryService,
 	ProvideBalanceNotifyService,
+	NewCheckinService,
+	NewLeaderboardService,
+	NewBlindBoxService,
+	NewMonitoringService,
+	ProvideModelPricingAdminService,
 	ProvideChannelMonitorService,
 	ProvideChannelMonitorRunner,
 	NewChannelMonitorRequestTemplateService,
+	NewBalanceTransferService,
 )
 
 // ProvidePaymentConfigService wraps NewPaymentConfigService to accept the named

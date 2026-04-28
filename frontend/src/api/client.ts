@@ -87,7 +87,7 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
     // Unwrap standard API response format { code, message, data }
     const apiResponse = response.data as ApiResponse<unknown>
-    if (apiResponse && typeof apiResponse === 'object' && 'code' in apiResponse) {
+    if (apiResponse && typeof apiResponse === 'object' && typeof apiResponse.code === 'number') {
       if (apiResponse.code === 0) {
         // Success - return the data portion
         response.data = apiResponse.data

@@ -1570,6 +1570,98 @@ func HasPaymentOrdersWith(preds ...predicate.PaymentOrder) predicate.User {
 	})
 }
 
+// HasCheckins applies the HasEdge predicate on the "checkins" edge.
+func HasCheckins() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CheckinsTable, CheckinsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCheckinsWith applies the HasEdge predicate on the "checkins" edge with a given conditions (other predicates).
+func HasCheckinsWith(preds ...predicate.Checkin) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newCheckinsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasSentTransfers applies the HasEdge predicate on the "sent_transfers" edge.
+func HasSentTransfers() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, SentTransfersTable, SentTransfersColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSentTransfersWith applies the HasEdge predicate on the "sent_transfers" edge with a given conditions (other predicates).
+func HasSentTransfersWith(preds ...predicate.BalanceTransfer) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newSentTransfersStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasReceivedTransfers applies the HasEdge predicate on the "received_transfers" edge.
+func HasReceivedTransfers() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ReceivedTransfersTable, ReceivedTransfersColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasReceivedTransfersWith applies the HasEdge predicate on the "received_transfers" edge with a given conditions (other predicates).
+func HasReceivedTransfersWith(preds ...predicate.BalanceTransfer) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newReceivedTransfersStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasRedpackets applies the HasEdge predicate on the "redpackets" edge.
+func HasRedpackets() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, RedpacketsTable, RedpacketsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasRedpacketsWith applies the HasEdge predicate on the "redpackets" edge with a given conditions (other predicates).
+func HasRedpacketsWith(preds ...predicate.BalanceRedPacket) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newRedpacketsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasAuthIdentities applies the HasEdge predicate on the "auth_identities" edge.
 func HasAuthIdentities() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
