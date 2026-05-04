@@ -178,6 +178,8 @@ let modelStatsReqSeq = 0
 const exportProgress = reactive({ show: false, progress: 0, current: 0, total: 0, estimatedTime: '' })
 const cleanupDialogVisible = ref(false)
 const USAGE_STATS_ENDPOINT_LIMIT = 20
+const USAGE_MODEL_STATS_LIMIT = 24
+const USAGE_INITIAL_PAGE_SIZE = 20
 // Balance history modal state
 const showBalanceHistoryModal = ref(false)
 const balanceHistoryUser = ref<AdminUser | null>(null)
@@ -228,7 +230,7 @@ const getGranularityForRange = (start: string, end: string): 'day' | 'hour' => {
 const defaultRange = getLast24HoursRangeDates()
 const startDate = ref(defaultRange.start); const endDate = ref(defaultRange.end)
 const filters = ref<AdminUsageQueryParams>({ user_id: undefined, model: undefined, group_id: undefined, request_type: undefined, billing_type: null, start_date: startDate.value, end_date: endDate.value })
-const pagination = reactive({ page: 1, page_size: getPersistedPageSize(), total: 0 })
+const pagination = reactive({ page: 1, page_size: Math.min(getPersistedPageSize(), USAGE_INITIAL_PAGE_SIZE), total: 0 })
 const sortState = reactive({
   sort_by: 'created_at',
   sort_order: 'desc' as 'asc' | 'desc'
@@ -244,6 +246,15 @@ const getNumericQueryValue = (value: string | null | Array<string | null> | unde
   if (!raw) return undefined
   const parsed = Number(raw)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const scheduleDeferredDashboardLoads = (modelDelay = 180, chartDelay = 260) => {
+  window.setTimeout(() => {
+    void loadModelStats(modelDistributionSource.value, true)
+  }, modelDelay)
+  window.setTimeout(() => {
+    void loadChartData()
+  }, chartDelay)
 }
 
 const applyRouteQueryFilters = () => {
@@ -366,8 +377,11 @@ const loadModelStats = async (source: ModelDistributionSource, force = false) =>
       billing_type: filters.value.billing_type,
     }
 
-    const response = await adminAPI.dashboard.getModelStats({ ...baseParams, model_source: source })
-
+    const response = await adminAPI.dashboard.getModelStats({
+      ...baseParams,
+      model_source: source,
+      limit: USAGE_MODEL_STATS_LIMIT,
+    })
     if (seq !== modelStatsReqSeq) return
 
     const models = response.models || []
@@ -429,15 +443,13 @@ const applyFilters = () => {
   resetModelStatsCache()
   loadLogs()
   loadStats()
-  loadModelStats(modelDistributionSource.value, true)
-  loadChartData()
+  scheduleDeferredDashboardLoads()
 }
 const refreshData = () => {
   resetModelStatsCache()
   loadLogs()
   loadStats()
-  loadModelStats(modelDistributionSource.value, true)
-  loadChartData()
+  scheduleDeferredDashboardLoads()
 }
 const resetFilters = () => {
   const range = getLast24HoursRangeDates()
@@ -608,16 +620,15 @@ onMounted(() => {
   applyRouteQueryFilters()
   loadLogs()
   loadStats()
-  loadModelStats(modelDistributionSource.value, true)
-  window.setTimeout(() => {
-    void loadChartData()
-  }, 120)
+  scheduleDeferredDashboardLoads(220, 320)
   loadSavedColumns()
   document.addEventListener('click', handleColumnClickOutside)
 })
 onUnmounted(() => { abortController?.abort(); exportAbortController?.abort(); document.removeEventListener('click', handleColumnClickOutside) })
 
 watch(modelDistributionSource, (source) => {
-  void loadModelStats(source)
+  window.setTimeout(() => {
+    void loadModelStats(source)
+  }, 80)
 })
 </script>

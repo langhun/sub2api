@@ -173,4 +173,35 @@ describe('ModelDistributionChart', () => {
     expect(rows[2].text()).toContain('400')
     expect(rows[2].text()).toContain('$10.00')
   })
+
+  it('renders only the provided top model stats dataset without expanding it further', () => {
+    const manyModels = Array.from({ length: 24 }, (_, index) => ({
+      model: `model-${index + 1}`,
+      requests: 24 - index,
+      input_tokens: 100,
+      output_tokens: 50,
+      cache_creation_tokens: 0,
+      cache_read_tokens: 0,
+      total_tokens: (24 - index) * 100,
+      cost: 1,
+      account_cost: 1,
+      actual_cost: 1,
+    }))
+
+    const wrapper = mount(ModelDistributionChart, {
+      props: {
+        modelStats: manyModels,
+      },
+      global: {
+        stubs: {
+          LoadingSpinner: true,
+        },
+      },
+    })
+
+    const chartData = JSON.parse(wrapper.find('.chart-data').text())
+    expect(chartData.labels).toHaveLength(24)
+    expect(chartData.labels[0]).toBe('model-1')
+    expect(chartData.labels[23]).toBe('model-24')
+  })
 })

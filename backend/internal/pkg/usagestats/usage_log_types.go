@@ -246,6 +246,9 @@ type UsageLogFilters struct {
 	BillingMode string
 	StartTime   *time.Time
 	EndTime     *time.Time
+	// ModelLimit limits model distribution rows returned for model stats queries.
+	// Zero keeps the historical unbounded behavior for callers that do not opt in.
+	ModelLimit int
 	// EndpointLimit limits endpoint distribution rows returned with aggregate stats.
 	// Zero keeps the historical unbounded behavior for callers that do not opt in.
 	EndpointLimit int

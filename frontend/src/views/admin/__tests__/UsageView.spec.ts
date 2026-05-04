@@ -167,7 +167,17 @@ describe('admin UsageView distribution metric toggles', () => {
       },
     })
 
-    vi.advanceTimersByTime(120)
+    expect(getSnapshotV2).not.toHaveBeenCalled()
+    expect(getModelStats).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(220)
+    await flushPromises()
+
+    expect(getModelStats).toHaveBeenCalledWith(expect.objectContaining({
+      limit: 24
+    }))
+
+    vi.advanceTimersByTime(100)
     await flushPromises()
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)

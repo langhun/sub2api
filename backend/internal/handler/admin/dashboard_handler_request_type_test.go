@@ -19,6 +19,7 @@ type dashboardUsageRepoCapture struct {
 	trendStream      *bool
 	modelRequestType *int16
 	modelStream      *bool
+	modelLimit       int
 	rankingLimit     int
 	ranking          []usagestats.UserSpendingRankingItem
 	rankingTotal     float64
@@ -46,9 +47,11 @@ func (s *dashboardUsageRepoCapture) GetModelStatsWithFilters(
 	requestType *int16,
 	stream *bool,
 	billingType *int8,
+	limit int,
 ) ([]usagestats.ModelStat, error) {
 	s.modelRequestType = requestType
 	s.modelStream = stream
+	s.modelLimit = limit
 	return []usagestats.ModelStat{}, nil
 }
 
@@ -169,6 +172,30 @@ func TestDashboardModelStatsValidModelSource(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 0, repo.modelLimit)
+}
+
+func TestDashboardModelStatsLimitClamped(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/models?limit=999", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 100, repo.modelLimit)
+}
+
+func TestDashboardModelStatsInvalidLimit(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/models?limit=-1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestDashboardUsersRankingLimitAndCache(t *testing.T) {

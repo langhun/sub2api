@@ -38,6 +38,7 @@ type dashboardModelGroupCacheKey struct {
 	APIKeyID    int64  `json:"api_key_id"`
 	AccountID   int64  `json:"account_id"`
 	GroupID     int64  `json:"group_id"`
+	Limit       int    `json:"limit,omitempty"`
 	ModelSource string `json:"model_source,omitempty"`
 	RequestType *int16 `json:"request_type"`
 	Stream      *bool  `json:"stream"`
@@ -116,6 +117,7 @@ func (h *DashboardHandler) getModelStatsCached(
 	requestType *int16,
 	stream *bool,
 	billingType *int8,
+	limit int,
 ) ([]usagestats.ModelStat, bool, error) {
 	key := mustMarshalDashboardCacheKey(dashboardModelGroupCacheKey{
 		StartTime:   startTime.UTC().Format(time.RFC3339),
@@ -124,13 +126,14 @@ func (h *DashboardHandler) getModelStatsCached(
 		APIKeyID:    apiKeyID,
 		AccountID:   accountID,
 		GroupID:     groupID,
+		Limit:       limit,
 		ModelSource: usagestats.NormalizeModelSource(modelSource),
 		RequestType: requestType,
 		Stream:      stream,
 		BillingType: billingType,
 	})
 	entry, hit, err := dashboardModelStatsCache.GetOrLoad(key, func() (any, error) {
-		return h.dashboardService.GetModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, requestType, stream, billingType, modelSource)
+		return h.dashboardService.GetModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, requestType, stream, billingType, modelSource, limit)
 	})
 	if err != nil {
 		return nil, hit, err
