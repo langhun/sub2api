@@ -42,6 +42,31 @@
         ></div>
       </div>
 
+      <div class="space-y-1.5">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {{ t('admin.accounts.batchTest.model') }}
+        </label>
+        <Select
+          v-model="selectedModelId"
+          :options="availableModels"
+          :disabled="running || loadingModels || availableModels.length === 0"
+          value-key="id"
+          label-key="display_name"
+          :placeholder="modelPlaceholder"
+          :empty-text="modelEmptyText"
+          :searchable="availableModels.length > 5"
+        />
+        <p v-if="modelLoadError" class="text-xs text-red-600 dark:text-red-300">
+          {{ modelLoadError }}
+        </p>
+        <p
+          v-else-if="!loadingModels && rows.length > 0 && availableModels.length === 0"
+          class="text-xs text-amber-600 dark:text-amber-300"
+        >
+          {{ t('admin.accounts.batchTest.noCommonModels') }}
+        </p>
+      </div>
+
       <div class="max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-500">
         <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-500">
           <thead class="sticky top-0 bg-gray-50 dark:bg-dark-700">
@@ -53,7 +78,7 @@
                 {{ t('admin.accounts.platform') }}
               </th>
               <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">
-                {{ t('admin.accounts.status') }}
+                {{ t('admin.accounts.columns.status') }}
               </th>
               <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">
                 {{ t('admin.accounts.batchTest.result') }}
@@ -117,7 +142,7 @@
         <button
           v-else
           @click="startBatch"
-          :disabled="rows.length === 0"
+          :disabled="rows.length === 0 || loadingModels || !selectedModelId"
           class="btn btn-primary"
         >
           {{ hasCompleted ? t('admin.accounts.batchTest.retry') : t('admin.accounts.batchTest.start') }}
@@ -131,7 +156,10 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { adminAPI } from '@/api/admin'
+import type { ClaudeModel } from '@/types'
 
 type BatchTestStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped'
 
@@ -170,7 +198,12 @@ const { t } = useI18n()
 const rows = ref<BatchTestRow[]>([])
 const running = ref(false)
 const stopRequested = ref(false)
+const availableModels = ref<ClaudeModel[]>([])
+const selectedModelId = ref('')
+const loadingModels = ref(false)
+const modelLoadError = ref('')
 let abortController: AbortController | null = null
+let modelLoadSeq = 0
 
 const completedCount = computed(() => rows.value.filter(row => ['success', 'failed', 'skipped'].includes(row.status)).length)
 const successCount = computed(() => rows.value.filter(row => row.status === 'success').length)
@@ -180,15 +213,28 @@ const progressPercent = computed(() => {
   return Math.round((completedCount.value / rows.value.length) * 100)
 })
 const hasCompleted = computed(() => completedCount.value > 0)
+const modelPlaceholder = computed(() => loadingModels.value ? t('common.loading') : t('admin.accounts.batchTest.selectModel'))
+const modelEmptyText = computed(() => loadingModels.value ? t('common.loading') : t('admin.accounts.batchTest.noCommonModels'))
 
 watch(
   () => props.show,
   (visible) => {
     if (visible) {
       resetRows()
+      loadBatchModels()
     } else {
       stopBatch()
+      resetModelState()
     }
+  }
+)
+
+watch(
+  () => props.targets.map(target => `${target.id}:${target.platform}:${target.type}`).join('|'),
+  () => {
+    if (!props.show) return
+    resetRows()
+    loadBatchModels()
   }
 )
 
@@ -198,6 +244,55 @@ const resetRows = () => {
     status: 'pending',
     message: ''
   }))
+}
+
+const resetModelState = () => {
+  modelLoadSeq++
+  availableModels.value = []
+  selectedModelId.value = ''
+  loadingModels.value = false
+  modelLoadError.value = ''
+}
+
+const mergeCommonModels = (modelLists: ClaudeModel[][]): ClaudeModel[] => {
+  if (modelLists.length === 0) return []
+  const modelMaps = modelLists.map(models => new Map(models.map(model => [model.id, model])))
+  const seen = new Set<string>()
+
+  return modelLists[0].filter((model) => {
+    if (!model.id || seen.has(model.id)) return false
+    seen.add(model.id)
+    return modelMaps.every(modelMap => modelMap.has(model.id))
+  }).map((model) => ({
+    ...model,
+    display_name: model.display_name || model.id
+  }))
+}
+
+const loadBatchModels = async () => {
+  const targets = [...props.targets]
+  selectedModelId.value = ''
+  availableModels.value = []
+  modelLoadError.value = ''
+
+  if (targets.length === 0) return
+
+  const seq = ++modelLoadSeq
+  loadingModels.value = true
+  try {
+    const modelLists = await Promise.all(targets.map(target => adminAPI.accounts.getAvailableModels(target.id)))
+    if (seq !== modelLoadSeq) return
+    availableModels.value = mergeCommonModels(modelLists)
+  } catch (error) {
+    if (seq !== modelLoadSeq) return
+    console.error('Failed to load batch test models:', error)
+    availableModels.value = []
+    modelLoadError.value = t('admin.accounts.batchTest.modelLoadFailed')
+  } finally {
+    if (seq === modelLoadSeq) {
+      loadingModels.value = false
+    }
+  }
 }
 
 const setRow = (index: number, patch: Partial<BatchTestRow>) => {
@@ -238,8 +333,9 @@ const handleClose = () => {
 }
 
 const startBatch = async () => {
-  if (running.value || rows.value.length === 0) return
+  if (running.value || rows.value.length === 0 || !selectedModelId.value) return
 
+  const modelId = selectedModelId.value
   resetRows()
   running.value = true
   stopRequested.value = false
@@ -255,7 +351,7 @@ const startBatch = async () => {
     abortController = new AbortController()
 
     try {
-      const result = await testAccount(row.id, abortController.signal)
+      const result = await testAccount(row.id, modelId, abortController.signal)
       setRow(index, {
         status: result.success ? 'success' : 'failed',
         message: result.message
@@ -285,14 +381,14 @@ const startBatch = async () => {
   }
 }
 
-const testAccount = async (accountId: number, signal: AbortSignal): Promise<{ success: boolean; message: string }> => {
+const testAccount = async (accountId: number, modelId: string, signal: AbortSignal): Promise<{ success: boolean; message: string }> => {
   const response = await fetch(`/api/v1/admin/accounts/${accountId}/test`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ model_id: modelId }),
     signal
   })
 
