@@ -22,6 +22,8 @@ type DashboardHandler struct {
 	startTime          time.Time // Server start time for uptime calculation
 }
 
+const maxDashboardModelStatsLimit = 100
+
 // NewDashboardHandler creates a new admin dashboard handler
 func NewDashboardHandler(dashboardService *service.DashboardService, aggregationService *service.DashboardAggregationService) *DashboardHandler {
 	return &DashboardHandler{
@@ -277,6 +279,11 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 	var requestType *int16
 	var stream *bool
 	var billingType *int8
+	modelLimit, err := parseModelStatsLimit(c.Query("limit"))
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	if userIDStr := c.Query("user_id"); userIDStr != "" {
 		if id, err := strconv.ParseInt(userIDStr, 10, 64); err == nil {
@@ -331,7 +338,7 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 		}
 	}
 
-	stats, hit, err := h.getModelStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, modelSource, requestType, stream, billingType)
+	stats, hit, err := h.getModelStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, modelSource, requestType, stream, billingType, modelLimit)
 	if err != nil {
 		response.Error(c, 500, "Failed to get model statistics")
 		return
@@ -488,6 +495,21 @@ func parseRankingLimit(raw string) int {
 		return 50
 	}
 	return limit
+}
+
+func parseModelStatsLimit(raw string) (int, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return 0, nil
+	}
+	limit, err := strconv.Atoi(trimmed)
+	if err != nil || limit < 0 {
+		return 0, errors.New("Invalid limit")
+	}
+	if limit > maxDashboardModelStatsLimit {
+		limit = maxDashboardModelStatsLimit
+	}
+	return limit, nil
 }
 
 // GetUserSpendingRanking handles getting user spending ranking data.
