@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -494,6 +495,83 @@ func (s *GroupRepoSuite) TestListWithFilters_AccountCount() {
 	s.Require().Len(groups, 1)
 	s.Require().Equal(g2.ID, groups[0].ID, "ListWithFilters returned wrong group")
 	s.Require().Equal(int64(1), groups[0].AccountCount, "AccountCount mismatch")
+}
+
+func (s *GroupRepoSuite) TestListWithFilters_AccountAvailabilityCounts() {
+	group := &service.Group{
+		Name:             "g-availability-counts",
+		Platform:         service.PlatformAnthropic,
+		RateMultiplier:   1.0,
+		IsExclusive:      false,
+		Status:           service.StatusActive,
+		SubscriptionType: service.SubscriptionTypeStandard,
+	}
+	s.Require().NoError(s.repo.Create(s.ctx, group))
+
+	createAccount := func(name string) int64 {
+		var accountID int64
+		s.Require().NoError(scanSingleRow(
+			s.ctx,
+			s.tx,
+			"INSERT INTO accounts (name, platform, type) VALUES ($1, $2, $3) RETURNING id",
+			[]any{name, service.PlatformAnthropic, service.AccountTypeOAuth},
+			&accountID,
+		))
+		_, err := s.tx.ExecContext(
+			s.ctx,
+			"INSERT INTO account_groups (account_id, group_id, priority, created_at) VALUES ($1, $2, $3, NOW())",
+			accountID,
+			group.ID,
+			1,
+		)
+		s.Require().NoError(err)
+		return accountID
+	}
+
+	createAccount("acc-available")
+	limitedID := createAccount("acc-rate-limited")
+	unschedLimitedID := createAccount("acc-unsched-rate-limited")
+	deletedID := createAccount("acc-soft-deleted")
+
+	client := s.tx.Client()
+	resetAt := time.Now().Add(10 * time.Minute)
+	s.Require().NoError(client.Account.UpdateOneID(limitedID).
+		SetRateLimitResetAt(resetAt).
+		Exec(s.ctx))
+	s.Require().NoError(client.Account.UpdateOneID(unschedLimitedID).
+		SetSchedulable(false).
+		SetRateLimitResetAt(resetAt).
+		Exec(s.ctx))
+	s.Require().NoError(client.Account.UpdateOneID(deletedID).
+		SetDeletedAt(time.Now()).
+		Exec(s.ctx))
+
+	groups, _, err := s.repo.ListWithFilters(
+		s.ctx,
+		pagination.PaginationParams{Page: 1, PageSize: 10},
+		service.PlatformAnthropic,
+		service.StatusActive,
+		"",
+		nil,
+	)
+	s.Require().NoError(err)
+
+	var found *service.Group
+	for i := range groups {
+		if groups[i].ID == group.ID {
+			found = &groups[i]
+			break
+		}
+	}
+	s.Require().NotNil(found, "expected group to be returned")
+	s.Require().Equal(int64(3), found.AccountCount, "soft-deleted accounts should be excluded from total count")
+	s.Require().Equal(int64(2), found.ActiveAccountCount, "active count should include only schedulable active accounts")
+	s.Require().Equal(int64(1), found.RateLimitedAccountCount, "rate-limited count should remain a subset of active schedulable accounts")
+
+	total, active, err := s.repo.GetAccountCount(s.ctx, group.ID)
+	s.Require().NoError(err)
+	s.Require().Equal(int64(3), total)
+	s.Require().Equal(int64(2), active)
 }
 
 // --- ListActive / ListActiveByPlatform ---

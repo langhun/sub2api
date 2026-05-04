@@ -201,11 +201,8 @@
                 }}</span>
                 <span
                   class="ml-1 font-medium text-emerald-600 dark:text-emerald-400"
-                  >{{
-                    (row.active_account_count || 0) -
-                    (row.rate_limited_account_count || 0)
-                  }}</span
-                >
+                  >{{ getAvailableAccountCount(row) }}</span
+                  >
                 <span
                   class="ml-1 inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300"
                   >{{ t("admin.groups.accountsUnit") }}</span
@@ -2769,6 +2766,12 @@ import {
 const { t } = useI18n();
 const appStore = useAppStore();
 const onboardingStore = useOnboardingStore();
+
+const getAvailableAccountCount = (row: AdminGroup): number =>
+  Math.max(
+    0,
+    (row.active_account_count ?? 0) - (row.rate_limited_account_count ?? 0),
+  );
 
 const columns = computed<Column[]>(() => [
   { key: "name", label: t("admin.groups.columns.name"), sortable: true },
