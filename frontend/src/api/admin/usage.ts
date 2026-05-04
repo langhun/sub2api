@@ -120,6 +120,7 @@ export async function getStats(params: {
   start_date?: string
   end_date?: string
   timezone?: string
+  endpoint_limit?: number
 }): Promise<AdminUsageStatsResponse> {
   const { data } = await apiClient.get<AdminUsageStatsResponse>('/admin/usage/stats', {
     params

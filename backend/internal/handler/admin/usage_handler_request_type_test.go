@@ -140,3 +140,26 @@ func TestAdminUsageStatsInvalidStream(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
+
+func TestAdminUsageStatsEndpointLimitClamped(t *testing.T) {
+	repo := &adminUsageRepoCapture{}
+	router := newAdminUsageRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/usage/stats?endpoint_limit=500", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 100, repo.statsFilters.EndpointLimit)
+}
+
+func TestAdminUsageStatsInvalidEndpointLimit(t *testing.T) {
+	repo := &adminUsageRepoCapture{}
+	router := newAdminUsageRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/usage/stats?endpoint_limit=-1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}

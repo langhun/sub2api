@@ -351,6 +351,46 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetStatsWithFiltersEndpointLimit(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	filters := usagestats.UsageLogFilters{
+		StartTime:     &start,
+		EndTime:       &end,
+		EndpointLimit: 20,
+	}
+
+	mock.ExpectQuery("FROM usage_logs\\s+WHERE created_at >= \\$1 AND created_at < \\$2").
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"total_requests",
+			"total_input_tokens",
+			"total_output_tokens",
+			"total_cache_tokens",
+			"total_cost",
+			"total_actual_cost",
+			"total_account_cost",
+			"avg_duration_ms",
+		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, 1.2, 20.0))
+	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(inbound_endpoint\\), ''\\), 'unknown'\\) AS endpoint").
+		WithArgs(start, end, 20).
+		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
+	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(upstream_endpoint\\), ''\\), 'unknown'\\) AS endpoint").
+		WithArgs(start, end, 20).
+		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
+	mock.ExpectQuery("SELECT CONCAT\\(").
+		WithArgs(start, end, 20).
+		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
+
+	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), stats.TotalRequests)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUsageLogRepositoryGetModelStatsAccountCostColumn(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &usageLogRepository{sql: db}
