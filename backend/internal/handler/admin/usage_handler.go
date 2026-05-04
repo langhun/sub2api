@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,6 +28,8 @@ type UsageHandler struct {
 	cleanupService *service.UsageCleanupService
 }
 
+const maxUsageStatsEndpointLimit = 100
+
 // NewUsageHandler creates a new admin usage handler
 func NewUsageHandler(
 	usageService *service.UsageService,
@@ -40,6 +43,21 @@ func NewUsageHandler(
 		adminService:   adminService,
 		cleanupService: cleanupService,
 	}
+}
+
+func parseUsageStatsEndpointLimit(c *gin.Context) (int, error) {
+	raw := strings.TrimSpace(c.Query("endpoint_limit"))
+	if raw == "" {
+		return 0, nil
+	}
+	limit, err := strconv.Atoi(raw)
+	if err != nil || limit < 0 {
+		return 0, fmt.Errorf("Invalid endpoint_limit")
+	}
+	if limit > maxUsageStatsEndpointLimit {
+		limit = maxUsageStatsEndpointLimit
+	}
+	return limit, nil
 }
 
 // CreateUsageCleanupTaskRequest represents cleanup task creation request
@@ -242,6 +260,11 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 
 	model := c.Query("model")
 	billingMode := strings.TrimSpace(c.Query("billing_mode"))
+	endpointLimit, err := parseUsageStatsEndpointLimit(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	var requestType *int16
 	var stream *bool
@@ -312,17 +335,18 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 
 	// Build filters and call GetStatsWithFilters
 	filters := usagestats.UsageLogFilters{
-		UserID:      userID,
-		APIKeyID:    apiKeyID,
-		AccountID:   accountID,
-		GroupID:     groupID,
-		Model:       model,
-		RequestType: requestType,
-		Stream:      stream,
-		BillingType: billingType,
-		BillingMode: billingMode,
-		StartTime:   &startTime,
-		EndTime:     &endTime,
+		UserID:        userID,
+		APIKeyID:      apiKeyID,
+		AccountID:     accountID,
+		GroupID:       groupID,
+		Model:         model,
+		RequestType:   requestType,
+		Stream:        stream,
+		BillingType:   billingType,
+		BillingMode:   billingMode,
+		StartTime:     &startTime,
+		EndTime:       &endTime,
+		EndpointLimit: endpointLimit,
 	}
 
 	stats, err := h.usageService.GetStatsWithFilters(c.Request.Context(), filters)

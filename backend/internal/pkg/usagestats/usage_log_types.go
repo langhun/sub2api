@@ -246,6 +246,9 @@ type UsageLogFilters struct {
 	BillingMode string
 	StartTime   *time.Time
 	EndTime     *time.Time
+	// EndpointLimit limits endpoint distribution rows returned with aggregate stats.
+	// Zero keeps the historical unbounded behavior for callers that do not opt in.
+	EndpointLimit int
 	// ExactTotal requests exact COUNT(*) for pagination. Default false for fast large-table paging.
 	ExactTotal bool
 }
