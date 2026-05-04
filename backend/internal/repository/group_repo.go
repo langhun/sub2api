@@ -489,15 +489,19 @@ func (r *groupRepository) ExistsByIDs(ctx context.Context, ids []int64) (map[int
 func (r *groupRepository) GetAccountCount(ctx context.Context, groupID int64) (total int64, active int64, err error) {
 	var rateLimited int64
 	err = scanSingleRow(ctx, r.sql,
-		`SELECT COUNT(*),
-			COUNT(*) FILTER (WHERE a.status = 'active' AND a.schedulable = true),
-			COUNT(*) FILTER (WHERE a.status = 'active' AND (
-				a.rate_limit_reset_at > NOW() OR
-				a.overload_until > NOW() OR
-				a.temp_unschedulable_until > NOW()
-			))
+		`SELECT COUNT(DISTINCT ag.account_id),
+			COUNT(DISTINCT CASE
+				WHEN a.status = 'active' AND a.schedulable = true THEN ag.account_id
+			END),
+			COUNT(DISTINCT CASE
+				WHEN a.status = 'active' AND a.schedulable = true AND (
+					a.rate_limit_reset_at > NOW() OR
+					a.overload_until > NOW() OR
+					a.temp_unschedulable_until > NOW()
+				) THEN ag.account_id
+			END)
 		FROM account_groups ag JOIN accounts a ON a.id = ag.account_id
-		WHERE ag.group_id = $1`,
+		WHERE ag.group_id = $1 AND a.deleted_at IS NULL`,
 		[]any{groupID}, &total, &active, &rateLimited)
 	return
 }
@@ -640,16 +644,20 @@ func (r *groupRepository) loadAccountCounts(ctx context.Context, groupIDs []int6
 	rows, err := r.sql.QueryContext(
 		ctx,
 		`SELECT ag.group_id,
-			COUNT(*) AS total,
-			COUNT(*) FILTER (WHERE a.status = 'active' AND a.schedulable = true) AS active,
-			COUNT(*) FILTER (WHERE a.status = 'active' AND (
-				a.rate_limit_reset_at > NOW() OR
-				a.overload_until > NOW() OR
-				a.temp_unschedulable_until > NOW()
-			)) AS rate_limited
+			COUNT(DISTINCT ag.account_id) AS total,
+			COUNT(DISTINCT CASE
+				WHEN a.status = 'active' AND a.schedulable = true THEN ag.account_id
+			END) AS active,
+			COUNT(DISTINCT CASE
+				WHEN a.status = 'active' AND a.schedulable = true AND (
+					a.rate_limit_reset_at > NOW() OR
+					a.overload_until > NOW() OR
+					a.temp_unschedulable_until > NOW()
+				) THEN ag.account_id
+			END) AS rate_limited
 		FROM account_groups ag
 		JOIN accounts a ON a.id = ag.account_id
-		WHERE ag.group_id = ANY($1)
+		WHERE ag.group_id = ANY($1) AND a.deleted_at IS NULL
 		GROUP BY ag.group_id`,
 		pq.Array(groupIDs),
 	)
