@@ -245,7 +245,9 @@ function clearSelection() {
 async function loadStats() {
   try {
     stats.value = await getTransferStats()
-  } catch {}
+  } catch {
+    // Stats are supplemental; keep the current values when refresh fails.
+  }
 }
 
 async function loadHistory() {
@@ -253,7 +255,9 @@ async function loadHistory() {
   try {
     const res = await getTransferHistory({ page: 1, page_size: 20 })
     history.value = res.items || []
-  } catch {} finally {
+  } catch {
+    // Keep the previous history if a background refresh fails.
+  } finally {
     loadingHistory.value = false
   }
 }
