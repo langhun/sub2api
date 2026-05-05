@@ -512,7 +512,9 @@ async function copyCode(code: string) {
     await navigator.clipboard.writeText(code)
     copiedCode.value = code
     setTimeout(() => { copiedCode.value = '' }, 2000)
-  } catch {}
+  } catch {
+    // Clipboard writes can be denied by the browser; leave the copied state unchanged.
+  }
 }
 
 async function toggleDetail(rp: RedPacketRecord) {
@@ -540,7 +542,9 @@ async function loadMyPackets() {
     const res = await getMyRedPackets({ page: packetsPage.value + 1, page_size: pageSize })
     myPackets.value = res.items || []
     totalPackets.value = res.total || 0
-  } catch {} finally {
+  } catch {
+    // Keep the previous packet list if a background refresh fails.
+  } finally {
     loadingPackets.value = false
   }
 }
