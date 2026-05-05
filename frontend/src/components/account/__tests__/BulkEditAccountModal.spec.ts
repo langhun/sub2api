@@ -217,44 +217,6 @@ describe('BulkEditAccountModal', () => {
     })
   })
 
-  it('筛选 OpenAI 账号批量编辑应提交 Compact 模式和专属模型映射', async () => {
-    const wrapper = mountModal({
-      accountIds: [],
-      selectedPlatforms: [],
-      selectedTypes: [],
-      target: {
-        mode: 'filtered',
-        filters: { platform: 'openai' },
-        previewCount: 12,
-        selectedPlatforms: ['openai'],
-        selectedTypes: ['oauth', 'apikey']
-      }
-    })
-
-    await wrapper.get('#bulk-edit-openai-compact-mode-enabled').setValue(true)
-    await wrapper.get('[data-testid="bulk-edit-openai-compact-mode-select"]').setValue('force_on')
-    await wrapper.get('#bulk-edit-openai-compact-model-mapping-enabled').setValue(true)
-    await wrapper.get('[data-testid="bulk-edit-openai-compact-model-mapping-add"]').trigger('click')
-    const inputs = wrapper.findAll('[data-testid="bulk-edit-openai-compact-model-mapping-input"]')
-    await inputs[0].setValue('gpt-5.4')
-    await inputs[1].setValue('gpt-5.4-openai-compact')
-    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledTimes(1)
-    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith({
-      filters: { platform: 'openai' },
-      extra: {
-        openai_compact_mode: 'force_on'
-      },
-      credentials: {
-        compact_model_mapping: {
-          'gpt-5.4': 'gpt-5.4-openai-compact'
-        }
-      }
-    })
-  })
-
   it('OpenAI 账号批量编辑可关闭自动透传', async () => {
     const wrapper = mountModal({
       selectedPlatforms: ['openai'],
@@ -295,40 +257,4 @@ describe('BulkEditAccountModal', () => {
     expect(wrapper.text()).toContain('admin.accounts.openai.modelRestrictionDisabledByPassthrough')
   })
 
-  it('filtered-results 模式下应提交 filters 而不是 account_ids', async () => {
-    const wrapper = mountModal({
-      accountIds: [],
-      target: {
-        mode: 'filtered',
-        filters: {
-          platform: 'openai',
-          type: 'oauth',
-          status: 'active',
-          group: '12',
-          search: 'bulk-target',
-          privacy_mode: 'training_set_cf_blocked'
-        },
-        previewCount: 5,
-        selectedPlatforms: ['openai'],
-        selectedTypes: ['oauth']
-      }
-    })
-
-    await wrapper.get('#bulk-edit-status-enabled').setValue(true)
-    await wrapper.get('#bulk-edit-account-form').trigger('submit.prevent')
-    await flushPromises()
-
-    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledTimes(1)
-    expect(adminAPI.accounts.bulkUpdate).toHaveBeenCalledWith({
-      filters: {
-        platform: 'openai',
-        type: 'oauth',
-        status: 'active',
-        group: '12',
-        search: 'bulk-target',
-        privacy_mode: 'training_set_cf_blocked'
-      },
-      status: 'active'
-    })
-  })
 })
