@@ -44,6 +44,9 @@ export const useCheckinStore = defineStore('checkin', () => {
 
       const authStore = useAuthStore()
       await authStore.refreshUser()
+      if (status.value && typeof authStore.user?.balance === 'number') {
+        status.value.balance = authStore.user.balance
+      }
 
       return result
     } catch {
@@ -73,6 +76,9 @@ export const useCheckinStore = defineStore('checkin', () => {
 
       const authStore = useAuthStore()
       await authStore.refreshUser()
+      if (status.value && typeof authStore.user?.balance === 'number') {
+        status.value.balance = authStore.user.balance
+      }
 
       return result
     } catch {

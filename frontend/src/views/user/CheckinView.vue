@@ -130,17 +130,17 @@
         <div class="space-y-4">
           <div>
             <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('checkin.betAmount') }}</label>
-            <input v-model.number="luckBet" type="number" step="0.01" :min="0.01" :max="checkinStore.status?.balance ?? 0" class="input" :placeholder="t('checkin.betAmountPlaceholder')" @keyup.enter="submitLuck" />
+            <input v-model.number="luckBet" type="number" step="0.01" :min="0.01" :max="luckBalanceLimit" class="input" :placeholder="t('checkin.betAmountPlaceholder')" @keyup.enter="submitLuck" />
           </div>
           <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>{{ t('profile.accountBalance') }}: ${{ checkinStore.status?.balance?.toFixed(2) ?? '0.00' }}</span>
-            <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="luckBet = checkinStore.status?.balance ?? 0">MAX</button>
+            <span>{{ t('profile.accountBalance') }}: ${{ luckBalanceLimit.toFixed(2) }}</span>
+            <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="applyLuckBetMax">MAX</button>
           </div>
         </div>
         <template #footer>
           <div class="flex flex-row items-center justify-end gap-3">
             <button type="button" class="btn btn-secondary" @click="showLuckModal = false">{{ t('common.cancel') }}</button>
-            <button type="button" :disabled="checkinStore.loading || !luckBet || luckBet <= 0 || luckBet > (checkinStore.status?.balance ?? 0)" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50" @click="submitLuck">{{ checkinStore.loading ? '...' : t('checkin.luckButton') }}</button>
+            <button type="button" :disabled="checkinStore.loading || !luckBet || luckBet <= 0 || luckBet > luckBalanceLimit" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50" @click="submitLuck">{{ checkinStore.loading ? '...' : t('checkin.luckButton') }}</button>
           </div>
         </template>
       </BaseDialog>
@@ -442,6 +442,15 @@ const nextBlindboxHint = computed(() => {
   return t('checkin.page.blindboxNextIn', { days: next })
 })
 
+const luckBalanceLimit = computed(() => {
+  const balances = [checkinStore.status?.balance, user.value?.balance]
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0)
+  const balance = balances.length > 0 ? Math.min(...balances) : 0
+  if (!Number.isFinite(balance) || balance <= 0) return 0
+  return Math.floor((balance + Number.EPSILON) * 100) / 100
+})
+
 async function handleNormalCheckin() {
   const result = await checkinStore.doCheckin()
   if (result) {
@@ -459,6 +468,10 @@ async function submitLuck() {
     fetchCalendar()
     fetchBlindboxRecords()
   }
+}
+
+function applyLuckBetMax() {
+  luckBet.value = luckBalanceLimit.value
 }
 
 function getRarityBadgeClass(rarity: string) {
