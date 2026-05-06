@@ -378,10 +378,6 @@ func (s *stubAdminService) CheckMixedChannelRisk(ctx context.Context, currentAcc
 	return s.checkMixedErr
 }
 
-func (s *stubAdminService) CheckDuplicateAccounts(ctx context.Context, input *service.AccountDuplicateCheckInput) (*service.AccountDuplicateCheckResult, error) {
-	return &service.AccountDuplicateCheckResult{}, nil
-}
-
 func (s *stubAdminService) ListProxies(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]service.Proxy, int64, error) {
 	s.lastListProxies.protocol = protocol
 	s.lastListProxies.status = status
@@ -478,10 +474,6 @@ func (s *stubAdminService) BatchDeleteProxies(ctx context.Context, ids []int64) 
 
 func (s *stubAdminService) GetProxyAccounts(ctx context.Context, proxyID int64) ([]service.ProxyAccountSummary, error) {
 	return []service.ProxyAccountSummary{{ID: 1, Name: "account"}}, nil
-}
-
-func (s *stubAdminService) AssignProxiesToAccounts(ctx context.Context, input *service.AssignProxiesToAccountsInput) (*service.ProxyAccountAssignmentResult, error) {
-	return &service.ProxyAccountAssignmentResult{DryRun: input != nil && input.DryRun}, nil
 }
 
 func (s *stubAdminService) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {

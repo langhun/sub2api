@@ -492,10 +492,7 @@ export interface Group {
   daily_limit_usd: number | null
   weekly_limit_usd: number | null
   monthly_limit_usd: number | null
-  // 图片生成计费配置
-  allow_image_generation: boolean
-  image_rate_independent: boolean
-  image_rate_multiplier: number
+  // 图片生成计费配置（仅 antigravity 平台使用）
   image_price_1k: number | null
   image_price_2k: number | null
   image_price_4k: number | null
@@ -605,9 +602,6 @@ export interface CreateGroupRequest {
   daily_limit_usd?: number | null
   weekly_limit_usd?: number | null
   monthly_limit_usd?: number | null
-  allow_image_generation?: boolean
-  image_rate_independent?: boolean
-  image_rate_multiplier?: number
   image_price_1k?: number | null
   image_price_2k?: number | null
   image_price_4k?: number | null
@@ -633,9 +627,6 @@ export interface UpdateGroupRequest {
   daily_limit_usd?: number | null
   weekly_limit_usd?: number | null
   monthly_limit_usd?: number | null
-  allow_image_generation?: boolean
-  image_rate_independent?: boolean
-  image_rate_multiplier?: number
   image_price_1k?: number | null
   image_price_2k?: number | null
   image_price_4k?: number | null
@@ -723,46 +714,6 @@ export interface ProxyQualityCheckResult {
   challenge_count: number
   checked_at: number
   items: ProxyQualityCheckItem[]
-}
-
-export interface AssignProxyAccountsRequest {
-  proxy_ids: number[]
-  dry_run: boolean
-  filters?: {
-    platforms?: string[]
-    group_ids?: number[]
-    statuses?: string[]
-  }
-}
-
-export interface ProxyAccountAssignmentAccount {
-  account_id: number
-  account_name: string
-  platform: AccountPlatform
-  type: AccountType
-  status: string
-  assigned: boolean
-  skipped_reason?: string
-}
-
-export interface ProxyAccountAssignmentProxy {
-  proxy_id: number
-  proxy_name: string
-  before_account_count: number
-  planned_count: number
-  assigned_count: number
-  after_account_count: number
-  accounts: ProxyAccountAssignmentAccount[]
-}
-
-export interface ProxyAccountAssignmentResult {
-  dry_run: boolean
-  matched_account_count: number
-  unique_account_count: number
-  duplicate_hit_count: number
-  planned_assignment_count: number
-  actual_assignment_count: number
-  proxies: ProxyAccountAssignmentProxy[]
 }
 
 // Gemini credentials structure for OAuth and API Key authentication
@@ -908,48 +859,6 @@ export interface Account {
   current_window_cost?: number | null // 当前窗口费用
   active_sessions?: number | null // 当前活跃会话数
   current_rpm?: number | null // 当前分钟 RPM 计数
-}
-
-export interface DuplicateAccountCheckRequest {
-  platforms?: string[]
-  group_ids?: number[]
-  statuses?: string[]
-  include_inactive?: boolean
-}
-
-export interface DuplicateAccountGroupRef {
-  id: number
-  name: string
-}
-
-export interface DuplicateAccountSummary {
-  id: number
-  name: string
-  platform: AccountPlatform
-  type: AccountType
-  status: string
-  proxy_id: number | null
-  groups: DuplicateAccountGroupRef[]
-}
-
-export interface DuplicateAccountGroup {
-  key_type: string
-  severity: 'strong' | 'weak'
-  platform: AccountPlatform | string
-  type?: AccountType | string
-  masked_value: string
-  value_hash: string
-  account_count: number
-  accounts: DuplicateAccountSummary[]
-}
-
-export interface DuplicateAccountCheckResult {
-  total_accounts: number
-  duplicate_group_count: number
-  duplicate_account_count: number
-  strong_group_count: number
-  weak_group_count: number
-  groups: DuplicateAccountGroup[]
 }
 
 // Account Usage types

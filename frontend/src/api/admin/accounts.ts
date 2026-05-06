@@ -17,9 +17,7 @@ import type {
   AdminDataPayload,
   AdminDataImportResult,
   CheckMixedChannelRequest,
-  CheckMixedChannelResponse,
-  DuplicateAccountCheckRequest,
-  DuplicateAccountCheckResult
+  CheckMixedChannelResponse
 } from '@/types'
 
 /**
@@ -397,16 +395,6 @@ export async function bulkUpdate(
   return data
 }
 
-export async function checkDuplicates(
-  payload: DuplicateAccountCheckRequest = {}
-): Promise<DuplicateAccountCheckResult> {
-  const { data } = await apiClient.post<DuplicateAccountCheckResult>(
-    '/admin/accounts/duplicate-check',
-    payload
-  )
-  return data
-}
-
 /**
  * Get account today statistics
  * @param id - Account ID
@@ -671,7 +659,6 @@ export const accountsAPI = {
   batchCreate,
   batchUpdateCredentials,
   bulkUpdate,
-  checkDuplicates,
   previewFromCrs,
   syncFromCrs,
   exportData,
