@@ -1,7 +1,7 @@
 <template>
   <footer class="border-t border-gray-100 py-10 dark:border-dark-800">
-    <div class="mx-auto flex max-w-7xl items-center px-6">
-      <div class="flex items-center gap-3">
+    <div class="mx-auto flex max-w-7xl items-center justify-center px-6">
+      <div class="flex items-center justify-center gap-3 text-center">
         <div class="h-6 w-6 overflow-hidden rounded-md">
           <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
         </div>
