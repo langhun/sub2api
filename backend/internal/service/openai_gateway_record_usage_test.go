@@ -1520,12 +1520,12 @@ func newOpenAIImageChannelPricingResolverForTest(t *testing.T, groupID int64, mo
 	cache.loadedAt = time.Now()
 	cs := &ChannelService{}
 	cs.cache.Store(cache)
-	return NewModelPricingResolver(cs, NewBillingService(&config.Config{}, nil))
+	return NewModelPricingResolver(cs, NewBillingService(&config.Config{}, nil, nil))
 }
 
 func TestGatewayServiceCalculateRecordUsageCost_ChannelImageBillingUsesImageCount(t *testing.T) {
 	groupID := int64(126)
-	billingService := NewBillingService(&config.Config{}, nil)
+	billingService := NewBillingService(&config.Config{}, nil, nil)
 	svc := &GatewayService{
 		billingService: billingService,
 		resolver:       newOpenAIImageChannelPricingResolverForTest(t, groupID, "gemini-image", 0.25),
@@ -1566,8 +1566,8 @@ func TestGatewayServiceCalculateRecordUsageCost_ChannelImageBillingUsesSizeTier(
 	channelService.cache.Store(cache)
 
 	svc := &GatewayService{
-		billingService: NewBillingService(&config.Config{}, nil),
-		resolver:       NewModelPricingResolver(channelService, NewBillingService(&config.Config{}, nil)),
+		billingService: NewBillingService(&config.Config{}, nil, nil),
+		resolver:       NewModelPricingResolver(channelService, NewBillingService(&config.Config{}, nil, nil)),
 	}
 
 	cost := svc.calculateRecordUsageCost(
