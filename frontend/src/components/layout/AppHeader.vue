@@ -127,15 +127,15 @@
                 type="number"
                 step="0.01"
                 :min="0.01"
-                :max="checkinStore.status?.balance ?? 0"
+                :max="luckBalanceLimit"
                 class="input"
                 :placeholder="t('checkin.betAmountPlaceholder')"
                 @keyup.enter="submitLuckCheckin"
               />
             </div>
             <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>{{ t('profile.accountBalance') }}: ${{ checkinStore.status?.balance?.toFixed(2) ?? '0.00' }}</span>
-              <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="luckBetAmount = checkinStore.status?.balance ?? 0">
+              <span>{{ t('profile.accountBalance') }}: ${{ luckBalanceLimit.toFixed(2) }}</span>
+              <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="applyLuckBetMax">
                 MAX
               </button>
             </div>
@@ -154,7 +154,7 @@
               </button>
               <button
                 type="button"
-                :disabled="checkinLoading || !luckBetAmount || luckBetAmount <= 0 || luckBetAmount > (checkinStore.status?.balance ?? 0)"
+                :disabled="checkinLoading || !luckBetAmount || luckBetAmount <= 0 || luckBetAmount > luckBalanceLimit"
                 class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50"
                 @click="submitLuckCheckin"
               >
@@ -214,7 +214,7 @@
 
               <PublicQuickLinksBar
                 variant="menu"
-                class="border-b border-gray-100 px-2 py-1.5 dark:border-dark-700 lg:hidden"
+                class="border-b border-gray-100 dark:border-dark-700 lg:hidden"
                 @navigate="closeDropdown"
               />
 
@@ -337,6 +337,18 @@ const checkedInToday = computed(() => checkinStore.checkedInToday)
 const todayReward = computed(() => checkinStore.todayReward)
 const showLuckModal = ref(false)
 const luckBetAmount = ref<number>(0)
+const luckBalanceLimit = computed(() => {
+  const balances = [checkinStore.status?.balance, user.value?.balance]
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0)
+  const balance = balances.length > 0 ? Math.min(...balances) : 0
+  if (!Number.isFinite(balance) || balance <= 0) return 0
+  return Math.floor((balance + Number.EPSILON) * 100) / 100
+})
+
+function applyLuckBetMax() {
+  luckBetAmount.value = luckBalanceLimit.value
+}
 
 async function handleCheckin() {
   const result = await checkinStore.doCheckin()
