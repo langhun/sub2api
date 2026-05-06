@@ -13,7 +13,6 @@
     >
       <!-- Header -->
       <AppHeader />
-      <PublicQuickLinksBar />
 
       <!-- Main Content -->
       <main class="p-4 md:p-6 lg:p-8">
@@ -32,7 +31,6 @@ import { useOnboardingTour } from '@/composables/useOnboardingTour'
 import { useOnboardingStore } from '@/stores/onboarding'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
-import PublicQuickLinksBar from './PublicQuickLinksBar.vue'
 
 const appStore = useAppStore()
 const authStore = useAuthStore()

@@ -21,6 +21,8 @@
         </div>
       </div>
 
+      <PublicQuickLinksBar inline class="hidden lg:flex lg:flex-1 lg:justify-end lg:pr-2" />
+
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="flex items-center gap-3">
         <!-- Announcement Bell -->
@@ -210,6 +212,11 @@
                 </div>
               </div>
 
+              <PublicQuickLinksBar
+                inline
+                class="border-b border-gray-100 px-3 py-2 dark:border-dark-700 lg:hidden"
+              />
+
               <div class="py-1">
                 <router-link to="/profile" @click="closeDropdown" class="dropdown-item">
                   <Icon name="user" size="sm" />
@@ -307,6 +314,7 @@ import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMi
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import BlindboxModal from '@/components/user/profile/BlindboxModal.vue'
+import PublicQuickLinksBar from './PublicQuickLinksBar.vue'
 import { formatSignedCurrency } from '@/utils/format'
 
 const router = useRouter()
