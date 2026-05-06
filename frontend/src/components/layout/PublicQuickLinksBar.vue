@@ -3,7 +3,24 @@
     v-if="visibleLinks.length > 0"
     :class="containerClass"
   >
-    <div :class="linksClass">
+    <template v-if="variant === 'menu'">
+      <router-link
+        v-for="link in visibleLinks"
+        :key="link.path"
+        :to="link.path"
+        :class="[
+          'dropdown-item',
+          route.path === link.path
+            ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+            : ''
+        ]"
+        @click="emit('navigate')"
+      >
+        <Icon :name="link.icon" size="sm" />
+        {{ link.label }}
+      </router-link>
+    </template>
+    <div v-else :class="linksClass">
       <router-link
         v-for="link in visibleLinks"
         :key="link.path"
@@ -26,14 +43,20 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
+import Icon from '@/components/icons/Icon.vue'
 
 type PublicLinkKey = 'leaderboard' | 'keyUsage' | 'monitoring' | 'pricing'
 
 const props = withDefaults(defineProps<{
   inline?: boolean
+  variant?: 'default' | 'menu'
 }>(), {
   inline: false,
+  variant: 'default',
 })
+const emit = defineEmits<{
+  (e: 'navigate'): void
+}>()
 
 const route = useRoute()
 const { t } = useI18n()
@@ -53,15 +76,17 @@ const visibility = computed<Partial<Record<PublicLinkKey, boolean>>>(() => {
 })
 
 const links = computed(() => [
-  { key: 'leaderboard' as const, path: '/leaderboard', label: t('leaderboard.title') },
-  { key: 'keyUsage' as const, path: '/key-usage', label: t('home.keyUsage') },
-  { key: 'monitoring' as const, path: '/monitoring', label: t('admin.monitoring.title') },
-  { key: 'pricing' as const, path: '/pricing', label: t('pricing.title') },
+  { key: 'leaderboard' as const, path: '/leaderboard', label: t('leaderboard.title'), icon: 'badge' as const },
+  { key: 'keyUsage' as const, path: '/key-usage', label: t('home.keyUsage'), icon: 'chartBar' as const },
+  { key: 'monitoring' as const, path: '/monitoring', label: t('admin.monitoring.title'), icon: 'server' as const },
+  { key: 'pricing' as const, path: '/pricing', label: t('pricing.title'), icon: 'calculator' as const },
 ])
 
 const visibleLinks = computed(() => links.value.filter((link) => visibility.value[link.key] !== false))
 
-const containerClass = computed(() => props.inline
+const containerClass = computed(() => props.variant === 'menu'
+  ? 'py-1'
+  : props.inline
   ? 'w-full'
   : 'border-b border-gray-200/60 bg-white/75 px-4 backdrop-blur dark:border-dark-800/60 dark:bg-dark-950/75 md:px-6')
 
