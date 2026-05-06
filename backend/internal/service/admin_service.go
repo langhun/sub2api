@@ -101,6 +101,7 @@ type AdminService interface {
 	BatchDeleteProxies(ctx context.Context, ids []int64) (*ProxyBatchDeleteResult, error)
 	GetProxyAccounts(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error)
 	AssignProxiesToAccounts(ctx context.Context, input *AssignProxiesToAccountsInput) (*ProxyAccountAssignmentResult, error)
+	UnassignProxiesFromAccounts(ctx context.Context, proxyIDs []int64) (*ProxyUnassignAccountsResult, error)
 	CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error)
 	TestProxy(ctx context.Context, id int64) (*ProxyTestResult, error)
 	CheckProxyQuality(ctx context.Context, id int64) (*ProxyQualityCheckResult, error)
@@ -409,6 +410,12 @@ type ProxyBatchDeleteResult struct {
 type ProxyBatchDeleteSkipped struct {
 	ID     int64  `json:"id"`
 	Reason string `json:"reason"`
+}
+
+type ProxyUnassignAccountsResult struct {
+	ProxyIDs           []int64 `json:"proxy_ids"`
+	MatchedAccounts    int64   `json:"matched_accounts"`
+	UnassignedAccounts int64   `json:"unassigned_accounts"`
 }
 
 // ProxyTestResult represents the result of testing a proxy
@@ -2776,6 +2783,9 @@ func (s *adminServiceImpl) SetAccountSchedulable(ctx context.Context, id int64, 
 
 // Proxy management implementations
 func (s *adminServiceImpl) ListProxies(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]Proxy, int64, error) {
+	if strings.EqualFold(strings.TrimSpace(status), "failed") {
+		return s.listFailedProxies(ctx, page, pageSize, protocol, search, sortBy, sortOrder)
+	}
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
 	proxies, result, err := s.proxyRepo.ListWithFilters(ctx, params, protocol, status, search)
 	if err != nil {
@@ -2785,6 +2795,9 @@ func (s *adminServiceImpl) ListProxies(ctx context.Context, page, pageSize int, 
 }
 
 func (s *adminServiceImpl) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error) {
+	if strings.EqualFold(strings.TrimSpace(status), "failed") {
+		return s.listFailedProxiesWithAccountCount(ctx, page, pageSize, protocol, search, sortBy, sortOrder)
+	}
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
 	proxies, result, err := s.proxyRepo.ListWithFiltersAndAccountCount(ctx, params, protocol, status, search)
 	if err != nil {
@@ -2915,6 +2928,112 @@ func (s *adminServiceImpl) BatchDeleteProxies(ctx context.Context, ids []int64) 
 
 func (s *adminServiceImpl) GetProxyAccounts(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error) {
 	return s.proxyRepo.ListAccountSummariesByProxyID(ctx, proxyID)
+}
+
+func (s *adminServiceImpl) UnassignProxiesFromAccounts(ctx context.Context, proxyIDs []int64) (*ProxyUnassignAccountsResult, error) {
+	if len(proxyIDs) == 0 {
+		return &ProxyUnassignAccountsResult{ProxyIDs: []int64{}}, nil
+	}
+
+	normalized := dedupePositiveInt64s(proxyIDs)
+	if len(normalized) == 0 {
+		return &ProxyUnassignAccountsResult{ProxyIDs: []int64{}}, nil
+	}
+
+	accountIDs := make([]int64, 0)
+	seenAccountIDs := make(map[int64]struct{})
+	for _, proxyID := range normalized {
+		accounts, err := s.proxyRepo.ListAccountSummariesByProxyID(ctx, proxyID)
+		if err != nil {
+			return nil, err
+		}
+		for _, account := range accounts {
+			if _, exists := seenAccountIDs[account.ID]; exists {
+				continue
+			}
+			seenAccountIDs[account.ID] = struct{}{}
+			accountIDs = append(accountIDs, account.ID)
+		}
+	}
+
+	result := &ProxyUnassignAccountsResult{
+		ProxyIDs:        normalized,
+		MatchedAccounts: int64(len(accountIDs)),
+	}
+	if len(accountIDs) == 0 {
+		return result, nil
+	}
+
+	clearProxyID := int64(0)
+	updateResult, err := s.BulkUpdateAccounts(ctx, &BulkUpdateAccountsInput{
+		AccountIDs: accountIDs,
+		ProxyID:    &clearProxyID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result.UnassignedAccounts = int64(updateResult.Success)
+	return result, nil
+}
+
+func (s *adminServiceImpl) listFailedProxies(ctx context.Context, page, pageSize int, protocol, search, sortBy, sortOrder string) ([]Proxy, int64, error) {
+	items, total, err := s.listFailedProxiesWithAccountCount(ctx, page, pageSize, protocol, search, sortBy, sortOrder)
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]Proxy, 0, len(items))
+	for i := range items {
+		out = append(out, items[i].Proxy)
+	}
+	return out, total, nil
+}
+
+func (s *adminServiceImpl) listFailedProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, search, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error) {
+	requestParams := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
+	scanParams := pagination.PaginationParams{Page: 1, PageSize: 1000, SortBy: sortBy, SortOrder: sortOrder}
+	filtered := make([]ProxyWithAccountCount, 0)
+	fetched := int64(0)
+
+	for {
+		batch, result, err := s.proxyRepo.ListWithFiltersAndAccountCount(ctx, scanParams, protocol, "", search)
+		if err != nil {
+			return nil, 0, err
+		}
+		if len(batch) == 0 {
+			break
+		}
+
+		fetched += int64(len(batch))
+		s.attachProxyLatency(ctx, batch)
+		for i := range batch {
+			if isFailedProxyWithAccountCount(batch[i]) {
+				filtered = append(filtered, batch[i])
+			}
+		}
+
+		if result == nil || fetched >= result.Total || len(batch) < scanParams.Limit() {
+			break
+		}
+		scanParams.Page++
+	}
+
+	total := int64(len(filtered))
+	start := requestParams.Offset()
+	if start < 0 {
+		start = 0
+	}
+	if start >= len(filtered) {
+		return []ProxyWithAccountCount{}, total, nil
+	}
+	end := start + requestParams.Limit()
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	return filtered[start:end], total, nil
+}
+
+func isFailedProxyWithAccountCount(proxy ProxyWithAccountCount) bool {
+	return strings.EqualFold(proxy.LatencyStatus, "failed") || strings.EqualFold(proxy.QualityStatus, "failed")
 }
 
 func (s *adminServiceImpl) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {
