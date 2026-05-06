@@ -774,6 +774,12 @@ export interface ProxyAccountAssignmentResult {
   proxies: ProxyAccountAssignmentProxy[]
 }
 
+export interface ProxyUnassignAccountsResult {
+  proxy_ids: number[]
+  matched_accounts: number
+  unassigned_accounts: number
+}
+
 // Gemini credentials structure for OAuth and API Key authentication
 export interface GeminiCredentials {
   // API Key authentication

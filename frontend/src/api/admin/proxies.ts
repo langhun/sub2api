@@ -10,6 +10,7 @@ import type {
   ProxyQualityCheckResult,
   AssignProxyAccountsRequest,
   ProxyAccountAssignmentResult,
+  ProxyUnassignAccountsResult,
   CreateProxyRequest,
   UpdateProxyRequest,
   PaginatedResponse,
@@ -29,7 +30,7 @@ export async function list(
   pageSize: number = 20,
   filters?: {
     protocol?: string
-    status?: 'active' | 'inactive'
+    status?: 'active' | 'inactive' | 'failed'
     search?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
@@ -200,6 +201,14 @@ export async function assignAccounts(
   return data
 }
 
+export async function unassignAccounts(proxyIds: number[]): Promise<ProxyUnassignAccountsResult> {
+  const { data } = await apiClient.post<ProxyUnassignAccountsResult>(
+    '/admin/proxies/unassign-accounts',
+    { proxy_ids: proxyIds }
+  )
+  return data
+}
+
 /**
  * Batch create proxies
  * @param proxies - Array of proxy data to create
@@ -239,7 +248,7 @@ export async function exportData(options?: {
   ids?: number[]
   filters?: {
     protocol?: string
-    status?: 'active' | 'inactive'
+    status?: 'active' | 'inactive' | 'failed'
     search?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
@@ -281,6 +290,7 @@ export const proxiesAPI = {
   getStats,
   getProxyAccounts,
   assignAccounts,
+  unassignAccounts,
   batchCreate,
   batchDelete,
   exportData,

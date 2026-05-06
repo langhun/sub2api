@@ -61,6 +61,7 @@ type stubAdminService struct {
 		sortOrder string
 		calls     int
 	}
+	lastUnassignProxyIDs []int64
 	lastListRedeemCodes struct {
 		codeType  string
 		status    string
@@ -484,6 +485,15 @@ func (s *stubAdminService) GetProxyAccounts(ctx context.Context, proxyID int64) 
 
 func (s *stubAdminService) AssignProxiesToAccounts(ctx context.Context, input *service.AssignProxiesToAccountsInput) (*service.ProxyAccountAssignmentResult, error) {
 	return &service.ProxyAccountAssignmentResult{DryRun: input != nil && input.DryRun}, nil
+}
+
+func (s *stubAdminService) UnassignProxiesFromAccounts(ctx context.Context, proxyIDs []int64) (*service.ProxyUnassignAccountsResult, error) {
+	s.lastUnassignProxyIDs = append([]int64(nil), proxyIDs...)
+	return &service.ProxyUnassignAccountsResult{
+		ProxyIDs:           append([]int64(nil), proxyIDs...),
+		MatchedAccounts:    int64(len(proxyIDs)),
+		UnassignedAccounts: int64(len(proxyIDs)),
+	}, nil
 }
 
 func (s *stubAdminService) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {

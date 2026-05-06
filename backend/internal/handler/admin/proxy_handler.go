@@ -45,6 +45,10 @@ type UpdateProxyRequest struct {
 	Status   string `json:"status" binding:"omitempty,oneof=active inactive"`
 }
 
+type UnassignProxyAccountsRequest struct {
+	ProxyIDs []int64 `json:"proxy_ids" binding:"required,min=1"`
+}
+
 // List handles listing all proxies with pagination
 // GET /api/v1/admin/proxies
 func (h *ProxyHandler) List(c *gin.Context) {
@@ -71,6 +75,23 @@ func (h *ProxyHandler) List(c *gin.Context) {
 		out = append(out, *dto.ProxyWithAccountCountFromServiceAdmin(&proxies[i]))
 	}
 	response.Paginated(c, out, total, page, pageSize)
+}
+
+// UnassignAccounts clears proxy bindings from accounts using the selected proxies.
+// POST /api/v1/admin/proxies/unassign-accounts
+func (h *ProxyHandler) UnassignAccounts(c *gin.Context) {
+	var req UnassignProxyAccountsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	result, err := h.adminService.UnassignProxiesFromAccounts(c.Request.Context(), req.ProxyIDs)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
 }
 
 // GetAll handles getting all active proxies without pagination

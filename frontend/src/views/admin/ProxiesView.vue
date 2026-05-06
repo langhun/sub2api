@@ -74,6 +74,15 @@
               {{ t('admin.proxies.assignAccounts.open') }}
             </button>
             <button
+              @click="openBatchUnassign"
+              :disabled="selectedCount === 0"
+              class="btn btn-secondary"
+              :title="t('admin.proxies.quickUnassign')"
+            >
+              <Icon name="x" size="md" class="mr-2" />
+              {{ t('admin.proxies.quickUnassign') }}
+            </button>
+            <button
               @click="openBatchDelete"
               :disabled="selectedCount === 0"
               class="btn btn-danger"
@@ -742,6 +751,15 @@
       @cancel="showBatchDeleteDialog = false"
     />
     <ConfirmDialog
+      :show="showBatchUnassignDialog"
+      :title="t('admin.proxies.quickUnassign')"
+      :message="t('admin.proxies.quickUnassignConfirm', { count: selectedCount })"
+      :confirm-text="t('admin.proxies.quickUnassignConfirmButton')"
+      :cancel-text="t('common.cancel')"
+      @confirm="confirmBatchUnassign"
+      @cancel="showBatchUnassignDialog = false"
+    />
+    <ConfirmDialog
       :show="showExportDataDialog"
       :title="t('admin.proxies.dataExport')"
       :message="t('admin.proxies.dataExportConfirmMessage')"
@@ -942,7 +960,8 @@ const protocolOptions = computed(() => [
 const statusOptions = computed(() => [
   { value: '', label: t('admin.proxies.allStatus') },
   { value: 'active', label: t('admin.accounts.status.active') },
-  { value: 'inactive', label: t('admin.accounts.status.inactive') }
+  { value: 'inactive', label: t('admin.accounts.status.inactive') },
+  { value: 'failed', label: t('admin.proxies.failedStatus') }
 ])
 
 // Form options
@@ -988,6 +1007,7 @@ const showImportData = ref(false)
 const showAssignAccounts = ref(false)
 const showDeleteDialog = ref(false)
 const showBatchDeleteDialog = ref(false)
+const showBatchUnassignDialog = ref(false)
 const showExportDataDialog = ref(false)
 const showAccountsModal = ref(false)
 const submitting = ref(false)
@@ -1087,7 +1107,7 @@ const toggleSelectAllVisible = (event: Event) => {
 
 const buildProxyQueryFilters = () => ({
   protocol: filters.protocol || undefined,
-  status: (filters.status || undefined) as 'active' | 'inactive' | undefined,
+  status: (filters.status || undefined) as 'active' | 'inactive' | 'failed' | undefined,
   search: searchQuery.value || undefined,
   sort_by: sortState.sort_by,
   sort_order: sortState.sort_order
@@ -1787,6 +1807,13 @@ const openBatchDelete = () => {
   showBatchDeleteDialog.value = true
 }
 
+const openBatchUnassign = () => {
+  if (selectedCount.value === 0) {
+    return
+  }
+  showBatchUnassignDialog.value = true
+}
+
 const confirmDelete = async () => {
   if (!deletingProxy.value) return
 
@@ -1827,6 +1854,30 @@ const confirmBatchDelete = async () => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.batchDeleteFailed'))
     console.error('Error batch deleting proxies:', error)
+  }
+}
+
+const confirmBatchUnassign = async () => {
+  const ids = Array.from(selectedProxyIds.value)
+  if (ids.length === 0) {
+    showBatchUnassignDialog.value = false
+    return
+  }
+
+  try {
+    const result = await adminAPI.proxies.unassignAccounts(ids)
+    appStore.showSuccess(
+      t('admin.proxies.quickUnassignDone', {
+        matched: result.matched_accounts,
+        unassigned: result.unassigned_accounts
+      })
+    )
+    clearSelectedProxies()
+    showBatchUnassignDialog.value = false
+    loadProxies()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.quickUnassignFailed'))
+    console.error('Error unassigning proxy accounts:', error)
   }
 }
 

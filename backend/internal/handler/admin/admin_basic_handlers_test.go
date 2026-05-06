@@ -47,6 +47,7 @@ func setupAdminRouter() (*gin.Engine, *stubAdminService) {
 	router.PUT("/api/v1/admin/proxies/:id", proxyHandler.Update)
 	router.DELETE("/api/v1/admin/proxies/:id", proxyHandler.Delete)
 	router.POST("/api/v1/admin/proxies/batch-delete", proxyHandler.BatchDelete)
+	router.POST("/api/v1/admin/proxies/unassign-accounts", proxyHandler.UnassignAccounts)
 	router.POST("/api/v1/admin/proxies/:id/test", proxyHandler.Test)
 	router.POST("/api/v1/admin/proxies/:id/quality-check", proxyHandler.CheckQuality)
 	router.GET("/api/v1/admin/proxies/:id/stats", proxyHandler.GetStats)
@@ -246,6 +247,12 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/proxies/batch-delete", bytes.NewBufferString(`{"ids":[1,2]}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/proxies/unassign-accounts", bytes.NewBufferString(`{"proxy_ids":[1,2]}`))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)

@@ -3907,6 +3907,7 @@ export default {
       searchProxies: 'Search proxies...',
       allProtocols: 'All Protocols',
       allStatus: 'All Status',
+      failedStatus: 'Failed',
       protocols: {
         http: 'HTTP',
         https: 'HTTPS',
@@ -3934,8 +3935,15 @@ export default {
       batchTestDone: 'Batch test completed for {count} proxies',
       batchTestFailed: 'Batch test failed',
       batchDeleteAction: 'Delete',
+      quickUnassign: 'Quick Unassign',
       batchDelete: 'Batch delete',
       batchDeleteConfirm: 'Delete {count} selected proxies? In-use ones will be skipped.',
+      quickUnassignConfirm:
+        'Unassign the selected {count} proxies from their accounts? This clears the proxy setting for all accounts currently using them.',
+      quickUnassignConfirmButton: 'Unassign',
+      quickUnassignDone:
+        'Matched {matched} accounts and cleared proxy bindings for {unassigned} accounts',
+      quickUnassignFailed: 'Failed to unassign proxies from accounts',
       batchDeleteDone: 'Deleted {deleted} proxies, skipped {skipped}',
       batchDeleteSkipped: 'Skipped {skipped} proxies',
       batchDeleteFailed: 'Batch delete failed',

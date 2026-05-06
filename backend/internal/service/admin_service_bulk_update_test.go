@@ -16,6 +16,7 @@ type accountRepoStubForBulkUpdate struct {
 	accountRepoStub
 	bulkUpdateErr    error
 	bulkUpdateIDs    []int64
+	bulkUpdateInput  AccountBulkUpdate
 	bindGroupErrByID map[int64]error
 	bindGroupsCalls  []int64
 	getByIDsAccounts []*Account
@@ -43,8 +44,9 @@ type accountRepoStubForBulkUpdate struct {
 	}
 }
 
-func (s *accountRepoStubForBulkUpdate) BulkUpdate(_ context.Context, ids []int64, _ AccountBulkUpdate) (int64, error) {
+func (s *accountRepoStubForBulkUpdate) BulkUpdate(_ context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {
 	s.bulkUpdateIDs = append([]int64{}, ids...)
+	s.bulkUpdateInput = updates
 	if s.bulkUpdateErr != nil {
 		return 0, s.bulkUpdateErr
 	}
@@ -249,4 +251,34 @@ func TestAdminServiceBulkUpdateAccounts_ResolvesIDsFromFilters(t *testing.T) {
 	require.Equal(t, 2, result.Success)
 	require.Equal(t, 0, result.Failed)
 	require.Equal(t, []int64{7, 11}, result.SuccessIDs)
+}
+
+func TestAdminService_UnassignProxiesFromAccounts_ClearsMatchedAccounts(t *testing.T) {
+	accountRepo := &accountRepoStubForBulkUpdate{}
+	proxyRepo := &proxyRepoStubForUnassign{
+		summaries: map[int64][]ProxyAccountSummary{
+			2: {
+				{ID: 11, Name: "a11"},
+				{ID: 12, Name: "a12"},
+			},
+			1: {
+				{ID: 12, Name: "a12"},
+				{ID: 13, Name: "a13"},
+			},
+		},
+	}
+	svc := &adminServiceImpl{
+		accountRepo: accountRepo,
+		proxyRepo:   proxyRepo,
+	}
+
+	result, err := svc.UnassignProxiesFromAccounts(context.Background(), []int64{2, 2, 0, 1})
+	require.NoError(t, err)
+	require.Equal(t, []int64{2, 1}, result.ProxyIDs)
+	require.Equal(t, int64(3), result.MatchedAccounts)
+	require.Equal(t, int64(3), result.UnassignedAccounts)
+	require.ElementsMatch(t, []int64{11, 12, 13}, accountRepo.bulkUpdateIDs)
+	require.NotNil(t, accountRepo.bulkUpdateInput.ProxyID)
+	require.Equal(t, int64(0), *accountRepo.bulkUpdateInput.ProxyID)
+	require.Equal(t, []int64{2, 1}, proxyRepo.listCalls)
 }
