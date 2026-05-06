@@ -65,6 +65,15 @@
               {{ t('admin.proxies.batchQualityCheck') }}
             </button>
             <button
+              @click="showAssignAccounts = true"
+              :disabled="selectedCount === 0"
+              class="btn btn-secondary"
+              :title="t('admin.proxies.assignAccounts.open')"
+            >
+              <Icon name="users" size="md" class="mr-2" />
+              {{ t('admin.proxies.assignAccounts.open') }}
+            </button>
+            <button
               @click="openBatchDelete"
               :disabled="selectedCount === 0"
               class="btn btn-danger"
@@ -748,6 +757,14 @@
       @imported="handleDataImported"
     />
 
+    <AssignAccountsModal
+      :show="showAssignAccounts"
+      :proxy-ids="Array.from(selectedProxyIds)"
+      :groups="accountGroups"
+      @close="showAssignAccounts = false"
+      @assigned="loadProxies"
+    />
+
     <BaseDialog
       :show="showQualityReportDialog"
       :title="t('admin.proxies.qualityReportTitle')"
@@ -886,6 +903,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
+import AssignAccountsModal from '@/components/admin/proxy/AssignAccountsModal.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
@@ -893,6 +911,7 @@ import { useClipboard } from '@/composables/useClipboard'
 import { useSwipeSelect } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import type { AdminGroup } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -940,6 +959,7 @@ const editStatusOptions = computed(() => [
 ])
 
 const proxies = ref<Proxy[]>([])
+const accountGroups = ref<AdminGroup[]>([])
 const visiblePasswordIds = reactive(new Set<number>())
 const copyMenuProxyId = ref<number | null>(null)
 const loading = ref(false)
@@ -965,6 +985,7 @@ const showEditModal = ref(false)
 const editPasswordVisible = ref(false)
 const editPasswordDirty = ref(false)
 const showImportData = ref(false)
+const showAssignAccounts = ref(false)
 const showDeleteDialog = ref(false)
 const showBatchDeleteDialog = ref(false)
 const showExportDataDialog = ref(false)
@@ -1103,6 +1124,14 @@ const loadProxies = async () => {
       loading.value = false
       abortController = null
     }
+  }
+}
+
+const loadAccountGroups = async () => {
+  try {
+    accountGroups.value = await adminAPI.groups.getAll()
+  } catch (error) {
+    console.error('Error loading account groups:', error)
   }
 }
 
@@ -1871,6 +1900,7 @@ function closeCopyMenu() {
 
 onMounted(() => {
   loadProxies()
+  loadAccountGroups()
   document.addEventListener('click', closeCopyMenu)
 })
 
