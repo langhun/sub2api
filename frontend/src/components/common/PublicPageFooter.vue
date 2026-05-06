@@ -1,6 +1,6 @@
 <template>
   <footer class="border-t border-gray-100 py-10 dark:border-dark-800">
-    <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
+    <div class="mx-auto flex max-w-7xl items-center px-6">
       <div class="flex items-center gap-3">
         <div class="h-6 w-6 overflow-hidden rounded-md">
           <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
@@ -8,28 +8,6 @@
         <p class="text-sm text-gray-500 dark:text-dark-400">
           &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
         </p>
-      </div>
-      <div class="flex items-center gap-6">
-        <router-link to="/leaderboard"
-          class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white">
-          {{ t('leaderboard.title') }}
-        </router-link>
-        <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer"
-          class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white">
-          {{ t('home.docs') }}
-        </a>
-        <router-link to="/key-usage"
-          class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white">
-          {{ t('home.keyUsage') }}
-        </router-link>
-        <router-link to="/monitoring"
-          class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white">
-          {{ t('admin.monitoring.title') }}
-        </router-link>
-        <router-link to="/pricing"
-          class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white">
-          {{ t('pricing.title') }}
-        </router-link>
       </div>
     </div>
   </footer>
@@ -45,6 +23,5 @@ const appStore = useAppStore()
 
 const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'Sub2API')
 const siteLogo = computed(() => appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '')
-const docUrl = computed(() => appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
 const currentYear = new Date().getFullYear()
 </script>

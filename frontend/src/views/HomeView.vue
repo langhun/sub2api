@@ -71,6 +71,8 @@
         </div>
       </div>
     </section>
+
+    <PublicPageFooter />
   </div>
 </template>
 
@@ -80,6 +82,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import Icon from '@/components/icons/Icon.vue'
 import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
+import PublicPageFooter from '@/components/common/PublicPageFooter.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
