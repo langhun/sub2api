@@ -8,6 +8,8 @@ import type {
   Proxy,
   ProxyAccountSummary,
   ProxyQualityCheckResult,
+  AssignProxyAccountsRequest,
+  ProxyAccountAssignmentResult,
   CreateProxyRequest,
   UpdateProxyRequest,
   PaginatedResponse,
@@ -188,6 +190,16 @@ export async function getProxyAccounts(id: number): Promise<ProxyAccountSummary[
   return data
 }
 
+export async function assignAccounts(
+  payload: AssignProxyAccountsRequest
+): Promise<ProxyAccountAssignmentResult> {
+  const { data } = await apiClient.post<ProxyAccountAssignmentResult>(
+    '/admin/proxies/assign-accounts',
+    payload
+  )
+  return data
+}
+
 /**
  * Batch create proxies
  * @param proxies - Array of proxy data to create
@@ -268,6 +280,7 @@ export const proxiesAPI = {
   checkProxyQuality,
   getStats,
   getProxyAccounts,
+  assignAccounts,
   batchCreate,
   batchDelete,
   exportData,
