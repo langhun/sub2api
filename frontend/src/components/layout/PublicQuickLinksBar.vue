@@ -1,9 +1,9 @@
 <template>
-  <nav
+  <div
     v-if="visibleLinks.length > 0"
-    class="border-b border-gray-200/60 bg-white/75 px-4 backdrop-blur dark:border-dark-800/60 dark:bg-dark-950/75 md:px-6"
+    :class="containerClass"
   >
-    <div class="flex min-h-12 items-center gap-2 overflow-x-auto py-2">
+    <div :class="linksClass">
       <router-link
         v-for="link in visibleLinks"
         :key="link.path"
@@ -18,7 +18,7 @@
         {{ link.label }}
       </router-link>
     </div>
-  </nav>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -28,6 +28,12 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 
 type PublicLinkKey = 'leaderboard' | 'keyUsage' | 'monitoring' | 'pricing'
+
+const props = withDefaults(defineProps<{
+  inline?: boolean
+}>(), {
+  inline: false,
+})
 
 const route = useRoute()
 const { t } = useI18n()
@@ -54,4 +60,12 @@ const links = computed(() => [
 ])
 
 const visibleLinks = computed(() => links.value.filter((link) => visibility.value[link.key] !== false))
+
+const containerClass = computed(() => props.inline
+  ? 'w-full'
+  : 'border-b border-gray-200/60 bg-white/75 px-4 backdrop-blur dark:border-dark-800/60 dark:bg-dark-950/75 md:px-6')
+
+const linksClass = computed(() => props.inline
+  ? 'flex items-center justify-end gap-2 overflow-x-auto whitespace-nowrap'
+  : 'flex min-h-12 items-center gap-2 overflow-x-auto py-2')
 </script>
