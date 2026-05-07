@@ -8,24 +8,18 @@
         <span :class="['badge text-xs', mainStatusClass]">
           {{ mainStatusText }}
         </span>
-        <div class="group relative">
-          <button
-            type="button"
-            class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
-            :aria-label="t('admin.accounts.statusGuide.shortAction')"
-            @click.prevent
-          >
-            ?
-          </button>
-          <div
-            class="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-1.5 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 dark:bg-gray-700"
-          >
-            {{ mainStatusTipText }}
-            <div
-              class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full border-4 border-transparent border-b-gray-900 dark:border-b-gray-700"
-            ></div>
-          </div>
-        </div>
+        <HelpTooltip :content="mainStatusTipText" width-class="w-56">
+          <template #trigger>
+            <button
+              type="button"
+              class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
+              :aria-label="t('admin.accounts.statusGuide.shortAction')"
+              @click.prevent
+            >
+              ?
+            </button>
+          </template>
+        </HelpTooltip>
 
         <div v-if="hasError && account.error_message" class="group/error relative">
           <svg
@@ -61,24 +55,18 @@
         <span :class="['badge text-xs', schedulingStatusClass]">
           {{ schedulingStatusText }}
         </span>
-        <div class="group relative">
-          <button
-            type="button"
-            class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
-            :aria-label="t('admin.accounts.statusGuide.shortAction')"
-            @click.prevent
-          >
-            ?
-          </button>
-          <div
-            class="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-1.5 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 dark:bg-gray-700"
-          >
-            {{ schedulingStatusTipText }}
-            <div
-              class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full border-4 border-transparent border-b-gray-900 dark:border-b-gray-700"
-            ></div>
-          </div>
-        </div>
+        <HelpTooltip :content="schedulingStatusTipText" width-class="w-56">
+          <template #trigger>
+            <button
+              type="button"
+              class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
+              :aria-label="t('admin.accounts.statusGuide.shortAction')"
+              @click.prevent
+            >
+              ?
+            </button>
+          </template>
+        </HelpTooltip>
       </div>
 
       <div class="flex items-start gap-2">
@@ -99,24 +87,18 @@
             <span v-else :class="['badge text-xs', runtimeStatusClass]">
               {{ runtimeStatusText }}
             </span>
-            <div class="group relative">
-              <button
-                type="button"
-                class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
-                :aria-label="t('admin.accounts.statusGuide.shortAction')"
-                @click.prevent
-              >
-                ?
-              </button>
-              <div
-                class="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-1.5 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 dark:bg-gray-700"
-              >
-                {{ runtimeStatusTipText }}
-                <div
-                  class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full border-4 border-transparent border-b-gray-900 dark:border-b-gray-700"
-                ></div>
-              </div>
-            </div>
+            <HelpTooltip :content="runtimeStatusTipText" width-class="w-56">
+              <template #trigger>
+                <button
+                  type="button"
+                  class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
+                  :aria-label="t('admin.accounts.statusGuide.shortAction')"
+                  @click.prevent
+                >
+                  ?
+                </button>
+              </template>
+            </HelpTooltip>
           </div>
 
           <div
@@ -196,6 +178,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Icon from '@/components/icons/Icon.vue'
 import type { Account } from '@/types'
 import { formatCountdown, formatCountdownWithSuffix, formatTime } from '@/utils/format'
