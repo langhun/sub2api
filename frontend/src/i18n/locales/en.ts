@@ -3137,8 +3137,9 @@ export default {
         inactive: 'Main State: Inactive',
         error: 'Main State: Error',
         rateLimited: 'Runtime: 429 Rate Limit',
+        overloaded: 'Runtime: 529 Overloaded',
         tempUnschedulable: 'Runtime: Temp Cooldown (incl. 401)',
-        unschedulable: 'Schedule Disabled'
+        unschedulable: 'Scheduling Paused (manual/expiry)'
       },
       columns: {
         name: 'Name',
