@@ -493,8 +493,13 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	if accountType != "" {
 		q = q.Where(dbaccount.TypeEQ(accountType))
 	}
-	if normalizedStatus := normalizeAccountStatusListFilter(status); normalizedStatus != "" {
-		switch normalizedStatus {
+	statusFilter := parseAccountStatusListFilter(status)
+	if statusFilter.hasStructured() {
+		if preds := statusFilter.predicates(now); len(preds) > 0 {
+			q = q.Where(preds...)
+		}
+	} else if statusFilter.legacy != "" {
+		switch statusFilter.legacy {
 		case service.StatusActive:
 			q = q.Where(activeSchedulablePredicates(now)...)
 		case "rate_limited":
@@ -526,7 +531,7 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 		case "inactive", service.StatusDisabled:
 			q = q.Where(dbaccount.StatusIn("inactive", service.StatusDisabled))
 		default:
-			q = q.Where(dbaccount.StatusEQ(normalizeAccountStatusForStorage(normalizedStatus)))
+			q = q.Where(dbaccount.StatusEQ(normalizeAccountStatusForStorage(statusFilter.legacy)))
 		}
 	}
 	if search != "" {
@@ -1742,15 +1747,115 @@ func notExpiredPredicate(now time.Time) dbpredicate.Account {
 	)
 }
 
-func normalizeAccountStatusListFilter(status string) string {
+type accountStatusListFilter struct {
+	legacy     string
+	main       string
+	runtime    string
+	scheduling string
+}
+
+func (f accountStatusListFilter) hasStructured() bool {
+	return f.main != "" || f.runtime != "" || f.scheduling != ""
+}
+
+func (f accountStatusListFilter) predicates(now time.Time) []dbpredicate.Account {
+	preds := make([]dbpredicate.Account, 0, 6)
+
+	switch f.main {
+	case service.StatusActive:
+		preds = append(preds, dbaccount.StatusEQ(service.StatusActive))
+	case "inactive", service.StatusDisabled:
+		preds = append(preds, dbaccount.StatusIn("inactive", service.StatusDisabled))
+	case service.StatusError:
+		preds = append(preds, dbaccount.StatusEQ(service.StatusError))
+	}
+
+	switch f.runtime {
+	case "normal":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			notRateLimitedPredicate(now),
+			notOverloadedPredicate(now),
+			notTempUnschedulablePredicate(now),
+		)
+	case "rate_limited":
+		preds = append(preds, dbaccount.StatusEQ(service.StatusActive), rateLimitedPredicate(now))
+	case "overloaded":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			notRateLimitedPredicate(now),
+			overloadedPredicate(now),
+		)
+	case "temp_unschedulable":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			notRateLimitedPredicate(now),
+			notOverloadedPredicate(now),
+			tempUnschedulableActivePredicate(now),
+		)
+	}
+
+	switch f.scheduling {
+	case "enabled":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			dbaccount.SchedulableEQ(true),
+			notExpiredPredicate(now),
+		)
+	case "paused":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			schedulingDisabledPredicate(now),
+		)
+	}
+
+	return preds
+}
+
+func parseAccountStatusListFilter(status string) accountStatusListFilter {
 	normalized := strings.TrimSpace(strings.ToLower(status))
 	if normalized == "" {
-		return ""
+		return accountStatusListFilter{}
 	}
-	if normalized == service.StatusDisabled {
+
+	filter := accountStatusListFilter{}
+	if !strings.Contains(normalized, ":") {
+		filter.legacy = normalizeLegacyAccountStatusFilterValue(normalized)
+		return filter
+	}
+
+	for _, part := range strings.Split(normalized, "|") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		key, value, ok := strings.Cut(part, ":")
+		if !ok {
+			filter.legacy = normalizeLegacyAccountStatusFilterValue(part)
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		switch key {
+		case "main":
+			filter.main = normalizeLegacyAccountStatusFilterValue(value)
+		case "runtime":
+			filter.runtime = value
+		case "scheduling":
+			filter.scheduling = value
+		default:
+			filter.legacy = normalizeLegacyAccountStatusFilterValue(part)
+		}
+	}
+
+	return filter
+}
+
+func normalizeLegacyAccountStatusFilterValue(status string) string {
+	if status == service.StatusDisabled {
 		return "inactive"
 	}
-	return normalized
+	return status
 }
 
 func activeSchedulablePredicates(now time.Time) []dbpredicate.Account {

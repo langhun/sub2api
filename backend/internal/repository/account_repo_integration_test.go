@@ -435,6 +435,54 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 			},
 		},
 		{
+			name: "filter_by_structured_status_runtime_normal_and_scheduling_enabled",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "active-normal", Status: service.StatusActive, Schedulable: true})
+				paused := mustCreateAccount(s.T(), client, &service.Account{Name: "active-paused", Status: service.StatusActive})
+				err := client.Account.UpdateOneID(paused.ID).
+					SetSchedulable(false).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				rateLimited := mustCreateAccount(s.T(), client, &service.Account{Name: "active-rate-limited", Status: service.StatusActive})
+				err = client.Account.UpdateOneID(rateLimited.ID).
+					SetRateLimitResetAt(time.Now().Add(10 * time.Minute)).
+					Exec(context.Background())
+				s.Require().NoError(err)
+			},
+			status:    "main:active|runtime:normal|scheduling:enabled",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("active-normal", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_structured_status_scheduling_paused",
+			setup: func(client *dbent.Client) {
+				expired := mustCreateAccount(s.T(), client, &service.Account{
+					Name:               "active-expired",
+					Status:             service.StatusActive,
+					Schedulable:        true,
+					AutoPauseOnExpired: true,
+				})
+				err := client.Account.UpdateOneID(expired.ID).
+					SetExpiresAt(time.Now().Add(-5 * time.Minute)).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				manual := mustCreateAccount(s.T(), client, &service.Account{Name: "active-paused", Status: service.StatusActive})
+				err = client.Account.UpdateOneID(manual.ID).
+					SetSchedulable(false).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				mustCreateAccount(s.T(), client, &service.Account{Name: "active-normal", Status: service.StatusActive, Schedulable: true})
+			},
+			status:    "scheduling:paused",
+			wantCount: 2,
+			validate: func(accounts []service.Account) {
+				names := []string{accounts[0].Name, accounts[1].Name}
+				s.ElementsMatch([]string{"active-expired", "active-paused"}, names)
+			},
+		},
+		{
 			name: "filter_by_search",
 			setup: func(client *dbent.Client) {
 				mustCreateAccount(s.T(), client, &service.Account{Name: "alpha-account"})

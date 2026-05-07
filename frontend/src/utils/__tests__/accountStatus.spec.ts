@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  composeAccountStatusFilterToken,
   getAccountMainStatusState,
   getAccountRuntimeStatusState,
   getAccountSchedulingStatusState,
   getTempUnschedRuntimeCode,
+  matchesAccountMainStatusFilter,
+  matchesAccountRuntimeStatusFilter,
+  matchesAccountSchedulingStatusFilter,
   matchesAccountStatusFilter,
   parseTempUnschedReason,
 } from '../accountStatus'
@@ -139,5 +143,33 @@ describe('accountStatus utils', () => {
 
     expect(matchesAccountStatusFilter(account, 'active')).toBe(false)
     expect(matchesAccountStatusFilter(account, 'unschedulable')).toBe(true)
+  })
+
+  it('matches split main/runtime/scheduling filters independently', () => {
+    const account = {
+      status: 'active',
+      schedulable: false,
+      auto_pause_on_expired: false,
+      expires_at: null,
+      rate_limit_reset_at: null,
+      overload_until: null,
+      temp_unschedulable_until: null,
+      temp_unschedulable_reason: null,
+      quota_limit: null,
+      quota_used: null,
+      quota_daily_limit: null,
+      quota_daily_used: null,
+      quota_weekly_limit: null,
+      quota_weekly_used: null,
+    } as const
+
+    expect(matchesAccountMainStatusFilter(account, 'active')).toBe(true)
+    expect(matchesAccountRuntimeStatusFilter(account, 'normal')).toBe(true)
+    expect(matchesAccountSchedulingStatusFilter(account, 'paused')).toBe(true)
+  })
+
+  it('builds composite status tokens for server-side queries', () => {
+    expect(composeAccountStatusFilterToken('active', 'overloaded', 'enabled')).toBe('main:active|runtime:overloaded|scheduling:enabled')
+    expect(composeAccountStatusFilterToken('', '', '')).toBe('')
   })
 })

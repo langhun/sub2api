@@ -10,7 +10,9 @@
     <Select :model-value="filters.platform" class="w-40" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
     <Select :model-value="filters.tier" class="w-44" :options="tierOpts" @update:model-value="updateTier" @change="$emit('change')" />
     <Select :model-value="filters.type" class="w-40" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
-    <Select :model-value="filters.status" class="w-56" :options="sOpts" @update:model-value="updateStatus" @change="$emit('change')" />
+    <Select :model-value="filters.main_status" class="w-44" :options="mainStatusOpts" @update:model-value="updateMainStatus" @change="$emit('change')" />
+    <Select :model-value="filters.runtime_status" class="w-56" :options="runtimeStatusOpts" @update:model-value="updateRuntimeStatus" @change="$emit('change')" />
+    <Select :model-value="filters.scheduling_status" class="w-48" :options="schedulingStatusOpts" @update:model-value="updateSchedulingStatus" @change="$emit('change')" />
     <Select :model-value="filters.privacy_mode" class="w-40" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
     <Select :model-value="filters.group" class="w-40" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
   </div>
@@ -88,7 +90,9 @@ const updatePlatform = (value: string | number | boolean | null) => {
 }
 const updateTier = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, tier: toFilterValue(value) }) }
 const updateType = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, type: value }) }
-const updateStatus = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, status: value }) }
+const updateMainStatus = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, main_status: toFilterValue(value) }) }
+const updateRuntimeStatus = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, runtime_status: toFilterValue(value) }) }
+const updateSchedulingStatus = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, scheduling_status: toFilterValue(value) }) }
 const updatePrivacyMode = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, privacy_mode: value }) }
 const updateGroup = (value: string | number | boolean | null) => { emit('update:filters', { ...props.filters, group: value }) }
 const pOpts = computed(() => [{ value: '', label: t('admin.accounts.allPlatforms') }, { value: 'anthropic', label: 'Anthropic' }, { value: 'openai', label: 'OpenAI' }, { value: 'gemini', label: 'Gemini' }, { value: 'antigravity', label: 'Antigravity' }])
@@ -107,15 +111,23 @@ const tierOpts = computed<TierOption[]>(() => {
   ]
 })
 const tOpts = computed(() => [{ value: '', label: t('admin.accounts.allTypes') }, { value: 'oauth', label: t('admin.accounts.oauthType') }, { value: 'setup-token', label: t('admin.accounts.setupToken') }, { value: 'apikey', label: t('admin.accounts.apiKey') }, { value: 'bedrock', label: 'AWS Bedrock' }])
-const sOpts = computed(() => [
-  { value: '', label: t('admin.accounts.allStatus') },
-  { value: 'active', label: t('admin.accounts.statusFilters.active') },
-  { value: 'inactive', label: t('admin.accounts.statusFilters.inactive') },
-  { value: 'error', label: t('admin.accounts.statusFilters.error') },
-  { value: 'rate_limited', label: t('admin.accounts.statusFilters.rateLimited') },
-  { value: 'overloaded', label: t('admin.accounts.statusFilters.overloaded') },
-  { value: 'temp_unschedulable', label: t('admin.accounts.statusFilters.tempUnschedulable') },
-  { value: 'unschedulable', label: t('admin.accounts.statusFilters.unschedulable') }
+const mainStatusOpts = computed(() => [
+  { value: '', label: t('admin.accounts.statusFilters.allMain') },
+  { value: 'active', label: t('admin.accounts.status.mainActive') },
+  { value: 'inactive', label: t('admin.accounts.status.mainInactive') },
+  { value: 'error', label: t('admin.accounts.status.mainError') }
+])
+const runtimeStatusOpts = computed(() => [
+  { value: '', label: t('admin.accounts.statusFilters.allRuntime') },
+  { value: 'normal', label: t('admin.accounts.status.runtimeNormal') },
+  { value: 'rate_limited', label: t('admin.accounts.status.runtimeRateLimited') },
+  { value: 'overloaded', label: t('admin.accounts.status.runtimeOverloaded') },
+  { value: 'temp_unschedulable', label: t('admin.accounts.statusFilters.tempUnschedulable') }
+])
+const schedulingStatusOpts = computed(() => [
+  { value: '', label: t('admin.accounts.statusFilters.allScheduling') },
+  { value: 'enabled', label: t('admin.accounts.status.scheduleEnabled') },
+  { value: 'paused', label: t('admin.accounts.statusFilters.unschedulable') }
 ])
 const privacyOpts = computed(() => [
   { value: '', label: t('admin.accounts.allPrivacyModes') },
