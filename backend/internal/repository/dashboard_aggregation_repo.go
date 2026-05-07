@@ -19,6 +19,7 @@ type dashboardAggregationRepository struct {
 
 const usageLogsCleanupBatchSize = 10000
 const usageBillingDedupCleanupBatchSize = 10000
+const usageLogsPartitionTableComment = "用量日志月分区表（按 UTC 月份切分）"
 
 // NewDashboardAggregationRepository 创建仪表盘预聚合仓储。
 func NewDashboardAggregationRepository(sqlDB *sql.DB) service.DashboardAggregationRepository {
@@ -521,13 +522,22 @@ func (r *dashboardAggregationRepository) createUsageLogsPartition(ctx context.Co
 	monthStart := truncateToMonthUTC(month)
 	nextMonth := monthStart.AddDate(0, 1, 0)
 	name := fmt.Sprintf("usage_logs_%s", monthStart.Format("200601"))
-	query := fmt.Sprintf(
+	createQuery := fmt.Sprintf(
 		"CREATE TABLE IF NOT EXISTS %s PARTITION OF usage_logs FOR VALUES FROM (%s) TO (%s)",
 		pq.QuoteIdentifier(name),
 		pq.QuoteLiteral(monthStart.Format("2006-01-02")),
 		pq.QuoteLiteral(nextMonth.Format("2006-01-02")),
 	)
-	_, err := r.sql.ExecContext(ctx, query)
+	if _, err := r.sql.ExecContext(ctx, createQuery); err != nil {
+		return err
+	}
+
+	commentQuery := fmt.Sprintf(
+		"COMMENT ON TABLE %s IS %s",
+		pq.QuoteIdentifier(name),
+		pq.QuoteLiteral(usageLogsPartitionTableComment),
+	)
+	_, err := r.sql.ExecContext(ctx, commentQuery)
 	return err
 }
 

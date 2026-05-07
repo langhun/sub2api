@@ -5,6 +5,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -116,6 +117,39 @@ func TestMigrationsRunner_AuthIdentityAndPaymentSchemaStayAligned(t *testing.T) 
 	requireIndex(t, tx, "payment_orders", "paymentorder_out_trade_no")
 	requirePartialUniqueIndexDefinition(t, tx, "payment_orders", "paymentorder_out_trade_no", "out_trade_no", "WHERE")
 	requireIndexAbsent(t, tx, "payment_orders", "paymentorder_out_trade_no_unique")
+}
+
+func TestMigrationsRunner_AllPublicTablesHaveComments(t *testing.T) {
+	tx := testTx(t)
+
+	rows, err := tx.QueryContext(context.Background(), `
+SELECT
+	c.relname,
+	COALESCE(obj_description(c.oid, 'pg_class'), '')
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+  AND c.relkind IN ('r', 'p')
+ORDER BY c.relname
+`)
+	require.NoError(t, err)
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var missing []string
+	for rows.Next() {
+		var (
+			tableName string
+			comment   string
+		)
+		require.NoError(t, rows.Scan(&tableName, &comment))
+		if strings.TrimSpace(comment) == "" {
+			missing = append(missing, tableName)
+		}
+	}
+	require.NoError(t, rows.Err())
+	require.Empty(t, missing, "expected all public tables to have comments")
 }
 
 func requireIndex(t *testing.T, tx *sql.Tx, table, index string) {
