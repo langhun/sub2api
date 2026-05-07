@@ -332,7 +332,16 @@ func (s *TokenRefreshService) refreshWithRetry(ctx context.Context, account *Acc
 	// 设置临时不可调度 10 分钟（不标记 error，保持 status=active 让下个刷新周期能继续尝试）
 	until := time.Now().Add(tokenRefreshTempUnschedDuration)
 	reason := fmt.Sprintf("token refresh retry exhausted: %v", lastErr)
-	if setErr := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); setErr != nil {
+	structuredReason := BuildTempUnschedReason(&TempUnschedState{
+		UntilUnix:       until.Unix(),
+		TriggeredAtUnix: time.Now().Unix(),
+		StatusCode:      0,
+		ReasonCode:      TempUnschedReasonCodeTokenRefreshRetryExhausted,
+		MatchedKeyword:  "token_refresh",
+		RuleIndex:       -1,
+		ErrorMessage:    reason,
+	}, reason)
+	if setErr := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, structuredReason); setErr != nil {
 		slog.Warn("token_refresh.set_temp_unschedulable_failed",
 			"account_id", account.ID,
 			"error", setErr,

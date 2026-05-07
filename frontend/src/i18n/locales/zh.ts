@@ -3276,6 +3276,22 @@ export default {
         rateLimited: '限流中',
         overloaded: '过载中',
         tempUnschedulable: '临时不可调度',
+        mainActive: '正常',
+        mainInactive: '停用',
+        mainError: '错误',
+        scheduleEnabled: '已开启',
+        scheduleManualPaused: '已关闭',
+        scheduleExpiredPaused: '过期自动暂停',
+        runtimeNormal: '无冷却',
+        runtimeRateLimited: '429 限流中',
+        runtimeOverloaded: '529 过载中',
+        runtimeTempUnschedulable: '临时冷却',
+        runtimeOauth401Cooldown: '401 认证冷却',
+        runtimeForbiddenCooldown: '403 冷却',
+        runtimeHttpCooldown: '{code} 冷却',
+        runtimeStreamTimeoutCooldown: '流超时冷却',
+        runtimeTokenRefreshCooldown: '刷新冷却',
+        runtimeQuotaExceeded: '配额超限',
         oauth401Cooldown: '401 认证冷却',
         forbiddenCooldown: '403 临时冷却',
         tempUnschedulableWithCode: '{code} 临时冷却',
@@ -3298,13 +3314,18 @@ export default {
         overloadedUntil: '负载过重，重置时间：{time}',
         viewTempUnschedDetails: '查看临时不可调度详情'
       },
+      statusLayers: {
+        main: '主状态',
+        scheduling: '调度开关',
+        runtime: '运行时'
+      },
       statusFilters: {
         active: '正常可调度',
-        inactive: '停用（主状态）',
-        error: '错误（主状态）',
-        rateLimited: '429 限流中',
-        tempUnschedulable: '临时不可调度（含 401 冷却）',
-        unschedulable: '手动暂停'
+        inactive: '主状态停用',
+        error: '主状态错误',
+        rateLimited: '运行时 429 限流',
+        tempUnschedulable: '运行时临时冷却（含 401）',
+        unschedulable: '调度开关关闭'
       },
       tempUnschedulable: {
         title: '临时不可调度',

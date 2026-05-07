@@ -13,6 +13,13 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
+vi.mock('@/utils/format', () => ({
+  formatCountdown: () => '10m',
+  formatCountdownWithSuffix: () => '10m later',
+  formatDateTime: (value: unknown) => String(value ?? ''),
+  formatTime: (value: unknown) => String(value ?? '')
+}))
+
 function makeAccount(overrides: Partial<Account>): Account {
   return {
     id: 1,
@@ -43,6 +50,49 @@ function makeAccount(overrides: Partial<Account>): Account {
 }
 
 describe('AccountStatusIndicator', () => {
+  it('把主状态、调度开关和 401 运行时冷却分层显示出来', () => {
+    const future = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          temp_unschedulable_until: future,
+          temp_unschedulable_reason: 'OAuth 401: invalid or expired credentials'
+        })
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.statusLayers.main')
+    expect(wrapper.text()).toContain('admin.accounts.statusLayers.scheduling')
+    expect(wrapper.text()).toContain('admin.accounts.statusLayers.runtime')
+    expect(wrapper.text()).toContain('admin.accounts.status.mainActive')
+    expect(wrapper.text()).toContain('admin.accounts.status.scheduleEnabled')
+    expect(wrapper.text()).toContain('admin.accounts.status.runtimeOauth401Cooldown')
+    expect(wrapper.text()).toContain('admin.accounts.status.tempUnschedAutoResume')
+  })
+
+  it('手动关闭调度时，调度开关层显示关闭，运行时层保持正常', () => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          schedulable: false
+        })
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.status.scheduleManualPaused')
+    expect(wrapper.text()).toContain('admin.accounts.status.runtimeNormal')
+  })
+
   it('模型限流 + overages 启用 + 无 AICredits key → 显示 ⚡ (credits_active)', () => {
     const wrapper = mount(AccountStatusIndicator, {
       props: {

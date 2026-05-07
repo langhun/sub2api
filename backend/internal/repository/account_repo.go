@@ -77,6 +77,28 @@ func newAccountRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor, schedul
 	return &accountRepository{client: client, sql: sqlq, schedulerCache: schedulerCache}
 }
 
+func normalizeAccountStatusForStorage(status string) string {
+	trimmed := strings.TrimSpace(status)
+	if trimmed == "" {
+		return status
+	}
+	switch strings.ToLower(trimmed) {
+	case service.StatusDisabled:
+		return service.StatusDisabled
+	case "inactive":
+		return service.StatusDisabled
+	default:
+		return trimmed
+	}
+}
+
+func normalizeAccountStatusForResponse(status string) string {
+	if status == service.StatusDisabled {
+		return "inactive"
+	}
+	return status
+}
+
 func (r *accountRepository) Create(ctx context.Context, account *service.Account) error {
 	if account == nil {
 		return service.ErrAccountNilInput
@@ -91,7 +113,7 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 		SetExtra(normalizeJSONMap(account.Extra)).
 		SetConcurrency(account.Concurrency).
 		SetPriority(account.Priority).
-		SetStatus(account.Status).
+		SetStatus(normalizeAccountStatusForStorage(account.Status)).
 		SetErrorMessage(account.ErrorMessage).
 		SetSchedulable(account.Schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
@@ -328,7 +350,7 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		SetExtra(normalizeJSONMap(account.Extra)).
 		SetConcurrency(account.Concurrency).
 		SetPriority(account.Priority).
-		SetStatus(account.Status).
+		SetStatus(normalizeAccountStatusForStorage(account.Status)).
 		SetErrorMessage(account.ErrorMessage).
 		SetSchedulable(account.Schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
@@ -527,6 +549,8 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 					))
 				}),
 			)
+		case "inactive", service.StatusDisabled:
+			q = q.Where(dbaccount.StatusIn("inactive", service.StatusDisabled))
 		default:
 			q = q.Where(dbaccount.StatusEQ(status))
 		}
@@ -1579,8 +1603,9 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 		}
 	}
 	if updates.Status != nil {
+		normalizedStatus := normalizeAccountStatusForStorage(*updates.Status)
 		setClauses = append(setClauses, "status = $"+itoa(idx))
-		args = append(args, *updates.Status)
+		args = append(args, normalizedStatus)
 		idx++
 	}
 	if updates.Schedulable != nil {
@@ -1631,8 +1656,11 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 			logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue bulk update failed: err=%v", err)
 		}
 		shouldSync := false
-		if updates.Status != nil && (*updates.Status == service.StatusError || *updates.Status == service.StatusDisabled) {
-			shouldSync = true
+		if updates.Status != nil {
+			normalizedStatus := normalizeAccountStatusForStorage(*updates.Status)
+			if normalizedStatus == service.StatusError || normalizedStatus == service.StatusDisabled {
+				shouldSync = true
+			}
 		}
 		if updates.Schedulable != nil && !*updates.Schedulable {
 			shouldSync = true
@@ -1888,6 +1916,8 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 
 	rateMultiplier := m.RateMultiplier
 
+	status := normalizeAccountStatusForResponse(m.Status)
+
 	return &service.Account{
 		ID:                      m.ID,
 		Name:                    m.Name,
@@ -1901,7 +1931,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		Priority:                m.Priority,
 		RateMultiplier:          &rateMultiplier,
 		LoadFactor:              m.LoadFactor,
-		Status:                  m.Status,
+		Status:                  status,
 		ErrorMessage:            derefString(m.ErrorMessage),
 		LastUsedAt:              m.LastUsedAt,
 		ExpiresAt:               m.ExpiresAt,
