@@ -49,7 +49,9 @@ describe('AccountTableFilters', () => {
           platform: '',
           tier: '',
           type: '',
-          status: '',
+          main_status: '',
+          runtime_status: '',
+          scheduling_status: '',
           privacy_mode: '',
           group: ''
         },
@@ -65,12 +67,17 @@ describe('AccountTableFilters', () => {
 
     const text = wrapper.text()
 
-    expect(text).toContain('admin.accounts.statusFilters.active')
-    expect(text).toContain('admin.accounts.statusFilters.inactive')
-    expect(text).toContain('admin.accounts.statusFilters.error')
-    expect(text).toContain('admin.accounts.statusFilters.rateLimited')
-    expect(text).toContain('admin.accounts.statusFilters.overloaded')
+    expect(text).toContain('admin.accounts.statusFilters.allMain')
+    expect(text).toContain('admin.accounts.status.mainActive')
+    expect(text).toContain('admin.accounts.status.mainInactive')
+    expect(text).toContain('admin.accounts.status.mainError')
+    expect(text).toContain('admin.accounts.statusFilters.allRuntime')
+    expect(text).toContain('admin.accounts.status.runtimeNormal')
+    expect(text).toContain('admin.accounts.status.runtimeRateLimited')
+    expect(text).toContain('admin.accounts.status.runtimeOverloaded')
     expect(text).toContain('admin.accounts.statusFilters.tempUnschedulable')
+    expect(text).toContain('admin.accounts.statusFilters.allScheduling')
+    expect(text).toContain('admin.accounts.status.scheduleEnabled')
     expect(text).toContain('admin.accounts.statusFilters.unschedulable')
   })
 })

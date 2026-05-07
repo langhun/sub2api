@@ -395,7 +395,15 @@ import Icon from '@/components/icons/Icon.vue'
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
 import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfilesModal.vue'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
-import { matchesAccountStatusFilter, type AccountStatusFilterValue } from '@/utils/accountStatus'
+import {
+  composeAccountStatusFilterToken,
+  matchesAccountMainStatusFilter,
+  matchesAccountRuntimeStatusFilter,
+  matchesAccountSchedulingStatusFilter,
+  type AccountMainStatusFilterValue,
+  type AccountRuntimeStatusFilterValue,
+  type AccountSchedulingStatusFilterValue
+} from '@/utils/accountStatus'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
 
@@ -463,6 +471,33 @@ const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
 type AccountSortOrder = 'asc' | 'desc'
 type AccountSortState = {
+  sort_by: string
+  sort_order: AccountSortOrder
+}
+
+type AccountLocalFilterParams = {
+  platform: string
+  tier: string
+  type: string
+  main_status: string
+  runtime_status: string
+  scheduling_status: string
+  privacy_mode: string
+  group: string
+  search: string
+  sort_by: string
+  sort_order: AccountSortOrder
+  status?: string
+}
+
+type AccountRequestFilterParams = {
+  platform: string
+  tier: string
+  type: string
+  status: string
+  privacy_mode: string
+  group: string
+  search: string
   sort_by: string
   sort_order: AccountSortOrder
 }
@@ -673,6 +708,43 @@ const toggleColumn = (key: string) => {
 
 const isColumnVisible = (key: string) => !hiddenColumns.has(key)
 
+const buildAccountLocalFilters = (source: Partial<AccountLocalFilterParams>): AccountLocalFilterParams => {
+  const current = source
+  return {
+    platform: current.platform || '',
+    tier: current.tier || '',
+    type: current.type || '',
+    main_status: current.main_status || '',
+    runtime_status: current.runtime_status || '',
+    scheduling_status: current.scheduling_status || '',
+    group: current.group || '',
+    privacy_mode: current.privacy_mode || '',
+    search: current.search || '',
+    sort_by: current.sort_by || sortState.sort_by,
+    sort_order: current.sort_order || sortState.sort_order
+  }
+}
+
+const buildAccountRequestFilters = (source: Partial<AccountLocalFilterParams>): AccountRequestFilterParams => {
+  const filters = buildAccountLocalFilters(source)
+  const encodedStatus = composeAccountStatusFilterToken(
+    filters.main_status as AccountMainStatusFilterValue,
+    filters.runtime_status as AccountRuntimeStatusFilterValue,
+    filters.scheduling_status as AccountSchedulingStatusFilterValue
+  ) || (source?.status || '')
+  return {
+    platform: filters.platform,
+    tier: filters.tier,
+    type: filters.type,
+    status: encodedStatus,
+    group: filters.group,
+    privacy_mode: filters.privacy_mode,
+    search: filters.search,
+    sort_by: filters.sort_by,
+    sort_order: filters.sort_order
+  }
+}
+
 const {
   items: accounts,
   loading,
@@ -684,12 +756,15 @@ const {
   handlePageChange: baseHandlePageChange,
   handlePageSizeChange: baseHandlePageSizeChange
 } = useTableLoader<Account, any>({
-  fetchFn: adminAPI.accounts.list,
+  fetchFn: (page, pageSize, filters, options) =>
+    adminAPI.accounts.list(page, pageSize, buildAccountRequestFilters(filters as Partial<AccountLocalFilterParams>), options),
   initialParams: {
     platform: '',
     tier: '',
     type: '',
-    status: '',
+    main_status: '',
+    runtime_status: '',
+    scheduling_status: '',
     privacy_mode: '',
     group: '',
     search: '',
@@ -904,18 +979,7 @@ const refreshAccountsIncrementally = async () => {
     const result = await adminAPI.accounts.listWithEtag(
       pagination.page,
       pagination.page_size,
-      toRaw(params) as {
-        platform?: string
-        tier?: string
-        type?: string
-        status?: string
-        privacy_mode?: string
-        group?: string
-        search?: string
-        sort_by?: string
-        sort_order?: AccountSortOrder
-
-      },
+      buildAccountRequestFilters(toRaw(params) as Partial<AccountLocalFilterParams>),
       { etag: autoRefreshETag.value }
     )
 
@@ -1393,25 +1457,14 @@ const accountMatchesTier = (account: Account, selectedTier: string, fallbackPlat
   return false
 }
 
-const buildAccountQueryFilters = () => ({
-  platform: params.platform || '',
-  tier: params.tier || '',
-  type: params.type || '',
-  status: params.status || '',
-  group: params.group || '',
-  privacy_mode: params.privacy_mode || '',
-  search: params.search || '',
-  sort_by: sortState.sort_by,
-  sort_order: sortState.sort_order
-})
 const accountMatchesCurrentFilters = (account: Account) => {
-  const filters = buildAccountQueryFilters()
+  const filters = buildAccountLocalFilters(params as AccountLocalFilterParams)
   if (filters.platform && account.platform !== filters.platform) return false
   if (filters.tier && !accountMatchesTier(account, filters.tier, filters.platform)) return false
   if (filters.type && account.type !== filters.type) return false
-  if (filters.status && !matchesAccountStatusFilter(account, String(filters.status) as AccountStatusFilterValue)) {
-    return false
-  }
+  if (!matchesAccountMainStatusFilter(account, filters.main_status as AccountMainStatusFilterValue)) return false
+  if (!matchesAccountRuntimeStatusFilter(account, filters.runtime_status as AccountRuntimeStatusFilterValue)) return false
+  if (!matchesAccountSchedulingStatusFilter(account, filters.scheduling_status as AccountSchedulingStatusFilterValue)) return false
   if (filters.group) {
     const groupIds = account.group_ids ?? account.groups?.map((group) => group.id) ?? []
     if (filters.group === ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE) {
@@ -1494,7 +1547,7 @@ const handleExportData = async () => {
         ? { ids: selIds.value, includeProxies: includeProxyOnExport.value }
         : {
             includeProxies: includeProxyOnExport.value,
-            filters: buildAccountQueryFilters()
+            filters: buildAccountRequestFilters(params as AccountLocalFilterParams)
           }
     )
     const timestamp = formatExportTimestamp()

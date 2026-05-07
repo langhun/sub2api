@@ -17,6 +17,17 @@ export type AccountStatusFilterValue =
   | 'temp_unschedulable'
   | 'unschedulable'
 
+export type AccountMainStatusFilterValue = '' | 'active' | 'inactive' | 'error'
+
+export type AccountRuntimeStatusFilterValue =
+  | ''
+  | 'normal'
+  | 'rate_limited'
+  | 'overloaded'
+  | 'temp_unschedulable'
+
+export type AccountSchedulingStatusFilterValue = '' | 'enabled' | 'paused'
+
 export type StatusTone = 'success' | 'warning' | 'danger' | 'gray'
 
 export type AccountMainStatusCode =
@@ -230,6 +241,89 @@ export function matchesAccountStatusFilter(
     default:
       return true
   }
+}
+
+export function matchesAccountMainStatusFilter(
+  account: Pick<Account, 'status'>,
+  filter: AccountMainStatusFilterValue
+): boolean {
+  if (!filter) return true
+  const mainState = getAccountMainStatusState(account)
+  switch (filter) {
+    case 'active':
+      return mainState.code === 'main_active'
+    case 'inactive':
+      return mainState.code === 'main_inactive'
+    case 'error':
+      return mainState.code === 'main_error'
+    default:
+      return true
+  }
+}
+
+export function matchesAccountRuntimeStatusFilter(
+  account: Pick<
+    Account,
+    | 'status'
+    | 'rate_limit_reset_at'
+    | 'overload_until'
+    | 'temp_unschedulable_until'
+    | 'temp_unschedulable_reason'
+    | 'quota_limit'
+    | 'quota_used'
+    | 'quota_daily_limit'
+    | 'quota_daily_used'
+    | 'quota_weekly_limit'
+    | 'quota_weekly_used'
+  >,
+  filter: AccountRuntimeStatusFilterValue
+): boolean {
+  if (!filter) return true
+  if (account.status !== 'active') return false
+
+  const runtimeState = getAccountRuntimeStatusState(account)
+  switch (filter) {
+    case 'normal':
+      return runtimeState.code === 'runtime_normal'
+    case 'rate_limited':
+      return runtimeState.code === 'runtime_rate_limited'
+    case 'overloaded':
+      return runtimeState.code === 'runtime_overloaded'
+    case 'temp_unschedulable':
+      return isTempUnschedRuntimeCode(runtimeState.code)
+    default:
+      return true
+  }
+}
+
+export function matchesAccountSchedulingStatusFilter(
+  account: Pick<Account, 'status' | 'schedulable' | 'auto_pause_on_expired' | 'expires_at'>,
+  filter: AccountSchedulingStatusFilterValue
+): boolean {
+  if (!filter) return true
+  if (account.status !== 'active') return false
+
+  const schedulingState = getAccountSchedulingStatusState(account)
+  switch (filter) {
+    case 'enabled':
+      return schedulingState.code === 'schedule_enabled'
+    case 'paused':
+      return schedulingState.code !== 'schedule_enabled'
+    default:
+      return true
+  }
+}
+
+export function composeAccountStatusFilterToken(
+  mainStatus: AccountMainStatusFilterValue,
+  runtimeStatus: AccountRuntimeStatusFilterValue,
+  schedulingStatus: AccountSchedulingStatusFilterValue
+): string {
+  const parts: string[] = []
+  if (mainStatus) parts.push(`main:${mainStatus}`)
+  if (runtimeStatus) parts.push(`runtime:${runtimeStatus}`)
+  if (schedulingStatus) parts.push(`scheduling:${schedulingStatus}`)
+  return parts.join('|')
 }
 
 export function getAccountMainStatusState(

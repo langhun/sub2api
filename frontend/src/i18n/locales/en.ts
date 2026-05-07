@@ -3138,6 +3138,9 @@ export default {
         runtime: 'Runtime'
       },
       statusFilters: {
+        allMain: 'All Main States',
+        allRuntime: 'All Runtime States',
+        allScheduling: 'All Scheduling States',
         active: 'Active and Schedulable',
         inactive: 'Main State: Inactive',
         error: 'Main State: Error',

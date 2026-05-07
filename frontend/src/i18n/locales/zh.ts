@@ -3325,6 +3325,9 @@ export default {
         runtime: '运行时'
       },
       statusFilters: {
+        allMain: '全部主状态',
+        allRuntime: '全部运行时状态',
+        allScheduling: '全部调度状态',
         active: '正常可调度',
         inactive: '主状态停用',
         error: '主状态错误',
