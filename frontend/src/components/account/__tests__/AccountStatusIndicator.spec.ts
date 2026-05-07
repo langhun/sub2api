@@ -50,6 +50,22 @@ function makeAccount(overrides: Partial<Account>): Account {
 }
 
 describe('AccountStatusIndicator', () => {
+  it('每个状态层后面都有悬浮 tips 入口', () => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({})
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    const tipButtons = wrapper.findAll('button[aria-label="admin.accounts.statusGuide.shortAction"]')
+    expect(tipButtons).toHaveLength(3)
+  })
+
   it('把主状态、调度开关和 401 运行时冷却分层显示出来', () => {
     const future = new Date(Date.now() + 15 * 60 * 1000).toISOString()
     const wrapper = mount(AccountStatusIndicator, {
