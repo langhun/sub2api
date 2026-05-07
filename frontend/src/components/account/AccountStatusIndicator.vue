@@ -8,6 +8,24 @@
         <span :class="['badge text-xs', mainStatusClass]">
           {{ mainStatusText }}
         </span>
+        <div class="group relative">
+          <button
+            type="button"
+            class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
+            :aria-label="t('admin.accounts.statusGuide.shortAction')"
+            @click.prevent
+          >
+            ?
+          </button>
+          <div
+            class="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-1.5 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 dark:bg-gray-700"
+          >
+            {{ mainStatusTipText }}
+            <div
+              class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full border-4 border-transparent border-b-gray-900 dark:border-b-gray-700"
+            ></div>
+          </div>
+        </div>
 
         <div v-if="hasError && account.error_message" class="group/error relative">
           <svg
@@ -43,6 +61,24 @@
         <span :class="['badge text-xs', schedulingStatusClass]">
           {{ schedulingStatusText }}
         </span>
+        <div class="group relative">
+          <button
+            type="button"
+            class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
+            :aria-label="t('admin.accounts.statusGuide.shortAction')"
+            @click.prevent
+          >
+            ?
+          </button>
+          <div
+            class="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-1.5 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 dark:bg-gray-700"
+          >
+            {{ schedulingStatusTipText }}
+            <div
+              class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full border-4 border-transparent border-b-gray-900 dark:border-b-gray-700"
+            ></div>
+          </div>
+        </div>
       </div>
 
       <div class="flex items-start gap-2">
@@ -50,18 +86,38 @@
           {{ t('admin.accounts.statusLayers.runtime') }}
         </span>
         <div class="min-w-0">
-          <button
-            v-if="runtimeState.clickable"
-            type="button"
-            :class="['badge text-xs cursor-pointer', runtimeStatusClass]"
-            :title="t('admin.accounts.status.viewTempUnschedDetails')"
-            @click="handleTempUnschedClick"
-          >
-            {{ runtimeStatusText }}
-          </button>
-          <span v-else :class="['badge text-xs', runtimeStatusClass]">
-            {{ runtimeStatusText }}
-          </span>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="runtimeState.clickable"
+              type="button"
+              :class="['badge text-xs cursor-pointer', runtimeStatusClass]"
+              :title="t('admin.accounts.status.viewTempUnschedDetails')"
+              @click="handleTempUnschedClick"
+            >
+              {{ runtimeStatusText }}
+            </button>
+            <span v-else :class="['badge text-xs', runtimeStatusClass]">
+              {{ runtimeStatusText }}
+            </span>
+            <div class="group relative">
+              <button
+                type="button"
+                class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
+                :aria-label="t('admin.accounts.statusGuide.shortAction')"
+                @click.prevent
+              >
+                ?
+              </button>
+              <div
+                class="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-1.5 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 dark:bg-gray-700"
+              >
+                {{ runtimeStatusTipText }}
+                <div
+                  class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full border-4 border-transparent border-b-gray-900 dark:border-b-gray-700"
+                ></div>
+              </div>
+            </div>
+          </div>
 
           <div
             v-if="runtimeDetailText"
@@ -280,9 +336,25 @@ const mainStatusClass = computed(() => getBadgeClassForTone(mainStatusState.valu
 
 const mainStatusText = computed(() => t(statusTextKeyMap[mainStatusState.value.code]))
 
+const mainStatusGuideKeyMap = {
+  main_active: 'admin.accounts.statusGuide.mainActive',
+  main_inactive: 'admin.accounts.statusGuide.mainInactive',
+  main_error: 'admin.accounts.statusGuide.mainError',
+} as const
+
+const mainStatusTipText = computed(() => t(mainStatusGuideKeyMap[mainStatusState.value.code]))
+
 const schedulingStatusClass = computed(() => getBadgeClassForTone(schedulingStatusState.value.tone))
 
 const schedulingStatusText = computed(() => t(statusTextKeyMap[schedulingStatusState.value.code]))
+
+const schedulingStatusGuideKeyMap = {
+  schedule_enabled: 'admin.accounts.statusGuide.scheduleEnabled',
+  schedule_manual_paused: 'admin.accounts.statusGuide.scheduleManualPaused',
+  schedule_expired_paused: 'admin.accounts.statusGuide.scheduleExpiredPaused',
+} as const
+
+const schedulingStatusTipText = computed(() => t(schedulingStatusGuideKeyMap[schedulingStatusState.value.code]))
 
 const runtimeStatusClass = computed(() => getBadgeClassForTone(runtimeState.value.tone))
 
@@ -293,6 +365,33 @@ const runtimeStatusText = computed(() => {
     })
   }
   return t(statusTextKeyMap[runtimeState.value.code])
+})
+
+const runtimeStatusTipText = computed(() => {
+  switch (runtimeState.value.code) {
+    case 'runtime_normal':
+      return t('admin.accounts.statusGuide.runtimeNormal')
+    case 'runtime_rate_limited':
+      return t('admin.accounts.statusGuide.runtimeRateLimited')
+    case 'runtime_overloaded':
+      return t('admin.accounts.statusGuide.runtimeOverloaded')
+    case 'runtime_oauth401_cooldown':
+      return t('admin.accounts.statusGuide.runtimeOauth401Cooldown')
+    case 'runtime_forbidden_cooldown':
+      return t('admin.accounts.statusGuide.runtimeForbiddenCooldown')
+    case 'runtime_stream_timeout_cooldown':
+      return t('admin.accounts.statusGuide.runtimeStreamTimeoutCooldown')
+    case 'runtime_token_refresh_cooldown':
+      return t('admin.accounts.statusGuide.runtimeTokenRefreshCooldown')
+    case 'runtime_quota_exceeded':
+      return t('admin.accounts.statusGuide.runtimeQuotaExceeded')
+    case 'runtime_http_cooldown':
+      return t('admin.accounts.statusGuide.runtimeHttpCooldown', {
+        code: runtimeState.value.statusCode,
+      })
+    default:
+      return t('admin.accounts.statusGuide.runtimeTempUnschedulable')
+  }
 })
 
 const runtimeDetailText = computed(() => {
