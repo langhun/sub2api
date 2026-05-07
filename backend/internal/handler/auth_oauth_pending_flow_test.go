@@ -1334,7 +1334,7 @@ func TestCreateOIDCOAuthAccountRollsBackCreatedUserWhenBindingFails(t *testing.T
 	require.NoError(t, err)
 
 	invitation, err := client.RedeemCode.Create().
-		SetCode("INVITE123").
+		SetCode("DG-ABC123").
 		SetType(service.RedeemTypeInvitation).
 		SetStatus(service.StatusUnused).
 		SetValue(0).
@@ -1356,7 +1356,7 @@ func TestCreateOIDCOAuthAccountRollsBackCreatedUserWhenBindingFails(t *testing.T
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"fresh@example.com","verify_code":"246810","password":"secret-123","invitation_code":"INVITE123"}`)
+	body := bytes.NewBufferString(`{"email":"fresh@example.com","verify_code":"246810","password":"secret-123","invitation_code":"dg-abc123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)

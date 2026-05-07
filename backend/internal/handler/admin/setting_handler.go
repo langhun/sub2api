@@ -112,9 +112,11 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		EmailVerifyEnabled:                     settings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:       settings.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                       settings.PromoCodeEnabled,
+		RedeemCodeFormat:                       settings.RedeemCodeFormat,
 		PasswordResetEnabled:                   settings.PasswordResetEnabled,
 		FrontendURL:                            settings.FrontendURL,
 		InvitationCodeEnabled:                  settings.InvitationCodeEnabled,
+		InvitationCodeFormat:                   settings.InvitationCodeFormat,
 		TotpEnabled:                            settings.TotpEnabled,
 		TotpEncryptionKeyConfigured:            h.settingService.IsTotpEncryptionKeyConfigured(),
 		SMTPHost:                               settings.SMTPHost,
@@ -194,6 +196,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		CustomEndpoints:                        dto.ParseCustomEndpoints(settings.CustomEndpoints),
 		DefaultConcurrency:                     settings.DefaultConcurrency,
 		DefaultBalance:                         settings.DefaultBalance,
+		AffiliateCodeFormat:                    settings.AffiliateCodeFormat,
 		AffiliateRebateRate:                    settings.AffiliateRebateRate,
 		AffiliateRebateFreezeHours:             settings.AffiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:            settings.AffiliateRebateDurationDays,
@@ -326,14 +329,16 @@ func openaiFastPolicySettingsFromDTO(s *dto.OpenAIFastPolicySettings) *service.O
 // UpdateSettingsRequest 更新设置请求
 type UpdateSettingsRequest struct {
 	// 注册设置
-	RegistrationEnabled              bool     `json:"registration_enabled"`
-	EmailVerifyEnabled               bool     `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist []string `json:"registration_email_suffix_whitelist"`
-	PromoCodeEnabled                 bool     `json:"promo_code_enabled"`
-	PasswordResetEnabled             bool     `json:"password_reset_enabled"`
-	FrontendURL                      string   `json:"frontend_url"`
-	InvitationCodeEnabled            bool     `json:"invitation_code_enabled"`
-	TotpEnabled                      bool     `json:"totp_enabled"` // TOTP 双因素认证
+	RegistrationEnabled              bool                        `json:"registration_enabled"`
+	EmailVerifyEnabled               bool                        `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist []string                    `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                 bool                        `json:"promo_code_enabled"`
+	RedeemCodeFormat                 *service.CodeFormatSettings `json:"redeem_code_format"`
+	PasswordResetEnabled             bool                        `json:"password_reset_enabled"`
+	FrontendURL                      string                      `json:"frontend_url"`
+	InvitationCodeEnabled            bool                        `json:"invitation_code_enabled"`
+	InvitationCodeFormat             *service.CodeFormatSettings `json:"invitation_code_format"`
+	TotpEnabled                      bool                        `json:"totp_enabled"` // TOTP 双因素认证
 
 	// 邮件服务设置
 	SMTPHost     string `json:"smtp_host"`
@@ -425,6 +430,7 @@ type UpdateSettingsRequest struct {
 	// 默认配置
 	DefaultConcurrency                       int                               `json:"default_concurrency"`
 	DefaultBalance                           float64                           `json:"default_balance"`
+	AffiliateCodeFormat                      *service.CodeFormatSettings       `json:"affiliate_code_format"`
 	AffiliateRebateRate                      *float64                          `json:"affiliate_rebate_rate"`
 	AffiliateRebateFreezeHours               *int                              `json:"affiliate_rebate_freeze_hours"`
 	AffiliateRebateDurationDays              *int                              `json:"affiliate_rebate_duration_days"`
@@ -1233,9 +1239,21 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		EmailVerifyEnabled:               req.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                 req.PromoCodeEnabled,
-		PasswordResetEnabled:             req.PasswordResetEnabled,
-		FrontendURL:                      req.FrontendURL,
-		InvitationCodeEnabled:            req.InvitationCodeEnabled,
+		RedeemCodeFormat: func() service.CodeFormatSettings {
+			if req.RedeemCodeFormat != nil {
+				return *req.RedeemCodeFormat
+			}
+			return previousSettings.RedeemCodeFormat
+		}(),
+		PasswordResetEnabled:  req.PasswordResetEnabled,
+		FrontendURL:           req.FrontendURL,
+		InvitationCodeEnabled: req.InvitationCodeEnabled,
+		InvitationCodeFormat: func() service.CodeFormatSettings {
+			if req.InvitationCodeFormat != nil {
+				return *req.InvitationCodeFormat
+			}
+			return previousSettings.InvitationCodeFormat
+		}(),
 		TotpEnabled:                      req.TotpEnabled,
 		SMTPHost:                         req.SMTPHost,
 		SMTPPort:                         req.SMTPPort,
@@ -1314,23 +1332,29 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                  customEndpointsJSON,
 		DefaultConcurrency:               req.DefaultConcurrency,
 		DefaultBalance:                   req.DefaultBalance,
-		AffiliateRebateRate:              affiliateRebateRate,
-		AffiliateRebateFreezeHours:       affiliateRebateFreezeHours,
-		AffiliateRebateDurationDays:      affiliateRebateDurationDays,
-		AffiliateRebatePerInviteeCap:     affiliateRebatePerInviteeCap,
-		DefaultUserRPMLimit:              req.DefaultUserRPMLimit,
-		DefaultSubscriptions:             defaultSubscriptions,
-		EnableModelFallback:              req.EnableModelFallback,
-		FallbackModelAnthropic:           req.FallbackModelAnthropic,
-		FallbackModelOpenAI:              req.FallbackModelOpenAI,
-		FallbackModelGemini:              req.FallbackModelGemini,
-		FallbackModelAntigravity:         req.FallbackModelAntigravity,
-		EnableIdentityPatch:              req.EnableIdentityPatch,
-		IdentityPatchPrompt:              req.IdentityPatchPrompt,
-		MinClaudeCodeVersion:             req.MinClaudeCodeVersion,
-		MaxClaudeCodeVersion:             req.MaxClaudeCodeVersion,
-		AllowUngroupedKeyScheduling:      req.AllowUngroupedKeyScheduling,
-		BackendModeEnabled:               req.BackendModeEnabled,
+		AffiliateCodeFormat: func() service.CodeFormatSettings {
+			if req.AffiliateCodeFormat != nil {
+				return *req.AffiliateCodeFormat
+			}
+			return previousSettings.AffiliateCodeFormat
+		}(),
+		AffiliateRebateRate:          affiliateRebateRate,
+		AffiliateRebateFreezeHours:   affiliateRebateFreezeHours,
+		AffiliateRebateDurationDays:  affiliateRebateDurationDays,
+		AffiliateRebatePerInviteeCap: affiliateRebatePerInviteeCap,
+		DefaultUserRPMLimit:          req.DefaultUserRPMLimit,
+		DefaultSubscriptions:         defaultSubscriptions,
+		EnableModelFallback:          req.EnableModelFallback,
+		FallbackModelAnthropic:       req.FallbackModelAnthropic,
+		FallbackModelOpenAI:          req.FallbackModelOpenAI,
+		FallbackModelGemini:          req.FallbackModelGemini,
+		FallbackModelAntigravity:     req.FallbackModelAntigravity,
+		EnableIdentityPatch:          req.EnableIdentityPatch,
+		IdentityPatchPrompt:          req.IdentityPatchPrompt,
+		MinClaudeCodeVersion:         req.MinClaudeCodeVersion,
+		MaxClaudeCodeVersion:         req.MaxClaudeCodeVersion,
+		AllowUngroupedKeyScheduling:  req.AllowUngroupedKeyScheduling,
+		BackendModeEnabled:           req.BackendModeEnabled,
 		OpsMonitoringEnabled: func() bool {
 			if req.OpsMonitoringEnabled != nil {
 				return *req.OpsMonitoringEnabled
@@ -1694,9 +1718,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		EmailVerifyEnabled:                     updatedSettings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:       updatedSettings.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                       updatedSettings.PromoCodeEnabled,
+		RedeemCodeFormat:                       updatedSettings.RedeemCodeFormat,
 		PasswordResetEnabled:                   updatedSettings.PasswordResetEnabled,
 		FrontendURL:                            updatedSettings.FrontendURL,
 		InvitationCodeEnabled:                  updatedSettings.InvitationCodeEnabled,
+		InvitationCodeFormat:                   updatedSettings.InvitationCodeFormat,
 		TotpEnabled:                            updatedSettings.TotpEnabled,
 		TotpEncryptionKeyConfigured:            h.settingService.IsTotpEncryptionKeyConfigured(),
 		SMTPHost:                               updatedSettings.SMTPHost,
@@ -1776,6 +1802,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                        dto.ParseCustomEndpoints(updatedSettings.CustomEndpoints),
 		DefaultConcurrency:                     updatedSettings.DefaultConcurrency,
 		DefaultBalance:                         updatedSettings.DefaultBalance,
+		AffiliateCodeFormat:                    updatedSettings.AffiliateCodeFormat,
 		AffiliateRebateRate:                    updatedSettings.AffiliateRebateRate,
 		AffiliateRebateFreezeHours:             updatedSettings.AffiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:            updatedSettings.AffiliateRebateDurationDays,

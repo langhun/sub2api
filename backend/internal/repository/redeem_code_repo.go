@@ -36,11 +36,17 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetNillableUsedAt(code.UsedAt).
 		SetNillableGroupID(code.GroupID).
 		Save(ctx)
+	if err != nil {
+		if dbent.IsConstraintError(err) {
+			return service.ErrRedeemCodeConflict
+		}
+		return err
+	}
 	if err == nil {
 		code.ID = created.ID
 		code.CreatedAt = created.CreatedAt
 	}
-	return err
+	return nil
 }
 
 func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.RedeemCode) error {
@@ -201,6 +207,9 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 	if err != nil {
 		if dbent.IsNotFound(err) {
 			return service.ErrRedeemCodeNotFound
+		}
+		if dbent.IsConstraintError(err) {
+			return service.ErrRedeemCodeConflict
 		}
 		return err
 	}

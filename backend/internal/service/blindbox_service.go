@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	BlindboxRewardBalance         = "balance"
-	BlindboxRewardConcurrency     = "concurrency"
-	BlindboxRewardSubscription    = "subscription"
-	BlindboxRewardInvitationCode  = "invitation_code"
+	BlindboxRewardBalance        = "balance"
+	BlindboxRewardConcurrency    = "concurrency"
+	BlindboxRewardSubscription   = "subscription"
+	BlindboxRewardInvitationCode = "invitation_code"
 
 	RarityCommon    = "common"
 	RarityRare      = "rare"
@@ -27,18 +27,18 @@ const (
 )
 
 type PrizeItem struct {
-	ID              int64   `json:"id"`
-	Name            string  `json:"name"`
-	Rarity          string  `json:"rarity"`
-	RewardType      string  `json:"reward_type"`
-	RewardValue     float64 `json:"reward_value"`
-	RewardValueMax  float64 `json:"reward_value_max"`
-	SubscriptionID  *int64  `json:"subscription_id,omitempty"`
-	SubscriptionDays int    `json:"subscription_days"`
-	Weight          int     `json:"weight"`
-	IsEnabled       bool    `json:"is_enabled"`
-	CreatedAt       string  `json:"created_at"`
-	UpdatedAt       string  `json:"updated_at"`
+	ID               int64   `json:"id"`
+	Name             string  `json:"name"`
+	Rarity           string  `json:"rarity"`
+	RewardType       string  `json:"reward_type"`
+	RewardValue      float64 `json:"reward_value"`
+	RewardValueMax   float64 `json:"reward_value_max"`
+	SubscriptionID   *int64  `json:"subscription_id,omitempty"`
+	SubscriptionDays int     `json:"subscription_days"`
+	Weight           int     `json:"weight"`
+	IsEnabled        bool    `json:"is_enabled"`
+	CreatedAt        string  `json:"created_at"`
+	UpdatedAt        string  `json:"updated_at"`
 }
 
 type BlindboxResult struct {
@@ -51,15 +51,15 @@ type BlindboxResult struct {
 }
 
 type BlindboxRecord struct {
-	ID              int64   `json:"id"`
-	PrizeName       string  `json:"prize_name"`
-	Rarity          string  `json:"rarity"`
-	RewardType      string  `json:"reward_type"`
-	RewardValue     float64 `json:"reward_value"`
-	RewardDetail    string  `json:"reward_detail,omitempty"`
-	SubscriptionDays int    `json:"subscription_days,omitempty"`
-	StreakDays      int     `json:"streak_days"`
-	CreatedAt       string  `json:"created_at"`
+	ID               int64   `json:"id"`
+	PrizeName        string  `json:"prize_name"`
+	Rarity           string  `json:"rarity"`
+	RewardType       string  `json:"reward_type"`
+	RewardValue      float64 `json:"reward_value"`
+	RewardDetail     string  `json:"reward_detail,omitempty"`
+	SubscriptionDays int     `json:"subscription_days,omitempty"`
+	StreakDays       int     `json:"streak_days"`
+	CreatedAt        string  `json:"created_at"`
 }
 
 type BlindboxRecordList struct {
@@ -68,13 +68,13 @@ type BlindboxRecordList struct {
 }
 
 type BlindBoxService struct {
-	entClient         *dbent.Client
-	db                *sql.DB
-	settingSvc        *SettingService
-	userRepo          UserRepository
-	billingCache      *BillingCacheService
-	subscriptionSvc   *SubscriptionService
-	redeemCodeRepo    RedeemCodeRepository
+	entClient       *dbent.Client
+	db              *sql.DB
+	settingSvc      *SettingService
+	userRepo        UserRepository
+	billingCache    *BillingCacheService
+	subscriptionSvc *SubscriptionService
+	redeemCodeRepo  RedeemCodeRepository
 }
 
 func NewBlindBoxService(
@@ -333,7 +333,11 @@ func (s *BlindBoxService) applyReward(ctx context.Context, userID int64, item *d
 			s.createAuditRecord(ctx, userID, float64(item.SubscriptionDays), item)
 		}
 	case BlindboxRewardInvitationCode:
-		code, err := GenerateRedeemCode()
+		format := DefaultRegistrationInvitationCodeFormat()
+		if s.settingSvc != nil {
+			format = s.settingSvc.GetInvitationCodeFormat(ctx)
+		}
+		code, err := GenerateRegistrationInvitationCodeWithFormat(format)
 		if err != nil {
 			return "", fmt.Errorf("generate invitation code: %w", err)
 		}
@@ -367,7 +371,11 @@ func (s *BlindBoxService) applyReward(ctx context.Context, userID int64, item *d
 }
 
 func (s *BlindBoxService) createAuditRecord(ctx context.Context, userID int64, value float64, item *dbent.CheckinPrizeItem) {
-	code, err := GenerateRedeemCode()
+	format := DefaultRedeemCodeFormat()
+	if s.settingSvc != nil {
+		format = s.settingSvc.GetRedeemCodeFormat(ctx)
+	}
+	code, err := GenerateRedeemCodeWithFormat(format)
 	if err != nil {
 		return
 	}
@@ -485,9 +493,9 @@ func (s *BlindBoxService) GetStats(ctx context.Context) (map[string]interface{},
 	}
 
 	return map[string]interface{}{
-		"total_items":  totalItems,
+		"total_items":   totalItems,
 		"enabled_items": enabledItems,
-		"total_draws":  totalDraws,
+		"total_draws":   totalDraws,
 	}, nil
 }
 

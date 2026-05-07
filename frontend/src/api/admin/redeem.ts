@@ -87,6 +87,20 @@ export async function generate(
   return data
 }
 
+export async function createInvitationCode(code: string): Promise<RedeemCode> {
+  const { data } = await apiClient.post<RedeemCode>('/admin/redeem-codes/invitation', {
+    code
+  })
+  return data
+}
+
+export async function updateInvitationCode(id: number, code: string): Promise<RedeemCode> {
+  const { data } = await apiClient.put<RedeemCode>(`/admin/redeem-codes/${id}/invitation`, {
+    code
+  })
+  return data
+}
+
 /**
  * Delete redeem code
  * @param id - Redeem code ID
@@ -169,6 +183,8 @@ export const redeemAPI = {
   list,
   getById,
   generate,
+  createInvitationCode,
+  updateInvitationCode,
   delete: deleteCode,
   batchDelete,
   expire,

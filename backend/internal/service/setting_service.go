@@ -523,8 +523,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ForceEmailOnThirdPartySignup:     settings[SettingKeyForceEmailOnThirdPartySignup] == "true",
 		RegistrationEmailSuffixWhitelist: registrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                 settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
+		RedeemCodeFormat:                 ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()),
 		PasswordResetEnabled:             passwordResetEnabled,
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
+		InvitationCodeFormat:             ParseCodeFormatSettings(settings[SettingKeyInvitationCodeFormat], DefaultRegistrationInvitationCodeFormat()),
 		TotpEnabled:                      settings[SettingKeyTotpEnabled] == "true",
 		TurnstileEnabled:                 settings[SettingKeyTurnstileEnabled] == "true",
 		TurnstileSiteKey:                 settings[SettingKeyTurnstileSiteKey],
@@ -570,7 +572,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
-		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
+		AffiliateEnabled:    settings[SettingKeyAffiliateEnabled] == "true",
+		AffiliateCodeFormat: ParseCodeFormatSettings(settings[SettingKeyAffiliateCodeFormat], DefaultAffiliateCodeFormat()),
 	}, nil
 }
 
@@ -673,60 +676,63 @@ func (s *SettingService) SetVersion(version string) {
 // A unit test diffs this struct's JSON keys against dto.PublicSettings to catch
 // drift automatically (see setting_service_injection_test.go).
 type PublicSettingsInjectionPayload struct {
-	RegistrationEnabled              bool            `json:"registration_enabled"`
-	EmailVerifyEnabled               bool            `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist []string        `json:"registration_email_suffix_whitelist"`
-	PromoCodeEnabled                 bool            `json:"promo_code_enabled"`
-	PasswordResetEnabled             bool            `json:"password_reset_enabled"`
-	InvitationCodeEnabled            bool            `json:"invitation_code_enabled"`
-	TotpEnabled                      bool            `json:"totp_enabled"`
-	TurnstileEnabled                 bool            `json:"turnstile_enabled"`
-	TurnstileSiteKey                 string          `json:"turnstile_site_key"`
-	SiteName                         string          `json:"site_name"`
-	SiteLogo                         string          `json:"site_logo"`
-	SiteSubtitle                     string          `json:"site_subtitle"`
-	APIBaseURL                       string          `json:"api_base_url"`
-	ContactInfo                      string          `json:"contact_info"`
-	DocURL                           string          `json:"doc_url"`
-	HomeContent                      string          `json:"home_content"`
-	HomeNavLinksEnabled              bool            `json:"home_nav_links_enabled"`
-	HomeNavLeaderboardEnabled        bool            `json:"home_nav_leaderboard_enabled"`
-	HomeNavKeyUsageEnabled           bool            `json:"home_nav_key_usage_enabled"`
-	HomeNavMonitoringEnabled         bool            `json:"home_nav_monitoring_enabled"`
-	HomeNavPricingEnabled            bool            `json:"home_nav_pricing_enabled"`
-	LeaderboardBalanceEnabled        bool            `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled    bool            `json:"leaderboard_consumption_enabled"`
-	LeaderboardTransferEnabled       bool            `json:"leaderboard_transfer_enabled"`
-	LeaderboardCheckinEnabled        bool            `json:"leaderboard_checkin_enabled"`
-	HideCcsImportButton              bool            `json:"hide_ccs_import_button"`
-	PurchaseSubscriptionEnabled      bool            `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL          string          `json:"purchase_subscription_url"`
-	TableDefaultPageSize             int             `json:"table_default_page_size"`
-	TablePageSizeOptions             []int           `json:"table_page_size_options"`
-	CustomMenuItems                  json.RawMessage `json:"custom_menu_items"`
-	CustomEndpoints                  json.RawMessage `json:"custom_endpoints"`
-	LinuxDoOAuthEnabled              bool            `json:"linuxdo_oauth_enabled"`
-	WeChatOAuthEnabled               bool            `json:"wechat_oauth_enabled"`
-	WeChatOAuthOpenEnabled           bool            `json:"wechat_oauth_open_enabled"`
-	WeChatOAuthMPEnabled             bool            `json:"wechat_oauth_mp_enabled"`
-	WeChatOAuthMobileEnabled         bool            `json:"wechat_oauth_mobile_enabled"`
-	OIDCOAuthEnabled                 bool            `json:"oidc_oauth_enabled"`
-	OIDCOAuthProviderName            string          `json:"oidc_oauth_provider_name"`
-	BackendModeEnabled               bool            `json:"backend_mode_enabled"`
-	PaymentEnabled                   bool            `json:"payment_enabled"`
-	Version                          string          `json:"version"`
-	BalanceLowNotifyEnabled          bool            `json:"balance_low_notify_enabled"`
-	AccountQuotaNotifyEnabled        bool            `json:"account_quota_notify_enabled"`
-	BalanceLowNotifyThreshold        float64         `json:"balance_low_notify_threshold"`
-	BalanceLowNotifyRechargeURL      string          `json:"balance_low_notify_recharge_url"`
+	RegistrationEnabled              bool               `json:"registration_enabled"`
+	EmailVerifyEnabled               bool               `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist []string           `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                 bool               `json:"promo_code_enabled"`
+	RedeemCodeFormat                 CodeFormatSettings `json:"redeem_code_format"`
+	PasswordResetEnabled             bool               `json:"password_reset_enabled"`
+	InvitationCodeEnabled            bool               `json:"invitation_code_enabled"`
+	InvitationCodeFormat             CodeFormatSettings `json:"invitation_code_format"`
+	TotpEnabled                      bool               `json:"totp_enabled"`
+	TurnstileEnabled                 bool               `json:"turnstile_enabled"`
+	TurnstileSiteKey                 string             `json:"turnstile_site_key"`
+	SiteName                         string             `json:"site_name"`
+	SiteLogo                         string             `json:"site_logo"`
+	SiteSubtitle                     string             `json:"site_subtitle"`
+	APIBaseURL                       string             `json:"api_base_url"`
+	ContactInfo                      string             `json:"contact_info"`
+	DocURL                           string             `json:"doc_url"`
+	HomeContent                      string             `json:"home_content"`
+	HomeNavLinksEnabled              bool               `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled        bool               `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled           bool               `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled         bool               `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled            bool               `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled        bool               `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled    bool               `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled       bool               `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled        bool               `json:"leaderboard_checkin_enabled"`
+	HideCcsImportButton              bool               `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled      bool               `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL          string             `json:"purchase_subscription_url"`
+	TableDefaultPageSize             int                `json:"table_default_page_size"`
+	TablePageSizeOptions             []int              `json:"table_page_size_options"`
+	CustomMenuItems                  json.RawMessage    `json:"custom_menu_items"`
+	CustomEndpoints                  json.RawMessage    `json:"custom_endpoints"`
+	LinuxDoOAuthEnabled              bool               `json:"linuxdo_oauth_enabled"`
+	WeChatOAuthEnabled               bool               `json:"wechat_oauth_enabled"`
+	WeChatOAuthOpenEnabled           bool               `json:"wechat_oauth_open_enabled"`
+	WeChatOAuthMPEnabled             bool               `json:"wechat_oauth_mp_enabled"`
+	WeChatOAuthMobileEnabled         bool               `json:"wechat_oauth_mobile_enabled"`
+	OIDCOAuthEnabled                 bool               `json:"oidc_oauth_enabled"`
+	OIDCOAuthProviderName            string             `json:"oidc_oauth_provider_name"`
+	BackendModeEnabled               bool               `json:"backend_mode_enabled"`
+	PaymentEnabled                   bool               `json:"payment_enabled"`
+	Version                          string             `json:"version"`
+	BalanceLowNotifyEnabled          bool               `json:"balance_low_notify_enabled"`
+	AccountQuotaNotifyEnabled        bool               `json:"account_quota_notify_enabled"`
+	BalanceLowNotifyThreshold        float64            `json:"balance_low_notify_threshold"`
+	BalanceLowNotifyRechargeURL      string             `json:"balance_low_notify_recharge_url"`
 
 	// Feature flags — MUST match the opt-in/opt-out registry in
 	// frontend/src/utils/featureFlags.ts. Missing a field here is the bug
 	// that hid the "可用渠道" menu on page refresh.
-	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
-	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
-	AffiliateEnabled                     bool `json:"affiliate_enabled"`
+	ChannelMonitorEnabled                bool               `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds int                `json:"channel_monitor_default_interval_seconds"`
+	AvailableChannelsEnabled             bool               `json:"available_channels_enabled"`
+	AffiliateEnabled                     bool               `json:"affiliate_enabled"`
+	AffiliateCodeFormat                  CodeFormatSettings `json:"affiliate_code_format"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -1096,6 +1102,15 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if settings.WeChatConnectFrontendRedirectURL == "" {
 		settings.WeChatConnectFrontendRedirectURL = defaultWeChatConnectFrontend
 	}
+	if settings.RedeemCodeFormat.RandomLength <= 0 {
+		settings.RedeemCodeFormat = DefaultRedeemCodeFormat()
+	}
+	if settings.InvitationCodeFormat.RandomLength <= 0 {
+		settings.InvitationCodeFormat = DefaultRegistrationInvitationCodeFormat()
+	}
+	if settings.AffiliateCodeFormat.RandomLength <= 0 {
+		settings.AffiliateCodeFormat = DefaultAffiliateCodeFormat()
+	}
 
 	updates := make(map[string]string)
 
@@ -1108,9 +1123,19 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 	updates[SettingKeyRegistrationEmailSuffixWhitelist] = string(registrationEmailSuffixWhitelistJSON)
 	updates[SettingKeyPromoCodeEnabled] = strconv.FormatBool(settings.PromoCodeEnabled)
+	redeemCodeFormatJSON, err := MarshalCodeFormatSettings(settings.RedeemCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal redeem code format: %w", err)
+	}
+	updates[SettingKeyRedeemCodeFormat] = redeemCodeFormatJSON
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
 	updates[SettingKeyFrontendURL] = settings.FrontendURL
 	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
+	invitationCodeFormatJSON, err := MarshalCodeFormatSettings(settings.InvitationCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal invitation code format: %w", err)
+	}
+	updates[SettingKeyInvitationCodeFormat] = invitationCodeFormatJSON
 	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
 
 	// 邮件服务设置（只有非空才更新密码）
@@ -1228,6 +1253,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// 默认配置
 	updates[SettingKeyDefaultConcurrency] = strconv.Itoa(settings.DefaultConcurrency)
 	updates[SettingKeyDefaultBalance] = strconv.FormatFloat(settings.DefaultBalance, 'f', 8, 64)
+	affiliateCodeFormatJSON, err := MarshalCodeFormatSettings(settings.AffiliateCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal affiliate code format: %w", err)
+	}
+	updates[SettingKeyAffiliateCodeFormat] = affiliateCodeFormatJSON
 	settings.AffiliateRebateRate = clampAffiliateRebateRate(settings.AffiliateRebateRate)
 	updates[SettingKeyAffiliateRebateRate] = strconv.FormatFloat(settings.AffiliateRebateRate, 'f', 8, 64)
 	if settings.AffiliateRebateFreezeHours < 0 {
@@ -1606,6 +1636,14 @@ func (s *SettingService) IsPromoCodeEnabled(ctx context.Context) bool {
 	return value != "false"
 }
 
+func (s *SettingService) GetRedeemCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRedeemCodeFormat)
+	if err != nil {
+		return DefaultRedeemCodeFormat()
+	}
+	return ParseCodeFormatSettings(value, DefaultRedeemCodeFormat())
+}
+
 // IsInvitationCodeEnabled 检查是否启用邀请码注册功能
 func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyInvitationCodeEnabled)
@@ -1615,6 +1653,14 @@ func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+func (s *SettingService) GetInvitationCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyInvitationCodeFormat)
+	if err != nil {
+		return DefaultRegistrationInvitationCodeFormat()
+	}
+	return ParseCodeFormatSettings(value, DefaultRegistrationInvitationCodeFormat())
+}
+
 // IsAffiliateEnabled 检查是否启用邀请返利功能（总开关）
 func (s *SettingService) IsAffiliateEnabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyAffiliateEnabled)
@@ -1622,6 +1668,14 @@ func (s *SettingService) IsAffiliateEnabled(ctx context.Context) bool {
 		return false // 默认关闭
 	}
 	return value == "true"
+}
+
+func (s *SettingService) GetAffiliateCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAffiliateCodeFormat)
+	if err != nil {
+		return DefaultAffiliateCodeFormat()
+	}
+	return ParseCodeFormatSettings(value, DefaultAffiliateCodeFormat())
 }
 
 // GetAffiliateRebateRatePercent 读取并 clamp 全局返利比例。
@@ -1958,6 +2012,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyEmailVerifyEnabled:                       "false",
 		SettingKeyRegistrationEmailSuffixWhitelist:         "[]",
 		SettingKeyPromoCodeEnabled:                         "true", // 默认启用优惠码功能
+		SettingKeyRedeemCodeFormat:                         mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+		SettingKeyInvitationCodeFormat:                     mustMarshalCodeFormatDefaults(DefaultRegistrationInvitationCodeFormat()),
 		SettingKeySiteName:                                 "Sub2API",
 		SettingKeySiteLogo:                                 "",
 		SettingKeyHomeNavLinksEnabled:                      "true",
@@ -2015,6 +2071,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOIDCConnectUserInfoUsernamePath:          "",
 		SettingKeyDefaultConcurrency:                       strconv.Itoa(s.cfg.Default.UserConcurrency),
 		SettingKeyDefaultBalance:                           strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
+		SettingKeyAffiliateCodeFormat:                      mustMarshalCodeFormatDefaults(DefaultAffiliateCodeFormat()),
 		SettingKeyAffiliateRebateRate:                      strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
 		SettingKeyAffiliateRebateFreezeHours:               strconv.Itoa(AffiliateRebateFreezeHoursDefault),
 		SettingKeyAffiliateRebateDurationDays:              strconv.Itoa(AffiliateRebateDurationDaysDefault),
@@ -2130,9 +2187,11 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		EmailVerifyEnabled:               emailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist: ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]),
 		PromoCodeEnabled:                 settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
+		RedeemCodeFormat:                 ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()),
 		PasswordResetEnabled:             emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                      settings[SettingKeyFrontendURL],
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
+		InvitationCodeFormat:             ParseCodeFormatSettings(settings[SettingKeyInvitationCodeFormat], DefaultRegistrationInvitationCodeFormat()),
 		TotpEnabled:                      settings[SettingKeyTotpEnabled] == "true",
 		SMTPHost:                         settings[SettingKeySMTPHost],
 		SMTPUsername:                     settings[SettingKeySMTPUsername],
@@ -2165,6 +2224,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		CustomMenuItems:                  settings[SettingKeyCustomMenuItems],
 		CustomEndpoints:                  settings[SettingKeyCustomEndpoints],
 		BackendModeEnabled:               settings[SettingKeyBackendModeEnabled] == "true",
+		AffiliateEnabled:                 settings[SettingKeyAffiliateEnabled] == "true",
+		AffiliateCodeFormat:              ParseCodeFormatSettings(settings[SettingKeyAffiliateCodeFormat], DefaultAffiliateCodeFormat()),
 	}
 	result.TableDefaultPageSize, result.TablePageSizeOptions = parseTablePreferences(
 		settings[SettingKeyTableDefaultPageSize],

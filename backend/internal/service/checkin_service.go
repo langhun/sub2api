@@ -28,31 +28,31 @@ var (
 )
 
 type CheckinResult struct {
-	RewardAmount float64        `json:"reward_amount"`
-	StreakDays   int            `json:"streak_days"`
-	CheckedAt    string         `json:"checked_at"`
-	CheckinType  string         `json:"checkin_type"`
-	BetAmount    float64        `json:"bet_amount,omitempty"`
-	Multiplier   float64        `json:"multiplier,omitempty"`
+	RewardAmount float64         `json:"reward_amount"`
+	StreakDays   int             `json:"streak_days"`
+	CheckedAt    string          `json:"checked_at"`
+	CheckinType  string          `json:"checkin_type"`
+	BetAmount    float64         `json:"bet_amount,omitempty"`
+	Multiplier   float64         `json:"multiplier,omitempty"`
 	Blindbox     *BlindboxResult `json:"blindbox,omitempty"`
 }
 
 type CheckinStatus struct {
-	Enabled              bool     `json:"enabled"`
-	LuckEnabled          bool     `json:"luck_enabled"`
-	BlindboxEnabled      bool     `json:"blindbox_enabled"`
-	BlindboxTriggerType  string   `json:"blindbox_trigger_type,omitempty"`
-	BlindboxInterval     int      `json:"blindbox_interval,omitempty"`
-	CanCheckin           bool     `json:"can_checkin"`
-	StreakDays           int      `json:"streak_days"`
-	TodayReward          *float64 `json:"today_reward,omitempty"`
-	TodayCheckinType     string   `json:"today_checkin_type,omitempty"`
-	TodayMultiplier      *float64 `json:"today_multiplier,omitempty"`
-	MinReward            float64  `json:"min_reward"`
-	MaxReward            float64  `json:"max_reward"`
-	MinMultiplier        float64  `json:"min_multiplier"`
-	MaxMultiplier        float64  `json:"max_multiplier"`
-	Balance              float64  `json:"balance"`
+	Enabled             bool     `json:"enabled"`
+	LuckEnabled         bool     `json:"luck_enabled"`
+	BlindboxEnabled     bool     `json:"blindbox_enabled"`
+	BlindboxTriggerType string   `json:"blindbox_trigger_type,omitempty"`
+	BlindboxInterval    int      `json:"blindbox_interval,omitempty"`
+	CanCheckin          bool     `json:"can_checkin"`
+	StreakDays          int      `json:"streak_days"`
+	TodayReward         *float64 `json:"today_reward,omitempty"`
+	TodayCheckinType    string   `json:"today_checkin_type,omitempty"`
+	TodayMultiplier     *float64 `json:"today_multiplier,omitempty"`
+	MinReward           float64  `json:"min_reward"`
+	MaxReward           float64  `json:"max_reward"`
+	MinMultiplier       float64  `json:"min_multiplier"`
+	MaxMultiplier       float64  `json:"max_multiplier"`
+	Balance             float64  `json:"balance"`
 }
 
 type CheckinService struct {
@@ -306,15 +306,15 @@ func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinS
 
 	if !anyEnabled {
 		return &CheckinStatus{
-			Enabled:             normalEnabled,
-			LuckEnabled:         luckEnabled,
-			BlindboxEnabled:     s.settingService.IsCheckinBlindboxEnabled(ctx),
-			CanCheckin:          false,
-			MinReward:           minReward,
-			MaxReward:           maxReward,
-			MinMultiplier:       minMultiplier,
-			MaxMultiplier:       maxMultiplier,
-			Balance:             user.Balance,
+			Enabled:         normalEnabled,
+			LuckEnabled:     luckEnabled,
+			BlindboxEnabled: s.settingService.IsCheckinBlindboxEnabled(ctx),
+			CanCheckin:      false,
+			MinReward:       minReward,
+			MaxReward:       maxReward,
+			MinMultiplier:   minMultiplier,
+			MaxMultiplier:   maxMultiplier,
+			Balance:         user.Balance,
 		}, nil
 	}
 
@@ -391,7 +391,11 @@ func (s *CheckinService) calculateStreak(ctx context.Context, userID int64, toda
 }
 
 func (s *CheckinService) createAuditRecord(txCtx context.Context, userID int64, rewardAmount float64, adjType string, multiplier float64, betAmount float64) {
-	code, err := GenerateRedeemCode()
+	format := DefaultRedeemCodeFormat()
+	if s.settingService != nil {
+		format = s.settingService.GetRedeemCodeFormat(txCtx)
+	}
+	code, err := GenerateRedeemCodeWithFormat(format)
 	if err != nil {
 		return
 	}
