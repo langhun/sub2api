@@ -21,7 +21,7 @@
                 'settings-tab',
                 activeTab === tab.key && 'settings-tab-active',
               ]"
-              @click="activeTab = tab.key"
+              @click="selectTab(tab.key)"
             >
               <span class="settings-tab-icon">
                 <Icon :name="tab.icon" size="sm" />
@@ -6086,7 +6086,7 @@
         </div><!-- /Tab: Check-in -->
 
         <!-- Tab: Backup -->
-        <div v-show="activeTab === 'backup'">
+        <div v-if="backupTabVisited" v-show="activeTab === 'backup'">
           <BackupSettings />
         </div>
 
@@ -6246,16 +6246,24 @@ type SettingsTab =
 const activeTab = ref<SettingsTab>("general");
 const settingsTabs = [
   { key: "general" as SettingsTab, icon: "home" as const },
-  { key: "features" as SettingsTab, icon: "bolt" as const },
   { key: "security" as SettingsTab, icon: "shield" as const },
+  { key: "email" as SettingsTab, icon: "mail" as const },
   { key: "users" as SettingsTab, icon: "user" as const },
-  { key: "gateway" as SettingsTab, icon: "server" as const },
+  { key: "features" as SettingsTab, icon: "bolt" as const },
   { key: "checkin" as SettingsTab, icon: "gift" as const },
   { key: "payment" as SettingsTab, icon: "creditCard" as const },
-  { key: "email" as SettingsTab, icon: "mail" as const },
+  { key: "gateway" as SettingsTab, icon: "server" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
 ];
 const { copyToClipboard } = useClipboard();
+const backupTabVisited = ref(false);
+
+function selectTab(tab: SettingsTab) {
+  activeTab.value = tab;
+  if (tab === "backup") {
+    backupTabVisited.value = true;
+  }
+}
 
 const loading = ref(true);
 const loadFailed = ref(false);

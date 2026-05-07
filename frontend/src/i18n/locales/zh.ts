@@ -5366,7 +5366,7 @@ export default {
     // Settings
     settings: {
       title: '系统设置',
-      description: '管理注册、邮箱验证、默认值和 SMTP 设置',
+      description: '管理站点、安全认证、默认值、网关与备份设置',
       tabs: {
         general: '通用设置',
         features: '功能开关',
