@@ -395,6 +395,9 @@ const (
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
 
+	// Proxy Auto Failover Pool
+	SettingKeyAutoFailoverProxyPool = "auto_failover_proxy_pool" // JSON 数组，保存参与自动切换池的代理 ID 列表
+
 	// Checkin 签到设置
 	SettingKeyCheckinEnabled    = "checkin_enabled"     // 是否启用签到功能
 	SettingKeyCheckinMinBalance = "checkin_min_balance" // 签到最小奖励额度

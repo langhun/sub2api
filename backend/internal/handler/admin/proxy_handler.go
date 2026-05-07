@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -26,27 +27,46 @@ func NewProxyHandler(adminService service.AdminService) *ProxyHandler {
 
 // CreateProxyRequest represents create proxy request
 type CreateProxyRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Protocol string `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
-	Host     string `json:"host" binding:"required"`
-	Port     int    `json:"port" binding:"required,min=1,max=65535"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Name                    string `json:"name" binding:"required"`
+	Protocol                string `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
+	Host                    string `json:"host" binding:"required"`
+	Port                    int    `json:"port" binding:"required,min=1,max=65535"`
+	Username                string `json:"username"`
+	Password                string `json:"password"`
+	AutoFailoverPoolEnabled bool   `json:"auto_failover_pool_enabled"`
 }
 
 // UpdateProxyRequest represents update proxy request
 type UpdateProxyRequest struct {
-	Name     string `json:"name"`
-	Protocol string `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
-	Host     string `json:"host"`
-	Port     int    `json:"port" binding:"omitempty,min=1,max=65535"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Status   string `json:"status" binding:"omitempty,oneof=active inactive"`
+	Name                    string `json:"name"`
+	Protocol                string `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
+	Host                    string `json:"host"`
+	Port                    int    `json:"port" binding:"omitempty,min=1,max=65535"`
+	Username                string `json:"username"`
+	Password                string `json:"password"`
+	Status                  string `json:"status" binding:"omitempty,oneof=active inactive"`
+	AutoFailoverPoolEnabled *bool  `json:"auto_failover_pool_enabled"`
 }
 
 type UnassignProxyAccountsRequest struct {
 	ProxyIDs []int64 `json:"proxy_ids" binding:"required,min=1"`
+}
+
+type proxyPoolBatchUpdateRequest struct {
+	IDs     []int64 `json:"ids" binding:"required,min=1"`
+	Enabled bool    `json:"enabled"`
+}
+
+type proxyCooldownBatchRequest struct {
+	IDs []int64 `json:"ids" binding:"required,min=1"`
+}
+
+type proxyPoolBatchUpdater interface {
+	SetAutoFailoverProxyPoolMembership(ctx context.Context, proxyIDs []int64, enabled bool) (int, error)
+}
+
+type proxyCooldownClearer interface {
+	ClearProxyCooldownState(ctx context.Context, proxyIDs []int64) error
 }
 
 // List handles listing all proxies with pagination
@@ -156,12 +176,13 @@ func (h *ProxyHandler) Create(c *gin.Context) {
 
 	executeAdminIdempotentJSON(c, "admin.proxies.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		proxy, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
-			Name:     strings.TrimSpace(req.Name),
-			Protocol: strings.TrimSpace(req.Protocol),
-			Host:     strings.TrimSpace(req.Host),
-			Port:     req.Port,
-			Username: strings.TrimSpace(req.Username),
-			Password: strings.TrimSpace(req.Password),
+			Name:                    strings.TrimSpace(req.Name),
+			Protocol:                strings.TrimSpace(req.Protocol),
+			Host:                    strings.TrimSpace(req.Host),
+			Port:                    req.Port,
+			Username:                strings.TrimSpace(req.Username),
+			Password:                strings.TrimSpace(req.Password),
+			AutoFailoverPoolEnabled: req.AutoFailoverPoolEnabled,
 		})
 		if err != nil {
 			return nil, err
@@ -186,13 +207,14 @@ func (h *ProxyHandler) Update(c *gin.Context) {
 	}
 
 	proxy, err := h.adminService.UpdateProxy(c.Request.Context(), proxyID, &service.UpdateProxyInput{
-		Name:     strings.TrimSpace(req.Name),
-		Protocol: strings.TrimSpace(req.Protocol),
-		Host:     strings.TrimSpace(req.Host),
-		Port:     req.Port,
-		Username: strings.TrimSpace(req.Username),
-		Password: strings.TrimSpace(req.Password),
-		Status:   strings.TrimSpace(req.Status),
+		Name:                    strings.TrimSpace(req.Name),
+		Protocol:                strings.TrimSpace(req.Protocol),
+		Host:                    strings.TrimSpace(req.Host),
+		Port:                    req.Port,
+		Username:                strings.TrimSpace(req.Username),
+		Password:                strings.TrimSpace(req.Password),
+		Status:                  strings.TrimSpace(req.Status),
+		AutoFailoverPoolEnabled: req.AutoFailoverPoolEnabled,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -240,6 +262,55 @@ func (h *ProxyHandler) BatchDelete(c *gin.Context) {
 	}
 
 	response.Success(c, result)
+}
+
+// UpdatePoolMembership handles batch enabling/disabling proxies in the auto-failover pool.
+// POST /api/v1/admin/proxies/pool-membership
+func (h *ProxyHandler) UpdatePoolMembership(c *gin.Context) {
+	var req proxyPoolBatchUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	updater, ok := h.adminService.(proxyPoolBatchUpdater)
+	if !ok {
+		response.Error(c, http.StatusNotImplemented, "proxy pool update is unavailable")
+		return
+	}
+
+	updated, err := updater.SetAutoFailoverProxyPoolMembership(c.Request.Context(), req.IDs, req.Enabled)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{
+		"updated": updated,
+		"enabled": req.Enabled,
+	})
+}
+
+// ClearCooldown clears runtime cooldown state for one or more proxies.
+// POST /api/v1/admin/proxies/clear-cooldown
+func (h *ProxyHandler) ClearCooldown(c *gin.Context) {
+	var req proxyCooldownBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	clearer, ok := h.adminService.(proxyCooldownClearer)
+	if !ok {
+		response.Error(c, http.StatusNotImplemented, "proxy cooldown clear is unavailable")
+		return
+	}
+	if err := clearer.ClearProxyCooldownState(c.Request.Context(), req.IDs); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"cleared": len(req.IDs)})
 }
 
 // Test handles testing proxy connectivity

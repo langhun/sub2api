@@ -13,6 +13,7 @@ import (
 type AntigravityOAuthService struct {
 	sessionStore *antigravity.SessionStore
 	proxyRepo    ProxyRepository
+	proxyPool    *AutoFailoverProxyPoolService
 }
 
 func NewAntigravityOAuthService(proxyRepo ProxyRepository) *AntigravityOAuthService {
@@ -20,6 +21,10 @@ func NewAntigravityOAuthService(proxyRepo ProxyRepository) *AntigravityOAuthServ
 		sessionStore: antigravity.NewSessionStore(),
 		proxyRepo:    proxyRepo,
 	}
+}
+
+func (s *AntigravityOAuthService) SetAutoFailoverProxyPool(proxyPool *AutoFailoverProxyPoolService) {
+	s.proxyPool = proxyPool
 }
 
 // AntigravityAuthURLResult is the result of generating an authorization URL
@@ -105,64 +110,33 @@ func (s *AntigravityOAuthService) ExchangeCode(ctx context.Context, input *Antig
 		return nil, fmt.Errorf("state 无效")
 	}
 
-	// 确定代理 URL
 	proxyURL := session.ProxyURL
+	var tempAccount *Account
 	if input.ProxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *input.ProxyID)
 		if err == nil && proxy != nil {
 			proxyURL = proxy.URL()
 		}
+		tempAccount = &Account{
+			ProxyID:  input.ProxyID,
+			Platform: PlatformAntigravity,
+			Type:     AccountTypeOAuth,
+		}
 	}
 
-	client, err := antigravity.NewClient(proxyURL)
-	if err != nil {
-		return nil, fmt.Errorf("create antigravity client failed: %w", err)
+	var result *AntigravityTokenInfo
+	var err error
+	if tempAccount != nil {
+		result, err = s.exchangeCodeWithFailover(ctx, tempAccount, input.Code, session.CodeVerifier)
+	} else {
+		result, err = s.exchangeCodeWithProxyURL(ctx, input.Code, session.CodeVerifier, proxyURL)
 	}
-
-	// 交换 token
-	tokenResp, err := client.ExchangeCode(ctx, input.Code, session.CodeVerifier)
 	if err != nil {
-		return nil, fmt.Errorf("token 交换失败: %w", err)
+		return nil, err
 	}
 
 	// 删除 session
 	s.sessionStore.Delete(input.SessionID)
-
-	// 计算过期时间（减去 5 分钟安全窗口）
-	expiresAt := time.Now().Unix() + tokenResp.ExpiresIn - 300
-
-	result := &AntigravityTokenInfo{
-		AccessToken:  tokenResp.AccessToken,
-		RefreshToken: tokenResp.RefreshToken,
-		ExpiresIn:    tokenResp.ExpiresIn,
-		ExpiresAt:    expiresAt,
-		TokenType:    tokenResp.TokenType,
-	}
-
-	// 获取用户信息
-	userInfo, err := client.GetUserInfo(ctx, tokenResp.AccessToken)
-	if err != nil {
-		fmt.Printf("[AntigravityOAuth] 警告: 获取用户信息失败: %v\n", err)
-	} else {
-		result.Email = userInfo.Email
-	}
-
-	// 获取 project_id + plan_type（部分账户类型可能没有），失败时重试
-	loadResult, loadErr := s.loadProjectIDWithRetry(ctx, tokenResp.AccessToken, proxyURL, 3)
-	if loadErr != nil {
-		fmt.Printf("[AntigravityOAuth] 警告: 获取 project_id 失败（重试后）: %v\n", loadErr)
-		result.ProjectIDMissing = true
-	}
-	if loadResult != nil {
-		result.ProjectID = loadResult.ProjectID
-		if loadResult.Subscription != nil {
-			result.PlanType = loadResult.Subscription.PlanType
-		}
-	}
-
-	// 令牌刚获取，立即设置隐私（不依赖后续账号创建流程）
-	result.PrivacyMode = setAntigravityPrivacy(ctx, result.AccessToken, result.ProjectID, proxyURL)
-
 	return result, nil
 }
 
@@ -211,20 +185,176 @@ func (s *AntigravityOAuthService) RefreshToken(ctx context.Context, refreshToken
 	return nil, fmt.Errorf("token 刷新失败 (重试后): %w", lastErr)
 }
 
+func (s *AntigravityOAuthService) exchangeCodeWithProxyURL(ctx context.Context, code, codeVerifier, proxyURL string) (*AntigravityTokenInfo, error) {
+	client, err := antigravity.NewClient(proxyURL)
+	if err != nil {
+		return nil, fmt.Errorf("create antigravity client failed: %w", err)
+	}
+
+	tokenResp, err := client.ExchangeCode(ctx, code, codeVerifier)
+	if err != nil {
+		return nil, fmt.Errorf("token 交换失败: %w", err)
+	}
+
+	expiresAt := time.Now().Unix() + tokenResp.ExpiresIn - 300
+	result := &AntigravityTokenInfo{
+		AccessToken:  tokenResp.AccessToken,
+		RefreshToken: tokenResp.RefreshToken,
+		ExpiresIn:    tokenResp.ExpiresIn,
+		ExpiresAt:    expiresAt,
+		TokenType:    tokenResp.TokenType,
+	}
+
+	userInfo, err := client.GetUserInfo(ctx, tokenResp.AccessToken)
+	if err != nil {
+		fmt.Printf("[AntigravityOAuth] 警告: 获取用户信息失败: %v\n", err)
+	} else {
+		result.Email = userInfo.Email
+	}
+
+	loadResult, loadErr := s.loadProjectIDWithRetry(ctx, tokenResp.AccessToken, proxyURL, 3)
+	if loadErr != nil {
+		fmt.Printf("[AntigravityOAuth] 警告: 获取 project_id 失败（重试后）: %v\n", loadErr)
+		result.ProjectIDMissing = true
+	}
+	if loadResult != nil {
+		result.ProjectID = loadResult.ProjectID
+		if loadResult.Subscription != nil {
+			result.PlanType = loadResult.Subscription.PlanType
+		}
+	}
+
+	result.PrivacyMode = setAntigravityPrivacy(ctx, result.AccessToken, result.ProjectID, proxyURL)
+	return result, nil
+}
+
+func (s *AntigravityOAuthService) exchangeCodeWithFailover(ctx context.Context, account *Account, code, codeVerifier string) (*AntigravityTokenInfo, error) {
+	if s.proxyPool == nil || account == nil || account.ProxyID == nil {
+		var proxyURL string
+		if account != nil && account.ProxyID != nil {
+			if proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && proxy != nil {
+				proxyURL = proxy.URL()
+			}
+		}
+		return s.exchangeCodeWithProxyURL(ctx, code, codeVerifier, proxyURL)
+	}
+
+	candidates, err := s.proxyPool.BuildCandidates(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	if len(candidates) == 0 {
+		var proxyURL string
+		if account.ProxyID != nil {
+			if proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && proxy != nil {
+				proxyURL = proxy.URL()
+			}
+		}
+		return s.exchangeCodeWithProxyURL(ctx, code, codeVerifier, proxyURL)
+	}
+
+	var lastErr error
+	for idx, candidate := range candidates {
+		result, err := s.exchangeCodeWithProxyURL(ctx, code, codeVerifier, candidate.ProxyURL)
+		if err == nil {
+			s.proxyPool.RecordSuccess(ctx, candidate.ProxyID, nil)
+			_ = s.proxyPool.PersistSelectedProxy(ctx, account, candidate, "antigravity_oauth_exchange_code", nil, "")
+			return result, nil
+		}
+
+		retry, reason := s.proxyPool.ShouldRetryError(err)
+		if retry {
+			s.proxyPool.RecordFailure(ctx, candidate.ProxyID, reason, true)
+			lastErr = err
+			if idx+1 < len(candidates) {
+				continue
+			}
+		}
+		return nil, err
+	}
+
+	return nil, lastErr
+}
+
+func (s *AntigravityOAuthService) refreshTokenWithFailover(ctx context.Context, account *Account, refreshToken string) (*AntigravityTokenInfo, error) {
+	if s.proxyPool == nil || account == nil {
+		var proxyURL string
+		if account != nil && account.ProxyID != nil {
+			if proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && proxy != nil {
+				proxyURL = proxy.URL()
+			}
+		}
+		return s.RefreshToken(ctx, refreshToken, proxyURL)
+	}
+
+	candidates, err := s.proxyPool.BuildCandidates(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	if len(candidates) == 0 {
+		var proxyURL string
+		if account.ProxyID != nil {
+			if proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && proxy != nil {
+				proxyURL = proxy.URL()
+			}
+		}
+		return s.RefreshToken(ctx, refreshToken, proxyURL)
+	}
+
+	var lastErr error
+	for idx, candidate := range candidates {
+		result, err := s.RefreshToken(ctx, refreshToken, candidate.ProxyURL)
+		if err == nil {
+			s.proxyPool.RecordSuccess(ctx, candidate.ProxyID, nil)
+			_ = s.proxyPool.PersistSelectedProxy(ctx, account, candidate, "antigravity_oauth_refresh_token", nil, "")
+			return result, nil
+		}
+
+		retry, reason := s.proxyPool.ShouldRetryError(err)
+		if retry {
+			s.proxyPool.RecordFailure(ctx, candidate.ProxyID, reason, true)
+			lastErr = err
+			if idx+1 < len(candidates) {
+				continue
+			}
+		}
+		return nil, err
+	}
+
+	return nil, lastErr
+}
+
 // ValidateRefreshToken 用 refresh token 验证并获取完整的 token 信息（含 email 和 project_id）
 func (s *AntigravityOAuthService) ValidateRefreshToken(ctx context.Context, refreshToken string, proxyID *int64) (*AntigravityTokenInfo, error) {
 	var proxyURL string
+	var tempAccount *Account
 	if proxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *proxyID)
 		if err == nil && proxy != nil {
 			proxyURL = proxy.URL()
 		}
+		tempAccount = &Account{
+			ProxyID:  proxyID,
+			Platform: PlatformAntigravity,
+			Type:     AccountTypeOAuth,
+		}
 	}
 
 	// 刷新 token
-	tokenInfo, err := s.RefreshToken(ctx, refreshToken, proxyURL)
+	var tokenInfo *AntigravityTokenInfo
+	var err error
+	if tempAccount != nil {
+		tokenInfo, err = s.refreshTokenWithFailover(ctx, tempAccount, refreshToken)
+	} else {
+		tokenInfo, err = s.RefreshToken(ctx, refreshToken, proxyURL)
+	}
 	if err != nil {
 		return nil, err
+	}
+	if tempAccount != nil && s.proxyPool != nil {
+		if resolvedProxyURL, _, _, resolveErr := s.proxyPool.ResolveProxyURL(ctx, tempAccount); resolveErr == nil {
+			proxyURL = resolvedProxyURL
+		}
 	}
 
 	// 获取用户信息（email）
@@ -285,15 +415,7 @@ func (s *AntigravityOAuthService) RefreshAccountToken(ctx context.Context, accou
 		return nil, fmt.Errorf("无可用的 refresh_token")
 	}
 
-	var proxyURL string
-	if account.ProxyID != nil {
-		proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID)
-		if err == nil && proxy != nil {
-			proxyURL = proxy.URL()
-		}
-	}
-
-	tokenInfo, err := s.RefreshToken(ctx, refreshToken, proxyURL)
+	tokenInfo, err := s.refreshTokenWithFailover(ctx, account, refreshToken)
 	if err != nil {
 		return nil, err
 	}
@@ -306,6 +428,15 @@ func (s *AntigravityOAuthService) RefreshAccountToken(ctx context.Context, accou
 
 	// 每次刷新都调用 LoadCodeAssist 获取 project_id + plan_type，失败时重试
 	existingProjectID := strings.TrimSpace(account.GetCredential("project_id"))
+	var proxyURL string
+	if s.proxyPool != nil {
+		proxyURL, _, _, _ = s.proxyPool.ResolveProxyURL(ctx, account)
+	} else if account.ProxyID != nil {
+		proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID)
+		if err == nil && proxy != nil {
+			proxyURL = proxy.URL()
+		}
+	}
 	loadResult, loadErr := s.loadProjectIDWithRetry(ctx, tokenInfo.AccessToken, proxyURL, 3)
 
 	if loadErr != nil {
@@ -442,7 +573,9 @@ func resolveDefaultTierID(loadRaw map[string]any) string {
 // FillProjectID 仅获取 project_id，不刷新 OAuth token
 func (s *AntigravityOAuthService) FillProjectID(ctx context.Context, account *Account, accessToken string) (string, error) {
 	var proxyURL string
-	if account.ProxyID != nil {
+	if s.proxyPool != nil {
+		proxyURL, _, _, _ = s.proxyPool.ResolveProxyURL(ctx, account)
+	} else if account.ProxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID)
 		if err == nil && proxy != nil {
 			proxyURL = proxy.URL()

@@ -28,11 +28,16 @@ const (
 // AntigravityQuotaFetcher 从 Antigravity API 获取额度
 type AntigravityQuotaFetcher struct {
 	proxyRepo ProxyRepository
+	proxyPool *AutoFailoverProxyPoolService
 }
 
 // NewAntigravityQuotaFetcher 创建 AntigravityQuotaFetcher
 func NewAntigravityQuotaFetcher(proxyRepo ProxyRepository) *AntigravityQuotaFetcher {
 	return &AntigravityQuotaFetcher{proxyRepo: proxyRepo}
+}
+
+func (f *AntigravityQuotaFetcher) SetAutoFailoverProxyPool(proxyPool *AutoFailoverProxyPoolService) {
+	f.proxyPool = proxyPool
 }
 
 // CanFetch 检查是否可以获取此账户的额度
@@ -206,6 +211,14 @@ func (f *AntigravityQuotaFetcher) buildUsageInfo(modelsResp *antigravity.FetchAv
 
 // GetProxyURL 获取账户的代理 URL
 func (f *AntigravityQuotaFetcher) GetProxyURL(ctx context.Context, account *Account) string {
+	if account == nil {
+		return ""
+	}
+	if f.proxyPool != nil {
+		if proxyURL, _, _, err := f.proxyPool.ResolveProxyURL(ctx, account); err == nil {
+			return proxyURL
+		}
+	}
 	if account.ProxyID == nil || f.proxyRepo == nil {
 		return ""
 	}

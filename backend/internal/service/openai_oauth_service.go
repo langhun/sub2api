@@ -18,6 +18,7 @@ type OpenAIOAuthService struct {
 	proxyRepo            ProxyRepository
 	oauthClient          OpenAIOAuthClient
 	privacyClientFactory PrivacyClientFactory // 用于调用 chatgpt.com/backend-api（ImpersonateChrome）
+	proxyPool            *AutoFailoverProxyPoolService
 }
 
 // NewOpenAIOAuthService creates a new OpenAI OAuth service
@@ -33,6 +34,10 @@ func NewOpenAIOAuthService(proxyRepo ProxyRepository, oauthClient OpenAIOAuthCli
 // 用于调用 chatgpt.com/backend-api 获取账号信息（plan_type 等）。
 func (s *OpenAIOAuthService) SetPrivacyClientFactory(factory PrivacyClientFactory) {
 	s.privacyClientFactory = factory
+}
+
+func (s *OpenAIOAuthService) SetAutoFailoverProxyPool(proxyPool *AutoFailoverProxyPoolService) {
+	s.proxyPool = proxyPool
 }
 
 // OpenAIAuthURLResult contains the authorization URL and session info
@@ -141,8 +146,10 @@ func (s *OpenAIOAuthService) ExchangeCode(ctx context.Context, input *OpenAIExch
 		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_INVALID_STATE", "invalid oauth state")
 	}
 
-	// Get proxy URL: prefer input.ProxyID, fallback to session.ProxyURL
+	// Get proxy URL: prefer input.ProxyID; when only session.ProxyURL is available,
+	// keep the historical single-proxy behavior.
 	proxyURL := session.ProxyURL
+	var tempAccount *Account
 	if input.ProxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *input.ProxyID)
 		if err != nil {
@@ -150,6 +157,11 @@ func (s *OpenAIOAuthService) ExchangeCode(ctx context.Context, input *OpenAIExch
 		}
 		if proxy != nil {
 			proxyURL = proxy.URL()
+		}
+		tempAccount = &Account{
+			ProxyID:  input.ProxyID,
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
 		}
 	}
 
@@ -163,45 +175,23 @@ func (s *OpenAIOAuthService) ExchangeCode(ctx context.Context, input *OpenAIExch
 		clientID = openai.ClientID
 	}
 
-	// Exchange code for token
-	tokenResp, err := s.oauthClient.ExchangeCode(ctx, input.Code, session.CodeVerifier, redirectURI, proxyURL, clientID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse ID token to get user info
-	var userInfo *openai.UserInfo
-	if tokenResp.IDToken != "" {
-		claims, parseErr := openai.ParseIDToken(tokenResp.IDToken)
-		if parseErr != nil {
-			slog.Warn("openai_oauth_id_token_parse_failed", "error", parseErr)
-		} else {
-			userInfo = claims.GetUserInfo()
+	var tokenInfo *OpenAITokenInfo
+	if tempAccount != nil {
+		var err error
+		tokenInfo, err = s.exchangeCodeWithFailover(ctx, tempAccount, input.Code, session.CodeVerifier, redirectURI, clientID)
+		if err != nil {
+			return nil, err
 		}
+	} else {
+		tokenResp, err := s.oauthClient.ExchangeCode(ctx, input.Code, session.CodeVerifier, redirectURI, proxyURL, clientID)
+		if err != nil {
+			return nil, err
+		}
+		tokenInfo = s.buildOpenAITokenInfo(ctx, tokenResp, proxyURL, clientID)
 	}
 
 	// Delete session after successful exchange
 	s.sessionStore.Delete(input.SessionID)
-
-	tokenInfo := &OpenAITokenInfo{
-		AccessToken:  tokenResp.AccessToken,
-		RefreshToken: tokenResp.RefreshToken,
-		IDToken:      tokenResp.IDToken,
-		ExpiresIn:    int64(tokenResp.ExpiresIn),
-		ExpiresAt:    time.Now().Unix() + int64(tokenResp.ExpiresIn),
-		ClientID:     clientID,
-	}
-
-	if userInfo != nil {
-		tokenInfo.Email = userInfo.Email
-		tokenInfo.ChatGPTAccountID = userInfo.ChatGPTAccountID
-		tokenInfo.ChatGPTUserID = userInfo.ChatGPTUserID
-		tokenInfo.OrganizationID = userInfo.OrganizationID
-		tokenInfo.PlanType = userInfo.PlanType
-	}
-
-	s.enrichTokenInfo(ctx, tokenInfo, proxyURL)
-
 	return tokenInfo, nil
 }
 
@@ -216,7 +206,106 @@ func (s *OpenAIOAuthService) RefreshTokenWithClientID(ctx context.Context, refre
 	if err != nil {
 		return nil, err
 	}
+	return s.buildOpenAITokenInfo(ctx, tokenResp, proxyURL, clientID), nil
+}
 
+func (s *OpenAIOAuthService) exchangeCodeWithFailover(
+	ctx context.Context,
+	account *Account,
+	code string,
+	codeVerifier string,
+	redirectURI string,
+	clientID string,
+) (*OpenAITokenInfo, error) {
+	if s.proxyPool == nil || account == nil || account.ProxyID == nil {
+		proxyURL, _, _ := s.proxyPool.currentAccountProxyURL(ctx, account)
+		tokenResp, err := s.oauthClient.ExchangeCode(ctx, code, codeVerifier, redirectURI, proxyURL, clientID)
+		if err != nil {
+			return nil, err
+		}
+		return s.buildOpenAITokenInfo(ctx, tokenResp, proxyURL, clientID), nil
+	}
+
+	candidates, err := s.proxyPool.BuildCandidates(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	if len(candidates) == 0 {
+		proxyURL, _, _ := s.proxyPool.currentAccountProxyURL(ctx, account)
+		tokenResp, err := s.oauthClient.ExchangeCode(ctx, code, codeVerifier, redirectURI, proxyURL, clientID)
+		if err != nil {
+			return nil, err
+		}
+		return s.buildOpenAITokenInfo(ctx, tokenResp, proxyURL, clientID), nil
+	}
+
+	var lastErr error
+	for idx, candidate := range candidates {
+		tokenResp, err := s.oauthClient.ExchangeCode(ctx, code, codeVerifier, redirectURI, candidate.ProxyURL, clientID)
+		if err == nil {
+			tokenInfo := s.buildOpenAITokenInfo(ctx, tokenResp, candidate.ProxyURL, clientID)
+			s.proxyPool.RecordSuccess(ctx, candidate.ProxyID, nil)
+			_ = s.proxyPool.PersistSelectedProxy(ctx, account, candidate, "openai_oauth_exchange_code", nil, "")
+			return tokenInfo, nil
+		}
+
+		retry, reason := s.proxyPool.ShouldRetryError(err)
+		if retry {
+			s.proxyPool.RecordFailure(ctx, candidate.ProxyID, reason, true)
+			lastErr = err
+			if idx+1 < len(candidates) {
+				continue
+			}
+		}
+		return nil, err
+	}
+
+	return nil, lastErr
+}
+
+func (s *OpenAIOAuthService) refreshAccountTokenWithFailover(ctx context.Context, account *Account, refreshToken string, clientID string) (*OpenAITokenInfo, error) {
+	if s.proxyPool == nil || account == nil {
+		var proxyURL string
+		if account != nil && account.ProxyID != nil {
+			if proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && proxy != nil {
+				proxyURL = proxy.URL()
+			}
+		}
+		return s.RefreshTokenWithClientID(ctx, refreshToken, proxyURL, clientID)
+	}
+
+	candidates, err := s.proxyPool.BuildCandidates(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	if len(candidates) == 0 {
+		return s.RefreshTokenWithClientID(ctx, refreshToken, "", clientID)
+	}
+
+	var lastErr error
+	for idx, candidate := range candidates {
+		tokenInfo, err := s.RefreshTokenWithClientID(ctx, refreshToken, candidate.ProxyURL, clientID)
+		if err == nil {
+			s.proxyPool.RecordSuccess(ctx, candidate.ProxyID, nil)
+			_ = s.proxyPool.PersistSelectedProxy(ctx, account, candidate, "openai_oauth_refresh_token", nil, "")
+			return tokenInfo, nil
+		}
+
+		retry, reason := s.proxyPool.ShouldRetryError(err)
+		if retry {
+			s.proxyPool.RecordFailure(ctx, candidate.ProxyID, reason, true)
+			lastErr = err
+			if idx+1 < len(candidates) {
+				continue
+			}
+		}
+		return nil, err
+	}
+
+	return nil, lastErr
+}
+
+func (s *OpenAIOAuthService) buildOpenAITokenInfo(ctx context.Context, tokenResp *openai.TokenResponse, proxyURL string, clientID string) *OpenAITokenInfo {
 	// Parse ID token to get user info
 	var userInfo *openai.UserInfo
 	if tokenResp.IDToken != "" {
@@ -248,8 +337,7 @@ func (s *OpenAIOAuthService) RefreshTokenWithClientID(ctx context.Context, refre
 	}
 
 	s.enrichTokenInfo(ctx, tokenInfo, proxyURL)
-
-	return tokenInfo, nil
+	return tokenInfo
 }
 
 // enrichTokenInfo 通过 ChatGPT backend-api 补全 tokenInfo 并设置隐私（best-effort）。
@@ -316,16 +404,8 @@ func (s *OpenAIOAuthService) RefreshAccountToken(ctx context.Context, account *A
 		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_NO_REFRESH_TOKEN", "no refresh token available")
 	}
 
-	var proxyURL string
-	if account.ProxyID != nil {
-		proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID)
-		if err == nil && proxy != nil {
-			proxyURL = proxy.URL()
-		}
-	}
-
 	clientID := account.GetCredential("client_id")
-	return s.RefreshTokenWithClientID(ctx, refreshToken, proxyURL, clientID)
+	return s.refreshAccountTokenWithFailover(ctx, account, refreshToken, clientID)
 }
 
 // BuildAccountCredentials builds credentials map from token info

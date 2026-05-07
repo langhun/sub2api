@@ -686,6 +686,7 @@ export interface Proxy {
   username: string | null
   password?: string | null
   status: 'active' | 'inactive'
+  auto_failover_pool_enabled?: boolean
   account_count?: number // Number of accounts using this proxy
   latency_ms?: number
   latency_status?: 'success' | 'failed'
@@ -700,6 +701,12 @@ export interface Proxy {
   quality_grade?: string
   quality_summary?: string
   quality_checked?: number
+  health_status?: 'healthy' | 'failed' | 'cooldown'
+  cooldown_until_unix?: number
+  last_fail_reason?: string
+  last_fail_at_unix?: number
+  last_recovered_at_unix?: number
+  failover_switch_count?: number
   created_at: string
   updated_at: string
 }
@@ -1129,6 +1136,7 @@ export interface CreateProxyRequest {
   port: number
   username?: string | null
   password?: string | null
+  auto_failover_pool_enabled?: boolean
 }
 
 export interface UpdateProxyRequest {
@@ -1139,6 +1147,7 @@ export interface UpdateProxyRequest {
   username?: string | null
   password?: string | null
   status?: 'active' | 'inactive'
+  auto_failover_pool_enabled?: boolean
 }
 
 export interface AdminDataPayload {

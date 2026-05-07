@@ -255,11 +255,20 @@
             />
           </template>
           <template #cell-proxy="{ row }">
-            <div v-if="row.proxy" class="flex items-center gap-2">
-              <span class="text-sm text-gray-700 dark:text-gray-300">{{ row.proxy.name }}</span>
-              <span v-if="row.proxy.country_code" class="text-xs text-gray-500 dark:text-gray-400">
-                ({{ row.proxy.country_code }})
-              </span>
+            <div v-if="row.proxy" class="flex flex-col items-start gap-1">
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-700 dark:text-gray-300">{{ row.proxy.name }}</span>
+                <span v-if="row.proxy.country_code" class="text-xs text-gray-500 dark:text-gray-400">
+                  ({{ row.proxy.country_code }})
+                </span>
+              </div>
+              <div
+                v-if="getProxyFailoverSummary(row)"
+                class="text-xs text-gray-500 dark:text-gray-400"
+                :title="getProxyFailoverReason(row) || undefined"
+              >
+                {{ getProxyFailoverSummary(row) }}
+              </div>
             </div>
             <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
           </template>
@@ -1632,6 +1641,28 @@ const formatExpiresAt = (value: number | null) => {
     },
     'sv-SE'
   )
+}
+
+const getProxyFailoverState = (account: Account) => {
+  const raw = account.extra?.proxy_failover_state
+  if (!raw || typeof raw !== 'object') return null
+  return raw as {
+    last_switch_at?: string
+    last_switch_reason?: string
+  }
+}
+
+const getProxyFailoverSummary = (account: Account) => {
+  const state = getProxyFailoverState(account)
+  if (!state?.last_switch_at) return ''
+  return t('admin.accounts.proxyAutoFailoverAt', {
+    time: formatRelativeTime(state.last_switch_at)
+  })
+}
+
+const getProxyFailoverReason = (account: Account) => {
+  const state = getProxyFailoverState(account)
+  return state?.last_switch_reason || ''
 }
 const isExpired = (value: number | null) => {
   if (!value) return false
