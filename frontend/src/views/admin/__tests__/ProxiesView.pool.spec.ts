@@ -54,8 +54,8 @@ const DataTableStub = {
 }
 
 const SelectStub = {
-  props: ['modelValue', 'options'],
-  template: '<div data-test="select-stub"></div>'
+  props: ['modelValue', 'options', 'placeholder'],
+  template: '<div data-test="select-stub" :data-placeholder="placeholder"></div>'
 }
 
 describe('admin ProxiesView pool state', () => {
@@ -90,7 +90,7 @@ describe('admin ProxiesView pool state', () => {
     getAllGroups.mockResolvedValue([])
   })
 
-  it('renders pool membership and health badges from proxy runtime state', async () => {
+  it('renders pool members in a table dialog and supports keyword filtering', async () => {
     const wrapper = mount(ProxiesView, {
       global: {
         stubs: {
@@ -114,7 +114,27 @@ describe('admin ProxiesView pool state', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('admin.proxies.poolMembersAction')
+
+    const openPoolButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.proxies.poolMembersAction'))
+
+    expect(openPoolButton).toBeDefined()
+    await openPoolButton!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('table').exists()).toBe(true)
+    expect(wrapper.text()).toContain('pool-a')
+    expect(wrapper.text()).toContain('proxy.example.com:8080')
     expect(wrapper.text()).toContain('admin.proxies.healthCooldown')
-    expect(wrapper.text()).toContain('admin.proxies.failoverSwitchCount')
+
+    const searchInput = wrapper.find('input[placeholder="admin.proxies.poolMembersSearchPlaceholder"]')
+    expect(searchInput.exists()).toBe(true)
+
+    await searchInput.setValue('not-found')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.proxies.poolMembersFilteredEmpty')
+    expect(wrapper.text()).not.toContain('pool-a')
   })
 })
