@@ -3337,7 +3337,10 @@ export default {
         unschedulable: '调度暂停（手动/过期）'
       },
       activeFiltersTitle: '当前筛选（{count}）',
+      activeFiltersCompact: '已筛选 {count} 项',
       clearFilters: '清空筛选',
+      showFilterDetails: '查看详情',
+      hideFilterDetails: '收起详情',
       filterSummary: {
         search: '搜索',
         platform: '平台',
