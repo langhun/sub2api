@@ -765,6 +765,82 @@ func (s *UsageLogRepoSuite) TestDashboardStats_TodayTotalsAndPerformance() {
 	s.Require().Equal(wantTpm, stats.Tpm, "Tpm mismatch")
 }
 
+func (s *UsageLogRepoSuite) TestDashboardStats_TodayStatsUseRealtimeUsageLogs() {
+	now := time.Now().UTC()
+	todayStart := truncateToDayUTC(now)
+	baseStats, err := s.repo.GetDashboardStats(s.ctx)
+	s.Require().NoError(err, "GetDashboardStats base")
+
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "today-realtime@example.com"})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-today-realtime", Name: "today-rt"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-today-realtime"})
+
+	firstDuration := 120
+	firstLog := &service.UsageLog{
+		UserID:              user.ID,
+		APIKeyID:            apiKey.ID,
+		AccountID:           account.ID,
+		Model:               "claude-3",
+		InputTokens:         10,
+		OutputTokens:        20,
+		CacheCreationTokens: 1,
+		CacheReadTokens:     2,
+		TotalCost:           1.0,
+		ActualCost:          0.8,
+		DurationMs:          &firstDuration,
+		CreatedAt:           testMaxTime(todayStart.Add(2*time.Minute), now.Add(-3*time.Minute)),
+	}
+	_, err = s.repo.Create(s.ctx, firstLog)
+	s.Require().NoError(err, "Create firstLog")
+
+	aggRepo := newDashboardAggregationRepositoryWithSQL(s.tx)
+	s.Require().NoError(
+		aggRepo.AggregateRange(s.ctx, todayStart, firstLog.CreatedAt.Add(time.Second)),
+		"AggregateRange before late log",
+	)
+
+	secondDuration := 180
+	secondLog := &service.UsageLog{
+		UserID:              user.ID,
+		APIKeyID:            apiKey.ID,
+		AccountID:           account.ID,
+		Model:               "claude-3",
+		InputTokens:         30,
+		OutputTokens:        40,
+		CacheCreationTokens: 3,
+		CacheReadTokens:     4,
+		TotalCost:           2.0,
+		ActualCost:          1.6,
+		DurationMs:          &secondDuration,
+		CreatedAt:           testMaxTime(now.Add(-30*time.Second), now),
+	}
+	_, err = s.repo.Create(s.ctx, secondLog)
+	s.Require().NoError(err, "Create secondLog")
+
+	stats, err := s.repo.GetDashboardStats(s.ctx)
+	s.Require().NoError(err, "GetDashboardStats after late log")
+
+	s.Require().Equal(baseStats.TodayRequests+int64(2), stats.TodayRequests, "TodayRequests mismatch")
+	s.Require().Equal(baseStats.TodayInputTokens+int64(40), stats.TodayInputTokens, "TodayInputTokens mismatch")
+	s.Require().Equal(baseStats.TodayOutputTokens+int64(60), stats.TodayOutputTokens, "TodayOutputTokens mismatch")
+	s.Require().Equal(baseStats.TodayCacheCreationTokens+int64(4), stats.TodayCacheCreationTokens, "TodayCacheCreationTokens mismatch")
+	s.Require().Equal(baseStats.TodayCacheReadTokens+int64(6), stats.TodayCacheReadTokens, "TodayCacheReadTokens mismatch")
+	s.Require().Equal(baseStats.TodayTokens+int64(110), stats.TodayTokens, "TodayTokens mismatch")
+	s.Require().Equal(baseStats.TodayCost+3.0, stats.TodayCost, "TodayCost mismatch")
+	s.Require().Equal(baseStats.TodayActualCost+2.4, stats.TodayActualCost, "TodayActualCost mismatch")
+	s.Require().Equal(baseStats.TodayAccountCost+3.0, stats.TodayAccountCost, "TodayAccountCost mismatch")
+
+	s.Require().Equal(baseStats.TotalRequests+int64(2), stats.TotalRequests, "TotalRequests mismatch")
+	s.Require().Equal(baseStats.TotalInputTokens+int64(40), stats.TotalInputTokens, "TotalInputTokens mismatch")
+	s.Require().Equal(baseStats.TotalOutputTokens+int64(60), stats.TotalOutputTokens, "TotalOutputTokens mismatch")
+	s.Require().Equal(baseStats.TotalCacheCreationTokens+int64(4), stats.TotalCacheCreationTokens, "TotalCacheCreationTokens mismatch")
+	s.Require().Equal(baseStats.TotalCacheReadTokens+int64(6), stats.TotalCacheReadTokens, "TotalCacheReadTokens mismatch")
+	s.Require().Equal(baseStats.TotalTokens+int64(110), stats.TotalTokens, "TotalTokens mismatch")
+	s.Require().Equal(baseStats.TotalCost+3.0, stats.TotalCost, "TotalCost mismatch")
+	s.Require().Equal(baseStats.TotalActualCost+2.4, stats.TotalActualCost, "TotalActualCost mismatch")
+	s.Require().Equal(baseStats.TotalAccountCost+3.0, stats.TotalAccountCost, "TotalAccountCost mismatch")
+}
+
 func (s *UsageLogRepoSuite) TestDashboardStatsWithRange_Fallback() {
 	now := time.Now().UTC()
 	todayStart := truncateToDayUTC(now)

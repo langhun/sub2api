@@ -1519,7 +1519,7 @@ func (r *usageLogRepository) fillDashboardEntityStats(ctx context.Context, stats
 }
 
 func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Context, stats *DashboardStats, todayUTC, now time.Time) error {
-	totalStatsQuery := `
+	historicalStatsQuery := `
 		SELECT
 			COALESCE(SUM(total_requests), 0) as total_requests,
 			COALESCE(SUM(input_tokens), 0) as total_input_tokens,
@@ -1531,49 +1531,57 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 			COALESCE(SUM(account_cost), 0) as total_account_cost,
 			COALESCE(SUM(total_duration_ms), 0) as total_duration_ms
 		FROM usage_dashboard_daily
+		WHERE bucket_date < $1::date
 	`
-	var totalDurationMs int64
+	var historicalRequests int64
+	var historicalInputTokens int64
+	var historicalOutputTokens int64
+	var historicalCacheCreationTokens int64
+	var historicalCacheReadTokens int64
+	var historicalCost float64
+	var historicalActualCost float64
+	var historicalAccountCost float64
+	var historicalDurationMs int64
 	if err := scanSingleRow(
 		ctx,
 		r.sql,
-		totalStatsQuery,
-		nil,
-		&stats.TotalRequests,
-		&stats.TotalInputTokens,
-		&stats.TotalOutputTokens,
-		&stats.TotalCacheCreationTokens,
-		&stats.TotalCacheReadTokens,
-		&stats.TotalCost,
-		&stats.TotalActualCost,
-		&stats.TotalAccountCost,
-		&totalDurationMs,
+		historicalStatsQuery,
+		[]any{todayUTC},
+		&historicalRequests,
+		&historicalInputTokens,
+		&historicalOutputTokens,
+		&historicalCacheCreationTokens,
+		&historicalCacheReadTokens,
+		&historicalCost,
+		&historicalActualCost,
+		&historicalAccountCost,
+		&historicalDurationMs,
 	); err != nil {
 		return err
 	}
-	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
-	if stats.TotalRequests > 0 {
-		stats.AverageDurationMs = float64(totalDurationMs) / float64(stats.TotalRequests)
-	}
 
+	todayEnd := todayUTC.Add(24 * time.Hour)
 	todayStatsQuery := `
 		SELECT
-			total_requests as today_requests,
-			input_tokens as today_input_tokens,
-			output_tokens as today_output_tokens,
-			cache_creation_tokens as today_cache_creation_tokens,
-			cache_read_tokens as today_cache_read_tokens,
-			total_cost as today_cost,
-			actual_cost as today_actual_cost,
-			account_cost as today_account_cost,
-			active_users as active_users
-		FROM usage_dashboard_daily
-		WHERE bucket_date = $1::date
+			COUNT(*) as today_requests,
+			COALESCE(SUM(input_tokens), 0) as today_input_tokens,
+			COALESCE(SUM(output_tokens), 0) as today_output_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as today_cache_creation_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as today_cache_read_tokens,
+			COALESCE(SUM(total_cost), 0) as today_cost,
+			COALESCE(SUM(actual_cost), 0) as today_actual_cost,
+			COALESCE(SUM(COALESCE(account_stats_cost, total_cost) * COALESCE(account_rate_multiplier, 1)), 0) as today_account_cost,
+			COALESCE(SUM(COALESCE(duration_ms, 0)), 0) as today_duration_ms,
+			COUNT(DISTINCT user_id) as active_users
+		FROM usage_logs
+		WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz
 	`
+	var todayDurationMs int64
 	if err := scanSingleRow(
 		ctx,
 		r.sql,
 		todayStatsQuery,
-		[]any{todayUTC},
+		[]any{todayUTC, todayEnd},
 		&stats.TodayRequests,
 		&stats.TodayInputTokens,
 		&stats.TodayOutputTokens,
@@ -1582,13 +1590,26 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 		&stats.TodayCost,
 		&stats.TodayActualCost,
 		&stats.TodayAccountCost,
+		&todayDurationMs,
 		&stats.ActiveUsers,
 	); err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
+		return err
 	}
 	stats.TodayTokens = stats.TodayInputTokens + stats.TodayOutputTokens + stats.TodayCacheCreationTokens + stats.TodayCacheReadTokens
+
+	stats.TotalRequests = historicalRequests + stats.TodayRequests
+	stats.TotalInputTokens = historicalInputTokens + stats.TodayInputTokens
+	stats.TotalOutputTokens = historicalOutputTokens + stats.TodayOutputTokens
+	stats.TotalCacheCreationTokens = historicalCacheCreationTokens + stats.TodayCacheCreationTokens
+	stats.TotalCacheReadTokens = historicalCacheReadTokens + stats.TodayCacheReadTokens
+	stats.TotalCost = historicalCost + stats.TodayCost
+	stats.TotalActualCost = historicalActualCost + stats.TodayActualCost
+	stats.TotalAccountCost = historicalAccountCost + stats.TodayAccountCost
+	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
+	totalDurationMs := historicalDurationMs + todayDurationMs
+	if stats.TotalRequests > 0 {
+		stats.AverageDurationMs = float64(totalDurationMs) / float64(stats.TotalRequests)
+	}
 
 	hourlyActiveQuery := `
 		SELECT active_users
