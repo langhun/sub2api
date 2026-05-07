@@ -50,6 +50,13 @@
               </div>
             </div>
 
+            <PublicConsumptionLeaderboardChart
+              v-if="activeTab === 'consumption' && !loading && consumptionSummary && consumptionChartItems.length > 0"
+              class="border-b border-gray-100 dark:border-dark-800"
+              :chart-items="consumptionChartItems"
+              :summary="consumptionSummary"
+            />
+
             <div v-if="!loading && tabs.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
               {{ t('leaderboard.tabsDisabled') }}
             </div>
@@ -69,7 +76,14 @@
                   <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
                 </div>
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ entry.username }}</p>
+                  <div class="flex items-center gap-2">
+                    <span
+                      v-if="activeTab === 'consumption'"
+                      class="h-2.5 w-2.5 shrink-0 rounded-full"
+                      :style="{ backgroundColor: getConsumptionChartColor(entry.rank) }"
+                    ></span>
+                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ entry.username }}</p>
+                  </div>
                   <p v-if="getSubtitle(entry)" class="mt-0.5 truncate text-xs text-gray-400 dark:text-dark-500">{{ getSubtitle(entry) }}</p>
                 </div>
                 <div class="shrink-0 text-right">
@@ -83,6 +97,12 @@
                   </template>
                   <template v-else>
                     <span class="text-sm font-bold text-gray-900 dark:text-white">${{ entry.value.toFixed(2) }}</span>
+                    <span
+                      v-if="activeTab === 'consumption' && consumptionSummary?.total_value"
+                      class="block text-xs text-gray-400 dark:text-dark-500"
+                    >
+                      {{ formatConsumptionShare(entry.value) }}
+                    </span>
                   </template>
                 </div>
               </div>
@@ -102,7 +122,14 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import PublicPageFooter from '@/components/common/PublicPageFooter.vue'
-import { leaderboardAPI, type LeaderboardEntry } from '@/api/leaderboard'
+import PublicConsumptionLeaderboardChart from '@/components/leaderboard/PublicConsumptionLeaderboardChart.vue'
+import { createConsumptionLeaderboardPalette } from '@/components/leaderboard/consumptionChartPalette'
+import {
+  leaderboardAPI,
+  type LeaderboardChartItem,
+  type LeaderboardEntry,
+  type LeaderboardSummary,
+} from '@/api/leaderboard'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -113,6 +140,8 @@ type PeriodKey = 'daily' | 'weekly' | 'monthly' | 'day' | 'week' | 'month'
 const activeTab = ref<TabKey>('balance')
 const activePeriod = ref<PeriodKey>('daily')
 const entries = ref<LeaderboardEntry[]>([])
+const consumptionSummary = ref<LeaderboardSummary | null>(null)
+const consumptionChartItems = ref<LeaderboardChartItem[]>([])
 const loading = ref(false)
 let fetchSequence = 0
 
@@ -150,6 +179,7 @@ const allTabs = computed(() => [
 
 const tabs = computed(() => allTabs.value.filter((tab) => leaderboardTabVisibility.value[tab.key] !== false))
 const visibleTabKeys = computed(() => tabs.value.map((tab) => tab.key).join(','))
+const consumptionChartColors = computed(() => createConsumptionLeaderboardPalette(consumptionChartItems.value.length))
 
 const periods = computed(() => {
   if (activeTab.value === 'transfer') {
@@ -209,10 +239,20 @@ async function fetchData() {
     }
     if (currentFetch === fetchSequence) {
       entries.value = res.items || []
+      if (activeTab.value === 'consumption') {
+        consumptionSummary.value = res.summary ?? {
+          total_value: 0,
+          total_users: res.total || 0,
+        }
+        consumptionChartItems.value = res.chart_items || []
+      } else {
+        clearConsumptionChartData()
+      }
     }
   } catch {
     if (currentFetch === fetchSequence) {
       entries.value = []
+      clearConsumptionChartData()
     }
   } finally {
     if (currentFetch === fetchSequence) {
@@ -221,10 +261,28 @@ async function fetchData() {
   }
 }
 
+function clearConsumptionChartData() {
+  consumptionSummary.value = null
+  consumptionChartItems.value = []
+}
+
 function clearLeaderboardData() {
   fetchSequence += 1
   entries.value = []
+  clearConsumptionChartData()
   loading.value = false
+}
+
+function getConsumptionChartColor(rank: number): string {
+  return consumptionChartColors.value[rank - 1] || 'hsl(215 16% 56%)'
+}
+
+function formatConsumptionShare(value: number): string {
+  const totalValue = consumptionSummary.value?.total_value || 0
+  if (totalValue <= 0) {
+    return '0.0%'
+  }
+  return `${((value / totalValue) * 100).toFixed(1)}%`
 }
 
 function ensureActiveTabVisible(): boolean {
