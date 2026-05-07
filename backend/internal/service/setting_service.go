@@ -1654,7 +1654,11 @@ func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
 }
 
 func (s *SettingService) GetInvitationCodeFormat(ctx context.Context) CodeFormatSettings {
-	return s.GetRedeemCodeFormat(ctx)
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyInvitationCodeFormat)
+	if err != nil {
+		return DefaultRegistrationInvitationCodeFormat()
+	}
+	return ParseCodeFormatSettings(value, DefaultRegistrationInvitationCodeFormat())
 }
 
 // IsAffiliateEnabled 检查是否启用邀请返利功能（总开关）

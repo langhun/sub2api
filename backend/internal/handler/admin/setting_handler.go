@@ -116,6 +116,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PasswordResetEnabled:                   settings.PasswordResetEnabled,
 		FrontendURL:                            settings.FrontendURL,
 		InvitationCodeEnabled:                  settings.InvitationCodeEnabled,
+		InvitationCodeFormat:                   settings.InvitationCodeFormat,
 		TotpEnabled:                            settings.TotpEnabled,
 		TotpEncryptionKeyConfigured:            h.settingService.IsTotpEncryptionKeyConfigured(),
 		SMTPHost:                               settings.SMTPHost,
@@ -336,6 +337,7 @@ type UpdateSettingsRequest struct {
 	PasswordResetEnabled             bool                        `json:"password_reset_enabled"`
 	FrontendURL                      string                      `json:"frontend_url"`
 	InvitationCodeEnabled            bool                        `json:"invitation_code_enabled"`
+	InvitationCodeFormat             *service.CodeFormatSettings `json:"invitation_code_format"`
 	TotpEnabled                      bool                        `json:"totp_enabled"` // TOTP 双因素认证
 
 	// 邮件服务设置
@@ -1246,6 +1248,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PasswordResetEnabled:  req.PasswordResetEnabled,
 		FrontendURL:           req.FrontendURL,
 		InvitationCodeEnabled: req.InvitationCodeEnabled,
+		InvitationCodeFormat: func() service.CodeFormatSettings {
+			if req.InvitationCodeFormat != nil {
+				return *req.InvitationCodeFormat
+			}
+			return previousSettings.InvitationCodeFormat
+		}(),
 		TotpEnabled:                      req.TotpEnabled,
 		SMTPHost:                         req.SMTPHost,
 		SMTPPort:                         req.SMTPPort,
@@ -1714,6 +1722,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PasswordResetEnabled:                   updatedSettings.PasswordResetEnabled,
 		FrontendURL:                            updatedSettings.FrontendURL,
 		InvitationCodeEnabled:                  updatedSettings.InvitationCodeEnabled,
+		InvitationCodeFormat:                   updatedSettings.InvitationCodeFormat,
 		TotpEnabled:                            updatedSettings.TotpEnabled,
 		TotpEncryptionKeyConfigured:            h.settingService.IsTotpEncryptionKeyConfigured(),
 		SMTPHost:                               updatedSettings.SMTPHost,
