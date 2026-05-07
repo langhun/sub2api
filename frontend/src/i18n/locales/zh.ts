@@ -3336,6 +3336,16 @@ export default {
         tempUnschedulable: '运行时临时冷却（含 401）',
         unschedulable: '调度暂停（手动/过期）'
       },
+      activeFiltersTitle: '当前筛选（{count}）',
+      clearFilters: '清空筛选',
+      filterSummary: {
+        search: '搜索',
+        platform: '平台',
+        tier: '层级',
+        type: '类型',
+        group: '分组',
+        privacy: 'Privacy'
+      },
       tempUnschedulable: {
         title: '临时不可调度',
         statusTitle: '临时不可调度状态',
