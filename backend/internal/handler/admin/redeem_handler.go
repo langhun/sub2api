@@ -40,6 +40,10 @@ type GenerateRedeemCodesRequest struct {
 	ValidityDays int     `json:"validity_days"` // 订阅类型使用，正数增加/负数退款扣减
 }
 
+type ManualInvitationCodeRequest struct {
+	Code string `json:"code" binding:"required,min=3,max=128"`
+}
+
 // CreateAndRedeemCodeRequest represents creating a fixed code and redeeming it for a target user.
 // Type 为 omitempty 而非 required 是为了向后兼容旧版调用方（不传 type 时默认 balance）。
 type CreateAndRedeemCodeRequest struct {
@@ -127,6 +131,93 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 	})
 }
 
+// CreateInvitationCode creates a custom unused invitation code.
+// POST /api/v1/admin/redeem-codes/invitation
+func (h *RedeemHandler) CreateInvitationCode(c *gin.Context) {
+	if h.redeemService == nil {
+		response.InternalError(c, "redeem service not configured")
+		return
+	}
+
+	var req ManualInvitationCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
+	if !service.IsRegistrationInvitationCodeFormat(req.Code) {
+		response.BadRequest(c, "Invalid request: invalid invitation code format")
+		return
+	}
+
+	code := &service.RedeemCode{
+		Code:   req.Code,
+		Type:   service.RedeemTypeInvitation,
+		Value:  0,
+		Status: service.StatusUnused,
+	}
+	if err := h.redeemService.CreateCode(c.Request.Context(), code); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, dto.RedeemCodeFromServiceAdmin(code))
+}
+
+// UpdateInvitationCode updates the code value of an unused invitation code.
+// PUT /api/v1/admin/redeem-codes/:id/invitation
+func (h *RedeemHandler) UpdateInvitationCode(c *gin.Context) {
+	if h.redeemService == nil {
+		response.InternalError(c, "redeem service not configured")
+		return
+	}
+
+	codeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid redeem code ID")
+		return
+	}
+
+	var req ManualInvitationCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
+	if !service.IsRegistrationInvitationCodeFormat(req.Code) {
+		response.BadRequest(c, "Invalid request: invalid invitation code format")
+		return
+	}
+
+	existing, err := h.redeemService.GetByID(c.Request.Context(), codeID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if existing.Type != service.RedeemTypeInvitation {
+		response.ErrorFrom(c, infraerrors.BadRequest("REDEEM_CODE_INVALID", "only invitation codes can be edited here"))
+		return
+	}
+	if !existing.CanUse() {
+		response.ErrorFrom(c, infraerrors.Conflict("REDEEM_CODE_USED", "used or expired invitation code cannot be edited"))
+		return
+	}
+
+	existing.Code = req.Code
+	if err := h.redeemService.UpdateCode(c.Request.Context(), existing); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	updated, err := h.redeemService.GetByID(c.Request.Context(), codeID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, dto.RedeemCodeFromServiceAdmin(updated))
+}
+
 // CreateAndRedeem creates a fixed redeem code and redeems it for a target user in one step.
 // POST /api/v1/admin/redeem-codes/create-and-redeem
 func (h *RedeemHandler) CreateAndRedeem(c *gin.Context) {
@@ -145,6 +236,13 @@ func (h *RedeemHandler) CreateAndRedeem(c *gin.Context) {
 	// 请勿删除此默认值逻辑，否则会导致旧版调用方 400 报错。
 	if req.Type == "" {
 		req.Type = "balance"
+	}
+	if req.Type == "invitation" {
+		req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
+		if !service.IsRegistrationInvitationCodeFormat(req.Code) {
+			response.BadRequest(c, "Invalid request: invalid invitation code format")
+			return
+		}
 	}
 
 	if req.Type == "subscription" {

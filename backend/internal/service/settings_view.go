@@ -16,9 +16,11 @@ type SystemSettings struct {
 	EmailVerifyEnabled               bool
 	RegistrationEmailSuffixWhitelist []string
 	PromoCodeEnabled                 bool
+	RedeemCodeFormat                 CodeFormatSettings
 	PasswordResetEnabled             bool
 	FrontendURL                      string
 	InvitationCodeEnabled            bool
+	InvitationCodeFormat             CodeFormatSettings
 	TotpEnabled                      bool // TOTP 双因素认证
 
 	SMTPHost               string
@@ -116,6 +118,7 @@ type SystemSettings struct {
 	DefaultConcurrency           int
 	DefaultBalance               float64
 	AffiliateEnabled             bool
+	AffiliateCodeFormat          CodeFormatSettings
 	AffiliateRebateRate          float64
 	AffiliateRebateFreezeHours   int
 	AffiliateRebateDurationDays  int
@@ -223,8 +226,10 @@ type PublicSettings struct {
 	ForceEmailOnThirdPartySignup     bool
 	RegistrationEmailSuffixWhitelist []string
 	PromoCodeEnabled                 bool
+	RedeemCodeFormat                 CodeFormatSettings
 	PasswordResetEnabled             bool
 	InvitationCodeEnabled            bool
+	InvitationCodeFormat             CodeFormatSettings
 	TotpEnabled                      bool // TOTP 双因素认证
 	TurnstileEnabled                 bool
 	TurnstileSiteKey                 string
@@ -277,7 +282,8 @@ type PublicSettings struct {
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
-	AffiliateEnabled bool `json:"affiliate_enabled"`
+	AffiliateEnabled    bool               `json:"affiliate_enabled"`
+	AffiliateCodeFormat CodeFormatSettings `json:"affiliate_code_format"`
 }
 
 type WeChatConnectOAuthConfig struct {

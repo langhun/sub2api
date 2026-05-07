@@ -1474,6 +1474,30 @@
                 <Toggle v-model="form.promo_code_enabled" />
               </div>
 
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <label class="font-medium text-gray-900 dark:text-white">
+                  兑换码格式
+                </label>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  控制余额、并发、订阅、审计等自动生成兑换码的前缀、后缀、随机位数和分隔规则。
+                </p>
+                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                  <input v-model="form.redeem_code_format.prefix" type="text" class="input" placeholder="前缀，例如 RC" />
+                  <input v-model="form.redeem_code_format.suffix" type="text" class="input" placeholder="后缀，可留空" />
+                  <input v-model.number="form.redeem_code_format.random_length" type="number" min="1" max="32" class="input" placeholder="随机位数" />
+                  <input v-model.number="form.redeem_code_format.group_size" type="number" min="0" max="32" class="input" placeholder="分组位数，0 为不分组" />
+                  <Select
+                    v-model="form.redeem_code_format.separator"
+                    :options="[
+                      { value: '', label: '无分隔符' },
+                      { value: '-', label: '-' },
+                      { value: '_', label: '_' },
+                    ]"
+                    class="md:col-span-2"
+                  />
+                </div>
+              </div>
+
               <!-- Invitation Code -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -1487,6 +1511,29 @@
                   </p>
                 </div>
                 <Toggle v-model="form.invitation_code_enabled" />
+              </div>
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <label class="font-medium text-gray-900 dark:text-white">
+                  注册邀请码格式
+                </label>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  控制注册邀请码、手动新建邀请码、盲盒邀请码的格式规则。
+                </p>
+                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                  <input v-model="form.invitation_code_format.prefix" type="text" class="input" placeholder="前缀，例如 DG" />
+                  <input v-model="form.invitation_code_format.suffix" type="text" class="input" placeholder="后缀，可留空" />
+                  <input v-model.number="form.invitation_code_format.random_length" type="number" min="1" max="32" class="input" placeholder="随机位数" />
+                  <input v-model.number="form.invitation_code_format.group_size" type="number" min="0" max="32" class="input" placeholder="分组位数，0 为不分组" />
+                  <Select
+                    v-model="form.invitation_code_format.separator"
+                    :options="[
+                      { value: '', label: '无分隔符' },
+                      { value: '-', label: '-' },
+                      { value: '_', label: '_' },
+                    ]"
+                    class="md:col-span-2"
+                  />
+                </div>
               </div>
               <!-- Password Reset - Only show when email verification is enabled -->
               <div
@@ -4439,6 +4486,30 @@
             <div v-if="form.affiliate_enabled" class="space-y-6">
               <div>
                 <label class="input-label">
+                  返利码格式
+                </label>
+                <p class="mt-1 text-xs text-gray-400">
+                  控制用户邀请返利码、重置返利码后的新格式。
+                </p>
+                <div class="mt-3 grid gap-3 md:grid-cols-2">
+                  <input v-model="form.affiliate_code_format.prefix" type="text" class="input" placeholder="前缀，例如 AFF" />
+                  <input v-model="form.affiliate_code_format.suffix" type="text" class="input" placeholder="后缀，可留空" />
+                  <input v-model.number="form.affiliate_code_format.random_length" type="number" min="1" max="32" class="input" placeholder="随机位数" />
+                  <input v-model.number="form.affiliate_code_format.group_size" type="number" min="0" max="32" class="input" placeholder="分组位数，0 为不分组" />
+                  <Select
+                    v-model="form.affiliate_code_format.separator"
+                    :options="[
+                      { value: '', label: '无分隔符' },
+                      { value: '-', label: '-' },
+                      { value: '_', label: '_' },
+                    ]"
+                    class="md:col-span-2"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label class="input-label">
                   {{ t('admin.settings.features.affiliate.rebateRate') }}
                 </label>
                 <div class="relative">
@@ -6433,11 +6504,14 @@ const form = reactive<SettingsForm>({
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   promo_code_enabled: true,
+  redeem_code_format: { prefix: "", suffix: "", random_length: 32, separator: "-", group_size: 8 },
   invitation_code_enabled: false,
+  invitation_code_format: { prefix: "DG", suffix: "", random_length: 6, separator: "-", group_size: 0 },
   password_reset_enabled: false,
   totp_enabled: false,
   totp_encryption_key_configured: false,
   default_balance: 0,
+  affiliate_code_format: { prefix: "", suffix: "", random_length: 12, separator: "", group_size: 0 },
   affiliate_rebate_rate: 20,
   affiliate_rebate_freeze_hours: 0,
   affiliate_rebate_duration_days: 0,
@@ -7408,10 +7482,13 @@ async function saveSettings() {
           (suffix) => `@${suffix}`,
         ),
       promo_code_enabled: form.promo_code_enabled,
+      redeem_code_format: normalizeCodeFormatInput(form.redeem_code_format),
       invitation_code_enabled: form.invitation_code_enabled,
+      invitation_code_format: normalizeCodeFormatInput(form.invitation_code_format),
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       default_balance: form.default_balance,
+      affiliate_code_format: normalizeCodeFormatInput(form.affiliate_code_format),
       affiliate_rebate_rate: Math.min(
         100,
         Math.max(0, Number(form.affiliate_rebate_rate) || 0),
@@ -8645,6 +8722,25 @@ function parseRebateRate(raw: unknown): number | null | undefined {
     return undefined;
   }
   return parsed;
+}
+
+function normalizeCodeFormatInput(raw: {
+  prefix?: string;
+  suffix?: string;
+  random_length?: number;
+  separator?: string;
+  group_size?: number;
+}) {
+  const separator = raw.separator === "-" || raw.separator === "_" ? raw.separator : "";
+  const randomLength = Math.max(1, Math.min(32, Math.floor(Number(raw.random_length) || 1)));
+  const groupSize = Math.max(0, Math.min(randomLength, Math.floor(Number(raw.group_size) || 0)));
+  return {
+    prefix: String(raw.prefix ?? "").trim().toUpperCase(),
+    suffix: String(raw.suffix ?? "").trim().toUpperCase(),
+    random_length: randomLength,
+    separator,
+    group_size: groupSize,
+  };
 }
 
 async function loadAffiliateUsers() {

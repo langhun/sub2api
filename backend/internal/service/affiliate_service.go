@@ -19,43 +19,7 @@ var (
 	ErrAffiliateQuotaEmpty      = infraerrors.BadRequest("AFFILIATE_QUOTA_EMPTY", "no affiliate quota available to transfer")
 )
 
-const (
-	affiliateInviteesLimit = 100
-	// AffiliateCodeMinLength / AffiliateCodeMaxLength bound both system-generated
-	// 12-char codes and admin-customized codes (e.g. "VIP2026").
-	AffiliateCodeMinLength = 4
-	AffiliateCodeMaxLength = 32
-)
-
-// affiliateCodeValidChar accepts uppercase letters, digits, underscore and dash.
-// All input passes through strings.ToUpper before validation, so lowercase from
-// users is normalized — admins may supply mixed case in their UI.
-var affiliateCodeValidChar = func() [256]bool {
-	var tbl [256]bool
-	for c := byte('A'); c <= 'Z'; c++ {
-		tbl[c] = true
-	}
-	for c := byte('0'); c <= '9'; c++ {
-		tbl[c] = true
-	}
-	tbl['_'] = true
-	tbl['-'] = true
-	return tbl
-}()
-
-// isValidAffiliateCodeFormat validates code format for both binding (user input)
-// and admin updates. Caller is expected to upper-case the input first.
-func isValidAffiliateCodeFormat(code string) bool {
-	if len(code) < AffiliateCodeMinLength || len(code) > AffiliateCodeMaxLength {
-		return false
-	}
-	for i := 0; i < len(code); i++ {
-		if !affiliateCodeValidChar[code[i]] {
-			return false
-		}
-	}
-	return true
-}
+const affiliateInviteesLimit = 100
 
 type AffiliateSummary struct {
 	UserID               int64     `json:"user_id"`
@@ -220,6 +184,18 @@ func NewAffiliateService(repo AffiliateRepository, settingService *SettingServic
 	}
 }
 
+func (s *AffiliateService) isValidAffiliateCodeFormat(code string) bool {
+	format := DefaultAffiliateCodeFormat()
+	if s != nil && s.settingService != nil {
+		format = s.settingService.GetAffiliateCodeFormat(context.Background())
+	}
+	return IsCodeMatchingFormat(code, format)
+}
+
+func isValidAffiliateCodeFormat(code string) bool {
+	return IsCodeMatchingFormat(code, DefaultAffiliateCodeFormat())
+}
+
 // IsEnabled reports whether the affiliate (邀请返利) feature is turned on.
 func (s *AffiliateService) IsEnabled(ctx context.Context) bool {
 	if s == nil || s.settingService == nil {
@@ -278,7 +254,7 @@ func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, 
 	if !s.IsEnabled(ctx) {
 		return nil
 	}
-	if !isValidAffiliateCodeFormat(code) {
+	if !s.isValidAffiliateCodeFormat(code) {
 		return ErrAffiliateCodeInvalid
 	}
 
@@ -514,7 +490,7 @@ func (s *AffiliateService) AdminUpdateUserAffCode(ctx context.Context, userID in
 		return infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
 	}
 	code := strings.ToUpper(strings.TrimSpace(rawCode))
-	if !isValidAffiliateCodeFormat(code) {
+	if !s.isValidAffiliateCodeFormat(code) {
 		return ErrAffiliateCodeInvalid
 	}
 	return s.repo.UpdateUserAffCode(ctx, userID, code)

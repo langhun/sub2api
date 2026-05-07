@@ -147,8 +147,12 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	// 检查是否需要邀请码
 	var invitationRedeemCode *RedeemCode
 	if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
+		invitationCode = NormalizeRegistrationInvitationCode(invitationCode)
 		if invitationCode == "" {
 			return "", nil, ErrInvitationCodeRequired
+		}
+		if !IsRegistrationInvitationCodeFormatWithSettings(invitationCode, s.settingService.GetInvitationCodeFormat(ctx)) {
+			return "", nil, ErrInvitationCodeInvalid
 		}
 		// 验证邀请码
 		redeemCode, err := s.redeemRepo.GetByCode(ctx, invitationCode)
@@ -596,8 +600,12 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			// 检查是否需要邀请码
 			var invitationRedeemCode *RedeemCode
 			if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
+				invitationCode = NormalizeRegistrationInvitationCode(invitationCode)
 				if invitationCode == "" {
 					return nil, nil, ErrOAuthInvitationRequired
+				}
+				if !IsRegistrationInvitationCodeFormatWithSettings(invitationCode, s.settingService.GetInvitationCodeFormat(ctx)) {
+					return nil, nil, ErrInvitationCodeInvalid
 				}
 				redeemCode, err := s.redeemRepo.GetByCode(ctx, invitationCode)
 				if err != nil {
@@ -1554,7 +1562,11 @@ func (s *AuthService) createRegistrationBonusRecord(ctx context.Context, userID 
 	if defaultBalance <= 0 || s.redeemRepo == nil {
 		return
 	}
-	code, err := GenerateRedeemCode()
+	format := DefaultRedeemCodeFormat()
+	if s.settingService != nil {
+		format = s.settingService.GetRedeemCodeFormat(ctx)
+	}
+	code, err := GenerateRedeemCodeWithFormat(format)
 	if err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to generate registration bonus code: %v", err)
 		return

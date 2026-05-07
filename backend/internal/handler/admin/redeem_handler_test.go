@@ -50,7 +50,6 @@ func postCreateAndRedeemValidation(t *testing.T, handler *RedeemHandler, body an
 
 func TestCreateAndRedeem_TypeDefaultsToBalance(t *testing.T) {
 	// 不传 type 字段时应默认 balance，不触发 subscription 校验。
-	// 验证通过后进入 service 层会 panic（返回 0），说明默认值生效。
 	h := newCreateAndRedeemHandler()
 	code := postCreateAndRedeemValidation(t, h, map[string]any{
 		"code":    "test-balance-default",
@@ -138,4 +137,30 @@ func TestCreateAndRedeem_BalanceIgnoresSubscriptionFields(t *testing.T) {
 
 	assert.NotEqual(t, http.StatusBadRequest, code,
 		"balance type should not require group_id or validity_days")
+}
+
+func TestCreateAndRedeem_InvitationRequiresNewFormat(t *testing.T) {
+	h := newCreateAndRedeemHandler()
+
+	t.Run("legacy_format_rejected", func(t *testing.T) {
+		code := postCreateAndRedeemValidation(t, h, map[string]any{
+			"code":    "INVITE123",
+			"type":    "invitation",
+			"value":   1,
+			"user_id": 1,
+		})
+
+		assert.Equal(t, http.StatusBadRequest, code)
+	})
+
+	t.Run("new_format_passes_validation", func(t *testing.T) {
+		code := postCreateAndRedeemValidation(t, h, map[string]any{
+			"code":    "dg-abc123",
+			"type":    "invitation",
+			"value":   1,
+			"user_id": 1,
+		})
+
+		assert.NotEqual(t, http.StatusBadRequest, code)
+	})
 }

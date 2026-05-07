@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -56,11 +55,12 @@ type affiliateQueryExecer interface {
 }
 
 type affiliateRepository struct {
-	client *dbent.Client
+	client         *dbent.Client
+	settingService *service.SettingService
 }
 
-func NewAffiliateRepository(client *dbent.Client, _ *sql.DB) service.AffiliateRepository {
-	return &affiliateRepository{client: client}
+func NewAffiliateRepository(client *dbent.Client, _ *sql.DB, settingService *service.SettingService) service.AffiliateRepository {
+	return &affiliateRepository{client: client, settingService: settingService}
 }
 
 func (r *affiliateRepository) EnsureUserAffiliate(ctx context.Context, userID int64) (*service.AffiliateSummary, error) {
@@ -758,7 +758,7 @@ func ensureUserAffiliateWithClient(ctx context.Context, client affiliateQueryExe
 	}
 
 	for i := 0; i < affiliateCodeMaxAttempts; i++ {
-		code, codeErr := generateAffiliateCode()
+		code, codeErr := service.GenerateCodeWithFormat(service.DefaultAffiliateCodeFormat(), affiliateCodeCharset)
 		if codeErr != nil {
 			return nil, codeErr
 		}
@@ -958,15 +958,12 @@ func nullableFloat64Ptr(v sql.NullFloat64) *float64 {
 	return &v.Float64
 }
 
-func generateAffiliateCode() (string, error) {
-	buf := make([]byte, affiliateCodeLength)
-	if _, err := rand.Read(buf); err != nil {
-		return "", fmt.Errorf("generate affiliate code: %w", err)
+func (r *affiliateRepository) generateAffiliateCode(ctx context.Context) (string, error) {
+	format := service.DefaultAffiliateCodeFormat()
+	if r != nil && r.settingService != nil {
+		format = r.settingService.GetAffiliateCodeFormat(ctx)
 	}
-	for i := range buf {
-		buf[i] = affiliateCodeCharset[int(buf[i])%len(affiliateCodeCharset)]
-	}
-	return string(buf), nil
+	return service.GenerateCodeWithFormat(format, affiliateCodeCharset)
 }
 
 func isAffiliateUniqueViolation(err error) bool {
@@ -1023,7 +1020,7 @@ func (r *affiliateRepository) ResetUserAffCode(ctx context.Context, userID int64
 			return err
 		}
 		for i := 0; i < affiliateCodeMaxAttempts; i++ {
-			candidate, codeErr := generateAffiliateCode()
+			candidate, codeErr := r.generateAffiliateCode(txCtx)
 			if codeErr != nil {
 				return codeErr
 			}

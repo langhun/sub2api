@@ -392,6 +392,56 @@ func TestAuthService_Register_Success(t *testing.T) {
 	require.True(t, user.CheckPassword("password"))
 }
 
+func TestAuthService_Register_InvitationCodeRequiresNewFormat(t *testing.T) {
+	repo := &userRepoStub{nextID: 9}
+	redeemRepo := &redeemCodeRepoStub{
+		codesByCode: map[string]*RedeemCode{
+			"DG-ABC123": {
+				ID:     1,
+				Code:   "DG-ABC123",
+				Type:   RedeemTypeInvitation,
+				Status: StatusUnused,
+			},
+		},
+	}
+	cfg := &config.Config{
+		JWT: config.JWTConfig{
+			Secret:     "test-secret",
+			ExpireHour: 1,
+		},
+		Default: config.DefaultConfig{
+			UserBalance:     3.5,
+			UserConcurrency: 2,
+		},
+	}
+	settingService := NewSettingService(&settingRepoStub{values: map[string]string{
+		SettingKeyRegistrationEnabled:   "true",
+		SettingKeyInvitationCodeEnabled: "true",
+	}}, cfg)
+	authService := NewAuthService(
+		nil,
+		repo,
+		redeemRepo,
+		nil,
+		cfg,
+		settingService,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+
+	_, _, err := authService.RegisterWithVerification(context.Background(), "user@test.com", "password", "", "", "invite123", "")
+	require.ErrorIs(t, err, ErrInvitationCodeInvalid)
+
+	token, user, err := authService.RegisterWithVerification(context.Background(), "user2@test.com", "password", "", "", "dg-abc123", "")
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+	require.NotNil(t, user)
+}
+
 func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {
 	repo := &userRepoStub{}
 	service := newAuthService(repo, nil, nil)

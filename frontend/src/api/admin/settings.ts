@@ -295,19 +295,30 @@ export function deriveWeChatConnectStoredMode(
 /**
  * System settings interface
  */
+export interface CodeFormatSettings {
+  prefix: string;
+  suffix: string;
+  random_length: number;
+  separator: string;
+  group_size: number;
+}
+
 export interface SystemSettings {
   // Registration settings
   registration_enabled: boolean;
   email_verify_enabled: boolean;
   registration_email_suffix_whitelist: string[];
   promo_code_enabled: boolean;
+  redeem_code_format: CodeFormatSettings;
   password_reset_enabled: boolean;
   frontend_url: string;
   invitation_code_enabled: boolean;
+  invitation_code_format: CodeFormatSettings;
   totp_enabled: boolean; // TOTP 双因素认证
   totp_encryption_key_configured: boolean; // TOTP 加密密钥是否已配置
   // Default settings
   default_balance: number;
+  affiliate_code_format: CodeFormatSettings;
   affiliate_rebate_rate: number;
   affiliate_rebate_freeze_hours: number;
   affiliate_rebate_duration_days: number;
@@ -530,11 +541,14 @@ export interface UpdateSettingsRequest {
   email_verify_enabled?: boolean;
   registration_email_suffix_whitelist?: string[];
   promo_code_enabled?: boolean;
+  redeem_code_format?: CodeFormatSettings;
   password_reset_enabled?: boolean;
   frontend_url?: string;
   invitation_code_enabled?: boolean;
+  invitation_code_format?: CodeFormatSettings;
   totp_enabled?: boolean; // TOTP 双因素认证
   default_balance?: number;
+  affiliate_code_format?: CodeFormatSettings;
   affiliate_rebate_rate?: number;
   affiliate_rebate_freeze_hours?: number;
   affiliate_rebate_duration_days?: number;
