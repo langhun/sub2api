@@ -51,14 +51,15 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 		p := proxies[i]
 		key := buildProxyKey(p.Protocol, p.Host, p.Port, p.Username, p.Password)
 		dataProxies = append(dataProxies, DataProxy{
-			ProxyKey: key,
-			Name:     p.Name,
-			Protocol: p.Protocol,
-			Host:     p.Host,
-			Port:     p.Port,
-			Username: p.Username,
-			Password: p.Password,
-			Status:   p.Status,
+			ProxyKey:                key,
+			Name:                    p.Name,
+			Protocol:                p.Protocol,
+			Host:                    p.Host,
+			Port:                    p.Port,
+			Username:                p.Username,
+			Password:                p.Password,
+			Status:                  p.Status,
+			AutoFailoverPoolEnabled: p.AutoFailoverPoolEnabled,
 		})
 	}
 
@@ -136,17 +137,29 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 					})
 				}
 			}
+			if item.AutoFailoverPoolEnabled != existing.AutoFailoverPoolEnabled {
+				enabled := item.AutoFailoverPoolEnabled
+				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, &service.UpdateProxyInput{AutoFailoverPoolEnabled: &enabled}); err != nil {
+					result.Errors = append(result.Errors, DataImportError{
+						Kind:     "proxy",
+						Name:     item.Name,
+						ProxyKey: key,
+						Message:  "update pool flag failed: " + err.Error(),
+					})
+				}
+			}
 			latencyProbeIDs = append(latencyProbeIDs, existing.ID)
 			continue
 		}
 
 		created, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
-			Name:     defaultProxyName(item.Name),
-			Protocol: item.Protocol,
-			Host:     item.Host,
-			Port:     item.Port,
-			Username: item.Username,
-			Password: item.Password,
+			Name:                    defaultProxyName(item.Name),
+			Protocol:                item.Protocol,
+			Host:                    item.Host,
+			Port:                    item.Port,
+			Username:                item.Username,
+			Password:                item.Password,
+			AutoFailoverPoolEnabled: item.AutoFailoverPoolEnabled,
 		})
 		if err != nil {
 			result.ProxyFailed++
@@ -168,6 +181,17 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 					Name:     item.Name,
 					ProxyKey: key,
 					Message:  "update status failed: " + err.Error(),
+				})
+			}
+		}
+		if item.AutoFailoverPoolEnabled != created.AutoFailoverPoolEnabled {
+			enabled := item.AutoFailoverPoolEnabled
+			if _, err := h.adminService.UpdateProxy(ctx, created.ID, &service.UpdateProxyInput{AutoFailoverPoolEnabled: &enabled}); err != nil {
+				result.Errors = append(result.Errors, DataImportError{
+					Kind:     "proxy",
+					Name:     item.Name,
+					ProxyKey: key,
+					Message:  "update pool flag failed: " + err.Error(),
 				})
 			}
 		}

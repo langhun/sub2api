@@ -78,6 +78,7 @@ func provideCleanup(
 	opsCleanup *service.OpsCleanupService,
 	opsScheduledReport *service.OpsScheduledReportService,
 	opsSystemLogSink *service.OpsSystemLogSink,
+	autoFailoverProxyPool *service.AutoFailoverProxyPoolService,
 	schedulerSnapshot *service.SchedulerSnapshotService,
 	tokenRefresh *service.TokenRefreshService,
 	accountExpiry *service.AccountExpiryService,
@@ -150,6 +151,12 @@ func provideCleanup(
 			{"SchedulerSnapshotService", func() error {
 				if schedulerSnapshot != nil {
 					schedulerSnapshot.Stop()
+				}
+				return nil
+			}},
+			{"AutoFailoverProxyPoolService", func() error {
+				if autoFailoverProxyPool != nil {
+					autoFailoverProxyPool.Stop()
 				}
 				return nil
 			}},

@@ -1850,10 +1850,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		PreferredConnID: preferredConnID,
 		ForceNewConn:    forceNewConn,
 		ProxyURL: func() string {
-			if account.ProxyID != nil && account.Proxy != nil {
-				return account.Proxy.URL()
-			}
-			return ""
+			return s.resolveAutoFailoverProxyURL(ctx, account)
 		}(),
 	})
 	if err != nil {
@@ -2653,10 +2650,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		WSURL:   wsURL,
 		Headers: wsHeaders,
 		ProxyURL: func() string {
-			if account.ProxyID != nil && account.Proxy != nil {
-				return account.Proxy.URL()
-			}
-			return ""
+			return s.resolveAutoFailoverProxyURL(ctx, account)
 		}(),
 		ForceNewConn: false,
 	}

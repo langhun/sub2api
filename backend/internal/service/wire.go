@@ -68,11 +68,13 @@ func ProvideTokenRefreshService(
 	tempUnschedCache TempUnschedCache,
 	privacyClientFactory PrivacyClientFactory,
 	proxyRepo ProxyRepository,
+	proxyPool *AutoFailoverProxyPoolService,
 	refreshAPI *OAuthRefreshAPI,
 ) *TokenRefreshService {
 	svc := NewTokenRefreshService(accountRepo, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, cacheInvalidator, schedulerCache, cfg, tempUnschedCache)
 	// 注入 OpenAI privacy opt-out 依赖
 	svc.SetPrivacyDeps(privacyClientFactory, proxyRepo)
+	svc.SetAutoFailoverProxyPool(proxyPool)
 	// 注入统一 OAuth 刷新 API（消除 TokenRefreshService 与 TokenProvider 之间的竞争条件）
 	svc.SetRefreshAPI(refreshAPI)
 	// 调用侧显式注入后台刷新策略，避免策略漂移
@@ -409,6 +411,117 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	return svc
 }
 
+func ProvideAutoFailoverProxyPoolService(
+	proxyRepo ProxyRepository,
+	accountRepo AccountRepository,
+	settingService *SettingService,
+	proxyLatencyCache ProxyLatencyCache,
+	proxyProber ProxyExitInfoProber,
+) *AutoFailoverProxyPoolService {
+	svc := NewAutoFailoverProxyPoolService(proxyRepo, accountRepo, settingService, proxyLatencyCache, proxyProber)
+	svc.Start()
+	return svc
+}
+
+func ProvideOpenAIOAuthService(
+	proxyRepo ProxyRepository,
+	oauthClient OpenAIOAuthClient,
+	proxyPool *AutoFailoverProxyPoolService,
+) *OpenAIOAuthService {
+	svc := NewOpenAIOAuthService(proxyRepo, oauthClient)
+	svc.SetAutoFailoverProxyPool(proxyPool)
+	return svc
+}
+
+func ProvideAntigravityOAuthService(
+	proxyRepo ProxyRepository,
+	proxyPool *AutoFailoverProxyPoolService,
+) *AntigravityOAuthService {
+	svc := NewAntigravityOAuthService(proxyRepo)
+	svc.SetAutoFailoverProxyPool(proxyPool)
+	return svc
+}
+
+func ProvideOpenAIGatewayService(
+	accountRepo AccountRepository,
+	usageLogRepo UsageLogRepository,
+	usageBillingRepo UsageBillingRepository,
+	userRepo UserRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache GatewayCache,
+	cfg *config.Config,
+	schedulerSnapshot *SchedulerSnapshotService,
+	concurrencyService *ConcurrencyService,
+	billingService *BillingService,
+	rateLimitService *RateLimitService,
+	billingCacheService *BillingCacheService,
+	httpUpstream HTTPUpstream,
+	deferredService *DeferredService,
+	openAITokenProvider *OpenAITokenProvider,
+	resolver *ModelPricingResolver,
+	channelService *ChannelService,
+	balanceNotifyService *BalanceNotifyService,
+	settingService *SettingService,
+	proxyPool *AutoFailoverProxyPoolService,
+) *OpenAIGatewayService {
+	svc := NewOpenAIGatewayService(
+		accountRepo,
+		usageLogRepo,
+		usageBillingRepo,
+		userRepo,
+		userSubRepo,
+		userGroupRateRepo,
+		cache,
+		cfg,
+		schedulerSnapshot,
+		concurrencyService,
+		billingService,
+		rateLimitService,
+		billingCacheService,
+		httpUpstream,
+		deferredService,
+		openAITokenProvider,
+		resolver,
+		channelService,
+		balanceNotifyService,
+		settingService,
+	)
+	svc.SetAutoFailoverProxyPool(proxyPool)
+	return svc
+}
+
+func ProvideAntigravityGatewayService(
+	accountRepo AccountRepository,
+	cache GatewayCache,
+	schedulerSnapshot *SchedulerSnapshotService,
+	tokenProvider *AntigravityTokenProvider,
+	rateLimitService *RateLimitService,
+	httpUpstream HTTPUpstream,
+	settingService *SettingService,
+	internal500Cache Internal500CounterCache,
+	proxyPool *AutoFailoverProxyPoolService,
+) *AntigravityGatewayService {
+	svc := NewAntigravityGatewayService(
+		accountRepo,
+		cache,
+		schedulerSnapshot,
+		tokenProvider,
+		rateLimitService,
+		httpUpstream,
+		settingService,
+		internal500Cache,
+	)
+	svc.SetAutoFailoverProxyPool(proxyPool)
+	return svc
+}
+
+func ProvideAntigravityQuotaFetcher(proxyRepo ProxyRepository, proxyPool *AutoFailoverProxyPoolService) *AntigravityQuotaFetcher {
+	fetcher := NewAntigravityQuotaFetcher(proxyRepo)
+	fetcher.SetAutoFailoverProxyPool(proxyPool)
+	return fetcher
+}
+
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
 func ProvideBillingCacheService(
 	cache BillingCache,
@@ -458,25 +571,26 @@ var ProviderSet = wire.NewSet(
 	NewAnnouncementService,
 	NewAdminService,
 	NewGatewayService,
-	NewOpenAIGatewayService,
+	ProvideOpenAIGatewayService,
 	NewOAuthService,
-	NewOpenAIOAuthService,
+	ProvideOpenAIOAuthService,
 	NewGeminiOAuthService,
 	NewGeminiQuotaService,
 	NewCompositeTokenCacheInvalidator,
 	wire.Bind(new(TokenCacheInvalidator), new(*CompositeTokenCacheInvalidator)),
-	NewAntigravityOAuthService,
+	ProvideAntigravityOAuthService,
 	ProvideOAuthRefreshAPI,
 	ProvideGeminiTokenProvider,
 	NewGeminiMessagesCompatService,
 	ProvideAntigravityTokenProvider,
 	ProvideOpenAITokenProvider,
 	ProvideClaudeTokenProvider,
-	NewAntigravityGatewayService,
+	ProvideAntigravityGatewayService,
 	ProvideRateLimitService,
 	NewAccountUsageService,
 	NewAccountTestService,
 	ProvideSettingService,
+	ProvideAutoFailoverProxyPoolService,
 	NewDataManagementService,
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,
@@ -505,7 +619,7 @@ var ProviderSet = wire.NewSet(
 	ProvideDashboardAggregationService,
 	ProvideUsageCleanupService,
 	ProvideDeferredService,
-	NewAntigravityQuotaFetcher,
+	ProvideAntigravityQuotaFetcher,
 	NewUserAttributeService,
 	NewUsageCache,
 	NewTotpService,

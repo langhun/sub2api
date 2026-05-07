@@ -209,6 +209,24 @@ export async function unassignAccounts(proxyIds: number[]): Promise<ProxyUnassig
   return data
 }
 
+export async function updatePoolMembership(ids: number[], enabled: boolean): Promise<{
+  updated: number
+  enabled: boolean
+}> {
+  const { data } = await apiClient.post<{
+    updated: number
+    enabled: boolean
+  }>('/admin/proxies/pool-membership', { ids, enabled })
+  return data
+}
+
+export async function clearCooldown(ids: number[]): Promise<{ cleared: number }> {
+  const { data } = await apiClient.post<{ cleared: number }>('/admin/proxies/clear-cooldown', {
+    ids
+  })
+  return data
+}
+
 /**
  * Batch create proxies
  * @param proxies - Array of proxy data to create
@@ -291,6 +309,8 @@ export const proxiesAPI = {
   getProxyAccounts,
   assignAccounts,
   unassignAccounts,
+  updatePoolMembership,
+  clearCooldown,
   batchCreate,
   batchDelete,
   exportData,

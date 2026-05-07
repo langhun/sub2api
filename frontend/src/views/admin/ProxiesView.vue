@@ -65,6 +65,33 @@
               {{ t('admin.proxies.batchQualityCheck') }}
             </button>
             <button
+              @click="handleBatchPoolMembership(true)"
+              :disabled="selectedCount === 0"
+              class="btn btn-secondary"
+              :title="t('admin.proxies.poolEnableAction')"
+            >
+              <Icon name="plus" size="md" class="mr-2" />
+              {{ t('admin.proxies.poolEnableAction') }}
+            </button>
+            <button
+              @click="handleBatchPoolMembership(false)"
+              :disabled="selectedCount === 0"
+              class="btn btn-secondary"
+              :title="t('admin.proxies.poolDisableAction')"
+            >
+              <Icon name="x" size="md" class="mr-2" />
+              {{ t('admin.proxies.poolDisableAction') }}
+            </button>
+            <button
+              @click="handleClearCooldown(Array.from(selectedProxyIds))"
+              :disabled="selectedCount === 0"
+              class="btn btn-secondary"
+              :title="t('admin.proxies.clearCooldownAction')"
+            >
+              <Icon name="refresh" size="md" class="mr-2" />
+              {{ t('admin.proxies.clearCooldownAction') }}
+            </button>
+            <button
               @click="showAssignAccounts = true"
               :disabled="selectedCount === 0"
               class="btn btn-secondary"
@@ -262,10 +289,36 @@
             </div>
           </template>
 
-          <template #cell-status="{ value }">
-            <span :class="['badge', value === 'active' ? 'badge-success' : 'badge-danger']">
-              {{ t('admin.accounts.status.' + value) }}
-            </span>
+          <template #cell-status="{ row, value }">
+            <div class="flex flex-col items-start gap-1">
+              <div class="flex flex-wrap items-center gap-1">
+                <span :class="['badge', value === 'active' ? 'badge-success' : 'badge-danger']">
+                  {{ t('admin.accounts.status.' + value) }}
+                </span>
+                <span :class="['badge', row.auto_failover_pool_enabled ? 'badge-primary' : 'badge-gray']">
+                  {{ row.auto_failover_pool_enabled ? t('admin.proxies.poolEnabled') : t('admin.proxies.poolDisabled') }}
+                </span>
+                <span v-if="row.health_status" :class="['badge', healthStatusClass(row.health_status)]">
+                  {{ healthStatusLabel(row.health_status) }}
+                </span>
+              </div>
+              <div v-if="row.health_status === 'cooldown' && row.cooldown_until_unix" class="text-xs text-amber-600 dark:text-amber-400">
+                {{ t('admin.proxies.cooldownUntil', { time: formatCooldownCountdown(row.cooldown_until_unix) }) }}
+              </div>
+              <div
+                v-if="row.last_fail_reason"
+                class="text-xs text-gray-500 dark:text-gray-400"
+                :title="`${row.last_fail_reason}\n${formatRuntimeTime(row.last_fail_at_unix)}`"
+              >
+                {{ row.last_fail_reason }}
+              </div>
+              <div
+                v-if="typeof row.failover_switch_count === 'number' && row.failover_switch_count > 0"
+                class="text-xs text-gray-500 dark:text-gray-400"
+              >
+                {{ t('admin.proxies.failoverSwitchCount', { count: row.failover_switch_count }) }}
+              </div>
+            </div>
           </template>
 
           <template #cell-actions="{ row }">
@@ -325,6 +378,13 @@
                 </svg>
                 <Icon v-else name="shield" size="sm" />
                 <span class="text-xs">{{ t('admin.proxies.qualityCheck') }}</span>
+              </button>
+              <button
+                @click="handleClearCooldown([row.id])"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+              >
+                <Icon name="refresh" size="sm" />
+                <span class="text-xs">{{ t('admin.proxies.clearCooldownAction') }}</span>
               </button>
               <button
                 @click="handleEdit(row)"
@@ -488,6 +548,17 @@
             </button>
           </div>
         </div>
+        <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 text-sm dark:border-dark-600">
+          <input
+            v-model="createForm.auto_failover_pool_enabled"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span class="space-y-1">
+            <span class="font-medium text-gray-900 dark:text-white">{{ t('admin.proxies.poolToggleLabel') }}</span>
+            <span class="block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.poolToggleHint') }}</span>
+          </span>
+        </label>
 
       </form>
 
@@ -686,6 +757,17 @@
           <label class="input-label">{{ t('admin.proxies.status') }}</label>
           <Select v-model="editForm.status" :options="editStatusOptions" />
         </div>
+        <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 text-sm dark:border-dark-600">
+          <input
+            v-model="editForm.auto_failover_pool_enabled"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span class="space-y-1">
+            <span class="font-medium text-gray-900 dark:text-white">{{ t('admin.proxies.poolToggleLabel') }}</span>
+            <span class="block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.poolToggleHint') }}</span>
+          </span>
+        </label>
 
       </form>
 
@@ -1070,7 +1152,8 @@ const createForm = reactive({
   host: '',
   port: 8080,
   username: '',
-  password: ''
+  password: '',
+  auto_failover_pool_enabled: false
 })
 
 const editForm = reactive({
@@ -1080,7 +1163,8 @@ const editForm = reactive({
   port: 8080,
   username: '',
   password: '',
-  status: 'active' as 'active' | 'inactive'
+  status: 'active' as 'active' | 'inactive',
+  auto_failover_pool_enabled: false
 })
 
 let abortController: AbortController | null = null
@@ -1191,6 +1275,7 @@ const closeCreateModal = () => {
   createForm.port = 8080
   createForm.username = ''
   createForm.password = ''
+  createForm.auto_failover_pool_enabled = false
   createPasswordVisible.value = false
   batchInput.value = ''
   batchParseResult.total = 0
@@ -1315,7 +1400,8 @@ const handleCreateProxy = async () => {
       host: createForm.host.trim(),
       port: createForm.port,
       username: createForm.username.trim() || null,
-      password: createForm.password.trim() || null
+      password: createForm.password.trim() || null,
+      auto_failover_pool_enabled: createForm.auto_failover_pool_enabled
     })
     appStore.showSuccess(t('admin.proxies.proxyCreated'))
     closeCreateModal()
@@ -1337,6 +1423,7 @@ const handleEdit = (proxy: Proxy) => {
   editForm.username = proxy.username || ''
   editForm.password = proxy.password || ''
   editForm.status = proxy.status
+  editForm.auto_failover_pool_enabled = !!proxy.auto_failover_pool_enabled
   editPasswordVisible.value = false
   editPasswordDirty.value = false
   showEditModal.value = true
@@ -1372,7 +1459,8 @@ const handleUpdateProxy = async () => {
       host: editForm.host.trim(),
       port: editForm.port,
       username: editForm.username.trim() || null,
-      status: editForm.status
+      status: editForm.status,
+      auto_failover_pool_enabled: editForm.auto_failover_pool_enabled
     }
 
     // Only include password if user actually modified the field
@@ -1415,6 +1503,8 @@ const applyLatencyResult = (
     target.country_code = result.country_code
     target.region = result.region
     target.city = result.city
+    target.health_status = 'healthy'
+    target.cooldown_until_unix = undefined
   } else {
     target.latency_status = 'failed'
     target.latency_ms = undefined
@@ -1423,6 +1513,9 @@ const applyLatencyResult = (
     target.country_code = undefined
     target.region = undefined
     target.city = undefined
+    target.health_status = 'failed'
+    target.last_fail_reason = result.message
+    target.last_fail_at_unix = Math.floor(Date.now() / 1000)
   }
   target.latency_message = result.message
 }
@@ -1447,6 +1540,34 @@ const applyQualityResult = (proxyId: number, result: ProxyQualityCheckResult) =>
 const formatLocation = (proxy: Proxy) => {
   const parts = [proxy.country, proxy.city].filter(Boolean) as string[]
   return parts.join(' · ')
+}
+
+const formatRuntimeTime = (unix?: number) => {
+  if (!unix) return '-'
+  return new Date(unix * 1000).toLocaleString()
+}
+
+const formatCooldownCountdown = (unix?: number) => {
+  if (!unix) return ''
+  const remaining = unix * 1000 - Date.now()
+  if (remaining <= 0) return t('admin.proxies.cooldownExpired')
+  const minutes = Math.floor(remaining / 60000)
+  const seconds = Math.floor((remaining % 60000) / 1000)
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
+}
+
+const healthStatusClass = (status?: Proxy['health_status']) => {
+  if (status === 'healthy') return 'badge-success'
+  if (status === 'cooldown') return 'badge-warning'
+  if (status === 'failed') return 'badge-danger'
+  return 'badge-gray'
+}
+
+const healthStatusLabel = (status?: Proxy['health_status']) => {
+  if (status === 'healthy') return t('admin.proxies.healthHealthy')
+  if (status === 'cooldown') return t('admin.proxies.healthCooldown')
+  if (status === 'failed') return t('admin.proxies.healthFailed')
+  return t('admin.proxies.healthUnknown')
 }
 
 const flagUrl = (code: string) =>
@@ -1753,6 +1874,41 @@ const handleBatchQualityCheck = async () => {
     console.error('Error batch checking quality:', error)
   } finally {
     batchQualityChecking.value = false
+  }
+}
+
+const handleBatchPoolMembership = async (enabled: boolean) => {
+  const ids = Array.from(selectedProxyIds.value)
+  if (ids.length === 0) return
+
+  try {
+    await adminAPI.proxies.updatePoolMembership(ids, enabled)
+    appStore.showSuccess(
+      enabled
+        ? t('admin.proxies.poolBatchEnabled', { count: ids.length })
+        : t('admin.proxies.poolBatchDisabled', { count: ids.length })
+    )
+    clearSelectedProxies()
+    loadProxies()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.poolUpdateFailed'))
+    console.error('Error updating proxy pool membership:', error)
+  }
+}
+
+const handleClearCooldown = async (ids: number[]) => {
+  if (ids.length === 0) return
+  try {
+    await adminAPI.proxies.clearCooldown(ids)
+    appStore.showSuccess(
+      ids.length === 1
+        ? t('admin.proxies.cooldownClearedSingle')
+        : t('admin.proxies.cooldownClearedBatch', { count: ids.length })
+    )
+    loadProxies()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.cooldownClearFailed'))
+    console.error('Error clearing proxy cooldown:', error)
   }
 }
 

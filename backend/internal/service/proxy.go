@@ -8,16 +8,17 @@ import (
 )
 
 type Proxy struct {
-	ID        int64
-	Name      string
-	Protocol  string
-	Host      string
-	Port      int
-	Username  string
-	Password  string
-	Status    string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID                      int64
+	Name                    string
+	Protocol                string
+	Host                    string
+	Port                    int
+	Username                string
+	Password                string
+	Status                  string
+	AutoFailoverPoolEnabled bool
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
 }
 
 func (p *Proxy) IsActive() bool {
@@ -37,20 +38,26 @@ func (p *Proxy) URL() string {
 
 type ProxyWithAccountCount struct {
 	Proxy
-	AccountCount   int64
-	LatencyMs      *int64
-	LatencyStatus  string
-	LatencyMessage string
-	IPAddress      string
-	Country        string
-	CountryCode    string
-	Region         string
-	City           string
-	QualityStatus  string
-	QualityScore   *int
-	QualityGrade   string
-	QualitySummary string
-	QualityChecked *int64
+	AccountCount        int64
+	LatencyMs           *int64
+	LatencyStatus       string
+	LatencyMessage      string
+	IPAddress           string
+	Country             string
+	CountryCode         string
+	Region              string
+	City                string
+	QualityStatus       string
+	QualityScore        *int
+	QualityGrade        string
+	QualitySummary      string
+	QualityChecked      *int64
+	HealthStatus        string
+	CooldownUntilUnix   *int64
+	LastFailReason      string
+	LastFailAtUnix      *int64
+	LastRecoveredAtUnix *int64
+	FailoverSwitchCount *int64
 }
 
 type ProxyAccountSummary struct {

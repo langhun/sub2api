@@ -2055,6 +2055,70 @@ func (s *SettingService) GetDefaultSubscriptions(ctx context.Context) []DefaultS
 	return parseDefaultSubscriptions(value)
 }
 
+// GetAutoFailoverProxyPoolIDs returns the dedicated global proxy pool used by
+// OpenAI/Antigravity automatic proxy failover.
+func (s *SettingService) GetAutoFailoverProxyPoolIDs(ctx context.Context) ([]int64, error) {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAutoFailoverProxyPool)
+	if err != nil || strings.TrimSpace(value) == "" {
+		return []int64{}, nil
+	}
+
+	var rawIDs []int64
+	if err := json.Unmarshal([]byte(value), &rawIDs); err != nil {
+		return nil, fmt.Errorf("unmarshal auto failover proxy pool: %w", err)
+	}
+
+	return dedupePositiveInt64s(rawIDs), nil
+}
+
+// SetAutoFailoverProxyPoolIDs persists the dedicated global proxy pool used by
+// OpenAI/Antigravity automatic proxy failover.
+func (s *SettingService) SetAutoFailoverProxyPoolIDs(ctx context.Context, ids []int64) error {
+	normalized := dedupePositiveInt64s(ids)
+	sort.Slice(normalized, func(i, j int) bool { return normalized[i] < normalized[j] })
+	payload, err := json.Marshal(normalized)
+	if err != nil {
+		return fmt.Errorf("marshal auto failover proxy pool: %w", err)
+	}
+	return s.settingRepo.Set(ctx, SettingKeyAutoFailoverProxyPool, string(payload))
+}
+
+// SetAutoFailoverProxyEnabled adds or removes a proxy from the dedicated global
+// auto-failover pool.
+func (s *SettingService) SetAutoFailoverProxyEnabled(ctx context.Context, proxyID int64, enabled bool) error {
+	if proxyID <= 0 {
+		return fmt.Errorf("proxy id must be positive")
+	}
+
+	ids, err := s.GetAutoFailoverProxyPoolIDs(ctx)
+	if err != nil {
+		return err
+	}
+
+	seen := make(map[int64]struct{}, len(ids)+1)
+	next := make([]int64, 0, len(ids)+1)
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		if !enabled && id == proxyID {
+			continue
+		}
+		seen[id] = struct{}{}
+		next = append(next, id)
+	}
+	if enabled {
+		if _, ok := seen[proxyID]; !ok {
+			next = append(next, proxyID)
+		}
+	}
+
+	return s.SetAutoFailoverProxyPoolIDs(ctx, next)
+}
+
 // IsCheckinEnabled 获取签到功能是否启用
 func (s *SettingService) IsCheckinEnabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyCheckinEnabled)

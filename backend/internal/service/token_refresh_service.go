@@ -31,6 +31,7 @@ type TokenRefreshService struct {
 	// OpenAI privacy: 刷新成功后检查并设置 training opt-out
 	privacyClientFactory PrivacyClientFactory
 	proxyRepo            ProxyRepository
+	proxyPool            *AutoFailoverProxyPoolService
 
 	stopCh   chan struct{}
 	stopOnce sync.Once
@@ -88,6 +89,10 @@ func NewTokenRefreshService(
 func (s *TokenRefreshService) SetPrivacyDeps(factory PrivacyClientFactory, proxyRepo ProxyRepository) {
 	s.privacyClientFactory = factory
 	s.proxyRepo = proxyRepo
+}
+
+func (s *TokenRefreshService) SetAutoFailoverProxyPool(proxyPool *AutoFailoverProxyPoolService) {
+	s.proxyPool = proxyPool
 }
 
 // SetRefreshAPI 注入统一的 OAuth 刷新 API
@@ -432,6 +437,23 @@ func isNonRetryableRefreshError(err error) bool {
 	return false
 }
 
+func (s *TokenRefreshService) resolveProxyURLForBackgroundTask(ctx context.Context, account *Account) string {
+	if account == nil {
+		return ""
+	}
+	if s.proxyPool != nil {
+		if proxyURL, _, _, err := s.proxyPool.ResolveProxyURL(ctx, account); err == nil {
+			return proxyURL
+		}
+	}
+	if account.ProxyID != nil && s.proxyRepo != nil {
+		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
+			return p.URL()
+		}
+	}
+	return ""
+}
+
 // ensureOpenAIPrivacy 检查 OpenAI OAuth 账号是否已设置 privacy_mode，
 // 未设置则调用 disableOpenAITraining 并持久化结果到 Extra。
 func (s *TokenRefreshService) ensureOpenAIPrivacy(ctx context.Context, account *Account) {
@@ -450,12 +472,7 @@ func (s *TokenRefreshService) ensureOpenAIPrivacy(ctx context.Context, account *
 		return
 	}
 
-	var proxyURL string
-	if account.ProxyID != nil && s.proxyRepo != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
+	proxyURL := s.resolveProxyURLForBackgroundTask(ctx, account)
 
 	mode := disableOpenAITraining(ctx, s.privacyClientFactory, token, proxyURL)
 	if mode == "" {
@@ -495,12 +512,7 @@ func (s *TokenRefreshService) ensureAntigravityPrivacy(ctx context.Context, acco
 
 	projectID, _ := account.Credentials["project_id"].(string)
 
-	var proxyURL string
-	if account.ProxyID != nil && s.proxyRepo != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
+	proxyURL := s.resolveProxyURLForBackgroundTask(ctx, account)
 
 	mode := setAntigravityPrivacy(ctx, token, projectID, proxyURL)
 	if mode == "" {
