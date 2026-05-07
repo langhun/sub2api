@@ -26,7 +26,9 @@
               <span class="settings-tab-icon">
                 <Icon :name="tab.icon" size="sm" />
               </span>
-              <span>{{ t(`admin.settings.tabs.${tab.key}`) }}</span>
+              <span class="settings-tab-label">{{
+                t(`admin.settings.tabs.${tab.key}`)
+              }}</span>
             </button>
           </nav>
         </div>
@@ -8931,6 +8933,10 @@ watch(
          transition-all duration-200 ease-out;
 }
 
+.settings-tab-label {
+  min-width: 0;
+}
+
 .settings-tab:hover:not(.settings-tab-active) {
   @apply text-gray-700 dark:text-gray-300;
   background: rgb(0 0 0 / 0.03);
@@ -8967,5 +8973,37 @@ watch(
 .settings-tab-active .settings-tab-icon {
   @apply bg-primary-500/15 text-primary-600
          dark:bg-primary-400/15 dark:text-primary-400;
+}
+
+@media (min-width: 1024px) {
+  .settings-tabs-scroll {
+    overflow-x: visible;
+  }
+
+  .settings-tabs {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.375rem;
+  }
+
+  .settings-tab {
+    min-width: 0;
+    gap: 0.375rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .settings-tab-label {
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .settings-tab-icon {
+    height: 1.125rem;
+    width: 1.125rem;
+  }
 }
 </style>
