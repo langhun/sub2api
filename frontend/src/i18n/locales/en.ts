@@ -3154,6 +3154,21 @@ export default {
       clearFilters: 'Clear Filters',
       showFilterDetails: 'Show details',
       hideFilterDetails: 'Hide details',
+      statusGuide: {
+        shortAction: 'Status Guide',
+        title: 'Account Status Guide',
+        description: 'Account status is split into three layers: main state, runtime state, and scheduling state. Read them in that order.',
+        mainActive: 'The account itself is healthy; check runtime and scheduling next',
+        mainInactive: 'Main state is inactive and removed from scheduling',
+        mainError: 'The account is in error and needs recovery or investigation',
+        runtimeRateLimited: 'Upstream 429 rate limit; wait for auto recovery',
+        runtimeOverloaded: 'Upstream 529 overloaded; wait for auto recovery',
+        runtimeTempUnschedulable: 'Temporary cooldown, including many 401 auth cooldown cases',
+        scheduleEnabled: 'Scheduling switch is enabled',
+        scheduleManualPaused: 'Scheduling was paused manually',
+        scheduleExpiredPaused: 'Scheduling was auto-paused after expiry',
+        oauth401Hint: 'Note: many 401s from testing do not go straight to Error. They first enter runtime temporary cooldown so token refresh or recovery can happen.'
+      },
       filterSummary: {
         search: 'Search',
         platform: 'Platform',
