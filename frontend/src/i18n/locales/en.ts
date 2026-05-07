@@ -3149,6 +3149,16 @@ export default {
         tempUnschedulable: 'Runtime: Temp Cooldown (incl. 401)',
         unschedulable: 'Scheduling Paused (manual/expiry)'
       },
+      activeFiltersTitle: 'Active Filters ({count})',
+      clearFilters: 'Clear Filters',
+      filterSummary: {
+        search: 'Search',
+        platform: 'Platform',
+        tier: 'Tier',
+        type: 'Type',
+        group: 'Group',
+        privacy: 'Privacy'
+      },
       columns: {
         name: 'Name',
         platformType: 'Platform/Type',

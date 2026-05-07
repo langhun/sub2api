@@ -132,6 +132,31 @@
           </AccountTableActions>
         </div>
         <div
+          v-if="activeFilterSummaryItems.length > 0"
+          class="mt-2 flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-dark-600 dark:bg-dark-800/70"
+        >
+          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.activeFiltersTitle', { count: activeFilterSummaryItems.length }) }}
+            </span>
+            <span
+              v-for="item in activeFilterSummaryItems"
+              :key="item.key"
+              class="inline-flex max-w-full items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-200"
+              :title="item.label"
+            >
+              <span class="font-medium text-gray-500 dark:text-gray-400">{{ item.prefix }}</span>
+              <span class="truncate">{{ item.label }}</span>
+            </span>
+          </div>
+          <button
+            class="btn btn-secondary px-2 py-1 text-xs"
+            @click="clearAccountFilters"
+          >
+            {{ t('admin.accounts.clearFilters') }}
+          </button>
+        </div>
+        <div
           v-if="hasPendingListSync"
           class="mt-2 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-200"
         >
@@ -501,6 +526,12 @@ type AccountRequestFilterParams = {
   sort_by: string
   sort_order: AccountSortOrder
 }
+
+type ActiveFilterSummaryItem = {
+  key: string
+  prefix: string
+  label: string
+}
 const ACCOUNT_SORTABLE_KEYS = new Set([
   'name',
   'status',
@@ -745,6 +776,142 @@ const buildAccountRequestFilters = (source: Partial<AccountLocalFilterParams>): 
   }
 }
 
+const getPlatformFilterLabel = (platform: string) => {
+  switch (platform) {
+    case 'anthropic':
+      return 'Anthropic'
+    case 'openai':
+      return 'OpenAI'
+    case 'gemini':
+      return 'Gemini'
+    case 'antigravity':
+      return 'Antigravity'
+    default:
+      return platform
+  }
+}
+
+const getTypeFilterLabel = (type: string) => {
+  switch (type) {
+    case 'oauth':
+      return t('admin.accounts.oauthType')
+    case 'setup-token':
+      return t('admin.accounts.setupToken')
+    case 'apikey':
+      return t('admin.accounts.apiKey')
+    case 'bedrock':
+      return 'AWS Bedrock'
+    default:
+      return type
+  }
+}
+
+const getMainStatusFilterLabel = (status: string) => {
+  switch (status) {
+    case 'active':
+      return t('admin.accounts.status.mainActive')
+    case 'inactive':
+      return t('admin.accounts.status.mainInactive')
+    case 'error':
+      return t('admin.accounts.status.mainError')
+    default:
+      return status
+  }
+}
+
+const getRuntimeStatusFilterLabel = (status: string) => {
+  switch (status) {
+    case 'normal':
+      return t('admin.accounts.status.runtimeNormal')
+    case 'rate_limited':
+      return t('admin.accounts.status.runtimeRateLimited')
+    case 'overloaded':
+      return t('admin.accounts.status.runtimeOverloaded')
+    case 'temp_unschedulable':
+      return t('admin.accounts.statusFilters.tempUnschedulable')
+    default:
+      return status
+  }
+}
+
+const getSchedulingStatusFilterLabel = (status: string) => {
+  switch (status) {
+    case 'enabled':
+      return t('admin.accounts.status.scheduleEnabled')
+    case 'paused':
+      return t('admin.accounts.statusFilters.unschedulable')
+    default:
+      return status
+  }
+}
+
+const getPrivacyModeFilterLabel = (privacyMode: string) => {
+  switch (privacyMode) {
+    case ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE:
+      return t('admin.accounts.privacyUnset')
+    case 'training_off':
+      return t('admin.accounts.privacyTrainingOff')
+    case 'training_set_cf_blocked':
+      return t('admin.accounts.privacyCfBlocked')
+    case 'training_set_failed':
+      return t('admin.accounts.privacyFailed')
+    case 'privacy_set':
+      return t('admin.accounts.privacyAntigravitySet')
+    default:
+      return privacyMode
+  }
+}
+
+const getGroupFilterLabel = (groupValue: string) => {
+  if (groupValue === ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE) {
+    return t('admin.accounts.ungroupedGroup')
+  }
+  return groups.value.find(group => String(group.id) === groupValue)?.name || groupValue
+}
+
+const getTierFilterLabel = (selectedTier: string, fallbackPlatform: string) => {
+  const tier = parseSelectedTier(selectedTier, fallbackPlatform)
+  if (!tier?.value) return selectedTier
+
+  const value = tier.value
+  switch (`${tier.platform}:${value}`) {
+    case 'openai:free':
+      return t('admin.accounts.tier.free')
+    case 'openai:plus':
+      return t('admin.accounts.tier.plus')
+    case 'openai:team':
+      return t('admin.accounts.tier.team')
+    case 'openai:pro':
+      return t('admin.accounts.tier.pro')
+    case 'openai:enterprise':
+      return t('admin.accounts.tier.enterprise')
+    case 'gemini:google_one_free':
+      return t('admin.accounts.tier.googleOneFree')
+    case 'gemini:google_ai_pro':
+      return t('admin.accounts.tier.googleAIPro')
+    case 'gemini:google_ai_ultra':
+      return t('admin.accounts.tier.googleAIUltra')
+    case 'gemini:gcp_standard':
+      return t('admin.accounts.tier.gcpStandard')
+    case 'gemini:gcp_enterprise':
+      return t('admin.accounts.tier.gcpEnterprise')
+    case 'gemini:aistudio_free':
+      return t('admin.accounts.tier.aiStudioFree')
+    case 'gemini:aistudio_paid':
+      return t('admin.accounts.tier.aiStudioPaid')
+    case 'gemini:google_one_unknown':
+      return t('admin.accounts.tier.unknown')
+    case 'antigravity:free-tier':
+      return t('admin.accounts.tier.free')
+    case 'antigravity:g1-pro-tier':
+      return t('admin.accounts.tier.pro')
+    case 'antigravity:g1-ultra-tier':
+      return t('admin.accounts.tier.ultra')
+    default:
+      return value
+  }
+}
+
 const {
   items: accounts,
   loading,
@@ -790,6 +957,92 @@ const {
   rows: accounts,
   getId: (account) => account.id
 })
+
+const activeFilterSummaryItems = computed<ActiveFilterSummaryItem[]>(() => {
+  const filters = buildAccountLocalFilters(params as AccountLocalFilterParams)
+  const items: ActiveFilterSummaryItem[] = []
+
+  if (filters.search.trim()) {
+    items.push({
+      key: 'search',
+      prefix: t('admin.accounts.filterSummary.search'),
+      label: filters.search.trim()
+    })
+  }
+  if (filters.platform) {
+    items.push({
+      key: 'platform',
+      prefix: t('admin.accounts.filterSummary.platform'),
+      label: getPlatformFilterLabel(filters.platform)
+    })
+  }
+  if (filters.tier) {
+    items.push({
+      key: 'tier',
+      prefix: t('admin.accounts.filterSummary.tier'),
+      label: getTierFilterLabel(filters.tier, filters.platform)
+    })
+  }
+  if (filters.type) {
+    items.push({
+      key: 'type',
+      prefix: t('admin.accounts.filterSummary.type'),
+      label: getTypeFilterLabel(filters.type)
+    })
+  }
+  if (filters.main_status) {
+    items.push({
+      key: 'main_status',
+      prefix: t('admin.accounts.statusLayers.main'),
+      label: getMainStatusFilterLabel(filters.main_status)
+    })
+  }
+  if (filters.runtime_status) {
+    items.push({
+      key: 'runtime_status',
+      prefix: t('admin.accounts.statusLayers.runtime'),
+      label: getRuntimeStatusFilterLabel(filters.runtime_status)
+    })
+  }
+  if (filters.scheduling_status) {
+    items.push({
+      key: 'scheduling_status',
+      prefix: t('admin.accounts.statusLayers.scheduling'),
+      label: getSchedulingStatusFilterLabel(filters.scheduling_status)
+    })
+  }
+  if (filters.group) {
+    items.push({
+      key: 'group',
+      prefix: t('admin.accounts.filterSummary.group'),
+      label: getGroupFilterLabel(filters.group)
+    })
+  }
+  if (filters.privacy_mode) {
+    items.push({
+      key: 'privacy_mode',
+      prefix: t('admin.accounts.filterSummary.privacy'),
+      label: getPrivacyModeFilterLabel(filters.privacy_mode)
+    })
+  }
+
+  return items
+})
+
+const clearAccountFilters = () => {
+  Object.assign(params, {
+    platform: '',
+    tier: '',
+    type: '',
+    main_status: '',
+    runtime_status: '',
+    scheduling_status: '',
+    privacy_mode: '',
+    group: '',
+    search: '',
+  })
+  baseReload()
+}
 
 const batchTestTargets = computed(() => {
   const accountById = new Map(accounts.value.map(account => [account.id, account]))
