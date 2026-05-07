@@ -3341,6 +3341,21 @@ export default {
       clearFilters: '清空筛选',
       showFilterDetails: '查看详情',
       hideFilterDetails: '收起详情',
+      statusGuide: {
+        shortAction: '状态说明',
+        title: '账号状态说明',
+        description: '账号列表里的状态分成三层：主状态、运行时状态、调度状态。先看主状态，再看运行时冷却，最后看调度是否被人工或过期暂停。',
+        mainActive: '账号本身正常，可继续看运行时与调度状态',
+        mainInactive: '主状态停用，不参与调度',
+        mainError: '账号异常，需要恢复或排查',
+        runtimeRateLimited: '上游 429 限流，等待自动恢复',
+        runtimeOverloaded: '上游 529 过载，等待自动恢复',
+        runtimeTempUnschedulable: '临时冷却，包含很多 401 认证冷却场景',
+        scheduleEnabled: '调度开关开启',
+        scheduleManualPaused: '手动关闭调度',
+        scheduleExpiredPaused: '账号过期后自动暂停',
+        oauth401Hint: '说明：很多测试出来的 401 不会直接进错误，而是先进“运行时临时冷却”，给 token 刷新或恢复留窗口。'
+      },
       filterSummary: {
         search: '搜索',
         platform: '平台',

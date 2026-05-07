@@ -79,5 +79,34 @@ describe('AccountTableFilters', () => {
     expect(text).toContain('admin.accounts.statusFilters.allScheduling')
     expect(text).toContain('admin.accounts.status.scheduleEnabled')
     expect(text).toContain('admin.accounts.statusFilters.unschedulable')
+    expect(text).toContain('admin.accounts.statusGuide.shortAction')
+  })
+
+  it('点击状态说明按钮会发出事件', async () => {
+    const wrapper = mount(AccountTableFilters, {
+      props: {
+        searchQuery: '',
+        filters: {
+          platform: '',
+          tier: '',
+          type: '',
+          main_status: '',
+          runtime_status: '',
+          scheduling_status: '',
+          privacy_mode: '',
+          group: ''
+        },
+        groups: []
+      },
+      global: {
+        stubs: {
+          Select: SelectStub,
+          SearchInput: SearchInputStub
+        }
+      }
+    })
+
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('status-guide')).toHaveLength(1)
   })
 })

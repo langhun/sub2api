@@ -10,6 +10,7 @@
             @update:filters="(newFilters) => Object.assign(params, newFilters)"
             @change="debouncedReload"
             @update:searchQuery="debouncedReload"
+            @status-guide="showStatusGuide = true"
           />
           <AccountTableActions
             :loading="loading"
@@ -392,6 +393,52 @@
     </ConfirmDialog>
     <ErrorPassthroughRulesModal :show="showErrorPassthrough" @close="showErrorPassthrough = false" />
     <TLSFingerprintProfilesModal :show="showTLSFingerprintProfiles" @close="showTLSFingerprintProfiles = false" />
+    <BaseDialog :show="showStatusGuide" :title="t('admin.accounts.statusGuide.title')" width="normal" @close="showStatusGuide = false">
+      <div class="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+        <p class="leading-6 text-gray-600 dark:text-gray-400">
+          {{ t('admin.accounts.statusGuide.description') }}
+        </p>
+
+        <div class="grid gap-3 md:grid-cols-3">
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800/70">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.statusLayers.main') }}
+            </div>
+            <ul class="space-y-1.5 text-sm">
+              <li>{{ t('admin.accounts.status.mainActive') }}：{{ t('admin.accounts.statusGuide.mainActive') }}</li>
+              <li>{{ t('admin.accounts.status.mainInactive') }}：{{ t('admin.accounts.statusGuide.mainInactive') }}</li>
+              <li>{{ t('admin.accounts.status.mainError') }}：{{ t('admin.accounts.statusGuide.mainError') }}</li>
+            </ul>
+          </div>
+
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800/70">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.statusLayers.runtime') }}
+            </div>
+            <ul class="space-y-1.5 text-sm">
+              <li>{{ t('admin.accounts.status.runtimeRateLimited') }}：{{ t('admin.accounts.statusGuide.runtimeRateLimited') }}</li>
+              <li>{{ t('admin.accounts.status.runtimeOverloaded') }}：{{ t('admin.accounts.statusGuide.runtimeOverloaded') }}</li>
+              <li>{{ t('admin.accounts.status.runtimeTempUnschedulable') }}：{{ t('admin.accounts.statusGuide.runtimeTempUnschedulable') }}</li>
+            </ul>
+          </div>
+
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800/70">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.statusLayers.scheduling') }}
+            </div>
+            <ul class="space-y-1.5 text-sm">
+              <li>{{ t('admin.accounts.status.scheduleEnabled') }}：{{ t('admin.accounts.statusGuide.scheduleEnabled') }}</li>
+              <li>{{ t('admin.accounts.status.scheduleManualPaused') }}：{{ t('admin.accounts.statusGuide.scheduleManualPaused') }}</li>
+              <li>{{ t('admin.accounts.status.scheduleExpiredPaused') }}：{{ t('admin.accounts.statusGuide.scheduleExpiredPaused') }}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-200">
+          {{ t('admin.accounts.statusGuide.oauth401Hint') }}
+        </div>
+      </div>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -409,6 +456,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { CreateAccountModal, EditAccountModal, BulkEditAccountModal, SyncFromCrsModal, TempUnschedStatusModal } from '@/components/account'
 import AccountTableActions from '@/components/admin/account/AccountTableActions.vue'
@@ -452,6 +500,7 @@ const authStore = useAuthStore()
 const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
 const showFilterSummaryDetails = ref(false)
+const showStatusGuide = ref(false)
 const accountTableRef = ref<HTMLElement | null>(null)
 const dataTableRef = ref<InstanceType<typeof DataTable> | null>(null)
 const selPlatforms = computed<AccountPlatform[]>(() => {

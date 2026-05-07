@@ -15,6 +15,14 @@
     <Select :model-value="filters.scheduling_status" class="w-48" :options="schedulingStatusOpts" @update:model-value="updateSchedulingStatus" @change="$emit('change')" />
     <Select :model-value="filters.privacy_mode" class="w-40" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
     <Select :model-value="filters.group" class="w-40" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
+    <button
+      type="button"
+      class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
+      @click="$emit('status-guide')"
+    >
+      <span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-[11px] dark:border-dark-500">?</span>
+      <span>{{ t('admin.accounts.statusGuide.shortAction') }}</span>
+    </button>
   </div>
 </template>
 
@@ -26,7 +34,7 @@ import SearchInput from '@/components/common/SearchInput.vue'
 import type { AdminGroup } from '@/types'
 
 const props = defineProps<{ searchQuery: string; filters: Record<string, any>; groups?: AdminGroup[] }>()
-const emit = defineEmits(['update:searchQuery', 'update:filters', 'change'])
+const emit = defineEmits(['update:searchQuery', 'update:filters', 'change', 'status-guide'])
 const { t } = useI18n()
 
 type TierOption = {
