@@ -41,7 +41,7 @@ const SearchInputStub = defineComponent({
 })
 
 describe('AccountTableFilters', () => {
-  it('状态筛选项使用更明确的分层文案', () => {
+  it('默认收起高级筛选并可展开查看完整状态筛选项', async () => {
     const wrapper = mount(AccountTableFilters, {
       props: {
         searchQuery: '',
@@ -67,19 +67,30 @@ describe('AccountTableFilters', () => {
 
     const text = wrapper.text()
 
+    expect(text).toContain('admin.accounts.allPlatforms')
     expect(text).toContain('admin.accounts.statusFilters.allMain')
+    expect(text).toContain('admin.accounts.statusFilters.allRuntime')
+    expect(text).toContain('admin.accounts.moreFilters')
+    expect(text).not.toContain('admin.accounts.tier.all')
+    expect(text).not.toContain('admin.accounts.statusFilters.allScheduling')
+
+    await wrapper.get('[data-testid="account-more-filters-toggle"]').trigger('click')
+
+    const expandedText = wrapper.text()
+
+    expect(expandedText).toContain('admin.accounts.hideAdvancedFilters')
+    expect(expandedText).toContain('admin.accounts.tier.all')
     expect(text).toContain('admin.accounts.status.mainActive')
     expect(text).toContain('admin.accounts.status.mainInactive')
     expect(text).toContain('admin.accounts.status.mainError')
-    expect(text).toContain('admin.accounts.statusFilters.allRuntime')
-    expect(text).toContain('admin.accounts.status.runtimeNormal')
-    expect(text).toContain('admin.accounts.status.runtimeRateLimited')
-    expect(text).toContain('admin.accounts.status.runtimeOverloaded')
-    expect(text).toContain('admin.accounts.statusFilters.tempUnschedulable')
-    expect(text).toContain('admin.accounts.statusFilters.allScheduling')
-    expect(text).toContain('admin.accounts.status.scheduleEnabled')
-    expect(text).toContain('admin.accounts.statusFilters.unschedulable')
-    expect(text).toContain('admin.accounts.statusGuide.shortAction')
+    expect(expandedText).toContain('admin.accounts.status.runtimeNormal')
+    expect(expandedText).toContain('admin.accounts.status.runtimeRateLimited')
+    expect(expandedText).toContain('admin.accounts.status.runtimeOverloaded')
+    expect(expandedText).toContain('admin.accounts.statusFilters.tempUnschedulable')
+    expect(expandedText).toContain('admin.accounts.statusFilters.allScheduling')
+    expect(expandedText).toContain('admin.accounts.status.scheduleEnabled')
+    expect(expandedText).toContain('admin.accounts.statusFilters.unschedulable')
+    expect(expandedText).toContain('admin.accounts.statusGuide.shortAction')
   })
 
   it('点击状态说明按钮会发出事件', async () => {
@@ -106,7 +117,7 @@ describe('AccountTableFilters', () => {
       }
     })
 
-    await wrapper.get('button').trigger('click')
+    await wrapper.get('[data-testid="account-status-guide-button"]').trigger('click')
     expect(wrapper.emitted('status-guide')).toHaveLength(1)
   })
 })

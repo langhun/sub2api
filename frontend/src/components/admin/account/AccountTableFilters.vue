@@ -1,36 +1,62 @@
 <template>
-  <div class="flex flex-wrap items-center gap-3">
-    <SearchInput
-      :model-value="searchQuery"
-      :placeholder="t('admin.accounts.searchAccounts')"
-      class="w-full sm:w-64"
-      @update:model-value="$emit('update:searchQuery', $event)"
-      @search="$emit('change')"
-    />
-    <Select :model-value="filters.platform" class="w-40" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
-    <Select :model-value="filters.tier" class="w-44" :options="tierOpts" @update:model-value="updateTier" @change="$emit('change')" />
-    <Select :model-value="filters.type" class="w-40" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
-    <Select :model-value="filters.main_status" class="w-44" :options="mainStatusOpts" @update:model-value="updateMainStatus" @change="$emit('change')" />
-    <Select :model-value="filters.runtime_status" class="w-56" :options="runtimeStatusOpts" @update:model-value="updateRuntimeStatus" @change="$emit('change')" />
-    <Select :model-value="filters.scheduling_status" class="w-48" :options="schedulingStatusOpts" @update:model-value="updateSchedulingStatus" @change="$emit('change')" />
-    <Select :model-value="filters.privacy_mode" class="w-40" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
-    <Select :model-value="filters.group" class="w-40" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
-    <button
-      type="button"
-      class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400"
-      @click="$emit('status-guide')"
-    >
-      <span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-[11px] dark:border-dark-500">?</span>
-      <span>{{ t('admin.accounts.statusGuide.shortAction') }}</span>
-    </button>
+  <div class="w-full space-y-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <SearchInput
+        :model-value="searchQuery"
+        :placeholder="t('admin.accounts.searchAccounts')"
+        class="w-full sm:w-56 xl:w-64"
+        @update:model-value="$emit('update:searchQuery', $event)"
+        @search="$emit('change')"
+      />
+      <Select :model-value="filters.platform" class="w-36 sm:w-40" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
+      <Select :model-value="filters.main_status" class="w-40 sm:w-44" :options="mainStatusOpts" @update:model-value="updateMainStatus" @change="$emit('change')" />
+      <Select :model-value="filters.runtime_status" class="w-44 sm:w-48" :options="runtimeStatusOpts" @update:model-value="updateRuntimeStatus" @change="$emit('change')" />
+      <Select :model-value="filters.group" class="w-36 sm:w-40" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
+      <button
+        type="button"
+        data-testid="account-more-filters-toggle"
+        class="btn btn-secondary btn-sm gap-1.5 px-2.5 text-xs"
+        @click="showAdvancedFilters = !showAdvancedFilters"
+      >
+        <Icon name="filter" size="sm" />
+        <span>{{ showAdvancedFilters ? t('admin.accounts.hideAdvancedFilters') : t('admin.accounts.moreFilters') }}</span>
+        <span
+          v-if="advancedFilterCount > 0"
+          class="inline-flex min-w-5 items-center justify-center rounded-full bg-primary-50 px-1.5 py-0.5 text-[11px] font-semibold text-primary-600 dark:bg-primary-500/15 dark:text-primary-300"
+        >
+          {{ advancedFilterCount }}
+        </span>
+        <Icon
+          name="chevronDown"
+          size="sm"
+          :class="['transition-transform duration-200', showAdvancedFilters ? 'rotate-180' : '']"
+        />
+      </button>
+      <button
+        type="button"
+        data-testid="account-status-guide-button"
+        class="btn btn-secondary btn-sm gap-1.5 px-2.5 text-xs text-gray-600 dark:text-gray-300"
+        @click="$emit('status-guide')"
+      >
+        <Icon name="questionCircle" size="sm" />
+        <span class="hidden xl:inline">{{ t('admin.accounts.statusGuide.shortAction') }}</span>
+      </button>
+    </div>
+    <div v-if="showAdvancedFilters" class="flex flex-wrap items-center gap-2">
+      <Select :model-value="filters.tier" class="w-40 sm:w-44" :options="tierOpts" @update:model-value="updateTier" @change="$emit('change')" />
+      <Select :model-value="filters.type" class="w-36 sm:w-40" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
+      <Select :model-value="filters.scheduling_status" class="w-44 sm:w-48" :options="schedulingStatusOpts" @update:model-value="updateSchedulingStatus" @change="$emit('change')" />
+      <Select :model-value="filters.privacy_mode" class="w-36 sm:w-40" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select from '@/components/common/Select.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
+import Icon from '@/components/icons/Icon.vue'
 import type { AdminGroup } from '@/types'
 
 const props = defineProps<{ searchQuery: string; filters: Record<string, any>; groups?: AdminGroup[] }>()
@@ -76,7 +102,24 @@ const tierGroupLabels: Record<string, string> = {
   antigravity: 'Antigravity'
 }
 
+const showAdvancedFilters = ref(false)
+
 const toFilterValue = (value: string | number | boolean | null) => String(value ?? '')
+
+const advancedFilterCount = computed(() => (
+  [
+    props.filters.tier,
+    props.filters.type,
+    props.filters.scheduling_status,
+    props.filters.privacy_mode
+  ].filter((value) => toFilterValue(value).trim() !== '').length
+))
+
+watch(advancedFilterCount, (count) => {
+  if (count > 0) {
+    showAdvancedFilters.value = true
+  }
+}, { immediate: true })
 
 const tierPlatform = (tier: string) => {
   const [platform] = tier.split(':', 1)
