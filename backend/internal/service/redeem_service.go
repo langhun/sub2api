@@ -130,11 +130,16 @@ func (s *RedeemService) GenerateRandomCode() (string, error) {
 }
 
 func (s *RedeemService) GenerateInvitationCode() (string, error) {
-	format := DefaultRegistrationInvitationCodeFormat()
-	if s != nil && s.settingService != nil {
-		format = s.settingService.GetInvitationCodeFormat(context.Background())
-	}
+	format := s.GenerateInvitationFormat(context.Background())
 	return GenerateRegistrationInvitationCodeWithFormat(format)
+}
+
+func (s *RedeemService) GenerateInvitationFormat(ctx context.Context) CodeFormatSettings {
+	format := DefaultRedeemCodeFormat()
+	if s != nil && s.settingService != nil {
+		format = s.settingService.GetInvitationCodeFormat(ctx)
+	}
+	return format
 }
 
 // GenerateCodes 批量生成兑换码

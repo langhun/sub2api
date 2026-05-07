@@ -396,9 +396,9 @@ func TestAuthService_Register_InvitationCodeRequiresNewFormat(t *testing.T) {
 	repo := &userRepoStub{nextID: 9}
 	redeemRepo := &redeemCodeRepoStub{
 		codesByCode: map[string]*RedeemCode{
-			"DG-ABC123": {
+			"ABCD-EFGH-IJKL-MNOP": {
 				ID:     1,
-				Code:   "DG-ABC123",
+				Code:   "ABCD-EFGH-IJKL-MNOP",
 				Type:   RedeemTypeInvitation,
 				Status: StatusUnused,
 			},
@@ -436,7 +436,7 @@ func TestAuthService_Register_InvitationCodeRequiresNewFormat(t *testing.T) {
 	_, _, err := authService.RegisterWithVerification(context.Background(), "user@test.com", "password", "", "", "invite123", "")
 	require.ErrorIs(t, err, ErrInvitationCodeInvalid)
 
-	token, user, err := authService.RegisterWithVerification(context.Background(), "user2@test.com", "password", "", "", "dg-abc123", "")
+	token, user, err := authService.RegisterWithVerification(context.Background(), "user2@test.com", "password", "", "", "abcd-efgh-ijkl-mnop", "")
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 	require.NotNil(t, user)
