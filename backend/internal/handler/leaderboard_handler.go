@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"math"
+
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -46,7 +48,28 @@ func (h *LeaderboardHandler) GetConsumptionLeaderboard(c *gin.Context) {
 		return
 	}
 
-	response.Paginated(c, result.Entries, result.Total, page, pageSize)
+	pages := int(math.Ceil(float64(result.Total) / float64(pageSize)))
+	if pages < 1 {
+		pages = 1
+	}
+
+	response.Success(c, struct {
+		Items      []service.LeaderboardEntry     `json:"items"`
+		Total      int64                          `json:"total"`
+		Page       int                            `json:"page"`
+		PageSize   int                            `json:"page_size"`
+		Pages      int                            `json:"pages"`
+		Summary    *service.LeaderboardSummary    `json:"summary,omitempty"`
+		ChartItems []service.LeaderboardChartItem `json:"chart_items,omitempty"`
+	}{
+		Items:      result.Entries,
+		Total:      result.Total,
+		Page:       page,
+		PageSize:   pageSize,
+		Pages:      pages,
+		Summary:    result.Summary,
+		ChartItems: result.ChartItems,
+	})
 }
 
 func (h *LeaderboardHandler) GetCheckinLeaderboard(c *gin.Context) {

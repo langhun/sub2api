@@ -10,12 +10,24 @@ export interface LeaderboardEntry {
   extra_date?: string
 }
 
+export interface LeaderboardSummary {
+  total_value: number
+  total_users: number
+}
+
+export interface LeaderboardChartItem {
+  username: string
+  value: number
+}
+
 export interface LeaderboardData {
   items: LeaderboardEntry[]
   total: number
   page: number
   page_size: number
   pages: number
+  summary?: LeaderboardSummary
+  chart_items?: LeaderboardChartItem[]
 }
 
 export async function getBalanceLeaderboard(page = 1, pageSize = 10): Promise<LeaderboardData> {

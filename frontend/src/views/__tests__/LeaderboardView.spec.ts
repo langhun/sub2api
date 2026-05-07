@@ -76,6 +76,10 @@ function mountView(settings: Record<string, boolean>) {
       stubs: {
         PublicPageHeader: { template: '<header />' },
         PublicPageFooter: { template: '<footer />' },
+        PublicConsumptionLeaderboardChart: {
+          props: ['chartItems', 'summary'],
+          template: '<div class="consumption-chart-stub">{{ chartItems.length }}|{{ summary?.total_value }}</div>',
+        },
       },
     },
   })
@@ -145,5 +149,42 @@ describe('LeaderboardView tab switches', () => {
     expect(wrapper.text()).toContain('转账排行')
     expect(getTransferLeaderboard).toHaveBeenCalledWith('day', 1, 20)
     expect(getConsumptionLeaderboard).not.toHaveBeenCalled()
+  })
+
+  it('消费榜图表使用全量 chart_items，列表显示金额占比', async () => {
+    getConsumptionLeaderboard.mockResolvedValueOnce({
+      items: [
+        {
+          rank: 1,
+          username: 'Alpha',
+          value: 70,
+          extra_int: 5,
+        },
+      ],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+      summary: {
+        total_value: 100,
+        total_users: 2,
+      },
+      chart_items: [
+        { username: 'Alpha', value: 70 },
+        { username: 'Beta', value: 30 },
+      ],
+    })
+
+    const wrapper = mountView({
+      leaderboard_balance_enabled: false,
+      leaderboard_consumption_enabled: true,
+      leaderboard_transfer_enabled: false,
+      leaderboard_checkin_enabled: false,
+    })
+
+    await settleLeaderboard()
+
+    expect(wrapper.find('.consumption-chart-stub').text()).toBe('2|100')
+    expect(wrapper.text()).toContain('70.0%')
   })
 })

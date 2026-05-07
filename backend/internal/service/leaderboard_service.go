@@ -13,18 +13,30 @@ import (
 )
 
 type LeaderboardEntry struct {
-	Rank          int     `json:"rank"`
-	Username      string  `json:"username"`
-	Value         float64 `json:"value"`
-	ExtraInt      int     `json:"extra_int,omitempty"`
-	ExtraInt2     int     `json:"extra_int2,omitempty"`
-	ExtraFloat    float64 `json:"extra_float,omitempty"`
-	ExtraDate     string  `json:"extra_date,omitempty"`
+	Rank       int     `json:"rank"`
+	Username   string  `json:"username"`
+	Value      float64 `json:"value"`
+	ExtraInt   int     `json:"extra_int,omitempty"`
+	ExtraInt2  int     `json:"extra_int2,omitempty"`
+	ExtraFloat float64 `json:"extra_float,omitempty"`
+	ExtraDate  string  `json:"extra_date,omitempty"`
+}
+
+type LeaderboardSummary struct {
+	TotalValue float64 `json:"total_value"`
+	TotalUsers int64   `json:"total_users"`
+}
+
+type LeaderboardChartItem struct {
+	Username string  `json:"username"`
+	Value    float64 `json:"value"`
 }
 
 type LeaderboardResult struct {
-	Entries []LeaderboardEntry `json:"items"`
-	Total   int64              `json:"total"`
+	Entries    []LeaderboardEntry     `json:"items"`
+	Total      int64                  `json:"total"`
+	Summary    *LeaderboardSummary    `json:"summary,omitempty"`
+	ChartItems []LeaderboardChartItem `json:"chart_items,omitempty"`
 }
 
 type LeaderboardService struct {
@@ -122,7 +134,7 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 		WHERE ul.created_at >= $1 AND u.status = 'active' AND u.role != 'admin'
 		GROUP BY ul.user_id, u.username, u.email
 		HAVING SUM(ul.actual_cost) > 0
-		ORDER BY total_cost DESC
+		ORDER BY total_cost DESC, ul.user_id ASC
 		LIMIT $2 OFFSET $3
 	`
 	rows, err := s.db.QueryContext(ctx, dataQuery, startTime, pageSize, offset)
@@ -149,7 +161,48 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 		})
 	}
 
-	return &LeaderboardResult{Entries: entries, Total: total}, nil
+	chartQuery := `
+		SELECT u.username, u.email, COALESCE(SUM(ul.actual_cost), 0) as total_cost
+		FROM usage_logs ul
+		INNER JOIN users u ON ul.user_id = u.id AND u.deleted_at IS NULL
+		WHERE ul.created_at >= $1 AND u.status = 'active' AND u.role != 'admin'
+		GROUP BY ul.user_id, u.username, u.email
+		HAVING SUM(ul.actual_cost) > 0
+		ORDER BY total_cost DESC, ul.user_id ASC
+	`
+	chartRows, err := s.db.QueryContext(ctx, chartQuery, startTime)
+	if err != nil {
+		return nil, fmt.Errorf("query consumption chart: %w", err)
+	}
+	defer chartRows.Close()
+
+	chartItems := make([]LeaderboardChartItem, 0, total)
+	var totalValue float64
+	for chartRows.Next() {
+		var username, email string
+		var totalCost float64
+		if err := chartRows.Scan(&username, &email, &totalCost); err != nil {
+			return nil, fmt.Errorf("scan consumption chart row: %w", err)
+		}
+		totalValue += totalCost
+		chartItems = append(chartItems, LeaderboardChartItem{
+			Username: maskUsername(username, email),
+			Value:    math.Round(totalCost*100) / 100,
+		})
+	}
+	if err := chartRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate consumption chart rows: %w", err)
+	}
+
+	return &LeaderboardResult{
+		Entries: entries,
+		Total:   total,
+		Summary: &LeaderboardSummary{
+			TotalValue: math.Round(totalValue*100) / 100,
+			TotalUsers: total,
+		},
+		ChartItems: chartItems,
+	}, nil
 }
 
 func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pageSize int) (*LeaderboardResult, error) {
