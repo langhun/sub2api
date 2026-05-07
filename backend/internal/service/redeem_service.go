@@ -148,7 +148,7 @@ func (s *RedeemService) GenerateInvitationCode() (string, error) {
 }
 
 func (s *RedeemService) GenerateInvitationFormat(ctx context.Context) CodeFormatSettings {
-	format := DefaultRedeemCodeFormat()
+	format := DefaultRegistrationInvitationCodeFormat()
 	if s != nil && s.settingService != nil {
 		format = s.settingService.GetInvitationCodeFormat(ctx)
 	}

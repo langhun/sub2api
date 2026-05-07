@@ -96,7 +96,6 @@ export {
   channelMonitorTemplateAPI,
   adminPaymentAPI,
   affiliatesAPI,
-  transferAPI
   riskControlAPI,
   transferAPI
 }

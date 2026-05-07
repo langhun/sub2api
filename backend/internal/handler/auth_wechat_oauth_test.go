@@ -857,7 +857,7 @@ func TestCompleteWeChatOAuthRegistrationAfterInvitationPendingSessionReturnsPend
 	ctx := context.Background()
 	redeemRepo := repository.NewRedeemCodeRepository(client)
 	require.NoError(t, redeemRepo.Create(ctx, &service.RedeemCode{
-		Code:   "ABCD-EFGH-IJKL-MNOP",
+		Code:   "DG-ABC123",
 		Type:   service.RedeemTypeInvitation,
 		Status: service.StatusUnused,
 	}))
@@ -887,7 +887,7 @@ func TestCompleteWeChatOAuthRegistrationAfterInvitationPendingSessionReturnsPend
 	require.NoError(t, err)
 	require.Equal(t, oauthPendingChoiceStep, pendingSession.LocalFlowState[oauthCompletionResponseKey].(map[string]any)["step"])
 
-	body := bytes.NewBufferString(`{"invitation_code":"abcd-efgh-ijkl-mnop","adopt_display_name":true,"adopt_avatar":true}`)
+	body := bytes.NewBufferString(`{"invitation_code":"dg-abc123","adopt_display_name":true,"adopt_avatar":true}`)
 	completeRecorder := httptest.NewRecorder()
 	completeCtx, _ := gin.CreateTestContext(completeRecorder)
 	completeReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/wechat/complete-registration", body)

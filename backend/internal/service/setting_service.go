@@ -610,8 +610,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
-		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
-		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
+		AffiliateEnabled:    settings[SettingKeyAffiliateEnabled] == "true",
+		RiskControlEnabled:  settings[SettingKeyRiskControlEnabled] == "true",
 		AffiliateCodeFormat: ParseCodeFormatSettings(settings[SettingKeyAffiliateCodeFormat], DefaultAffiliateCodeFormat()),
 	}, nil
 }
@@ -731,6 +731,15 @@ type PublicSettingsInjectionPayload struct {
 	ContactInfo                      string          `json:"contact_info"`
 	DocURL                           string          `json:"doc_url"`
 	HomeContent                      string          `json:"home_content"`
+	HomeNavLinksEnabled              bool            `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled        bool            `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled           bool            `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled         bool            `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled            bool            `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled        bool            `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled    bool            `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled       bool            `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled        bool            `json:"leaderboard_checkin_enabled"`
 	HideCcsImportButton              bool            `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool            `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string          `json:"purchase_subscription_url"`
