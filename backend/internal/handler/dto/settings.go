@@ -13,6 +13,7 @@ type CustomMenuItem struct {
 	Label      string `json:"label"`
 	IconSVG    string `json:"icon_svg"`
 	URL        string `json:"url"`
+	PageSlug   string `json:"page_slug,omitempty"`
 	Visibility string `json:"visibility"` // "user" or "admin"
 	SortOrder  int    `json:"sort_order"`
 }
@@ -118,6 +119,31 @@ type SystemSettings struct {
 	TablePageSizeOptions          []int            `json:"table_page_size_options"`
 	CustomMenuItems               []CustomMenuItem `json:"custom_menu_items"`
 	CustomEndpoints               []CustomEndpoint `json:"custom_endpoints"`
+	GitHubOAuthEnabled                bool   `json:"github_oauth_enabled"`
+	GitHubOAuthClientID               string `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecretConfigured bool   `json:"github_oauth_client_secret_configured"`
+	GitHubOAuthRedirectURL            string `json:"github_oauth_redirect_url"`
+	GitHubOAuthFrontendRedirectURL    string `json:"github_oauth_frontend_redirect_url"`
+	GoogleOAuthEnabled                bool   `json:"google_oauth_enabled"`
+	GoogleOAuthClientID               string `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecretConfigured bool   `json:"google_oauth_client_secret_configured"`
+	GoogleOAuthRedirectURL            string `json:"google_oauth_redirect_url"`
+	GoogleOAuthFrontendRedirectURL    string `json:"google_oauth_frontend_redirect_url"`
+
+	SiteName                    string           `json:"site_name"`
+	SiteLogo                    string           `json:"site_logo"`
+	SiteSubtitle                string           `json:"site_subtitle"`
+	APIBaseURL                  string           `json:"api_base_url"`
+	ContactInfo                 string           `json:"contact_info"`
+	DocURL                      string           `json:"doc_url"`
+	HomeContent                 string           `json:"home_content"`
+	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
+	TableDefaultPageSize        int              `json:"table_default_page_size"`
+	TablePageSizeOptions        []int            `json:"table_page_size_options"`
+	CustomMenuItems             []CustomMenuItem `json:"custom_menu_items"`
+	CustomEndpoints             []CustomEndpoint `json:"custom_endpoints"`
 
 	DefaultConcurrency           int                          `json:"default_concurrency"`
 	DefaultBalance               float64                      `json:"default_balance"`
@@ -238,6 +264,9 @@ type SystemSettings struct {
 	RedPacketMaxCount       int     `json:"redpacket_max_count"`
 	RedPacketExpireHours    int     `json:"redpacket_expire_hours"`
 
+	// 风控中心功能开关
+	RiskControlEnabled bool `json:"risk_control_enabled"`
+
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
@@ -291,6 +320,8 @@ type PublicSettings struct {
 	WeChatOAuthMobileEnabled         bool             `json:"wechat_oauth_mobile_enabled"`
 	OIDCOAuthEnabled                 bool             `json:"oidc_oauth_enabled"`
 	OIDCOAuthProviderName            string           `json:"oidc_oauth_provider_name"`
+	GitHubOAuthEnabled               bool             `json:"github_oauth_enabled"`
+	GoogleOAuthEnabled               bool             `json:"google_oauth_enabled"`
 	SoraClientEnabled                bool             `json:"sora_client_enabled"`
 	BackendModeEnabled               bool             `json:"backend_mode_enabled"`
 	PaymentEnabled                   bool             `json:"payment_enabled"`
@@ -306,6 +337,8 @@ type PublicSettings struct {
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
 	AffiliateEnabled bool `json:"affiliate_enabled"`
+
+	RiskControlEnabled bool `json:"risk_control_enabled"`
 }
 
 // OverloadCooldownSettings 529过载冷却配置 DTO
