@@ -121,6 +121,10 @@
             <button @click="showImportData = true" class="btn btn-secondary">
               {{ t('admin.proxies.dataImport') }}
             </button>
+            <button @click="openPoolDialog" class="btn btn-secondary">
+              <Icon name="shield" size="md" class="mr-2" />
+              {{ t('admin.proxies.poolMembersAction') }}
+            </button>
             <button @click="showExportDataDialog = true" class="btn btn-secondary">
               {{ selectedCount > 0 ? t('admin.proxies.dataExportSelected') : t('admin.proxies.dataExport') }}
             </button>
@@ -128,6 +132,12 @@
               <Icon name="plus" size="md" class="mr-2" />
               {{ t('admin.proxies.createProxy') }}
             </button>
+          </div>
+        </div>
+        <div class="w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100">
+          <div class="font-medium">{{ t('admin.proxies.poolUsageSummary') }}</div>
+          <div class="mt-1 text-xs text-blue-800 dark:text-blue-200">
+            {{ t('admin.proxies.poolUsageHint') }}
           </div>
         </div>
       </template>
@@ -260,6 +270,20 @@
             </span>
           </template>
 
+          <template #cell-pool="{ row }">
+            <div class="flex flex-col items-start gap-1">
+              <span :class="['badge', row.auto_failover_pool_enabled ? 'badge-primary' : 'badge-gray']">
+                {{ row.auto_failover_pool_enabled ? t('admin.proxies.poolEnabled') : t('admin.proxies.poolDisabled') }}
+              </span>
+              <span
+                v-if="typeof row.failover_switch_count === 'number' && row.failover_switch_count > 0"
+                class="text-xs text-gray-500 dark:text-gray-400"
+              >
+                {{ t('admin.proxies.failoverSwitchCount', { count: row.failover_switch_count }) }}
+              </span>
+            </div>
+          </template>
+
           <template #cell-latency="{ row }">
             <div class="flex flex-col gap-1">
               <span
@@ -294,9 +318,6 @@
               <div class="flex flex-wrap items-center gap-1">
                 <span :class="['badge', value === 'active' ? 'badge-success' : 'badge-danger']">
                   {{ t('admin.accounts.status.' + value) }}
-                </span>
-                <span :class="['badge', row.auto_failover_pool_enabled ? 'badge-primary' : 'badge-gray']">
-                  {{ row.auto_failover_pool_enabled ? t('admin.proxies.poolEnabled') : t('admin.proxies.poolDisabled') }}
                 </span>
                 <span v-if="row.health_status" :class="['badge', healthStatusClass(row.health_status)]">
                   {{ healthStatusLabel(row.health_status) }}
@@ -378,6 +399,15 @@
                 </svg>
                 <Icon v-else name="shield" size="sm" />
                 <span class="text-xs">{{ t('admin.proxies.qualityCheck') }}</span>
+              </button>
+              <button
+                @click="handleTogglePoolMembership(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-900/20 dark:hover:text-violet-400"
+              >
+                <Icon :name="row.auto_failover_pool_enabled ? 'x' : 'plus'" size="sm" />
+                <span class="text-xs">
+                  {{ row.auto_failover_pool_enabled ? t('admin.proxies.poolDisableAction') : t('admin.proxies.poolEnableAction') }}
+                </span>
               </button>
               <button
                 @click="handleClearCooldown([row.id])"
@@ -985,6 +1015,83 @@
         </div>
       </template>
     </BaseDialog>
+
+    <BaseDialog
+      :show="showPoolDialog"
+      :title="t('admin.proxies.poolMembersTitle')"
+      width="normal"
+      @close="showPoolDialog = false"
+    >
+      <div class="space-y-4">
+        <div class="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-100">
+          <div class="font-medium">{{ t('admin.proxies.poolMembersSummary', { count: poolDialogRows.length }) }}</div>
+          <div class="mt-1 text-xs text-violet-800 dark:text-violet-200">
+            {{ t('admin.proxies.poolUsageHint') }}
+          </div>
+        </div>
+
+        <div v-if="poolDialogLoading" class="flex items-center justify-center py-8 text-sm text-gray-500">
+          <Icon name="refresh" size="md" class="mr-2 animate-spin" />
+          {{ t('common.loading') }}
+        </div>
+        <div v-else-if="poolDialogRows.length === 0" class="py-8 text-center text-sm text-gray-500">
+          {{ t('admin.proxies.poolMembersEmpty') }}
+        </div>
+        <div v-else class="max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-dark-600">
+          <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
+            <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-dark-400">
+              <tr>
+                <th class="px-4 py-2 text-left">{{ t('admin.proxies.columns.name') }}</th>
+                <th class="px-4 py-2 text-left">{{ t('admin.proxies.columns.address') }}</th>
+                <th class="px-4 py-2 text-left">{{ t('admin.proxies.columns.status') }}</th>
+                <th class="px-4 py-2 text-left">{{ t('admin.proxies.columns.latency') }}</th>
+                <th class="px-4 py-2 text-left">{{ t('admin.proxies.lastFailure') }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
+              <tr v-for="row in poolDialogRows" :key="row.id">
+                <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ row.name }}</td>
+                <td class="px-4 py-2 text-gray-600 dark:text-gray-300">
+                  <code class="code text-xs">{{ row.host }}:{{ row.port }}</code>
+                </td>
+                <td class="px-4 py-2">
+                  <div class="flex flex-wrap items-center gap-1">
+                    <span :class="['badge', row.status === 'active' ? 'badge-success' : 'badge-danger']">
+                      {{ t('admin.accounts.status.' + row.status) }}
+                    </span>
+                    <span v-if="row.health_status" :class="['badge', healthStatusClass(row.health_status)]">
+                      {{ healthStatusLabel(row.health_status) }}
+                    </span>
+                  </div>
+                </td>
+                <td class="px-4 py-2 text-gray-600 dark:text-gray-300">
+                  <div v-if="typeof row.latency_ms === 'number'">{{ row.latency_ms }}ms</div>
+                  <div v-else class="text-gray-400">-</div>
+                  <div v-if="row.health_status === 'cooldown' && row.cooldown_until_unix" class="text-xs text-amber-600 dark:text-amber-400">
+                    {{ t('admin.proxies.cooldownUntil', { time: formatCooldownCountdown(row.cooldown_until_unix) }) }}
+                  </div>
+                </td>
+                <td class="px-4 py-2 text-gray-600 dark:text-gray-300">
+                  <div v-if="row.last_fail_reason">{{ row.last_fail_reason }}</div>
+                  <div v-if="row.last_fail_at_unix" class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ formatRuntimeTime(row.last_fail_at_unix) }}
+                  </div>
+                  <div v-else class="text-gray-400">-</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end">
+          <button @click="showPoolDialog = false" class="btn btn-secondary">
+            {{ t('common.close') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -1025,6 +1132,7 @@ const columns = computed<Column[]>(() => [
   { key: 'auth', label: t('admin.proxies.columns.auth'), sortable: false },
   { key: 'location', label: t('admin.proxies.columns.location'), sortable: false },
   { key: 'account_count', label: t('admin.proxies.columns.accounts'), sortable: true },
+  { key: 'pool', label: t('admin.proxies.columns.pool'), sortable: false },
   { key: 'latency', label: t('admin.proxies.columns.latency'), sortable: false },
   { key: 'status', label: t('admin.proxies.columns.status'), sortable: true },
   { key: 'actions', label: t('admin.proxies.columns.actions'), sortable: false }
@@ -1092,6 +1200,7 @@ const showBatchDeleteDialog = ref(false)
 const showBatchUnassignDialog = ref(false)
 const showExportDataDialog = ref(false)
 const showAccountsModal = ref(false)
+const showPoolDialog = ref(false)
 const submitting = ref(false)
 const exportingData = ref(false)
 const testingProxyIds = ref<Set<number>>(new Set())
@@ -1128,6 +1237,8 @@ const deletingProxy = ref<Proxy | null>(null)
 const showQualityReportDialog = ref(false)
 const qualityReportProxy = ref<Proxy | null>(null)
 const qualityReport = ref<ProxyQualityCheckResult | null>(null)
+const poolDialogRows = ref<Proxy[]>([])
+const poolDialogLoading = ref(false)
 
 // Batch import state
 const createMode = ref<'standard' | 'batch'>('standard')
@@ -1768,7 +1879,7 @@ const qualityTargetLabel = (target: string) => {
   }
 }
 
-const fetchAllProxiesForBatch = async (): Promise<Proxy[]> => {
+const fetchAllProxiesForBatch = async (respectCurrentFilters: boolean = true): Promise<Proxy[]> => {
   const pageSize = 200
   const result: Proxy[] = []
   let page = 1
@@ -1778,13 +1889,18 @@ const fetchAllProxiesForBatch = async (): Promise<Proxy[]> => {
     const response = await adminAPI.proxies.list(
       page,
       pageSize,
-      {
-        protocol: filters.protocol || undefined,
-        status: filters.status as any,
-        search: searchQuery.value || undefined,
-        sort_by: sortState.sort_by,
-        sort_order: sortState.sort_order
-      }
+      respectCurrentFilters
+        ? {
+            protocol: filters.protocol || undefined,
+            status: filters.status as any,
+            search: searchQuery.value || undefined,
+            sort_by: sortState.sort_by,
+            sort_order: sortState.sort_order
+          }
+        : {
+            sort_by: sortState.sort_by,
+            sort_order: sortState.sort_order
+          }
     )
     result.push(...response.items)
     totalPages = response.pages || 1
@@ -1896,6 +2012,23 @@ const handleBatchPoolMembership = async (enabled: boolean) => {
   }
 }
 
+const handleTogglePoolMembership = async (proxy: Proxy) => {
+  const enabled = !proxy.auto_failover_pool_enabled
+  try {
+    await adminAPI.proxies.updatePoolMembership([proxy.id], enabled)
+    proxy.auto_failover_pool_enabled = enabled
+    appStore.showSuccess(
+      enabled ? t('admin.proxies.poolSingleEnabled', { name: proxy.name }) : t('admin.proxies.poolSingleDisabled', { name: proxy.name })
+    )
+    if (showPoolDialog.value) {
+      await openPoolDialog()
+    }
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.poolUpdateFailed'))
+    console.error('Error toggling proxy pool membership:', error)
+  }
+}
+
 const handleClearCooldown = async (ids: number[]) => {
   if (ids.length === 0) return
   try {
@@ -1909,6 +2042,21 @@ const handleClearCooldown = async (ids: number[]) => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.cooldownClearFailed'))
     console.error('Error clearing proxy cooldown:', error)
+  }
+}
+
+const openPoolDialog = async () => {
+  showPoolDialog.value = true
+  poolDialogLoading.value = true
+  try {
+    const allProxies = await fetchAllProxiesForBatch(false)
+    poolDialogRows.value = allProxies.filter((proxy) => proxy.auto_failover_pool_enabled)
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToLoad'))
+    console.error('Error loading proxy pool members:', error)
+    poolDialogRows.value = []
+  } finally {
+    poolDialogLoading.value = false
   }
 }
 
