@@ -485,6 +485,7 @@ func (r *accountRepository) List(ctx context.Context, params pagination.Paginati
 
 func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, tier string) ([]service.Account, *pagination.PaginationResult, error) {
 	q := r.client.Account.Query()
+	now := time.Now()
 
 	if platform != "" {
 		q = q.Where(dbaccount.PlatformEQ(platform))
@@ -492,67 +493,40 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	if accountType != "" {
 		q = q.Where(dbaccount.TypeEQ(accountType))
 	}
-	if status != "" {
-		switch status {
+	if normalizedStatus := normalizeAccountStatusListFilter(status); normalizedStatus != "" {
+		switch normalizedStatus {
 		case service.StatusActive:
-			q = q.Where(
-				dbaccount.StatusEQ(status),
-				dbaccount.SchedulableEQ(true),
-				dbaccount.Or(
-					dbaccount.RateLimitResetAtIsNil(),
-					dbaccount.RateLimitResetAtLTE(time.Now()),
-				),
-				dbpredicate.Account(func(s *entsql.Selector) {
-					col := s.C("temp_unschedulable_until")
-					s.Where(entsql.Or(
-						entsql.IsNull(col),
-						entsql.LTE(col, entsql.Expr("NOW()")),
-					))
-				}),
-			)
+			q = q.Where(activeSchedulablePredicates(now)...)
 		case "rate_limited":
 			q = q.Where(
 				dbaccount.StatusEQ(service.StatusActive),
-				dbaccount.RateLimitResetAtGT(time.Now()),
-				dbpredicate.Account(func(s *entsql.Selector) {
-					col := s.C("temp_unschedulable_until")
-					s.Where(entsql.Or(
-						entsql.IsNull(col),
-						entsql.LTE(col, entsql.Expr("NOW()")),
-					))
-				}),
+				rateLimitedPredicate(now),
+			)
+		case "overloaded":
+			q = q.Where(
+				dbaccount.StatusEQ(service.StatusActive),
+				notRateLimitedPredicate(now),
+				overloadedPredicate(now),
 			)
 		case "temp_unschedulable":
 			q = q.Where(
 				dbaccount.StatusEQ(service.StatusActive),
-				dbpredicate.Account(func(s *entsql.Selector) {
-					col := s.C("temp_unschedulable_until")
-					s.Where(entsql.And(
-						entsql.Not(entsql.IsNull(col)),
-						entsql.GT(col, entsql.Expr("NOW()")),
-					))
-				}),
+				notRateLimitedPredicate(now),
+				notOverloadedPredicate(now),
+				tempUnschedulableActivePredicate(now),
 			)
 		case "unschedulable":
 			q = q.Where(
 				dbaccount.StatusEQ(service.StatusActive),
-				dbaccount.SchedulableEQ(false),
-				dbaccount.Or(
-					dbaccount.RateLimitResetAtIsNil(),
-					dbaccount.RateLimitResetAtLTE(time.Now()),
-				),
-				dbpredicate.Account(func(s *entsql.Selector) {
-					col := s.C("temp_unschedulable_until")
-					s.Where(entsql.Or(
-						entsql.IsNull(col),
-						entsql.LTE(col, entsql.Expr("NOW()")),
-					))
-				}),
+				notRateLimitedPredicate(now),
+				notOverloadedPredicate(now),
+				notTempUnschedulablePredicate(now),
+				schedulingDisabledPredicate(now),
 			)
 		case "inactive", service.StatusDisabled:
 			q = q.Where(dbaccount.StatusIn("inactive", service.StatusDisabled))
 		default:
-			q = q.Where(dbaccount.StatusEQ(status))
+			q = q.Where(dbaccount.StatusEQ(normalizeAccountStatusForStorage(normalizedStatus)))
 		}
 	}
 	if search != "" {
@@ -1102,14 +1076,7 @@ func (r *accountRepository) BindGroups(ctx context.Context, accountID int64, gro
 func (r *accountRepository) ListSchedulable(ctx context.Context) ([]service.Account, error) {
 	now := time.Now()
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
+		Where(activeSchedulablePredicates(now)...).
 		Order(dbent.Asc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
@@ -1127,16 +1094,9 @@ func (r *accountRepository) ListSchedulableByGroupID(ctx context.Context, groupI
 
 func (r *accountRepository) ListSchedulableByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
 	now := time.Now()
+	preds := append([]dbpredicate.Account{dbaccount.PlatformEQ(platform)}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.PlatformEQ(platform),
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
+		Where(preds...).
 		Order(dbent.Asc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
@@ -1161,16 +1121,9 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 	// 仅返回可调度的活跃账号，并过滤处于过载/限流窗口的账号。
 	// 代理与分组信息统一在 accountsToService 中批量加载，避免 N+1 查询。
 	now := time.Now()
+	preds := append([]dbpredicate.Account{dbaccount.PlatformIn(platforms...)}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.PlatformIn(platforms...),
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
+		Where(preds...).
 		Order(dbent.Asc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
@@ -1181,17 +1134,12 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 
 func (r *accountRepository) ListSchedulableUngroupedByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
 	now := time.Now()
+	preds := append([]dbpredicate.Account{
+		dbaccount.PlatformEQ(platform),
+		dbaccount.Not(dbaccount.HasAccountGroups()),
+	}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.PlatformEQ(platform),
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			dbaccount.Not(dbaccount.HasAccountGroups()),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
+		Where(preds...).
 		Order(dbent.Asc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
@@ -1205,17 +1153,12 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatforms(ctx context.Cont
 		return nil, nil
 	}
 	now := time.Now()
+	preds := append([]dbpredicate.Account{
+		dbaccount.PlatformIn(platforms...),
+		dbaccount.Not(dbaccount.HasAccountGroups()),
+	}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.PlatformIn(platforms...),
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			dbaccount.Not(dbaccount.HasAccountGroups()),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
+		Where(preds...).
 		Order(dbent.Asc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
@@ -1693,13 +1636,11 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 	}
 	if opts.schedulable {
 		now := time.Now()
-		preds = append(preds,
-			dbaccount.SchedulableEQ(true),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		)
+		schedulablePreds := activeSchedulablePredicates(now)
+		if opts.status == service.StatusActive {
+			schedulablePreds = schedulablePreds[1:]
+		}
+		preds = append(preds, schedulablePreds...)
 	}
 
 	if len(preds) > 0 {
@@ -1790,13 +1731,7 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 }
 
 func tempUnschedulablePredicate() dbpredicate.Account {
-	return dbpredicate.Account(func(s *entsql.Selector) {
-		col := s.C("temp_unschedulable_until")
-		s.Where(entsql.Or(
-			entsql.IsNull(col),
-			entsql.LTE(col, entsql.Expr("NOW()")),
-		))
-	})
+	return notTempUnschedulablePredicate(time.Now())
 }
 
 func notExpiredPredicate(now time.Time) dbpredicate.Account {
@@ -1804,6 +1739,76 @@ func notExpiredPredicate(now time.Time) dbpredicate.Account {
 		dbaccount.ExpiresAtIsNil(),
 		dbaccount.ExpiresAtGT(now),
 		dbaccount.AutoPauseOnExpiredEQ(false),
+	)
+}
+
+func normalizeAccountStatusListFilter(status string) string {
+	normalized := strings.TrimSpace(strings.ToLower(status))
+	if normalized == "" {
+		return ""
+	}
+	if normalized == service.StatusDisabled {
+		return "inactive"
+	}
+	return normalized
+}
+
+func activeSchedulablePredicates(now time.Time) []dbpredicate.Account {
+	return []dbpredicate.Account{
+		dbaccount.StatusEQ(service.StatusActive),
+		dbaccount.SchedulableEQ(true),
+		notExpiredPredicate(now),
+		notOverloadedPredicate(now),
+		notRateLimitedPredicate(now),
+		notTempUnschedulablePredicate(now),
+	}
+}
+
+func notRateLimitedPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.Or(
+		dbaccount.RateLimitResetAtIsNil(),
+		dbaccount.RateLimitResetAtLTE(now),
+	)
+}
+
+func rateLimitedPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.RateLimitResetAtGT(now)
+}
+
+func notOverloadedPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.Or(
+		dbaccount.OverloadUntilIsNil(),
+		dbaccount.OverloadUntilLTE(now),
+	)
+}
+
+func overloadedPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.OverloadUntilGT(now)
+}
+
+func notTempUnschedulablePredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.Or(
+		dbaccount.TempUnschedulableUntilIsNil(),
+		dbaccount.TempUnschedulableUntilLTE(now),
+	)
+}
+
+func tempUnschedulableActivePredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.TempUnschedulableUntilGT(now)
+}
+
+func expiredAutoPausePredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.And(
+		dbaccount.AutoPauseOnExpiredEQ(true),
+		dbaccount.ExpiresAtNotNil(),
+		dbaccount.ExpiresAtLTE(now),
+	)
+}
+
+func schedulingDisabledPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.Or(
+		dbaccount.SchedulableEQ(false),
+		expiredAutoPausePredicate(now),
 	)
 }
 
