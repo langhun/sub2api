@@ -39,10 +39,14 @@
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{{ t('admin.backup.s3.secretAccessKey') }}</label>
             <input v-model="s3Form.secret_access_key" type="password" class="input w-full" :placeholder="s3SecretConfigured ? t('admin.backup.s3.secretConfigured') : ''" />
           </div>
-          <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 md:col-span-2">
-            <input v-model="s3Form.force_path_style" type="checkbox" />
-            <span>{{ t('admin.backup.s3.forcePathStyle') }}</span>
-          </label>
+          <div class="md:col-span-2">
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-gray-100 px-4 py-3 dark:border-dark-700">
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('admin.backup.s3.forcePathStyle') }}
+              </label>
+              <Toggle v-model="s3Form.force_path_style" />
+            </div>
+          </div>
         </div>
         <div class="mt-4 flex flex-wrap gap-2">
           <button type="button" class="btn btn-secondary btn-sm" :disabled="testingS3" @click="testS3">
@@ -65,10 +69,14 @@
           </p>
         </div>
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 md:col-span-2">
-            <input v-model="scheduleForm.enabled" type="checkbox" />
-            <span>{{ t('admin.backup.schedule.enabled') }}</span>
-          </label>
+          <div class="md:col-span-2">
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-gray-100 px-4 py-3 dark:border-dark-700">
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('admin.backup.schedule.enabled') }}
+              </label>
+              <Toggle v-model="scheduleForm.enabled" />
+            </div>
+          </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{{ t('admin.backup.schedule.cronExpr') }}</label>
             <input v-model="scheduleForm.cron_expr" class="input w-full" placeholder="0 2 * * *" />
@@ -283,6 +291,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api'
 import { useAppStore } from '@/stores'
+import Toggle from '@/components/common/Toggle.vue'
 import type { BackupS3Config, BackupScheduleConfig, BackupRecord } from '@/api/admin/backup'
 
 const { t } = useI18n()

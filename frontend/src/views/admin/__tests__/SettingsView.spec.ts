@@ -459,6 +459,16 @@ async function openPaymentTab(wrapper: ReturnType<typeof mountView>) {
   await flushPromises();
 }
 
+async function openBackupTab(wrapper: ReturnType<typeof mountView>) {
+  const backupTabButton = wrapper
+    .findAll("button")
+    .find((node) => node.text().includes("admin.settings.tabs.backup"));
+
+  expect(backupTabButton).toBeDefined();
+  await backupTabButton?.trigger("click");
+  await flushPromises();
+}
+
 async function openSecurityTab(wrapper: ReturnType<typeof mountView>) {
   const securityTabButton = wrapper
     .findAll("button")
@@ -641,6 +651,52 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(updateSettings.mock.calls[0]?.[0]).not.toHaveProperty(
       "home_nav_links_enabled",
     );
+  });
+
+  it("orders settings tabs by workflow and mounts backup content on demand", async () => {
+    const BackupSettingsStub = defineComponent({
+      template: '<div class="backup-settings-stub">backup settings</div>',
+    });
+
+    const wrapper = mount(SettingsView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          Select: SelectStub,
+          Toggle: ToggleStub,
+          Icon: true,
+          ConfirmDialog: true,
+          PaymentProviderList: true,
+          PaymentProviderDialog: true,
+          GroupBadge: true,
+          GroupOptionItem: true,
+          ProxySelector: true,
+          ImageUpload: ImageUploadStub,
+          BackupSettings: BackupSettingsStub,
+          BlindboxPrizePoolCard: true,
+          RouterLink: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.findAll(".settings-tab").map((node) => node.text())).toEqual([
+      "admin.settings.tabs.general",
+      "admin.settings.tabs.security",
+      "admin.settings.tabs.email",
+      "admin.settings.tabs.users",
+      "admin.settings.tabs.features",
+      "admin.settings.tabs.checkin",
+      "admin.settings.tabs.payment",
+      "admin.settings.tabs.gateway",
+      "admin.settings.tabs.backup",
+    ]);
+    expect(wrapper.find(".backup-settings-stub").exists()).toBe(false);
+
+    await openBackupTab(wrapper);
+
+    expect(wrapper.find(".backup-settings-stub").exists()).toBe(true);
   });
 
   it("submits Anthropic cache TTL injection gateway setting", async () => {

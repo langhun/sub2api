@@ -5205,7 +5205,7 @@ export default {
     // Settings
     settings: {
       title: 'System Settings',
-      description: 'Manage registration, email verification, default values, and SMTP settings',
+      description: 'Manage site, security, defaults, gateway, and backup settings',
       tabs: {
         general: 'General',
         features: 'Feature Switches',
