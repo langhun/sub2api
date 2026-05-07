@@ -134,12 +134,6 @@
             </button>
           </div>
         </div>
-        <div class="w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100">
-          <div class="font-medium">{{ t('admin.proxies.poolUsageSummary') }}</div>
-          <div class="mt-1 text-xs text-blue-800 dark:text-blue-200">
-            {{ t('admin.proxies.poolUsageHint') }}
-          </div>
-        </div>
       </template>
 
       <template #table>
@@ -1019,7 +1013,7 @@
     <BaseDialog
       :show="showPoolDialog"
       :title="t('admin.proxies.poolMembersTitle')"
-      width="normal"
+      width="wide"
       @close="showPoolDialog = false"
     >
       <div class="space-y-4">
@@ -1037,50 +1031,66 @@
         <div v-else-if="poolDialogRows.length === 0" class="py-8 text-center text-sm text-gray-500">
           {{ t('admin.proxies.poolMembersEmpty') }}
         </div>
-        <div v-else class="max-h-96 overflow-auto rounded-lg border border-gray-200 dark:border-dark-600">
-          <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
-            <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-dark-400">
-              <tr>
-                <th class="px-4 py-2 text-left">{{ t('admin.proxies.columns.name') }}</th>
-                <th class="px-4 py-2 text-left">{{ t('admin.proxies.columns.address') }}</th>
-                <th class="px-4 py-2 text-left">{{ t('admin.proxies.columns.status') }}</th>
-                <th class="px-4 py-2 text-left">{{ t('admin.proxies.columns.latency') }}</th>
-                <th class="px-4 py-2 text-left">{{ t('admin.proxies.lastFailure') }}</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
-              <tr v-for="row in poolDialogRows" :key="row.id">
-                <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ row.name }}</td>
-                <td class="px-4 py-2 text-gray-600 dark:text-gray-300">
+        <div v-else class="max-h-[28rem] space-y-3 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-900/40">
+          <div
+            v-for="row in poolDialogRows"
+            :key="row.id"
+            class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900"
+          >
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h4 class="text-sm font-semibold text-gray-900 dark:text-white">
+                    {{ row.name || t('admin.proxies.assignAccounts.unnamedProxy') }}
+                  </h4>
+                  <span :class="['badge', row.status === 'active' ? 'badge-success' : 'badge-danger']">
+                    {{ t('admin.accounts.status.' + row.status) }}
+                  </span>
+                  <span v-if="row.health_status" :class="['badge', healthStatusClass(row.health_status)]">
+                    {{ healthStatusLabel(row.health_status) }}
+                  </span>
+                </div>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
                   <code class="code text-xs">{{ row.host }}:{{ row.port }}</code>
-                </td>
-                <td class="px-4 py-2">
-                  <div class="flex flex-wrap items-center gap-1">
-                    <span :class="['badge', row.status === 'active' ? 'badge-success' : 'badge-danger']">
-                      {{ t('admin.accounts.status.' + row.status) }}
-                    </span>
-                    <span v-if="row.health_status" :class="['badge', healthStatusClass(row.health_status)]">
-                      {{ healthStatusLabel(row.health_status) }}
-                    </span>
-                  </div>
-                </td>
-                <td class="px-4 py-2 text-gray-600 dark:text-gray-300">
-                  <div v-if="typeof row.latency_ms === 'number'">{{ row.latency_ms }}ms</div>
-                  <div v-else class="text-gray-400">-</div>
-                  <div v-if="row.health_status === 'cooldown' && row.cooldown_until_unix" class="text-xs text-amber-600 dark:text-amber-400">
+                  <span
+                    v-if="typeof row.latency_ms === 'number'"
+                    class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300"
+                  >
+                    {{ row.latency_ms }}ms
+                  </span>
+                  <span
+                    v-if="row.health_status === 'cooldown' && row.cooldown_until_unix"
+                    class="text-xs text-amber-600 dark:text-amber-400"
+                  >
                     {{ t('admin.proxies.cooldownUntil', { time: formatCooldownCountdown(row.cooldown_until_unix) }) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid min-w-0 flex-1 gap-3 text-sm sm:grid-cols-2">
+                <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-dark-800/70">
+                  <div class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.proxies.lastFailure') }}</div>
+                  <div class="mt-1 break-all text-sm text-gray-700 dark:text-gray-200">
+                    {{ row.last_fail_reason || '-' }}
                   </div>
-                </td>
-                <td class="px-4 py-2 text-gray-600 dark:text-gray-300">
-                  <div v-if="row.last_fail_reason">{{ row.last_fail_reason }}</div>
-                  <div v-if="row.last_fail_at_unix" class="text-xs text-gray-500 dark:text-gray-400">
+                  <div v-if="row.last_fail_at_unix" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
                     {{ formatRuntimeTime(row.last_fail_at_unix) }}
                   </div>
-                  <div v-else class="text-gray-400">-</div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+
+                <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-dark-800/70">
+                  <div class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.proxies.poolMembersMeta') }}</div>
+                  <div class="mt-1 space-y-1 text-sm text-gray-700 dark:text-gray-200">
+                    <div>{{ t('admin.proxies.failoverSwitchCount', { count: row.failover_switch_count ?? 0 }) }}</div>
+                    <div v-if="row.last_recovered_at_unix">
+                      {{ t('admin.proxies.lastRecoveredAt', { time: formatRuntimeTime(row.last_recovered_at_unix) }) }}
+                    </div>
+                    <div v-else>{{ t('admin.proxies.lastRecoveredEmpty') }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
