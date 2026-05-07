@@ -155,7 +155,7 @@ func TestCreateAndRedeem_InvitationRequiresNewFormat(t *testing.T) {
 
 	t.Run("new_format_passes_validation", func(t *testing.T) {
 		code := postCreateAndRedeemValidation(t, h, map[string]any{
-			"code":    "abcd-efgh-ijkl-mnop",
+			"code":    "dg-abc123",
 			"type":    "invitation",
 			"value":   1,
 			"user_id": 1,

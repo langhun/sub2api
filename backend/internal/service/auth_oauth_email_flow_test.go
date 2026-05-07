@@ -145,9 +145,9 @@ func TestRegisterOAuthEmailAccountRollsBackCreatedUserWhenTokenPairGenerationFai
 	userRepo := &userRepoStub{nextID: 42}
 	redeemRepo := &redeemCodeRepoStub{
 		codesByCode: map[string]*RedeemCode{
-			"ABCD-EFGH-IJKL-MNOP": {
+			"DG-ABC123": {
 				ID:     7,
-				Code:   "ABCD-EFGH-IJKL-MNOP",
+				Code:   "DG-ABC123",
 				Type:   RedeemTypeInvitation,
 				Status: StatusUnused,
 			},
@@ -178,7 +178,7 @@ func TestRegisterOAuthEmailAccountRollsBackCreatedUserWhenTokenPairGenerationFai
 		"fresh@example.com",
 		"secret-123",
 		"246810",
-		"abcd-efgh-ijkl-mnop",
+		"dg-abc123",
 		"oidc",
 	)
 
@@ -331,9 +331,9 @@ func TestRollbackOAuthEmailAccountCreationRestoresInvitationUsage(t *testing.T) 
 	userRepo := &userRepoStub{}
 	redeemRepo := &redeemCodeRepoStub{
 		codesByCode: map[string]*RedeemCode{
-			"ABCD-EFGH-IJKL-MNOP": {
+			"DG-ABC123": {
 				ID:     7,
-				Code:   "ABCD-EFGH-IJKL-MNOP",
+				Code:   "DG-ABC123",
 				Type:   RedeemTypeInvitation,
 				Status: StatusUsed,
 				UsedBy: func() *int64 {
@@ -358,7 +358,7 @@ func TestRollbackOAuthEmailAccountCreationRestoresInvitationUsage(t *testing.T) 
 		&emailCacheStub{},
 	)
 
-	err := authService.RollbackOAuthEmailAccountCreation(context.Background(), 42, "abcd-efgh-ijkl-mnop")
+	err := authService.RollbackOAuthEmailAccountCreation(context.Background(), 42, "dg-abc123")
 
 	require.NoError(t, err)
 	require.Equal(t, []int64{42}, userRepo.deletedIDs)
