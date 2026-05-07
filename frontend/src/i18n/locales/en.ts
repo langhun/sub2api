@@ -3089,6 +3089,22 @@ export default {
         rateLimited: 'Rate Limited',
         overloaded: 'Overloaded',
         tempUnschedulable: 'Temp Unschedulable',
+        mainActive: 'Active',
+        mainInactive: 'Inactive',
+        mainError: 'Error',
+        scheduleEnabled: 'Enabled',
+        scheduleManualPaused: 'Disabled',
+        scheduleExpiredPaused: 'Auto-paused on Expiry',
+        runtimeNormal: 'No Cooldown',
+        runtimeRateLimited: '429 Rate Limit',
+        runtimeOverloaded: '529 Overloaded',
+        runtimeTempUnschedulable: 'Temp Cooldown',
+        runtimeOauth401Cooldown: '401 Auth Cooldown',
+        runtimeForbiddenCooldown: '403 Cooldown',
+        runtimeHttpCooldown: '{code} Cooldown',
+        runtimeStreamTimeoutCooldown: 'Stream Timeout Cooldown',
+        runtimeTokenRefreshCooldown: 'Refresh Cooldown',
+        runtimeQuotaExceeded: 'Quota Exceeded',
         oauth401Cooldown: '401 Auth Cooldown',
         forbiddenCooldown: '403 Cooldown',
         tempUnschedulableWithCode: '{code} Cooldown',
@@ -3111,13 +3127,18 @@ export default {
         overloadedUntil: 'Overloaded until {time}',
         viewTempUnschedDetails: 'View temp unschedulable details'
       },
+      statusLayers: {
+        main: 'Main',
+        scheduling: 'Schedule',
+        runtime: 'Runtime'
+      },
       statusFilters: {
-        active: 'Schedulable Active',
-        inactive: 'Inactive (main state)',
-        error: 'Error (main state)',
-        rateLimited: '429 Rate Limited',
-        tempUnschedulable: 'Temp Unschedulable (incl. 401 cooldown)',
-        unschedulable: 'Manually Paused'
+        active: 'Active and Schedulable',
+        inactive: 'Main State: Inactive',
+        error: 'Main State: Error',
+        rateLimited: 'Runtime: 429 Rate Limit',
+        tempUnschedulable: 'Runtime: Temp Cooldown (incl. 401)',
+        unschedulable: 'Schedule Disabled'
       },
       columns: {
         name: 'Name',

@@ -330,6 +330,72 @@ func TestTempUnschedState(t *testing.T) {
 	require.Equal(t, now.Unix(), state.TriggeredAtUnix)
 }
 
+func TestParseTempUnschedReason(t *testing.T) {
+	t.Run("structured_json", func(t *testing.T) {
+		state := ParseTempUnschedReason(`{"status_code":401,"reason_code":"oauth_401_refresh_window","matched_keyword":"oauth_401","error_message":"OAuth 401: invalid","rule_index":-1}`, 123)
+		require.NotNil(t, state)
+		require.Equal(t, 401, state.StatusCode)
+		require.Equal(t, TempUnschedReasonCodeOAuth401RefreshWindow, state.ReasonCode)
+		require.Equal(t, "oauth_401", state.MatchedKeyword)
+		require.Equal(t, "OAuth 401: invalid", state.ErrorMessage)
+		require.Equal(t, -1, state.RuleIndex)
+	})
+
+	t.Run("legacy_plain_text", func(t *testing.T) {
+		state := ParseTempUnschedReason("OAuth 401: invalid or expired credentials", 456)
+		require.NotNil(t, state)
+		require.Equal(t, int64(456), state.UntilUnix)
+		require.Equal(t, 401, state.StatusCode)
+		require.Equal(t, TempUnschedReasonCodeOAuth401RefreshWindow, state.ReasonCode)
+		require.Equal(t, "oauth_401", state.MatchedKeyword)
+		require.Equal(t, "OAuth 401: invalid or expired credentials", state.ErrorMessage)
+		require.Equal(t, -1, state.RuleIndex)
+	})
+
+	t.Run("legacy_openai_403_text", func(t *testing.T) {
+		state := ParseTempUnschedReason("OpenAI 403 temporary cooldown (1/3): workspace forbidden by policy", 789)
+		require.NotNil(t, state)
+		require.Equal(t, 403, state.StatusCode)
+		require.Equal(t, TempUnschedReasonCodeOpenAI403Cooldown, state.ReasonCode)
+		require.Equal(t, "temporary_cooldown", state.MatchedKeyword)
+		require.Equal(t, "OpenAI 403 temporary cooldown (1/3): workspace forbidden by policy", state.ErrorMessage)
+	})
+
+	t.Run("legacy_internal_500_text", func(t *testing.T) {
+		state := ParseTempUnschedReason("INTERNAL 500 x2 (temp unsched 2h0m0s)", 321)
+		require.NotNil(t, state)
+		require.Equal(t, 500, state.StatusCode)
+		require.Equal(t, TempUnschedReasonCodeAntigravityInternal500Penalty, state.ReasonCode)
+		require.Equal(t, "internal_500", state.MatchedKeyword)
+	})
+
+	t.Run("legacy_token_refresh_text", func(t *testing.T) {
+		state := ParseTempUnschedReason("token refresh retry exhausted: network timeout", 654)
+		require.NotNil(t, state)
+		require.Equal(t, 0, state.StatusCode)
+		require.Equal(t, TempUnschedReasonCodeTokenRefreshRetryExhausted, state.ReasonCode)
+		require.Equal(t, "token_refresh", state.MatchedKeyword)
+	})
+}
+
+func TestBuildTempUnschedReason(t *testing.T) {
+	state := &TempUnschedState{
+		UntilUnix:       100,
+		TriggeredAtUnix: 90,
+		StatusCode:      401,
+		MatchedKeyword:  "oauth_401",
+		RuleIndex:       -1,
+		ErrorMessage:    "OAuth 401: invalid",
+	}
+
+	raw := BuildTempUnschedReason(state, "OAuth 401: invalid")
+	parsed := ParseTempUnschedReason(raw, 0)
+	require.NotNil(t, parsed)
+	require.Equal(t, TempUnschedReasonCodeOAuth401RefreshWindow, parsed.ReasonCode)
+	require.Equal(t, 401, parsed.StatusCode)
+	require.Equal(t, "oauth_401", parsed.MatchedKeyword)
+}
+
 // TestAccount_TempUnschedulableUntil 测试临时限流时间字段
 func TestAccount_TempUnschedulableUntil(t *testing.T) {
 	future := time.Now().Add(10 * time.Minute)

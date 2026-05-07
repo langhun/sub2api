@@ -228,8 +228,18 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 			if cooldownMinutes <= 0 {
 				cooldownMinutes = 10
 			}
-			until := time.Now().Add(time.Duration(cooldownMinutes) * time.Minute)
-			if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, msg); err != nil {
+			now := time.Now()
+			until := now.Add(time.Duration(cooldownMinutes) * time.Minute)
+			reason := BuildTempUnschedReason(&TempUnschedState{
+				UntilUnix:       until.Unix(),
+				TriggeredAtUnix: now.Unix(),
+				StatusCode:      http.StatusUnauthorized,
+				ReasonCode:      TempUnschedReasonCodeOAuth401RefreshWindow,
+				MatchedKeyword:  "oauth_401",
+				RuleIndex:       -1,
+				ErrorMessage:    msg,
+			}, msg)
+			if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); err != nil {
 				slog.Warn("oauth_401_set_temp_unschedulable_failed", "account_id", account.ID, "error", err)
 			}
 			shouldDisable = true
@@ -746,7 +756,16 @@ func (s *RateLimitService) handleOpenAI403(ctx context.Context, account *Account
 	}
 
 	until := time.Now().Add(time.Duration(openAI403CooldownMinutesDefault) * time.Minute)
-	reason := fmt.Sprintf("OpenAI 403 temporary cooldown (%d/%d): %s", count, openAI403DisableThreshold, msg)
+	reasonText := fmt.Sprintf("OpenAI 403 temporary cooldown (%d/%d): %s", count, openAI403DisableThreshold, msg)
+	reason := BuildTempUnschedReason(&TempUnschedState{
+		UntilUnix:       until.Unix(),
+		TriggeredAtUnix: time.Now().Unix(),
+		StatusCode:      http.StatusForbidden,
+		ReasonCode:      TempUnschedReasonCodeOpenAI403Cooldown,
+		MatchedKeyword:  "temporary_cooldown",
+		RuleIndex:       -1,
+		ErrorMessage:    reasonText,
+	}, reasonText)
 	if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); err != nil {
 		slog.Warn("openai_403_set_temp_unschedulable_failed", "account_id", account.ID, "error", err)
 		s.handleAuthError(ctx, account, msg)
@@ -1484,16 +1503,8 @@ func (s *RateLimitService) GetTempUnschedStatus(ctx context.Context, accountID i
 		UntilUnix: account.TempUnschedulableUntil.Unix(),
 	}
 
-	if account.TempUnschedulableReason != "" {
-		var parsed TempUnschedState
-		if err := json.Unmarshal([]byte(account.TempUnschedulableReason), &parsed); err == nil {
-			if parsed.UntilUnix == 0 {
-				parsed.UntilUnix = state.UntilUnix
-			}
-			state = &parsed
-		} else {
-			state.ErrorMessage = account.TempUnschedulableReason
-		}
+	if parsed := ParseTempUnschedReason(account.TempUnschedulableReason, state.UntilUnix); parsed != nil {
+		state = parsed
 	}
 
 	if s.tempUnschedCache != nil {
@@ -1577,16 +1588,8 @@ func wasTempUnschedByStatusCode(reason string, statusCode int) bool {
 	if statusCode <= 0 {
 		return false
 	}
-	reason = strings.TrimSpace(reason)
-	if reason == "" {
-		return false
-	}
-
-	var state TempUnschedState
-	if err := json.Unmarshal([]byte(reason), &state); err != nil {
-		return false
-	}
-	return state.StatusCode == statusCode
+	state := ParseTempUnschedReason(reason, 0)
+	return state != nil && state.StatusCode == statusCode
 }
 
 func matchTempUnschedKeyword(bodyLower string, keywords []string) string {
@@ -1620,18 +1623,13 @@ func (s *RateLimitService) triggerTempUnschedulable(ctx context.Context, account
 		UntilUnix:       until.Unix(),
 		TriggeredAtUnix: now.Unix(),
 		StatusCode:      statusCode,
+		ReasonCode:      TempUnschedReasonCodeCustomRule,
 		MatchedKeyword:  matchedKeyword,
 		RuleIndex:       ruleIndex,
 		ErrorMessage:    truncateTempUnschedMessage(responseBody, tempUnschedMessageMaxBytes),
 	}
 
-	reason := ""
-	if raw, err := json.Marshal(state); err == nil {
-		reason = string(raw)
-	}
-	if reason == "" {
-		reason = strings.TrimSpace(state.ErrorMessage)
-	}
+	reason := BuildTempUnschedReason(state, strings.TrimSpace(state.ErrorMessage))
 
 	if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); err != nil {
 		slog.Warn("temp_unsched_set_failed", "account_id", account.ID, "error", err)
@@ -1724,18 +1722,13 @@ func (s *RateLimitService) triggerStreamTimeoutTempUnsched(ctx context.Context, 
 		UntilUnix:       until.Unix(),
 		TriggeredAtUnix: now.Unix(),
 		StatusCode:      0, // 超时没有状态码
+		ReasonCode:      TempUnschedReasonCodeStreamTimeout,
 		MatchedKeyword:  "stream_timeout",
 		RuleIndex:       -1, // 表示系统级规则
 		ErrorMessage:    "Stream data interval timeout for model: " + model,
 	}
 
-	reason := ""
-	if raw, err := json.Marshal(state); err == nil {
-		reason = string(raw)
-	}
-	if reason == "" {
-		reason = state.ErrorMessage
-	}
+	reason := BuildTempUnschedReason(state, state.ErrorMessage)
 
 	if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); err != nil {
 		slog.Warn("stream_timeout_set_temp_unsched_failed", "account_id", account.ID, "error", err)
