@@ -113,6 +113,7 @@ const sOpts = computed(() => [
   { value: 'inactive', label: t('admin.accounts.statusFilters.inactive') },
   { value: 'error', label: t('admin.accounts.statusFilters.error') },
   { value: 'rate_limited', label: t('admin.accounts.statusFilters.rateLimited') },
+  { value: 'overloaded', label: t('admin.accounts.statusFilters.overloaded') },
   { value: 'temp_unschedulable', label: t('admin.accounts.statusFilters.tempUnschedulable') },
   { value: 'unschedulable', label: t('admin.accounts.statusFilters.unschedulable') }
 ])

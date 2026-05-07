@@ -7,6 +7,16 @@ export type ParsedTempUnschedReason = {
   ruleIndex: number | null
 }
 
+export type AccountStatusFilterValue =
+  | ''
+  | 'active'
+  | 'inactive'
+  | 'error'
+  | 'rate_limited'
+  | 'overloaded'
+  | 'temp_unschedulable'
+  | 'unschedulable'
+
 export type StatusTone = 'success' | 'warning' | 'danger' | 'gray'
 
 export type AccountMainStatusCode =
@@ -137,6 +147,91 @@ function isQuotaExceeded(account: Pick<
   )
 }
 
+export function isAccountRateLimited(account: Pick<Account, 'rate_limit_reset_at'>): boolean {
+  return isFutureAt(account.rate_limit_reset_at)
+}
+
+export function isAccountOverloaded(account: Pick<Account, 'overload_until'>): boolean {
+  return isFutureAt(account.overload_until)
+}
+
+export function isAccountTempUnschedulable(account: Pick<Account, 'temp_unschedulable_until'>): boolean {
+  return isFutureAt(account.temp_unschedulable_until)
+}
+
+export function isAccountInactive(account: Pick<Account, 'status'>): boolean {
+  return account.status !== 'active' && account.status !== 'error'
+}
+
+export function isTempUnschedRuntimeCode(code: AccountRuntimeStatusCode): boolean {
+  return (
+    code === 'runtime_oauth401_cooldown' ||
+    code === 'runtime_forbidden_cooldown' ||
+    code === 'runtime_http_cooldown' ||
+    code === 'runtime_stream_timeout_cooldown' ||
+    code === 'runtime_token_refresh_cooldown' ||
+    code === 'runtime_temp_unschedulable'
+  )
+}
+
+function hasSchedulingBlockingRuntime(code: AccountRuntimeStatusCode): boolean {
+  return code === 'runtime_rate_limited' || code === 'runtime_overloaded' || isTempUnschedRuntimeCode(code)
+}
+
+export function matchesAccountStatusFilter(
+  account: Pick<
+    Account,
+    | 'status'
+    | 'schedulable'
+    | 'auto_pause_on_expired'
+    | 'expires_at'
+    | 'rate_limit_reset_at'
+    | 'overload_until'
+    | 'temp_unschedulable_until'
+    | 'temp_unschedulable_reason'
+    | 'quota_limit'
+    | 'quota_used'
+    | 'quota_daily_limit'
+    | 'quota_daily_used'
+    | 'quota_weekly_limit'
+    | 'quota_weekly_used'
+  >,
+  filter: AccountStatusFilterValue
+): boolean {
+  const mainState = getAccountMainStatusState(account)
+  const schedulingState = getAccountSchedulingStatusState(account)
+  const runtimeState = getAccountRuntimeStatusState(account)
+
+  switch (filter) {
+    case '':
+      return true
+    case 'active':
+      return (
+        mainState.code === 'main_active' &&
+        schedulingState.code === 'schedule_enabled' &&
+        !hasSchedulingBlockingRuntime(runtimeState.code)
+      )
+    case 'inactive':
+      return mainState.code === 'main_inactive'
+    case 'error':
+      return mainState.code === 'main_error'
+    case 'rate_limited':
+      return mainState.code === 'main_active' && runtimeState.code === 'runtime_rate_limited'
+    case 'overloaded':
+      return mainState.code === 'main_active' && runtimeState.code === 'runtime_overloaded'
+    case 'temp_unschedulable':
+      return mainState.code === 'main_active' && isTempUnschedRuntimeCode(runtimeState.code)
+    case 'unschedulable':
+      return (
+        mainState.code === 'main_active' &&
+        schedulingState.code !== 'schedule_enabled' &&
+        !hasSchedulingBlockingRuntime(runtimeState.code)
+      )
+    default:
+      return true
+  }
+}
+
 export function getAccountMainStatusState(
   account: Pick<Account, 'status'>
 ): AccountStatusBadgeState<AccountMainStatusCode> {
@@ -199,7 +294,7 @@ export function getAccountRuntimeStatusState(
 ): AccountRuntimeStatusState {
   const parsedReason = parseTempUnschedReason(account.temp_unschedulable_reason)
 
-  if (isFutureAt(account.rate_limit_reset_at)) {
+  if (isAccountRateLimited(account)) {
     return {
       code: 'runtime_rate_limited',
       tone: 'warning',
@@ -210,7 +305,7 @@ export function getAccountRuntimeStatusState(
     }
   }
 
-  if (isFutureAt(account.overload_until)) {
+  if (isAccountOverloaded(account)) {
     return {
       code: 'runtime_overloaded',
       tone: 'danger',
@@ -221,7 +316,7 @@ export function getAccountRuntimeStatusState(
     }
   }
 
-  if (isFutureAt(account.temp_unschedulable_until)) {
+  if (isAccountTempUnschedulable(account)) {
     return {
       code: getTempUnschedRuntimeCode(parsedReason),
       tone: 'warning',

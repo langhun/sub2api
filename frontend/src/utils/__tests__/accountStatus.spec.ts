@@ -5,6 +5,7 @@ import {
   getAccountRuntimeStatusState,
   getAccountSchedulingStatusState,
   getTempUnschedRuntimeCode,
+  matchesAccountStatusFilter,
   parseTempUnschedReason,
 } from '../accountStatus'
 
@@ -72,5 +73,71 @@ describe('accountStatus utils', () => {
     })
 
     expect(scheduling.code).toBe('schedule_expired_paused')
+  })
+
+  it('active filter excludes overloaded accounts', () => {
+    const account = {
+      status: 'active',
+      schedulable: true,
+      auto_pause_on_expired: false,
+      expires_at: null,
+      rate_limit_reset_at: null,
+      overload_until: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      temp_unschedulable_until: null,
+      temp_unschedulable_reason: null,
+      quota_limit: null,
+      quota_used: null,
+      quota_daily_limit: null,
+      quota_daily_used: null,
+      quota_weekly_limit: null,
+      quota_weekly_used: null,
+    } as const
+
+    expect(matchesAccountStatusFilter(account, 'active')).toBe(false)
+    expect(matchesAccountStatusFilter(account, 'overloaded')).toBe(true)
+  })
+
+  it('temp unschedulable filter keeps OAuth 401 cooldown accounts', () => {
+    const account = {
+      status: 'active',
+      schedulable: true,
+      auto_pause_on_expired: false,
+      expires_at: null,
+      rate_limit_reset_at: null,
+      overload_until: null,
+      temp_unschedulable_until: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      temp_unschedulable_reason: 'OAuth 401: invalid or expired credentials',
+      quota_limit: null,
+      quota_used: null,
+      quota_daily_limit: null,
+      quota_daily_used: null,
+      quota_weekly_limit: null,
+      quota_weekly_used: null,
+    } as const
+
+    expect(matchesAccountStatusFilter(account, 'temp_unschedulable')).toBe(true)
+    expect(matchesAccountStatusFilter(account, 'active')).toBe(false)
+  })
+
+  it('unschedulable filter includes expired auto-paused accounts', () => {
+    const account = {
+      status: 'active',
+      schedulable: true,
+      auto_pause_on_expired: true,
+      expires_at: Math.floor(Date.now() / 1000) - 60,
+      rate_limit_reset_at: null,
+      overload_until: null,
+      temp_unschedulable_until: null,
+      temp_unschedulable_reason: null,
+      quota_limit: null,
+      quota_used: null,
+      quota_daily_limit: null,
+      quota_daily_used: null,
+      quota_weekly_limit: null,
+      quota_weekly_used: null,
+    } as const
+
+    expect(matchesAccountStatusFilter(account, 'active')).toBe(false)
+    expect(matchesAccountStatusFilter(account, 'unschedulable')).toBe(true)
   })
 })

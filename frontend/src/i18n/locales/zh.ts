@@ -3324,8 +3324,9 @@ export default {
         inactive: '主状态停用',
         error: '主状态错误',
         rateLimited: '运行时 429 限流',
+        overloaded: '运行时 529 过载',
         tempUnschedulable: '运行时临时冷却（含 401）',
-        unschedulable: '调度开关关闭'
+        unschedulable: '调度暂停（手动/过期）'
       },
       tempUnschedulable: {
         title: '临时不可调度',

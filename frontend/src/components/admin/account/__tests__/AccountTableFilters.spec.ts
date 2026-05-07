@@ -69,6 +69,7 @@ describe('AccountTableFilters', () => {
     expect(text).toContain('admin.accounts.statusFilters.inactive')
     expect(text).toContain('admin.accounts.statusFilters.error')
     expect(text).toContain('admin.accounts.statusFilters.rateLimited')
+    expect(text).toContain('admin.accounts.statusFilters.overloaded')
     expect(text).toContain('admin.accounts.statusFilters.tempUnschedulable')
     expect(text).toContain('admin.accounts.statusFilters.unschedulable')
   })
