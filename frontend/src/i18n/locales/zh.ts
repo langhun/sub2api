@@ -3339,6 +3339,8 @@ export default {
       activeFiltersTitle: '当前筛选（{count}）',
       activeFiltersCompact: '已筛选 {count} 项',
       clearFilters: '清空筛选',
+      moreFilters: '更多筛选',
+      hideAdvancedFilters: '收起高级筛选',
       showFilterDetails: '查看详情',
       hideFilterDetails: '收起详情',
       statusGuide: {

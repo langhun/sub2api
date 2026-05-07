@@ -2,7 +2,7 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-wrap-reverse items-start justify-between gap-3">
+        <div class="flex flex-wrap-reverse items-start justify-between gap-2">
           <AccountTableFilters
             v-model:searchQuery="params.search"
             :filters="params"
@@ -26,7 +26,7 @@
                     showAutoRefreshDropdown = !showAutoRefreshDropdown;
                     showColumnDropdown = false
                   "
-                  class="btn btn-secondary px-2 md:px-3"
+                  class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.accounts.autoRefresh')"
                 >
                   <Icon name="refresh" size="sm" :class="[autoRefreshEnabled ? 'animate-spin' : '']" />
@@ -67,7 +67,7 @@
               <!-- Error Passthrough Rules -->
               <button
                 @click="showErrorPassthrough = true"
-                class="btn btn-secondary"
+                class="btn btn-secondary btn-sm"
                 :title="t('admin.errorPassthrough.title')"
               >
                 <Icon name="shield" size="md" class="mr-1.5" />
@@ -77,7 +77,7 @@
               <!-- TLS Fingerprint Profiles -->
               <button
                 @click="showTLSFingerprintProfiles = true"
-                class="btn btn-secondary"
+                class="btn btn-secondary btn-sm"
                 :title="t('admin.tlsFingerprintProfiles.title')"
               >
                 <Icon name="lock" size="md" class="mr-1.5" />
@@ -91,7 +91,7 @@
                     showColumnDropdown = !showColumnDropdown;
                     showAutoRefreshDropdown = false
                   "
-                  class="btn btn-secondary px-2 md:px-3"
+                  class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.users.columnSettings')"
                 >
                   <svg class="h-4 w-4 md:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
@@ -119,14 +119,14 @@
               </div>
             </template>
             <template #beforeCreate>
-              <button @click="showDuplicateCheck = true" class="btn btn-secondary">
+              <button @click="showDuplicateCheck = true" class="btn btn-secondary btn-sm">
                 <Icon name="search" size="md" class="mr-1.5" />
                 {{ t('admin.accounts.duplicateCheck.open') }}
               </button>
-              <button @click="showImportData = true" class="btn btn-secondary">
+              <button @click="showImportData = true" class="btn btn-secondary btn-sm">
                 {{ t('admin.accounts.dataImport') }}
               </button>
-              <button @click="openExportDataDialog" class="btn btn-secondary">
+              <button @click="openExportDataDialog" class="btn btn-secondary btn-sm">
                 {{ selIds.length ? t('admin.accounts.dataExportSelected') : t('admin.accounts.dataExport') }}
               </button>
             </template>

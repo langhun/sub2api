@@ -3152,6 +3152,8 @@ export default {
       activeFiltersTitle: 'Active Filters ({count})',
       activeFiltersCompact: '{count} filters applied',
       clearFilters: 'Clear Filters',
+      moreFilters: 'More Filters',
+      hideAdvancedFilters: 'Hide Advanced',
       showFilterDetails: 'Show details',
       hideFilterDetails: 'Hide details',
       statusGuide: {
