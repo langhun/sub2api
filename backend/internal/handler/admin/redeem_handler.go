@@ -146,7 +146,7 @@ func (h *RedeemHandler) CreateInvitationCode(c *gin.Context) {
 	}
 
 	req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
-	if !service.IsRegistrationInvitationCodeFormat(req.Code) {
+	if h.redeemService == nil || !service.IsCodeMatchingFormat(req.Code, h.redeemService.GenerateInvitationFormat(c.Request.Context())) {
 		response.BadRequest(c, "Invalid request: invalid invitation code format")
 		return
 	}
@@ -185,7 +185,7 @@ func (h *RedeemHandler) UpdateInvitationCode(c *gin.Context) {
 	}
 
 	req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
-	if !service.IsRegistrationInvitationCodeFormat(req.Code) {
+	if h.redeemService == nil || !service.IsCodeMatchingFormat(req.Code, h.redeemService.GenerateInvitationFormat(c.Request.Context())) {
 		response.BadRequest(c, "Invalid request: invalid invitation code format")
 		return
 	}
@@ -239,7 +239,7 @@ func (h *RedeemHandler) CreateAndRedeem(c *gin.Context) {
 	}
 	if req.Type == "invitation" {
 		req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
-		if !service.IsRegistrationInvitationCodeFormat(req.Code) {
+		if !service.IsCodeMatchingFormat(req.Code, h.redeemService.GenerateInvitationFormat(c.Request.Context())) {
 			response.BadRequest(c, "Invalid request: invalid invitation code format")
 			return
 		}

@@ -1479,7 +1479,7 @@
                   兑换码格式
                 </label>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  控制余额、并发、订阅、审计等自动生成兑换码的前缀、后缀、随机位数和分隔规则。
+                  控制所有兑换码的前缀、后缀、随机位数和分隔规则，包括余额、并发、订阅、邀请码、审计等自动生成兑换码。
                 </p>
                 <div class="mt-4 grid gap-3 md:grid-cols-2">
                   <input v-model="form.redeem_code_format.prefix" type="text" class="input" placeholder="前缀，例如 RC" />
@@ -1511,29 +1511,6 @@
                   </p>
                 </div>
                 <Toggle v-model="form.invitation_code_enabled" />
-              </div>
-              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
-                <label class="font-medium text-gray-900 dark:text-white">
-                  注册邀请码格式
-                </label>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  控制注册邀请码、手动新建邀请码、盲盒邀请码的格式规则。
-                </p>
-                <div class="mt-4 grid gap-3 md:grid-cols-2">
-                  <input v-model="form.invitation_code_format.prefix" type="text" class="input" placeholder="前缀，例如 DG" />
-                  <input v-model="form.invitation_code_format.suffix" type="text" class="input" placeholder="后缀，可留空" />
-                  <input v-model.number="form.invitation_code_format.random_length" type="number" min="1" max="32" class="input" placeholder="随机位数" />
-                  <input v-model.number="form.invitation_code_format.group_size" type="number" min="0" max="32" class="input" placeholder="分组位数，0 为不分组" />
-                  <Select
-                    v-model="form.invitation_code_format.separator"
-                    :options="[
-                      { value: '', label: '无分隔符' },
-                      { value: '-', label: '-' },
-                      { value: '_', label: '_' },
-                    ]"
-                    class="md:col-span-2"
-                  />
-                </div>
               </div>
               <!-- Password Reset - Only show when email verification is enabled -->
               <div
@@ -6506,7 +6483,6 @@ const form = reactive<SettingsForm>({
   promo_code_enabled: true,
   redeem_code_format: { prefix: "", suffix: "", random_length: 32, separator: "-", group_size: 8 },
   invitation_code_enabled: false,
-  invitation_code_format: { prefix: "DG", suffix: "", random_length: 6, separator: "-", group_size: 0 },
   password_reset_enabled: false,
   totp_enabled: false,
   totp_encryption_key_configured: false,
@@ -7484,7 +7460,6 @@ async function saveSettings() {
       promo_code_enabled: form.promo_code_enabled,
       redeem_code_format: normalizeCodeFormatInput(form.redeem_code_format),
       invitation_code_enabled: form.invitation_code_enabled,
-      invitation_code_format: normalizeCodeFormatInput(form.invitation_code_format),
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       default_balance: form.default_balance,
