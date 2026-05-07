@@ -185,7 +185,7 @@ func TestEmailOAuthCallbackCreatesPasswordRegistrationSessionForNewEmail(t *test
 }
 
 func TestCompleteEmailOAuthRegistrationUsesAffiliateCodeFromPendingSession(t *testing.T) {
-	affiliateRepo := newOAuthEmailAffiliateRepoStub(map[string]int64{"AFF456": 2002})
+	affiliateRepo := newOAuthEmailAffiliateRepoStub(map[string]int64{"AFF123456789": 2002})
 	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
 		invitationEnabled: true,
 		settingValues: map[string]string{
@@ -197,7 +197,7 @@ func TestCompleteEmailOAuthRegistrationUsesAffiliateCodeFromPendingSession(t *te
 	})
 	ctx := context.Background()
 	invitation, err := client.RedeemCode.Create().
-		SetCode("INVITE456").
+		SetCode("DG-ABC456").
 		SetType(service.RedeemTypeInvitation).
 		SetStatus(service.StatusUnused).
 		SetValue(0).
@@ -220,7 +220,7 @@ func TestCompleteEmailOAuthRegistrationUsesAffiliateCodeFromPendingSession(t *te
 			"provider":         "google",
 			"provider_key":     "google",
 			"provider_subject": "google-aff-user",
-			"aff_code":         "AFF456",
+			"aff_code":         "AFF123456789",
 		}).
 		SetLocalFlowState(map[string]any{
 			"step":  oauthPendingChoiceStep,
@@ -232,7 +232,7 @@ func TestCompleteEmailOAuthRegistrationUsesAffiliateCodeFromPendingSession(t *te
 
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/google/complete-registration", strings.NewReader(`{"password":"secret-123","invitation_code":"INVITE456","email":"tampered@example.com"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/google/complete-registration", strings.NewReader(`{"password":"secret-123","invitation_code":"DG-ABC456","email":"tampered@example.com"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
 	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("browser-aff-key")})
