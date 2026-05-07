@@ -113,7 +113,8 @@ describe('admin ProxiesView pool state', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('admin.proxies.poolEnabled')
+    expect(wrapper.text()).toContain('admin.proxies.poolMembersAction')
+    expect(wrapper.text()).toContain('admin.proxies.poolUsageSummary')
     expect(wrapper.text()).toContain('admin.proxies.healthCooldown')
     expect(wrapper.text()).toContain('admin.proxies.failoverSwitchCount')
   })
