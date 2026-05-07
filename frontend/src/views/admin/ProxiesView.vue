@@ -1010,98 +1010,12 @@
       </template>
     </BaseDialog>
 
-    <BaseDialog
+    <PoolMembersDialog
       :show="showPoolDialog"
-      :title="t('admin.proxies.poolMembersTitle')"
-      width="wide"
+      :loading="poolDialogLoading"
+      :rows="poolDialogRows"
       @close="showPoolDialog = false"
-    >
-      <div class="space-y-4">
-        <div class="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-100">
-          <div class="font-medium">{{ t('admin.proxies.poolMembersSummary', { count: poolDialogRows.length }) }}</div>
-          <div class="mt-1 text-xs text-violet-800 dark:text-violet-200">
-            {{ t('admin.proxies.poolUsageHint') }}
-          </div>
-        </div>
-
-        <div v-if="poolDialogLoading" class="flex items-center justify-center py-8 text-sm text-gray-500">
-          <Icon name="refresh" size="md" class="mr-2 animate-spin" />
-          {{ t('common.loading') }}
-        </div>
-        <div v-else-if="poolDialogRows.length === 0" class="py-8 text-center text-sm text-gray-500">
-          {{ t('admin.proxies.poolMembersEmpty') }}
-        </div>
-        <div v-else class="max-h-[28rem] space-y-3 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-900/40">
-          <div
-            v-for="row in poolDialogRows"
-            :key="row.id"
-            class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900"
-          >
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  <h4 class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {{ row.name || t('admin.proxies.assignAccounts.unnamedProxy') }}
-                  </h4>
-                  <span :class="['badge', row.status === 'active' ? 'badge-success' : 'badge-danger']">
-                    {{ t('admin.accounts.status.' + row.status) }}
-                  </span>
-                  <span v-if="row.health_status" :class="['badge', healthStatusClass(row.health_status)]">
-                    {{ healthStatusLabel(row.health_status) }}
-                  </span>
-                </div>
-                <div class="mt-2 flex flex-wrap items-center gap-2">
-                  <code class="code text-xs">{{ row.host }}:{{ row.port }}</code>
-                  <span
-                    v-if="typeof row.latency_ms === 'number'"
-                    class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300"
-                  >
-                    {{ row.latency_ms }}ms
-                  </span>
-                  <span
-                    v-if="row.health_status === 'cooldown' && row.cooldown_until_unix"
-                    class="text-xs text-amber-600 dark:text-amber-400"
-                  >
-                    {{ t('admin.proxies.cooldownUntil', { time: formatCooldownCountdown(row.cooldown_until_unix) }) }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="grid min-w-0 flex-1 gap-3 text-sm sm:grid-cols-2">
-                <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-dark-800/70">
-                  <div class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.proxies.lastFailure') }}</div>
-                  <div class="mt-1 break-all text-sm text-gray-700 dark:text-gray-200">
-                    {{ row.last_fail_reason || '-' }}
-                  </div>
-                  <div v-if="row.last_fail_at_unix" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-                    {{ formatRuntimeTime(row.last_fail_at_unix) }}
-                  </div>
-                </div>
-
-                <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-dark-800/70">
-                  <div class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.proxies.poolMembersMeta') }}</div>
-                  <div class="mt-1 space-y-1 text-sm text-gray-700 dark:text-gray-200">
-                    <div>{{ t('admin.proxies.failoverSwitchCount', { count: row.failover_switch_count ?? 0 }) }}</div>
-                    <div v-if="row.last_recovered_at_unix">
-                      {{ t('admin.proxies.lastRecoveredAt', { time: formatRuntimeTime(row.last_recovered_at_unix) }) }}
-                    </div>
-                    <div v-else>{{ t('admin.proxies.lastRecoveredEmpty') }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex justify-end">
-          <button @click="showPoolDialog = false" class="btn btn-secondary">
-            {{ t('common.close') }}
-          </button>
-        </div>
-      </template>
-    </BaseDialog>
+    />
   </AppLayout>
 </template>
 
@@ -1121,6 +1035,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
 import AssignAccountsModal from '@/components/admin/proxy/AssignAccountsModal.vue'
+import PoolMembersDialog from '@/components/admin/proxy/PoolMembersDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
