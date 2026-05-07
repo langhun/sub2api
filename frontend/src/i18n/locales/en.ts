@@ -3150,7 +3150,10 @@ export default {
         unschedulable: 'Scheduling Paused (manual/expiry)'
       },
       activeFiltersTitle: 'Active Filters ({count})',
+      activeFiltersCompact: '{count} filters applied',
       clearFilters: 'Clear Filters',
+      showFilterDetails: 'Show details',
+      hideFilterDetails: 'Hide details',
       filterSummary: {
         search: 'Search',
         platform: 'Platform',

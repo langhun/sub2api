@@ -133,12 +133,31 @@
         </div>
         <div
           v-if="activeFilterSummaryItems.length > 0"
-          class="mt-2 flex flex-wrap items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-dark-600 dark:bg-dark-800/70"
+          class="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-dark-600 dark:bg-dark-800/70"
         >
-          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-              {{ t('admin.accounts.activeFiltersTitle', { count: activeFilterSummaryItems.length }) }}
-            </span>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.activeFiltersCompact', { count: activeFilterSummaryItems.length }) }}
+              </span>
+              <button
+                class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                @click="showFilterSummaryDetails = !showFilterSummaryDetails"
+              >
+                {{ showFilterSummaryDetails ? t('admin.accounts.hideFilterDetails') : t('admin.accounts.showFilterDetails') }}
+              </button>
+            </div>
+            <button
+              class="btn btn-secondary px-2 py-1 text-xs"
+              @click="clearAccountFilters"
+            >
+              {{ t('admin.accounts.clearFilters') }}
+            </button>
+          </div>
+          <div
+            v-if="showFilterSummaryDetails"
+            class="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-200 pt-2 dark:border-dark-600"
+          >
             <span
               v-for="item in activeFilterSummaryItems"
               :key="item.key"
@@ -149,12 +168,6 @@
               <span class="truncate">{{ item.label }}</span>
             </span>
           </div>
-          <button
-            class="btn btn-secondary px-2 py-1 text-xs"
-            @click="clearAccountFilters"
-          >
-            {{ t('admin.accounts.clearFilters') }}
-          </button>
         </div>
         <div
           v-if="hasPendingListSync"
@@ -438,6 +451,7 @@ const authStore = useAuthStore()
 
 const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
+const showFilterSummaryDetails = ref(false)
 const accountTableRef = ref<HTMLElement | null>(null)
 const dataTableRef = ref<InstanceType<typeof DataTable> | null>(null)
 const selPlatforms = computed<AccountPlatform[]>(() => {
@@ -1030,6 +1044,7 @@ const activeFilterSummaryItems = computed<ActiveFilterSummaryItem[]>(() => {
 })
 
 const clearAccountFilters = () => {
+  showFilterSummaryDetails.value = false
   Object.assign(params, {
     platform: '',
     tier: '',
@@ -1043,6 +1058,12 @@ const clearAccountFilters = () => {
   })
   baseReload()
 }
+
+watch(activeFilterSummaryItems, (items) => {
+  if (items.length === 0) {
+    showFilterSummaryDetails.value = false
+  }
+})
 
 const batchTestTargets = computed(() => {
   const accountById = new Map(accounts.value.map(account => [account.id, account]))
