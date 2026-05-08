@@ -457,8 +457,8 @@ default:
 
 - `cors.allowed_origins` - CORS 許可リスト
 - `security.url_allowlist` - 上流/価格/CRS ホストの許可リスト
-- `security.url_allowlist.enabled` - URL バリデーションの無効化（注意して使用）
-- `security.url_allowlist.allow_insecure_http` - バリデーション無効時に HTTP URL を許可
+- `security.url_allowlist.enabled` - ホスト名 allowlist の無効化（注意して使用）
+- `security.url_allowlist.allow_insecure_http` - ホスト名 allowlist 無効時に HTTP URL を許可
 - `security.url_allowlist.allow_private_hosts` - プライベート/ローカル IP アドレスを許可
 - `security.response_headers.enabled` - 設定可能なレスポンスヘッダーフィルタリングを有効化（無効時はデフォルトの許可リストを使用）
 - `security.csp` - Content-Security-Policy ヘッダーの制御
@@ -468,13 +468,14 @@ default:
 
 **⚠️ セキュリティ警告: HTTP URL 設定**
 
-`security.url_allowlist.enabled=false` の場合、システムはデフォルトで最小限の URL バリデーションを行い、**HTTP URL を拒否**して HTTPS のみを許可します。HTTP URL を許可するには（開発環境や内部テスト用など）、以下を明示的に設定する必要があります:
+`security.url_allowlist.enabled=false` の場合、システムはホスト名 allowlist を無効化しますが、URL スキームの検証は継続し、**プライベート/ループバックホストもデフォルトで拒否**します。ローカルや内部 HTTP ターゲットを使うには、以下を明示的に設定してください:
 
 ```yaml
 security:
   url_allowlist:
-    enabled: false                # 許可リストチェックを無効化
+    enabled: false                # ホスト名 allowlist チェックを無効化
     allow_insecure_http: true     # HTTP URL を許可（⚠️ セキュリティリスクあり）
+    allow_private_hosts: true     # localhost / private host を必要時のみ許可
 ```
 
 **または環境変数で設定:**
@@ -482,6 +483,7 @@ security:
 ```bash
 SECURITY_URL_ALLOWLIST_ENABLED=false
 SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
+SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 ```
 
 **HTTP を許可するリスク:**
@@ -490,7 +492,7 @@ SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
 - **本番環境には不適切**
 
 **HTTP を使用すべき場面:**
-- ✅ ローカルサーバーでの開発・テスト（http://localhost）
+- ✅ ローカルサーバーでの開発・テスト（http://localhost、かつ `allow_private_hosts=true`）
 - ✅ 信頼できるエンドポイントを持つ内部ネットワーク
 - ✅ HTTPS 取得前のアカウント接続テスト
 - ❌ 本番環境（HTTPS のみを使用）

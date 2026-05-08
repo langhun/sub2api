@@ -458,8 +458,8 @@ Additional security-related options are available in `config.yaml`:
 
 - `cors.allowed_origins` for CORS allowlist
 - `security.url_allowlist` for upstream/pricing/CRS host allowlists
-- `security.url_allowlist.enabled` to disable URL validation (use with caution)
-- `security.url_allowlist.allow_insecure_http` to allow HTTP URLs when validation is disabled
+- `security.url_allowlist.enabled` to disable the hostname allowlist (use with caution)
+- `security.url_allowlist.allow_insecure_http` to allow HTTP URLs when the hostname allowlist is disabled
 - `security.url_allowlist.allow_private_hosts` to allow private/local IP addresses
 - `security.response_headers.enabled` to enable configurable response header filtering (disabled uses default allowlist)
 - `security.csp` to control Content-Security-Policy headers
@@ -469,13 +469,14 @@ Additional security-related options are available in `config.yaml`:
 
 **⚠️ Security Warning: HTTP URL Configuration**
 
-When `security.url_allowlist.enabled=false`, the system performs minimal URL validation by default, **rejecting HTTP URLs** and only allowing HTTPS. To allow HTTP URLs (e.g., for development or internal testing), you must explicitly set:
+When `security.url_allowlist.enabled=false`, the system disables the hostname allowlist, but it still validates URL scheme and **blocks private/loopback hosts by default**. HTTP URLs remain rejected unless you explicitly opt in. For local or internal HTTP targets, set:
 
 ```yaml
 security:
   url_allowlist:
-    enabled: false                # Disable allowlist checks
+    enabled: false                # Disable hostname allowlist checks
     allow_insecure_http: true     # Allow HTTP URLs (⚠️ INSECURE)
+    allow_private_hosts: true     # Allow localhost/private hosts when needed
 ```
 
 **Or via environment variable:**
@@ -483,6 +484,7 @@ security:
 ```bash
 SECURITY_URL_ALLOWLIST_ENABLED=false
 SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
+SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 ```
 
 **Risks of allowing HTTP:**
@@ -491,7 +493,7 @@ SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
 - **NOT suitable for production** environments
 
 **When to use HTTP:**
-- ✅ Development/testing with local servers (http://localhost)
+- ✅ Development/testing with local servers (http://localhost, plus `allow_private_hosts=true`)
 - ✅ Internal networks with trusted endpoints
 - ✅ Testing account connectivity before obtaining HTTPS
 - ❌ Production environments (use HTTPS only)

@@ -490,8 +490,8 @@ gateway:
 
 - `cors.allowed_origins` 配置 CORS 白名单
 - `security.url_allowlist` 配置上游/价格数据/CRS 主机白名单
-- `security.url_allowlist.enabled` 可关闭 URL 校验（慎用）
-- `security.url_allowlist.allow_insecure_http` 关闭校验时允许 HTTP URL
+- `security.url_allowlist.enabled` 可关闭主机白名单校验（慎用）
+- `security.url_allowlist.allow_insecure_http` 关闭主机白名单时允许 HTTP URL
 - `security.url_allowlist.allow_private_hosts` 允许私有/本地 IP 地址
 - `security.response_headers.enabled` 可启用可配置响应头过滤（关闭时使用默认白名单）
 - `security.csp` 配置 Content-Security-Policy
@@ -509,13 +509,14 @@ gateway:
 
 **⚠️ 安全警告：HTTP URL 配置**
 
-当 `security.url_allowlist.enabled=false` 时，系统默认执行最小 URL 校验，**拒绝 HTTP URL**，仅允许 HTTPS。要允许 HTTP URL（例如用于开发或内网测试），必须显式设置：
+当 `security.url_allowlist.enabled=false` 时，系统会关闭主机白名单，但仍会校验 URL 协议，并且**默认阻断私网/回环主机**。HTTP URL 依然会被拒绝。若要访问本地或内网 HTTP 目标，必须显式设置：
 
 ```yaml
 security:
   url_allowlist:
-    enabled: false                # 禁用白名单检查
+    enabled: false                # 禁用主机白名单检查
     allow_insecure_http: true     # 允许 HTTP URL（⚠️ 不安全）
+    allow_private_hosts: true     # 按需允许 localhost / 私网主机
 ```
 
 **或通过环境变量：**
@@ -523,6 +524,7 @@ security:
 ```bash
 SECURITY_URL_ALLOWLIST_ENABLED=false
 SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
+SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 ```
 
 **允许 HTTP 的风险：**
@@ -531,7 +533,7 @@ SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
 - **不适合生产环境**
 
 **适用场景：**
-- ✅ 开发/测试环境的本地服务器（http://localhost）
+- ✅ 开发/测试环境的本地服务器（http://localhost，且需 `allow_private_hosts=true`）
 - ✅ 内网可信端点
 - ✅ 获取 HTTPS 前测试账号连通性
 - ❌ 生产环境（仅使用 HTTPS）
