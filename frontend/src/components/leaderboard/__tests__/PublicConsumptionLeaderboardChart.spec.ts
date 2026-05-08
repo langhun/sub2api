@@ -112,4 +112,29 @@ describe('PublicConsumptionLeaderboardChart', () => {
     expect(wrapper.text()).toContain('60.0%')
     expect(wrapper.text()).toContain('12 次请求')
   })
+
+  it('shows only the top 9 ranking rows in the side list', () => {
+    const entries = Array.from({ length: 12 }, (_, index) => ({
+      rank: index + 1,
+      username: `用户${index + 1}`,
+      value: 120 - index,
+      extra_int: 10 + index,
+    }))
+
+    const wrapper = mount(PublicConsumptionLeaderboardChart, {
+      props: {
+        chartItems: entries.map(({ username, value }) => ({ username, value })),
+        entries,
+        summary: {
+          total_value: entries.reduce((sum, entry) => sum + entry.value, 0),
+          total_users: entries.length,
+        },
+      },
+    })
+
+    const rankingRows = wrapper.findAll('[data-testid=\"consumption-ranking-row\"]')
+    expect(rankingRows).toHaveLength(9)
+    expect(rankingRows[8].text()).toContain('用户9')
+    expect(rankingRows.some((row) => row.text().includes('用户10'))).toBe(false)
+  })
 })
