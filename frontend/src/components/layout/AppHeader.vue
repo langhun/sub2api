@@ -111,58 +111,16 @@
           </div>
         </div>
 
-        <!-- Luck Checkin Modal -->
-        <BaseDialog :show="showLuckModal" :title="t('checkin.luckTitle')" width="narrow" :close-on-click-outside="true" @close="showLuckModal = false">
-          <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-            <p class="text-xs text-purple-700 dark:text-purple-300">
-              {{ t('checkin.multiplierRange', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}
-            </p>
-          </div>
-          <div class="space-y-4">
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('checkin.betAmount') }}</label>
-              <input
-                ref="luckBetInputRef"
-                v-model.number="luckBetAmount"
-                type="number"
-                step="0.01"
-                :min="0.01"
-                :max="luckBalanceLimit"
-                class="input"
-                :placeholder="t('checkin.betAmountPlaceholder')"
-                @keyup.enter="submitLuckCheckin"
-              />
-            </div>
-            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>{{ t('profile.accountBalance') }}: ${{ luckBalanceLimit.toFixed(2) }}</span>
-              <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="applyLuckBetMax">
-                MAX
-              </button>
-            </div>
-            <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700">
-              <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.luckDesc', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}</p>
-            </div>
-          </div>
-          <template #footer>
-            <div class="flex flex-row items-center justify-end gap-3">
-              <button
-                type="button"
-                class="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-600 dark:text-dark-300 dark:hover:bg-dark-700"
-                @click="showLuckModal = false"
-              >
-                {{ t('common.cancel') }}
-              </button>
-              <button
-                type="button"
-                :disabled="checkinLoading || !luckBetAmount || luckBetAmount <= 0 || luckBetAmount > luckBalanceLimit"
-                class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50"
-                @click="submitLuckCheckin"
-              >
-                {{ checkinLoading ? '...' : t('checkin.luckButton') }}
-              </button>
-            </div>
-          </template>
-        </BaseDialog>
+        <LuckCheckinDialog
+          :show="showLuckModal"
+          v-model:bet-amount="luckBetAmount"
+          :loading="checkinLoading"
+          :balance-limit="luckBalanceLimit"
+          :min-multiplier="checkinStore.status?.min_multiplier"
+          :max-multiplier="checkinStore.status?.max_multiplier"
+          @close="showLuckModal = false"
+          @submit="submitLuckCheckin"
+        />
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
@@ -310,11 +268,11 @@ import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useCheckinStore } from '@/stores/checkin'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import BlindboxModal from '@/components/user/profile/BlindboxModal.vue'
+import LuckCheckinDialog from '@/components/user/checkin/LuckCheckinDialog.vue'
 import PublicQuickLinksBar from './PublicQuickLinksBar.vue'
 import { formatSignedCurrency } from '@/utils/format'
 
@@ -345,10 +303,6 @@ const luckBalanceLimit = computed(() => {
   if (!Number.isFinite(balance) || balance <= 0) return 0
   return Math.floor((balance + Number.EPSILON) * 100) / 100
 })
-
-function applyLuckBetMax() {
-  luckBetAmount.value = luckBalanceLimit.value
-}
 
 async function handleCheckin() {
   const result = await checkinStore.doCheckin()

@@ -120,30 +120,16 @@
         </div>
       </div>
 
-      <!-- Luck Checkin Modal -->
-      <BaseDialog :show="showLuckModal" :title="t('checkin.luckTitle')" width="narrow" :close-on-click-outside="true" @close="showLuckModal = false">
-        <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-          <p class="text-xs text-purple-700 dark:text-purple-300">
-            {{ t('checkin.multiplierRange', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}
-          </p>
-        </div>
-        <div class="space-y-4">
-          <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('checkin.betAmount') }}</label>
-            <input v-model.number="luckBet" type="number" step="0.01" :min="0.01" :max="luckBalanceLimit" class="input" :placeholder="t('checkin.betAmountPlaceholder')" @keyup.enter="submitLuck" />
-          </div>
-          <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>{{ t('profile.accountBalance') }}: ${{ luckBalanceLimit.toFixed(2) }}</span>
-            <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="applyLuckBetMax">MAX</button>
-          </div>
-        </div>
-        <template #footer>
-          <div class="flex flex-row items-center justify-end gap-3">
-            <button type="button" class="btn btn-secondary" @click="showLuckModal = false">{{ t('common.cancel') }}</button>
-            <button type="button" :disabled="checkinStore.loading || !luckBet || luckBet <= 0 || luckBet > luckBalanceLimit" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50" @click="submitLuck">{{ checkinStore.loading ? '...' : t('checkin.luckButton') }}</button>
-          </div>
-        </template>
-      </BaseDialog>
+      <LuckCheckinDialog
+        :show="showLuckModal"
+        v-model:bet-amount="luckBet"
+        :loading="checkinStore.loading"
+        :balance-limit="luckBalanceLimit"
+        :min-multiplier="checkinStore.status?.min_multiplier"
+        :max-multiplier="checkinStore.status?.max_multiplier"
+        @close="showLuckModal = false"
+        @submit="submitLuck"
+      />
 
       <!-- Check-in Calendar -->
       <div v-if="calendarDays.length > 0" class="card p-6">
@@ -313,8 +299,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useCheckinStore } from '@/stores/checkin'
 import { getBlindboxRecords, getCheckinCalendar, type BlindboxRecordItem, type BlindboxResult, type CheckinCalendarDay } from '@/api/checkin'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
 import { formatSignedCurrency } from '@/utils/format'
+import LuckCheckinDialog from '@/components/user/checkin/LuckCheckinDialog.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -468,10 +454,6 @@ async function submitLuck() {
     fetchCalendar()
     fetchBlindboxRecords()
   }
-}
-
-function applyLuckBetMax() {
-  luckBet.value = luckBalanceLimit.value
 }
 
 function getRarityBadgeClass(rarity: string) {
