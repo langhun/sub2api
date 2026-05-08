@@ -79,6 +79,13 @@ describe('PublicPageHeader', () => {
     document.documentElement.classList.remove('dark')
     storeMocks.appStore.fetchPublicSettings.mockClear()
     storeMocks.authStore.checkAuth.mockClear()
+    Object.assign(storeMocks.appStore.cachedPublicSettings, {
+      home_nav_links_enabled: true,
+      home_nav_leaderboard_enabled: true,
+      home_nav_key_usage_enabled: true,
+      home_nav_monitoring_enabled: true,
+      home_nav_pricing_enabled: true,
+    })
   })
 
   it('默认显示首页顶部入口', () => {
@@ -87,6 +94,17 @@ describe('PublicPageHeader', () => {
     expect(wrapper.text()).toContain('排行榜')
     expect(wrapper.text()).toContain('用量查询')
     expect(wrapper.text()).toContain('平台监控')
+    expect(wrapper.text()).toContain('模型定价')
+  })
+
+  it('未传入显式 props 时也会读取公开设置里的顶部入口开关', () => {
+    storeMocks.appStore.cachedPublicSettings.home_nav_monitoring_enabled = false
+
+    const wrapper = mountHeader()
+
+    expect(wrapper.text()).toContain('排行榜')
+    expect(wrapper.text()).toContain('用量查询')
+    expect(wrapper.text()).not.toContain('平台监控')
     expect(wrapper.text()).toContain('模型定价')
   })
 
