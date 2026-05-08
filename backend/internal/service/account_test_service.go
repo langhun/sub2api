@@ -22,6 +22,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -70,6 +71,7 @@ type AccountTestService struct {
 	httpUpstream              HTTPUpstream
 	cfg                       *config.Config
 	tlsFPProfileService       *TLSFingerprintProfileService
+	proxyPool                 *AutoFailoverProxyPoolService
 }
 
 // NewAccountTestService creates a new AccountTestService
@@ -81,6 +83,7 @@ func NewAccountTestService(
 	httpUpstream HTTPUpstream,
 	cfg *config.Config,
 	tlsFPProfileService *TLSFingerprintProfileService,
+	proxyPool *AutoFailoverProxyPoolService,
 ) *AccountTestService {
 	return &AccountTestService{
 		accountRepo:               accountRepo,
@@ -90,7 +93,74 @@ func NewAccountTestService(
 		httpUpstream:              httpUpstream,
 		cfg:                       cfg,
 		tlsFPProfileService:       tlsFPProfileService,
+		proxyPool:                 proxyPool,
 	}
+}
+
+func (s *AccountTestService) resolveTestProxyURL(ctx context.Context, account *Account) (string, error) {
+	if account == nil {
+		return "", nil
+	}
+
+	if s.proxyPool != nil && s.proxyPool.SupportsAccount(account) {
+		proxyURL, _, _, err := s.proxyPool.ResolveProxyURL(ctx, account)
+		if err != nil {
+			return "", err
+		}
+		if proxyURL != "" {
+			return proxyURL, nil
+		}
+		if account.UsesAutoFailoverProxyPool() {
+			return "", errors.New("no available proxy in auto failover proxy pool")
+		}
+	}
+
+	if account.ProxyID != nil && account.Proxy != nil {
+		return account.Proxy.URL(), nil
+	}
+
+	return "", nil
+}
+
+func (s *AccountTestService) doTestRequestWithTLS(
+	ctx context.Context,
+	account *Account,
+	req *http.Request,
+	profile *tlsfingerprint.Profile,
+) (*http.Response, error) {
+	return s.doTestRequest(ctx, account, req, func(clonedReq *http.Request, proxyURL string) (*http.Response, error) {
+		return s.httpUpstream.DoWithTLS(clonedReq, proxyURL, account.ID, account.Concurrency, profile)
+	})
+}
+
+func (s *AccountTestService) doTestRequest(
+	ctx context.Context,
+	account *Account,
+	req *http.Request,
+	do func(*http.Request, string) (*http.Response, error),
+) (*http.Response, error) {
+	if req == nil || do == nil {
+		return nil, errors.New("test request is not available")
+	}
+
+	if s.proxyPool != nil && s.proxyPool.SupportsAccount(account) {
+		candidates, err := s.proxyPool.BuildCandidates(ctx, account)
+		if err != nil {
+			return nil, err
+		}
+		if account != nil && account.UsesAutoFailoverProxyPool() && len(candidates) == 0 {
+			return nil, errors.New("no available proxy in auto failover proxy pool")
+		}
+		if len(candidates) > 0 {
+			return s.proxyPool.DoHTTPRequest(ctx, account, req, do)
+		}
+	}
+
+	proxyURL, err := s.resolveTestProxyURL(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	return do(req, proxyURL)
 }
 
 func (s *AccountTestService) validateUpstreamBaseURL(raw string) (string, error) {
@@ -294,13 +364,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		req.Header.Set("x-api-key", authToken)
 	}
 
-	// Get proxy URL
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
-
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -367,12 +431,7 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
-
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -453,12 +512,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 		}
 	}
 
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
-
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, nil)
+	resp, err := s.doTestRequestWithTLS(ctx, account, req, nil)
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -603,13 +657,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 	}
 
-	// Get proxy URL
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
-
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -708,9 +756,9 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 		}
 	}
 
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
+	proxyURL, err := s.resolveTestProxyURL(ctx, account)
+	if err != nil {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to resolve proxy: %s", err.Error()))
 	}
 
 	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
@@ -840,12 +888,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
 
 	// Get proxy and execute request
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
-
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -1362,12 +1405,7 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+authToken)
 
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
-
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -1462,11 +1500,9 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 		req.Header.Set("chatgpt-account-id", chatgptAccountID)
 	}
 
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
-	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	resp, err := s.doTestRequest(ctx, account, req, func(clonedReq *http.Request, proxyURL string) (*http.Response, error) {
+		return s.httpUpstream.Do(clonedReq, proxyURL, account.ID, account.Concurrency)
+	})
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Responses API request failed: %s", err.Error()))
 	}
