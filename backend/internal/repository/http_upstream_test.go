@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -79,9 +80,9 @@ func (s *HTTPUpstreamSuite) TestNormalizeProxyURL_Canonicalizes() {
 	require.Equal(s.T(), key1, key2, "expected normalized proxy keys to match")
 }
 
-// TestAcquireClient_OverLimitReturnsError 测试连接池缓存上限保护
-// 验证超限且无可淘汰条目时返回错误
-func (s *HTTPUpstreamSuite) TestAcquireClient_OverLimitReturnsError() {
+// TestAcquireClient_OverLimitFallsBackToTransient 测试连接池缓存上限保护
+// 验证超限且无可淘汰条目时降级为瞬时客户端，而不是直接报错
+func (s *HTTPUpstreamSuite) TestAcquireClient_OverLimitFallsBackToTransient() {
 	s.cfg.Gateway = config.GatewayConfig{
 		ConnectionPoolIsolation: config.ConnectionPoolIsolationAccountProxy,
 		MaxUpstreamClients:      1,
@@ -92,8 +93,32 @@ func (s *HTTPUpstreamSuite) TestAcquireClient_OverLimitReturnsError() {
 	require.NotNil(s.T(), entry1, "expected entry")
 
 	entry2, err := svc.acquireClient("http://proxy-b:8080", 2, 1)
-	require.Error(s.T(), err, "expected error when cache limit reached")
-	require.Nil(s.T(), entry2, "expected nil entry when cache limit reached")
+	require.NoError(s.T(), err, "expected overflow acquire to fall back to transient client")
+	require.NotNil(s.T(), entry2, "expected transient entry")
+	require.False(s.T(), entry2.cached, "overflow acquire should not cache transient client")
+	require.False(s.T(), hasEntry(svc, entry2), "transient client should not be stored in cache")
+	require.Equal(s.T(), 1, len(svc.clients), "cached client count should remain capped")
+}
+
+// TestAcquireClientWithTLS_OverLimitFallsBackToTransient 验证 TLS 指纹路径在缓存已满且全活跃时也会降级为瞬时客户端
+func (s *HTTPUpstreamSuite) TestAcquireClientWithTLS_OverLimitFallsBackToTransient() {
+	s.cfg.Gateway = config.GatewayConfig{
+		ConnectionPoolIsolation: config.ConnectionPoolIsolationAccountProxy,
+		MaxUpstreamClients:      1,
+	}
+	svc := s.newService()
+	profile := &tlsfingerprint.Profile{Name: "test"}
+
+	entry1, err := svc.getClientEntryWithTLS("", 1, 1, profile, true, true)
+	require.NoError(s.T(), err, "expected first TLS acquire to succeed")
+	require.NotNil(s.T(), entry1, "expected entry")
+
+	entry2, err := svc.getClientEntryWithTLS("http://proxy-b:8080", 2, 1, profile, true, true)
+	require.NoError(s.T(), err, "expected overflow TLS acquire to fall back to transient client")
+	require.NotNil(s.T(), entry2, "expected transient TLS entry")
+	require.False(s.T(), entry2.cached, "overflow TLS acquire should not cache transient client")
+	require.False(s.T(), hasEntry(svc, entry2), "transient TLS client should not be stored in cache")
+	require.Equal(s.T(), 1, len(svc.clients), "cached TLS client count should remain capped")
 }
 
 // TestDo_WithoutProxy_GoesDirect 测试无代理时直连

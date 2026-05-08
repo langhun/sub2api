@@ -45,13 +45,11 @@ const (
 	// LLM 请求可能排队较久，需要较长超时
 	defaultResponseHeaderTimeout = 300 * time.Second
 	// defaultMaxUpstreamClients: 默认最大客户端缓存数量
-	// 超出后会淘汰最久未使用的客户端
+	// 仅限制可复用客户端缓存；缓存已满且全部活跃时，请求会降级为瞬时客户端
 	defaultMaxUpstreamClients = 5000
 	// defaultClientIdleTTLSeconds: 默认客户端空闲回收阈值（15分钟）
 	defaultClientIdleTTLSeconds = 900
 )
-
-var errUpstreamClientLimitReached = errors.New("upstream client cache limit reached")
 
 // poolSettings 连接池配置参数
 // 封装 Transport 所需的各项连接池参数
@@ -71,6 +69,7 @@ type upstreamClientEntry struct {
 	poolKey  string       // 连接池配置标识（用于检测配置变更）
 	lastUsed int64        // 最后使用时间戳（纳秒），用于 LRU 淘汰
 	inFlight int64        // 当前进行中的请求数，>0 时不可淘汰
+	cached   bool         // 是否已加入缓存池；false 表示瞬时客户端，请求结束后立即回收
 }
 
 // httpUpstreamService 通用 HTTP 上游服务
@@ -94,6 +93,20 @@ type httpUpstreamService struct {
 	cfg     *config.Config                  // 全局配置
 	mu      sync.RWMutex                    // 保护 clients map 的读写锁
 	clients map[string]*upstreamClientEntry // 客户端缓存池，key 由隔离策略决定
+}
+
+func newUpstreamClientEntry(client *http.Client, proxyKey, poolKey string, nowUnix int64, markInFlight bool, cached bool) *upstreamClientEntry {
+	entry := &upstreamClientEntry{
+		client:   client,
+		proxyKey: proxyKey,
+		poolKey:  poolKey,
+		cached:   cached,
+	}
+	atomic.StoreInt64(&entry.lastUsed, nowUnix)
+	if markInFlight {
+		atomic.StoreInt64(&entry.inFlight, 1)
+	}
+	return entry
 }
 
 // NewHTTPUpstream 创建通用 HTTP 上游服务
@@ -141,9 +154,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 	// 执行请求
 	resp, err := entry.client.Do(req)
 	if err != nil {
-		// 请求失败，立即减少计数
-		atomic.AddInt64(&entry.inFlight, -1)
-		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
+		s.finishRequest(entry)
 		return nil, err
 	}
 
@@ -153,8 +164,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 	// 包装响应体，在关闭时自动减少计数并更新时间戳
 	// 这确保了流式响应（如 SSE）在完全读取前不会被淘汰
 	resp.Body = wrapTrackedBody(resp.Body, func() {
-		atomic.AddInt64(&entry.inFlight, -1)
-		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
+		s.finishRequest(entry)
 	})
 
 	return resp, nil
@@ -191,8 +201,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 
 	resp, err := entry.client.Do(req)
 	if err != nil {
-		atomic.AddInt64(&entry.inFlight, -1)
-		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
+		s.finishRequest(entry)
 		slog.Debug("tls_fingerprint_request_failed", "account_id", accountID, "error", err)
 		return nil, err
 	}
@@ -200,8 +209,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 	decompressResponseBody(resp)
 
 	resp.Body = wrapTrackedBody(resp.Body, func() {
-		atomic.AddInt64(&entry.inFlight, -1)
-		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
+		s.finishRequest(entry)
 	})
 
 	return resp, nil
@@ -260,15 +268,29 @@ func (s *httpUpstreamService) getClientEntryWithTLS(proxyURL string, accountID i
 		s.removeClientLocked(cacheKey, entry)
 	}
 
-	// 超出缓存上限时尝试淘汰
+	// 超出缓存上限时尝试淘汰；若所有缓存条目都处于活跃中，则降级为瞬时客户端
+	useTransient := false
 	if enforceLimit && s.maxUpstreamClients() > 0 {
 		s.evictIdleLocked(now)
 		if len(s.clients) >= s.maxUpstreamClients() {
 			if !s.evictOldestIdleLocked() {
-				s.mu.Unlock()
-				return nil, errUpstreamClientLimitReached
+				useTransient = true
 			}
 		}
+	}
+
+	if useTransient {
+		s.mu.Unlock()
+		settings := s.resolvePoolSettings(isolation, accountConcurrency)
+		transport, err := buildUpstreamTransportWithTLSFingerprint(settings, parsedProxy, profile)
+		if err != nil {
+			return nil, fmt.Errorf("build TLS fingerprint transport: %w", err)
+		}
+		client := &http.Client{Transport: transport}
+		if s.shouldValidateResolvedIP() {
+			client.CheckRedirect = s.redirectChecker
+		}
+		return newUpstreamClientEntry(client, proxyKey, poolKey, nowUnix, markInFlight, false), nil
 	}
 
 	// 创建带 TLS 指纹的 Transport
@@ -285,15 +307,7 @@ func (s *httpUpstreamService) getClientEntryWithTLS(proxyURL string, accountID i
 		client.CheckRedirect = s.redirectChecker
 	}
 
-	entry := &upstreamClientEntry{
-		client:   client,
-		proxyKey: proxyKey,
-		poolKey:  poolKey,
-	}
-	atomic.StoreInt64(&entry.lastUsed, nowUnix)
-	if markInFlight {
-		atomic.StoreInt64(&entry.inFlight, 1)
-	}
+	entry := newUpstreamClientEntry(client, proxyKey, poolKey, nowUnix, markInFlight, true)
 	s.clients[cacheKey] = entry
 
 	s.evictIdleLocked(now)
@@ -363,7 +377,7 @@ func (s *httpUpstreamService) getOrCreateClient(proxyURL string, accountID int64
 
 // getClientEntry 获取或创建客户端条目
 // markInFlight=true 时会标记进行中请求，用于请求路径防止被淘汰
-// enforceLimit=true 时会限制客户端数量，超限且无法淘汰时返回错误
+// enforceLimit=true 时会限制缓存客户端数量；缓存已满且都在活跃时会降级为瞬时客户端
 func (s *httpUpstreamService) getClientEntry(proxyURL string, accountID int64, accountConcurrency int, markInFlight bool, enforceLimit bool) (*upstreamClientEntry, error) {
 	// 获取隔离模式
 	isolation := s.getIsolationMode()
@@ -406,15 +420,29 @@ func (s *httpUpstreamService) getClientEntry(proxyURL string, accountID int64, a
 		s.removeClientLocked(cacheKey, entry)
 	}
 
-	// 超出缓存上限时尝试淘汰，无法淘汰则拒绝新建
+	// 超出缓存上限时尝试淘汰；若所有缓存条目都处于活跃中，则降级为瞬时客户端
+	useTransient := false
 	if enforceLimit && s.maxUpstreamClients() > 0 {
 		s.evictIdleLocked(now)
 		if len(s.clients) >= s.maxUpstreamClients() {
 			if !s.evictOldestIdleLocked() {
-				s.mu.Unlock()
-				return nil, errUpstreamClientLimitReached
+				useTransient = true
 			}
 		}
+	}
+
+	if useTransient {
+		s.mu.Unlock()
+		settings := s.resolvePoolSettings(isolation, accountConcurrency)
+		transport, err := buildUpstreamTransport(settings, parsedProxy)
+		if err != nil {
+			return nil, fmt.Errorf("build transport: %w", err)
+		}
+		client := &http.Client{Transport: transport}
+		if s.shouldValidateResolvedIP() {
+			client.CheckRedirect = s.redirectChecker
+		}
+		return newUpstreamClientEntry(client, proxyKey, poolKey, nowUnix, markInFlight, false), nil
 	}
 
 	// 缓存未命中或需要重建，创建新客户端
@@ -428,15 +456,7 @@ func (s *httpUpstreamService) getClientEntry(proxyURL string, accountID int64, a
 	if s.shouldValidateResolvedIP() {
 		client.CheckRedirect = s.redirectChecker
 	}
-	entry := &upstreamClientEntry{
-		client:   client,
-		proxyKey: proxyKey,
-		poolKey:  poolKey,
-	}
-	atomic.StoreInt64(&entry.lastUsed, nowUnix)
-	if markInFlight {
-		atomic.StoreInt64(&entry.inFlight, 1)
-	}
+	entry := newUpstreamClientEntry(client, proxyKey, poolKey, nowUnix, markInFlight, true)
 	s.clients[cacheKey] = entry
 
 	// 执行淘汰策略：先淘汰空闲超时的，再淘汰超出数量限制的
@@ -472,6 +492,17 @@ func (s *httpUpstreamService) removeClientLocked(key string, entry *upstreamClie
 	if entry != nil && entry.client != nil {
 		// 关闭空闲连接，释放系统资源
 		// 注意：这不会中断活跃连接
+		entry.client.CloseIdleConnections()
+	}
+}
+
+func (s *httpUpstreamService) finishRequest(entry *upstreamClientEntry) {
+	if entry == nil {
+		return
+	}
+	atomic.AddInt64(&entry.inFlight, -1)
+	atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
+	if !entry.cached && entry.client != nil {
 		entry.client.CloseIdleConnections()
 	}
 }
