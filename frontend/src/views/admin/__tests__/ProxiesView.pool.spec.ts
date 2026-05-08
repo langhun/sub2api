@@ -43,12 +43,13 @@ vi.mock('vue-i18n', async () => {
 })
 
 const DataTableStub = {
-  props: ['data'],
+  props: ['data', 'columns'],
   template: `
-    <div>
+    <div data-test="data-table-stub" :data-columns="columns.map(column => column.key).join(',')">
       <div v-for="row in data" :key="row.id">
         <slot name="cell-location" :row="row" :value="row.location" />
         <slot name="cell-status" :row="row" :value="row.status" />
+        <slot name="cell-actions" :row="row" :value="row.actions" />
       </div>
     </div>
   `
@@ -61,6 +62,7 @@ const SelectStub = {
 
 describe('admin ProxiesView pool state', () => {
   beforeEach(() => {
+    localStorage.clear()
     listProxies.mockReset()
     getAllGroups.mockReset()
 
@@ -168,5 +170,54 @@ describe('admin ProxiesView pool state', () => {
     expect(wrapper.text()).toContain('🇺🇸')
     expect(wrapper.text()).toContain('美国 · 洛杉矶')
     expect(wrapper.find('img').exists()).toBe(false)
+  })
+
+  it('supports proxy column settings and keeps row actions compact behind a more menu', async () => {
+    const wrapper = mount(ProxiesView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          ConfirmDialog: true,
+          EmptyState: true,
+          ImportDataModal: true,
+          AssignAccountsModal: true,
+          PoolMembersDialog: true,
+          Select: SelectStub,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const columnSettingsButton = wrapper
+      .findAll('button')
+      .find((button) => button.attributes('title') === 'admin.users.columnSettings')
+
+    expect(columnSettingsButton).toBeDefined()
+    await columnSettingsButton!.trigger('click')
+    await flushPromises()
+
+    const authToggleButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.proxies.columns.auth'))
+
+    expect(authToggleButton).toBeDefined()
+    await authToggleButton!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="data-table-stub"]').attributes('data-columns')).not.toContain('auth')
+
+    const moreButton = wrapper
+      .findAll('button')
+      .find((button) => button.attributes('title') === 'common.more')
+
+    expect(moreButton).toBeDefined()
   })
 })
