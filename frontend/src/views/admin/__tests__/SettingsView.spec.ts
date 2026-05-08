@@ -179,6 +179,8 @@ vi.mock("vue-i18n", async () => {
     "admin.settings.site.leaderboardTransferEnabledHint": "控制排行榜页面是否显示转账标签。",
     "admin.settings.site.leaderboardCheckinEnabled": "显示签到排行榜",
     "admin.settings.site.leaderboardCheckinEnabledHint": "控制排行榜页面是否显示签到标签。",
+    "admin.settings.site.leaderboardIncludeAdminEnabled": "排行榜包含管理员",
+    "admin.settings.site.leaderboardIncludeAdminEnabledHint": "控制公开排行榜和消费分布是否把管理员账号统计进去。关闭时管理员不会上榜。",
   };
   return {
     ...actual,
@@ -323,6 +325,7 @@ const baseSettingsResponse = {
   leaderboard_consumption_enabled: true,
   leaderboard_transfer_enabled: true,
   leaderboard_checkin_enabled: true,
+  leaderboard_include_admin_enabled: false,
   hide_ccs_import_button: false,
   table_default_page_size: 20,
   table_page_size_options: [10, 20, 50, 100],
@@ -727,6 +730,7 @@ describe("admin SettingsView payment visible method controls", () => {
       leaderboard_consumption_enabled: false,
       leaderboard_transfer_enabled: true,
       leaderboard_checkin_enabled: false,
+      leaderboard_include_admin_enabled: true,
     });
 
     const wrapper = mountView();
@@ -738,6 +742,7 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(wrapper.text()).toContain("显示消费排行榜");
     expect(wrapper.text()).toContain("显示转账排行榜");
     expect(wrapper.text()).toContain("显示签到排行榜");
+    expect(wrapper.text()).toContain("排行榜包含管理员");
 
     await wrapper.find("form").trigger("submit.prevent");
     await flushPromises();
@@ -751,6 +756,7 @@ describe("admin SettingsView payment visible method controls", () => {
         leaderboard_consumption_enabled: false,
         leaderboard_transfer_enabled: true,
         leaderboard_checkin_enabled: false,
+        leaderboard_include_admin_enabled: true,
       }),
     );
   });

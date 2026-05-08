@@ -388,6 +388,7 @@ export interface SystemSettings {
   leaderboard_consumption_enabled: boolean;
   leaderboard_transfer_enabled: boolean;
   leaderboard_checkin_enabled: boolean;
+  leaderboard_include_admin_enabled: boolean;
   hide_ccs_import_button: boolean;
   table_default_page_size: number;
   table_page_size_options: number[];
@@ -638,6 +639,7 @@ export interface UpdateSettingsRequest {
   leaderboard_consumption_enabled?: boolean;
   leaderboard_transfer_enabled?: boolean;
   leaderboard_checkin_enabled?: boolean;
+  leaderboard_include_admin_enabled?: boolean;
   hide_ccs_import_button?: boolean;
   table_default_page_size?: number;
   table_page_size_options?: number[];

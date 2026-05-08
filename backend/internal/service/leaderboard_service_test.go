@@ -106,7 +106,7 @@ func TestLeaderboardService_GetConsumptionLeaderboard_ReturnsSummaryAndChartItem
 				)
 
 			svc := &LeaderboardService{db: db}
-			result, err := svc.GetConsumptionLeaderboard(context.Background(), tc.period, 1, 2)
+			result, err := svc.GetConsumptionLeaderboard(context.Background(), tc.period, 1, 2, false)
 			require.NoError(t, err)
 
 			require.Equal(t, int64(3), result.Total)
@@ -133,4 +133,72 @@ func TestLeaderboardService_GetConsumptionLeaderboard_ReturnsSummaryAndChartItem
 			require.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
+}
+
+func TestLeaderboardService_GetConsumptionLeaderboard_CanIncludeAdmins(t *testing.T) {
+	require.NoError(t, timezone.Init("Asia/Shanghai"))
+
+	countQuery := regexp.QuoteMeta(`
+		SELECT COUNT(*) FROM (
+			SELECT ul.user_id
+			FROM usage_logs ul
+			INNER JOIN users u ON ul.user_id = u.id AND u.deleted_at IS NULL
+			WHERE ul.created_at >= $1 AND u.status = 'active'
+			GROUP BY ul.user_id
+			HAVING SUM(ul.actual_cost) > 0
+		) sub
+	`)
+
+	dataQuery := regexp.QuoteMeta(`
+		SELECT u.username, u.email, COALESCE(SUM(ul.actual_cost), 0) as total_cost, COUNT(*) as request_count
+		FROM usage_logs ul
+		INNER JOIN users u ON ul.user_id = u.id AND u.deleted_at IS NULL
+		WHERE ul.created_at >= $1 AND u.status = 'active'
+		GROUP BY ul.user_id, u.username, u.email
+		HAVING SUM(ul.actual_cost) > 0
+		ORDER BY total_cost DESC, ul.user_id ASC
+		LIMIT $2 OFFSET $3
+	`)
+
+	chartQuery := regexp.QuoteMeta(`
+		SELECT u.username, u.email, COALESCE(SUM(ul.actual_cost), 0) as total_cost
+		FROM usage_logs ul
+		INNER JOIN users u ON ul.user_id = u.id AND u.deleted_at IS NULL
+		WHERE ul.created_at >= $1 AND u.status = 'active'
+		GROUP BY ul.user_id, u.username, u.email
+		HAVING SUM(ul.actual_cost) > 0
+		ORDER BY total_cost DESC, ul.user_id ASC
+	`)
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	startTime := timezone.Today()
+	mock.ExpectQuery(countQuery).
+		WithArgs(exactTimeArg{expected: startTime}).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+	mock.ExpectQuery(dataQuery).
+		WithArgs(exactTimeArg{expected: startTime}, 10, 0).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"username", "email", "total_cost", "request_count"}).
+				AddRow("AdminUser", "admin@example.com", 88.8, 6),
+		)
+
+	mock.ExpectQuery(chartQuery).
+		WithArgs(exactTimeArg{expected: startTime}).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"username", "email", "total_cost"}).
+				AddRow("AdminUser", "admin@example.com", 88.8),
+		)
+
+	svc := &LeaderboardService{db: db}
+	result, err := svc.GetConsumptionLeaderboard(context.Background(), "daily", 1, 10, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), result.Total)
+	require.Len(t, result.Entries, 1)
+	require.Equal(t, "AdminUser", result.Entries[0].Username)
+	require.Equal(t, 88.8, result.Entries[0].Value)
+	require.NoError(t, mock.ExpectationsWereMet())
 }

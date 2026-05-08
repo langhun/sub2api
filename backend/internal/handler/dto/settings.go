@@ -112,6 +112,7 @@ type SystemSettings struct {
 	LeaderboardConsumptionEnabled     bool             `json:"leaderboard_consumption_enabled"`
 	LeaderboardTransferEnabled        bool             `json:"leaderboard_transfer_enabled"`
 	LeaderboardCheckinEnabled         bool             `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin           bool             `json:"leaderboard_include_admin_enabled"`
 	HideCcsImportButton               bool             `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled       bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL           string           `json:"purchase_subscription_url"`

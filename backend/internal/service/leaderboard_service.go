@@ -8,6 +8,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 )
@@ -51,28 +52,27 @@ func NewLeaderboardService(entClient *dbent.Client, db *sql.DB) *LeaderboardServ
 	}
 }
 
-func (s *LeaderboardService) GetBalanceLeaderboard(ctx context.Context, page, pageSize int) (*LeaderboardResult, error) {
+func (s *LeaderboardService) GetBalanceLeaderboard(ctx context.Context, page, pageSize int, includeAdmin bool) (*LeaderboardResult, error) {
 	offset := (page - 1) * pageSize
 
+	filters := []predicate.User{
+		dbuser.DeletedAtIsNil(),
+		dbuser.StatusEQ(StatusActive),
+		dbuser.BalanceGT(0),
+	}
+	if !includeAdmin {
+		filters = append(filters, dbuser.RoleNEQ("admin"))
+	}
+
 	total, err := s.entClient.User.Query().
-		Where(
-			dbuser.DeletedAtIsNil(),
-			dbuser.StatusEQ(StatusActive),
-			dbuser.RoleNEQ("admin"),
-			dbuser.BalanceGT(0),
-		).
+		Where(filters...).
 		Count(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count users: %w", err)
 	}
 
 	users, err := s.entClient.User.Query().
-		Where(
-			dbuser.DeletedAtIsNil(),
-			dbuser.StatusEQ(StatusActive),
-			dbuser.RoleNEQ("admin"),
-			dbuser.BalanceGT(0),
-		).
+		Where(filters...).
 		Order(dbent.Desc(dbuser.FieldBalance)).
 		Offset(offset).
 		Limit(pageSize).
@@ -96,7 +96,7 @@ func (s *LeaderboardService) GetBalanceLeaderboard(ctx context.Context, page, pa
 	return &LeaderboardResult{Entries: entries, Total: int64(total)}, nil
 }
 
-func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, period string, page, pageSize int) (*LeaderboardResult, error) {
+func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, period string, page, pageSize int, includeAdmin bool) (*LeaderboardResult, error) {
 	today := timezone.Today()
 	var startTime time.Time
 	switch period {
@@ -111,32 +111,36 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 	}
 
 	offset := (page - 1) * pageSize
+	roleFilter := ""
+	if !includeAdmin {
+		roleFilter = " AND u.role != 'admin'"
+	}
 
-	countQuery := `
+	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) FROM (
 			SELECT ul.user_id
 			FROM usage_logs ul
 			INNER JOIN users u ON ul.user_id = u.id AND u.deleted_at IS NULL
-			WHERE ul.created_at >= $1 AND u.status = 'active' AND u.role != 'admin'
+			WHERE ul.created_at >= $1 AND u.status = 'active'%s
 			GROUP BY ul.user_id
 			HAVING SUM(ul.actual_cost) > 0
 		) sub
-	`
+	`, roleFilter)
 	var total int64
 	if err := s.db.QueryRowContext(ctx, countQuery, startTime).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count consumption: %w", err)
 	}
 
-	dataQuery := `
+	dataQuery := fmt.Sprintf(`
 		SELECT u.username, u.email, COALESCE(SUM(ul.actual_cost), 0) as total_cost, COUNT(*) as request_count
 		FROM usage_logs ul
 		INNER JOIN users u ON ul.user_id = u.id AND u.deleted_at IS NULL
-		WHERE ul.created_at >= $1 AND u.status = 'active' AND u.role != 'admin'
+		WHERE ul.created_at >= $1 AND u.status = 'active'%s
 		GROUP BY ul.user_id, u.username, u.email
 		HAVING SUM(ul.actual_cost) > 0
 		ORDER BY total_cost DESC, ul.user_id ASC
 		LIMIT $2 OFFSET $3
-	`
+	`, roleFilter)
 	rows, err := s.db.QueryContext(ctx, dataQuery, startTime, pageSize, offset)
 	if err != nil {
 		return nil, fmt.Errorf("query consumption: %w", err)
@@ -161,15 +165,15 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 		})
 	}
 
-	chartQuery := `
+	chartQuery := fmt.Sprintf(`
 		SELECT u.username, u.email, COALESCE(SUM(ul.actual_cost), 0) as total_cost
 		FROM usage_logs ul
 		INNER JOIN users u ON ul.user_id = u.id AND u.deleted_at IS NULL
-		WHERE ul.created_at >= $1 AND u.status = 'active' AND u.role != 'admin'
+		WHERE ul.created_at >= $1 AND u.status = 'active'%s
 		GROUP BY ul.user_id, u.username, u.email
 		HAVING SUM(ul.actual_cost) > 0
 		ORDER BY total_cost DESC, ul.user_id ASC
-	`
+	`, roleFilter)
 	chartRows, err := s.db.QueryContext(ctx, chartQuery, startTime)
 	if err != nil {
 		return nil, fmt.Errorf("query consumption chart: %w", err)
@@ -205,13 +209,17 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 	}, nil
 }
 
-func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pageSize int) (*LeaderboardResult, error) {
+func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pageSize int, includeAdmin bool) (*LeaderboardResult, error) {
 	today := timezone.Today()
 	yesterday := today.AddDate(0, 0, -1)
 
 	offset := (page - 1) * pageSize
+	roleFilter := ""
+	if !includeAdmin {
+		roleFilter = " AND u.role != 'admin'"
+	}
 
-	countQuery := `
+	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) FROM (
 			SELECT c.user_id
 			FROM checkins c
@@ -221,15 +229,15 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 				GROUP BY user_id
 			) latest ON c.user_id = latest.user_id AND c.checkin_date = latest.max_date
 			INNER JOIN users u ON c.user_id = u.id AND u.deleted_at IS NULL
-			WHERE c.checkin_date >= $1 AND u.status = 'active' AND u.role != 'admin'
+			WHERE c.checkin_date >= $1 AND u.status = 'active'%s
 		) sub
-	`
+	`, roleFilter)
 	var total int64
 	if err := s.db.QueryRowContext(ctx, countQuery, yesterday).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count checkin: %w", err)
 	}
 
-	dataQuery := `
+	dataQuery := fmt.Sprintf(`
 		SELECT u.username, u.email, c.streak_days, c.reward_amount,
 			(SELECT COUNT(*) FROM checkins WHERE user_id = c.user_id) as total_checkins,
 			(SELECT MAX(checkin_date) FROM checkins WHERE user_id = c.user_id) as last_date
@@ -240,10 +248,10 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 			GROUP BY user_id
 		) latest ON c.user_id = latest.user_id AND c.checkin_date = latest.max_date
 		INNER JOIN users u ON c.user_id = u.id AND u.deleted_at IS NULL
-		WHERE c.checkin_date >= $1 AND u.status = 'active' AND u.role != 'admin'
+		WHERE c.checkin_date >= $1 AND u.status = 'active'%s
 		ORDER BY c.streak_days DESC, c.checkin_date DESC
 		LIMIT $2 OFFSET $3
-	`
+	`, roleFilter)
 	rows, err := s.db.QueryContext(ctx, dataQuery, yesterday, pageSize, offset)
 	if err != nil {
 		return nil, fmt.Errorf("query checkin: %w", err)

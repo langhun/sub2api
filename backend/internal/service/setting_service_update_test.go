@@ -264,6 +264,7 @@ func TestSettingService_UpdateSettings_LeaderboardTabsPersistIndependentlyFromHo
 		LeaderboardConsumptionEnabled: true,
 		LeaderboardTransferEnabled:    false,
 		LeaderboardCheckinEnabled:     true,
+		LeaderboardIncludeAdmin:       true,
 	})
 	require.NoError(t, err)
 
@@ -273,6 +274,7 @@ func TestSettingService_UpdateSettings_LeaderboardTabsPersistIndependentlyFromHo
 	require.Equal(t, "true", repo.updates[SettingKeyLeaderboardConsumptionEnabled])
 	require.Equal(t, "false", repo.updates[SettingKeyLeaderboardTransferEnabled])
 	require.Equal(t, "true", repo.updates[SettingKeyLeaderboardCheckinEnabled])
+	require.Equal(t, "true", repo.updates[SettingKeyLeaderboardIncludeAdmin])
 }
 
 func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler(t *testing.T) {

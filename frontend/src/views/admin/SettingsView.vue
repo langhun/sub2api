@@ -4287,6 +4287,17 @@
                   </div>
                   <Toggle v-model="form[item.field]" />
                 </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">{{
+                      t("admin.settings.site.leaderboardIncludeAdminEnabled")
+                    }}</label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.site.leaderboardIncludeAdminEnabledHint") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="form.leaderboard_include_admin_enabled" />
+                </div>
               </div>
 
               <!-- Hide CCS Import Button -->
@@ -6806,6 +6817,7 @@ const form = reactive<SettingsForm>({
   leaderboard_consumption_enabled: true,
   leaderboard_transfer_enabled: true,
   leaderboard_checkin_enabled: true,
+  leaderboard_include_admin_enabled: false,
   backend_mode_enabled: false,
   hide_ccs_import_button: false,
   payment_enabled: false,
@@ -7845,6 +7857,7 @@ async function saveSettings() {
       leaderboard_consumption_enabled: form.leaderboard_consumption_enabled,
       leaderboard_transfer_enabled: form.leaderboard_transfer_enabled,
       leaderboard_checkin_enabled: form.leaderboard_checkin_enabled,
+      leaderboard_include_admin_enabled: form.leaderboard_include_admin_enabled,
       backend_mode_enabled: form.backend_mode_enabled,
       hide_ccs_import_button: form.hide_ccs_import_button,
       table_default_page_size: form.table_default_page_size,
