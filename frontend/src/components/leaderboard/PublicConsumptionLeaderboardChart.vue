@@ -64,7 +64,7 @@
         <div
           v-if="displayEntries.length > 0"
           data-testid="consumption-ranking-scroll"
-          class="max-h-[612px] overflow-y-auto px-2 py-2 sm:px-3"
+          class="consumption-ranking-scroll max-h-[612px] overflow-y-auto px-2 py-2 pr-1 sm:px-3"
         >
           <div
             v-for="entry in displayEntries"
@@ -248,3 +248,40 @@ function formatCurrency(value: number): string {
   return value.toFixed(4)
 }
 </script>
+
+<style scoped>
+.consumption-ranking-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.6) transparent;
+}
+
+.consumption-ranking-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.consumption-ranking-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.consumption-ranking-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgba(156, 163, 175, 0.55);
+}
+
+.consumption-ranking-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.8);
+}
+
+:global(.dark) .consumption-ranking-scroll {
+  scrollbar-color: rgba(75, 85, 99, 0.8) transparent;
+}
+
+:global(.dark) .consumption-ranking-scroll::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.75);
+}
+
+:global(.dark) .consumption-ranking-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.85);
+}
+</style>

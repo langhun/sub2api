@@ -134,6 +134,7 @@ describe('PublicConsumptionLeaderboardChart', () => {
 
     const scrollContainer = wrapper.get('[data-testid="consumption-ranking-scroll"]')
     const rankingRows = wrapper.findAll('[data-testid=\"consumption-ranking-row\"]')
+    expect(scrollContainer.classes()).toContain('consumption-ranking-scroll')
     expect(scrollContainer.classes()).toContain('max-h-[612px]')
     expect(scrollContainer.classes()).toContain('overflow-y-auto')
     expect(rankingRows).toHaveLength(12)
