@@ -46,6 +46,38 @@
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
+            <div class="relative" @click.stop>
+              <button
+                @click.stop="showColumnDropdown = !showColumnDropdown"
+                class="btn btn-secondary px-2 md:px-3"
+                :title="t('admin.users.columnSettings')"
+              >
+                <svg class="h-4 w-4 md:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
+                  />
+                </svg>
+                <span class="hidden md:inline">{{ t('admin.users.columnSettings') }}</span>
+              </button>
+              <div
+                v-if="showColumnDropdown"
+                class="absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+              >
+                <div class="max-h-80 overflow-y-auto p-2">
+                  <button
+                    v-for="col in toggleableColumns"
+                    :key="col.key"
+                    @click.stop="toggleColumn(col.key)"
+                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <span>{{ col.label }}</span>
+                    <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="text-primary-500" />
+                  </button>
+                </div>
+              </div>
+            </div>
             <button
               @click="handleBatchTest"
               :disabled="batchTesting || loading"
@@ -345,11 +377,13 @@
           </template>
 
           <template #cell-actions="{ row }">
-            <div class="flex items-center gap-1">
+            <div class="relative flex items-center justify-end gap-1" @click.stop>
               <button
                 @click="handleTestConnection(row)"
                 :disabled="testingProxyIds.has(row.id)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
+                :title="t('admin.proxies.testConnection')"
+                :aria-label="t('admin.proxies.testConnection')"
               >
                 <svg
                   v-if="testingProxyIds.has(row.id)"
@@ -372,12 +406,14 @@
                   ></path>
                 </svg>
                 <Icon v-else name="checkCircle" size="sm" />
-                <span class="text-xs">{{ t('admin.proxies.testConnection') }}</span>
+                <span class="sr-only">{{ t('admin.proxies.testConnection') }}</span>
               </button>
               <button
                 @click="handleQualityCheck(row)"
                 :disabled="qualityCheckingProxyIds.has(row.id)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                :title="t('admin.proxies.qualityCheck')"
+                :aria-label="t('admin.proxies.qualityCheck')"
               >
                 <svg
                   v-if="qualityCheckingProxyIds.has(row.id)"
@@ -400,38 +436,59 @@
                   ></path>
                 </svg>
                 <Icon v-else name="shield" size="sm" />
-                <span class="text-xs">{{ t('admin.proxies.qualityCheck') }}</span>
-              </button>
-              <button
-                @click="handleTogglePoolMembership(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-900/20 dark:hover:text-violet-400"
-              >
-                <Icon :name="row.auto_failover_pool_enabled ? 'x' : 'plus'" size="sm" />
-                <span class="text-xs">
-                  {{ row.auto_failover_pool_enabled ? t('admin.proxies.poolDisableAction') : t('admin.proxies.poolEnableAction') }}
-                </span>
-              </button>
-              <button
-                @click="handleClearCooldown([row.id])"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
-              >
-                <Icon name="refresh" size="sm" />
-                <span class="text-xs">{{ t('admin.proxies.clearCooldownAction') }}</span>
+                <span class="sr-only">{{ t('admin.proxies.qualityCheck') }}</span>
               </button>
               <button
                 @click="handleEdit(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                :title="t('common.edit')"
+                :aria-label="t('common.edit')"
               >
                 <Icon name="edit" size="sm" />
-                <span class="text-xs">{{ t('common.edit') }}</span>
+                <span class="sr-only">{{ t('common.edit') }}</span>
               </button>
               <button
-                @click="handleDelete(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                type="button"
+                @click="toggleRowActionMenu(row.id)"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white"
+                :class="{ 'bg-gray-100 text-gray-900 dark:bg-dark-700 dark:text-white': activeRowActionMenuId === row.id }"
+                :title="t('common.more')"
+                :aria-label="t('common.more')"
+                :aria-expanded="activeRowActionMenuId === row.id"
               >
-                <Icon name="trash" size="sm" />
-                <span class="text-xs">{{ t('common.delete') }}</span>
+                <Icon name="more" size="sm" />
+                <span class="sr-only">{{ t('common.more') }}</span>
               </button>
+              <div
+                v-if="activeRowActionMenuId === row.id"
+                class="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
+                @click.stop
+              >
+                <div class="py-1">
+                  <button
+                    @click="closeRowActionMenu(); handleTogglePoolMembership(row)"
+                    class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                  >
+                    <Icon :name="row.auto_failover_pool_enabled ? 'x' : 'plus'" size="sm" class="text-violet-500" />
+                    {{ row.auto_failover_pool_enabled ? t('admin.proxies.poolDisableAction') : t('admin.proxies.poolEnableAction') }}
+                  </button>
+                  <button
+                    @click="closeRowActionMenu(); handleClearCooldown([row.id])"
+                    class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                  >
+                    <Icon name="refresh" size="sm" class="text-amber-500" />
+                    {{ t('admin.proxies.clearCooldownAction') }}
+                  </button>
+                  <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
+                  <button
+                    @click="closeRowActionMenu(); handleDelete(row)"
+                    class="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                  >
+                    <Icon name="trash" size="sm" />
+                    {{ t('common.delete') }}
+                  </button>
+                </div>
+              </div>
             </div>
           </template>
 
@@ -1057,19 +1114,64 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
 
-const columns = computed<Column[]>(() => [
-  { key: 'select', label: '', sortable: false },
-  { key: 'name', label: t('admin.proxies.columns.name'), sortable: true },
-  { key: 'protocol', label: t('admin.proxies.columns.protocol'), sortable: true },
-  { key: 'address', label: t('admin.proxies.columns.address'), sortable: false },
-  { key: 'auth', label: t('admin.proxies.columns.auth'), sortable: false },
-  { key: 'location', label: t('admin.proxies.columns.location'), sortable: false },
-  { key: 'account_count', label: t('admin.proxies.columns.accounts'), sortable: true },
-  { key: 'pool', label: t('admin.proxies.columns.pool'), sortable: false },
-  { key: 'latency', label: t('admin.proxies.columns.latency'), sortable: false },
-  { key: 'status', label: t('admin.proxies.columns.status'), sortable: true },
-  { key: 'actions', label: t('admin.proxies.columns.actions'), sortable: false }
+const allColumns = computed<Column[]>(() => [
+  { key: 'select', label: '', sortable: false, class: 'w-[52px] min-w-[52px]' },
+  { key: 'name', label: t('admin.proxies.columns.name'), sortable: true, class: 'min-w-[160px]' },
+  { key: 'protocol', label: t('admin.proxies.columns.protocol'), sortable: true, class: 'min-w-[88px]' },
+  { key: 'address', label: t('admin.proxies.columns.address'), sortable: false, class: 'min-w-[200px]' },
+  { key: 'auth', label: t('admin.proxies.columns.auth'), sortable: false, class: 'min-w-[160px]' },
+  { key: 'location', label: t('admin.proxies.columns.location'), sortable: false, class: 'min-w-[180px]' },
+  { key: 'account_count', label: t('admin.proxies.columns.accounts'), sortable: true, class: 'min-w-[100px]' },
+  { key: 'pool', label: t('admin.proxies.columns.pool'), sortable: false, class: 'min-w-[120px]' },
+  { key: 'latency', label: t('admin.proxies.columns.latency'), sortable: false, class: 'min-w-[140px]' },
+  { key: 'status', label: t('admin.proxies.columns.status'), sortable: true, class: 'min-w-[160px]' },
+  { key: 'actions', label: t('admin.proxies.columns.actions'), sortable: false, class: 'w-[176px] min-w-[176px]' }
 ])
+const toggleableColumns = computed(() =>
+  allColumns.value.filter((column) => column.key !== 'select' && column.key !== 'actions')
+)
+const hiddenColumns = reactive<Set<string>>(new Set())
+const HIDDEN_COLUMNS_KEY = 'admin-proxies-hidden-columns'
+
+const loadSavedColumns = () => {
+  hiddenColumns.clear()
+  try {
+    const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY)
+    if (!saved) return
+    const parsed = JSON.parse(saved) as string[]
+    const toggleableKeys = new Set(toggleableColumns.value.map((column) => column.key))
+    parsed
+      .filter((key) => toggleableKeys.has(key))
+      .forEach((key) => hiddenColumns.add(key))
+  } catch (error) {
+    console.error('Failed to load saved proxy columns:', error)
+  }
+}
+
+const saveColumnsToStorage = () => {
+  try {
+    localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
+  } catch (error) {
+    console.error('Failed to save proxy columns:', error)
+  }
+}
+
+const toggleColumn = (key: string) => {
+  if (hiddenColumns.has(key)) {
+    hiddenColumns.delete(key)
+  } else {
+    hiddenColumns.add(key)
+  }
+  saveColumnsToStorage()
+}
+
+const isColumnVisible = (key: string) => !hiddenColumns.has(key)
+
+const columns = computed<Column[]>(() =>
+  allColumns.value.filter((column) =>
+    column.key === 'select' || column.key === 'actions' || !hiddenColumns.has(column.key)
+  )
+)
 
 // Filter options
 const protocolOptions = computed(() => [
@@ -1134,12 +1236,14 @@ const showBatchUnassignDialog = ref(false)
 const showExportDataDialog = ref(false)
 const showAccountsModal = ref(false)
 const showPoolDialog = ref(false)
+const showColumnDropdown = ref(false)
 const submitting = ref(false)
 const exportingData = ref(false)
 const testingProxyIds = ref<Set<number>>(new Set())
 const qualityCheckingProxyIds = ref<Set<number>>(new Set())
 const batchTesting = ref(false)
 const batchQualityChecking = ref(false)
+const activeRowActionMenuId = ref<number | null>(null)
 const proxyTableRef = ref<HTMLElement | null>(null)
 const {
   selectedSet: selectedProxyIds,
@@ -2192,19 +2296,31 @@ function copyFormat(value: string) {
   copyMenuProxyId.value = null
 }
 
-function closeCopyMenu() {
+function toggleRowActionMenu(id: number) {
+  showColumnDropdown.value = false
+  activeRowActionMenuId.value = activeRowActionMenuId.value === id ? null : id
+}
+
+function closeRowActionMenu() {
+  activeRowActionMenuId.value = null
+}
+
+function closeFloatingMenus() {
   copyMenuProxyId.value = null
+  showColumnDropdown.value = false
+  activeRowActionMenuId.value = null
 }
 
 onMounted(() => {
+  loadSavedColumns()
   loadProxies()
   loadAccountGroups()
-  document.addEventListener('click', closeCopyMenu)
+  document.addEventListener('click', closeFloatingMenus)
 })
 
 onUnmounted(() => {
   clearTimeout(searchTimeout)
   abortController?.abort()
-  document.removeEventListener('click', closeCopyMenu)
+  document.removeEventListener('click', closeFloatingMenus)
 })
 </script>
