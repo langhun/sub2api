@@ -77,8 +77,8 @@ function mountView(settings: Record<string, boolean>) {
         PublicPageHeader: { template: '<header />' },
         PublicPageFooter: { template: '<footer />' },
         PublicConsumptionLeaderboardChart: {
-          props: ['chartItems', 'summary'],
-          template: '<div class="consumption-chart-stub">{{ chartItems.length }}|{{ summary?.total_value }}</div>',
+          props: ['chartItems', 'summary', 'entries'],
+          template: '<div class="consumption-chart-stub">{{ chartItems.length }}|{{ summary?.total_value }}|{{ entries.length }}</div>',
         },
       },
     },
@@ -184,7 +184,6 @@ describe('LeaderboardView tab switches', () => {
 
     await settleLeaderboard()
 
-    expect(wrapper.find('.consumption-chart-stub').text()).toBe('2|100')
-    expect(wrapper.text()).toContain('70.0%')
+    expect(wrapper.find('.consumption-chart-stub').text()).toBe('2|100|1')
   })
 })
