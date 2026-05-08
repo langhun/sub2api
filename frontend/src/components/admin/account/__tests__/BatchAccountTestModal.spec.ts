@@ -167,4 +167,68 @@ describe('BatchAccountTestModal', () => {
       expect(JSON.parse(request.body)).toEqual({ model_id: 'claude-sonnet-4-5' })
     }
   })
+
+  it('按设置的并发数并行启动批量测试', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5' }
+    ])
+
+    const wrapper = mount(BatchAccountTestModal, {
+      props: {
+        show: true,
+        targets: [
+          { id: 1, name: 'ag-1', platform: 'antigravity', type: 'oauth' },
+          { id: 2, name: 'ag-2', platform: 'antigravity', type: 'oauth' },
+          { id: 3, name: 'ag-3', platform: 'antigravity', type: 'oauth' }
+        ]
+      },
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            emits: ['update:modelValue'],
+            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id" :value="option.id">{{ option.display_name }}</option></select>'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const resolvers: Array<() => void> = []
+    global.fetch = vi.fn().mockImplementation(() => {
+      return new Promise((resolve) => {
+        resolvers.push(() => {
+          resolve(createStreamResponse([
+            'data: {"type":"test_start","model":"claude-sonnet-4-5"}\n',
+            'data: {"type":"content","text":"ok"}\n',
+            'data: {"type":"test_complete","success":true}\n'
+          ]))
+        })
+      })
+    }) as any
+
+    ;(wrapper.vm as any).selectedModelId = 'claude-sonnet-4-5'
+    ;(wrapper.vm as any).concurrencyLimit = 2
+
+    const runPromise = (wrapper.vm as any).startBatch()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+
+    resolvers[0]()
+    resolvers[1]()
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledTimes(3)
+
+    resolvers[2]()
+    await runPromise
+    await flushPromises()
+
+    expect((wrapper.vm as any).successCount).toBe(3)
+  })
 })

@@ -3519,6 +3519,8 @@ export default {
         failed: '失败',
         progress: '进度',
         model: '测试模型',
+        concurrency: '测试并发',
+        concurrencyHint: '同时测试的账号数量，最大 {max}。',
         selectModel: '请选择测试模型',
         noCommonModels: '所选账号没有共同可用的测试模型',
         modelLoadFailed: '加载测试模型失败',
