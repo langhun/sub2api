@@ -113,7 +113,20 @@ const navLinks = computed(() => [
   { key: 'pricing' as const, path: '/pricing', label: t('pricing.title') },
 ])
 
-const visibleNavLinks = computed(() => navLinks.value.filter(link => props.navLinkVisibility[link.key] !== false))
+const resolvedNavLinkVisibility = computed<Record<NavLinkKey, boolean>>(() => {
+  const settings = appStore.cachedPublicSettings
+  const legacyEnabled = settings?.home_nav_links_enabled !== false
+  const resolve = (settingsValue: boolean | undefined, overrideValue: boolean | undefined) => overrideValue ?? settingsValue ?? legacyEnabled
+
+  return {
+    leaderboard: resolve(settings?.home_nav_leaderboard_enabled, props.navLinkVisibility.leaderboard),
+    keyUsage: resolve(settings?.home_nav_key_usage_enabled, props.navLinkVisibility.keyUsage),
+    monitoring: resolve(settings?.home_nav_monitoring_enabled, props.navLinkVisibility.monitoring),
+    pricing: resolve(settings?.home_nav_pricing_enabled, props.navLinkVisibility.pricing),
+  }
+})
+
+const visibleNavLinks = computed(() => navLinks.value.filter(link => resolvedNavLinkVisibility.value[link.key] !== false))
 
 function toggleTheme() {
   isDark.value = !isDark.value
