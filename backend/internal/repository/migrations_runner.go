@@ -158,14 +158,18 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 			return fmt.Errorf("read migration %s: %w", name, err)
 		}
 
-		content := strings.TrimSpace(string(contentBytes))
-		if content == "" {
+		rawContent := strings.TrimSpace(string(contentBytes))
+		if rawContent == "" {
 			continue // 跳过空文件
+		}
+		executableContent := strings.TrimSpace(extractExecutableMigrationContent(rawContent))
+		if executableContent == "" {
+			continue
 		}
 
 		// 计算文件内容的 SHA256 校验和，用于检测文件是否被修改。
 		// 这是一种防篡改机制：如果有人修改了已应用的迁移文件，系统会拒绝启动。
-		sum := sha256.Sum256([]byte(content))
+		sum := sha256.Sum256([]byte(rawContent))
 		checksum := hex.EncodeToString(sum[:])
 
 		// 检查该迁移是否已经应用
@@ -196,7 +200,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 			return fmt.Errorf("check migration %s: %w", name, rowErr)
 		}
 
-		nonTx, err := validateMigrationExecutionMode(name, content)
+		nonTx, err := validateMigrationExecutionMode(name, executableContent)
 		if err != nil {
 			return fmt.Errorf("validate migration %s: %w", name, err)
 		}
@@ -208,7 +212,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 
 			// *_notx.sql：用于 CREATE/DROP INDEX CONCURRENTLY 场景，必须非事务执行。
 			// 逐条语句执行，避免将多条 CONCURRENTLY 语句放入同一个隐式事务块。
-			statements := splitSQLStatements(content)
+			statements := splitSQLStatements(executableContent)
 			for i, stmt := range statements {
 				trimmed := strings.TrimSpace(stmt)
 				if trimmed == "" {
@@ -234,7 +238,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 		}
 
 		// 执行迁移 SQL
-		if _, err := tx.ExecContext(ctx, content); err != nil {
+		if _, err := tx.ExecContext(ctx, executableContent); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %s: %w", name, err)
 		}
@@ -253,6 +257,38 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 	}
 
 	return nil
+}
+
+func extractExecutableMigrationContent(content string) string {
+	lines := strings.Split(content, "\n")
+	collected := make([]string, 0, len(lines))
+	hasGooseDirectives := false
+	inUpSection := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "-- +goose ") {
+			hasGooseDirectives = true
+			directive := strings.TrimSpace(strings.TrimPrefix(trimmed, "-- +goose "))
+			switch directive {
+			case "Up":
+				inUpSection = true
+			case "Down":
+				inUpSection = false
+			}
+			continue
+		}
+
+		if !hasGooseDirectives || inUpSection {
+			collected = append(collected, line)
+		}
+	}
+
+	if !hasGooseDirectives {
+		return content
+	}
+
+	return strings.Join(collected, "\n")
 }
 
 func prepareNonTransactionalMigration(ctx context.Context, db *sql.DB, name string) error {

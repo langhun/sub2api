@@ -8,8 +8,8 @@ FRONTEND_CRITICAL_VITEST := \
 	src/components/user/profile/__tests__/ProfileInfoCard.spec.ts \
 	src/views/admin/__tests__/SettingsView.spec.ts
 
-# 一键编译前后端
-build: build-backend build-frontend
+# 一键编译嵌入前端资源的后端产物
+build: build-backend
 
 # 编译后端（复用 backend/Makefile）
 build-backend:
@@ -32,7 +32,7 @@ test-backend:
 test-frontend:
 	@pnpm --dir frontend run lint:check
 	@pnpm --dir frontend run typecheck
-	@$(MAKE) test-frontend-critical
+	@pnpm --dir frontend run test:run
 
 test-frontend-critical:
 	@pnpm --dir frontend exec vitest run $(FRONTEND_CRITICAL_VITEST)

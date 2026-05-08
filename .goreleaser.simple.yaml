@@ -5,6 +5,8 @@ project_name: sub2api
 
 before:
   hooks:
+    - pnpm --dir frontend install --frozen-lockfile
+    - pnpm --dir frontend run build
     - go mod tidy -C backend
 
 builds:
