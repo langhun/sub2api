@@ -113,7 +113,7 @@ describe('PublicConsumptionLeaderboardChart', () => {
     expect(wrapper.text()).toContain('12 次请求')
   })
 
-  it('shows only the top 9 ranking rows in the side list', () => {
+  it('defaults to a 9-row viewport but keeps all ranking rows scrollable', () => {
     const entries = Array.from({ length: 12 }, (_, index) => ({
       rank: index + 1,
       username: `用户${index + 1}`,
@@ -132,9 +132,13 @@ describe('PublicConsumptionLeaderboardChart', () => {
       },
     })
 
+    const scrollContainer = wrapper.get('[data-testid="consumption-ranking-scroll"]')
     const rankingRows = wrapper.findAll('[data-testid=\"consumption-ranking-row\"]')
-    expect(rankingRows).toHaveLength(9)
+    expect(scrollContainer.classes()).toContain('max-h-[612px]')
+    expect(scrollContainer.classes()).toContain('overflow-y-auto')
+    expect(rankingRows).toHaveLength(12)
     expect(rankingRows[8].text()).toContain('用户9')
-    expect(rankingRows.some((row) => row.text().includes('用户10'))).toBe(false)
+    expect(rankingRows[9].text()).toContain('用户10')
+    expect(rankingRows[11].text()).toContain('用户12')
   })
 })
