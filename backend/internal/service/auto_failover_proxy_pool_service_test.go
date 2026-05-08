@@ -166,7 +166,13 @@ func TestAutoFailoverProxyPoolServiceBuildCandidatesSkipsCoolingProxy(t *testing
 	}
 
 	svc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, cache, nil)
-	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Extra: map[string]any{
+			"proxy_mode": AccountProxyModePool,
+		},
+	}
 
 	candidates, err := svc.BuildCandidates(context.Background(), account)
 	if err != nil {
@@ -180,6 +186,70 @@ func TestAutoFailoverProxyPoolServiceBuildCandidatesSkipsCoolingProxy(t *testing
 	}
 	if candidates[1].ProxyID == nil || *candidates[1].ProxyID != 3 {
 		t.Fatalf("second candidate = %+v, want proxy 3", candidates[1])
+	}
+}
+
+func TestAutoFailoverProxyPoolServiceBuildCandidatesDefaultsToDirectWhenPoolNotSelected(t *testing.T) {
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[1,2]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			1: {ID: 1, Name: "p1", Protocol: "http", Host: "p1.example", Port: 8080, Status: StatusActive},
+			2: {ID: 2, Name: "p2", Protocol: "http", Host: "p2.example", Port: 8080, Status: StatusActive},
+		},
+	}
+
+	svc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+
+	candidates, err := svc.BuildCandidates(context.Background(), account)
+	if err != nil {
+		t.Fatalf("BuildCandidates() error = %v", err)
+	}
+	if len(candidates) != 1 {
+		t.Fatalf("BuildCandidates() len = %d, want 1", len(candidates))
+	}
+	if candidates[0].Source != "direct" || candidates[0].ProxyID != nil || candidates[0].ProxyURL != "" {
+		t.Fatalf("candidate = %+v, want direct fallback only", candidates[0])
+	}
+}
+
+func TestAutoFailoverProxyPoolServiceBuildCandidatesUsesPoolWhenExplicitlySelected(t *testing.T) {
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[1,2]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			1: {ID: 1, Name: "p1", Protocol: "http", Host: "p1.example", Port: 8080, Status: StatusActive},
+			2: {ID: 2, Name: "p2", Protocol: "http", Host: "p2.example", Port: 8080, Status: StatusActive},
+		},
+	}
+
+	svc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
+	account := &Account{
+		Platform: PlatformAntigravity,
+		Type:     AccountTypeOAuth,
+		Extra: map[string]any{
+			"proxy_mode": AccountProxyModePool,
+		},
+	}
+
+	candidates, err := svc.BuildCandidates(context.Background(), account)
+	if err != nil {
+		t.Fatalf("BuildCandidates() error = %v", err)
+	}
+	if len(candidates) != 2 {
+		t.Fatalf("BuildCandidates() len = %d, want 2", len(candidates))
+	}
+	if candidates[0].Source != "auto_failover_pool" || candidates[1].Source != "auto_failover_pool" {
+		t.Fatalf("candidates = %+v, want pool candidates", candidates)
 	}
 }
 
