@@ -3360,6 +3360,8 @@ export default {
         failed: 'Failed',
         progress: 'Progress',
         model: 'Test model',
+        concurrency: 'Concurrency',
+        concurrencyHint: 'Number of accounts tested at the same time, up to {max}.',
         selectModel: 'Select a test model',
         noCommonModels: 'Selected accounts have no shared test model',
         modelLoadFailed: 'Failed to load test models',

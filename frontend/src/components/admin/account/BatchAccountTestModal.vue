@@ -42,29 +42,49 @@
         ></div>
       </div>
 
-      <div class="space-y-1.5">
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {{ t('admin.accounts.batchTest.model') }}
-        </label>
-        <Select
-          v-model="selectedModelId"
-          :options="availableModels"
-          :disabled="running || loadingModels || availableModels.length === 0"
-          value-key="id"
-          label-key="display_name"
-          :placeholder="modelPlaceholder"
-          :empty-text="modelEmptyText"
-          :searchable="availableModels.length > 5"
-        />
-        <p v-if="modelLoadError" class="text-xs text-red-600 dark:text-red-300">
-          {{ modelLoadError }}
-        </p>
-        <p
-          v-else-if="!loadingModels && rows.length > 0 && availableModels.length === 0"
-          class="text-xs text-amber-600 dark:text-amber-300"
-        >
-          {{ t('admin.accounts.batchTest.noCommonModels') }}
-        </p>
+      <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <div class="space-y-1.5">
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.accounts.batchTest.model') }}
+          </label>
+          <Select
+            v-model="selectedModelId"
+            :options="availableModels"
+            :disabled="running || loadingModels || availableModels.length === 0"
+            value-key="id"
+            label-key="display_name"
+            :placeholder="modelPlaceholder"
+            :empty-text="modelEmptyText"
+            :searchable="availableModels.length > 5"
+          />
+          <p v-if="modelLoadError" class="text-xs text-red-600 dark:text-red-300">
+            {{ modelLoadError }}
+          </p>
+          <p
+            v-else-if="!loadingModels && rows.length > 0 && availableModels.length === 0"
+            class="text-xs text-amber-600 dark:text-amber-300"
+          >
+            {{ t('admin.accounts.batchTest.noCommonModels') }}
+          </p>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.accounts.batchTest.concurrency') }}
+          </label>
+          <input
+            v-model.number="concurrencyLimit"
+            type="number"
+            min="1"
+            :max="MAX_BATCH_TEST_CONCURRENCY"
+            :disabled="running"
+            class="input"
+            @input="concurrencyLimit = normalizeConcurrencyLimit(concurrencyLimit)"
+          />
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.batchTest.concurrencyHint', { max: MAX_BATCH_TEST_CONCURRENCY }) }}
+          </p>
+        </div>
       </div>
 
       <div class="max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-500">
@@ -200,9 +220,13 @@ const running = ref(false)
 const stopRequested = ref(false)
 const availableModels = ref<ClaudeModel[]>([])
 const selectedModelId = ref('')
+const MAX_BATCH_TEST_CONCURRENCY = 50
+const DEFAULT_BATCH_TEST_CONCURRENCY = 5
+const concurrencyLimit = ref(DEFAULT_BATCH_TEST_CONCURRENCY)
 const loadingModels = ref(false)
 const modelLoadError = ref('')
-let abortController: AbortController | null = null
+const activeAbortControllers = new Set<AbortController>()
+let activeRunToken = 0
 let modelLoadSeq = 0
 
 const completedCount = computed(() => rows.value.filter(row => ['success', 'failed', 'skipped'].includes(row.status)).length)
@@ -215,6 +239,9 @@ const progressPercent = computed(() => {
 const hasCompleted = computed(() => completedCount.value > 0)
 const modelPlaceholder = computed(() => loadingModels.value ? t('common.loading') : t('admin.accounts.batchTest.selectModel'))
 const modelEmptyText = computed(() => loadingModels.value ? t('common.loading') : t('admin.accounts.batchTest.noCommonModels'))
+const effectiveConcurrency = computed(() =>
+  Math.min(rows.value.length || 1, normalizeConcurrencyLimit(concurrencyLimit.value))
+)
 
 watch(
   () => props.show,
@@ -256,8 +283,17 @@ const resetModelState = () => {
   modelLoadSeq++
   availableModels.value = []
   selectedModelId.value = ''
+  concurrencyLimit.value = DEFAULT_BATCH_TEST_CONCURRENCY
   loadingModels.value = false
   modelLoadError.value = ''
+}
+
+const normalizeConcurrencyLimit = (value: number) => {
+  if (!Number.isFinite(value)) return DEFAULT_BATCH_TEST_CONCURRENCY
+  const normalized = Math.trunc(value)
+  if (normalized < 1) return 1
+  if (normalized > MAX_BATCH_TEST_CONCURRENCY) return MAX_BATCH_TEST_CONCURRENCY
+  return normalized
 }
 
 const mergeCommonModels = (modelLists: ClaudeModel[][]): ClaudeModel[] => {
@@ -327,9 +363,22 @@ const statusBadgeClass = (status: BatchTestStatus) => {
 }
 
 const stopBatch = () => {
+  activeRunToken++
   stopRequested.value = true
-  abortController?.abort()
-  abortController = null
+  for (const controller of activeAbortControllers) {
+    controller.abort()
+  }
+  activeAbortControllers.clear()
+  rows.value = rows.value.map((row) => {
+    if (row.status === 'pending' || row.status === 'running') {
+      return {
+        ...row,
+        status: 'skipped',
+        message: t('admin.accounts.batchTest.stopped')
+      }
+    }
+    return row
+  })
   running.value = false
 }
 
@@ -342,38 +391,52 @@ const startBatch = async () => {
   if (running.value || rows.value.length === 0 || !selectedModelId.value) return
 
   const modelId = selectedModelId.value
+  const runToken = ++activeRunToken
   resetRows()
   running.value = true
   stopRequested.value = false
 
-  for (let index = 0; index < rows.value.length; index++) {
-    if (stopRequested.value) {
-      setRow(index, { status: 'skipped', message: t('admin.accounts.batchTest.stopped') })
-      continue
-    }
+  let nextIndex = 0
+  const workerCount = effectiveConcurrency.value
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      if (runToken !== activeRunToken) return
+      const index = nextIndex++
+      if (index >= rows.value.length) return
+      if (stopRequested.value) return
 
-    const row = rows.value[index]
-    setRow(index, { status: 'running', message: t('admin.accounts.batchTest.testing') })
-    abortController = new AbortController()
+      const row = rows.value[index]
+      setRow(index, { status: 'running', message: t('admin.accounts.batchTest.testing') })
+      const controller = new AbortController()
+      activeAbortControllers.add(controller)
 
-    try {
-      const result = await testAccount(row.id, modelId, abortController.signal)
-      setRow(index, {
-        status: result.success ? 'success' : 'failed',
-        message: result.message
-      })
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        setRow(index, { status: 'skipped', message: t('admin.accounts.batchTest.stopped') })
-        continue
+      try {
+        const result = await testAccount(row.id, modelId, controller.signal)
+        if (runToken !== activeRunToken) return
+        setRow(index, {
+          status: result.success ? 'success' : 'failed',
+          message: result.message
+        })
+      } catch (error) {
+        if (runToken !== activeRunToken) return
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          setRow(index, { status: 'skipped', message: t('admin.accounts.batchTest.stopped') })
+          continue
+        }
+        setRow(index, {
+          status: 'failed',
+          message: error instanceof Error ? error.message : t('common.error')
+        })
+      } finally {
+        activeAbortControllers.delete(controller)
       }
-      setRow(index, {
-        status: 'failed',
-        message: error instanceof Error ? error.message : t('common.error')
-      })
-    } finally {
-      abortController = null
     }
+  })
+
+  await Promise.all(workers)
+
+  if (runToken !== activeRunToken) {
+    return
   }
 
   running.value = false
