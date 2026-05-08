@@ -153,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -228,6 +228,12 @@ watch(
     }
   }
 )
+
+onMounted(() => {
+  if (!props.show) return
+  resetRows()
+  loadBatchModels()
+})
 
 watch(
   () => props.targets.map(target => `${target.id}:${target.platform}:${target.type}`).join('|'),
