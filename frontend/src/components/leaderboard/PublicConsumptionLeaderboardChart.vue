@@ -61,9 +61,13 @@
           </p>
         </div>
 
-        <div v-if="visibleEntries.length > 0" class="px-2 py-2 sm:px-3">
+        <div
+          v-if="displayEntries.length > 0"
+          data-testid="consumption-ranking-scroll"
+          class="max-h-[612px] overflow-y-auto px-2 py-2 sm:px-3"
+        >
           <div
-            v-for="entry in visibleEntries"
+            v-for="entry in displayEntries"
             :key="`${entry.rank}-${entry.username}`"
             data-testid="consumption-ranking-row"
             class="group flex items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-dark-800/50"
@@ -138,7 +142,6 @@ const props = withDefaults(defineProps<{
 
 const { t } = useI18n()
 const medals = ['🥇', '🥈', '🥉']
-const VISIBLE_RANK_LIMIT = 9
 
 const chartColors = computed(() => createConsumptionLeaderboardPalette(props.chartItems.length))
 
@@ -167,8 +170,6 @@ const displayEntries = computed(() => {
     extra_int: undefined,
   }))
 })
-
-const visibleEntries = computed(() => displayEntries.value.slice(0, VISIBLE_RANK_LIMIT))
 
 const chartData = computed(() => {
   if (!props.chartItems.length) {
