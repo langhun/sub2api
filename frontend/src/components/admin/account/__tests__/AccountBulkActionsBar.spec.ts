@@ -15,8 +15,10 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.bulkActions.edit': 'Bulk Edit',
           'admin.accounts.bulkActions.delete': 'Bulk Delete',
           'admin.accounts.bulkActions.test': 'Test Selected',
+          'admin.accounts.bulkActions.testAllUngrouped': 'Test All Ungrouped',
           'admin.accounts.bulkActions.resetStatus': 'Reset Status',
           'admin.accounts.bulkActions.refreshToken': 'Refresh Token',
+          'admin.accounts.batchTest.loadingTargets': 'Preparing Targets',
           'admin.accounts.bulkActions.enableScheduling': 'Enable Scheduling',
           'admin.accounts.bulkActions.disableScheduling': 'Disable Scheduling',
           'admin.accounts.bulkEdit.title': 'Bulk Edit Accounts'
@@ -27,9 +29,9 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-function mountBar(selectedIds: number[]) {
+function mountBar(selectedIds: number[], extraProps: Record<string, unknown> = {}) {
   return mount(AccountBulkActionsBar, {
-    props: { selectedIds }
+    props: { selectedIds, ...extraProps }
   })
 }
 
@@ -44,5 +46,11 @@ describe('AccountBulkActionsBar', () => {
     const wrapper = mountBar([])
 
     expect(wrapper.find('[data-testid="account-bulk-edit-selected"]').exists()).toBe(false)
+  })
+
+  it('shows the ungrouped one-click test action when requested', () => {
+    const wrapper = mountBar([], { showTestAllUngrouped: true })
+
+    expect(wrapper.get('[data-testid="account-bulk-test-all-ungrouped"]').text()).toBe('Test All Ungrouped')
   })
 })

@@ -186,6 +186,8 @@
       <template #table>
         <AccountBulkActionsBar
           :selected-ids="selIds"
+          :show-test-all-ungrouped="hasUngroupedAccounts"
+          :test-all-ungrouped-loading="loadingUngroupedBatchTargets"
           @delete="handleBulkDelete"
           @reset-status="handleBulkResetStatus"
           @refresh-token="handleBulkRefreshToken"
@@ -194,6 +196,7 @@
           @select-page="selectPage"
           @toggle-schedulable="handleBulkToggleSchedulable"
           @test="openBatchTest"
+          @test-all-ungrouped="openUngroupedBatchTest"
         />
         <div ref="accountTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
@@ -366,7 +369,14 @@
     <EditAccountModal v-if="showEdit && edAcc" :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
     <ReAuthAccountModal v-if="showReAuth && reAuthAcc" :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
     <AccountTestModal v-if="showTest && testingAcc" :show="showTest" :account="testingAcc" @close="closeTestModal" />
-    <BatchAccountTestModal v-if="showBatchTest" :show="showBatchTest" :targets="batchTestTargets" @close="closeBatchTestModal" @completed="handleBatchTestCompleted" />
+    <BatchAccountTestModal
+      v-if="showBatchTest"
+      :show="showBatchTest"
+      :targets="modalBatchTestTargets"
+      :default-model-only="showBatchTestSource === 'ungrouped'"
+      @close="closeBatchTestModal"
+      @completed="handleBatchTestCompleted"
+    />
     <AccountStatsModal v-if="showStats && statsAcc" :show="showStats" :account="statsAcc" @close="closeStatsModal" />
     <ScheduledTestsPanel v-if="showSchedulePanel && scheduleAcc" :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
     <AccountActionMenu v-if="menu.show && menu.acc" :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" />
@@ -538,6 +548,7 @@ const showDeleteDialog = ref(false)
 const showReAuth = ref(false)
 const showTest = ref(false)
 const showBatchTest = ref(false)
+const loadingUngroupedBatchTargets = ref(false)
 const showStats = ref(false)
 const showErrorPassthrough = ref(false)
 const showTLSFingerprintProfiles = ref(false)
@@ -550,6 +561,8 @@ const statsAcc = ref<Account | null>(null)
 const showSchedulePanel = ref(false)
 const scheduleAcc = ref<Account | null>(null)
 const scheduleModelOptions = ref<SelectOption[]>([])
+const showBatchTestSource = ref<'selected' | 'ungrouped'>('selected')
+const modalBatchTestTargets = ref<BatchTestTarget[]>([])
 const togglingSchedulable = ref<number | null>(null)
 const menu = reactive<{show:boolean, acc:Account|null, pos:{top:number, left:number}|null}>({ show: false, acc: null, pos: null })
 const exportingData = ref(false)
@@ -601,6 +614,14 @@ type ActiveFilterSummaryItem = {
   prefix: string
   label: string
 }
+
+type BatchTestTarget = {
+  id: number
+  name: string
+  platform?: string
+  type?: string
+}
+
 const ACCOUNT_SORTABLE_KEYS = new Set([
   'name',
   'status',
@@ -1098,6 +1119,13 @@ const activeFilterSummaryItems = computed<ActiveFilterSummaryItem[]>(() => {
   return items
 })
 
+const isUngroupedGroupFilterActive = computed(() => {
+  const filters = buildAccountLocalFilters(params as AccountLocalFilterParams)
+  return filters.group === ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE
+})
+
+const hasUngroupedAccounts = computed(() => isUngroupedGroupFilterActive.value && pagination.total > 0)
+
 const clearAccountFilters = () => {
   showFilterSummaryDetails.value = false
   Object.assign(params, {
@@ -1120,18 +1148,18 @@ watch(activeFilterSummaryItems, (items) => {
   }
 })
 
-const batchTestTargets = computed(() => {
-  const accountById = new Map(accounts.value.map(account => [account.id, account]))
-  return selIds.value.map((id) => {
-    const account = accountById.get(id)
-    return {
-      id,
-      name: account?.name || `#${id}`,
-      platform: account?.platform || '',
-      type: account?.type || ''
-    }
-  })
+const toBatchTestTarget = (account: Partial<Account> & { id: number; name?: string }): BatchTestTarget => ({
+  id: account.id,
+  name: account.name || `#${account.id}`,
+  platform: account.platform || '',
+  type: account.type || ''
 })
+
+const batchTestTargets = computed<BatchTestTarget[]>(() => {
+  const accountById = new Map(accounts.value.map(account => [account.id, account]))
+  return selIds.value.map((id) => toBatchTestTarget(accountById.get(id) || { id }))
+})
+
 
 const swipeVirtualContext: SwipeSelectVirtualContext = {
   getVirtualizer: () => dataTableRef.value?.virtualizer ?? null,
@@ -1897,13 +1925,64 @@ const handleExportData = async () => {
   }
 }
 const closeTestModal = () => { showTest.value = false; testingAcc.value = null }
-const closeBatchTestModal = () => { showBatchTest.value = false }
+const closeBatchTestModal = () => {
+  showBatchTest.value = false
+  showBatchTestSource.value = 'selected'
+  modalBatchTestTargets.value = []
+}
 const closeStatsModal = () => { showStats.value = false; statsAcc.value = null }
 const closeReAuthModal = () => { showReAuth.value = false; reAuthAcc.value = null }
 const handleTest = (a: Account) => { testingAcc.value = a; showTest.value = true }
+
+const loadFilteredBatchTestTargets = async (): Promise<BatchTestTarget[]> => {
+  const filters = buildAccountRequestFilters(params as AccountLocalFilterParams)
+  const pageSize = Math.max(pagination.page_size, 100)
+  const targets: BatchTestTarget[] = []
+  const seen = new Set<number>()
+  let page = 1
+
+  while (true) {
+    const response = await adminAPI.accounts.list(page, pageSize, filters)
+    for (const account of response.items) {
+      if (seen.has(account.id)) continue
+      seen.add(account.id)
+      targets.push(toBatchTestTarget(account))
+    }
+
+    if (page >= response.pages || response.items.length === 0) {
+      break
+    }
+    page += 1
+  }
+
+  return targets
+}
+
 const openBatchTest = () => {
   if (selIds.value.length === 0) return
+  showBatchTestSource.value = 'selected'
+  modalBatchTestTargets.value = [...batchTestTargets.value]
   showBatchTest.value = true
+}
+const openUngroupedBatchTest = async () => {
+  if (loadingUngroupedBatchTargets.value || !hasUngroupedAccounts.value) return
+
+  loadingUngroupedBatchTargets.value = true
+  try {
+    const targets = await loadFilteredBatchTestTargets()
+    if (targets.length === 0) {
+      appStore.showInfo(t('admin.accounts.batchTest.noAccountsToTest'))
+      return
+    }
+    showBatchTestSource.value = 'ungrouped'
+    modalBatchTestTargets.value = targets
+    showBatchTest.value = true
+  } catch (error: any) {
+    console.error('Failed to load filtered batch test targets:', error)
+    appStore.showError(error?.message || t('admin.accounts.batchTest.loadTargetsFailed'))
+  } finally {
+    loadingUngroupedBatchTargets.value = false
+  }
 }
 const handleBatchTestCompleted = (result: { success: number; failed: number; successIds: number[]; failedIds: number[] }) => {
   if (result.failed > 0) {

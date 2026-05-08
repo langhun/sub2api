@@ -67,7 +67,7 @@ function mountModal() {
         Select: {
           props: ['modelValue', 'options'],
           emits: ['update:modelValue'],
-          template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id" :value="option.id">{{ option.display_name }}</option></select>'
+          template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id || option.value" :value="option.id || option.value">{{ option.display_name || option.label }}</option></select>'
         },
         Icon: true
       }
@@ -131,7 +131,7 @@ describe('BatchAccountTestModal', () => {
           Select: {
             props: ['modelValue', 'options'],
             emits: ['update:modelValue'],
-            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id" :value="option.id">{{ option.display_name }}</option></select>'
+            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id || option.value" :value="option.id || option.value">{{ option.display_name || option.label }}</option></select>'
           },
           Icon: true
         }
@@ -168,6 +168,37 @@ describe('BatchAccountTestModal', () => {
     }
   })
 
+  it('默认模型模式下不会加载共同模型，并自动选择按账号默认测试模型', async () => {
+    getAvailableModels.mockReset()
+
+    const wrapper = mount(BatchAccountTestModal, {
+      props: {
+        show: true,
+        defaultModelOnly: true,
+        targets: [
+          { id: 1, name: 'ag-1', platform: 'antigravity', type: 'oauth' },
+          { id: 2, name: 'oa-1', platform: 'openai', type: 'apikey' }
+        ]
+      },
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            emits: ['update:modelValue'],
+            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id || option.value" :value="option.id || option.value">{{ option.display_name || option.label }}</option></select>'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(getAvailableModels).not.toHaveBeenCalled()
+    expect((wrapper.vm as any).selectedModelId).toBe('__default__')
+  })
+
   it('按设置的并发数并行启动批量测试', async () => {
     getAvailableModels.mockResolvedValue([
       { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5' }
@@ -188,7 +219,7 @@ describe('BatchAccountTestModal', () => {
           Select: {
             props: ['modelValue', 'options'],
             emits: ['update:modelValue'],
-            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id" :value="option.id">{{ option.display_name }}</option></select>'
+            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id || option.value" :value="option.id || option.value">{{ option.display_name || option.label }}</option></select>'
           },
           Icon: true
         }
@@ -230,5 +261,73 @@ describe('BatchAccountTestModal', () => {
     await flushPromises()
 
     expect((wrapper.vm as any).successCount).toBe(3)
+  })
+
+  it('按成功、401、429 和其他失败分类并支持快速筛选', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5' }
+    ])
+
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce(createStreamResponse([
+        'data: {"type":"test_start","model":"claude-sonnet-4-5"}\n',
+        'data: {"type":"content","text":"ok"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ]))
+      .mockResolvedValueOnce(createStreamResponse([
+        'data: {"type":"error","error":"Authentication failed (401): invalid token"}\n'
+      ]))
+      .mockResolvedValueOnce(createStreamResponse([
+        'data: {"type":"error","error":"API returned 429: rate limit"}\n'
+      ]))
+      .mockResolvedValueOnce(createStreamResponse([
+        'data: {"type":"error","error":"Upstream timeout"}\n'
+      ])) as any
+
+    const wrapper = mount(BatchAccountTestModal, {
+      props: {
+        show: true,
+        targets: [
+          { id: 1, name: 'ag-1', platform: 'antigravity', type: 'oauth' },
+          { id: 2, name: 'ag-2', platform: 'antigravity', type: 'oauth' },
+          { id: 3, name: 'ag-3', platform: 'antigravity', type: 'oauth' },
+          { id: 4, name: 'ag-4', platform: 'antigravity', type: 'oauth' }
+        ]
+      },
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            emits: ['update:modelValue'],
+            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id || option.value" :value="option.id || option.value">{{ option.display_name || option.label }}</option></select>'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    ;(wrapper.vm as any).selectedModelId = 'claude-sonnet-4-5'
+    await (wrapper.vm as any).startBatch()
+    await flushPromises()
+
+    expect((wrapper.vm as any).statusCodeCounts.success).toBe(1)
+    expect((wrapper.vm as any).statusCodeCounts['401']).toBe(1)
+    expect((wrapper.vm as any).statusCodeCounts['429']).toBe(1)
+    expect((wrapper.vm as any).statusCodeCounts.other_failed).toBe(1)
+
+    ;(wrapper.vm as any).resultFilter = '401'
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="batch-test-row"]')).toHaveLength(1)
+
+    ;(wrapper.vm as any).resultFilter = '429'
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="batch-test-row"]')).toHaveLength(1)
+
+    ;(wrapper.vm as any).resultFilter = 'other_failed'
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="batch-test-row"]')).toHaveLength(1)
   })
 })

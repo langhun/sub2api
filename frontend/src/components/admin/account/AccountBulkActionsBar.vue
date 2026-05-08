@@ -24,6 +24,19 @@
       </template>
     </div>
     <div class="flex flex-wrap justify-end gap-2">
+      <button
+        v-if="showTestAllUngrouped"
+        data-testid="account-bulk-test-all-ungrouped"
+        @click="$emit('test-all-ungrouped')"
+        :disabled="testAllUngroupedLoading"
+        class="btn btn-secondary btn-sm"
+      >
+        {{
+          testAllUngroupedLoading
+            ? t('admin.accounts.batchTest.loadingTargets')
+            : t('admin.accounts.bulkActions.testAllUngrouped')
+        }}
+      </button>
       <template v-if="selectedIds.length > 0">
         <button @click="$emit('delete')" class="btn btn-danger btn-sm">{{ t('admin.accounts.bulkActions.delete') }}</button>
         <button @click="$emit('test')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.test') }}</button>
@@ -42,6 +55,8 @@ import { useI18n } from 'vue-i18n'
 
 defineProps<{
   selectedIds: number[]
+  showTestAllUngrouped?: boolean
+  testAllUngroupedLoading?: boolean
 }>()
 
 defineEmits([
@@ -52,7 +67,8 @@ defineEmits([
   'toggle-schedulable',
   'reset-status',
   'refresh-token',
-  'test'
+  'test',
+  'test-all-ungrouped'
 ])
 
 const { t } = useI18n()

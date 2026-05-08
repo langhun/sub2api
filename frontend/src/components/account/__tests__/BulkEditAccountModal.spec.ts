@@ -217,6 +217,15 @@ describe('BulkEditAccountModal', () => {
     })
   })
 
+  it('支持代理模式的批量编辑默认选中代理池', () => {
+    const wrapper = mountModal({
+      selectedPlatforms: ['openai'],
+      selectedTypes: ['apikey']
+    })
+
+    expect((wrapper.vm as any).proxyMode).toBe('pool')
+  })
+
   it('OpenAI 账号批量编辑可关闭自动透传', async () => {
     const wrapper = mountModal({
       selectedPlatforms: ['openai'],

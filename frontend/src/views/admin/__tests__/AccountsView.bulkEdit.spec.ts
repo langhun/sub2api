@@ -67,14 +67,30 @@ const DataTableStub = {
 }
 
 const AccountBulkActionsBarStub = {
-  props: ['selectedIds'],
-  emits: ['edit-selected'],
-  template: '<button data-test="edit-selected" @click="$emit(\'edit-selected\')">edit selected</button>'
+  props: ['selectedIds', 'showTestAllUngrouped'],
+  emits: ['edit-selected', 'test-all-ungrouped'],
+  template: `
+    <div>
+      <button data-test="edit-selected" @click="$emit('edit-selected')">edit selected</button>
+      <button
+        v-if="showTestAllUngrouped"
+        data-test="test-all-ungrouped"
+        @click="$emit('test-all-ungrouped')"
+      >
+        test all ungrouped
+      </button>
+    </div>
+  `
 }
 
 const BulkEditAccountModalStub = {
   props: ['show'],
   template: '<div data-test="bulk-edit-modal" :data-show="String(show)"></div>'
+}
+
+const BatchAccountTestModalStub = {
+  props: ['show', 'targets'],
+  template: '<div data-test="batch-test-modal" :data-show="String(show)" :data-target-count="String(targets?.length ?? 0)"></div>'
 }
 
 describe('admin AccountsView bulk edit scope', () => {
@@ -122,7 +138,7 @@ describe('admin AccountsView bulk edit scope', () => {
           ImportDataModal: true,
           ReAuthAccountModal: true,
           AccountTestModal: true,
-          BatchAccountTestModal: true,
+          BatchAccountTestModal: BatchAccountTestModalStub,
           AccountStatsModal: true,
           ScheduledTestsPanel: true,
           SyncFromCrsModal: true,
@@ -148,5 +164,76 @@ describe('admin AccountsView bulk edit scope', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-test="bulk-edit-modal"]').attributes('data-show')).toBe('true')
+  })
+
+  it('opens batch test with all filtered ungrouped accounts', async () => {
+    listAccounts.mockResolvedValueOnce({
+      items: [
+        { id: 1, name: 'ungrouped-1', platform: 'openai', type: 'apikey', groups: [] },
+        { id: 2, name: 'ungrouped-2', platform: 'antigravity', type: 'oauth', groups: [] }
+      ],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+    listAccounts.mockResolvedValueOnce({
+      items: [
+        { id: 1, name: 'ungrouped-1', platform: 'openai', type: 'apikey', groups: [] },
+        { id: 2, name: 'ungrouped-2', platform: 'antigravity', type: 'oauth', groups: [] }
+      ],
+      total: 2,
+      page: 1,
+      page_size: 100,
+      pages: 1
+    })
+
+    const wrapper = mount(AccountsView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          AccountTableActions: { template: '<div><slot name="beforeCreate" /><slot name="after" /></div>' },
+          AccountTableFilters: { template: '<div></div>' },
+          AccountBulkActionsBar: AccountBulkActionsBarStub,
+          AccountActionMenu: true,
+          ImportDataModal: true,
+          ReAuthAccountModal: true,
+          AccountTestModal: true,
+          BatchAccountTestModal: BatchAccountTestModalStub,
+          AccountStatsModal: true,
+          ScheduledTestsPanel: true,
+          SyncFromCrsModal: true,
+          TempUnschedStatusModal: true,
+          ErrorPassthroughRulesModal: true,
+          TLSFingerprintProfilesModal: true,
+          CreateAccountModal: true,
+          EditAccountModal: true,
+          BulkEditAccountModal: BulkEditAccountModalStub,
+          PlatformTypeBadge: true,
+          AccountCapacityCell: true,
+          AccountStatusIndicator: true,
+          AccountTodayStatsCell: true,
+          AccountGroupsCell: true,
+          AccountUsageCell: true,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+    ;(wrapper.vm as any).params.group = 'ungrouped'
+    await flushPromises()
+
+    await wrapper.get('[data-test="test-all-ungrouped"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="batch-test-modal"]').attributes('data-show')).toBe('true')
+    expect(wrapper.get('[data-test="batch-test-modal"]').attributes('data-target-count')).toBe('2')
   })
 })
