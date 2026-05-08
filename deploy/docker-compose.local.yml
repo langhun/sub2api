@@ -131,7 +131,8 @@ services:
       # =======================================================================
       # Security Configuration (URL Allowlist)
       # =======================================================================
-      # Enable URL allowlist validation (false to skip allowlist checks)
+      # Enable URL allowlist validation (false disables hostname allowlist only;
+      # scheme checks and private-host blocking still apply unless explicitly relaxed)
       - SECURITY_URL_ALLOWLIST_ENABLED=${SECURITY_URL_ALLOWLIST_ENABLED:-false}
       # Allow insecure HTTP URLs when allowlist is disabled (default: false, requires https)
       - SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=${SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP:-false}
