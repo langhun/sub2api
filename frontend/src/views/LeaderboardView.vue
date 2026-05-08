@@ -112,10 +112,6 @@
                         <span class="text-sm font-bold text-amber-600 dark:text-amber-400">{{ entry.value }}</span>
                         <span class="text-xs text-amber-500/70 dark:text-amber-400/50"> {{ t('leaderboard.streakDays', { days: '' }).trim() }}</span>
                       </template>
-                      <template v-else-if="activeTab === 'transfer'">
-                        <span class="text-sm font-bold text-blue-600 dark:text-blue-400">${{ entry.value.toFixed(2) }}</span>
-                        <span v-if="entry.extra_int" class="mt-1 block text-xs text-gray-400 dark:text-dark-500">{{ entry.extra_int }} {{ t('leaderboard.transferCount', '笔') }}</span>
-                      </template>
                       <template v-else>
                         <span class="text-sm font-bold text-gray-900 dark:text-white">${{ entry.value.toFixed(2) }}</span>
                       </template>
@@ -150,8 +146,8 @@ import {
 const { t } = useI18n()
 const appStore = useAppStore()
 
-type TabKey = 'balance' | 'consumption' | 'checkin' | 'transfer'
-type PeriodKey = 'daily' | 'weekly' | 'monthly' | 'day' | 'week' | 'month'
+type TabKey = 'balance' | 'consumption' | 'checkin'
+type PeriodKey = 'daily' | 'weekly' | 'monthly'
 
 const activeTab = ref<TabKey>('balance')
 const activePeriod = ref<PeriodKey>('daily')
@@ -181,7 +177,6 @@ const leaderboardTabVisibility = computed<Record<TabKey, boolean>>(() => {
   return {
     balance: resolve(settings?.leaderboard_balance_enabled),
     consumption: resolve(settings?.leaderboard_consumption_enabled),
-    transfer: resolve(settings?.leaderboard_transfer_enabled),
     checkin: resolve(settings?.leaderboard_checkin_enabled),
   }
 })
@@ -189,29 +184,19 @@ const leaderboardTabVisibility = computed<Record<TabKey, boolean>>(() => {
 const allTabs = computed(() => [
   { key: 'balance' as TabKey, label: t('leaderboard.tabs.balance') },
   { key: 'consumption' as TabKey, label: t('leaderboard.tabs.consumption') },
-  { key: 'transfer' as TabKey, label: t('leaderboard.tabs.transfer', 'Transfer') },
   { key: 'checkin' as TabKey, label: t('leaderboard.tabs.checkin') },
 ])
 
 const tabs = computed(() => allTabs.value.filter((tab) => leaderboardTabVisibility.value[tab.key] !== false))
 const visibleTabKeys = computed(() => tabs.value.map((tab) => tab.key).join(','))
-const showPeriodSelector = computed(() => tabs.value.length > 0 && (activeTab.value === 'consumption' || activeTab.value === 'transfer'))
+const showPeriodSelector = computed(() => tabs.value.length > 0 && activeTab.value === 'consumption')
 const activeTabLabel = computed(() => tabs.value.find((tab) => tab.key === activeTab.value)?.label ?? '')
 
-const periods = computed(() => {
-  if (activeTab.value === 'transfer') {
-    return [
-      { key: 'day' as PeriodKey, label: t('leaderboard.periods.daily') },
-      { key: 'week' as PeriodKey, label: t('leaderboard.periods.weekly') },
-      { key: 'month' as PeriodKey, label: t('leaderboard.periods.monthly') },
-    ]
-  }
-  return [
-    { key: 'daily' as PeriodKey, label: t('leaderboard.periods.daily') },
-    { key: 'weekly' as PeriodKey, label: t('leaderboard.periods.weekly') },
-    { key: 'monthly' as PeriodKey, label: t('leaderboard.periods.monthly') },
-  ]
-})
+const periods = computed(() => [
+  { key: 'daily' as PeriodKey, label: t('leaderboard.periods.daily') },
+  { key: 'weekly' as PeriodKey, label: t('leaderboard.periods.weekly') },
+  { key: 'monthly' as PeriodKey, label: t('leaderboard.periods.monthly') },
+])
 
 const activePeriodLabel = computed(() => periods.value.find((period) => period.key === activePeriod.value)?.label ?? '')
 
@@ -227,8 +212,6 @@ function getSubtitle(entry: LeaderboardEntry): string {
     if (entry.extra_int) return t('leaderboard.balanceSubtitle', { count: entry.extra_int })
   } else if (activeTab.value === 'consumption') {
     if (entry.extra_int) return t('leaderboard.consumptionSubtitle', { count: entry.extra_int })
-  } else if (activeTab.value === 'transfer') {
-    return ''
   } else if (activeTab.value === 'checkin') {
     if (entry.extra_int || entry.extra_date) {
       return t('leaderboard.checkinSubtitle', { total: entry.extra_int || 0, date: entry.extra_date || '', reward: entry.extra_float?.toFixed(2) || '0.00' })
@@ -247,10 +230,7 @@ async function fetchData() {
         res = await leaderboardAPI.getBalanceLeaderboard(1, 20)
         break
       case 'consumption':
-        res = await leaderboardAPI.getConsumptionLeaderboard(activePeriod.value as 'daily' | 'weekly' | 'monthly', 1, 20)
-        break
-      case 'transfer':
-        res = await leaderboardAPI.getTransferLeaderboard(activePeriod.value as 'day' | 'week' | 'month', 1, 20)
+        res = await leaderboardAPI.getConsumptionLeaderboard(activePeriod.value, 1, 20)
         break
       case 'checkin':
         res = await leaderboardAPI.getCheckinLeaderboard(1, 20)
@@ -306,14 +286,6 @@ function ensureActiveTabVisible(): boolean {
 }
 
 function ensureActivePeriodValid(): boolean {
-  if (activeTab.value === 'transfer') {
-    if (!['day', 'week', 'month'].includes(activePeriod.value)) {
-      activePeriod.value = 'day'
-      return false
-    }
-    return true
-  }
-
   if (!['daily', 'weekly', 'monthly'].includes(activePeriod.value)) {
     activePeriod.value = 'daily'
     return false
