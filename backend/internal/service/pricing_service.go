@@ -504,7 +504,9 @@ func (s *PricingService) fetchRemoteHash() (string, error) {
 
 func (s *PricingService) validatePricingURL(raw string) (string, error) {
 	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
+		normalized, err := urlvalidator.ValidateHTTPURL(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
+			AllowPrivate: s.cfg.Security.URLAllowlist.AllowPrivateHosts,
+		})
 		if err != nil {
 			return "", fmt.Errorf("invalid pricing url: %w", err)
 		}

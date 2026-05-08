@@ -15,23 +15,23 @@ import (
 )
 
 var (
-	ErrTransferDisabled       = infraerrors.Forbidden("TRANSFER_DISABLED", "transfer feature is disabled")
-	ErrTransferSelf           = infraerrors.BadRequest("TRANSFER_SELF", "cannot transfer to yourself")
-	ErrTransferAmountInvalid  = infraerrors.BadRequest("TRANSFER_AMOUNT_INVALID", "invalid transfer amount")
-	ErrTransferInsufficient   = infraerrors.BadRequest("TRANSFER_INSUFFICIENT", "insufficient balance")
-	ErrTransferDailyLimit     = infraerrors.Forbidden("TRANSFER_DAILY_LIMIT", "daily transfer limit exceeded")
-	ErrTransferDailyCount     = infraerrors.Forbidden("TRANSFER_DAILY_COUNT", "daily transfer count limit exceeded")
+	ErrTransferDisabled         = infraerrors.Forbidden("TRANSFER_DISABLED", "transfer feature is disabled")
+	ErrTransferSelf             = infraerrors.BadRequest("TRANSFER_SELF", "cannot transfer to yourself")
+	ErrTransferAmountInvalid    = infraerrors.BadRequest("TRANSFER_AMOUNT_INVALID", "invalid transfer amount")
+	ErrTransferInsufficient     = infraerrors.BadRequest("TRANSFER_INSUFFICIENT", "insufficient balance")
+	ErrTransferDailyLimit       = infraerrors.Forbidden("TRANSFER_DAILY_LIMIT", "daily transfer limit exceeded")
+	ErrTransferDailyCount       = infraerrors.Forbidden("TRANSFER_DAILY_COUNT", "daily transfer count limit exceeded")
 	ErrTransferReceiverNotFound = infraerrors.NotFound("RECEIVER_NOT_FOUND", "receiver not found")
-	ErrTransferNotFound       = infraerrors.NotFound("TRANSFER_NOT_FOUND", "transfer not found")
-	ErrTransferAlreadyFrozen  = infraerrors.BadRequest("TRANSFER_ALREADY_FROZEN", "transfer already frozen")
-	ErrTransferAlreadyRevoked = infraerrors.BadRequest("TRANSFER_ALREADY_REVOKED", "transfer already revoked")
-	ErrRedPacketDisabled      = infraerrors.Forbidden("REDPACKET_DISABLED", "red packet feature is disabled")
-	ErrRedPacketNotFound      = infraerrors.NotFound("REDPACKET_NOT_FOUND", "red packet not found")
-	ErrRedPacketExpired       = infraerrors.BadRequest("REDPACKET_EXPIRED", "red packet has expired")
-	ErrRedPacketExhausted     = infraerrors.BadRequest("REDPACKET_EXHAUSTED", "red packet has been fully claimed")
-	ErrRedPacketAlreadyClaimed = infraerrors.BadRequest("REDPACKET_ALREADY_CLAIMED", "you have already claimed this red packet")
-	ErrRedPacketSelfClaim     = infraerrors.BadRequest("REDPACKET_SELF_CLAIM", "cannot claim your own red packet")
-	ErrRedPacketCountInvalid  = infraerrors.BadRequest("REDPACKET_COUNT_INVALID", "invalid red packet count")
+	ErrTransferNotFound         = infraerrors.NotFound("TRANSFER_NOT_FOUND", "transfer not found")
+	ErrTransferAlreadyFrozen    = infraerrors.BadRequest("TRANSFER_ALREADY_FROZEN", "transfer already frozen")
+	ErrTransferAlreadyRevoked   = infraerrors.BadRequest("TRANSFER_ALREADY_REVOKED", "transfer already revoked")
+	ErrRedPacketDisabled        = infraerrors.Forbidden("REDPACKET_DISABLED", "red packet feature is disabled")
+	ErrRedPacketNotFound        = infraerrors.NotFound("REDPACKET_NOT_FOUND", "red packet not found")
+	ErrRedPacketExpired         = infraerrors.BadRequest("REDPACKET_EXPIRED", "red packet has expired")
+	ErrRedPacketExhausted       = infraerrors.BadRequest("REDPACKET_EXHAUSTED", "red packet has been fully claimed")
+	ErrRedPacketAlreadyClaimed  = infraerrors.BadRequest("REDPACKET_ALREADY_CLAIMED", "you have already claimed this red packet")
+	ErrRedPacketSelfClaim       = infraerrors.BadRequest("REDPACKET_SELF_CLAIM", "cannot claim your own red packet")
+	ErrRedPacketCountInvalid    = infraerrors.BadRequest("REDPACKET_COUNT_INVALID", "invalid red packet count")
 )
 
 type BalanceTransferService struct {
@@ -40,6 +40,11 @@ type BalanceTransferService struct {
 	userRepo       UserRepository
 	settingService *SettingService
 	claimLocks     sync.Map
+}
+
+type balanceTransferTxGuard interface {
+	GetByIDForUpdate(ctx context.Context, id int64) (*BalanceTransferRecord, error)
+	LockUserBalance(ctx context.Context, userID int64) (float64, error)
 }
 
 func NewBalanceTransferService(
@@ -87,16 +92,6 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 	if amount < cfg.MinAmount || (cfg.MaxAmount > 0 && amount > cfg.MaxAmount) || amount <= 0 {
 		return nil, ErrTransferAmountInvalid
 	}
-	dailyTotal, dailyCount, err := s.transferRepo.GetDailyTransferTotal(ctx, senderID)
-	if err != nil {
-		return nil, fmt.Errorf("check daily limit: %w", err)
-	}
-	if cfg.DailyLimit > 0 && dailyTotal+amount > cfg.DailyLimit {
-		return nil, ErrTransferDailyLimit
-	}
-	if cfg.DailyCountLimit > 0 && dailyCount >= cfg.DailyCountLimit {
-		return nil, ErrTransferDailyCount
-	}
 	receiver, err := s.userRepo.GetByID(ctx, receiverID)
 	if err != nil {
 		return nil, ErrTransferReceiverNotFound
@@ -110,15 +105,25 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 		fee = 0
 	}
 	grossAmount := amount + fee
-	sender, err := s.userRepo.GetByID(ctx, senderID)
-	if err != nil {
-		return nil, fmt.Errorf("get sender: %w", err)
-	}
-	if sender.Balance < grossAmount {
-		return nil, ErrTransferInsufficient
-	}
 	var record *BalanceTransferRecord
 	if err := s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
+		senderBalance, err := s.lockUserBalance(txCtx, senderID)
+		if err != nil {
+			return fmt.Errorf("lock sender balance: %w", err)
+		}
+		dailyTotal, dailyCount, err := s.transferRepo.GetDailyTransferTotal(txCtx, senderID)
+		if err != nil {
+			return fmt.Errorf("check daily limit: %w", err)
+		}
+		if cfg.DailyLimit > 0 && dailyTotal+grossAmount > cfg.DailyLimit {
+			return ErrTransferDailyLimit
+		}
+		if cfg.DailyCountLimit > 0 && dailyCount >= cfg.DailyCountLimit {
+			return ErrTransferDailyCount
+		}
+		if senderBalance < grossAmount {
+			return ErrTransferInsufficient
+		}
 		if err := s.userRepo.DeductBalance(txCtx, senderID, grossAmount); err != nil {
 			return fmt.Errorf("deduct sender balance: %w", err)
 		}
@@ -204,14 +209,14 @@ func (s *BalanceTransferService) FreezeTransfer(ctx context.Context, adminID, tr
 }
 
 func (s *BalanceTransferService) RevokeTransfer(ctx context.Context, adminID, transferID int64, reason string) error {
-	record, err := s.transferRepo.GetByID(ctx, transferID)
-	if err != nil {
-		return ErrTransferNotFound
-	}
-	if record.Status == "revoked" {
-		return ErrTransferAlreadyRevoked
-	}
 	return s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
+		record, err := s.getTransferForUpdate(txCtx, transferID)
+		if err != nil {
+			return ErrTransferNotFound
+		}
+		if record.Status == "revoked" {
+			return ErrTransferAlreadyRevoked
+		}
 		if err := s.userRepo.DeductBalance(txCtx, record.ReceiverID, record.Amount); err != nil {
 			return fmt.Errorf("deduct receiver balance: %w", err)
 		}
@@ -537,4 +542,22 @@ func (s *BalanceTransferService) SearchUsers(ctx context.Context, query string) 
 		results = append(results, &UserSearchResult{ID: u.ID, Email: u.Email, Username: u.Username})
 	}
 	return results, nil
+}
+
+func (s *BalanceTransferService) getTransferForUpdate(ctx context.Context, transferID int64) (*BalanceTransferRecord, error) {
+	if repo, ok := s.transferRepo.(balanceTransferTxGuard); ok {
+		return repo.GetByIDForUpdate(ctx, transferID)
+	}
+	return s.transferRepo.GetByID(ctx, transferID)
+}
+
+func (s *BalanceTransferService) lockUserBalance(ctx context.Context, userID int64) (float64, error) {
+	if repo, ok := s.transferRepo.(balanceTransferTxGuard); ok {
+		return repo.LockUserBalance(ctx, userID)
+	}
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	return user.Balance, nil
 }

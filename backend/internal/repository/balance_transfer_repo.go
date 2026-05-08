@@ -3,20 +3,26 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
 
 type balanceTransferRepo struct {
 	client *dbent.Client
 	db     *sql.DB
 }
+
+const balanceTransferTxMaxRetries = 3
 
 func NewBalanceTransferRepository(client *dbent.Client, db *sql.DB) service.BalanceTransferRepository {
 	return &balanceTransferRepo{client: client, db: db}
@@ -55,6 +61,99 @@ func (r *balanceTransferRepo) GetByID(ctx context.Context, id int64) (*service.B
 		return nil, fmt.Errorf("get balance transfer %d: %w", id, err)
 	}
 	return toTransferRecord(t), nil
+}
+
+func (r *balanceTransferRepo) GetByIDForUpdate(ctx context.Context, id int64) (*service.BalanceTransferRecord, error) {
+	client := clientFromContext(ctx, r.client)
+	rows, err := client.QueryContext(ctx, `
+SELECT id, sender_id, receiver_id, amount, fee, fee_rate, gross_amount,
+       transfer_type, status, memo, redpacket_id, frozen_at, frozen_by,
+       revoke_reason, created_at
+FROM balance_transfers
+WHERE id = $1
+FOR UPDATE
+`, id)
+	if err != nil {
+		return nil, fmt.Errorf("lock balance transfer %d: %w", id, err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("lock balance transfer %d: %w", id, err)
+		}
+		return nil, fmt.Errorf("lock balance transfer %d: %w", id, sql.ErrNoRows)
+	}
+
+	var (
+		record      service.BalanceTransferRecord
+		memo        sql.NullString
+		redpacketID sql.NullInt64
+		frozenAt    sql.NullTime
+		frozenBy    sql.NullInt64
+		reason      sql.NullString
+	)
+	if err := rows.Scan(
+		&record.ID,
+		&record.SenderID,
+		&record.ReceiverID,
+		&record.Amount,
+		&record.Fee,
+		&record.FeeRate,
+		&record.GrossAmount,
+		&record.TransferType,
+		&record.Status,
+		&memo,
+		&redpacketID,
+		&frozenAt,
+		&frozenBy,
+		&reason,
+		&record.CreatedAt,
+	); err != nil {
+		return nil, fmt.Errorf("scan locked balance transfer %d: %w", id, err)
+	}
+	if memo.Valid {
+		record.Memo = &memo.String
+	}
+	if redpacketID.Valid {
+		record.RedpacketID = &redpacketID.Int64
+	}
+	if frozenAt.Valid {
+		record.FrozenAt = &frozenAt.Time
+	}
+	if frozenBy.Valid {
+		record.FrozenBy = &frozenBy.Int64
+	}
+	if reason.Valid {
+		record.RevokeReason = &reason.String
+	}
+	return &record, rows.Err()
+}
+
+func (r *balanceTransferRepo) LockUserBalance(ctx context.Context, userID int64) (float64, error) {
+	client := clientFromContext(ctx, r.client)
+	rows, err := client.QueryContext(
+		ctx,
+		"SELECT balance FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE",
+		userID,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("lock user %d balance: %w", userID, err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return 0, fmt.Errorf("lock user %d balance: %w", userID, err)
+		}
+		return 0, service.ErrUserNotFound
+	}
+
+	var balance float64
+	if err := rows.Scan(&balance); err != nil {
+		return 0, fmt.Errorf("scan user %d balance: %w", userID, err)
+	}
+	return balance, rows.Err()
 }
 
 func (r *balanceTransferRepo) UpdateStatus(ctx context.Context, id int64, status string, frozenAt *time.Time, frozenBy *int64, revokeReason *string) error {
@@ -141,14 +240,29 @@ func (r *balanceTransferRepo) ListAll(ctx context.Context, filter *service.Trans
 }
 
 func (r *balanceTransferRepo) GetDailyTransferTotal(ctx context.Context, userID int64) (float64, int, error) {
-	startOfDay := time.Now().Truncate(24 * time.Hour)
+	client := clientFromContext(ctx, r.client)
+	startOfDay := timezone.Today()
 	var total float64
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	rows, err := client.QueryContext(ctx,
 		"SELECT COALESCE(SUM(gross_amount),0), COALESCE(COUNT(*),0) FROM balance_transfers WHERE sender_id = $1 AND status != 'revoked' AND created_at >= $2",
 		userID, startOfDay,
-	).Scan(&total, &count)
-	return total, count, err
+	)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return 0, 0, err
+		}
+		return 0, 0, sql.ErrNoRows
+	}
+	if err := rows.Scan(&total, &count); err != nil {
+		return 0, 0, err
+	}
+	return total, count, rows.Err()
 }
 
 func (r *balanceTransferRepo) GetFeeStats(ctx context.Context, startTime, endTime time.Time) ([]*service.DailyFeeStat, error) {
@@ -217,16 +331,42 @@ func (r *balanceTransferRepo) queryWithPagination(ctx context.Context, query *db
 }
 
 func (r *balanceTransferRepo) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
-	tx, err := r.client.Tx(ctx)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
+	if dbent.TxFromContext(ctx) != nil {
+		return fn(ctx)
 	}
-	txCtx := dbent.NewTxContext(ctx, tx)
-	defer func() { _ = tx.Rollback() }()
-	if err := fn(txCtx); err != nil {
-		return err
+
+	var lastErr error
+	for attempt := 0; attempt < balanceTransferTxMaxRetries; attempt++ {
+		tx, err := r.client.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+		if err != nil {
+			return fmt.Errorf("begin tx: %w", err)
+		}
+
+		txCtx := dbent.NewTxContext(ctx, tx)
+		if err := fn(txCtx); err != nil {
+			_ = tx.Rollback()
+			if isRetryableBalanceTransferTxErr(err) {
+				lastErr = err
+				continue
+			}
+			return err
+		}
+
+		if err := tx.Commit(); err != nil {
+			_ = tx.Rollback()
+			if isRetryableBalanceTransferTxErr(err) {
+				lastErr = fmt.Errorf("commit tx: %w", err)
+				continue
+			}
+			return err
+		}
+		return nil
 	}
-	return tx.Commit()
+
+	if lastErr != nil {
+		return lastErr
+	}
+	return fmt.Errorf("begin tx: exhausted retries")
 }
 
 func (r *balanceTransferRepo) GetUserTransferStats(ctx context.Context, userID int64) (sent, received, feePaid float64, err error) {
@@ -258,4 +398,20 @@ func toTransferRecord(t *dbent.BalanceTransfer) *service.BalanceTransferRecord {
 		RevokeReason: t.RevokeReason,
 		CreatedAt:    t.CreatedAt,
 	}
+}
+
+func isRetryableBalanceTransferTxErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var pgErr *pq.Error
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "40001" || pgErr.Code == "40P01"
+	}
+
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "could not serialize access") ||
+		strings.Contains(msg, "serialization failure") ||
+		strings.Contains(msg, "deadlock detected")
 }

@@ -1699,6 +1699,25 @@ func TestOpenAIValidateUpstreamBaseURLDisabledAllowsHTTP(t *testing.T) {
 	}
 }
 
+func TestOpenAIValidateUpstreamBaseURLDisabledBlocksPrivateHostsByDefault(t *testing.T) {
+	cfg := &config.Config{
+		Security: config.SecurityConfig{
+			URLAllowlist: config.URLAllowlistConfig{
+				Enabled:           false,
+				AllowPrivateHosts: false,
+			},
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	if _, err := svc.validateUpstreamBaseURL("https://localhost"); err == nil {
+		t.Fatalf("expected localhost to be rejected when allow_private_hosts is false")
+	}
+	if _, err := svc.validateUpstreamBaseURL("https://127.0.0.1"); err == nil {
+		t.Fatalf("expected loopback ip to be rejected when allow_private_hosts is false")
+	}
+}
+
 func TestOpenAIValidateUpstreamBaseURLEnabledEnforcesAllowlist(t *testing.T) {
 	cfg := &config.Config{
 		Security: config.SecurityConfig{
