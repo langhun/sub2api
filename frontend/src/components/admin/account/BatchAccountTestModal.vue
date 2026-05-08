@@ -87,6 +87,33 @@
         </div>
       </div>
 
+      <div class="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
+        <div class="space-y-1.5">
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.accounts.batchTest.resultFilterLabel') }}
+          </label>
+          <Select
+            v-model="resultFilter"
+            :options="resultFilterOptions"
+            :disabled="running && !hasCompleted"
+          />
+        </div>
+
+        <div class="flex flex-wrap items-end gap-2">
+          <button
+            v-for="option in quickFilterOptions"
+            :key="option.value"
+            type="button"
+            :data-testid="`batch-test-filter-${option.value}`"
+            class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+            :class="quickFilterButtonClass(option.value)"
+            @click="resultFilter = option.value"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </div>
+
       <div class="max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-500">
         <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-500">
           <thead class="sticky top-0 bg-gray-50 dark:bg-dark-700">
@@ -106,7 +133,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100 bg-white dark:divide-dark-600 dark:bg-dark-800">
-            <tr v-for="row in rows" :key="row.id">
+            <tr v-for="row in filteredRows" :key="row.id" data-testid="batch-test-row">
               <td class="px-4 py-3">
                 <div class="font-medium text-gray-900 dark:text-white">{{ row.name }}</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400">ID {{ row.id }}</div>
@@ -137,6 +164,11 @@
               </td>
               <td class="max-w-[360px] px-4 py-3 text-gray-600 dark:text-gray-300">
                 <div class="truncate" :title="row.message">{{ row.message || '-' }}</div>
+              </td>
+            </tr>
+            <tr v-if="filteredRows.length === 0">
+              <td colspan="4" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.batchTest.emptyFiltered') }}
               </td>
             </tr>
           </tbody>
@@ -193,7 +225,10 @@ interface BatchTestTarget {
 interface BatchTestRow extends BatchTestTarget {
   status: BatchTestStatus
   message: string
+  resultCode: string
 }
+
+type ResultFilterValue = 'all' | 'success' | '401' | '429' | 'other_failed'
 
 interface TestStreamEvent {
   type: string
@@ -206,6 +241,7 @@ interface TestStreamEvent {
 const props = defineProps<{
   show: boolean
   targets: BatchTestTarget[]
+  defaultModelOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -220,6 +256,7 @@ const running = ref(false)
 const stopRequested = ref(false)
 const availableModels = ref<ClaudeModel[]>([])
 const selectedModelId = ref('')
+const resultFilter = ref<ResultFilterValue>('all')
 const MAX_BATCH_TEST_CONCURRENCY = 50
 const DEFAULT_BATCH_TEST_CONCURRENCY = 5
 const concurrencyLimit = ref(DEFAULT_BATCH_TEST_CONCURRENCY)
@@ -228,10 +265,37 @@ const modelLoadError = ref('')
 const activeAbortControllers = new Set<AbortController>()
 let activeRunToken = 0
 let modelLoadSeq = 0
+const DEFAULT_BATCH_MODEL_ID = '__default__'
 
 const completedCount = computed(() => rows.value.filter(row => ['success', 'failed', 'skipped'].includes(row.status)).length)
 const successCount = computed(() => rows.value.filter(row => row.status === 'success').length)
 const failedCount = computed(() => rows.value.filter(row => row.status === 'failed').length)
+const statusCodeCounts = computed<Record<ResultFilterValue, number>>(() => {
+  const counts: Record<ResultFilterValue, number> = {
+    all: rows.value.length,
+    success: 0,
+    '401': 0,
+    '429': 0,
+    other_failed: 0
+  }
+
+  for (const row of rows.value) {
+    if (row.status === 'success') {
+      counts.success++
+      continue
+    }
+    if (row.status !== 'failed') continue
+    if (row.resultCode === '401') {
+      counts['401']++
+    } else if (row.resultCode === '429') {
+      counts['429']++
+    } else {
+      counts.other_failed++
+    }
+  }
+
+  return counts
+})
 const progressPercent = computed(() => {
   if (rows.value.length === 0) return 0
   return Math.round((completedCount.value / rows.value.length) * 100)
@@ -242,6 +306,30 @@ const modelEmptyText = computed(() => loadingModels.value ? t('common.loading') 
 const effectiveConcurrency = computed(() =>
   Math.min(rows.value.length || 1, normalizeConcurrencyLimit(concurrencyLimit.value))
 )
+const resultFilterOptions = computed<Array<{ value: ResultFilterValue; label: string }>>(() => [
+  { value: 'all', label: t('admin.accounts.batchTest.resultFilters.all', { count: statusCodeCounts.value.all }) },
+  { value: 'success', label: t('admin.accounts.batchTest.resultFilters.success', { count: statusCodeCounts.value.success }) },
+  { value: '401', label: t('admin.accounts.batchTest.resultFilters.unauthorized', { count: statusCodeCounts.value['401'] }) },
+  { value: '429', label: t('admin.accounts.batchTest.resultFilters.rateLimited', { count: statusCodeCounts.value['429'] }) },
+  { value: 'other_failed', label: t('admin.accounts.batchTest.resultFilters.otherFailed', { count: statusCodeCounts.value.other_failed }) }
+])
+const quickFilterOptions = computed(() => resultFilterOptions.value)
+const filteredRows = computed(() => {
+  switch (resultFilter.value) {
+    case 'success':
+      return rows.value.filter(row => row.status === 'success')
+    case '401':
+      return rows.value.filter(row => row.status === 'failed' && row.resultCode === '401')
+    case '429':
+      return rows.value.filter(row => row.status === 'failed' && row.resultCode === '429')
+    case 'other_failed':
+      return rows.value.filter(
+        row => row.status === 'failed' && row.resultCode !== '401' && row.resultCode !== '429'
+      )
+    default:
+      return rows.value
+  }
+})
 
 watch(
   () => props.show,
@@ -275,8 +363,10 @@ const resetRows = () => {
   rows.value = props.targets.map(target => ({
     ...target,
     status: 'pending',
-    message: ''
+    message: '',
+    resultCode: ''
   }))
+  resultFilter.value = 'all'
 }
 
 const resetModelState = () => {
@@ -312,6 +402,19 @@ const mergeCommonModels = (modelLists: ClaudeModel[][]): ClaudeModel[] => {
 }
 
 const loadBatchModels = async () => {
+  if (props.defaultModelOnly) {
+    availableModels.value = [
+      {
+        id: DEFAULT_BATCH_MODEL_ID,
+        display_name: t('admin.accounts.batchTest.defaultModelOption')
+      } as ClaudeModel
+    ]
+    selectedModelId.value = DEFAULT_BATCH_MODEL_ID
+    modelLoadError.value = ''
+    loadingModels.value = false
+    return
+  }
+
   const targets = [...props.targets]
   selectedModelId.value = ''
   availableModels.value = []
@@ -341,6 +444,13 @@ const setRow = (index: number, patch: Partial<BatchTestRow>) => {
   const current = rows.value[index]
   if (!current) return
   rows.value[index] = { ...current, ...patch }
+}
+
+const quickFilterButtonClass = (value: ResultFilterValue) => {
+  const selected = resultFilter.value === value
+  return selected
+    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/20 dark:text-primary-200'
+    : 'border-gray-200 bg-white text-gray-600 hover:border-primary-300 hover:text-primary-700 dark:border-dark-500 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-200'
 }
 
 const statusLabel = (status: BatchTestStatus) => {
@@ -374,7 +484,8 @@ const stopBatch = () => {
       return {
         ...row,
         status: 'skipped',
-        message: t('admin.accounts.batchTest.stopped')
+        message: t('admin.accounts.batchTest.stopped'),
+        resultCode: ''
       }
     }
     return row
@@ -390,7 +501,7 @@ const handleClose = () => {
 const startBatch = async () => {
   if (running.value || rows.value.length === 0 || !selectedModelId.value) return
 
-  const modelId = selectedModelId.value
+  const modelId = selectedModelId.value === DEFAULT_BATCH_MODEL_ID ? '' : selectedModelId.value
   const runToken = ++activeRunToken
   resetRows()
   running.value = true
@@ -415,17 +526,19 @@ const startBatch = async () => {
         if (runToken !== activeRunToken) return
         setRow(index, {
           status: result.success ? 'success' : 'failed',
-          message: result.message
+          message: result.message,
+          resultCode: result.resultCode
         })
       } catch (error) {
         if (runToken !== activeRunToken) return
         if (error instanceof DOMException && error.name === 'AbortError') {
-          setRow(index, { status: 'skipped', message: t('admin.accounts.batchTest.stopped') })
+          setRow(index, { status: 'skipped', message: t('admin.accounts.batchTest.stopped'), resultCode: '' })
           continue
         }
         setRow(index, {
           status: 'failed',
-          message: error instanceof Error ? error.message : t('common.error')
+          message: error instanceof Error ? error.message : t('common.error'),
+          resultCode: ''
         })
       } finally {
         activeAbortControllers.delete(controller)
@@ -450,7 +563,11 @@ const startBatch = async () => {
   }
 }
 
-const testAccount = async (accountId: number, modelId: string, signal: AbortSignal): Promise<{ success: boolean; message: string }> => {
+const testAccount = async (
+  accountId: number,
+  modelId: string,
+  signal: AbortSignal
+): Promise<{ success: boolean; message: string; resultCode: string }> => {
   const response = await fetch(`/api/v1/admin/accounts/${accountId}/test`, {
     method: 'POST',
     headers: {
@@ -477,6 +594,7 @@ const testAccount = async (accountId: number, modelId: string, signal: AbortSign
   let message = ''
   let responseText = ''
   let model = ''
+  let resultCode = ''
   const handleStreamLine = (rawLine: string) => {
     const line = rawLine.trim()
     if (!line.startsWith('data:')) return
@@ -495,10 +613,14 @@ const testAccount = async (accountId: number, modelId: string, signal: AbortSign
       message = event.success
         ? formatSuccessMessage(model, responseText)
         : event.error || t('admin.accounts.batchTest.failedMessage')
+      if (!event.success) {
+        resultCode = classifyResultCode(message)
+      }
     } else if (event.type === 'error') {
       completed = true
       success = false
       message = event.error || t('admin.accounts.batchTest.failedMessage')
+      resultCode = classifyResultCode(message)
     }
   }
 
@@ -521,11 +643,12 @@ const testAccount = async (accountId: number, modelId: string, signal: AbortSign
   if (!completed) {
     return {
       success: false,
-      message: t('admin.accounts.batchTest.incompleteStream')
+      message: t('admin.accounts.batchTest.incompleteStream'),
+      resultCode: 'other'
     }
   }
 
-  return { success, message }
+  return { success, message, resultCode: success ? 'success' : resultCode || 'other' }
 }
 
 const formatSuccessMessage = (model: string, responseText: string) => {
@@ -540,5 +663,16 @@ const formatSuccessMessage = (model: string, responseText: string) => {
     return t('admin.accounts.batchTest.successWithModel', { model })
   }
   return t('admin.accounts.batchTest.successMessage')
+}
+
+const classifyResultCode = (message: string) => {
+  const normalized = message.trim()
+  if (/(^|\D)401(\D|$)/.test(normalized) || /unauthorized/i.test(normalized)) {
+    return '401'
+  }
+  if (/(^|\D)429(\D|$)/.test(normalized) || /rate\s*limit/i.test(normalized)) {
+    return '429'
+  }
+  return 'other'
 }
 </script>

@@ -1306,7 +1306,7 @@ const selectedErrorCodes = ref<number[]>([])
 const customErrorCodeInput = ref<number | null>(null)
 const interceptWarmupRequests = ref(false)
 const proxyId = ref<number | null>(null)
-const proxyMode = ref<BulkProxyMode>('single')
+const proxyMode = ref<BulkProxyMode>('pool')
 const concurrency = ref(1)
 const loadFactor = ref<number | null>(null)
 const priority = ref(1)
@@ -1818,7 +1818,7 @@ watch(
       customErrorCodeInput.value = null
       interceptWarmupRequests.value = false
       proxyId.value = null
-      proxyMode.value = 'single'
+      proxyMode.value = supportsBulkProxyMode.value ? 'pool' : 'single'
       concurrency.value = 1
       loadFactor.value = null
       priority.value = 1
