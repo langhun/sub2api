@@ -637,6 +637,7 @@ func TestAPIContracts(t *testing.T) {
 					service.SettingKeyLeaderboardConsumptionEnabled:  "true",
 					service.SettingKeyLeaderboardTransferEnabled:     "false",
 					service.SettingKeyLeaderboardCheckinEnabled:      "true",
+					service.SettingKeyLeaderboardIncludeAdmin:        "false",
 				})
 			},
 			method:     http.MethodGet,
@@ -767,6 +768,7 @@ func TestAPIContracts(t *testing.T) {
 						"leaderboard_consumption_enabled": true,
 						"leaderboard_transfer_enabled": false,
 						"leaderboard_checkin_enabled": true,
+						"leaderboard_include_admin_enabled": false,
 						"hide_ccs_import_button": false,
 						"purchase_subscription_enabled": false,
 						"purchase_subscription_url": "",

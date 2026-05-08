@@ -1394,6 +1394,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyLeaderboardConsumptionEnabled] = strconv.FormatBool(settings.LeaderboardConsumptionEnabled)
 	updates[SettingKeyLeaderboardTransferEnabled] = strconv.FormatBool(settings.LeaderboardTransferEnabled)
 	updates[SettingKeyLeaderboardCheckinEnabled] = strconv.FormatBool(settings.LeaderboardCheckinEnabled)
+	updates[SettingKeyLeaderboardIncludeAdmin] = strconv.FormatBool(settings.LeaderboardIncludeAdmin)
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
@@ -2179,6 +2180,14 @@ func (s *SettingService) GetCheckinBlindboxTriggerType(ctx context.Context) stri
 	return v
 }
 
+func (s *SettingService) IsLeaderboardIncludeAdminEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyLeaderboardIncludeAdmin)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
 func (s *SettingService) GetCheckinBlindboxInterval(ctx context.Context) int {
 	v := s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxInterval, "7")
 	n, err := strconv.Atoi(v)
@@ -2332,6 +2341,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyLeaderboardConsumptionEnabled:            "true",
 		SettingKeyLeaderboardTransferEnabled:               "true",
 		SettingKeyLeaderboardCheckinEnabled:                "true",
+		SettingKeyLeaderboardIncludeAdmin:                  "false",
 		SettingKeyPurchaseSubscriptionEnabled:              "false",
 		SettingKeyPurchaseSubscriptionURL:                  "",
 		SettingKeyTableDefaultPageSize:                     "20",
@@ -2512,6 +2522,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	leaderboardConsumptionEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardConsumptionEnabled)
 	leaderboardTransferEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardTransferEnabled)
 	leaderboardCheckinEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardCheckinEnabled)
+	leaderboardIncludeAdmin := settings[SettingKeyLeaderboardIncludeAdmin] == "true"
 	result := &SystemSettings{
 		RegistrationEnabled:              settings[SettingKeyRegistrationEnabled] == "true",
 		EmailVerifyEnabled:               emailVerifyEnabled,
@@ -2548,6 +2559,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		LeaderboardConsumptionEnabled:    leaderboardConsumptionEnabled,
 		LeaderboardTransferEnabled:       leaderboardTransferEnabled,
 		LeaderboardCheckinEnabled:        leaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:          leaderboardIncludeAdmin,
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),

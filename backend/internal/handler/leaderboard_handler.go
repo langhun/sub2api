@@ -12,19 +12,22 @@ import (
 type LeaderboardHandler struct {
 	leaderboardService *service.LeaderboardService
 	checkinService     *service.CheckinService
+	settingService     *service.SettingService
 }
 
-func NewLeaderboardHandler(leaderboardService *service.LeaderboardService, checkinService *service.CheckinService) *LeaderboardHandler {
+func NewLeaderboardHandler(leaderboardService *service.LeaderboardService, checkinService *service.CheckinService, settingService *service.SettingService) *LeaderboardHandler {
 	return &LeaderboardHandler{
 		leaderboardService: leaderboardService,
 		checkinService:     checkinService,
+		settingService:     settingService,
 	}
 }
 
 func (h *LeaderboardHandler) GetBalanceLeaderboard(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
+	includeAdmin := h.settingService != nil && h.settingService.IsLeaderboardIncludeAdminEnabled(c.Request.Context())
 
-	result, err := h.leaderboardService.GetBalanceLeaderboard(c.Request.Context(), page, pageSize)
+	result, err := h.leaderboardService.GetBalanceLeaderboard(c.Request.Context(), page, pageSize, includeAdmin)
 	if err != nil {
 		response.InternalError(c, "Failed to get balance leaderboard")
 		return
@@ -41,8 +44,9 @@ func (h *LeaderboardHandler) GetConsumptionLeaderboard(c *gin.Context) {
 	}
 
 	page, pageSize := response.ParsePagination(c)
+	includeAdmin := h.settingService != nil && h.settingService.IsLeaderboardIncludeAdminEnabled(c.Request.Context())
 
-	result, err := h.leaderboardService.GetConsumptionLeaderboard(c.Request.Context(), period, page, pageSize)
+	result, err := h.leaderboardService.GetConsumptionLeaderboard(c.Request.Context(), period, page, pageSize, includeAdmin)
 	if err != nil {
 		response.InternalError(c, "Failed to get consumption leaderboard")
 		return
@@ -74,8 +78,9 @@ func (h *LeaderboardHandler) GetConsumptionLeaderboard(c *gin.Context) {
 
 func (h *LeaderboardHandler) GetCheckinLeaderboard(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
+	includeAdmin := h.settingService != nil && h.settingService.IsLeaderboardIncludeAdminEnabled(c.Request.Context())
 
-	result, err := h.leaderboardService.GetCheckinLeaderboard(c.Request.Context(), page, pageSize)
+	result, err := h.leaderboardService.GetCheckinLeaderboard(c.Request.Context(), page, pageSize, includeAdmin)
 	if err != nil {
 		response.InternalError(c, "Failed to get checkin leaderboard")
 		return

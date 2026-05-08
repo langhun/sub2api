@@ -197,6 +197,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		LeaderboardConsumptionEnabled:          settings.LeaderboardConsumptionEnabled,
 		LeaderboardTransferEnabled:             settings.LeaderboardTransferEnabled,
 		LeaderboardCheckinEnabled:              settings.LeaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:                settings.LeaderboardIncludeAdmin,
 		HideCcsImportButton:                    settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                settings.PurchaseSubscriptionURL,
@@ -441,6 +442,7 @@ type UpdateSettingsRequest struct {
 	LeaderboardConsumptionEnabled *bool                 `json:"leaderboard_consumption_enabled"`
 	LeaderboardTransferEnabled    *bool                 `json:"leaderboard_transfer_enabled"`
 	LeaderboardCheckinEnabled     *bool                 `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin       *bool                 `json:"leaderboard_include_admin_enabled"`
 	HideCcsImportButton           bool                  `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled   *bool                 `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL       *string               `json:"purchase_subscription_url"`
@@ -1278,6 +1280,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	leaderboardConsumptionEnabled := resolveOptionalBool(req.LeaderboardConsumptionEnabled, previousSettings.LeaderboardConsumptionEnabled)
 	leaderboardTransferEnabled := resolveOptionalBool(req.LeaderboardTransferEnabled, previousSettings.LeaderboardTransferEnabled)
 	leaderboardCheckinEnabled := resolveOptionalBool(req.LeaderboardCheckinEnabled, previousSettings.LeaderboardCheckinEnabled)
+	leaderboardIncludeAdmin := resolveOptionalBool(req.LeaderboardIncludeAdmin, previousSettings.LeaderboardIncludeAdmin)
 
 	settings := &service.SystemSettings{
 		RegistrationEnabled:              req.RegistrationEnabled,
@@ -1378,6 +1381,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		LeaderboardConsumptionEnabled:    leaderboardConsumptionEnabled,
 		LeaderboardTransferEnabled:       leaderboardTransferEnabled,
 		LeaderboardCheckinEnabled:        leaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:          leaderboardIncludeAdmin,
 		HideCcsImportButton:              req.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      purchaseEnabled,
 		PurchaseSubscriptionURL:          purchaseURL,
@@ -1878,6 +1882,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		LeaderboardConsumptionEnabled:          updatedSettings.LeaderboardConsumptionEnabled,
 		LeaderboardTransferEnabled:             updatedSettings.LeaderboardTransferEnabled,
 		LeaderboardCheckinEnabled:              updatedSettings.LeaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:                updatedSettings.LeaderboardIncludeAdmin,
 		HideCcsImportButton:                    updatedSettings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            updatedSettings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                updatedSettings.PurchaseSubscriptionURL,
@@ -2230,6 +2235,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.LeaderboardCheckinEnabled != after.LeaderboardCheckinEnabled {
 		changed = append(changed, "leaderboard_checkin_enabled")
+	}
+	if before.LeaderboardIncludeAdmin != after.LeaderboardIncludeAdmin {
+		changed = append(changed, "leaderboard_include_admin_enabled")
 	}
 	if before.HideCcsImportButton != after.HideCcsImportButton {
 		changed = append(changed, "hide_ccs_import_button")

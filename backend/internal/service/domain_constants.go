@@ -211,6 +211,7 @@ const (
 	SettingKeyLeaderboardConsumptionEnabled = "leaderboard_consumption_enabled" // 是否显示排行榜消耗排行标签
 	SettingKeyLeaderboardTransferEnabled    = "leaderboard_transfer_enabled"    // 是否显示排行榜转账排行标签
 	SettingKeyLeaderboardCheckinEnabled     = "leaderboard_checkin_enabled"     // 是否显示排行榜签到排行标签
+	SettingKeyLeaderboardIncludeAdmin       = "leaderboard_include_admin_enabled" // 公开排行榜是否包含管理员
 	SettingKeyHideCcsImportButton           = "hide_ccs_import_button"          // 是否隐藏 API Keys 页面的导入 CCS 按钮
 	SettingKeyPurchaseSubscriptionEnabled   = "purchase_subscription_enabled"   // 是否展示"购买订阅"页面入口
 	SettingKeyPurchaseSubscriptionURL       = "purchase_subscription_url"       // "购买订阅"页面 URL（作为 iframe src）

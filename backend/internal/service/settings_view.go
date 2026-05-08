@@ -121,6 +121,7 @@ type SystemSettings struct {
 	LeaderboardConsumptionEnabled bool
 	LeaderboardTransferEnabled    bool
 	LeaderboardCheckinEnabled     bool
+	LeaderboardIncludeAdmin       bool
 	HideCcsImportButton           bool
 	PurchaseSubscriptionEnabled   bool
 	PurchaseSubscriptionURL       string

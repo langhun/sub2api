@@ -6124,6 +6124,8 @@ export default {
         leaderboardTransferEnabledHint: '在排行榜页面显示或隐藏转账排行。',
         leaderboardCheckinEnabled: '显示签到排行标签',
         leaderboardCheckinEnabledHint: '在排行榜页面显示或隐藏签到排行。',
+        leaderboardIncludeAdminEnabled: '排行榜包含管理员',
+        leaderboardIncludeAdminEnabledHint: '控制公开排行榜和消费分布是否把管理员账号统计进去。关闭时管理员不会上榜。',
         hideCcsImportButton: '隐藏 CCS 导入按钮',
         hideCcsImportButtonHint: '启用后将在 API Keys 页面隐藏"导入 CCS"按钮'
       },

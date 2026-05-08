@@ -297,6 +297,7 @@ func TestSettingHandler_UpdateSettings_ExpandsLegacyHomeNavSwitch(t *testing.T) 
 			service.SettingKeyLeaderboardConsumptionEnabled: "true",
 			service.SettingKeyLeaderboardTransferEnabled:    "false",
 			service.SettingKeyLeaderboardCheckinEnabled:     "true",
+			service.SettingKeyLeaderboardIncludeAdmin:       "false",
 		},
 	}
 	svc := service.NewSettingService(repo, &config.Config{Default: config.DefaultConfig{UserConcurrency: 5}})
@@ -327,6 +328,7 @@ func TestSettingHandler_UpdateSettings_ExpandsLegacyHomeNavSwitch(t *testing.T) 
 	require.Equal(t, "true", repo.values[service.SettingKeyLeaderboardConsumptionEnabled])
 	require.Equal(t, "false", repo.values[service.SettingKeyLeaderboardTransferEnabled])
 	require.Equal(t, "true", repo.values[service.SettingKeyLeaderboardCheckinEnabled])
+	require.Equal(t, "false", repo.values[service.SettingKeyLeaderboardIncludeAdmin])
 
 	var resp response.Response
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
@@ -341,6 +343,7 @@ func TestSettingHandler_UpdateSettings_ExpandsLegacyHomeNavSwitch(t *testing.T) 
 	require.Equal(t, true, data["leaderboard_consumption_enabled"])
 	require.Equal(t, false, data["leaderboard_transfer_enabled"])
 	require.Equal(t, true, data["leaderboard_checkin_enabled"])
+	require.Equal(t, false, data["leaderboard_include_admin_enabled"])
 }
 
 func TestSettingHandler_UpdateSettings_PersistsLeaderboardTabsIndependently(t *testing.T) {
@@ -353,6 +356,7 @@ func TestSettingHandler_UpdateSettings_PersistsLeaderboardTabsIndependently(t *t
 			service.SettingKeyLeaderboardConsumptionEnabled: "true",
 			service.SettingKeyLeaderboardTransferEnabled:    "true",
 			service.SettingKeyLeaderboardCheckinEnabled:     "true",
+			service.SettingKeyLeaderboardIncludeAdmin:       "false",
 		},
 	}
 	svc := service.NewSettingService(repo, &config.Config{Default: config.DefaultConfig{UserConcurrency: 5}})
@@ -365,6 +369,7 @@ func TestSettingHandler_UpdateSettings_PersistsLeaderboardTabsIndependently(t *t
 		"leaderboard_consumption_enabled": true,
 		"leaderboard_transfer_enabled":    false,
 		"leaderboard_checkin_enabled":     true,
+		"leaderboard_include_admin_enabled": true,
 	}
 	rawBody, err := json.Marshal(body)
 	require.NoError(t, err)
@@ -383,6 +388,7 @@ func TestSettingHandler_UpdateSettings_PersistsLeaderboardTabsIndependently(t *t
 	require.Equal(t, "true", repo.values[service.SettingKeyLeaderboardConsumptionEnabled])
 	require.Equal(t, "false", repo.values[service.SettingKeyLeaderboardTransferEnabled])
 	require.Equal(t, "true", repo.values[service.SettingKeyLeaderboardCheckinEnabled])
+	require.Equal(t, "true", repo.values[service.SettingKeyLeaderboardIncludeAdmin])
 
 	var resp response.Response
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
@@ -393,6 +399,7 @@ func TestSettingHandler_UpdateSettings_PersistsLeaderboardTabsIndependently(t *t
 	require.Equal(t, true, data["leaderboard_consumption_enabled"])
 	require.Equal(t, false, data["leaderboard_transfer_enabled"])
 	require.Equal(t, true, data["leaderboard_checkin_enabled"])
+	require.Equal(t, true, data["leaderboard_include_admin_enabled"])
 }
 
 func TestSettingHandler_UpdateSettings_PersistsExplicitFalseOIDCCompatibilityFlags(t *testing.T) {

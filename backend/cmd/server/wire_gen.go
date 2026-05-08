@@ -263,7 +263,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	checkinService := service.NewCheckinService(client, userRepository, redeemCodeRepository, settingService, billingCacheService, apiKeyAuthCacheInvalidator, blindBoxService)
 	checkinHandler := handler.NewCheckinHandler(checkinService, blindBoxService)
 	leaderboardService := service.NewLeaderboardService(client, db)
-	leaderboardHandler := handler.NewLeaderboardHandler(leaderboardService, checkinService)
+	leaderboardHandler := handler.NewLeaderboardHandler(leaderboardService, checkinService, settingService)
 	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
 	balanceTransferHandler := handler.NewBalanceTransferHandler(balanceTransferService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)

@@ -5966,6 +5966,8 @@ export default {
         leaderboardTransferEnabledHint: 'Show or hide the Transfer tab on the leaderboard page.',
         leaderboardCheckinEnabled: 'Show Check-in Tab',
         leaderboardCheckinEnabledHint: 'Show or hide the Check-in tab on the leaderboard page.',
+        leaderboardIncludeAdminEnabled: 'Include Admins in Leaderboard',
+        leaderboardIncludeAdminEnabledHint: 'Control whether public leaderboards and consumption charts include admin accounts.',
         hideCcsImportButton: 'Hide CCS Import Button',
         hideCcsImportButtonHint: 'When enabled, the "Import to CCS" button will be hidden on the API Keys page'
       },
