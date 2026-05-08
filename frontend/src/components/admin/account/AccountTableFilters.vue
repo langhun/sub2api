@@ -1,21 +1,20 @@
 <template>
-  <div class="w-full space-y-2">
-    <div class="flex flex-wrap items-center gap-2">
+  <div class="w-full space-y-1.5 sm:space-y-2">
+    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
       <SearchInput
         :model-value="searchQuery"
         :placeholder="t('admin.accounts.searchAccounts')"
-        class="w-full sm:w-56 xl:w-64"
+        class="min-w-0 w-full sm:w-44 lg:w-48 xl:w-56 2xl:w-64"
         @update:model-value="$emit('update:searchQuery', $event)"
         @search="$emit('change')"
       />
-      <Select :model-value="filters.platform" class="w-36 sm:w-40" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
-      <Select :model-value="filters.main_status" class="w-40 sm:w-44" :options="mainStatusOpts" @update:model-value="updateMainStatus" @change="$emit('change')" />
-      <Select :model-value="filters.runtime_status" class="w-44 sm:w-48" :options="runtimeStatusOpts" @update:model-value="updateRuntimeStatus" @change="$emit('change')" />
-      <Select :model-value="filters.group" class="w-36 sm:w-40" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
+      <Select :model-value="filters.platform" class="w-32 sm:w-36" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
+      <Select :model-value="filters.main_status" class="w-36 sm:w-40" :options="mainStatusOpts" @update:model-value="updateMainStatus" @change="$emit('change')" />
+      <Select :model-value="filters.runtime_status" class="w-40 sm:w-44" :options="runtimeStatusOpts" @update:model-value="updateRuntimeStatus" @change="$emit('change')" />
       <button
         type="button"
         data-testid="account-more-filters-toggle"
-        class="btn btn-secondary btn-sm gap-1.5 px-2.5 text-xs"
+        class="btn btn-secondary btn-sm shrink-0 gap-1.5 px-2.5 text-xs"
         @click="showAdvancedFilters = !showAdvancedFilters"
       >
         <Icon name="filter" size="sm" />
@@ -35,18 +34,19 @@
       <button
         type="button"
         data-testid="account-status-guide-button"
-        class="btn btn-secondary btn-sm gap-1.5 px-2.5 text-xs text-gray-600 dark:text-gray-300"
+        class="btn btn-secondary btn-sm shrink-0 gap-1.5 px-2 text-xs text-gray-600 dark:text-gray-300"
         @click="$emit('status-guide')"
       >
         <Icon name="questionCircle" size="sm" />
-        <span class="hidden xl:inline">{{ t('admin.accounts.statusGuide.shortAction') }}</span>
+        <span class="hidden 2xl:inline">{{ t('admin.accounts.statusGuide.shortAction') }}</span>
       </button>
     </div>
-    <div v-if="showAdvancedFilters" class="flex flex-wrap items-center gap-2">
-      <Select :model-value="filters.tier" class="w-40 sm:w-44" :options="tierOpts" @update:model-value="updateTier" @change="$emit('change')" />
-      <Select :model-value="filters.type" class="w-36 sm:w-40" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
-      <Select :model-value="filters.scheduling_status" class="w-44 sm:w-48" :options="schedulingStatusOpts" @update:model-value="updateSchedulingStatus" @change="$emit('change')" />
-      <Select :model-value="filters.privacy_mode" class="w-36 sm:w-40" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
+    <div v-if="showAdvancedFilters" class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+      <Select :model-value="filters.group" class="w-32 sm:w-36" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
+      <Select :model-value="filters.tier" class="w-36 sm:w-40" :options="tierOpts" @update:model-value="updateTier" @change="$emit('change')" />
+      <Select :model-value="filters.type" class="w-32 sm:w-36" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
+      <Select :model-value="filters.scheduling_status" class="w-40 sm:w-44" :options="schedulingStatusOpts" @update:model-value="updateSchedulingStatus" @change="$emit('change')" />
+      <Select :model-value="filters.privacy_mode" class="w-32 sm:w-36" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
     </div>
   </div>
 </template>
@@ -108,6 +108,7 @@ const toFilterValue = (value: string | number | boolean | null) => String(value 
 
 const advancedFilterCount = computed(() => (
   [
+    props.filters.group,
     props.filters.tier,
     props.filters.type,
     props.filters.scheduling_status,

@@ -71,6 +71,7 @@ describe('AccountTableFilters', () => {
     expect(text).toContain('admin.accounts.statusFilters.allMain')
     expect(text).toContain('admin.accounts.statusFilters.allRuntime')
     expect(text).toContain('admin.accounts.moreFilters')
+    expect(text).not.toContain('admin.accounts.allGroups')
     expect(text).not.toContain('admin.accounts.tier.all')
     expect(text).not.toContain('admin.accounts.statusFilters.allScheduling')
 
@@ -79,6 +80,7 @@ describe('AccountTableFilters', () => {
     const expandedText = wrapper.text()
 
     expect(expandedText).toContain('admin.accounts.hideAdvancedFilters')
+    expect(expandedText).toContain('admin.accounts.allGroups')
     expect(expandedText).toContain('admin.accounts.tier.all')
     expect(text).toContain('admin.accounts.status.mainActive')
     expect(text).toContain('admin.accounts.status.mainInactive')
