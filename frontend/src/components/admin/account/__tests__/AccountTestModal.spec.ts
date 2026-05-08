@@ -116,6 +116,39 @@ describe('AccountTestModal', () => {
     vi.restoreAllMocks()
   })
 
+  it('首次以 show=true 挂载时会立即加载模型并选中默认项', async () => {
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: true,
+        account: {
+          id: 42,
+          name: 'Gemini Image Test',
+          platform: 'gemini',
+          type: 'apikey',
+          status: 'active'
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: { template: '<div class="select-stub"></div>' },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(getAvailableModels).toHaveBeenCalledWith(42)
+    expect((wrapper.vm as any).availableModels).toHaveLength(3)
+    expect((wrapper.vm as any).selectedModelId).toBe('gemini-3.1-flash-image')
+  })
+
   it('gemini 图片模型测试会携带提示词并渲染图片预览', async () => {
     const wrapper = mountModal()
     await wrapper.setProps({ show: true })

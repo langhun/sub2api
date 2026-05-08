@@ -116,6 +116,37 @@ describe('BatchAccountTestModal', () => {
     vi.restoreAllMocks()
   })
 
+  it('首次以 show=true 挂载时会立即加载共同模型', async () => {
+    const wrapper = mount(BatchAccountTestModal, {
+      props: {
+        show: true,
+        targets: [
+          { id: 1, name: 'ag-1', platform: 'antigravity', type: 'oauth' },
+          { id: 2, name: 'ag-2', platform: 'antigravity', type: 'oauth' }
+        ]
+      },
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            emits: ['update:modelValue'],
+            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id" :value="option.id">{{ option.display_name }}</option></select>'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(getAvailableModels).toHaveBeenCalledTimes(2)
+    expect((wrapper.vm as any).availableModels.map((model: { id: string }) => model.id)).toEqual([
+      'claude-sonnet-4-5',
+      'gemini-3-pro-preview'
+    ])
+  })
+
   it('只提供共同模型且不会自动选择默认模型', async () => {
     const wrapper = mountModal()
     await wrapper.setProps({ show: true })

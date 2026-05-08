@@ -231,7 +231,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -315,6 +315,14 @@ watch(
     }
   }
 )
+
+onMounted(async () => {
+  if (props.show && props.account) {
+    testPrompt.value = ''
+    resetState()
+    await loadAvailableModels()
+  }
+})
 
 watch(selectedModelId, () => {
   if (supportsImageTest.value && !testPrompt.value.trim()) {
