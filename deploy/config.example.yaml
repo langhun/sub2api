@@ -84,8 +84,9 @@ cors:
 # =============================================================================
 security:
   url_allowlist:
-    # Enable URL allowlist validation (disable to skip all URL checks)
-    # 启用 URL 白名单验证（禁用则跳过所有 URL 检查）
+    # Enable URL allowlist validation (disable to skip hostname allowlist only;
+    # scheme checks and private-host blocking still apply unless explicitly relaxed)
+    # 启用 URL 白名单验证（禁用后仅关闭主机白名单；协议校验和私网主机拦截仍默认生效）
     enabled: false
     # Allowed upstream hosts for API proxying
     # 允许代理的上游 API 主机列表
