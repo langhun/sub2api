@@ -234,12 +234,20 @@
 
           <template #cell-location="{ row }">
             <div class="flex items-center gap-2">
-              <img
-                v-if="row.country_code"
-                :src="flagUrl(row.country_code)"
-                :alt="row.country || row.country_code"
-                class="h-4 w-6 rounded-sm"
-              />
+              <span
+                v-if="countryFlagEmoji(row.country_code)"
+                class="inline-flex h-4 w-6 items-center justify-center text-sm leading-none"
+                role="img"
+                :aria-label="row.country || normalizedCountryCode(row.country_code)"
+              >
+                {{ countryFlagEmoji(row.country_code) }}
+              </span>
+              <span
+                v-else-if="normalizedCountryCode(row.country_code)"
+                class="inline-flex min-w-6 items-center justify-center rounded-sm bg-gray-100 px-1 py-0.5 text-[10px] font-medium uppercase leading-none text-gray-500 dark:bg-dark-600 dark:text-gray-300"
+              >
+                {{ normalizedCountryCode(row.country_code) }}
+              </span>
               <span v-if="formatLocation(row)" class="text-sm text-gray-700 dark:text-gray-200">
                 {{ formatLocation(row) }}
               </span>
@@ -1606,8 +1614,18 @@ const healthStatusLabel = (status?: Proxy['health_status']) => {
   return t('admin.proxies.healthUnknown')
 }
 
-const flagUrl = (code: string) =>
-  `https://unpkg.com/flag-icons/flags/4x3/${code.toLowerCase()}.svg`
+const normalizedCountryCode = (code?: string) => {
+  const normalized = code?.trim().toUpperCase() ?? ''
+  return /^[A-Z]{2}$/.test(normalized) ? normalized : ''
+}
+
+const countryFlagEmoji = (code?: string) => {
+  const normalized = normalizedCountryCode(code)
+  if (!normalized) return ''
+  return String.fromCodePoint(
+    ...Array.from(normalized, (char) => 0x1f1a5 + char.charCodeAt(0))
+  )
+}
 
 const startTestingProxy = (proxyId: number) => {
   testingProxyIds.value = new Set([...testingProxyIds.value, proxyId])
