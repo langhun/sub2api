@@ -369,7 +369,7 @@ export default {
 
   // Navigation
   nav: {
-    dashboard: 'Dashboard',
+    dashboard: 'System Overview',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     usage: 'Usage',
@@ -386,7 +386,7 @@ export default {
     availableChannels: 'Available Channels',
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
-    proxies: 'Proxies',
+    proxies: 'Proxy Management',
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
     promoCodes: 'Promo Codes',
@@ -612,7 +612,7 @@ export default {
 
   // Dashboard
   dashboard: {
-    title: 'Dashboard',
+    title: 'System Overview',
     welcomeMessage: "Welcome back! Here's an overview of your account.",
     balance: 'Balance',
     apiKeys: 'API Keys',
@@ -1496,7 +1496,7 @@ export default {
   admin: {
     // Dashboard
     dashboard: {
-      title: 'Admin Dashboard',
+      title: 'System Overview',
       description: 'System overview and real-time statistics',
       apiKeys: 'API Keys',
       accounts: 'Accounts',
@@ -1545,7 +1545,7 @@ export default {
       spendShort: 'Spend',
       requestsShort: 'Req',
       tokensShort: 'Tok',
-      failedToLoad: 'Failed to load dashboard statistics'
+      failedToLoad: 'Failed to load system overview data'
     },
 
     backup: {
