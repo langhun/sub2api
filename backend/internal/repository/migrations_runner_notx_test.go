@@ -225,6 +225,48 @@ func TestApplyMigrationsFS_TransactionalMigration(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestApplyMigrationsFS_GooseDownSectionIgnored(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	prepareMigrationsBootstrapExpectations(mock)
+	mock.ExpectQuery("SELECT checksum FROM schema_migrations WHERE filename = \\$1").
+		WithArgs("019_goose_style.sql").
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectBegin()
+	mock.ExpectExec("CREATE TABLE sample").
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectExec("INSERT INTO schema_migrations \\(filename, checksum\\) VALUES \\(\\$1, \\$2\\)").
+		WithArgs("019_goose_style.sql", sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	mock.ExpectExec("SELECT pg_advisory_unlock\\(\\$1\\)").
+		WithArgs(migrationsAdvisoryLockID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	fsys := fstest.MapFS{
+		"019_goose_style.sql": &fstest.MapFile{
+			Data: []byte(`
+-- intro comment
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE sample(id BIGINT);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE sample;
+-- +goose StatementEnd
+`),
+		},
+	}
+
+	err = applyMigrationsFS(context.Background(), db, fsys)
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func prepareMigrationsBootstrapExpectations(mock sqlmock.Sqlmock) {
 	mock.ExpectQuery("SELECT pg_try_advisory_lock\\(\\$1\\)").
 		WithArgs(migrationsAdvisoryLockID).
