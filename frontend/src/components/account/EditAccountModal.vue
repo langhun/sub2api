@@ -1248,7 +1248,69 @@
 
       <div>
         <label class="input-label">{{ t('admin.accounts.proxy') }}</label>
-        <ProxySelector v-model="form.proxy_id" :proxies="proxies" />
+        <div v-if="supportsAccountProxyMode" class="space-y-3">
+          <div class="grid gap-2 lg:grid-cols-3">
+            <button
+              type="button"
+              :class="proxyModeOptionClass('direct')"
+              @click="proxyMode = 'direct'"
+            >
+              <span class="text-sm font-medium">{{ t('admin.accounts.proxyModeDirectLabel') }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.proxyModeDirectDesc') }}
+              </span>
+            </button>
+            <button
+              type="button"
+              :class="proxyModeOptionClass('single')"
+              @click="proxyMode = 'single'"
+            >
+              <span class="text-sm font-medium">{{ t('admin.accounts.proxyModeSingleLabel') }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.proxyModeSingleDesc') }}
+              </span>
+            </button>
+            <button
+              type="button"
+              :class="proxyModeOptionClass('pool')"
+              @click="proxyMode = 'pool'"
+            >
+              <span class="text-sm font-medium">{{ t('admin.accounts.proxyModePoolLabel') }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.proxyModePoolDesc') }}
+              </span>
+            </button>
+          </div>
+          <p class="input-hint">{{ t('admin.accounts.proxyRouteHint') }}</p>
+
+          <ProxySelector
+            v-if="proxyMode === 'single'"
+            v-model="form.proxy_id"
+            :proxies="proxies"
+          />
+
+          <div
+            v-else-if="proxyMode === 'pool'"
+            class="rounded-lg border px-3 py-2 text-sm"
+            :class="poolEnabledProxyCount > 0
+              ? 'border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-900/60 dark:bg-primary-900/20 dark:text-primary-200'
+              : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-200'"
+          >
+            {{
+              poolEnabledProxyCount > 0
+                ? t('admin.accounts.proxyModePoolNotice', { count: poolEnabledProxyCount })
+                : t('admin.accounts.proxyModePoolEmpty')
+            }}
+          </div>
+
+          <div
+            v-else
+            class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300"
+          >
+            {{ t('admin.accounts.proxyModeDirectNotice') }}
+          </div>
+        </div>
+        <ProxySelector v-else v-model="form.proxy_id" :proxies="proxies" />
       </div>
 
       <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -2252,6 +2314,8 @@ interface TempUnschedRuleForm {
   description: string
 }
 
+type AccountProxyMode = 'direct' | 'single' | 'pool'
+
 // State
 const submitting = ref(false)
 const editBaseUrl = ref('https://api.anthropic.com')
@@ -2302,6 +2366,38 @@ const mixedChannelWarningDetails = ref<{ groupName: string; currentPlatform: str
 const mixedChannelWarningRawMessage = ref('')
 const mixedChannelWarningAction = ref<(() => Promise<void>) | null>(null)
 const antigravityMixedChannelConfirmed = ref(false)
+const proxyMode = ref<AccountProxyMode>('direct')
+const supportsAccountProxyMode = computed(() =>
+  props.account?.platform === 'openai' || props.account?.platform === 'antigravity'
+)
+const poolEnabledProxyCount = computed(() =>
+  props.proxies.filter(proxy => proxy.auto_failover_pool_enabled === true).length
+)
+
+const normalizeAccountProxyMode = (
+  rawMode: unknown,
+  proxyID: number | null | undefined,
+  platform?: Account['platform']
+): AccountProxyMode => {
+  const normalized = typeof rawMode === 'string' ? rawMode.trim().toLowerCase() : ''
+  if ((platform === 'openai' || platform === 'antigravity') && normalized === 'pool') {
+    return 'pool'
+  }
+  if (normalized === 'direct') {
+    return 'direct'
+  }
+  return proxyID != null ? 'single' : 'direct'
+}
+
+const proxyModeOptionClass = (mode: AccountProxyMode) => {
+  const selected = proxyMode.value === mode
+  return [
+    'flex min-h-[84px] flex-col justify-between rounded-xl border px-3 py-3 text-left transition-colors',
+    selected
+      ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-900/20 dark:text-primary-200'
+      : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300 hover:bg-primary-50/40 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-primary-700 dark:hover:bg-primary-900/10'
+  ]
+}
 
 // Quota control state (Anthropic OAuth/SetupToken only)
 const windowCostEnabled = ref(false)
@@ -2546,6 +2642,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   if (!newAccount) {
     return
   }
+  const extra = newAccount.extra as Record<string, unknown> | undefined
   antigravityMixedChannelConfirmed.value = false
   showMixedChannelWarning.value = false
   mixedChannelWarningDetails.value = null
@@ -2554,6 +2651,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   form.name = newAccount.name
   form.notes = newAccount.notes || ''
   form.proxy_id = newAccount.proxy_id
+  proxyMode.value = normalizeAccountProxyMode(extra?.proxy_mode, newAccount.proxy_id, newAccount.platform)
   form.concurrency = newAccount.concurrency
   form.load_factor = newAccount.load_factor ?? null
   form.priority = newAccount.priority
@@ -2575,7 +2673,6 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   // Load mixed scheduling setting (only for antigravity accounts)
   mixedScheduling.value = false
   allowOverages.value = false
-  const extra = newAccount.extra as Record<string, unknown> | undefined
   mixedScheduling.value = extra?.mixed_scheduling === true
   allowOverages.value = extra?.allow_overages === true
 
@@ -3313,11 +3410,21 @@ const handleSubmit = async () => {
     appStore.showError(t('admin.accounts.pleaseSelectStatus'))
     return
   }
+  if (supportsAccountProxyMode.value && proxyMode.value === 'single' && form.proxy_id === null) {
+    appStore.showError(t('admin.accounts.selectProxyForSingleMode'))
+    return
+  }
 
   const updatePayload: Record<string, unknown> = { ...form }
   try {
     // 后端期望 proxy_id: 0 表示清除代理，而不是 null
-    if (updatePayload.proxy_id === null) {
+    if (supportsAccountProxyMode.value) {
+      if (proxyMode.value === 'direct') {
+        updatePayload.proxy_id = 0
+      } else if (proxyMode.value === 'pool' && updatePayload.proxy_id === null) {
+        updatePayload.proxy_id = 0
+      }
+    } else if (updatePayload.proxy_id === null) {
       updatePayload.proxy_id = 0
     }
     if (form.expires_at === null) {
@@ -3795,6 +3902,15 @@ const handleSubmit = async () => {
       // Quota notify config
       writeQuotaNotifyToExtra(newExtra, 'update')
       updatePayload.extra = newExtra
+    }
+
+    if (supportsAccountProxyMode.value) {
+      const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
+        (props.account.extra as Record<string, unknown>) || {}
+      updatePayload.extra = {
+        ...currentExtra,
+        proxy_mode: proxyMode.value
+      }
     }
 
     const canContinue = await ensureAntigravityMixedChannelConfirmed(async () => {

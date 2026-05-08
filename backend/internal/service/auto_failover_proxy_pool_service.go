@@ -118,9 +118,13 @@ func (s *AutoFailoverProxyPoolService) BuildCandidates(ctx context.Context, acco
 		return nil, err
 	}
 
-	poolProxies, err := s.loadPoolProxies(ctx)
-	if err != nil {
-		return nil, err
+	poolEligible := currentPoolEnabled || account.UsesAutoFailoverProxyPool()
+	var poolProxies []*Proxy
+	if poolEligible {
+		poolProxies, err = s.loadPoolProxies(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	runtimeTargets := make([]*Proxy, 0, len(poolProxies)+1)
@@ -145,37 +149,41 @@ func (s *AutoFailoverProxyPoolService) BuildCandidates(ctx context.Context, acco
 		}
 	}
 
-	sortPoolProxyCandidates(poolProxies, latencies)
-	for _, proxy := range poolProxies {
-		if proxy == nil {
-			continue
+	if poolEligible {
+		sortPoolProxyCandidates(poolProxies, latencies)
+		for _, proxy := range poolProxies {
+			if proxy == nil {
+				continue
+			}
+			if proxy.Status != StatusActive {
+				continue
+			}
+			if currentProxy != nil && proxy.ID == currentProxy.ID {
+				continue
+			}
+			if isProxyCoolingDown(latencies[proxy.ID]) {
+				continue
+			}
+			id := proxy.ID
+			candidates = append(candidates, ProxyFailoverCandidate{
+				ProxyID:  &id,
+				Proxy:    cloneProxy(proxy),
+				ProxyURL: proxy.URL(),
+				Source:   "auto_failover_pool",
+			})
 		}
-		if proxy.Status != StatusActive {
-			continue
-		}
-		if currentProxy != nil && proxy.ID == currentProxy.ID {
-			continue
-		}
-		if isProxyCoolingDown(latencies[proxy.ID]) {
-			continue
-		}
-		id := proxy.ID
-		candidates = append(candidates, ProxyFailoverCandidate{
-			ProxyID:  &id,
-			Proxy:    cloneProxy(proxy),
-			ProxyURL: proxy.URL(),
-			Source:   "auto_failover_pool",
-		})
 	}
 
-	// 对不使用代理的旧账号保持兼容：只有在没有显式代理且没有池成员时，才退回直连。
+	// 对未显式启用代理池且未绑定代理的账号保持兼容：默认直连，不自动强制进池。
 	if len(candidates) == 0 && account.ProxyID == nil {
-		candidates = append(candidates, ProxyFailoverCandidate{
-			ProxyID:  nil,
-			Proxy:    nil,
-			ProxyURL: "",
-			Source:   "direct",
-		})
+		if !account.UsesAutoFailoverProxyPool() {
+			candidates = append(candidates, ProxyFailoverCandidate{
+				ProxyID:  nil,
+				Proxy:    nil,
+				ProxyURL: "",
+				Source:   "direct",
+			})
+		}
 	}
 
 	return candidates, nil

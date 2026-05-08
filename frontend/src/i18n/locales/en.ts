@@ -3557,6 +3557,17 @@ export default {
       poolModeRetryCount: 'Same-Account Retries',
       poolModeRetryCountHint:
         'Only applies in pool mode. Use 0 to disable in-place retry. Default {default}, maximum {max}.',
+      proxyRouteHint: 'Explicitly choose direct, a single proxy, or the automatic proxy pool for this account.',
+      proxyModeDirectLabel: 'No Proxy',
+      proxyModeDirectDesc: 'Always connect directly and never enter the proxy pool',
+      proxyModeSingleLabel: 'Single Proxy',
+      proxyModeSingleDesc: 'Use one specific proxy selected manually',
+      proxyModePoolLabel: 'Proxy Pool',
+      proxyModePoolDesc: 'Pick an available proxy from the automatic failover pool',
+      proxyModeDirectNotice: 'This account will connect directly and will not use the proxy pool automatically.',
+      proxyModePoolNotice: 'This account will use the automatic proxy pool. Current pool size: {count}.',
+      proxyModePoolEmpty: 'The automatic proxy pool is empty. Add proxies to the pool in proxy management first.',
+      selectProxyForSingleMode: 'Please select a proxy, or switch to No Proxy / Proxy Pool.',
       customErrorCodes: 'Custom Error Codes',
       customErrorCodesHint: 'Only stop scheduling for selected error codes',
       customErrorCodesWarning:
