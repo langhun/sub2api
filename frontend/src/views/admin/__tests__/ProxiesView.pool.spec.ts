@@ -47,6 +47,7 @@ const DataTableStub = {
   template: `
     <div>
       <div v-for="row in data" :key="row.id">
+        <slot name="cell-location" :row="row" :value="row.location" />
         <slot name="cell-status" :row="row" :value="row.status" />
       </div>
     </div>
@@ -74,6 +75,9 @@ describe('admin ProxiesView pool state', () => {
           username: null,
           password: null,
           status: 'active',
+          country: '美国',
+          country_code: 'us',
+          city: '洛杉矶',
           auto_failover_pool_enabled: true,
           health_status: 'cooldown',
           cooldown_until_unix: Math.floor(Date.now() / 1000) + 120,
@@ -136,5 +140,33 @@ describe('admin ProxiesView pool state', () => {
 
     expect(wrapper.text()).toContain('admin.proxies.poolMembersFilteredEmpty')
     expect(wrapper.text()).not.toContain('pool-a')
+  })
+
+  it('renders location with an inline flag instead of a remote image', async () => {
+    const wrapper = mount(ProxiesView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          ConfirmDialog: true,
+          EmptyState: true,
+          ImportDataModal: true,
+          AssignAccountsModal: true,
+          Select: SelectStub,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('🇺🇸')
+    expect(wrapper.text()).toContain('美国 · 洛杉矶')
+    expect(wrapper.find('img').exists()).toBe(false)
   })
 })
