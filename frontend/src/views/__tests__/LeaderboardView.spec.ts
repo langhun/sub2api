@@ -10,12 +10,10 @@ const {
   getBalanceLeaderboard,
   getConsumptionLeaderboard,
   getCheckinLeaderboard,
-  getTransferLeaderboard,
 } = vi.hoisted(() => ({
   getBalanceLeaderboard: vi.fn(),
   getConsumptionLeaderboard: vi.fn(),
   getCheckinLeaderboard: vi.fn(),
-  getTransferLeaderboard: vi.fn(),
 }))
 
 vi.mock('@/api/leaderboard', () => ({
@@ -23,7 +21,6 @@ vi.mock('@/api/leaderboard', () => ({
     getBalanceLeaderboard,
     getConsumptionLeaderboard,
     getCheckinLeaderboard,
-    getTransferLeaderboard,
   },
 }))
 
@@ -98,7 +95,6 @@ describe('LeaderboardView tab switches', () => {
     getBalanceLeaderboard.mockReset().mockResolvedValue(emptyLeaderboard())
     getConsumptionLeaderboard.mockReset().mockResolvedValue(emptyLeaderboard())
     getCheckinLeaderboard.mockReset().mockResolvedValue(emptyLeaderboard())
-    getTransferLeaderboard.mockReset().mockResolvedValue(emptyLeaderboard())
   })
 
   it('按独立开关只显示启用的排行榜标签', async () => {
@@ -119,7 +115,24 @@ describe('LeaderboardView tab switches', () => {
     expect(getConsumptionLeaderboard).toHaveBeenCalledWith('daily', 1, 20)
   })
 
-  it('四个标签全关时不请求排行榜接口', async () => {
+  it('公开排行榜即使开启 transfer 开关也不会显示转账标签或请求 transfer 接口', async () => {
+    const wrapper = mountView({
+      leaderboard_balance_enabled: false,
+      leaderboard_consumption_enabled: false,
+      leaderboard_transfer_enabled: true,
+      leaderboard_checkin_enabled: false,
+    })
+
+    await settleLeaderboard()
+
+    expect(wrapper.text()).toContain('排行榜标签已关闭')
+    expect(wrapper.text()).not.toContain('转账排行')
+    expect(getBalanceLeaderboard).not.toHaveBeenCalled()
+    expect(getConsumptionLeaderboard).not.toHaveBeenCalled()
+    expect(getCheckinLeaderboard).not.toHaveBeenCalled()
+  })
+
+  it('三个公开标签全关时不请求排行榜接口', async () => {
     const wrapper = mountView({
       leaderboard_balance_enabled: false,
       leaderboard_consumption_enabled: false,
@@ -132,23 +145,7 @@ describe('LeaderboardView tab switches', () => {
     expect(wrapper.text()).toContain('排行榜标签已关闭')
     expect(getBalanceLeaderboard).not.toHaveBeenCalled()
     expect(getConsumptionLeaderboard).not.toHaveBeenCalled()
-    expect(getTransferLeaderboard).not.toHaveBeenCalled()
     expect(getCheckinLeaderboard).not.toHaveBeenCalled()
-  })
-
-  it('转账排行成为第一个可见标签时会使用转账周期', async () => {
-    const wrapper = mountView({
-      leaderboard_balance_enabled: false,
-      leaderboard_consumption_enabled: false,
-      leaderboard_transfer_enabled: true,
-      leaderboard_checkin_enabled: false,
-    })
-
-    await settleLeaderboard()
-
-    expect(wrapper.text()).toContain('转账排行')
-    expect(getTransferLeaderboard).toHaveBeenCalledWith('day', 1, 20)
-    expect(getConsumptionLeaderboard).not.toHaveBeenCalled()
   })
 
   it('消费榜图表使用全量 chart_items，列表显示金额占比', async () => {
