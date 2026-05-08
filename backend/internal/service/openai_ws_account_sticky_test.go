@@ -275,5 +275,6 @@ func newOpenAIWSV2TestConfig() *config.Config {
 	cfg.Gateway.OpenAIWS.APIKeyEnabled = true
 	cfg.Gateway.OpenAIWS.ResponsesWebsocketsV2 = true
 	cfg.Gateway.OpenAIWS.StickyResponseIDTTLSeconds = 3600
+	cfg.Security.URLAllowlist.AllowPrivateHosts = true
 	return cfg
 }

@@ -9322,7 +9322,9 @@ func (s *GatewayService) buildCustomRelayURL(baseURL, path string, account *Acco
 
 func (s *GatewayService) validateUpstreamBaseURL(raw string) (string, error) {
 	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
+		normalized, err := urlvalidator.ValidateHTTPURL(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
+			AllowPrivate: s.cfg.Security.URLAllowlist.AllowPrivateHosts,
+		})
 		if err != nil {
 			return "", fmt.Errorf("invalid base_url: %w", err)
 		}

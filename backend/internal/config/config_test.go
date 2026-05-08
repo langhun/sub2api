@@ -78,6 +78,15 @@ func TestLoadDefaultSchedulingConfig(t *testing.T) {
 	}
 }
 
+func TestLoadDefaultURLSecurityConfig(t *testing.T) {
+	resetViperWithJWTSecret(t)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.False(t, cfg.Security.URLAllowlist.AllowPrivateHosts)
+	require.False(t, cfg.Security.URLAllowlist.AllowInsecureHTTP)
+}
+
 func TestLoadDefaultOpenAIWSConfig(t *testing.T) {
 	resetViperWithJWTSecret(t)
 
@@ -300,11 +309,11 @@ func TestLoadDefaultSecurityToggles(t *testing.T) {
 	if cfg.Security.URLAllowlist.Enabled {
 		t.Fatalf("URLAllowlist.Enabled = true, want false")
 	}
-	if !cfg.Security.URLAllowlist.AllowInsecureHTTP {
-		t.Fatalf("URLAllowlist.AllowInsecureHTTP = false, want true")
+	if cfg.Security.URLAllowlist.AllowInsecureHTTP {
+		t.Fatalf("URLAllowlist.AllowInsecureHTTP = true, want false")
 	}
-	if !cfg.Security.URLAllowlist.AllowPrivateHosts {
-		t.Fatalf("URLAllowlist.AllowPrivateHosts = false, want true")
+	if cfg.Security.URLAllowlist.AllowPrivateHosts {
+		t.Fatalf("URLAllowlist.AllowPrivateHosts = true, want false")
 	}
 	if !cfg.Security.ResponseHeaders.Enabled {
 		t.Fatalf("ResponseHeaders.Enabled = false, want true")
