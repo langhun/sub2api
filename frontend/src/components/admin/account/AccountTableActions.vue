@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-wrap items-center gap-2">
+  <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
     <slot name="before"></slot>
     <button @click="$emit('refresh')" :disabled="loading" class="btn btn-secondary btn-sm">
       <Icon name="refresh" size="md" :class="[loading ? 'animate-spin' : '']" />
