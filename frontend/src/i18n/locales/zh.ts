@@ -369,7 +369,7 @@ export default {
 
   // Navigation
   nav: {
-    dashboard: '仪表盘',
+    dashboard: '系统概览',
     announcements: '通知公告',
     apiKeys: 'API 密钥',
     usage: '使用记录',
@@ -611,7 +611,7 @@ export default {
 
   // Dashboard
   dashboard: {
-    title: '仪表盘',
+    title: '系统概览',
     welcomeMessage: '欢迎回来！这是您账户的概览。',
     balance: '余额',
     apiKeys: 'API 密钥',
@@ -1500,7 +1500,7 @@ export default {
   admin: {
     // Dashboard
     dashboard: {
-      title: '管理控制台',
+      title: '系统概览',
       description: '系统概览与统计数据',
       apiKeys: 'API 密钥',
       totalApiKeys: 'API 密钥总数',
@@ -1566,7 +1566,7 @@ export default {
       configureAiAccounts: '配置 AI 平台账号',
       systemSettings: '系统设置',
       configureSystem: '配置系统设置',
-      failedToLoad: '加载仪表盘数据失败'
+      failedToLoad: '加载系统概览数据失败'
     },
 
     backup: {
@@ -4293,7 +4293,7 @@ export default {
 
     // Proxies Management
     proxies: {
-      title: 'IP管理',
+      title: '代理管理',
       description: '管理代理服务器配置',
       createProxy: '添加代理',
       editProxy: '编辑代理',
