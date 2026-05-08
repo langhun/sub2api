@@ -81,8 +81,17 @@ export default defineConfig(({ mode }) => {
               return 'vendor-vue'
             }
 
-            // UI 工具库（较大，单独分离）
-            if (id.includes('/@vueuse/') || id.includes('/xlsx/')) {
+            // 按需使用但体积偏大的工具库，拆开避免互相拖大 chunk
+            if (id.includes('/xlsx/')) {
+              return 'vendor-xlsx'
+            }
+
+            if (id.includes('/@vueuse/')) {
+              return 'vendor-vueuse'
+            }
+
+            // 其他 UI / 工具库
+            if (id.includes('/driver.js/')) {
               return 'vendor-ui'
             }
 

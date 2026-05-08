@@ -43,11 +43,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import { useAppStore } from '@/stores/app'
+import { resolveDocumentTitle } from '@/router/title'
 import { setLocale, availableLocales } from '@/i18n'
 
 const { locale } = useI18n()
+const route = useRoute()
+const appStore = useAppStore()
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
@@ -68,6 +73,7 @@ async function selectLocale(code: string) {
   switching.value = true
   try {
     await setLocale(code)
+    document.title = resolveDocumentTitle(route.meta.title, appStore.siteName, route.meta.titleKey as string | undefined)
     isOpen.value = false
   } finally {
     switching.value = false
