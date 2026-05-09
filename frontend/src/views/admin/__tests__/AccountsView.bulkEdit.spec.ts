@@ -67,11 +67,17 @@ const DataTableStub = {
 }
 
 const AccountBulkActionsBarStub = {
-  props: ['selectedIds', 'showTestAllUngrouped'],
-  emits: ['edit-selected', 'test-all-ungrouped'],
+  props: ['selectedIds', 'showTestAllUngrouped', 'ungroupedTestLimit'],
+  emits: ['edit-selected', 'test-all-ungrouped', 'update:ungrouped-test-limit'],
   template: `
     <div>
       <button data-test="edit-selected" @click="$emit('edit-selected')">edit selected</button>
+      <input
+        v-if="showTestAllUngrouped"
+        data-test="ungrouped-limit"
+        :value="ungroupedTestLimit"
+        @input="$emit('update:ungrouped-test-limit', Number($event.target.value))"
+      />
       <button
         v-if="showTestAllUngrouped"
         data-test="test-all-ungrouped"
@@ -229,11 +235,13 @@ describe('admin AccountsView bulk edit scope', () => {
     await flushPromises()
     ;(wrapper.vm as any).params.group = 'ungrouped'
     await flushPromises()
+    await wrapper.get('[data-test="ungrouped-limit"]').setValue('1')
 
     await wrapper.get('[data-test="test-all-ungrouped"]').trigger('click')
     await flushPromises()
 
     expect(wrapper.get('[data-test="batch-test-modal"]').attributes('data-show')).toBe('true')
-    expect(wrapper.get('[data-test="batch-test-modal"]').attributes('data-target-count')).toBe('2')
+    expect(wrapper.get('[data-test="batch-test-modal"]').attributes('data-target-count')).toBe('1')
+    expect(listAccounts).toHaveBeenLastCalledWith(1, 1, expect.any(Object))
   })
 })
