@@ -3547,6 +3547,8 @@ export default {
         noResponseBody: '测试响应为空',
         successToast: '已完成 {count} 个账号测试',
         partialSuccess: '批量测试完成：成功 {success} 个，失败 {failed} 个',
+        unauthorizedAutoDeleteSuccess: '返回 401 的账号已自动排队删除，共 {count} 个',
+        unauthorizedAutoDeleteFailed: '有 {count} 个返回 401 的账号自动删除失败，请手动处理',
         resultFilters: {
           all: '全部（{count}）',
           success: '成功（{count}）',

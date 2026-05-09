@@ -379,6 +379,7 @@
       :default-model-only="showBatchTestSource === 'ungrouped'"
       @close="closeBatchTestModal"
       @completed="handleBatchTestCompleted"
+      @queue-delete="enqueueBatchTestDelete"
     />
     <AccountStatsModal v-if="showStats && statsAcc" :show="showStats" :account="statsAcc" @close="closeStatsModal" />
     <ScheduledTestsPanel v-if="showSchedulePanel && scheduleAcc" :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
@@ -569,8 +570,12 @@ const scheduleModelOptions = ref<SelectOption[]>([])
 const showBatchTestSource = ref<'selected' | 'ungrouped'>('selected')
 const modalBatchTestTargets = ref<BatchTestTarget[]>([])
 const togglingSchedulable = ref<number | null>(null)
+const batchTestDeleteQueue = ref<number[]>([])
+const batchTestDeleteSucceededIds = ref<Set<number>>(new Set())
+const batchTestDeleteFailedIds = ref<Set<number>>(new Set())
 const menu = reactive<{show:boolean, acc:Account|null, pos:{top:number, left:number}|null}>({ show: false, acc: null, pos: null })
 const exportingData = ref(false)
+let batchTestDeleteDrainPromise: Promise<void> | null = null
 
 // Column settings
 const showColumnDropdown = ref(false)
@@ -1930,10 +1935,56 @@ const handleExportData = async () => {
   }
 }
 const closeTestModal = () => { showTest.value = false; testingAcc.value = null }
+const resetBatchTestDeleteState = () => {
+  batchTestDeleteQueue.value = []
+  batchTestDeleteSucceededIds.value = new Set()
+  batchTestDeleteFailedIds.value = new Set()
+  batchTestDeleteDrainPromise = null
+}
+
+const drainBatchTestDeleteQueue = async () => {
+  while (batchTestDeleteQueue.value.length > 0) {
+    const accountId = batchTestDeleteQueue.value.shift()
+    if (accountId == null) continue
+    try {
+      await adminAPI.accounts.delete(accountId)
+      batchTestDeleteSucceededIds.value.add(accountId)
+      removeSelectedAccounts([accountId])
+    } catch (error) {
+      batchTestDeleteFailedIds.value.add(accountId)
+      console.error(`Failed to auto-delete 401 account ${accountId}:`, error)
+    }
+  }
+}
+
+const enqueueBatchTestDelete = (accountId: number) => {
+  if (
+    batchTestDeleteSucceededIds.value.has(accountId) ||
+    batchTestDeleteFailedIds.value.has(accountId) ||
+    batchTestDeleteQueue.value.includes(accountId)
+  ) {
+    return
+  }
+
+  batchTestDeleteQueue.value.push(accountId)
+  if (!batchTestDeleteDrainPromise) {
+    batchTestDeleteDrainPromise = drainBatchTestDeleteQueue().finally(() => {
+      batchTestDeleteDrainPromise = null
+    })
+  }
+}
+
+const waitForBatchTestDeleteQueueIdle = async () => {
+  while (batchTestDeleteDrainPromise) {
+    await batchTestDeleteDrainPromise
+  }
+}
+
 const closeBatchTestModal = () => {
   showBatchTest.value = false
   showBatchTestSource.value = 'selected'
   modalBatchTestTargets.value = []
+  resetBatchTestDeleteState()
 }
 const closeStatsModal = () => { showStats.value = false; statsAcc.value = null }
 const closeReAuthModal = () => { showReAuth.value = false; reAuthAcc.value = null }
@@ -1978,6 +2029,7 @@ const loadFilteredBatchTestTargets = async (limit: number): Promise<BatchTestTar
 
 const openBatchTest = () => {
   if (selIds.value.length === 0) return
+  resetBatchTestDeleteState()
   showBatchTestSource.value = 'selected'
   modalBatchTestTargets.value = [...batchTestTargets.value]
   showBatchTest.value = true
@@ -1987,6 +2039,7 @@ const openUngroupedBatchTest = async () => {
 
   loadingUngroupedBatchTargets.value = true
   try {
+    resetBatchTestDeleteState()
     const targets = await loadFilteredBatchTestTargets(ungroupedBatchTestLimit.value)
     if (targets.length === 0) {
       appStore.showInfo(t('admin.accounts.batchTest.noAccountsToTest'))
@@ -2002,16 +2055,34 @@ const openUngroupedBatchTest = async () => {
     loadingUngroupedBatchTargets.value = false
   }
 }
-const handleBatchTestCompleted = (result: { success: number; failed: number; successIds: number[]; failedIds: number[] }) => {
-  if (result.failed > 0) {
-    appStore.showError(t('admin.accounts.batchTest.partialSuccess', { success: result.success, failed: result.failed }))
-    if (result.failedIds.length > 0) {
-      setSelectedIds(result.failedIds)
-    }
-  } else {
+const handleBatchTestCompleted = async (result: { success: number; failed: number; successIds: number[]; failedIds: number[] }) => {
+  await waitForBatchTestDeleteQueueIdle()
+
+  const deleted401Ids = batchTestDeleteSucceededIds.value
+  const deleteFailed401Ids = batchTestDeleteFailedIds.value
+  const remainingFailedIds = result.failedIds.filter(id => !deleted401Ids.has(id))
+
+  if (remainingFailedIds.length > 0) {
+    appStore.showError(
+      t('admin.accounts.batchTest.partialSuccess', {
+        success: result.success,
+        failed: remainingFailedIds.length
+      })
+    )
+    setSelectedIds(remainingFailedIds)
+  } else if (result.success > 0) {
     appStore.showSuccess(t('admin.accounts.batchTest.successToast', { count: result.success }))
+    clearSelection()
   }
-  reload()
+
+  if (deleted401Ids.size > 0) {
+    appStore.showSuccess(t('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess', { count: deleted401Ids.size }))
+  }
+  if (deleteFailed401Ids.size > 0) {
+    appStore.showError(t('admin.accounts.batchTest.unauthorizedAutoDeleteFailed', { count: deleteFailed401Ids.size }))
+  }
+
+  await reload()
 }
 const handleViewStats = (a: Account) => { statsAcc.value = a; showStats.value = true }
 const handleSchedule = async (a: Account) => {

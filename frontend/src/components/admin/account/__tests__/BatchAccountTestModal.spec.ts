@@ -330,4 +330,41 @@ describe('BatchAccountTestModal', () => {
     await flushPromises()
     expect(wrapper.findAll('[data-testid="batch-test-row"]')).toHaveLength(1)
   })
+
+  it('检测到 401 时会立刻发出排队删除事件', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5' }
+    ])
+
+    global.fetch = vi.fn().mockResolvedValueOnce(createStreamResponse([
+      'data: {"type":"error","error":"Authentication failed (401): invalid token"}\n'
+    ])) as any
+
+    const wrapper = mount(BatchAccountTestModal, {
+      props: {
+        show: true,
+        targets: [
+          { id: 9, name: 'ag-9', platform: 'antigravity', type: 'oauth' }
+        ]
+      },
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            emits: ['update:modelValue'],
+            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id || option.value" :value="option.id || option.value">{{ option.display_name || option.label }}</option></select>'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+    ;(wrapper.vm as any).selectedModelId = 'claude-sonnet-4-5'
+    await (wrapper.vm as any).startBatch()
+    await flushPromises()
+
+    expect(wrapper.emitted('queue-delete')).toEqual([[9]])
+  })
 })
