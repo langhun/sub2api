@@ -4,7 +4,12 @@ vi.mock('@/api/admin/accounts', () => ({
   getAntigravityDefaultModelMapping: vi.fn()
 }))
 
-import { buildModelMappingObject, getModelsByPlatform } from '../useModelWhitelist'
+import {
+  buildModelMappingObject,
+  getModelsByPlatform,
+  getPresetMappingsByPlatform,
+  openaiPresetMappingSwitches
+} from '../useModelWhitelist'
 
 describe('useModelWhitelist', () => {
   it('openai 模型列表包含 GPT-5.4 官方快照', () => {
@@ -72,5 +77,20 @@ describe('useModelWhitelist', () => {
     expect(mapping).toEqual({
       'gpt-5.4-mini': 'gpt-5.4-mini'
     })
+  })
+
+  it('openai 预设映射开关可控制快捷按钮显示', () => {
+    const original = openaiPresetMappingSwitches.gpt53CodexSpark
+
+    try {
+      openaiPresetMappingSwitches.gpt53CodexSpark = false
+
+      const presets = getPresetMappingsByPlatform('openai')
+
+      expect(presets.some(preset => preset.label === 'GPT-5.3 Codex Spark')).toBe(false)
+      expect(presets.some(preset => preset.label === 'GPT-5.5')).toBe(true)
+    } finally {
+      openaiPresetMappingSwitches.gpt53CodexSpark = original
+    }
   })
 })
