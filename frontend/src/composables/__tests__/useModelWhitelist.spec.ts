@@ -8,7 +8,7 @@ import {
   buildModelMappingObject,
   getModelsByPlatform,
   getPresetMappingsByPlatform,
-  openaiPresetMappingSwitches
+  openaiPresetMappingDefaults
 } from '../useModelWhitelist'
 
 describe('useModelWhitelist', () => {
@@ -79,18 +79,18 @@ describe('useModelWhitelist', () => {
     })
   })
 
-  it('openai 预设映射开关可控制快捷按钮显示', () => {
-    const original = openaiPresetMappingSwitches.gpt53CodexSpark
+  it('openai 默认预设映射配置可直接修改目标模型', () => {
+    const original = openaiPresetMappingDefaults.gpt53CodexSpark.to
 
     try {
-      openaiPresetMappingSwitches.gpt53CodexSpark = false
+      openaiPresetMappingDefaults.gpt53CodexSpark.to = 'gpt-5.5'
 
       const presets = getPresetMappingsByPlatform('openai')
+      const sparkPreset = presets.find(preset => preset.label === 'GPT-5.3 Codex Spark')
 
-      expect(presets.some(preset => preset.label === 'GPT-5.3 Codex Spark')).toBe(false)
-      expect(presets.some(preset => preset.label === 'GPT-5.5')).toBe(true)
+      expect(sparkPreset?.to).toBe('gpt-5.5')
     } finally {
-      openaiPresetMappingSwitches.gpt53CodexSpark = original
+      openaiPresetMappingDefaults.gpt53CodexSpark.to = original
     }
   })
 })
