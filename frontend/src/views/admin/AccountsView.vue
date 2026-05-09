@@ -188,6 +188,8 @@
           :selected-ids="selIds"
           :show-test-all-ungrouped="hasUngroupedAccounts"
           :test-all-ungrouped-loading="loadingUngroupedBatchTargets"
+          :ungrouped-test-limit="ungroupedBatchTestLimit"
+          :ungrouped-total-count="pagination.total"
           @delete="handleBulkDelete"
           @reset-status="handleBulkResetStatus"
           @refresh-token="handleBulkRefreshToken"
@@ -197,6 +199,7 @@
           @toggle-schedulable="handleBulkToggleSchedulable"
           @test="openBatchTest"
           @test-all-ungrouped="openUngroupedBatchTest"
+          @update:ungrouped-test-limit="updateUngroupedBatchTestLimit"
         />
         <div ref="accountTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
@@ -549,6 +552,8 @@ const showReAuth = ref(false)
 const showTest = ref(false)
 const showBatchTest = ref(false)
 const loadingUngroupedBatchTargets = ref(false)
+const defaultUngroupedBatchTestLimit = 50
+const ungroupedBatchTestLimit = ref(defaultUngroupedBatchTestLimit)
 const showStats = ref(false)
 const showErrorPassthrough = ref(false)
 const showTLSFingerprintProfiles = ref(false)
@@ -1934,22 +1939,35 @@ const closeStatsModal = () => { showStats.value = false; statsAcc.value = null }
 const closeReAuthModal = () => { showReAuth.value = false; reAuthAcc.value = null }
 const handleTest = (a: Account) => { testingAcc.value = a; showTest.value = true }
 
-const loadFilteredBatchTestTargets = async (): Promise<BatchTestTarget[]> => {
+const normalizeUngroupedBatchTestLimit = (value: number) => {
+  if (!Number.isFinite(value)) return defaultUngroupedBatchTestLimit
+  return Math.max(1, Math.trunc(value))
+}
+
+const updateUngroupedBatchTestLimit = (value: number) => {
+  ungroupedBatchTestLimit.value = normalizeUngroupedBatchTestLimit(value)
+}
+
+const loadFilteredBatchTestTargets = async (limit: number): Promise<BatchTestTarget[]> => {
   const filters = buildAccountRequestFilters(params as AccountLocalFilterParams)
-  const pageSize = Math.max(pagination.page_size, 100)
+  const targetLimit = normalizeUngroupedBatchTestLimit(limit)
+  const pageSize = Math.max(1, Math.min(targetLimit, 100))
   const targets: BatchTestTarget[] = []
   const seen = new Set<number>()
   let page = 1
 
-  while (true) {
+  while (targets.length < targetLimit) {
     const response = await adminAPI.accounts.list(page, pageSize, filters)
     for (const account of response.items) {
       if (seen.has(account.id)) continue
       seen.add(account.id)
       targets.push(toBatchTestTarget(account))
+      if (targets.length >= targetLimit) {
+        break
+      }
     }
 
-    if (page >= response.pages || response.items.length === 0) {
+    if (page >= response.pages || response.items.length === 0 || targets.length >= targetLimit) {
       break
     }
     page += 1
@@ -1969,7 +1987,7 @@ const openUngroupedBatchTest = async () => {
 
   loadingUngroupedBatchTargets.value = true
   try {
-    const targets = await loadFilteredBatchTestTargets()
+    const targets = await loadFilteredBatchTestTargets(ungroupedBatchTestLimit.value)
     if (targets.length === 0) {
       appStore.showInfo(t('admin.accounts.batchTest.noAccountsToTest'))
       return

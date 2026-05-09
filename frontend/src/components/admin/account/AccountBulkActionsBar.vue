@@ -24,19 +24,37 @@
       </template>
     </div>
     <div class="flex flex-wrap justify-end gap-2">
-      <button
+      <div
         v-if="showTestAllUngrouped"
-        data-testid="account-bulk-test-all-ungrouped"
-        @click="$emit('test-all-ungrouped')"
-        :disabled="testAllUngroupedLoading"
-        class="btn btn-secondary btn-sm"
+        class="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-primary-200/70 bg-white/70 px-2.5 py-1.5 dark:border-primary-700/40 dark:bg-primary-950/10"
       >
-        {{
-          testAllUngroupedLoading
-            ? t('admin.accounts.batchTest.loadingTargets')
-            : t('admin.accounts.bulkActions.testAllUngrouped')
-        }}
-      </button>
+        <span class="text-xs font-medium text-primary-800 dark:text-primary-200">
+          {{ t('admin.accounts.bulkActions.testUngroupedPrefix') }}
+        </span>
+        <input
+          :value="ungroupedTestLimit"
+          type="number"
+          min="1"
+          data-testid="account-bulk-test-all-ungrouped-limit"
+          class="input h-8 w-20 px-2 py-1 text-sm"
+          @input="handleUngroupedLimitInput"
+        />
+        <span class="text-xs text-primary-700/80 dark:text-primary-300/80">
+          {{ t('admin.accounts.bulkActions.testUngroupedCountHint', { total: ungroupedTotalCount }) }}
+        </span>
+        <button
+          data-testid="account-bulk-test-all-ungrouped"
+          @click="$emit('test-all-ungrouped')"
+          :disabled="testAllUngroupedLoading"
+          class="btn btn-secondary btn-sm"
+        >
+          {{
+            testAllUngroupedLoading
+              ? t('admin.accounts.batchTest.loadingTargets')
+              : t('admin.accounts.bulkActions.testAllUngrouped')
+          }}
+        </button>
+      </div>
       <template v-if="selectedIds.length > 0">
         <button @click="$emit('delete')" class="btn btn-danger btn-sm">{{ t('admin.accounts.bulkActions.delete') }}</button>
         <button @click="$emit('test')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.test') }}</button>
@@ -57,9 +75,11 @@ defineProps<{
   selectedIds: number[]
   showTestAllUngrouped?: boolean
   testAllUngroupedLoading?: boolean
+  ungroupedTestLimit?: number
+  ungroupedTotalCount?: number
 }>()
 
-defineEmits([
+const emit = defineEmits([
   'delete',
   'edit-selected',
   'clear',
@@ -68,8 +88,20 @@ defineEmits([
   'reset-status',
   'refresh-token',
   'test',
-  'test-all-ungrouped'
+  'test-all-ungrouped',
+  'update:ungrouped-test-limit'
 ])
 
 const { t } = useI18n()
+
+const handleUngroupedLimitInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const raw = Number(target.value)
+  if (!Number.isFinite(raw)) {
+    return
+  }
+  const normalized = Math.max(1, Math.trunc(raw))
+  target.value = String(normalized)
+  emit('update:ungrouped-test-limit', normalized)
+}
 </script>

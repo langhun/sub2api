@@ -15,7 +15,9 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.bulkActions.edit': 'Bulk Edit',
           'admin.accounts.bulkActions.delete': 'Bulk Delete',
           'admin.accounts.bulkActions.test': 'Test Selected',
-          'admin.accounts.bulkActions.testAllUngrouped': 'Test All Ungrouped',
+          'admin.accounts.bulkActions.testAllUngrouped': 'Test Ungrouped',
+          'admin.accounts.bulkActions.testUngroupedPrefix': 'Test count',
+          'admin.accounts.bulkActions.testUngroupedCountHint': `Total ${params?.total} accounts`,
           'admin.accounts.bulkActions.resetStatus': 'Reset Status',
           'admin.accounts.bulkActions.refreshToken': 'Refresh Token',
           'admin.accounts.batchTest.loadingTargets': 'Preparing Targets',
@@ -49,8 +51,13 @@ describe('AccountBulkActionsBar', () => {
   })
 
   it('shows the ungrouped one-click test action when requested', () => {
-    const wrapper = mountBar([], { showTestAllUngrouped: true })
+    const wrapper = mountBar([], {
+      showTestAllUngrouped: true,
+      ungroupedTestLimit: 50,
+      ungroupedTotalCount: 200
+    })
 
-    expect(wrapper.get('[data-testid="account-bulk-test-all-ungrouped"]').text()).toBe('Test All Ungrouped')
+    expect(wrapper.get('[data-testid="account-bulk-test-all-ungrouped"]').text()).toBe('Test Ungrouped')
+    expect((wrapper.get('[data-testid="account-bulk-test-all-ungrouped-limit"]').element as HTMLInputElement).value).toBe('50')
   })
 })
