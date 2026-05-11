@@ -66,6 +66,7 @@ describe('PublicConsumptionLeaderboardChart', () => {
     expect(chartData.labels).not.toContain('其他')
     expect(chartData.datasets[0].data).toHaveLength(25)
     expect(chartData.datasets[0].backgroundColor).toHaveLength(25)
+    expect(chartData.datasets[0].backgroundColor.slice(0, 3)).toEqual(['#3b82f6', '#10b981', '#f59e0b'])
     expect(wrapper.text()).toContain('总金额')
     expect(wrapper.text()).toContain('用户数')
   })
