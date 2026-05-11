@@ -405,25 +405,21 @@ export const useAppStore = defineStore('app', () => {
 
     publicSettingsLoading.value = true
 
-    let resolvePromise: (value: PublicSettings | null) => void
-    publicSettingsPromise = new Promise<PublicSettings | null>((resolve) => {
-      resolvePromise = resolve
-    })
-
-    ;(async () => {
+    const requestPromise: Promise<PublicSettings | null> = (async () => {
       try {
         const data = await fetchPublicSettingsAPI()
-        resolvePromise(applySettings(data))
+        return applySettings(data)
       } catch (error) {
         console.error('Failed to fetch public settings:', error)
-        resolvePromise(null)
+        return null
       } finally {
         publicSettingsLoading.value = false
         publicSettingsPromise = null
       }
     })()
 
-    return publicSettingsPromise
+    publicSettingsPromise = requestPromise
+    return requestPromise
   }
 
   /**
