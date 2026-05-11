@@ -804,7 +804,7 @@ func (r *accountRepository) ListByGroup(ctx context.Context, groupID int64) ([]s
 func (r *accountRepository) ListActive(ctx context.Context) ([]service.Account, error) {
 	accounts, err := r.client.Account.Query().
 		Where(dbaccount.StatusEQ(service.StatusActive)).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -818,7 +818,7 @@ func (r *accountRepository) ListByPlatform(ctx context.Context, platform string)
 			dbaccount.PlatformEQ(platform),
 			dbaccount.StatusEQ(service.StatusActive),
 		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1082,7 +1082,7 @@ func (r *accountRepository) ListSchedulable(ctx context.Context) ([]service.Acco
 	now := time.Now()
 	accounts, err := r.client.Account.Query().
 		Where(activeSchedulablePredicates(now)...).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1102,7 +1102,7 @@ func (r *accountRepository) ListSchedulableByPlatform(ctx context.Context, platf
 	preds := append([]dbpredicate.Account{dbaccount.PlatformEQ(platform)}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
 		Where(preds...).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1129,7 +1129,7 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 	preds := append([]dbpredicate.Account{dbaccount.PlatformIn(platforms...)}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
 		Where(preds...).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1145,7 +1145,7 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatform(ctx context.Conte
 	}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
 		Where(preds...).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1164,7 +1164,7 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatforms(ctx context.Cont
 	}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
 		Where(preds...).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1655,7 +1655,7 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 	groups, err := q.
 		Order(
 			dbaccountgroup.ByPriority(),
-			dbaccountgroup.ByAccountField(dbaccount.FieldPriority),
+			dbaccountgroup.ByAccountField(dbaccount.FieldPriority, entsql.OrderDesc()),
 		).
 		WithAccount().
 		All(ctx)

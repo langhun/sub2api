@@ -326,8 +326,8 @@ func TestGroupIsolation_SimpleMode_SkipsGroupIsolation(t *testing.T) {
 	acc, err := svc.selectAccountForModelWithPlatform(ctx, nil, "", "", nil, PlatformOpenAI)
 	require.NoError(t, err, "SimpleMode 应跳过分组隔离直接返回账号")
 	require.NotNil(t, acc)
-	// 应选择优先级最高的账号（Priority=1, ID=2），即使它未分组
-	require.Equal(t, int64(2), acc.ID, "SimpleMode 应按优先级选择，不考虑分组")
+	// 应选择优先级最高的账号（Priority=2, ID=1），即使它已分组
+	require.Equal(t, int64(1), acc.ID, "SimpleMode 应按优先级选择，不考虑分组")
 }
 
 func TestGroupIsolation_SimpleMode_GroupedAccountAlsoSchedulable(t *testing.T) {
