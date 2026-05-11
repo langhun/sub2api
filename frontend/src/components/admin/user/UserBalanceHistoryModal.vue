@@ -428,8 +428,8 @@ const formatValue = (item: BalanceHistoryItem) => {
     return groupName ? `${days}d - ${groupName}` : `${days}d`
   }
   if (isBalanceType(item.type)) {
-    const sign = item.value >= 0 ? '+' : ''
-    return `${sign}$${item.value.toFixed(2)}`
+    const sign = item.value > 0 ? '+' : item.value < 0 ? '-' : ''
+    return `${sign}$${Math.abs(item.value).toFixed(2)}`
   }
   if (isSubscriptionType(item.type)) {
     const days = item.validity_days || Math.round(item.value)
