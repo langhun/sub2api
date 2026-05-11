@@ -100,6 +100,8 @@ func NewOpenAITokenProvider(
 	}
 }
 
+const openAIHardRefreshErrorPrefix = "openai oauth refresh permanently failed"
+
 // SetRefreshAPI injects unified OAuth refresh API and executor.
 func (p *OpenAITokenProvider) SetRefreshAPI(api *OAuthRefreshAPI, executor OAuthRefreshExecutor) {
 	p.refreshAPI = api
@@ -125,6 +127,94 @@ func (p *OpenAITokenProvider) ensureMetrics() {
 	}
 }
 
+func openAIHardRefreshFailureCode(policy ProviderRefreshPolicy, text string) string {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	if lower == "" {
+		return ""
+	}
+	for _, code := range policy.HardFailCodes {
+		needle := strings.ToLower(strings.TrimSpace(code))
+		if needle == "" {
+			continue
+		}
+		if strings.Contains(lower, needle) {
+			return needle
+		}
+	}
+	return ""
+}
+
+func buildOpenAIHardRefreshErrorMessage(policy ProviderRefreshPolicy, err error) string {
+	code := "non_retryable_refresh_error"
+	if err != nil {
+		if matched := openAIHardRefreshFailureCode(policy, err.Error()); matched != "" {
+			code = matched
+		}
+	}
+	return "OpenAI OAuth refresh permanently failed; re-authorize this account (" + code + ")"
+}
+
+func openAIHardRefreshStateError(policy ProviderRefreshPolicy, account *Account) error {
+	if account == nil || account.Status != StatusError {
+		return nil
+	}
+	msg := strings.TrimSpace(account.ErrorMessage)
+	if msg == "" {
+		return nil
+	}
+	lower := strings.ToLower(msg)
+	if strings.Contains(lower, openAIHardRefreshErrorPrefix) {
+		return errors.New(msg)
+	}
+	if strings.Contains(lower, "token refresh failed") && strings.Contains(lower, "non-retryable") {
+		return errors.New(msg)
+	}
+	if openAIHardRefreshFailureCode(policy, msg) != "" {
+		return errors.New(msg)
+	}
+	return nil
+}
+
+func (p *OpenAITokenProvider) isHardRefreshFailure(err error) bool {
+	if p == nil || err == nil {
+		return false
+	}
+	return openAIHardRefreshFailureCode(p.refreshPolicy, err.Error()) != ""
+}
+
+func (p *OpenAITokenProvider) markHardRefreshFailure(account *Account, cacheKey string, refreshErr error) {
+	if p == nil || account == nil {
+		return
+	}
+	message := buildOpenAIHardRefreshErrorMessage(p.refreshPolicy, refreshErr)
+	account.Status = StatusError
+	account.ErrorMessage = message
+
+	bgCtx := context.Background()
+	if p.tokenCache != nil {
+		if err := p.tokenCache.DeleteAccessToken(bgCtx, cacheKey); err != nil {
+			slog.Warn("openai_token_cache_delete_failed", "account_id", account.ID, "error", err)
+		}
+	}
+	if p.accountRepo == nil {
+		return
+	}
+	if err := p.accountRepo.SetError(bgCtx, account.ID, message); err != nil {
+		slog.Warn("openai_token_mark_error_failed", "account_id", account.ID, "error", err)
+	}
+}
+
+func (p *OpenAITokenProvider) latestHardRefreshStateError(ctx context.Context, accountID int64) error {
+	if p == nil || p.accountRepo == nil || accountID <= 0 {
+		return nil
+	}
+	latest, err := p.accountRepo.GetByID(ctx, accountID)
+	if err != nil || latest == nil {
+		return nil
+	}
+	return openAIHardRefreshStateError(p.refreshPolicy, latest)
+}
+
 // GetAccessToken returns a valid access_token.
 func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Account) (string, error) {
 	p.ensureMetrics()
@@ -133,6 +223,9 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	}
 	if account.Platform != PlatformOpenAI || account.Type != AccountTypeOAuth {
 		return "", errors.New("not an openai oauth account")
+	}
+	if err := openAIHardRefreshStateError(p.refreshPolicy, account); err != nil {
+		return "", err
 	}
 
 	cacheKey := OpenAITokenCacheKey(account)
@@ -166,11 +259,16 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 
 		result, err := p.refreshAPI.RefreshIfNeeded(ctx, account, p.executor, openAITokenRefreshSkew)
 		if err != nil {
+			p.metrics.refreshFailure.Add(1)
+			p.metrics.touchNow()
+			if p.isHardRefreshFailure(err) {
+				p.markHardRefreshFailure(account, cacheKey, err)
+				return "", err
+			}
 			if p.refreshPolicy.OnRefreshError == ProviderRefreshErrorReturn {
 				return "", err
 			}
 			slog.Warn("openai_token_refresh_failed", "account_id", account.ID, "error", err)
-			p.metrics.refreshFailure.Add(1)
 			refreshFailed = true
 		} else if result.LockHeld {
 			if p.refreshPolicy.OnLockHeld == ProviderLockHeldWaitForCache {
@@ -184,6 +282,9 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 					slog.Debug("openai_token_cache_hit_after_wait", "account_id", account.ID)
 					return token, nil
 				}
+				if stateErr := p.latestHardRefreshStateError(ctx, account.ID); stateErr != nil {
+					return "", stateErr
+				}
 			}
 		} else if result.Refreshed {
 			p.metrics.refreshSuccess.Add(1)
@@ -192,6 +293,9 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 		} else {
 			account = result.Account
 			expiresAt = account.GetCredentialAsTime("expires_at")
+			if err := openAIHardRefreshStateError(p.refreshPolicy, account); err != nil {
+				return "", err
+			}
 		}
 	} else if needsRefresh && p.tokenCache != nil {
 		// Backward-compatible test path when refreshAPI is not injected.
