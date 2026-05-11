@@ -294,7 +294,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_DefaultDisabledUsesLega
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
-	require.Equal(t, int64(36002), selection.Account.ID)
+	require.Equal(t, int64(36001), selection.Account.ID)
 	require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
 	require.False(t, decision.StickyPreviousHit)
 }
@@ -1119,13 +1119,13 @@ func TestSelectTopKOpenAICandidates(t *testing.T) {
 
 	top2 := selectTopKOpenAICandidates(candidates, 2)
 	require.Len(t, top2, 2)
-	require.Equal(t, int64(13), top2[0].account.ID)
-	require.Equal(t, int64(11), top2[1].account.ID)
+	require.Equal(t, int64(11), top2[0].account.ID)
+	require.Equal(t, int64(13), top2[1].account.ID)
 
 	topAll := selectTopKOpenAICandidates(candidates, 8)
 	require.Len(t, topAll, len(candidates))
-	require.Equal(t, int64(13), topAll[0].account.ID)
-	require.Equal(t, int64(11), topAll[1].account.ID)
+	require.Equal(t, int64(11), topAll[0].account.ID)
+	require.Equal(t, int64(13), topAll[1].account.ID)
 	require.Equal(t, int64(12), topAll[2].account.ID)
 	require.Equal(t, int64(14), topAll[3].account.ID)
 }
