@@ -359,6 +359,18 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					zap.Error(err),
 				)
 			} else {
+				var preOutputErr *service.OpenAIStreamPreOutputError
+				if errors.As(err, &preOutputErr) {
+					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
+					h.handleStreamingAwareError(c, preOutputErr.StatusCode, preOutputErr.ErrorType, preOutputErr.Message, streamStarted)
+					reqLog.Warn("openai.forward_failed_pre_output",
+						zap.Int64("account_id", account.ID),
+						zap.String("error_type", preOutputErr.ErrorType),
+						zap.Int("status_code", preOutputErr.StatusCode),
+						zap.String("message", preOutputErr.Message),
+					)
+					return
+				}
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
 					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)

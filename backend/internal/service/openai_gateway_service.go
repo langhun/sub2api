@@ -3461,6 +3461,8 @@ func openAIStreamFailedEventShouldFailover(payload []byte, message string) bool 
 	}
 	nonRetryableMarkers := []string{
 		"invalid_request",
+		"context_length_exceeded",
+		"context window",
 		"content_policy",
 		"policy",
 		"safety",
@@ -3609,6 +3611,13 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				if !openAIStreamClientOutputStarted(c, clientOutputStarted) && openAIStreamFailedEventShouldFailover(dataBytes, failedMessage) {
 					return resultWithUsage(),
 						s.newOpenAIStreamFailoverError(c, account, true, upstreamRequestID, dataBytes, failedMessage)
+				}
+				if !openAIStreamClientOutputStarted(c, clientOutputStarted) && extractOpenAISSEErrorCode(dataBytes) == "context_length_exceeded" {
+					return resultWithUsage(), &OpenAIStreamPreOutputError{
+						StatusCode: http.StatusBadRequest,
+						ErrorType:  "invalid_request_error",
+						Message:    failedMessage,
+					}
 				}
 				forceFlushFailedEvent = true
 				sawFailedEvent = true
@@ -4240,6 +4249,23 @@ type openaiNonStreamingResult struct {
 	imageCount int
 }
 
+type OpenAIStreamPreOutputError struct {
+	StatusCode int
+	ErrorType  string
+	Message    string
+}
+
+func (e *OpenAIStreamPreOutputError) Error() string {
+	if e == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(e.Message)
+	if msg == "" {
+		msg = "OpenAI stream failed before output"
+	}
+	return msg
+}
+
 func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, startTime time.Time, originalModel, mappedModel string) (*openaiStreamingResult, error) {
 	if s.responseHeaderFilter != nil {
 		responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
@@ -4440,6 +4466,15 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 				if !openAIStreamClientOutputStarted(c, clientOutputStarted) && openAIStreamFailedEventShouldFailover(dataBytes, failedMessage) {
 					sawFailedEvent = true
 					streamFailoverErr = s.newOpenAIStreamFailoverError(c, account, false, upstreamRequestID, dataBytes, failedMessage)
+					return
+				}
+				if !openAIStreamClientOutputStarted(c, clientOutputStarted) && extractOpenAISSEErrorCode(dataBytes) == "context_length_exceeded" {
+					sawFailedEvent = true
+					streamFailoverErr = &OpenAIStreamPreOutputError{
+						StatusCode: http.StatusBadRequest,
+						ErrorType:  "invalid_request_error",
+						Message:    failedMessage,
+					}
 					return
 				}
 				forceFlushFailedEvent = true
@@ -4858,6 +4893,18 @@ func extractOpenAISSEErrorMessage(payload []byte) string {
 		}
 	}
 	return sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(payload)))
+}
+
+func extractOpenAISSEErrorCode(payload []byte) string {
+	if len(payload) == 0 {
+		return ""
+	}
+	for _, path := range []string{"response.error.code", "error.code", "code"} {
+		if code := strings.TrimSpace(gjson.GetBytes(payload, path).String()); code != "" {
+			return code
+		}
+	}
+	return ""
 }
 
 func (s *OpenAIGatewayService) writeOpenAINonStreamingProtocolError(resp *http.Response, c *gin.Context, message string) error {
