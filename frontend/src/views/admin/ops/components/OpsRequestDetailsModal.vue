@@ -48,6 +48,19 @@ const rangeLabel = computed(() => {
   return t('admin.ops.requestDetails.rangeMinutes', { n: minutes })
 })
 
+function formatLatencyMs(value: number | null | undefined): string {
+  return typeof value === 'number' ? `${value} ms` : '-'
+}
+
+function buildLatencyBreakdown(row: OpsRequestDetail) {
+  return [
+    { key: 'auth', label: t('admin.ops.requestDetails.table.auth'), value: row.auth_latency_ms },
+    { key: 'routing', label: t('admin.ops.requestDetails.table.routing'), value: row.routing_latency_ms },
+    { key: 'upstream', label: t('admin.ops.requestDetails.table.upstream'), value: row.upstream_latency_ms },
+    { key: 'response', label: t('admin.ops.requestDetails.table.response'), value: row.response_latency_ms }
+  ].filter((item) => typeof item.value === 'number')
+}
+
 function buildTimeParams(): Pick<OpsRequestDetailsParams, 'start_time' | 'end_time'> {
   const minutes = parseTimeRangeMinutes(props.timeRange)
   const endTime = new Date()
@@ -205,7 +218,13 @@ const kindBadgeClass = (kind: string) => {
                     {{ t('admin.ops.requestDetails.table.model') }}
                   </th>
                   <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {{ t('admin.ops.requestDetails.table.ttft') }}
+                  </th>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {{ t('admin.ops.requestDetails.table.duration') }}
+                  </th>
+                  <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {{ t('admin.ops.requestDetails.table.breakdown') }}
                   </th>
                   <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {{ t('admin.ops.requestDetails.table.status') }}
@@ -235,7 +254,22 @@ const kindBadgeClass = (kind: string) => {
                     {{ row.model || '-' }}
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
-                    {{ typeof row.duration_ms === 'number' ? `${row.duration_ms} ms` : '-' }}
+                    {{ formatLatencyMs(row.first_token_ms) }}
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
+                    {{ formatLatencyMs(row.duration_ms) }}
+                  </td>
+                  <td class="min-w-[220px] px-4 py-3">
+                    <div v-if="buildLatencyBreakdown(row).length" class="flex flex-wrap gap-1.5">
+                      <span
+                        v-for="segment in buildLatencyBreakdown(row)"
+                        :key="segment.key"
+                        class="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300"
+                      >
+                        {{ segment.label }} {{ segment.value }}ms
+                      </span>
+                    </div>
+                    <span v-else class="text-xs text-gray-400">-</span>
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
                     {{ row.status_code ?? '-' }}

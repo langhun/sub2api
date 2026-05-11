@@ -5204,7 +5204,13 @@ export default {
           kind: 'Kind',
           platform: 'Platform',
           model: 'Model',
+          ttft: 'TTFT',
           duration: 'Duration',
+          breakdown: 'Latency Breakdown',
+          auth: 'Auth',
+          routing: 'Routing',
+          upstream: 'Upstream',
+          response: 'Response',
           status: 'Status',
           requestId: 'Request ID',
           actions: 'Actions'
