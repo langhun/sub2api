@@ -79,6 +79,26 @@ func TestOpenAITokenRefresher_NeedsRefresh_SkipsAccountWithoutRefreshToken(t *te
 	require.True(t, refresher.NeedsRefresh(withRT, 5*time.Minute))
 }
 
+func TestOpenAITokenRefresher_NeedsRefresh_SkipsHardRefreshFailureAccount(t *testing.T) {
+	refresher := NewOpenAITokenRefresher(nil, nil)
+	expiresAt := time.Now().Add(time.Minute).UTC().Format(time.RFC3339)
+
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Status:   StatusError,
+		ErrorMessage: "OpenAI OAuth refresh permanently failed; re-authorize this account " +
+			"(refresh_token_reused)",
+		Credentials: map[string]any{
+			"access_token":  "access-token",
+			"refresh_token": "refresh-token",
+			"expires_at":    expiresAt,
+		},
+	}
+
+	require.False(t, refresher.NeedsRefresh(account, 5*time.Minute))
+}
+
 func TestOpenAITokenProvider_NoRefreshTokenExpiredAccessTokenReturnsError(t *testing.T) {
 	provider := NewOpenAITokenProvider(nil, nil, nil)
 	expiresAt := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)

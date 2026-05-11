@@ -443,6 +443,40 @@ func TestRefreshIfNeeded_InvalidGrantRaceRecovered(t *testing.T) {
 	require.Equal(t, 0, repo.updateCalls) // no DB update needed, another worker did it
 }
 
+func TestRefreshIfNeeded_RefreshTokenReusedRaceRecovered(t *testing.T) {
+	account := &Account{
+		ID:          1010,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Credentials: map[string]any{"refresh_token": "old-rt", "access_token": "old-at"},
+	}
+	racedAccount := &Account{
+		ID:          1010,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Credentials: map[string]any{"refresh_token": "new-rt", "access_token": "new-at"},
+	}
+	repo := &refreshAPIAccountRepoWithRace{
+		refreshAPIAccountRepo: refreshAPIAccountRepo{account: account},
+		raceAccount:           racedAccount,
+	}
+	cache := &refreshAPICacheStub{lockResult: true}
+	executor := &refreshAPIExecutorStub{
+		needsRefresh: true,
+		err:          errors.New("refresh_token_reused"),
+	}
+
+	api := NewOAuthRefreshAPI(repo, cache)
+	result, err := api.RefreshIfNeeded(context.Background(), account, executor, 3*time.Minute)
+
+	require.NoError(t, err)
+	require.False(t, result.Refreshed)
+	require.False(t, result.LockHeld)
+	require.NotNil(t, result.Account)
+	require.Equal(t, "new-rt", result.Account.GetCredential("refresh_token"))
+	require.Equal(t, 0, repo.updateCalls)
+}
+
 func TestRefreshIfNeeded_InvalidGrantGenuine(t *testing.T) {
 	// Account with revoked refresh token - DB still has the same token
 	account := &Account{
@@ -600,6 +634,7 @@ func TestNewOAuthRefreshAPI_ZeroTTLUsesDefault(t *testing.T) {
 func TestIsInvalidGrantError(t *testing.T) {
 	require.True(t, isInvalidGrantError(errors.New("invalid_grant: token revoked")))
 	require.True(t, isInvalidGrantError(errors.New("INVALID_GRANT")))
+	require.True(t, isInvalidGrantError(errors.New("refresh_token_reused")))
 	require.False(t, isInvalidGrantError(errors.New("invalid_client")))
 	require.False(t, isInvalidGrantError(nil))
 }
@@ -637,6 +672,13 @@ func TestOpenAIProviderRefreshPolicy(t *testing.T) {
 	require.Equal(t, ProviderRefreshErrorUseExistingToken, p.OnRefreshError)
 	require.Equal(t, ProviderLockHeldWaitForCache, p.OnLockHeld)
 	require.Equal(t, time.Minute, p.FailureTTL)
+	require.Equal(t, []string{
+		"refresh_token_reused",
+		"invalid_grant",
+		"invalid_client",
+		"unauthorized_client",
+		"access_denied",
+	}, p.HardFailCodes)
 }
 
 func TestGeminiProviderRefreshPolicy(t *testing.T) {

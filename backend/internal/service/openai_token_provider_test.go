@@ -134,6 +134,54 @@ func (s *openAIOAuthServiceStub) BuildAccountCredentials(info *OpenAITokenInfo) 
 	}
 }
 
+type openAIProviderRepoStub struct {
+	mockAccountRepoForGemini
+	account       *Account
+	setErrorCalls int
+	lastErrorMsg  string
+}
+
+func (r *openAIProviderRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
+	if r.account != nil && r.account.ID == id {
+		return r.account, nil
+	}
+	return r.mockAccountRepoForGemini.GetByID(ctx, id)
+}
+
+func (r *openAIProviderRepoStub) SetError(ctx context.Context, id int64, errorMsg string) error {
+	r.setErrorCalls++
+	r.lastErrorMsg = errorMsg
+	if r.account != nil && r.account.ID == id {
+		r.account.Status = StatusError
+		r.account.ErrorMessage = errorMsg
+	}
+	return nil
+}
+
+type openAIProviderExecutorStub struct {
+	needsRefresh bool
+	err          error
+}
+
+func (s *openAIProviderExecutorStub) CanRefresh(_ *Account) bool { return true }
+
+func (s *openAIProviderExecutorStub) NeedsRefresh(_ *Account, _ time.Duration) bool {
+	return s.needsRefresh
+}
+
+func (s *openAIProviderExecutorStub) Refresh(_ context.Context, _ *Account) (map[string]any, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return map[string]any{
+		"access_token": "refreshed-token",
+	}, nil
+}
+
+func (s *openAIProviderExecutorStub) CacheKey(account *Account) string {
+	return OpenAITokenCacheKey(account)
+}
+
 func TestOpenAITokenProvider_CacheHit(t *testing.T) {
 	cache := newOpenAITokenCacheStub()
 	account := &Account{
@@ -513,6 +561,97 @@ func TestOpenAITokenProvider_RefreshError(t *testing.T) {
 	token, err := provider.GetAccessToken(context.Background(), account)
 	require.NoError(t, err)
 	require.Equal(t, "old-token", token) // Fallback to existing token
+}
+
+func TestOpenAITokenProvider_HardRefreshFailureMarksAccountError(t *testing.T) {
+	cache := newOpenAITokenCacheStub()
+	account := &Account{
+		ID:       1101,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token":  "old-token",
+			"refresh_token": "old-refresh-token",
+			"expires_at":    time.Now().Add(time.Minute).Format(time.RFC3339),
+		},
+	}
+	repo := &openAIProviderRepoStub{
+		account: account,
+	}
+
+	provider := NewOpenAITokenProvider(repo, cache, nil)
+	refreshAPI := NewOAuthRefreshAPI(repo, cache)
+	provider.SetRefreshAPI(refreshAPI, &openAIProviderExecutorStub{
+		needsRefresh: true,
+		err:          errors.New("refresh_token_reused"),
+	})
+
+	token, err := provider.GetAccessToken(context.Background(), account)
+	require.Error(t, err)
+	require.Empty(t, token)
+	require.Equal(t, 1, repo.setErrorCalls)
+	require.Equal(t, StatusError, account.Status)
+	require.Contains(t, account.ErrorMessage, "refresh_token_reused")
+	require.Equal(t, int32(0), atomic.LoadInt32(&cache.setCalled))
+}
+
+func TestOpenAITokenProvider_HardRefreshFailureStateBypassesCache(t *testing.T) {
+	cache := newOpenAITokenCacheStub()
+	account := &Account{
+		ID:           1102,
+		Platform:     PlatformOpenAI,
+		Type:         AccountTypeOAuth,
+		Status:       StatusError,
+		ErrorMessage: "OpenAI OAuth refresh permanently failed; re-authorize this account (refresh_token_reused)",
+		Credentials: map[string]any{
+			"access_token": "cached-token",
+		},
+	}
+	cache.tokens[OpenAITokenCacheKey(account)] = "cached-token"
+
+	provider := NewOpenAITokenProvider(nil, cache, nil)
+
+	token, err := provider.GetAccessToken(context.Background(), account)
+	require.Error(t, err)
+	require.Empty(t, token)
+	require.Equal(t, int32(0), atomic.LoadInt32(&cache.getCalled))
+}
+
+func TestOpenAITokenProvider_LockWaitMissReturnsLatestHardFailureState(t *testing.T) {
+	cache := newOpenAITokenCacheStub()
+	cache.lockAcquired = false
+
+	input := &Account{
+		ID:       1103,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token":  "old-token",
+			"refresh_token": "old-refresh-token",
+			"expires_at":    time.Now().Add(time.Minute).Format(time.RFC3339),
+		},
+	}
+	latest := &Account{
+		ID:           input.ID,
+		Platform:     PlatformOpenAI,
+		Type:         AccountTypeOAuth,
+		Status:       StatusError,
+		ErrorMessage: "OpenAI OAuth refresh permanently failed; re-authorize this account (refresh_token_reused)",
+		Credentials:  cloneCredentials(input.Credentials),
+	}
+	repo := &openAIProviderRepoStub{
+		account: latest,
+	}
+
+	provider := NewOpenAITokenProvider(repo, cache, nil)
+	refreshAPI := NewOAuthRefreshAPI(repo, cache)
+	provider.SetRefreshAPI(refreshAPI, &openAIProviderExecutorStub{
+		needsRefresh: true,
+	})
+
+	token, err := provider.GetAccessToken(context.Background(), input)
+	require.Error(t, err)
+	require.Empty(t, token)
 }
 
 func TestOpenAITokenProvider_OAuthServiceNotConfigured(t *testing.T) {

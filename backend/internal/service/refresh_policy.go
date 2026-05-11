@@ -27,6 +27,7 @@ type ProviderRefreshPolicy struct {
 	OnRefreshError ProviderRefreshErrorAction
 	OnLockHeld     ProviderLockHeldAction
 	FailureTTL     time.Duration
+	HardFailCodes  []string
 }
 
 func ClaudeProviderRefreshPolicy() ProviderRefreshPolicy {
@@ -42,6 +43,13 @@ func OpenAIProviderRefreshPolicy() ProviderRefreshPolicy {
 		OnRefreshError: ProviderRefreshErrorUseExistingToken,
 		OnLockHeld:     ProviderLockHeldWaitForCache,
 		FailureTTL:     time.Minute,
+		HardFailCodes: []string{
+			"refresh_token_reused",
+			"invalid_grant",
+			"invalid_client",
+			"unauthorized_client",
+			"access_denied",
+		},
 	}
 }
 
