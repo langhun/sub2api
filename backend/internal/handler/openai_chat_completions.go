@@ -257,6 +257,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		clientIP := ip.GetClientIP(c)
 		inboundEndpoint := GetInboundEndpoint(c)
 		upstreamEndpoint := resolveRawCCUpstreamEndpoint(c, account)
+		authLatencyMs, hasAuthLatencyMs := getContextInt64(c, service.OpsAuthLatencyMsKey)
+		routingLatencyMs, hasRoutingLatencyMs := getContextInt64(c, service.OpsRoutingLatencyMsKey)
+		upstreamLatencyMs, hasUpstreamLatencyMs := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
+		responseLatencyMs, hasResponseLatencyMs := getContextInt64(c, service.OpsResponseLatencyMsKey)
 
 		h.submitOpenAIUsageRecordTask(result, func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
@@ -270,6 +274,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				UserAgent:          userAgent,
 				IPAddress:          clientIP,
 				APIKeyService:      h.apiKeyService,
+				AuthLatencyMs:      optionalInt64Value(authLatencyMs, hasAuthLatencyMs),
+				RoutingLatencyMs:   optionalInt64Value(routingLatencyMs, hasRoutingLatencyMs),
+				UpstreamLatencyMs:  optionalInt64Value(upstreamLatencyMs, hasUpstreamLatencyMs),
+				ResponseLatencyMs:  optionalInt64Value(responseLatencyMs, hasResponseLatencyMs),
 				ChannelUsageFields: channelMapping.ToUsageFields(reqModel, result.UpstreamModel),
 			}); err != nil {
 				logger.L().With(

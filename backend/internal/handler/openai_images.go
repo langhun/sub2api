@@ -284,6 +284,10 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		}
 		inboundEndpoint := GetInboundEndpoint(c)
 		upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
+		authLatencyMs, hasAuthLatencyMs := getContextInt64(c, service.OpsAuthLatencyMsKey)
+		routingLatencyMs, hasRoutingLatencyMs := getContextInt64(c, service.OpsRoutingLatencyMsKey)
+		upstreamLatencyMs, hasUpstreamLatencyMs := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
+		responseLatencyMs, hasResponseLatencyMs := getContextInt64(c, service.OpsResponseLatencyMsKey)
 
 		upstreamModel := ""
 		if result != nil {
@@ -302,6 +306,10 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 				IPAddress:          clientIP,
 				RequestPayloadHash: requestPayloadHash,
 				APIKeyService:      h.apiKeyService,
+				AuthLatencyMs:      optionalInt64Value(authLatencyMs, hasAuthLatencyMs),
+				RoutingLatencyMs:   optionalInt64Value(routingLatencyMs, hasRoutingLatencyMs),
+				UpstreamLatencyMs:  optionalInt64Value(upstreamLatencyMs, hasUpstreamLatencyMs),
+				ResponseLatencyMs:  optionalInt64Value(responseLatencyMs, hasResponseLatencyMs),
 				ChannelUsageFields: channelMapping.ToUsageFields(parsed.Model, upstreamModel),
 			}); err != nil {
 				logger.L().With(
