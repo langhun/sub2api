@@ -1983,7 +1983,13 @@ func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Acco
 		if s.openAITokenProvider != nil {
 			accessToken, err := s.openAITokenProvider.GetAccessToken(ctx, account)
 			if err != nil {
-				return "", "", err
+				if ctx != nil && ctx.Err() != nil {
+					return "", "", ctx.Err()
+				}
+				return "", "", &UpstreamFailoverError{
+					StatusCode:   http.StatusUnauthorized,
+					ResponseBody: []byte(err.Error()),
+				}
 			}
 			return accessToken, "oauth", nil
 		}
@@ -5303,6 +5309,10 @@ type OpenAIRecordUsageInput struct {
 	IPAddress          string // 请求的客户端 IP 地址
 	RequestPayloadHash string
 	APIKeyService      APIKeyQuotaUpdater
+	AuthLatencyMs      *int64
+	RoutingLatencyMs   *int64
+	UpstreamLatencyMs  *int64
+	ResponseLatencyMs  *int64
 	ChannelUsageFields
 }
 
@@ -5453,6 +5463,22 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	usageLog.OpenAIWSMode = result.OpenAIWSMode
 	usageLog.DurationMs = &durationMs
 	usageLog.FirstTokenMs = result.FirstTokenMs
+	if input.AuthLatencyMs != nil {
+		value := int(*input.AuthLatencyMs)
+		usageLog.AuthLatencyMs = &value
+	}
+	if input.RoutingLatencyMs != nil {
+		value := int(*input.RoutingLatencyMs)
+		usageLog.RoutingLatencyMs = &value
+	}
+	if input.UpstreamLatencyMs != nil {
+		value := int(*input.UpstreamLatencyMs)
+		usageLog.UpstreamLatencyMs = &value
+	}
+	if input.ResponseLatencyMs != nil {
+		value := int(*input.ResponseLatencyMs)
+		usageLog.ResponseLatencyMs = &value
+	}
 	usageLog.CreatedAt = time.Now()
 	// 设置渠道信息
 	usageLog.ChannelID = optionalInt64Ptr(input.ChannelID)

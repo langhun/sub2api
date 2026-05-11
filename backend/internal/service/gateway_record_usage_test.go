@@ -192,6 +192,46 @@ func TestGatewayServiceRecordUsage_PreservesRequestedAndUpstreamModels(t *testin
 	require.Equal(t, mappedModel, *usageRepo.lastLog.UpstreamModel)
 }
 
+func TestGatewayServiceRecordUsage_PersistsLatencyBreakdown(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+	authLatency := 11
+	routingLatency := 22
+	upstreamLatency := 33
+	responseLatency := 44
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_latency_breakdown",
+			Usage: ClaudeUsage{
+				InputTokens:  10,
+				OutputTokens: 6,
+			},
+			Model:    "claude-sonnet-4",
+			Duration: time.Second,
+		},
+		APIKey:            &APIKey{ID: 501, Quota: 100},
+		User:              &User{ID: 601},
+		Account:           &Account{ID: 701},
+		AuthLatencyMs:     &authLatency,
+		RoutingLatencyMs:  &routingLatency,
+		UpstreamLatencyMs: &upstreamLatency,
+		ResponseLatencyMs: &responseLatency,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.AuthLatencyMs)
+	require.NotNil(t, usageRepo.lastLog.RoutingLatencyMs)
+	require.NotNil(t, usageRepo.lastLog.UpstreamLatencyMs)
+	require.NotNil(t, usageRepo.lastLog.ResponseLatencyMs)
+	require.Equal(t, authLatency, *usageRepo.lastLog.AuthLatencyMs)
+	require.Equal(t, routingLatency, *usageRepo.lastLog.RoutingLatencyMs)
+	require.Equal(t, upstreamLatency, *usageRepo.lastLog.UpstreamLatencyMs)
+	require.Equal(t, responseLatency, *usageRepo.lastLog.ResponseLatencyMs)
+}
+
 func TestGatewayServiceRecordUsage_UsageLogWriteErrorDoesNotSkipBilling(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: false, err: MarkUsageLogCreateNotPersisted(context.Canceled)}
 	userRepo := &openAIRecordUsageUserRepoStub{}

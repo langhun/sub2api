@@ -72,6 +72,10 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			true,
 			sqlmock.AnyArg(), // duration_ms
 			sqlmock.AnyArg(), // first_token_ms
+			sqlmock.AnyArg(), // auth_latency_ms
+			sqlmock.AnyArg(), // routing_latency_ms
+			sqlmock.AnyArg(), // upstream_latency_ms
+			sqlmock.AnyArg(), // response_latency_ms
 			sqlmock.AnyArg(), // user_agent
 			sqlmock.AnyArg(), // ip_address
 			log.ImageCount,
@@ -149,6 +153,10 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			int16(service.RequestTypeSync),
 			false,
 			false,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -624,6 +632,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			false, // legacy openai ws
 			sql.NullInt64{},
 			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
 			sql.NullString{},
 			sql.NullString{},
 			0,
@@ -670,6 +682,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int16(service.RequestTypeUnknown),
 			true,
 			false,
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
 			sql.NullInt64{},
 			sql.NullInt64{},
 			sql.NullString{},
@@ -720,6 +736,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			false,
 			sql.NullInt64{},
 			sql.NullInt64{},
+			sql.NullInt64{Valid: true, Int64: 11},
+			sql.NullInt64{Valid: true, Int64: 22},
+			sql.NullInt64{Valid: true, Int64: 33},
+			sql.NullInt64{Valid: true, Int64: 44},
 			sql.NullString{},
 			sql.NullString{},
 			0,
@@ -739,6 +759,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
 		require.Equal(t, "priority", *log.ServiceTier)
+		require.NotNil(t, log.AuthLatencyMs)
+		require.NotNil(t, log.RoutingLatencyMs)
+		require.NotNil(t, log.UpstreamLatencyMs)
+		require.NotNil(t, log.ResponseLatencyMs)
+		require.Equal(t, 11, *log.AuthLatencyMs)
+		require.Equal(t, 22, *log.RoutingLatencyMs)
+		require.Equal(t, 33, *log.UpstreamLatencyMs)
+		require.Equal(t, 44, *log.ResponseLatencyMs)
 	})
 
 }

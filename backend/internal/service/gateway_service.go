@@ -7881,6 +7881,10 @@ type RecordUsageInput struct {
 	UserAgent          string             // 请求的 User-Agent
 	IPAddress          string             // 请求的客户端 IP 地址
 	RequestPayloadHash string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
+	AuthLatencyMs      *int               // gateway 鉴权阶段耗时（毫秒）
+	RoutingLatencyMs   *int               // gateway 路由/排队到选中账号阶段耗时（毫秒）
+	UpstreamLatencyMs  *int               // forward 内上游往返/首包前阶段耗时（毫秒）
+	ResponseLatencyMs  *int               // forward 内响应输出阶段耗时（毫秒）
 	ForceCacheBilling  bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
 	APIKeyService      APIKeyQuotaUpdater // 可选：用于更新API Key配额
 
@@ -8292,6 +8296,10 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		UserAgent:          input.UserAgent,
 		IPAddress:          input.IPAddress,
 		RequestPayloadHash: input.RequestPayloadHash,
+		AuthLatencyMs:      input.AuthLatencyMs,
+		RoutingLatencyMs:   input.RoutingLatencyMs,
+		UpstreamLatencyMs:  input.UpstreamLatencyMs,
+		ResponseLatencyMs:  input.ResponseLatencyMs,
 		ForceCacheBilling:  input.ForceCacheBilling,
 		APIKeyService:      input.APIKeyService,
 		ChannelUsageFields: input.ChannelUsageFields,
@@ -8312,6 +8320,10 @@ type RecordUsageLongContextInput struct {
 	UserAgent             string             // 请求的 User-Agent
 	IPAddress             string             // 请求的客户端 IP 地址
 	RequestPayloadHash    string             // 请求体语义哈希，用于降低 request_id 误复用时的静默误去重风险
+	AuthLatencyMs         *int               // gateway 鉴权阶段耗时（毫秒）
+	RoutingLatencyMs      *int               // gateway 路由/排队到选中账号阶段耗时（毫秒）
+	UpstreamLatencyMs     *int               // forward 内上游往返/首包前阶段耗时（毫秒）
+	ResponseLatencyMs     *int               // forward 内响应输出阶段耗时（毫秒）
 	LongContextThreshold  int                // 长上下文阈值（如 200000）
 	LongContextMultiplier float64            // 超出阈值部分的倍率（如 2.0）
 	ForceCacheBilling     bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
@@ -8333,6 +8345,10 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		UserAgent:          input.UserAgent,
 		IPAddress:          input.IPAddress,
 		RequestPayloadHash: input.RequestPayloadHash,
+		AuthLatencyMs:      input.AuthLatencyMs,
+		RoutingLatencyMs:   input.RoutingLatencyMs,
+		UpstreamLatencyMs:  input.UpstreamLatencyMs,
+		ResponseLatencyMs:  input.ResponseLatencyMs,
 		ForceCacheBilling:  input.ForceCacheBilling,
 		APIKeyService:      input.APIKeyService,
 		ChannelUsageFields: input.ChannelUsageFields,
@@ -8354,6 +8370,10 @@ type recordUsageCoreInput struct {
 	UserAgent          string
 	IPAddress          string
 	RequestPayloadHash string
+	AuthLatencyMs      *int
+	RoutingLatencyMs   *int
+	UpstreamLatencyMs  *int
+	ResponseLatencyMs  *int
 	ForceCacheBilling  bool
 	APIKeyService      APIKeyQuotaUpdater
 	ChannelUsageFields
@@ -8646,6 +8666,10 @@ func (s *GatewayService) buildRecordUsageLog(
 		Stream:                result.Stream,
 		DurationMs:            &durationMs,
 		FirstTokenMs:          result.FirstTokenMs,
+		AuthLatencyMs:         input.AuthLatencyMs,
+		RoutingLatencyMs:      input.RoutingLatencyMs,
+		UpstreamLatencyMs:     input.UpstreamLatencyMs,
+		ResponseLatencyMs:     input.ResponseLatencyMs,
 		ImageCount:            result.ImageCount,
 		ImageSize:             optionalTrimmedStringPtr(result.ImageSize),
 		CacheTTLOverridden:    cacheTTLOverridden,
