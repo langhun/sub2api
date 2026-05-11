@@ -8,10 +8,8 @@ const messages: Record<string, string> = {
   'leaderboard.tabs.consumption': '消耗排行',
   'leaderboard.consumptionChartTitle': '消费分布',
   'leaderboard.consumptionChartSubtitle': '查看当前周期所有消费用户的金额占比',
-  'leaderboard.consumptionSubtitle': '{count} 次请求',
   'leaderboard.totalAmount': '总金额',
   'leaderboard.totalUsers': '用户数',
-  'leaderboard.hoverHint': '悬停圆环切片可查看用户、金额和占比',
   'leaderboard.requests': '请求',
   'leaderboard.amount': '金额',
   'leaderboard.share': '占比',
@@ -97,7 +95,7 @@ describe('PublicConsumptionLeaderboardChart', () => {
     expect(label).toBe('Alpha: $60.00 (60.0%)')
   })
 
-  it('renders ranking rows beside the chart with share text', () => {
+  it('renders ranking rows with usage-style rank labels and share text', () => {
     const wrapper = mount(PublicConsumptionLeaderboardChart, {
       props: {
         chartItems: [
@@ -115,9 +113,11 @@ describe('PublicConsumptionLeaderboardChart', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Alpha')
-    expect(wrapper.text()).toContain('60.0%')
-    expect(wrapper.text()).toContain('12 次请求')
+    const rankingRows = wrapper.findAll('[data-testid="consumption-ranking-row"]')
+    expect(rankingRows[0].text()).toContain('#1')
+    expect(rankingRows[0].text()).toContain('Alpha')
+    expect(rankingRows[0].text()).toContain('12')
+    expect(rankingRows[0].text()).toContain('60.0%')
   })
 
   it('defaults to a 9-row viewport but keeps all ranking rows scrollable', () => {
