@@ -2328,19 +2328,20 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 	}
 
-	// Handle max_output_tokens based on platform and account type
-	if !isCodexCLI {
-		if maxOutputTokens, hasMaxOutputTokens := reqBody["max_output_tokens"]; hasMaxOutputTokens {
-			switch account.Platform {
-			case PlatformOpenAI:
-				// For OpenAI API Key, remove max_output_tokens (not supported)
-				// For OpenAI OAuth (Responses API), keep it (supported)
-				if account.Type == AccountTypeAPIKey {
-					delete(reqBody, "max_output_tokens")
-					bodyModified = true
-					markPatchDelete("max_output_tokens")
-				}
-			case PlatformAnthropic:
+	// Handle max_output_tokens based on platform and account type.
+	if maxOutputTokens, hasMaxOutputTokens := reqBody["max_output_tokens"]; hasMaxOutputTokens {
+		switch account.Platform {
+		case PlatformOpenAI:
+			// Official OpenAI /v1/responses accepts max_output_tokens for Codex
+			// requests. Third-party OpenAI-compatible base_url accounts often
+			// reject it, so keep the legacy compatibility stripping there.
+			if account.Type == AccountTypeAPIKey && (!isCodexCLI || !shouldPreserveOpenAIAPIKeyResponsesFields(account)) {
+				delete(reqBody, "max_output_tokens")
+				bodyModified = true
+				markPatchDelete("max_output_tokens")
+			}
+		case PlatformAnthropic:
+			if !isCodexCLI {
 				// For Anthropic (Claude), convert to max_tokens
 				delete(reqBody, "max_output_tokens")
 				markPatchDelete("max_output_tokens")
@@ -2349,28 +2350,41 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 					disablePatch()
 				}
 				bodyModified = true
-			case PlatformGemini:
+			}
+		case PlatformGemini:
+			if !isCodexCLI {
 				// For Gemini, remove (will be handled by Gemini-specific transform)
 				delete(reqBody, "max_output_tokens")
 				bodyModified = true
 				markPatchDelete("max_output_tokens")
-			default:
+			}
+		default:
+			if !isCodexCLI {
 				// For unknown platforms, remove to be safe
 				delete(reqBody, "max_output_tokens")
 				bodyModified = true
 				markPatchDelete("max_output_tokens")
 			}
 		}
+	}
 
-		// Also handle max_completion_tokens (similar logic)
-		if _, hasMaxCompletionTokens := reqBody["max_completion_tokens"]; hasMaxCompletionTokens {
-			if account.Type == AccountTypeAPIKey || account.Platform != PlatformOpenAI {
+	// Also handle max_completion_tokens (similar logic)
+	if _, hasMaxCompletionTokens := reqBody["max_completion_tokens"]; hasMaxCompletionTokens {
+		switch {
+		case account.Type == AccountTypeAPIKey:
+			if !isCodexCLI || !shouldPreserveOpenAIAPIKeyResponsesFields(account) {
 				delete(reqBody, "max_completion_tokens")
 				bodyModified = true
 				markPatchDelete("max_completion_tokens")
 			}
+		case !isCodexCLI && account.Platform != PlatformOpenAI:
+			delete(reqBody, "max_completion_tokens")
+			bodyModified = true
+			markPatchDelete("max_completion_tokens")
 		}
+	}
 
+	if !isCodexCLI {
 		// Remove unsupported fields (not supported by upstream OpenAI API)
 		unsupportedFields := []string{"prompt_cache_retention", "safety_identifier"}
 		for _, unsupportedField := range unsupportedFields {
@@ -2913,6 +2927,15 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 			body = normalizedBody
 		}
 		reqStream = gjson.GetBytes(body, "stream").Bool()
+	}
+	if account != nil && account.Type == AccountTypeAPIKey {
+		normalizedBody, normalized, err := normalizeOpenAIAPIKeyPassthroughCompatBody(body, account)
+		if err != nil {
+			return nil, err
+		}
+		if normalized {
+			body = normalizedBody
+		}
 	}
 
 	sanitizedBody, sanitized, err := sanitizeEmptyBase64InputImagesInOpenAIBody(body)
