@@ -363,12 +363,12 @@ func TestSettingHandler_UpdateSettings_PersistsLeaderboardTabsIndependently(t *t
 	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil)
 
 	body := map[string]any{
-		"promo_code_enabled":              true,
-		"home_nav_leaderboard_enabled":    false,
-		"leaderboard_balance_enabled":     false,
-		"leaderboard_consumption_enabled": true,
-		"leaderboard_transfer_enabled":    false,
-		"leaderboard_checkin_enabled":     true,
+		"promo_code_enabled":                true,
+		"home_nav_leaderboard_enabled":      false,
+		"leaderboard_balance_enabled":       false,
+		"leaderboard_consumption_enabled":   true,
+		"leaderboard_transfer_enabled":      false,
+		"leaderboard_checkin_enabled":       true,
 		"leaderboard_include_admin_enabled": true,
 	}
 	rawBody, err := json.Marshal(body)
