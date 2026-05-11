@@ -397,6 +397,7 @@ const baseSettingsResponse = {
   enable_metadata_passthrough: false,
   enable_cch_signing: false,
   enable_anthropic_cache_ttl_1h_injection: false,
+  rewrite_message_cache_control: false,
   payment_enabled: true,
   payment_min_amount: 1,
   payment_max_amount: 10000,
@@ -744,12 +745,10 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(wrapper.text()).toContain("显示转账排行榜");
     expect(wrapper.text()).toContain("显示签到排行榜");
     expect(wrapper.text()).toContain("排行榜包含管理员");
-
     await wrapper.find("form").trigger("submit.prevent");
     await flushPromises();
 
     expect(updateSettings).toHaveBeenCalledTimes(1);
-    // 首页入口开关和排行榜标签开关要分别提交，避免再次耦合。
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         home_nav_leaderboard_enabled: false,
@@ -758,6 +757,26 @@ describe("admin SettingsView payment visible method controls", () => {
         leaderboard_transfer_enabled: true,
         leaderboard_checkin_enabled: false,
         leaderboard_include_admin_enabled: true,
+      }),
+    );
+  });
+
+  it("submits message cache_control rewrite gateway setting", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      rewrite_message_cache_control: true,
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rewrite_message_cache_control: true,
       }),
     );
   });
