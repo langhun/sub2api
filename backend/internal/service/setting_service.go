@@ -497,6 +497,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeyTransferEnabled,
+		SettingKeyRedPacketEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 	}
@@ -609,6 +611,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
+		TransferEnabled:          settings[SettingKeyTransferEnabled] == "true",
+		RedPacketEnabled:         settings[SettingKeyRedPacketEnabled] == "true",
 
 		AffiliateEnabled:    settings[SettingKeyAffiliateEnabled] == "true",
 		RiskControlEnabled:  settings[SettingKeyRiskControlEnabled] == "true",
@@ -770,6 +774,8 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
+	TransferEnabled                      bool `json:"transfer_enabled"`
+	RedPacketEnabled                     bool `json:"redpacket_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 }
@@ -835,6 +841,8 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		TransferEnabled:                      settings.TransferEnabled,
+		RedPacketEnabled:                     settings.RedPacketEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 	}, nil

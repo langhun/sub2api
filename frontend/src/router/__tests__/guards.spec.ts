@@ -55,13 +55,19 @@ interface MockAuthState {
   hasPendingAuthSession: boolean
 }
 
+interface MockFeatureState {
+  transferEnabled: boolean
+  redpacketEnabled: boolean
+}
+
 /**
  * 将 router/index.ts 中 beforeEach 守卫的核心逻辑提取为可测试的函数
  */
 function simulateGuard(
   toPath: string,
   toMeta: Record<string, any>,
-  authState: MockAuthState
+  authState: MockAuthState,
+  featureState: MockFeatureState = { transferEnabled: false, redpacketEnabled: false },
 ): string | null {
   const requiresAuth = toMeta.requiresAuth !== false
   const requiresAdmin = toMeta.requiresAdmin === true
@@ -106,6 +112,14 @@ function simulateGuard(
   // 需要管理员但不是管理员
   if (requiresAdmin && !authState.isAdmin) {
     return '/dashboard'
+  }
+
+  if (toMeta.requiresTransfer && !featureState.transferEnabled) {
+    return authState.isAdmin ? '/admin/settings' : '/dashboard'
+  }
+
+  if (toMeta.requiresRedPacket && !(featureState.transferEnabled && featureState.redpacketEnabled)) {
+    return authState.isAdmin ? '/admin/settings' : '/dashboard'
   }
 
   // 简易模式限制
@@ -220,6 +234,21 @@ describe('路由守卫逻辑', () => {
       const redirect = simulateGuard('/admin/users', { requiresAdmin: true }, authState)
       expect(redirect).toBe('/dashboard')
     })
+
+    it('余额转账关闭时访问 /transfer 重定向到 /dashboard', () => {
+      const redirect = simulateGuard('/transfer', { requiresTransfer: true }, authState)
+      expect(redirect).toBe('/dashboard')
+    })
+
+    it('红包功能关闭时访问 /redpacket 重定向到 /dashboard', () => {
+      const redirect = simulateGuard(
+        '/redpacket',
+        { requiresRedPacket: true },
+        authState,
+        { transferEnabled: true, redpacketEnabled: false },
+      )
+      expect(redirect).toBe('/dashboard')
+    })
   })
 
   // --- 已认证管理员 ---
@@ -245,6 +274,21 @@ describe('路由守卫逻辑', () => {
 
     it('访问用户页面允许通过', () => {
       const redirect = simulateGuard('/dashboard', {}, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('管理员访问已关闭的余额转账页面重定向到 /admin/settings', () => {
+      const redirect = simulateGuard('/transfer', { requiresTransfer: true }, authState)
+      expect(redirect).toBe('/admin/settings')
+    })
+
+    it('红包开启且余额转账开启时允许访问 /redpacket', () => {
+      const redirect = simulateGuard(
+        '/redpacket',
+        { requiresRedPacket: true },
+        authState,
+        { transferEnabled: true, redpacketEnabled: true },
+      )
       expect(redirect).toBeNull()
     })
   })

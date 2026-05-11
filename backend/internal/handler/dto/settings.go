@@ -322,6 +322,9 @@ type PublicSettings struct {
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	TransferEnabled  bool `json:"transfer_enabled"`
+	RedPacketEnabled bool `json:"redpacket_enabled"`
+
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`

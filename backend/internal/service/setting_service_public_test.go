@@ -171,6 +171,21 @@ func TestSettingService_GetPublicSettings_ExposesForceEmailOnThirdPartySignup(t 
 	require.True(t, settings.ForceEmailOnThirdPartySignup)
 }
 
+func TestSettingService_GetPublicSettings_ExposesTransferFeatureSwitches(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyTransferEnabled:  "true",
+			SettingKeyRedPacketEnabled: "true",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.TransferEnabled)
+	require.True(t, settings.RedPacketEnabled)
+}
+
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{
 		values: map[string]string{

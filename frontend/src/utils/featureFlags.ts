@@ -104,6 +104,16 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Available Channels',
   }),
+  transfer: defineFlag({
+    key: 'transfer_enabled',
+    mode: 'opt-in',
+    label: 'Transfer',
+  }),
+  redpacket: defineFlag({
+    key: 'redpacket_enabled',
+    mode: 'opt-in',
+    label: 'Red Packet',
+  }),
   payment: defineFlag({
     key: 'payment_enabled',
     mode: 'opt-out',
@@ -146,4 +156,12 @@ export function isFeatureFlagEnabled(flag: FeatureFlagDefinition): boolean {
  */
 export function makeSidebarFlag(flag: FeatureFlagDefinition): () => boolean {
   return () => isFeatureFlagEnabled(flag)
+}
+
+export function isTransferFeatureEnabled(): boolean {
+  return isFeatureFlagEnabled(FeatureFlags.transfer)
+}
+
+export function isRedPacketFeatureEnabled(): boolean {
+  return isTransferFeatureEnabled() && isFeatureFlagEnabled(FeatureFlags.redpacket)
 }

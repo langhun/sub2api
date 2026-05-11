@@ -120,3 +120,34 @@ func TestSettingHandler_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *
 	require.True(t, resp.Data.WeChatOAuthOpenEnabled)
 	require.True(t, resp.Data.WeChatOAuthMPEnabled)
 }
+
+func TestSettingHandler_GetPublicSettings_ExposesTransferFeatureSwitches(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := NewSettingHandler(service.NewSettingService(&settingHandlerPublicRepoStub{
+		values: map[string]string{
+			service.SettingKeyTransferEnabled:  "true",
+			service.SettingKeyRedPacketEnabled: "false",
+		},
+	}, &config.Config{}), "test-version")
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/settings/public", nil)
+
+	h.GetPublicSettings(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			TransferEnabled  bool `json:"transfer_enabled"`
+			RedPacketEnabled bool `json:"redpacket_enabled"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.True(t, resp.Data.TransferEnabled)
+	require.False(t, resp.Data.RedPacketEnabled)
+}

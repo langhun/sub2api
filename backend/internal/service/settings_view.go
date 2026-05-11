@@ -299,6 +299,10 @@ type PublicSettings struct {
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	// Balance transfer / red packet feature switches (user-facing entry visibility)
+	TransferEnabled  bool `json:"transfer_enabled"`
+	RedPacketEnabled bool `json:"redpacket_enabled"`
+
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled    bool               `json:"affiliate_enabled"`
 	AffiliateCodeFormat CodeFormatSettings `json:"affiliate_code_format"`

@@ -9,6 +9,7 @@ import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useNavigationLoadingState } from '@/composables/useNavigationLoading'
 import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
+import { isRedPacketFeatureEnabled, isTransferFeatureEnabled } from '@/utils/featureFlags'
 import { resolveDocumentTitle } from './title'
 
 /**
@@ -309,6 +310,7 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Transfer',
       titleKey: 'nav.transfer',
+      requiresTransfer: true,
     }
   },
   {
@@ -320,6 +322,7 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Red Packet',
       titleKey: 'nav.redpacket',
+      requiresRedPacket: true,
     }
   },
   {
@@ -853,6 +856,16 @@ router.beforeEach((to, _from, next) => {
       next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
       return
     }
+  }
+
+  if (to.meta.requiresTransfer && !isTransferFeatureEnabled()) {
+    next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
+    return
+  }
+
+  if (to.meta.requiresRedPacket && !isRedPacketFeatureEnabled()) {
+    next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
+    return
   }
 
   // 简易模式下限制访问某些页面
