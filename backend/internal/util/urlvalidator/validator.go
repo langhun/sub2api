@@ -26,34 +26,14 @@ type ValidationOptions struct {
 //
 // 注意：DNS Rebinding 防护（解析后 IP 校验）应在实际发起请求时执行，避免 TOCTOU。
 func ValidateHTTPURL(raw string, allowInsecureHTTP bool, opts ValidationOptions) (string, error) {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return "", errors.New("url is required")
+	baseURL, err := parseAndValidateBaseURL(raw, allowInsecureHTTP)
+	if err != nil {
+		return "", err
 	}
 
-	parsed, err := url.Parse(trimmed)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return "", fmt.Errorf("invalid url: %s", trimmed)
-	}
-
-	scheme := strings.ToLower(parsed.Scheme)
-	if scheme != "https" && (!allowInsecureHTTP || scheme != "http") {
-		return "", fmt.Errorf("invalid url scheme: %s", parsed.Scheme)
-	}
-
-	host := strings.ToLower(strings.TrimSpace(parsed.Hostname()))
-	if host == "" {
-		return "", errors.New("invalid host")
-	}
+	host := strings.ToLower(baseURL.host)
 	if !opts.AllowPrivate && isBlockedHost(host) {
 		return "", fmt.Errorf("host is not allowed: %s", host)
-	}
-
-	if port := parsed.Port(); port != "" {
-		num, err := strconv.Atoi(port)
-		if err != nil || num <= 0 || num > 65535 {
-			return "", fmt.Errorf("invalid port: %s", port)
-		}
 	}
 
 	allowlist := normalizeAllowlist(opts.AllowedHosts)
@@ -64,41 +44,18 @@ func ValidateHTTPURL(raw string, allowInsecureHTTP bool, opts ValidationOptions)
 		return "", fmt.Errorf("host is not allowed: %s", host)
 	}
 
-	parsed.Path = strings.TrimRight(parsed.Path, "/")
-	parsed.RawPath = ""
-	return strings.TrimRight(parsed.String(), "/"), nil
+	baseURL.parsed.Path = strings.TrimRight(baseURL.parsed.Path, "/")
+	baseURL.parsed.RawPath = ""
+	return strings.TrimRight(baseURL.parsed.String(), "/"), nil
 }
 
 func ValidateURLFormat(raw string, allowInsecureHTTP bool) (string, error) {
 	// 最小格式校验：仅保证 URL 可解析且 scheme 合规，不做白名单/私网/SSRF 校验
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return "", errors.New("url is required")
+	baseURL, err := parseAndValidateBaseURL(raw, allowInsecureHTTP)
+	if err != nil {
+		return "", err
 	}
-
-	parsed, err := url.Parse(trimmed)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return "", fmt.Errorf("invalid url: %s", trimmed)
-	}
-
-	scheme := strings.ToLower(parsed.Scheme)
-	if scheme != "https" && (!allowInsecureHTTP || scheme != "http") {
-		return "", fmt.Errorf("invalid url scheme: %s", parsed.Scheme)
-	}
-
-	host := strings.TrimSpace(parsed.Hostname())
-	if host == "" {
-		return "", errors.New("invalid host")
-	}
-
-	if port := parsed.Port(); port != "" {
-		num, err := strconv.Atoi(port)
-		if err != nil || num <= 0 || num > 65535 {
-			return "", fmt.Errorf("invalid port: %s", port)
-		}
-	}
-
-	return strings.TrimRight(trimmed, "/"), nil
+	return strings.TrimRight(baseURL.trimmed, "/"), nil
 }
 
 func ValidateHTTPSURL(raw string, opts ValidationOptions) (string, error) {
@@ -123,6 +80,47 @@ func ValidateResolvedIP(host string) error {
 		}
 	}
 	return nil
+}
+
+type parsedURL struct {
+	trimmed string
+	parsed  *url.URL
+	host    string
+}
+
+func parseAndValidateBaseURL(raw string, allowInsecureHTTP bool) (*parsedURL, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, errors.New("url is required")
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return nil, fmt.Errorf("invalid url: %s", trimmed)
+	}
+
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "https" && (!allowInsecureHTTP || scheme != "http") {
+		return nil, fmt.Errorf("invalid url scheme: %s", parsed.Scheme)
+	}
+
+	host := strings.TrimSpace(parsed.Hostname())
+	if host == "" {
+		return nil, errors.New("invalid host")
+	}
+
+	if port := parsed.Port(); port != "" {
+		num, err := strconv.Atoi(port)
+		if err != nil || num <= 0 || num > 65535 {
+			return nil, fmt.Errorf("invalid port: %s", port)
+		}
+	}
+
+	return &parsedURL{
+		trimmed: trimmed,
+		parsed:  parsed,
+		host:    host,
+	}, nil
 }
 
 func normalizeAllowlist(values []string) []string {
