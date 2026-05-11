@@ -125,6 +125,16 @@ type adminBootstrapDecision struct {
 	reason       string
 }
 
+func buildPostgresDSN(cfg *DatabaseConfig, dbName string) string {
+	if dbName == "" {
+		dbName = cfg.DBName
+	}
+	return fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, dbName, cfg.SSLMode,
+	)
+}
+
 func decideAdminBootstrap(totalUsers, adminUsers int64) adminBootstrapDecision {
 	if adminUsers > 0 {
 		return adminBootstrapDecision{
@@ -163,10 +173,7 @@ func NeedsSetup() bool {
 // TestDatabaseConnection tests the database connection and creates database if not exists
 func TestDatabaseConnection(cfg *DatabaseConfig) error {
 	// First, connect to the default 'postgres' database to check/create target database
-	defaultDSN := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode,
-	)
+	defaultDSN := buildPostgresDSN(cfg, "postgres")
 
 	db, err := sql.Open("postgres", defaultDSN)
 	if err != nil {
@@ -214,10 +221,7 @@ func TestDatabaseConnection(cfg *DatabaseConfig) error {
 	}
 	db = nil
 
-	targetDSN := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode,
-	)
+	targetDSN := buildPostgresDSN(cfg, "")
 
 	targetDB, err := sql.Open("postgres", targetDSN)
 	if err != nil {
@@ -328,11 +332,7 @@ func createInstallLock() error {
 }
 
 func initializeDatabase(cfg *SetupConfig) error {
-	dsn := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
-		cfg.Database.Password, cfg.Database.DBName, cfg.Database.SSLMode,
-	)
+	dsn := buildPostgresDSN(&cfg.Database, "")
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
@@ -351,11 +351,7 @@ func initializeDatabase(cfg *SetupConfig) error {
 }
 
 func createAdminUser(cfg *SetupConfig) (bool, string, error) {
-	dsn := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Database.Host, cfg.Database.Port, cfg.Database.User,
-		cfg.Database.Password, cfg.Database.DBName, cfg.Database.SSLMode,
-	)
+	dsn := buildPostgresDSN(&cfg.Database, "")
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {

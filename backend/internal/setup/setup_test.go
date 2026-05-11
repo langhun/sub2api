@@ -70,6 +70,33 @@ func TestSetupDefaultAdminConcurrency(t *testing.T) {
 	})
 }
 
+func TestBuildPostgresDSN(t *testing.T) {
+	cfg := &DatabaseConfig{
+		Host:     "127.0.0.1",
+		Port:     5432,
+		User:     "postgres",
+		Password: "secret",
+		DBName:   "sub2api",
+		SSLMode:  "disable",
+	}
+
+	t.Run("uses config db name by default", func(t *testing.T) {
+		got := buildPostgresDSN(cfg, "")
+		want := "host=127.0.0.1 port=5432 user=postgres password=secret dbname=sub2api sslmode=disable"
+		if got != want {
+			t.Fatalf("buildPostgresDSN()=%q, want %q", got, want)
+		}
+	})
+
+	t.Run("allows override db name", func(t *testing.T) {
+		got := buildPostgresDSN(cfg, "postgres")
+		want := "host=127.0.0.1 port=5432 user=postgres password=secret dbname=postgres sslmode=disable"
+		if got != want {
+			t.Fatalf("buildPostgresDSN()=%q, want %q", got, want)
+		}
+	})
+}
+
 func TestWriteConfigFileKeepsDefaultUserConcurrency(t *testing.T) {
 	t.Setenv("RUN_MODE", "simple")
 	t.Setenv("DATA_DIR", t.TempDir())
