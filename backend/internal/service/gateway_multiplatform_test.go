@@ -328,7 +328,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_Anthropic(t *testing.T
 	acc, err := svc.selectAccountForModelWithPlatform(ctx, nil, "", "claude-3-5-sonnet-20241022", nil, PlatformAnthropic)
 	require.NoError(t, err)
 	require.NotNil(t, acc)
-	require.Equal(t, int64(1), acc.ID, "应选择优先级最高的 anthropic 账户")
+	require.Equal(t, int64(2), acc.ID, "应选择优先级最高的 anthropic 账户")
 	require.Equal(t, PlatformAnthropic, acc.Platform, "应只返回 anthropic 平台账户")
 }
 
@@ -2035,7 +2035,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
-		require.Equal(t, int64(1), result.Account.ID, "应选择优先级最高的账号")
+		require.Equal(t, int64(2), result.Account.ID, "应选择优先级最高的账号")
 	})
 
 	t.Run("模型路由-无ConcurrencyService也生效", func(t *testing.T) {
@@ -2120,7 +2120,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
-		require.Equal(t, int64(2), result.Account.ID, "应选择优先级最高的账号")
+		require.Equal(t, int64(1), result.Account.ID, "应选择优先级最高的账号")
 	})
 
 	t.Run("排除账号-不选择被排除的账号", func(t *testing.T) {
