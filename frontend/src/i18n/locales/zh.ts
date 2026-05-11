@@ -5362,7 +5362,13 @@ export default {
           kind: '类型',
           platform: '平台',
           model: '模型',
+          ttft: 'TTFT',
           duration: '耗时',
+          breakdown: '分段耗时',
+          auth: '鉴权',
+          routing: '路由',
+          upstream: '上游',
+          response: '回写',
           status: '状态码',
           requestId: '请求ID',
           actions: '操作'
