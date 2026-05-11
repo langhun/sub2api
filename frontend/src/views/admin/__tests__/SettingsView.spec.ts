@@ -686,6 +686,7 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(wrapper.findAll(".settings-tab").map((node) => node.text())).toEqual([
       "admin.settings.tabs.general",
+      "admin.settings.tabs.agreement",
       "admin.settings.tabs.security",
       "admin.settings.tabs.email",
       "admin.settings.tabs.users",
