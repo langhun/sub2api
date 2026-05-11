@@ -89,6 +89,9 @@ describe('PublicConsumptionLeaderboardChart', () => {
     const label = options.plugins.tooltip.callbacks.label({
       label: 'Alpha',
       raw: 60,
+      dataset: {
+        data: [60, 40],
+      },
     })
 
     expect(label).toBe('Alpha: $60.00 (60.0%)')

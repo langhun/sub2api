@@ -176,11 +176,7 @@ const chartData = computed(() => {
       {
         data: props.chartItems.map((item) => item.value),
         backgroundColor: chartColors.value,
-        borderColor: chartColors.value.map(() => 'rgba(255,255,255,0.9)'),
         borderWidth: 0,
-        hoverOffset: 8,
-        spacing: 2,
-        borderRadius: 8,
       },
     ],
   }
@@ -189,10 +185,6 @@ const chartData = computed(() => {
 const doughnutOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  cutout: '68%',
-  layout: {
-    padding: 4,
-  },
   plugins: {
     legend: {
       display: false,
@@ -201,7 +193,7 @@ const doughnutOptions = computed(() => ({
       callbacks: {
         label: (context: any) => {
           const value = context.raw as number
-          const total = totalValue.value
+          const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
           const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
           return `${context.label}: $${formatCurrency(value)} (${percentage}%)`
         },
