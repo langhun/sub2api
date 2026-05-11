@@ -1,121 +1,115 @@
 <template>
-  <section
-    class="overflow-hidden rounded-[28px] border border-gray-100 bg-gradient-to-br from-white via-white to-primary-50/40 dark:border-dark-700/60 dark:from-dark-900 dark:via-dark-900 dark:to-primary-950/20"
-  >
-    <div class="border-b border-gray-100/80 px-4 py-4 dark:border-dark-700/60 sm:px-6">
-      <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div>
-          <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
-            {{ t('leaderboard.consumptionChartTitle') }}
-          </h2>
-          <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-            {{ t('leaderboard.consumptionChartSubtitle') }}
-          </p>
-        </div>
-        <div class="grid grid-cols-2 gap-2 sm:min-w-[220px]">
-          <div
-            class="rounded-2xl border border-gray-100 bg-white/85 px-3 py-2.5 shadow-sm shadow-primary-100/30 dark:border-dark-700/60 dark:bg-dark-900/70 dark:shadow-none"
-          >
-            <div class="text-[11px] text-gray-500 dark:text-dark-400">
-              {{ t('leaderboard.totalAmount') }}
-            </div>
-            <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-              ${{ formatCurrency(totalValue) }}
-            </div>
+  <section>
+    <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <div>
+        <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
+          {{ t('leaderboard.consumptionChartTitle') }}
+        </h2>
+        <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+          {{ t('leaderboard.consumptionChartSubtitle') }}
+        </p>
+      </div>
+      <div class="grid grid-cols-2 gap-2 sm:min-w-[220px]">
+        <div class="rounded-xl bg-gray-50 px-3 py-2 dark:bg-dark-800/80">
+          <div class="text-[11px] text-gray-500 dark:text-dark-400">
+            {{ t('leaderboard.totalAmount') }}
           </div>
-          <div
-            class="rounded-2xl border border-gray-100 bg-white/85 px-3 py-2.5 shadow-sm shadow-primary-100/30 dark:border-dark-700/60 dark:bg-dark-900/70 dark:shadow-none"
-          >
-            <div class="text-[11px] text-gray-500 dark:text-dark-400">
-              {{ t('leaderboard.totalUsers') }}
-            </div>
-            <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-              {{ totalUsers }}
-            </div>
+          <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+            ${{ formatCurrency(totalValue) }}
+          </div>
+        </div>
+        <div class="rounded-xl bg-gray-50 px-3 py-2 dark:bg-dark-800/80">
+          <div class="text-[11px] text-gray-500 dark:text-dark-400">
+            {{ t('leaderboard.totalUsers') }}
+          </div>
+          <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+            {{ totalUsers }}
           </div>
         </div>
       </div>
     </div>
 
-    <div class="grid gap-5 px-4 py-5 xl:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] sm:px-6">
-      <div
-        class="flex flex-col items-center justify-center rounded-3xl border border-gray-100 bg-white/85 p-4 shadow-sm shadow-primary-100/40 dark:border-dark-700/60 dark:bg-dark-900/70 dark:shadow-none"
-      >
-        <div class="h-64 w-full max-w-[280px]">
-          <Doughnut v-if="chartData" :data="chartData" :options="doughnutOptions" />
+    <div v-if="displayEntries.length > 0 && chartData" class="flex flex-col gap-6 xl:flex-row xl:items-center">
+      <div class="mx-auto xl:mx-0">
+        <div class="h-48 w-48">
+          <Doughnut :data="chartData" :options="doughnutOptions" />
         </div>
-        <p class="mt-4 text-center text-xs text-gray-400 dark:text-dark-500">
+        <p class="mt-3 text-center text-xs text-gray-400 dark:text-dark-500">
           {{ t('leaderboard.hoverHint') }}
         </p>
       </div>
 
       <div
-        class="overflow-hidden rounded-3xl border border-gray-100 bg-white/85 shadow-sm shadow-primary-100/30 dark:border-dark-700/60 dark:bg-dark-900/70 dark:shadow-none"
+        data-testid="consumption-ranking-scroll"
+        class="consumption-ranking-scroll max-h-[24rem] flex-1 overflow-y-auto pr-1"
       >
-        <div class="border-b border-gray-100/80 px-4 py-4 dark:border-dark-700/60 sm:px-5">
-          <p class="text-sm font-semibold text-gray-900 dark:text-white">
-            {{ t('leaderboard.title') }}
-          </p>
-          <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-            {{ t('leaderboard.tabs.consumption') }}
-          </p>
-        </div>
-
-        <div
-          v-if="displayEntries.length > 0"
-          data-testid="consumption-ranking-scroll"
-          class="consumption-ranking-scroll max-h-[612px] overflow-y-auto px-2 py-2 pr-1 sm:px-3"
-        >
-          <div
-            v-for="entry in displayEntries"
-            :key="`${entry.rank}-${entry.username}`"
-            data-testid="consumption-ranking-row"
-            class="group flex items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-dark-800/50"
-          >
-            <div
-              :class="rankClass(entry.rank)"
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-bold"
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-gray-500 dark:text-gray-400">
+              <th class="pb-2 text-left">{{ t('leaderboard.title') }}</th>
+              <th class="pb-2 text-right">{{ t('leaderboard.requests') }}</th>
+              <th class="pb-2 text-right">{{ t('leaderboard.amount') }}</th>
+              <th class="pb-2 text-right">{{ t('leaderboard.share') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="entry in displayEntries"
+              :key="`${entry.rank}-${entry.username}`"
+              data-testid="consumption-ranking-row"
+              class="border-t border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-dark-700/40"
             >
-              <span v-if="entry.rank <= 3">{{ medals[entry.rank - 1] }}</span>
-              <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
-            </div>
-
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <span
-                  class="h-2.5 w-2.5 shrink-0 rounded-full"
-                  :style="{ backgroundColor: getEntryColor(entry.rank) }"
-                ></span>
-                <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
-                  {{ entry.username }}
-                </p>
-              </div>
-              <p
-                v-if="entry.extra_int"
-                class="mt-1 truncate text-xs text-gray-400 dark:text-dark-500"
-              >
-                {{ t('leaderboard.consumptionSubtitle', { count: entry.extra_int }) }}
-              </p>
-            </div>
-
-            <div class="shrink-0 text-right">
-              <div class="text-sm font-semibold text-gray-900 dark:text-white">
+              <td class="py-2">
+                <div class="flex min-w-0 items-center gap-3">
+                  <div
+                    :class="rankClass(entry.rank)"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+                  >
+                    <span v-if="entry.rank <= 3">{{ medals[entry.rank - 1] }}</span>
+                    <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="h-2.5 w-2.5 shrink-0 rounded-full"
+                        :style="{ backgroundColor: getEntryColor(entry.rank) }"
+                      ></span>
+                      <span
+                        class="block max-w-[180px] truncate font-medium text-gray-900 dark:text-white"
+                        :title="entry.username"
+                      >
+                        {{ entry.username }}
+                      </span>
+                    </div>
+                    <div
+                      v-if="entry.extra_int"
+                      class="mt-1 text-[11px] text-gray-400 dark:text-dark-500"
+                    >
+                      {{ t('leaderboard.consumptionSubtitle', { count: entry.extra_int }) }}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td class="py-2 text-right text-gray-600 dark:text-gray-400">
+                {{ formatRequestCount(entry.extra_int) }}
+              </td>
+              <td class="py-2 text-right text-green-600 dark:text-green-400">
                 ${{ formatCurrency(entry.value) }}
-              </div>
-              <div class="mt-1 text-xs text-gray-400 dark:text-dark-500">
+              </td>
+              <td class="py-2 text-right text-gray-400 dark:text-gray-500">
                 {{ formatShare(entry.value) }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-else
-          class="flex h-40 items-center justify-center px-4 text-sm text-gray-400 dark:text-dark-500"
-        >
-          {{ t('leaderboard.empty') }}
-        </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
+    </div>
+
+    <div
+      v-else
+      class="flex h-40 items-center justify-center text-sm text-gray-400 dark:text-dark-500"
+    >
+      {{ t('leaderboard.empty') }}
     </div>
   </section>
 </template>
@@ -233,6 +227,10 @@ function formatShare(value: number): string {
     return '0.0%'
   }
   return `${((value / total) * 100).toFixed(1)}%`
+}
+
+function formatRequestCount(count?: number): string {
+  return typeof count === 'number' && count > 0 ? count.toLocaleString() : '-'
 }
 
 function formatCurrency(value: number): string {

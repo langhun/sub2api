@@ -12,6 +12,9 @@ const messages: Record<string, string> = {
   'leaderboard.totalAmount': '总金额',
   'leaderboard.totalUsers': '用户数',
   'leaderboard.hoverHint': '悬停圆环切片可查看用户、金额和占比',
+  'leaderboard.requests': '请求',
+  'leaderboard.amount': '金额',
+  'leaderboard.share': '占比',
   'leaderboard.empty': '暂无数据',
 }
 
@@ -135,7 +138,7 @@ describe('PublicConsumptionLeaderboardChart', () => {
     const scrollContainer = wrapper.get('[data-testid="consumption-ranking-scroll"]')
     const rankingRows = wrapper.findAll('[data-testid=\"consumption-ranking-row\"]')
     expect(scrollContainer.classes()).toContain('consumption-ranking-scroll')
-    expect(scrollContainer.classes()).toContain('max-h-[612px]')
+    expect(scrollContainer.classes()).toContain('max-h-[24rem]')
     expect(scrollContainer.classes()).toContain('overflow-y-auto')
     expect(rankingRows).toHaveLength(12)
     expect(rankingRows[8].text()).toContain('用户9')

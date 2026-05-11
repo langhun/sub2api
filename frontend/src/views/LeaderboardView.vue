@@ -9,18 +9,18 @@
           <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('leaderboard.subtitle') }}</p>
         </div>
 
-        <div class="card overflow-hidden">
-          <div
-            v-if="tabs.length > 0"
-            class="flex flex-col gap-3 border-b border-gray-100/80 px-4 py-4 dark:border-dark-700/60 sm:px-6"
-          >
-            <div class="inline-flex w-full flex-wrap rounded-xl bg-gray-100 p-1 dark:bg-dark-800 sm:w-auto">
+        <div
+          v-if="tabs.length > 0"
+          class="card p-4"
+        >
+          <div class="flex flex-wrap items-center gap-4">
+            <div class="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
               <button
                 v-for="tab in tabs"
                 :key="tab.key"
                 @click="activeTab = tab.key"
                 :class="[
-                  'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                   activeTab === tab.key
                     ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
                     : 'text-gray-500 hover:text-gray-700 dark:text-dark-400 dark:hover:text-dark-200'
@@ -32,14 +32,14 @@
 
             <div
               v-if="showPeriodSelector"
-              class="inline-flex self-start rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-dark-800"
+              class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-dark-800"
             >
               <button
                 v-for="p in periods"
                 :key="p.key"
                 @click="activePeriod = p.key"
                 :class="[
-                  'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                  'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
                   activePeriod === p.key
                     ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
                     : 'text-gray-500 hover:text-gray-700 dark:text-dark-400 dark:hover:text-dark-200'
@@ -49,73 +49,67 @@
               </button>
             </div>
           </div>
+        </div>
 
-          <div class="relative min-h-[240px]">
-            <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm dark:bg-dark-900/80">
-              <div class="flex flex-col items-center gap-3">
-                <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
-                <span class="text-xs text-gray-400 dark:text-dark-500">{{ t('common.loading') }}</span>
-              </div>
+        <div class="card relative overflow-hidden p-4">
+          <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm dark:bg-dark-900/80">
+            <div class="flex flex-col items-center gap-3">
+              <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+              <span class="text-xs text-gray-400 dark:text-dark-500">{{ t('common.loading') }}</span>
+            </div>
+          </div>
+
+          <PublicConsumptionLeaderboardChart
+            v-if="activeTab === 'consumption' && !loading && consumptionSummary && consumptionChartItems.length > 0"
+            :chart-items="consumptionChartItems"
+            :summary="consumptionSummary"
+            :entries="entries"
+          />
+
+          <div v-if="!loading && tabs.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
+            {{ t('leaderboard.tabsDisabled') }}
+          </div>
+
+          <div v-else-if="!loading && entries.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
+            {{ t('leaderboard.empty') }}
+          </div>
+
+          <div v-else-if="activeTab !== 'consumption'">
+            <div class="mb-4">
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                {{ activeTabLabel }}
+              </p>
+              <p v-if="showPeriodSelector" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                {{ activePeriodLabel }}
+              </p>
             </div>
 
-            <PublicConsumptionLeaderboardChart
-              v-if="activeTab === 'consumption' && !loading && consumptionSummary && consumptionChartItems.length > 0"
-              class="p-4 sm:p-6"
-              :chart-items="consumptionChartItems"
-              :summary="consumptionSummary"
-              :entries="entries"
-            />
-
-            <div v-if="!loading && tabs.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
-              {{ t('leaderboard.tabsDisabled') }}
-            </div>
-
-            <div v-else-if="!loading && entries.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
-              {{ t('leaderboard.empty') }}
-            </div>
-
-            <div
-              v-else-if="activeTab !== 'consumption'"
-              class="space-y-4 p-4 sm:p-6"
-            >
-              <div
-                class="overflow-hidden rounded-[28px] border border-gray-100 bg-gradient-to-br from-white via-white to-gray-50/80 dark:border-dark-700/60 dark:from-dark-900 dark:via-dark-900 dark:to-dark-900/70"
-              >
-                <div class="border-b border-gray-100/80 px-4 py-4 dark:border-dark-700/60 sm:px-5">
-                  <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {{ activeTabLabel }}
-                  </p>
-                  <p v-if="showPeriodSelector" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-                    {{ activePeriodLabel }}
-                  </p>
-                </div>
-
-                <div class="space-y-2 px-2 py-2 sm:px-3">
+            <div class="max-h-[24rem] overflow-y-auto">
+              <div class="space-y-2 pr-1">
+                <div
+                  v-for="entry in entries"
+                  :key="entry.rank"
+                  class="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-gray-50 dark:hover:bg-dark-800/50"
+                >
                   <div
-                    v-for="entry in entries"
-                    :key="entry.rank"
-                    class="group flex items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-dark-800/50"
+                    :class="rankClass(entry.rank)"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
                   >
-                    <div
-                      :class="rankClass(entry.rank)"
-                      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-bold"
-                    >
-                      <span v-if="entry.rank <= 3">{{ ['🥇', '🥈', '🥉'][entry.rank - 1] }}</span>
-                      <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ entry.username }}</p>
-                      <p v-if="getSubtitle(entry)" class="mt-1 truncate text-xs text-gray-400 dark:text-dark-500">{{ getSubtitle(entry) }}</p>
-                    </div>
-                    <div class="shrink-0 text-right">
-                      <template v-if="activeTab === 'checkin'">
-                        <span class="text-sm font-bold text-amber-600 dark:text-amber-400">{{ entry.value }}</span>
-                        <span class="text-xs text-amber-500/70 dark:text-amber-400/50"> {{ t('leaderboard.streakDays', { days: '' }).trim() }}</span>
-                      </template>
-                      <template v-else>
-                        <span class="text-sm font-bold text-gray-900 dark:text-white">${{ entry.value.toFixed(2) }}</span>
-                      </template>
-                    </div>
+                    <span v-if="entry.rank <= 3">{{ ['🥇', '🥈', '🥉'][entry.rank - 1] }}</span>
+                    <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ entry.username }}</p>
+                    <p v-if="getSubtitle(entry)" class="mt-1 truncate text-xs text-gray-400 dark:text-dark-500">{{ getSubtitle(entry) }}</p>
+                  </div>
+                  <div class="shrink-0 text-right">
+                    <template v-if="activeTab === 'checkin'">
+                      <span class="text-sm font-bold text-amber-600 dark:text-amber-400">{{ entry.value }}</span>
+                      <span class="text-xs text-amber-500/70 dark:text-amber-400/50"> {{ t('leaderboard.streakDays', { days: '' }).trim() }}</span>
+                    </template>
+                    <template v-else>
+                      <span class="text-sm font-bold text-gray-900 dark:text-white">${{ entry.value.toFixed(2) }}</span>
+                    </template>
                   </div>
                 </div>
               </div>
