@@ -21,6 +21,10 @@ type MonitoringHandler struct {
 	monitoringService monitoringQueryService
 }
 
+func ProvideMonitoringQueryService(monitoringService *service.MonitoringService) monitoringQueryService {
+	return monitoringService
+}
+
 func NewMonitoringHandler(monitoringService monitoringQueryService) *MonitoringHandler {
 	return &MonitoringHandler{monitoringService: monitoringService}
 }
