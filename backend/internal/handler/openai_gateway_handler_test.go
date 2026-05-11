@@ -189,6 +189,23 @@ func TestOpenAIEnsureForwardErrorResponse_DoesNotOverrideWrittenResponse(t *test
 	assert.Equal(t, "already written", w.Body.String())
 }
 
+func TestNewOpenAIGatewayHandler_DisablesWaitPingForResponses(t *testing.T) {
+	h := NewOpenAIGatewayHandler(
+		&service.OpenAIGatewayService{},
+		service.NewConcurrencyService(&concurrencyCacheMock{}),
+		&service.BillingCacheService{},
+		&service.APIKeyService{},
+		&service.UsageRecordWorkerPool{},
+		nil,
+		nil,
+		&config.Config{},
+	)
+
+	require.NotNil(t, h)
+	require.NotNil(t, h.concurrencyHelper)
+	assert.Equal(t, SSEPingFormatNone, h.concurrencyHelper.pingFormat)
+}
+
 func TestShouldLogOpenAIForwardFailureAsWarn(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

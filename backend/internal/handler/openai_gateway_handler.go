@@ -72,7 +72,7 @@ func NewOpenAIGatewayHandler(
 		usageRecordWorkerPool:    usageRecordWorkerPool,
 		errorPassthroughService:  errorPassthroughService,
 		contentModerationService: contentModerationService,
-		concurrencyHelper:        NewConcurrencyHelper(concurrencyService, SSEPingFormatComment, pingInterval),
+		concurrencyHelper:        NewConcurrencyHelper(concurrencyService, SSEPingFormatNone, pingInterval),
 		imageLimiter:             &imageConcurrencyLimiter{},
 		maxAccountSwitches:       maxAccountSwitches,
 		cfg:                      cfg,
