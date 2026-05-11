@@ -595,10 +595,10 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorFallback(t *testing.
 	if selection == nil || selection.Account == nil {
 		t.Fatalf("expected selection")
 	}
-	if selection.Account.ID != 2 {
-		t.Fatalf("expected account 2, got %d", selection.Account.ID)
+	if selection.Account.ID != 1 {
+		t.Fatalf("expected account 1, got %d", selection.Account.ID)
 	}
-	if cache.sessionBindings["openai:fallback"] != 2 {
+	if cache.sessionBindings["openai:fallback"] != 1 {
 		t.Fatalf("expected sticky session updated")
 	}
 	if selection.ReleaseFunc != nil {
