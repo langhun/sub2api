@@ -432,7 +432,7 @@ func isNonRetryableRefreshError(err error) bool {
 	msg := strings.ToLower(err.Error())
 	nonRetryable := []string{
 		"invalid_grant",        // refresh_token 已失效
-		"refresh_token_reused", // refresh_token 已被消费，需重新授权
+		"refresh_token_reused", // OpenAI refresh_token 已被使用，必须重新授权
 		"invalid_client",       // 客户端配置错误
 		"unauthorized_client",  // 客户端未授权
 		"access_denied",        // 访问被拒绝
