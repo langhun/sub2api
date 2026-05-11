@@ -32,6 +32,7 @@ export const useAppStore = defineStore('app', () => {
   const apiBaseUrl = ref<string>('')
   const docUrl = ref<string>('')
   const cachedPublicSettings = ref<PublicSettings | null>(null)
+  let publicSettingsPromise: Promise<PublicSettings | null> | null = null
 
   // Version cache state
   const versionLoaded = ref<boolean>(false)
@@ -397,21 +398,32 @@ export const useAppStore = defineStore('app', () => {
       }
     }
 
-    // Prevent duplicate requests
-    if (publicSettingsLoading.value) {
-      return null
+    // Reuse the in-flight request so concurrent callers can await the same result.
+    if (publicSettingsPromise) {
+      return publicSettingsPromise
     }
 
     publicSettingsLoading.value = true
-    try {
-      const data = await fetchPublicSettingsAPI()
-      return applySettings(data)
-    } catch (error) {
-      console.error('Failed to fetch public settings:', error)
-      return null
-    } finally {
-      publicSettingsLoading.value = false
-    }
+
+    let resolvePromise: (value: PublicSettings | null) => void
+    publicSettingsPromise = new Promise<PublicSettings | null>((resolve) => {
+      resolvePromise = resolve
+    })
+
+    ;(async () => {
+      try {
+        const data = await fetchPublicSettingsAPI()
+        resolvePromise(applySettings(data))
+      } catch (error) {
+        console.error('Failed to fetch public settings:', error)
+        resolvePromise(null)
+      } finally {
+        publicSettingsLoading.value = false
+        publicSettingsPromise = null
+      }
+    })()
+
+    return publicSettingsPromise
   }
 
   /**
@@ -420,6 +432,7 @@ export const useAppStore = defineStore('app', () => {
   function clearPublicSettingsCache(): void {
     publicSettingsLoaded.value = false
     cachedPublicSettings.value = null
+    publicSettingsPromise = null
   }
 
   /**

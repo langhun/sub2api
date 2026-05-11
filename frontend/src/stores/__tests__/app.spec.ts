@@ -378,5 +378,63 @@ describe('useAppStore', () => {
       expect(localStorage.getItem('table-page-size')).toBeNull()
       expect(localStorage.getItem('table-page-size-source')).toBeNull()
     })
+
+    it('fetchPublicSettings 并发调用时复用同一个进行中的请求', async () => {
+      let resolveRequest: ((value: PublicSettings) => void) | null = null
+      vi.mocked(getPublicSettings).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve
+          })
+      )
+
+      const store = useAppStore()
+      const callsBefore = vi.mocked(getPublicSettings).mock.calls.length
+      const first = store.fetchPublicSettings(true)
+      const second = store.fetchPublicSettings(true)
+
+      expect(vi.mocked(getPublicSettings).mock.calls.length - callsBefore).toBe(1)
+
+      resolveRequest?.({
+        registration_enabled: false,
+        email_verify_enabled: false,
+        registration_email_suffix_whitelist: [],
+        promo_code_enabled: true,
+        password_reset_enabled: false,
+        invitation_code_enabled: false,
+        turnstile_enabled: false,
+        turnstile_site_key: '',
+        site_name: 'Concurrent Site',
+        site_logo: '',
+        site_subtitle: '',
+        api_base_url: '',
+        contact_info: '',
+        doc_url: '',
+        home_content: '',
+        home_nav_links_enabled: true,
+        home_nav_leaderboard_enabled: true,
+        home_nav_key_usage_enabled: true,
+        home_nav_monitoring_enabled: true,
+        home_nav_pricing_enabled: true,
+        leaderboard_balance_enabled: true,
+        leaderboard_consumption_enabled: true,
+        leaderboard_transfer_enabled: true,
+        leaderboard_checkin_enabled: true,
+        hide_ccs_import_button: false,
+        purchase_subscription_enabled: false,
+        purchase_subscription_url: '',
+        table_default_page_size: 20,
+        table_page_size_options: [10, 20, 50, 100],
+        custom_menu_items: [],
+        custom_endpoints: [],
+        linuxdo_oauth_enabled: false,
+        backend_mode_enabled: false,
+        version: '1.0.1'
+      } as any)
+
+      const [firstResult, secondResult] = await Promise.all([first, second])
+      expect(firstResult).toEqual(secondResult)
+      expect(store.publicSettingsLoaded).toBe(true)
+    })
   })
 })
