@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -38,6 +40,16 @@ const (
 )
 
 var opsMetricsCollectorAdvisoryLockID = hashAdvisoryLockID(opsMetricsCollectorLeaderLockKey)
+
+type opsSlowTailCandidate struct {
+	AccountID int64
+	Platform  string
+	Model     string
+	GroupID   *int64
+	Requests  int
+	P95       int
+	Max       int
+}
 
 type OpsMetricsCollector struct {
 	opsRepo     OpsRepository
@@ -360,7 +372,11 @@ func (c *OpsMetricsCollector) collectAndPersist(ctx context.Context) error {
 		ConcurrencyQueueDepth: concurrencyQueueDepth,
 	}
 
-	return c.opsRepo.InsertSystemMetrics(ctx, input)
+	if err := c.opsRepo.InsertSystemMetrics(ctx, input); err != nil {
+		return err
+	}
+	c.applySlowTailIsolation(ctx, windowEnd)
+	return nil
 }
 
 func (c *OpsMetricsCollector) collectConcurrencyQueueDepth(parentCtx context.Context) *int {
@@ -421,6 +437,165 @@ func (c *OpsMetricsCollector) collectConcurrencyQueueDepth(parentCtx context.Con
 	}
 	v := int(total)
 	return &v
+}
+
+func (c *OpsMetricsCollector) applySlowTailIsolation(ctx context.Context, now time.Time) {
+	if c == nil || c.accountRepo == nil || c.settingRepo == nil || c.db == nil {
+		return
+	}
+	cfg := defaultOpsAdvancedSettings()
+	if raw, err := c.settingRepo.GetValue(ctx, SettingKeyOpsAdvancedSettings); err == nil && strings.TrimSpace(raw) != "" {
+		_ = json.Unmarshal([]byte(raw), cfg)
+	}
+	normalizeOpsAdvancedSettings(cfg)
+	rule := cfg.SlowTailIsolation
+	if !rule.Enabled {
+		return
+	}
+
+	candidates, err := c.listSlowTailCandidates(ctx, now, rule)
+	if err != nil {
+		log.Printf("[OpsMetricsCollector] slow tail isolate query failed: %v", err)
+		return
+	}
+	if len(candidates) == 0 {
+		return
+	}
+
+	limit := rule.MaxAccountsPerRun
+	if limit > len(candidates) {
+		limit = len(candidates)
+	}
+	until := time.Now().Add(time.Duration(rule.TempUnschedMinutes) * time.Minute)
+	for _, candidate := range candidates[:limit] {
+		reason := BuildTempUnschedReason(&TempUnschedState{
+			UntilUnix:       until.Unix(),
+			TriggeredAtUnix: time.Now().Unix(),
+			ReasonCode:      "ops_slow_tail_ttft",
+			MatchedKeyword:  "slow_tail_ttft",
+			RuleIndex:       -1,
+			ErrorMessage: fmt.Sprintf(
+				"slow tail isolation: platform=%s model=%s reqs=%d ttft_p95_ms=%d ttft_max_ms=%d",
+				candidate.Platform,
+				candidate.Model,
+				candidate.Requests,
+				candidate.P95,
+				candidate.Max,
+			),
+		}, "slow tail isolation")
+		if err := c.accountRepo.SetTempUnschedulable(ctx, candidate.AccountID, until, reason); err != nil {
+			log.Printf("[OpsMetricsCollector] slow tail isolate account=%d failed: %v", candidate.AccountID, err)
+			continue
+		}
+		log.Printf("[OpsMetricsCollector] slow tail isolated account=%d model=%s reqs=%d p95=%d max=%d until=%s",
+			candidate.AccountID, candidate.Model, candidate.Requests, candidate.P95, candidate.Max, until.Format(time.RFC3339))
+	}
+}
+
+func (c *OpsMetricsCollector) listSlowTailCandidates(ctx context.Context, now time.Time, rule OpsSlowTailIsolationSettings) ([]opsSlowTailCandidate, error) {
+	start := now.Add(-time.Duration(rule.WindowMinutes) * time.Minute)
+	conditions := []string{
+		"created_at >= $1",
+		"created_at < $2",
+		"first_token_ms IS NOT NULL",
+		"account_id IS NOT NULL",
+	}
+	args := []any{start, now}
+	argPos := 3
+
+	if len(rule.Platforms) > 0 {
+		platforms := make([]string, 0, len(rule.Platforms))
+		for _, p := range rule.Platforms {
+			p = strings.TrimSpace(strings.ToLower(p))
+			if p != "" {
+				platforms = append(platforms, p)
+			}
+		}
+		if len(platforms) > 0 {
+			conditions = append(conditions, fmt.Sprintf("LOWER(COALESCE(platform, '')) = ANY($%d)", argPos))
+			args = append(args, pqStringArray(platforms))
+			argPos++
+		}
+	}
+	if len(rule.Models) > 0 {
+		models := make([]string, 0, len(rule.Models))
+		for _, m := range rule.Models {
+			m = strings.TrimSpace(m)
+			if m != "" {
+				models = append(models, m)
+			}
+		}
+		if len(models) > 0 {
+			conditions = append(conditions, fmt.Sprintf("COALESCE(requested_model, model) = ANY($%d)", argPos))
+			args = append(args, pqStringArray(models))
+			argPos++
+		}
+	}
+	if len(rule.GroupIDs) > 0 {
+		conditions = append(conditions, fmt.Sprintf("group_id = ANY($%d)", argPos))
+		args = append(args, pqInt64Array(rule.GroupIDs))
+		argPos++
+	}
+
+	query := fmt.Sprintf(`
+SELECT
+  account_id,
+  COALESCE(NULLIF(platform, ''), 'unknown') AS platform,
+  COALESCE(requested_model, model) AS model,
+  group_id,
+  COUNT(*)::int AS reqs,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY first_token_ms)::int AS p95,
+  MAX(first_token_ms)::int AS max_ttft
+FROM usage_logs
+WHERE %s
+GROUP BY account_id, platform, COALESCE(requested_model, model), group_id
+HAVING COUNT(*) >= %d
+   AND percentile_cont(0.95) WITHIN GROUP (ORDER BY first_token_ms)::int >= %d
+ORDER BY p95 DESC, max_ttft DESC, reqs DESC
+`, strings.Join(conditions, " AND "), rule.MinRequests, rule.TTFTP95MsThreshold)
+
+	rows, err := c.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make([]opsSlowTailCandidate, 0)
+	for rows.Next() {
+		var item opsSlowTailCandidate
+		var groupID sql.NullInt64
+		if err := rows.Scan(&item.AccountID, &item.Platform, &item.Model, &groupID, &item.Requests, &item.P95, &item.Max); err != nil {
+			return nil, err
+		}
+		if groupID.Valid {
+			value := groupID.Int64
+			item.GroupID = &value
+		}
+		out = append(out, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+type pqStringArray []string
+
+func (a pqStringArray) Value() (driver.Value, error) {
+	return "{" + strings.Join(a, ",") + "}", nil
+}
+
+type pqInt64Array []int64
+
+func (a pqInt64Array) Value() (driver.Value, error) {
+	if len(a) == 0 {
+		return "{}", nil
+	}
+	parts := make([]string, 0, len(a))
+	for _, item := range a {
+		parts = append(parts, strconv.FormatInt(item, 10))
+	}
+	return "{" + strings.Join(parts, ",") + "}", nil
 }
 
 type opsCollectedPercentiles struct {

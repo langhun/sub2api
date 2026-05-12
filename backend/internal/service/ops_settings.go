@@ -369,6 +369,17 @@ func defaultOpsAdvancedSettings() *OpsAdvancedSettings {
 		Aggregation: OpsAggregationSettings{
 			AggregationEnabled: false,
 		},
+		SlowTailIsolation: OpsSlowTailIsolationSettings{
+			Enabled:            false,
+			WindowMinutes:      10,
+			MinRequests:        3,
+			TTFTP95MsThreshold: 12000,
+			TempUnschedMinutes: 120,
+			Platforms:          []string{"openai"},
+			Models:             []string{},
+			GroupIDs:           []int64{},
+			MaxAccountsPerRun:  3,
+		},
 		IgnoreCountTokensErrors:         true,  // count_tokens 404 是预期行为，默认忽略
 		IgnoreContextCanceled:           true,  // Default to true - client disconnects are not errors
 		IgnoreNoAvailableAccounts:       false, // Default to false - this is a real routing issue
@@ -403,6 +414,30 @@ func normalizeOpsAdvancedSettings(cfg *OpsAdvancedSettings) {
 	if cfg.AutoRefreshIntervalSec <= 0 {
 		cfg.AutoRefreshIntervalSec = 30
 	}
+	if cfg.SlowTailIsolation.WindowMinutes <= 0 {
+		cfg.SlowTailIsolation.WindowMinutes = 10
+	}
+	if cfg.SlowTailIsolation.MinRequests <= 0 {
+		cfg.SlowTailIsolation.MinRequests = 3
+	}
+	if cfg.SlowTailIsolation.TTFTP95MsThreshold <= 0 {
+		cfg.SlowTailIsolation.TTFTP95MsThreshold = 12000
+	}
+	if cfg.SlowTailIsolation.TempUnschedMinutes <= 0 {
+		cfg.SlowTailIsolation.TempUnschedMinutes = 120
+	}
+	if cfg.SlowTailIsolation.MaxAccountsPerRun <= 0 {
+		cfg.SlowTailIsolation.MaxAccountsPerRun = 3
+	}
+	if cfg.SlowTailIsolation.Platforms == nil {
+		cfg.SlowTailIsolation.Platforms = []string{"openai"}
+	}
+	if cfg.SlowTailIsolation.Models == nil {
+		cfg.SlowTailIsolation.Models = []string{}
+	}
+	if cfg.SlowTailIsolation.GroupIDs == nil {
+		cfg.SlowTailIsolation.GroupIDs = []int64{}
+	}
 }
 
 func validateOpsAdvancedSettings(cfg *OpsAdvancedSettings) error {
@@ -421,6 +456,21 @@ func validateOpsAdvancedSettings(cfg *OpsAdvancedSettings) error {
 	}
 	if cfg.AutoRefreshIntervalSec < 15 || cfg.AutoRefreshIntervalSec > 300 {
 		return errors.New("auto_refresh_interval_seconds must be between 15 and 300")
+	}
+	if cfg.SlowTailIsolation.WindowMinutes < 1 || cfg.SlowTailIsolation.WindowMinutes > 120 {
+		return errors.New("slow_tail_isolation.window_minutes must be between 1 and 120")
+	}
+	if cfg.SlowTailIsolation.MinRequests < 1 || cfg.SlowTailIsolation.MinRequests > 100 {
+		return errors.New("slow_tail_isolation.min_requests must be between 1 and 100")
+	}
+	if cfg.SlowTailIsolation.TTFTP95MsThreshold < 100 || cfg.SlowTailIsolation.TTFTP95MsThreshold > 120000 {
+		return errors.New("slow_tail_isolation.ttft_p95_ms_threshold must be between 100 and 120000")
+	}
+	if cfg.SlowTailIsolation.TempUnschedMinutes < 1 || cfg.SlowTailIsolation.TempUnschedMinutes > 1440 {
+		return errors.New("slow_tail_isolation.temp_unsched_minutes must be between 1 and 1440")
+	}
+	if cfg.SlowTailIsolation.MaxAccountsPerRun < 1 || cfg.SlowTailIsolation.MaxAccountsPerRun > 100 {
+		return errors.New("slow_tail_isolation.max_accounts_per_run must be between 1 and 100")
 	}
 	return nil
 }
