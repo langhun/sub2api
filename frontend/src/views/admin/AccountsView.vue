@@ -226,6 +226,8 @@
           @delete="handleBulkDelete"
           @reset-status="handleBulkResetStatus"
           @refresh-token="handleBulkRefreshToken"
+          @set-privacy="handleBulkSetPrivacy"
+          @clear-privacy="handleBulkClearPrivacy"
           @edit-selected="openBulkEditSelected"
           @clear="clearSelection"
           @select-page="selectPage"
@@ -1697,6 +1699,78 @@ const handleBulkRefreshToken = async () => {
     reload()
   } catch (error) {
     console.error('Failed to bulk refresh token:', error)
+    appStore.showError(String(error))
+  }
+}
+const handleBulkSetPrivacy = async () => {
+  if (!confirm(t('admin.accounts.bulkActions.confirmSetPrivacy'))) return
+  try {
+    const result = await adminAPI.accounts.batchSetPrivacy(selIds.value)
+    const skipped = result.skipped ?? 0
+    if (result.failed > 0) {
+      appStore.showError(
+        skipped > 0
+          ? t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+              success: result.success,
+              failed: result.failed,
+              skipped
+            })
+          : t('admin.accounts.bulkActions.partialSuccess', {
+              success: result.success,
+              failed: result.failed
+            })
+      )
+    } else if (skipped > 0) {
+      appStore.showInfo(
+        t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+          success: result.success,
+          failed: result.failed,
+          skipped
+        })
+      )
+    } else {
+      appStore.showSuccess(t('admin.accounts.bulkActions.setPrivacySuccess', { count: result.success }))
+      clearSelection()
+    }
+    reload()
+  } catch (error) {
+    console.error('Failed to bulk set privacy:', error)
+    appStore.showError(String(error))
+  }
+}
+const handleBulkClearPrivacy = async () => {
+  if (!confirm(t('admin.accounts.bulkActions.confirmClearPrivacy'))) return
+  try {
+    const result = await adminAPI.accounts.batchClearPrivacy(selIds.value)
+    const skipped = result.skipped ?? 0
+    if (result.failed > 0) {
+      appStore.showError(
+        skipped > 0
+          ? t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+              success: result.success,
+              failed: result.failed,
+              skipped
+            })
+          : t('admin.accounts.bulkActions.partialSuccess', {
+              success: result.success,
+              failed: result.failed
+            })
+      )
+    } else if (skipped > 0) {
+      appStore.showInfo(
+        t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+          success: result.success,
+          failed: result.failed,
+          skipped
+        })
+      )
+    } else {
+      appStore.showSuccess(t('admin.accounts.bulkActions.clearPrivacySuccess', { count: result.success }))
+      clearSelection()
+    }
+    reload()
+  } catch (error) {
+    console.error('Failed to bulk clear privacy:', error)
     appStore.showError(String(error))
   }
 }

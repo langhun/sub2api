@@ -10,25 +10,29 @@ import (
 )
 
 type stubAdminService struct {
-	users                []service.User
-	apiKeys              []service.APIKey
-	groups               []service.Group
-	accounts             []service.Account
-	proxies              []service.Proxy
-	proxyCounts          []service.ProxyWithAccountCount
-	redeems              []service.RedeemCode
-	boundAuthIdentity    *service.AdminBindAuthIdentityInput
-	boundAuthIdentityFor int64
-	createdAccounts      []*service.CreateAccountInput
-	createdProxies       []*service.CreateProxyInput
-	updatedProxyIDs      []int64
-	updatedProxies       []*service.UpdateProxyInput
-	testedProxyIDs       []int64
-	createAccountErr     error
-	updateAccountErr     error
-	bulkUpdateAccountErr error
-	checkMixedErr        error
-	lastMixedCheck       struct {
+	users                  []service.User
+	apiKeys                []service.APIKey
+	groups                 []service.Group
+	accounts               []service.Account
+	proxies                []service.Proxy
+	proxyCounts            []service.ProxyWithAccountCount
+	redeems                []service.RedeemCode
+	boundAuthIdentity      *service.AdminBindAuthIdentityInput
+	boundAuthIdentityFor   int64
+	createdAccounts        []*service.CreateAccountInput
+	createdProxies         []*service.CreateProxyInput
+	updatedProxyIDs        []int64
+	updatedProxies         []*service.UpdateProxyInput
+	testedProxyIDs         []int64
+	forceOpenAIPrivacyMode string
+	clearAccountPrivacyErr error
+	forcedPrivacyIDs       []int64
+	clearedPrivacyIDs      []int64
+	createAccountErr       error
+	updateAccountErr       error
+	bulkUpdateAccountErr   error
+	checkMixedErr          error
+	lastMixedCheck         struct {
 		accountID int64
 		platform  string
 		groupIDs  []int64
@@ -62,7 +66,7 @@ type stubAdminService struct {
 		calls     int
 	}
 	lastUnassignProxyIDs []int64
-	lastListRedeemCodes struct {
+	lastListRedeemCodes  struct {
 		codeType  string
 		status    string
 		search    string
@@ -321,10 +325,25 @@ func (s *stubAdminService) GetAccount(ctx context.Context, id int64) (*service.A
 }
 
 func (s *stubAdminService) GetAccountsByIDs(ctx context.Context, ids []int64) ([]*service.Account, error) {
+	if len(s.accounts) == 0 {
+		out := make([]*service.Account, 0, len(ids))
+		for _, id := range ids {
+			account := service.Account{ID: id, Name: "account", Status: service.StatusActive}
+			out = append(out, &account)
+		}
+		return out, nil
+	}
+
 	out := make([]*service.Account, 0, len(ids))
 	for _, id := range ids {
-		account := service.Account{ID: id, Name: "account", Status: service.StatusActive}
-		out = append(out, &account)
+		for i := range s.accounts {
+			if s.accounts[i].ID != id {
+				continue
+			}
+			account := s.accounts[i]
+			out = append(out, &account)
+			break
+		}
 	}
 	return out, nil
 }
@@ -618,11 +637,21 @@ func (s *stubAdminService) EnsureAntigravityPrivacy(ctx context.Context, account
 }
 
 func (s *stubAdminService) ForceOpenAIPrivacy(ctx context.Context, account *service.Account) string {
-	return ""
+	s.mu.Lock()
+	s.forcedPrivacyIDs = append(s.forcedPrivacyIDs, account.ID)
+	s.mu.Unlock()
+	return s.forceOpenAIPrivacyMode
 }
 
 func (s *stubAdminService) ForceAntigravityPrivacy(ctx context.Context, account *service.Account) string {
 	return ""
+}
+
+func (s *stubAdminService) ClearAccountPrivacyMode(ctx context.Context, account *service.Account) error {
+	s.mu.Lock()
+	s.clearedPrivacyIDs = append(s.clearedPrivacyIDs, account.ID)
+	s.mu.Unlock()
+	return s.clearAccountPrivacyErr
 }
 
 func (s *stubAdminService) ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*service.ReplaceUserGroupResult, error) {

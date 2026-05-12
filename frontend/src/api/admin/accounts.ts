@@ -611,6 +611,7 @@ export interface BatchOperationResult {
   total: number
   success: number
   failed: number
+  skipped?: number
   errors?: Array<{ account_id: number; error: string }>
   warnings?: Array<{ account_id: number; warning: string }>
 }
@@ -648,6 +649,32 @@ export async function batchRefresh(accountIds: number[]): Promise<BatchOperation
  */
 export async function setPrivacy(id: number): Promise<Account> {
   const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/set-privacy`)
+  return data
+}
+
+/**
+ * Batch set privacy (force training_off) for OpenAI OAuth accounts
+ * @param accountIds - Array of account IDs
+ * @returns Batch operation result
+ */
+export async function batchSetPrivacy(accountIds: number[]): Promise<BatchOperationResult> {
+  const { data } = await apiClient.post<BatchOperationResult>('/admin/accounts/batch-set-privacy', {
+    account_ids: accountIds,
+  }, {
+    timeout: 120000
+  })
+  return data
+}
+
+/**
+ * Batch clear privacy_mode for OpenAI OAuth accounts
+ * @param accountIds - Array of account IDs
+ * @returns Batch operation result
+ */
+export async function batchClearPrivacy(accountIds: number[]): Promise<BatchOperationResult> {
+  const { data } = await apiClient.post<BatchOperationResult>('/admin/accounts/batch-clear-privacy', {
+    account_ids: accountIds,
+  })
   return data
 }
 
@@ -689,7 +716,9 @@ export const accountsAPI = {
   getAntigravityDefaultModelMapping,
   batchClearError,
   batchRefresh,
-  setPrivacy
+  setPrivacy,
+  batchSetPrivacy,
+  batchClearPrivacy
 }
 
 export default accountsAPI

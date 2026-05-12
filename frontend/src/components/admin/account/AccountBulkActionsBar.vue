@@ -60,6 +60,8 @@
         <button @click="$emit('test')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.test') }}</button>
         <button @click="$emit('reset-status')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.resetStatus') }}</button>
         <button @click="$emit('refresh-token')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.refreshToken') }}</button>
+        <button data-testid="account-bulk-set-privacy" @click="$emit('set-privacy')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.setPrivacy') }}</button>
+        <button data-testid="account-bulk-clear-privacy" @click="$emit('clear-privacy')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.clearPrivacy') }}</button>
         <button @click="$emit('toggle-schedulable', true)" class="btn btn-success btn-sm">{{ t('admin.accounts.bulkActions.enableScheduling') }}</button>
         <button @click="$emit('toggle-schedulable', false)" class="btn btn-warning btn-sm">{{ t('admin.accounts.bulkActions.disableScheduling') }}</button>
         <button data-testid="account-bulk-edit-selected" @click="$emit('edit-selected')" class="btn btn-primary btn-sm">{{ t('admin.accounts.bulkActions.edit') }}</button>
@@ -87,6 +89,8 @@ const emit = defineEmits([
   'toggle-schedulable',
   'reset-status',
   'refresh-token',
+  'set-privacy',
+  'clear-privacy',
   'test',
   'test-all-ungrouped',
   'update:ungrouped-test-limit'

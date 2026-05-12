@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 
 import AccountsView from '../AccountsView.vue'
@@ -8,15 +8,25 @@ const {
   listWithEtag,
   getBatchTodayStats,
   deleteAccount,
+  batchSetPrivacy,
+  batchClearPrivacy,
   getAllProxies,
-  getAllGroups
+  getAllGroups,
+  showError,
+  showSuccess,
+  showInfo
 } = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   listWithEtag: vi.fn(),
   getBatchTodayStats: vi.fn(),
   deleteAccount: vi.fn(),
+  batchSetPrivacy: vi.fn(),
+  batchClearPrivacy: vi.fn(),
   getAllProxies: vi.fn(),
-  getAllGroups: vi.fn()
+  getAllGroups: vi.fn(),
+  showError: vi.fn(),
+  showSuccess: vi.fn(),
+  showInfo: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -28,6 +38,8 @@ vi.mock('@/api/admin', () => ({
       delete: deleteAccount,
       batchClearError: vi.fn(),
       batchRefresh: vi.fn(),
+      batchSetPrivacy,
+      batchClearPrivacy,
       toggleSchedulable: vi.fn()
     },
     proxies: {
@@ -41,9 +53,9 @@ vi.mock('@/api/admin', () => ({
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
-    showError: vi.fn(),
-    showSuccess: vi.fn(),
-    showInfo: vi.fn()
+    showError,
+    showSuccess,
+    showInfo
   })
 }))
 
@@ -70,10 +82,24 @@ const DataTableStub = {
 
 const AccountBulkActionsBarStub = {
   props: ['selectedIds', 'showTestAllUngrouped', 'ungroupedTestLimit'],
-  emits: ['edit-selected', 'test-all-ungrouped', 'update:ungrouped-test-limit'],
+  emits: ['edit-selected', 'test-all-ungrouped', 'update:ungrouped-test-limit', 'set-privacy', 'clear-privacy'],
   template: `
     <div>
       <button data-test="edit-selected" @click="$emit('edit-selected')">edit selected</button>
+      <button
+        v-if="selectedIds.length > 0"
+        data-test="set-privacy"
+        @click="$emit('set-privacy')"
+      >
+        set privacy
+      </button>
+      <button
+        v-if="selectedIds.length > 0"
+        data-test="clear-privacy"
+        @click="$emit('clear-privacy')"
+      >
+        clear privacy
+      </button>
       <input
         v-if="showTestAllUngrouped"
         data-test="ungrouped-limit"
@@ -104,13 +130,19 @@ const BatchAccountTestModalStub = {
 describe('admin AccountsView bulk edit scope', () => {
   beforeEach(() => {
     localStorage.clear()
+    vi.stubGlobal('confirm', vi.fn(() => true))
 
     listAccounts.mockReset()
     listWithEtag.mockReset()
     getBatchTodayStats.mockReset()
     deleteAccount.mockReset()
+    batchSetPrivacy.mockReset()
+    batchClearPrivacy.mockReset()
     getAllProxies.mockReset()
     getAllGroups.mockReset()
+    showError.mockReset()
+    showSuccess.mockReset()
+    showInfo.mockReset()
 
     listAccounts.mockResolvedValue({
       items: [],
@@ -126,8 +158,14 @@ describe('admin AccountsView bulk edit scope', () => {
     })
     getBatchTodayStats.mockResolvedValue({ stats: {} })
     deleteAccount.mockResolvedValue({ message: 'ok' })
+    batchSetPrivacy.mockResolvedValue({ total: 0, success: 0, failed: 0, skipped: 0 })
+    batchClearPrivacy.mockResolvedValue({ total: 0, success: 0, failed: 0, skipped: 0 })
     getAllProxies.mockResolvedValue([])
     getAllGroups.mockResolvedValue([])
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('opens bulk edit in selected mode from the bulk actions dropdown', async () => {
@@ -293,5 +331,121 @@ describe('admin AccountsView bulk edit scope', () => {
     await (wrapper.vm as any).waitForBatchTestDeleteQueueIdle()
 
     expect(deleteAccount).toHaveBeenCalledWith(4019)
+  })
+
+  it('calls batchSetPrivacy and shows success when all selected accounts are processed', async () => {
+    batchSetPrivacy.mockResolvedValueOnce({
+      total: 2,
+      success: 2,
+      failed: 0,
+      skipped: 0
+    })
+
+    const wrapper = mount(AccountsView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          AccountTableActions: { template: '<div><slot name="beforeCreate" /><slot name="after" /></div>' },
+          AccountTableFilters: { template: '<div></div>' },
+          AccountBulkActionsBar: AccountBulkActionsBarStub,
+          AccountActionMenu: true,
+          ImportDataModal: true,
+          ReAuthAccountModal: true,
+          AccountTestModal: true,
+          BatchAccountTestModal: BatchAccountTestModalStub,
+          AccountStatsModal: true,
+          ScheduledTestsPanel: true,
+          SyncFromCrsModal: true,
+          TempUnschedStatusModal: true,
+          ErrorPassthroughRulesModal: true,
+          TLSFingerprintProfilesModal: true,
+          CreateAccountModal: true,
+          EditAccountModal: true,
+          BulkEditAccountModal: BulkEditAccountModalStub,
+          PlatformTypeBadge: true,
+          AccountCapacityCell: true,
+          AccountStatusIndicator: true,
+          AccountTodayStatsCell: true,
+          AccountGroupsCell: true,
+          AccountUsageCell: true,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+    ;(wrapper.vm as any).setSelectedIds([1, 2])
+    await flushPromises()
+
+    await wrapper.get('[data-test="set-privacy"]').trigger('click')
+    await flushPromises()
+
+    expect(batchSetPrivacy).toHaveBeenCalledWith([1, 2])
+    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.bulkActions.setPrivacySuccess')
+    expect(showError).not.toHaveBeenCalled()
+  })
+
+  it('calls batchClearPrivacy and shows info when some selected accounts are skipped', async () => {
+    batchClearPrivacy.mockResolvedValueOnce({
+      total: 2,
+      success: 1,
+      failed: 0,
+      skipped: 1
+    })
+
+    const wrapper = mount(AccountsView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          AccountTableActions: { template: '<div><slot name="beforeCreate" /><slot name="after" /></div>' },
+          AccountTableFilters: { template: '<div></div>' },
+          AccountBulkActionsBar: AccountBulkActionsBarStub,
+          AccountActionMenu: true,
+          ImportDataModal: true,
+          ReAuthAccountModal: true,
+          AccountTestModal: true,
+          BatchAccountTestModal: BatchAccountTestModalStub,
+          AccountStatsModal: true,
+          ScheduledTestsPanel: true,
+          SyncFromCrsModal: true,
+          TempUnschedStatusModal: true,
+          ErrorPassthroughRulesModal: true,
+          TLSFingerprintProfilesModal: true,
+          CreateAccountModal: true,
+          EditAccountModal: true,
+          BulkEditAccountModal: BulkEditAccountModalStub,
+          PlatformTypeBadge: true,
+          AccountCapacityCell: true,
+          AccountStatusIndicator: true,
+          AccountTodayStatsCell: true,
+          AccountGroupsCell: true,
+          AccountUsageCell: true,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+    ;(wrapper.vm as any).setSelectedIds([7, 8])
+    await flushPromises()
+
+    await wrapper.get('[data-test="clear-privacy"]').trigger('click')
+    await flushPromises()
+
+    expect(batchClearPrivacy).toHaveBeenCalledWith([7, 8])
+    expect(showInfo).toHaveBeenCalledWith('admin.accounts.bulkActions.partialSuccessWithSkipped')
+    expect(showError).not.toHaveBeenCalled()
   })
 })
