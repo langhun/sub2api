@@ -29,9 +29,16 @@
       </div>
     </div>
 
-    <div v-if="displayEntries.length > 0 && chartData" class="flex flex-col gap-6 xl:flex-row xl:items-center">
-      <div data-testid="consumption-chart-wrapper" class="mx-auto xl:mx-0">
-        <div class="h-48 w-48">
+    <div
+      v-if="displayEntries.length > 0 && chartData"
+      data-testid="consumption-chart-layout"
+      class="flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-8"
+    >
+      <div
+        data-testid="consumption-chart-wrapper"
+        class="mx-auto w-full max-w-[16rem] xl:mx-0 xl:max-w-[18rem] xl:flex-[0_0_18rem]"
+      >
+        <div class="mx-auto h-56 w-56 sm:h-60 sm:w-60 xl:h-64 xl:w-64">
           <Doughnut :data="chartData" :options="doughnutOptions" />
         </div>
         <p class="mt-3 text-center text-xs text-gray-400 dark:text-dark-500">
@@ -41,7 +48,7 @@
 
       <div
         data-testid="consumption-ranking-scroll"
-        class="consumption-ranking-scroll max-h-[24rem] flex-1 overflow-y-auto pr-1"
+        class="consumption-ranking-scroll min-w-0 max-h-[24rem] flex-1 overflow-y-auto pr-1"
       >
         <table class="w-full text-xs">
           <thead>
