@@ -129,6 +129,33 @@ When using Docker Compose with `AUTO_SETUP=true`:
 - Migrations are applied in lexicographic order (e.g. `001_...sql`, `002_...sql`).
 - `schema_migrations` tracks applied migrations (filename + checksum).
 - Migrations are forward-only; rollback requires a DB backup restore or a manual compensating SQL script.
+- Migrations ending in `_notx.sql` may contain `CREATE INDEX CONCURRENTLY`; keep them outside manual transaction wrappers.
+- For high-traffic `usage_logs` deployments, review [usage_logs capacity and upgrade notes](../docs/USAGE_LOGS_CAPACITY.md) before upgrade. It includes EXPLAIN checks, online index verification, raw-log retention, partitioning guidance, and URL security compatibility flags for internal HTTP targets.
+
+**Verify the usage_logs hot-path indexes after upgrade**
+
+```sql
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE schemaname = 'public'
+  AND tablename = 'usage_logs'
+  AND indexname IN (
+    'idx_usage_logs_created_id_desc',
+    'idx_usage_logs_account_created_id_desc',
+    'idx_usage_logs_group_created_id_desc_not_null',
+    'idx_usage_logs_duration_tail_created',
+    'idx_usage_logs_ttft_tail_created'
+  )
+ORDER BY indexname;
+```
+
+If your deployment uses local or internal HTTP upstream URLs, the secure defaults still require explicit opt-in after disabling the hostname allowlist:
+
+```bash
+SECURITY_URL_ALLOWLIST_ENABLED=false
+SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
+SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
+```
 
 **Verify `users.allowed_groups` → `user_allowed_groups` backfill**
 

@@ -58,6 +58,7 @@ type AccountHandler struct {
 	sessionLimitCache       service.SessionLimitCache
 	rpmCache                service.RPMCache
 	tokenCacheInvalidator   service.TokenCacheInvalidator
+	privacyJobs             *batchPrivacyJobRegistry
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -90,6 +91,7 @@ func NewAccountHandler(
 		sessionLimitCache:       sessionLimitCache,
 		rpmCache:                rpmCache,
 		tokenCacheInvalidator:   tokenCacheInvalidator,
+		privacyJobs:             newBatchPrivacyJobRegistry(),
 	}
 }
 
@@ -1228,92 +1230,23 @@ func (h *AccountHandler) BatchSetPrivacy(c *gin.Context) {
 		response.BadRequest(c, "account_ids is required")
 		return
 	}
+	accountIDs, ok := prepareBatchPrivacyRequest(c, req.AccountIDs)
+	if !ok {
+		return
+	}
+	if len(accountIDs) > batchPrivacyAsyncThreshold {
+		h.enqueueBatchPrivacyJob(c, batchPrivacyOperationSet, req.AccountIDs)
+		return
+	}
 
-	ctx := c.Request.Context()
-	accounts, err := h.adminService.GetAccountsByIDs(ctx, req.AccountIDs)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), batchPrivacySyncTimeout)
+	defer cancel()
+	result, err := h.executeBatchPrivacyOperation(ctx, batchPrivacyOperationSet, accountIDs)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-
-	foundIDs := make(map[int64]bool, len(accounts))
-	for _, acc := range accounts {
-		if acc != nil {
-			foundIDs[acc.ID] = true
-		}
-	}
-
-	const maxConcurrency = 5
-	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(maxConcurrency)
-
-	var mu sync.Mutex
-	var successCount, failedCount, skippedCount int
-	var errors []gin.H
-
-	for _, id := range req.AccountIDs {
-		if !foundIDs[id] {
-			failedCount++
-			errors = append(errors, gin.H{
-				"account_id": id,
-				"error":      "account not found",
-			})
-		}
-	}
-
-	for _, account := range accounts {
-		acc := account
-		if acc == nil {
-			continue
-		}
-		g.Go(func() error {
-			if acc.Platform != service.PlatformOpenAI || acc.Type != service.AccountTypeOAuth {
-				mu.Lock()
-				skippedCount++
-				mu.Unlock()
-				return nil
-			}
-			mode := h.adminService.ForceOpenAIPrivacy(gctx, acc)
-			mu.Lock()
-			switch mode {
-			case service.PrivacyModeTrainingOff:
-				successCount++
-			case service.PrivacyModeCFBlocked:
-				failedCount++
-				errors = append(errors, gin.H{
-					"account_id": acc.ID,
-					"error":      "failed to set privacy: upstream request blocked by Cloudflare",
-				})
-			case "", service.PrivacyModeFailed:
-				failedCount++
-				errors = append(errors, gin.H{
-					"account_id": acc.ID,
-					"error":      "failed to set privacy: missing access_token or upstream request failed",
-				})
-			default:
-				failedCount++
-				errors = append(errors, gin.H{
-					"account_id": acc.ID,
-					"error":      fmt.Sprintf("failed to set privacy: unexpected privacy mode %q", mode),
-				})
-			}
-			mu.Unlock()
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-
-	response.Success(c, gin.H{
-		"total":   len(req.AccountIDs),
-		"success": successCount,
-		"failed":  failedCount,
-		"skipped": skippedCount,
-		"errors":  errors,
-	})
+	response.Success(c, result)
 }
 
 // BatchClearPrivacy handles batch clearing privacy_mode for OpenAI OAuth accounts
@@ -1330,79 +1263,23 @@ func (h *AccountHandler) BatchClearPrivacy(c *gin.Context) {
 		response.BadRequest(c, "account_ids is required")
 		return
 	}
+	accountIDs, ok := prepareBatchPrivacyRequest(c, req.AccountIDs)
+	if !ok {
+		return
+	}
+	if len(accountIDs) > batchPrivacyAsyncThreshold {
+		h.enqueueBatchPrivacyJob(c, batchPrivacyOperationClear, req.AccountIDs)
+		return
+	}
 
-	ctx := c.Request.Context()
-	accounts, err := h.adminService.GetAccountsByIDs(ctx, req.AccountIDs)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), batchPrivacySyncTimeout)
+	defer cancel()
+	result, err := h.executeBatchPrivacyOperation(ctx, batchPrivacyOperationClear, accountIDs)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-
-	foundIDs := make(map[int64]bool, len(accounts))
-	for _, acc := range accounts {
-		if acc != nil {
-			foundIDs[acc.ID] = true
-		}
-	}
-
-	const maxConcurrency = 10
-	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(maxConcurrency)
-
-	var mu sync.Mutex
-	var successCount, failedCount, skippedCount int
-	var errors []gin.H
-
-	for _, id := range req.AccountIDs {
-		if !foundIDs[id] {
-			failedCount++
-			errors = append(errors, gin.H{
-				"account_id": id,
-				"error":      "account not found",
-			})
-		}
-	}
-
-	for _, account := range accounts {
-		acc := account
-		if acc == nil {
-			continue
-		}
-		g.Go(func() error {
-			if acc.Platform != service.PlatformOpenAI || acc.Type != service.AccountTypeOAuth {
-				mu.Lock()
-				skippedCount++
-				mu.Unlock()
-				return nil
-			}
-			clearErr := h.adminService.ClearAccountPrivacyMode(gctx, acc)
-			mu.Lock()
-			if clearErr != nil {
-				failedCount++
-				errors = append(errors, gin.H{
-					"account_id": acc.ID,
-					"error":      clearErr.Error(),
-				})
-			} else {
-				successCount++
-			}
-			mu.Unlock()
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-
-	response.Success(c, gin.H{
-		"total":   len(req.AccountIDs),
-		"success": successCount,
-		"failed":  failedCount,
-		"skipped": skippedCount,
-		"errors":  errors,
-	})
+	response.Success(c, result)
 }
 
 // BatchCreate handles batch creating accounts

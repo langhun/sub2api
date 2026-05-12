@@ -618,6 +618,44 @@ export interface BatchOperationResult {
   skipped?: number
   errors?: Array<{ account_id: number; error: string }>
   warnings?: Array<{ account_id: number; warning: string }>
+  job_id?: string
+  status?: string
+}
+
+interface BatchPrivacyJobResponse {
+  job_id: string
+  status: 'queued' | 'running' | 'completed' | 'failed'
+  result?: BatchOperationResult
+  error?: string
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function waitForBatchPrivacyJob(jobId: string): Promise<BatchOperationResult> {
+  const deadline = Date.now() + 10 * 60 * 1000
+  while (Date.now() < deadline) {
+    const { data } = await apiClient.get<BatchPrivacyJobResponse>(`/admin/accounts/batch-privacy-jobs/${jobId}`)
+    if (data.status === 'completed' && data.result) {
+      return { ...data.result, job_id: jobId, status: data.status }
+    }
+    if (data.status === 'failed') {
+      if (data.result) {
+        return { ...data.result, job_id: jobId, status: data.status }
+      }
+      throw new Error(data.error || 'Batch privacy job failed')
+    }
+    await sleep(2000)
+  }
+  throw new Error(`Batch privacy job ${jobId} timed out`)
+}
+
+async function resolveBatchPrivacyResponse(result: BatchOperationResult): Promise<BatchOperationResult> {
+  if (!result.job_id) {
+    return result
+  }
+  return waitForBatchPrivacyJob(result.job_id)
 }
 
 /**
@@ -667,7 +705,7 @@ export async function batchSetPrivacy(accountIds: number[]): Promise<BatchOperat
   }, {
     timeout: 120000
   })
-  return data
+  return resolveBatchPrivacyResponse(data)
 }
 
 /**
@@ -679,7 +717,7 @@ export async function batchClearPrivacy(accountIds: number[]): Promise<BatchOper
   const { data } = await apiClient.post<BatchOperationResult>('/admin/accounts/batch-clear-privacy', {
     account_ids: accountIds,
   })
-  return data
+  return resolveBatchPrivacyResponse(data)
 }
 
 export const accountsAPI = {
