@@ -322,6 +322,10 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 **Recommendation:** Use the local-directory compose file for easier data management. The deployment script saves it as `docker-compose.yml`, so script-based installs can use plain `docker compose ...` commands.
 
+#### High-Traffic Usage Logs
+
+For deployments with large `usage_logs` tables, see [usage_logs capacity and upgrade notes](docs/USAGE_LOGS_CAPACITY.md) before upgrading. The guide covers `EXPLAIN (ANALYZE, BUFFERS)` checks, online hot-path indexes, raw-log retention, partitioning, and URL security compatibility flags for internal HTTP targets.
+
 #### Access
 
 Open `http://YOUR_SERVER_IP:8080` in your browser.
@@ -472,6 +476,8 @@ Additional security-related options are available in `config.yaml`:
 **⚠️ Security Warning: HTTP URL Configuration**
 
 When `security.url_allowlist.enabled=false`, the system disables the hostname allowlist, but it still validates URL scheme and **blocks private/loopback hosts by default**. HTTP URLs remain rejected unless you explicitly opt in. For local or internal HTTP targets, set:
+
+Upgrade compatibility: older deployments that intentionally used internal HTTP upstreams must set both `allow_insecure_http=true` and `allow_private_hosts=true` after disabling the hostname allowlist; otherwise startup succeeds, but those targets are rejected when used.
 
 ```yaml
 security:

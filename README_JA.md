@@ -321,6 +321,10 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 **推奨:** データ管理が容易なローカルディレクトリ版 Compose を使用してください。デプロイスクリプトはこれを `docker-compose.yml` として保存するため、スクリプト利用時は `docker compose ...` をそのまま実行できます。
 
+#### 高トラフィックの usage_logs
+
+`usage_logs` テーブルが大きい環境では、アップグレード前に [usage_logs capacity and upgrade notes](docs/USAGE_LOGS_CAPACITY.md) を確認してください。このガイドには `EXPLAIN (ANALYZE, BUFFERS)`、オンライン hot-path index、raw log retention、partitioning、内部 HTTP ターゲット向けの URL security compatibility flag が含まれています。
+
 #### アクセス
 
 ブラウザで `http://YOUR_SERVER_IP:8080` を開いてください。
@@ -471,6 +475,8 @@ default:
 **⚠️ セキュリティ警告: HTTP URL 設定**
 
 `security.url_allowlist.enabled=false` の場合、システムはホスト名 allowlist を無効化しますが、URL スキームの検証は継続し、**プライベート/ループバックホストもデフォルトで拒否**します。ローカルや内部 HTTP ターゲットを使うには、以下を明示的に設定してください:
+
+アップグレード互換性: 旧デプロイで内部 HTTP upstream を意図的に使っていた場合、ホスト名 allowlist を無効化しても `allow_insecure_http=true` と `allow_private_hosts=true` の両方を設定する必要があります。設定しない場合、サービスは起動しても対象 URL の使用時に拒否されます。
 
 ```yaml
 security:

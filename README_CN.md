@@ -321,6 +321,10 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 **推荐：** 使用本地目录版 Compose 以便更轻松地管理数据。部署脚本会把它保存为 `docker-compose.yml`，因此脚本安装后可直接使用 `docker compose ...` 命令。
 
+#### 高流量用量日志
+
+如果部署中的 `usage_logs` 数据量较大，升级前请阅读 [usage_logs 容量与升级说明](docs/USAGE_LOGS_CAPACITY.md)。该文档包含 `EXPLAIN (ANALYZE, BUFFERS)` 检查、在线热路径索引、原始日志保留、分区建议，以及内网 HTTP 目标的 URL 安全兼容配置。
+
 #### “数据管理”功能（datamanagementd）已废弃
 
 当前仓库已移除 `datamanagementd` 源码，管理后台不再依赖独立宿主机数据管理进程。请不要按旧文档部署该守护进程。
@@ -512,6 +516,8 @@ gateway:
 **⚠️ 安全警告：HTTP URL 配置**
 
 当 `security.url_allowlist.enabled=false` 时，系统会关闭主机白名单，但仍会校验 URL 协议，并且**默认阻断私网/回环主机**。HTTP URL 依然会被拒绝。若要访问本地或内网 HTTP 目标，必须显式设置：
+
+升级兼容说明：旧部署如果有意使用内网 HTTP 上游，关闭主机白名单后仍必须同时设置 `allow_insecure_http=true` 和 `allow_private_hosts=true`；否则服务可以启动，但实际使用这些目标时会被拒绝。
 
 ```yaml
 security:

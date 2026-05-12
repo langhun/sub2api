@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,7 @@ func setupBatchPrivacyRouter(adminSvc service.AdminService) *gin.Engine {
 	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	router.POST("/api/v1/admin/accounts/batch-set-privacy", handler.BatchSetPrivacy)
 	router.POST("/api/v1/admin/accounts/batch-clear-privacy", handler.BatchClearPrivacy)
+	router.GET("/api/v1/admin/accounts/batch-privacy-jobs/:job_id", handler.GetBatchPrivacyJob)
 	return router
 }
 
@@ -131,4 +133,86 @@ func TestBatchClearPrivacyCountsSuccessFailedAndSkipped(t *testing.T) {
 	require.Len(t, errorsPayload, 1)
 	require.Equal(t, float64(13), errorsPayload[0].(map[string]any)["account_id"])
 	require.Equal(t, []int64{11}, adminSvc.clearedPrivacyIDs)
+}
+
+func TestBatchSetPrivacyLargeBatchReturnsBackgroundJob(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = make([]service.Account, 0, batchPrivacyAsyncThreshold+1)
+	ids := make([]int64, 0, batchPrivacyAsyncThreshold+1)
+	for i := 1; i <= batchPrivacyAsyncThreshold+1; i++ {
+		id := int64(i)
+		ids = append(ids, id)
+		adminSvc.accounts = append(adminSvc.accounts, service.Account{
+			ID:       id,
+			Name:     "openai-oauth",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Status:   service.StatusActive,
+		})
+	}
+	adminSvc.forceOpenAIPrivacyMode = service.PrivacyModeTrainingOff
+
+	router := setupBatchPrivacyRouter(adminSvc)
+
+	body, err := json.Marshal(map[string]any{
+		"account_ids": ids,
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/batch-set-privacy", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	data := resp["data"].(map[string]any)
+	jobID, ok := data["job_id"].(string)
+	require.True(t, ok)
+	require.NotEmpty(t, jobID)
+	require.Equal(t, "queued", data["status"])
+	require.Equal(t, float64(len(ids)), data["deduplicated_total"])
+
+	require.Eventually(t, func() bool {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/batch-privacy-jobs/"+jobID, nil)
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			return false
+		}
+		var statusResp map[string]any
+		if err := json.Unmarshal(rec.Body.Bytes(), &statusResp); err != nil {
+			return false
+		}
+		job := statusResp["data"].(map[string]any)
+		if job["status"] != "completed" {
+			return false
+		}
+		result := job["result"].(map[string]any)
+		return result["success"] == float64(len(ids))
+	}, 2*time.Second, 20*time.Millisecond)
+}
+
+func TestBatchSetPrivacyRejectsTooManyIDs(t *testing.T) {
+	adminSvc := newStubAdminService()
+	router := setupBatchPrivacyRouter(adminSvc)
+	ids := make([]int64, batchPrivacyMaxRequestIDs+1)
+	for i := range ids {
+		ids[i] = int64(i + 1)
+	}
+
+	body, err := json.Marshal(map[string]any{
+		"account_ids": ids,
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/batch-set-privacy", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Empty(t, adminSvc.forcedPrivacyIDs)
 }
