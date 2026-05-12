@@ -496,6 +496,10 @@ func (s *TokenRefreshService) ensureOpenAIPrivacy(ctx context.Context, account *
 			"error", err,
 		)
 	} else {
+		if account.Extra == nil {
+			account.Extra = make(map[string]any)
+		}
+		account.Extra["privacy_mode"] = mode
 		slog.Info("token_refresh.privacy_mode_set",
 			"account_id", account.ID,
 			"privacy_mode", mode,
