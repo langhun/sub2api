@@ -4,11 +4,14 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -34,6 +37,12 @@ var (
 	ErrRedPacketCountInvalid    = infraerrors.BadRequest("REDPACKET_COUNT_INVALID", "invalid red packet count")
 )
 
+const (
+	userSearchMinQueryRunes = 2
+	userSearchMaxQueryRunes = 64
+	userSearchLimit         = 10
+)
+
 type BalanceTransferService struct {
 	transferRepo   BalanceTransferRepository
 	redPacketRepo  BalanceRedPacketRepository
@@ -45,6 +54,14 @@ type BalanceTransferService struct {
 type balanceTransferTxGuard interface {
 	GetByIDForUpdate(ctx context.Context, id int64) (*BalanceTransferRecord, error)
 	LockUserBalance(ctx context.Context, userID int64) (float64, error)
+}
+
+type balanceTransferUserSearchRepository interface {
+	SearchForBalanceTransfer(ctx context.Context, query string, limit int) ([]User, error)
+}
+
+type balanceTransferUserEmailBatchRepository interface {
+	GetEmailsByIDs(ctx context.Context, userIDs []int64) (map[int64]string, error)
 }
 
 func NewBalanceTransferService(
@@ -175,22 +192,49 @@ func (s *BalanceTransferService) GetAllTransfers(ctx context.Context, filter *Tr
 	if err != nil {
 		return nil, 0, err
 	}
-	userIDs := make(map[int64]struct{})
+	userIDs := make([]int64, 0, len(records)*2)
+	seenUserIDs := make(map[int64]struct{})
 	for _, r := range records {
-		userIDs[r.SenderID] = struct{}{}
-		userIDs[r.ReceiverID] = struct{}{}
-	}
-	emails := make(map[int64]string)
-	for uid := range userIDs {
-		if u, err := s.userRepo.GetByID(ctx, uid); err == nil {
-			emails[uid] = u.Email
+		if _, ok := seenUserIDs[r.SenderID]; !ok {
+			seenUserIDs[r.SenderID] = struct{}{}
+			userIDs = append(userIDs, r.SenderID)
 		}
+		if _, ok := seenUserIDs[r.ReceiverID]; !ok {
+			seenUserIDs[r.ReceiverID] = struct{}{}
+			userIDs = append(userIDs, r.ReceiverID)
+		}
+	}
+	emails, err := s.getTransferUserEmails(ctx, userIDs)
+	if err != nil {
+		return nil, 0, err
 	}
 	for _, r := range records {
 		r.SenderEmail = emails[r.SenderID]
 		r.ReceiverEmail = emails[r.ReceiverID]
 	}
 	return records, total, nil
+}
+
+func (s *BalanceTransferService) getTransferUserEmails(ctx context.Context, userIDs []int64) (map[int64]string, error) {
+	emails := make(map[int64]string, len(userIDs))
+	if len(userIDs) == 0 {
+		return emails, nil
+	}
+	if repo, ok := s.userRepo.(balanceTransferUserEmailBatchRepository); ok {
+		batched, err := repo.GetEmailsByIDs(ctx, userIDs)
+		if err != nil {
+			return nil, fmt.Errorf("batch get transfer user emails: %w", err)
+		}
+		return batched, nil
+	}
+
+	for _, uid := range userIDs {
+		u, err := s.userRepo.GetByID(ctx, uid)
+		if err == nil && u != nil {
+			emails[uid] = u.Email
+		}
+	}
+	return emails, nil
 }
 
 func (s *BalanceTransferService) FreezeTransfer(ctx context.Context, adminID, transferID int64) error {
@@ -304,13 +348,6 @@ func (s *BalanceTransferService) CreateRedPacket(ctx context.Context, senderID i
 	feeRate := cfg.FeeRate
 	fee := math.Round(totalAmount*feeRate*1e8) / 1e8
 	grossAmount := totalAmount + fee
-	sender, err := s.userRepo.GetByID(ctx, senderID)
-	if err != nil {
-		return nil, fmt.Errorf("get sender: %w", err)
-	}
-	if sender.Balance < grossAmount {
-		return nil, ErrTransferInsufficient
-	}
 	code, err := generateRedPacketCode()
 	if err != nil {
 		return nil, fmt.Errorf("generate code: %w", err)
@@ -321,6 +358,13 @@ func (s *BalanceTransferService) CreateRedPacket(ctx context.Context, senderID i
 	}
 	var rp *RedPacketRecord
 	if err := s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
+		senderBalance, err := s.lockUserBalance(txCtx, senderID)
+		if err != nil {
+			return fmt.Errorf("lock sender balance: %w", err)
+		}
+		if senderBalance < grossAmount {
+			return ErrTransferInsufficient
+		}
 		if err := s.userRepo.DeductBalance(txCtx, senderID, grossAmount); err != nil {
 			return fmt.Errorf("deduct sender balance: %w", err)
 		}
@@ -437,9 +481,12 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 	return claimRecord, nil
 }
 
-func (s *BalanceTransferService) GetRedPacketDetail(ctx context.Context, redPacketID int64) (*RedPacketRecord, []*RedPacketClaimRecord, error) {
+func (s *BalanceTransferService) GetRedPacketDetail(ctx context.Context, viewerID, redPacketID int64) (*RedPacketRecord, []*RedPacketClaimRecord, error) {
 	rp, err := s.redPacketRepo.GetByID(ctx, redPacketID)
 	if err != nil {
+		return nil, nil, ErrRedPacketNotFound
+	}
+	if rp.SenderID != viewerID {
 		return nil, nil, ErrRedPacketNotFound
 	}
 	claims, err := s.redPacketRepo.GetClaims(ctx, redPacketID)
@@ -458,28 +505,46 @@ func (s *BalanceTransferService) GetMyRedPackets(ctx context.Context, senderID i
 	return s.redPacketRepo.ListBySender(ctx, senderID, page, pageSize)
 }
 
+func (s *BalanceTransferService) ExpireRedPacket(ctx context.Context, redPacketID int64) error {
+	rp, err := s.redPacketRepo.GetByID(ctx, redPacketID)
+	if err != nil {
+		return ErrRedPacketNotFound
+	}
+	return s.expireRedPacket(ctx, rp)
+}
+
 func (s *BalanceTransferService) ExpireRedPackets(ctx context.Context) error {
 	rps, err := s.redPacketRepo.ListActiveExpired(ctx)
 	if err != nil {
 		return err
 	}
+	var joinedErr error
 	for _, rp := range rps {
-		_ = s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
-			remaining, err := s.redPacketRepo.ReturnRemaining(txCtx, rp.ID, rp.SenderID)
-			if err != nil {
-				return err
-			}
-			if remaining > 0 {
-				return s.userRepo.UpdateBalance(txCtx, rp.SenderID, remaining)
-			}
-			return nil
-		})
+		if err := s.expireRedPacket(ctx, rp); err != nil {
+			joinedErr = errors.Join(joinedErr, fmt.Errorf("expire red packet %d: %w", rp.ID, err))
+		}
 	}
-	return nil
+	return joinedErr
 }
 
 func (s *BalanceTransferService) GetAllRedPackets(ctx context.Context, page, pageSize int) ([]*RedPacketRecord, int, error) {
 	return s.redPacketRepo.ListAll(ctx, page, pageSize)
+}
+
+func (s *BalanceTransferService) expireRedPacket(ctx context.Context, rp *RedPacketRecord) error {
+	if rp == nil {
+		return ErrRedPacketNotFound
+	}
+	return s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
+		remaining, err := s.redPacketRepo.ReturnRemaining(txCtx, rp.ID, rp.SenderID)
+		if err != nil {
+			return err
+		}
+		if remaining > 0 {
+			return s.userRepo.UpdateBalance(txCtx, rp.SenderID, remaining)
+		}
+		return nil
+	})
 }
 
 func (s *BalanceTransferService) calculateClaimAmount(rp *RedPacketRecord) float64 {
@@ -530,18 +595,100 @@ type UserSearchResult struct {
 }
 
 func (s *BalanceTransferService) SearchUsers(ctx context.Context, query string) ([]*UserSearchResult, error) {
-	if query == "" {
-		return nil, nil
+	query = normalizeUserSearchQuery(query)
+	if utf8.RuneCountInString(query) < userSearchMinQueryRunes {
+		return []*UserSearchResult{}, nil
 	}
-	users, _, err := s.userRepo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, UserListFilters{Search: query})
+
+	var (
+		users []User
+		err   error
+	)
+	if repo, ok := s.userRepo.(balanceTransferUserSearchRepository); ok {
+		users, err = repo.SearchForBalanceTransfer(ctx, query, userSearchLimit)
+	} else {
+		users, _, err = s.userRepo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: userSearchLimit}, UserListFilters{Search: query})
+	}
 	if err != nil {
 		return nil, err
 	}
-	var results []*UserSearchResult
+
+	results := make([]*UserSearchResult, 0, len(users))
 	for _, u := range users {
-		results = append(results, &UserSearchResult{ID: u.ID, Email: u.Email, Username: u.Username})
+		if len(results) >= userSearchLimit {
+			break
+		}
+		if !matchesBalanceUserSearch(u, query) {
+			continue
+		}
+		results = append(results, &UserSearchResult{
+			ID:       u.ID,
+			Email:    maskEmailForUserSearch(u.Email),
+			Username: maskUserSearchName(u.Username),
+		})
 	}
 	return results, nil
+}
+
+func normalizeUserSearchQuery(query string) string {
+	query = strings.Join(strings.Fields(query), " ")
+	if utf8.RuneCountInString(query) <= userSearchMaxQueryRunes {
+		return query
+	}
+	runes := []rune(query)
+	return string(runes[:userSearchMaxQueryRunes])
+}
+
+func matchesBalanceUserSearch(user User, query string) bool {
+	query = strings.ToLower(query)
+	return strings.Contains(strings.ToLower(user.Email), query) ||
+		strings.Contains(strings.ToLower(user.Username), query)
+}
+
+func maskEmailForUserSearch(email string) string {
+	email = strings.TrimSpace(email)
+	at := strings.LastIndex(email, "@")
+	if at <= 0 {
+		return maskUserSearchName(email)
+	}
+	local := []rune(email[:at])
+	domain := []rune(email[at+1:])
+	if len(local) == 0 || len(domain) == 0 {
+		return maskUserSearchName(email)
+	}
+	return maskUserSearchSegment(local) + "@" + maskUserSearchDomain(domain)
+}
+
+func maskUserSearchName(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	return maskUserSearchSegment([]rune(value))
+}
+
+func maskUserSearchSegment(runes []rune) string {
+	switch len(runes) {
+	case 0:
+		return ""
+	case 1:
+		return string(runes[0])
+	case 2:
+		return string(runes[0]) + "*"
+	default:
+		return string(runes[0]) + strings.Repeat("*", len(runes)-2) + string(runes[len(runes)-1])
+	}
+}
+
+func maskUserSearchDomain(runes []rune) string {
+	domain := string(runes)
+	dot := strings.LastIndex(domain, ".")
+	if dot <= 0 {
+		return maskUserSearchSegment(runes)
+	}
+	name := []rune(domain[:dot])
+	suffix := domain[dot:]
+	return maskUserSearchSegment(name) + suffix
 }
 
 func (s *BalanceTransferService) getTransferForUpdate(ctx context.Context, transferID int64) (*BalanceTransferRecord, error) {

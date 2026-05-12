@@ -200,6 +200,22 @@ func TestExportDataPassesAccountFiltersAndSort(t *testing.T) {
 
 func TestExportDataSelectedIDsOverrideFilters(t *testing.T) {
 	router, adminSvc := setupAccountDataRouter()
+	adminSvc.accounts = []service.Account{
+		{
+			ID:          1,
+			Name:        "selected-openai",
+			Platform:    service.PlatformOpenAI,
+			Type:        service.AccountTypeOAuth,
+			Credentials: map[string]any{"token": "secret-1"},
+		},
+		{
+			ID:          2,
+			Name:        "selected-anthropic",
+			Platform:    service.PlatformAnthropic,
+			Type:        service.AccountTypeOAuth,
+			Credentials: map[string]any{"token": "secret-2"},
+		},
+	}
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(

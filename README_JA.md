@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -122,7 +122,7 @@ Sub2API を拡張・統合するコミュニティプロジェクト:
 
 | コンポーネント | 技術 |
 |-----------|------------|
-| バックエンド | Go 1.25.7, Gin, Ent |
+| バックエンド | Go 1.26.3, Gin, Ent |
 | フロントエンド | Vue 3.4+, Vite 5+, TailwindCSS |
 | データベース | PostgreSQL 15+ |
 | キャッシュ/キュー | Redis 7+ |
@@ -240,7 +240,7 @@ docker compose logs -f sub2api
 ```
 
 **スクリプトの動作内容:**
-- `docker-compose.local.yml`（`docker-compose.yml` として保存）と `.env.example` をダウンロード
+- ローカルディレクトリ版の Compose テンプレートを `docker-compose.yml` として保存し、`.env.example` もダウンロード
 - セキュアな認証情報（JWT_SECRET、TOTP_ENCRYPTION_KEY、POSTGRES_PASSWORD）を自動生成
 - 自動生成されたシークレットで `.env` ファイルを作成
 - データディレクトリを作成（バックアップ・移行が容易なローカルディレクトリを使用）
@@ -319,7 +319,7 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.local.yml** | ローカルディレクトリ | ✅ 容易（ディレクトリ全体を tar） | 本番環境、頻繁なバックアップ |
 | **docker-compose.yml** | 名前付きボリューム | ⚠️ docker コマンドが必要 | シンプルなセットアップ |
 
-**推奨:** データ管理が容易な `docker-compose.local.yml`（スクリプトによるデプロイ）を使用してください。
+**推奨:** データ管理が容易なローカルディレクトリ版 Compose を使用してください。デプロイスクリプトはこれを `docker-compose.yml` として保存するため、スクリプト利用時は `docker compose ...` をそのまま実行できます。
 
 #### アクセス
 
@@ -327,24 +327,24 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 管理者パスワードが自動生成された場合は、ログで確認できます:
 ```bash
-docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+docker compose logs sub2api | grep "admin password"
 ```
 
 #### アップグレード
 
 ```bash
 # 最新イメージをプルしてコンテナを再作成
-docker compose -f docker-compose.local.yml pull
-docker compose -f docker-compose.local.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
 #### 簡単な移行（ローカルディレクトリバージョン）
 
-`docker-compose.local.yml` を使用している場合、新しいサーバーへの移行が簡単です:
+ローカルディレクトリ版 Compose（手動では `docker-compose.local.yml`、スクリプト生成後は `docker-compose.yml`）を使用している場合、新しいサーバーへの移行が簡単です。以下のコマンドはスクリプト生成後の `docker-compose.yml` を前提とします。手動のローカルファイルでは `-f docker-compose.local.yml` を追加してください。
 
 ```bash
 # 移行元サーバーにて
-docker compose -f docker-compose.local.yml down
+docker compose down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
 
@@ -354,23 +354,23 @@ scp sub2api-complete.tar.gz user@new-server:/path/
 # 移行先サーバーにて
 tar xzf sub2api-complete.tar.gz
 cd sub2api-deploy/
-docker compose -f docker-compose.local.yml up -d
+docker compose up -d
 ```
 
 #### よく使うコマンド
 
 ```bash
 # すべてのサービスを停止
-docker compose -f docker-compose.local.yml down
+docker compose down
 
 # 再起動
-docker compose -f docker-compose.local.yml restart
+docker compose restart
 
 # すべてのログを表示
-docker compose -f docker-compose.local.yml logs -f
+docker compose logs -f
 
 # すべてのデータを削除（注意！）
-docker compose -f docker-compose.local.yml down
+docker compose down
 rm -rf data/ postgres_data/ redis_data/
 ```
 
@@ -382,8 +382,9 @@ rm -rf data/ postgres_data/ redis_data/
 
 #### 前提条件
 
-- Go 1.21+
-- Node.js 18+
+- Go 1.26.3
+- Node.js 20+
+- pnpm 9.x
 - PostgreSQL 15+
 - Redis 7+
 
@@ -394,8 +395,9 @@ rm -rf data/ postgres_data/ redis_data/
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. pnpm をインストール（未インストールの場合）
-npm install -g pnpm
+# 2. プロジェクトで宣言されたパッケージマネージャーを有効化
+corepack enable
+corepack prepare pnpm@9.15.9 --activate
 
 # 3. フロントエンドをビルド
 cd frontend

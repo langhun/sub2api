@@ -1209,6 +1209,10 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			openai_ws_mode,
 			duration_ms,
 			first_token_ms,
+			auth_latency_ms,
+			routing_latency_ms,
+			upstream_latency_ms,
+			response_latency_ms,
 			user_agent,
 			ip_address,
 			image_count,
@@ -3328,6 +3332,7 @@ func (r *usageLogRepository) GetAllGroupUsageSummary(ctx context.Context, todayS
 			COALESCE(SUM(CASE WHEN ul.created_at >= $1 THEN ul.actual_cost ELSE 0 END), 0) AS today_cost
 		FROM groups g
 		LEFT JOIN usage_logs ul ON ul.group_id = g.id
+		WHERE g.deleted_at IS NULL
 		GROUP BY g.id
 	`
 

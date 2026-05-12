@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -123,7 +123,7 @@ Community projects that extend or integrate with Sub2API:
 
 | Component | Technology |
 |-----------|------------|
-| Backend | Go 1.25.7, Gin, Ent |
+| Backend | Go 1.26.3, Gin, Ent |
 | Frontend | Vue 3.4+, Vite 5+, TailwindCSS |
 | Database | PostgreSQL 15+ |
 | Cache/Queue | Redis 7+ |
@@ -241,7 +241,7 @@ docker compose logs -f sub2api
 ```
 
 **What the script does:**
-- Downloads `docker-compose.local.yml` (saved as `docker-compose.yml`) and `.env.example`
+- Downloads the local-directory Compose template as `docker-compose.yml` and `.env.example`
 - Generates secure credentials (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with auto-generated secrets
 - Creates data directories (uses local directories for easy backup/migration)
@@ -320,7 +320,7 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.local.yml** | Local directories | ✅ Easy (tar entire directory) | Production, frequent backups |
 | **docker-compose.yml** | Named volumes | ⚠️ Requires docker commands | Simple setup |
 
-**Recommendation:** Use `docker-compose.local.yml` (deployed by script) for easier data management.
+**Recommendation:** Use the local-directory compose file for easier data management. The deployment script saves it as `docker-compose.yml`, so script-based installs can use plain `docker compose ...` commands.
 
 #### Access
 
@@ -328,24 +328,24 @@ Open `http://YOUR_SERVER_IP:8080` in your browser.
 
 If admin password was auto-generated, find it in logs:
 ```bash
-docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+docker compose logs sub2api | grep "admin password"
 ```
 
 #### Upgrade
 
 ```bash
 # Pull latest image and recreate container
-docker compose -f docker-compose.local.yml pull
-docker compose -f docker-compose.local.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
 #### Easy Migration (Local Directory Version)
 
-When using `docker-compose.local.yml`, migrate to a new server easily:
+When using the local-directory compose file (`docker-compose.local.yml` manually, or script-generated `docker-compose.yml`), migrate to a new server easily. The commands below assume the script-generated `docker-compose.yml`; for a manual local file, add `-f docker-compose.local.yml`.
 
 ```bash
 # On source server
-docker compose -f docker-compose.local.yml down
+docker compose down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
 
@@ -355,23 +355,23 @@ scp sub2api-complete.tar.gz user@new-server:/path/
 # On new server
 tar xzf sub2api-complete.tar.gz
 cd sub2api-deploy/
-docker compose -f docker-compose.local.yml up -d
+docker compose up -d
 ```
 
 #### Useful Commands
 
 ```bash
 # Stop all services
-docker compose -f docker-compose.local.yml down
+docker compose down
 
 # Restart
-docker compose -f docker-compose.local.yml restart
+docker compose restart
 
 # View all logs
-docker compose -f docker-compose.local.yml logs -f
+docker compose logs -f
 
 # Remove all data (caution!)
-docker compose -f docker-compose.local.yml down
+docker compose down
 rm -rf data/ postgres_data/ redis_data/
 ```
 
@@ -383,8 +383,9 @@ Build and run from source code for development or customization.
 
 #### Prerequisites
 
-- Go 1.21+
-- Node.js 18+
+- Go 1.26.3
+- Node.js 20+
+- pnpm 9.x
 - PostgreSQL 15+
 - Redis 7+
 
@@ -395,8 +396,9 @@ Build and run from source code for development or customization.
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. Install pnpm (if not already installed)
-npm install -g pnpm
+# 2. Enable the project package manager
+corepack enable
+corepack prepare pnpm@9.15.9 --activate
 
 # 3. Build frontend
 cd frontend

@@ -1831,7 +1831,7 @@ export default {
       },
       actions: {
         refresh: '刷新状态',
-        disabledHint: '请先启动 datamanagementd 并确认 Socket 可连通。',
+        disabledHint: '数据管理功能已废弃，当前版本不再支持 datamanagementd。',
         reloadConfig: '加载配置',
         reloadSourceProfiles: '刷新数据源配置',
         reloadProfiles: '刷新账号列表',

@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
 type BalanceTransferHandler struct {
@@ -158,12 +158,17 @@ func (h *BalanceTransferHandler) ClaimRedPacket(c *gin.Context) {
 }
 
 func (h *BalanceTransferHandler) GetRedPacketDetail(c *gin.Context) {
+	userID := getUserID(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	if id == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	rp, claims, err := h.transferService.GetRedPacketDetail(c.Request.Context(), id)
+	rp, claims, err := h.transferService.GetRedPacketDetail(c.Request.Context(), userID, id)
 	if err != nil {
 		WriteAppError(c, err)
 		return

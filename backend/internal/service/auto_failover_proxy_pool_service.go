@@ -20,8 +20,11 @@ import (
 
 const (
 	autoFailoverProxyPoolHealthCheckInterval = 90 * time.Second
+	autoFailoverProxyPoolHealthCheckTimeout  = 75 * time.Second
 	autoFailoverProxyCooldownDuration        = 2 * time.Minute
 	autoFailoverProxyProbeTimeout            = 12 * time.Second
+	autoFailoverProxyHealthCheckWorkers      = 8
+	autoFailoverProxyMaxPoolAttempts         = 3
 )
 
 type ProxyFailoverCandidate struct {
@@ -224,10 +227,14 @@ func (s *AutoFailoverProxyPoolService) DoHTTPRequest(
 	if err != nil {
 		return nil, err
 	}
+	candidates = limitProxyFailoverCandidates(candidates, autoFailoverProxyMaxPoolAttempts)
 	if len(candidates) == 0 {
 		return do(req, "")
 	}
 
+	var failedProxyID *int64
+	var failedReason string
+	attemptErrors := make([]string, 0, len(candidates))
 	for idx, candidate := range candidates {
 		attemptReq, cloneErr := cloneRequestForRetry(req)
 		if cloneErr != nil {
@@ -242,9 +249,13 @@ func (s *AutoFailoverProxyPoolService) DoHTTPRequest(
 			retry, reason := s.ShouldRetryError(callErr)
 			if retry {
 				s.RecordFailure(ctx, candidate.ProxyID, reason, true)
+				failedProxyID = candidate.ProxyID
+				failedReason = reason
+				attemptErrors = append(attemptErrors, formatProxyAttemptError(candidate, reason))
 				if idx+1 < len(candidates) {
 					continue
 				}
+				return nil, fmt.Errorf("proxy failover exhausted after %d attempts (%s): %w", len(attemptErrors), strings.Join(attemptErrors, "; "), callErr)
 			}
 			return nil, callErr
 		}
@@ -255,6 +266,9 @@ func (s *AutoFailoverProxyPoolService) DoHTTPRequest(
 		}
 		if retry {
 			s.RecordFailure(ctx, candidate.ProxyID, reason, true)
+			failedProxyID = candidate.ProxyID
+			failedReason = reason
+			attemptErrors = append(attemptErrors, formatProxyAttemptError(candidate, reason))
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
 			}
@@ -268,7 +282,7 @@ func (s *AutoFailoverProxyPoolService) DoHTTPRequest(
 		}
 
 		s.RecordSuccess(ctx, candidate.ProxyID, &latencyMs)
-		if err := s.PersistSelectedProxy(ctx, account, candidate, "proxy_auto_failover_success", nil, ""); err != nil {
+		if err := s.PersistSelectedProxy(ctx, account, candidate, "proxy_auto_failover_success", failedProxyID, failedReason); err != nil {
 			slog.Warn("proxy_auto_failover.persist_selected_failed", "account_id", account.ID, "error", err)
 		}
 		return resp, nil
@@ -449,35 +463,152 @@ func (s *AutoFailoverProxyPoolService) refreshPoolHealth(ctx context.Context) {
 		return
 	}
 
+	healthCtx, cancel := context.WithTimeout(ctx, autoFailoverProxyPoolHealthCheckTimeout)
+	defer cancel()
+
+	activeProxies := make([]*Proxy, 0, len(proxies))
 	for _, proxy := range proxies {
 		if proxy == nil || proxy.Status != StatusActive {
 			continue
 		}
+		activeProxies = append(activeProxies, proxy)
+	}
+	if len(activeProxies) == 0 {
+		return
+	}
 
-		probeCtx, cancel := context.WithTimeout(ctx, autoFailoverProxyProbeTimeout)
-		exitInfo, latencyMs, err := s.proxyProber.ProbeProxy(probeCtx, proxy.URL())
-		cancel()
-		if err != nil {
-			s.RecordFailure(ctx, ptrInt64(proxy.ID), sanitizeProxyFailureReason(err.Error()), true)
-			continue
+	workerCount := min(len(activeProxies), autoFailoverProxyHealthCheckWorkers)
+	jobs := make(chan *Proxy)
+	var wg sync.WaitGroup
+	wg.Add(workerCount)
+	for range workerCount {
+		go func() {
+			defer wg.Done()
+			for proxy := range jobs {
+				s.refreshSingleProxyHealth(healthCtx, proxy)
+			}
+		}()
+	}
+
+	for _, proxy := range activeProxies {
+		select {
+		case <-healthCtx.Done():
+			close(jobs)
+			wg.Wait()
+			return
+		case jobs <- proxy:
 		}
+	}
+	close(jobs)
+	wg.Wait()
+}
 
-		s.mergeProxyRuntimeInfo(ctx, proxy.ID, func(info *ProxyLatencyInfo) {
-			info.Success = true
-			info.Message = "Proxy is accessible"
-			info.LatencyMs = ptrInt64(latencyMs)
+func (s *AutoFailoverProxyPoolService) refreshSingleProxyHealth(ctx context.Context, proxy *Proxy) {
+	if proxy == nil {
+		return
+	}
+
+	probeCtx, cancel := context.WithTimeout(ctx, autoFailoverProxyProbeTimeout)
+	defer cancel()
+
+	exitInfo, latencyMs, err := s.proxyProber.ProbeProxy(probeCtx, proxy.URL())
+	if err != nil {
+		s.RecordFailure(ctx, ptrInt64(proxy.ID), sanitizeProxyFailureReason(err.Error()), true)
+		return
+	}
+
+	s.mergeProxyRuntimeInfo(ctx, proxy.ID, func(info *ProxyLatencyInfo) {
+		info.Success = true
+		info.Message = "Proxy is accessible"
+		info.LatencyMs = ptrInt64(latencyMs)
+		if exitInfo != nil {
 			info.IPAddress = exitInfo.IP
 			info.Country = exitInfo.Country
 			info.CountryCode = exitInfo.CountryCode
 			info.Region = exitInfo.Region
 			info.City = exitInfo.City
-			info.HealthStatus = "healthy"
-			info.CooldownUntilUnix = nil
-			nowUnix := time.Now().Unix()
-			info.LastRecoveredAtUnix = ptrInt64(nowUnix)
-			info.UpdatedAt = time.Now()
-		})
+		}
+		info.HealthStatus = "healthy"
+		info.CooldownUntilUnix = nil
+		nowUnix := time.Now().Unix()
+		info.LastRecoveredAtUnix = ptrInt64(nowUnix)
+		info.UpdatedAt = time.Now()
+	})
+}
+
+type proxyLatencyRuntimeMerger interface {
+	MergeProxyLatency(ctx context.Context, proxyID int64, apply func(*ProxyLatencyInfo)) (*ProxyLatencyInfo, error)
+}
+
+func (s *AutoFailoverProxyPoolService) mergeProxyRuntimeInfo(ctx context.Context, proxyID int64, apply func(*ProxyLatencyInfo)) *ProxyLatencyInfo {
+	if s == nil || s.proxyLatencyCache == nil || proxyID <= 0 || apply == nil {
+		return nil
 	}
+
+	if merger, ok := s.proxyLatencyCache.(proxyLatencyRuntimeMerger); ok {
+		info, err := merger.MergeProxyLatency(ctx, proxyID, apply)
+		if err != nil {
+			slog.Warn("proxy_auto_failover.merge_runtime_failed", "proxy_id", proxyID, "error", err)
+			return nil
+		}
+		return info
+	}
+
+	latencies, err := s.proxyLatencyCache.GetProxyLatencies(ctx, []int64{proxyID})
+	if err != nil {
+		slog.Warn("proxy_auto_failover.load_runtime_failed", "proxy_id", proxyID, "error", err)
+		return nil
+	}
+
+	info := &ProxyLatencyInfo{UpdatedAt: time.Now()}
+	if existing := latencies[proxyID]; existing != nil {
+		cloned := *existing
+		info = &cloned
+	}
+	apply(info)
+
+	if err := s.proxyLatencyCache.SetProxyLatency(ctx, proxyID, info); err != nil {
+		slog.Warn("proxy_auto_failover.store_runtime_failed", "proxy_id", proxyID, "error", err)
+		return nil
+	}
+	return info
+}
+
+func limitProxyFailoverCandidates(candidates []ProxyFailoverCandidate, maxPoolAttempts int) []ProxyFailoverCandidate {
+	if len(candidates) == 0 || maxPoolAttempts <= 0 {
+		return candidates
+	}
+
+	limited := make([]ProxyFailoverCandidate, 0, min(len(candidates), maxPoolAttempts+1))
+	poolAttempts := 0
+	for _, candidate := range candidates {
+		if candidate.Source == "auto_failover_pool" {
+			if poolAttempts >= maxPoolAttempts {
+				continue
+			}
+			poolAttempts++
+		}
+		limited = append(limited, candidate)
+	}
+	return limited
+}
+
+func formatProxyAttemptError(candidate ProxyFailoverCandidate, reason string) string {
+	proxyID := "direct"
+	if candidate.ProxyID != nil {
+		proxyID = fmt.Sprintf("%d", *candidate.ProxyID)
+	}
+	if reason == "" {
+		reason = "proxy unavailable"
+	}
+	return fmt.Sprintf("proxy_id=%s source=%s reason=%s", proxyID, candidate.Source, sanitizeProxyFailureReason(reason))
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (s *AutoFailoverProxyPoolService) shouldRetryHTTPResponse(resp *http.Response) (bool, string, []byte, error) {
@@ -627,31 +758,6 @@ func (s *AutoFailoverProxyPoolService) loadProxyRuntimeInfo(ctx context.Context,
 		return infoMap
 	}
 	return latencies
-}
-
-func (s *AutoFailoverProxyPoolService) mergeProxyRuntimeInfo(ctx context.Context, proxyID int64, apply func(*ProxyLatencyInfo)) *ProxyLatencyInfo {
-	if s == nil || s.proxyLatencyCache == nil || proxyID <= 0 || apply == nil {
-		return nil
-	}
-
-	latencies, err := s.proxyLatencyCache.GetProxyLatencies(ctx, []int64{proxyID})
-	if err != nil {
-		slog.Warn("proxy_auto_failover.load_runtime_failed", "proxy_id", proxyID, "error", err)
-		return nil
-	}
-
-	info := &ProxyLatencyInfo{UpdatedAt: time.Now()}
-	if existing := latencies[proxyID]; existing != nil {
-		cloned := *existing
-		info = &cloned
-	}
-	apply(info)
-
-	if err := s.proxyLatencyCache.SetProxyLatency(ctx, proxyID, info); err != nil {
-		slog.Warn("proxy_auto_failover.store_runtime_failed", "proxy_id", proxyID, "error", err)
-		return nil
-	}
-	return info
 }
 
 func (s *AutoFailoverProxyPoolService) incrementSwitchCount(ctx context.Context, proxyID *int64) {

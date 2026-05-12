@@ -207,23 +207,43 @@ func (r *balanceRedPacketRepo) ListAll(ctx context.Context, page, pageSize int) 
 
 func (r *balanceRedPacketRepo) ReturnRemaining(ctx context.Context, id int64, senderID int64) (float64, error) {
 	client := clientFromContext(ctx, r.client)
-	rp, err := client.BalanceRedPacket.Get(ctx, id)
+	rows, err := client.QueryContext(ctx, `
+WITH expired AS (
+	SELECT id, remaining_amount
+	FROM balance_redpackets
+	WHERE id = $1
+	  AND sender_id = $2
+	  AND status = 'active'
+	  AND remaining_amount > 0
+	  AND remaining_count > 0
+	FOR UPDATE
+),
+updated AS (
+	UPDATE balance_redpackets rp
+	SET status = 'expired', remaining_amount = 0, remaining_count = 0
+	FROM expired
+	WHERE rp.id = expired.id
+	RETURNING expired.remaining_amount
+)
+SELECT remaining_amount FROM updated
+`, id, senderID)
 	if err != nil {
 		return 0, err
 	}
-	remaining := math.Round(rp.RemainingAmount*1e8) / 1e8
-	if remaining <= 0 {
+	defer rows.Close()
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return 0, err
+		}
 		return 0, nil
 	}
-	_, err = client.BalanceRedPacket.UpdateOneID(id).
-		SetStatus("expired").
-		SetRemainingAmount(0).
-		SetRemainingCount(0).
-		Save(ctx)
-	if err != nil {
+
+	var remaining float64
+	if err := rows.Scan(&remaining); err != nil {
 		return 0, err
 	}
-	return remaining, nil
+	return math.Round(remaining*1e8) / 1e8, rows.Err()
 }
 
 func toRedPacketRecord(rp *dbent.BalanceRedPacket) *service.RedPacketRecord {
