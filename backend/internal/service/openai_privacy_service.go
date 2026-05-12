@@ -32,6 +32,9 @@ func shouldSkipOpenAIPrivacyEnsure(extra map[string]any) bool {
 	}
 	mode, _ := raw.(string)
 	mode = strings.TrimSpace(mode)
+	if mode == "" {
+		return false
+	}
 	return mode != PrivacyModeFailed && mode != PrivacyModeCFBlocked
 }
 
