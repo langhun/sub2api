@@ -512,7 +512,7 @@ func (c *OpsMetricsCollector) listSlowTailCandidates(ctx context.Context, now ti
 			}
 		}
 		if len(platforms) > 0 {
-			conditions = append(conditions, fmt.Sprintf("LOWER(COALESCE(platform, '')) = ANY($%d)", argPos))
+			conditions = append(conditions, fmt.Sprintf("LOWER(COALESCE(a.platform, g.platform, '')) = ANY($%d)", argPos))
 			args = append(args, pqStringArray(platforms))
 			argPos++
 		}
@@ -539,18 +539,20 @@ func (c *OpsMetricsCollector) listSlowTailCandidates(ctx context.Context, now ti
 
 	query := fmt.Sprintf(`
 SELECT
-  account_id,
-  COALESCE(NULLIF(platform, ''), 'unknown') AS platform,
-  COALESCE(requested_model, model) AS model,
-  group_id,
+  u.account_id,
+  COALESCE(NULLIF(a.platform, ''), NULLIF(g.platform, ''), 'unknown') AS platform,
+  COALESCE(u.requested_model, u.model) AS model,
+  u.group_id,
   COUNT(*)::int AS reqs,
-  percentile_cont(0.95) WITHIN GROUP (ORDER BY first_token_ms)::int AS p95,
-  MAX(first_token_ms)::int AS max_ttft
-FROM usage_logs
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int AS p95,
+  MAX(u.first_token_ms)::int AS max_ttft
+FROM usage_logs u
+LEFT JOIN accounts a ON a.id = u.account_id
+LEFT JOIN groups g ON g.id = u.group_id
 WHERE %s
-GROUP BY account_id, platform, COALESCE(requested_model, model), group_id
+GROUP BY u.account_id, COALESCE(NULLIF(a.platform, ''), NULLIF(g.platform, ''), 'unknown'), COALESCE(u.requested_model, u.model), u.group_id
 HAVING COUNT(*) >= %d
-   AND percentile_cont(0.95) WITHIN GROUP (ORDER BY first_token_ms)::int >= %d
+   AND percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int >= %d
 ORDER BY p95 DESC, max_ttft DESC, reqs DESC
 `, strings.Join(conditions, " AND "), rule.MinRequests, rule.TTFTP95MsThreshold)
 
