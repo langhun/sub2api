@@ -51,6 +51,14 @@ type opsSlowTailCandidate struct {
 	Max       int
 }
 
+type opsSlowProxyCandidate struct {
+	ProxyID  int64
+	Platform string
+	Requests int
+	P95      int
+	Max      int
+}
+
 type OpsMetricsCollector struct {
 	opsRepo     OpsRepository
 	settingRepo SettingRepository
@@ -58,6 +66,7 @@ type OpsMetricsCollector struct {
 
 	accountRepo        AccountRepository
 	concurrencyService *ConcurrencyService
+	proxyLatencyCache  ProxyLatencyCache
 
 	db          *sql.DB
 	redisClient *redis.Client
@@ -79,6 +88,7 @@ func NewOpsMetricsCollector(
 	settingRepo SettingRepository,
 	accountRepo AccountRepository,
 	concurrencyService *ConcurrencyService,
+	proxyLatencyCache ProxyLatencyCache,
 	db *sql.DB,
 	redisClient *redis.Client,
 	cfg *config.Config,
@@ -89,6 +99,7 @@ func NewOpsMetricsCollector(
 		cfg:                cfg,
 		accountRepo:        accountRepo,
 		concurrencyService: concurrencyService,
+		proxyLatencyCache:  proxyLatencyCache,
 		db:                 db,
 		redisClient:        redisClient,
 		instanceID:         uuid.NewString(),
@@ -459,8 +470,11 @@ func (c *OpsMetricsCollector) applySlowTailIsolation(ctx context.Context, now ti
 		return
 	}
 	if len(candidates) == 0 {
+		c.applySlowProxyCooldown(ctx, now, rule)
 		return
 	}
+
+	c.applySlowProxyCooldown(ctx, now, rule)
 
 	limit := rule.MaxAccountsPerRun
 	if limit > len(candidates) {
@@ -572,6 +586,126 @@ ORDER BY p95 DESC, max_ttft DESC, reqs DESC
 		if groupID.Valid {
 			value := groupID.Int64
 			item.GroupID = &value
+		}
+		out = append(out, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *OpsMetricsCollector) applySlowProxyCooldown(ctx context.Context, now time.Time, rule OpsSlowTailIsolationSettings) {
+	if c == nil || c.proxyLatencyCache == nil {
+		return
+	}
+	candidates, err := c.listSlowProxyCandidates(ctx, now, rule)
+	if err != nil {
+		log.Printf("[OpsMetricsCollector] slow proxy cooldown query failed: %v", err)
+		return
+	}
+	if len(candidates) == 0 {
+		return
+	}
+	limit := rule.MaxAccountsPerRun
+	if limit > len(candidates) {
+		limit = len(candidates)
+	}
+	nowUnix := time.Now().Unix()
+	untilUnix := time.Now().Add(time.Duration(rule.TempUnschedMinutes) * time.Minute).Unix()
+	for _, candidate := range candidates[:limit] {
+		info := &ProxyLatencyInfo{
+			Success:           false,
+			Message:           fmt.Sprintf("slow proxy cooldown: platform=%s reqs=%d p95=%d max=%d", candidate.Platform, candidate.Requests, candidate.P95, candidate.Max),
+			HealthStatus:      "cooldown",
+			CooldownUntilUnix: ptrInt64(untilUnix),
+			LastFailReason:    "slow_tail_ttft_proxy",
+			LastFailAtUnix:    ptrInt64(nowUnix),
+			UpdatedAt:         time.Now(),
+		}
+		if err := c.proxyLatencyCache.SetProxyLatency(ctx, candidate.ProxyID, info); err != nil {
+			log.Printf("[OpsMetricsCollector] slow proxy cooldown proxy=%d failed: %v", candidate.ProxyID, err)
+			continue
+		}
+		log.Printf("[OpsMetricsCollector] slow proxy cooled down proxy=%d reqs=%d p95=%d max=%d until=%s",
+			candidate.ProxyID, candidate.Requests, candidate.P95, candidate.Max, time.Unix(untilUnix, 0).Format(time.RFC3339))
+	}
+}
+
+func (c *OpsMetricsCollector) listSlowProxyCandidates(ctx context.Context, now time.Time, rule OpsSlowTailIsolationSettings) ([]opsSlowProxyCandidate, error) {
+	start := now.Add(-time.Duration(rule.WindowMinutes) * time.Minute)
+	conditions := []string{
+		"u.created_at >= $1",
+		"u.created_at < $2",
+		"u.first_token_ms IS NOT NULL",
+		"u.account_id IS NOT NULL",
+		"a.proxy_id IS NOT NULL",
+	}
+	args := []any{start, now}
+	argPos := 3
+
+	if len(rule.Platforms) > 0 {
+		platforms := make([]string, 0, len(rule.Platforms))
+		for _, p := range rule.Platforms {
+			p = strings.TrimSpace(strings.ToLower(p))
+			if p != "" {
+				platforms = append(platforms, p)
+			}
+		}
+		if len(platforms) > 0 {
+			conditions = append(conditions, fmt.Sprintf("LOWER(COALESCE(a.platform, g.platform, '')) = ANY($%d)", argPos))
+			args = append(args, pqStringArray(platforms))
+			argPos++
+		}
+	}
+	if len(rule.Models) > 0 {
+		models := make([]string, 0, len(rule.Models))
+		for _, m := range rule.Models {
+			m = strings.TrimSpace(m)
+			if m != "" {
+				models = append(models, m)
+			}
+		}
+		if len(models) > 0 {
+			conditions = append(conditions, fmt.Sprintf("COALESCE(u.requested_model, u.model) = ANY($%d)", argPos))
+			args = append(args, pqStringArray(models))
+			argPos++
+		}
+	}
+	if len(rule.GroupIDs) > 0 {
+		conditions = append(conditions, fmt.Sprintf("u.group_id = ANY($%d)", argPos))
+		args = append(args, pqInt64Array(rule.GroupIDs))
+		argPos++
+	}
+
+	query := fmt.Sprintf(`
+SELECT
+  a.proxy_id,
+  COALESCE(NULLIF(a.platform, ''), NULLIF(g.platform, ''), 'unknown') AS platform,
+  COUNT(*)::int AS reqs,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int AS p95,
+  MAX(u.first_token_ms)::int AS max_ttft
+FROM usage_logs u
+LEFT JOIN accounts a ON a.id = u.account_id
+LEFT JOIN groups g ON g.id = u.group_id
+WHERE %s
+GROUP BY a.proxy_id, COALESCE(NULLIF(a.platform, ''), NULLIF(g.platform, ''), 'unknown')
+HAVING COUNT(*) >= %d
+   AND percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int >= %d
+ORDER BY p95 DESC, max_ttft DESC, reqs DESC
+`, strings.Join(conditions, " AND "), rule.MinRequests, rule.TTFTP95MsThreshold)
+
+	rows, err := c.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make([]opsSlowProxyCandidate, 0)
+	for rows.Next() {
+		var item opsSlowProxyCandidate
+		if err := rows.Scan(&item.ProxyID, &item.Platform, &item.Requests, &item.P95, &item.Max); err != nil {
+			return nil, err
 		}
 		out = append(out, item)
 	}
