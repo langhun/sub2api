@@ -6,6 +6,8 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"reflect"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -224,6 +226,42 @@ func TestExecUsageLogInsertNoResult_PersistsRequestedModel(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestExecUsageLogInsertNoResult_ColumnListMatchesPreparedArgs(t *testing.T) {
+	authLatency := 11
+	routingLatency := 22
+	upstreamLatency := 33
+	responseLatency := 44
+	prepared := prepareUsageLogInsert(&service.UsageLog{
+		UserID:            1,
+		APIKeyID:          2,
+		AccountID:         3,
+		RequestID:         "req-best-effort-column-count",
+		Model:             "gpt-5",
+		RequestedModel:    "gpt-5",
+		AuthLatencyMs:     &authLatency,
+		RoutingLatencyMs:  &routingLatency,
+		UpstreamLatencyMs: &upstreamLatency,
+		ResponseLatencyMs: &responseLatency,
+		CreatedAt:         time.Date(2025, 1, 4, 13, 0, 0, 0, time.UTC),
+	})
+	recorder := &capturingSQLExecutor{}
+
+	err := execUsageLogInsertNoResult(context.Background(), recorder, prepared)
+	require.NoError(t, err)
+
+	columns := extractUsageLogInsertColumns(t, recorder.query)
+	require.Len(t, columns, len(prepared.args))
+	require.Len(t, columns, len(usageLogInsertArgTypes))
+	require.Equal(t, len(prepared.args), countUsageLogInsertPlaceholders(recorder.query))
+	require.Equal(t, prepared.args, recorder.args)
+	require.Subset(t, columns, []string{
+		"auth_latency_ms",
+		"routing_latency_ms",
+		"upstream_latency_ms",
+		"response_latency_ms",
+	})
+}
+
 func TestPrepareUsageLogInsert_ArgCountMatchesTypes(t *testing.T) {
 	prepared := prepareUsageLogInsert(&service.UsageLog{
 		UserID:         1,
@@ -250,6 +288,51 @@ func anySliceToDriverValues(values []any) []driver.Value {
 		out = append(out, value)
 	}
 	return out
+}
+
+type capturingSQLExecutor struct {
+	query string
+	args  []any
+}
+
+func (c *capturingSQLExecutor) ExecContext(_ context.Context, query string, args ...any) (sql.Result, error) {
+	c.query = query
+	c.args = append([]any(nil), args...)
+	return driver.RowsAffected(1), nil
+}
+
+func (c *capturingSQLExecutor) QueryContext(context.Context, string, ...any) (*sql.Rows, error) {
+	return nil, fmt.Errorf("unexpected QueryContext")
+}
+
+func extractUsageLogInsertColumns(t *testing.T, query string) []string {
+	t.Helper()
+	const startMarker = "INSERT INTO usage_logs ("
+	const endMarker = ") VALUES"
+	start := strings.Index(query, startMarker)
+	require.NotEqual(t, -1, start)
+	columnBlock := query[start+len(startMarker):]
+	end := strings.Index(columnBlock, endMarker)
+	require.NotEqual(t, -1, end)
+
+	rawColumns := strings.Split(columnBlock[:end], ",")
+	columns := make([]string, 0, len(rawColumns))
+	for _, raw := range rawColumns {
+		column := strings.TrimSpace(raw)
+		if column != "" {
+			columns = append(columns, column)
+		}
+	}
+	return columns
+}
+
+func countUsageLogInsertPlaceholders(query string) int {
+	matches := regexp.MustCompile(`\$(\d+)`).FindAllStringSubmatch(query, -1)
+	seen := make(map[string]struct{}, len(matches))
+	for _, match := range matches {
+		seen[match[1]] = struct{}{}
+	}
+	return len(seen)
 }
 
 func TestUsageLogRepositoryListWithFiltersRequestTypePriority(t *testing.T) {
@@ -475,6 +558,25 @@ func TestUsageLogRepositoryGetGroupStatsAccountCostColumn(t *testing.T) {
 	require.Equal(t, 7.2, results[0].AccountCost)
 	require.Equal(t, int64(2), results[1].GroupID)
 	require.Equal(t, 3.5, results[1].AccountCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryExcludesDeletedGroups(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN usage_logs ul ON ul.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(1), 12.5, 2.5))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 1)
+	require.Equal(t, int64(1), summaries[0].GroupID)
+	require.Equal(t, 12.5, summaries[0].TotalCost)
+	require.Equal(t, 2.5, summaries[0].TodayCost)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

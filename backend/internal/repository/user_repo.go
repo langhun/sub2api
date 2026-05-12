@@ -509,6 +509,73 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 	return outUsers, paginationResultFromTotal(int64(total), params), nil
 }
 
+func (r *userRepository) SearchForBalanceTransfer(ctx context.Context, query string, limit int) ([]service.User, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return []service.User{}, nil
+	}
+	if limit < 1 || limit > 10 {
+		limit = 10
+	}
+
+	users, err := r.client.User.Query().
+		Where(
+			dbuser.DeletedAtIsNil(),
+			dbuser.StatusEQ(service.StatusActive),
+			dbuser.Or(
+				dbuser.EmailContainsFold(query),
+				dbuser.UsernameContainsFold(query),
+			),
+		).
+		Order(dbent.Asc(dbuser.FieldID)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]service.User, 0, len(users))
+	for _, user := range users {
+		out = append(out, *userEntityToService(user))
+	}
+	return out, nil
+}
+
+func (r *userRepository) GetEmailsByIDs(ctx context.Context, userIDs []int64) (map[int64]string, error) {
+	emails := make(map[int64]string, len(userIDs))
+	if len(userIDs) == 0 {
+		return emails, nil
+	}
+	if r.sql == nil {
+		return nil, fmt.Errorf("sql executor is not configured")
+	}
+
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT id, email
+		FROM users
+		WHERE id = ANY($1) AND deleted_at IS NULL
+	`, pq.Array(userIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			userID int64
+			email  string
+		)
+		if scanErr := rows.Scan(&userID, &email); scanErr != nil {
+			return nil, scanErr
+		}
+		emails[userID] = email
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return emails, nil
+}
+
 func userListOrder(params pagination.PaginationParams) []func(*entsql.Selector) {
 	sortBy := strings.ToLower(strings.TrimSpace(params.SortBy))
 	sortOrder := params.NormalizedSortOrder(pagination.SortOrderDesc)

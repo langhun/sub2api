@@ -19,10 +19,10 @@ This directory contains files for deploying Sub2API on Linux servers.
 | `.env.example` | Docker environment variables template |
 | `DOCKER.md` | Docker Hub documentation |
 | `install.sh` | One-click binary installation script |
-| `install-datamanagementd.sh` | datamanagementd 一键安装脚本 |
+| `install-datamanagementd.sh` | Deprecated datamanagementd tombstone script; exits with guidance |
 | `sub2api.service` | Systemd service unit file |
-| `sub2api-datamanagementd.service` | datamanagementd systemd service unit file |
-| `DATAMANAGEMENTD_CN.md` | datamanagementd 部署与联动说明（中文） |
+| `sub2api-datamanagementd.service` | Deprecated datamanagementd tombstone unit; do not install |
+| `DATAMANAGEMENTD_CN.md` | datamanagementd deprecation and cleanup note (Chinese) |
 | `config.example.yaml` | Example configuration file |
 
 ---
@@ -44,7 +44,7 @@ chmod +x docker-deploy.sh
 ```
 
 **What the script does:**
-- Downloads `docker-compose.local.yml` and `.env.example`
+- Downloads the local-directory Compose template as `docker-compose.yml` and `.env.example`
 - Automatically generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with generated secrets
 - Creates necessary data directories (data/, postgres_data/, redis_data/)
@@ -53,13 +53,13 @@ chmod +x docker-deploy.sh
 **After running the script:**
 ```bash
 # Start services
-docker compose -f docker-compose.local.yml up -d
+docker compose up -d
 
 # View logs
-docker compose -f docker-compose.local.yml logs -f sub2api
+docker compose logs -f sub2api
 
 # If admin password was auto-generated, find it in logs:
-docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+docker compose logs sub2api | grep "admin password"
 
 # Access Web UI
 # http://localhost:8080
@@ -104,7 +104,7 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.local.yml** | Local directories (./data, ./postgres_data, ./redis_data) | ✅ Easy (tar entire directory) | Production, need frequent backups/migration |
 | **docker-compose.yml** | Named volumes (/var/lib/docker/volumes/) | ⚠️ Requires docker commands | Simple setup, don't need migration |
 
-**Recommendation:** Use `docker-compose.local.yml` (deployed by `docker-deploy.sh`) for easier data management and migration.
+**Recommendation:** Use the local-directory compose file for easier data management and migration. `docker-deploy.sh` saves it as `docker-compose.yml`, so script-based installs can use plain `docker compose ...` commands.
 
 ### How Auto-Setup Works
 
@@ -148,13 +148,14 @@ SELECT
   (SELECT COUNT(*) FROM user_allowed_groups) AS new_pair_count;
 ```
 
-### datamanagementd（数据管理）联动
+### datamanagementd（数据管理）已废弃
 
-如需启用管理后台“数据管理”功能，请额外部署宿主机 `datamanagementd`：
+`datamanagementd` was an early host-side daemon for the Data Management feature. It is no longer shipped by current Sub2API releases.
 
-- 主进程固定探测 `/tmp/sub2api-datamanagement.sock`
-- Docker 场景下需把宿主机 Socket 挂载到容器内同路径
-- 详细步骤见：`deploy/DATAMANAGEMENTD_CN.md`
+- Do not install `sub2api-datamanagementd.service`.
+- Do not mount `/tmp/sub2api-datamanagement.sock`.
+- `install-datamanagementd.sh` is kept only as a fail-fast tombstone.
+- For old deployments, see `deploy/DATAMANAGEMENTD_CN.md` for cleanup steps.
 
 ### Commands
 
@@ -227,12 +228,12 @@ See `.env.example` for all available options.
 
 ### Easy Migration (Local Directory Version)
 
-When using `docker-compose.local.yml`, all data is stored in local directories, making migration simple:
+When using the local-directory compose file (`docker-compose.local.yml` manually, or script-generated `docker-compose.yml`), all data is stored in local directories, making migration simple. The commands below assume the script-generated `docker-compose.yml`; for a manual local file, add `-f docker-compose.local.yml`.
 
 ```bash
 # On source server: Stop services and create archive
 cd /path/to/deployment
-docker compose -f docker-compose.local.yml down
+docker compose down
 cd ..
 tar czf sub2api-complete.tar.gz deployment/
 
@@ -242,7 +243,7 @@ scp sub2api-complete.tar.gz user@new-server:/path/to/destination/
 # On new server: Extract and start
 tar xzf sub2api-complete.tar.gz
 cd deployment/
-docker compose -f docker-compose.local.yml up -d
+docker compose up -d
 ```
 
 Your entire deployment (configuration + data) is migrated!

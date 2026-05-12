@@ -1,78 +1,30 @@
-# datamanagementd 部署说明（数据管理）
+# datamanagementd 已废弃
 
-本文说明如何在宿主机部署 `datamanagementd`，并与主进程联动开启“数据管理”功能。
+`datamanagementd` 是早期“数据管理”功能使用的独立宿主机守护进程。当前仓库已移除对应源码目录，主程序不再提供可部署的 `datamanagementd` 构建目标。
 
-## 1. 关键约束
+## 当前结论
 
-- 主进程固定探测路径：`/tmp/sub2api-datamanagement.sock`
-- 仅当该 Unix Socket 可连通且 `Health` 成功时，后台“数据管理”才会启用
-- `datamanagementd` 使用 SQLite 持久化元数据，不依赖主库
+- 不要再安装或启动 `sub2api-datamanagementd.service`
+- 不要再挂载 `/tmp/sub2api-datamanagement.sock`
+- `deploy/install-datamanagementd.sh` 仅保留废弃提示，会直接退出
+- `deploy/sub2api-datamanagementd.service` 仅保留为防误用提示，不应复制到生产环境
 
-## 2. 宿主机构建与运行
+## 旧部署的处理
 
-```bash
-cd /opt/sub2api-src/datamanagement
-go build -o /opt/sub2api/datamanagementd ./cmd/datamanagementd
-
-mkdir -p /var/lib/sub2api/datamanagement
-chown -R sub2api:sub2api /var/lib/sub2api/datamanagement
-```
-
-手动启动示例：
+如果服务器曾经安装过旧版服务，请停用并删除：
 
 ```bash
-/opt/sub2api/datamanagementd \
-  -socket-path /tmp/sub2api-datamanagement.sock \
-  -sqlite-path /var/lib/sub2api/datamanagement/datamanagementd.db \
-  -version 1.0.0
-```
-
-## 3. systemd 托管（推荐）
-
-仓库已提供示例服务文件：`deploy/sub2api-datamanagementd.service`
-
-```bash
-sudo cp deploy/sub2api-datamanagementd.service /etc/systemd/system/
+sudo systemctl disable --now sub2api-datamanagementd || true
+sudo rm -f /etc/systemd/system/sub2api-datamanagementd.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now sub2api-datamanagementd
-sudo systemctl status sub2api-datamanagementd
 ```
 
-查看日志：
+确认主程序的 Docker Compose 或 systemd 配置中不再挂载或引用：
 
-```bash
-sudo journalctl -u sub2api-datamanagementd -f
+```text
+/tmp/sub2api-datamanagement.sock
 ```
 
-也可以使用一键安装脚本（自动安装二进制 + 注册 systemd）：
+## 恢复要求
 
-```bash
-# 方式一：使用现成二进制
-sudo ./deploy/install-datamanagementd.sh --binary /path/to/datamanagementd
-
-# 方式二：从源码构建后安装
-sudo ./deploy/install-datamanagementd.sh --source /path/to/sub2api
-```
-
-## 4. Docker 部署联动
-
-若 `sub2api` 运行在 Docker 容器中，需要将宿主机 Socket 挂载到容器同路径：
-
-```yaml
-services:
-  sub2api:
-    volumes:
-      - /tmp/sub2api-datamanagement.sock:/tmp/sub2api-datamanagement.sock
-```
-
-建议在 `docker-compose.override.yml` 中维护该挂载，避免覆盖主 compose 文件。
-
-## 5. 依赖检查
-
-`datamanagementd` 执行备份时依赖以下工具：
-
-- `pg_dump`
-- `redis-cli`
-- `docker`（仅 `source_mode=docker_exec` 时）
-
-缺失依赖会导致对应任务失败，并在任务详情中体现错误信息。
+如后续需要重新提供数据管理能力，必须先在代码中恢复明确的服务端实现、配置项、健康检查与测试，再新增部署文档。不要直接复用旧脚本或旧 systemd 单元。

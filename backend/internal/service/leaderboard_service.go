@@ -11,6 +11,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/lib/pq"
 )
 
 type LeaderboardEntry struct {
@@ -81,15 +82,22 @@ func (s *LeaderboardService) GetBalanceLeaderboard(ctx context.Context, page, pa
 		return nil, fmt.Errorf("query users: %w", err)
 	}
 
+	userIDs := make([]int64, 0, len(users))
+	for _, u := range users {
+		userIDs = append(userIDs, u.ID)
+	}
+	checkinCounts, err := s.getCheckinCounts(ctx, userIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	entries := make([]LeaderboardEntry, 0, len(users))
 	for i, u := range users {
-		var checkinCount int
-		s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM checkins WHERE user_id = $1`, u.ID).Scan(&checkinCount)
 		entries = append(entries, LeaderboardEntry{
 			Rank:     offset + i + 1,
 			Username: maskUsername(u.Username, u.Email),
 			Value:    math.Round(u.Balance*100) / 100,
-			ExtraInt: checkinCount,
+			ExtraInt: checkinCounts[u.ID],
 		})
 	}
 
@@ -219,38 +227,31 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 		roleFilter = " AND u.role != 'admin'"
 	}
 
-	countQuery := fmt.Sprintf(`
-		SELECT COUNT(*) FROM (
-			SELECT c.user_id
-			FROM checkins c
-			INNER JOIN (
-				SELECT user_id, MAX(checkin_date) as max_date
-				FROM checkins
-				GROUP BY user_id
-			) latest ON c.user_id = latest.user_id AND c.checkin_date = latest.max_date
-			INNER JOIN users u ON c.user_id = u.id AND u.deleted_at IS NULL
-			WHERE c.checkin_date >= $1 AND u.status = 'active'%s
-		) sub
-	`, roleFilter)
-	var total int64
-	if err := s.db.QueryRowContext(ctx, countQuery, yesterday).Scan(&total); err != nil {
-		return nil, fmt.Errorf("count checkin: %w", err)
-	}
-
 	dataQuery := fmt.Sprintf(`
-		SELECT u.username, u.email, c.streak_days, c.reward_amount,
-			(SELECT COUNT(*) FROM checkins WHERE user_id = c.user_id) as total_checkins,
-			(SELECT MAX(checkin_date) FROM checkins WHERE user_id = c.user_id) as last_date
-		FROM checkins c
-		INNER JOIN (
-			SELECT user_id, MAX(checkin_date) as max_date
+		WITH latest_checkins AS (
+			SELECT user_id, MAX(checkin_date) AS last_date, COUNT(*) AS total_checkins
 			FROM checkins
 			GROUP BY user_id
-		) latest ON c.user_id = latest.user_id AND c.checkin_date = latest.max_date
-		INNER JOIN users u ON c.user_id = u.id AND u.deleted_at IS NULL
-		WHERE c.checkin_date >= $1 AND u.status = 'active'%s
-		ORDER BY c.streak_days DESC, c.checkin_date DESC
-		LIMIT $2 OFFSET $3
+		),
+		eligible_checkins AS (
+			SELECT u.username, u.email, c.streak_days, c.reward_amount,
+				latest_checkins.total_checkins, latest_checkins.last_date
+			FROM latest_checkins
+			INNER JOIN checkins c ON c.user_id = latest_checkins.user_id AND c.checkin_date = latest_checkins.last_date
+			INNER JOIN users u ON latest_checkins.user_id = u.id AND u.deleted_at IS NULL
+			WHERE latest_checkins.last_date >= $1 AND u.status = 'active'%s
+		),
+		page_checkins AS (
+			SELECT *
+			FROM eligible_checkins
+			ORDER BY streak_days DESC, last_date DESC
+			LIMIT $2 OFFSET $3
+		)
+		SELECT p.username, p.email, p.streak_days, p.reward_amount,
+			p.total_checkins, p.last_date, total.total_count
+		FROM (SELECT COUNT(*) AS total_count FROM eligible_checkins) total
+		LEFT JOIN page_checkins p ON TRUE
+		ORDER BY p.streak_days DESC NULLS LAST, p.last_date DESC NULLS LAST
 	`, roleFilter)
 	rows, err := s.db.QueryContext(ctx, dataQuery, yesterday, pageSize, offset)
 	if err != nil {
@@ -259,28 +260,68 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 	defer rows.Close()
 
 	entries := make([]LeaderboardEntry, 0)
+	var total int64
 	rank := offset
 	for rows.Next() {
-		rank++
-		var username, email string
-		var streakDays int
-		var rewardAmount float64
-		var totalCheckins int
-		var lastDate time.Time
-		if err := rows.Scan(&username, &email, &streakDays, &rewardAmount, &totalCheckins, &lastDate); err != nil {
+		var username, email sql.NullString
+		var streakDays sql.NullInt64
+		var rewardAmount sql.NullFloat64
+		var totalCheckins sql.NullInt64
+		var lastDate sql.NullTime
+		var rowTotal int64
+		if err := rows.Scan(&username, &email, &streakDays, &rewardAmount, &totalCheckins, &lastDate, &rowTotal); err != nil {
 			return nil, fmt.Errorf("scan checkin row: %w", err)
 		}
+		total = rowTotal
+		if !streakDays.Valid {
+			continue
+		}
+		rank++
 		entries = append(entries, LeaderboardEntry{
 			Rank:       rank,
-			Username:   maskUsername(username, email),
-			Value:      float64(streakDays),
-			ExtraInt:   totalCheckins,
-			ExtraFloat: math.Round(rewardAmount*100) / 100,
-			ExtraDate:  lastDate.Format("2006-01-02"),
+			Username:   maskUsername(username.String, email.String),
+			Value:      float64(streakDays.Int64),
+			ExtraInt:   int(totalCheckins.Int64),
+			ExtraFloat: math.Round(rewardAmount.Float64*100) / 100,
+			ExtraDate:  lastDate.Time.Format("2006-01-02"),
 		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate checkin rows: %w", err)
 	}
 
 	return &LeaderboardResult{Entries: entries, Total: total}, nil
+}
+
+func (s *LeaderboardService) getCheckinCounts(ctx context.Context, userIDs []int64) (map[int64]int, error) {
+	counts := make(map[int64]int, len(userIDs))
+	if len(userIDs) == 0 {
+		return counts, nil
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT user_id, COUNT(*)
+		FROM checkins
+		WHERE user_id = ANY($1)
+		GROUP BY user_id
+	`, pq.Array(userIDs))
+	if err != nil {
+		return nil, fmt.Errorf("query checkin counts: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID int64
+		var count int
+		if err := rows.Scan(&userID, &count); err != nil {
+			return nil, fmt.Errorf("scan checkin count row: %w", err)
+		}
+		counts[userID] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate checkin count rows: %w", err)
+	}
+	return counts, nil
 }
 
 func maskUsername(username, email string) string {

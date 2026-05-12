@@ -263,14 +263,16 @@ func (s *MonitoringService) queryGroupModelStats(ctx context.Context, overview *
 	errQ := `
 		SELECT
 			e.group_id,
+			COALESCE(g.name, ''),
 			COALESCE(e.requested_model, e.model),
 			COUNT(*) AS err_cnt
 		FROM ops_error_logs e
+		JOIN groups g ON e.group_id = g.id AND g.deleted_at IS NULL
 		WHERE e.created_at >= $1
 		  AND e.is_count_tokens = false
 		  AND e.group_id IS NOT NULL
 		  AND COALESCE(e.requested_model, e.model) IS NOT NULL
-		GROUP BY e.group_id, COALESCE(e.requested_model, e.model)`
+		GROUP BY e.group_id, g.name, COALESCE(e.requested_model, e.model)`
 
 	errRows, err := s.db.QueryContext(ctx, errQ, since)
 	if err != nil {
@@ -282,15 +284,20 @@ func (s *MonitoringService) queryGroupModelStats(ctx context.Context, overview *
 		groupID int64
 		model   string
 	}
-	errMap := make(map[groupModelKey]int)
+	type groupModelErrorStats struct {
+		groupName string
+		count     int
+	}
+	errMap := make(map[groupModelKey]groupModelErrorStats)
 	for errRows.Next() {
 		var groupID int64
+		var groupName string
 		var model string
 		var cnt int
-		if err := errRows.Scan(&groupID, &model, &cnt); err != nil {
+		if err := errRows.Scan(&groupID, &groupName, &model, &cnt); err != nil {
 			return err
 		}
-		errMap[groupModelKey{groupID, model}] = cnt
+		errMap[groupModelKey{groupID, model}] = groupModelErrorStats{groupName: groupName, count: cnt}
 	}
 	if err := errRows.Err(); err != nil {
 		return err
@@ -301,20 +308,18 @@ func (s *MonitoringService) queryGroupModelStats(ctx context.Context, overview *
 		for i, m := range overview.GroupModels {
 			existing[groupModelKey{m.GroupID, m.Model}] = i
 		}
-		for key, cnt := range errMap {
+		for key, stats := range errMap {
 			if idx, ok := existing[key]; ok {
-				overview.GroupModels[idx].ErrorCount += cnt
-				overview.GroupModels[idx].RequestCount += cnt
+				overview.GroupModels[idx].ErrorCount += stats.count
+				overview.GroupModels[idx].RequestCount += stats.count
 			} else {
-				var groupName string
-				s.db.QueryRowContext(ctx, `SELECT COALESCE(name, '') FROM groups WHERE id = $1`, key.groupID).Scan(&groupName)
 				overview.GroupModels = append(overview.GroupModels, GroupModelStats{
 					GroupID:      key.groupID,
-					GroupName:    groupName,
+					GroupName:    stats.groupName,
 					Model:        key.model,
-					RequestCount: cnt,
+					RequestCount: stats.count,
 					SuccessCount: 0,
-					ErrorCount:   cnt,
+					ErrorCount:   stats.count,
 				})
 			}
 		}

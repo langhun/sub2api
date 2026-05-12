@@ -88,7 +88,7 @@ func (r *dashboardAggregationRepository) aggregateRangeInTx(ctx context.Context,
 	if err := r.insertHourlyActiveUsers(ctx, hourStart, hourEnd); err != nil {
 		return err
 	}
-	if err := r.insertDailyActiveUsers(ctx, hourStart, hourEnd); err != nil {
+	if err := r.insertDailyActiveUsers(ctx, dayStart, dayEnd); err != nil {
 		return err
 	}
 	if err := r.upsertHourlyAggregates(ctx, hourStart, hourEnd); err != nil {
@@ -157,7 +157,10 @@ func (r *dashboardAggregationRepository) recomputeRangeInTx(ctx context.Context,
 	if err := r.insertHourlyActiveUsers(ctx, hourStart, hourEnd); err != nil {
 		return err
 	}
-	if err := r.insertDailyActiveUsers(ctx, hourStart, hourEnd); err != nil {
+	// Daily active users are stored per day. A partial-hour recompute deletes the
+	// whole affected day range, so the rebuild must read the full day window from
+	// the hourly user table instead of only the recomputed hour range.
+	if err := r.insertDailyActiveUsers(ctx, dayStart, dayEnd); err != nil {
 		return err
 	}
 	if err := r.upsertHourlyAggregates(ctx, hourStart, hourEnd); err != nil {

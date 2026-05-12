@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -122,7 +122,7 @@ Sub2API 是一个 AI API 网关平台，用于分发和管理 AI 产品订阅的
 
 | 组件 | 技术 |
 |------|------|
-| 后端 | Go 1.25.7, Gin, Ent |
+| 后端 | Go 1.26.3, Gin, Ent |
 | 前端 | Vue 3.4+, Vite 5+, TailwindCSS |
 | 数据库 | PostgreSQL 15+ |
 | 缓存/队列 | Redis 7+ |
@@ -240,7 +240,7 @@ docker compose logs -f sub2api
 ```
 
 **脚本功能：**
-- 下载 `docker-compose.local.yml`（本地保存为 `docker-compose.yml`）和 `.env.example`
+- 下载本地目录版 Compose 模板并保存为 `docker-compose.yml`，同时下载 `.env.example`
 - 自动生成安全凭证（JWT_SECRET、TOTP_ENCRYPTION_KEY、POSTGRES_PASSWORD）
 - 创建 `.env` 文件并填充自动生成的密钥
 - 创建数据目录（使用本地目录，便于备份和迁移）
@@ -319,19 +319,19 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.local.yml** | 本地目录 | ✅ 简单（打包整个目录） | 生产环境、频繁备份 |
 | **docker-compose.yml** | 命名卷 | ⚠️ 需要 docker 命令 | 简单设置 |
 
-**推荐：** 使用 `docker-compose.local.yml`（脚本部署）以便更轻松地管理数据。
+**推荐：** 使用本地目录版 Compose 以便更轻松地管理数据。部署脚本会把它保存为 `docker-compose.yml`，因此脚本安装后可直接使用 `docker compose ...` 命令。
 
-#### 启用“数据管理”功能（datamanagementd）
+#### “数据管理”功能（datamanagementd）已废弃
 
-如需启用管理后台“数据管理”，需要额外部署宿主机数据管理进程 `datamanagementd`。
+当前仓库已移除 `datamanagementd` 源码，管理后台不再依赖独立宿主机数据管理进程。请不要按旧文档部署该守护进程。
 
-关键点：
+历史说明：
 
-- 主进程固定探测：`/tmp/sub2api-datamanagement.sock`
-- 只有该 Socket 可连通时，数据管理功能才会开启
-- Docker 场景需将宿主机 Socket 挂载到容器同路径
+- `deploy/DATAMANAGEMENTD_CN.md`、`deploy/install-datamanagementd.sh` 和 `deploy/sub2api-datamanagementd.service` 仅保留为废弃提示
+- 若已有旧版 `sub2api-datamanagementd` 服务，建议停用并删除对应 systemd 单元
+- 不需要再挂载 `/tmp/sub2api-datamanagement.sock`
 
-详细部署步骤见：`deploy/DATAMANAGEMENTD_CN.md`
+如需恢复数据管理能力，请先在新版代码中重新引入明确的服务端实现，再更新部署文档。
 
 #### 访问
 
@@ -339,24 +339,24 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 如果管理员密码是自动生成的，在日志中查找：
 ```bash
-docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+docker compose logs sub2api | grep "admin password"
 ```
 
 #### 升级
 
 ```bash
 # 拉取最新镜像并重建容器
-docker compose -f docker-compose.local.yml pull
-docker compose -f docker-compose.local.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
 #### 轻松迁移（本地目录版）
 
-使用 `docker-compose.local.yml` 时，可以轻松迁移到新服务器：
+使用本地目录版 Compose（手动为 `docker-compose.local.yml`，脚本生成后为 `docker-compose.yml`）时，可以轻松迁移到新服务器。下面命令按脚本生成的 `docker-compose.yml` 编写；手动使用本地目录文件时加上 `-f docker-compose.local.yml`。
 
 ```bash
 # 源服务器
-docker compose -f docker-compose.local.yml down
+docker compose down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
 
@@ -366,23 +366,23 @@ scp sub2api-complete.tar.gz user@new-server:/path/
 # 新服务器
 tar xzf sub2api-complete.tar.gz
 cd sub2api-deploy/
-docker compose -f docker-compose.local.yml up -d
+docker compose up -d
 ```
 
 #### 常用命令
 
 ```bash
 # 停止所有服务
-docker compose -f docker-compose.local.yml down
+docker compose down
 
 # 重启
-docker compose -f docker-compose.local.yml restart
+docker compose restart
 
 # 查看所有日志
-docker compose -f docker-compose.local.yml logs -f
+docker compose logs -f
 
 # 删除所有数据（谨慎！）
-docker compose -f docker-compose.local.yml down
+docker compose down
 rm -rf data/ postgres_data/ redis_data/
 ```
 
@@ -394,8 +394,9 @@ rm -rf data/ postgres_data/ redis_data/
 
 #### 前置条件
 
-- Go 1.21+
-- Node.js 18+
+- Go 1.26.3
+- Node.js 20+
+- pnpm 9.x
 - PostgreSQL 15+
 - Redis 7+
 
@@ -406,8 +407,9 @@ rm -rf data/ postgres_data/ redis_data/
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. 安装 pnpm（如果还没有安装）
-npm install -g pnpm
+# 2. 启用项目声明的包管理器
+corepack enable
+corepack prepare pnpm@9.15.9 --activate
 
 # 3. 编译前端
 cd frontend

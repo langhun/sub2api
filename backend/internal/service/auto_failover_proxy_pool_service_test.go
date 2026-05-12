@@ -6,6 +6,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -103,10 +105,14 @@ func (s *settingRepoStubForPool) Delete(ctx context.Context, key string) error {
 }
 
 type proxyLatencyCacheStubForPool struct {
+	mu   sync.Mutex
 	data map[int64]*ProxyLatencyInfo
 }
 
 func (s *proxyLatencyCacheStubForPool) GetProxyLatencies(ctx context.Context, proxyIDs []int64) (map[int64]*ProxyLatencyInfo, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	out := make(map[int64]*ProxyLatencyInfo, len(proxyIDs))
 	for _, id := range proxyIDs {
 		if info, ok := s.data[id]; ok {
@@ -118,6 +124,9 @@ func (s *proxyLatencyCacheStubForPool) GetProxyLatencies(ctx context.Context, pr
 }
 
 func (s *proxyLatencyCacheStubForPool) SetProxyLatency(ctx context.Context, proxyID int64, info *ProxyLatencyInfo) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.data == nil {
 		s.data = make(map[int64]*ProxyLatencyInfo)
 	}
@@ -326,6 +335,57 @@ func TestAutoFailoverProxyPoolServiceDoHTTPRequestFailsOverAndMutatesTransientAc
 	}
 }
 
+func TestAutoFailoverProxyPoolServiceDoHTTPRequestCapsSingleRequestAttempts(t *testing.T) {
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[1,2,3,4,5,6]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	cache := &proxyLatencyCacheStubForPool{data: map[int64]*ProxyLatencyInfo{}}
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			1: {ID: 1, Name: "p1", Protocol: "http", Host: "p1.example", Port: 8080, Status: StatusActive},
+			2: {ID: 2, Name: "p2", Protocol: "http", Host: "p2.example", Port: 8080, Status: StatusActive},
+			3: {ID: 3, Name: "p3", Protocol: "http", Host: "p3.example", Port: 8080, Status: StatusActive},
+			4: {ID: 4, Name: "p4", Protocol: "http", Host: "p4.example", Port: 8080, Status: StatusActive},
+			5: {ID: 5, Name: "p5", Protocol: "http", Host: "p5.example", Port: 8080, Status: StatusActive},
+			6: {ID: 6, Name: "p6", Protocol: "http", Host: "p6.example", Port: 8080, Status: StatusActive},
+		},
+	}
+	svc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, cache, nil)
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		ProxyID:  ptrInt64(1),
+	}
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/v1/responses", nil)
+	if err != nil {
+		t.Fatalf("NewRequest() error = %v", err)
+	}
+
+	calls := make([]string, 0, 6)
+	_, err = svc.DoHTTPRequest(context.Background(), account, req, func(_ *http.Request, proxyURL string) (*http.Response, error) {
+		calls = append(calls, proxyURL)
+		return nil, &net.OpError{Op: "dial", Err: &timeoutNetError{}}
+	})
+	if err == nil {
+		t.Fatal("DoHTTPRequest() error = nil, want exhausted failover error")
+	}
+	if len(calls) != 1+autoFailoverProxyMaxPoolAttempts {
+		t.Fatalf("proxy call count = %d, want %d; calls = %#v", len(calls), 1+autoFailoverProxyMaxPoolAttempts, calls)
+	}
+	if !strings.Contains(err.Error(), "proxy failover exhausted after 4 attempts") {
+		t.Fatalf("error = %v, want observable exhausted attempts", err)
+	}
+	if cache.data[4] == nil || cache.data[4].HealthStatus != "cooldown" {
+		t.Fatalf("proxy 4 runtime state = %#v, want cooldown", cache.data[4])
+	}
+	if cache.data[5] != nil || cache.data[6] != nil {
+		t.Fatalf("proxies beyond cap were touched: p5=%#v p6=%#v", cache.data[5], cache.data[6])
+	}
+}
+
 func TestAutoFailoverProxyPoolServiceDoesNotRetryCredentialError(t *testing.T) {
 	settingRepo := &settingRepoStubForPool{
 		values: map[string]string{
@@ -368,6 +428,73 @@ func TestAutoFailoverProxyPoolServiceDoesNotRetryCredentialError(t *testing.T) {
 	}
 	if callCount != 1 {
 		t.Fatalf("callCount = %d, want 1", callCount)
+	}
+}
+
+type trackingProxyProber struct {
+	delay time.Duration
+
+	mu       sync.Mutex
+	inFlight int
+	max      int
+	calls    int
+}
+
+func (p *trackingProxyProber) ProbeProxy(ctx context.Context, proxyURL string) (*ProxyExitInfo, int64, error) {
+	p.mu.Lock()
+	p.inFlight++
+	p.calls++
+	if p.inFlight > p.max {
+		p.max = p.inFlight
+	}
+	p.mu.Unlock()
+
+	defer func() {
+		p.mu.Lock()
+		p.inFlight--
+		p.mu.Unlock()
+	}()
+
+	select {
+	case <-time.After(p.delay):
+		return &ProxyExitInfo{IP: "203.0.113.1", Country: "Test", CountryCode: "TS"}, 25, nil
+	case <-ctx.Done():
+		return nil, 0, ctx.Err()
+	}
+}
+
+func TestAutoFailoverProxyPoolServiceRefreshPoolHealthUsesBoundedConcurrency(t *testing.T) {
+	poolIDs := "[1,2,3,4,5,6,7,8,9,10,11,12]"
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: poolIDs,
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	proxies := make(map[int64]Proxy)
+	for id := int64(1); id <= 12; id++ {
+		proxies[id] = Proxy{ID: id, Name: "p", Protocol: "http", Host: "p.example", Port: int(8000 + id), Status: StatusActive}
+	}
+
+	prober := &trackingProxyProber{delay: 10 * time.Millisecond}
+	svc := NewAutoFailoverProxyPoolService(
+		&proxyRepoStubForPool{proxies: proxies},
+		nil,
+		settingSvc,
+		&proxyLatencyCacheStubForPool{},
+		prober,
+	)
+
+	svc.refreshPoolHealth(context.Background())
+
+	if prober.calls != len(proxies) {
+		t.Fatalf("probe calls = %d, want %d", prober.calls, len(proxies))
+	}
+	if prober.max <= 1 {
+		t.Fatalf("max concurrency = %d, want concurrent probing", prober.max)
+	}
+	if prober.max > autoFailoverProxyHealthCheckWorkers {
+		t.Fatalf("max concurrency = %d, want <= %d", prober.max, autoFailoverProxyHealthCheckWorkers)
 	}
 }
 

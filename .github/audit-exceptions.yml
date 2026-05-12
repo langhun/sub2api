@@ -1,0 +1,13 @@
+version: 1
+
+exceptions:
+  - package: xlsx
+    advisory: GHSA-4r6h-8v6p-xvw6
+    severity: high
+    mitigation: "Used only for administrator spreadsheet import/export. Keep inputs trusted and review replacement before expiry."
+    expires_on: 2026-08-31
+  - package: xlsx
+    advisory: GHSA-5pgg-2g8v-p4x9
+    severity: high
+    mitigation: "Used only for administrator spreadsheet import/export. Keep inputs trusted and review replacement before expiry."
+    expires_on: 2026-08-31

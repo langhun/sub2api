@@ -1810,7 +1810,7 @@ export default {
       },
       actions: {
         refresh: 'Refresh Status',
-        disabledHint: 'Start datamanagementd first and ensure the socket is reachable.',
+        disabledHint: 'Data Management is deprecated; current releases no longer support datamanagementd.',
         reloadConfig: 'Reload Config',
         reloadSourceProfiles: 'Reload Source Profiles',
         reloadProfiles: 'Reload Profiles',
