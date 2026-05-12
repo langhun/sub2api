@@ -495,10 +495,10 @@ func (c *OpsMetricsCollector) applySlowTailIsolation(ctx context.Context, now ti
 func (c *OpsMetricsCollector) listSlowTailCandidates(ctx context.Context, now time.Time, rule OpsSlowTailIsolationSettings) ([]opsSlowTailCandidate, error) {
 	start := now.Add(-time.Duration(rule.WindowMinutes) * time.Minute)
 	conditions := []string{
-		"created_at >= $1",
-		"created_at < $2",
-		"first_token_ms IS NOT NULL",
-		"account_id IS NOT NULL",
+		"u.created_at >= $1",
+		"u.created_at < $2",
+		"u.first_token_ms IS NOT NULL",
+		"u.account_id IS NOT NULL",
 	}
 	args := []any{start, now}
 	argPos := 3
@@ -526,13 +526,13 @@ func (c *OpsMetricsCollector) listSlowTailCandidates(ctx context.Context, now ti
 			}
 		}
 		if len(models) > 0 {
-			conditions = append(conditions, fmt.Sprintf("COALESCE(requested_model, model) = ANY($%d)", argPos))
+			conditions = append(conditions, fmt.Sprintf("COALESCE(u.requested_model, u.model) = ANY($%d)", argPos))
 			args = append(args, pqStringArray(models))
 			argPos++
 		}
 	}
 	if len(rule.GroupIDs) > 0 {
-		conditions = append(conditions, fmt.Sprintf("group_id = ANY($%d)", argPos))
+		conditions = append(conditions, fmt.Sprintf("u.group_id = ANY($%d)", argPos))
 		args = append(args, pqInt64Array(rule.GroupIDs))
 		argPos++
 	}
