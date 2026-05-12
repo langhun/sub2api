@@ -16,7 +16,7 @@
       :placeholder="t('auth.passwordPlaceholder')"
       :disabled="isSubmitting"
     />
-    <div v-if="emailVerifyEnabled && turnstileEnabled && turnstileSiteKey" class="space-y-2">
+    <div v-if="turnstileEnabled && turnstileSiteKey" class="space-y-2">
       <TurnstileWidget
         ref="turnstileRef"
         :site-key="turnstileSiteKey"
@@ -71,7 +71,7 @@
       :data-testid="`${testIdPrefix}-create-account-submit`"
       type="button"
       class="btn btn-primary w-full"
-      :disabled="isSubmitting || !email.trim() || password.length < 6 || (invitationCodeEnabled && !invitationCode.trim())"
+      :disabled="isSubmitting || !email.trim() || password.length < 6 || (invitationCodeEnabled && !invitationCode.trim()) || (turnstileEnabled && !turnstileToken)"
       @click="handleSubmit"
     >
       {{ isSubmitting ? t('common.processing') : t('auth.createAccount') }}
@@ -99,6 +99,7 @@ export type PendingOAuthCreateAccountPayload = {
   password: string
   verifyCode: string
   invitationCode?: string
+  turnstileToken?: string
 }
 
 const props = defineProps<{
@@ -245,11 +246,17 @@ function handleSubmit() {
     return
   }
 
+  if (turnstileEnabled.value && !turnstileToken.value) {
+    sendCodeError.value = t('auth.completeVerification')
+    return
+  }
+
   emit('submit', {
     email: trimmedEmail,
     password: password.value,
     verifyCode: verifyCode.value.trim(),
-    invitationCode: invitationCode.value.trim() || undefined
+    invitationCode: invitationCode.value.trim() || undefined,
+    turnstileToken: turnstileEnabled.value ? turnstileToken.value : undefined
   })
 }
 

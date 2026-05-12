@@ -1073,6 +1073,53 @@ func TestExchangePendingOAuthCompletionAutoRegisterPreviewThenFinalizeCreatesUse
 	require.NotNil(t, storedSession.ConsumedAt)
 }
 
+func TestCreatePendingOAuthAccountRequiresTurnstileWhenEmailVerificationDisabled(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
+		emailVerifyEnabled: false,
+		settingValues: map[string]string{
+			service.SettingKeyTurnstileEnabled:   "true",
+			service.SettingKeyTurnstileSecretKey: "secret",
+		},
+		turnstileVerifier: oauthPendingFlowTurnstileVerifierStub{},
+	})
+	ctx := context.Background()
+
+	session, err := client.PendingAuthSession.Create().
+		SetSessionToken("create-account-turnstile-session-token").
+		SetIntent("login").
+		SetProviderType("linuxdo").
+		SetProviderKey("linuxdo").
+		SetProviderSubject("turnstile-123").
+		SetResolvedEmail("linuxdo-turnstile-123@linuxdo-connect.invalid").
+		SetBrowserSessionKey("create-account-turnstile-browser-session-key").
+		SetUpstreamIdentityClaims(map[string]any{
+			"username": "linuxdo_user",
+		}).
+		SetLocalFlowState(map[string]any{
+			oauthCompletionResponseKey: map[string]any{
+				"redirect": "/dashboard",
+			},
+		}).
+		SetExpiresAt(time.Now().UTC().Add(10 * time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	body := bytes.NewBufferString(`{"email":"user@example.com","password":"secret-123"}`)
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/pending/create-account", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("create-account-turnstile-browser-session-key")})
+	ginCtx.Request = req
+
+	handler.CreatePendingOAuthAccount(ginCtx)
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	payload := decodeJSONBody(t, recorder)
+	require.Equal(t, "TURNSTILE_VERIFICATION_FAILED", payload["reason"])
+}
+
 func TestCreateOIDCOAuthAccountCreatesUserBindsIdentityAndConsumesSession(t *testing.T) {
 	handler, client := newOAuthPendingFlowTestHandlerWithEmailVerification(t, false, "fresh@example.com", "246810")
 	ctx := context.Background()
@@ -2203,6 +2250,7 @@ type oauthPendingFlowTestHandlerOptions struct {
 	emailVerifyEnabled bool
 	emailCache         service.EmailCache
 	settingValues      map[string]string
+	turnstileVerifier  service.TurnstileVerifier
 	defaultSubAssigner service.DefaultSubscriptionAssigner
 	affiliateService   *service.AffiliateService
 	affiliateFactory   func(*dbent.Client, *service.SettingService) *service.AffiliateService
@@ -2303,6 +2351,10 @@ CREATE TABLE IF NOT EXISTS user_affiliates (
 			},
 		}, options.emailCache)
 	}
+	var turnstileService *service.TurnstileService
+	if options.turnstileVerifier != nil {
+		turnstileService = service.NewTurnstileService(settingSvc, options.turnstileVerifier)
+	}
 	authSvc := service.NewAuthService(
 		client,
 		userRepo,
@@ -2311,7 +2363,7 @@ CREATE TABLE IF NOT EXISTS user_affiliates (
 		cfg,
 		settingSvc,
 		emailService,
-		nil,
+		turnstileService,
 		nil,
 		nil,
 		options.defaultSubAssigner,
@@ -2348,6 +2400,12 @@ func boolSettingValue(v bool) string {
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+type oauthPendingFlowTurnstileVerifierStub struct{}
+
+func (oauthPendingFlowTurnstileVerifierStub) VerifyToken(context.Context, string, string, string) (*service.TurnstileVerifyResponse, error) {
+	return &service.TurnstileVerifyResponse{Success: true}, nil
 }
 
 type oauthPendingFlowSettingRepoStub struct {

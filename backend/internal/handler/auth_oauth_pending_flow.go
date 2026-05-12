@@ -68,6 +68,7 @@ type createPendingOAuthAccountRequest struct {
 	Password         string `json:"password" binding:"required,min=6"`
 	InvitationCode   string `json:"invitation_code,omitempty"`
 	AffCode          string `json:"aff_code,omitempty"`
+	TurnstileToken   string `json:"turnstile_token,omitempty"`
 	AdoptDisplayName *bool  `json:"adopt_display_name,omitempty"`
 	AdoptAvatar      *bool  `json:"adopt_avatar,omitempty"`
 }
@@ -1659,6 +1660,16 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 	var req createPendingOAuthAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := h.authService.VerifyTurnstileForRegister(
+		c.Request.Context(),
+		strings.TrimSpace(req.TurnstileToken),
+		ip.GetClientIP(c),
+		strings.TrimSpace(req.VerifyCode),
+	); err != nil {
+		response.ErrorFrom(c, err)
 		return
 	}
 
