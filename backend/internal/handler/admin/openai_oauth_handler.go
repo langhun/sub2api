@@ -33,6 +33,7 @@ func NewOpenAIOAuthHandler(openaiOAuthService *service.OpenAIOAuthService, admin
 // OpenAIGenerateAuthURLRequest represents the request for generating OpenAI auth URL
 type OpenAIGenerateAuthURLRequest struct {
 	ProxyID     *int64 `json:"proxy_id"`
+	ProxyMode   string `json:"proxy_mode"`
 	RedirectURI string `json:"redirect_uri"`
 }
 
@@ -48,6 +49,7 @@ func (h *OpenAIOAuthHandler) GenerateAuthURL(c *gin.Context) {
 	result, err := h.openaiOAuthService.GenerateAuthURL(
 		c.Request.Context(),
 		req.ProxyID,
+		req.ProxyMode,
 		req.RedirectURI,
 		oauthPlatformFromPath(c),
 	)
@@ -66,6 +68,7 @@ type OpenAIExchangeCodeRequest struct {
 	State       string `json:"state" binding:"required"`
 	RedirectURI string `json:"redirect_uri"`
 	ProxyID     *int64 `json:"proxy_id"`
+	ProxyMode   string `json:"proxy_mode"`
 }
 
 // ExchangeCode exchanges OpenAI authorization code for tokens
@@ -83,6 +86,7 @@ func (h *OpenAIOAuthHandler) ExchangeCode(c *gin.Context) {
 		State:       req.State,
 		RedirectURI: req.RedirectURI,
 		ProxyID:     req.ProxyID,
+		ProxyMode:   req.ProxyMode,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -98,6 +102,7 @@ type OpenAIRefreshTokenRequest struct {
 	RT           string `json:"rt"`
 	ClientID     string `json:"client_id"`
 	ProxyID      *int64 `json:"proxy_id"`
+	ProxyMode    string `json:"proxy_mode"`
 }
 
 // RefreshToken refreshes an OpenAI OAuth token
@@ -118,7 +123,20 @@ func (h *OpenAIOAuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	var proxyURL string
-	if req.ProxyID != nil {
+	if strings.EqualFold(strings.TrimSpace(req.ProxyMode), service.AccountProxyModePool) {
+		tempAccount := &service.Account{
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Extra: map[string]any{
+				"proxy_mode": service.AccountProxyModePool,
+			},
+		}
+		if h.openaiOAuthService != nil && h.openaiOAuthService.ProxyPool() != nil {
+			if resolvedProxyURL, _, _, resolveErr := h.openaiOAuthService.ProxyPool().ResolveProxyURL(c.Request.Context(), tempAccount); resolveErr == nil {
+				proxyURL = resolvedProxyURL
+			}
+		}
+	} else if req.ProxyID != nil {
 		proxy, err := h.adminService.GetProxy(c.Request.Context(), *req.ProxyID)
 		if err == nil && proxy != nil {
 			proxyURL = proxy.URL()
@@ -206,6 +224,7 @@ func (h *OpenAIOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 		State       string  `json:"state" binding:"required"`
 		RedirectURI string  `json:"redirect_uri"`
 		ProxyID     *int64  `json:"proxy_id"`
+		ProxyMode   string  `json:"proxy_mode"`
 		Name        string  `json:"name"`
 		Concurrency int     `json:"concurrency"`
 		Priority    int     `json:"priority"`
@@ -223,6 +242,7 @@ func (h *OpenAIOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 		State:       req.State,
 		RedirectURI: req.RedirectURI,
 		ProxyID:     req.ProxyID,
+		ProxyMode:   req.ProxyMode,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

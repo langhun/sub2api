@@ -1220,6 +1220,7 @@ export interface CodexSessionImportRequest {
   notes?: string | null
   group_ids?: number[]
   proxy_id?: number | null
+  proxy_mode?: 'direct' | 'single' | 'pool'
   concurrency?: number
   priority?: number
   rate_multiplier?: number

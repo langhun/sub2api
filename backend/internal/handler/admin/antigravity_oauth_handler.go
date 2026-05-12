@@ -15,7 +15,8 @@ func NewAntigravityOAuthHandler(antigravityOAuthService *service.AntigravityOAut
 }
 
 type AntigravityGenerateAuthURLRequest struct {
-	ProxyID *int64 `json:"proxy_id"`
+	ProxyID   *int64 `json:"proxy_id"`
+	ProxyMode string `json:"proxy_mode"`
 }
 
 // GenerateAuthURL generates Google OAuth authorization URL
@@ -27,7 +28,7 @@ func (h *AntigravityOAuthHandler) GenerateAuthURL(c *gin.Context) {
 		return
 	}
 
-	result, err := h.antigravityOAuthService.GenerateAuthURL(c.Request.Context(), req.ProxyID)
+	result, err := h.antigravityOAuthService.GenerateAuthURL(c.Request.Context(), req.ProxyID, req.ProxyMode)
 	if err != nil {
 		response.InternalError(c, "生成授权链接失败: "+err.Error())
 		return
@@ -41,6 +42,7 @@ type AntigravityExchangeCodeRequest struct {
 	State     string `json:"state" binding:"required"`
 	Code      string `json:"code" binding:"required"`
 	ProxyID   *int64 `json:"proxy_id"`
+	ProxyMode string `json:"proxy_mode"`
 }
 
 // ExchangeCode 用 authorization code 交换 token
@@ -57,6 +59,7 @@ func (h *AntigravityOAuthHandler) ExchangeCode(c *gin.Context) {
 		State:     req.State,
 		Code:      req.Code,
 		ProxyID:   req.ProxyID,
+		ProxyMode: req.ProxyMode,
 	})
 	if err != nil {
 		response.BadRequest(c, "Token 交换失败: "+err.Error())
@@ -70,6 +73,7 @@ func (h *AntigravityOAuthHandler) ExchangeCode(c *gin.Context) {
 type AntigravityRefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 	ProxyID      *int64 `json:"proxy_id"`
+	ProxyMode    string `json:"proxy_mode"`
 }
 
 // RefreshToken validates an Antigravity refresh token and returns full token info
@@ -81,7 +85,7 @@ func (h *AntigravityOAuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	tokenInfo, err := h.antigravityOAuthService.ValidateRefreshToken(c.Request.Context(), req.RefreshToken, req.ProxyID)
+	tokenInfo, err := h.antigravityOAuthService.ValidateRefreshToken(c.Request.Context(), req.RefreshToken, req.ProxyID, req.ProxyMode)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
