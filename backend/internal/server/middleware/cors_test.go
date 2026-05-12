@@ -287,6 +287,26 @@ func TestCORS_VaryHeader_SetForSpecificOrigin(t *testing.T) {
 		"非通配符允许的 origin 应设置 Vary: Origin")
 }
 
+func TestCORS_AllowsAnthropicBrowserHeaders(t *testing.T) {
+	cfg := config.CORSConfig{
+		AllowedOrigins:   []string{"https://allowed.example.com"},
+		AllowCredentials: false,
+	}
+	middleware := CORS(cfg)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodOptions, "/", nil)
+	c.Request.Header.Set("Origin", "https://allowed.example.com")
+
+	middleware(c)
+
+	allowHeaders := w.Header().Get("Access-Control-Allow-Headers")
+	assert.Contains(t, allowHeaders, "anthropic-version")
+	assert.Contains(t, allowHeaders, "anthropic-beta")
+	assert.Contains(t, allowHeaders, "anthropic-dangerous-direct-browser-access")
+}
+
 func TestNormalizeOrigins(t *testing.T) {
 	tests := []struct {
 		name   string
