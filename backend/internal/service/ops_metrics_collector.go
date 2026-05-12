@@ -36,6 +36,10 @@ const (
 
 	opsMetricsCollectorHeartbeatTimeout = 2 * time.Second
 
+	opsMetricsCollectorSlowTailQueryTimeout     = 3 * time.Second
+	opsMetricsCollectorSlowTailStatementTimeout = 2500 * time.Millisecond
+	opsMetricsCollectorSlowTailMaxCandidates    = 100
+
 	bytesPerMB = 1024 * 1024
 )
 
@@ -508,6 +512,7 @@ func (c *OpsMetricsCollector) applySlowTailIsolation(ctx context.Context, now ti
 
 func (c *OpsMetricsCollector) listSlowTailCandidates(ctx context.Context, now time.Time, rule OpsSlowTailIsolationSettings) ([]opsSlowTailCandidate, error) {
 	start := now.Add(-time.Duration(rule.WindowMinutes) * time.Minute)
+	limit := opsSlowTailRunLimit(rule)
 	conditions := []string{
 		"u.created_at >= $1",
 		"u.created_at < $2",
@@ -568,28 +573,29 @@ GROUP BY u.account_id, COALESCE(NULLIF(a.platform, ''), NULLIF(g.platform, ''), 
 HAVING COUNT(*) >= %d
    AND percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int >= %d
 ORDER BY p95 DESC, max_ttft DESC, reqs DESC
-`, strings.Join(conditions, " AND "), rule.MinRequests, rule.TTFTP95MsThreshold)
-
-	rows, err := c.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
+LIMIT %d
+`, strings.Join(conditions, " AND "), rule.MinRequests, rule.TTFTP95MsThreshold, limit)
 
 	out := make([]opsSlowTailCandidate, 0)
-	for rows.Next() {
-		var item opsSlowTailCandidate
-		var groupID sql.NullInt64
-		if err := rows.Scan(&item.AccountID, &item.Platform, &item.Model, &groupID, &item.Requests, &item.P95, &item.Max); err != nil {
-			return nil, err
+	err := c.withSlowTailRows(ctx, query, args, func(rows *sql.Rows) error {
+		for rows.Next() {
+			var item opsSlowTailCandidate
+			var groupID sql.NullInt64
+			if err := rows.Scan(&item.AccountID, &item.Platform, &item.Model, &groupID, &item.Requests, &item.P95, &item.Max); err != nil {
+				return err
+			}
+			if groupID.Valid {
+				value := groupID.Int64
+				item.GroupID = &value
+			}
+			out = append(out, item)
 		}
-		if groupID.Valid {
-			value := groupID.Int64
-			item.GroupID = &value
+		if err := rows.Err(); err != nil {
+			return err
 		}
-		out = append(out, item)
-	}
-	if err := rows.Err(); err != nil {
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -634,6 +640,7 @@ func (c *OpsMetricsCollector) applySlowProxyCooldown(ctx context.Context, now ti
 
 func (c *OpsMetricsCollector) listSlowProxyCandidates(ctx context.Context, now time.Time, rule OpsSlowTailIsolationSettings) ([]opsSlowProxyCandidate, error) {
 	start := now.Add(-time.Duration(rule.WindowMinutes) * time.Minute)
+	limit := opsSlowTailRunLimit(rule)
 	conditions := []string{
 		"u.created_at >= $1",
 		"u.created_at < $2",
@@ -693,26 +700,85 @@ GROUP BY a.proxy_id, COALESCE(NULLIF(a.platform, ''), NULLIF(g.platform, ''), 'u
 HAVING COUNT(*) >= %d
    AND percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int >= %d
 ORDER BY p95 DESC, max_ttft DESC, reqs DESC
-`, strings.Join(conditions, " AND "), rule.MinRequests, rule.TTFTP95MsThreshold)
+LIMIT %d
+`, strings.Join(conditions, " AND "), rule.MinRequests, rule.TTFTP95MsThreshold, limit)
 
-	rows, err := c.db.QueryContext(ctx, query, args...)
+	out := make([]opsSlowProxyCandidate, 0)
+	err := c.withSlowTailRows(ctx, query, args, func(rows *sql.Rows) error {
+		for rows.Next() {
+			var item opsSlowProxyCandidate
+			if err := rows.Scan(&item.ProxyID, &item.Platform, &item.Requests, &item.P95, &item.Max); err != nil {
+				return err
+			}
+			out = append(out, item)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
-
-	out := make([]opsSlowProxyCandidate, 0)
-	for rows.Next() {
-		var item opsSlowProxyCandidate
-		if err := rows.Scan(&item.ProxyID, &item.Platform, &item.Requests, &item.P95, &item.Max); err != nil {
-			return nil, err
-		}
-		out = append(out, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
 	return out, nil
+}
+
+func opsSlowTailRunLimit(rule OpsSlowTailIsolationSettings) int {
+	limit := rule.MaxAccountsPerRun
+	if limit <= 0 {
+		limit = 1
+	}
+	if limit > opsMetricsCollectorSlowTailMaxCandidates {
+		limit = opsMetricsCollectorSlowTailMaxCandidates
+	}
+	return limit
+}
+
+func (c *OpsMetricsCollector) withSlowTailRows(
+	ctx context.Context,
+	query string,
+	args []any,
+	scan func(*sql.Rows) error,
+) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	queryCtx, cancel := context.WithTimeout(ctx, opsMetricsCollectorSlowTailQueryTimeout)
+	defer cancel()
+
+	tx, err := c.db.BeginTx(queryCtx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	timeoutMs := opsMetricsCollectorSlowTailStatementTimeout.Milliseconds()
+	if _, err := tx.ExecContext(queryCtx, fmt.Sprintf("SET LOCAL statement_timeout = %d", timeoutMs)); err != nil {
+		return err
+	}
+
+	rows, err := tx.QueryContext(queryCtx, query, args...)
+	if err != nil {
+		return err
+	}
+	if err := scan(rows); err != nil {
+		_ = rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 type pqStringArray []string
