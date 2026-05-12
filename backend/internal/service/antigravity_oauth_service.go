@@ -35,7 +35,7 @@ type AntigravityAuthURLResult struct {
 }
 
 // GenerateAuthURL 生成 Google OAuth 授权链接
-func (s *AntigravityOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64) (*AntigravityAuthURLResult, error) {
+func (s *AntigravityOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, proxyMode string) (*AntigravityAuthURLResult, error) {
 	state, err := antigravity.GenerateState()
 	if err != nil {
 		return nil, fmt.Errorf("生成 state 失败: %w", err)
@@ -52,7 +52,20 @@ func (s *AntigravityOAuthService) GenerateAuthURL(ctx context.Context, proxyID *
 	}
 
 	var proxyURL string
-	if proxyID != nil {
+	if strings.EqualFold(strings.TrimSpace(proxyMode), AccountProxyModePool) {
+		if s.proxyPool != nil {
+			tempAccount := &Account{
+				Platform: PlatformAntigravity,
+				Type:     AccountTypeOAuth,
+				Extra: map[string]any{
+					"proxy_mode": AccountProxyModePool,
+				},
+			}
+			if resolvedProxyURL, _, _, resolveErr := s.proxyPool.ResolveProxyURL(ctx, tempAccount); resolveErr == nil {
+				proxyURL = resolvedProxyURL
+			}
+		}
+	} else if proxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *proxyID)
 		if err == nil && proxy != nil {
 			proxyURL = proxy.URL()
@@ -83,6 +96,7 @@ type AntigravityExchangeCodeInput struct {
 	State     string
 	Code      string
 	ProxyID   *int64
+	ProxyMode string
 }
 
 // AntigravityTokenInfo token 信息
@@ -112,7 +126,15 @@ func (s *AntigravityOAuthService) ExchangeCode(ctx context.Context, input *Antig
 
 	proxyURL := session.ProxyURL
 	var tempAccount *Account
-	if input.ProxyID != nil {
+	if strings.EqualFold(strings.TrimSpace(input.ProxyMode), AccountProxyModePool) {
+		tempAccount = &Account{
+			Platform: PlatformAntigravity,
+			Type:     AccountTypeOAuth,
+			Extra: map[string]any{
+				"proxy_mode": AccountProxyModePool,
+			},
+		}
+	} else if input.ProxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *input.ProxyID)
 		if err == nil && proxy != nil {
 			proxyURL = proxy.URL()
@@ -229,7 +251,7 @@ func (s *AntigravityOAuthService) exchangeCodeWithProxyURL(ctx context.Context, 
 }
 
 func (s *AntigravityOAuthService) exchangeCodeWithFailover(ctx context.Context, account *Account, code, codeVerifier string) (*AntigravityTokenInfo, error) {
-	if s.proxyPool == nil || account == nil || account.ProxyID == nil {
+	if s.proxyPool == nil || account == nil {
 		var proxyURL string
 		if account != nil && account.ProxyID != nil {
 			if proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && proxy != nil {
@@ -325,10 +347,18 @@ func (s *AntigravityOAuthService) refreshTokenWithFailover(ctx context.Context, 
 }
 
 // ValidateRefreshToken 用 refresh token 验证并获取完整的 token 信息（含 email 和 project_id）
-func (s *AntigravityOAuthService) ValidateRefreshToken(ctx context.Context, refreshToken string, proxyID *int64) (*AntigravityTokenInfo, error) {
+func (s *AntigravityOAuthService) ValidateRefreshToken(ctx context.Context, refreshToken string, proxyID *int64, proxyMode string) (*AntigravityTokenInfo, error) {
 	var proxyURL string
 	var tempAccount *Account
-	if proxyID != nil {
+	if strings.EqualFold(strings.TrimSpace(proxyMode), AccountProxyModePool) {
+		tempAccount = &Account{
+			Platform: PlatformAntigravity,
+			Type:     AccountTypeOAuth,
+			Extra: map[string]any{
+				"proxy_mode": AccountProxyModePool,
+			},
+		}
+	} else if proxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *proxyID)
 		if err == nil && proxy != nil {
 			proxyURL = proxy.URL()

@@ -25,6 +25,7 @@ export interface OpenAITokenInfo {
 }
 
 export type OpenAIOAuthPlatform = 'openai'
+export type OpenAIProxyMode = 'direct' | 'single' | 'pool'
 
 export function useOpenAIOAuth() {
   const appStore = useAppStore()
@@ -50,7 +51,8 @@ export function useOpenAIOAuth() {
   // Generate auth URL for OpenAI OAuth
   const generateAuthUrl = async (
     proxyId?: number | null,
-    redirectUri?: string
+    redirectUri?: string,
+    proxyMode?: OpenAIProxyMode
   ): Promise<boolean> => {
     loading.value = true
     authUrl.value = ''
@@ -62,6 +64,9 @@ export function useOpenAIOAuth() {
       const payload: Record<string, unknown> = {}
       if (proxyId) {
         payload.proxy_id = proxyId
+      }
+      if (proxyMode) {
+        payload.proxy_mode = proxyMode
       }
       if (redirectUri) {
         payload.redirect_uri = redirectUri
@@ -94,7 +99,8 @@ export function useOpenAIOAuth() {
     code: string,
     currentSessionId: string,
     state: string,
-    proxyId?: number | null
+    proxyId?: number | null,
+    proxyMode?: OpenAIProxyMode
   ): Promise<OpenAITokenInfo | null> => {
     if (!code.trim() || !currentSessionId || !state.trim()) {
       error.value = 'Missing auth code, session ID, or state'
@@ -105,13 +111,16 @@ export function useOpenAIOAuth() {
     error.value = ''
 
     try {
-      const payload: { session_id: string; code: string; state: string; proxy_id?: number } = {
+      const payload: { session_id: string; code: string; state: string; proxy_id?: number; proxy_mode?: OpenAIProxyMode } = {
         session_id: currentSessionId,
         code: code.trim(),
         state: state.trim()
       }
       if (proxyId) {
         payload.proxy_id = proxyId
+      }
+      if (proxyMode) {
+        payload.proxy_mode = proxyMode
       }
 
       const tokenInfo = await adminAPI.accounts.exchangeCode(`${endpointPrefix}/exchange-code`, payload)
@@ -135,7 +144,8 @@ export function useOpenAIOAuth() {
   const validateRefreshToken = async (
     refreshToken: string,
     proxyId?: number | null,
-    clientId?: string
+    clientId?: string,
+    proxyMode?: OpenAIProxyMode
   ): Promise<OpenAITokenInfo | null> => {
     if (!refreshToken.trim()) {
       error.value = 'Missing refresh token'
@@ -151,7 +161,8 @@ export function useOpenAIOAuth() {
         refreshToken.trim(),
         proxyId,
         `${endpointPrefix}/refresh-token`,
-        clientId
+        clientId,
+        proxyMode
       )
       return tokenInfo as OpenAITokenInfo
     } catch (err: any) {

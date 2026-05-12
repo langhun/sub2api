@@ -2440,7 +2440,69 @@
 
       <div>
         <label class="input-label">{{ t('admin.accounts.proxy') }}</label>
-        <ProxySelector v-model="form.proxy_id" :proxies="proxies" />
+        <div v-if="supportsAccountProxyMode" class="space-y-3">
+          <div class="grid gap-2 lg:grid-cols-3">
+            <button
+              type="button"
+              :class="proxyModeOptionClass('direct')"
+              @click="proxyMode = 'direct'"
+            >
+              <span class="text-sm font-medium">{{ t('admin.accounts.proxyModeDirectLabel') }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.proxyModeDirectDesc') }}
+              </span>
+            </button>
+            <button
+              type="button"
+              :class="proxyModeOptionClass('single')"
+              @click="proxyMode = 'single'"
+            >
+              <span class="text-sm font-medium">{{ t('admin.accounts.proxyModeSingleLabel') }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.proxyModeSingleDesc') }}
+              </span>
+            </button>
+            <button
+              type="button"
+              :class="proxyModeOptionClass('pool')"
+              @click="proxyMode = 'pool'"
+            >
+              <span class="text-sm font-medium">{{ t('admin.accounts.proxyModePoolLabel') }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.proxyModePoolDesc') }}
+              </span>
+            </button>
+          </div>
+          <p class="input-hint">{{ t('admin.accounts.proxyRouteHint') }}</p>
+
+          <ProxySelector
+            v-if="proxyMode === 'single'"
+            v-model="form.proxy_id"
+            :proxies="proxies"
+          />
+
+          <div
+            v-else-if="proxyMode === 'pool'"
+            class="rounded-lg border px-3 py-2 text-sm"
+            :class="poolEnabledProxyCount > 0
+              ? 'border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-900/60 dark:bg-primary-900/20 dark:text-primary-200'
+              : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-200'"
+          >
+            {{
+              poolEnabledProxyCount > 0
+                ? t('admin.accounts.proxyModePoolNotice', { count: poolEnabledProxyCount })
+                : t('admin.accounts.proxyModePoolEmpty')
+            }}
+          </div>
+
+          <div
+            v-else
+            class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300"
+          >
+            {{ t('admin.accounts.proxyModeDirectNotice') }}
+          </div>
+        </div>
+        <ProxySelector v-else v-model="form.proxy_id" :proxies="proxies" />
       </div>
 
       <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -2758,7 +2820,7 @@
         :loading="currentOAuthLoading"
         :error="currentOAuthError"
         :show-help="form.platform === 'anthropic'"
-        :show-proxy-warning="form.platform !== 'openai' && !!form.proxy_id"
+        :show-proxy-warning="form.platform !== 'openai' && effectiveProxyMode !== 'direct'"
         :allow-multiple="form.platform === 'anthropic'"
         :show-cookie-option="form.platform === 'anthropic'"
         :show-refresh-token-option="form.platform === 'openai' || form.platform === 'antigravity'"
@@ -3331,6 +3393,7 @@ const getAntigravityModelMappingKey = createStableObjectKeyResolver<ModelMapping
 const getTempUnschedRuleKey = createStableObjectKeyResolver<TempUnschedRuleForm>('create-temp-unsched-rule')
 const geminiOAuthType = ref<'code_assist' | 'google_one' | 'ai_studio'>('google_one')
 const geminiAIStudioOAuthEnabled = ref(false)
+type AccountProxyMode = 'direct' | 'single' | 'pool'
 const openAICompactModeOptions = computed(() => [
   { value: 'auto', label: t('admin.accounts.openai.compactModeAuto') },
   { value: 'force_on', label: t('admin.accounts.openai.compactModeForceOn') },
@@ -3341,6 +3404,7 @@ function buildAntigravityExtra(): Record<string, unknown> | undefined {
   const extra: Record<string, unknown> = {}
   if (mixedScheduling.value) extra.mixed_scheduling = true
   if (allowOverages.value) extra.allow_overages = true
+  if (supportsAccountProxyMode.value) extra.proxy_mode = proxyMode.value
   return Object.keys(extra).length > 0 ? extra : undefined
 }
 
@@ -3354,8 +3418,24 @@ const mixedChannelWarningDetails = ref<{ groupName: string; currentPlatform: str
 const mixedChannelWarningRawMessage = ref('')
 const mixedChannelWarningAction = ref<(() => Promise<void>) | null>(null)
 const antigravityMixedChannelConfirmed = ref(false)
+const proxyMode = ref<AccountProxyMode>('direct')
 const showAdvancedOAuth = ref(false)
 const showGeminiHelpDialog = ref(false)
+const supportsAccountProxyMode = computed(() =>
+  form.platform === 'openai' || form.platform === 'antigravity'
+)
+const poolEnabledProxyCount = computed(() =>
+  props.proxies.filter(proxy => proxy.auto_failover_pool_enabled === true).length
+)
+const proxyModeOptionClass = (mode: AccountProxyMode) => {
+  const selected = proxyMode.value === mode
+  return [
+    'flex min-h-[84px] flex-col justify-between rounded-xl border px-3 py-3 text-left transition-colors',
+    selected
+      ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-900/20 dark:text-primary-200'
+      : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300 hover:bg-primary-50/40 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-primary-700 dark:hover:bg-primary-900/10'
+  ]
+}
 
 // Quota control state (Anthropic OAuth/SetupToken only)
 const windowCostEnabled = ref(false)
@@ -3499,6 +3579,16 @@ const form = reactive({
   group_ids: [] as number[],
   expires_at: null as number | null
 })
+
+const effectiveProxyId = computed<number | null>(() =>
+  supportsAccountProxyMode.value && proxyMode.value !== 'single'
+    ? null
+    : form.proxy_id
+)
+
+const effectiveProxyMode = computed<AccountProxyMode | undefined>(() =>
+  supportsAccountProxyMode.value ? proxyMode.value : undefined
+)
 
 // Helper to check if current type needs OAuth flow
 const isOAuthFlow = computed(() => {
@@ -3652,6 +3742,11 @@ watch(
     if (newPlatform !== 'anthropic') {
       anthropicPassthroughEnabled.value = false
       webSearchEmulationMode.value = 'default'
+    }
+    if (newPlatform !== 'openai' && newPlatform !== 'antigravity') {
+      proxyMode.value = 'direct'
+    } else if (proxyMode.value === 'direct') {
+      proxyMode.value = 'pool'
     }
     // Reset OAuth states
     oauth.resetState()
@@ -4004,6 +4099,7 @@ const resetForm = () => {
   form.type = 'oauth'
   form.credentials = {}
   form.proxy_id = null
+  proxyMode.value = 'direct'
   form.concurrency = 10
   form.load_factor = null
   form.priority = 1
@@ -4128,7 +4224,9 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
   } else {
     delete extra.openai_compact_mode
   }
-
+  if (supportsAccountProxyMode.value) {
+    extra.proxy_mode = proxyMode.value
+  }
   return Object.keys(extra).length > 0 ? extra : undefined
 }
 
@@ -4148,7 +4246,6 @@ const buildAnthropicExtra = (base?: Record<string, unknown>): Record<string, unk
   } else {
     extra.web_search_emulation = webSearchEmulationMode.value
   }
-
   return Object.keys(extra).length > 0 ? extra : undefined
 }
 
@@ -4244,6 +4341,10 @@ const handleVertexServiceAccountDrop = async (event: DragEvent) => {
 }
 
 const handleSubmit = async () => {
+  if (supportsAccountProxyMode.value && proxyMode.value === 'single' && form.proxy_id === null) {
+    appStore.showError(t('admin.accounts.selectProxyForSingleMode'))
+    return
+  }
   // For OAuth-based type, handle OAuth flow (goes to step 2)
   if (isOAuthFlow.value) {
     if (!form.name.trim()) {
@@ -4438,6 +4539,7 @@ const handleSubmit = async () => {
 
   await doCreateAccount({
     ...form,
+    proxy_id: effectiveProxyId.value,
     group_ids: form.group_ids,
     extra,
     auto_pause_on_expired: autoPauseOnExpired.value
@@ -4455,18 +4557,18 @@ const goBackToBasicInfo = () => {
 
 const handleGenerateUrl = async () => {
   if (form.platform === 'openai') {
-    await openaiOAuth.generateAuthUrl(form.proxy_id)
+    await openaiOAuth.generateAuthUrl(effectiveProxyId.value, undefined, effectiveProxyMode.value)
   } else if (form.platform === 'gemini') {
     await geminiOAuth.generateAuthUrl(
-      form.proxy_id,
+      effectiveProxyId.value,
       oauthFlowRef.value?.projectId,
       geminiOAuthType.value,
       geminiSelectedTier.value
     )
   } else if (form.platform === 'antigravity') {
-    await antigravityOAuth.generateAuthUrl(form.proxy_id)
+    await antigravityOAuth.generateAuthUrl(effectiveProxyId.value, effectiveProxyMode.value)
   } else {
-    await oauth.generateAuthUrl(addMethod.value, form.proxy_id)
+    await oauth.generateAuthUrl(addMethod.value, effectiveProxyId.value)
   }
 }
 
@@ -4542,7 +4644,7 @@ const createAccountAndFinish = async (
     type,
     credentials,
     extra: finalExtra,
-    proxy_id: form.proxy_id,
+    proxy_id: effectiveProxyId.value,
     concurrency: form.concurrency,
     load_factor: form.load_factor ?? undefined,
     priority: form.priority,
@@ -4573,7 +4675,8 @@ const handleOpenAIExchange = async (authCode: string) => {
       authCode.trim(),
       oauthClient.sessionId.value,
       stateToUse,
-      form.proxy_id
+      effectiveProxyId.value,
+      effectiveProxyMode.value
     )
     if (!tokenInfo) return
 
@@ -4609,7 +4712,7 @@ const handleOpenAIExchange = async (authCode: string) => {
         type: 'oauth',
         credentials,
         extra,
-        proxy_id: form.proxy_id,
+        proxy_id: effectiveProxyId.value,
         concurrency: form.concurrency,
         load_factor: form.load_factor ?? undefined,
         priority: form.priority,
@@ -4686,7 +4789,7 @@ const handleOpenAIImportCodexSession = async (content: string) => {
       content: trimmed,
       name: form.name,
       notes: form.notes || null,
-      proxy_id: form.proxy_id,
+      proxy_id: effectiveProxyId.value,
       concurrency: form.concurrency,
       load_factor: form.load_factor ?? undefined,
       priority: form.priority,
@@ -4770,8 +4873,9 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
       try {
         const tokenInfo = await oauthClient.validateRefreshToken(
           refreshTokens[i],
-          form.proxy_id,
-          clientId
+          effectiveProxyId.value,
+          clientId,
+          effectiveProxyMode.value
         )
         if (!tokenInfo) {
           failedCount++
@@ -4813,7 +4917,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
             type: 'oauth',
             credentials,
             extra,
-            proxy_id: form.proxy_id,
+            proxy_id: effectiveProxyId.value,
             concurrency: form.concurrency,
             load_factor: form.load_factor ?? undefined,
             priority: form.priority,
@@ -4889,7 +4993,8 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
       try {
         const tokenInfo = await antigravityOAuth.validateRefreshToken(
           refreshTokens[i],
-          form.proxy_id
+          effectiveProxyId.value,
+          effectiveProxyMode.value
         )
         if (!tokenInfo) {
           failedCount++
@@ -4910,8 +5015,8 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           platform: 'antigravity',
           type: 'oauth',
           credentials,
-          extra: {},
-          proxy_id: form.proxy_id,
+          extra: buildAntigravityExtra() || {},
+          proxy_id: effectiveProxyId.value,
           concurrency: form.concurrency,
           load_factor: form.load_factor ?? undefined,
           priority: form.priority,
@@ -4973,7 +5078,7 @@ const handleGeminiExchange = async (authCode: string) => {
       code: authCode.trim(),
       sessionId: geminiOAuth.sessionId.value,
       state: stateToUse,
-      proxyId: form.proxy_id,
+      proxyId: effectiveProxyId.value,
       oauthType: geminiOAuthType.value,
       tierId: geminiSelectedTier.value
     })
@@ -5010,7 +5115,8 @@ const handleAntigravityExchange = async (authCode: string) => {
       code: authCode.trim(),
       sessionId: antigravityOAuth.sessionId.value,
       state: stateToUse,
-      proxyId: form.proxy_id
+      proxyId: effectiveProxyId.value,
+      proxyMode: effectiveProxyMode.value
     })
 		if (!tokenInfo) return
 
@@ -5043,7 +5149,8 @@ const handleAnthropicExchange = async (authCode: string) => {
   oauth.error.value = ''
 
   try {
-    const proxyConfig = form.proxy_id ? { proxy_id: form.proxy_id } : {}
+    const proxyConfig = effectiveProxyId.value ? { proxy_id: effectiveProxyId.value } : {}
+    const proxyModeConfig = effectiveProxyMode.value ? { proxy_mode: effectiveProxyMode.value } : {}
     const endpoint =
       addMethod.value === 'oauth'
         ? '/admin/accounts/exchange-code'
@@ -5052,7 +5159,8 @@ const handleAnthropicExchange = async (authCode: string) => {
     const tokenInfo = await adminAPI.accounts.exchangeCode(endpoint, {
       session_id: oauth.sessionId.value,
       code: authCode.trim(),
-      ...proxyConfig
+      ...proxyConfig,
+      ...proxyModeConfig
     })
 
     // Build extra with quota control settings
@@ -5145,7 +5253,8 @@ const handleCookieAuth = async (sessionKey: string) => {
   oauth.error.value = ''
 
   try {
-    const proxyConfig = form.proxy_id ? { proxy_id: form.proxy_id } : {}
+    const proxyConfig = effectiveProxyId.value ? { proxy_id: effectiveProxyId.value } : {}
+    const proxyModeConfig = effectiveProxyMode.value ? { proxy_mode: effectiveProxyMode.value } : {}
     const keys = oauth.parseSessionKeys(sessionKey)
 
     if (keys.length === 0) {
@@ -5175,7 +5284,8 @@ const handleCookieAuth = async (sessionKey: string) => {
         const tokenInfo = await adminAPI.accounts.exchangeCode(endpoint, {
           session_id: '',
           code: keys[i],
-          ...proxyConfig
+          ...proxyConfig,
+          ...proxyModeConfig
         })
 
         // Build extra with quota control settings
@@ -5252,7 +5362,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           type: addMethod.value, // Use addMethod as type: 'oauth' or 'setup-token'
           credentials,
           extra,
-          proxy_id: form.proxy_id,
+          proxy_id: effectiveProxyId.value,
           concurrency: form.concurrency,
           load_factor: form.load_factor ?? undefined,
           priority: form.priority,
@@ -5294,3 +5404,4 @@ const handleCookieAuth = async (sessionKey: string) => {
   }
 }
 </script>
+

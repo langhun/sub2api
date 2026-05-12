@@ -22,7 +22,10 @@ export function useAntigravityOAuth() {
     error.value = ''
   }
 
-  const generateAuthUrl = async (proxyId: number | null | undefined): Promise<boolean> => {
+  const generateAuthUrl = async (
+    proxyId: number | null | undefined,
+    proxyMode?: 'direct' | 'single' | 'pool'
+  ): Promise<boolean> => {
     loading.value = true
     authUrl.value = ''
     sessionId.value = ''
@@ -32,6 +35,7 @@ export function useAntigravityOAuth() {
     try {
       const payload: Record<string, unknown> = {}
       if (proxyId) payload.proxy_id = proxyId
+      if (proxyMode) payload.proxy_mode = proxyMode
 
       const response = await adminAPI.antigravity.generateAuthUrl(payload as any)
       authUrl.value = response.auth_url
@@ -53,6 +57,7 @@ export function useAntigravityOAuth() {
     sessionId: string
     state: string
     proxyId?: number | null
+    proxyMode?: 'direct' | 'single' | 'pool'
   }): Promise<AntigravityTokenInfo | null> => {
     const code = params.code?.trim()
     if (!code || !params.sessionId || !params.state) {
@@ -70,6 +75,7 @@ export function useAntigravityOAuth() {
         code
       }
       if (params.proxyId) payload.proxy_id = params.proxyId
+      if (params.proxyMode) payload.proxy_mode = params.proxyMode
 
       const tokenInfo = await adminAPI.antigravity.exchangeCode(payload as any)
       return tokenInfo as AntigravityTokenInfo
@@ -85,7 +91,8 @@ export function useAntigravityOAuth() {
 
   const validateRefreshToken = async (
     refreshToken: string,
-    proxyId?: number | null
+    proxyId?: number | null,
+    proxyMode?: 'direct' | 'single' | 'pool'
   ): Promise<AntigravityTokenInfo | null> => {
     if (!refreshToken.trim()) {
       error.value = t('admin.accounts.oauth.antigravity.pleaseEnterRefreshToken')
@@ -98,7 +105,8 @@ export function useAntigravityOAuth() {
     try {
       const tokenInfo = await adminAPI.antigravity.refreshAntigravityToken(
         refreshToken.trim(),
-        proxyId
+        proxyId,
+        proxyMode
       )
       return tokenInfo as AntigravityTokenInfo
     } catch (err: any) {

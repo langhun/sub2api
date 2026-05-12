@@ -13,6 +13,7 @@ export interface AntigravityAuthUrlResponse {
 
 export interface AntigravityAuthUrlRequest {
   proxy_id?: number
+  proxy_mode?: string
 }
 
 export interface AntigravityExchangeCodeRequest {
@@ -20,6 +21,7 @@ export interface AntigravityExchangeCodeRequest {
   state: string
   code: string
   proxy_id?: number
+  proxy_mode?: string
 }
 
 export interface AntigravityTokenInfo {
@@ -55,10 +57,12 @@ export async function exchangeCode(
 
 export async function refreshAntigravityToken(
   refreshToken: string,
-  proxyId?: number | null
+  proxyId?: number | null,
+  proxyMode?: string
 ): Promise<AntigravityTokenInfo> {
   const payload: Record<string, any> = { refresh_token: refreshToken }
   if (proxyId) payload.proxy_id = proxyId
+  if (proxyMode) payload.proxy_mode = proxyMode
   
   const { data } = await apiClient.post<AntigravityTokenInfo>(
     '/admin/antigravity/oauth/refresh-token',

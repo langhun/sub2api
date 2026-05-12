@@ -237,4 +237,25 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.codex_image_generation_bridge).toBe(true)
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra).not.toHaveProperty('codex_image_generation_bridge_enabled')
   })
+
+  it('supports pool proxy mode for OpenAI accounts', async () => {
+    const account = buildAccount()
+    account.extra = {
+      proxy_mode: 'pool'
+    }
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect((wrapper.vm as any).proxyMode).toBe('pool')
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.proxy_id).toBe(0)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.proxy_mode).toBe('pool')
+  })
 })

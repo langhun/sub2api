@@ -40,6 +40,13 @@ func (s *OpenAIOAuthService) SetAutoFailoverProxyPool(proxyPool *AutoFailoverPro
 	s.proxyPool = proxyPool
 }
 
+func (s *OpenAIOAuthService) ProxyPool() *AutoFailoverProxyPoolService {
+	if s == nil {
+		return nil
+	}
+	return s.proxyPool
+}
+
 // OpenAIAuthURLResult contains the authorization URL and session info
 type OpenAIAuthURLResult struct {
 	AuthURL   string `json:"auth_url"`
@@ -47,7 +54,7 @@ type OpenAIAuthURLResult struct {
 }
 
 // GenerateAuthURL generates an OpenAI OAuth authorization URL
-func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, redirectURI, platform string) (*OpenAIAuthURLResult, error) {
+func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, proxyMode string, redirectURI, platform string) (*OpenAIAuthURLResult, error) {
 	// Generate PKCE values
 	state, err := openai.GenerateState()
 	if err != nil {
@@ -69,7 +76,20 @@ func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64
 
 	// Get proxy URL if specified
 	var proxyURL string
-	if proxyID != nil {
+	if strings.EqualFold(strings.TrimSpace(proxyMode), AccountProxyModePool) {
+		if s.proxyPool != nil {
+			tempAccount := &Account{
+				Platform: PlatformOpenAI,
+				Type:     AccountTypeOAuth,
+				Extra: map[string]any{
+					"proxy_mode": AccountProxyModePool,
+				},
+			}
+			if resolvedProxyURL, _, _, resolveErr := s.proxyPool.ResolveProxyURL(ctx, tempAccount); resolveErr == nil {
+				proxyURL = resolvedProxyURL
+			}
+		}
+	} else if proxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *proxyID)
 		if err != nil {
 			return nil, infraerrors.Newf(http.StatusBadRequest, "OPENAI_OAUTH_PROXY_NOT_FOUND", "proxy not found: %v", err)
@@ -113,6 +133,7 @@ type OpenAIExchangeCodeInput struct {
 	State       string
 	RedirectURI string
 	ProxyID     *int64
+	ProxyMode   string
 }
 
 // OpenAITokenInfo represents the token information for OpenAI
@@ -150,7 +171,15 @@ func (s *OpenAIOAuthService) ExchangeCode(ctx context.Context, input *OpenAIExch
 	// keep the historical single-proxy behavior.
 	proxyURL := session.ProxyURL
 	var tempAccount *Account
-	if input.ProxyID != nil {
+	if strings.EqualFold(strings.TrimSpace(input.ProxyMode), AccountProxyModePool) {
+		tempAccount = &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Extra: map[string]any{
+				"proxy_mode": AccountProxyModePool,
+			},
+		}
+	} else if input.ProxyID != nil {
 		proxy, err := s.proxyRepo.GetByID(ctx, *input.ProxyID)
 		if err != nil {
 			return nil, infraerrors.Newf(http.StatusBadRequest, "OPENAI_OAUTH_PROXY_NOT_FOUND", "proxy not found: %v", err)
@@ -217,8 +246,15 @@ func (s *OpenAIOAuthService) exchangeCodeWithFailover(
 	redirectURI string,
 	clientID string,
 ) (*OpenAITokenInfo, error) {
-	if s.proxyPool == nil || account == nil || account.ProxyID == nil {
-		proxyURL, _, _ := s.proxyPool.currentAccountProxyURL(ctx, account)
+	if s.proxyPool == nil || account == nil {
+		var proxyURL string
+		if s.proxyPool != nil {
+			proxyURL, _, _ = s.proxyPool.currentAccountProxyURL(ctx, account)
+		} else if account != nil && account.ProxyID != nil {
+			if proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && proxy != nil {
+				proxyURL = proxy.URL()
+			}
+		}
 		tokenResp, err := s.oauthClient.ExchangeCode(ctx, code, codeVerifier, redirectURI, proxyURL, clientID)
 		if err != nil {
 			return nil, err
