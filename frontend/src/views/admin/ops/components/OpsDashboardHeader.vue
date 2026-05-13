@@ -1282,14 +1282,22 @@ function handleToolbarRefresh() {
               <span class="text-[10px] font-bold uppercase text-gray-400">{{ t('admin.ops.latencyDuration') }}</span>
               <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.tooltips.latency')" />
             </div>
-            <button
-              v-if="!props.fullscreen"
-              class="text-[10px] font-bold text-blue-500 hover:underline"
-              type="button"
-              @click="openDetails({ title: t('admin.ops.latencyDuration'), sort: 'duration_desc' })"
-            >
-              {{ t('admin.ops.requestDetails.details') }}
-            </button>
+            <div v-if="!props.fullscreen" class="flex items-center gap-3">
+              <button
+                class="text-[10px] font-bold text-blue-500 hover:underline"
+                type="button"
+                @click="openDetails({ title: t('admin.ops.responseLatencyLabel'), sort: 'response_desc' })"
+              >
+                {{ t('admin.ops.responseTail') }}
+              </button>
+              <button
+                class="text-[10px] font-bold text-blue-500 hover:underline"
+                type="button"
+                @click="openDetails({ title: t('admin.ops.latencyDuration'), sort: 'duration_desc' })"
+              >
+                {{ t('admin.ops.requestDetails.details') }}
+              </button>
+            </div>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
             <div class="text-3xl font-black text-gray-900 dark:text-white">

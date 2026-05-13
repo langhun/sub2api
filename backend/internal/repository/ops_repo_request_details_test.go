@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"regexp"
 	"testing"
 	"time"
 
@@ -167,5 +168,80 @@ func TestOpsRepositoryListRequestDetails_ErrorRowsInclude499ClientDisconnected(t
 	require.NotNil(t, items[0].ResponseLatencyMs)
 	require.Equal(t, 99000, *items[0].ResponseLatencyMs)
 	require.Nil(t, items[0].FirstTokenMs)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestOpsRepositoryListRequestDetails_ResponseDescSort(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &opsRepository{db: db}
+
+	start := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+	filter := &service.OpsRequestDetailFilter{
+		StartTime: &start,
+		EndTime:   &end,
+		Page:      1,
+		PageSize:  10,
+		Sort:      "response_desc",
+	}
+
+	mock.ExpectQuery("WITH combined AS \\(").
+		WithArgs(start.UTC(), end.UTC()).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(1)))
+
+	mock.ExpectQuery(regexp.QuoteMeta("ORDER BY response_latency_ms DESC NULLS LAST, duration_ms DESC NULLS LAST, created_at DESC")).
+		WithArgs(start.UTC(), end.UTC(), 10, 0).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"kind",
+			"created_at",
+			"request_id",
+			"platform",
+			"model",
+			"duration_ms",
+			"first_token_ms",
+			"auth_latency_ms",
+			"routing_latency_ms",
+			"upstream_latency_ms",
+			"response_latency_ms",
+			"status_code",
+			"error_id",
+			"phase",
+			"severity",
+			"message",
+			"user_id",
+			"api_key_id",
+			"account_id",
+			"group_id",
+			"stream",
+		}).AddRow(
+			"success",
+			start.Add(15*time.Minute),
+			"req-success-response",
+			"openai",
+			"gpt-5.5",
+			int64(8500),
+			int64(600),
+			int64(40),
+			int64(60),
+			int64(120),
+			int64(7200),
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			int64(1),
+			int64(2),
+			int64(3),
+			int64(4),
+			true,
+		))
+
+	items, total, err := repo.ListRequestDetails(context.Background(), filter)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, items, 1)
+	require.NotNil(t, items[0].ResponseLatencyMs)
+	require.Equal(t, 7200, *items[0].ResponseLatencyMs)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
