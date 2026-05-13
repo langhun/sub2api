@@ -500,7 +500,19 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					turnResult.Usage.CacheReadInputTokens,
 				)
 				if hooks != nil && hooks.AfterTurn != nil {
-					hooks.AfterTurn(turnNo, turnResult, nil)
+					if isOpenAIWSV2SuccessfulTerminalEvent(turn.TerminalEventType) {
+						hooks.AfterTurn(turnNo, turnResult, nil)
+					} else {
+						hooks.AfterTurn(
+							turnNo,
+							nil,
+							wrapOpenAIWSIngressTurnError(
+								"non_success_terminal",
+								newOpenAIWSNonSuccessTerminalError(turn.TerminalEventType, nil),
+								true,
+							),
+						)
+					}
 				}
 			},
 			OnTrace: func(event openaiwsv2.RelayTraceEvent) {
@@ -550,6 +562,17 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			relayResult.DroppedDownstreamFrames,
 			turnCount,
 		)
+		if !isOpenAIWSV2SuccessfulTerminalEvent(relayResult.TerminalEventType) {
+			turnErr := wrapOpenAIWSIngressTurnError(
+				"non_success_terminal",
+				newOpenAIWSNonSuccessTerminalError(relayResult.TerminalEventType, nil),
+				relayResult.UpstreamToClientFrames > 0,
+			)
+			if turnCount == 0 && hooks != nil && hooks.AfterTurn != nil {
+				hooks.AfterTurn(1, nil, turnErr)
+			}
+			return turnErr
+		}
 		// 正常路径按 terminal 事件逐 turn 已回调；仅在零 turn 场景兜底回调一次。
 		if turnCount == 0 && hooks != nil && hooks.AfterTurn != nil {
 			hooks.AfterTurn(1, result, nil)
@@ -663,6 +686,15 @@ func openAIWSFirstTokenMsForLog(firstTokenMs *int) int {
 		return -1
 	}
 	return *firstTokenMs
+}
+
+func isOpenAIWSV2SuccessfulTerminalEvent(eventType string) bool {
+	switch strings.TrimSpace(eventType) {
+	case "response.completed", "response.done":
+		return true
+	default:
+		return false
+	}
 }
 
 func logOpenAIWSV2Passthrough(format string, args ...any) {

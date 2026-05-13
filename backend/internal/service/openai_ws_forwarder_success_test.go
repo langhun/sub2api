@@ -1406,6 +1406,145 @@ func TestOpenAIGatewayService_Forward_WSv2ReadTimeoutAppliesPerRead(t *testing.T
 	require.Nil(t, upstream.lastReq, "每次 Read 都应独立应用超时；总时长超过 read_timeout 不应误回退 HTTP")
 }
 
+func TestOpenAIGatewayService_Forward_WSv2_NonSuccessTerminalReturnsErrorWithPartialResult(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                string
+		eventPayload        map[string]any
+		wantErrContains     string
+		wantRequestID       string
+		wantInputTokens     int
+		wantOutputTokens    int
+		wantCacheReadTokens int
+	}{
+		{
+			name: "response_failed",
+			eventPayload: map[string]any{
+				"type": "response.failed",
+				"response": map[string]any{
+					"id": "resp_failed_ws",
+					"error": map[string]any{
+						"message": "upstream failed hard",
+					},
+				},
+			},
+			wantErrContains: "response.failed",
+			wantRequestID:   "resp_failed_ws",
+		},
+		{
+			name: "response_incomplete",
+			eventPayload: map[string]any{
+				"type": "response.incomplete",
+				"response": map[string]any{
+					"id": "resp_incomplete_ws",
+					"usage": map[string]any{
+						"input_tokens":  2,
+						"output_tokens": 3,
+						"input_tokens_details": map[string]any{
+							"cached_tokens": 1,
+						},
+					},
+				},
+			},
+			wantErrContains:     "response.incomplete",
+			wantRequestID:       "resp_incomplete_ws",
+			wantInputTokens:     2,
+			wantOutputTokens:    3,
+			wantCacheReadTokens: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			gin.SetMode(gin.TestMode)
+
+			upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+			wsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				conn, err := upgrader.Upgrade(w, r, nil)
+				if err != nil {
+					t.Errorf("upgrade websocket failed: %v", err)
+					return
+				}
+				defer func() {
+					_ = conn.Close()
+				}()
+
+				var request map[string]any
+				if err := conn.ReadJSON(&request); err != nil {
+					t.Errorf("read ws request failed: %v", err)
+					return
+				}
+				if err := conn.WriteJSON(tc.eventPayload); err != nil {
+					t.Errorf("write terminal event failed: %v", err)
+					return
+				}
+			}))
+			defer wsServer.Close()
+
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", nil)
+			c.Request.Header.Set("User-Agent", "unit-test-agent/1.0")
+
+			cfg := &config.Config{}
+			cfg.Security.URLAllowlist.Enabled = false
+			cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+			cfg.Security.URLAllowlist.AllowPrivateHosts = true
+			cfg.Gateway.OpenAIWS.Enabled = true
+			cfg.Gateway.OpenAIWS.OAuthEnabled = true
+			cfg.Gateway.OpenAIWS.APIKeyEnabled = true
+			cfg.Gateway.OpenAIWS.ResponsesWebsocketsV2 = true
+			cfg.Gateway.OpenAIWS.MaxConnsPerAccount = 1
+			cfg.Gateway.OpenAIWS.MinIdlePerAccount = 0
+			cfg.Gateway.OpenAIWS.MaxIdlePerAccount = 1
+			cfg.Gateway.OpenAIWS.QueueLimitPerConn = 8
+			cfg.Gateway.OpenAIWS.DialTimeoutSeconds = 3
+			cfg.Gateway.OpenAIWS.ReadTimeoutSeconds = 5
+			cfg.Gateway.OpenAIWS.WriteTimeoutSeconds = 3
+
+			svc := &OpenAIGatewayService{
+				cfg:              cfg,
+				httpUpstream:     &httpUpstreamRecorder{},
+				cache:            &stubGatewayCache{},
+				openaiWSResolver: NewOpenAIWSProtocolResolver(cfg),
+				toolCorrector:    NewCodexToolCorrector(),
+			}
+
+			account := &Account{
+				ID:          9021,
+				Name:        "openai-ws-non-success-terminal",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Concurrency: 1,
+				Credentials: map[string]any{
+					"api_key":  "sk-test",
+					"base_url": wsServer.URL,
+				},
+				Extra: map[string]any{
+					"responses_websockets_v2_enabled": true,
+				},
+			}
+
+			body := []byte(`{"model":"gpt-5.1","stream":false,"input":[{"type":"input_text","text":"hello"}]}`)
+			result, err := svc.Forward(context.Background(), c, account, body)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tc.wantErrContains)
+			require.Nil(t, result)
+			require.Equal(t, http.StatusOK, rec.Code)
+			require.Equal(t, tc.wantRequestID, gjson.GetBytes(rec.Body.Bytes(), "id").String())
+			require.Equal(t, tc.wantInputTokens, int(gjson.GetBytes(rec.Body.Bytes(), "usage.input_tokens").Int()))
+			require.Equal(t, tc.wantOutputTokens, int(gjson.GetBytes(rec.Body.Bytes(), "usage.output_tokens").Int()))
+			require.Equal(t, tc.wantCacheReadTokens, int(gjson.GetBytes(rec.Body.Bytes(), "usage.input_tokens_details.cached_tokens").Int()))
+		})
+	}
+}
+
 type openAIWSCaptureDialer struct {
 	mu          sync.Mutex
 	conn        *openAIWSCaptureConn

@@ -2015,6 +2015,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	flushedBufferedEventCount := 0
 	firstEventType := ""
 	lastEventType := ""
+	var terminalMessage []byte
 
 	var flusher http.Flusher
 	if reqStream {
@@ -2280,6 +2281,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		}
 
 		if isTerminalEvent {
+			terminalMessage = message
 			cleanExit = true
 			break
 		}
@@ -2347,7 +2349,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		clientDisconnected,
 	)
 
-	return &OpenAIForwardResult{
+	result := &OpenAIForwardResult{
 		RequestID:       responseID,
 		Usage:           *usage,
 		Model:           originalModel,
@@ -2360,7 +2362,12 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		ResponseHeaders: lease.HandshakeHeaders(),
 		Duration:        time.Since(startTime),
 		FirstTokenMs:    firstTokenMs,
-	}, nil
+	}
+	if isOpenAIWSNonSuccessTerminalEvent(lastEventType) {
+		setOpsUpstreamError(c, http.StatusBadGateway, openAIWSNonSuccessTerminalMessage(lastEventType), "")
+		return result, newOpenAIWSNonSuccessTerminalError(lastEventType, terminalMessage)
+	}
+	return result, nil
 }
 
 // ProxyResponsesWebSocketFromClient 处理客户端入站 WebSocket（OpenAI Responses WS Mode）并转发到上游。
@@ -3041,6 +3048,14 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 					result.ImageCount = imageCount
 					result.ImageSize = imageSizeTier
 					result.BillingModel = imageBillingModel
+				}
+				if isOpenAIWSNonSuccessTerminalEvent(eventType) {
+					setOpsUpstreamError(c, http.StatusBadGateway, openAIWSNonSuccessTerminalMessage(eventType), "")
+					return result, wrapOpenAIWSIngressTurnError(
+						"non_success_terminal",
+						newOpenAIWSNonSuccessTerminalError(eventType, upstreamMessage),
+						wroteDownstream,
+					)
 				}
 				return result, nil
 			}
@@ -3849,6 +3864,43 @@ func isOpenAIWSTerminalEvent(eventType string) bool {
 	default:
 		return false
 	}
+}
+
+func isOpenAIWSSuccessTerminalEvent(eventType string) bool {
+	switch strings.TrimSpace(eventType) {
+	case "response.completed", "response.done":
+		return true
+	default:
+		return false
+	}
+}
+
+func isOpenAIWSNonSuccessTerminalEvent(eventType string) bool {
+	trimmed := strings.TrimSpace(eventType)
+	return trimmed != "" && isOpenAIWSTerminalEvent(trimmed) && !isOpenAIWSSuccessTerminalEvent(trimmed)
+}
+
+func openAIWSNonSuccessTerminalMessage(eventType string) string {
+	switch strings.TrimSpace(eventType) {
+	case "response.incomplete":
+		return "upstream response incomplete"
+	case "response.cancelled", "response.canceled":
+		return "upstream response canceled"
+	default:
+		return "upstream response failed"
+	}
+}
+
+func newOpenAIWSNonSuccessTerminalError(eventType string, payload []byte) error {
+	trimmed := strings.TrimSpace(eventType)
+	message := extractOpenAISSEErrorMessage(payload)
+	if message == "" {
+		message = openAIWSNonSuccessTerminalMessage(trimmed)
+	}
+	if trimmed == "" {
+		return errors.New(message)
+	}
+	return fmt.Errorf("upstream terminal %s: %s", trimmed, message)
 }
 
 func isOpenAIWSTokenEvent(eventType string) bool {
