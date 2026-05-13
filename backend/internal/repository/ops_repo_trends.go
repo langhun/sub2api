@@ -34,6 +34,7 @@ func (r *opsRepository) GetThroughputTrend(ctx context.Context, filter *service.
 
 	usageJoin, usageWhere, usageArgs, next := buildUsageWhere(filter, start, end, 1)
 	errorWhere, errorArgs, _ := buildErrorWhere(filter, start, end, next)
+	countableError := service.OpsCountableErrorSQL("status_code", "error_owner")
 
 	usageBucketExpr := opsBucketExprForUsage(bucketSeconds)
 	errorBucketExpr := opsBucketExprForError(bucketSeconds)
@@ -53,7 +54,7 @@ error_buckets AS (
          COUNT(*) AS error_count
   FROM ops_error_logs
   ` + errorWhere + `
-    AND COALESCE(status_code, 0) >= 400
+    AND ` + countableError + `
   GROUP BY 1
 ),
 switch_buckets AS (
@@ -201,7 +202,7 @@ error_totals AS (
          COUNT(*) AS error_count
   FROM ops_error_logs
   WHERE created_at >= $1 AND created_at < $2
-    AND COALESCE(status_code, 0) >= 400
+    AND ` + service.OpsCountableErrorSQL("status_code", "error_owner") + `
     AND is_count_tokens = FALSE  -- 排除 count_tokens 请求的错误
   GROUP BY 1
 ),
@@ -275,7 +276,7 @@ error_totals AS (
   WHERE created_at >= $1 AND created_at < $2
     AND platform = $3
     AND group_id IS NOT NULL
-    AND COALESCE(status_code, 0) >= 400
+    AND ` + service.OpsCountableErrorSQL("status_code", "error_owner") + `
     AND is_count_tokens = FALSE  -- 排除 count_tokens 请求的错误
   GROUP BY 1
 ),
@@ -447,13 +448,14 @@ func (r *opsRepository) GetErrorTrend(ctx context.Context, filter *service.OpsDa
 	end := filter.EndTime.UTC()
 	where, args, _ := buildErrorWhere(filter, start, end, 1)
 	bucketExpr := opsBucketExprForError(bucketSeconds)
+	countableError := service.OpsCountableErrorSQL("status_code", "error_owner")
 
 	q := `
 SELECT
   ` + bucketExpr + ` AS bucket,
-  COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400) AS error_total,
-  COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400 AND is_business_limited) AS business_limited,
-  COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400 AND NOT is_business_limited) AS error_sla,
+  COUNT(*) FILTER (WHERE ` + countableError + `) AS error_total,
+  COUNT(*) FILTER (WHERE ` + countableError + ` AND is_business_limited) AS business_limited,
+  COUNT(*) FILTER (WHERE ` + countableError + ` AND NOT is_business_limited) AS error_sla,
   COUNT(*) FILTER (WHERE error_owner = 'provider' AND NOT is_business_limited AND COALESCE(upstream_status_code, status_code, 0) NOT IN (429, 529)) AS upstream_excl,
   COUNT(*) FILTER (WHERE error_owner = 'provider' AND NOT is_business_limited AND COALESCE(upstream_status_code, status_code, 0) = 429) AS upstream_429,
   COUNT(*) FILTER (WHERE error_owner = 'provider' AND NOT is_business_limited AND COALESCE(upstream_status_code, status_code, 0) = 529) AS upstream_529
@@ -559,6 +561,7 @@ func (r *opsRepository) GetErrorDistribution(ctx context.Context, filter *servic
 	start := filter.StartTime.UTC()
 	end := filter.EndTime.UTC()
 	where, args, _ := buildErrorWhere(filter, start, end, 1)
+	countableError := service.OpsCountableErrorSQL("status_code", "error_owner")
 
 	q := `
 SELECT
@@ -568,7 +571,7 @@ SELECT
   COUNT(*) FILTER (WHERE is_business_limited) AS business_limited
 FROM ops_error_logs
 ` + where + `
-  AND COALESCE(status_code, 0) >= 400
+  AND ` + countableError + `
 GROUP BY 1
 ORDER BY total DESC
 LIMIT 20`

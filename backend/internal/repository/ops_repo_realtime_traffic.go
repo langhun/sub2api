@@ -36,6 +36,7 @@ func (r *opsRepository) GetRealtimeTrafficSummary(ctx context.Context, filter *s
 
 	usageJoin, usageWhere, usageArgs, next := buildUsageWhere(filter, start, end, 1)
 	errorWhere, errorArgs, _ := buildErrorWhere(filter, start, end, next)
+	countableError := service.OpsCountableErrorSQL("status_code", "error_owner")
 
 	q := `
 WITH usage_buckets AS (
@@ -54,7 +55,7 @@ error_buckets AS (
     COALESCE(COUNT(*), 0) AS error_count
   FROM ops_error_logs
   ` + errorWhere + `
-    AND COALESCE(status_code, 0) >= 400
+    AND ` + countableError + `
   GROUP BY 1
 ),
 combined AS (

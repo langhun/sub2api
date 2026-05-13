@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+var monitoringCountableErrorSQL = OpsCountableErrorSQL("status_code", "error_owner")
+
 type MonitoringService struct {
 	db *sql.DB
 }
@@ -270,6 +272,7 @@ func (s *MonitoringService) queryGroupModelStats(ctx context.Context, overview *
 		JOIN groups g ON e.group_id = g.id AND g.deleted_at IS NULL
 		WHERE e.created_at >= $1
 		  AND e.is_count_tokens = false
+		  AND ` + monitoringCountableErrorSQL + `
 		  AND e.group_id IS NOT NULL
 		  AND COALESCE(e.requested_model, e.model) IS NOT NULL
 		GROUP BY e.group_id, g.name, COALESCE(e.requested_model, e.model)`
@@ -372,6 +375,7 @@ func (s *MonitoringService) queryModelLatency(ctx context.Context, overview *Mon
 		FROM ops_error_logs
 		WHERE created_at >= $1
 		  AND is_count_tokens = false
+		  AND ` + monitoringCountableErrorSQL + `
 		  AND COALESCE(requested_model, model) IS NOT NULL
 		GROUP BY COALESCE(requested_model, model)`
 
@@ -477,7 +481,7 @@ func (s *MonitoringService) queryTodaySummary(ctx context.Context, overview *Mon
 	}
 
 	var opsErrorCount int64
-	errQ := `SELECT COUNT(*) FROM ops_error_logs WHERE created_at >= $1 AND is_count_tokens = false AND group_id IS NOT NULL AND COALESCE(requested_model, model) IS NOT NULL`
+	errQ := `SELECT COUNT(*) FROM ops_error_logs WHERE created_at >= $1 AND is_count_tokens = false AND ` + monitoringCountableErrorSQL + ` AND group_id IS NOT NULL AND COALESCE(requested_model, model) IS NOT NULL`
 	if err := s.db.QueryRowContext(ctx, errQ, since).Scan(&opsErrorCount); err != nil {
 		return err
 	}
@@ -506,6 +510,7 @@ func (s *MonitoringService) queryHourlyStats(ctx context.Context, overview *Moni
 			FROM ops_error_logs
 			WHERE created_at >= $1
 			  AND is_count_tokens = false
+			  AND ` + monitoringCountableErrorSQL + `
 			  AND group_id IS NOT NULL
 			  AND COALESCE(requested_model, model) IS NOT NULL
 			GROUP BY DATE_TRUNC('hour', created_at)
@@ -559,6 +564,7 @@ func (s *MonitoringService) queryModelHourlyStats(ctx context.Context, overview 
 			FROM ops_error_logs e
 			WHERE e.created_at >= $1
 			  AND e.is_count_tokens = false
+			  AND ` + monitoringCountableErrorSQL + `
 			  AND e.group_id IS NOT NULL
 			  AND COALESCE(e.requested_model, e.model) IS NOT NULL
 			GROUP BY e.group_id, COALESCE(e.requested_model, e.model), DATE_TRUNC('hour', e.created_at)
