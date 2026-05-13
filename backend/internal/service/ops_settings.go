@@ -370,15 +370,17 @@ func defaultOpsAdvancedSettings() *OpsAdvancedSettings {
 			AggregationEnabled: false,
 		},
 		SlowTailIsolation: OpsSlowTailIsolationSettings{
-			Enabled:            false,
-			WindowMinutes:      10,
-			MinRequests:        3,
-			TTFTP95MsThreshold: 12000,
-			TempUnschedMinutes: 120,
-			Platforms:          []string{"openai"},
-			Models:             []string{},
-			GroupIDs:           []int64{},
-			MaxAccountsPerRun:  3,
+			Enabled:                       false,
+			WindowMinutes:                 10,
+			MinRequests:                   3,
+			TTFTP95MsThreshold:            12000,
+			DurationP95MsThreshold:        0,
+			ResponseLatencyP95MsThreshold: 0,
+			TempUnschedMinutes:            120,
+			Platforms:                     []string{"openai"},
+			Models:                        []string{},
+			GroupIDs:                      []int64{},
+			MaxAccountsPerRun:             3,
 		},
 		IgnoreCountTokensErrors:         true,  // count_tokens 404 是预期行为，默认忽略
 		IgnoreContextCanceled:           true,  // Default to true - client disconnects are not errors
@@ -423,6 +425,12 @@ func normalizeOpsAdvancedSettings(cfg *OpsAdvancedSettings) {
 	if cfg.SlowTailIsolation.TTFTP95MsThreshold <= 0 {
 		cfg.SlowTailIsolation.TTFTP95MsThreshold = 12000
 	}
+	if cfg.SlowTailIsolation.DurationP95MsThreshold < 0 {
+		cfg.SlowTailIsolation.DurationP95MsThreshold = 0
+	}
+	if cfg.SlowTailIsolation.ResponseLatencyP95MsThreshold < 0 {
+		cfg.SlowTailIsolation.ResponseLatencyP95MsThreshold = 0
+	}
 	if cfg.SlowTailIsolation.TempUnschedMinutes <= 0 {
 		cfg.SlowTailIsolation.TempUnschedMinutes = 120
 	}
@@ -465,6 +473,12 @@ func validateOpsAdvancedSettings(cfg *OpsAdvancedSettings) error {
 	}
 	if cfg.SlowTailIsolation.TTFTP95MsThreshold < 100 || cfg.SlowTailIsolation.TTFTP95MsThreshold > 120000 {
 		return errors.New("slow_tail_isolation.ttft_p95_ms_threshold must be between 100 and 120000")
+	}
+	if cfg.SlowTailIsolation.DurationP95MsThreshold < 0 || cfg.SlowTailIsolation.DurationP95MsThreshold > 600000 {
+		return errors.New("slow_tail_isolation.duration_p95_ms_threshold must be between 0 and 600000")
+	}
+	if cfg.SlowTailIsolation.ResponseLatencyP95MsThreshold < 0 || cfg.SlowTailIsolation.ResponseLatencyP95MsThreshold > 600000 {
+		return errors.New("slow_tail_isolation.response_latency_p95_ms_threshold must be between 0 and 600000")
 	}
 	if cfg.SlowTailIsolation.TempUnschedMinutes < 1 || cfg.SlowTailIsolation.TempUnschedMinutes > 1440 {
 		return errors.New("slow_tail_isolation.temp_unsched_minutes must be between 1 and 1440")

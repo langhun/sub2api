@@ -89,3 +89,83 @@ func TestOpsRepositoryListRequestDetails_SuccessRowsIncludeLatencyBreakdown(t *t
 	require.Equal(t, 70, *items[0].ResponseLatencyMs)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestOpsRepositoryListRequestDetails_ErrorRowsInclude499ClientDisconnected(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &opsRepository{db: db}
+
+	start := time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+	filter := &service.OpsRequestDetailFilter{
+		StartTime: &start,
+		EndTime:   &end,
+		Page:      1,
+		PageSize:  10,
+		Kind:      string(service.OpsRequestKindError),
+	}
+
+	mock.ExpectQuery("WITH combined AS \\(").
+		WithArgs(start.UTC(), end.UTC(), string(service.OpsRequestKindError)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(1)))
+
+	mock.ExpectQuery("FROM combined").
+		WithArgs(start.UTC(), end.UTC(), string(service.OpsRequestKindError), 10, 0).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"kind",
+			"created_at",
+			"request_id",
+			"platform",
+			"model",
+			"duration_ms",
+			"first_token_ms",
+			"auth_latency_ms",
+			"routing_latency_ms",
+			"upstream_latency_ms",
+			"response_latency_ms",
+			"status_code",
+			"error_id",
+			"phase",
+			"severity",
+			"message",
+			"user_id",
+			"api_key_id",
+			"account_id",
+			"group_id",
+			"stream",
+		}).AddRow(
+			"error",
+			start.Add(10*time.Minute),
+			"req-error-499",
+			"openai",
+			"gpt-5.5",
+			int64(101000),
+			nil,
+			nil,
+			nil,
+			nil,
+			int64(99000),
+			int64(499),
+			int64(77),
+			"network",
+			"P2",
+			"client disconnected during final flush",
+			int64(1),
+			int64(2),
+			int64(3),
+			int64(4),
+			false,
+		))
+
+	items, total, err := repo.ListRequestDetails(context.Background(), filter)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, items, 1)
+	require.Equal(t, service.OpsRequestKindError, items[0].Kind)
+	require.NotNil(t, items[0].StatusCode)
+	require.Equal(t, 499, *items[0].StatusCode)
+	require.Equal(t, "network", items[0].Phase)
+	require.NotNil(t, items[0].ResponseLatencyMs)
+	require.Equal(t, 99000, *items[0].ResponseLatencyMs)
+	require.Nil(t, items[0].FirstTokenMs)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
