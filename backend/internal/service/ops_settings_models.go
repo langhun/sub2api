@@ -119,13 +119,15 @@ type OpsAggregationSettings struct {
 }
 
 type OpsSlowTailIsolationSettings struct {
-	Enabled            bool     `json:"enabled"`
-	WindowMinutes      int      `json:"window_minutes"`
-	MinRequests        int      `json:"min_requests"`
-	TTFTP95MsThreshold int      `json:"ttft_p95_ms_threshold"`
-	TempUnschedMinutes int      `json:"temp_unsched_minutes"`
-	Platforms          []string `json:"platforms,omitempty"`
-	Models             []string `json:"models,omitempty"`
-	GroupIDs           []int64  `json:"group_ids,omitempty"`
-	MaxAccountsPerRun  int      `json:"max_accounts_per_run"`
+	Enabled                       bool     `json:"enabled"`
+	WindowMinutes                 int      `json:"window_minutes"`
+	MinRequests                   int      `json:"min_requests"`
+	TTFTP95MsThreshold            int      `json:"ttft_p95_ms_threshold"`
+	DurationP95MsThreshold        int      `json:"duration_p95_ms_threshold"`
+	ResponseLatencyP95MsThreshold int      `json:"response_latency_p95_ms_threshold"`
+	TempUnschedMinutes            int      `json:"temp_unsched_minutes"`
+	Platforms                     []string `json:"platforms,omitempty"`
+	Models                        []string `json:"models,omitempty"`
+	GroupIDs                      []int64  `json:"group_ids,omitempty"`
+	MaxAccountsPerRun             int      `json:"max_accounts_per_run"`
 }

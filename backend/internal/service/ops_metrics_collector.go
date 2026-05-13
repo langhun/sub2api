@@ -46,21 +46,29 @@ const (
 var opsMetricsCollectorAdvisoryLockID = hashAdvisoryLockID(opsMetricsCollectorLeaderLockKey)
 
 type opsSlowTailCandidate struct {
-	AccountID int64
-	Platform  string
-	Model     string
-	GroupID   *int64
-	Requests  int
-	P95       int
-	Max       int
+	AccountID          int64
+	Platform           string
+	Model              string
+	GroupID            *int64
+	Requests           int
+	TTFTP95            *int
+	TTFTMax            *int
+	DurationP95        *int
+	DurationMax        *int
+	ResponseLatencyP95 *int
+	ResponseLatencyMax *int
 }
 
 type opsSlowProxyCandidate struct {
-	ProxyID  int64
-	Platform string
-	Requests int
-	P95      int
-	Max      int
+	ProxyID            int64
+	Platform           string
+	Requests           int
+	TTFTP95            *int
+	TTFTMax            *int
+	DurationP95        *int
+	DurationMax        *int
+	ResponseLatencyP95 *int
+	ResponseLatencyMax *int
 }
 
 type OpsMetricsCollector struct {
@@ -486,41 +494,42 @@ func (c *OpsMetricsCollector) applySlowTailIsolation(ctx context.Context, now ti
 	}
 	until := time.Now().Add(time.Duration(rule.TempUnschedMinutes) * time.Minute)
 	for _, candidate := range candidates[:limit] {
+		reasonCode, reasonMessage := buildSlowTailIsolationReason(candidate)
 		reason := BuildTempUnschedReason(&TempUnschedState{
 			UntilUnix:       until.Unix(),
 			TriggeredAtUnix: time.Now().Unix(),
-			ReasonCode:      "ops_slow_tail_ttft",
-			MatchedKeyword:  "slow_tail_ttft",
+			ReasonCode:      reasonCode,
+			MatchedKeyword:  reasonCode,
 			RuleIndex:       -1,
-			ErrorMessage: fmt.Sprintf(
-				"slow tail isolation: platform=%s model=%s reqs=%d ttft_p95_ms=%d ttft_max_ms=%d",
-				candidate.Platform,
-				candidate.Model,
-				candidate.Requests,
-				candidate.P95,
-				candidate.Max,
-			),
+			ErrorMessage:    reasonMessage,
 		}, "slow tail isolation")
 		if err := c.accountRepo.SetTempUnschedulable(ctx, candidate.AccountID, until, reason); err != nil {
 			log.Printf("[OpsMetricsCollector] slow tail isolate account=%d failed: %v", candidate.AccountID, err)
 			continue
 		}
-		log.Printf("[OpsMetricsCollector] slow tail isolated account=%d model=%s reqs=%d p95=%d max=%d until=%s",
-			candidate.AccountID, candidate.Model, candidate.Requests, candidate.P95, candidate.Max, until.Format(time.RFC3339))
+		log.Printf("[OpsMetricsCollector] slow tail isolated account=%d model=%s reqs=%d reason=%s until=%s",
+			candidate.AccountID, candidate.Model, candidate.Requests, reasonMessage, until.Format(time.RFC3339))
 	}
 }
 
 func (c *OpsMetricsCollector) listSlowTailCandidates(ctx context.Context, now time.Time, rule OpsSlowTailIsolationSettings) ([]opsSlowTailCandidate, error) {
 	start := now.Add(-time.Duration(rule.WindowMinutes) * time.Minute)
 	limit := opsSlowTailRunLimit(rule)
+	if !opsSlowTailHasAnyThreshold(rule) {
+		return nil, nil
+	}
 	conditions := []string{
 		"u.created_at >= $1",
 		"u.created_at < $2",
-		"u.first_token_ms IS NOT NULL",
 		"u.account_id IS NOT NULL",
 	}
 	args := []any{start, now}
 	argPos := 3
+
+	metricPresence := opsSlowTailMetricPresenceConditions(rule, "u")
+	if len(metricPresence) > 0 {
+		conditions = append(conditions, "("+strings.Join(metricPresence, " OR ")+")")
+	}
 
 	if len(rule.Platforms) > 0 {
 		platforms := make([]string, 0, len(rule.Platforms))
@@ -563,31 +572,63 @@ SELECT
   COALESCE(u.requested_model, u.model) AS model,
   u.group_id,
   COUNT(*)::int AS reqs,
-  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int AS p95,
-  MAX(u.first_token_ms)::int AS max_ttft
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms) FILTER (WHERE u.first_token_ms IS NOT NULL)::int AS ttft_p95,
+  MAX(u.first_token_ms)::int AS max_ttft,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.duration_ms) FILTER (WHERE u.duration_ms IS NOT NULL)::int AS duration_p95,
+  MAX(u.duration_ms)::int AS max_duration,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.response_latency_ms) FILTER (WHERE u.response_latency_ms IS NOT NULL)::int AS response_latency_p95,
+  MAX(u.response_latency_ms)::int AS max_response_latency
 FROM usage_logs u
 LEFT JOIN accounts a ON a.id = u.account_id
 LEFT JOIN groups g ON g.id = u.group_id
 WHERE %s
 GROUP BY u.account_id, COALESCE(NULLIF(a.platform, ''), NULLIF(g.platform, ''), 'unknown'), COALESCE(u.requested_model, u.model), u.group_id
 HAVING COUNT(*) >= %d
-   AND percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int >= %d
-ORDER BY p95 DESC, max_ttft DESC, reqs DESC
+   AND (%s)
+ORDER BY
+  COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY u.duration_ms) FILTER (WHERE u.duration_ms IS NOT NULL)::int, 0) DESC,
+  COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY u.response_latency_ms) FILTER (WHERE u.response_latency_ms IS NOT NULL)::int, 0) DESC,
+  COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms) FILTER (WHERE u.first_token_ms IS NOT NULL)::int, 0) DESC,
+  COALESCE(MAX(u.duration_ms)::int, 0) DESC,
+  COALESCE(MAX(u.response_latency_ms)::int, 0) DESC,
+  COALESCE(MAX(u.first_token_ms)::int, 0) DESC,
+  reqs DESC
 LIMIT %d
-`, strings.Join(conditions, " AND "), rule.MinRequests, rule.TTFTP95MsThreshold, limit)
+`, strings.Join(conditions, " AND "), rule.MinRequests, opsSlowTailHavingClause(rule, "u"), limit)
 
 	out := make([]opsSlowTailCandidate, 0)
 	err := c.withSlowTailRows(ctx, query, args, func(rows *sql.Rows) error {
 		for rows.Next() {
 			var item opsSlowTailCandidate
 			var groupID sql.NullInt64
-			if err := rows.Scan(&item.AccountID, &item.Platform, &item.Model, &groupID, &item.Requests, &item.P95, &item.Max); err != nil {
+			var ttftP95, ttftMax sql.NullInt64
+			var durationP95, durationMax sql.NullInt64
+			var responseLatencyP95, responseLatencyMax sql.NullInt64
+			if err := rows.Scan(
+				&item.AccountID,
+				&item.Platform,
+				&item.Model,
+				&groupID,
+				&item.Requests,
+				&ttftP95,
+				&ttftMax,
+				&durationP95,
+				&durationMax,
+				&responseLatencyP95,
+				&responseLatencyMax,
+			); err != nil {
 				return err
 			}
 			if groupID.Valid {
 				value := groupID.Int64
 				item.GroupID = &value
 			}
+			item.TTFTP95 = nullableIntFromNullInt64(ttftP95)
+			item.TTFTMax = nullableIntFromNullInt64(ttftMax)
+			item.DurationP95 = nullableIntFromNullInt64(durationP95)
+			item.DurationMax = nullableIntFromNullInt64(durationMax)
+			item.ResponseLatencyP95 = nullableIntFromNullInt64(responseLatencyP95)
+			item.ResponseLatencyMax = nullableIntFromNullInt64(responseLatencyMax)
 			out = append(out, item)
 		}
 		if err := rows.Err(); err != nil {
@@ -620,12 +661,35 @@ func (c *OpsMetricsCollector) applySlowProxyCooldown(ctx context.Context, now ti
 	nowUnix := time.Now().Unix()
 	untilUnix := time.Now().Add(time.Duration(rule.TempUnschedMinutes) * time.Minute).Unix()
 	for _, candidate := range candidates[:limit] {
+		parts := []string{
+			fmt.Sprintf("platform=%s", candidate.Platform),
+			fmt.Sprintf("reqs=%d", candidate.Requests),
+		}
+		if candidate.DurationP95 != nil {
+			parts = append(parts, fmt.Sprintf("duration_p95_ms=%d", *candidate.DurationP95))
+		}
+		if candidate.DurationMax != nil {
+			parts = append(parts, fmt.Sprintf("duration_max_ms=%d", *candidate.DurationMax))
+		}
+		if candidate.ResponseLatencyP95 != nil {
+			parts = append(parts, fmt.Sprintf("response_latency_p95_ms=%d", *candidate.ResponseLatencyP95))
+		}
+		if candidate.ResponseLatencyMax != nil {
+			parts = append(parts, fmt.Sprintf("response_latency_max_ms=%d", *candidate.ResponseLatencyMax))
+		}
+		if candidate.TTFTP95 != nil {
+			parts = append(parts, fmt.Sprintf("ttft_p95_ms=%d", *candidate.TTFTP95))
+		}
+		if candidate.TTFTMax != nil {
+			parts = append(parts, fmt.Sprintf("ttft_max_ms=%d", *candidate.TTFTMax))
+		}
+		message := "slow proxy cooldown: " + strings.Join(parts, " ")
 		info := &ProxyLatencyInfo{
 			Success:           false,
-			Message:           fmt.Sprintf("slow proxy cooldown: platform=%s reqs=%d p95=%d max=%d", candidate.Platform, candidate.Requests, candidate.P95, candidate.Max),
+			Message:           message,
 			HealthStatus:      "cooldown",
 			CooldownUntilUnix: ptrInt64(untilUnix),
-			LastFailReason:    "slow_tail_ttft_proxy",
+			LastFailReason:    "slow_tail_latency_proxy",
 			LastFailAtUnix:    ptrInt64(nowUnix),
 			UpdatedAt:         time.Now(),
 		}
@@ -633,23 +697,30 @@ func (c *OpsMetricsCollector) applySlowProxyCooldown(ctx context.Context, now ti
 			log.Printf("[OpsMetricsCollector] slow proxy cooldown proxy=%d failed: %v", candidate.ProxyID, err)
 			continue
 		}
-		log.Printf("[OpsMetricsCollector] slow proxy cooled down proxy=%d reqs=%d p95=%d max=%d until=%s",
-			candidate.ProxyID, candidate.Requests, candidate.P95, candidate.Max, time.Unix(untilUnix, 0).Format(time.RFC3339))
+		log.Printf("[OpsMetricsCollector] slow proxy cooled down proxy=%d reason=%s until=%s",
+			candidate.ProxyID, message, time.Unix(untilUnix, 0).Format(time.RFC3339))
 	}
 }
 
 func (c *OpsMetricsCollector) listSlowProxyCandidates(ctx context.Context, now time.Time, rule OpsSlowTailIsolationSettings) ([]opsSlowProxyCandidate, error) {
 	start := now.Add(-time.Duration(rule.WindowMinutes) * time.Minute)
 	limit := opsSlowTailRunLimit(rule)
+	if !opsSlowTailHasAnyThreshold(rule) {
+		return nil, nil
+	}
 	conditions := []string{
 		"u.created_at >= $1",
 		"u.created_at < $2",
-		"u.first_token_ms IS NOT NULL",
 		"u.account_id IS NOT NULL",
 		"a.proxy_id IS NOT NULL",
 	}
 	args := []any{start, now}
 	argPos := 3
+
+	metricPresence := opsSlowTailMetricPresenceConditions(rule, "u")
+	if len(metricPresence) > 0 {
+		conditions = append(conditions, "("+strings.Join(metricPresence, " OR ")+")")
+	}
 
 	if len(rule.Platforms) > 0 {
 		platforms := make([]string, 0, len(rule.Platforms))
@@ -690,26 +761,56 @@ SELECT
   a.proxy_id,
   COALESCE(NULLIF(a.platform, ''), NULLIF(g.platform, ''), 'unknown') AS platform,
   COUNT(*)::int AS reqs,
-  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int AS p95,
-  MAX(u.first_token_ms)::int AS max_ttft
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms) FILTER (WHERE u.first_token_ms IS NOT NULL)::int AS ttft_p95,
+  MAX(u.first_token_ms)::int AS max_ttft,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.duration_ms) FILTER (WHERE u.duration_ms IS NOT NULL)::int AS duration_p95,
+  MAX(u.duration_ms)::int AS max_duration,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY u.response_latency_ms) FILTER (WHERE u.response_latency_ms IS NOT NULL)::int AS response_latency_p95,
+  MAX(u.response_latency_ms)::int AS max_response_latency
 FROM usage_logs u
 LEFT JOIN accounts a ON a.id = u.account_id
 LEFT JOIN groups g ON g.id = u.group_id
 WHERE %s
 GROUP BY a.proxy_id, COALESCE(NULLIF(a.platform, ''), NULLIF(g.platform, ''), 'unknown')
 HAVING COUNT(*) >= %d
-   AND percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms)::int >= %d
-ORDER BY p95 DESC, max_ttft DESC, reqs DESC
+   AND (%s)
+ORDER BY
+  COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY u.duration_ms) FILTER (WHERE u.duration_ms IS NOT NULL)::int, 0) DESC,
+  COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY u.response_latency_ms) FILTER (WHERE u.response_latency_ms IS NOT NULL)::int, 0) DESC,
+  COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY u.first_token_ms) FILTER (WHERE u.first_token_ms IS NOT NULL)::int, 0) DESC,
+  COALESCE(MAX(u.duration_ms)::int, 0) DESC,
+  COALESCE(MAX(u.response_latency_ms)::int, 0) DESC,
+  COALESCE(MAX(u.first_token_ms)::int, 0) DESC,
+  reqs DESC
 LIMIT %d
-`, strings.Join(conditions, " AND "), rule.MinRequests, rule.TTFTP95MsThreshold, limit)
+`, strings.Join(conditions, " AND "), rule.MinRequests, opsSlowTailHavingClause(rule, "u"), limit)
 
 	out := make([]opsSlowProxyCandidate, 0)
 	err := c.withSlowTailRows(ctx, query, args, func(rows *sql.Rows) error {
 		for rows.Next() {
 			var item opsSlowProxyCandidate
-			if err := rows.Scan(&item.ProxyID, &item.Platform, &item.Requests, &item.P95, &item.Max); err != nil {
+			var ttftP95, ttftMax sql.NullInt64
+			var durationP95, durationMax sql.NullInt64
+			var responseLatencyP95, responseLatencyMax sql.NullInt64
+			if err := rows.Scan(
+				&item.ProxyID,
+				&item.Platform,
+				&item.Requests,
+				&ttftP95,
+				&ttftMax,
+				&durationP95,
+				&durationMax,
+				&responseLatencyP95,
+				&responseLatencyMax,
+			); err != nil {
 				return err
 			}
+			item.TTFTP95 = nullableIntFromNullInt64(ttftP95)
+			item.TTFTMax = nullableIntFromNullInt64(ttftMax)
+			item.DurationP95 = nullableIntFromNullInt64(durationP95)
+			item.DurationMax = nullableIntFromNullInt64(durationMax)
+			item.ResponseLatencyP95 = nullableIntFromNullInt64(responseLatencyP95)
+			item.ResponseLatencyMax = nullableIntFromNullInt64(responseLatencyMax)
 			out = append(out, item)
 		}
 		if err := rows.Err(); err != nil {
@@ -732,6 +833,90 @@ func opsSlowTailRunLimit(rule OpsSlowTailIsolationSettings) int {
 		limit = opsMetricsCollectorSlowTailMaxCandidates
 	}
 	return limit
+}
+
+func opsSlowTailHasAnyThreshold(rule OpsSlowTailIsolationSettings) bool {
+	return rule.TTFTP95MsThreshold > 0 ||
+		rule.DurationP95MsThreshold > 0 ||
+		rule.ResponseLatencyP95MsThreshold > 0
+}
+
+func opsSlowTailMetricPresenceConditions(rule OpsSlowTailIsolationSettings, alias string) []string {
+	conditions := make([]string, 0, 3)
+	if rule.TTFTP95MsThreshold > 0 {
+		conditions = append(conditions, alias+".first_token_ms IS NOT NULL")
+	}
+	if rule.DurationP95MsThreshold > 0 {
+		conditions = append(conditions, alias+".duration_ms IS NOT NULL")
+	}
+	if rule.ResponseLatencyP95MsThreshold > 0 {
+		conditions = append(conditions, alias+".response_latency_ms IS NOT NULL")
+	}
+	return conditions
+}
+
+func opsSlowTailHavingClause(rule OpsSlowTailIsolationSettings, alias string) string {
+	clauses := make([]string, 0, 3)
+	if rule.TTFTP95MsThreshold > 0 {
+		clauses = append(clauses, fmt.Sprintf(
+			"percentile_cont(0.95) WITHIN GROUP (ORDER BY %s.first_token_ms) FILTER (WHERE %s.first_token_ms IS NOT NULL)::int >= %d",
+			alias, alias, rule.TTFTP95MsThreshold,
+		))
+	}
+	if rule.DurationP95MsThreshold > 0 {
+		clauses = append(clauses, fmt.Sprintf(
+			"percentile_cont(0.95) WITHIN GROUP (ORDER BY %s.duration_ms) FILTER (WHERE %s.duration_ms IS NOT NULL)::int >= %d",
+			alias, alias, rule.DurationP95MsThreshold,
+		))
+	}
+	if rule.ResponseLatencyP95MsThreshold > 0 {
+		clauses = append(clauses, fmt.Sprintf(
+			"percentile_cont(0.95) WITHIN GROUP (ORDER BY %s.response_latency_ms) FILTER (WHERE %s.response_latency_ms IS NOT NULL)::int >= %d",
+			alias, alias, rule.ResponseLatencyP95MsThreshold,
+		))
+	}
+	if len(clauses) == 0 {
+		return "FALSE"
+	}
+	return strings.Join(clauses, " OR ")
+}
+
+func nullableIntFromNullInt64(v sql.NullInt64) *int {
+	if !v.Valid {
+		return nil
+	}
+	n := int(v.Int64)
+	return &n
+}
+
+func buildSlowTailIsolationReason(candidate opsSlowTailCandidate) (string, string) {
+	parts := []string{
+		fmt.Sprintf("platform=%s", candidate.Platform),
+		fmt.Sprintf("model=%s", candidate.Model),
+		fmt.Sprintf("reqs=%d", candidate.Requests),
+	}
+
+	reasonCode := "ops_slow_tail_latency"
+	if candidate.DurationP95 != nil {
+		parts = append(parts, fmt.Sprintf("duration_p95_ms=%d", *candidate.DurationP95))
+	}
+	if candidate.DurationMax != nil {
+		parts = append(parts, fmt.Sprintf("duration_max_ms=%d", *candidate.DurationMax))
+	}
+	if candidate.ResponseLatencyP95 != nil {
+		parts = append(parts, fmt.Sprintf("response_latency_p95_ms=%d", *candidate.ResponseLatencyP95))
+	}
+	if candidate.ResponseLatencyMax != nil {
+		parts = append(parts, fmt.Sprintf("response_latency_max_ms=%d", *candidate.ResponseLatencyMax))
+	}
+	if candidate.TTFTP95 != nil {
+		parts = append(parts, fmt.Sprintf("ttft_p95_ms=%d", *candidate.TTFTP95))
+	}
+	if candidate.TTFTMax != nil {
+		parts = append(parts, fmt.Sprintf("ttft_max_ms=%d", *candidate.TTFTMax))
+	}
+
+	return reasonCode, "slow tail isolation: " + strings.Join(parts, " ")
 }
 
 func (c *OpsMetricsCollector) withSlowTailRows(

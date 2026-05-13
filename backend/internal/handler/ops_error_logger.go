@@ -38,6 +38,10 @@ const (
 	opsErrInsufficientBalance        = "insufficient balance"
 	opsErrInsufficientAccountBalance = "insufficient account balance"
 	opsErrInsufficientQuota          = "insufficient_quota"
+	opsErrBrokenPipe                 = "broken pipe"
+	opsErrConnectionResetByPeer      = "connection reset by peer"
+	opsErrClosedNetworkConnection    = "use of closed network connection"
+	opsErrClientDisconnected         = "client disconnected"
 
 	// 上游错误码常量 — 错误分类 (normalizeOpsErrorType / classifyOpsPhase / classifyOpsIsBusinessLimited)
 	opsCodeInsufficientBalance  = "INSUFFICIENT_BALANCE"
@@ -495,6 +499,11 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 
 		status := c.Writer.Status()
 		if status < 400 {
+			if disconnectMsg, ok := opsClientDisconnectMessage(c); ok {
+				enqueueOpsClientDisconnectLog(c, ops, disconnectMsg)
+				return
+			}
+
 			// Even when the client request succeeds, we still want to persist upstream error attempts
 			// (retries/failover) so ops can observe upstream instability that gets "covered" by retries.
 			var events []*service.OpsUpstreamErrorEvent
@@ -1045,6 +1054,188 @@ func getContextLatencyMs(c *gin.Context, key string) *int64 {
 		return nil
 	}
 	return &ms
+}
+
+func opsClientDisconnectMessage(c *gin.Context) (string, bool) {
+	if c == nil {
+		return "", false
+	}
+
+	if msg, ok := matchOpsClientDisconnectMessage(c.Errors.String()); ok {
+		return msg, true
+	}
+	if c.Request != nil {
+		if msg, ok := matchOpsClientDisconnectMessage(c.Request.Context().Err()); ok {
+			return msg, true
+		}
+	}
+	return "", false
+}
+
+func matchOpsClientDisconnectMessage(raw any) (string, bool) {
+	var message string
+	switch v := raw.(type) {
+	case string:
+		message = strings.TrimSpace(v)
+	case error:
+		if v != nil {
+			message = strings.TrimSpace(v.Error())
+		}
+	default:
+		return "", false
+	}
+	if message == "" {
+		return "", false
+	}
+
+	msgLower := strings.ToLower(message)
+	switch {
+	case strings.Contains(msgLower, opsErrBrokenPipe):
+		return truncateString(message, 2048), true
+	case strings.Contains(msgLower, opsErrConnectionResetByPeer):
+		return truncateString(message, 2048), true
+	case strings.Contains(msgLower, opsErrClosedNetworkConnection):
+		return truncateString(message, 2048), true
+	case strings.Contains(msgLower, opsErrClientDisconnected):
+		return truncateString(message, 2048), true
+	default:
+		return "", false
+	}
+}
+
+func enqueueOpsClientDisconnectLog(c *gin.Context, ops *service.OpsService, disconnectMsg string) {
+	if c == nil || ops == nil {
+		return
+	}
+	disconnectMsg = strings.TrimSpace(disconnectMsg)
+	if disconnectMsg == "" {
+		return
+	}
+
+	if v, ok := c.Get(service.OpsSkipPassthroughKey); ok {
+		if skip, _ := v.(bool); skip {
+			return
+		}
+	}
+
+	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
+	clientRequestID, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string)
+
+	model, _ := c.Get(opsModelKey)
+	streamV, _ := c.Get(opsStreamKey)
+	accountIDV, _ := c.Get(opsAccountIDKey)
+
+	var modelName string
+	if s, ok := model.(string); ok {
+		modelName = s
+	}
+	if modelName == "" {
+		if bodyV, ok := c.Get(opsRequestBodyKey); ok {
+			if bodyBytes, ok := bodyV.([]byte); ok {
+				modelName = extractModelFromRequestBody(bodyBytes)
+			}
+		}
+	}
+
+	stream := false
+	if b, ok := streamV.(bool); ok {
+		stream = b
+	}
+
+	var accountID *int64
+	if v, ok := accountIDV.(int64); ok && v > 0 {
+		accountID = &v
+	}
+
+	fallbackPlatform := guessPlatformFromPath(c.Request.URL.Path)
+	platform := resolveOpsPlatform(apiKey, fallbackPlatform)
+
+	requestID := c.Writer.Header().Get("X-Request-Id")
+	if requestID == "" {
+		requestID = c.Writer.Header().Get("x-request-id")
+	}
+
+	entry := &service.OpsInsertErrorLogInput{
+		RequestID:       requestID,
+		ClientRequestID: clientRequestID,
+
+		AccountID: accountID,
+		Platform:  platform,
+		Model:     modelName,
+		RequestPath: func() string {
+			if c.Request != nil && c.Request.URL != nil {
+				return c.Request.URL.Path
+			}
+			return ""
+		}(),
+		Stream:           stream,
+		InboundEndpoint:  GetInboundEndpoint(c),
+		UpstreamEndpoint: GetUpstreamEndpoint(c, platform),
+		RequestedModel:   modelName,
+		UpstreamModel: func() string {
+			if v, ok := c.Get(opsUpstreamModelKey); ok {
+				if s, ok := v.(string); ok {
+					return strings.TrimSpace(s)
+				}
+			}
+			return ""
+		}(),
+		RequestType: func() *int16 {
+			if v, ok := c.Get(opsRequestTypeKey); ok {
+				switch t := v.(type) {
+				case int16:
+					return &t
+				case int:
+					v16 := int16(t)
+					return &v16
+				}
+			}
+			return nil
+		}(),
+		UserAgent: c.GetHeader("User-Agent"),
+
+		ErrorPhase:        "network",
+		ErrorType:         "client_disconnected",
+		Severity:          "P2",
+		StatusCode:        499,
+		IsBusinessLimited: false,
+		IsCountTokens:     isCountTokensRequest(c),
+
+		ErrorMessage: disconnectMsg,
+		ErrorBody:    "",
+
+		ErrorSource: "gateway",
+		ErrorOwner:  "client",
+
+		IsRetryable: false,
+		RetryCount:  0,
+		CreatedAt:   time.Now(),
+	}
+	applyOpsLatencyFieldsFromContext(c, entry)
+
+	if apiKey != nil {
+		entry.APIKeyID = &apiKey.ID
+		if apiKey.User != nil {
+			entry.UserID = &apiKey.User.ID
+		}
+		if apiKey.GroupID != nil {
+			entry.GroupID = apiKey.GroupID
+		}
+		if apiKey.Group != nil && apiKey.Group.Platform != "" {
+			entry.Platform = apiKey.Group.Platform
+		}
+	}
+
+	var clientIP string
+	if ip := strings.TrimSpace(ip.GetClientIP(c)); ip != "" {
+		clientIP = ip
+		entry.ClientIP = &clientIP
+	}
+
+	entry.RequestHeadersJSON = extractOpsRetryRequestHeaders(c)
+	attachOpsRequestBodyToEntry(c, entry)
+
+	enqueueOpsErrorLog(ops, entry)
 }
 
 type parsedOpsError struct {

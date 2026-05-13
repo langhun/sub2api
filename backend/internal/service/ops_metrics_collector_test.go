@@ -18,16 +18,17 @@ func TestListSlowTailCandidatesAppliesRuntimeGuards(t *testing.T) {
 
 	now := time.Date(2026, 5, 12, 10, 30, 0, 0, time.UTC)
 	rule := OpsSlowTailIsolationSettings{
-		WindowMinutes:      10,
-		MinRequests:        3,
-		TTFTP95MsThreshold: 12000,
-		MaxAccountsPerRun:  2,
+		WindowMinutes:          10,
+		MinRequests:            3,
+		TTFTP95MsThreshold:     12000,
+		DurationP95MsThreshold: 90000,
+		MaxAccountsPerRun:      2,
 	}
 
 	mock.ExpectBegin()
 	mock.ExpectExec(regexp.QuoteMeta("SET LOCAL statement_timeout = 2500")).
 		WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery(`(?s)HAVING COUNT\(\*\) >= 3.*ORDER BY p95 DESC, max_ttft DESC, reqs DESC\s+LIMIT 2`).
+	mock.ExpectQuery(`(?s)first_token_ms IS NOT NULL OR u\.duration_ms IS NOT NULL.*HAVING COUNT\(\*\) >= 3.*duration_ms.*first_token_ms.*LIMIT 2`).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"account_id",
@@ -35,9 +36,13 @@ func TestListSlowTailCandidatesAppliesRuntimeGuards(t *testing.T) {
 			"model",
 			"group_id",
 			"reqs",
-			"p95",
+			"ttft_p95",
 			"max_ttft",
-		}).AddRow(int64(11), "openai", "gpt-5", nil, 4, 13000, 21000))
+			"duration_p95",
+			"max_duration",
+			"response_latency_p95",
+			"max_response_latency",
+		}).AddRow(int64(11), "openai", "gpt-5", nil, 4, 13000, 21000, 98000, 120000, nil, nil))
 	mock.ExpectCommit()
 
 	collector := &OpsMetricsCollector{db: db}
@@ -62,24 +67,29 @@ func TestListSlowProxyCandidatesAppliesRuntimeGuards(t *testing.T) {
 
 	now := time.Date(2026, 5, 12, 10, 30, 0, 0, time.UTC)
 	rule := OpsSlowTailIsolationSettings{
-		WindowMinutes:      10,
-		MinRequests:        5,
-		TTFTP95MsThreshold: 15000,
-		MaxAccountsPerRun:  4,
+		WindowMinutes:                 10,
+		MinRequests:                   5,
+		TTFTP95MsThreshold:            15000,
+		ResponseLatencyP95MsThreshold: 80000,
+		MaxAccountsPerRun:             4,
 	}
 
 	mock.ExpectBegin()
 	mock.ExpectExec(regexp.QuoteMeta("SET LOCAL statement_timeout = 2500")).
 		WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery(`(?s)a\.proxy_id IS NOT NULL.*HAVING COUNT\(\*\) >= 5.*ORDER BY p95 DESC, max_ttft DESC, reqs DESC\s+LIMIT 4`).
+	mock.ExpectQuery(`(?s)a\.proxy_id IS NOT NULL.*first_token_ms IS NOT NULL OR u\.response_latency_ms IS NOT NULL.*HAVING COUNT\(\*\) >= 5.*response_latency_ms.*LIMIT 4`).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"proxy_id",
 			"platform",
 			"reqs",
-			"p95",
+			"ttft_p95",
 			"max_ttft",
-		}).AddRow(int64(21), "openai", 8, 16000, 26000))
+			"duration_p95",
+			"max_duration",
+			"response_latency_p95",
+			"max_response_latency",
+		}).AddRow(int64(21), "openai", 8, 16000, 26000, nil, nil, 91000, 110000))
 	mock.ExpectCommit()
 
 	collector := &OpsMetricsCollector{db: db}
@@ -113,5 +123,60 @@ func TestOpsSlowTailRunLimitClampsUnsafeValues(t *testing.T) {
 				t.Fatalf("opsSlowTailRunLimit() = %d, want %d", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestListSlowTailCandidates_DurationTailDoesNotRequireFirstTokenMs(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("new sqlmock: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	now := time.Date(2026, 5, 12, 10, 30, 0, 0, time.UTC)
+	rule := OpsSlowTailIsolationSettings{
+		WindowMinutes:          10,
+		MinRequests:            3,
+		TTFTP95MsThreshold:     12000,
+		DurationP95MsThreshold: 90000,
+		MaxAccountsPerRun:      2,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta("SET LOCAL statement_timeout = 2500")).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(`(?s)first_token_ms IS NOT NULL OR u\.duration_ms IS NOT NULL.*duration_ms.*>= 90000`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"account_id",
+			"platform",
+			"model",
+			"group_id",
+			"reqs",
+			"ttft_p95",
+			"max_ttft",
+			"duration_p95",
+			"max_duration",
+			"response_latency_p95",
+			"max_response_latency",
+		}).AddRow(int64(12), "openai", "gpt-5.5", nil, 3, nil, nil, 95000, 121000, nil, nil))
+	mock.ExpectCommit()
+
+	collector := &OpsMetricsCollector{db: db}
+	candidates, err := collector.listSlowTailCandidates(context.Background(), now, rule)
+	if err != nil {
+		t.Fatalf("list slow tail candidates: %v", err)
+	}
+	if len(candidates) != 1 || candidates[0].AccountID != 12 {
+		t.Fatalf("unexpected candidates: %+v", candidates)
+	}
+	if candidates[0].TTFTP95 != nil {
+		t.Fatalf("expected nil ttft p95, got %+v", candidates[0].TTFTP95)
+	}
+	if candidates[0].DurationP95 == nil || *candidates[0].DurationP95 != 95000 {
+		t.Fatalf("unexpected duration p95: %+v", candidates[0].DurationP95)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
 	}
 }

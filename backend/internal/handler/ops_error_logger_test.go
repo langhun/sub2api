@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -318,4 +319,61 @@ func TestSetOpsEndpointContext_NilContext(t *testing.T) {
 	require.NotPanics(t, func() {
 		setOpsEndpointContext(nil, "model", int16(1))
 	})
+}
+
+func TestOpsClientDisconnectMessage_MatchesGinErrors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/messages", nil)
+	_ = c.Error(errors.New("write tcp 127.0.0.1:1234->127.0.0.1:5678: write: broken pipe"))
+
+	msg, ok := opsClientDisconnectMessage(c)
+	require.True(t, ok)
+	require.Contains(t, msg, opsErrBrokenPipe)
+}
+
+func TestOpsErrorLoggerMiddleware_Success200_ClientDisconnect_Enqueues499(t *testing.T) {
+	resetOpsErrorLoggerStateForTest(t)
+	gin.SetMode(gin.TestMode)
+
+	opsErrorLogOnce.Do(func() {})
+	opsErrorLogMu.Lock()
+	opsErrorLogQueue = make(chan opsErrorLogJob, 1)
+	opsErrorLogMu.Unlock()
+
+	ops := service.NewOpsService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	r := gin.New()
+	r.Use(OpsErrorLoggerMiddleware(ops))
+	r.GET("/v1/messages", func(c *gin.Context) {
+		setOpsRequestContext(c, "gpt-5.5", false, []byte(`{"model":"gpt-5.5"}`))
+		_ = c.Error(errors.New("client disconnected during final flush"))
+		c.Status(http.StatusOK)
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/v1/messages", nil)
+	req.Header.Set("User-Agent", "ops-error-logger-test")
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(1), OpsErrorLogEnqueuedTotal())
+
+	select {
+	case job := <-opsErrorLogQueue:
+		require.NotNil(t, job.entry)
+		require.Equal(t, 499, job.entry.StatusCode)
+		require.Equal(t, "network", job.entry.ErrorPhase)
+		require.Equal(t, "client_disconnected", job.entry.ErrorType)
+		require.Equal(t, "client", job.entry.ErrorOwner)
+		require.Equal(t, "gateway", job.entry.ErrorSource)
+		require.Equal(t, "gpt-5.5", job.entry.Model)
+		require.Equal(t, "/v1/messages", job.entry.RequestPath)
+		require.Equal(t, "ops-error-logger-test", job.entry.UserAgent)
+		require.Contains(t, job.entry.ErrorMessage, "client disconnected")
+	default:
+		t.Fatal("expected client disconnect log to be enqueued")
+	}
 }
