@@ -180,3 +180,36 @@ func TestListSlowTailCandidates_DurationTailDoesNotRequireFirstTokenMs(t *testin
 		t.Fatalf("unmet sql expectations: %v", err)
 	}
 }
+
+func TestOpsMetricsCollectorQueryErrorCounts_ExcludesClientDisconnect499(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("new sqlmock: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectQuery(`(?s)SELECT\s+COALESCE\(COUNT\(\*\) FILTER \(WHERE .*client.*499`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"error_total",
+			"business_limited",
+			"error_sla",
+			"upstream_excl",
+			"upstream_429",
+			"upstream_529",
+		}).AddRow(int64(0), int64(0), int64(0), int64(0), int64(0), int64(0)))
+
+	collector := &OpsMetricsCollector{db: db}
+	start := time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC)
+	end := start.Add(time.Minute)
+	errorTotal, businessLimited, errorSLA, upstreamExcl, upstream429, upstream529, err := collector.queryErrorCounts(context.Background(), start, end)
+	if err != nil {
+		t.Fatalf("query error counts: %v", err)
+	}
+	if errorTotal != 0 || businessLimited != 0 || errorSLA != 0 || upstreamExcl != 0 || upstream429 != 0 || upstream529 != 0 {
+		t.Fatalf("unexpected counts: total=%d business=%d sla=%d upstream=%d 429=%d 529=%d", errorTotal, businessLimited, errorSLA, upstreamExcl, upstream429, upstream529)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet sql expectations: %v", err)
+	}
+}

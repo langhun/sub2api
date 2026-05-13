@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 func (r *opsRepository) UpsertHourlyMetrics(ctx context.Context, startTime, endTime time.Time) error {
@@ -83,6 +85,7 @@ error_base AS (
   -- Exclude count_tokens requests from error metrics as they are informational probes
   WHERE created_at >= $1 AND created_at < $2
     AND is_count_tokens = FALSE
+    AND ` + service.OpsClientDisconnectExclusionSQL("status_code", "error_owner") + `
 ),
 error_agg AS (
   SELECT

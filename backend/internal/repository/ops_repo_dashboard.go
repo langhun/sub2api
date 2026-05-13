@@ -676,7 +676,8 @@ func (r *opsRepository) rawOpsDataExists(ctx context.Context, filter *service.Op
 
 	{
 		where, args, _ := buildErrorWhere(filter, start, end, 1)
-		q := `SELECT EXISTS(SELECT 1 FROM ops_error_logs ` + where + ` LIMIT 1)`
+		q := `SELECT EXISTS(SELECT 1 FROM ops_error_logs ` + where + `
+  AND ` + service.OpsCountableErrorSQL("status_code", "error_owner") + ` LIMIT 1)`
 		var exists bool
 		if err := r.db.QueryRowContext(ctx, q, args...).Scan(&exists); err != nil {
 			return false, err
@@ -860,12 +861,13 @@ func (r *opsRepository) queryErrorCounts(ctx context.Context, filter *service.Op
 	err error,
 ) {
 	where, args, _ := buildErrorWhere(filter, start, end, 1)
+	countableError := service.OpsCountableErrorSQL("status_code", "error_owner")
 
 	q := `
 SELECT
-  COALESCE(COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400), 0) AS error_total,
-  COALESCE(COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400 AND is_business_limited), 0) AS business_limited,
-  COALESCE(COUNT(*) FILTER (WHERE COALESCE(status_code, 0) >= 400 AND NOT is_business_limited), 0) AS error_sla,
+  COALESCE(COUNT(*) FILTER (WHERE ` + countableError + `), 0) AS error_total,
+  COALESCE(COUNT(*) FILTER (WHERE ` + countableError + ` AND is_business_limited), 0) AS business_limited,
+  COALESCE(COUNT(*) FILTER (WHERE ` + countableError + ` AND NOT is_business_limited), 0) AS error_sla,
   COALESCE(COUNT(*) FILTER (WHERE error_owner = 'provider' AND NOT is_business_limited AND COALESCE(upstream_status_code, status_code, 0) NOT IN (429, 529)), 0) AS upstream_excl,
   COALESCE(COUNT(*) FILTER (WHERE error_owner = 'provider' AND NOT is_business_limited AND COALESCE(upstream_status_code, status_code, 0) = 429), 0) AS upstream_429,
   COALESCE(COUNT(*) FILTER (WHERE error_owner = 'provider' AND NOT is_business_limited AND COALESCE(upstream_status_code, status_code, 0) = 529), 0) AS upstream_529
@@ -905,6 +907,7 @@ func (r *opsRepository) queryCurrentRates(ctx context.Context, filter *service.O
 func (r *opsRepository) queryPeakRates(ctx context.Context, filter *service.OpsDashboardFilter, start, end time.Time) (qpsPeak float64, tpsPeak float64, err error) {
 	usageJoin, usageWhere, usageArgs, next := buildUsageWhere(filter, start, end, 1)
 	errorWhere, errorArgs, _ := buildErrorWhere(filter, start, end, next)
+	countableError := service.OpsCountableErrorSQL("status_code", "error_owner")
 
 	q := `
 WITH usage_buckets AS (
@@ -921,7 +924,7 @@ error_buckets AS (
   SELECT date_trunc('minute', created_at) AS bucket, COUNT(*) AS err_cnt
   FROM ops_error_logs
   ` + errorWhere + `
-    AND COALESCE(status_code, 0) >= 400
+    AND ` + countableError + `
   GROUP BY 1
 ),
 combined AS (
