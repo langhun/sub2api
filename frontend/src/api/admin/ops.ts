@@ -163,7 +163,7 @@ export interface OpsThroughputTrendResponse {
 
 export type OpsRequestKind = 'success' | 'error'
 export type OpsRequestDetailsKind = OpsRequestKind | 'all'
-export type OpsRequestDetailsSort = 'created_at_desc' | 'duration_desc' | 'ttft_desc'
+export type OpsRequestDetailsSort = 'created_at_desc' | 'duration_desc' | 'ttft_desc' | 'response_desc'
 
 export interface OpsRequestDetail {
   kind: OpsRequestKind
@@ -842,6 +842,7 @@ export interface OpsAlertRuntimeSettings {
 export interface OpsAdvancedSettings {
   data_retention: OpsDataRetentionSettings
   aggregation: OpsAggregationSettings
+  slow_tail_isolation: OpsSlowTailIsolationSettings
   ignore_count_tokens_errors: boolean
   ignore_context_canceled: boolean
   ignore_no_available_accounts: boolean
@@ -851,6 +852,20 @@ export interface OpsAdvancedSettings {
   display_alert_events: boolean
   auto_refresh_enabled: boolean
   auto_refresh_interval_seconds: number
+}
+
+export interface OpsSlowTailIsolationSettings {
+  enabled: boolean
+  window_minutes: number
+  min_requests: number
+  ttft_p95_ms_threshold: number
+  duration_p95_ms_threshold: number
+  response_latency_p95_ms_threshold: number
+  temp_unsched_minutes: number
+  platforms: string[]
+  models: string[]
+  group_ids: number[]
+  max_accounts_per_run: number
 }
 
 export interface OpsDataRetentionSettings {
