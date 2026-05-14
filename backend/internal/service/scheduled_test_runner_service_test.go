@@ -5,7 +5,9 @@ package service
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,6 +27,7 @@ type scheduledRunnerAccountRepoStub struct {
 	boundAccountID  int64
 	boundGroupIDs   []int64
 	bindErr         error
+	extraUpdates    map[string]any
 }
 
 func (s *scheduledRunnerAccountRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
@@ -37,7 +40,28 @@ func (s *scheduledRunnerAccountRepoStub) GetByID(ctx context.Context, id int64) 
 func (s *scheduledRunnerAccountRepoStub) BindGroups(ctx context.Context, accountID int64, groupIDs []int64) error {
 	s.boundAccountID = accountID
 	s.boundGroupIDs = append([]int64(nil), groupIDs...)
+	if account, ok := s.accountsByID[accountID]; ok {
+		account.GroupIDs = append([]int64(nil), groupIDs...)
+	}
 	return s.bindErr
+}
+
+func (s *scheduledRunnerAccountRepoStub) UpdateExtra(ctx context.Context, accountID int64, updates map[string]any) error {
+	if s.extraUpdates == nil {
+		s.extraUpdates = make(map[string]any)
+	}
+	for key, value := range updates {
+		s.extraUpdates[key] = value
+	}
+	if account, ok := s.accountsByID[accountID]; ok {
+		if account.Extra == nil {
+			account.Extra = make(map[string]any)
+		}
+		for key, value := range updates {
+			account.Extra[key] = value
+		}
+	}
+	return nil
 }
 
 func (s *scheduledTestPlanRepoStub) Create(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error) {
@@ -273,4 +297,60 @@ func TestScheduledTestRunnerService_429SwitchGroupContractPendingMainline(t *tes
 	require.Equal(t, "switched_group_1002_to_1003", resultRepo.created.ActionTaken)
 	require.NotNil(t, resultRepo.created.HTTPStatusCode)
 	require.Equal(t, http.StatusTooManyRequests, *resultRepo.created.HTTPStatusCode)
+	require.Equal(t, int64(1002), int64(ParseExtraInt(accountRepo.extraUpdates[scheduledTest429RestoreKey(plan.ID)])))
+}
+
+func TestScheduledTestRunnerService_SuccessRestoresOriginalGroupAfter429Cooldown(t *testing.T) {
+	planRepo := &scheduledTestPlanRepoStub{}
+	resultRepo := &scheduledTestResultRepoStub{}
+	scheduledSvc := NewScheduledTestService(nil, resultRepo)
+	fromID := int64(1002)
+	toID := int64(1003)
+	planID := int64(188)
+	restoreKey := scheduledTest429RestoreKey(planID)
+	accountRepo := &scheduledRunnerAccountRepoStub{
+		accountRepoStub: accountRepoStub{exists: true},
+		accountsByID: map[int64]*Account{
+			88: {
+				ID:          88,
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeOAuth,
+				Status:      StatusActive,
+				Concurrency: 1,
+				Credentials: map[string]any{"access_token": "test-token"},
+				GroupIDs:    []int64{1001, toID},
+				Extra: map[string]any{
+					restoreKey: fromID,
+				},
+			},
+		},
+	}
+	successResp := newJSONResponse(http.StatusOK, "")
+	successResp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+	accountTestSvc := &AccountTestService{
+		accountRepo:  accountRepo,
+		httpUpstream: &queuedHTTPUpstream{responses: []*http.Response{successResp}},
+	}
+	runner := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, nil, accountRepo, nil, nil)
+
+	plan := &ScheduledTestPlan{
+		ID:                planID,
+		AccountID:         88,
+		ModelID:           "gpt-5.4",
+		CronExpression:    "*/5 * * * *",
+		MaxResults:        9,
+		SwitchGroupFromID: &fromID,
+		SwitchGroupToID:   &toID,
+	}
+
+	runner.runOnePlan(context.Background(), plan)
+
+	require.Equal(t, int64(88), accountRepo.boundAccountID)
+	require.Equal(t, []int64{1001, fromID}, accountRepo.boundGroupIDs)
+	require.NotNil(t, resultRepo.created)
+	require.Equal(t, "success", resultRepo.created.Status)
+	require.Equal(t, "restored_group_1003_to_1002", resultRepo.created.ActionTaken)
+	require.Equal(t, 0, ParseExtraInt(accountRepo.accountsByID[88].Extra[restoreKey]))
 }

@@ -133,12 +133,18 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 		return
 	}
 
+	followUpResult, actionErr := s.applyPlanActions(ctx, plan, result)
+	if actionErr != nil {
+		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d action error: %v", plan.ID, actionErr)
+	}
+
 	if err := s.scheduledSvc.SaveResult(ctx, plan.ID, plan.MaxResults, result); err != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d SaveResult error: %v", plan.ID, err)
 	}
-
-	if err := s.applyFailureActions(ctx, plan, result); err != nil {
-		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d failure action error: %v", plan.ID, err)
+	if followUpResult != nil {
+		if err := s.scheduledSvc.SaveResult(ctx, plan.ID, plan.MaxResults, followUpResult); err != nil {
+			logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d SaveFollowUpResult error: %v", plan.ID, err)
+		}
 	}
 
 	// Auto-recover account if test succeeded and auto_recover is enabled.
@@ -157,9 +163,13 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 	}
 }
 
-func (s *ScheduledTestRunnerService) applyFailureActions(ctx context.Context, plan *ScheduledTestPlan, result *ScheduledTestResult) error {
-	if plan == nil || result == nil || result.Status == "success" {
-		return nil
+func (s *ScheduledTestRunnerService) applyPlanActions(ctx context.Context, plan *ScheduledTestPlan, result *ScheduledTestResult) (*ScheduledTestResult, error) {
+	if plan == nil || result == nil {
+		return nil, nil
+	}
+
+	if result.Status == "success" {
+		return nil, s.handleSuccessful429GroupRestore(ctx, plan, result)
 	}
 
 	if result.HTTPStatusCode != nil {
@@ -167,21 +177,22 @@ func (s *ScheduledTestRunnerService) applyFailureActions(ctx context.Context, pl
 		case 401:
 			return s.handleConfirmed401(ctx, plan, result)
 		case 429:
-			return s.handle429GroupSwitch(ctx, plan, result)
+			return nil, s.handle429GroupSwitch(ctx, plan, result)
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
-func (s *ScheduledTestRunnerService) handleConfirmed401(ctx context.Context, plan *ScheduledTestPlan, firstResult *ScheduledTestResult) error {
+func (s *ScheduledTestRunnerService) handleConfirmed401(ctx context.Context, plan *ScheduledTestPlan, firstResult *ScheduledTestResult) (*ScheduledTestResult, error) {
 	if !plan.DeleteOnConfirmed401 || s.accountRepo == nil || s.accountTestSvc == nil {
-		return nil
+		return nil, nil
 	}
 
 	confirmResult, err := s.accountTestSvc.RunTestBackground(ctx, plan.AccountID, plan.ModelID)
 	if err != nil {
-		return fmt.Errorf("confirm 401 rerun: %w", err)
+		firstResult.ActionTaken = "confirm_401_failed"
+		return nil, fmt.Errorf("confirm 401 rerun: %w", err)
 	}
 	confirmResult.AttemptNo = 2
 
@@ -190,8 +201,8 @@ func (s *ScheduledTestRunnerService) handleConfirmed401(ctx context.Context, pla
 		if err := s.accountRepo.Delete(ctx, plan.AccountID); err != nil {
 			actionTaken = "delete_failed"
 			confirmResult.ActionTaken = actionTaken
-			_ = s.scheduledSvc.SaveResult(ctx, plan.ID, plan.MaxResults, confirmResult)
-			return fmt.Errorf("delete account after confirmed 401: %w", err)
+			firstResult.ActionTaken = actionTaken
+			return confirmResult, fmt.Errorf("delete account after confirmed 401: %w", err)
 		}
 		actionTaken = "deleted_account"
 	} else {
@@ -200,7 +211,7 @@ func (s *ScheduledTestRunnerService) handleConfirmed401(ctx context.Context, pla
 
 	firstResult.ActionTaken = actionTaken
 	confirmResult.ActionTaken = actionTaken
-	return s.scheduledSvc.SaveResult(ctx, plan.ID, plan.MaxResults, confirmResult)
+	return confirmResult, nil
 }
 
 func (s *ScheduledTestRunnerService) handle429GroupSwitch(ctx context.Context, plan *ScheduledTestPlan, result *ScheduledTestResult) error {
@@ -216,13 +227,7 @@ func (s *ScheduledTestRunnerService) handle429GroupSwitch(ctx context.Context, p
 		return fmt.Errorf("load account for 429 group switch: %w", err)
 	}
 
-	groupIDs := append([]int64(nil), account.GroupIDs...)
-	if len(groupIDs) == 0 && len(account.AccountGroups) > 0 {
-		groupIDs = make([]int64, 0, len(account.AccountGroups))
-		for _, group := range account.AccountGroups {
-			groupIDs = append(groupIDs, group.GroupID)
-		}
-	}
+	groupIDs := extractAccountGroupIDs(account)
 
 	updatedGroupIDs, changed := replaceGroupID(groupIDs, *plan.SwitchGroupFromID, *plan.SwitchGroupToID)
 	if !changed {
@@ -239,7 +244,53 @@ func (s *ScheduledTestRunnerService) handle429GroupSwitch(ctx context.Context, p
 	if err := s.accountRepo.BindGroups(ctx, plan.AccountID, updatedGroupIDs); err != nil {
 		return fmt.Errorf("switch groups after 429: %w", err)
 	}
+	if err := s.setPending429Restore(ctx, plan.AccountID, plan.ID, *plan.SwitchGroupFromID); err != nil {
+		result.ActionTaken = "switch_group_marker_failed"
+		return fmt.Errorf("record pending 429 restore: %w", err)
+	}
 	result.ActionTaken = fmt.Sprintf("switched_group_%d_to_%d", *plan.SwitchGroupFromID, *plan.SwitchGroupToID)
+	return nil
+}
+
+func (s *ScheduledTestRunnerService) handleSuccessful429GroupRestore(ctx context.Context, plan *ScheduledTestPlan, result *ScheduledTestResult) error {
+	if plan.SwitchGroupFromID == nil || plan.SwitchGroupToID == nil || s.accountRepo == nil {
+		return nil
+	}
+
+	account, err := s.accountRepo.GetByID(ctx, plan.AccountID)
+	if err != nil {
+		return fmt.Errorf("load account for 429 restore: %w", err)
+	}
+
+	pendingFromID, hasPending := getPending429Restore(account, plan.ID)
+	if !hasPending || pendingFromID != *plan.SwitchGroupFromID {
+		return nil
+	}
+
+	groupIDs := extractAccountGroupIDs(account)
+	restoredGroupIDs, changed := replaceGroupID(groupIDs, *plan.SwitchGroupToID, *plan.SwitchGroupFromID)
+	if !changed {
+		if err := s.clearPending429Restore(ctx, plan.AccountID, plan.ID); err != nil {
+			return fmt.Errorf("clear pending 429 restore after skipped restore: %w", err)
+		}
+		result.ActionTaken = "restore_group_skipped"
+		return nil
+	}
+
+	if s.groupRepo != nil {
+		if _, err := s.groupRepo.GetByID(ctx, *plan.SwitchGroupFromID); err != nil {
+			return fmt.Errorf("validate restore group: %w", err)
+		}
+	}
+
+	if err := s.accountRepo.BindGroups(ctx, plan.AccountID, restoredGroupIDs); err != nil {
+		return fmt.Errorf("restore groups after successful test: %w", err)
+	}
+	if err := s.clearPending429Restore(ctx, plan.AccountID, plan.ID); err != nil {
+		result.ActionTaken = "restore_group_marker_failed"
+		return fmt.Errorf("clear pending 429 restore: %w", err)
+	}
+	result.ActionTaken = fmt.Sprintf("restored_group_%d_to_%d", *plan.SwitchGroupToID, *plan.SwitchGroupFromID)
 	return nil
 }
 
@@ -273,6 +324,66 @@ func replaceGroupID(groupIDs []int64, fromID int64, toID int64) ([]int64, bool) 
 	}
 
 	return updated, changed
+}
+
+func extractAccountGroupIDs(account *Account) []int64 {
+	if account == nil {
+		return nil
+	}
+
+	groupIDs := append([]int64(nil), account.GroupIDs...)
+	if len(groupIDs) > 0 {
+		return groupIDs
+	}
+
+	if len(account.AccountGroups) == 0 {
+		return nil
+	}
+
+	groupIDs = make([]int64, 0, len(account.AccountGroups))
+	for _, group := range account.AccountGroups {
+		groupIDs = append(groupIDs, group.GroupID)
+	}
+	return groupIDs
+}
+
+func scheduledTest429RestoreKey(planID int64) string {
+	return fmt.Sprintf("scheduled_test_429_restore_group_%d", planID)
+}
+
+func getPending429Restore(account *Account, planID int64) (int64, bool) {
+	if account == nil || account.Extra == nil {
+		return 0, false
+	}
+
+	raw, ok := account.Extra[scheduledTest429RestoreKey(planID)]
+	if !ok || raw == nil {
+		return 0, false
+	}
+
+	groupID := int64(ParseExtraInt(raw))
+	if groupID <= 0 {
+		return 0, false
+	}
+	return groupID, true
+}
+
+func (s *ScheduledTestRunnerService) setPending429Restore(ctx context.Context, accountID int64, planID int64, fromGroupID int64) error {
+	if s.accountRepo == nil {
+		return nil
+	}
+	return s.accountRepo.UpdateExtra(ctx, accountID, map[string]any{
+		scheduledTest429RestoreKey(planID): fromGroupID,
+	})
+}
+
+func (s *ScheduledTestRunnerService) clearPending429Restore(ctx context.Context, accountID int64, planID int64) error {
+	if s.accountRepo == nil {
+		return nil
+	}
+	return s.accountRepo.UpdateExtra(ctx, accountID, map[string]any{
+		scheduledTest429RestoreKey(planID): 0,
+	})
 }
 
 // tryRecoverAccount attempts to recover an account from recoverable runtime state.
