@@ -32,11 +32,11 @@
     <div
       v-if="displayEntries.length > 0 && chartData"
       data-testid="consumption-chart-layout"
-      class="flow-root"
+      class="flex flex-col gap-6 xl:flex-row xl:items-center xl:gap-8"
     >
       <div
         data-testid="consumption-chart-wrapper"
-        class="mx-auto mb-6 w-full max-w-[16rem] xl:float-left xl:mr-8 xl:mb-0 xl:w-[18rem] xl:max-w-[18rem]"
+        class="mx-auto w-full max-w-[16rem] xl:mx-0 xl:max-w-[24rem] xl:flex-[0_0_24rem]"
       >
         <div class="mx-auto h-56 w-56 sm:h-60 sm:w-60 xl:h-64 xl:w-64">
           <Doughnut :data="chartData" :options="doughnutOptions" />
@@ -48,66 +48,67 @@
 
       <div
         data-testid="consumption-ranking-scroll"
-        class="consumption-ranking-scroll min-w-0 max-h-[24rem] overflow-y-auto pr-1 xl:max-h-none xl:overflow-visible"
+        class="consumption-ranking-scroll min-w-0 max-h-[24rem] flex-1 overflow-y-auto pr-1"
       >
-        <div class="min-w-0 text-xs">
-          <div
-            class="grid grid-cols-[minmax(0,1fr)_72px_88px_56px] gap-x-4 pb-2 text-gray-500 dark:text-gray-400"
-          >
-            <div>{{ t('leaderboard.title') }}</div>
-            <div class="text-right">{{ t('leaderboard.requests') }}</div>
-            <div class="text-right">{{ t('leaderboard.amount') }}</div>
-            <div class="text-right">{{ t('leaderboard.share') }}</div>
-          </div>
-
-          <div
-            v-for="entry in displayEntries"
-            :key="`${entry.rank}-${entry.username}`"
-            data-testid="consumption-ranking-row"
-            class="grid grid-cols-[minmax(0,1fr)_72px_88px_56px] items-center gap-x-4 border-t border-gray-100 py-2 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-dark-700/40"
-          >
-            <div class="min-w-0">
-              <div class="flex min-w-0 items-center gap-3">
-                <div
-                  :class="rankClass(entry.rank)"
-                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-                >
-                  <span v-if="entry.rank <= 3">{{ medals[entry.rank - 1] }}</span>
-                  <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
-                </div>
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2">
-                    <span
-                      class="h-2.5 w-2.5 shrink-0 rounded-full"
-                      :style="{ backgroundColor: getEntryColor(entry.rank) }"
-                    ></span>
-                    <span
-                      class="block max-w-[180px] truncate font-medium text-gray-900 dark:text-white"
-                      :title="entry.username"
-                    >
-                      {{ entry.username }}
-                    </span>
-                  </div>
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-gray-500 dark:text-gray-400">
+              <th class="pb-2 text-left">{{ t('leaderboard.title') }}</th>
+              <th class="pb-2 text-right">{{ t('leaderboard.requests') }}</th>
+              <th class="pb-2 text-right">{{ t('leaderboard.amount') }}</th>
+              <th class="pb-2 text-right">{{ t('leaderboard.share') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="entry in displayEntries"
+              :key="`${entry.rank}-${entry.username}`"
+              data-testid="consumption-ranking-row"
+              class="border-t border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-dark-700/40"
+            >
+              <td class="py-2">
+                <div class="flex min-w-0 items-center gap-3">
                   <div
-                    v-if="entry.extra_int"
-                    class="mt-1 text-[11px] text-gray-400 dark:text-dark-500"
+                    :class="rankClass(entry.rank)"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
                   >
-                    {{ t('leaderboard.consumptionSubtitle', { count: entry.extra_int }) }}
+                    <span v-if="entry.rank <= 3">{{ medals[entry.rank - 1] }}</span>
+                    <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="h-2.5 w-2.5 shrink-0 rounded-full"
+                        :style="{ backgroundColor: getEntryColor(entry.rank) }"
+                      ></span>
+                      <span
+                        class="block max-w-[180px] truncate font-medium text-gray-900 dark:text-white"
+                        :title="entry.username"
+                      >
+                        {{ entry.username }}
+                      </span>
+                    </div>
+                    <div
+                      v-if="entry.extra_int"
+                      class="mt-1 text-[11px] text-gray-400 dark:text-dark-500"
+                    >
+                      {{ t('leaderboard.consumptionSubtitle', { count: entry.extra_int }) }}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div class="text-right text-gray-600 dark:text-gray-400">
-              {{ formatRequestCount(entry.extra_int) }}
-            </div>
-            <div class="text-right text-green-600 dark:text-green-400">
-              ${{ formatCurrency(entry.value) }}
-            </div>
-            <div class="text-right text-gray-400 dark:text-gray-500">
-              {{ formatShare(entry.value) }}
-            </div>
-          </div>
-        </div>
+              </td>
+              <td class="py-2 text-right text-gray-600 dark:text-gray-400">
+                {{ formatRequestCount(entry.extra_int) }}
+              </td>
+              <td class="py-2 text-right text-green-600 dark:text-green-400">
+                ${{ formatCurrency(entry.value) }}
+              </td>
+              <td class="py-2 text-right text-gray-400 dark:text-gray-500">
+                {{ formatShare(entry.value) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

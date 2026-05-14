@@ -145,8 +145,6 @@ describe('PublicConsumptionLeaderboardChart', () => {
     expect(scrollContainer.classes()).toContain('consumption-ranking-scroll')
     expect(scrollContainer.classes()).toContain('max-h-[24rem]')
     expect(scrollContainer.classes()).toContain('overflow-y-auto')
-    expect(scrollContainer.classes()).toContain('xl:max-h-none')
-    expect(scrollContainer.classes()).toContain('xl:overflow-visible')
     expect(rankingRows).toHaveLength(12)
     expect(rankingRows[8].text()).toContain('用户9')
     expect(rankingRows[9].text()).toContain('用户10')
@@ -169,9 +167,10 @@ describe('PublicConsumptionLeaderboardChart', () => {
 
     const chartWrapper = wrapper.get('[data-testid="consumption-chart-wrapper"]')
     expect(chartWrapper.classes()).toContain('mx-auto')
+    expect(chartWrapper.classes()).toContain('xl:mx-0')
   })
 
-  it('uses a floated side chart layout on desktop', () => {
+  it('uses a larger fixed chart column on desktop layouts', () => {
     const wrapper = mount(PublicConsumptionLeaderboardChart, {
       props: {
         chartItems: [
@@ -188,10 +187,10 @@ describe('PublicConsumptionLeaderboardChart', () => {
     const layout = wrapper.get('[data-testid="consumption-chart-layout"]')
     const chartWrapper = wrapper.get('[data-testid="consumption-chart-wrapper"]')
 
-    expect(layout.classes()).toContain('flow-root')
-    expect(chartWrapper.classes()).toContain('xl:float-left')
-    expect(chartWrapper.classes()).toContain('xl:mr-8')
-    expect(chartWrapper.classes()).toContain('xl:w-[18rem]')
-    expect(chartWrapper.classes()).toContain('xl:max-w-[18rem]')
+    expect(layout.classes()).toContain('xl:flex-row')
+    expect(layout.classes()).toContain('xl:items-center')
+    expect(layout.classes()).toContain('xl:gap-8')
+    expect(chartWrapper.classes()).toContain('xl:flex-[0_0_24rem]')
+    expect(chartWrapper.classes()).toContain('xl:max-w-[24rem]')
   })
 })
