@@ -9,6 +9,13 @@
       <span class="text-xs">{{ t('admin.channelMonitor.runNow') }}</span>
     </button>
     <button
+      @click="$emit('history', row)"
+      class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+    >
+      <Icon name="clock" size="sm" />
+      <span class="text-xs">{{ t('admin.channelMonitor.historyButton') }}</span>
+    </button>
+    <button
       @click="$emit('edit', row)"
       class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
     >
@@ -37,6 +44,7 @@ defineProps<{
 
 defineEmits<{
   (e: 'run', row: ChannelMonitor): void
+  (e: 'history', row: ChannelMonitor): void
   (e: 'edit', row: ChannelMonitor): void
   (e: 'delete', row: ChannelMonitor): void
 }>()
