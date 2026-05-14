@@ -72,6 +72,8 @@ type openAIAccountTestRepo struct {
 	clearedErrorID     int64
 	setErrorID         int64
 	setErrorMsg        string
+	boundAccountID     int64
+	boundGroupIDs      []int64
 }
 
 func (r *openAIAccountTestRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
@@ -110,6 +112,24 @@ func (r *openAIAccountTestRepo) SetError(_ context.Context, id int64, errorMsg s
 	return nil
 }
 
+func (r *openAIAccountTestRepo) BindGroups(_ context.Context, accountID int64, groupIDs []int64) error {
+	r.boundAccountID = accountID
+	r.boundGroupIDs = append([]int64(nil), groupIDs...)
+	if account, ok := r.accountsByID[accountID]; ok {
+		account.GroupIDs = append([]int64(nil), groupIDs...)
+	}
+	return nil
+}
+
+type accountTestGroupRepoStub struct {
+	GroupRepository
+	groupsByPlatform map[string][]Group
+}
+
+func (s *accountTestGroupRepoStub) ListActiveByPlatform(_ context.Context, platform string) ([]Group, error) {
+	return append([]Group(nil), s.groupsByPlatform[platform]...), nil
+}
+
 func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newTestContext()
@@ -141,6 +161,104 @@ func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.
 	require.NotEmpty(t, repo.updatedExtra)
 	require.Equal(t, 42.0, repo.updatedExtra["codex_5h_used_percent"])
 	require.Equal(t, 88.0, repo.updatedExtra["codex_7d_used_percent"])
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAISuccessBindsPlatformDefaultGroupForUngroupedAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				89: {
+					ID:          89,
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeOAuth,
+					Concurrency: 1,
+					Credentials: map[string]any{"access_token": "test-token"},
+				},
+			},
+		},
+	}
+	groupRepo := &accountTestGroupRepoStub{
+		groupsByPlatform: map[string][]Group{
+			PlatformOpenAI: {
+				{ID: 501, Name: "openai-default", Platform: PlatformOpenAI},
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, groupRepo: groupRepo, httpUpstream: upstream}
+
+	account := &Account{
+		ID:          89,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.NoError(t, err)
+	require.Equal(t, int64(89), repo.boundAccountID)
+	require.Equal(t, []int64{501}, repo.boundGroupIDs)
+	require.Equal(t, []int64{501}, account.GroupIDs)
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAISuccessDoesNotOverrideExplicitGroups(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				90: {
+					ID:          90,
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeOAuth,
+					Concurrency: 1,
+					GroupIDs:    []int64{700},
+					Credentials: map[string]any{"access_token": "test-token"},
+				},
+			},
+		},
+	}
+	groupRepo := &accountTestGroupRepoStub{
+		groupsByPlatform: map[string][]Group{
+			PlatformOpenAI: {
+				{ID: 501, Name: "openai-default", Platform: PlatformOpenAI},
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, groupRepo: groupRepo, httpUpstream: upstream}
+
+	account := &Account{
+		ID:          90,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		GroupIDs:    []int64{700},
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.NoError(t, err)
+	require.Zero(t, repo.boundAccountID)
+	require.Nil(t, repo.boundGroupIDs)
+	require.Equal(t, []int64{700}, account.GroupIDs)
 	require.Contains(t, recorder.Body.String(), "test_complete")
 }
 
