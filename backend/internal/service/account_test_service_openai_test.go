@@ -93,12 +93,20 @@ func (r *openAIAccountTestRepo) SetRateLimited(_ context.Context, id int64, rese
 
 func (r *openAIAccountTestRepo) ClearError(_ context.Context, id int64) error {
 	r.clearedErrorID = id
+	if account, ok := r.accountsByID[id]; ok {
+		account.Status = StatusActive
+		account.ErrorMessage = ""
+	}
 	return nil
 }
 
 func (r *openAIAccountTestRepo) SetError(_ context.Context, id int64, errorMsg string) error {
 	r.setErrorID = id
 	r.setErrorMsg = errorMsg
+	if account, ok := r.accountsByID[id]; ok {
+		account.Status = StatusError
+		account.ErrorMessage = errorMsg
+	}
 	return nil
 }
 
@@ -394,9 +402,6 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 
 	resp := newJSONResponse(http.StatusUnauthorized, `{"error":"bad token"}`)
 
-	repo := &openAIAccountTestRepo{}
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
-	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
 		ID:          80,
 		Platform:    PlatformOpenAI,
@@ -405,6 +410,15 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 		Concurrency: 1,
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				80: account,
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
 	require.Error(t, err)
@@ -413,6 +427,8 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 	require.Zero(t, repo.rateLimitedID)
 	require.Zero(t, repo.clearedErrorID)
 	require.Nil(t, account.RateLimitResetAt)
+	require.Equal(t, StatusError, account.Status)
+	require.Contains(t, account.ErrorMessage, "Authentication failed (401)")
 }
 
 func TestAccountTestService_RunTestBackground_OpenAI401ReturnsFailedResult(t *testing.T) {
@@ -452,6 +468,8 @@ func TestAccountTestService_RunTestBackground_OpenAI401ReturnsFailedResult(t *te
 	require.NotZero(t, result.FinishedAt)
 	require.GreaterOrEqual(t, result.LatencyMs, int64(0))
 	require.Equal(t, int64(80), repo.setErrorID)
+	require.Equal(t, StatusError, repo.accountsByID[80].Status)
+	require.Contains(t, repo.accountsByID[80].ErrorMessage, "Authentication failed (401)")
 }
 
 func TestAccountTestService_RunTestBackground_OpenAI429ReturnsFailedResult(t *testing.T) {
