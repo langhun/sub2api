@@ -52,6 +52,7 @@ type accountRepository struct {
 }
 
 var schedulerNeutralExtraKeyPrefixes = []string{
+	"auto_test_",
 	"codex_primary_",
 	"codex_secondary_",
 	"codex_5h_",
@@ -784,6 +785,9 @@ func accountListOrder(params pagination.PaginationParams) []func(*entsql.Selecto
 		defaultOrder = false
 	case "created_at":
 		field = dbaccount.FieldCreatedAt
+		defaultOrder = false
+	case "updated_at":
+		field = dbaccount.FieldUpdatedAt
 		defaultOrder = false
 	}
 
