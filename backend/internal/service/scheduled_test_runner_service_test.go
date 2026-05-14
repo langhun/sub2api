@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/Wei-Shaw/sub2api/internal/config"
 )
 
 type scheduledTestPlanRepoStub struct {
@@ -28,6 +30,10 @@ type scheduledRunnerAccountRepoStub struct {
 	boundGroupIDs   []int64
 	bindErr         error
 	extraUpdates    map[string]any
+	setErrorID      int64
+	setErrorMsg     string
+	clearErrorID    int64
+	clearErrorCalls int
 }
 
 func (s *scheduledRunnerAccountRepoStub) GetByID(ctx context.Context, id int64) (*Account, error) {
@@ -60,6 +66,50 @@ func (s *scheduledRunnerAccountRepoStub) UpdateExtra(ctx context.Context, accoun
 		for key, value := range updates {
 			account.Extra[key] = value
 		}
+	}
+	return nil
+}
+
+func (s *scheduledRunnerAccountRepoStub) SetError(ctx context.Context, accountID int64, errorMsg string) error {
+	s.setErrorID = accountID
+	s.setErrorMsg = errorMsg
+	if account, ok := s.accountsByID[accountID]; ok {
+		account.Status = StatusError
+		account.ErrorMessage = errorMsg
+	}
+	return nil
+}
+
+func (s *scheduledRunnerAccountRepoStub) ClearError(ctx context.Context, accountID int64) error {
+	s.clearErrorID = accountID
+	s.clearErrorCalls++
+	if account, ok := s.accountsByID[accountID]; ok {
+		account.Status = StatusActive
+		account.ErrorMessage = ""
+	}
+	return nil
+}
+
+func (s *scheduledRunnerAccountRepoStub) ClearRateLimit(ctx context.Context, accountID int64) error {
+	if account, ok := s.accountsByID[accountID]; ok {
+		account.RateLimitedAt = nil
+		account.RateLimitResetAt = nil
+		account.TempUnschedulableUntil = nil
+	}
+	return nil
+}
+
+func (s *scheduledRunnerAccountRepoStub) ClearAntigravityQuotaScopes(ctx context.Context, accountID int64) error {
+	return nil
+}
+
+func (s *scheduledRunnerAccountRepoStub) ClearModelRateLimits(ctx context.Context, accountID int64) error {
+	return nil
+}
+
+func (s *scheduledRunnerAccountRepoStub) ClearTempUnschedulable(ctx context.Context, accountID int64) error {
+	if account, ok := s.accountsByID[accountID]; ok {
+		account.TempUnschedulableUntil = nil
 	}
 	return nil
 }
@@ -97,6 +147,7 @@ func (s *scheduledTestPlanRepoStub) UpdateAfterRun(ctx context.Context, id int64
 
 type scheduledTestResultRepoStub struct {
 	created     *ScheduledTestResult
+	createdList []*ScheduledTestResult
 	prunedPlan  int64
 	prunedKeep  int
 	createErr   error
@@ -112,6 +163,7 @@ func (s *scheduledTestResultRepoStub) Create(ctx context.Context, result *Schedu
 	}
 	cloned := *result
 	s.created = &cloned
+	s.createdList = append(s.createdList, &cloned)
 	return &cloned, nil
 }
 
@@ -200,7 +252,7 @@ func TestScheduledTestRunnerService_RunOnePlanSavesResultAndUpdatesNextRun(t *te
 	require.True(t, planRepo.lastUpdateNextRun.After(planRepo.lastUpdateRunAt))
 }
 
-func TestScheduledTestRunnerService_401DoubleCheckDeleteContractPendingMainline(t *testing.T) {
+func TestScheduledTestRunnerService_401FirstRoundLeavesAccountInErrorForNextScheduledRun(t *testing.T) {
 	planRepo := &scheduledTestPlanRepoStub{}
 	resultRepo := &scheduledTestResultRepoStub{}
 	scheduledSvc := NewScheduledTestService(nil, resultRepo)
@@ -220,6 +272,58 @@ func TestScheduledTestRunnerService_401DoubleCheckDeleteContractPendingMainline(
 	upstream := &queuedHTTPUpstream{
 		responses: []*http.Response{
 			newJSONResponse(http.StatusUnauthorized, `{"error":"bad token"}`),
+		},
+	}
+	accountTestSvc := &AccountTestService{
+		accountRepo:  accountRepo,
+		httpUpstream: upstream,
+	}
+	runner := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, nil, accountRepo, nil, nil)
+
+	plan := &ScheduledTestPlan{
+		ID:                   77,
+		AccountID:            80,
+		ModelID:              "gpt-5.4",
+		CronExpression:       "*/5 * * * *",
+		MaxResults:           9,
+		DeleteOnConfirmed401: true,
+	}
+
+	runner.runOnePlan(context.Background(), plan)
+
+	require.Equal(t, int64(80), accountRepo.setErrorID)
+	require.Contains(t, accountRepo.setErrorMsg, "Authentication failed (401)")
+	require.Equal(t, StatusError, accountRepo.accountsByID[80].Status)
+	require.Contains(t, accountRepo.accountsByID[80].ErrorMessage, "Authentication failed (401)")
+	require.Empty(t, accountRepo.deletedIDs)
+	require.Equal(t, 1, resultRepo.createCalls)
+	require.NotNil(t, resultRepo.created)
+	require.Equal(t, 1, resultRepo.created.AttemptNo)
+	require.Empty(t, resultRepo.created.ActionTaken)
+	require.NotNil(t, resultRepo.created.HTTPStatusCode)
+	require.Equal(t, http.StatusUnauthorized, *resultRepo.created.HTTPStatusCode)
+}
+
+func TestScheduledTestRunnerService_401NextScheduledRunDeletesOnRepeated401(t *testing.T) {
+	planRepo := &scheduledTestPlanRepoStub{}
+	resultRepo := &scheduledTestResultRepoStub{}
+	scheduledSvc := NewScheduledTestService(nil, resultRepo)
+	accountRepo := &scheduledRunnerAccountRepoStub{
+		accountRepoStub: accountRepoStub{exists: true},
+		accountsByID: map[int64]*Account{
+			80: {
+				ID:           80,
+				Platform:     PlatformOpenAI,
+				Type:         AccountTypeOAuth,
+				Status:       StatusError,
+				ErrorMessage: "Authentication failed (401): {\"error\":\"bad token\"}",
+				Concurrency:  1,
+				Credentials:  map[string]any{"access_token": "test-token"},
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{
+		responses: []*http.Response{
 			newJSONResponse(http.StatusUnauthorized, `{"error":"bad token"}`),
 		},
 	}
@@ -241,12 +345,63 @@ func TestScheduledTestRunnerService_401DoubleCheckDeleteContractPendingMainline(
 	runner.runOnePlan(context.Background(), plan)
 
 	require.Equal(t, []int64{80}, accountRepo.deletedIDs)
-	require.Equal(t, 2, resultRepo.createCalls)
+	require.Equal(t, 1, resultRepo.createCalls)
 	require.NotNil(t, resultRepo.created)
 	require.Equal(t, 2, resultRepo.created.AttemptNo)
 	require.Equal(t, "deleted_account", resultRepo.created.ActionTaken)
 	require.NotNil(t, resultRepo.created.HTTPStatusCode)
 	require.Equal(t, http.StatusUnauthorized, *resultRepo.created.HTTPStatusCode)
+}
+
+func TestScheduledTestRunnerService_401NextScheduledRunSuccessClearsErrorWithAutoRecover(t *testing.T) {
+	planRepo := &scheduledTestPlanRepoStub{}
+	resultRepo := &scheduledTestResultRepoStub{}
+	scheduledSvc := NewScheduledTestService(nil, resultRepo)
+	accountRepo := &scheduledRunnerAccountRepoStub{
+		accountRepoStub: accountRepoStub{exists: true},
+		accountsByID: map[int64]*Account{
+			80: {
+				ID:           80,
+				Platform:     PlatformOpenAI,
+				Type:         AccountTypeOAuth,
+				Status:       StatusError,
+				ErrorMessage: "Authentication failed (401): {\"error\":\"bad token\"}",
+				Concurrency:  1,
+				Credentials:  map[string]any{"access_token": "test-token"},
+			},
+		},
+	}
+	successResp := newJSONResponse(http.StatusOK, "")
+	successResp.Body = io.NopCloser(strings.NewReader("data: {\"type\":\"response.completed\"}\n\n"))
+	accountTestSvc := &AccountTestService{
+		accountRepo:  accountRepo,
+		httpUpstream: &queuedHTTPUpstream{responses: []*http.Response{successResp}},
+	}
+	rateLimitSvc := NewRateLimitService(accountRepo, nil, &config.Config{}, nil, nil)
+	runner := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, accountRepo, nil, nil)
+
+	plan := &ScheduledTestPlan{
+		ID:                   77,
+		AccountID:            80,
+		ModelID:              "gpt-5.4",
+		CronExpression:       "*/5 * * * *",
+		MaxResults:           9,
+		AutoRecover:          true,
+		DeleteOnConfirmed401: true,
+	}
+
+	runner.runOnePlan(context.Background(), plan)
+
+	require.Empty(t, accountRepo.deletedIDs)
+	require.Equal(t, 1, accountRepo.clearErrorCalls)
+	require.Equal(t, int64(80), accountRepo.clearErrorID)
+	require.Equal(t, StatusActive, accountRepo.accountsByID[80].Status)
+	require.Empty(t, accountRepo.accountsByID[80].ErrorMessage)
+	require.Equal(t, 1, resultRepo.createCalls)
+	require.NotNil(t, resultRepo.created)
+	require.Equal(t, "success", resultRepo.created.Status)
+	require.Equal(t, 1, resultRepo.created.AttemptNo)
+	require.Empty(t, resultRepo.created.ActionTaken)
 }
 
 func TestScheduledTestRunnerService_429SwitchGroupContractPendingMainline(t *testing.T) {
