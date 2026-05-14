@@ -32,7 +32,7 @@
     <div
       v-if="displayEntries.length > 0 && chartData"
       data-testid="consumption-chart-layout"
-      class="flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-8"
+      class="flex flex-col gap-6 xl:flex-row xl:items-center xl:gap-8"
     >
       <div
         data-testid="consumption-chart-wrapper"
