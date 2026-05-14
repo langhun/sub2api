@@ -133,18 +133,13 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 		return
 	}
 
-	followUpResult, actionErr := s.applyPlanActions(ctx, plan, result)
+	deleteAfterRun, actionErr := s.applyPlanActions(ctx, plan, result)
 	if actionErr != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d action error: %v", plan.ID, actionErr)
 	}
 
 	if err := s.scheduledSvc.SaveResult(ctx, plan.ID, plan.MaxResults, result); err != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d SaveResult error: %v", plan.ID, err)
-	}
-	if followUpResult != nil {
-		if err := s.scheduledSvc.SaveResult(ctx, plan.ID, plan.MaxResults, followUpResult); err != nil {
-			logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d SaveFollowUpResult error: %v", plan.ID, err)
-		}
 	}
 
 	// Auto-recover account if test succeeded and auto_recover is enabled.
@@ -161,57 +156,82 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 	if err := s.planRepo.UpdateAfterRun(ctx, plan.ID, time.Now(), nextRun); err != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d UpdateAfterRun error: %v", plan.ID, err)
 	}
+
+	if deleteAfterRun && s.accountRepo != nil {
+		if err := s.accountRepo.Delete(ctx, plan.AccountID); err != nil {
+			logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d delete-after-run failed: %v", plan.ID, err)
+		}
+	}
 }
 
-func (s *ScheduledTestRunnerService) applyPlanActions(ctx context.Context, plan *ScheduledTestPlan, result *ScheduledTestResult) (*ScheduledTestResult, error) {
+func (s *ScheduledTestRunnerService) applyPlanActions(ctx context.Context, plan *ScheduledTestPlan, result *ScheduledTestResult) (bool, error) {
 	if plan == nil || result == nil {
-		return nil, nil
+		return false, nil
 	}
 
 	if result.Status == "success" {
-		return nil, s.handleSuccessful429GroupRestore(ctx, plan, result)
+		if err := s.handleSuccessful401Recovery(ctx, plan, result); err != nil {
+			return false, err
+		}
+		return false, s.handleSuccessful429GroupRestore(ctx, plan, result)
 	}
 
 	if result.HTTPStatusCode != nil {
 		switch *result.HTTPStatusCode {
 		case 401:
-			return s.handleConfirmed401(ctx, plan, result)
+			return s.handleScheduled401(ctx, plan, result)
 		case 429:
-			return nil, s.handle429GroupSwitch(ctx, plan, result)
+			return false, s.handle429GroupSwitch(ctx, plan, result)
 		}
 	}
 
-	return nil, nil
+	return false, nil
 }
 
-func (s *ScheduledTestRunnerService) handleConfirmed401(ctx context.Context, plan *ScheduledTestPlan, firstResult *ScheduledTestResult) (*ScheduledTestResult, error) {
-	if !plan.DeleteOnConfirmed401 || s.accountRepo == nil || s.accountTestSvc == nil {
-		return nil, nil
+func (s *ScheduledTestRunnerService) handleScheduled401(ctx context.Context, plan *ScheduledTestPlan, result *ScheduledTestResult) (bool, error) {
+	if !plan.DeleteOnConfirmed401 || s.accountRepo == nil {
+		return false, nil
 	}
 
-	confirmResult, err := s.accountTestSvc.RunTestBackground(ctx, plan.AccountID, plan.ModelID)
+	account, err := s.accountRepo.GetByID(ctx, plan.AccountID)
 	if err != nil {
-		firstResult.ActionTaken = "confirm_401_failed"
-		return nil, fmt.Errorf("confirm 401 rerun: %w", err)
-	}
-	confirmResult.AttemptNo = 2
-
-	actionTaken := ""
-	if confirmResult.HTTPStatusCode != nil && *confirmResult.HTTPStatusCode == 401 {
-		if err := s.accountRepo.Delete(ctx, plan.AccountID); err != nil {
-			actionTaken = "delete_failed"
-			confirmResult.ActionTaken = actionTaken
-			firstResult.ActionTaken = actionTaken
-			return confirmResult, fmt.Errorf("delete account after confirmed 401: %w", err)
-		}
-		actionTaken = "deleted_account"
-	} else {
-		actionTaken = "confirm_401_cleared"
+		return false, fmt.Errorf("load account for scheduled 401 handling: %w", err)
 	}
 
-	firstResult.ActionTaken = actionTaken
-	confirmResult.ActionTaken = actionTaken
-	return confirmResult, nil
+	if hasPendingScheduled401Delete(account, plan.ID) {
+		result.ActionTaken = appendScheduledTestAction(result.ActionTaken, "deleted_after_repeated_401")
+		return true, nil
+	}
+
+	if err := s.setPendingScheduled401Delete(ctx, plan.AccountID, plan.ID); err != nil {
+		return false, fmt.Errorf("record pending scheduled 401 delete: %w", err)
+	}
+	result.ActionTaken = appendScheduledTestAction(result.ActionTaken, "marked_error_after_401")
+	return false, nil
+}
+
+func (s *ScheduledTestRunnerService) handleSuccessful401Recovery(ctx context.Context, plan *ScheduledTestPlan, result *ScheduledTestResult) error {
+	if !plan.DeleteOnConfirmed401 || s.accountRepo == nil {
+		return nil
+	}
+
+	account, err := s.accountRepo.GetByID(ctx, plan.AccountID)
+	if err != nil {
+		return fmt.Errorf("load account for scheduled 401 recovery: %w", err)
+	}
+
+	if !hasPendingScheduled401Delete(account, plan.ID) {
+		return nil
+	}
+
+	if err := s.accountRepo.ClearError(ctx, plan.AccountID); err != nil {
+		return fmt.Errorf("clear account error after successful scheduled test: %w", err)
+	}
+	if err := s.clearPendingScheduled401Delete(ctx, plan.AccountID, plan.ID); err != nil {
+		return fmt.Errorf("clear pending scheduled 401 delete: %w", err)
+	}
+	result.ActionTaken = appendScheduledTestAction(result.ActionTaken, "released_after_401_recovery")
+	return nil
 }
 
 func (s *ScheduledTestRunnerService) handle429GroupSwitch(ctx context.Context, plan *ScheduledTestPlan, result *ScheduledTestResult) error {
@@ -326,6 +346,16 @@ func replaceGroupID(groupIDs []int64, fromID int64, toID int64) ([]int64, bool) 
 	return updated, changed
 }
 
+func appendScheduledTestAction(existing string, action string) string {
+	if action == "" {
+		return existing
+	}
+	if existing == "" {
+		return action
+	}
+	return existing + "," + action
+}
+
 func extractAccountGroupIDs(account *Account) []int64 {
 	if account == nil {
 		return nil
@@ -349,6 +379,23 @@ func extractAccountGroupIDs(account *Account) []int64 {
 
 func scheduledTest429RestoreKey(planID int64) string {
 	return fmt.Sprintf("scheduled_test_429_restore_group_%d", planID)
+}
+
+func scheduledTest401DeleteKey(planID int64) string {
+	return fmt.Sprintf("scheduled_test_401_delete_pending_%d", planID)
+}
+
+func hasPendingScheduled401Delete(account *Account, planID int64) bool {
+	if account == nil || account.Extra == nil {
+		return false
+	}
+
+	raw, ok := account.Extra[scheduledTest401DeleteKey(planID)]
+	if !ok || raw == nil {
+		return false
+	}
+
+	return ParseExtraInt(raw) > 0
 }
 
 func getPending429Restore(account *Account, planID int64) (int64, bool) {
@@ -383,6 +430,24 @@ func (s *ScheduledTestRunnerService) clearPending429Restore(ctx context.Context,
 	}
 	return s.accountRepo.UpdateExtra(ctx, accountID, map[string]any{
 		scheduledTest429RestoreKey(planID): 0,
+	})
+}
+
+func (s *ScheduledTestRunnerService) setPendingScheduled401Delete(ctx context.Context, accountID int64, planID int64) error {
+	if s.accountRepo == nil {
+		return nil
+	}
+	return s.accountRepo.UpdateExtra(ctx, accountID, map[string]any{
+		scheduledTest401DeleteKey(planID): 1,
+	})
+}
+
+func (s *ScheduledTestRunnerService) clearPendingScheduled401Delete(ctx context.Context, accountID int64, planID int64) error {
+	if s.accountRepo == nil {
+		return nil
+	}
+	return s.accountRepo.UpdateExtra(ctx, accountID, map[string]any{
+		scheduledTest401DeleteKey(planID): 0,
 	})
 }
 
