@@ -101,6 +101,10 @@ func NewAccountTestService(
 	}
 }
 
+func (s *AccountTestService) HasAutoFailoverProxyPool() bool {
+	return s != nil && s.proxyPool != nil
+}
+
 func (s *AccountTestService) resolveTestProxyURL(ctx context.Context, account *Account) (string, error) {
 	if account == nil {
 		return "", nil
@@ -817,9 +821,9 @@ func (s *AccountTestService) reconcileOpenAI429State(ctx context.Context, accoun
 	} else if unixTs := parseOpenAIRateLimitResetTime(body); unixTs != nil {
 		t := time.Unix(*unixTs, 0)
 		resetAt = &t
-	}
-	if resetAt == nil {
-		return
+	} else {
+		fallback := time.Now().Add(time.Duration(clampRateLimit429CooldownSeconds(defaultRateLimit429CooldownSeconds)) * time.Second)
+		resetAt = &fallback
 	}
 
 	if err := s.accountRepo.SetRateLimited(ctx, account.ID, *resetAt); err != nil {

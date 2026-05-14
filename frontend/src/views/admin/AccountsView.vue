@@ -2084,6 +2084,17 @@ const resetBatchTestDeleteState = () => {
   batchTestDeleteDrainPromise = null
 }
 
+const ensureBatchTestDeleteQueueDrain = () => {
+  if (batchTestDeleteDrainPromise) return
+
+  batchTestDeleteDrainPromise = drainBatchTestDeleteQueue().finally(() => {
+    batchTestDeleteDrainPromise = null
+    if (batchTestDeleteQueue.value.length > 0) {
+      ensureBatchTestDeleteQueueDrain()
+    }
+  })
+}
+
 const drainBatchTestDeleteQueue = async () => {
   while (batchTestDeleteQueue.value.length > 0) {
     const accountId = batchTestDeleteQueue.value.shift()
@@ -2109,15 +2120,15 @@ const enqueueBatchTestDelete = (accountId: number) => {
   }
 
   batchTestDeleteQueue.value.push(accountId)
-  if (!batchTestDeleteDrainPromise) {
-    batchTestDeleteDrainPromise = drainBatchTestDeleteQueue().finally(() => {
-      batchTestDeleteDrainPromise = null
-    })
-  }
+  ensureBatchTestDeleteQueueDrain()
 }
 
 const waitForBatchTestDeleteQueueIdle = async () => {
-  while (batchTestDeleteDrainPromise) {
+  while (batchTestDeleteDrainPromise || batchTestDeleteQueue.value.length > 0) {
+    if (!batchTestDeleteDrainPromise && batchTestDeleteQueue.value.length > 0) {
+      ensureBatchTestDeleteQueueDrain()
+      continue
+    }
     await batchTestDeleteDrainPromise
   }
 }
