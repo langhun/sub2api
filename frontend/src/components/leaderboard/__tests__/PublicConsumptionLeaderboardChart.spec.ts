@@ -167,7 +167,6 @@ describe('PublicConsumptionLeaderboardChart', () => {
 
     const chartWrapper = wrapper.get('[data-testid="consumption-chart-wrapper"]')
     expect(chartWrapper.classes()).toContain('mx-auto')
-    expect(chartWrapper.classes()).toContain('xl:mx-0')
   })
 
   it('uses a larger fixed chart column on desktop layouts', () => {
@@ -187,9 +186,8 @@ describe('PublicConsumptionLeaderboardChart', () => {
     const layout = wrapper.get('[data-testid="consumption-chart-layout"]')
     const chartWrapper = wrapper.get('[data-testid="consumption-chart-wrapper"]')
 
-    expect(layout.classes()).toContain('xl:items-center')
-    expect(layout.classes()).toContain('xl:gap-8')
-    expect(chartWrapper.classes()).toContain('xl:flex-[0_0_24rem]')
-    expect(chartWrapper.classes()).toContain('xl:max-w-[24rem]')
+    expect(layout.classes()).not.toContain('xl:flex-row')
+    expect(chartWrapper.classes()).toContain('xl:max-w-[18rem]')
+    expect(chartWrapper.classes()).not.toContain('xl:flex-[0_0_24rem]')
   })
 })
