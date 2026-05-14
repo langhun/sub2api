@@ -36,7 +36,7 @@
     >
       <div
         data-testid="consumption-chart-wrapper"
-        class="mx-auto w-full max-w-[16rem] xl:mx-0 xl:max-w-[18rem] xl:flex-[0_0_18rem]"
+        class="mx-auto w-full max-w-[16rem] xl:mx-0 xl:max-w-[24rem] xl:flex-[0_0_24rem]"
       >
         <div class="mx-auto h-56 w-56 sm:h-60 sm:w-60 xl:h-64 xl:w-64">
           <Doughnut :data="chartData" :options="doughnutOptions" />
