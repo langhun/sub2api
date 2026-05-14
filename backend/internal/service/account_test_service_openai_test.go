@@ -340,6 +340,61 @@ func TestAccountTestService_OpenAIExplicitPoolWithoutCandidateFailsClearly(t *te
 	require.Contains(t, recorder.Body.String(), "no available proxy in auto failover proxy pool")
 }
 
+func TestAccountTestService_OpenAI403SwitchesToPoolAndRetries(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[11]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			11: {ID: 11, Name: "pool", Protocol: "http", Host: "pool.example", Port: 8080, Status: StatusActive},
+		},
+	}
+	poolSvc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
+
+	forbiddenResp := newJSONResponse(http.StatusForbidden, `{"error":"forbidden"}`)
+	successResp := newJSONResponse(http.StatusOK, "")
+	successResp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
+	account := &Account{
+		ID:          93,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				93: account,
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{forbiddenResp, successResp}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+		proxyPool:    poolSvc,
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.NoError(t, err)
+	require.Equal(t, AccountProxyModePool, account.Extra["proxy_mode"])
+	require.Equal(t, AccountProxyModePool, repo.updatedExtra["proxy_mode"])
+	require.Len(t, upstream.proxyURLs, 2)
+	require.Equal(t, "", upstream.proxyURLs[0])
+	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[1])
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
 func TestAccountTestService_OpenAIStreamEOFBeforeCompletedFails(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newTestContext()
@@ -625,4 +680,57 @@ func TestAccountTestService_RunTestBackground_OpenAI429ReturnsFailedResult(t *te
 	require.Empty(t, result.ResponseText)
 	require.Equal(t, int64(88), repo.rateLimitedID)
 	require.NotNil(t, repo.rateLimitedAt)
+}
+
+func TestAccountTestService_RunTestBackground_OpenAI403SwitchesToPoolAndReturnsSuccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[11]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			11: {ID: 11, Name: "pool", Protocol: "http", Host: "pool.example", Port: 8080, Status: StatusActive},
+		},
+	}
+	poolSvc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
+
+	account := &Account{
+		ID:          94,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				94: account,
+			},
+		},
+	}
+	forbiddenResp := newJSONResponse(http.StatusForbidden, `{"error":"forbidden"}`)
+	successResp := newJSONResponse(http.StatusOK, "")
+	successResp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{forbiddenResp, successResp}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+		proxyPool:    poolSvc,
+	}
+
+	result, err := svc.RunTestBackground(context.Background(), 94, "gpt-5.4")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "success", result.Status)
+	require.Equal(t, AccountProxyModePool, repo.accountsByID[94].Extra["proxy_mode"])
+	require.Len(t, upstream.proxyURLs, 2)
+	require.Equal(t, "", upstream.proxyURLs[0])
+	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[1])
 }

@@ -191,6 +191,39 @@ func (s *AccountTestService) validateUpstreamBaseURL(raw string) (string, error)
 	return normalized, nil
 }
 
+func (s *AccountTestService) tryEnableOpenAIProxyPoolForTest(ctx context.Context, account *Account) (bool, error) {
+	if s == nil || s.accountRepo == nil || s.proxyPool == nil || account == nil || account.Platform != PlatformOpenAI {
+		return false, nil
+	}
+	if normalizeAccountProxyMode(account.GetExtraString("proxy_mode")) == AccountProxyModePool {
+		return false, nil
+	}
+
+	probe := *account
+	probe.Extra = copyAnyMap(account.Extra)
+	if probe.Extra == nil {
+		probe.Extra = map[string]any{}
+	}
+	probe.Extra["proxy_mode"] = AccountProxyModePool
+
+	candidates, err := s.proxyPool.BuildCandidates(ctx, &probe)
+	if err != nil {
+		return false, fmt.Errorf("build proxy pool candidates: %w", err)
+	}
+	if len(candidates) == 0 {
+		return false, nil
+	}
+
+	if account.Extra == nil {
+		account.Extra = map[string]any{}
+	}
+	account.Extra["proxy_mode"] = AccountProxyModePool
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{"proxy_mode": AccountProxyModePool}); err != nil {
+		return false, fmt.Errorf("persist proxy_mode=pool: %w", err)
+	}
+	return true, nil
+}
+
 // generateSessionString generates a Claude Code style session string.
 // The output format is determined by the UA version in claude.DefaultHeaders,
 // ensuring consistency between the user_id format and the UA sent to upstream.
@@ -664,21 +697,40 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 	}
 
-	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
-	if err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if isOAuth && s.accountRepo != nil {
-		if updates, err := extractOpenAICodexProbeUpdates(resp); err == nil && len(updates) > 0 {
-			_ = s.accountRepo.UpdateExtra(ctx, account.ID, updates)
-			mergeAccountExtra(account, updates)
+	autoPoolSwitched := false
+	for {
+		resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
+		if err != nil {
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 		}
-	}
 
-	if resp.StatusCode != http.StatusOK {
+		if isOAuth && s.accountRepo != nil {
+			if updates, err := extractOpenAICodexProbeUpdates(resp); err == nil && len(updates) > 0 {
+				_ = s.accountRepo.UpdateExtra(ctx, account.ID, updates)
+				mergeAccountExtra(account, updates)
+			}
+		}
+
+		if resp.StatusCode == http.StatusOK {
+			err = s.processOpenAIStream(c, account, resp.Body)
+			_ = resp.Body.Close()
+			return err
+		}
+
 		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+
+		if resp.StatusCode == http.StatusForbidden && !autoPoolSwitched {
+			switched, switchErr := s.tryEnableOpenAIProxyPoolForTest(ctx, account)
+			if switchErr != nil {
+				return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s; auto switch to proxy pool failed: %s", resp.StatusCode, string(body), switchErr.Error()))
+			}
+			if switched {
+				autoPoolSwitched = true
+				continue
+			}
+		}
+
 		if resp.StatusCode == http.StatusTooManyRequests {
 			s.reconcileOpenAI429State(ctx, account, resp.Header, body)
 		}
@@ -689,9 +741,6 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
-
-	// Process SSE stream
-	return s.processOpenAIStream(c, account, resp.Body)
 }
 
 // testOpenAICompactConnection probes /responses/compact and persists the
