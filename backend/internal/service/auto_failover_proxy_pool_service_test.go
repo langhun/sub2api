@@ -431,6 +431,118 @@ func TestAutoFailoverProxyPoolServiceDoesNotRetryCredentialError(t *testing.T) {
 	}
 }
 
+func TestAutoFailoverProxyPoolServiceRetriesProxyAttributed403(t *testing.T) {
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[1,2]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	cache := &proxyLatencyCacheStubForPool{data: map[int64]*ProxyLatencyInfo{}}
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			1: {ID: 1, Name: "p1", Protocol: "http", Host: "p1.example", Port: 8080, Status: StatusActive},
+			2: {ID: 2, Name: "p2", Protocol: "http", Host: "p2.example", Port: 8080, Status: StatusActive},
+		},
+	}
+	svc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, cache, nil)
+
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		ProxyID:  ptrInt64(1),
+	}
+	req, err := http.NewRequest(http.MethodPost, "https://example.com/v1/responses", bytes.NewReader([]byte(`{"hello":"world"}`)))
+	if err != nil {
+		t.Fatalf("NewRequest() error = %v", err)
+	}
+
+	callCount := 0
+	resp, err := svc.DoHTTPRequest(context.Background(), account, req, func(clonedReq *http.Request, proxyURL string) (*http.Response, error) {
+		callCount++
+		if callCount == 1 {
+			return &http.Response{
+				StatusCode: http.StatusForbidden,
+				Body: io.NopCloser(bytes.NewReader([]byte(
+					`{"error":{"code":"unsupported_country_region_territory","message":"Requests from your country are not supported"}}`,
+				))),
+				Header: http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader([]byte(`ok`))),
+		}, nil
+	})
+	if err != nil {
+		t.Fatalf("DoHTTPRequest() error = %v", err)
+	}
+	if resp == nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("response = %#v, want 200", resp)
+	}
+	if callCount != 2 {
+		t.Fatalf("callCount = %d, want 2", callCount)
+	}
+	if cache.data[1] == nil || cache.data[1].HealthStatus != "cooldown" {
+		t.Fatalf("proxy 1 runtime state = %#v, want cooldown", cache.data[1])
+	}
+	if cache.data[2] == nil || cache.data[2].HealthStatus != "healthy" {
+		t.Fatalf("proxy 2 runtime state = %#v, want healthy", cache.data[2])
+	}
+}
+
+func TestAutoFailoverProxyPoolServiceDoesNotRetryNonProxy403(t *testing.T) {
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[1,2]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	cache := &proxyLatencyCacheStubForPool{data: map[int64]*ProxyLatencyInfo{}}
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			1: {ID: 1, Name: "p1", Protocol: "http", Host: "p1.example", Port: 8080, Status: StatusActive},
+			2: {ID: 2, Name: "p2", Protocol: "http", Host: "p2.example", Port: 8080, Status: StatusActive},
+		},
+	}
+	svc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, cache, nil)
+
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		ProxyID:  ptrInt64(1),
+	}
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/v1/responses", nil)
+	if err != nil {
+		t.Fatalf("NewRequest() error = %v", err)
+	}
+
+	callCount := 0
+	resp, err := svc.DoHTTPRequest(context.Background(), account, req, func(clonedReq *http.Request, proxyURL string) (*http.Response, error) {
+		callCount++
+		return &http.Response{
+			StatusCode: http.StatusForbidden,
+			Body:       io.NopCloser(bytes.NewReader([]byte(`{"error":{"message":"workspace forbidden by policy"}}`))),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+	if err != nil {
+		t.Fatalf("DoHTTPRequest() unexpected error = %v", err)
+	}
+	if resp == nil || resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("response = %#v, want 403", resp)
+	}
+	if callCount != 1 {
+		t.Fatalf("callCount = %d, want 1", callCount)
+	}
+	if cache.data[1] == nil || cache.data[1].HealthStatus != "healthy" {
+		t.Fatalf("proxy 1 runtime state = %#v, want healthy without cooldown", cache.data[1])
+	}
+	if cache.data[1].CooldownUntilUnix != nil {
+		t.Fatalf("proxy 1 cooldown = %v, want nil", cache.data[1].CooldownUntilUnix)
+	}
+}
+
 type trackingProxyProber struct {
 	delay time.Duration
 
