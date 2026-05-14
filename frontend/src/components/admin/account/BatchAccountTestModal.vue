@@ -246,7 +246,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'completed', result: { success: number; failed: number; successIds: number[]; failedIds: number[] }): void
+  (e: 'completed', result: {
+    success: number
+    failed: number
+    successIds: number[]
+    failedIds: number[]
+    unauthorizedFailedIds: number[]
+  }): void
   (e: 'queue-delete', accountId: number): void
 }>()
 
@@ -573,7 +579,10 @@ const startBatch = async () => {
       success: successCount.value,
       failed: failedCount.value,
       successIds: rows.value.filter(row => row.status === 'success').map(row => row.id),
-      failedIds: rows.value.filter(row => row.status === 'failed').map(row => row.id)
+      failedIds: rows.value.filter(row => row.status === 'failed').map(row => row.id),
+      unauthorizedFailedIds: rows.value
+        .filter(row => row.status === 'failed' && row.resultCode === '401')
+        .map(row => row.id)
     })
   }
 }
