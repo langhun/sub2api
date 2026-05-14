@@ -20,20 +20,26 @@ func NewScheduledTestHandler(scheduledTestSvc *service.ScheduledTestService) *Sc
 }
 
 type createScheduledTestPlanRequest struct {
-	AccountID      int64  `json:"account_id" binding:"required"`
-	ModelID        string `json:"model_id"`
-	CronExpression string `json:"cron_expression" binding:"required"`
-	Enabled        *bool  `json:"enabled"`
-	MaxResults     int    `json:"max_results"`
-	AutoRecover    *bool  `json:"auto_recover"`
+	AccountID            int64  `json:"account_id" binding:"required"`
+	ModelID              string `json:"model_id"`
+	CronExpression       string `json:"cron_expression" binding:"required"`
+	Enabled              *bool  `json:"enabled"`
+	MaxResults           int    `json:"max_results"`
+	AutoRecover          *bool  `json:"auto_recover"`
+	DeleteOnConfirmed401 *bool  `json:"delete_on_confirmed_401"`
+	SwitchGroupFromID    *int64 `json:"switch_group_from_id"`
+	SwitchGroupToID      *int64 `json:"switch_group_to_id"`
 }
 
 type updateScheduledTestPlanRequest struct {
-	ModelID        string `json:"model_id"`
-	CronExpression string `json:"cron_expression"`
-	Enabled        *bool  `json:"enabled"`
-	MaxResults     int    `json:"max_results"`
-	AutoRecover    *bool  `json:"auto_recover"`
+	ModelID              string `json:"model_id"`
+	CronExpression       string `json:"cron_expression"`
+	Enabled              *bool  `json:"enabled"`
+	MaxResults           int    `json:"max_results"`
+	AutoRecover          *bool  `json:"auto_recover"`
+	DeleteOnConfirmed401 *bool  `json:"delete_on_confirmed_401"`
+	SwitchGroupFromID    *int64 `json:"switch_group_from_id"`
+	SwitchGroupToID      *int64 `json:"switch_group_to_id"`
 }
 
 // ListByAccount GET /admin/accounts/:id/scheduled-test-plans
@@ -61,17 +67,22 @@ func (h *ScheduledTestHandler) Create(c *gin.Context) {
 	}
 
 	plan := &service.ScheduledTestPlan{
-		AccountID:      req.AccountID,
-		ModelID:        req.ModelID,
-		CronExpression: req.CronExpression,
-		Enabled:        true,
-		MaxResults:     req.MaxResults,
+		AccountID:            req.AccountID,
+		ModelID:              req.ModelID,
+		CronExpression:       req.CronExpression,
+		Enabled:              true,
+		MaxResults:           req.MaxResults,
+		SwitchGroupFromID:    req.SwitchGroupFromID,
+		SwitchGroupToID:      req.SwitchGroupToID,
 	}
 	if req.Enabled != nil {
 		plan.Enabled = *req.Enabled
 	}
 	if req.AutoRecover != nil {
 		plan.AutoRecover = *req.AutoRecover
+	}
+	if req.DeleteOnConfirmed401 != nil {
+		plan.DeleteOnConfirmed401 = *req.DeleteOnConfirmed401
 	}
 
 	created, err := h.scheduledTestSvc.CreatePlan(c.Request.Context(), plan)
@@ -116,6 +127,15 @@ func (h *ScheduledTestHandler) Update(c *gin.Context) {
 	}
 	if req.AutoRecover != nil {
 		existing.AutoRecover = *req.AutoRecover
+	}
+	if req.DeleteOnConfirmed401 != nil {
+		existing.DeleteOnConfirmed401 = *req.DeleteOnConfirmed401
+	}
+	if req.SwitchGroupFromID != nil {
+		existing.SwitchGroupFromID = req.SwitchGroupFromID
+	}
+	if req.SwitchGroupToID != nil {
+		existing.SwitchGroupToID = req.SwitchGroupToID
 	}
 
 	updated, err := h.scheduledTestSvc.UpdatePlan(c.Request.Context(), existing)

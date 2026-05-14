@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -521,7 +522,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
 	// Bedrock non-streaming response is standard Claude JSON, extract the text
@@ -680,7 +681,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
-		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
 	// Process SSE stream
@@ -794,7 +795,7 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
-		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
 	s.sendEvent(c, TestEvent{Type: "content", Text: "Compact probe succeeded"})
@@ -1567,6 +1568,16 @@ func (s *AccountTestService) sendErrorAndEnd(c *gin.Context, errorMsg string) er
 	return fmt.Errorf("%s", errorMsg)
 }
 
+func (s *AccountTestService) sendHTTPErrorAndEnd(c *gin.Context, statusCode int, errorMsg string) error {
+	log.Printf("Account test error: %s", errorMsg)
+	s.sendEvent(c, TestEvent{
+		Type:  "error",
+		Code:  strconv.Itoa(statusCode),
+		Error: errorMsg,
+	})
+	return fmt.Errorf("%s", errorMsg)
+}
+
 // RunTestBackground executes an account test in-memory (no real HTTP client),
 // capturing SSE output via httptest.NewRecorder, then parses the result.
 func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error) {
@@ -1580,7 +1591,7 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 
 	finishedAt := time.Now()
 	body := w.Body.String()
-	responseText, errMsg := parseTestSSEOutput(body)
+	responseText, errMsg, httpStatusCode := parseTestSSEOutput(body)
 
 	status := "success"
 	if testErr != nil || errMsg != "" {
@@ -1591,17 +1602,18 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 	}
 
 	return &ScheduledTestResult{
-		Status:       status,
-		ResponseText: responseText,
-		ErrorMessage: errMsg,
-		LatencyMs:    finishedAt.Sub(startedAt).Milliseconds(),
-		StartedAt:    startedAt,
-		FinishedAt:   finishedAt,
+		Status:         status,
+		ResponseText:   responseText,
+		ErrorMessage:   errMsg,
+		HTTPStatusCode: httpStatusCode,
+		LatencyMs:      finishedAt.Sub(startedAt).Milliseconds(),
+		StartedAt:      startedAt,
+		FinishedAt:     finishedAt,
 	}, nil
 }
 
 // parseTestSSEOutput extracts response text and error message from captured SSE output.
-func parseTestSSEOutput(body string) (responseText, errMsg string) {
+func parseTestSSEOutput(body string) (responseText, errMsg string, httpStatusCode *int) {
 	var texts []string
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
@@ -1620,6 +1632,12 @@ func parseTestSSEOutput(body string) (responseText, errMsg string) {
 			}
 		case "error":
 			errMsg = event.Error
+			if event.Code != "" {
+				if parsed, err := strconv.Atoi(strings.TrimSpace(event.Code)); err == nil {
+					code := parsed
+					httpStatusCode = &code
+				}
+			}
 		}
 	}
 	responseText = strings.Join(texts, "")

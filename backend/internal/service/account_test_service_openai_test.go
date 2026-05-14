@@ -414,3 +414,79 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 	require.Zero(t, repo.clearedErrorID)
 	require.Nil(t, account.RateLimitResetAt)
 }
+
+func TestAccountTestService_RunTestBackground_OpenAI401ReturnsFailedResult(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				80: {
+					ID:          80,
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeOAuth,
+					Status:      StatusActive,
+					Concurrency: 1,
+					Credentials: map[string]any{"access_token": "test-token"},
+				},
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{
+		responses: []*http.Response{
+			newJSONResponse(http.StatusUnauthorized, `{"error":"bad token"}`),
+		},
+	}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+	}
+
+	result, err := svc.RunTestBackground(context.Background(), 80, "gpt-5.4")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "failed", result.Status)
+	require.Contains(t, result.ErrorMessage, "API returned 401")
+	require.Empty(t, result.ResponseText)
+	require.NotZero(t, result.StartedAt)
+	require.NotZero(t, result.FinishedAt)
+	require.GreaterOrEqual(t, result.LatencyMs, int64(0))
+	require.Equal(t, int64(80), repo.setErrorID)
+}
+
+func TestAccountTestService_RunTestBackground_OpenAI429ReturnsFailedResult(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				88: {
+					ID:          88,
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeOAuth,
+					Status:      StatusError,
+					Concurrency: 1,
+					Credentials: map[string]any{"access_token": "test-token"},
+				},
+			},
+		},
+	}
+	resp := newJSONResponse(http.StatusTooManyRequests, `{"error":{"type":"usage_limit_reached","message":"limit reached","resets_at":1777283883}}`)
+	resp.Header.Set("x-codex-primary-used-percent", "100")
+	resp.Header.Set("x-codex-primary-reset-after-seconds", "604800")
+	resp.Header.Set("x-codex-primary-window-minutes", "10080")
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+	}
+
+	result, err := svc.RunTestBackground(context.Background(), 88, "gpt-5.4")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "failed", result.Status)
+	require.Contains(t, result.ErrorMessage, "API returned 429")
+	require.Empty(t, result.ResponseText)
+	require.Equal(t, int64(88), repo.rateLimitedID)
+	require.NotNil(t, repo.rateLimitedAt)
+}
