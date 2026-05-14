@@ -32,11 +32,11 @@
     <div
       v-if="displayEntries.length > 0 && chartData"
       data-testid="consumption-chart-layout"
-      class="flex flex-col gap-6"
+      class="flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-8"
     >
       <div
         data-testid="consumption-chart-wrapper"
-        class="mx-auto w-full max-w-[16rem] xl:max-w-[18rem]"
+        class="mx-auto w-full max-w-[16rem] xl:mx-0 xl:max-w-[18rem] xl:flex-[0_0_18rem]"
       >
         <div class="mx-auto h-56 w-56 sm:h-60 sm:w-60 xl:h-64 xl:w-64">
           <Doughnut :data="chartData" :options="doughnutOptions" />
