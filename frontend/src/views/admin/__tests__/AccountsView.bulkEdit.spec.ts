@@ -333,6 +333,66 @@ describe('admin AccountsView bulk edit scope', () => {
     expect(deleteAccount).toHaveBeenCalledWith(4019)
   })
 
+  it('keeps draining when new 401 deletions arrive during drain shutdown', async () => {
+    let wrapper: ReturnType<typeof mount>
+
+    deleteAccount.mockImplementationOnce(() => {
+      const firstDelete = Promise.resolve({ message: 'ok' })
+      firstDelete.then(() => Promise.resolve().then(() => (wrapper.vm as any).enqueueBatchTestDelete(4020)))
+      return firstDelete
+    })
+    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
+
+    wrapper = mount(AccountsView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          AccountTableActions: { template: '<div><slot name="beforeCreate" /><slot name="after" /></div>' },
+          AccountTableFilters: { template: '<div></div>' },
+          AccountBulkActionsBar: AccountBulkActionsBarStub,
+          AccountActionMenu: true,
+          ImportDataModal: true,
+          ReAuthAccountModal: true,
+          AccountTestModal: true,
+          BatchAccountTestModal: BatchAccountTestModalStub,
+          AccountStatsModal: true,
+          ScheduledTestsPanel: true,
+          SyncFromCrsModal: true,
+          TempUnschedStatusModal: true,
+          ErrorPassthroughRulesModal: true,
+          TLSFingerprintProfilesModal: true,
+          CreateAccountModal: true,
+          EditAccountModal: true,
+          BulkEditAccountModal: BulkEditAccountModalStub,
+          PlatformTypeBadge: true,
+          AccountCapacityCell: true,
+          AccountStatusIndicator: true,
+          AccountTodayStatsCell: true,
+          AccountGroupsCell: true,
+          AccountUsageCell: true,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+    await (wrapper.vm as any).enqueueBatchTestDelete(4019)
+    await flushPromises()
+    await (wrapper.vm as any).waitForBatchTestDeleteQueueIdle()
+    await flushPromises()
+    await (wrapper.vm as any).waitForBatchTestDeleteQueueIdle()
+
+    expect(deleteAccount).toHaveBeenCalledTimes(2)
+    expect(deleteAccount).toHaveBeenNthCalledWith(1, 4019)
+    expect(deleteAccount).toHaveBeenNthCalledWith(2, 4020)
+  })
+
   it('uses original batch failure count in toast and reports queued 401 count separately', async () => {
     deleteAccount.mockResolvedValueOnce({ message: 'ok' })
 

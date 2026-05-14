@@ -151,6 +151,9 @@ func (s *UngroupedAccountAutoTestService) runOne(ctx context.Context, account Ac
 			FinishedAt:   time.Now().UTC(),
 		}
 	}
+	if skipPersist := s.applyOpenAIAutoTestActions(ctx, &account, result); skipPersist {
+		return
+	}
 	updates := buildUngroupedAutoTestExtraUpdates(startedAt, result)
 	if len(updates) == 0 {
 		return
@@ -163,6 +166,7 @@ func (s *UngroupedAccountAutoTestService) runOne(ctx context.Context, account Ac
 func (s *UngroupedAccountAutoTestService) listCandidates(ctx context.Context) ([]Account, error) {
 	now := time.Now().UTC()
 	candidates := make([]Account, 0, ungroupedAccountAutoTestMaxPerRun)
+	groupedCandidates := make([]Account, 0, ungroupedAccountAutoTestMaxPerRun)
 	for page := 1; len(candidates) < ungroupedAccountAutoTestMaxPerRun; page++ {
 		params := pagination.PaginationParams{
 			Page:      page,
@@ -173,11 +177,11 @@ func (s *UngroupedAccountAutoTestService) listCandidates(ctx context.Context) ([
 		accounts, _, err := s.accountRepo.ListWithFilters(
 			ctx,
 			params,
-			"",
+			PlatformOpenAI,
 			"",
 			StatusActive,
 			"",
-			AccountListGroupUngrouped,
+			0,
 			"",
 			"",
 		)
@@ -188,14 +192,18 @@ func (s *UngroupedAccountAutoTestService) listCandidates(ctx context.Context) ([
 			break
 		}
 		for _, account := range accounts {
-			if !account.IsSchedulable() || account.ID <= 0 {
+			if account.Platform != PlatformOpenAI || !account.IsSchedulable() || account.ID <= 0 {
 				continue
 			}
 			if !shouldRunUngroupedAutoTest(now, account.Extra) {
 				continue
 			}
-			candidates = append(candidates, account)
-			if len(candidates) >= ungroupedAccountAutoTestMaxPerRun {
+			if len(account.GroupIDs) == 0 {
+				candidates = append(candidates, account)
+			} else {
+				groupedCandidates = append(groupedCandidates, account)
+			}
+			if len(candidates)+len(groupedCandidates) >= ungroupedAccountAutoTestMaxPerRun {
 				break
 			}
 		}
@@ -203,7 +211,69 @@ func (s *UngroupedAccountAutoTestService) listCandidates(ctx context.Context) ([
 			break
 		}
 	}
+	if remaining := ungroupedAccountAutoTestMaxPerRun - len(candidates); remaining > 0 && len(groupedCandidates) > 0 {
+		if len(groupedCandidates) > remaining {
+			groupedCandidates = groupedCandidates[:remaining]
+		}
+		candidates = append(candidates, groupedCandidates...)
+	}
 	return candidates, nil
+}
+
+func (s *UngroupedAccountAutoTestService) applyOpenAIAutoTestActions(ctx context.Context, account *Account, result *ScheduledTestResult) bool {
+	if s == nil || s.accountRepo == nil || account == nil || result == nil || account.Platform != PlatformOpenAI || result.Status != "failed" {
+		return false
+	}
+
+	statusCode := 0
+	if result.HTTPStatusCode != nil {
+		statusCode = *result.HTTPStatusCode
+	}
+
+	switch statusCode {
+	case 401:
+		if err := s.accountRepo.Delete(ctx, account.ID); err != nil {
+			logger.LegacyPrintf("service.ungrouped_account_auto_test", "[UngroupedAutoTest] account=%d auto delete after 401 failed: %v", account.ID, err)
+			return false
+		}
+		logger.LegacyPrintf("service.ungrouped_account_auto_test", "[UngroupedAutoTest] account=%d deleted after 401", account.ID)
+		return true
+	case 403:
+		if s.accountTestSvc == nil || !s.accountTestSvc.HasAutoFailoverProxyPool() {
+			return false
+		}
+		if account.Extra == nil {
+			account.Extra = map[string]any{}
+		}
+		if normalizeAccountProxyMode(account.GetExtraString("proxy_mode")) == AccountProxyModePool {
+			return false
+		}
+		account.Extra["proxy_mode"] = AccountProxyModePool
+		if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{"proxy_mode": AccountProxyModePool}); err != nil {
+			logger.LegacyPrintf("service.ungrouped_account_auto_test", "[UngroupedAutoTest] account=%d enable proxy pool after 403 failed: %v", account.ID, err)
+			return false
+		}
+		logger.LegacyPrintf("service.ungrouped_account_auto_test", "[UngroupedAutoTest] account=%d switched to proxy pool after 403", account.ID)
+
+		retestCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer cancel()
+		retestResult, err := s.accountTestSvc.RunTestBackground(retestCtx, account.ID, "")
+		if err != nil {
+			logger.LegacyPrintf("service.ungrouped_account_auto_test", "[UngroupedAutoTest] account=%d retest after 403->pool failed: %v", account.ID, err)
+			return false
+		}
+		*result = *retestResult
+	case 429:
+		logger.LegacyPrintf("service.ungrouped_account_auto_test", "[UngroupedAutoTest] account=%d marked temporarily unschedulable by 429 until %v", account.ID, formatOptionalTime(account.RateLimitResetAt))
+	}
+	return false
+}
+
+func formatOptionalTime(value *time.Time) string {
+	if value == nil {
+		return "nil"
+	}
+	return value.UTC().Format(time.RFC3339)
 }
 
 func shouldRunUngroupedAutoTest(now time.Time, extra map[string]any) bool {

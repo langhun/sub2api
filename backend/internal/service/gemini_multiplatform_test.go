@@ -170,6 +170,14 @@ func (m *mockAccountRepoForGemini) UpdateSessionWindow(ctx context.Context, id i
 	return nil
 }
 func (m *mockAccountRepoForGemini) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
+	if acc, ok := m.accountsByID[id]; ok {
+		if acc.Extra == nil {
+			acc.Extra = make(map[string]any, len(updates))
+		}
+		for k, v := range updates {
+			acc.Extra[k] = v
+		}
+	}
 	return nil
 }
 func (m *mockAccountRepoForGemini) BulkUpdate(ctx context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {
