@@ -630,6 +630,11 @@ func (s *AutoFailoverProxyPoolService) shouldRetryHTTPResponse(resp *http.Respon
 	if httputil.IsCloudflareChallengeResponse(resp.StatusCode, resp.Header, body) {
 		return true, "cloudflare challenge", body, nil
 	}
+	if resp.StatusCode == http.StatusForbidden {
+		if retry, reason := classifyProxyAttributed403(resp.Header, body); retry {
+			return true, reason, body, nil
+		}
+	}
 
 	bodyMsg := strings.ToLower(string(body))
 	if strings.Contains(bodyMsg, "proxy connect") ||
@@ -642,6 +647,41 @@ func (s *AutoFailoverProxyPoolService) shouldRetryHTTPResponse(resp *http.Respon
 	}
 
 	return false, "", body, nil
+}
+
+func classifyProxyAttributed403(headers http.Header, body []byte) (bool, string) {
+	if httputil.IsCloudflareChallengeResponse(http.StatusForbidden, headers, body) {
+		return true, "cloudflare challenge"
+	}
+
+	code := strings.ToLower(strings.TrimSpace(extractUpstreamErrorCode(body)))
+	msg := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(body)))
+	raw := strings.ToLower(strings.TrimSpace(string(body)))
+	combined := strings.Join([]string{code, msg, raw}, "\n")
+
+	proxySignals := []string{
+		"unsupported_country_region_territory",
+		"unsupported country",
+		"country, region, or territory",
+		"country or region",
+		"region is not supported",
+		"requests from your country",
+		"request from your country",
+		"geo_blocked",
+		"geo blocked",
+		"geolocation",
+		"ip_blocked",
+		"ip blocked",
+		"blocked by ip",
+		"egress ip",
+	}
+	for _, signal := range proxySignals {
+		if strings.Contains(combined, signal) {
+			return true, sanitizeProxyFailureReason(strings.TrimSpace(extractUpstreamErrorMessage(body)))
+		}
+	}
+
+	return false, ""
 }
 
 func (s *AutoFailoverProxyPoolService) currentAccountProxyURL(ctx context.Context, account *Account) (string, *int64, error) {
