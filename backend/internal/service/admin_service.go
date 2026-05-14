@@ -2373,19 +2373,38 @@ func (s *adminServiceImpl) GetAccountsByIDs(ctx context.Context, ids []int64) ([
 	return accounts, nil
 }
 
+func resolveCreateAccountDefaultGroupID(platform string, groups []Group) (int64, bool) {
+	defaultGroupName := platform + "-default"
+	var legacyAntigravityGroup *Group
+
+	for i := range groups {
+		current := &groups[i]
+		if current.Name == defaultGroupName {
+			return current.ID, true
+		}
+		if platform == PlatformAntigravity && strings.HasPrefix(current.Name, defaultGroupName+"-") {
+			if legacyAntigravityGroup == nil || current.Name < legacyAntigravityGroup.Name {
+				legacyAntigravityGroup = current
+			}
+		}
+	}
+
+	if legacyAntigravityGroup != nil {
+		return legacyAntigravityGroup.ID, true
+	}
+
+	return 0, false
+}
+
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
 	// 绑定分组
 	groupIDs := input.GroupIDs
 	// 如果没有指定分组,自动绑定对应平台的默认分组
 	if len(groupIDs) == 0 && !input.SkipDefaultGroupBind {
-		defaultGroupName := input.Platform + "-default"
 		groups, err := s.groupRepo.ListActiveByPlatform(ctx, input.Platform)
 		if err == nil {
-			for _, g := range groups {
-				if g.Name == defaultGroupName {
-					groupIDs = []int64{g.ID}
-					break
-				}
+			if defaultGroupID, ok := resolveCreateAccountDefaultGroupID(input.Platform, groups); ok {
+				groupIDs = []int64{defaultGroupID}
 			}
 		}
 	}
