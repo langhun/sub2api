@@ -14,41 +14,44 @@ func ensureSimpleModeDefaultGroups(ctx context.Context, client *dbent.Client) er
 		return fmt.Errorf("nil ent client")
 	}
 
-	requiredByPlatform := map[string]int{
-		service.PlatformAnthropic:   1,
-		service.PlatformOpenAI:      1,
-		service.PlatformGemini:      1,
-		service.PlatformAntigravity: 2,
+	requiredPlatforms := []string{
+		service.PlatformAnthropic,
+		service.PlatformOpenAI,
+		service.PlatformGemini,
+		service.PlatformAntigravity,
 	}
 
-	for platform, minCount := range requiredByPlatform {
+	for _, platform := range requiredPlatforms {
+		if err := createGroupIfNotExists(ctx, client, defaultGroupName(platform), platform); err != nil {
+			return err
+		}
+
+		if platform != service.PlatformAntigravity {
+			continue
+		}
+
 		count, err := client.Group.Query().
 			Where(group.PlatformEQ(platform), group.DeletedAtIsNil()).
 			Count(ctx)
 		if err != nil {
 			return fmt.Errorf("count groups for platform %s: %w", platform, err)
 		}
-
-		if platform == service.PlatformAntigravity {
-			if count < minCount {
-				for i := count; i < minCount; i++ {
-					name := fmt.Sprintf("%s-default-%d", platform, i+1)
-					if err := createGroupIfNotExists(ctx, client, name, platform); err != nil {
-						return err
-					}
-				}
+		if count < 2 {
+			if err := createGroupIfNotExists(ctx, client, antigravitySecondaryDefaultGroupName(), platform); err != nil {
+				return err
 			}
-			continue
-		}
-
-		// Non-antigravity platforms: ensure <platform>-default exists.
-		name := platform + "-default"
-		if err := createGroupIfNotExists(ctx, client, name, platform); err != nil {
-			return err
 		}
 	}
 
 	return nil
+}
+
+func defaultGroupName(platform string) string {
+	return platform + "-default"
+}
+
+func antigravitySecondaryDefaultGroupName() string {
+	return fmt.Sprintf("%s-default-2", service.PlatformAntigravity)
 }
 
 func createGroupIfNotExists(ctx context.Context, client *dbent.Client, name, platform string) error {
