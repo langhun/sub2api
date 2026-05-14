@@ -107,6 +107,39 @@
               </p>
             </div>
           </div>
+          <div class="flex items-end sm:col-span-2">
+            <div>
+              <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <Toggle v-model="newPlan.delete_on_confirmed_401" />
+                {{ t('admin.scheduledTests.deleteOnConfirmed401') }}
+              </label>
+              <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                {{ t('admin.scheduledTests.deleteOnConfirmed401Help') }}
+              </p>
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('admin.scheduledTests.switchGroupFrom') }}
+            </label>
+            <Select
+              v-model="newPlan.switch_group_from_id"
+              :options="groupOptions"
+              :placeholder="t('groups.selectGroup')"
+              :searchable="groupOptions.length > 5"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('admin.scheduledTests.switchGroupTo') }}
+            </label>
+            <Select
+              v-model="newPlan.switch_group_to_id"
+              :options="groupOptions"
+              :placeholder="t('groups.selectGroup')"
+              :searchable="groupOptions.length > 5"
+            />
+          </div>
         </div>
         <div class="mt-3 flex justify-end gap-2">
           <button
@@ -317,6 +350,39 @@
                   </p>
                 </div>
               </div>
+              <div class="flex items-end sm:col-span-2">
+                <div>
+                  <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <Toggle v-model="editForm.delete_on_confirmed_401" />
+                    {{ t('admin.scheduledTests.deleteOnConfirmed401') }}
+                  </label>
+                  <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                    {{ t('admin.scheduledTests.deleteOnConfirmed401Help') }}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.switchGroupFrom') }}
+                </label>
+                <Select
+                  v-model="editForm.switch_group_from_id"
+                  :options="groupOptions"
+                  :placeholder="t('groups.selectGroup')"
+                  :searchable="groupOptions.length > 5"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.switchGroupTo') }}
+                </label>
+                <Select
+                  v-model="editForm.switch_group_to_id"
+                  :options="groupOptions"
+                  :placeholder="t('groups.selectGroup')"
+                  :searchable="groupOptions.length > 5"
+                />
+              </div>
             </div>
             <div class="mt-3 flex justify-end gap-2">
               <button
@@ -367,7 +433,7 @@
                 class="rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-dark-700 dark:bg-dark-900"
               >
                 <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
+                  <div class="flex flex-wrap items-center gap-2">
                     <!-- Status Badge -->
                     <span
                       :class="[
@@ -391,6 +457,21 @@
                     <!-- Latency -->
                     <span v-if="result.latency_ms > 0" class="text-xs text-gray-500 dark:text-gray-400">
                       {{ result.latency_ms }}ms
+                    </span>
+
+                    <span v-if="result.http_status_code !== null" class="text-xs text-gray-500 dark:text-gray-400">
+                      HTTP {{ result.http_status_code }}
+                    </span>
+
+                    <span v-if="result.attempt_no !== null" class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ t('admin.scheduledTests.attemptNo', { value: result.attempt_no }) }}
+                    </span>
+
+                    <span
+                      v-if="result.action_taken"
+                      class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+                    >
+                      {{ t('admin.scheduledTests.actionTaken') }}: {{ result.action_taken }}
                     </span>
                   </div>
 
@@ -463,7 +544,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -475,7 +556,7 @@ import { Icon } from '@/components/icons'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/format'
-import type { ScheduledTestPlan, ScheduledTestResult } from '@/types'
+import type { AdminGroup, ScheduledTestPlan, ScheduledTestResult } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -496,6 +577,7 @@ const creating = ref(false)
 const loadingResults = ref(false)
 const plans = ref<ScheduledTestPlan[]>([])
 const results = ref<ScheduledTestResult[]>([])
+const groups = ref<AdminGroup[]>([])
 const expandedPlanId = ref<number | null>(null)
 const expandedResultIds = reactive(new Set<number>())
 const showAddForm = ref(false)
@@ -508,7 +590,10 @@ const editForm = reactive({
   cron_expression: '' as string,
   max_results: '100' as string,
   enabled: true,
-  auto_recover: false
+  auto_recover: false,
+  delete_on_confirmed_401: false,
+  switch_group_from_id: null as number | null,
+  switch_group_to_id: null as number | null
 })
 
 const newPlan = reactive({
@@ -516,7 +601,10 @@ const newPlan = reactive({
   cron_expression: '' as string,
   max_results: '100' as string,
   enabled: true,
-  auto_recover: false
+  auto_recover: false,
+  delete_on_confirmed_401: false,
+  switch_group_from_id: null as number | null,
+  switch_group_to_id: null as number | null
 })
 
 const resetNewPlan = () => {
@@ -525,17 +613,28 @@ const resetNewPlan = () => {
   newPlan.max_results = '100'
   newPlan.enabled = true
   newPlan.auto_recover = false
+  newPlan.delete_on_confirmed_401 = false
+  newPlan.switch_group_from_id = null
+  newPlan.switch_group_to_id = null
 }
+
+const groupOptions = computed<SelectOption[]>(() =>
+  groups.value.map((group) => ({
+    value: group.id,
+    label: `${group.name} (#${group.id})`
+  }))
+)
 
 // Load plans when dialog opens
 watch(
   () => props.show,
   async (visible) => {
     if (visible && props.accountId) {
-      await loadPlans()
+      await Promise.all([loadPlans(), loadGroups()])
     } else {
       plans.value = []
       results.value = []
+      groups.value = []
       expandedPlanId.value = null
       expandedResultIds.clear()
       showAddForm.value = false
@@ -543,6 +642,15 @@ watch(
     }
   }
 )
+
+const loadGroups = async () => {
+  try {
+    groups.value = await adminAPI.groups.getAll()
+  } catch (error: any) {
+    appStore.showError(error?.message || 'Failed to load groups')
+    groups.value = []
+  }
+}
 
 const loadPlans = async () => {
   if (!props.accountId) return
@@ -567,7 +675,10 @@ const handleCreate = async () => {
       cron_expression: newPlan.cron_expression,
       enabled: newPlan.enabled,
       max_results: maxResults,
-      auto_recover: newPlan.auto_recover
+      auto_recover: newPlan.auto_recover,
+      delete_on_confirmed_401: newPlan.delete_on_confirmed_401,
+      switch_group_from_id: newPlan.switch_group_from_id,
+      switch_group_to_id: newPlan.switch_group_to_id
     })
     appStore.showSuccess(t('admin.scheduledTests.createSuccess'))
     showAddForm.value = false
@@ -600,6 +711,9 @@ const startEdit = (plan: ScheduledTestPlan) => {
   editForm.max_results = String(plan.max_results)
   editForm.enabled = plan.enabled
   editForm.auto_recover = plan.auto_recover
+  editForm.delete_on_confirmed_401 = plan.delete_on_confirmed_401
+  editForm.switch_group_from_id = plan.switch_group_from_id
+  editForm.switch_group_to_id = plan.switch_group_to_id
 }
 
 const cancelEdit = () => {
@@ -615,7 +729,10 @@ const handleEdit = async () => {
       cron_expression: editForm.cron_expression,
       max_results: Number(editForm.max_results) || 100,
       enabled: editForm.enabled,
-      auto_recover: editForm.auto_recover
+      auto_recover: editForm.auto_recover,
+      delete_on_confirmed_401: editForm.delete_on_confirmed_401,
+      switch_group_from_id: editForm.switch_group_from_id,
+      switch_group_to_id: editForm.switch_group_to_id
     })
     const index = plans.value.findIndex((p) => p.id === editingPlanId.value)
     if (index !== -1) {

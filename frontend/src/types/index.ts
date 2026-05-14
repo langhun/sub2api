@@ -1892,6 +1892,9 @@ export interface ScheduledTestPlan {
   enabled: boolean
   max_results: number
   auto_recover: boolean
+  delete_on_confirmed_401: boolean
+  switch_group_from_id: number | null
+  switch_group_to_id: number | null
   last_run_at: string | null
   next_run_at: string | null
   created_at: string
@@ -1905,6 +1908,9 @@ export interface ScheduledTestResult {
   response_text: string
   error_message: string
   latency_ms: number
+  http_status_code: number | null
+  attempt_no: number | null
+  action_taken: string | null
   started_at: string
   finished_at: string
   created_at: string
@@ -1917,6 +1923,9 @@ export interface CreateScheduledTestPlanRequest {
   enabled?: boolean
   max_results?: number
   auto_recover?: boolean
+  delete_on_confirmed_401?: boolean
+  switch_group_from_id?: number | null
+  switch_group_to_id?: number | null
 }
 
 export interface UpdateScheduledTestPlanRequest {
@@ -1925,6 +1934,9 @@ export interface UpdateScheduledTestPlanRequest {
   enabled?: boolean
   max_results?: number
   auto_recover?: boolean
+  delete_on_confirmed_401?: boolean
+  switch_group_from_id?: number | null
+  switch_group_to_id?: number | null
 }
 
 // Payment types
