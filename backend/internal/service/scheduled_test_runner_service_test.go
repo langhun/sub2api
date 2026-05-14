@@ -299,9 +299,10 @@ func TestScheduledTestRunnerService_401FirstRoundLeavesAccountInErrorForNextSche
 	require.Equal(t, 1, resultRepo.createCalls)
 	require.NotNil(t, resultRepo.created)
 	require.Equal(t, 1, resultRepo.created.AttemptNo)
-	require.Empty(t, resultRepo.created.ActionTaken)
+	require.Equal(t, "marked_error_after_401", resultRepo.created.ActionTaken)
 	require.NotNil(t, resultRepo.created.HTTPStatusCode)
 	require.Equal(t, http.StatusUnauthorized, *resultRepo.created.HTTPStatusCode)
+	require.Equal(t, 1, ParseExtraInt(accountRepo.accountsByID[80].Extra[scheduledTest401DeleteKey(plan.ID)]))
 }
 
 func TestScheduledTestRunnerService_401NextScheduledRunDeletesOnRepeated401(t *testing.T) {
@@ -319,6 +320,9 @@ func TestScheduledTestRunnerService_401NextScheduledRunDeletesOnRepeated401(t *t
 				ErrorMessage: "Authentication failed (401): {\"error\":\"bad token\"}",
 				Concurrency:  1,
 				Credentials:  map[string]any{"access_token": "test-token"},
+				Extra: map[string]any{
+					scheduledTest401DeleteKey(77): 1,
+				},
 			},
 		},
 	}
@@ -347,8 +351,8 @@ func TestScheduledTestRunnerService_401NextScheduledRunDeletesOnRepeated401(t *t
 	require.Equal(t, []int64{80}, accountRepo.deletedIDs)
 	require.Equal(t, 1, resultRepo.createCalls)
 	require.NotNil(t, resultRepo.created)
-	require.Equal(t, 2, resultRepo.created.AttemptNo)
-	require.Equal(t, "deleted_account", resultRepo.created.ActionTaken)
+	require.Equal(t, 1, resultRepo.created.AttemptNo)
+	require.Equal(t, "deleted_after_repeated_401", resultRepo.created.ActionTaken)
 	require.NotNil(t, resultRepo.created.HTTPStatusCode)
 	require.Equal(t, http.StatusUnauthorized, *resultRepo.created.HTTPStatusCode)
 }
@@ -368,6 +372,9 @@ func TestScheduledTestRunnerService_401NextScheduledRunSuccessClearsErrorWithAut
 				ErrorMessage: "Authentication failed (401): {\"error\":\"bad token\"}",
 				Concurrency:  1,
 				Credentials:  map[string]any{"access_token": "test-token"},
+				Extra: map[string]any{
+					scheduledTest401DeleteKey(77): 1,
+				},
 			},
 		},
 	}
@@ -401,7 +408,8 @@ func TestScheduledTestRunnerService_401NextScheduledRunSuccessClearsErrorWithAut
 	require.NotNil(t, resultRepo.created)
 	require.Equal(t, "success", resultRepo.created.Status)
 	require.Equal(t, 1, resultRepo.created.AttemptNo)
-	require.Empty(t, resultRepo.created.ActionTaken)
+	require.Equal(t, "released_after_401_recovery", resultRepo.created.ActionTaken)
+	require.Equal(t, 0, ParseExtraInt(accountRepo.accountsByID[80].Extra[scheduledTest401DeleteKey(77)]))
 }
 
 func TestScheduledTestRunnerService_429SwitchGroupContractPendingMainline(t *testing.T) {
