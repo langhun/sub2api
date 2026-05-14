@@ -3403,7 +3403,8 @@ export default {
         noResponseBody: 'Empty test response',
         successToast: 'Completed {count} account test(s)',
         partialSuccess: 'Batch test completed: {success} succeeded, {failed} failed',
-        unauthorizedAutoDeleteSuccess: 'Automatically queued and deleted {count} accounts that returned 401',
+        unauthorizedAutoDeleteSuccess: '401 accounts have been queued for auto-delete, total {count}',
+        unauthorizedAutoDeleteCompleted: '401 accounts auto-deleted, total {count}',
         unauthorizedAutoDeleteFailed: 'Automatic deletion failed for {count} accounts that returned 401',
         resultFilters: {
           all: 'All ({count})',

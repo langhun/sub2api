@@ -2202,23 +2202,28 @@ const handleBatchTestCompleted = async (result: { success: number; failed: numbe
 
   const deleted401Ids = batchTestDeleteSucceededIds.value
   const deleteFailed401Ids = batchTestDeleteFailedIds.value
-  const remainingFailedIds = result.failedIds.filter(id => !deleted401Ids.has(id))
+  const queued401Ids = new Set(
+    result.failedIds.filter(id => deleted401Ids.has(id) || deleteFailed401Ids.has(id))
+  )
 
-  if (remainingFailedIds.length > 0) {
+  if (result.failed > 0) {
     appStore.showError(
       t('admin.accounts.batchTest.partialSuccess', {
         success: result.success,
-        failed: remainingFailedIds.length
+        failed: result.failed
       })
     )
-    setSelectedIds(remainingFailedIds)
+    setSelectedIds(result.failedIds)
   } else if (result.success > 0) {
     appStore.showSuccess(t('admin.accounts.batchTest.successToast', { count: result.success }))
     clearSelection()
   }
 
+  if (queued401Ids.size > 0) {
+    appStore.showSuccess(t('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess', { count: queued401Ids.size }))
+  }
   if (deleted401Ids.size > 0) {
-    appStore.showSuccess(t('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess', { count: deleted401Ids.size }))
+    appStore.showSuccess(t('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted', { count: deleted401Ids.size }))
   }
   if (deleteFailed401Ids.size > 0) {
     appStore.showError(t('admin.accounts.batchTest.unauthorizedAutoDeleteFailed', { count: deleteFailed401Ids.size }))
