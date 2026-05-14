@@ -189,7 +189,7 @@ describe('PublicConsumptionLeaderboardChart', () => {
 
     expect(layout.classes()).toContain('xl:items-start')
     expect(layout.classes()).toContain('xl:gap-8')
-    expect(chartWrapper.classes()).toContain('xl:flex-[0_0_18rem]')
-    expect(chartWrapper.classes()).toContain('xl:max-w-[18rem]')
+    expect(chartWrapper.classes()).toContain('xl:flex-[0_0_24rem]')
+    expect(chartWrapper.classes()).toContain('xl:max-w-[24rem]')
   })
 })
