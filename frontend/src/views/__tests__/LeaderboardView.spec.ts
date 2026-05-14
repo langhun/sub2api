@@ -183,4 +183,61 @@ describe('LeaderboardView tab switches', () => {
 
     expect(wrapper.find('.consumption-chart-stub').text()).toBe('2|100|1')
   })
+
+  it('消费榜用户数超过默认 20 条时会补拉全量榜单条目', async () => {
+    getConsumptionLeaderboard
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 20 }, (_, index) => ({
+          rank: index + 1,
+          username: `用户${index + 1}`,
+          value: 100 - index,
+          extra_int: index + 1,
+        })),
+        total: 23,
+        page: 1,
+        page_size: 20,
+        pages: 2,
+        summary: {
+          total_value: 507.62,
+          total_users: 23,
+        },
+        chart_items: Array.from({ length: 23 }, (_, index) => ({
+          username: `用户${index + 1}`,
+          value: 100 - index,
+        })),
+      })
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 23 }, (_, index) => ({
+          rank: index + 1,
+          username: `用户${index + 1}`,
+          value: 100 - index,
+          extra_int: index + 1,
+        })),
+        total: 23,
+        page: 1,
+        page_size: 23,
+        pages: 1,
+        summary: {
+          total_value: 507.62,
+          total_users: 23,
+        },
+        chart_items: Array.from({ length: 23 }, (_, index) => ({
+          username: `用户${index + 1}`,
+          value: 100 - index,
+        })),
+      })
+
+    const wrapper = mountView({
+      leaderboard_balance_enabled: false,
+      leaderboard_consumption_enabled: true,
+      leaderboard_transfer_enabled: false,
+      leaderboard_checkin_enabled: false,
+    })
+
+    await settleLeaderboard()
+
+    expect(getConsumptionLeaderboard).toHaveBeenNthCalledWith(1, 'daily', 1, 20)
+    expect(getConsumptionLeaderboard).toHaveBeenNthCalledWith(2, 'daily', 1, 23)
+    expect(wrapper.find('.consumption-chart-stub').text()).toBe('23|507.62|23')
+  })
 })

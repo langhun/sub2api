@@ -194,6 +194,8 @@ const periods = computed(() => [
 
 const activePeriodLabel = computed(() => periods.value.find((period) => period.key === activePeriod.value)?.label ?? '')
 
+const defaultPublicLeaderboardPageSize = 20
+
 function rankClass(rank: number): string {
   if (rank === 1) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
   if (rank === 2) return 'bg-slate-200 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200'
@@ -221,13 +223,13 @@ async function fetchData() {
     let res
     switch (activeTab.value) {
       case 'balance':
-        res = await leaderboardAPI.getBalanceLeaderboard(1, 20)
+        res = await leaderboardAPI.getBalanceLeaderboard(1, defaultPublicLeaderboardPageSize)
         break
       case 'consumption':
-        res = await leaderboardAPI.getConsumptionLeaderboard(activePeriod.value, 1, 20)
+        res = await fetchConsumptionLeaderboardData(activePeriod.value)
         break
       case 'checkin':
-        res = await leaderboardAPI.getCheckinLeaderboard(1, 20)
+        res = await leaderboardAPI.getCheckinLeaderboard(1, defaultPublicLeaderboardPageSize)
         break
     }
     if (currentFetch === fetchSequence) {
@@ -252,6 +254,22 @@ async function fetchData() {
       loading.value = false
     }
   }
+}
+
+async function fetchConsumptionLeaderboardData(period: PeriodKey) {
+  const firstPage = await leaderboardAPI.getConsumptionLeaderboard(period, 1, defaultPublicLeaderboardPageSize)
+  const currentPageSize = firstPage.page_size || defaultPublicLeaderboardPageSize
+  const totalUsers = Math.max(
+    firstPage.summary?.total_users ?? 0,
+    firstPage.total ?? 0,
+    firstPage.chart_items?.length ?? 0,
+  )
+
+  if (totalUsers > currentPageSize) {
+    return leaderboardAPI.getConsumptionLeaderboard(period, 1, totalUsers)
+  }
+
+  return firstPage
 }
 
 function clearConsumptionChartData() {
