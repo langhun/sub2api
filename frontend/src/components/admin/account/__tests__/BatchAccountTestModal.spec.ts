@@ -367,4 +367,58 @@ describe('BatchAccountTestModal', () => {
 
     expect(wrapper.emitted('queue-delete')).toEqual([[9]])
   })
+
+  it('completed 事件会带回全部 401 失败账号 id', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5' }
+    ])
+
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce(createStreamResponse([
+        'data: {"type":"error","error":"Authentication failed (401): invalid token"}\n'
+      ]))
+      .mockResolvedValueOnce(createStreamResponse([
+        'data: {"type":"error","error":"API returned 429: rate limit"}\n'
+      ]))
+      .mockResolvedValueOnce(createStreamResponse([
+        'data: {"type":"error","error":"Authentication failed (401): invalid token"}\n'
+      ])) as any
+
+    const wrapper = mount(BatchAccountTestModal, {
+      props: {
+        show: true,
+        targets: [
+          { id: 11, name: 'ag-11', platform: 'antigravity', type: 'oauth' },
+          { id: 12, name: 'ag-12', platform: 'antigravity', type: 'oauth' },
+          { id: 13, name: 'ag-13', platform: 'antigravity', type: 'oauth' }
+        ]
+      },
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            emits: ['update:modelValue'],
+            template: '<select class="select-stub" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.id || option.value" :value="option.id || option.value">{{ option.display_name || option.label }}</option></select>'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+    ;(wrapper.vm as any).selectedModelId = 'claude-sonnet-4-5'
+    await (wrapper.vm as any).startBatch()
+    await flushPromises()
+
+    expect(wrapper.emitted('completed')).toEqual([[
+      {
+        success: 0,
+        failed: 3,
+        successIds: [],
+        failedIds: [11, 12, 13],
+        unauthorizedFailedIds: [11, 13]
+      }
+    ]])
+  })
 })

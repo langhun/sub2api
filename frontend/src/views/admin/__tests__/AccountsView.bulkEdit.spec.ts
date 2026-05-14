@@ -441,7 +441,8 @@ describe('admin AccountsView bulk edit scope', () => {
       success: 3,
       failed: 997,
       successIds: [1, 2, 3],
-      failedIds: Array.from({ length: 997 }, (_, index) => index + 1001)
+      failedIds: Array.from({ length: 997 }, (_, index) => index + 1001),
+      unauthorizedFailedIds: [1001]
     })
     await flushPromises()
 
@@ -498,12 +499,74 @@ describe('admin AccountsView bulk edit scope', () => {
       success: 0,
       failed: 1,
       successIds: [],
-      failedIds: [2001]
+      failedIds: [2001],
+      unauthorizedFailedIds: [2001]
     })
     await flushPromises()
 
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
     expect(showError).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteFailed')
+  })
+
+  it('backfills missing queue-delete events from completed unauthorized ids', async () => {
+    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
+    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
+    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
+
+    const wrapper = mount(AccountsView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          AccountTableActions: { template: '<div><slot name="beforeCreate" /><slot name="after" /></div>' },
+          AccountTableFilters: { template: '<div></div>' },
+          AccountBulkActionsBar: AccountBulkActionsBarStub,
+          AccountActionMenu: true,
+          ImportDataModal: true,
+          ReAuthAccountModal: true,
+          AccountTestModal: true,
+          BatchAccountTestModal: BatchAccountTestModalStub,
+          AccountStatsModal: true,
+          ScheduledTestsPanel: true,
+          SyncFromCrsModal: true,
+          TempUnschedStatusModal: true,
+          ErrorPassthroughRulesModal: true,
+          TLSFingerprintProfilesModal: true,
+          CreateAccountModal: true,
+          EditAccountModal: true,
+          BulkEditAccountModal: BulkEditAccountModalStub,
+          PlatformTypeBadge: true,
+          AccountCapacityCell: true,
+          AccountStatusIndicator: true,
+          AccountTodayStatsCell: true,
+          AccountGroupsCell: true,
+          AccountUsageCell: true,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+    await (wrapper.vm as any).handleBatchTestCompleted({
+      success: 6,
+      failed: 994,
+      successIds: [1, 2, 3, 4, 5, 6],
+      failedIds: Array.from({ length: 994 }, (_, index) => index + 1001),
+      unauthorizedFailedIds: [1001, 1002, 1003]
+    })
+    await flushPromises()
+
+    expect(deleteAccount).toHaveBeenCalledTimes(3)
+    expect(deleteAccount).toHaveBeenNthCalledWith(1, 1001)
+    expect(deleteAccount).toHaveBeenNthCalledWith(2, 1002)
+    expect(deleteAccount).toHaveBeenNthCalledWith(3, 1003)
+    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
+    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
   })
 
   it('calls batchSetPrivacy and shows success when all selected accounts are processed', async () => {

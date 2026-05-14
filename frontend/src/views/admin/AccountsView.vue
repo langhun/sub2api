@@ -2208,14 +2208,27 @@ const openUngroupedBatchTest = async () => {
     loadingUngroupedBatchTargets.value = false
   }
 }
-const handleBatchTestCompleted = async (result: { success: number; failed: number; successIds: number[]; failedIds: number[] }) => {
+const handleBatchTestCompleted = async (result: {
+  success: number
+  failed: number
+  successIds: number[]
+  failedIds: number[]
+  unauthorizedFailedIds?: number[]
+}) => {
+  const unauthorized401Ids = Array.from(new Set(result.unauthorizedFailedIds || []))
+  for (const accountId of unauthorized401Ids) {
+    enqueueBatchTestDelete(accountId)
+  }
+
   await waitForBatchTestDeleteQueueIdle()
 
-  const deleted401Ids = batchTestDeleteSucceededIds.value
-  const deleteFailed401Ids = batchTestDeleteFailedIds.value
-  const queued401Ids = new Set(
-    result.failedIds.filter(id => deleted401Ids.has(id) || deleteFailed401Ids.has(id))
+  const deleted401Ids = new Set(
+    unauthorized401Ids.filter(id => batchTestDeleteSucceededIds.value.has(id))
   )
+  const deleteFailed401Ids = new Set(
+    unauthorized401Ids.filter(id => batchTestDeleteFailedIds.value.has(id))
+  )
+  const queued401Ids = new Set(unauthorized401Ids)
 
   if (result.failed > 0) {
     appStore.showError(
