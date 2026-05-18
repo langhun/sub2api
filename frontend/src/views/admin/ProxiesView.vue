@@ -2,9 +2,27 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
+        <div class="mb-3 flex items-center gap-2">
+          <button
+            type="button"
+            class="btn"
+            :class="activeTab === 'proxies' ? 'btn-primary' : 'btn-secondary'"
+            @click="activeTab = 'proxies'"
+          >
+            {{ t('admin.proxies.title') }}
+          </button>
+          <button
+            type="button"
+            class="btn"
+            :class="activeTab === 'subscriptions' ? 'btn-primary' : 'btn-secondary'"
+            @click="switchToSubscriptions"
+          >
+            订阅源
+          </button>
+        </div>
         <div class="flex flex-wrap items-center gap-3">
           <!-- Left: Search + Filters -->
-          <div class="relative w-full sm:w-64">
+          <div v-if="activeTab === 'proxies'" class="relative w-full sm:w-64">
             <Icon
               name="search"
               size="md"
@@ -19,7 +37,7 @@
             />
           </div>
 
-          <div class="w-full sm:w-40">
+          <div v-if="activeTab === 'proxies'" class="w-full sm:w-40">
             <Select
               v-model="filters.protocol"
               :options="protocolOptions"
@@ -27,7 +45,7 @@
               @change="loadProxies"
             />
           </div>
-          <div class="w-full sm:w-36">
+          <div v-if="activeTab === 'proxies'" class="w-full sm:w-36">
             <Select
               v-model="filters.status"
               :options="statusOptions"
@@ -46,6 +64,20 @@
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
+            <template v-if="activeTab === 'subscriptions'">
+              <button
+                @click="loadProxySubscriptions"
+                :disabled="loadingSubscriptions"
+                class="btn btn-secondary"
+              >
+                <Icon name="refresh" size="md" :class="loadingSubscriptions ? 'animate-spin' : ''" />
+              </button>
+              <button @click="openCreateSubscriptionDialog" class="btn btn-primary">
+                <Icon name="plus" size="md" class="mr-2" />
+                新建订阅源
+              </button>
+            </template>
+            <template v-if="activeTab === 'proxies'">
             <div class="relative" @click.stop>
               <button
                 @click.stop="showColumnDropdown = !showColumnDropdown"
@@ -164,12 +196,47 @@
               <Icon name="plus" size="md" class="mr-2" />
               {{ t('admin.proxies.createProxy') }}
             </button>
+            </template>
           </div>
         </div>
       </template>
 
       <template #table>
+        <div v-if="activeTab === 'subscriptions'" class="rounded-xl border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
+          <div v-if="loadingSubscriptions" class="p-6 text-sm text-gray-500 dark:text-gray-400">加载中...</div>
+          <div v-else-if="proxySubscriptions.length === 0" class="p-6 text-sm text-gray-500 dark:text-gray-400">
+            暂无订阅源
+          </div>
+          <div v-else class="divide-y divide-gray-200 dark:divide-dark-600">
+            <div v-for="item in proxySubscriptions" :key="item.id" class="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+              <div class="min-w-0 space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-gray-900 dark:text-white">{{ item.name }}</span>
+                  <span :class="['badge', item.enabled ? 'badge-success' : 'badge-gray']">
+                    {{ item.enabled ? '启用' : '停用' }}
+                  </span>
+                  <span class="badge badge-gray">{{ item.source_format }}</span>
+                </div>
+                <div class="truncate text-xs text-gray-500 dark:text-gray-400">{{ item.url }}</div>
+                <div class="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
+                  <span>刷新间隔: {{ item.refresh_interval_hours }}h</span>
+                  <span>节点数: {{ item.last_node_count }}</span>
+                  <span>代理数: {{ item.last_materialized_proxy_count }}</span>
+                  <span v-if="item.last_refreshed_at">最近刷新: {{ item.last_refreshed_at }}</span>
+                </div>
+                <div v-if="item.last_error" class="text-xs text-red-500 dark:text-red-400">{{ item.last_error }}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="btn btn-secondary" @click="handleRefreshSubscription(item.id)">立即刷新</button>
+                <button class="btn btn-secondary" @click="handleEditSubscription(item)">编辑</button>
+                <button class="btn btn-secondary" @click="handleViewSubscriptionNodes(item.id)">查看节点</button>
+                <button class="btn btn-danger" @click="handleDeleteSubscription(item.id)">删除</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div ref="proxyTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <template v-if="activeTab === 'proxies'">
         <DataTable
           :columns="columns"
           :data="proxies"
@@ -199,8 +266,19 @@
             />
           </template>
 
-          <template #cell-name="{ value }">
-            <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+          <template #cell-name="{ value, row }">
+            <div class="flex flex-col gap-1">
+              <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+              <div v-if="row.managed_by_subscription" class="flex flex-wrap items-center gap-1">
+                <span class="badge badge-warning">订阅托管</span>
+                <span v-if="row.subscription_source_name" class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ row.subscription_source_name }}
+                </span>
+                <span v-if="row.subscription_node_type" class="text-xs text-gray-500 dark:text-gray-400">
+                  [{{ row.subscription_node_type }}]
+                </span>
+              </div>
+            </div>
           </template>
 
           <template #cell-protocol="{ value }">
@@ -501,6 +579,7 @@
             />
           </template>
         </DataTable>
+        </template>
         </div>
       </template>
 
@@ -796,16 +875,16 @@
       >
         <div>
           <label class="input-label">{{ t('admin.proxies.name') }}</label>
-          <input v-model="editForm.name" type="text" required class="input" />
+          <input v-model="editForm.name" type="text" required class="input" :disabled="editingProxy?.managed_by_subscription" />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
-          <Select v-model="editForm.protocol" :options="protocolSelectOptions" />
+          <Select v-model="editForm.protocol" :options="protocolSelectOptions" :disabled="editingProxy?.managed_by_subscription" />
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="input-label">{{ t('admin.proxies.host') }}</label>
-            <input v-model="editForm.host" type="text" required class="input" />
+            <input v-model="editForm.host" type="text" required class="input" :disabled="editingProxy?.managed_by_subscription" />
           </div>
           <div>
             <label class="input-label">{{ t('admin.proxies.port') }}</label>
@@ -816,12 +895,13 @@
               min="1"
               max="65535"
               class="input"
+              :disabled="editingProxy?.managed_by_subscription"
             />
           </div>
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.username') }}</label>
-          <input v-model="editForm.username" type="text" class="input" />
+          <input v-model="editForm.username" type="text" class="input" :disabled="editingProxy?.managed_by_subscription" />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.password') }}</label>
@@ -832,6 +912,7 @@
               :placeholder="t('admin.proxies.leaveEmptyToKeep')"
               class="input pr-10"
               @input="editPasswordDirty = true"
+              :disabled="editingProxy?.managed_by_subscription"
             />
             <button
               type="button"
@@ -841,6 +922,12 @@
               <Icon :name="editPasswordVisible ? 'eyeOff' : 'eye'" size="md" />
             </button>
           </div>
+        </div>
+        <div
+          v-if="editingProxy?.managed_by_subscription"
+          class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+        >
+          该代理由订阅源托管，连接字段只读。你仍然可以调整状态和代理池开关。
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.status') }}</label>
@@ -1081,6 +1168,76 @@
       :rows="poolDialogRows"
       @close="showPoolDialog = false"
     />
+
+    <BaseDialog
+      :show="showCreateSubscriptionModal"
+      :title="editingSubscription ? '编辑订阅源' : '新建订阅源'"
+      width="normal"
+      @close="showCreateSubscriptionModal = false"
+    >
+      <form id="create-subscription-form" class="space-y-4" @submit.prevent="handleSubmitSubscription">
+        <div>
+          <label class="input-label">名称</label>
+          <input v-model="subscriptionForm.name" type="text" class="input" required />
+        </div>
+        <div>
+          <label class="input-label">订阅链接</label>
+          <input v-model="subscriptionForm.url" type="url" class="input" required />
+        </div>
+        <div>
+          <label class="input-label">格式</label>
+          <Select v-model="subscriptionForm.source_format" :options="subscriptionFormatOptions" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="input-label">刷新间隔（小时）</label>
+            <input v-model.number="subscriptionForm.refresh_interval_hours" type="number" min="1" class="input" />
+          </div>
+          <label class="flex items-center gap-2 pt-8 text-sm text-gray-700 dark:text-gray-300">
+            <input v-model="subscriptionForm.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+            启用
+          </label>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <input v-model="subscriptionForm.auto_add_to_pool" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+          自动加入代理池
+        </label>
+      </form>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button class="btn btn-secondary" type="button" @click="showCreateSubscriptionModal = false">取消</button>
+          <button class="btn btn-primary" type="submit" form="create-subscription-form" :disabled="submittingSubscription">
+            {{ submittingSubscription ? '提交中...' : editingSubscription ? '保存' : '创建' }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
+
+    <BaseDialog
+      :show="showSubscriptionNodesModal"
+      title="订阅节点"
+      width="normal"
+      @close="showSubscriptionNodesModal = false"
+    >
+      <div v-if="subscriptionNodesLoading" class="p-2 text-sm text-gray-500 dark:text-gray-400">加载中...</div>
+      <div v-else-if="subscriptionNodes.length === 0" class="p-2 text-sm text-gray-500 dark:text-gray-400">暂无节点</div>
+      <div v-else class="max-h-[60vh] space-y-2 overflow-y-auto">
+        <div v-for="node in subscriptionNodes" :key="node.id" class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-gray-900 dark:text-white">{{ node.display_name || `${node.server}:${node.port}` }}</span>
+            <span class="badge badge-gray">{{ node.node_type }}</span>
+            <span class="badge" :class="node.landing_status === 'active' ? 'badge-success' : 'badge-warning'">{{ node.landing_status }}</span>
+          </div>
+          <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ node.server }}:{{ node.port }}</div>
+          <div v-if="node.last_error" class="mt-2 text-xs text-red-500 dark:text-red-400">{{ node.last_error }}</div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end">
+          <button class="btn btn-secondary" type="button" @click="showSubscriptionNodesModal = false">关闭</button>
+        </div>
+      </template>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -1089,7 +1246,14 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Proxy, ProxyAccountSummary, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
+import type {
+  Proxy,
+  ProxyAccountSummary,
+  ProxyProtocol,
+  ProxyQualityCheckResult,
+  ProxySubscriptionSource,
+  ProxySubscriptionNode
+} from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -1113,6 +1277,7 @@ import type { AdminGroup } from '@/types'
 const { t } = useI18n()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
+const activeTab = ref<'proxies' | 'subscriptions'>('proxies')
 
 const allColumns = computed<Column[]>(() => [
   { key: 'select', label: '', sortable: false, class: 'w-[52px] min-w-[52px]' },
@@ -1203,10 +1368,12 @@ const editStatusOptions = computed(() => [
 ])
 
 const proxies = ref<Proxy[]>([])
+const proxySubscriptions = ref<ProxySubscriptionSource[]>([])
 const accountGroups = ref<AdminGroup[]>([])
 const visiblePasswordIds = reactive(new Set<number>())
 const copyMenuProxyId = ref<number | null>(null)
 const loading = ref(false)
+const loadingSubscriptions = ref(false)
 const searchQuery = ref('')
 const filters = reactive({
   protocol: '',
@@ -1236,8 +1403,11 @@ const showBatchUnassignDialog = ref(false)
 const showExportDataDialog = ref(false)
 const showAccountsModal = ref(false)
 const showPoolDialog = ref(false)
+const showCreateSubscriptionModal = ref(false)
+const showSubscriptionNodesModal = ref(false)
 const showColumnDropdown = ref(false)
 const submitting = ref(false)
+const submittingSubscription = ref(false)
 const exportingData = ref(false)
 const testingProxyIds = ref<Set<number>>(new Set())
 const qualityCheckingProxyIds = ref<Set<number>>(new Set())
@@ -1276,6 +1446,52 @@ const qualityReportProxy = ref<Proxy | null>(null)
 const qualityReport = ref<ProxyQualityCheckResult | null>(null)
 const poolDialogRows = ref<Proxy[]>([])
 const poolDialogLoading = ref(false)
+const subscriptionNodes = ref<ProxySubscriptionNode[]>([])
+const subscriptionNodesLoading = ref(false)
+const editingSubscription = ref<ProxySubscriptionSource | null>(null)
+const subscriptionFormatOptions = [
+  { value: 'auto', label: '自动识别' },
+  { value: 'direct_list', label: '直连代理列表' },
+  { value: 'uri_list', label: 'URI 列表 / Base64' },
+  { value: 'clash_yaml', label: 'Clash YAML' }
+]
+const subscriptionForm = reactive({
+  name: '',
+  url: '',
+  source_format: 'auto' as 'auto' | 'direct_list' | 'uri_list' | 'clash_yaml',
+  enabled: true,
+  refresh_interval_hours: 6,
+  auto_add_to_pool: true
+})
+
+const switchToSubscriptions = async () => {
+  activeTab.value = 'subscriptions'
+  if (proxySubscriptions.value.length === 0) {
+    await loadProxySubscriptions()
+  }
+}
+
+const openCreateSubscriptionDialog = () => {
+  editingSubscription.value = null
+  subscriptionForm.name = ''
+  subscriptionForm.url = ''
+  subscriptionForm.source_format = 'auto'
+  subscriptionForm.enabled = true
+  subscriptionForm.refresh_interval_hours = 6
+  subscriptionForm.auto_add_to_pool = true
+  showCreateSubscriptionModal.value = true
+}
+
+const handleEditSubscription = (item: ProxySubscriptionSource) => {
+  editingSubscription.value = item
+  subscriptionForm.name = item.name
+  subscriptionForm.url = item.url
+  subscriptionForm.source_format = item.source_format
+  subscriptionForm.enabled = item.enabled
+  subscriptionForm.refresh_interval_hours = item.refresh_interval_hours
+  subscriptionForm.auto_add_to_pool = item.auto_add_to_pool
+  showCreateSubscriptionModal.value = true
+}
 
 // Batch import state
 const createMode = ref<'standard' | 'batch'>('standard')
@@ -1344,6 +1560,19 @@ const buildProxyQueryFilters = () => ({
   sort_by: sortState.sort_by,
   sort_order: sortState.sort_order
 })
+
+const loadProxySubscriptions = async () => {
+  loadingSubscriptions.value = true
+  try {
+    const response = await adminAPI.proxySubscriptions.list(1, 100)
+    proxySubscriptions.value = response.items
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || '加载订阅源失败')
+    console.error('Error loading proxy subscriptions:', error)
+  } finally {
+    loadingSubscriptions.value = false
+  }
+}
 
 const loadProxies = async () => {
   if (abortController) {
@@ -2139,6 +2368,79 @@ const handleExportData = async () => {
   } finally {
     exportingData.value = false
     showExportDataDialog.value = false
+  }
+}
+
+const handleRefreshSubscription = async (id: number) => {
+  try {
+    const result = await adminAPI.proxySubscriptions.refresh(id)
+    appStore.showSuccess(`刷新完成：节点 ${result.node_count}，代理 ${result.materialized_proxy_count}`)
+    await loadProxySubscriptions()
+    if (activeTab.value === 'proxies') {
+      await loadProxies()
+    }
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || '刷新订阅源失败')
+    console.error('Error refreshing proxy subscription:', error)
+  }
+}
+
+const handleViewSubscriptionNodes = async (id: number) => {
+  showSubscriptionNodesModal.value = true
+  subscriptionNodesLoading.value = true
+  try {
+    subscriptionNodes.value = await adminAPI.proxySubscriptions.listNodes(id)
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || '加载订阅节点失败')
+    console.error('Error loading subscription nodes:', error)
+  } finally {
+    subscriptionNodesLoading.value = false
+  }
+}
+
+const handleDeleteSubscription = async (id: number) => {
+  try {
+    await adminAPI.proxySubscriptions.delete(id)
+    appStore.showSuccess('订阅源已删除')
+    await loadProxySubscriptions()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || '删除订阅源失败')
+    console.error('Error deleting proxy subscription:', error)
+  }
+}
+
+const handleSubmitSubscription = async () => {
+  submittingSubscription.value = true
+  try {
+    if (editingSubscription.value) {
+      await adminAPI.proxySubscriptions.update(editingSubscription.value.id, {
+        name: subscriptionForm.name.trim(),
+        url: subscriptionForm.url.trim(),
+        source_format: subscriptionForm.source_format,
+        enabled: subscriptionForm.enabled,
+        refresh_interval_hours: subscriptionForm.refresh_interval_hours,
+        auto_add_to_pool: subscriptionForm.auto_add_to_pool
+      })
+      appStore.showSuccess('订阅源更新成功')
+    } else {
+      await adminAPI.proxySubscriptions.create({
+        name: subscriptionForm.name.trim(),
+        url: subscriptionForm.url.trim(),
+        source_format: subscriptionForm.source_format,
+        enabled: subscriptionForm.enabled,
+        refresh_interval_hours: subscriptionForm.refresh_interval_hours,
+        auto_add_to_pool: subscriptionForm.auto_add_to_pool
+      })
+      appStore.showSuccess('订阅源创建成功')
+    }
+    showCreateSubscriptionModal.value = false
+    editingSubscription.value = null
+    await loadProxySubscriptions()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || (editingSubscription.value ? '更新订阅源失败' : '创建订阅源失败'))
+    console.error('Error submitting proxy subscription:', error)
+  } finally {
+    submittingSubscription.value = false
   }
 }
 

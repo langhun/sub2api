@@ -1391,6 +1391,9 @@ var (
 		{Name: "username", Type: field.TypeString, Nullable: true, Size: 100},
 		{Name: "password", Type: field.TypeString, Nullable: true, Size: 100},
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
+		{Name: "subscription_source_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "subscription_node_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "managed_by_subscription", Type: field.TypeBool, Default: false},
 	}
 	// ProxiesTable holds the schema information for the "proxies" table.
 	ProxiesTable = &schema.Table{
@@ -1407,6 +1410,115 @@ var (
 				Name:    "proxy_deleted_at",
 				Unique:  false,
 				Columns: []*schema.Column{ProxiesColumns[3]},
+			},
+			{
+				Name:    "proxy_subscription_source_id",
+				Unique:  false,
+				Columns: []*schema.Column{ProxiesColumns[11]},
+			},
+			{
+				Name:    "proxy_subscription_node_id",
+				Unique:  false,
+				Columns: []*schema.Column{ProxiesColumns[12]},
+			},
+			{
+				Name:    "proxy_managed_by_subscription",
+				Unique:  false,
+				Columns: []*schema.Column{ProxiesColumns[13]},
+			},
+		},
+	}
+	// ProxySubscriptionNodesColumns holds the columns for the "proxy_subscription_nodes" table.
+	ProxySubscriptionNodesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "node_key", Type: field.TypeString, Size: 256},
+		{Name: "display_name", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "node_type", Type: field.TypeString, Size: 32},
+		{Name: "server", Type: field.TypeString, Size: 255},
+		{Name: "port", Type: field.TypeInt},
+		{Name: "config_json", Type: field.TypeJSON, Nullable: true},
+		{Name: "landing_status", Type: field.TypeString, Size: 32, Default: "pending"},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "last_seen_at", Type: field.TypeTime},
+		{Name: "source_id", Type: field.TypeInt64},
+	}
+	// ProxySubscriptionNodesTable holds the schema information for the "proxy_subscription_nodes" table.
+	ProxySubscriptionNodesTable = &schema.Table{
+		Name:       "proxy_subscription_nodes",
+		Columns:    ProxySubscriptionNodesColumns,
+		PrimaryKey: []*schema.Column{ProxySubscriptionNodesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "proxy_subscription_nodes_proxy_subscription_sources_nodes",
+				Columns:    []*schema.Column{ProxySubscriptionNodesColumns[13]},
+				RefColumns: []*schema.Column{ProxySubscriptionSourcesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "proxysubscriptionnode_source_id",
+				Unique:  false,
+				Columns: []*schema.Column{ProxySubscriptionNodesColumns[13]},
+			},
+			{
+				Name:    "proxysubscriptionnode_landing_status",
+				Unique:  false,
+				Columns: []*schema.Column{ProxySubscriptionNodesColumns[10]},
+			},
+			{
+				Name:    "proxysubscriptionnode_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{ProxySubscriptionNodesColumns[3]},
+			},
+			{
+				Name:    "proxysubscriptionnode_source_id_node_key",
+				Unique:  true,
+				Columns: []*schema.Column{ProxySubscriptionNodesColumns[13], ProxySubscriptionNodesColumns[4]},
+			},
+		},
+	}
+	// ProxySubscriptionSourcesColumns holds the columns for the "proxy_subscription_sources" table.
+	ProxySubscriptionSourcesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "name", Type: field.TypeString, Size: 100},
+		{Name: "url", Type: field.TypeString, Size: 2048},
+		{Name: "source_format", Type: field.TypeString, Size: 32, Default: "auto"},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "refresh_interval_hours", Type: field.TypeInt, Default: 6},
+		{Name: "auto_add_to_pool", Type: field.TypeBool, Default: false},
+		{Name: "last_refreshed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_success_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "last_node_count", Type: field.TypeInt, Default: 0},
+		{Name: "last_materialized_proxy_count", Type: field.TypeInt, Default: 0},
+	}
+	// ProxySubscriptionSourcesTable holds the schema information for the "proxy_subscription_sources" table.
+	ProxySubscriptionSourcesTable = &schema.Table{
+		Name:       "proxy_subscription_sources",
+		Columns:    ProxySubscriptionSourcesColumns,
+		PrimaryKey: []*schema.Column{ProxySubscriptionSourcesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "proxysubscriptionsource_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{ProxySubscriptionSourcesColumns[7]},
+			},
+			{
+				Name:    "proxysubscriptionsource_source_format",
+				Unique:  false,
+				Columns: []*schema.Column{ProxySubscriptionSourcesColumns[6]},
+			},
+			{
+				Name:    "proxysubscriptionsource_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{ProxySubscriptionSourcesColumns[3]},
 			},
 		},
 	}
@@ -2016,6 +2128,8 @@ var (
 		PromoCodesTable,
 		PromoCodeUsagesTable,
 		ProxiesTable,
+		ProxySubscriptionNodesTable,
+		ProxySubscriptionSourcesTable,
 		RedeemCodesTable,
 		SecuritySecretsTable,
 		SettingsTable,
@@ -2141,6 +2255,13 @@ func init() {
 	}
 	ProxiesTable.Annotation = &entsql.Annotation{
 		Table: "proxies",
+	}
+	ProxySubscriptionNodesTable.ForeignKeys[0].RefTable = ProxySubscriptionSourcesTable
+	ProxySubscriptionNodesTable.Annotation = &entsql.Annotation{
+		Table: "proxy_subscription_nodes",
+	}
+	ProxySubscriptionSourcesTable.Annotation = &entsql.Annotation{
+		Table: "proxy_subscription_sources",
 	}
 	RedeemCodesTable.ForeignKeys[0].RefTable = GroupsTable
 	RedeemCodesTable.ForeignKeys[1].RefTable = UsersTable

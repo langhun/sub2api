@@ -110,6 +110,14 @@ type AdminService interface {
 	CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error)
 	TestProxy(ctx context.Context, id int64) (*ProxyTestResult, error)
 	CheckProxyQuality(ctx context.Context, id int64) (*ProxyQualityCheckResult, error)
+	ListProxySubscriptionSources(ctx context.Context, page, pageSize int, search string, enabled *bool) ([]ProxySubscriptionSource, int64, error)
+	GetProxySubscriptionSource(ctx context.Context, id int64) (*ProxySubscriptionSource, error)
+	CreateProxySubscriptionSource(ctx context.Context, input *CreateProxySubscriptionSourceInput) (*ProxySubscriptionSource, error)
+	UpdateProxySubscriptionSource(ctx context.Context, id int64, input *UpdateProxySubscriptionSourceInput) (*ProxySubscriptionSource, error)
+	DeleteProxySubscriptionSource(ctx context.Context, id int64) error
+	ListProxySubscriptionNodes(ctx context.Context, sourceID int64) ([]ProxySubscriptionNode, error)
+	ListMaterializedProxiesBySubscriptionSource(ctx context.Context, sourceID int64) ([]Proxy, error)
+	RefreshProxySubscriptionSource(ctx context.Context, id int64) (*ProxySubscriptionRefreshResult, error)
 
 	// Redeem code management
 	ListRedeemCodes(ctx context.Context, page, pageSize int, codeType, status, search string, sortBy, sortOrder string) ([]RedeemCode, int64, error)
@@ -388,6 +396,9 @@ type CreateProxyInput struct {
 	Username                string
 	Password                string
 	AutoFailoverPoolEnabled bool
+	ManagedBySubscription   bool
+	SubscriptionSourceID    *int64
+	SubscriptionNodeID      *int64
 }
 
 type UpdateProxyInput struct {
@@ -399,6 +410,10 @@ type UpdateProxyInput struct {
 	Password                string
 	Status                  string
 	AutoFailoverPoolEnabled *bool
+	ManagedBySubscription   *bool
+	SubscriptionSourceID    *int64
+	SubscriptionNodeID      *int64
+	AllowManagedOverride    bool
 }
 
 type GenerateRedeemCodesInput struct {
@@ -529,23 +544,26 @@ var ErrRPMStatusUnavailable = infraerrors.New(http.StatusNotImplemented, "RPM_ST
 
 // adminServiceImpl implements AdminService
 type adminServiceImpl struct {
-	userRepo             UserRepository
-	groupRepo            GroupRepository
-	accountRepo          AccountRepository
-	proxyRepo            ProxyRepository
-	apiKeyRepo           APIKeyRepository
-	redeemCodeRepo       RedeemCodeRepository
-	userGroupRateRepo    UserGroupRateRepository
-	userRPMCache         UserRPMCache
-	billingCacheService  *BillingCacheService
-	proxyProber          ProxyExitInfoProber
-	proxyLatencyCache    ProxyLatencyCache
-	authCacheInvalidator APIKeyAuthCacheInvalidator
-	entClient            *dbent.Client // 用于开启数据库事务
-	settingService       *SettingService
-	defaultSubAssigner   DefaultSubscriptionAssigner
-	userSubRepo          UserSubscriptionRepository
-	privacyClientFactory PrivacyClientFactory
+	userRepo                    UserRepository
+	groupRepo                   GroupRepository
+	accountRepo                 AccountRepository
+	proxyRepo                   ProxyRepository
+	proxySubscriptionSourceRepo ProxySubscriptionSourceRepository
+	proxySubscriptionNodeRepo   ProxySubscriptionNodeRepository
+	apiKeyRepo                  APIKeyRepository
+	redeemCodeRepo              RedeemCodeRepository
+	userGroupRateRepo           UserGroupRateRepository
+	userRPMCache                UserRPMCache
+	billingCacheService         *BillingCacheService
+	proxyProber                 ProxyExitInfoProber
+	proxyLatencyCache           ProxyLatencyCache
+	authCacheInvalidator        APIKeyAuthCacheInvalidator
+	entClient                   *dbent.Client // 用于开启数据库事务
+	settingService              *SettingService
+	defaultSubAssigner          DefaultSubscriptionAssigner
+	userSubRepo                 UserSubscriptionRepository
+	privacyClientFactory        PrivacyClientFactory
+	proxySubscriptionService    *ProxySubscriptionService
 }
 
 type userGroupRateBatchReader interface {
@@ -558,6 +576,8 @@ func NewAdminService(
 	groupRepo GroupRepository,
 	accountRepo AccountRepository,
 	proxyRepo ProxyRepository,
+	proxySubscriptionSourceRepo ProxySubscriptionSourceRepository,
+	proxySubscriptionNodeRepo ProxySubscriptionNodeRepository,
 	apiKeyRepo APIKeyRepository,
 	redeemCodeRepo RedeemCodeRepository,
 	userGroupRateRepo UserGroupRateRepository,
@@ -571,25 +591,29 @@ func NewAdminService(
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	userSubRepo UserSubscriptionRepository,
 	privacyClientFactory PrivacyClientFactory,
+	proxySubscriptionService *ProxySubscriptionService,
 ) AdminService {
 	return &adminServiceImpl{
-		userRepo:             userRepo,
-		groupRepo:            groupRepo,
-		accountRepo:          accountRepo,
-		proxyRepo:            proxyRepo,
-		apiKeyRepo:           apiKeyRepo,
-		redeemCodeRepo:       redeemCodeRepo,
-		userGroupRateRepo:    userGroupRateRepo,
-		userRPMCache:         userRPMCache,
-		billingCacheService:  billingCacheService,
-		proxyProber:          proxyProber,
-		proxyLatencyCache:    proxyLatencyCache,
-		authCacheInvalidator: authCacheInvalidator,
-		entClient:            entClient,
-		settingService:       settingService,
-		defaultSubAssigner:   defaultSubAssigner,
-		userSubRepo:          userSubRepo,
-		privacyClientFactory: privacyClientFactory,
+		userRepo:                    userRepo,
+		groupRepo:                   groupRepo,
+		accountRepo:                 accountRepo,
+		proxyRepo:                   proxyRepo,
+		proxySubscriptionSourceRepo: proxySubscriptionSourceRepo,
+		proxySubscriptionNodeRepo:   proxySubscriptionNodeRepo,
+		apiKeyRepo:                  apiKeyRepo,
+		redeemCodeRepo:              redeemCodeRepo,
+		userGroupRateRepo:           userGroupRateRepo,
+		userRPMCache:                userRPMCache,
+		billingCacheService:         billingCacheService,
+		proxyProber:                 proxyProber,
+		proxyLatencyCache:           proxyLatencyCache,
+		authCacheInvalidator:        authCacheInvalidator,
+		entClient:                   entClient,
+		settingService:              settingService,
+		defaultSubAssigner:          defaultSubAssigner,
+		userSubRepo:                 userSubRepo,
+		privacyClientFactory:        privacyClientFactory,
+		proxySubscriptionService:    proxySubscriptionService,
 	}
 }
 
@@ -2917,13 +2941,16 @@ func (s *adminServiceImpl) GetProxiesByIDs(ctx context.Context, ids []int64) ([]
 
 func (s *adminServiceImpl) CreateProxy(ctx context.Context, input *CreateProxyInput) (*Proxy, error) {
 	proxy := &Proxy{
-		Name:     input.Name,
-		Protocol: input.Protocol,
-		Host:     input.Host,
-		Port:     input.Port,
-		Username: input.Username,
-		Password: input.Password,
-		Status:   StatusActive,
+		Name:                  input.Name,
+		Protocol:              input.Protocol,
+		Host:                  input.Host,
+		Port:                  input.Port,
+		Username:              input.Username,
+		Password:              input.Password,
+		Status:                StatusActive,
+		ManagedBySubscription: input.ManagedBySubscription,
+		SubscriptionSourceID:  input.SubscriptionSourceID,
+		SubscriptionNodeID:    input.SubscriptionNodeID,
 	}
 	if err := s.proxyRepo.Create(ctx, proxy); err != nil {
 		return nil, err
@@ -2943,6 +2970,12 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	proxy, err := s.proxyRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	if proxy.ManagedBySubscription && !input.AllowManagedOverride {
+		if input.Name != "" || input.Protocol != "" || input.Host != "" || input.Port != 0 || input.Username != "" || input.Password != "" {
+			return nil, infraerrors.BadRequest("PROXY_SUBSCRIPTION_MANAGED", "subscription managed proxy fields are read-only")
+		}
 	}
 
 	if input.Name != "" {
@@ -2965,6 +2998,15 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	}
 	if input.Status != "" {
 		proxy.Status = input.Status
+	}
+	if input.ManagedBySubscription != nil {
+		proxy.ManagedBySubscription = *input.ManagedBySubscription
+	}
+	if input.SubscriptionSourceID != nil || input.AllowManagedOverride {
+		proxy.SubscriptionSourceID = input.SubscriptionSourceID
+	}
+	if input.SubscriptionNodeID != nil || input.AllowManagedOverride {
+		proxy.SubscriptionNodeID = input.SubscriptionNodeID
 	}
 
 	if err := s.proxyRepo.Update(ctx, proxy); err != nil {
@@ -3411,6 +3453,62 @@ func (s *adminServiceImpl) CheckProxyQuality(ctx context.Context, id int64) (*Pr
 	finalizeProxyQualityResult(result)
 	s.saveProxyQualitySnapshot(ctx, id, result, exitInfo)
 	return result, nil
+}
+
+func (s *adminServiceImpl) ListProxySubscriptionSources(ctx context.Context, page, pageSize int, search string, enabled *bool) ([]ProxySubscriptionSource, int64, error) {
+	if s.proxySubscriptionService == nil {
+		return []ProxySubscriptionSource{}, 0, nil
+	}
+	return s.proxySubscriptionService.ListSources(ctx, page, pageSize, search, enabled)
+}
+
+func (s *adminServiceImpl) GetProxySubscriptionSource(ctx context.Context, id int64) (*ProxySubscriptionSource, error) {
+	if s.proxySubscriptionService == nil {
+		return nil, ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.GetSource(ctx, id)
+}
+
+func (s *adminServiceImpl) CreateProxySubscriptionSource(ctx context.Context, input *CreateProxySubscriptionSourceInput) (*ProxySubscriptionSource, error) {
+	if s.proxySubscriptionService == nil {
+		return nil, ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.CreateSource(ctx, input)
+}
+
+func (s *adminServiceImpl) UpdateProxySubscriptionSource(ctx context.Context, id int64, input *UpdateProxySubscriptionSourceInput) (*ProxySubscriptionSource, error) {
+	if s.proxySubscriptionService == nil {
+		return nil, ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.UpdateSource(ctx, id, input)
+}
+
+func (s *adminServiceImpl) DeleteProxySubscriptionSource(ctx context.Context, id int64) error {
+	if s.proxySubscriptionService == nil {
+		return ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.DeleteSource(ctx, id)
+}
+
+func (s *adminServiceImpl) ListProxySubscriptionNodes(ctx context.Context, sourceID int64) ([]ProxySubscriptionNode, error) {
+	if s.proxySubscriptionService == nil {
+		return []ProxySubscriptionNode{}, nil
+	}
+	return s.proxySubscriptionService.ListNodes(ctx, sourceID)
+}
+
+func (s *adminServiceImpl) ListMaterializedProxiesBySubscriptionSource(ctx context.Context, sourceID int64) ([]Proxy, error) {
+	if s.proxySubscriptionService == nil {
+		return []Proxy{}, nil
+	}
+	return s.proxySubscriptionService.ListMaterializedProxies(ctx, sourceID)
+}
+
+func (s *adminServiceImpl) RefreshProxySubscriptionSource(ctx context.Context, id int64) (*ProxySubscriptionRefreshResult, error) {
+	if s.proxySubscriptionService == nil {
+		return nil, ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.RefreshSource(ctx, id)
 }
 
 func runProxyQualityTarget(ctx context.Context, client *http.Client, target proxyQualityTarget) ProxyQualityCheckItem {

@@ -271,6 +271,11 @@ type Proxy struct {
 	Password                string    `json:"-"`
 	Status                  string    `json:"status"`
 	AutoFailoverPoolEnabled bool      `json:"auto_failover_pool_enabled"`
+	ManagedBySubscription   bool      `json:"managed_by_subscription"`
+	SubscriptionSourceID    *int64    `json:"subscription_source_id,omitempty"`
+	SubscriptionSourceName  string    `json:"subscription_source_name,omitempty"`
+	SubscriptionNodeID      *int64    `json:"subscription_node_id,omitempty"`
+	SubscriptionNodeType    string    `json:"subscription_node_type,omitempty"`
 	CreatedAt               time.Time `json:"created_at"`
 	UpdatedAt               time.Time `json:"updated_at"`
 }
@@ -297,6 +302,60 @@ type ProxyWithAccountCount struct {
 	LastFailAtUnix      *int64 `json:"last_fail_at_unix,omitempty"`
 	LastRecoveredAtUnix *int64 `json:"last_recovered_at_unix,omitempty"`
 	FailoverSwitchCount *int64 `json:"failover_switch_count,omitempty"`
+}
+
+type ProxySubscriptionSource struct {
+	ID                         int64      `json:"id"`
+	Name                       string     `json:"name"`
+	URL                        string     `json:"url"`
+	SourceFormat               string     `json:"source_format"`
+	Enabled                    bool       `json:"enabled"`
+	RefreshIntervalHours       int        `json:"refresh_interval_hours"`
+	AutoAddToPool              bool       `json:"auto_add_to_pool"`
+	LastRefreshedAt            *time.Time `json:"last_refreshed_at,omitempty"`
+	LastSuccessAt              *time.Time `json:"last_success_at,omitempty"`
+	LastError                  string     `json:"last_error,omitempty"`
+	LastNodeCount              int        `json:"last_node_count"`
+	LastMaterializedProxyCount int        `json:"last_materialized_proxy_count"`
+	CreatedAt                  time.Time  `json:"created_at"`
+	UpdatedAt                  time.Time  `json:"updated_at"`
+}
+
+type ProxySubscriptionNode struct {
+	ID            int64          `json:"id"`
+	SourceID      int64          `json:"source_id"`
+	NodeKey       string         `json:"node_key"`
+	DisplayName   string         `json:"display_name"`
+	NodeType      string         `json:"node_type"`
+	Server        string         `json:"server"`
+	Port          int            `json:"port"`
+	ConfigJSON    map[string]any `json:"config_json"`
+	LandingStatus string         `json:"landing_status"`
+	LastError     string         `json:"last_error,omitempty"`
+	LastSeenAt    time.Time      `json:"last_seen_at"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+}
+
+type ProxySubscriptionRefreshError struct {
+	NodeKey string `json:"node_key,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Message string `json:"message"`
+}
+
+type ProxySubscriptionRefreshResult struct {
+	SourceID               int64                           `json:"source_id"`
+	RefreshedAt            time.Time                       `json:"refreshed_at"`
+	NodeCount              int                             `json:"node_count"`
+	MaterializedProxyCount int                             `json:"materialized_proxy_count"`
+	CreatedProxyCount      int                             `json:"created_proxy_count"`
+	UpdatedProxyCount      int                             `json:"updated_proxy_count"`
+	DisabledProxyCount     int                             `json:"disabled_proxy_count"`
+	DeletedProxyCount      int                             `json:"deleted_proxy_count"`
+	SkippedNodeCount       int                             `json:"skipped_node_count"`
+	ConflictNodeCount      int                             `json:"conflict_node_count"`
+	UnsupportedNodeCount   int                             `json:"unsupported_node_count"`
+	Errors                 []ProxySubscriptionRefreshError `json:"errors"`
 }
 
 // AdminProxy 是管理员接口使用的 proxy DTO（包含密码等敏感字段）。

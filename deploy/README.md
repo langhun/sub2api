@@ -106,6 +106,53 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 **Recommendation:** Use the local-directory compose file for easier data management and migration. `docker-deploy.sh` saves it as `docker-compose.yml`, so script-based installs can use plain `docker compose ...` commands.
 
+### Proxy Subscription Sidecar
+
+Sub2API now supports proxy subscription sources under the Admin proxy management page. For non-direct nodes
+such as `ss`, `vmess`, `vless`, `trojan`, and `hysteria2`, the main application delegates runtime materialization
+to the companion `proxy-subscription-sidecar` service.
+
+What the sidecar does:
+- Accepts runtime upsert / check / delete requests over HTTP
+- Writes a sing-box config per runtime
+- Starts a local `socks5h` listener backed by sing-box
+- Returns the listener address so Sub2API can materialize it into the normal proxy pool
+
+Important notes:
+- `PROXY_SUBSCRIPTIONS_ENABLED=true` enables subscription source management and background refresh
+- `PROXY_SUBSCRIPTION_SIDECAR_ENABLED=true` enables sidecar integration for non-direct proxy nodes
+- The Docker Compose templates in this directory already include a `proxy-subscription-sidecar` service
+- The sidecar image installs `sing-box` in-container; no extra host binary is required for Docker deployments
+- Current node mapping is intentionally minimal and focuses on the common fields required to bootstrap runtime creation
+
+Recommended environment variables:
+
+```bash
+PROXY_SUBSCRIPTIONS_ENABLED=true
+PROXY_SUBSCRIPTIONS_REFRESH_SCAN_INTERVAL_SECONDS=60
+PROXY_SUBSCRIPTIONS_DEFAULT_REFRESH_INTERVAL_HOURS=6
+PROXY_SUBSCRIPTIONS_SYNC_CONCURRENCY=2
+
+PROXY_SUBSCRIPTION_SIDECAR_ENABLED=true
+PROXY_SUBSCRIPTION_SIDECAR_BASE_URL=http://proxy-subscription-sidecar:8080
+PROXY_SUBSCRIPTION_SIDECAR_LISTENER_HOST=proxy-subscription-sidecar
+PROXY_SUBSCRIPTION_SIDECAR_LISTENER_PORT_RANGE=21080-21180
+PROXY_SUBSCRIPTION_SIDECAR_SING_BOX_BIN=/usr/bin/sing-box
+```
+
+To verify the sidecar after startup:
+
+```bash
+docker compose logs -f proxy-subscription-sidecar
+docker compose exec sub2api wget -qO- http://proxy-subscription-sidecar:8080/healthz
+```
+
+If you see `spawn sing-box ENOENT`, verify that:
+- the sidecar image contains `sing-box`
+- `PROXY_SUBSCRIPTION_SIDECAR_SING_BOX_BIN` points to the real executable path
+- `PROXY_SUBSCRIPTION_SIDECAR_LISTENER_HOST` resolves over the Compose network instead of `127.0.0.1`
+- the process user can execute that binary
+
 ### How Auto-Setup Works
 
 When using Docker Compose with `AUTO_SETUP=true`:

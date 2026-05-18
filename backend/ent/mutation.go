@@ -42,6 +42,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/proxysubscriptionnode"
+	"github.com/Wei-Shaw/sub2api/ent/proxysubscriptionsource"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
@@ -95,6 +97,8 @@ const (
 	TypePromoCode                     = "PromoCode"
 	TypePromoCodeUsage                = "PromoCodeUsage"
 	TypeProxy                         = "Proxy"
+	TypeProxySubscriptionNode         = "ProxySubscriptionNode"
+	TypeProxySubscriptionSource       = "ProxySubscriptionSource"
 	TypeRedeemCode                    = "RedeemCode"
 	TypeSecuritySecret                = "SecuritySecret"
 	TypeSetting                       = "Setting"
@@ -36238,27 +36242,32 @@ func (m *PromoCodeUsageMutation) ResetEdge(name string) error {
 // ProxyMutation represents an operation that mutates the Proxy nodes in the graph.
 type ProxyMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *int64
-	created_at      *time.Time
-	updated_at      *time.Time
-	deleted_at      *time.Time
-	name            *string
-	protocol        *string
-	host            *string
-	port            *int
-	addport         *int
-	username        *string
-	password        *string
-	status          *string
-	clearedFields   map[string]struct{}
-	accounts        map[int64]struct{}
-	removedaccounts map[int64]struct{}
-	clearedaccounts bool
-	done            bool
-	oldValue        func(context.Context) (*Proxy, error)
-	predicates      []predicate.Proxy
+	op                        Op
+	typ                       string
+	id                        *int64
+	created_at                *time.Time
+	updated_at                *time.Time
+	deleted_at                *time.Time
+	name                      *string
+	protocol                  *string
+	host                      *string
+	port                      *int
+	addport                   *int
+	username                  *string
+	password                  *string
+	status                    *string
+	subscription_source_id    *int64
+	addsubscription_source_id *int64
+	subscription_node_id      *int64
+	addsubscription_node_id   *int64
+	managed_by_subscription   *bool
+	clearedFields             map[string]struct{}
+	accounts                  map[int64]struct{}
+	removedaccounts           map[int64]struct{}
+	clearedaccounts           bool
+	done                      bool
+	oldValue                  func(context.Context) (*Proxy, error)
+	predicates                []predicate.Proxy
 }
 
 var _ ent.Mutation = (*ProxyMutation)(nil)
@@ -36778,6 +36787,182 @@ func (m *ProxyMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetSubscriptionSourceID sets the "subscription_source_id" field.
+func (m *ProxyMutation) SetSubscriptionSourceID(i int64) {
+	m.subscription_source_id = &i
+	m.addsubscription_source_id = nil
+}
+
+// SubscriptionSourceID returns the value of the "subscription_source_id" field in the mutation.
+func (m *ProxyMutation) SubscriptionSourceID() (r int64, exists bool) {
+	v := m.subscription_source_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionSourceID returns the old "subscription_source_id" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldSubscriptionSourceID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionSourceID: %w", err)
+	}
+	return oldValue.SubscriptionSourceID, nil
+}
+
+// AddSubscriptionSourceID adds i to the "subscription_source_id" field.
+func (m *ProxyMutation) AddSubscriptionSourceID(i int64) {
+	if m.addsubscription_source_id != nil {
+		*m.addsubscription_source_id += i
+	} else {
+		m.addsubscription_source_id = &i
+	}
+}
+
+// AddedSubscriptionSourceID returns the value that was added to the "subscription_source_id" field in this mutation.
+func (m *ProxyMutation) AddedSubscriptionSourceID() (r int64, exists bool) {
+	v := m.addsubscription_source_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSubscriptionSourceID clears the value of the "subscription_source_id" field.
+func (m *ProxyMutation) ClearSubscriptionSourceID() {
+	m.subscription_source_id = nil
+	m.addsubscription_source_id = nil
+	m.clearedFields[proxy.FieldSubscriptionSourceID] = struct{}{}
+}
+
+// SubscriptionSourceIDCleared returns if the "subscription_source_id" field was cleared in this mutation.
+func (m *ProxyMutation) SubscriptionSourceIDCleared() bool {
+	_, ok := m.clearedFields[proxy.FieldSubscriptionSourceID]
+	return ok
+}
+
+// ResetSubscriptionSourceID resets all changes to the "subscription_source_id" field.
+func (m *ProxyMutation) ResetSubscriptionSourceID() {
+	m.subscription_source_id = nil
+	m.addsubscription_source_id = nil
+	delete(m.clearedFields, proxy.FieldSubscriptionSourceID)
+}
+
+// SetSubscriptionNodeID sets the "subscription_node_id" field.
+func (m *ProxyMutation) SetSubscriptionNodeID(i int64) {
+	m.subscription_node_id = &i
+	m.addsubscription_node_id = nil
+}
+
+// SubscriptionNodeID returns the value of the "subscription_node_id" field in the mutation.
+func (m *ProxyMutation) SubscriptionNodeID() (r int64, exists bool) {
+	v := m.subscription_node_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionNodeID returns the old "subscription_node_id" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldSubscriptionNodeID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionNodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionNodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionNodeID: %w", err)
+	}
+	return oldValue.SubscriptionNodeID, nil
+}
+
+// AddSubscriptionNodeID adds i to the "subscription_node_id" field.
+func (m *ProxyMutation) AddSubscriptionNodeID(i int64) {
+	if m.addsubscription_node_id != nil {
+		*m.addsubscription_node_id += i
+	} else {
+		m.addsubscription_node_id = &i
+	}
+}
+
+// AddedSubscriptionNodeID returns the value that was added to the "subscription_node_id" field in this mutation.
+func (m *ProxyMutation) AddedSubscriptionNodeID() (r int64, exists bool) {
+	v := m.addsubscription_node_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSubscriptionNodeID clears the value of the "subscription_node_id" field.
+func (m *ProxyMutation) ClearSubscriptionNodeID() {
+	m.subscription_node_id = nil
+	m.addsubscription_node_id = nil
+	m.clearedFields[proxy.FieldSubscriptionNodeID] = struct{}{}
+}
+
+// SubscriptionNodeIDCleared returns if the "subscription_node_id" field was cleared in this mutation.
+func (m *ProxyMutation) SubscriptionNodeIDCleared() bool {
+	_, ok := m.clearedFields[proxy.FieldSubscriptionNodeID]
+	return ok
+}
+
+// ResetSubscriptionNodeID resets all changes to the "subscription_node_id" field.
+func (m *ProxyMutation) ResetSubscriptionNodeID() {
+	m.subscription_node_id = nil
+	m.addsubscription_node_id = nil
+	delete(m.clearedFields, proxy.FieldSubscriptionNodeID)
+}
+
+// SetManagedBySubscription sets the "managed_by_subscription" field.
+func (m *ProxyMutation) SetManagedBySubscription(b bool) {
+	m.managed_by_subscription = &b
+}
+
+// ManagedBySubscription returns the value of the "managed_by_subscription" field in the mutation.
+func (m *ProxyMutation) ManagedBySubscription() (r bool, exists bool) {
+	v := m.managed_by_subscription
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldManagedBySubscription returns the old "managed_by_subscription" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldManagedBySubscription(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldManagedBySubscription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldManagedBySubscription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldManagedBySubscription: %w", err)
+	}
+	return oldValue.ManagedBySubscription, nil
+}
+
+// ResetManagedBySubscription resets all changes to the "managed_by_subscription" field.
+func (m *ProxyMutation) ResetManagedBySubscription() {
+	m.managed_by_subscription = nil
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by ids.
 func (m *ProxyMutation) AddAccountIDs(ids ...int64) {
 	if m.accounts == nil {
@@ -36866,7 +37051,7 @@ func (m *ProxyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProxyMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 13)
 	if m.created_at != nil {
 		fields = append(fields, proxy.FieldCreatedAt)
 	}
@@ -36897,6 +37082,15 @@ func (m *ProxyMutation) Fields() []string {
 	if m.status != nil {
 		fields = append(fields, proxy.FieldStatus)
 	}
+	if m.subscription_source_id != nil {
+		fields = append(fields, proxy.FieldSubscriptionSourceID)
+	}
+	if m.subscription_node_id != nil {
+		fields = append(fields, proxy.FieldSubscriptionNodeID)
+	}
+	if m.managed_by_subscription != nil {
+		fields = append(fields, proxy.FieldManagedBySubscription)
+	}
 	return fields
 }
 
@@ -36925,6 +37119,12 @@ func (m *ProxyMutation) Field(name string) (ent.Value, bool) {
 		return m.Password()
 	case proxy.FieldStatus:
 		return m.Status()
+	case proxy.FieldSubscriptionSourceID:
+		return m.SubscriptionSourceID()
+	case proxy.FieldSubscriptionNodeID:
+		return m.SubscriptionNodeID()
+	case proxy.FieldManagedBySubscription:
+		return m.ManagedBySubscription()
 	}
 	return nil, false
 }
@@ -36954,6 +37154,12 @@ func (m *ProxyMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldPassword(ctx)
 	case proxy.FieldStatus:
 		return m.OldStatus(ctx)
+	case proxy.FieldSubscriptionSourceID:
+		return m.OldSubscriptionSourceID(ctx)
+	case proxy.FieldSubscriptionNodeID:
+		return m.OldSubscriptionNodeID(ctx)
+	case proxy.FieldManagedBySubscription:
+		return m.OldManagedBySubscription(ctx)
 	}
 	return nil, fmt.Errorf("unknown Proxy field %s", name)
 }
@@ -37033,6 +37239,27 @@ func (m *ProxyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
+	case proxy.FieldSubscriptionSourceID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionSourceID(v)
+		return nil
+	case proxy.FieldSubscriptionNodeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionNodeID(v)
+		return nil
+	case proxy.FieldManagedBySubscription:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetManagedBySubscription(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Proxy field %s", name)
 }
@@ -37044,6 +37271,12 @@ func (m *ProxyMutation) AddedFields() []string {
 	if m.addport != nil {
 		fields = append(fields, proxy.FieldPort)
 	}
+	if m.addsubscription_source_id != nil {
+		fields = append(fields, proxy.FieldSubscriptionSourceID)
+	}
+	if m.addsubscription_node_id != nil {
+		fields = append(fields, proxy.FieldSubscriptionNodeID)
+	}
 	return fields
 }
 
@@ -37054,6 +37287,10 @@ func (m *ProxyMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case proxy.FieldPort:
 		return m.AddedPort()
+	case proxy.FieldSubscriptionSourceID:
+		return m.AddedSubscriptionSourceID()
+	case proxy.FieldSubscriptionNodeID:
+		return m.AddedSubscriptionNodeID()
 	}
 	return nil, false
 }
@@ -37069,6 +37306,20 @@ func (m *ProxyMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddPort(v)
+		return nil
+	case proxy.FieldSubscriptionSourceID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubscriptionSourceID(v)
+		return nil
+	case proxy.FieldSubscriptionNodeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubscriptionNodeID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Proxy numeric field %s", name)
@@ -37086,6 +37337,12 @@ func (m *ProxyMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(proxy.FieldPassword) {
 		fields = append(fields, proxy.FieldPassword)
+	}
+	if m.FieldCleared(proxy.FieldSubscriptionSourceID) {
+		fields = append(fields, proxy.FieldSubscriptionSourceID)
+	}
+	if m.FieldCleared(proxy.FieldSubscriptionNodeID) {
+		fields = append(fields, proxy.FieldSubscriptionNodeID)
 	}
 	return fields
 }
@@ -37109,6 +37366,12 @@ func (m *ProxyMutation) ClearField(name string) error {
 		return nil
 	case proxy.FieldPassword:
 		m.ClearPassword()
+		return nil
+	case proxy.FieldSubscriptionSourceID:
+		m.ClearSubscriptionSourceID()
+		return nil
+	case proxy.FieldSubscriptionNodeID:
+		m.ClearSubscriptionNodeID()
 		return nil
 	}
 	return fmt.Errorf("unknown Proxy nullable field %s", name)
@@ -37147,6 +37410,15 @@ func (m *ProxyMutation) ResetField(name string) error {
 		return nil
 	case proxy.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case proxy.FieldSubscriptionSourceID:
+		m.ResetSubscriptionSourceID()
+		return nil
+	case proxy.FieldSubscriptionNodeID:
+		m.ResetSubscriptionNodeID()
+		return nil
+	case proxy.FieldManagedBySubscription:
+		m.ResetManagedBySubscription()
 		return nil
 	}
 	return fmt.Errorf("unknown Proxy field %s", name)
@@ -37234,6 +37506,2451 @@ func (m *ProxyMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Proxy edge %s", name)
+}
+
+// ProxySubscriptionNodeMutation represents an operation that mutates the ProxySubscriptionNode nodes in the graph.
+type ProxySubscriptionNodeMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int64
+	created_at     *time.Time
+	updated_at     *time.Time
+	deleted_at     *time.Time
+	node_key       *string
+	display_name   *string
+	node_type      *string
+	server         *string
+	port           *int
+	addport        *int
+	config_json    *map[string]interface{}
+	landing_status *string
+	last_error     *string
+	last_seen_at   *time.Time
+	clearedFields  map[string]struct{}
+	source         *int64
+	clearedsource  bool
+	done           bool
+	oldValue       func(context.Context) (*ProxySubscriptionNode, error)
+	predicates     []predicate.ProxySubscriptionNode
+}
+
+var _ ent.Mutation = (*ProxySubscriptionNodeMutation)(nil)
+
+// proxysubscriptionnodeOption allows management of the mutation configuration using functional options.
+type proxysubscriptionnodeOption func(*ProxySubscriptionNodeMutation)
+
+// newProxySubscriptionNodeMutation creates new mutation for the ProxySubscriptionNode entity.
+func newProxySubscriptionNodeMutation(c config, op Op, opts ...proxysubscriptionnodeOption) *ProxySubscriptionNodeMutation {
+	m := &ProxySubscriptionNodeMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeProxySubscriptionNode,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withProxySubscriptionNodeID sets the ID field of the mutation.
+func withProxySubscriptionNodeID(id int64) proxysubscriptionnodeOption {
+	return func(m *ProxySubscriptionNodeMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ProxySubscriptionNode
+		)
+		m.oldValue = func(ctx context.Context) (*ProxySubscriptionNode, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ProxySubscriptionNode.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withProxySubscriptionNode sets the old ProxySubscriptionNode of the mutation.
+func withProxySubscriptionNode(node *ProxySubscriptionNode) proxysubscriptionnodeOption {
+	return func(m *ProxySubscriptionNodeMutation) {
+		m.oldValue = func(context.Context) (*ProxySubscriptionNode, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ProxySubscriptionNodeMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ProxySubscriptionNodeMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ProxySubscriptionNodeMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ProxySubscriptionNodeMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ProxySubscriptionNode.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ProxySubscriptionNodeMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ProxySubscriptionNodeMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ProxySubscriptionNodeMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ProxySubscriptionNodeMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *ProxySubscriptionNodeMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *ProxySubscriptionNodeMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[proxysubscriptionnode.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *ProxySubscriptionNodeMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[proxysubscriptionnode.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *ProxySubscriptionNodeMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, proxysubscriptionnode.FieldDeletedAt)
+}
+
+// SetSourceID sets the "source_id" field.
+func (m *ProxySubscriptionNodeMutation) SetSourceID(i int64) {
+	m.source = &i
+}
+
+// SourceID returns the value of the "source_id" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) SourceID() (r int64, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceID returns the old "source_id" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldSourceID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceID: %w", err)
+	}
+	return oldValue.SourceID, nil
+}
+
+// ResetSourceID resets all changes to the "source_id" field.
+func (m *ProxySubscriptionNodeMutation) ResetSourceID() {
+	m.source = nil
+}
+
+// SetNodeKey sets the "node_key" field.
+func (m *ProxySubscriptionNodeMutation) SetNodeKey(s string) {
+	m.node_key = &s
+}
+
+// NodeKey returns the value of the "node_key" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) NodeKey() (r string, exists bool) {
+	v := m.node_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNodeKey returns the old "node_key" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldNodeKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNodeKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNodeKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNodeKey: %w", err)
+	}
+	return oldValue.NodeKey, nil
+}
+
+// ResetNodeKey resets all changes to the "node_key" field.
+func (m *ProxySubscriptionNodeMutation) ResetNodeKey() {
+	m.node_key = nil
+}
+
+// SetDisplayName sets the "display_name" field.
+func (m *ProxySubscriptionNodeMutation) SetDisplayName(s string) {
+	m.display_name = &s
+}
+
+// DisplayName returns the value of the "display_name" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) DisplayName() (r string, exists bool) {
+	v := m.display_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayName returns the old "display_name" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldDisplayName(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayName: %w", err)
+	}
+	return oldValue.DisplayName, nil
+}
+
+// ClearDisplayName clears the value of the "display_name" field.
+func (m *ProxySubscriptionNodeMutation) ClearDisplayName() {
+	m.display_name = nil
+	m.clearedFields[proxysubscriptionnode.FieldDisplayName] = struct{}{}
+}
+
+// DisplayNameCleared returns if the "display_name" field was cleared in this mutation.
+func (m *ProxySubscriptionNodeMutation) DisplayNameCleared() bool {
+	_, ok := m.clearedFields[proxysubscriptionnode.FieldDisplayName]
+	return ok
+}
+
+// ResetDisplayName resets all changes to the "display_name" field.
+func (m *ProxySubscriptionNodeMutation) ResetDisplayName() {
+	m.display_name = nil
+	delete(m.clearedFields, proxysubscriptionnode.FieldDisplayName)
+}
+
+// SetNodeType sets the "node_type" field.
+func (m *ProxySubscriptionNodeMutation) SetNodeType(s string) {
+	m.node_type = &s
+}
+
+// NodeType returns the value of the "node_type" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) NodeType() (r string, exists bool) {
+	v := m.node_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNodeType returns the old "node_type" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldNodeType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNodeType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNodeType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNodeType: %w", err)
+	}
+	return oldValue.NodeType, nil
+}
+
+// ResetNodeType resets all changes to the "node_type" field.
+func (m *ProxySubscriptionNodeMutation) ResetNodeType() {
+	m.node_type = nil
+}
+
+// SetServer sets the "server" field.
+func (m *ProxySubscriptionNodeMutation) SetServer(s string) {
+	m.server = &s
+}
+
+// Server returns the value of the "server" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) Server() (r string, exists bool) {
+	v := m.server
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldServer returns the old "server" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldServer(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldServer is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldServer requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldServer: %w", err)
+	}
+	return oldValue.Server, nil
+}
+
+// ResetServer resets all changes to the "server" field.
+func (m *ProxySubscriptionNodeMutation) ResetServer() {
+	m.server = nil
+}
+
+// SetPort sets the "port" field.
+func (m *ProxySubscriptionNodeMutation) SetPort(i int) {
+	m.port = &i
+	m.addport = nil
+}
+
+// Port returns the value of the "port" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) Port() (r int, exists bool) {
+	v := m.port
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPort returns the old "port" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldPort(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPort is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPort requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPort: %w", err)
+	}
+	return oldValue.Port, nil
+}
+
+// AddPort adds i to the "port" field.
+func (m *ProxySubscriptionNodeMutation) AddPort(i int) {
+	if m.addport != nil {
+		*m.addport += i
+	} else {
+		m.addport = &i
+	}
+}
+
+// AddedPort returns the value that was added to the "port" field in this mutation.
+func (m *ProxySubscriptionNodeMutation) AddedPort() (r int, exists bool) {
+	v := m.addport
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPort resets all changes to the "port" field.
+func (m *ProxySubscriptionNodeMutation) ResetPort() {
+	m.port = nil
+	m.addport = nil
+}
+
+// SetConfigJSON sets the "config_json" field.
+func (m *ProxySubscriptionNodeMutation) SetConfigJSON(value map[string]interface{}) {
+	m.config_json = &value
+}
+
+// ConfigJSON returns the value of the "config_json" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) ConfigJSON() (r map[string]interface{}, exists bool) {
+	v := m.config_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConfigJSON returns the old "config_json" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldConfigJSON(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConfigJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConfigJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConfigJSON: %w", err)
+	}
+	return oldValue.ConfigJSON, nil
+}
+
+// ClearConfigJSON clears the value of the "config_json" field.
+func (m *ProxySubscriptionNodeMutation) ClearConfigJSON() {
+	m.config_json = nil
+	m.clearedFields[proxysubscriptionnode.FieldConfigJSON] = struct{}{}
+}
+
+// ConfigJSONCleared returns if the "config_json" field was cleared in this mutation.
+func (m *ProxySubscriptionNodeMutation) ConfigJSONCleared() bool {
+	_, ok := m.clearedFields[proxysubscriptionnode.FieldConfigJSON]
+	return ok
+}
+
+// ResetConfigJSON resets all changes to the "config_json" field.
+func (m *ProxySubscriptionNodeMutation) ResetConfigJSON() {
+	m.config_json = nil
+	delete(m.clearedFields, proxysubscriptionnode.FieldConfigJSON)
+}
+
+// SetLandingStatus sets the "landing_status" field.
+func (m *ProxySubscriptionNodeMutation) SetLandingStatus(s string) {
+	m.landing_status = &s
+}
+
+// LandingStatus returns the value of the "landing_status" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) LandingStatus() (r string, exists bool) {
+	v := m.landing_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLandingStatus returns the old "landing_status" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldLandingStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLandingStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLandingStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLandingStatus: %w", err)
+	}
+	return oldValue.LandingStatus, nil
+}
+
+// ResetLandingStatus resets all changes to the "landing_status" field.
+func (m *ProxySubscriptionNodeMutation) ResetLandingStatus() {
+	m.landing_status = nil
+}
+
+// SetLastError sets the "last_error" field.
+func (m *ProxySubscriptionNodeMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldLastError(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ClearLastError clears the value of the "last_error" field.
+func (m *ProxySubscriptionNodeMutation) ClearLastError() {
+	m.last_error = nil
+	m.clearedFields[proxysubscriptionnode.FieldLastError] = struct{}{}
+}
+
+// LastErrorCleared returns if the "last_error" field was cleared in this mutation.
+func (m *ProxySubscriptionNodeMutation) LastErrorCleared() bool {
+	_, ok := m.clearedFields[proxysubscriptionnode.FieldLastError]
+	return ok
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *ProxySubscriptionNodeMutation) ResetLastError() {
+	m.last_error = nil
+	delete(m.clearedFields, proxysubscriptionnode.FieldLastError)
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (m *ProxySubscriptionNodeMutation) SetLastSeenAt(t time.Time) {
+	m.last_seen_at = &t
+}
+
+// LastSeenAt returns the value of the "last_seen_at" field in the mutation.
+func (m *ProxySubscriptionNodeMutation) LastSeenAt() (r time.Time, exists bool) {
+	v := m.last_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSeenAt returns the old "last_seen_at" field's value of the ProxySubscriptionNode entity.
+// If the ProxySubscriptionNode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionNodeMutation) OldLastSeenAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSeenAt: %w", err)
+	}
+	return oldValue.LastSeenAt, nil
+}
+
+// ResetLastSeenAt resets all changes to the "last_seen_at" field.
+func (m *ProxySubscriptionNodeMutation) ResetLastSeenAt() {
+	m.last_seen_at = nil
+}
+
+// ClearSource clears the "source" edge to the ProxySubscriptionSource entity.
+func (m *ProxySubscriptionNodeMutation) ClearSource() {
+	m.clearedsource = true
+	m.clearedFields[proxysubscriptionnode.FieldSourceID] = struct{}{}
+}
+
+// SourceCleared reports if the "source" edge to the ProxySubscriptionSource entity was cleared.
+func (m *ProxySubscriptionNodeMutation) SourceCleared() bool {
+	return m.clearedsource
+}
+
+// SourceIDs returns the "source" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SourceID instead. It exists only for internal usage by the builders.
+func (m *ProxySubscriptionNodeMutation) SourceIDs() (ids []int64) {
+	if id := m.source; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSource resets all changes to the "source" edge.
+func (m *ProxySubscriptionNodeMutation) ResetSource() {
+	m.source = nil
+	m.clearedsource = false
+}
+
+// Where appends a list predicates to the ProxySubscriptionNodeMutation builder.
+func (m *ProxySubscriptionNodeMutation) Where(ps ...predicate.ProxySubscriptionNode) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ProxySubscriptionNodeMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ProxySubscriptionNodeMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ProxySubscriptionNode, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ProxySubscriptionNodeMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ProxySubscriptionNodeMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ProxySubscriptionNode).
+func (m *ProxySubscriptionNodeMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ProxySubscriptionNodeMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, proxysubscriptionnode.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, proxysubscriptionnode.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, proxysubscriptionnode.FieldDeletedAt)
+	}
+	if m.source != nil {
+		fields = append(fields, proxysubscriptionnode.FieldSourceID)
+	}
+	if m.node_key != nil {
+		fields = append(fields, proxysubscriptionnode.FieldNodeKey)
+	}
+	if m.display_name != nil {
+		fields = append(fields, proxysubscriptionnode.FieldDisplayName)
+	}
+	if m.node_type != nil {
+		fields = append(fields, proxysubscriptionnode.FieldNodeType)
+	}
+	if m.server != nil {
+		fields = append(fields, proxysubscriptionnode.FieldServer)
+	}
+	if m.port != nil {
+		fields = append(fields, proxysubscriptionnode.FieldPort)
+	}
+	if m.config_json != nil {
+		fields = append(fields, proxysubscriptionnode.FieldConfigJSON)
+	}
+	if m.landing_status != nil {
+		fields = append(fields, proxysubscriptionnode.FieldLandingStatus)
+	}
+	if m.last_error != nil {
+		fields = append(fields, proxysubscriptionnode.FieldLastError)
+	}
+	if m.last_seen_at != nil {
+		fields = append(fields, proxysubscriptionnode.FieldLastSeenAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ProxySubscriptionNodeMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case proxysubscriptionnode.FieldCreatedAt:
+		return m.CreatedAt()
+	case proxysubscriptionnode.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case proxysubscriptionnode.FieldDeletedAt:
+		return m.DeletedAt()
+	case proxysubscriptionnode.FieldSourceID:
+		return m.SourceID()
+	case proxysubscriptionnode.FieldNodeKey:
+		return m.NodeKey()
+	case proxysubscriptionnode.FieldDisplayName:
+		return m.DisplayName()
+	case proxysubscriptionnode.FieldNodeType:
+		return m.NodeType()
+	case proxysubscriptionnode.FieldServer:
+		return m.Server()
+	case proxysubscriptionnode.FieldPort:
+		return m.Port()
+	case proxysubscriptionnode.FieldConfigJSON:
+		return m.ConfigJSON()
+	case proxysubscriptionnode.FieldLandingStatus:
+		return m.LandingStatus()
+	case proxysubscriptionnode.FieldLastError:
+		return m.LastError()
+	case proxysubscriptionnode.FieldLastSeenAt:
+		return m.LastSeenAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ProxySubscriptionNodeMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case proxysubscriptionnode.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case proxysubscriptionnode.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case proxysubscriptionnode.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case proxysubscriptionnode.FieldSourceID:
+		return m.OldSourceID(ctx)
+	case proxysubscriptionnode.FieldNodeKey:
+		return m.OldNodeKey(ctx)
+	case proxysubscriptionnode.FieldDisplayName:
+		return m.OldDisplayName(ctx)
+	case proxysubscriptionnode.FieldNodeType:
+		return m.OldNodeType(ctx)
+	case proxysubscriptionnode.FieldServer:
+		return m.OldServer(ctx)
+	case proxysubscriptionnode.FieldPort:
+		return m.OldPort(ctx)
+	case proxysubscriptionnode.FieldConfigJSON:
+		return m.OldConfigJSON(ctx)
+	case proxysubscriptionnode.FieldLandingStatus:
+		return m.OldLandingStatus(ctx)
+	case proxysubscriptionnode.FieldLastError:
+		return m.OldLastError(ctx)
+	case proxysubscriptionnode.FieldLastSeenAt:
+		return m.OldLastSeenAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ProxySubscriptionNode field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProxySubscriptionNodeMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case proxysubscriptionnode.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case proxysubscriptionnode.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case proxysubscriptionnode.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case proxysubscriptionnode.FieldSourceID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceID(v)
+		return nil
+	case proxysubscriptionnode.FieldNodeKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNodeKey(v)
+		return nil
+	case proxysubscriptionnode.FieldDisplayName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayName(v)
+		return nil
+	case proxysubscriptionnode.FieldNodeType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNodeType(v)
+		return nil
+	case proxysubscriptionnode.FieldServer:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetServer(v)
+		return nil
+	case proxysubscriptionnode.FieldPort:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPort(v)
+		return nil
+	case proxysubscriptionnode.FieldConfigJSON:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConfigJSON(v)
+		return nil
+	case proxysubscriptionnode.FieldLandingStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLandingStatus(v)
+		return nil
+	case proxysubscriptionnode.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case proxysubscriptionnode.FieldLastSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSeenAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionNode field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ProxySubscriptionNodeMutation) AddedFields() []string {
+	var fields []string
+	if m.addport != nil {
+		fields = append(fields, proxysubscriptionnode.FieldPort)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ProxySubscriptionNodeMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case proxysubscriptionnode.FieldPort:
+		return m.AddedPort()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProxySubscriptionNodeMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case proxysubscriptionnode.FieldPort:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPort(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionNode numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ProxySubscriptionNodeMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(proxysubscriptionnode.FieldDeletedAt) {
+		fields = append(fields, proxysubscriptionnode.FieldDeletedAt)
+	}
+	if m.FieldCleared(proxysubscriptionnode.FieldDisplayName) {
+		fields = append(fields, proxysubscriptionnode.FieldDisplayName)
+	}
+	if m.FieldCleared(proxysubscriptionnode.FieldConfigJSON) {
+		fields = append(fields, proxysubscriptionnode.FieldConfigJSON)
+	}
+	if m.FieldCleared(proxysubscriptionnode.FieldLastError) {
+		fields = append(fields, proxysubscriptionnode.FieldLastError)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ProxySubscriptionNodeMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ProxySubscriptionNodeMutation) ClearField(name string) error {
+	switch name {
+	case proxysubscriptionnode.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case proxysubscriptionnode.FieldDisplayName:
+		m.ClearDisplayName()
+		return nil
+	case proxysubscriptionnode.FieldConfigJSON:
+		m.ClearConfigJSON()
+		return nil
+	case proxysubscriptionnode.FieldLastError:
+		m.ClearLastError()
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionNode nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ProxySubscriptionNodeMutation) ResetField(name string) error {
+	switch name {
+	case proxysubscriptionnode.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case proxysubscriptionnode.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case proxysubscriptionnode.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case proxysubscriptionnode.FieldSourceID:
+		m.ResetSourceID()
+		return nil
+	case proxysubscriptionnode.FieldNodeKey:
+		m.ResetNodeKey()
+		return nil
+	case proxysubscriptionnode.FieldDisplayName:
+		m.ResetDisplayName()
+		return nil
+	case proxysubscriptionnode.FieldNodeType:
+		m.ResetNodeType()
+		return nil
+	case proxysubscriptionnode.FieldServer:
+		m.ResetServer()
+		return nil
+	case proxysubscriptionnode.FieldPort:
+		m.ResetPort()
+		return nil
+	case proxysubscriptionnode.FieldConfigJSON:
+		m.ResetConfigJSON()
+		return nil
+	case proxysubscriptionnode.FieldLandingStatus:
+		m.ResetLandingStatus()
+		return nil
+	case proxysubscriptionnode.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case proxysubscriptionnode.FieldLastSeenAt:
+		m.ResetLastSeenAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionNode field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ProxySubscriptionNodeMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.source != nil {
+		edges = append(edges, proxysubscriptionnode.EdgeSource)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ProxySubscriptionNodeMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case proxysubscriptionnode.EdgeSource:
+		if id := m.source; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ProxySubscriptionNodeMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ProxySubscriptionNodeMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ProxySubscriptionNodeMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedsource {
+		edges = append(edges, proxysubscriptionnode.EdgeSource)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ProxySubscriptionNodeMutation) EdgeCleared(name string) bool {
+	switch name {
+	case proxysubscriptionnode.EdgeSource:
+		return m.clearedsource
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ProxySubscriptionNodeMutation) ClearEdge(name string) error {
+	switch name {
+	case proxysubscriptionnode.EdgeSource:
+		m.ClearSource()
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionNode unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ProxySubscriptionNodeMutation) ResetEdge(name string) error {
+	switch name {
+	case proxysubscriptionnode.EdgeSource:
+		m.ResetSource()
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionNode edge %s", name)
+}
+
+// ProxySubscriptionSourceMutation represents an operation that mutates the ProxySubscriptionSource nodes in the graph.
+type ProxySubscriptionSourceMutation struct {
+	config
+	op                               Op
+	typ                              string
+	id                               *int64
+	created_at                       *time.Time
+	updated_at                       *time.Time
+	deleted_at                       *time.Time
+	name                             *string
+	url                              *string
+	source_format                    *string
+	enabled                          *bool
+	refresh_interval_hours           *int
+	addrefresh_interval_hours        *int
+	auto_add_to_pool                 *bool
+	last_refreshed_at                *time.Time
+	last_success_at                  *time.Time
+	last_error                       *string
+	last_node_count                  *int
+	addlast_node_count               *int
+	last_materialized_proxy_count    *int
+	addlast_materialized_proxy_count *int
+	clearedFields                    map[string]struct{}
+	nodes                            map[int64]struct{}
+	removednodes                     map[int64]struct{}
+	clearednodes                     bool
+	done                             bool
+	oldValue                         func(context.Context) (*ProxySubscriptionSource, error)
+	predicates                       []predicate.ProxySubscriptionSource
+}
+
+var _ ent.Mutation = (*ProxySubscriptionSourceMutation)(nil)
+
+// proxysubscriptionsourceOption allows management of the mutation configuration using functional options.
+type proxysubscriptionsourceOption func(*ProxySubscriptionSourceMutation)
+
+// newProxySubscriptionSourceMutation creates new mutation for the ProxySubscriptionSource entity.
+func newProxySubscriptionSourceMutation(c config, op Op, opts ...proxysubscriptionsourceOption) *ProxySubscriptionSourceMutation {
+	m := &ProxySubscriptionSourceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeProxySubscriptionSource,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withProxySubscriptionSourceID sets the ID field of the mutation.
+func withProxySubscriptionSourceID(id int64) proxysubscriptionsourceOption {
+	return func(m *ProxySubscriptionSourceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ProxySubscriptionSource
+		)
+		m.oldValue = func(ctx context.Context) (*ProxySubscriptionSource, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ProxySubscriptionSource.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withProxySubscriptionSource sets the old ProxySubscriptionSource of the mutation.
+func withProxySubscriptionSource(node *ProxySubscriptionSource) proxysubscriptionsourceOption {
+	return func(m *ProxySubscriptionSourceMutation) {
+		m.oldValue = func(context.Context) (*ProxySubscriptionSource, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ProxySubscriptionSourceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ProxySubscriptionSourceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ProxySubscriptionSourceMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ProxySubscriptionSourceMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ProxySubscriptionSource.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ProxySubscriptionSourceMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ProxySubscriptionSourceMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ProxySubscriptionSourceMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ProxySubscriptionSourceMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *ProxySubscriptionSourceMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *ProxySubscriptionSourceMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[proxysubscriptionsource.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *ProxySubscriptionSourceMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[proxysubscriptionsource.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *ProxySubscriptionSourceMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, proxysubscriptionsource.FieldDeletedAt)
+}
+
+// SetName sets the "name" field.
+func (m *ProxySubscriptionSourceMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *ProxySubscriptionSourceMutation) ResetName() {
+	m.name = nil
+}
+
+// SetURL sets the "url" field.
+func (m *ProxySubscriptionSourceMutation) SetURL(s string) {
+	m.url = &s
+}
+
+// URL returns the value of the "url" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) URL() (r string, exists bool) {
+	v := m.url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldURL returns the old "url" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldURL: %w", err)
+	}
+	return oldValue.URL, nil
+}
+
+// ResetURL resets all changes to the "url" field.
+func (m *ProxySubscriptionSourceMutation) ResetURL() {
+	m.url = nil
+}
+
+// SetSourceFormat sets the "source_format" field.
+func (m *ProxySubscriptionSourceMutation) SetSourceFormat(s string) {
+	m.source_format = &s
+}
+
+// SourceFormat returns the value of the "source_format" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) SourceFormat() (r string, exists bool) {
+	v := m.source_format
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceFormat returns the old "source_format" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldSourceFormat(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceFormat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceFormat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceFormat: %w", err)
+	}
+	return oldValue.SourceFormat, nil
+}
+
+// ResetSourceFormat resets all changes to the "source_format" field.
+func (m *ProxySubscriptionSourceMutation) ResetSourceFormat() {
+	m.source_format = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *ProxySubscriptionSourceMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *ProxySubscriptionSourceMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetRefreshIntervalHours sets the "refresh_interval_hours" field.
+func (m *ProxySubscriptionSourceMutation) SetRefreshIntervalHours(i int) {
+	m.refresh_interval_hours = &i
+	m.addrefresh_interval_hours = nil
+}
+
+// RefreshIntervalHours returns the value of the "refresh_interval_hours" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) RefreshIntervalHours() (r int, exists bool) {
+	v := m.refresh_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRefreshIntervalHours returns the old "refresh_interval_hours" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldRefreshIntervalHours(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRefreshIntervalHours is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRefreshIntervalHours requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRefreshIntervalHours: %w", err)
+	}
+	return oldValue.RefreshIntervalHours, nil
+}
+
+// AddRefreshIntervalHours adds i to the "refresh_interval_hours" field.
+func (m *ProxySubscriptionSourceMutation) AddRefreshIntervalHours(i int) {
+	if m.addrefresh_interval_hours != nil {
+		*m.addrefresh_interval_hours += i
+	} else {
+		m.addrefresh_interval_hours = &i
+	}
+}
+
+// AddedRefreshIntervalHours returns the value that was added to the "refresh_interval_hours" field in this mutation.
+func (m *ProxySubscriptionSourceMutation) AddedRefreshIntervalHours() (r int, exists bool) {
+	v := m.addrefresh_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRefreshIntervalHours resets all changes to the "refresh_interval_hours" field.
+func (m *ProxySubscriptionSourceMutation) ResetRefreshIntervalHours() {
+	m.refresh_interval_hours = nil
+	m.addrefresh_interval_hours = nil
+}
+
+// SetAutoAddToPool sets the "auto_add_to_pool" field.
+func (m *ProxySubscriptionSourceMutation) SetAutoAddToPool(b bool) {
+	m.auto_add_to_pool = &b
+}
+
+// AutoAddToPool returns the value of the "auto_add_to_pool" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) AutoAddToPool() (r bool, exists bool) {
+	v := m.auto_add_to_pool
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoAddToPool returns the old "auto_add_to_pool" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldAutoAddToPool(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoAddToPool is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoAddToPool requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoAddToPool: %w", err)
+	}
+	return oldValue.AutoAddToPool, nil
+}
+
+// ResetAutoAddToPool resets all changes to the "auto_add_to_pool" field.
+func (m *ProxySubscriptionSourceMutation) ResetAutoAddToPool() {
+	m.auto_add_to_pool = nil
+}
+
+// SetLastRefreshedAt sets the "last_refreshed_at" field.
+func (m *ProxySubscriptionSourceMutation) SetLastRefreshedAt(t time.Time) {
+	m.last_refreshed_at = &t
+}
+
+// LastRefreshedAt returns the value of the "last_refreshed_at" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) LastRefreshedAt() (r time.Time, exists bool) {
+	v := m.last_refreshed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastRefreshedAt returns the old "last_refreshed_at" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldLastRefreshedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastRefreshedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastRefreshedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastRefreshedAt: %w", err)
+	}
+	return oldValue.LastRefreshedAt, nil
+}
+
+// ClearLastRefreshedAt clears the value of the "last_refreshed_at" field.
+func (m *ProxySubscriptionSourceMutation) ClearLastRefreshedAt() {
+	m.last_refreshed_at = nil
+	m.clearedFields[proxysubscriptionsource.FieldLastRefreshedAt] = struct{}{}
+}
+
+// LastRefreshedAtCleared returns if the "last_refreshed_at" field was cleared in this mutation.
+func (m *ProxySubscriptionSourceMutation) LastRefreshedAtCleared() bool {
+	_, ok := m.clearedFields[proxysubscriptionsource.FieldLastRefreshedAt]
+	return ok
+}
+
+// ResetLastRefreshedAt resets all changes to the "last_refreshed_at" field.
+func (m *ProxySubscriptionSourceMutation) ResetLastRefreshedAt() {
+	m.last_refreshed_at = nil
+	delete(m.clearedFields, proxysubscriptionsource.FieldLastRefreshedAt)
+}
+
+// SetLastSuccessAt sets the "last_success_at" field.
+func (m *ProxySubscriptionSourceMutation) SetLastSuccessAt(t time.Time) {
+	m.last_success_at = &t
+}
+
+// LastSuccessAt returns the value of the "last_success_at" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) LastSuccessAt() (r time.Time, exists bool) {
+	v := m.last_success_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSuccessAt returns the old "last_success_at" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldLastSuccessAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSuccessAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSuccessAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSuccessAt: %w", err)
+	}
+	return oldValue.LastSuccessAt, nil
+}
+
+// ClearLastSuccessAt clears the value of the "last_success_at" field.
+func (m *ProxySubscriptionSourceMutation) ClearLastSuccessAt() {
+	m.last_success_at = nil
+	m.clearedFields[proxysubscriptionsource.FieldLastSuccessAt] = struct{}{}
+}
+
+// LastSuccessAtCleared returns if the "last_success_at" field was cleared in this mutation.
+func (m *ProxySubscriptionSourceMutation) LastSuccessAtCleared() bool {
+	_, ok := m.clearedFields[proxysubscriptionsource.FieldLastSuccessAt]
+	return ok
+}
+
+// ResetLastSuccessAt resets all changes to the "last_success_at" field.
+func (m *ProxySubscriptionSourceMutation) ResetLastSuccessAt() {
+	m.last_success_at = nil
+	delete(m.clearedFields, proxysubscriptionsource.FieldLastSuccessAt)
+}
+
+// SetLastError sets the "last_error" field.
+func (m *ProxySubscriptionSourceMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldLastError(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ClearLastError clears the value of the "last_error" field.
+func (m *ProxySubscriptionSourceMutation) ClearLastError() {
+	m.last_error = nil
+	m.clearedFields[proxysubscriptionsource.FieldLastError] = struct{}{}
+}
+
+// LastErrorCleared returns if the "last_error" field was cleared in this mutation.
+func (m *ProxySubscriptionSourceMutation) LastErrorCleared() bool {
+	_, ok := m.clearedFields[proxysubscriptionsource.FieldLastError]
+	return ok
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *ProxySubscriptionSourceMutation) ResetLastError() {
+	m.last_error = nil
+	delete(m.clearedFields, proxysubscriptionsource.FieldLastError)
+}
+
+// SetLastNodeCount sets the "last_node_count" field.
+func (m *ProxySubscriptionSourceMutation) SetLastNodeCount(i int) {
+	m.last_node_count = &i
+	m.addlast_node_count = nil
+}
+
+// LastNodeCount returns the value of the "last_node_count" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) LastNodeCount() (r int, exists bool) {
+	v := m.last_node_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastNodeCount returns the old "last_node_count" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldLastNodeCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastNodeCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastNodeCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastNodeCount: %w", err)
+	}
+	return oldValue.LastNodeCount, nil
+}
+
+// AddLastNodeCount adds i to the "last_node_count" field.
+func (m *ProxySubscriptionSourceMutation) AddLastNodeCount(i int) {
+	if m.addlast_node_count != nil {
+		*m.addlast_node_count += i
+	} else {
+		m.addlast_node_count = &i
+	}
+}
+
+// AddedLastNodeCount returns the value that was added to the "last_node_count" field in this mutation.
+func (m *ProxySubscriptionSourceMutation) AddedLastNodeCount() (r int, exists bool) {
+	v := m.addlast_node_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLastNodeCount resets all changes to the "last_node_count" field.
+func (m *ProxySubscriptionSourceMutation) ResetLastNodeCount() {
+	m.last_node_count = nil
+	m.addlast_node_count = nil
+}
+
+// SetLastMaterializedProxyCount sets the "last_materialized_proxy_count" field.
+func (m *ProxySubscriptionSourceMutation) SetLastMaterializedProxyCount(i int) {
+	m.last_materialized_proxy_count = &i
+	m.addlast_materialized_proxy_count = nil
+}
+
+// LastMaterializedProxyCount returns the value of the "last_materialized_proxy_count" field in the mutation.
+func (m *ProxySubscriptionSourceMutation) LastMaterializedProxyCount() (r int, exists bool) {
+	v := m.last_materialized_proxy_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastMaterializedProxyCount returns the old "last_materialized_proxy_count" field's value of the ProxySubscriptionSource entity.
+// If the ProxySubscriptionSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxySubscriptionSourceMutation) OldLastMaterializedProxyCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastMaterializedProxyCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastMaterializedProxyCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastMaterializedProxyCount: %w", err)
+	}
+	return oldValue.LastMaterializedProxyCount, nil
+}
+
+// AddLastMaterializedProxyCount adds i to the "last_materialized_proxy_count" field.
+func (m *ProxySubscriptionSourceMutation) AddLastMaterializedProxyCount(i int) {
+	if m.addlast_materialized_proxy_count != nil {
+		*m.addlast_materialized_proxy_count += i
+	} else {
+		m.addlast_materialized_proxy_count = &i
+	}
+}
+
+// AddedLastMaterializedProxyCount returns the value that was added to the "last_materialized_proxy_count" field in this mutation.
+func (m *ProxySubscriptionSourceMutation) AddedLastMaterializedProxyCount() (r int, exists bool) {
+	v := m.addlast_materialized_proxy_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLastMaterializedProxyCount resets all changes to the "last_materialized_proxy_count" field.
+func (m *ProxySubscriptionSourceMutation) ResetLastMaterializedProxyCount() {
+	m.last_materialized_proxy_count = nil
+	m.addlast_materialized_proxy_count = nil
+}
+
+// AddNodeIDs adds the "nodes" edge to the ProxySubscriptionNode entity by ids.
+func (m *ProxySubscriptionSourceMutation) AddNodeIDs(ids ...int64) {
+	if m.nodes == nil {
+		m.nodes = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.nodes[ids[i]] = struct{}{}
+	}
+}
+
+// ClearNodes clears the "nodes" edge to the ProxySubscriptionNode entity.
+func (m *ProxySubscriptionSourceMutation) ClearNodes() {
+	m.clearednodes = true
+}
+
+// NodesCleared reports if the "nodes" edge to the ProxySubscriptionNode entity was cleared.
+func (m *ProxySubscriptionSourceMutation) NodesCleared() bool {
+	return m.clearednodes
+}
+
+// RemoveNodeIDs removes the "nodes" edge to the ProxySubscriptionNode entity by IDs.
+func (m *ProxySubscriptionSourceMutation) RemoveNodeIDs(ids ...int64) {
+	if m.removednodes == nil {
+		m.removednodes = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.nodes, ids[i])
+		m.removednodes[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedNodes returns the removed IDs of the "nodes" edge to the ProxySubscriptionNode entity.
+func (m *ProxySubscriptionSourceMutation) RemovedNodesIDs() (ids []int64) {
+	for id := range m.removednodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// NodesIDs returns the "nodes" edge IDs in the mutation.
+func (m *ProxySubscriptionSourceMutation) NodesIDs() (ids []int64) {
+	for id := range m.nodes {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetNodes resets all changes to the "nodes" edge.
+func (m *ProxySubscriptionSourceMutation) ResetNodes() {
+	m.nodes = nil
+	m.clearednodes = false
+	m.removednodes = nil
+}
+
+// Where appends a list predicates to the ProxySubscriptionSourceMutation builder.
+func (m *ProxySubscriptionSourceMutation) Where(ps ...predicate.ProxySubscriptionSource) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ProxySubscriptionSourceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ProxySubscriptionSourceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ProxySubscriptionSource, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ProxySubscriptionSourceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ProxySubscriptionSourceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ProxySubscriptionSource).
+func (m *ProxySubscriptionSourceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ProxySubscriptionSourceMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.created_at != nil {
+		fields = append(fields, proxysubscriptionsource.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, proxysubscriptionsource.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, proxysubscriptionsource.FieldDeletedAt)
+	}
+	if m.name != nil {
+		fields = append(fields, proxysubscriptionsource.FieldName)
+	}
+	if m.url != nil {
+		fields = append(fields, proxysubscriptionsource.FieldURL)
+	}
+	if m.source_format != nil {
+		fields = append(fields, proxysubscriptionsource.FieldSourceFormat)
+	}
+	if m.enabled != nil {
+		fields = append(fields, proxysubscriptionsource.FieldEnabled)
+	}
+	if m.refresh_interval_hours != nil {
+		fields = append(fields, proxysubscriptionsource.FieldRefreshIntervalHours)
+	}
+	if m.auto_add_to_pool != nil {
+		fields = append(fields, proxysubscriptionsource.FieldAutoAddToPool)
+	}
+	if m.last_refreshed_at != nil {
+		fields = append(fields, proxysubscriptionsource.FieldLastRefreshedAt)
+	}
+	if m.last_success_at != nil {
+		fields = append(fields, proxysubscriptionsource.FieldLastSuccessAt)
+	}
+	if m.last_error != nil {
+		fields = append(fields, proxysubscriptionsource.FieldLastError)
+	}
+	if m.last_node_count != nil {
+		fields = append(fields, proxysubscriptionsource.FieldLastNodeCount)
+	}
+	if m.last_materialized_proxy_count != nil {
+		fields = append(fields, proxysubscriptionsource.FieldLastMaterializedProxyCount)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ProxySubscriptionSourceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case proxysubscriptionsource.FieldCreatedAt:
+		return m.CreatedAt()
+	case proxysubscriptionsource.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case proxysubscriptionsource.FieldDeletedAt:
+		return m.DeletedAt()
+	case proxysubscriptionsource.FieldName:
+		return m.Name()
+	case proxysubscriptionsource.FieldURL:
+		return m.URL()
+	case proxysubscriptionsource.FieldSourceFormat:
+		return m.SourceFormat()
+	case proxysubscriptionsource.FieldEnabled:
+		return m.Enabled()
+	case proxysubscriptionsource.FieldRefreshIntervalHours:
+		return m.RefreshIntervalHours()
+	case proxysubscriptionsource.FieldAutoAddToPool:
+		return m.AutoAddToPool()
+	case proxysubscriptionsource.FieldLastRefreshedAt:
+		return m.LastRefreshedAt()
+	case proxysubscriptionsource.FieldLastSuccessAt:
+		return m.LastSuccessAt()
+	case proxysubscriptionsource.FieldLastError:
+		return m.LastError()
+	case proxysubscriptionsource.FieldLastNodeCount:
+		return m.LastNodeCount()
+	case proxysubscriptionsource.FieldLastMaterializedProxyCount:
+		return m.LastMaterializedProxyCount()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ProxySubscriptionSourceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case proxysubscriptionsource.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case proxysubscriptionsource.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case proxysubscriptionsource.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case proxysubscriptionsource.FieldName:
+		return m.OldName(ctx)
+	case proxysubscriptionsource.FieldURL:
+		return m.OldURL(ctx)
+	case proxysubscriptionsource.FieldSourceFormat:
+		return m.OldSourceFormat(ctx)
+	case proxysubscriptionsource.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case proxysubscriptionsource.FieldRefreshIntervalHours:
+		return m.OldRefreshIntervalHours(ctx)
+	case proxysubscriptionsource.FieldAutoAddToPool:
+		return m.OldAutoAddToPool(ctx)
+	case proxysubscriptionsource.FieldLastRefreshedAt:
+		return m.OldLastRefreshedAt(ctx)
+	case proxysubscriptionsource.FieldLastSuccessAt:
+		return m.OldLastSuccessAt(ctx)
+	case proxysubscriptionsource.FieldLastError:
+		return m.OldLastError(ctx)
+	case proxysubscriptionsource.FieldLastNodeCount:
+		return m.OldLastNodeCount(ctx)
+	case proxysubscriptionsource.FieldLastMaterializedProxyCount:
+		return m.OldLastMaterializedProxyCount(ctx)
+	}
+	return nil, fmt.Errorf("unknown ProxySubscriptionSource field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProxySubscriptionSourceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case proxysubscriptionsource.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case proxysubscriptionsource.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case proxysubscriptionsource.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case proxysubscriptionsource.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case proxysubscriptionsource.FieldURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetURL(v)
+		return nil
+	case proxysubscriptionsource.FieldSourceFormat:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceFormat(v)
+		return nil
+	case proxysubscriptionsource.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case proxysubscriptionsource.FieldRefreshIntervalHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRefreshIntervalHours(v)
+		return nil
+	case proxysubscriptionsource.FieldAutoAddToPool:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoAddToPool(v)
+		return nil
+	case proxysubscriptionsource.FieldLastRefreshedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastRefreshedAt(v)
+		return nil
+	case proxysubscriptionsource.FieldLastSuccessAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSuccessAt(v)
+		return nil
+	case proxysubscriptionsource.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case proxysubscriptionsource.FieldLastNodeCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastNodeCount(v)
+		return nil
+	case proxysubscriptionsource.FieldLastMaterializedProxyCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastMaterializedProxyCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionSource field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ProxySubscriptionSourceMutation) AddedFields() []string {
+	var fields []string
+	if m.addrefresh_interval_hours != nil {
+		fields = append(fields, proxysubscriptionsource.FieldRefreshIntervalHours)
+	}
+	if m.addlast_node_count != nil {
+		fields = append(fields, proxysubscriptionsource.FieldLastNodeCount)
+	}
+	if m.addlast_materialized_proxy_count != nil {
+		fields = append(fields, proxysubscriptionsource.FieldLastMaterializedProxyCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ProxySubscriptionSourceMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case proxysubscriptionsource.FieldRefreshIntervalHours:
+		return m.AddedRefreshIntervalHours()
+	case proxysubscriptionsource.FieldLastNodeCount:
+		return m.AddedLastNodeCount()
+	case proxysubscriptionsource.FieldLastMaterializedProxyCount:
+		return m.AddedLastMaterializedProxyCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ProxySubscriptionSourceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case proxysubscriptionsource.FieldRefreshIntervalHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRefreshIntervalHours(v)
+		return nil
+	case proxysubscriptionsource.FieldLastNodeCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLastNodeCount(v)
+		return nil
+	case proxysubscriptionsource.FieldLastMaterializedProxyCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLastMaterializedProxyCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionSource numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ProxySubscriptionSourceMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(proxysubscriptionsource.FieldDeletedAt) {
+		fields = append(fields, proxysubscriptionsource.FieldDeletedAt)
+	}
+	if m.FieldCleared(proxysubscriptionsource.FieldLastRefreshedAt) {
+		fields = append(fields, proxysubscriptionsource.FieldLastRefreshedAt)
+	}
+	if m.FieldCleared(proxysubscriptionsource.FieldLastSuccessAt) {
+		fields = append(fields, proxysubscriptionsource.FieldLastSuccessAt)
+	}
+	if m.FieldCleared(proxysubscriptionsource.FieldLastError) {
+		fields = append(fields, proxysubscriptionsource.FieldLastError)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ProxySubscriptionSourceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ProxySubscriptionSourceMutation) ClearField(name string) error {
+	switch name {
+	case proxysubscriptionsource.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case proxysubscriptionsource.FieldLastRefreshedAt:
+		m.ClearLastRefreshedAt()
+		return nil
+	case proxysubscriptionsource.FieldLastSuccessAt:
+		m.ClearLastSuccessAt()
+		return nil
+	case proxysubscriptionsource.FieldLastError:
+		m.ClearLastError()
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionSource nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ProxySubscriptionSourceMutation) ResetField(name string) error {
+	switch name {
+	case proxysubscriptionsource.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case proxysubscriptionsource.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case proxysubscriptionsource.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case proxysubscriptionsource.FieldName:
+		m.ResetName()
+		return nil
+	case proxysubscriptionsource.FieldURL:
+		m.ResetURL()
+		return nil
+	case proxysubscriptionsource.FieldSourceFormat:
+		m.ResetSourceFormat()
+		return nil
+	case proxysubscriptionsource.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case proxysubscriptionsource.FieldRefreshIntervalHours:
+		m.ResetRefreshIntervalHours()
+		return nil
+	case proxysubscriptionsource.FieldAutoAddToPool:
+		m.ResetAutoAddToPool()
+		return nil
+	case proxysubscriptionsource.FieldLastRefreshedAt:
+		m.ResetLastRefreshedAt()
+		return nil
+	case proxysubscriptionsource.FieldLastSuccessAt:
+		m.ResetLastSuccessAt()
+		return nil
+	case proxysubscriptionsource.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case proxysubscriptionsource.FieldLastNodeCount:
+		m.ResetLastNodeCount()
+		return nil
+	case proxysubscriptionsource.FieldLastMaterializedProxyCount:
+		m.ResetLastMaterializedProxyCount()
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionSource field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ProxySubscriptionSourceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.nodes != nil {
+		edges = append(edges, proxysubscriptionsource.EdgeNodes)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ProxySubscriptionSourceMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case proxysubscriptionsource.EdgeNodes:
+		ids := make([]ent.Value, 0, len(m.nodes))
+		for id := range m.nodes {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ProxySubscriptionSourceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removednodes != nil {
+		edges = append(edges, proxysubscriptionsource.EdgeNodes)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ProxySubscriptionSourceMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case proxysubscriptionsource.EdgeNodes:
+		ids := make([]ent.Value, 0, len(m.removednodes))
+		for id := range m.removednodes {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ProxySubscriptionSourceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearednodes {
+		edges = append(edges, proxysubscriptionsource.EdgeNodes)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ProxySubscriptionSourceMutation) EdgeCleared(name string) bool {
+	switch name {
+	case proxysubscriptionsource.EdgeNodes:
+		return m.clearednodes
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ProxySubscriptionSourceMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown ProxySubscriptionSource unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ProxySubscriptionSourceMutation) ResetEdge(name string) error {
+	switch name {
+	case proxysubscriptionsource.EdgeNodes:
+		m.ResetNodes()
+		return nil
+	}
+	return fmt.Errorf("unknown ProxySubscriptionSource edge %s", name)
 }
 
 // RedeemCodeMutation represents an operation that mutates the RedeemCode nodes in the graph.

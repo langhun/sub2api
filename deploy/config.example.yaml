@@ -610,6 +610,41 @@ token_refresh:
   sync_linked_sora_accounts: false
 
 # =============================================================================
+# Proxy Subscription Configuration
+# 代理订阅配置
+# =============================================================================
+proxy_subscriptions:
+  # Enable proxy subscription source management and background refresh
+  # 启用代理订阅源管理和后台刷新
+  enabled: false
+  # Refresh due-scan interval (seconds)
+  # 扫描到期订阅的间隔（秒）
+  refresh_scan_interval_seconds: 60
+  # Default refresh interval (hours) for newly created sources
+  # 新建订阅源的默认刷新间隔（小时）
+  default_refresh_interval_hours: 6
+  # Max concurrent refresh jobs
+  # 最大并发刷新任务数
+  sync_concurrency: 2
+
+proxy_subscription_sidecar:
+  # Enable companion sidecar integration for non-direct proxy nodes
+  # 启用 companion sidecar，用于承载非直连代理节点
+  enabled: false
+  # Sidecar base URL
+  # sidecar 基础地址
+  base_url: "http://proxy-subscription-sidecar:8080"
+  # Default local listener host returned by sidecar
+  # sidecar 返回的默认本地监听地址
+  listener_host: "proxy-subscription-sidecar"
+  # Allowed listener port range allocated by sidecar
+  # sidecar 分配的监听端口范围
+  listener_port_range: "21080-21180"
+  # Optional explicit sing-box executable path used by the companion service
+  # companion sidecar 使用的 sing-box 可执行文件路径（可选）
+  sing_box_bin: "/usr/bin/sing-box"
+
+# =============================================================================
 # API Key Auth Cache Configuration
 # API Key 认证缓存配置
 # =============================================================================

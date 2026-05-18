@@ -357,6 +357,30 @@ func (f ProxyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProxyMutation", m)
 }
 
+// The ProxySubscriptionNodeFunc type is an adapter to allow the use of ordinary
+// function as ProxySubscriptionNode mutator.
+type ProxySubscriptionNodeFunc func(context.Context, *ent.ProxySubscriptionNodeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProxySubscriptionNodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProxySubscriptionNodeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProxySubscriptionNodeMutation", m)
+}
+
+// The ProxySubscriptionSourceFunc type is an adapter to allow the use of ordinary
+// function as ProxySubscriptionSource mutator.
+type ProxySubscriptionSourceFunc func(context.Context, *ent.ProxySubscriptionSourceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProxySubscriptionSourceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProxySubscriptionSourceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProxySubscriptionSourceMutation", m)
+}
+
 // The RedeemCodeFunc type is an adapter to allow the use of ordinary
 // function as RedeemCode mutator.
 type RedeemCodeFunc func(context.Context, *ent.RedeemCodeMutation) (ent.Value, error)

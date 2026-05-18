@@ -12,6 +12,35 @@ const (
 	StatusExpired  = domain.StatusExpired
 )
 
+const (
+	ProxySubscriptionSourceFormatAuto       = domain.ProxySubscriptionSourceFormatAuto
+	ProxySubscriptionSourceFormatDirectList = domain.ProxySubscriptionSourceFormatDirectList
+	ProxySubscriptionSourceFormatURIList    = domain.ProxySubscriptionSourceFormatURIList
+	ProxySubscriptionSourceFormatClashYAML  = domain.ProxySubscriptionSourceFormatClashYAML
+)
+
+const (
+	ProxyNodeTypeHTTP      = domain.ProxyNodeTypeHTTP
+	ProxyNodeTypeHTTPS     = domain.ProxyNodeTypeHTTPS
+	ProxyNodeTypeSOCKS5    = domain.ProxyNodeTypeSOCKS5
+	ProxyNodeTypeSOCKS5H   = domain.ProxyNodeTypeSOCKS5H
+	ProxyNodeTypeSS        = domain.ProxyNodeTypeSS
+	ProxyNodeTypeVMess     = domain.ProxyNodeTypeVMess
+	ProxyNodeTypeVLess     = domain.ProxyNodeTypeVLess
+	ProxyNodeTypeTrojan    = domain.ProxyNodeTypeTrojan
+	ProxyNodeTypeHysteria  = domain.ProxyNodeTypeHysteria
+	ProxyNodeTypeHysteria2 = domain.ProxyNodeTypeHysteria2
+)
+
+const (
+	ProxySubscriptionLandingStatusPending     = domain.ProxySubscriptionLandingStatusPending
+	ProxySubscriptionLandingStatusActive      = domain.ProxySubscriptionLandingStatusActive
+	ProxySubscriptionLandingStatusConflicted  = domain.ProxySubscriptionLandingStatusConflicted
+	ProxySubscriptionLandingStatusUnsupported = domain.ProxySubscriptionLandingStatusUnsupported
+	ProxySubscriptionLandingStatusFailed      = domain.ProxySubscriptionLandingStatusFailed
+	ProxySubscriptionLandingStatusStale       = domain.ProxySubscriptionLandingStatusStale
+)
+
 // Role constants
 const (
 	RoleAdmin = domain.RoleAdmin

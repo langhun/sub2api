@@ -52,6 +52,14 @@ func (Proxy) Fields() []ent.Field {
 		field.String("status").
 			MaxLen(20).
 			Default("active"),
+		field.Int64("subscription_source_id").
+			Optional().
+			Nillable(),
+		field.Int64("subscription_node_id").
+			Optional().
+			Nillable(),
+		field.Bool("managed_by_subscription").
+			Default(false),
 	}
 }
 
@@ -68,5 +76,8 @@ func (Proxy) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("status"),
 		index.Fields("deleted_at"),
+		index.Fields("subscription_source_id"),
+		index.Fields("subscription_node_id"),
+		index.Fields("managed_by_subscription"),
 	}
 }

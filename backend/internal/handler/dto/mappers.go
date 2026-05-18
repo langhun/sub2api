@@ -416,6 +416,11 @@ func ProxyFromService(p *service.Proxy) *Proxy {
 		Username:                p.Username,
 		Status:                  p.Status,
 		AutoFailoverPoolEnabled: p.AutoFailoverPoolEnabled,
+		ManagedBySubscription:   p.ManagedBySubscription,
+		SubscriptionSourceID:    p.SubscriptionSourceID,
+		SubscriptionSourceName:  "",
+		SubscriptionNodeID:      p.SubscriptionNodeID,
+		SubscriptionNodeType:    "",
 		CreatedAt:               p.CreatedAt,
 		UpdatedAt:               p.UpdatedAt,
 	}
@@ -447,6 +452,77 @@ func ProxyWithAccountCountFromService(p *service.ProxyWithAccountCount) *ProxyWi
 		LastFailAtUnix:      p.LastFailAtUnix,
 		LastRecoveredAtUnix: p.LastRecoveredAtUnix,
 		FailoverSwitchCount: p.FailoverSwitchCount,
+	}
+}
+
+func ProxySubscriptionSourceFromService(s *service.ProxySubscriptionSource) *ProxySubscriptionSource {
+	if s == nil {
+		return nil
+	}
+	return &ProxySubscriptionSource{
+		ID:                         s.ID,
+		Name:                       s.Name,
+		URL:                        s.URL,
+		SourceFormat:               s.SourceFormat,
+		Enabled:                    s.Enabled,
+		RefreshIntervalHours:       s.RefreshIntervalHours,
+		AutoAddToPool:              s.AutoAddToPool,
+		LastRefreshedAt:            s.LastRefreshedAt,
+		LastSuccessAt:              s.LastSuccessAt,
+		LastError:                  s.LastError,
+		LastNodeCount:              s.LastNodeCount,
+		LastMaterializedProxyCount: s.LastMaterializedProxyCount,
+		CreatedAt:                  s.CreatedAt,
+		UpdatedAt:                  s.UpdatedAt,
+	}
+}
+
+func ProxySubscriptionNodeFromService(n *service.ProxySubscriptionNode) *ProxySubscriptionNode {
+	if n == nil {
+		return nil
+	}
+	return &ProxySubscriptionNode{
+		ID:            n.ID,
+		SourceID:      n.SourceID,
+		NodeKey:       n.NodeKey,
+		DisplayName:   n.DisplayName,
+		NodeType:      n.NodeType,
+		Server:        n.Server,
+		Port:          n.Port,
+		ConfigJSON:    n.ConfigJSON,
+		LandingStatus: n.LandingStatus,
+		LastError:     n.LastError,
+		LastSeenAt:    n.LastSeenAt,
+		CreatedAt:     n.CreatedAt,
+		UpdatedAt:     n.UpdatedAt,
+	}
+}
+
+func ProxySubscriptionRefreshResultFromService(r *service.ProxySubscriptionRefreshResult) *ProxySubscriptionRefreshResult {
+	if r == nil {
+		return nil
+	}
+	errorsOut := make([]ProxySubscriptionRefreshError, 0, len(r.Errors))
+	for i := range r.Errors {
+		errorsOut = append(errorsOut, ProxySubscriptionRefreshError{
+			NodeKey: r.Errors[i].NodeKey,
+			Name:    r.Errors[i].Name,
+			Message: r.Errors[i].Message,
+		})
+	}
+	return &ProxySubscriptionRefreshResult{
+		SourceID:               r.SourceID,
+		RefreshedAt:            r.RefreshedAt,
+		NodeCount:              r.NodeCount,
+		MaterializedProxyCount: r.MaterializedProxyCount,
+		CreatedProxyCount:      r.CreatedProxyCount,
+		UpdatedProxyCount:      r.UpdatedProxyCount,
+		DisabledProxyCount:     r.DisabledProxyCount,
+		DeletedProxyCount:      r.DeletedProxyCount,
+		SkippedNodeCount:       r.SkippedNodeCount,
+		ConflictNodeCount:      r.ConflictNodeCount,
+		UnsupportedNodeCount:   r.UnsupportedNodeCount,
+		Errors:                 errorsOut,
 	}
 }
 

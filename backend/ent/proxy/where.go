@@ -105,6 +105,21 @@ func Status(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldStatus, v))
 }
 
+// SubscriptionSourceID applies equality check predicate on the "subscription_source_id" field. It's identical to SubscriptionSourceIDEQ.
+func SubscriptionSourceID(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldSubscriptionSourceID, v))
+}
+
+// SubscriptionNodeID applies equality check predicate on the "subscription_node_id" field. It's identical to SubscriptionNodeIDEQ.
+func SubscriptionNodeID(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldSubscriptionNodeID, v))
+}
+
+// ManagedBySubscription applies equality check predicate on the "managed_by_subscription" field. It's identical to ManagedBySubscriptionEQ.
+func ManagedBySubscription(v bool) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldManagedBySubscription, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldCreatedAt, v))
@@ -683,6 +698,116 @@ func StatusEqualFold(v string) predicate.Proxy {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// SubscriptionSourceIDEQ applies the EQ predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDEQ(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldSubscriptionSourceID, v))
+}
+
+// SubscriptionSourceIDNEQ applies the NEQ predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDNEQ(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldSubscriptionSourceID, v))
+}
+
+// SubscriptionSourceIDIn applies the In predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDIn(vs ...int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldSubscriptionSourceID, vs...))
+}
+
+// SubscriptionSourceIDNotIn applies the NotIn predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDNotIn(vs ...int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldSubscriptionSourceID, vs...))
+}
+
+// SubscriptionSourceIDGT applies the GT predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDGT(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldSubscriptionSourceID, v))
+}
+
+// SubscriptionSourceIDGTE applies the GTE predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDGTE(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldSubscriptionSourceID, v))
+}
+
+// SubscriptionSourceIDLT applies the LT predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDLT(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldSubscriptionSourceID, v))
+}
+
+// SubscriptionSourceIDLTE applies the LTE predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDLTE(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldSubscriptionSourceID, v))
+}
+
+// SubscriptionSourceIDIsNil applies the IsNil predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldSubscriptionSourceID))
+}
+
+// SubscriptionSourceIDNotNil applies the NotNil predicate on the "subscription_source_id" field.
+func SubscriptionSourceIDNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldSubscriptionSourceID))
+}
+
+// SubscriptionNodeIDEQ applies the EQ predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDEQ(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldSubscriptionNodeID, v))
+}
+
+// SubscriptionNodeIDNEQ applies the NEQ predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDNEQ(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldSubscriptionNodeID, v))
+}
+
+// SubscriptionNodeIDIn applies the In predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDIn(vs ...int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldSubscriptionNodeID, vs...))
+}
+
+// SubscriptionNodeIDNotIn applies the NotIn predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDNotIn(vs ...int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldSubscriptionNodeID, vs...))
+}
+
+// SubscriptionNodeIDGT applies the GT predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDGT(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldSubscriptionNodeID, v))
+}
+
+// SubscriptionNodeIDGTE applies the GTE predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDGTE(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldSubscriptionNodeID, v))
+}
+
+// SubscriptionNodeIDLT applies the LT predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDLT(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldSubscriptionNodeID, v))
+}
+
+// SubscriptionNodeIDLTE applies the LTE predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDLTE(v int64) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldSubscriptionNodeID, v))
+}
+
+// SubscriptionNodeIDIsNil applies the IsNil predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDIsNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldIsNull(FieldSubscriptionNodeID))
+}
+
+// SubscriptionNodeIDNotNil applies the NotNil predicate on the "subscription_node_id" field.
+func SubscriptionNodeIDNotNil() predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotNull(FieldSubscriptionNodeID))
+}
+
+// ManagedBySubscriptionEQ applies the EQ predicate on the "managed_by_subscription" field.
+func ManagedBySubscriptionEQ(v bool) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldManagedBySubscription, v))
+}
+
+// ManagedBySubscriptionNEQ applies the NEQ predicate on the "managed_by_subscription" field.
+func ManagedBySubscriptionNEQ(v bool) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldManagedBySubscription, v))
 }
 
 // HasAccounts applies the HasEdge predicate on the "accounts" edge.

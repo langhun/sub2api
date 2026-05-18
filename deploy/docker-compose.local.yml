@@ -110,6 +110,14 @@ services:
       - REDIS_POOL_SIZE=${REDIS_POOL_SIZE:-1024}
       - REDIS_MIN_IDLE_CONNS=${REDIS_MIN_IDLE_CONNS:-10}
       - REDIS_ENABLE_TLS=${REDIS_ENABLE_TLS:-false}
+      - PROXY_SUBSCRIPTIONS_ENABLED=${PROXY_SUBSCRIPTIONS_ENABLED:-false}
+      - PROXY_SUBSCRIPTIONS_REFRESH_SCAN_INTERVAL_SECONDS=${PROXY_SUBSCRIPTIONS_REFRESH_SCAN_INTERVAL_SECONDS:-60}
+      - PROXY_SUBSCRIPTIONS_DEFAULT_REFRESH_INTERVAL_HOURS=${PROXY_SUBSCRIPTIONS_DEFAULT_REFRESH_INTERVAL_HOURS:-6}
+      - PROXY_SUBSCRIPTIONS_SYNC_CONCURRENCY=${PROXY_SUBSCRIPTIONS_SYNC_CONCURRENCY:-2}
+      - PROXY_SUBSCRIPTION_SIDECAR_ENABLED=${PROXY_SUBSCRIPTION_SIDECAR_ENABLED:-false}
+      - PROXY_SUBSCRIPTION_SIDECAR_BASE_URL=${PROXY_SUBSCRIPTION_SIDECAR_BASE_URL:-http://proxy-subscription-sidecar:8080}
+      - PROXY_SUBSCRIPTION_SIDECAR_LISTENER_HOST=${PROXY_SUBSCRIPTION_SIDECAR_LISTENER_HOST:-proxy-subscription-sidecar}
+      - PROXY_SUBSCRIPTION_SIDECAR_LISTENER_PORT_RANGE=${PROXY_SUBSCRIPTION_SIDECAR_LISTENER_PORT_RANGE:-21080-21180}
 
       # =======================================================================
       # Admin Account (auto-created on first run)
@@ -236,10 +244,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      proxy-subscription-sidecar:
+        condition: service_started
+
+  proxy-subscription-sidecar:
+    build:
+      context: ..
+      dockerfile: tools/proxy-subscription-sidecar/Dockerfile
+    container_name: proxy-subscription-sidecar
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+      - LISTENER_HOST=${PROXY_SUBSCRIPTION_SIDECAR_LISTENER_HOST:-proxy-subscription-sidecar}
+      - LISTENER_PORT_RANGE=${PROXY_SUBSCRIPTION_SIDECAR_LISTENER_PORT_RANGE:-21080-21180}
+      - SING_BOX_BIN=${PROXY_SUBSCRIPTION_SIDECAR_SING_BOX_BIN:-/usr/bin/sing-box}
+      - DATA_DIR=/var/lib/proxy-subscription-sidecar
+    volumes:
+      - ./proxy_subscription_sidecar_data:/var/lib/proxy-subscription-sidecar
     networks:
       - sub2api-network
     healthcheck:
-      test: ["CMD", "wget", "-q", "-T", "5", "-O", "/dev/null", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-q", "-T", "5", "-O", "/dev/null", "http://localhost:8080/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3

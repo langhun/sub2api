@@ -35,6 +35,12 @@ const (
 	FieldPassword = "password"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldSubscriptionSourceID holds the string denoting the subscription_source_id field in the database.
+	FieldSubscriptionSourceID = "subscription_source_id"
+	// FieldSubscriptionNodeID holds the string denoting the subscription_node_id field in the database.
+	FieldSubscriptionNodeID = "subscription_node_id"
+	// FieldManagedBySubscription holds the string denoting the managed_by_subscription field in the database.
+	FieldManagedBySubscription = "managed_by_subscription"
 	// EdgeAccounts holds the string denoting the accounts edge name in mutations.
 	EdgeAccounts = "accounts"
 	// Table holds the table name of the proxy in the database.
@@ -61,6 +67,9 @@ var Columns = []string{
 	FieldUsername,
 	FieldPassword,
 	FieldStatus,
+	FieldSubscriptionSourceID,
+	FieldSubscriptionNodeID,
+	FieldManagedBySubscription,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -101,6 +110,8 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// DefaultManagedBySubscription holds the default value on creation for the "managed_by_subscription" field.
+	DefaultManagedBySubscription bool
 )
 
 // OrderOption defines the ordering options for the Proxy queries.
@@ -159,6 +170,21 @@ func ByPassword(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// BySubscriptionSourceID orders the results by the subscription_source_id field.
+func BySubscriptionSourceID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionSourceID, opts...).ToFunc()
+}
+
+// BySubscriptionNodeID orders the results by the subscription_node_id field.
+func BySubscriptionNodeID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSubscriptionNodeID, opts...).ToFunc()
+}
+
+// ByManagedBySubscription orders the results by the managed_by_subscription field.
+func ByManagedBySubscription(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldManagedBySubscription, opts...).ToFunc()
 }
 
 // ByAccountsCount orders the results by accounts count.

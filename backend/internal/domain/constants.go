@@ -10,6 +10,35 @@ const (
 	StatusExpired  = "expired"
 )
 
+const (
+	ProxySubscriptionSourceFormatAuto       = "auto"
+	ProxySubscriptionSourceFormatDirectList = "direct_list"
+	ProxySubscriptionSourceFormatURIList    = "uri_list"
+	ProxySubscriptionSourceFormatClashYAML  = "clash_yaml"
+)
+
+const (
+	ProxyNodeTypeHTTP      = "http"
+	ProxyNodeTypeHTTPS     = "https"
+	ProxyNodeTypeSOCKS5    = "socks5"
+	ProxyNodeTypeSOCKS5H   = "socks5h"
+	ProxyNodeTypeSS        = "ss"
+	ProxyNodeTypeVMess     = "vmess"
+	ProxyNodeTypeVLess     = "vless"
+	ProxyNodeTypeTrojan    = "trojan"
+	ProxyNodeTypeHysteria  = "hysteria"
+	ProxyNodeTypeHysteria2 = "hysteria2"
+)
+
+const (
+	ProxySubscriptionLandingStatusPending     = "pending"
+	ProxySubscriptionLandingStatusActive      = "active"
+	ProxySubscriptionLandingStatusConflicted  = "conflicted"
+	ProxySubscriptionLandingStatusUnsupported = "unsupported"
+	ProxySubscriptionLandingStatusFailed      = "failed"
+	ProxySubscriptionLandingStatusStale       = "stale"
+)
+
 // Role constants
 const (
 	RoleAdmin = "admin"
@@ -55,8 +84,8 @@ const (
 )
 
 // Checkin type constant
-const AdjustmentTypeCheckin = "checkin"              // 签到奖励
-const AdjustmentTypeCheckinLuck = "checkin_luck"     // 运气签到
+const AdjustmentTypeCheckin = "checkin"                  // 签到奖励
+const AdjustmentTypeCheckinLuck = "checkin_luck"         // 运气签到
 const AdjustmentTypeCheckinBlindbox = "checkin_blindbox" // 签到盲盒奖励
 
 // Registration type constant

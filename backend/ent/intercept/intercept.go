@@ -38,6 +38,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/proxysubscriptionnode"
+	"github.com/Wei-Shaw/sub2api/ent/proxysubscriptionsource"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
@@ -891,6 +893,60 @@ func (f TraverseProxy) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.ProxyQuery", q)
 }
 
+// The ProxySubscriptionNodeFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ProxySubscriptionNodeFunc func(context.Context, *ent.ProxySubscriptionNodeQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ProxySubscriptionNodeFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ProxySubscriptionNodeQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ProxySubscriptionNodeQuery", q)
+}
+
+// The TraverseProxySubscriptionNode type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseProxySubscriptionNode func(context.Context, *ent.ProxySubscriptionNodeQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseProxySubscriptionNode) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseProxySubscriptionNode) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ProxySubscriptionNodeQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ProxySubscriptionNodeQuery", q)
+}
+
+// The ProxySubscriptionSourceFunc type is an adapter to allow the use of ordinary function as a Querier.
+type ProxySubscriptionSourceFunc func(context.Context, *ent.ProxySubscriptionSourceQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f ProxySubscriptionSourceFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.ProxySubscriptionSourceQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.ProxySubscriptionSourceQuery", q)
+}
+
+// The TraverseProxySubscriptionSource type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseProxySubscriptionSource func(context.Context, *ent.ProxySubscriptionSourceQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseProxySubscriptionSource) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseProxySubscriptionSource) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.ProxySubscriptionSourceQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.ProxySubscriptionSourceQuery", q)
+}
+
 // The RedeemCodeFunc type is an adapter to allow the use of ordinary function as a Querier.
 type RedeemCodeFunc func(context.Context, *ent.RedeemCodeQuery) (ent.Value, error)
 
@@ -1276,6 +1332,10 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.PromoCodeUsageQuery, predicate.PromoCodeUsage, promocodeusage.OrderOption]{typ: ent.TypePromoCodeUsage, tq: q}, nil
 	case *ent.ProxyQuery:
 		return &query[*ent.ProxyQuery, predicate.Proxy, proxy.OrderOption]{typ: ent.TypeProxy, tq: q}, nil
+	case *ent.ProxySubscriptionNodeQuery:
+		return &query[*ent.ProxySubscriptionNodeQuery, predicate.ProxySubscriptionNode, proxysubscriptionnode.OrderOption]{typ: ent.TypeProxySubscriptionNode, tq: q}, nil
+	case *ent.ProxySubscriptionSourceQuery:
+		return &query[*ent.ProxySubscriptionSourceQuery, predicate.ProxySubscriptionSource, proxysubscriptionsource.OrderOption]{typ: ent.TypeProxySubscriptionSource, tq: q}, nil
 	case *ent.RedeemCodeQuery:
 		return &query[*ent.RedeemCodeQuery, predicate.RedeemCode, redeemcode.OrderOption]{typ: ent.TypeRedeemCode, tq: q}, nil
 	case *ent.SecuritySecretQuery:
