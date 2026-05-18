@@ -440,6 +440,27 @@ func ProvideAutoFailoverProxyPoolService(
 	return svc
 }
 
+func ProvideProxySubscriptionService(
+	sourceRepo ProxySubscriptionSourceRepository,
+	nodeRepo ProxySubscriptionNodeRepository,
+	proxyRepo ProxyRepository,
+	settingService *SettingService,
+	sidecar ProxySubscriptionSidecarClient,
+	cfg *config.Config,
+) *ProxySubscriptionService {
+	return NewProxySubscriptionService(sourceRepo, nodeRepo, proxyRepo, settingService, sidecar, cfg)
+}
+
+func ProvideProxySubscriptionRefreshService(
+	sourceRepo ProxySubscriptionSourceRepository,
+	subscriptionService *ProxySubscriptionService,
+	cfg *config.Config,
+) *ProxySubscriptionRefreshService {
+	svc := NewProxySubscriptionRefreshService(sourceRepo, subscriptionService, cfg)
+	svc.Start()
+	return svc
+}
+
 func ProvideOpenAIOAuthService(
 	proxyRepo ProxyRepository,
 	oauthClient OpenAIOAuthClient,
@@ -608,6 +629,8 @@ var ProviderSet = wire.NewSet(
 	NewAccountTestService,
 	ProvideSettingService,
 	ProvideAutoFailoverProxyPoolService,
+	ProvideProxySubscriptionService,
+	ProvideProxySubscriptionRefreshService,
 	NewDataManagementService,
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,

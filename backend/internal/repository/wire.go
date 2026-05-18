@@ -71,6 +71,8 @@ var ProviderSet = wire.NewSet(
 	NewScheduledTestPlanRepository,   // 定时测试计划仓储
 	NewScheduledTestResultRepository, // 定时测试结果仓储
 	NewProxyRepository,
+	NewProxySubscriptionSourceRepository,
+	NewProxySubscriptionNodeRepository,
 	NewRedeemCodeRepository,
 	NewPromoCodeRepository,
 	NewAnnouncementRepository,
@@ -143,6 +145,7 @@ var ProviderSet = wire.NewSet(
 	NewGeminiOAuthClient,
 	NewGeminiCliCodeAssistClient,
 	NewGeminiDriveClient,
+	NewProxySubscriptionSidecarClient,
 
 	ProvideEnt,
 	ProvideSQLDB,

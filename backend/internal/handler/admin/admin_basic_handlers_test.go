@@ -46,6 +46,15 @@ func setupAdminRouter() (*gin.Engine, *stubAdminService) {
 	router.POST("/api/v1/admin/proxies", proxyHandler.Create)
 	router.PUT("/api/v1/admin/proxies/:id", proxyHandler.Update)
 	router.DELETE("/api/v1/admin/proxies/:id", proxyHandler.Delete)
+	proxySubscriptionHandler := NewProxySubscriptionHandler(adminSvc)
+	router.GET("/api/v1/admin/proxies/subscriptions", proxySubscriptionHandler.List)
+	router.GET("/api/v1/admin/proxies/subscriptions/:id", proxySubscriptionHandler.GetByID)
+	router.POST("/api/v1/admin/proxies/subscriptions", proxySubscriptionHandler.Create)
+	router.PUT("/api/v1/admin/proxies/subscriptions/:id", proxySubscriptionHandler.Update)
+	router.DELETE("/api/v1/admin/proxies/subscriptions/:id", proxySubscriptionHandler.Delete)
+	router.POST("/api/v1/admin/proxies/subscriptions/:id/refresh", proxySubscriptionHandler.Refresh)
+	router.GET("/api/v1/admin/proxies/subscriptions/:id/nodes", proxySubscriptionHandler.ListNodes)
+	router.GET("/api/v1/admin/proxies/subscriptions/:id/proxies", proxySubscriptionHandler.ListProxies)
 	router.POST("/api/v1/admin/proxies/batch-delete", proxyHandler.BatchDelete)
 	router.POST("/api/v1/admin/proxies/unassign-accounts", proxyHandler.UnassignAccounts)
 	router.POST("/api/v1/admin/proxies/:id/test", proxyHandler.Test)
@@ -276,6 +285,78 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/4/accounts", nil)
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/subscriptions", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/admin/proxies/subscriptions/4/refresh", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestProxySubscriptionHandlerRequestMapping(t *testing.T) {
+	router, adminSvc := setupAdminRouter()
+
+	body, err := json.Marshal(map[string]any{
+		"name":                   "sub-a",
+		"url":                    "https://example.com/sub",
+		"source_format":          "clash_yaml",
+		"enabled":                true,
+		"refresh_interval_hours": 12,
+		"auto_add_to_pool":       true,
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/proxies/subscriptions", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, adminSvc.lastCreateProxySubscriptionInput)
+	require.Equal(t, "sub-a", adminSvc.lastCreateProxySubscriptionInput.Name)
+	require.Equal(t, "https://example.com/sub", adminSvc.lastCreateProxySubscriptionInput.URL)
+	require.Equal(t, "clash_yaml", adminSvc.lastCreateProxySubscriptionInput.SourceFormat)
+	require.Equal(t, 12, adminSvc.lastCreateProxySubscriptionInput.RefreshIntervalHours)
+	require.True(t, adminSvc.lastCreateProxySubscriptionInput.AutoAddToPool)
+
+	updateName := "sub-b"
+	body, err = json.Marshal(map[string]any{
+		"name":                   updateName,
+		"refresh_interval_hours": 24,
+	})
+	require.NoError(t, err)
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/admin/proxies/subscriptions/9", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(9), adminSvc.lastUpdateProxySubscriptionID)
+	require.NotNil(t, adminSvc.lastUpdateProxySubscriptionInput)
+	require.NotNil(t, adminSvc.lastUpdateProxySubscriptionInput.Name)
+	require.Equal(t, updateName, *adminSvc.lastUpdateProxySubscriptionInput.Name)
+	require.NotNil(t, adminSvc.lastUpdateProxySubscriptionInput.RefreshIntervalHours)
+	require.Equal(t, 24, *adminSvc.lastUpdateProxySubscriptionInput.RefreshIntervalHours)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/admin/proxies/subscriptions/7", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(7), adminSvc.lastDeleteProxySubscriptionID)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/subscriptions/5/nodes", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(5), adminSvc.lastListProxySubscriptionNodesID)
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/subscriptions/6/proxies", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(6), adminSvc.lastListSubscriptionProxiesID)
 }
 
 func TestRedeemHandlerEndpoints(t *testing.T) {

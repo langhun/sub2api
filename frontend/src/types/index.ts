@@ -273,6 +273,41 @@ export interface Subscription {
   updated_at: string
 }
 
+export interface ProxySubscriptionSource {
+  id: number
+  name: string
+  url: string
+  source_format: 'auto' | 'direct_list' | 'uri_list' | 'clash_yaml'
+  enabled: boolean
+  refresh_interval_hours: number
+  auto_add_to_pool: boolean
+  last_refreshed_at: string | null
+  last_success_at: string | null
+  last_error: string
+  last_node_count: number
+  last_materialized_proxy_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateProxySubscriptionSourceRequest {
+  name: string
+  url: string
+  source_format?: ProxySubscriptionSource['source_format']
+  enabled?: boolean
+  refresh_interval_hours?: number
+  auto_add_to_pool?: boolean
+}
+
+export interface UpdateProxySubscriptionSourceRequest {
+  name?: string
+  url?: string
+  source_format?: ProxySubscriptionSource['source_format']
+  enabled?: boolean
+  refresh_interval_hours?: number
+  auto_add_to_pool?: boolean
+}
+
 export interface CreateSubscriptionRequest {
   name: string
   url: string
@@ -383,6 +418,43 @@ export interface ProxyNode {
   is_available: boolean
   created_at: string
   updated_at: string
+}
+
+export interface ProxySubscriptionNode {
+  id: number
+  source_id: number
+  node_key: string
+  display_name: string
+  node_type: 'http' | 'https' | 'socks5' | 'socks5h' | 'ss' | 'ssr' | 'vmess' | 'vless' | 'trojan' | 'hysteria' | 'hysteria2'
+  server: string
+  port: number
+  config_json: Record<string, unknown>
+  landing_status: 'pending' | 'active' | 'conflicted' | 'unsupported' | 'failed' | 'stale'
+  last_error: string
+  last_seen_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProxySubscriptionRefreshError {
+  node_key?: string
+  name?: string
+  message: string
+}
+
+export interface ProxySubscriptionRefreshResult {
+  source_id: number
+  refreshed_at: string
+  node_count: number
+  materialized_proxy_count: number
+  created_proxy_count: number
+  updated_proxy_count: number
+  disabled_proxy_count: number
+  deleted_proxy_count: number
+  skipped_node_count: number
+  conflict_node_count: number
+  unsupported_node_count: number
+  errors: ProxySubscriptionRefreshError[]
 }
 
 // ==================== Conversion Types ====================
@@ -700,6 +772,11 @@ export interface Proxy {
   password?: string | null
   status: 'active' | 'inactive'
   auto_failover_pool_enabled?: boolean
+  managed_by_subscription?: boolean
+  subscription_source_id?: number | null
+  subscription_source_name?: string
+  subscription_node_id?: number | null
+  subscription_node_type?: string
   account_count?: number // Number of accounts using this proxy
   latency_ms?: number
   latency_status?: 'success' | 'failed'

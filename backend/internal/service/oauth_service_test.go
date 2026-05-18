@@ -66,6 +66,15 @@ func (m *mockProxyRepoForOAuth) GetByID(ctx context.Context, id int64) (*Proxy, 
 func (m *mockProxyRepoForOAuth) ListByIDs(ctx context.Context, ids []int64) ([]Proxy, error) {
 	panic("ListByIDs not implemented")
 }
+func (m *mockProxyRepoForOAuth) ListBySubscriptionSourceID(ctx context.Context, sourceID int64) ([]Proxy, error) {
+	panic("ListBySubscriptionSourceID not implemented")
+}
+func (m *mockProxyRepoForOAuth) FindBySubscriptionNodeID(ctx context.Context, nodeID int64) (*Proxy, error) {
+	panic("FindBySubscriptionNodeID not implemented")
+}
+func (m *mockProxyRepoForOAuth) FindByHostPortAuth(ctx context.Context, host string, port int, username, password string) (*Proxy, error) {
+	panic("FindByHostPortAuth not implemented")
+}
 func (m *mockProxyRepoForOAuth) Update(ctx context.Context, proxy *Proxy) error {
 	panic("Update not implemented")
 }

@@ -1,3 +1,5 @@
+//go:build unit
+
 package service
 
 import (
@@ -13,13 +15,13 @@ import (
 )
 
 type ungroupedAutoTestAccountRepoStub struct {
-	accounts              []Account
-	listWithFiltersGroup  int64
+	accounts                []Account
+	listWithFiltersGroup    int64
 	listWithFiltersPlatform string
-	listWithFiltersStatus string
-	listWithFiltersCalls  int
-	updatedExtraByID      map[int64]map[string]any
-	deletedIDs            []int64
+	listWithFiltersStatus   string
+	listWithFiltersCalls    int
+	updatedExtraByID        map[int64]map[string]any
+	deletedIDs              []int64
 }
 
 func (s *ungroupedAutoTestAccountRepoStub) Create(context.Context, *Account) error { return nil }

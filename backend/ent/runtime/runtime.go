@@ -34,6 +34,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/promocode"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/proxysubscriptionnode"
+	"github.com/Wei-Shaw/sub2api/ent/proxysubscriptionsource"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/schema"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
@@ -1602,6 +1604,174 @@ func init() {
 	proxy.DefaultStatus = proxyDescStatus.Default.(string)
 	// proxy.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	proxy.StatusValidator = proxyDescStatus.Validators[0].(func(string) error)
+	// proxyDescManagedBySubscription is the schema descriptor for managed_by_subscription field.
+	proxyDescManagedBySubscription := proxyFields[9].Descriptor()
+	// proxy.DefaultManagedBySubscription holds the default value on creation for the managed_by_subscription field.
+	proxy.DefaultManagedBySubscription = proxyDescManagedBySubscription.Default.(bool)
+	proxysubscriptionnodeMixin := schema.ProxySubscriptionNode{}.Mixin()
+	proxysubscriptionnodeMixinHooks1 := proxysubscriptionnodeMixin[1].Hooks()
+	proxysubscriptionnode.Hooks[0] = proxysubscriptionnodeMixinHooks1[0]
+	proxysubscriptionnodeMixinInters1 := proxysubscriptionnodeMixin[1].Interceptors()
+	proxysubscriptionnode.Interceptors[0] = proxysubscriptionnodeMixinInters1[0]
+	proxysubscriptionnodeMixinFields0 := proxysubscriptionnodeMixin[0].Fields()
+	_ = proxysubscriptionnodeMixinFields0
+	proxysubscriptionnodeFields := schema.ProxySubscriptionNode{}.Fields()
+	_ = proxysubscriptionnodeFields
+	// proxysubscriptionnodeDescCreatedAt is the schema descriptor for created_at field.
+	proxysubscriptionnodeDescCreatedAt := proxysubscriptionnodeMixinFields0[0].Descriptor()
+	// proxysubscriptionnode.DefaultCreatedAt holds the default value on creation for the created_at field.
+	proxysubscriptionnode.DefaultCreatedAt = proxysubscriptionnodeDescCreatedAt.Default.(func() time.Time)
+	// proxysubscriptionnodeDescUpdatedAt is the schema descriptor for updated_at field.
+	proxysubscriptionnodeDescUpdatedAt := proxysubscriptionnodeMixinFields0[1].Descriptor()
+	// proxysubscriptionnode.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	proxysubscriptionnode.DefaultUpdatedAt = proxysubscriptionnodeDescUpdatedAt.Default.(func() time.Time)
+	// proxysubscriptionnode.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	proxysubscriptionnode.UpdateDefaultUpdatedAt = proxysubscriptionnodeDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// proxysubscriptionnodeDescNodeKey is the schema descriptor for node_key field.
+	proxysubscriptionnodeDescNodeKey := proxysubscriptionnodeFields[1].Descriptor()
+	// proxysubscriptionnode.NodeKeyValidator is a validator for the "node_key" field. It is called by the builders before save.
+	proxysubscriptionnode.NodeKeyValidator = func() func(string) error {
+		validators := proxysubscriptionnodeDescNodeKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(node_key string) error {
+			for _, fn := range fns {
+				if err := fn(node_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// proxysubscriptionnodeDescDisplayName is the schema descriptor for display_name field.
+	proxysubscriptionnodeDescDisplayName := proxysubscriptionnodeFields[2].Descriptor()
+	// proxysubscriptionnode.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
+	proxysubscriptionnode.DisplayNameValidator = proxysubscriptionnodeDescDisplayName.Validators[0].(func(string) error)
+	// proxysubscriptionnodeDescNodeType is the schema descriptor for node_type field.
+	proxysubscriptionnodeDescNodeType := proxysubscriptionnodeFields[3].Descriptor()
+	// proxysubscriptionnode.NodeTypeValidator is a validator for the "node_type" field. It is called by the builders before save.
+	proxysubscriptionnode.NodeTypeValidator = func() func(string) error {
+		validators := proxysubscriptionnodeDescNodeType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(node_type string) error {
+			for _, fn := range fns {
+				if err := fn(node_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// proxysubscriptionnodeDescServer is the schema descriptor for server field.
+	proxysubscriptionnodeDescServer := proxysubscriptionnodeFields[4].Descriptor()
+	// proxysubscriptionnode.ServerValidator is a validator for the "server" field. It is called by the builders before save.
+	proxysubscriptionnode.ServerValidator = func() func(string) error {
+		validators := proxysubscriptionnodeDescServer.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(server string) error {
+			for _, fn := range fns {
+				if err := fn(server); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// proxysubscriptionnodeDescLandingStatus is the schema descriptor for landing_status field.
+	proxysubscriptionnodeDescLandingStatus := proxysubscriptionnodeFields[7].Descriptor()
+	// proxysubscriptionnode.DefaultLandingStatus holds the default value on creation for the landing_status field.
+	proxysubscriptionnode.DefaultLandingStatus = proxysubscriptionnodeDescLandingStatus.Default.(string)
+	// proxysubscriptionnode.LandingStatusValidator is a validator for the "landing_status" field. It is called by the builders before save.
+	proxysubscriptionnode.LandingStatusValidator = proxysubscriptionnodeDescLandingStatus.Validators[0].(func(string) error)
+	proxysubscriptionsourceMixin := schema.ProxySubscriptionSource{}.Mixin()
+	proxysubscriptionsourceMixinHooks1 := proxysubscriptionsourceMixin[1].Hooks()
+	proxysubscriptionsource.Hooks[0] = proxysubscriptionsourceMixinHooks1[0]
+	proxysubscriptionsourceMixinInters1 := proxysubscriptionsourceMixin[1].Interceptors()
+	proxysubscriptionsource.Interceptors[0] = proxysubscriptionsourceMixinInters1[0]
+	proxysubscriptionsourceMixinFields0 := proxysubscriptionsourceMixin[0].Fields()
+	_ = proxysubscriptionsourceMixinFields0
+	proxysubscriptionsourceFields := schema.ProxySubscriptionSource{}.Fields()
+	_ = proxysubscriptionsourceFields
+	// proxysubscriptionsourceDescCreatedAt is the schema descriptor for created_at field.
+	proxysubscriptionsourceDescCreatedAt := proxysubscriptionsourceMixinFields0[0].Descriptor()
+	// proxysubscriptionsource.DefaultCreatedAt holds the default value on creation for the created_at field.
+	proxysubscriptionsource.DefaultCreatedAt = proxysubscriptionsourceDescCreatedAt.Default.(func() time.Time)
+	// proxysubscriptionsourceDescUpdatedAt is the schema descriptor for updated_at field.
+	proxysubscriptionsourceDescUpdatedAt := proxysubscriptionsourceMixinFields0[1].Descriptor()
+	// proxysubscriptionsource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	proxysubscriptionsource.DefaultUpdatedAt = proxysubscriptionsourceDescUpdatedAt.Default.(func() time.Time)
+	// proxysubscriptionsource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	proxysubscriptionsource.UpdateDefaultUpdatedAt = proxysubscriptionsourceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// proxysubscriptionsourceDescName is the schema descriptor for name field.
+	proxysubscriptionsourceDescName := proxysubscriptionsourceFields[0].Descriptor()
+	// proxysubscriptionsource.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	proxysubscriptionsource.NameValidator = func() func(string) error {
+		validators := proxysubscriptionsourceDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// proxysubscriptionsourceDescURL is the schema descriptor for url field.
+	proxysubscriptionsourceDescURL := proxysubscriptionsourceFields[1].Descriptor()
+	// proxysubscriptionsource.URLValidator is a validator for the "url" field. It is called by the builders before save.
+	proxysubscriptionsource.URLValidator = func() func(string) error {
+		validators := proxysubscriptionsourceDescURL.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(url string) error {
+			for _, fn := range fns {
+				if err := fn(url); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// proxysubscriptionsourceDescSourceFormat is the schema descriptor for source_format field.
+	proxysubscriptionsourceDescSourceFormat := proxysubscriptionsourceFields[2].Descriptor()
+	// proxysubscriptionsource.DefaultSourceFormat holds the default value on creation for the source_format field.
+	proxysubscriptionsource.DefaultSourceFormat = proxysubscriptionsourceDescSourceFormat.Default.(string)
+	// proxysubscriptionsource.SourceFormatValidator is a validator for the "source_format" field. It is called by the builders before save.
+	proxysubscriptionsource.SourceFormatValidator = proxysubscriptionsourceDescSourceFormat.Validators[0].(func(string) error)
+	// proxysubscriptionsourceDescEnabled is the schema descriptor for enabled field.
+	proxysubscriptionsourceDescEnabled := proxysubscriptionsourceFields[3].Descriptor()
+	// proxysubscriptionsource.DefaultEnabled holds the default value on creation for the enabled field.
+	proxysubscriptionsource.DefaultEnabled = proxysubscriptionsourceDescEnabled.Default.(bool)
+	// proxysubscriptionsourceDescRefreshIntervalHours is the schema descriptor for refresh_interval_hours field.
+	proxysubscriptionsourceDescRefreshIntervalHours := proxysubscriptionsourceFields[4].Descriptor()
+	// proxysubscriptionsource.DefaultRefreshIntervalHours holds the default value on creation for the refresh_interval_hours field.
+	proxysubscriptionsource.DefaultRefreshIntervalHours = proxysubscriptionsourceDescRefreshIntervalHours.Default.(int)
+	// proxysubscriptionsourceDescAutoAddToPool is the schema descriptor for auto_add_to_pool field.
+	proxysubscriptionsourceDescAutoAddToPool := proxysubscriptionsourceFields[5].Descriptor()
+	// proxysubscriptionsource.DefaultAutoAddToPool holds the default value on creation for the auto_add_to_pool field.
+	proxysubscriptionsource.DefaultAutoAddToPool = proxysubscriptionsourceDescAutoAddToPool.Default.(bool)
+	// proxysubscriptionsourceDescLastNodeCount is the schema descriptor for last_node_count field.
+	proxysubscriptionsourceDescLastNodeCount := proxysubscriptionsourceFields[9].Descriptor()
+	// proxysubscriptionsource.DefaultLastNodeCount holds the default value on creation for the last_node_count field.
+	proxysubscriptionsource.DefaultLastNodeCount = proxysubscriptionsourceDescLastNodeCount.Default.(int)
+	// proxysubscriptionsourceDescLastMaterializedProxyCount is the schema descriptor for last_materialized_proxy_count field.
+	proxysubscriptionsourceDescLastMaterializedProxyCount := proxysubscriptionsourceFields[10].Descriptor()
+	// proxysubscriptionsource.DefaultLastMaterializedProxyCount holds the default value on creation for the last_materialized_proxy_count field.
+	proxysubscriptionsource.DefaultLastMaterializedProxyCount = proxysubscriptionsourceDescLastMaterializedProxyCount.Default.(int)
 	redeemcodeFields := schema.RedeemCode{}.Fields()
 	_ = redeemcodeFields
 	// redeemcodeDescCode is the schema descriptor for code field.

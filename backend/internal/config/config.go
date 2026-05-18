@@ -58,39 +58,41 @@ const (
 const DefaultUpstreamResponseReadMaxBytes int64 = 128 * 1024 * 1024
 
 type Config struct {
-	Server                  ServerConfig                  `mapstructure:"server"`
-	Log                     LogConfig                     `mapstructure:"log"`
-	CORS                    CORSConfig                    `mapstructure:"cors"`
-	Security                SecurityConfig                `mapstructure:"security"`
-	Billing                 BillingConfig                 `mapstructure:"billing"`
-	Turnstile               TurnstileConfig               `mapstructure:"turnstile"`
-	Database                DatabaseConfig                `mapstructure:"database"`
-	Redis                   RedisConfig                   `mapstructure:"redis"`
-	Ops                     OpsConfig                     `mapstructure:"ops"`
-	JWT                     JWTConfig                     `mapstructure:"jwt"`
-	Totp                    TotpConfig                    `mapstructure:"totp"`
-	LinuxDo                 LinuxDoConnectConfig          `mapstructure:"linuxdo_connect"`
-	WeChat                  WeChatConnectConfig           `mapstructure:"wechat_connect"`
-	OIDC                    OIDCConnectConfig             `mapstructure:"oidc_connect"`
-	GitHubOAuth             EmailOAuthProviderConfig      `mapstructure:"github_oauth"`
-	GoogleOAuth             EmailOAuthProviderConfig      `mapstructure:"google_oauth"`
-	Default                 DefaultConfig                 `mapstructure:"default"`
-	RateLimit               RateLimitConfig               `mapstructure:"rate_limit"`
-	Pricing                 PricingConfig                 `mapstructure:"pricing"`
-	Gateway                 GatewayConfig                 `mapstructure:"gateway"`
-	APIKeyAuth              APIKeyAuthCacheConfig         `mapstructure:"api_key_auth_cache"`
-	SubscriptionCache       SubscriptionCacheConfig       `mapstructure:"subscription_cache"`
-	SubscriptionMaintenance SubscriptionMaintenanceConfig `mapstructure:"subscription_maintenance"`
-	Dashboard               DashboardCacheConfig          `mapstructure:"dashboard_cache"`
-	DashboardAgg            DashboardAggregationConfig    `mapstructure:"dashboard_aggregation"`
-	UsageCleanup            UsageCleanupConfig            `mapstructure:"usage_cleanup"`
-	Concurrency             ConcurrencyConfig             `mapstructure:"concurrency"`
-	TokenRefresh            TokenRefreshConfig            `mapstructure:"token_refresh"`
-	RunMode                 string                        `mapstructure:"run_mode" yaml:"run_mode"`
-	Timezone                string                        `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
-	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
-	Update                  UpdateConfig                  `mapstructure:"update"`
-	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
+	Server                   ServerConfig                   `mapstructure:"server"`
+	Log                      LogConfig                      `mapstructure:"log"`
+	CORS                     CORSConfig                     `mapstructure:"cors"`
+	Security                 SecurityConfig                 `mapstructure:"security"`
+	Billing                  BillingConfig                  `mapstructure:"billing"`
+	Turnstile                TurnstileConfig                `mapstructure:"turnstile"`
+	Database                 DatabaseConfig                 `mapstructure:"database"`
+	Redis                    RedisConfig                    `mapstructure:"redis"`
+	Ops                      OpsConfig                      `mapstructure:"ops"`
+	JWT                      JWTConfig                      `mapstructure:"jwt"`
+	Totp                     TotpConfig                     `mapstructure:"totp"`
+	LinuxDo                  LinuxDoConnectConfig           `mapstructure:"linuxdo_connect"`
+	WeChat                   WeChatConnectConfig            `mapstructure:"wechat_connect"`
+	OIDC                     OIDCConnectConfig              `mapstructure:"oidc_connect"`
+	GitHubOAuth              EmailOAuthProviderConfig       `mapstructure:"github_oauth"`
+	GoogleOAuth              EmailOAuthProviderConfig       `mapstructure:"google_oauth"`
+	Default                  DefaultConfig                  `mapstructure:"default"`
+	RateLimit                RateLimitConfig                `mapstructure:"rate_limit"`
+	Pricing                  PricingConfig                  `mapstructure:"pricing"`
+	Gateway                  GatewayConfig                  `mapstructure:"gateway"`
+	APIKeyAuth               APIKeyAuthCacheConfig          `mapstructure:"api_key_auth_cache"`
+	SubscriptionCache        SubscriptionCacheConfig        `mapstructure:"subscription_cache"`
+	SubscriptionMaintenance  SubscriptionMaintenanceConfig  `mapstructure:"subscription_maintenance"`
+	Dashboard                DashboardCacheConfig           `mapstructure:"dashboard_cache"`
+	DashboardAgg             DashboardAggregationConfig     `mapstructure:"dashboard_aggregation"`
+	UsageCleanup             UsageCleanupConfig             `mapstructure:"usage_cleanup"`
+	Concurrency              ConcurrencyConfig              `mapstructure:"concurrency"`
+	TokenRefresh             TokenRefreshConfig             `mapstructure:"token_refresh"`
+	ProxySubscriptions       ProxySubscriptionsConfig       `mapstructure:"proxy_subscriptions"`
+	ProxySubscriptionSidecar ProxySubscriptionSidecarConfig `mapstructure:"proxy_subscription_sidecar"`
+	RunMode                  string                         `mapstructure:"run_mode" yaml:"run_mode"`
+	Timezone                 string                         `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
+	Gemini                   GeminiConfig                   `mapstructure:"gemini"`
+	Update                   UpdateConfig                   `mapstructure:"update"`
+	Idempotency              IdempotencyConfig              `mapstructure:"idempotency"`
 }
 
 type LogConfig struct {
@@ -152,6 +154,20 @@ type UpdateConfig struct {
 	// 支持 http/https/socks5/socks5h 协议
 	// 例如: "http://127.0.0.1:7890", "socks5://127.0.0.1:1080"
 	ProxyURL string `mapstructure:"proxy_url"`
+}
+
+type ProxySubscriptionsConfig struct {
+	Enabled                     bool `mapstructure:"enabled"`
+	RefreshScanIntervalSeconds  int  `mapstructure:"refresh_scan_interval_seconds"`
+	DefaultRefreshIntervalHours int  `mapstructure:"default_refresh_interval_hours"`
+	SyncConcurrency             int  `mapstructure:"sync_concurrency"`
+}
+
+type ProxySubscriptionSidecarConfig struct {
+	Enabled           bool   `mapstructure:"enabled"`
+	BaseURL           string `mapstructure:"base_url"`
+	ListenerHost      string `mapstructure:"listener_host"`
+	ListenerPortRange string `mapstructure:"listener_port_range"`
 }
 
 type IdempotencyConfig struct {
@@ -1792,6 +1808,16 @@ func setDefaults() {
 	viper.SetDefault("token_refresh.refresh_before_expiry_hours", 0.5) // 提前30分钟刷新（适配Google 1小时token）
 	viper.SetDefault("token_refresh.max_retries", 3)                   // 最多重试3次
 	viper.SetDefault("token_refresh.retry_backoff_seconds", 2)         // 重试退避基础2秒
+
+	viper.SetDefault("proxy_subscriptions.enabled", false)
+	viper.SetDefault("proxy_subscriptions.refresh_scan_interval_seconds", 60)
+	viper.SetDefault("proxy_subscriptions.default_refresh_interval_hours", 6)
+	viper.SetDefault("proxy_subscriptions.sync_concurrency", 2)
+
+	viper.SetDefault("proxy_subscription_sidecar.enabled", false)
+	viper.SetDefault("proxy_subscription_sidecar.base_url", "http://sub2api-proxy-subscription-sidecar:8080")
+	viper.SetDefault("proxy_subscription_sidecar.listener_host", "127.0.0.1")
+	viper.SetDefault("proxy_subscription_sidecar.listener_port_range", "21080-21180")
 
 	// Gemini OAuth - configure via environment variables or config file
 	// GEMINI_OAUTH_CLIENT_ID and GEMINI_OAUTH_CLIENT_SECRET

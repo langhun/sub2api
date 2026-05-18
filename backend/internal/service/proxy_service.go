@@ -17,6 +17,9 @@ type ProxyRepository interface {
 	Create(ctx context.Context, proxy *Proxy) error
 	GetByID(ctx context.Context, id int64) (*Proxy, error)
 	ListByIDs(ctx context.Context, ids []int64) ([]Proxy, error)
+	ListBySubscriptionSourceID(ctx context.Context, sourceID int64) ([]Proxy, error)
+	FindBySubscriptionNodeID(ctx context.Context, nodeID int64) (*Proxy, error)
+	FindByHostPortAuth(ctx context.Context, host string, port int, username, password string) (*Proxy, error)
 	Update(ctx context.Context, proxy *Proxy) error
 	Delete(ctx context.Context, id int64) error
 

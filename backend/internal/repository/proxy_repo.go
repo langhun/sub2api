@@ -38,12 +38,19 @@ func (r *proxyRepository) Create(ctx context.Context, proxyIn *service.Proxy) er
 		SetProtocol(proxyIn.Protocol).
 		SetHost(proxyIn.Host).
 		SetPort(proxyIn.Port).
-		SetStatus(proxyIn.Status)
+		SetStatus(proxyIn.Status).
+		SetManagedBySubscription(proxyIn.ManagedBySubscription)
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	}
 	if proxyIn.Password != "" {
 		builder.SetPassword(proxyIn.Password)
+	}
+	if proxyIn.SubscriptionSourceID != nil {
+		builder.SetSubscriptionSourceID(*proxyIn.SubscriptionSourceID)
+	}
+	if proxyIn.SubscriptionNodeID != nil {
+		builder.SetSubscriptionNodeID(*proxyIn.SubscriptionNodeID)
 	}
 
 	created, err := builder.Save(ctx)
@@ -83,13 +90,67 @@ func (r *proxyRepository) ListByIDs(ctx context.Context, ids []int64) ([]service
 	return out, nil
 }
 
+func (r *proxyRepository) ListBySubscriptionSourceID(ctx context.Context, sourceID int64) ([]service.Proxy, error) {
+	proxies, err := r.client.Proxy.Query().
+		Where(proxy.SubscriptionSourceIDEQ(sourceID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]service.Proxy, 0, len(proxies))
+	for i := range proxies {
+		out = append(out, *proxyEntityToService(proxies[i]))
+	}
+	return out, nil
+}
+
+func (r *proxyRepository) FindBySubscriptionNodeID(ctx context.Context, nodeID int64) (*service.Proxy, error) {
+	item, err := r.client.Proxy.Query().
+		Where(proxy.SubscriptionNodeIDEQ(nodeID)).
+		First(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return proxyEntityToService(item), nil
+}
+
+func (r *proxyRepository) FindByHostPortAuth(ctx context.Context, host string, port int, username, password string) (*service.Proxy, error) {
+	q := r.client.Proxy.Query().
+		Where(proxy.HostEQ(host), proxy.PortEQ(port))
+
+	if username == "" {
+		q = q.Where(proxy.Or(proxy.UsernameIsNil(), proxy.UsernameEQ("")))
+	} else {
+		q = q.Where(proxy.UsernameEQ(username))
+	}
+	if password == "" {
+		q = q.Where(proxy.Or(proxy.PasswordIsNil(), proxy.PasswordEQ("")))
+	} else {
+		q = q.Where(proxy.PasswordEQ(password))
+	}
+
+	item, err := q.First(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return proxyEntityToService(item), nil
+}
+
 func (r *proxyRepository) Update(ctx context.Context, proxyIn *service.Proxy) error {
 	builder := r.client.Proxy.UpdateOneID(proxyIn.ID).
 		SetName(proxyIn.Name).
 		SetProtocol(proxyIn.Protocol).
 		SetHost(proxyIn.Host).
 		SetPort(proxyIn.Port).
-		SetStatus(proxyIn.Status)
+		SetStatus(proxyIn.Status).
+		SetManagedBySubscription(proxyIn.ManagedBySubscription)
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	} else {
@@ -99,6 +160,16 @@ func (r *proxyRepository) Update(ctx context.Context, proxyIn *service.Proxy) er
 		builder.SetPassword(proxyIn.Password)
 	} else {
 		builder.ClearPassword()
+	}
+	if proxyIn.SubscriptionSourceID != nil {
+		builder.SetSubscriptionSourceID(*proxyIn.SubscriptionSourceID)
+	} else {
+		builder.ClearSubscriptionSourceID()
+	}
+	if proxyIn.SubscriptionNodeID != nil {
+		builder.SetSubscriptionNodeID(*proxyIn.SubscriptionNodeID)
+	} else {
+		builder.ClearSubscriptionNodeID()
 	}
 
 	updated, err := builder.Save(ctx)
@@ -417,20 +488,27 @@ func proxyEntityToService(m *dbent.Proxy) *service.Proxy {
 		return nil
 	}
 	out := &service.Proxy{
-		ID:        m.ID,
-		Name:      m.Name,
-		Protocol:  m.Protocol,
-		Host:      m.Host,
-		Port:      m.Port,
-		Status:    m.Status,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:                    m.ID,
+		Name:                  m.Name,
+		Protocol:              m.Protocol,
+		Host:                  m.Host,
+		Port:                  m.Port,
+		Status:                m.Status,
+		ManagedBySubscription: m.ManagedBySubscription,
+		CreatedAt:             m.CreatedAt,
+		UpdatedAt:             m.UpdatedAt,
 	}
 	if m.Username != nil {
 		out.Username = *m.Username
 	}
 	if m.Password != nil {
 		out.Password = *m.Password
+	}
+	if m.SubscriptionSourceID != nil {
+		out.SubscriptionSourceID = m.SubscriptionSourceID
+	}
+	if m.SubscriptionNodeID != nil {
+		out.SubscriptionNodeID = m.SubscriptionNodeID
 	}
 	return out
 }
@@ -442,4 +520,7 @@ func applyProxyEntityToService(dst *service.Proxy, src *dbent.Proxy) {
 	dst.ID = src.ID
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
+	dst.SubscriptionSourceID = src.SubscriptionSourceID
+	dst.SubscriptionNodeID = src.SubscriptionNodeID
+	dst.ManagedBySubscription = src.ManagedBySubscription
 }

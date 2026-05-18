@@ -68,6 +68,15 @@ func (s *proxyRepoStubForPool) ListByIDs(ctx context.Context, ids []int64) ([]Pr
 	}
 	return result, nil
 }
+func (s *proxyRepoStubForPool) ListBySubscriptionSourceID(ctx context.Context, sourceID int64) ([]Proxy, error) {
+	panic("unexpected ListBySubscriptionSourceID")
+}
+func (s *proxyRepoStubForPool) FindBySubscriptionNodeID(ctx context.Context, nodeID int64) (*Proxy, error) {
+	panic("unexpected FindBySubscriptionNodeID")
+}
+func (s *proxyRepoStubForPool) FindByHostPortAuth(ctx context.Context, host string, port int, username, password string) (*Proxy, error) {
+	panic("unexpected FindByHostPortAuth")
+}
 
 type settingRepoStubForPool struct {
 	values map[string]string

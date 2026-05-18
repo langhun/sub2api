@@ -65,8 +65,22 @@ type stubAdminService struct {
 		sortOrder string
 		calls     int
 	}
-	lastUnassignProxyIDs []int64
-	lastListRedeemCodes  struct {
+	lastUnassignProxyIDs       []int64
+	lastListProxySubscriptions struct {
+		page     int
+		pageSize int
+		search   string
+		enabled  *bool
+		calls    int
+	}
+	lastCreateProxySubscriptionInput *service.CreateProxySubscriptionSourceInput
+	lastUpdateProxySubscriptionID    int64
+	lastUpdateProxySubscriptionInput *service.UpdateProxySubscriptionSourceInput
+	lastDeleteProxySubscriptionID    int64
+	lastRefreshProxySubscriptionID   int64
+	lastListProxySubscriptionNodesID int64
+	lastListSubscriptionProxiesID    int64
+	lastListRedeemCodes              struct {
 		codeType  string
 		status    string
 		search    string
@@ -548,6 +562,61 @@ func (s *stubAdminService) CheckProxyQuality(ctx context.Context, id int64) (*se
 			{Target: "gemini", Status: "pass", HTTPStatus: 200},
 		},
 	}, nil
+}
+
+func (s *stubAdminService) ListProxySubscriptionSources(ctx context.Context, page, pageSize int, search string, enabled *bool) ([]service.ProxySubscriptionSource, int64, error) {
+	s.lastListProxySubscriptions.page = page
+	s.lastListProxySubscriptions.pageSize = pageSize
+	s.lastListProxySubscriptions.search = search
+	s.lastListProxySubscriptions.calls++
+	if enabled != nil {
+		value := *enabled
+		s.lastListProxySubscriptions.enabled = &value
+	} else {
+		s.lastListProxySubscriptions.enabled = nil
+	}
+	return []service.ProxySubscriptionSource{}, 0, nil
+}
+
+func (s *stubAdminService) GetProxySubscriptionSource(ctx context.Context, id int64) (*service.ProxySubscriptionSource, error) {
+	return &service.ProxySubscriptionSource{ID: id, Name: "source", URL: "https://example.com/sub"}, nil
+}
+
+func (s *stubAdminService) CreateProxySubscriptionSource(ctx context.Context, input *service.CreateProxySubscriptionSourceInput) (*service.ProxySubscriptionSource, error) {
+	copied := *input
+	s.lastCreateProxySubscriptionInput = &copied
+	return &service.ProxySubscriptionSource{ID: 1, Name: input.Name, URL: input.URL, SourceFormat: input.SourceFormat, Enabled: input.Enabled, RefreshIntervalHours: input.RefreshIntervalHours, AutoAddToPool: input.AutoAddToPool}, nil
+}
+
+func (s *stubAdminService) UpdateProxySubscriptionSource(ctx context.Context, id int64, input *service.UpdateProxySubscriptionSourceInput) (*service.ProxySubscriptionSource, error) {
+	s.lastUpdateProxySubscriptionID = id
+	copied := *input
+	s.lastUpdateProxySubscriptionInput = &copied
+	name := "source"
+	if input.Name != nil {
+		name = *input.Name
+	}
+	return &service.ProxySubscriptionSource{ID: id, Name: name}, nil
+}
+
+func (s *stubAdminService) DeleteProxySubscriptionSource(ctx context.Context, id int64) error {
+	s.lastDeleteProxySubscriptionID = id
+	return nil
+}
+
+func (s *stubAdminService) ListProxySubscriptionNodes(ctx context.Context, sourceID int64) ([]service.ProxySubscriptionNode, error) {
+	s.lastListProxySubscriptionNodesID = sourceID
+	return []service.ProxySubscriptionNode{}, nil
+}
+
+func (s *stubAdminService) ListMaterializedProxiesBySubscriptionSource(ctx context.Context, sourceID int64) ([]service.Proxy, error) {
+	s.lastListSubscriptionProxiesID = sourceID
+	return []service.Proxy{}, nil
+}
+
+func (s *stubAdminService) RefreshProxySubscriptionSource(ctx context.Context, id int64) (*service.ProxySubscriptionRefreshResult, error) {
+	s.lastRefreshProxySubscriptionID = id
+	return &service.ProxySubscriptionRefreshResult{SourceID: id, RefreshedAt: time.Now()}, nil
 }
 
 func (s *stubAdminService) ListRedeemCodes(ctx context.Context, page, pageSize int, codeType, status, search string, sortBy, sortOrder string) ([]service.RedeemCode, int64, error) {

@@ -37,6 +37,12 @@ type Proxy struct {
 	Password *string `json:"password,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// SubscriptionSourceID holds the value of the "subscription_source_id" field.
+	SubscriptionSourceID *int64 `json:"subscription_source_id,omitempty"`
+	// SubscriptionNodeID holds the value of the "subscription_node_id" field.
+	SubscriptionNodeID *int64 `json:"subscription_node_id,omitempty"`
+	// ManagedBySubscription holds the value of the "managed_by_subscription" field.
+	ManagedBySubscription bool `json:"managed_by_subscription,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ProxyQuery when eager-loading is set.
 	Edges        ProxyEdges `json:"edges"`
@@ -66,7 +72,9 @@ func (*Proxy) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case proxy.FieldID, proxy.FieldPort:
+		case proxy.FieldManagedBySubscription:
+			values[i] = new(sql.NullBool)
+		case proxy.FieldID, proxy.FieldPort, proxy.FieldSubscriptionSourceID, proxy.FieldSubscriptionNodeID:
 			values[i] = new(sql.NullInt64)
 		case proxy.FieldName, proxy.FieldProtocol, proxy.FieldHost, proxy.FieldUsername, proxy.FieldPassword, proxy.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -156,6 +164,26 @@ func (_m *Proxy) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Status = value.String
 			}
+		case proxy.FieldSubscriptionSourceID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_source_id", values[i])
+			} else if value.Valid {
+				_m.SubscriptionSourceID = new(int64)
+				*_m.SubscriptionSourceID = value.Int64
+			}
+		case proxy.FieldSubscriptionNodeID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_node_id", values[i])
+			} else if value.Valid {
+				_m.SubscriptionNodeID = new(int64)
+				*_m.SubscriptionNodeID = value.Int64
+			}
+		case proxy.FieldManagedBySubscription:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field managed_by_subscription", values[i])
+			} else if value.Valid {
+				_m.ManagedBySubscription = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -232,6 +260,19 @@ func (_m *Proxy) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	if v := _m.SubscriptionSourceID; v != nil {
+		builder.WriteString("subscription_source_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SubscriptionNodeID; v != nil {
+		builder.WriteString("subscription_node_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("managed_by_subscription=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ManagedBySubscription))
 	builder.WriteByte(')')
 	return builder.String()
 }
