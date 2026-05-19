@@ -627,22 +627,22 @@ proxy_subscriptions:
   # 最大并发刷新任务数
   sync_concurrency: 2
 
-proxy_subscription_sidecar:
-  # Enable companion sidecar integration for non-direct proxy nodes
-  # 启用 companion sidecar，用于承载非直连代理节点
+proxy_subscription_mihomo:
+  # Enable built-in mihomo runtime management for non-direct proxy nodes
+  # 启用内置 mihomo 运行时，用于承载非直连代理节点
   enabled: false
-  # Sidecar base URL
-  # sidecar 基础地址
-  base_url: "http://proxy-subscription-sidecar:8080"
-  # Default local listener host returned by sidecar
-  # sidecar 返回的默认本地监听地址
-  listener_host: "proxy-subscription-sidecar"
-  # Allowed listener port range allocated by sidecar
-  # sidecar 分配的监听端口范围
+  # mihomo executable path
+  # mihomo 可执行文件路径
+  mihomo_bin: "/usr/bin/mihomo"
+  # Runtime data directory for generated configs
+  # 运行时配置和状态文件目录
+  data_dir: "/app/data/proxy-subscription-mihomo"
+  # Default local listener host returned to the proxy pool
+  # 返回给代理池的本地监听地址
+  listener_host: "127.0.0.1"
+  # Allowed listener port range allocated by the runtime manager
+  # 运行时分配的监听端口范围
   listener_port_range: "21080-21180"
-  # Optional explicit sing-box executable path used by the companion service
-  # companion sidecar 使用的 sing-box 可执行文件路径（可选）
-  sing_box_bin: "/usr/bin/sing-box"
 
 # =============================================================================
 # API Key Auth Cache Configuration

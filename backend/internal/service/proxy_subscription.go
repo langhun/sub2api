@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+type proxySubscriptionAccountMover interface {
+	BulkUpdate(ctx context.Context, ids []int64, updates AccountBulkUpdate) (int64, error)
+}
+
 type ProxySubscriptionSourceRepository interface {
 	Create(ctx context.Context, source *ProxySubscriptionSource) error
 	GetByID(ctx context.Context, id int64) (*ProxySubscriptionSource, error)
@@ -24,27 +28,34 @@ type ProxySubscriptionNodeRepository interface {
 	SoftDeleteMissingBySourceID(ctx context.Context, sourceID int64, activeNodeKeys []string, now time.Time) error
 }
 
-type ProxySubscriptionSidecarUpsertRequest struct {
-	RuntimeID    string         `json:"runtime_id"`
-	NodeType     string         `json:"node_type"`
-	DisplayName  string         `json:"display_name"`
-	Server       string         `json:"server"`
-	Port         int            `json:"port"`
-	Config       map[string]any `json:"config"`
-	ListenerHost string         `json:"listener_host"`
+type ProxySubscriptionRuntimeUpsertRequest struct {
+	RuntimeID       string         `json:"runtime_id"`
+	SourceName      string         `json:"source_name"`
+	SourceFormat    string         `json:"source_format"`
+	Subscription    string         `json:"subscription"`
+	ProviderContent string         `json:"provider_content"`
+	EntryIndex      int            `json:"entry_index"`
+	NodeType        string         `json:"node_type"`
+	DisplayName     string         `json:"display_name"`
+	Server          string         `json:"server"`
+	Port            int            `json:"port"`
+	Config          map[string]any `json:"config"`
+	ListenerHost    string         `json:"listener_host"`
+	ListenerPort    int            `json:"listener_port"`
 }
 
-type ProxySubscriptionSidecarUpsertResponse struct {
+type ProxySubscriptionRuntimeUpsertResponse struct {
 	RuntimeID    string `json:"runtime_id"`
 	ListenerHost string `json:"listener_host"`
 	ListenerPort int    `json:"listener_port"`
 	Protocol     string `json:"protocol"`
 }
 
-type ProxySubscriptionSidecarClient interface {
-	HealthCheck(ctx context.Context) error
-	UpsertRuntime(ctx context.Context, req ProxySubscriptionSidecarUpsertRequest) (*ProxySubscriptionSidecarUpsertResponse, error)
+type ProxySubscriptionRuntimeManager interface {
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
 	DeleteRuntime(ctx context.Context, runtimeID string) error
+	UpsertRuntime(ctx context.Context, req ProxySubscriptionRuntimeUpsertRequest) (*ProxySubscriptionRuntimeUpsertResponse, error)
 	CheckRuntime(ctx context.Context, runtimeID string) error
 }
 
@@ -54,6 +65,7 @@ type CreateProxySubscriptionSourceInput struct {
 	SourceFormat         string
 	Enabled              bool
 	RefreshIntervalHours int
+	TargetEntryCount     int
 	AutoAddToPool        bool
 }
 
@@ -63,5 +75,6 @@ type UpdateProxySubscriptionSourceInput struct {
 	SourceFormat         *string
 	Enabled              *bool
 	RefreshIntervalHours *int
+	TargetEntryCount     *int
 	AutoAddToPool        *bool
 }

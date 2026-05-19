@@ -112,8 +112,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	proxyExitInfoProber := repository.NewProxyExitInfoProber(configConfig)
 	proxyLatencyCache := repository.NewProxyLatencyCache(redisClient)
 	privacyClientFactory := providePrivacyClientFactory()
-	proxySubscriptionSidecarClient := repository.NewProxySubscriptionSidecarClient(configConfig)
-	proxySubscriptionService := service.ProvideProxySubscriptionService(proxySubscriptionSourceRepository, proxySubscriptionNodeRepository, proxyRepository, settingService, proxySubscriptionSidecarClient, configConfig)
+	proxySubscriptionRuntimeManager := repository.NewProxySubscriptionMihomoRuntimeManager(configConfig)
+	proxySubscriptionService := service.ProvideProxySubscriptionService(proxySubscriptionSourceRepository, proxySubscriptionNodeRepository, proxyRepository, accountRepository, settingService, proxySubscriptionRuntimeManager, proxyExitInfoProber, configConfig)
 	adminService := service.NewAdminService(userRepository, groupRepository, accountRepository, proxyRepository, proxySubscriptionSourceRepository, proxySubscriptionNodeRepository, apiKeyRepository, redeemCodeRepository, userGroupRateRepository, userRPMCache, billingCacheService, proxyExitInfoProber, proxyLatencyCache, apiKeyAuthCacheInvalidator, client, settingService, subscriptionService, userSubscriptionRepository, privacyClientFactory, proxySubscriptionService)
 	concurrencyCache := repository.ProvideConcurrencyCache(redisClient, configConfig)
 	concurrencyService := service.ProvideConcurrencyService(concurrencyCache, accountRepository, configConfig)
@@ -286,6 +286,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	opsCleanupService := service.ProvideOpsCleanupService(opsRepository, db, redisClient, configConfig, channelMonitorService, settingRepository, opsService)
 	opsScheduledReportService := service.ProvideOpsScheduledReportService(opsService, userService, emailService, redisClient, configConfig)
 	proxySubscriptionRefreshService := service.ProvideProxySubscriptionRefreshService(proxySubscriptionSourceRepository, proxySubscriptionService, configConfig)
+	proxySubscriptionRuntimeRehydrateService := service.ProvideProxySubscriptionRuntimeRehydrateService(proxySubscriptionService, proxySubscriptionSourceRepository, configConfig)
 	tokenRefreshService := service.ProvideTokenRefreshService(accountRepository, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, compositeTokenCacheInvalidator, schedulerCache, configConfig, tempUnschedCache, privacyClientFactory, proxyRepository, autoFailoverProxyPoolService, oAuthRefreshAPI)
 	accountExpiryService := service.ProvideAccountExpiryService(accountRepository)
 	ungroupedAccountAutoTestService := service.ProvideUngroupedAccountAutoTestService(accountRepository, accountTestService, configConfig)
@@ -293,7 +294,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, accountRepository, groupRepository, configConfig)
 	paymentOrderExpiryService := service.ProvidePaymentOrderExpiryService(paymentService)
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, autoFailoverProxyPoolService, proxySubscriptionRefreshService, schedulerSnapshotService, tokenRefreshService, accountExpiryService, ungroupedAccountAutoTestService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, modelPricingAdminService, channelMonitorRunner)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, autoFailoverProxyPoolService, proxySubscriptionRefreshService, proxySubscriptionRuntimeRehydrateService, schedulerSnapshotService, tokenRefreshService, accountExpiryService, ungroupedAccountAutoTestService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, modelPricingAdminService, channelMonitorRunner)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -330,6 +331,7 @@ func provideCleanup(
 	opsSystemLogSink *service.OpsSystemLogSink,
 	autoFailoverProxyPool *service.AutoFailoverProxyPoolService,
 	proxySubscriptionRefresh *service.ProxySubscriptionRefreshService,
+	proxySubscriptionRuntimeRehydrate *service.ProxySubscriptionRuntimeRehydrateService,
 	schedulerSnapshot *service.SchedulerSnapshotService,
 	tokenRefresh *service.TokenRefreshService,
 	accountExpiry *service.AccountExpiryService,
@@ -414,6 +416,12 @@ func provideCleanup(
 			{"ProxySubscriptionRefreshService", func() error {
 				if proxySubscriptionRefresh != nil {
 					proxySubscriptionRefresh.Stop()
+				}
+				return nil
+			}},
+			{"ProxySubscriptionRuntimeRehydrateService", func() error {
+				if proxySubscriptionRuntimeRehydrate != nil {
+					proxySubscriptionRuntimeRehydrate.Stop()
 				}
 				return nil
 			}},

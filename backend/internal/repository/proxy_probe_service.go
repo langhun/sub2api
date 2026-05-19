@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -36,6 +37,7 @@ func NewProxyExitInfoProber(cfg *config.Config) service.ProxyExitInfoProber {
 		allowPrivateHosts:  allowPrivate,
 		validateResolvedIP: validateResolvedIP,
 		maxResponseBytes:   maxResponseBytes,
+		serverPublicIP:     strings.TrimSpace(os.Getenv("SUB2API_SERVER_PUBLIC_IP")),
 	}
 }
 
@@ -46,12 +48,14 @@ const (
 
 // probeURLs 按优先级排列的探测 URL 列表
 // 某些 AI API 专用代理只允许访问特定域名，因此需要多个备选
-var probeURLs = []struct {
+type proxyProbeURL struct {
 	url    string
 	parser string // "ip-api" or "httpbin"
-}{
-	{"http://ip-api.com/json/?lang=zh-CN", "ip-api"},
-	{"http://httpbin.org/ip", "httpbin"},
+}
+
+var probeURLs = []proxyProbeURL{
+	{"https://chatgpt.com/cdn-cgi/trace", "cf-trace"},
+	{"https://www.cloudflare.com/cdn-cgi/trace", "cf-trace"},
 }
 
 type proxyProbeService struct {
@@ -59,6 +63,7 @@ type proxyProbeService struct {
 	allowPrivateHosts  bool
 	validateResolvedIP bool
 	maxResponseBytes   int64
+	serverPublicIP     string
 }
 
 func (s *proxyProbeService) ProbeProxy(ctx context.Context, proxyURL string) (*service.ProxyExitInfo, int64, error) {
@@ -117,6 +122,8 @@ func (s *proxyProbeService) probeWithURL(ctx context.Context, client *http.Clien
 	}
 
 	switch parser {
+	case "cf-trace":
+		return s.parseCFTrace(body, latencyMs)
 	case "ip-api":
 		return s.parseIPAPI(body, latencyMs)
 	case "httpbin":
@@ -162,7 +169,32 @@ func (s *proxyProbeService) parseIPAPI(body []byte, latencyMs int64) (*service.P
 		Region:      region,
 		Country:     ipInfo.Country,
 		CountryCode: ipInfo.CountryCode,
-	}, latencyMs, nil
+	}, latencyMs, s.validateExitInfo(ipInfo.Query, ipInfo.CountryCode)
+}
+
+func (s *proxyProbeService) parseCFTrace(body []byte, latencyMs int64) (*service.ProxyExitInfo, int64, error) {
+	lines := strings.Split(strings.ReplaceAll(string(body), "\r\n", "\n"), "\n")
+	values := make(map[string]string, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		values[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+	}
+
+	ip := strings.TrimSpace(values["ip"])
+	countryCode := strings.TrimSpace(values["loc"])
+	info := &service.ProxyExitInfo{
+		IP:          ip,
+		Country:     countryCode,
+		CountryCode: countryCode,
+	}
+	return info, latencyMs, s.validateExitInfo(ip, countryCode)
 }
 
 func (s *proxyProbeService) parseHTTPBin(body []byte, latencyMs int64) (*service.ProxyExitInfo, int64, error) {
@@ -178,5 +210,18 @@ func (s *proxyProbeService) parseHTTPBin(body []byte, latencyMs int64) (*service
 	}
 	return &service.ProxyExitInfo{
 		IP: result.Origin,
-	}, latencyMs, nil
+	}, latencyMs, s.validateExitInfo(result.Origin, "")
+}
+
+func (s *proxyProbeService) validateExitInfo(ip, countryCode string) error {
+	if strings.TrimSpace(ip) == "" {
+		return fmt.Errorf("proxy probe returned empty exit ip")
+	}
+	if s.serverPublicIP != "" && strings.TrimSpace(ip) == s.serverPublicIP {
+		return fmt.Errorf("proxy probe leaked server public ip: %s", ip)
+	}
+	if strings.TrimSpace(countryCode) == "" {
+		return fmt.Errorf("proxy probe country is unknown")
+	}
+	return nil
 }

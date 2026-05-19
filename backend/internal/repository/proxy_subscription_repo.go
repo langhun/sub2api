@@ -34,13 +34,13 @@ func (r *proxySubscriptionSourceRepository) Create(ctx context.Context, source *
 	now := time.Now()
 	query := `
 		INSERT INTO proxy_subscription_sources
-			(name, url, source_format, enabled, refresh_interval_hours, auto_add_to_pool,
+			(name, url, source_format, enabled, refresh_interval_hours, target_entry_count, auto_add_to_pool,
 			 last_refreshed_at, last_success_at, last_error, last_node_count, last_materialized_proxy_count,
 			 created_at, updated_at)
 		VALUES
-			($1, $2, $3, $4, $5, $6,
-			 $7, $8, $9, $10, $11,
-			 $12, $13)
+			($1, $2, $3, $4, $5, $6, $7,
+			 $8, $9, $10, $11, $12,
+			 $13, $14)
 		RETURNING id, created_at, updated_at
 	`
 	return scanSingleRow(ctx, r.sql, query, []any{
@@ -49,6 +49,7 @@ func (r *proxySubscriptionSourceRepository) Create(ctx context.Context, source *
 		source.SourceFormat,
 		source.Enabled,
 		source.RefreshIntervalHours,
+		source.TargetEntryCount,
 		source.AutoAddToPool,
 		source.LastRefreshedAt,
 		source.LastSuccessAt,
@@ -62,7 +63,7 @@ func (r *proxySubscriptionSourceRepository) Create(ctx context.Context, source *
 
 func (r *proxySubscriptionSourceRepository) GetByID(ctx context.Context, id int64) (*service.ProxySubscriptionSource, error) {
 	query := `
-		SELECT id, name, url, source_format, enabled, refresh_interval_hours, auto_add_to_pool,
+		SELECT id, name, url, source_format, enabled, refresh_interval_hours, target_entry_count, auto_add_to_pool,
 		       last_refreshed_at, last_success_at, last_error, last_node_count, last_materialized_proxy_count,
 		       created_at, updated_at
 		FROM proxy_subscription_sources
@@ -107,7 +108,7 @@ func (r *proxySubscriptionSourceRepository) List(ctx context.Context, page, page
 
 	listArgs := append(append([]any{}, args...), pageSize, offset)
 	query := `
-		SELECT id, name, url, source_format, enabled, refresh_interval_hours, auto_add_to_pool,
+		SELECT id, name, url, source_format, enabled, refresh_interval_hours, target_entry_count, auto_add_to_pool,
 		       last_refreshed_at, last_success_at, last_error, last_node_count, last_materialized_proxy_count,
 		       created_at, updated_at
 		FROM proxy_subscription_sources
@@ -136,7 +137,7 @@ func (r *proxySubscriptionSourceRepository) List(ctx context.Context, page, page
 
 func (r *proxySubscriptionSourceRepository) ListEnabled(ctx context.Context) ([]service.ProxySubscriptionSource, error) {
 	rows, err := r.sql.QueryContext(ctx, `
-		SELECT id, name, url, source_format, enabled, refresh_interval_hours, auto_add_to_pool,
+		SELECT id, name, url, source_format, enabled, refresh_interval_hours, target_entry_count, auto_add_to_pool,
 		       last_refreshed_at, last_success_at, last_error, last_node_count, last_materialized_proxy_count,
 		       created_at, updated_at
 		FROM proxy_subscription_sources
@@ -167,7 +168,7 @@ func (r *proxySubscriptionSourceRepository) ListDueForRefresh(ctx context.Contex
 		limit = 10
 	}
 	rows, err := r.sql.QueryContext(ctx, `
-		SELECT id, name, url, source_format, enabled, refresh_interval_hours, auto_add_to_pool,
+		SELECT id, name, url, source_format, enabled, refresh_interval_hours, target_entry_count, auto_add_to_pool,
 		       last_refreshed_at, last_success_at, last_error, last_node_count, last_materialized_proxy_count,
 		       created_at, updated_at
 		FROM proxy_subscription_sources
@@ -208,16 +209,17 @@ func (r *proxySubscriptionSourceRepository) Update(ctx context.Context, source *
 		    source_format = $4,
 		    enabled = $5,
 		    refresh_interval_hours = $6,
-		    auto_add_to_pool = $7,
-		    last_refreshed_at = $8,
-		    last_success_at = $9,
-		    last_error = $10,
-		    last_node_count = $11,
-		    last_materialized_proxy_count = $12,
-		    updated_at = $13
+		    target_entry_count = $7,
+		    auto_add_to_pool = $8,
+		    last_refreshed_at = $9,
+		    last_success_at = $10,
+		    last_error = $11,
+		    last_node_count = $12,
+		    last_materialized_proxy_count = $13,
+		    updated_at = $14
 		WHERE id = $1 AND deleted_at IS NULL
 	`, source.ID, source.Name, source.URL, source.SourceFormat, source.Enabled, source.RefreshIntervalHours,
-		source.AutoAddToPool, source.LastRefreshedAt, source.LastSuccessAt, nullableString(source.LastError),
+		source.TargetEntryCount, source.AutoAddToPool, source.LastRefreshedAt, source.LastSuccessAt, nullableString(source.LastError),
 		source.LastNodeCount, source.LastMaterializedProxyCount, now)
 	if err != nil {
 		return err
@@ -389,7 +391,7 @@ func scanProxySubscriptionSourceRow(scanner interface{ Scan(dest ...any) error }
 	)
 	if err := scanner.Scan(
 		&item.ID, &item.Name, &item.URL, &item.SourceFormat, &item.Enabled, &item.RefreshIntervalHours,
-		&item.AutoAddToPool, &lastRefreshedAt, &lastSuccessAt, &lastError, &item.LastNodeCount,
+		&item.TargetEntryCount, &item.AutoAddToPool, &lastRefreshedAt, &lastSuccessAt, &lastError, &item.LastNodeCount,
 		&item.LastMaterializedProxyCount, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return nil, err

@@ -280,6 +280,7 @@ export interface ProxySubscriptionSource {
   source_format: 'auto' | 'direct_list' | 'uri_list' | 'clash_yaml'
   enabled: boolean
   refresh_interval_hours: number
+  target_entry_count: number
   auto_add_to_pool: boolean
   last_refreshed_at: string | null
   last_success_at: string | null
@@ -296,6 +297,7 @@ export interface CreateProxySubscriptionSourceRequest {
   source_format?: ProxySubscriptionSource['source_format']
   enabled?: boolean
   refresh_interval_hours?: number
+  target_entry_count?: number
   auto_add_to_pool?: boolean
 }
 
@@ -305,6 +307,7 @@ export interface UpdateProxySubscriptionSourceRequest {
   source_format?: ProxySubscriptionSource['source_format']
   enabled?: boolean
   refresh_interval_hours?: number
+  target_entry_count?: number
   auto_add_to_pool?: boolean
 }
 

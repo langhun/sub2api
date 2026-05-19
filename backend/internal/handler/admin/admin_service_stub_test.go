@@ -58,12 +58,14 @@ type stubAdminService struct {
 		calls     int
 	}
 	lastListProxies struct {
-		protocol  string
-		status    string
-		search    string
-		sortBy    string
-		sortOrder string
-		calls     int
+		protocol      string
+		status        string
+		runtimeStatus string
+		search        string
+		sortBy        string
+		sortOrder     string
+		calls         int
+		accountCalls  int
 	}
 	lastUnassignProxyIDs       []int64
 	lastListProxySubscriptions struct {
@@ -450,7 +452,14 @@ func (s *stubAdminService) ListProxies(ctx context.Context, page, pageSize int, 
 	return filtered, int64(len(filtered)), nil
 }
 
-func (s *stubAdminService) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]service.ProxyWithAccountCount, int64, error) {
+func (s *stubAdminService) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, runtimeStatus, search string, sortBy, sortOrder string) ([]service.ProxyWithAccountCount, int64, error) {
+	s.lastListProxies.protocol = protocol
+	s.lastListProxies.status = status
+	s.lastListProxies.runtimeStatus = runtimeStatus
+	s.lastListProxies.search = search
+	s.lastListProxies.sortBy = sortBy
+	s.lastListProxies.sortOrder = sortOrder
+	s.lastListProxies.accountCalls++
 	return s.proxyCounts, int64(len(s.proxyCounts)), nil
 }
 

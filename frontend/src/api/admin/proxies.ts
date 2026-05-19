@@ -30,7 +30,8 @@ export async function list(
   pageSize: number = 20,
   filters?: {
     protocol?: string
-    status?: 'active' | 'inactive' | 'failed'
+    status?: 'active' | 'inactive'
+    runtime_status?: 'failed' | 'cooldown' | 'healthy' | 'warn' | 'challenge'
     search?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
@@ -266,7 +267,8 @@ export async function exportData(options?: {
   ids?: number[]
   filters?: {
     protocol?: string
-    status?: 'active' | 'inactive' | 'failed'
+    status?: 'active' | 'inactive'
+    runtime_status?: 'failed' | 'cooldown' | 'healthy' | 'warn' | 'challenge'
     search?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
@@ -276,9 +278,10 @@ export async function exportData(options?: {
   if (options?.ids && options.ids.length > 0) {
     params.ids = options.ids.join(',')
   } else if (options?.filters) {
-    const { protocol, status, search, sort_by, sort_order } = options.filters
+    const { protocol, status, runtime_status, search, sort_by, sort_order } = options.filters
     if (protocol) params.protocol = protocol
     if (status) params.status = status
+    if (runtime_status) params.runtime_status = runtime_status
     if (search) params.search = search
     if (sort_by) params.sort_by = sort_by
     if (sort_order) params.sort_order = sort_order

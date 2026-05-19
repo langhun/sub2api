@@ -19,6 +19,8 @@ type Proxy struct {
 	AutoFailoverPoolEnabled bool
 	SubscriptionSourceID    *int64
 	SubscriptionNodeID      *int64
+	SubscriptionSourceName  string
+	SubscriptionNodeType    string
 	ManagedBySubscription   bool
 	CreatedAt               time.Time
 	UpdatedAt               time.Time
@@ -72,6 +74,7 @@ type ProxySubscriptionSource struct {
 	SourceFormat               string
 	Enabled                    bool
 	RefreshIntervalHours       int
+	TargetEntryCount           int
 	AutoAddToPool              bool
 	LastRefreshedAt            *time.Time
 	LastSuccessAt              *time.Time

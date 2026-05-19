@@ -24,6 +24,7 @@ type CreateProxySubscriptionSourceRequest struct {
 	SourceFormat         string `json:"source_format"`
 	Enabled              *bool  `json:"enabled"`
 	RefreshIntervalHours int    `json:"refresh_interval_hours"`
+	TargetEntryCount     int    `json:"target_entry_count"`
 	AutoAddToPool        bool   `json:"auto_add_to_pool"`
 }
 
@@ -33,6 +34,7 @@ type UpdateProxySubscriptionSourceRequest struct {
 	SourceFormat         *string `json:"source_format"`
 	Enabled              *bool   `json:"enabled"`
 	RefreshIntervalHours *int    `json:"refresh_interval_hours"`
+	TargetEntryCount     *int    `json:"target_entry_count"`
 	AutoAddToPool        *bool   `json:"auto_add_to_pool"`
 }
 
@@ -86,6 +88,7 @@ func (h *ProxySubscriptionHandler) Create(c *gin.Context) {
 		SourceFormat:         strings.TrimSpace(req.SourceFormat),
 		Enabled:              enabled,
 		RefreshIntervalHours: req.RefreshIntervalHours,
+		TargetEntryCount:     req.TargetEntryCount,
 		AutoAddToPool:        req.AutoAddToPool,
 	})
 	if err != nil {
@@ -112,6 +115,7 @@ func (h *ProxySubscriptionHandler) Update(c *gin.Context) {
 		SourceFormat:         req.SourceFormat,
 		Enabled:              req.Enabled,
 		RefreshIntervalHours: req.RefreshIntervalHours,
+		TargetEntryCount:     req.TargetEntryCount,
 		AutoAddToPool:        req.AutoAddToPool,
 	})
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
@@ -250,6 +251,7 @@ type proxyRepoStub struct {
 	accountCount int64
 	deletedIDs   []int64
 	proxyByID    map[int64]*Proxy
+	updated      []*Proxy
 }
 
 func (s *proxyRepoStub) Create(ctx context.Context, proxy *Proxy) error {
@@ -283,6 +285,7 @@ func (s *proxyRepoStub) FindByHostPortAuth(ctx context.Context, host string, por
 }
 
 func (s *proxyRepoStub) Update(ctx context.Context, proxy *Proxy) error {
+	s.updated = append(s.updated, proxy)
 	if s.proxyByID != nil {
 		cloned := *proxy
 		s.proxyByID[proxy.ID] = &cloned
@@ -600,6 +603,37 @@ func TestAdminService_UpdateProxy_RejectsManagedFieldMutation(t *testing.T) {
 	var appErr *infraerrors.ApplicationError
 	require.ErrorAs(t, err, &appErr)
 	require.Equal(t, "PROXY_SUBSCRIPTION_MANAGED", appErr.Code)
+}
+
+func TestAdminService_UpdateProxy_ClearsUsernameAndPassword(t *testing.T) {
+	repo := &proxyRepoStub{
+		proxyByID: map[int64]*Proxy{
+			7: {
+				ID:       7,
+				Name:     "proxy",
+				Protocol: ProxyNodeTypeHTTP,
+				Host:     "1.2.3.4",
+				Port:     8080,
+				Username: "user",
+				Password: "pass",
+				Status:   StatusActive,
+			},
+		},
+	}
+	svc := &adminServiceImpl{proxyRepo: repo}
+
+	empty := ""
+	updated, err := svc.UpdateProxy(context.Background(), 7, &UpdateProxyInput{
+		Username: &empty,
+		Password: &empty,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, updated)
+	require.Equal(t, "", updated.Username)
+	require.Equal(t, "", updated.Password)
+	require.NotEmpty(t, repo.updated)
+	require.Equal(t, "", repo.updated[len(repo.updated)-1].Username)
+	require.Equal(t, "", repo.updated[len(repo.updated)-1].Password)
 }
 
 func TestAdminService_DeleteRedeemCode_Success(t *testing.T) {

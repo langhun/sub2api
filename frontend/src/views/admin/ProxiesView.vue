@@ -2,239 +2,58 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="mb-3 flex items-center gap-2">
-          <button
-            type="button"
-            class="btn"
-            :class="activeTab === 'proxies' ? 'btn-primary' : 'btn-secondary'"
-            @click="activeTab = 'proxies'"
-          >
-            {{ t('admin.proxies.title') }}
-          </button>
-          <button
-            type="button"
-            class="btn"
-            :class="activeTab === 'subscriptions' ? 'btn-primary' : 'btn-secondary'"
-            @click="switchToSubscriptions"
-          >
-            订阅源
-          </button>
-        </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <!-- Left: Search + Filters -->
-          <div v-if="activeTab === 'proxies'" class="relative w-full sm:w-64">
-            <Icon
-              name="search"
-              size="md"
-              class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-            />
-            <input
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('admin.proxies.searchProxies')"
-              class="input pl-10"
-              @input="handleSearch"
-            />
-          </div>
-
-          <div v-if="activeTab === 'proxies'" class="w-full sm:w-40">
-            <Select
-              v-model="filters.protocol"
-              :options="protocolOptions"
-              :placeholder="t('admin.proxies.allProtocols')"
-              @change="loadProxies"
-            />
-          </div>
-          <div v-if="activeTab === 'proxies'" class="w-full sm:w-36">
-            <Select
-              v-model="filters.status"
-              :options="statusOptions"
-              :placeholder="t('admin.proxies.allStatus')"
-              @change="loadProxies"
-            />
-          </div>
-
-          <!-- Right: All action buttons -->
-          <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
-            <button
-              @click="loadProxies"
-              :disabled="loading"
-              class="btn btn-secondary"
-              :title="t('common.refresh')"
-            >
-              <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
-            </button>
-            <template v-if="activeTab === 'subscriptions'">
-              <button
-                @click="loadProxySubscriptions"
-                :disabled="loadingSubscriptions"
-                class="btn btn-secondary"
-              >
-                <Icon name="refresh" size="md" :class="loadingSubscriptions ? 'animate-spin' : ''" />
-              </button>
-              <button @click="openCreateSubscriptionDialog" class="btn btn-primary">
-                <Icon name="plus" size="md" class="mr-2" />
-                新建订阅源
-              </button>
-            </template>
-            <template v-if="activeTab === 'proxies'">
-            <div class="relative" @click.stop>
-              <button
-                @click.stop="showColumnDropdown = !showColumnDropdown"
-                class="btn btn-secondary px-2 md:px-3"
-                :title="t('admin.users.columnSettings')"
-              >
-                <svg class="h-4 w-4 md:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
-                  />
-                </svg>
-                <span class="hidden md:inline">{{ t('admin.users.columnSettings') }}</span>
-              </button>
-              <div
-                v-if="showColumnDropdown"
-                class="absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
-              >
-                <div class="max-h-80 overflow-y-auto p-2">
-                  <button
-                    v-for="col in toggleableColumns"
-                    :key="col.key"
-                    @click.stop="toggleColumn(col.key)"
-                    class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    <span>{{ col.label }}</span>
-                    <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="text-primary-500" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <button
-              @click="handleBatchTest"
-              :disabled="batchTesting || loading"
-              class="btn btn-secondary"
-              :title="t('admin.proxies.testConnection')"
-            >
-              <Icon name="play" size="md" class="mr-2" />
-              {{ t('admin.proxies.testConnection') }}
-            </button>
-            <button
-              @click="handleBatchQualityCheck"
-              :disabled="batchQualityChecking || loading"
-              class="btn btn-secondary"
-              :title="t('admin.proxies.batchQualityCheck')"
-            >
-              <Icon name="shield" size="md" class="mr-2" :class="batchQualityChecking ? 'animate-pulse' : ''" />
-              {{ t('admin.proxies.batchQualityCheck') }}
-            </button>
-            <button
-              @click="handleBatchPoolMembership(true)"
-              :disabled="selectedCount === 0"
-              class="btn btn-secondary"
-              :title="t('admin.proxies.poolEnableAction')"
-            >
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.proxies.poolEnableAction') }}
-            </button>
-            <button
-              @click="handleBatchPoolMembership(false)"
-              :disabled="selectedCount === 0"
-              class="btn btn-secondary"
-              :title="t('admin.proxies.poolDisableAction')"
-            >
-              <Icon name="x" size="md" class="mr-2" />
-              {{ t('admin.proxies.poolDisableAction') }}
-            </button>
-            <button
-              @click="handleClearCooldown(Array.from(selectedProxyIds))"
-              :disabled="selectedCount === 0"
-              class="btn btn-secondary"
-              :title="t('admin.proxies.clearCooldownAction')"
-            >
-              <Icon name="refresh" size="md" class="mr-2" />
-              {{ t('admin.proxies.clearCooldownAction') }}
-            </button>
-            <button
-              @click="showAssignAccounts = true"
-              :disabled="selectedCount === 0"
-              class="btn btn-secondary"
-              :title="t('admin.proxies.assignAccounts.open')"
-            >
-              <Icon name="users" size="md" class="mr-2" />
-              {{ t('admin.proxies.assignAccounts.open') }}
-            </button>
-            <button
-              @click="openBatchUnassign"
-              :disabled="selectedCount === 0"
-              class="btn btn-secondary"
-              :title="t('admin.proxies.quickUnassign')"
-            >
-              <Icon name="x" size="md" class="mr-2" />
-              {{ t('admin.proxies.quickUnassign') }}
-            </button>
-            <button
-              @click="openBatchDelete"
-              :disabled="selectedCount === 0"
-              class="btn btn-danger"
-              :title="t('admin.proxies.batchDeleteAction')"
-            >
-              <Icon name="trash" size="md" class="mr-2" />
-              {{ t('admin.proxies.batchDeleteAction') }}
-            </button>
-            <button @click="showImportData = true" class="btn btn-secondary">
-              {{ t('admin.proxies.dataImport') }}
-            </button>
-            <button @click="openPoolDialog" class="btn btn-secondary">
-              <Icon name="shield" size="md" class="mr-2" />
-              {{ t('admin.proxies.poolMembersAction') }}
-            </button>
-            <button @click="showExportDataDialog = true" class="btn btn-secondary">
-              {{ selectedCount > 0 ? t('admin.proxies.dataExportSelected') : t('admin.proxies.dataExport') }}
-            </button>
-            <button @click="showCreateModal = true" class="btn btn-primary">
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.proxies.createProxy') }}
-            </button>
-            </template>
-          </div>
-        </div>
+        <ProxiesToolbar
+          :active-tab="activeTab"
+          :search-query="searchQuery"
+          :filters="filters"
+          :protocol-options="protocolOptions"
+          :status-options="statusOptions"
+          :runtime-status-options="runtimeStatusOptions"
+          :loading="loading"
+          :loading-subscriptions="loadingSubscriptions"
+          :batch-testing="batchTesting"
+          :batch-quality-checking="batchQualityChecking"
+          :selected-count="selectedCount"
+          :show-column-dropdown="showColumnDropdown"
+          :show-proxy-tools-dropdown="showProxyToolsDropdown"
+          :show-proxy-batch-dropdown="showProxyBatchDropdown"
+          :toggleable-columns="toggleableColumns"
+          :is-column-visible="isColumnVisible"
+          @set-tab="handleToolbarSetTab"
+          @update:search-query="updateToolbarSearch"
+          @update:filters="updateToolbarFilters"
+          @reload-proxies="loadProxies"
+          @reload-subscriptions="loadProxySubscriptions"
+          @create-subscription="openCreateSubscriptionDialog"
+          @toggle-column-dropdown="showColumnDropdown = !showColumnDropdown"
+          @toggle-tools-dropdown="showProxyToolsDropdown = !showProxyToolsDropdown; showProxyBatchDropdown = false"
+          @toggle-batch-dropdown="showProxyBatchDropdown = !showProxyBatchDropdown; showProxyToolsDropdown = false"
+          @toggle-column="toggleColumn"
+          @open-import="showImportData = true; showProxyToolsDropdown = false"
+          @open-export="showExportDataDialog = true; showProxyToolsDropdown = false"
+          @open-pool="openPoolDialog(); showProxyToolsDropdown = false"
+          @batch-test="handleBatchTest(); showProxyBatchDropdown = false"
+          @batch-quality-check="handleBatchQualityCheck(); showProxyBatchDropdown = false"
+          @batch-enable-pool="handleBatchPoolMembership(true); showProxyBatchDropdown = false"
+          @batch-disable-pool="handleBatchPoolMembership(false); showProxyBatchDropdown = false"
+          @batch-clear-cooldown="handleClearCooldown(Array.from(selectedProxyIds)); showProxyBatchDropdown = false"
+          @batch-assign="showAssignAccounts = true; showProxyBatchDropdown = false"
+          @batch-unassign="openBatchUnassign(); showProxyBatchDropdown = false"
+          @batch-delete="openBatchDelete(); showProxyBatchDropdown = false"
+          @create-proxy="showCreateModal = true"
+        />
       </template>
 
       <template #table>
-        <div v-if="activeTab === 'subscriptions'" class="rounded-xl border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
-          <div v-if="loadingSubscriptions" class="p-6 text-sm text-gray-500 dark:text-gray-400">加载中...</div>
-          <div v-else-if="proxySubscriptions.length === 0" class="p-6 text-sm text-gray-500 dark:text-gray-400">
-            暂无订阅源
-          </div>
-          <div v-else class="divide-y divide-gray-200 dark:divide-dark-600">
-            <div v-for="item in proxySubscriptions" :key="item.id" class="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-              <div class="min-w-0 space-y-1">
-                <div class="flex items-center gap-2">
-                  <span class="font-medium text-gray-900 dark:text-white">{{ item.name }}</span>
-                  <span :class="['badge', item.enabled ? 'badge-success' : 'badge-gray']">
-                    {{ item.enabled ? '启用' : '停用' }}
-                  </span>
-                  <span class="badge badge-gray">{{ item.source_format }}</span>
-                </div>
-                <div class="truncate text-xs text-gray-500 dark:text-gray-400">{{ item.url }}</div>
-                <div class="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
-                  <span>刷新间隔: {{ item.refresh_interval_hours }}h</span>
-                  <span>节点数: {{ item.last_node_count }}</span>
-                  <span>代理数: {{ item.last_materialized_proxy_count }}</span>
-                  <span v-if="item.last_refreshed_at">最近刷新: {{ item.last_refreshed_at }}</span>
-                </div>
-                <div v-if="item.last_error" class="text-xs text-red-500 dark:text-red-400">{{ item.last_error }}</div>
-              </div>
-              <div class="flex items-center gap-2">
-                <button class="btn btn-secondary" @click="handleRefreshSubscription(item.id)">立即刷新</button>
-                <button class="btn btn-secondary" @click="handleEditSubscription(item)">编辑</button>
-                <button class="btn btn-secondary" @click="handleViewSubscriptionNodes(item.id)">查看节点</button>
-                <button class="btn btn-danger" @click="handleDeleteSubscription(item.id)">删除</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ProxySubscriptionsPanel
+          v-if="activeTab === 'subscriptions'"
+          :loading="loadingSubscriptions"
+          :items="proxySubscriptions"
+          @refresh="handleRefreshSubscription"
+          @edit="handleEditSubscription"
+          @view-nodes="handleViewSubscriptionNodes"
+          @delete="handleDeleteSubscription"
+        />
         <div ref="proxyTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <template v-if="activeTab === 'proxies'">
         <DataTable
@@ -268,9 +87,9 @@
 
           <template #cell-name="{ value, row }">
             <div class="flex flex-col gap-1">
-              <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
               <div v-if="row.managed_by_subscription" class="flex flex-wrap items-center gap-1">
-                <span class="badge badge-warning">订阅托管</span>
+                <span class="badge badge-warning">{{ t('admin.proxies.subscriptions.managedBadge') }}</span>
                 <span v-if="row.subscription_source_name" class="text-xs text-gray-500 dark:text-gray-400">
                   {{ row.subscription_source_name }}
                 </span>
@@ -304,7 +123,7 @@
                 >
                   <Icon name="copy" size="sm" />
                 </button>
-                <!-- 右键展开格式选择菜单 -->
+                <!-- Context menu for alternate copy formats -->
                 <div
                   v-if="copyMenuProxyId === row.id"
                   class="absolute left-0 top-full z-50 mt-1 w-auto min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-500 dark:bg-dark-700"
@@ -527,7 +346,7 @@
               </button>
               <button
                 type="button"
-                @click="toggleRowActionMenu(row.id)"
+                @click="toggleRowActionMenu(row.id, $event)"
                 class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white"
                 :class="{ 'bg-gray-100 text-gray-900 dark:bg-dark-700 dark:text-white': activeRowActionMenuId === row.id }"
                 :title="t('common.more')"
@@ -537,36 +356,6 @@
                 <Icon name="more" size="sm" />
                 <span class="sr-only">{{ t('common.more') }}</span>
               </button>
-              <div
-                v-if="activeRowActionMenuId === row.id"
-                class="absolute right-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
-                @click.stop
-              >
-                <div class="py-1">
-                  <button
-                    @click="closeRowActionMenu(); handleTogglePoolMembership(row)"
-                    class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
-                  >
-                    <Icon :name="row.auto_failover_pool_enabled ? 'x' : 'plus'" size="sm" class="text-violet-500" />
-                    {{ row.auto_failover_pool_enabled ? t('admin.proxies.poolDisableAction') : t('admin.proxies.poolEnableAction') }}
-                  </button>
-                  <button
-                    @click="closeRowActionMenu(); handleClearCooldown([row.id])"
-                    class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
-                  >
-                    <Icon name="refresh" size="sm" class="text-amber-500" />
-                    {{ t('admin.proxies.clearCooldownAction') }}
-                  </button>
-                  <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
-                  <button
-                    @click="closeRowActionMenu(); handleDelete(row)"
-                    class="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                  >
-                    <Icon name="trash" size="sm" />
-                    {{ t('common.delete') }}
-                  </button>
-                </div>
-              </div>
             </div>
           </template>
 
@@ -585,7 +374,7 @@
 
       <template #pagination>
         <Pagination
-          v-if="pagination.total > 0"
+          v-if="activeTab === 'proxies' && pagination.total > 0"
           :page="pagination.page"
           :total="pagination.total"
           :page-size="pagination.page_size"
@@ -927,7 +716,7 @@
           v-if="editingProxy?.managed_by_subscription"
           class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
         >
-          该代理由订阅源托管，连接字段只读。你仍然可以调整状态和代理池开关。
+          {{ t('admin.proxies.subscriptions.managedReadonlyHint') }}
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.status') }}</label>
@@ -1169,58 +958,77 @@
       @close="showPoolDialog = false"
     />
 
-    <BaseDialog
-      :show="showCreateSubscriptionModal"
-      :title="editingSubscription ? '编辑订阅源' : '新建订阅源'"
-      width="normal"
-      @close="showCreateSubscriptionModal = false"
-    >
-      <form id="create-subscription-form" class="space-y-4" @submit.prevent="handleSubmitSubscription">
-        <div>
-          <label class="input-label">名称</label>
-          <input v-model="subscriptionForm.name" type="text" class="input" required />
-        </div>
-        <div>
-          <label class="input-label">订阅链接</label>
-          <input v-model="subscriptionForm.url" type="url" class="input" required />
-        </div>
-        <div>
-          <label class="input-label">格式</label>
-          <Select v-model="subscriptionForm.source_format" :options="subscriptionFormatOptions" />
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="input-label">刷新间隔（小时）</label>
-            <input v-model.number="subscriptionForm.refresh_interval_hours" type="number" min="1" class="input" />
-          </div>
-          <label class="flex items-center gap-2 pt-8 text-sm text-gray-700 dark:text-gray-300">
-            <input v-model="subscriptionForm.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-            启用
-          </label>
-        </div>
-        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-          <input v-model="subscriptionForm.auto_add_to_pool" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-          自动加入代理池
-        </label>
-      </form>
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <button class="btn btn-secondary" type="button" @click="showCreateSubscriptionModal = false">取消</button>
-          <button class="btn btn-primary" type="submit" form="create-subscription-form" :disabled="submittingSubscription">
-            {{ submittingSubscription ? '提交中...' : editingSubscription ? '保存' : '创建' }}
+    <Teleport to="body">
+      <div
+        v-if="activeRowActionMenuId !== null && rowActionMenuPosition"
+        class="fixed z-[200] w-44 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
+        :style="{
+          top: `${rowActionMenuPosition.top}px`,
+          left: `${rowActionMenuPosition.left}px`
+        }"
+        @click.stop
+      >
+        <div class="py-1">
+          <button
+            v-if="activeRowActionMenuRow"
+            @click="handleToggleStatus(activeRowActionMenuRow); closeRowActionMenu()"
+            class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+          >
+            <Icon
+              :name="activeRowActionMenuRow.status === 'active' ? 'ban' : 'play'"
+              size="sm"
+              :class="activeRowActionMenuRow.status === 'active' ? 'text-amber-500' : 'text-emerald-500'"
+            />
+            {{ activeRowActionMenuRow.status === 'active' ? t('common.disable') : t('common.enable') }}
+          </button>
+          <button
+            v-if="activeRowActionMenuRow"
+            @click="handleTogglePoolMembership(activeRowActionMenuRow); closeRowActionMenu()"
+            class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+          >
+            <Icon :name="activeRowActionMenuRow.auto_failover_pool_enabled ? 'x' : 'plus'" size="sm" class="text-violet-500" />
+            {{ activeRowActionMenuRow.auto_failover_pool_enabled ? t('admin.proxies.poolDisableAction') : t('admin.proxies.poolEnableAction') }}
+          </button>
+          <button
+            v-if="activeRowActionMenuRow"
+            @click="handleClearCooldown([activeRowActionMenuRow.id]); closeRowActionMenu()"
+            class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+          >
+            <Icon name="refresh" size="sm" class="text-amber-500" />
+            {{ t('admin.proxies.clearCooldownAction') }}
+          </button>
+          <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
+          <button
+            v-if="activeRowActionMenuRow"
+            @click="handleDelete(activeRowActionMenuRow); closeRowActionMenu()"
+            class="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            <Icon name="trash" size="sm" />
+            {{ t('common.delete') }}
           </button>
         </div>
-      </template>
-    </BaseDialog>
+      </div>
+    </Teleport>
+
+    <SubscriptionSourceDialog
+      :show="showCreateSubscriptionModal"
+      :editing="!!editingSubscription"
+      :submitting="submittingSubscription"
+      :form="subscriptionForm"
+      :format-options="subscriptionFormatOptions"
+      @close="showCreateSubscriptionModal = false"
+      @submit="handleSubmitSubscription"
+      @update:form="updateSubscriptionForm"
+    />
 
     <BaseDialog
       :show="showSubscriptionNodesModal"
-      title="订阅节点"
+      :title="t('admin.proxies.subscriptions.nodesTitle')"
       width="normal"
       @close="showSubscriptionNodesModal = false"
     >
-      <div v-if="subscriptionNodesLoading" class="p-2 text-sm text-gray-500 dark:text-gray-400">加载中...</div>
-      <div v-else-if="subscriptionNodes.length === 0" class="p-2 text-sm text-gray-500 dark:text-gray-400">暂无节点</div>
+      <div v-if="subscriptionNodesLoading" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
+      <div v-else-if="subscriptionNodes.length === 0" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.proxies.subscriptions.nodesEmpty') }}</div>
       <div v-else class="max-h-[60vh] space-y-2 overflow-y-auto">
         <div v-for="node in subscriptionNodes" :key="node.id" class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
           <div class="flex items-center gap-2">
@@ -1234,7 +1042,7 @@
       </div>
       <template #footer>
         <div class="flex justify-end">
-          <button class="btn btn-secondary" type="button" @click="showSubscriptionNodesModal = false">关闭</button>
+          <button class="btn btn-secondary" type="button" @click="showSubscriptionNodesModal = false">{{ t('common.close') }}</button>
         </div>
       </template>
     </BaseDialog>
@@ -1265,6 +1073,9 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
 import AssignAccountsModal from '@/components/admin/proxy/AssignAccountsModal.vue'
 import PoolMembersDialog from '@/components/admin/proxy/PoolMembersDialog.vue'
+import ProxiesToolbar from '@/components/admin/proxy/ProxiesToolbar.vue'
+import ProxySubscriptionsPanel from '@/components/admin/proxy/ProxySubscriptionsPanel.vue'
+import SubscriptionSourceDialog from '@/components/admin/proxy/SubscriptionSourceDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
@@ -1350,7 +1161,15 @@ const protocolOptions = computed(() => [
 const statusOptions = computed(() => [
   { value: '', label: t('admin.proxies.allStatus') },
   { value: 'active', label: t('admin.accounts.status.active') },
-  { value: 'inactive', label: t('admin.accounts.status.inactive') },
+  { value: 'inactive', label: t('admin.accounts.status.inactive') }
+])
+
+const runtimeStatusOptions = computed(() => [
+  { value: '', label: t('admin.proxies.allRuntimeStatus') },
+  { value: 'healthy', label: t('admin.proxies.healthHealthy') },
+  { value: 'cooldown', label: t('admin.proxies.healthCooldown') },
+  { value: 'warn', label: t('admin.proxies.qualityStatusWarn') },
+  { value: 'challenge', label: t('admin.proxies.qualityStatusChallenge') },
   { value: 'failed', label: t('admin.proxies.failedStatus') }
 ])
 
@@ -1377,7 +1196,8 @@ const loadingSubscriptions = ref(false)
 const searchQuery = ref('')
 const filters = reactive({
   protocol: '',
-  status: ''
+  status: '',
+  runtime_status: ''
 })
 const pagination = reactive({
   page: 1,
@@ -1406,6 +1226,8 @@ const showPoolDialog = ref(false)
 const showCreateSubscriptionModal = ref(false)
 const showSubscriptionNodesModal = ref(false)
 const showColumnDropdown = ref(false)
+const showProxyToolsDropdown = ref(false)
+const showProxyBatchDropdown = ref(false)
 const submitting = ref(false)
 const submittingSubscription = ref(false)
 const exportingData = ref(false)
@@ -1414,7 +1236,12 @@ const qualityCheckingProxyIds = ref<Set<number>>(new Set())
 const batchTesting = ref(false)
 const batchQualityChecking = ref(false)
 const activeRowActionMenuId = ref<number | null>(null)
+const rowActionMenuPosition = ref<{ top: number; left: number } | null>(null)
 const proxyTableRef = ref<HTMLElement | null>(null)
+const activeRowActionMenuRow = computed(() => {
+  if (activeRowActionMenuId.value === null) return null
+  return proxies.value.find((row) => row.id === activeRowActionMenuId.value) || null
+})
 const {
   selectedSet: selectedProxyIds,
   selectedCount,
@@ -1450,10 +1277,10 @@ const subscriptionNodes = ref<ProxySubscriptionNode[]>([])
 const subscriptionNodesLoading = ref(false)
 const editingSubscription = ref<ProxySubscriptionSource | null>(null)
 const subscriptionFormatOptions = [
-  { value: 'auto', label: '自动识别' },
-  { value: 'direct_list', label: '直连代理列表' },
-  { value: 'uri_list', label: 'URI 列表 / Base64' },
-  { value: 'clash_yaml', label: 'Clash YAML' }
+  { value: 'auto' as const, label: t('admin.proxies.subscriptions.formats.auto') },
+  { value: 'direct_list' as const, label: t('admin.proxies.subscriptions.formats.directList') },
+  { value: 'uri_list' as const, label: t('admin.proxies.subscriptions.formats.uriList') },
+  { value: 'clash_yaml' as const, label: t('admin.proxies.subscriptions.formats.clashYaml') }
 ]
 const subscriptionForm = reactive({
   name: '',
@@ -1461,6 +1288,7 @@ const subscriptionForm = reactive({
   source_format: 'auto' as 'auto' | 'direct_list' | 'uri_list' | 'clash_yaml',
   enabled: true,
   refresh_interval_hours: 6,
+  target_entry_count: 3,
   auto_add_to_pool: true
 })
 
@@ -1471,6 +1299,35 @@ const switchToSubscriptions = async () => {
   }
 }
 
+const handleToolbarSetTab = async (tab: 'proxies' | 'subscriptions') => {
+  if (tab === 'subscriptions') {
+    await switchToSubscriptions()
+    return
+  }
+  activeTab.value = 'proxies'
+}
+
+const updateToolbarSearch = (value: string) => {
+  searchQuery.value = value
+  handleSearch()
+}
+
+const updateToolbarFilters = (nextFilters: { protocol: string; status: string; runtime_status: string }) => {
+  filters.protocol = nextFilters.protocol
+  filters.status = nextFilters.status
+  filters.runtime_status = nextFilters.runtime_status
+}
+
+const updateSubscriptionForm = (nextForm: typeof subscriptionForm) => {
+  subscriptionForm.name = nextForm.name
+  subscriptionForm.url = nextForm.url
+  subscriptionForm.source_format = nextForm.source_format
+  subscriptionForm.enabled = nextForm.enabled
+  subscriptionForm.refresh_interval_hours = nextForm.refresh_interval_hours
+  subscriptionForm.target_entry_count = nextForm.target_entry_count
+  subscriptionForm.auto_add_to_pool = nextForm.auto_add_to_pool
+}
+
 const openCreateSubscriptionDialog = () => {
   editingSubscription.value = null
   subscriptionForm.name = ''
@@ -1478,6 +1335,7 @@ const openCreateSubscriptionDialog = () => {
   subscriptionForm.source_format = 'auto'
   subscriptionForm.enabled = true
   subscriptionForm.refresh_interval_hours = 6
+  subscriptionForm.target_entry_count = 3
   subscriptionForm.auto_add_to_pool = true
   showCreateSubscriptionModal.value = true
 }
@@ -1489,6 +1347,7 @@ const handleEditSubscription = (item: ProxySubscriptionSource) => {
   subscriptionForm.source_format = item.source_format
   subscriptionForm.enabled = item.enabled
   subscriptionForm.refresh_interval_hours = item.refresh_interval_hours
+  subscriptionForm.target_entry_count = item.target_entry_count || 3
   subscriptionForm.auto_add_to_pool = item.auto_add_to_pool
   showCreateSubscriptionModal.value = true
 }
@@ -1555,7 +1414,8 @@ const toggleSelectAllVisible = (event: Event) => {
 
 const buildProxyQueryFilters = () => ({
   protocol: filters.protocol || undefined,
-  status: (filters.status || undefined) as 'active' | 'inactive' | 'failed' | undefined,
+  status: (filters.status || undefined) as 'active' | 'inactive' | undefined,
+  runtime_status: (filters.runtime_status || undefined) as 'failed' | 'cooldown' | 'healthy' | 'warn' | 'challenge' | undefined,
   search: searchQuery.value || undefined,
   sort_by: sortState.sort_by,
   sort_order: sortState.sort_order
@@ -1567,7 +1427,7 @@ const loadProxySubscriptions = async () => {
     const response = await adminAPI.proxySubscriptions.list(1, 100)
     proxySubscriptions.value = response.items
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || '加载订阅源失败')
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.loadFailed'))
     console.error('Error loading proxy subscriptions:', error)
   } finally {
     loadingSubscriptions.value = false
@@ -2169,6 +2029,7 @@ const fetchAllProxiesForBatch = async (respectCurrentFilters: boolean = true): P
         ? {
             protocol: filters.protocol || undefined,
             status: filters.status as any,
+            runtime_status: filters.runtime_status as any,
             search: searchQuery.value || undefined,
             sort_by: sortState.sort_by,
             sort_order: sortState.sort_order
@@ -2305,6 +2166,25 @@ const handleTogglePoolMembership = async (proxy: Proxy) => {
   }
 }
 
+const handleToggleStatus = async (proxy: Proxy) => {
+  const nextStatus: 'active' | 'inactive' = proxy.status === 'active' ? 'inactive' : 'active'
+  try {
+    await adminAPI.proxies.update(proxy.id, { status: nextStatus })
+    proxy.status = nextStatus
+    appStore.showSuccess(
+      nextStatus === 'active' ? t('admin.proxies.statusEnabled') : t('admin.proxies.statusDisabled')
+    )
+
+    await loadProxies()
+    if (showPoolDialog.value) {
+      await openPoolDialog()
+    }
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToToggle'))
+    console.error('Error toggling proxy status:', error)
+  }
+}
+
 const handleClearCooldown = async (ids: number[]) => {
   if (ids.length === 0) return
   try {
@@ -2374,13 +2254,16 @@ const handleExportData = async () => {
 const handleRefreshSubscription = async (id: number) => {
   try {
     const result = await adminAPI.proxySubscriptions.refresh(id)
-    appStore.showSuccess(`刷新完成：节点 ${result.node_count}，代理 ${result.materialized_proxy_count}`)
+    appStore.showSuccess(t('admin.proxies.subscriptions.refreshSuccess', {
+      nodes: result.node_count,
+      proxies: result.materialized_proxy_count
+    }))
     await loadProxySubscriptions()
     if (activeTab.value === 'proxies') {
       await loadProxies()
     }
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || '刷新订阅源失败')
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.refreshFailed'))
     console.error('Error refreshing proxy subscription:', error)
   }
 }
@@ -2391,7 +2274,7 @@ const handleViewSubscriptionNodes = async (id: number) => {
   try {
     subscriptionNodes.value = await adminAPI.proxySubscriptions.listNodes(id)
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || '加载订阅节点失败')
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.nodesLoadFailed'))
     console.error('Error loading subscription nodes:', error)
   } finally {
     subscriptionNodesLoading.value = false
@@ -2401,10 +2284,10 @@ const handleViewSubscriptionNodes = async (id: number) => {
 const handleDeleteSubscription = async (id: number) => {
   try {
     await adminAPI.proxySubscriptions.delete(id)
-    appStore.showSuccess('订阅源已删除')
+    appStore.showSuccess(t('admin.proxies.subscriptions.deleteSuccess'))
     await loadProxySubscriptions()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || '删除订阅源失败')
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.deleteFailed'))
     console.error('Error deleting proxy subscription:', error)
   }
 }
@@ -2419,9 +2302,10 @@ const handleSubmitSubscription = async () => {
         source_format: subscriptionForm.source_format,
         enabled: subscriptionForm.enabled,
         refresh_interval_hours: subscriptionForm.refresh_interval_hours,
+        target_entry_count: subscriptionForm.target_entry_count,
         auto_add_to_pool: subscriptionForm.auto_add_to_pool
       })
-      appStore.showSuccess('订阅源更新成功')
+      appStore.showSuccess(t('admin.proxies.subscriptions.updateSuccess'))
     } else {
       await adminAPI.proxySubscriptions.create({
         name: subscriptionForm.name.trim(),
@@ -2429,15 +2313,21 @@ const handleSubmitSubscription = async () => {
         source_format: subscriptionForm.source_format,
         enabled: subscriptionForm.enabled,
         refresh_interval_hours: subscriptionForm.refresh_interval_hours,
+        target_entry_count: subscriptionForm.target_entry_count,
         auto_add_to_pool: subscriptionForm.auto_add_to_pool
       })
-      appStore.showSuccess('订阅源创建成功')
+      appStore.showSuccess(t('admin.proxies.subscriptions.createSuccess'))
     }
     showCreateSubscriptionModal.value = false
     editingSubscription.value = null
     await loadProxySubscriptions()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || (editingSubscription.value ? '更新订阅源失败' : '创建订阅源失败'))
+    appStore.showError(
+      error.response?.data?.detail ||
+      (editingSubscription.value
+        ? t('admin.proxies.subscriptions.updateFailed')
+        : t('admin.proxies.subscriptions.createFailed'))
+    )
     console.error('Error submitting proxy subscription:', error)
   } finally {
     submittingSubscription.value = false
@@ -2598,19 +2488,36 @@ function copyFormat(value: string) {
   copyMenuProxyId.value = null
 }
 
-function toggleRowActionMenu(id: number) {
+function toggleRowActionMenu(id: number, event: MouseEvent) {
   showColumnDropdown.value = false
-  activeRowActionMenuId.value = activeRowActionMenuId.value === id ? null : id
+  showProxyToolsDropdown.value = false
+  showProxyBatchDropdown.value = false
+  if (activeRowActionMenuId.value === id) {
+    closeRowActionMenu()
+    return
+  }
+  const trigger = event.currentTarget as HTMLElement | null
+  if (!trigger) return
+  const rect = trigger.getBoundingClientRect()
+  const menuWidth = 176
+  rowActionMenuPosition.value = {
+    top: rect.bottom + 8,
+    left: Math.max(8, rect.right - menuWidth)
+  }
+  activeRowActionMenuId.value = id
 }
 
 function closeRowActionMenu() {
   activeRowActionMenuId.value = null
+  rowActionMenuPosition.value = null
 }
 
 function closeFloatingMenus() {
   copyMenuProxyId.value = null
   showColumnDropdown.value = false
-  activeRowActionMenuId.value = null
+  showProxyToolsDropdown.value = false
+  showProxyBatchDropdown.value = false
+  closeRowActionMenu()
 }
 
 onMounted(() => {
@@ -2618,11 +2525,15 @@ onMounted(() => {
   loadProxies()
   loadAccountGroups()
   document.addEventListener('click', closeFloatingMenus)
+  window.addEventListener('scroll', closeRowActionMenu, true)
+  window.addEventListener('resize', closeRowActionMenu)
 })
 
 onUnmounted(() => {
   clearTimeout(searchTimeout)
   abortController?.abort()
   document.removeEventListener('click', closeFloatingMenus)
+  window.removeEventListener('scroll', closeRowActionMenu, true)
+  window.removeEventListener('resize', closeRowActionMenu)
 })
 </script>
