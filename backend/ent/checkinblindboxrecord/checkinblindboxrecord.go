@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -31,8 +32,26 @@ const (
 	FieldRewardDetail = "reward_detail"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// EdgeUser holds the string denoting the user edge name in mutations.
+	EdgeUser = "user"
+	// EdgePrizeItem holds the string denoting the prize_item edge name in mutations.
+	EdgePrizeItem = "prize_item"
 	// Table holds the table name of the checkinblindboxrecord in the database.
 	Table = "checkin_blindbox_records"
+	// UserTable is the table that holds the user relation/edge.
+	UserTable = "checkin_blindbox_records"
+	// UserInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	UserInverseTable = "users"
+	// UserColumn is the table column denoting the user relation/edge.
+	UserColumn = "user_id"
+	// PrizeItemTable is the table that holds the prize_item relation/edge.
+	PrizeItemTable = "checkin_blindbox_records"
+	// PrizeItemInverseTable is the table name for the CheckinPrizeItem entity.
+	// It exists in this package in order to avoid circular dependency with the "checkinprizeitem" package.
+	PrizeItemInverseTable = "checkin_prize_items"
+	// PrizeItemColumn is the table column denoting the prize_item relation/edge.
+	PrizeItemColumn = "prize_item_id"
 )
 
 // Columns holds all SQL columns for checkinblindboxrecord fields.
@@ -127,4 +146,32 @@ func ByRewardDetail(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByUserField orders the results by user field.
+func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByPrizeItemField orders the results by prize_item field.
+func ByPrizeItemField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPrizeItemStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newUserStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(UserInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, UserTable, UserColumn),
+	)
+}
+func newPrizeItemStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PrizeItemInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, PrizeItemTable, PrizeItemColumn),
+	)
 }

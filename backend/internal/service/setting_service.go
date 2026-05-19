@@ -146,6 +146,7 @@ type AuthSourceDefaultSettings struct {
 	WeChat                       ProviderDefaultGrantSettings
 	GitHub                       ProviderDefaultGrantSettings
 	Google                       ProviderDefaultGrantSettings
+	DingTalk                     ProviderDefaultGrantSettings
 	ForceEmailOnThirdPartySignup bool
 }
 
@@ -199,6 +200,13 @@ var (
 		subscriptions:    SettingKeyAuthSourceDefaultGoogleSubscriptions,
 		grantOnSignup:    SettingKeyAuthSourceDefaultGoogleGrantOnSignup,
 		grantOnFirstBind: SettingKeyAuthSourceDefaultGoogleGrantOnFirstBind,
+	}
+	dingTalkAuthSourceDefaultKeys = authSourceDefaultKeySet{
+		balance:          SettingKeyAuthSourceDefaultDingTalkBalance,
+		concurrency:      SettingKeyAuthSourceDefaultDingTalkConcurrency,
+		subscriptions:    SettingKeyAuthSourceDefaultDingTalkSubscriptions,
+		grantOnSignup:    SettingKeyAuthSourceDefaultDingTalkGrantOnSignup,
+		grantOnFirstBind: SettingKeyAuthSourceDefaultDingTalkGrantOnFirstBind,
 	}
 )
 
@@ -966,6 +974,7 @@ type PublicSettingsInjectionPayload struct {
 	TablePageSizeOptions             []int                    `json:"table_page_size_options"`
 	CustomMenuItems                  json.RawMessage          `json:"custom_menu_items"`
 	CustomEndpoints                  json.RawMessage          `json:"custom_endpoints"`
+	DingTalkOAuthEnabled             bool                     `json:"dingtalk_oauth_enabled"`
 	LinuxDoOAuthEnabled              bool                     `json:"linuxdo_oauth_enabled"`
 	WeChatOAuthEnabled               bool                     `json:"wechat_oauth_enabled"`
 	WeChatOAuthOpenEnabled           bool                     `json:"wechat_oauth_open_enabled"`
@@ -1041,6 +1050,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		TablePageSizeOptions:             settings.TablePageSizeOptions,
 		CustomMenuItems:                  filterUserVisibleMenuItems(settings.CustomMenuItems),
 		CustomEndpoints:                  safeRawJSONArray(settings.CustomEndpoints),
+		DingTalkOAuthEnabled:             settings.DingTalkOAuthEnabled,
 		LinuxDoOAuthEnabled:              settings.LinuxDoOAuthEnabled,
 		WeChatOAuthEnabled:               settings.WeChatOAuthEnabled,
 		WeChatOAuthOpenEnabled:           settings.WeChatOAuthOpenEnabled,
@@ -1548,6 +1558,26 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if settings.LinuxDoConnectClientSecret != "" {
 		updates[SettingKeyLinuxDoConnectClientSecret] = settings.LinuxDoConnectClientSecret
 	}
+
+	// DingTalk Connect OAuth 登录
+	updates[SettingKeyDingTalkConnectEnabled] = strconv.FormatBool(settings.DingTalkConnectEnabled)
+	updates[SettingKeyDingTalkConnectClientID] = settings.DingTalkConnectClientID
+	updates[SettingKeyDingTalkConnectRedirectURL] = settings.DingTalkConnectRedirectURL
+	if settings.DingTalkConnectClientSecret != "" {
+		updates[SettingKeyDingTalkConnectClientSecret] = settings.DingTalkConnectClientSecret
+	}
+	updates[SettingKeyDingTalkConnectCorpRestrictionPolicy] = settings.DingTalkConnectCorpRestrictionPolicy
+	updates[SettingKeyDingTalkConnectInternalCorpID] = settings.DingTalkConnectInternalCorpID
+	updates[SettingKeyDingTalkConnectBypassRegistration] = strconv.FormatBool(settings.DingTalkConnectBypassRegistration)
+	updates[SettingKeyDingTalkConnectSyncCorpEmail] = strconv.FormatBool(settings.DingTalkConnectSyncCorpEmail)
+	updates[SettingKeyDingTalkConnectSyncDisplayName] = strconv.FormatBool(settings.DingTalkConnectSyncDisplayName)
+	updates[SettingKeyDingTalkConnectSyncDept] = strconv.FormatBool(settings.DingTalkConnectSyncDept)
+	updates[SettingKeyDingTalkConnectSyncCorpEmailAttrKey] = settings.DingTalkConnectSyncCorpEmailAttrKey
+	updates[SettingKeyDingTalkConnectSyncDisplayNameAttrKey] = settings.DingTalkConnectSyncDisplayNameAttrKey
+	updates[SettingKeyDingTalkConnectSyncDeptAttrKey] = settings.DingTalkConnectSyncDeptAttrKey
+	updates[SettingKeyDingTalkConnectSyncCorpEmailAttrName] = settings.DingTalkConnectSyncCorpEmailAttrName
+	updates[SettingKeyDingTalkConnectSyncDisplayNameAttrName] = settings.DingTalkConnectSyncDisplayNameAttrName
+	updates[SettingKeyDingTalkConnectSyncDeptAttrName] = settings.DingTalkConnectSyncDeptAttrName
 
 	// Generic OIDC OAuth 登录
 	updates[SettingKeyOIDCConnectEnabled] = strconv.FormatBool(settings.OIDCConnectEnabled)
@@ -2514,6 +2544,11 @@ func (s *SettingService) GetAuthSourceDefaultSettings(ctx context.Context) (*Aut
 		SettingKeyAuthSourceDefaultGoogleSubscriptions,
 		SettingKeyAuthSourceDefaultGoogleGrantOnSignup,
 		SettingKeyAuthSourceDefaultGoogleGrantOnFirstBind,
+		SettingKeyAuthSourceDefaultDingTalkBalance,
+		SettingKeyAuthSourceDefaultDingTalkConcurrency,
+		SettingKeyAuthSourceDefaultDingTalkSubscriptions,
+		SettingKeyAuthSourceDefaultDingTalkGrantOnSignup,
+		SettingKeyAuthSourceDefaultDingTalkGrantOnFirstBind,
 		SettingKeyForceEmailOnThirdPartySignup,
 	}
 
@@ -2529,6 +2564,7 @@ func (s *SettingService) GetAuthSourceDefaultSettings(ctx context.Context) (*Aut
 		WeChat:                       parseProviderDefaultGrantSettings(settings, weChatAuthSourceDefaultKeys),
 		GitHub:                       parseProviderDefaultGrantSettings(settings, gitHubAuthSourceDefaultKeys),
 		Google:                       parseProviderDefaultGrantSettings(settings, googleAuthSourceDefaultKeys),
+		DingTalk:                     parseProviderDefaultGrantSettings(settings, dingTalkAuthSourceDefaultKeys),
 		ForceEmailOnThirdPartySignup: settings[SettingKeyForceEmailOnThirdPartySignup] == "true",
 	}, nil
 }
@@ -2954,6 +2990,98 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.LinuxDoConnectClientSecret = strings.TrimSpace(linuxDoBase.ClientSecret)
 	}
 	result.LinuxDoConnectClientSecretConfigured = result.LinuxDoConnectClientSecret != ""
+
+	// DingTalk Connect 设置：
+	// - 兼容 config.yaml/env
+	// - 支持后台系统设置覆盖并持久化（存储于 DB）
+	dingTalkBase := config.DingTalkConnectConfig{}
+	if s.cfg != nil {
+		dingTalkBase = s.cfg.DingTalk
+	}
+
+	if raw, ok := settings[SettingKeyDingTalkConnectEnabled]; ok {
+		result.DingTalkConnectEnabled = raw == "true"
+	} else {
+		result.DingTalkConnectEnabled = dingTalkBase.Enabled
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectClientID]; ok && strings.TrimSpace(v) != "" {
+		result.DingTalkConnectClientID = strings.TrimSpace(v)
+	} else {
+		result.DingTalkConnectClientID = strings.TrimSpace(dingTalkBase.ClientID)
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectRedirectURL]; ok && strings.TrimSpace(v) != "" {
+		result.DingTalkConnectRedirectURL = strings.TrimSpace(v)
+	} else {
+		result.DingTalkConnectRedirectURL = strings.TrimSpace(dingTalkBase.RedirectURL)
+	}
+	result.DingTalkConnectClientSecret = strings.TrimSpace(settings[SettingKeyDingTalkConnectClientSecret])
+	if result.DingTalkConnectClientSecret == "" {
+		result.DingTalkConnectClientSecret = strings.TrimSpace(dingTalkBase.ClientSecret)
+	}
+	result.DingTalkConnectClientSecretConfigured = result.DingTalkConnectClientSecret != ""
+	if v, ok := settings[SettingKeyDingTalkConnectCorpRestrictionPolicy]; ok && strings.TrimSpace(v) != "" {
+		result.DingTalkConnectCorpRestrictionPolicy = strings.TrimSpace(v)
+	} else {
+		result.DingTalkConnectCorpRestrictionPolicy = strings.TrimSpace(dingTalkBase.CorpRestrictionPolicy)
+	}
+	if result.DingTalkConnectCorpRestrictionPolicy == "whitelist" {
+		result.DingTalkConnectCorpRestrictionPolicy = "none"
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectInternalCorpID]; ok && strings.TrimSpace(v) != "" {
+		result.DingTalkConnectInternalCorpID = strings.TrimSpace(v)
+	} else {
+		result.DingTalkConnectInternalCorpID = strings.TrimSpace(dingTalkBase.InternalCorpID)
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectBypassRegistration]; ok && strings.TrimSpace(v) != "" {
+		result.DingTalkConnectBypassRegistration = strings.EqualFold(strings.TrimSpace(v), "true")
+	} else {
+		result.DingTalkConnectBypassRegistration = dingTalkBase.BypassRegistration
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectSyncCorpEmail]; ok && strings.TrimSpace(v) != "" {
+		result.DingTalkConnectSyncCorpEmail = strings.EqualFold(strings.TrimSpace(v), "true")
+	} else {
+		result.DingTalkConnectSyncCorpEmail = dingTalkBase.SyncCorpEmail
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectSyncDisplayName]; ok && strings.TrimSpace(v) != "" {
+		result.DingTalkConnectSyncDisplayName = strings.EqualFold(strings.TrimSpace(v), "true")
+	} else {
+		result.DingTalkConnectSyncDisplayName = dingTalkBase.SyncDisplayName
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectSyncDept]; ok && strings.TrimSpace(v) != "" {
+		result.DingTalkConnectSyncDept = strings.EqualFold(strings.TrimSpace(v), "true")
+	} else {
+		result.DingTalkConnectSyncDept = dingTalkBase.SyncDept
+	}
+	if result.DingTalkConnectCorpRestrictionPolicy != "internal_only" {
+		result.DingTalkConnectBypassRegistration = false
+		result.DingTalkConnectSyncCorpEmail = false
+		result.DingTalkConnectSyncDisplayName = false
+		result.DingTalkConnectSyncDept = false
+	}
+	result.DingTalkConnectSyncCorpEmailAttrKey = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncCorpEmailAttrKey])
+	if result.DingTalkConnectSyncCorpEmailAttrKey == "" {
+		result.DingTalkConnectSyncCorpEmailAttrKey = "dingtalk_email"
+	}
+	result.DingTalkConnectSyncDisplayNameAttrKey = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDisplayNameAttrKey])
+	if result.DingTalkConnectSyncDisplayNameAttrKey == "" {
+		result.DingTalkConnectSyncDisplayNameAttrKey = "dingtalk_name"
+	}
+	result.DingTalkConnectSyncDeptAttrKey = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDeptAttrKey])
+	if result.DingTalkConnectSyncDeptAttrKey == "" {
+		result.DingTalkConnectSyncDeptAttrKey = "dingtalk_department"
+	}
+	result.DingTalkConnectSyncCorpEmailAttrName = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncCorpEmailAttrName])
+	if result.DingTalkConnectSyncCorpEmailAttrName == "" {
+		result.DingTalkConnectSyncCorpEmailAttrName = "钉钉企业邮箱"
+	}
+	result.DingTalkConnectSyncDisplayNameAttrName = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDisplayNameAttrName])
+	if result.DingTalkConnectSyncDisplayNameAttrName == "" {
+		result.DingTalkConnectSyncDisplayNameAttrName = "钉钉姓名"
+	}
+	result.DingTalkConnectSyncDeptAttrName = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDeptAttrName])
+	if result.DingTalkConnectSyncDeptAttrName == "" {
+		result.DingTalkConnectSyncDeptAttrName = "钉钉部门"
+	}
 
 	// Generic OIDC 设置：
 	// - 兼容 config.yaml/env
@@ -4135,6 +4263,60 @@ func oidcResolveProviderMetadata(ctx context.Context, discoveryURL string) (*oid
 		return nil, fmt.Errorf("parse discovery document: %w", err)
 	}
 	return metadata, nil
+}
+
+// GetDingTalkConnectOAuthConfig returns the effective DingTalk OAuth config used by login flows.
+// Settings stored in the database override config.yaml / env values when present.
+func (s *SettingService) GetDingTalkConnectOAuthConfig(ctx context.Context) (config.DingTalkConnectConfig, error) {
+	if s == nil || s.cfg == nil {
+		return config.DingTalkConnectConfig{}, infraerrors.ServiceUnavailable("CONFIG_NOT_READY", "config not loaded")
+	}
+
+	effective := s.cfg.DingTalk
+	settings, err := s.GetAllSettings(ctx)
+	if err != nil {
+		return config.DingTalkConnectConfig{}, fmt.Errorf("get dingtalk connect settings: %w", err)
+	}
+
+	effective.Enabled = settings.DingTalkConnectEnabled
+	effective.ClientID = strings.TrimSpace(settings.DingTalkConnectClientID)
+	effective.ClientSecret = strings.TrimSpace(settings.DingTalkConnectClientSecret)
+	effective.RedirectURL = strings.TrimSpace(settings.DingTalkConnectRedirectURL)
+	effective.CorpRestrictionPolicy = strings.TrimSpace(settings.DingTalkConnectCorpRestrictionPolicy)
+	if effective.CorpRestrictionPolicy == "whitelist" {
+		effective.CorpRestrictionPolicy = "none"
+	}
+	effective.InternalCorpID = strings.TrimSpace(settings.DingTalkConnectInternalCorpID)
+	effective.BypassRegistration = settings.DingTalkConnectBypassRegistration
+	effective.SyncCorpEmail = settings.DingTalkConnectSyncCorpEmail
+	effective.SyncDisplayName = settings.DingTalkConnectSyncDisplayName
+	effective.SyncDept = settings.DingTalkConnectSyncDept
+	effective.SyncCorpEmailAttrKey = strings.TrimSpace(settings.DingTalkConnectSyncCorpEmailAttrKey)
+	effective.SyncDisplayNameAttrKey = strings.TrimSpace(settings.DingTalkConnectSyncDisplayNameAttrKey)
+	effective.SyncDeptAttrKey = strings.TrimSpace(settings.DingTalkConnectSyncDeptAttrKey)
+	effective.SyncCorpEmailAttrName = strings.TrimSpace(settings.DingTalkConnectSyncCorpEmailAttrName)
+	effective.SyncDisplayNameAttrName = strings.TrimSpace(settings.DingTalkConnectSyncDisplayNameAttrName)
+	effective.SyncDeptAttrName = strings.TrimSpace(settings.DingTalkConnectSyncDeptAttrName)
+
+	if !effective.Enabled {
+		return config.DingTalkConnectConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "dingtalk oauth login is disabled")
+	}
+	if strings.TrimSpace(effective.ClientID) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth client id not configured")
+	}
+	if strings.TrimSpace(effective.ClientSecret) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth client secret not configured")
+	}
+	if strings.TrimSpace(effective.RedirectURL) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth redirect url not configured")
+	}
+	if err := config.ValidateAbsoluteHTTPURL(effective.RedirectURL); err != nil {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth redirect url invalid")
+	}
+	if err := config.ValidateDingTalkConfig(effective); err != nil {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", err.Error())
+	}
+	return effective, nil
 }
 
 // GetStreamTimeoutSettings 获取流超时处理配置

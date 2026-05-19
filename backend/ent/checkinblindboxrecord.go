@@ -10,6 +10,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
+	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
 // CheckinBlindboxRecord is the model entity for the CheckinBlindboxRecord schema.
@@ -34,8 +36,44 @@ type CheckinBlindboxRecord struct {
 	// RewardDetail holds the value of the "reward_detail" field.
 	RewardDetail string `json:"reward_detail,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
-	CreatedAt    time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the CheckinBlindboxRecordQuery when eager-loading is set.
+	Edges        CheckinBlindboxRecordEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// CheckinBlindboxRecordEdges holds the relations/edges for other nodes in the graph.
+type CheckinBlindboxRecordEdges struct {
+	// User holds the value of the user edge.
+	User *User `json:"user,omitempty"`
+	// PrizeItem holds the value of the prize_item edge.
+	PrizeItem *CheckinPrizeItem `json:"prize_item,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [2]bool
+}
+
+// UserOrErr returns the User value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e CheckinBlindboxRecordEdges) UserOrErr() (*User, error) {
+	if e.User != nil {
+		return e.User, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: user.Label}
+	}
+	return nil, &NotLoadedError{edge: "user"}
+}
+
+// PrizeItemOrErr returns the PrizeItem value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e CheckinBlindboxRecordEdges) PrizeItemOrErr() (*CheckinPrizeItem, error) {
+	if e.PrizeItem != nil {
+		return e.PrizeItem, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: checkinprizeitem.Label}
+	}
+	return nil, &NotLoadedError{edge: "prize_item"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -137,6 +175,16 @@ func (_m *CheckinBlindboxRecord) assignValues(columns []string, values []any) er
 // This includes values selected through modifiers, order, etc.
 func (_m *CheckinBlindboxRecord) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryUser queries the "user" edge of the CheckinBlindboxRecord entity.
+func (_m *CheckinBlindboxRecord) QueryUser() *UserQuery {
+	return NewCheckinBlindboxRecordClient(_m.config).QueryUser(_m)
+}
+
+// QueryPrizeItem queries the "prize_item" edge of the CheckinBlindboxRecord entity.
+func (_m *CheckinBlindboxRecord) QueryPrizeItem() *CheckinPrizeItemQuery {
+	return NewCheckinBlindboxRecordClient(_m.config).QueryPrizeItem(_m)
 }
 
 // Update returns a builder for updating this CheckinBlindboxRecord.

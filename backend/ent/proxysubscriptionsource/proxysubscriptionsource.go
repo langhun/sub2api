@@ -31,6 +31,8 @@ const (
 	FieldEnabled = "enabled"
 	// FieldRefreshIntervalHours holds the string denoting the refresh_interval_hours field in the database.
 	FieldRefreshIntervalHours = "refresh_interval_hours"
+	// FieldTargetEntryCount holds the string denoting the target_entry_count field in the database.
+	FieldTargetEntryCount = "target_entry_count"
 	// FieldAutoAddToPool holds the string denoting the auto_add_to_pool field in the database.
 	FieldAutoAddToPool = "auto_add_to_pool"
 	// FieldLastRefreshedAt holds the string denoting the last_refreshed_at field in the database.
@@ -67,6 +69,7 @@ var Columns = []string{
 	FieldSourceFormat,
 	FieldEnabled,
 	FieldRefreshIntervalHours,
+	FieldTargetEntryCount,
 	FieldAutoAddToPool,
 	FieldLastRefreshedAt,
 	FieldLastSuccessAt,
@@ -111,6 +114,8 @@ var (
 	DefaultEnabled bool
 	// DefaultRefreshIntervalHours holds the default value on creation for the "refresh_interval_hours" field.
 	DefaultRefreshIntervalHours int
+	// DefaultTargetEntryCount holds the default value on creation for the "target_entry_count" field.
+	DefaultTargetEntryCount int
 	// DefaultAutoAddToPool holds the default value on creation for the "auto_add_to_pool" field.
 	DefaultAutoAddToPool bool
 	// DefaultLastNodeCount holds the default value on creation for the "last_node_count" field.
@@ -165,6 +170,11 @@ func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByRefreshIntervalHours orders the results by the refresh_interval_hours field.
 func ByRefreshIntervalHours(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRefreshIntervalHours, opts...).ToFunc()
+}
+
+// ByTargetEntryCount orders the results by the target_entry_count field.
+func ByTargetEntryCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetEntryCount, opts...).ToFunc()
 }
 
 // ByAutoAddToPool orders the results by the auto_add_to_pool field.

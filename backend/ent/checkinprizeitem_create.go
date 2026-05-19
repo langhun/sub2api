@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 )
 
@@ -180,6 +181,21 @@ func (_c *CheckinPrizeItemCreate) SetNillableDeletedAt(v *time.Time) *CheckinPri
 		_c.SetDeletedAt(*v)
 	}
 	return _c
+}
+
+// AddBlindboxRecordIDs adds the "blindbox_records" edge to the CheckinBlindboxRecord entity by IDs.
+func (_c *CheckinPrizeItemCreate) AddBlindboxRecordIDs(ids ...int64) *CheckinPrizeItemCreate {
+	_c.mutation.AddBlindboxRecordIDs(ids...)
+	return _c
+}
+
+// AddBlindboxRecords adds the "blindbox_records" edges to the CheckinBlindboxRecord entity.
+func (_c *CheckinPrizeItemCreate) AddBlindboxRecords(v ...*CheckinBlindboxRecord) *CheckinPrizeItemCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddBlindboxRecordIDs(ids...)
 }
 
 // Mutation returns the CheckinPrizeItemMutation object of the builder.
@@ -361,6 +377,22 @@ func (_c *CheckinPrizeItemCreate) createSpec() (*CheckinPrizeItem, *sqlgraph.Cre
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(checkinprizeitem.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = &value
+	}
+	if nodes := _c.mutation.BlindboxRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   checkinprizeitem.BlindboxRecordsTable,
+			Columns: []string{checkinprizeitem.BlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

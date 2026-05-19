@@ -19,6 +19,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
 	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
@@ -35,28 +36,29 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx                       *QueryContext
-	order                     []user.OrderOption
-	inters                    []Interceptor
-	predicates                []predicate.User
-	withAPIKeys               *APIKeyQuery
-	withRedeemCodes           *RedeemCodeQuery
-	withSubscriptions         *UserSubscriptionQuery
-	withAssignedSubscriptions *UserSubscriptionQuery
-	withAnnouncementReads     *AnnouncementReadQuery
-	withAllowedGroups         *GroupQuery
-	withUsageLogs             *UsageLogQuery
-	withAttributeValues       *UserAttributeValueQuery
-	withPromoCodeUsages       *PromoCodeUsageQuery
-	withPaymentOrders         *PaymentOrderQuery
-	withCheckins              *CheckinQuery
-	withSentTransfers         *BalanceTransferQuery
-	withReceivedTransfers     *BalanceTransferQuery
-	withRedpackets            *BalanceRedPacketQuery
-	withAuthIdentities        *AuthIdentityQuery
-	withPendingAuthSessions   *PendingAuthSessionQuery
-	withUserAllowedGroups     *UserAllowedGroupQuery
-	modifiers                 []func(*sql.Selector)
+	ctx                        *QueryContext
+	order                      []user.OrderOption
+	inters                     []Interceptor
+	predicates                 []predicate.User
+	withAPIKeys                *APIKeyQuery
+	withRedeemCodes            *RedeemCodeQuery
+	withRedpackets             *BalanceRedPacketQuery
+	withSentTransfers          *BalanceTransferQuery
+	withReceivedTransfers      *BalanceTransferQuery
+	withSubscriptions          *UserSubscriptionQuery
+	withAssignedSubscriptions  *UserSubscriptionQuery
+	withAnnouncementReads      *AnnouncementReadQuery
+	withAllowedGroups          *GroupQuery
+	withCheckins               *CheckinQuery
+	withCheckinBlindboxRecords *CheckinBlindboxRecordQuery
+	withUsageLogs              *UsageLogQuery
+	withAttributeValues        *UserAttributeValueQuery
+	withPromoCodeUsages        *PromoCodeUsageQuery
+	withPaymentOrders          *PaymentOrderQuery
+	withAuthIdentities         *AuthIdentityQuery
+	withPendingAuthSessions    *PendingAuthSessionQuery
+	withUserAllowedGroups      *UserAllowedGroupQuery
+	modifiers                  []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -130,6 +132,72 @@ func (_q *UserQuery) QueryRedeemCodes() *RedeemCodeQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(redeemcode.Table, redeemcode.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.RedeemCodesTable, user.RedeemCodesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryRedpackets chains the current query on the "redpackets" edge.
+func (_q *UserQuery) QueryRedpackets() *BalanceRedPacketQuery {
+	query := (&BalanceRedPacketClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(balanceredpacket.Table, balanceredpacket.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.RedpacketsTable, user.RedpacketsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySentTransfers chains the current query on the "sent_transfers" edge.
+func (_q *UserQuery) QuerySentTransfers() *BalanceTransferQuery {
+	query := (&BalanceTransferClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SentTransfersTable, user.SentTransfersColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryReceivedTransfers chains the current query on the "received_transfers" edge.
+func (_q *UserQuery) QueryReceivedTransfers() *BalanceTransferQuery {
+	query := (&BalanceTransferClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ReceivedTransfersTable, user.ReceivedTransfersColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -225,6 +293,50 @@ func (_q *UserQuery) QueryAllowedGroups() *GroupQuery {
 	return query
 }
 
+// QueryCheckins chains the current query on the "checkins" edge.
+func (_q *UserQuery) QueryCheckins() *CheckinQuery {
+	query := (&CheckinClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(checkin.Table, checkin.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CheckinsTable, user.CheckinsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCheckinBlindboxRecords chains the current query on the "checkin_blindbox_records" edge.
+func (_q *UserQuery) QueryCheckinBlindboxRecords() *CheckinBlindboxRecordQuery {
+	query := (&CheckinBlindboxRecordClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(checkinblindboxrecord.Table, checkinblindboxrecord.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CheckinBlindboxRecordsTable, user.CheckinBlindboxRecordsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryUsageLogs chains the current query on the "usage_logs" edge.
 func (_q *UserQuery) QueryUsageLogs() *UsageLogQuery {
 	query := (&UsageLogClient{config: _q.config}).Query()
@@ -306,94 +418,6 @@ func (_q *UserQuery) QueryPaymentOrders() *PaymentOrderQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(paymentorder.Table, paymentorder.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PaymentOrdersTable, user.PaymentOrdersColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryCheckins chains the current query on the "checkins" edge.
-func (_q *UserQuery) QueryCheckins() *CheckinQuery {
-	query := (&CheckinClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(checkin.Table, checkin.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.CheckinsTable, user.CheckinsColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QuerySentTransfers chains the current query on the "sent_transfers" edge.
-func (_q *UserQuery) QuerySentTransfers() *BalanceTransferQuery {
-	query := (&BalanceTransferClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.SentTransfersTable, user.SentTransfersColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryReceivedTransfers chains the current query on the "received_transfers" edge.
-func (_q *UserQuery) QueryReceivedTransfers() *BalanceTransferQuery {
-	query := (&BalanceTransferClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.ReceivedTransfersTable, user.ReceivedTransfersColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryRedpackets chains the current query on the "redpackets" edge.
-func (_q *UserQuery) QueryRedpackets() *BalanceRedPacketQuery {
-	query := (&BalanceRedPacketClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(balanceredpacket.Table, balanceredpacket.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.RedpacketsTable, user.RedpacketsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -654,28 +678,29 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:                    _q.config,
-		ctx:                       _q.ctx.Clone(),
-		order:                     append([]user.OrderOption{}, _q.order...),
-		inters:                    append([]Interceptor{}, _q.inters...),
-		predicates:                append([]predicate.User{}, _q.predicates...),
-		withAPIKeys:               _q.withAPIKeys.Clone(),
-		withRedeemCodes:           _q.withRedeemCodes.Clone(),
-		withSubscriptions:         _q.withSubscriptions.Clone(),
-		withAssignedSubscriptions: _q.withAssignedSubscriptions.Clone(),
-		withAnnouncementReads:     _q.withAnnouncementReads.Clone(),
-		withAllowedGroups:         _q.withAllowedGroups.Clone(),
-		withUsageLogs:             _q.withUsageLogs.Clone(),
-		withAttributeValues:       _q.withAttributeValues.Clone(),
-		withPromoCodeUsages:       _q.withPromoCodeUsages.Clone(),
-		withPaymentOrders:         _q.withPaymentOrders.Clone(),
-		withCheckins:              _q.withCheckins.Clone(),
-		withSentTransfers:         _q.withSentTransfers.Clone(),
-		withReceivedTransfers:     _q.withReceivedTransfers.Clone(),
-		withRedpackets:            _q.withRedpackets.Clone(),
-		withAuthIdentities:        _q.withAuthIdentities.Clone(),
-		withPendingAuthSessions:   _q.withPendingAuthSessions.Clone(),
-		withUserAllowedGroups:     _q.withUserAllowedGroups.Clone(),
+		config:                     _q.config,
+		ctx:                        _q.ctx.Clone(),
+		order:                      append([]user.OrderOption{}, _q.order...),
+		inters:                     append([]Interceptor{}, _q.inters...),
+		predicates:                 append([]predicate.User{}, _q.predicates...),
+		withAPIKeys:                _q.withAPIKeys.Clone(),
+		withRedeemCodes:            _q.withRedeemCodes.Clone(),
+		withRedpackets:             _q.withRedpackets.Clone(),
+		withSentTransfers:          _q.withSentTransfers.Clone(),
+		withReceivedTransfers:      _q.withReceivedTransfers.Clone(),
+		withSubscriptions:          _q.withSubscriptions.Clone(),
+		withAssignedSubscriptions:  _q.withAssignedSubscriptions.Clone(),
+		withAnnouncementReads:      _q.withAnnouncementReads.Clone(),
+		withAllowedGroups:          _q.withAllowedGroups.Clone(),
+		withCheckins:               _q.withCheckins.Clone(),
+		withCheckinBlindboxRecords: _q.withCheckinBlindboxRecords.Clone(),
+		withUsageLogs:              _q.withUsageLogs.Clone(),
+		withAttributeValues:        _q.withAttributeValues.Clone(),
+		withPromoCodeUsages:        _q.withPromoCodeUsages.Clone(),
+		withPaymentOrders:          _q.withPaymentOrders.Clone(),
+		withAuthIdentities:         _q.withAuthIdentities.Clone(),
+		withPendingAuthSessions:    _q.withPendingAuthSessions.Clone(),
+		withUserAllowedGroups:      _q.withUserAllowedGroups.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -701,6 +726,39 @@ func (_q *UserQuery) WithRedeemCodes(opts ...func(*RedeemCodeQuery)) *UserQuery 
 		opt(query)
 	}
 	_q.withRedeemCodes = query
+	return _q
+}
+
+// WithRedpackets tells the query-builder to eager-load the nodes that are connected to
+// the "redpackets" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithRedpackets(opts ...func(*BalanceRedPacketQuery)) *UserQuery {
+	query := (&BalanceRedPacketClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withRedpackets = query
+	return _q
+}
+
+// WithSentTransfers tells the query-builder to eager-load the nodes that are connected to
+// the "sent_transfers" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithSentTransfers(opts ...func(*BalanceTransferQuery)) *UserQuery {
+	query := (&BalanceTransferClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSentTransfers = query
+	return _q
+}
+
+// WithReceivedTransfers tells the query-builder to eager-load the nodes that are connected to
+// the "received_transfers" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithReceivedTransfers(opts ...func(*BalanceTransferQuery)) *UserQuery {
+	query := (&BalanceTransferClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withReceivedTransfers = query
 	return _q
 }
 
@@ -748,6 +806,28 @@ func (_q *UserQuery) WithAllowedGroups(opts ...func(*GroupQuery)) *UserQuery {
 	return _q
 }
 
+// WithCheckins tells the query-builder to eager-load the nodes that are connected to
+// the "checkins" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithCheckins(opts ...func(*CheckinQuery)) *UserQuery {
+	query := (&CheckinClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCheckins = query
+	return _q
+}
+
+// WithCheckinBlindboxRecords tells the query-builder to eager-load the nodes that are connected to
+// the "checkin_blindbox_records" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithCheckinBlindboxRecords(opts ...func(*CheckinBlindboxRecordQuery)) *UserQuery {
+	query := (&CheckinBlindboxRecordClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCheckinBlindboxRecords = query
+	return _q
+}
+
 // WithUsageLogs tells the query-builder to eager-load the nodes that are connected to
 // the "usage_logs" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *UserQuery) WithUsageLogs(opts ...func(*UsageLogQuery)) *UserQuery {
@@ -789,50 +869,6 @@ func (_q *UserQuery) WithPaymentOrders(opts ...func(*PaymentOrderQuery)) *UserQu
 		opt(query)
 	}
 	_q.withPaymentOrders = query
-	return _q
-}
-
-// WithCheckins tells the query-builder to eager-load the nodes that are connected to
-// the "checkins" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserQuery) WithCheckins(opts ...func(*CheckinQuery)) *UserQuery {
-	query := (&CheckinClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withCheckins = query
-	return _q
-}
-
-// WithSentTransfers tells the query-builder to eager-load the nodes that are connected to
-// the "sent_transfers" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserQuery) WithSentTransfers(opts ...func(*BalanceTransferQuery)) *UserQuery {
-	query := (&BalanceTransferClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withSentTransfers = query
-	return _q
-}
-
-// WithReceivedTransfers tells the query-builder to eager-load the nodes that are connected to
-// the "received_transfers" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserQuery) WithReceivedTransfers(opts ...func(*BalanceTransferQuery)) *UserQuery {
-	query := (&BalanceTransferClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withReceivedTransfers = query
-	return _q
-}
-
-// WithRedpackets tells the query-builder to eager-load the nodes that are connected to
-// the "redpackets" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserQuery) WithRedpackets(opts ...func(*BalanceRedPacketQuery)) *UserQuery {
-	query := (&BalanceRedPacketClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withRedpackets = query
 	return _q
 }
 
@@ -947,21 +983,22 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [17]bool{
+		loadedTypes = [18]bool{
 			_q.withAPIKeys != nil,
 			_q.withRedeemCodes != nil,
+			_q.withRedpackets != nil,
+			_q.withSentTransfers != nil,
+			_q.withReceivedTransfers != nil,
 			_q.withSubscriptions != nil,
 			_q.withAssignedSubscriptions != nil,
 			_q.withAnnouncementReads != nil,
 			_q.withAllowedGroups != nil,
+			_q.withCheckins != nil,
+			_q.withCheckinBlindboxRecords != nil,
 			_q.withUsageLogs != nil,
 			_q.withAttributeValues != nil,
 			_q.withPromoCodeUsages != nil,
 			_q.withPaymentOrders != nil,
-			_q.withCheckins != nil,
-			_q.withSentTransfers != nil,
-			_q.withReceivedTransfers != nil,
-			_q.withRedpackets != nil,
 			_q.withAuthIdentities != nil,
 			_q.withPendingAuthSessions != nil,
 			_q.withUserAllowedGroups != nil,
@@ -1002,6 +1039,27 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			return nil, err
 		}
 	}
+	if query := _q.withRedpackets; query != nil {
+		if err := _q.loadRedpackets(ctx, query, nodes,
+			func(n *User) { n.Edges.Redpackets = []*BalanceRedPacket{} },
+			func(n *User, e *BalanceRedPacket) { n.Edges.Redpackets = append(n.Edges.Redpackets, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSentTransfers; query != nil {
+		if err := _q.loadSentTransfers(ctx, query, nodes,
+			func(n *User) { n.Edges.SentTransfers = []*BalanceTransfer{} },
+			func(n *User, e *BalanceTransfer) { n.Edges.SentTransfers = append(n.Edges.SentTransfers, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withReceivedTransfers; query != nil {
+		if err := _q.loadReceivedTransfers(ctx, query, nodes,
+			func(n *User) { n.Edges.ReceivedTransfers = []*BalanceTransfer{} },
+			func(n *User, e *BalanceTransfer) { n.Edges.ReceivedTransfers = append(n.Edges.ReceivedTransfers, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withSubscriptions; query != nil {
 		if err := _q.loadSubscriptions(ctx, query, nodes,
 			func(n *User) { n.Edges.Subscriptions = []*UserSubscription{} },
@@ -1032,6 +1090,22 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			return nil, err
 		}
 	}
+	if query := _q.withCheckins; query != nil {
+		if err := _q.loadCheckins(ctx, query, nodes,
+			func(n *User) { n.Edges.Checkins = []*Checkin{} },
+			func(n *User, e *Checkin) { n.Edges.Checkins = append(n.Edges.Checkins, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCheckinBlindboxRecords; query != nil {
+		if err := _q.loadCheckinBlindboxRecords(ctx, query, nodes,
+			func(n *User) { n.Edges.CheckinBlindboxRecords = []*CheckinBlindboxRecord{} },
+			func(n *User, e *CheckinBlindboxRecord) {
+				n.Edges.CheckinBlindboxRecords = append(n.Edges.CheckinBlindboxRecords, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withUsageLogs; query != nil {
 		if err := _q.loadUsageLogs(ctx, query, nodes,
 			func(n *User) { n.Edges.UsageLogs = []*UsageLog{} },
@@ -1057,34 +1131,6 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadPaymentOrders(ctx, query, nodes,
 			func(n *User) { n.Edges.PaymentOrders = []*PaymentOrder{} },
 			func(n *User, e *PaymentOrder) { n.Edges.PaymentOrders = append(n.Edges.PaymentOrders, e) }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withCheckins; query != nil {
-		if err := _q.loadCheckins(ctx, query, nodes,
-			func(n *User) { n.Edges.Checkins = []*Checkin{} },
-			func(n *User, e *Checkin) { n.Edges.Checkins = append(n.Edges.Checkins, e) }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withSentTransfers; query != nil {
-		if err := _q.loadSentTransfers(ctx, query, nodes,
-			func(n *User) { n.Edges.SentTransfers = []*BalanceTransfer{} },
-			func(n *User, e *BalanceTransfer) { n.Edges.SentTransfers = append(n.Edges.SentTransfers, e) }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withReceivedTransfers; query != nil {
-		if err := _q.loadReceivedTransfers(ctx, query, nodes,
-			func(n *User) { n.Edges.ReceivedTransfers = []*BalanceTransfer{} },
-			func(n *User, e *BalanceTransfer) { n.Edges.ReceivedTransfers = append(n.Edges.ReceivedTransfers, e) }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withRedpackets; query != nil {
-		if err := _q.loadRedpackets(ctx, query, nodes,
-			func(n *User) { n.Edges.Redpackets = []*BalanceRedPacket{} },
-			func(n *User, e *BalanceRedPacket) { n.Edges.Redpackets = append(n.Edges.Redpackets, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1172,6 +1218,96 @@ func (_q *UserQuery) loadRedeemCodes(ctx context.Context, query *RedeemCodeQuery
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "used_by" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadRedpackets(ctx context.Context, query *BalanceRedPacketQuery, nodes []*User, init func(*User), assign func(*User, *BalanceRedPacket)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(balanceredpacket.FieldSenderID)
+	}
+	query.Where(predicate.BalanceRedPacket(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.RedpacketsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.SenderID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "sender_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadSentTransfers(ctx context.Context, query *BalanceTransferQuery, nodes []*User, init func(*User), assign func(*User, *BalanceTransfer)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(balancetransfer.FieldSenderID)
+	}
+	query.Where(predicate.BalanceTransfer(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.SentTransfersColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.SenderID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "sender_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadReceivedTransfers(ctx context.Context, query *BalanceTransferQuery, nodes []*User, init func(*User), assign func(*User, *BalanceTransfer)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(balancetransfer.FieldReceiverID)
+	}
+	query.Where(predicate.BalanceTransfer(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.ReceivedTransfersColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ReceiverID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "receiver_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -1331,6 +1467,66 @@ func (_q *UserQuery) loadAllowedGroups(ctx context.Context, query *GroupQuery, n
 	}
 	return nil
 }
+func (_q *UserQuery) loadCheckins(ctx context.Context, query *CheckinQuery, nodes []*User, init func(*User), assign func(*User, *Checkin)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(checkin.FieldUserID)
+	}
+	query.Where(predicate.Checkin(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.CheckinsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadCheckinBlindboxRecords(ctx context.Context, query *CheckinBlindboxRecordQuery, nodes []*User, init func(*User), assign func(*User, *CheckinBlindboxRecord)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(checkinblindboxrecord.FieldUserID)
+	}
+	query.Where(predicate.CheckinBlindboxRecord(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.CheckinBlindboxRecordsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *UserQuery) loadUsageLogs(ctx context.Context, query *UsageLogQuery, nodes []*User, init func(*User), assign func(*User, *UsageLog)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int64]*User)
@@ -1446,126 +1642,6 @@ func (_q *UserQuery) loadPaymentOrders(ctx context.Context, query *PaymentOrderQ
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
-func (_q *UserQuery) loadCheckins(ctx context.Context, query *CheckinQuery, nodes []*User, init func(*User), assign func(*User, *Checkin)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int64]*User)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(checkin.FieldUserID)
-	}
-	query.Where(predicate.Checkin(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(user.CheckinsColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.UserID
-		node, ok := nodeids[fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
-func (_q *UserQuery) loadSentTransfers(ctx context.Context, query *BalanceTransferQuery, nodes []*User, init func(*User), assign func(*User, *BalanceTransfer)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int64]*User)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(balancetransfer.FieldSenderID)
-	}
-	query.Where(predicate.BalanceTransfer(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(user.SentTransfersColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.SenderID
-		node, ok := nodeids[fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "sender_id" returned %v for node %v`, fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
-func (_q *UserQuery) loadReceivedTransfers(ctx context.Context, query *BalanceTransferQuery, nodes []*User, init func(*User), assign func(*User, *BalanceTransfer)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int64]*User)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(balancetransfer.FieldReceiverID)
-	}
-	query.Where(predicate.BalanceTransfer(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(user.ReceivedTransfersColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.ReceiverID
-		node, ok := nodeids[fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "receiver_id" returned %v for node %v`, fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
-func (_q *UserQuery) loadRedpackets(ctx context.Context, query *BalanceRedPacketQuery, nodes []*User, init func(*User), assign func(*User, *BalanceRedPacket)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int64]*User)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(balanceredpacket.FieldSenderID)
-	}
-	query.Where(predicate.BalanceRedPacket(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(user.RedpacketsColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.SenderID
-		node, ok := nodeids[fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "sender_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}

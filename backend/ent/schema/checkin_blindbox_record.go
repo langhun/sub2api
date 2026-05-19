@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 )
@@ -50,9 +51,25 @@ func (CheckinBlindboxRecord) Fields() []ent.Field {
 	}
 }
 
+func (CheckinBlindboxRecord) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.From("user", User.Type).
+			Ref("checkin_blindbox_records").
+			Field("user_id").
+			Unique().
+			Required(),
+		edge.From("prize_item", CheckinPrizeItem.Type).
+			Ref("blindbox_records").
+			Field("prize_item_id").
+			Unique().
+			Required(),
+	}
+}
+
 func (CheckinBlindboxRecord) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("user_id"),
+		index.Fields("prize_item_id"),
 		index.Fields("created_at"),
 	}
 }

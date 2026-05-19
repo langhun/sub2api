@@ -40,8 +40,29 @@ type CheckinPrizeItem struct {
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// DeletedAt holds the value of the "deleted_at" field.
-	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the CheckinPrizeItemQuery when eager-loading is set.
+	Edges        CheckinPrizeItemEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// CheckinPrizeItemEdges holds the relations/edges for other nodes in the graph.
+type CheckinPrizeItemEdges struct {
+	// BlindboxRecords holds the value of the blindbox_records edge.
+	BlindboxRecords []*CheckinBlindboxRecord `json:"blindbox_records,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// BlindboxRecordsOrErr returns the BlindboxRecords value or an error if the edge
+// was not loaded in eager-loading.
+func (e CheckinPrizeItemEdges) BlindboxRecordsOrErr() ([]*CheckinBlindboxRecord, error) {
+	if e.loadedTypes[0] {
+		return e.BlindboxRecords, nil
+	}
+	return nil, &NotLoadedError{edge: "blindbox_records"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -165,6 +186,11 @@ func (_m *CheckinPrizeItem) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *CheckinPrizeItem) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryBlindboxRecords queries the "blindbox_records" edge of the CheckinPrizeItem entity.
+func (_m *CheckinPrizeItem) QueryBlindboxRecords() *CheckinBlindboxRecordQuery {
+	return NewCheckinPrizeItemClient(_m.config).QueryBlindboxRecords(_m)
 }
 
 // Update returns a builder for updating this CheckinPrizeItem.

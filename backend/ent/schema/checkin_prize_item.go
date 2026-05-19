@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 )
@@ -58,6 +59,12 @@ func (CheckinPrizeItem) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+	}
+}
+
+func (CheckinPrizeItem) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.To("blindbox_records", CheckinBlindboxRecord.Type),
 	}
 }
 

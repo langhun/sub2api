@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 )
 
@@ -657,6 +658,29 @@ func DeletedAtIsNil() predicate.CheckinPrizeItem {
 // DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
 func DeletedAtNotNil() predicate.CheckinPrizeItem {
 	return predicate.CheckinPrizeItem(sql.FieldNotNull(FieldDeletedAt))
+}
+
+// HasBlindboxRecords applies the HasEdge predicate on the "blindbox_records" edge.
+func HasBlindboxRecords() predicate.CheckinPrizeItem {
+	return predicate.CheckinPrizeItem(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, BlindboxRecordsTable, BlindboxRecordsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasBlindboxRecordsWith applies the HasEdge predicate on the "blindbox_records" edge with a given conditions (other predicates).
+func HasBlindboxRecordsWith(preds ...predicate.CheckinBlindboxRecord) predicate.CheckinPrizeItem {
+	return predicate.CheckinPrizeItem(func(s *sql.Selector) {
+		step := newBlindboxRecordsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

@@ -13,7 +13,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/mixin"
-	"github.com/Wei-Shaw/sub2api/ent/intercept"
 )
 
 // SoftDeleteMixin 实现基于 deleted_at 时间戳的软删除功能。
@@ -81,13 +80,15 @@ func SkipSoftDelete(parent context.Context) context.Context {
 // 确保软删除的记录不会出现在普通查询结果中。
 func (d SoftDeleteMixin) Interceptors() []ent.Interceptor {
 	return []ent.Interceptor{
-		intercept.TraverseFunc(func(ctx context.Context, q intercept.Query) error {
+		ent.TraverseFunc(func(ctx context.Context, q ent.Query) error {
 			// 检查是否需要跳过软删除过滤
 			if skip, _ := ctx.Value(softDeleteKey{}).(bool); skip {
 				return nil
 			}
 			// 为查询添加 deleted_at IS NULL 条件
-			d.applyPredicate(q)
+			if err := d.applyQueryPredicate(q); err != nil {
+				return err
+			}
 			return nil
 		}),
 	}
@@ -135,6 +136,29 @@ func (d SoftDeleteMixin) applyPredicate(w interface{ WhereP(...func(*sql.Selecto
 	w.WhereP(
 		sql.FieldIsNull(d.Fields()[0].Descriptor().Name),
 	)
+}
+
+func (d SoftDeleteMixin) applyQueryPredicate(q ent.Query) error {
+	whereMethod := reflect.ValueOf(q).MethodByName("Where")
+	if !whereMethod.IsValid() {
+		return fmt.Errorf("soft delete: query missing Where method for %T", q)
+	}
+	whereType := whereMethod.Type()
+	if whereType.NumIn() != 1 || !whereType.IsVariadic() {
+		return fmt.Errorf("soft delete: query Where signature mismatch for %T", q)
+	}
+
+	predicate := reflect.ValueOf(sql.FieldIsNull(d.Fields()[0].Descriptor().Name))
+	targetType := whereType.In(whereType.NumIn() - 1).Elem()
+	if !predicate.Type().AssignableTo(targetType) {
+		if !predicate.Type().ConvertibleTo(targetType) {
+			return fmt.Errorf("soft delete: query predicate type mismatch for %T", q)
+		}
+		predicate = predicate.Convert(targetType)
+	}
+
+	whereMethod.Call([]reflect.Value{predicate})
+	return nil
 }
 
 func mutateWithClient(ctx context.Context, m ent.Mutation, fallback ent.Mutator) (ent.Value, error) {
