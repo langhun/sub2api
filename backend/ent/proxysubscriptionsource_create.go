@@ -119,6 +119,20 @@ func (_c *ProxySubscriptionSourceCreate) SetNillableRefreshIntervalHours(v *int)
 	return _c
 }
 
+// SetTargetEntryCount sets the "target_entry_count" field.
+func (_c *ProxySubscriptionSourceCreate) SetTargetEntryCount(v int) *ProxySubscriptionSourceCreate {
+	_c.mutation.SetTargetEntryCount(v)
+	return _c
+}
+
+// SetNillableTargetEntryCount sets the "target_entry_count" field if the given value is not nil.
+func (_c *ProxySubscriptionSourceCreate) SetNillableTargetEntryCount(v *int) *ProxySubscriptionSourceCreate {
+	if v != nil {
+		_c.SetTargetEntryCount(*v)
+	}
+	return _c
+}
+
 // SetAutoAddToPool sets the "auto_add_to_pool" field.
 func (_c *ProxySubscriptionSourceCreate) SetAutoAddToPool(v bool) *ProxySubscriptionSourceCreate {
 	_c.mutation.SetAutoAddToPool(v)
@@ -281,6 +295,10 @@ func (_c *ProxySubscriptionSourceCreate) defaults() error {
 		v := proxysubscriptionsource.DefaultRefreshIntervalHours
 		_c.mutation.SetRefreshIntervalHours(v)
 	}
+	if _, ok := _c.mutation.TargetEntryCount(); !ok {
+		v := proxysubscriptionsource.DefaultTargetEntryCount
+		_c.mutation.SetTargetEntryCount(v)
+	}
 	if _, ok := _c.mutation.AutoAddToPool(); !ok {
 		v := proxysubscriptionsource.DefaultAutoAddToPool
 		_c.mutation.SetAutoAddToPool(v)
@@ -333,6 +351,9 @@ func (_c *ProxySubscriptionSourceCreate) check() error {
 	}
 	if _, ok := _c.mutation.RefreshIntervalHours(); !ok {
 		return &ValidationError{Name: "refresh_interval_hours", err: errors.New(`ent: missing required field "ProxySubscriptionSource.refresh_interval_hours"`)}
+	}
+	if _, ok := _c.mutation.TargetEntryCount(); !ok {
+		return &ValidationError{Name: "target_entry_count", err: errors.New(`ent: missing required field "ProxySubscriptionSource.target_entry_count"`)}
 	}
 	if _, ok := _c.mutation.AutoAddToPool(); !ok {
 		return &ValidationError{Name: "auto_add_to_pool", err: errors.New(`ent: missing required field "ProxySubscriptionSource.auto_add_to_pool"`)}
@@ -401,6 +422,10 @@ func (_c *ProxySubscriptionSourceCreate) createSpec() (*ProxySubscriptionSource,
 	if value, ok := _c.mutation.RefreshIntervalHours(); ok {
 		_spec.SetField(proxysubscriptionsource.FieldRefreshIntervalHours, field.TypeInt, value)
 		_node.RefreshIntervalHours = value
+	}
+	if value, ok := _c.mutation.TargetEntryCount(); ok {
+		_spec.SetField(proxysubscriptionsource.FieldTargetEntryCount, field.TypeInt, value)
+		_node.TargetEntryCount = value
 	}
 	if value, ok := _c.mutation.AutoAddToPool(); ok {
 		_spec.SetField(proxysubscriptionsource.FieldAutoAddToPool, field.TypeBool, value)
@@ -587,6 +612,24 @@ func (u *ProxySubscriptionSourceUpsert) UpdateRefreshIntervalHours() *ProxySubsc
 // AddRefreshIntervalHours adds v to the "refresh_interval_hours" field.
 func (u *ProxySubscriptionSourceUpsert) AddRefreshIntervalHours(v int) *ProxySubscriptionSourceUpsert {
 	u.Add(proxysubscriptionsource.FieldRefreshIntervalHours, v)
+	return u
+}
+
+// SetTargetEntryCount sets the "target_entry_count" field.
+func (u *ProxySubscriptionSourceUpsert) SetTargetEntryCount(v int) *ProxySubscriptionSourceUpsert {
+	u.Set(proxysubscriptionsource.FieldTargetEntryCount, v)
+	return u
+}
+
+// UpdateTargetEntryCount sets the "target_entry_count" field to the value that was provided on create.
+func (u *ProxySubscriptionSourceUpsert) UpdateTargetEntryCount() *ProxySubscriptionSourceUpsert {
+	u.SetExcluded(proxysubscriptionsource.FieldTargetEntryCount)
+	return u
+}
+
+// AddTargetEntryCount adds v to the "target_entry_count" field.
+func (u *ProxySubscriptionSourceUpsert) AddTargetEntryCount(v int) *ProxySubscriptionSourceUpsert {
+	u.Add(proxysubscriptionsource.FieldTargetEntryCount, v)
 	return u
 }
 
@@ -846,6 +889,27 @@ func (u *ProxySubscriptionSourceUpsertOne) AddRefreshIntervalHours(v int) *Proxy
 func (u *ProxySubscriptionSourceUpsertOne) UpdateRefreshIntervalHours() *ProxySubscriptionSourceUpsertOne {
 	return u.Update(func(s *ProxySubscriptionSourceUpsert) {
 		s.UpdateRefreshIntervalHours()
+	})
+}
+
+// SetTargetEntryCount sets the "target_entry_count" field.
+func (u *ProxySubscriptionSourceUpsertOne) SetTargetEntryCount(v int) *ProxySubscriptionSourceUpsertOne {
+	return u.Update(func(s *ProxySubscriptionSourceUpsert) {
+		s.SetTargetEntryCount(v)
+	})
+}
+
+// AddTargetEntryCount adds v to the "target_entry_count" field.
+func (u *ProxySubscriptionSourceUpsertOne) AddTargetEntryCount(v int) *ProxySubscriptionSourceUpsertOne {
+	return u.Update(func(s *ProxySubscriptionSourceUpsert) {
+		s.AddTargetEntryCount(v)
+	})
+}
+
+// UpdateTargetEntryCount sets the "target_entry_count" field to the value that was provided on create.
+func (u *ProxySubscriptionSourceUpsertOne) UpdateTargetEntryCount() *ProxySubscriptionSourceUpsertOne {
+	return u.Update(func(s *ProxySubscriptionSourceUpsert) {
+		s.UpdateTargetEntryCount()
 	})
 }
 
@@ -1288,6 +1352,27 @@ func (u *ProxySubscriptionSourceUpsertBulk) AddRefreshIntervalHours(v int) *Prox
 func (u *ProxySubscriptionSourceUpsertBulk) UpdateRefreshIntervalHours() *ProxySubscriptionSourceUpsertBulk {
 	return u.Update(func(s *ProxySubscriptionSourceUpsert) {
 		s.UpdateRefreshIntervalHours()
+	})
+}
+
+// SetTargetEntryCount sets the "target_entry_count" field.
+func (u *ProxySubscriptionSourceUpsertBulk) SetTargetEntryCount(v int) *ProxySubscriptionSourceUpsertBulk {
+	return u.Update(func(s *ProxySubscriptionSourceUpsert) {
+		s.SetTargetEntryCount(v)
+	})
+}
+
+// AddTargetEntryCount adds v to the "target_entry_count" field.
+func (u *ProxySubscriptionSourceUpsertBulk) AddTargetEntryCount(v int) *ProxySubscriptionSourceUpsertBulk {
+	return u.Update(func(s *ProxySubscriptionSourceUpsert) {
+		s.AddTargetEntryCount(v)
+	})
+}
+
+// UpdateTargetEntryCount sets the "target_entry_count" field to the value that was provided on create.
+func (u *ProxySubscriptionSourceUpsertBulk) UpdateTargetEntryCount() *ProxySubscriptionSourceUpsertBulk {
+	return u.Update(func(s *ProxySubscriptionSourceUpsert) {
+		s.UpdateTargetEntryCount()
 	})
 }
 

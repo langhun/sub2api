@@ -137,6 +137,22 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		LinuxDoConnectClientID:                 settings.LinuxDoConnectClientID,
 		LinuxDoConnectClientSecretConfigured:   settings.LinuxDoConnectClientSecretConfigured,
 		LinuxDoConnectRedirectURL:              settings.LinuxDoConnectRedirectURL,
+		DingTalkConnectEnabled:                 settings.DingTalkConnectEnabled,
+		DingTalkConnectClientID:                settings.DingTalkConnectClientID,
+		DingTalkConnectClientSecretConfigured:  settings.DingTalkConnectClientSecretConfigured,
+		DingTalkConnectRedirectURL:             settings.DingTalkConnectRedirectURL,
+		DingTalkConnectCorpRestrictionPolicy:   settings.DingTalkConnectCorpRestrictionPolicy,
+		DingTalkConnectInternalCorpID:          settings.DingTalkConnectInternalCorpID,
+		DingTalkConnectBypassRegistration:      settings.DingTalkConnectBypassRegistration,
+		DingTalkConnectSyncCorpEmail:           settings.DingTalkConnectSyncCorpEmail,
+		DingTalkConnectSyncDisplayName:         settings.DingTalkConnectSyncDisplayName,
+		DingTalkConnectSyncDept:                settings.DingTalkConnectSyncDept,
+		DingTalkConnectSyncCorpEmailAttrKey:    settings.DingTalkConnectSyncCorpEmailAttrKey,
+		DingTalkConnectSyncDisplayNameAttrKey:  settings.DingTalkConnectSyncDisplayNameAttrKey,
+		DingTalkConnectSyncDeptAttrKey:         settings.DingTalkConnectSyncDeptAttrKey,
+		DingTalkConnectSyncCorpEmailAttrName:   settings.DingTalkConnectSyncCorpEmailAttrName,
+		DingTalkConnectSyncDisplayNameAttrName: settings.DingTalkConnectSyncDisplayNameAttrName,
+		DingTalkConnectSyncDeptAttrName:        settings.DingTalkConnectSyncDeptAttrName,
 		WeChatConnectEnabled:                   settings.WeChatConnectEnabled,
 		WeChatConnectAppID:                     settings.WeChatConnectAppID,
 		WeChatConnectAppSecretConfigured:       settings.WeChatConnectAppSecretConfigured,
@@ -411,6 +427,24 @@ type UpdateSettingsRequest struct {
 	LinuxDoConnectClientSecret string `json:"linuxdo_connect_client_secret"`
 	LinuxDoConnectRedirectURL  string `json:"linuxdo_connect_redirect_url"`
 
+	// DingTalk Connect OAuth 登录
+	DingTalkConnectEnabled                 bool   `json:"dingtalk_connect_enabled"`
+	DingTalkConnectClientID                string `json:"dingtalk_connect_client_id"`
+	DingTalkConnectClientSecret            string `json:"dingtalk_connect_client_secret"`
+	DingTalkConnectRedirectURL             string `json:"dingtalk_connect_redirect_url"`
+	DingTalkConnectCorpRestrictionPolicy   string `json:"dingtalk_connect_corp_restriction_policy"`
+	DingTalkConnectInternalCorpID          string `json:"dingtalk_connect_internal_corp_id"`
+	DingTalkConnectBypassRegistration      bool   `json:"dingtalk_connect_bypass_registration"`
+	DingTalkConnectSyncCorpEmail           bool   `json:"dingtalk_connect_sync_corp_email"`
+	DingTalkConnectSyncDisplayName         bool   `json:"dingtalk_connect_sync_display_name"`
+	DingTalkConnectSyncDept                bool   `json:"dingtalk_connect_sync_dept"`
+	DingTalkConnectSyncCorpEmailAttrKey    string `json:"dingtalk_connect_sync_corp_email_attr_key"`
+	DingTalkConnectSyncDisplayNameAttrKey  string `json:"dingtalk_connect_sync_display_name_attr_key"`
+	DingTalkConnectSyncDeptAttrKey         string `json:"dingtalk_connect_sync_dept_attr_key"`
+	DingTalkConnectSyncCorpEmailAttrName   string `json:"dingtalk_connect_sync_corp_email_attr_name"`
+	DingTalkConnectSyncDisplayNameAttrName string `json:"dingtalk_connect_sync_display_name_attr_name"`
+	DingTalkConnectSyncDeptAttrName        string `json:"dingtalk_connect_sync_dept_attr_name"`
+
 	// WeChat Connect OAuth 登录
 	WeChatConnectEnabled             bool   `json:"wechat_connect_enabled"`
 	WeChatConnectAppID               string `json:"wechat_connect_app_id"`
@@ -530,6 +564,11 @@ type UpdateSettingsRequest struct {
 	AuthSourceDefaultGoogleSubscriptions     *[]dto.DefaultSubscriptionSetting `json:"auth_source_default_google_subscriptions"`
 	AuthSourceDefaultGoogleGrantOnSignup     *bool                             `json:"auth_source_default_google_grant_on_signup"`
 	AuthSourceDefaultGoogleGrantOnFirstBind  *bool                             `json:"auth_source_default_google_grant_on_first_bind"`
+	AuthSourceDefaultDingTalkBalance         *float64                          `json:"auth_source_default_dingtalk_balance"`
+	AuthSourceDefaultDingTalkConcurrency     *int                              `json:"auth_source_default_dingtalk_concurrency"`
+	AuthSourceDefaultDingTalkSubscriptions   *[]dto.DefaultSubscriptionSetting `json:"auth_source_default_dingtalk_subscriptions"`
+	AuthSourceDefaultDingTalkGrantOnSignup   *bool                             `json:"auth_source_default_dingtalk_grant_on_signup"`
+	AuthSourceDefaultDingTalkGrantOnFirstBind *bool                            `json:"auth_source_default_dingtalk_grant_on_first_bind"`
 	ForceEmailOnThirdPartySignup             *bool                             `json:"force_email_on_third_party_signup"`
 
 	// Model fallback configuration
@@ -847,6 +886,74 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return
 			}
 			req.LinuxDoConnectClientSecret = previousSettings.LinuxDoConnectClientSecret
+		}
+	}
+
+	// DingTalk Connect 参数验证
+	req.DingTalkConnectCorpRestrictionPolicy = strings.TrimSpace(req.DingTalkConnectCorpRestrictionPolicy)
+	if req.DingTalkConnectCorpRestrictionPolicy == "whitelist" {
+		req.DingTalkConnectCorpRestrictionPolicy = "none"
+	}
+	if req.DingTalkConnectEnabled {
+		req.DingTalkConnectClientID = strings.TrimSpace(req.DingTalkConnectClientID)
+		req.DingTalkConnectClientSecret = strings.TrimSpace(req.DingTalkConnectClientSecret)
+		req.DingTalkConnectRedirectURL = strings.TrimSpace(req.DingTalkConnectRedirectURL)
+		req.DingTalkConnectInternalCorpID = strings.TrimSpace(req.DingTalkConnectInternalCorpID)
+		req.DingTalkConnectSyncCorpEmailAttrKey = strings.TrimSpace(req.DingTalkConnectSyncCorpEmailAttrKey)
+		req.DingTalkConnectSyncDisplayNameAttrKey = strings.TrimSpace(req.DingTalkConnectSyncDisplayNameAttrKey)
+		req.DingTalkConnectSyncDeptAttrKey = strings.TrimSpace(req.DingTalkConnectSyncDeptAttrKey)
+		req.DingTalkConnectSyncCorpEmailAttrName = strings.TrimSpace(req.DingTalkConnectSyncCorpEmailAttrName)
+		req.DingTalkConnectSyncDisplayNameAttrName = strings.TrimSpace(req.DingTalkConnectSyncDisplayNameAttrName)
+		req.DingTalkConnectSyncDeptAttrName = strings.TrimSpace(req.DingTalkConnectSyncDeptAttrName)
+
+		if req.DingTalkConnectClientID == "" {
+			response.BadRequest(c, "DingTalk Client ID is required when enabled")
+			return
+		}
+		if req.DingTalkConnectRedirectURL == "" {
+			response.BadRequest(c, "DingTalk Redirect URL is required when enabled")
+			return
+		}
+		if err := config.ValidateAbsoluteHTTPURL(req.DingTalkConnectRedirectURL); err != nil {
+			response.BadRequest(c, "DingTalk Redirect URL must be an absolute http(s) URL")
+			return
+		}
+		if req.DingTalkConnectClientSecret == "" {
+			if previousSettings.DingTalkConnectClientSecret == "" {
+				response.BadRequest(c, "DingTalk Client Secret is required when enabled")
+				return
+			}
+			req.DingTalkConnectClientSecret = previousSettings.DingTalkConnectClientSecret
+		}
+		if req.DingTalkConnectCorpRestrictionPolicy == "" {
+			req.DingTalkConnectCorpRestrictionPolicy = previousSettings.DingTalkConnectCorpRestrictionPolicy
+		}
+		if req.DingTalkConnectCorpRestrictionPolicy == "" {
+			req.DingTalkConnectCorpRestrictionPolicy = "none"
+		}
+		if req.DingTalkConnectCorpRestrictionPolicy != "internal_only" {
+			req.DingTalkConnectBypassRegistration = false
+			req.DingTalkConnectSyncCorpEmail = false
+			req.DingTalkConnectSyncDisplayName = false
+			req.DingTalkConnectSyncDept = false
+		}
+		if req.DingTalkConnectSyncCorpEmailAttrKey == "" {
+			req.DingTalkConnectSyncCorpEmailAttrKey = "dingtalk_email"
+		}
+		if req.DingTalkConnectSyncDisplayNameAttrKey == "" {
+			req.DingTalkConnectSyncDisplayNameAttrKey = "dingtalk_name"
+		}
+		if req.DingTalkConnectSyncDeptAttrKey == "" {
+			req.DingTalkConnectSyncDeptAttrKey = "dingtalk_department"
+		}
+		if req.DingTalkConnectSyncCorpEmailAttrName == "" {
+			req.DingTalkConnectSyncCorpEmailAttrName = "钉钉企业邮箱"
+		}
+		if req.DingTalkConnectSyncDisplayNameAttrName == "" {
+			req.DingTalkConnectSyncDisplayNameAttrName = "钉钉姓名"
+		}
+		if req.DingTalkConnectSyncDeptAttrName == "" {
+			req.DingTalkConnectSyncDeptAttrName = "钉钉部门"
 		}
 	}
 
@@ -1408,6 +1515,22 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		LinuxDoConnectClientID:           req.LinuxDoConnectClientID,
 		LinuxDoConnectClientSecret:       req.LinuxDoConnectClientSecret,
 		LinuxDoConnectRedirectURL:        req.LinuxDoConnectRedirectURL,
+		DingTalkConnectEnabled:           req.DingTalkConnectEnabled,
+		DingTalkConnectClientID:          req.DingTalkConnectClientID,
+		DingTalkConnectClientSecret:      req.DingTalkConnectClientSecret,
+		DingTalkConnectRedirectURL:       req.DingTalkConnectRedirectURL,
+		DingTalkConnectCorpRestrictionPolicy:   req.DingTalkConnectCorpRestrictionPolicy,
+		DingTalkConnectInternalCorpID:          req.DingTalkConnectInternalCorpID,
+		DingTalkConnectBypassRegistration:      req.DingTalkConnectBypassRegistration,
+		DingTalkConnectSyncCorpEmail:           req.DingTalkConnectSyncCorpEmail,
+		DingTalkConnectSyncDisplayName:         req.DingTalkConnectSyncDisplayName,
+		DingTalkConnectSyncDept:                req.DingTalkConnectSyncDept,
+		DingTalkConnectSyncCorpEmailAttrKey:    req.DingTalkConnectSyncCorpEmailAttrKey,
+		DingTalkConnectSyncDisplayNameAttrKey:  req.DingTalkConnectSyncDisplayNameAttrKey,
+		DingTalkConnectSyncDeptAttrKey:         req.DingTalkConnectSyncDeptAttrKey,
+		DingTalkConnectSyncCorpEmailAttrName:   req.DingTalkConnectSyncCorpEmailAttrName,
+		DingTalkConnectSyncDisplayNameAttrName: req.DingTalkConnectSyncDisplayNameAttrName,
+		DingTalkConnectSyncDeptAttrName:        req.DingTalkConnectSyncDeptAttrName,
 		WeChatConnectEnabled:             req.WeChatConnectEnabled,
 		WeChatConnectAppID:               req.WeChatConnectAppID,
 		WeChatConnectAppSecret:           req.WeChatConnectAppSecret,
@@ -1815,6 +1938,13 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			GrantOnSignup:    boolValueOrDefault(req.AuthSourceDefaultGoogleGrantOnSignup, previousAuthSourceDefaults.Google.GrantOnSignup),
 			GrantOnFirstBind: boolValueOrDefault(req.AuthSourceDefaultGoogleGrantOnFirstBind, previousAuthSourceDefaults.Google.GrantOnFirstBind),
 		},
+		DingTalk: service.ProviderDefaultGrantSettings{
+			Balance:          float64ValueOrDefault(req.AuthSourceDefaultDingTalkBalance, previousAuthSourceDefaults.DingTalk.Balance),
+			Concurrency:      intValueOrDefault(req.AuthSourceDefaultDingTalkConcurrency, previousAuthSourceDefaults.DingTalk.Concurrency),
+			Subscriptions:    defaultSubscriptionsValueOrDefault(req.AuthSourceDefaultDingTalkSubscriptions, previousAuthSourceDefaults.DingTalk.Subscriptions),
+			GrantOnSignup:    boolValueOrDefault(req.AuthSourceDefaultDingTalkGrantOnSignup, previousAuthSourceDefaults.DingTalk.GrantOnSignup),
+			GrantOnFirstBind: boolValueOrDefault(req.AuthSourceDefaultDingTalkGrantOnFirstBind, previousAuthSourceDefaults.DingTalk.GrantOnFirstBind),
+		},
 		ForceEmailOnThirdPartySignup: boolValueOrDefault(req.ForceEmailOnThirdPartySignup, previousAuthSourceDefaults.ForceEmailOnThirdPartySignup),
 	}
 	if err := h.settingService.UpdateSettingsWithAuthSourceDefaults(c.Request.Context(), settings, authSourceDefaults); err != nil {
@@ -2037,6 +2167,22 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		BalanceLowNotifyRechargeURL:            updatedSettings.BalanceLowNotifyRechargeURL,
 		AccountQuotaNotifyEnabled:              updatedSettings.AccountQuotaNotifyEnabled,
 		AccountQuotaNotifyEmails:               dto.NotifyEmailEntriesFromService(updatedSettings.AccountQuotaNotifyEmails),
+		DingTalkConnectEnabled:                 updatedSettings.DingTalkConnectEnabled,
+		DingTalkConnectClientID:                updatedSettings.DingTalkConnectClientID,
+		DingTalkConnectClientSecretConfigured:  updatedSettings.DingTalkConnectClientSecretConfigured,
+		DingTalkConnectRedirectURL:             updatedSettings.DingTalkConnectRedirectURL,
+		DingTalkConnectCorpRestrictionPolicy:   updatedSettings.DingTalkConnectCorpRestrictionPolicy,
+		DingTalkConnectInternalCorpID:          updatedSettings.DingTalkConnectInternalCorpID,
+		DingTalkConnectBypassRegistration:      updatedSettings.DingTalkConnectBypassRegistration,
+		DingTalkConnectSyncCorpEmail:           updatedSettings.DingTalkConnectSyncCorpEmail,
+		DingTalkConnectSyncDisplayName:         updatedSettings.DingTalkConnectSyncDisplayName,
+		DingTalkConnectSyncDept:                updatedSettings.DingTalkConnectSyncDept,
+		DingTalkConnectSyncCorpEmailAttrKey:    updatedSettings.DingTalkConnectSyncCorpEmailAttrKey,
+		DingTalkConnectSyncDisplayNameAttrKey:  updatedSettings.DingTalkConnectSyncDisplayNameAttrKey,
+		DingTalkConnectSyncDeptAttrKey:         updatedSettings.DingTalkConnectSyncDeptAttrKey,
+		DingTalkConnectSyncCorpEmailAttrName:   updatedSettings.DingTalkConnectSyncCorpEmailAttrName,
+		DingTalkConnectSyncDisplayNameAttrName: updatedSettings.DingTalkConnectSyncDisplayNameAttrName,
+		DingTalkConnectSyncDeptAttrName:        updatedSettings.DingTalkConnectSyncDeptAttrName,
 		CheckinEnabled:                         updatedSettings.CheckinEnabled,
 		CheckinMinBalance:                      updatedSettings.CheckinMinBalance,
 		CheckinMaxBalance:                      updatedSettings.CheckinMaxBalance,
@@ -2660,6 +2806,11 @@ func systemSettingsResponseData(settings dto.SystemSettings, authSourceDefaults 
 	data["auth_source_default_google_subscriptions"] = authSourceDefaults.Google.Subscriptions
 	data["auth_source_default_google_grant_on_signup"] = authSourceDefaults.Google.GrantOnSignup
 	data["auth_source_default_google_grant_on_first_bind"] = authSourceDefaults.Google.GrantOnFirstBind
+	data["auth_source_default_dingtalk_balance"] = authSourceDefaults.DingTalk.Balance
+	data["auth_source_default_dingtalk_concurrency"] = authSourceDefaults.DingTalk.Concurrency
+	data["auth_source_default_dingtalk_subscriptions"] = authSourceDefaults.DingTalk.Subscriptions
+	data["auth_source_default_dingtalk_grant_on_signup"] = authSourceDefaults.DingTalk.GrantOnSignup
+	data["auth_source_default_dingtalk_grant_on_first_bind"] = authSourceDefaults.DingTalk.GrantOnFirstBind
 	data["force_email_on_third_party_signup"] = authSourceDefaults.ForceEmailOnThirdPartySignup
 
 	return data

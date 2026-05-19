@@ -85,62 +85,6 @@ func (_c *UsageLogCreate) SetNillableUpstreamModel(v *string) *UsageLogCreate {
 	return _c
 }
 
-// SetChannelID sets the "channel_id" field.
-func (_c *UsageLogCreate) SetChannelID(v int64) *UsageLogCreate {
-	_c.mutation.SetChannelID(v)
-	return _c
-}
-
-// SetNillableChannelID sets the "channel_id" field if the given value is not nil.
-func (_c *UsageLogCreate) SetNillableChannelID(v *int64) *UsageLogCreate {
-	if v != nil {
-		_c.SetChannelID(*v)
-	}
-	return _c
-}
-
-// SetModelMappingChain sets the "model_mapping_chain" field.
-func (_c *UsageLogCreate) SetModelMappingChain(v string) *UsageLogCreate {
-	_c.mutation.SetModelMappingChain(v)
-	return _c
-}
-
-// SetNillableModelMappingChain sets the "model_mapping_chain" field if the given value is not nil.
-func (_c *UsageLogCreate) SetNillableModelMappingChain(v *string) *UsageLogCreate {
-	if v != nil {
-		_c.SetModelMappingChain(*v)
-	}
-	return _c
-}
-
-// SetBillingTier sets the "billing_tier" field.
-func (_c *UsageLogCreate) SetBillingTier(v string) *UsageLogCreate {
-	_c.mutation.SetBillingTier(v)
-	return _c
-}
-
-// SetNillableBillingTier sets the "billing_tier" field if the given value is not nil.
-func (_c *UsageLogCreate) SetNillableBillingTier(v *string) *UsageLogCreate {
-	if v != nil {
-		_c.SetBillingTier(*v)
-	}
-	return _c
-}
-
-// SetBillingMode sets the "billing_mode" field.
-func (_c *UsageLogCreate) SetBillingMode(v string) *UsageLogCreate {
-	_c.mutation.SetBillingMode(v)
-	return _c
-}
-
-// SetNillableBillingMode sets the "billing_mode" field if the given value is not nil.
-func (_c *UsageLogCreate) SetNillableBillingMode(v *string) *UsageLogCreate {
-	if v != nil {
-		_c.SetBillingMode(*v)
-	}
-	return _c
-}
-
 // SetGroupID sets the "group_id" field.
 func (_c *UsageLogCreate) SetGroupID(v int64) *UsageLogCreate {
 	_c.mutation.SetGroupID(v)
@@ -249,6 +193,34 @@ func (_c *UsageLogCreate) SetCacheCreation1hTokens(v int) *UsageLogCreate {
 func (_c *UsageLogCreate) SetNillableCacheCreation1hTokens(v *int) *UsageLogCreate {
 	if v != nil {
 		_c.SetCacheCreation1hTokens(*v)
+	}
+	return _c
+}
+
+// SetImageOutputTokens sets the "image_output_tokens" field.
+func (_c *UsageLogCreate) SetImageOutputTokens(v int) *UsageLogCreate {
+	_c.mutation.SetImageOutputTokens(v)
+	return _c
+}
+
+// SetNillableImageOutputTokens sets the "image_output_tokens" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableImageOutputTokens(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetImageOutputTokens(*v)
+	}
+	return _c
+}
+
+// SetImageOutputCost sets the "image_output_cost" field.
+func (_c *UsageLogCreate) SetImageOutputCost(v float64) *UsageLogCreate {
+	_c.mutation.SetImageOutputCost(v)
+	return _c
+}
+
+// SetNillableImageOutputCost sets the "image_output_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableImageOutputCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetImageOutputCost(*v)
 	}
 	return _c
 }
@@ -379,6 +351,20 @@ func (_c *UsageLogCreate) SetNillableBillingType(v *int8) *UsageLogCreate {
 	return _c
 }
 
+// SetRequestType sets the "request_type" field.
+func (_c *UsageLogCreate) SetRequestType(v int) *UsageLogCreate {
+	_c.mutation.SetRequestType(v)
+	return _c
+}
+
+// SetNillableRequestType sets the "request_type" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableRequestType(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetRequestType(*v)
+	}
+	return _c
+}
+
 // SetStream sets the "stream" field.
 func (_c *UsageLogCreate) SetStream(v bool) *UsageLogCreate {
 	_c.mutation.SetStream(v)
@@ -389,6 +375,20 @@ func (_c *UsageLogCreate) SetStream(v bool) *UsageLogCreate {
 func (_c *UsageLogCreate) SetNillableStream(v *bool) *UsageLogCreate {
 	if v != nil {
 		_c.SetStream(*v)
+	}
+	return _c
+}
+
+// SetOpenaiWsMode sets the "openai_ws_mode" field.
+func (_c *UsageLogCreate) SetOpenaiWsMode(v bool) *UsageLogCreate {
+	_c.mutation.SetOpenaiWsMode(v)
+	return _c
+}
+
+// SetNillableOpenaiWsMode sets the "openai_ws_mode" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableOpenaiWsMode(v *bool) *UsageLogCreate {
+	if v != nil {
+		_c.SetOpenaiWsMode(*v)
 	}
 	return _c
 }
@@ -533,6 +533,110 @@ func (_c *UsageLogCreate) SetNillableImageSize(v *string) *UsageLogCreate {
 	return _c
 }
 
+// SetImageInputSize sets the "image_input_size" field.
+func (_c *UsageLogCreate) SetImageInputSize(v string) *UsageLogCreate {
+	_c.mutation.SetImageInputSize(v)
+	return _c
+}
+
+// SetNillableImageInputSize sets the "image_input_size" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableImageInputSize(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetImageInputSize(*v)
+	}
+	return _c
+}
+
+// SetImageOutputSize sets the "image_output_size" field.
+func (_c *UsageLogCreate) SetImageOutputSize(v string) *UsageLogCreate {
+	_c.mutation.SetImageOutputSize(v)
+	return _c
+}
+
+// SetNillableImageOutputSize sets the "image_output_size" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableImageOutputSize(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetImageOutputSize(*v)
+	}
+	return _c
+}
+
+// SetImageSizeSource sets the "image_size_source" field.
+func (_c *UsageLogCreate) SetImageSizeSource(v string) *UsageLogCreate {
+	_c.mutation.SetImageSizeSource(v)
+	return _c
+}
+
+// SetNillableImageSizeSource sets the "image_size_source" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableImageSizeSource(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetImageSizeSource(*v)
+	}
+	return _c
+}
+
+// SetImageSizeBreakdown sets the "image_size_breakdown" field.
+func (_c *UsageLogCreate) SetImageSizeBreakdown(v map[string]int) *UsageLogCreate {
+	_c.mutation.SetImageSizeBreakdown(v)
+	return _c
+}
+
+// SetServiceTier sets the "service_tier" field.
+func (_c *UsageLogCreate) SetServiceTier(v string) *UsageLogCreate {
+	_c.mutation.SetServiceTier(v)
+	return _c
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableServiceTier(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetServiceTier(*v)
+	}
+	return _c
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (_c *UsageLogCreate) SetReasoningEffort(v string) *UsageLogCreate {
+	_c.mutation.SetReasoningEffort(v)
+	return _c
+}
+
+// SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableReasoningEffort(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetReasoningEffort(*v)
+	}
+	return _c
+}
+
+// SetInboundEndpoint sets the "inbound_endpoint" field.
+func (_c *UsageLogCreate) SetInboundEndpoint(v string) *UsageLogCreate {
+	_c.mutation.SetInboundEndpoint(v)
+	return _c
+}
+
+// SetNillableInboundEndpoint sets the "inbound_endpoint" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableInboundEndpoint(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetInboundEndpoint(*v)
+	}
+	return _c
+}
+
+// SetUpstreamEndpoint sets the "upstream_endpoint" field.
+func (_c *UsageLogCreate) SetUpstreamEndpoint(v string) *UsageLogCreate {
+	_c.mutation.SetUpstreamEndpoint(v)
+	return _c
+}
+
+// SetNillableUpstreamEndpoint sets the "upstream_endpoint" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableUpstreamEndpoint(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetUpstreamEndpoint(*v)
+	}
+	return _c
+}
+
 // SetCacheTTLOverridden sets the "cache_ttl_overridden" field.
 func (_c *UsageLogCreate) SetCacheTTLOverridden(v bool) *UsageLogCreate {
 	_c.mutation.SetCacheTTLOverridden(v)
@@ -543,6 +647,76 @@ func (_c *UsageLogCreate) SetCacheTTLOverridden(v bool) *UsageLogCreate {
 func (_c *UsageLogCreate) SetNillableCacheTTLOverridden(v *bool) *UsageLogCreate {
 	if v != nil {
 		_c.SetCacheTTLOverridden(*v)
+	}
+	return _c
+}
+
+// SetChannelID sets the "channel_id" field.
+func (_c *UsageLogCreate) SetChannelID(v int64) *UsageLogCreate {
+	_c.mutation.SetChannelID(v)
+	return _c
+}
+
+// SetNillableChannelID sets the "channel_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableChannelID(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetChannelID(*v)
+	}
+	return _c
+}
+
+// SetModelMappingChain sets the "model_mapping_chain" field.
+func (_c *UsageLogCreate) SetModelMappingChain(v string) *UsageLogCreate {
+	_c.mutation.SetModelMappingChain(v)
+	return _c
+}
+
+// SetNillableModelMappingChain sets the "model_mapping_chain" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableModelMappingChain(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetModelMappingChain(*v)
+	}
+	return _c
+}
+
+// SetBillingTier sets the "billing_tier" field.
+func (_c *UsageLogCreate) SetBillingTier(v string) *UsageLogCreate {
+	_c.mutation.SetBillingTier(v)
+	return _c
+}
+
+// SetNillableBillingTier sets the "billing_tier" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingTier(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingTier(*v)
+	}
+	return _c
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (_c *UsageLogCreate) SetBillingMode(v string) *UsageLogCreate {
+	_c.mutation.SetBillingMode(v)
+	return _c
+}
+
+// SetNillableBillingMode sets the "billing_mode" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingMode(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingMode(*v)
+	}
+	return _c
+}
+
+// SetAccountStatsCost sets the "account_stats_cost" field.
+func (_c *UsageLogCreate) SetAccountStatsCost(v float64) *UsageLogCreate {
+	_c.mutation.SetAccountStatsCost(v)
+	return _c
+}
+
+// SetNillableAccountStatsCost sets the "account_stats_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableAccountStatsCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetAccountStatsCost(*v)
 	}
 	return _c
 }
@@ -645,6 +819,14 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultCacheCreation1hTokens
 		_c.mutation.SetCacheCreation1hTokens(v)
 	}
+	if _, ok := _c.mutation.ImageOutputTokens(); !ok {
+		v := usagelog.DefaultImageOutputTokens
+		_c.mutation.SetImageOutputTokens(v)
+	}
+	if _, ok := _c.mutation.ImageOutputCost(); !ok {
+		v := usagelog.DefaultImageOutputCost
+		_c.mutation.SetImageOutputCost(v)
+	}
 	if _, ok := _c.mutation.InputCost(); !ok {
 		v := usagelog.DefaultInputCost
 		_c.mutation.SetInputCost(v)
@@ -677,9 +859,17 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultBillingType
 		_c.mutation.SetBillingType(v)
 	}
+	if _, ok := _c.mutation.RequestType(); !ok {
+		v := usagelog.DefaultRequestType
+		_c.mutation.SetRequestType(v)
+	}
 	if _, ok := _c.mutation.Stream(); !ok {
 		v := usagelog.DefaultStream
 		_c.mutation.SetStream(v)
+	}
+	if _, ok := _c.mutation.OpenaiWsMode(); !ok {
+		v := usagelog.DefaultOpenaiWsMode
+		_c.mutation.SetOpenaiWsMode(v)
 	}
 	if _, ok := _c.mutation.ImageCount(); !ok {
 		v := usagelog.DefaultImageCount
@@ -732,21 +922,6 @@ func (_c *UsageLogCreate) check() error {
 			return &ValidationError{Name: "upstream_model", err: fmt.Errorf(`ent: validator failed for field "UsageLog.upstream_model": %w`, err)}
 		}
 	}
-	if v, ok := _c.mutation.ModelMappingChain(); ok {
-		if err := usagelog.ModelMappingChainValidator(v); err != nil {
-			return &ValidationError{Name: "model_mapping_chain", err: fmt.Errorf(`ent: validator failed for field "UsageLog.model_mapping_chain": %w`, err)}
-		}
-	}
-	if v, ok := _c.mutation.BillingTier(); ok {
-		if err := usagelog.BillingTierValidator(v); err != nil {
-			return &ValidationError{Name: "billing_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_tier": %w`, err)}
-		}
-	}
-	if v, ok := _c.mutation.BillingMode(); ok {
-		if err := usagelog.BillingModeValidator(v); err != nil {
-			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
-		}
-	}
 	if _, ok := _c.mutation.InputTokens(); !ok {
 		return &ValidationError{Name: "input_tokens", err: errors.New(`ent: missing required field "UsageLog.input_tokens"`)}
 	}
@@ -764,6 +939,12 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.CacheCreation1hTokens(); !ok {
 		return &ValidationError{Name: "cache_creation_1h_tokens", err: errors.New(`ent: missing required field "UsageLog.cache_creation_1h_tokens"`)}
+	}
+	if _, ok := _c.mutation.ImageOutputTokens(); !ok {
+		return &ValidationError{Name: "image_output_tokens", err: errors.New(`ent: missing required field "UsageLog.image_output_tokens"`)}
+	}
+	if _, ok := _c.mutation.ImageOutputCost(); !ok {
+		return &ValidationError{Name: "image_output_cost", err: errors.New(`ent: missing required field "UsageLog.image_output_cost"`)}
 	}
 	if _, ok := _c.mutation.InputCost(); !ok {
 		return &ValidationError{Name: "input_cost", err: errors.New(`ent: missing required field "UsageLog.input_cost"`)}
@@ -789,8 +970,14 @@ func (_c *UsageLogCreate) check() error {
 	if _, ok := _c.mutation.BillingType(); !ok {
 		return &ValidationError{Name: "billing_type", err: errors.New(`ent: missing required field "UsageLog.billing_type"`)}
 	}
+	if _, ok := _c.mutation.RequestType(); !ok {
+		return &ValidationError{Name: "request_type", err: errors.New(`ent: missing required field "UsageLog.request_type"`)}
+	}
 	if _, ok := _c.mutation.Stream(); !ok {
 		return &ValidationError{Name: "stream", err: errors.New(`ent: missing required field "UsageLog.stream"`)}
+	}
+	if _, ok := _c.mutation.OpenaiWsMode(); !ok {
+		return &ValidationError{Name: "openai_ws_mode", err: errors.New(`ent: missing required field "UsageLog.openai_ws_mode"`)}
 	}
 	if v, ok := _c.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
@@ -810,8 +997,58 @@ func (_c *UsageLogCreate) check() error {
 			return &ValidationError{Name: "image_size", err: fmt.Errorf(`ent: validator failed for field "UsageLog.image_size": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.ImageInputSize(); ok {
+		if err := usagelog.ImageInputSizeValidator(v); err != nil {
+			return &ValidationError{Name: "image_input_size", err: fmt.Errorf(`ent: validator failed for field "UsageLog.image_input_size": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ImageOutputSize(); ok {
+		if err := usagelog.ImageOutputSizeValidator(v); err != nil {
+			return &ValidationError{Name: "image_output_size", err: fmt.Errorf(`ent: validator failed for field "UsageLog.image_output_size": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ImageSizeSource(); ok {
+		if err := usagelog.ImageSizeSourceValidator(v); err != nil {
+			return &ValidationError{Name: "image_size_source", err: fmt.Errorf(`ent: validator failed for field "UsageLog.image_size_source": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ServiceTier(); ok {
+		if err := usagelog.ServiceTierValidator(v); err != nil {
+			return &ValidationError{Name: "service_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.service_tier": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ReasoningEffort(); ok {
+		if err := usagelog.ReasoningEffortValidator(v); err != nil {
+			return &ValidationError{Name: "reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "UsageLog.reasoning_effort": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.InboundEndpoint(); ok {
+		if err := usagelog.InboundEndpointValidator(v); err != nil {
+			return &ValidationError{Name: "inbound_endpoint", err: fmt.Errorf(`ent: validator failed for field "UsageLog.inbound_endpoint": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.UpstreamEndpoint(); ok {
+		if err := usagelog.UpstreamEndpointValidator(v); err != nil {
+			return &ValidationError{Name: "upstream_endpoint", err: fmt.Errorf(`ent: validator failed for field "UsageLog.upstream_endpoint": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.CacheTTLOverridden(); !ok {
 		return &ValidationError{Name: "cache_ttl_overridden", err: errors.New(`ent: missing required field "UsageLog.cache_ttl_overridden"`)}
+	}
+	if v, ok := _c.mutation.ModelMappingChain(); ok {
+		if err := usagelog.ModelMappingChainValidator(v); err != nil {
+			return &ValidationError{Name: "model_mapping_chain", err: fmt.Errorf(`ent: validator failed for field "UsageLog.model_mapping_chain": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.BillingTier(); ok {
+		if err := usagelog.BillingTierValidator(v); err != nil {
+			return &ValidationError{Name: "billing_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_tier": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.BillingMode(); ok {
+		if err := usagelog.BillingModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "UsageLog.created_at"`)}
@@ -868,22 +1105,6 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldUpstreamModel, field.TypeString, value)
 		_node.UpstreamModel = &value
 	}
-	if value, ok := _c.mutation.ChannelID(); ok {
-		_spec.SetField(usagelog.FieldChannelID, field.TypeInt64, value)
-		_node.ChannelID = &value
-	}
-	if value, ok := _c.mutation.ModelMappingChain(); ok {
-		_spec.SetField(usagelog.FieldModelMappingChain, field.TypeString, value)
-		_node.ModelMappingChain = &value
-	}
-	if value, ok := _c.mutation.BillingTier(); ok {
-		_spec.SetField(usagelog.FieldBillingTier, field.TypeString, value)
-		_node.BillingTier = &value
-	}
-	if value, ok := _c.mutation.BillingMode(); ok {
-		_spec.SetField(usagelog.FieldBillingMode, field.TypeString, value)
-		_node.BillingMode = &value
-	}
 	if value, ok := _c.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)
 		_node.InputTokens = value
@@ -907,6 +1128,14 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CacheCreation1hTokens(); ok {
 		_spec.SetField(usagelog.FieldCacheCreation1hTokens, field.TypeInt, value)
 		_node.CacheCreation1hTokens = value
+	}
+	if value, ok := _c.mutation.ImageOutputTokens(); ok {
+		_spec.SetField(usagelog.FieldImageOutputTokens, field.TypeInt, value)
+		_node.ImageOutputTokens = value
+	}
+	if value, ok := _c.mutation.ImageOutputCost(); ok {
+		_spec.SetField(usagelog.FieldImageOutputCost, field.TypeFloat64, value)
+		_node.ImageOutputCost = value
 	}
 	if value, ok := _c.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)
@@ -944,9 +1173,17 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldBillingType, field.TypeInt8, value)
 		_node.BillingType = value
 	}
+	if value, ok := _c.mutation.RequestType(); ok {
+		_spec.SetField(usagelog.FieldRequestType, field.TypeInt, value)
+		_node.RequestType = value
+	}
 	if value, ok := _c.mutation.Stream(); ok {
 		_spec.SetField(usagelog.FieldStream, field.TypeBool, value)
 		_node.Stream = value
+	}
+	if value, ok := _c.mutation.OpenaiWsMode(); ok {
+		_spec.SetField(usagelog.FieldOpenaiWsMode, field.TypeBool, value)
+		_node.OpenaiWsMode = value
 	}
 	if value, ok := _c.mutation.DurationMs(); ok {
 		_spec.SetField(usagelog.FieldDurationMs, field.TypeInt, value)
@@ -988,9 +1225,61 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldImageSize, field.TypeString, value)
 		_node.ImageSize = &value
 	}
+	if value, ok := _c.mutation.ImageInputSize(); ok {
+		_spec.SetField(usagelog.FieldImageInputSize, field.TypeString, value)
+		_node.ImageInputSize = &value
+	}
+	if value, ok := _c.mutation.ImageOutputSize(); ok {
+		_spec.SetField(usagelog.FieldImageOutputSize, field.TypeString, value)
+		_node.ImageOutputSize = &value
+	}
+	if value, ok := _c.mutation.ImageSizeSource(); ok {
+		_spec.SetField(usagelog.FieldImageSizeSource, field.TypeString, value)
+		_node.ImageSizeSource = &value
+	}
+	if value, ok := _c.mutation.ImageSizeBreakdown(); ok {
+		_spec.SetField(usagelog.FieldImageSizeBreakdown, field.TypeJSON, value)
+		_node.ImageSizeBreakdown = value
+	}
+	if value, ok := _c.mutation.ServiceTier(); ok {
+		_spec.SetField(usagelog.FieldServiceTier, field.TypeString, value)
+		_node.ServiceTier = &value
+	}
+	if value, ok := _c.mutation.ReasoningEffort(); ok {
+		_spec.SetField(usagelog.FieldReasoningEffort, field.TypeString, value)
+		_node.ReasoningEffort = &value
+	}
+	if value, ok := _c.mutation.InboundEndpoint(); ok {
+		_spec.SetField(usagelog.FieldInboundEndpoint, field.TypeString, value)
+		_node.InboundEndpoint = &value
+	}
+	if value, ok := _c.mutation.UpstreamEndpoint(); ok {
+		_spec.SetField(usagelog.FieldUpstreamEndpoint, field.TypeString, value)
+		_node.UpstreamEndpoint = &value
+	}
 	if value, ok := _c.mutation.CacheTTLOverridden(); ok {
 		_spec.SetField(usagelog.FieldCacheTTLOverridden, field.TypeBool, value)
 		_node.CacheTTLOverridden = value
+	}
+	if value, ok := _c.mutation.ChannelID(); ok {
+		_spec.SetField(usagelog.FieldChannelID, field.TypeInt64, value)
+		_node.ChannelID = &value
+	}
+	if value, ok := _c.mutation.ModelMappingChain(); ok {
+		_spec.SetField(usagelog.FieldModelMappingChain, field.TypeString, value)
+		_node.ModelMappingChain = &value
+	}
+	if value, ok := _c.mutation.BillingTier(); ok {
+		_spec.SetField(usagelog.FieldBillingTier, field.TypeString, value)
+		_node.BillingTier = &value
+	}
+	if value, ok := _c.mutation.BillingMode(); ok {
+		_spec.SetField(usagelog.FieldBillingMode, field.TypeString, value)
+		_node.BillingMode = &value
+	}
+	if value, ok := _c.mutation.AccountStatsCost(); ok {
+		_spec.SetField(usagelog.FieldAccountStatsCost, field.TypeFloat64, value)
+		_node.AccountStatsCost = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(usagelog.FieldCreatedAt, field.TypeTime, value)
@@ -1229,84 +1518,6 @@ func (u *UsageLogUpsert) ClearUpstreamModel() *UsageLogUpsert {
 	return u
 }
 
-// SetChannelID sets the "channel_id" field.
-func (u *UsageLogUpsert) SetChannelID(v int64) *UsageLogUpsert {
-	u.Set(usagelog.FieldChannelID, v)
-	return u
-}
-
-// UpdateChannelID sets the "channel_id" field to the value that was provided on create.
-func (u *UsageLogUpsert) UpdateChannelID() *UsageLogUpsert {
-	u.SetExcluded(usagelog.FieldChannelID)
-	return u
-}
-
-// AddChannelID adds v to the "channel_id" field.
-func (u *UsageLogUpsert) AddChannelID(v int64) *UsageLogUpsert {
-	u.Add(usagelog.FieldChannelID, v)
-	return u
-}
-
-// ClearChannelID clears the value of the "channel_id" field.
-func (u *UsageLogUpsert) ClearChannelID() *UsageLogUpsert {
-	u.SetNull(usagelog.FieldChannelID)
-	return u
-}
-
-// SetModelMappingChain sets the "model_mapping_chain" field.
-func (u *UsageLogUpsert) SetModelMappingChain(v string) *UsageLogUpsert {
-	u.Set(usagelog.FieldModelMappingChain, v)
-	return u
-}
-
-// UpdateModelMappingChain sets the "model_mapping_chain" field to the value that was provided on create.
-func (u *UsageLogUpsert) UpdateModelMappingChain() *UsageLogUpsert {
-	u.SetExcluded(usagelog.FieldModelMappingChain)
-	return u
-}
-
-// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
-func (u *UsageLogUpsert) ClearModelMappingChain() *UsageLogUpsert {
-	u.SetNull(usagelog.FieldModelMappingChain)
-	return u
-}
-
-// SetBillingTier sets the "billing_tier" field.
-func (u *UsageLogUpsert) SetBillingTier(v string) *UsageLogUpsert {
-	u.Set(usagelog.FieldBillingTier, v)
-	return u
-}
-
-// UpdateBillingTier sets the "billing_tier" field to the value that was provided on create.
-func (u *UsageLogUpsert) UpdateBillingTier() *UsageLogUpsert {
-	u.SetExcluded(usagelog.FieldBillingTier)
-	return u
-}
-
-// ClearBillingTier clears the value of the "billing_tier" field.
-func (u *UsageLogUpsert) ClearBillingTier() *UsageLogUpsert {
-	u.SetNull(usagelog.FieldBillingTier)
-	return u
-}
-
-// SetBillingMode sets the "billing_mode" field.
-func (u *UsageLogUpsert) SetBillingMode(v string) *UsageLogUpsert {
-	u.Set(usagelog.FieldBillingMode, v)
-	return u
-}
-
-// UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
-func (u *UsageLogUpsert) UpdateBillingMode() *UsageLogUpsert {
-	u.SetExcluded(usagelog.FieldBillingMode)
-	return u
-}
-
-// ClearBillingMode clears the value of the "billing_mode" field.
-func (u *UsageLogUpsert) ClearBillingMode() *UsageLogUpsert {
-	u.SetNull(usagelog.FieldBillingMode)
-	return u
-}
-
 // SetGroupID sets the "group_id" field.
 func (u *UsageLogUpsert) SetGroupID(v int64) *UsageLogUpsert {
 	u.Set(usagelog.FieldGroupID, v)
@@ -1448,6 +1659,42 @@ func (u *UsageLogUpsert) UpdateCacheCreation1hTokens() *UsageLogUpsert {
 // AddCacheCreation1hTokens adds v to the "cache_creation_1h_tokens" field.
 func (u *UsageLogUpsert) AddCacheCreation1hTokens(v int) *UsageLogUpsert {
 	u.Add(usagelog.FieldCacheCreation1hTokens, v)
+	return u
+}
+
+// SetImageOutputTokens sets the "image_output_tokens" field.
+func (u *UsageLogUpsert) SetImageOutputTokens(v int) *UsageLogUpsert {
+	u.Set(usagelog.FieldImageOutputTokens, v)
+	return u
+}
+
+// UpdateImageOutputTokens sets the "image_output_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateImageOutputTokens() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldImageOutputTokens)
+	return u
+}
+
+// AddImageOutputTokens adds v to the "image_output_tokens" field.
+func (u *UsageLogUpsert) AddImageOutputTokens(v int) *UsageLogUpsert {
+	u.Add(usagelog.FieldImageOutputTokens, v)
+	return u
+}
+
+// SetImageOutputCost sets the "image_output_cost" field.
+func (u *UsageLogUpsert) SetImageOutputCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldImageOutputCost, v)
+	return u
+}
+
+// UpdateImageOutputCost sets the "image_output_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateImageOutputCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldImageOutputCost)
+	return u
+}
+
+// AddImageOutputCost adds v to the "image_output_cost" field.
+func (u *UsageLogUpsert) AddImageOutputCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldImageOutputCost, v)
 	return u
 }
 
@@ -1619,6 +1866,24 @@ func (u *UsageLogUpsert) AddBillingType(v int8) *UsageLogUpsert {
 	return u
 }
 
+// SetRequestType sets the "request_type" field.
+func (u *UsageLogUpsert) SetRequestType(v int) *UsageLogUpsert {
+	u.Set(usagelog.FieldRequestType, v)
+	return u
+}
+
+// UpdateRequestType sets the "request_type" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateRequestType() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldRequestType)
+	return u
+}
+
+// AddRequestType adds v to the "request_type" field.
+func (u *UsageLogUpsert) AddRequestType(v int) *UsageLogUpsert {
+	u.Add(usagelog.FieldRequestType, v)
+	return u
+}
+
 // SetStream sets the "stream" field.
 func (u *UsageLogUpsert) SetStream(v bool) *UsageLogUpsert {
 	u.Set(usagelog.FieldStream, v)
@@ -1628,6 +1893,18 @@ func (u *UsageLogUpsert) SetStream(v bool) *UsageLogUpsert {
 // UpdateStream sets the "stream" field to the value that was provided on create.
 func (u *UsageLogUpsert) UpdateStream() *UsageLogUpsert {
 	u.SetExcluded(usagelog.FieldStream)
+	return u
+}
+
+// SetOpenaiWsMode sets the "openai_ws_mode" field.
+func (u *UsageLogUpsert) SetOpenaiWsMode(v bool) *UsageLogUpsert {
+	u.Set(usagelog.FieldOpenaiWsMode, v)
+	return u
+}
+
+// UpdateOpenaiWsMode sets the "openai_ws_mode" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateOpenaiWsMode() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldOpenaiWsMode)
 	return u
 }
 
@@ -1847,6 +2124,150 @@ func (u *UsageLogUpsert) ClearImageSize() *UsageLogUpsert {
 	return u
 }
 
+// SetImageInputSize sets the "image_input_size" field.
+func (u *UsageLogUpsert) SetImageInputSize(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldImageInputSize, v)
+	return u
+}
+
+// UpdateImageInputSize sets the "image_input_size" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateImageInputSize() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldImageInputSize)
+	return u
+}
+
+// ClearImageInputSize clears the value of the "image_input_size" field.
+func (u *UsageLogUpsert) ClearImageInputSize() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldImageInputSize)
+	return u
+}
+
+// SetImageOutputSize sets the "image_output_size" field.
+func (u *UsageLogUpsert) SetImageOutputSize(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldImageOutputSize, v)
+	return u
+}
+
+// UpdateImageOutputSize sets the "image_output_size" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateImageOutputSize() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldImageOutputSize)
+	return u
+}
+
+// ClearImageOutputSize clears the value of the "image_output_size" field.
+func (u *UsageLogUpsert) ClearImageOutputSize() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldImageOutputSize)
+	return u
+}
+
+// SetImageSizeSource sets the "image_size_source" field.
+func (u *UsageLogUpsert) SetImageSizeSource(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldImageSizeSource, v)
+	return u
+}
+
+// UpdateImageSizeSource sets the "image_size_source" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateImageSizeSource() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldImageSizeSource)
+	return u
+}
+
+// ClearImageSizeSource clears the value of the "image_size_source" field.
+func (u *UsageLogUpsert) ClearImageSizeSource() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldImageSizeSource)
+	return u
+}
+
+// SetImageSizeBreakdown sets the "image_size_breakdown" field.
+func (u *UsageLogUpsert) SetImageSizeBreakdown(v map[string]int) *UsageLogUpsert {
+	u.Set(usagelog.FieldImageSizeBreakdown, v)
+	return u
+}
+
+// UpdateImageSizeBreakdown sets the "image_size_breakdown" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateImageSizeBreakdown() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldImageSizeBreakdown)
+	return u
+}
+
+// ClearImageSizeBreakdown clears the value of the "image_size_breakdown" field.
+func (u *UsageLogUpsert) ClearImageSizeBreakdown() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldImageSizeBreakdown)
+	return u
+}
+
+// SetServiceTier sets the "service_tier" field.
+func (u *UsageLogUpsert) SetServiceTier(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldServiceTier, v)
+	return u
+}
+
+// UpdateServiceTier sets the "service_tier" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateServiceTier() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldServiceTier)
+	return u
+}
+
+// ClearServiceTier clears the value of the "service_tier" field.
+func (u *UsageLogUpsert) ClearServiceTier() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldServiceTier)
+	return u
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (u *UsageLogUpsert) SetReasoningEffort(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldReasoningEffort, v)
+	return u
+}
+
+// UpdateReasoningEffort sets the "reasoning_effort" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateReasoningEffort() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldReasoningEffort)
+	return u
+}
+
+// ClearReasoningEffort clears the value of the "reasoning_effort" field.
+func (u *UsageLogUpsert) ClearReasoningEffort() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldReasoningEffort)
+	return u
+}
+
+// SetInboundEndpoint sets the "inbound_endpoint" field.
+func (u *UsageLogUpsert) SetInboundEndpoint(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldInboundEndpoint, v)
+	return u
+}
+
+// UpdateInboundEndpoint sets the "inbound_endpoint" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateInboundEndpoint() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldInboundEndpoint)
+	return u
+}
+
+// ClearInboundEndpoint clears the value of the "inbound_endpoint" field.
+func (u *UsageLogUpsert) ClearInboundEndpoint() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldInboundEndpoint)
+	return u
+}
+
+// SetUpstreamEndpoint sets the "upstream_endpoint" field.
+func (u *UsageLogUpsert) SetUpstreamEndpoint(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldUpstreamEndpoint, v)
+	return u
+}
+
+// UpdateUpstreamEndpoint sets the "upstream_endpoint" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateUpstreamEndpoint() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldUpstreamEndpoint)
+	return u
+}
+
+// ClearUpstreamEndpoint clears the value of the "upstream_endpoint" field.
+func (u *UsageLogUpsert) ClearUpstreamEndpoint() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldUpstreamEndpoint)
+	return u
+}
+
 // SetCacheTTLOverridden sets the "cache_ttl_overridden" field.
 func (u *UsageLogUpsert) SetCacheTTLOverridden(v bool) *UsageLogUpsert {
 	u.Set(usagelog.FieldCacheTTLOverridden, v)
@@ -1856,6 +2277,108 @@ func (u *UsageLogUpsert) SetCacheTTLOverridden(v bool) *UsageLogUpsert {
 // UpdateCacheTTLOverridden sets the "cache_ttl_overridden" field to the value that was provided on create.
 func (u *UsageLogUpsert) UpdateCacheTTLOverridden() *UsageLogUpsert {
 	u.SetExcluded(usagelog.FieldCacheTTLOverridden)
+	return u
+}
+
+// SetChannelID sets the "channel_id" field.
+func (u *UsageLogUpsert) SetChannelID(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldChannelID, v)
+	return u
+}
+
+// UpdateChannelID sets the "channel_id" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateChannelID() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldChannelID)
+	return u
+}
+
+// AddChannelID adds v to the "channel_id" field.
+func (u *UsageLogUpsert) AddChannelID(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldChannelID, v)
+	return u
+}
+
+// ClearChannelID clears the value of the "channel_id" field.
+func (u *UsageLogUpsert) ClearChannelID() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldChannelID)
+	return u
+}
+
+// SetModelMappingChain sets the "model_mapping_chain" field.
+func (u *UsageLogUpsert) SetModelMappingChain(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldModelMappingChain, v)
+	return u
+}
+
+// UpdateModelMappingChain sets the "model_mapping_chain" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateModelMappingChain() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldModelMappingChain)
+	return u
+}
+
+// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
+func (u *UsageLogUpsert) ClearModelMappingChain() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldModelMappingChain)
+	return u
+}
+
+// SetBillingTier sets the "billing_tier" field.
+func (u *UsageLogUpsert) SetBillingTier(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingTier, v)
+	return u
+}
+
+// UpdateBillingTier sets the "billing_tier" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingTier() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingTier)
+	return u
+}
+
+// ClearBillingTier clears the value of the "billing_tier" field.
+func (u *UsageLogUpsert) ClearBillingTier() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldBillingTier)
+	return u
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (u *UsageLogUpsert) SetBillingMode(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingMode, v)
+	return u
+}
+
+// UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingMode() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingMode)
+	return u
+}
+
+// ClearBillingMode clears the value of the "billing_mode" field.
+func (u *UsageLogUpsert) ClearBillingMode() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldBillingMode)
+	return u
+}
+
+// SetAccountStatsCost sets the "account_stats_cost" field.
+func (u *UsageLogUpsert) SetAccountStatsCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldAccountStatsCost, v)
+	return u
+}
+
+// UpdateAccountStatsCost sets the "account_stats_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateAccountStatsCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldAccountStatsCost)
+	return u
+}
+
+// AddAccountStatsCost adds v to the "account_stats_cost" field.
+func (u *UsageLogUpsert) AddAccountStatsCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldAccountStatsCost, v)
+	return u
+}
+
+// ClearAccountStatsCost clears the value of the "account_stats_cost" field.
+func (u *UsageLogUpsert) ClearAccountStatsCost() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldAccountStatsCost)
 	return u
 }
 
@@ -2013,97 +2536,6 @@ func (u *UsageLogUpsertOne) UpdateUpstreamModel() *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) ClearUpstreamModel() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearUpstreamModel()
-	})
-}
-
-// SetChannelID sets the "channel_id" field.
-func (u *UsageLogUpsertOne) SetChannelID(v int64) *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.SetChannelID(v)
-	})
-}
-
-// AddChannelID adds v to the "channel_id" field.
-func (u *UsageLogUpsertOne) AddChannelID(v int64) *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.AddChannelID(v)
-	})
-}
-
-// UpdateChannelID sets the "channel_id" field to the value that was provided on create.
-func (u *UsageLogUpsertOne) UpdateChannelID() *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.UpdateChannelID()
-	})
-}
-
-// ClearChannelID clears the value of the "channel_id" field.
-func (u *UsageLogUpsertOne) ClearChannelID() *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.ClearChannelID()
-	})
-}
-
-// SetModelMappingChain sets the "model_mapping_chain" field.
-func (u *UsageLogUpsertOne) SetModelMappingChain(v string) *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.SetModelMappingChain(v)
-	})
-}
-
-// UpdateModelMappingChain sets the "model_mapping_chain" field to the value that was provided on create.
-func (u *UsageLogUpsertOne) UpdateModelMappingChain() *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.UpdateModelMappingChain()
-	})
-}
-
-// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
-func (u *UsageLogUpsertOne) ClearModelMappingChain() *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.ClearModelMappingChain()
-	})
-}
-
-// SetBillingTier sets the "billing_tier" field.
-func (u *UsageLogUpsertOne) SetBillingTier(v string) *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.SetBillingTier(v)
-	})
-}
-
-// UpdateBillingTier sets the "billing_tier" field to the value that was provided on create.
-func (u *UsageLogUpsertOne) UpdateBillingTier() *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.UpdateBillingTier()
-	})
-}
-
-// ClearBillingTier clears the value of the "billing_tier" field.
-func (u *UsageLogUpsertOne) ClearBillingTier() *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.ClearBillingTier()
-	})
-}
-
-// SetBillingMode sets the "billing_mode" field.
-func (u *UsageLogUpsertOne) SetBillingMode(v string) *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.SetBillingMode(v)
-	})
-}
-
-// UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
-func (u *UsageLogUpsertOne) UpdateBillingMode() *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.UpdateBillingMode()
-	})
-}
-
-// ClearBillingMode clears the value of the "billing_mode" field.
-func (u *UsageLogUpsertOne) ClearBillingMode() *UsageLogUpsertOne {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.ClearBillingMode()
 	})
 }
 
@@ -2272,6 +2704,48 @@ func (u *UsageLogUpsertOne) AddCacheCreation1hTokens(v int) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateCacheCreation1hTokens() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheCreation1hTokens()
+	})
+}
+
+// SetImageOutputTokens sets the "image_output_tokens" field.
+func (u *UsageLogUpsertOne) SetImageOutputTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageOutputTokens(v)
+	})
+}
+
+// AddImageOutputTokens adds v to the "image_output_tokens" field.
+func (u *UsageLogUpsertOne) AddImageOutputTokens(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddImageOutputTokens(v)
+	})
+}
+
+// UpdateImageOutputTokens sets the "image_output_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateImageOutputTokens() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageOutputTokens()
+	})
+}
+
+// SetImageOutputCost sets the "image_output_cost" field.
+func (u *UsageLogUpsertOne) SetImageOutputCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageOutputCost(v)
+	})
+}
+
+// AddImageOutputCost adds v to the "image_output_cost" field.
+func (u *UsageLogUpsertOne) AddImageOutputCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddImageOutputCost(v)
+	})
+}
+
+// UpdateImageOutputCost sets the "image_output_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateImageOutputCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageOutputCost()
 	})
 }
 
@@ -2471,6 +2945,27 @@ func (u *UsageLogUpsertOne) UpdateBillingType() *UsageLogUpsertOne {
 	})
 }
 
+// SetRequestType sets the "request_type" field.
+func (u *UsageLogUpsertOne) SetRequestType(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetRequestType(v)
+	})
+}
+
+// AddRequestType adds v to the "request_type" field.
+func (u *UsageLogUpsertOne) AddRequestType(v int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddRequestType(v)
+	})
+}
+
+// UpdateRequestType sets the "request_type" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateRequestType() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateRequestType()
+	})
+}
+
 // SetStream sets the "stream" field.
 func (u *UsageLogUpsertOne) SetStream(v bool) *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -2482,6 +2977,20 @@ func (u *UsageLogUpsertOne) SetStream(v bool) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateStream() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateStream()
+	})
+}
+
+// SetOpenaiWsMode sets the "openai_ws_mode" field.
+func (u *UsageLogUpsertOne) SetOpenaiWsMode(v bool) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetOpenaiWsMode(v)
+	})
+}
+
+// UpdateOpenaiWsMode sets the "openai_ws_mode" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateOpenaiWsMode() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateOpenaiWsMode()
 	})
 }
 
@@ -2737,6 +3246,174 @@ func (u *UsageLogUpsertOne) ClearImageSize() *UsageLogUpsertOne {
 	})
 }
 
+// SetImageInputSize sets the "image_input_size" field.
+func (u *UsageLogUpsertOne) SetImageInputSize(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageInputSize(v)
+	})
+}
+
+// UpdateImageInputSize sets the "image_input_size" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateImageInputSize() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageInputSize()
+	})
+}
+
+// ClearImageInputSize clears the value of the "image_input_size" field.
+func (u *UsageLogUpsertOne) ClearImageInputSize() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageInputSize()
+	})
+}
+
+// SetImageOutputSize sets the "image_output_size" field.
+func (u *UsageLogUpsertOne) SetImageOutputSize(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageOutputSize(v)
+	})
+}
+
+// UpdateImageOutputSize sets the "image_output_size" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateImageOutputSize() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageOutputSize()
+	})
+}
+
+// ClearImageOutputSize clears the value of the "image_output_size" field.
+func (u *UsageLogUpsertOne) ClearImageOutputSize() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageOutputSize()
+	})
+}
+
+// SetImageSizeSource sets the "image_size_source" field.
+func (u *UsageLogUpsertOne) SetImageSizeSource(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageSizeSource(v)
+	})
+}
+
+// UpdateImageSizeSource sets the "image_size_source" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateImageSizeSource() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageSizeSource()
+	})
+}
+
+// ClearImageSizeSource clears the value of the "image_size_source" field.
+func (u *UsageLogUpsertOne) ClearImageSizeSource() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageSizeSource()
+	})
+}
+
+// SetImageSizeBreakdown sets the "image_size_breakdown" field.
+func (u *UsageLogUpsertOne) SetImageSizeBreakdown(v map[string]int) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageSizeBreakdown(v)
+	})
+}
+
+// UpdateImageSizeBreakdown sets the "image_size_breakdown" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateImageSizeBreakdown() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageSizeBreakdown()
+	})
+}
+
+// ClearImageSizeBreakdown clears the value of the "image_size_breakdown" field.
+func (u *UsageLogUpsertOne) ClearImageSizeBreakdown() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageSizeBreakdown()
+	})
+}
+
+// SetServiceTier sets the "service_tier" field.
+func (u *UsageLogUpsertOne) SetServiceTier(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetServiceTier(v)
+	})
+}
+
+// UpdateServiceTier sets the "service_tier" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateServiceTier() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateServiceTier()
+	})
+}
+
+// ClearServiceTier clears the value of the "service_tier" field.
+func (u *UsageLogUpsertOne) ClearServiceTier() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearServiceTier()
+	})
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (u *UsageLogUpsertOne) SetReasoningEffort(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetReasoningEffort(v)
+	})
+}
+
+// UpdateReasoningEffort sets the "reasoning_effort" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateReasoningEffort() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateReasoningEffort()
+	})
+}
+
+// ClearReasoningEffort clears the value of the "reasoning_effort" field.
+func (u *UsageLogUpsertOne) ClearReasoningEffort() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearReasoningEffort()
+	})
+}
+
+// SetInboundEndpoint sets the "inbound_endpoint" field.
+func (u *UsageLogUpsertOne) SetInboundEndpoint(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetInboundEndpoint(v)
+	})
+}
+
+// UpdateInboundEndpoint sets the "inbound_endpoint" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateInboundEndpoint() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateInboundEndpoint()
+	})
+}
+
+// ClearInboundEndpoint clears the value of the "inbound_endpoint" field.
+func (u *UsageLogUpsertOne) ClearInboundEndpoint() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearInboundEndpoint()
+	})
+}
+
+// SetUpstreamEndpoint sets the "upstream_endpoint" field.
+func (u *UsageLogUpsertOne) SetUpstreamEndpoint(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetUpstreamEndpoint(v)
+	})
+}
+
+// UpdateUpstreamEndpoint sets the "upstream_endpoint" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateUpstreamEndpoint() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateUpstreamEndpoint()
+	})
+}
+
+// ClearUpstreamEndpoint clears the value of the "upstream_endpoint" field.
+func (u *UsageLogUpsertOne) ClearUpstreamEndpoint() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearUpstreamEndpoint()
+	})
+}
+
 // SetCacheTTLOverridden sets the "cache_ttl_overridden" field.
 func (u *UsageLogUpsertOne) SetCacheTTLOverridden(v bool) *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -2748,6 +3425,125 @@ func (u *UsageLogUpsertOne) SetCacheTTLOverridden(v bool) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateCacheTTLOverridden() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheTTLOverridden()
+	})
+}
+
+// SetChannelID sets the "channel_id" field.
+func (u *UsageLogUpsertOne) SetChannelID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetChannelID(v)
+	})
+}
+
+// AddChannelID adds v to the "channel_id" field.
+func (u *UsageLogUpsertOne) AddChannelID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddChannelID(v)
+	})
+}
+
+// UpdateChannelID sets the "channel_id" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateChannelID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateChannelID()
+	})
+}
+
+// ClearChannelID clears the value of the "channel_id" field.
+func (u *UsageLogUpsertOne) ClearChannelID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearChannelID()
+	})
+}
+
+// SetModelMappingChain sets the "model_mapping_chain" field.
+func (u *UsageLogUpsertOne) SetModelMappingChain(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetModelMappingChain(v)
+	})
+}
+
+// UpdateModelMappingChain sets the "model_mapping_chain" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateModelMappingChain() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateModelMappingChain()
+	})
+}
+
+// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
+func (u *UsageLogUpsertOne) ClearModelMappingChain() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearModelMappingChain()
+	})
+}
+
+// SetBillingTier sets the "billing_tier" field.
+func (u *UsageLogUpsertOne) SetBillingTier(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingTier(v)
+	})
+}
+
+// UpdateBillingTier sets the "billing_tier" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingTier() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingTier()
+	})
+}
+
+// ClearBillingTier clears the value of the "billing_tier" field.
+func (u *UsageLogUpsertOne) ClearBillingTier() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingTier()
+	})
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (u *UsageLogUpsertOne) SetBillingMode(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingMode(v)
+	})
+}
+
+// UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingMode() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingMode()
+	})
+}
+
+// ClearBillingMode clears the value of the "billing_mode" field.
+func (u *UsageLogUpsertOne) ClearBillingMode() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingMode()
+	})
+}
+
+// SetAccountStatsCost sets the "account_stats_cost" field.
+func (u *UsageLogUpsertOne) SetAccountStatsCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAccountStatsCost(v)
+	})
+}
+
+// AddAccountStatsCost adds v to the "account_stats_cost" field.
+func (u *UsageLogUpsertOne) AddAccountStatsCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAccountStatsCost(v)
+	})
+}
+
+// UpdateAccountStatsCost sets the "account_stats_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateAccountStatsCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAccountStatsCost()
+	})
+}
+
+// ClearAccountStatsCost clears the value of the "account_stats_cost" field.
+func (u *UsageLogUpsertOne) ClearAccountStatsCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearAccountStatsCost()
 	})
 }
 
@@ -3074,97 +3870,6 @@ func (u *UsageLogUpsertBulk) ClearUpstreamModel() *UsageLogUpsertBulk {
 	})
 }
 
-// SetChannelID sets the "channel_id" field.
-func (u *UsageLogUpsertBulk) SetChannelID(v int64) *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.SetChannelID(v)
-	})
-}
-
-// AddChannelID adds v to the "channel_id" field.
-func (u *UsageLogUpsertBulk) AddChannelID(v int64) *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.AddChannelID(v)
-	})
-}
-
-// UpdateChannelID sets the "channel_id" field to the value that was provided on create.
-func (u *UsageLogUpsertBulk) UpdateChannelID() *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.UpdateChannelID()
-	})
-}
-
-// ClearChannelID clears the value of the "channel_id" field.
-func (u *UsageLogUpsertBulk) ClearChannelID() *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.ClearChannelID()
-	})
-}
-
-// SetModelMappingChain sets the "model_mapping_chain" field.
-func (u *UsageLogUpsertBulk) SetModelMappingChain(v string) *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.SetModelMappingChain(v)
-	})
-}
-
-// UpdateModelMappingChain sets the "model_mapping_chain" field to the value that was provided on create.
-func (u *UsageLogUpsertBulk) UpdateModelMappingChain() *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.UpdateModelMappingChain()
-	})
-}
-
-// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
-func (u *UsageLogUpsertBulk) ClearModelMappingChain() *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.ClearModelMappingChain()
-	})
-}
-
-// SetBillingTier sets the "billing_tier" field.
-func (u *UsageLogUpsertBulk) SetBillingTier(v string) *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.SetBillingTier(v)
-	})
-}
-
-// UpdateBillingTier sets the "billing_tier" field to the value that was provided on create.
-func (u *UsageLogUpsertBulk) UpdateBillingTier() *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.UpdateBillingTier()
-	})
-}
-
-// ClearBillingTier clears the value of the "billing_tier" field.
-func (u *UsageLogUpsertBulk) ClearBillingTier() *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.ClearBillingTier()
-	})
-}
-
-// SetBillingMode sets the "billing_mode" field.
-func (u *UsageLogUpsertBulk) SetBillingMode(v string) *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.SetBillingMode(v)
-	})
-}
-
-// UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
-func (u *UsageLogUpsertBulk) UpdateBillingMode() *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.UpdateBillingMode()
-	})
-}
-
-// ClearBillingMode clears the value of the "billing_mode" field.
-func (u *UsageLogUpsertBulk) ClearBillingMode() *UsageLogUpsertBulk {
-	return u.Update(func(s *UsageLogUpsert) {
-		s.ClearBillingMode()
-	})
-}
-
 // SetGroupID sets the "group_id" field.
 func (u *UsageLogUpsertBulk) SetGroupID(v int64) *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -3330,6 +4035,48 @@ func (u *UsageLogUpsertBulk) AddCacheCreation1hTokens(v int) *UsageLogUpsertBulk
 func (u *UsageLogUpsertBulk) UpdateCacheCreation1hTokens() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheCreation1hTokens()
+	})
+}
+
+// SetImageOutputTokens sets the "image_output_tokens" field.
+func (u *UsageLogUpsertBulk) SetImageOutputTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageOutputTokens(v)
+	})
+}
+
+// AddImageOutputTokens adds v to the "image_output_tokens" field.
+func (u *UsageLogUpsertBulk) AddImageOutputTokens(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddImageOutputTokens(v)
+	})
+}
+
+// UpdateImageOutputTokens sets the "image_output_tokens" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateImageOutputTokens() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageOutputTokens()
+	})
+}
+
+// SetImageOutputCost sets the "image_output_cost" field.
+func (u *UsageLogUpsertBulk) SetImageOutputCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageOutputCost(v)
+	})
+}
+
+// AddImageOutputCost adds v to the "image_output_cost" field.
+func (u *UsageLogUpsertBulk) AddImageOutputCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddImageOutputCost(v)
+	})
+}
+
+// UpdateImageOutputCost sets the "image_output_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateImageOutputCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageOutputCost()
 	})
 }
 
@@ -3529,6 +4276,27 @@ func (u *UsageLogUpsertBulk) UpdateBillingType() *UsageLogUpsertBulk {
 	})
 }
 
+// SetRequestType sets the "request_type" field.
+func (u *UsageLogUpsertBulk) SetRequestType(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetRequestType(v)
+	})
+}
+
+// AddRequestType adds v to the "request_type" field.
+func (u *UsageLogUpsertBulk) AddRequestType(v int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddRequestType(v)
+	})
+}
+
+// UpdateRequestType sets the "request_type" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateRequestType() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateRequestType()
+	})
+}
+
 // SetStream sets the "stream" field.
 func (u *UsageLogUpsertBulk) SetStream(v bool) *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -3540,6 +4308,20 @@ func (u *UsageLogUpsertBulk) SetStream(v bool) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateStream() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateStream()
+	})
+}
+
+// SetOpenaiWsMode sets the "openai_ws_mode" field.
+func (u *UsageLogUpsertBulk) SetOpenaiWsMode(v bool) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetOpenaiWsMode(v)
+	})
+}
+
+// UpdateOpenaiWsMode sets the "openai_ws_mode" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateOpenaiWsMode() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateOpenaiWsMode()
 	})
 }
 
@@ -3795,6 +4577,174 @@ func (u *UsageLogUpsertBulk) ClearImageSize() *UsageLogUpsertBulk {
 	})
 }
 
+// SetImageInputSize sets the "image_input_size" field.
+func (u *UsageLogUpsertBulk) SetImageInputSize(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageInputSize(v)
+	})
+}
+
+// UpdateImageInputSize sets the "image_input_size" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateImageInputSize() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageInputSize()
+	})
+}
+
+// ClearImageInputSize clears the value of the "image_input_size" field.
+func (u *UsageLogUpsertBulk) ClearImageInputSize() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageInputSize()
+	})
+}
+
+// SetImageOutputSize sets the "image_output_size" field.
+func (u *UsageLogUpsertBulk) SetImageOutputSize(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageOutputSize(v)
+	})
+}
+
+// UpdateImageOutputSize sets the "image_output_size" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateImageOutputSize() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageOutputSize()
+	})
+}
+
+// ClearImageOutputSize clears the value of the "image_output_size" field.
+func (u *UsageLogUpsertBulk) ClearImageOutputSize() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageOutputSize()
+	})
+}
+
+// SetImageSizeSource sets the "image_size_source" field.
+func (u *UsageLogUpsertBulk) SetImageSizeSource(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageSizeSource(v)
+	})
+}
+
+// UpdateImageSizeSource sets the "image_size_source" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateImageSizeSource() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageSizeSource()
+	})
+}
+
+// ClearImageSizeSource clears the value of the "image_size_source" field.
+func (u *UsageLogUpsertBulk) ClearImageSizeSource() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageSizeSource()
+	})
+}
+
+// SetImageSizeBreakdown sets the "image_size_breakdown" field.
+func (u *UsageLogUpsertBulk) SetImageSizeBreakdown(v map[string]int) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageSizeBreakdown(v)
+	})
+}
+
+// UpdateImageSizeBreakdown sets the "image_size_breakdown" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateImageSizeBreakdown() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageSizeBreakdown()
+	})
+}
+
+// ClearImageSizeBreakdown clears the value of the "image_size_breakdown" field.
+func (u *UsageLogUpsertBulk) ClearImageSizeBreakdown() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageSizeBreakdown()
+	})
+}
+
+// SetServiceTier sets the "service_tier" field.
+func (u *UsageLogUpsertBulk) SetServiceTier(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetServiceTier(v)
+	})
+}
+
+// UpdateServiceTier sets the "service_tier" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateServiceTier() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateServiceTier()
+	})
+}
+
+// ClearServiceTier clears the value of the "service_tier" field.
+func (u *UsageLogUpsertBulk) ClearServiceTier() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearServiceTier()
+	})
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (u *UsageLogUpsertBulk) SetReasoningEffort(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetReasoningEffort(v)
+	})
+}
+
+// UpdateReasoningEffort sets the "reasoning_effort" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateReasoningEffort() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateReasoningEffort()
+	})
+}
+
+// ClearReasoningEffort clears the value of the "reasoning_effort" field.
+func (u *UsageLogUpsertBulk) ClearReasoningEffort() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearReasoningEffort()
+	})
+}
+
+// SetInboundEndpoint sets the "inbound_endpoint" field.
+func (u *UsageLogUpsertBulk) SetInboundEndpoint(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetInboundEndpoint(v)
+	})
+}
+
+// UpdateInboundEndpoint sets the "inbound_endpoint" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateInboundEndpoint() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateInboundEndpoint()
+	})
+}
+
+// ClearInboundEndpoint clears the value of the "inbound_endpoint" field.
+func (u *UsageLogUpsertBulk) ClearInboundEndpoint() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearInboundEndpoint()
+	})
+}
+
+// SetUpstreamEndpoint sets the "upstream_endpoint" field.
+func (u *UsageLogUpsertBulk) SetUpstreamEndpoint(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetUpstreamEndpoint(v)
+	})
+}
+
+// UpdateUpstreamEndpoint sets the "upstream_endpoint" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateUpstreamEndpoint() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateUpstreamEndpoint()
+	})
+}
+
+// ClearUpstreamEndpoint clears the value of the "upstream_endpoint" field.
+func (u *UsageLogUpsertBulk) ClearUpstreamEndpoint() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearUpstreamEndpoint()
+	})
+}
+
 // SetCacheTTLOverridden sets the "cache_ttl_overridden" field.
 func (u *UsageLogUpsertBulk) SetCacheTTLOverridden(v bool) *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -3806,6 +4756,125 @@ func (u *UsageLogUpsertBulk) SetCacheTTLOverridden(v bool) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateCacheTTLOverridden() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateCacheTTLOverridden()
+	})
+}
+
+// SetChannelID sets the "channel_id" field.
+func (u *UsageLogUpsertBulk) SetChannelID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetChannelID(v)
+	})
+}
+
+// AddChannelID adds v to the "channel_id" field.
+func (u *UsageLogUpsertBulk) AddChannelID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddChannelID(v)
+	})
+}
+
+// UpdateChannelID sets the "channel_id" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateChannelID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateChannelID()
+	})
+}
+
+// ClearChannelID clears the value of the "channel_id" field.
+func (u *UsageLogUpsertBulk) ClearChannelID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearChannelID()
+	})
+}
+
+// SetModelMappingChain sets the "model_mapping_chain" field.
+func (u *UsageLogUpsertBulk) SetModelMappingChain(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetModelMappingChain(v)
+	})
+}
+
+// UpdateModelMappingChain sets the "model_mapping_chain" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateModelMappingChain() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateModelMappingChain()
+	})
+}
+
+// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
+func (u *UsageLogUpsertBulk) ClearModelMappingChain() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearModelMappingChain()
+	})
+}
+
+// SetBillingTier sets the "billing_tier" field.
+func (u *UsageLogUpsertBulk) SetBillingTier(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingTier(v)
+	})
+}
+
+// UpdateBillingTier sets the "billing_tier" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingTier() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingTier()
+	})
+}
+
+// ClearBillingTier clears the value of the "billing_tier" field.
+func (u *UsageLogUpsertBulk) ClearBillingTier() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingTier()
+	})
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (u *UsageLogUpsertBulk) SetBillingMode(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingMode(v)
+	})
+}
+
+// UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingMode() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingMode()
+	})
+}
+
+// ClearBillingMode clears the value of the "billing_mode" field.
+func (u *UsageLogUpsertBulk) ClearBillingMode() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingMode()
+	})
+}
+
+// SetAccountStatsCost sets the "account_stats_cost" field.
+func (u *UsageLogUpsertBulk) SetAccountStatsCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetAccountStatsCost(v)
+	})
+}
+
+// AddAccountStatsCost adds v to the "account_stats_cost" field.
+func (u *UsageLogUpsertBulk) AddAccountStatsCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddAccountStatsCost(v)
+	})
+}
+
+// UpdateAccountStatsCost sets the "account_stats_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateAccountStatsCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateAccountStatsCost()
+	})
+}
+
+// ClearAccountStatsCost clears the value of the "account_stats_cost" field.
+func (u *UsageLogUpsertBulk) ClearAccountStatsCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearAccountStatsCost()
 	})
 }
 

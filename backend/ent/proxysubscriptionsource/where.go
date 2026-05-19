@@ -95,6 +95,11 @@ func RefreshIntervalHours(v int) predicate.ProxySubscriptionSource {
 	return predicate.ProxySubscriptionSource(sql.FieldEQ(FieldRefreshIntervalHours, v))
 }
 
+// TargetEntryCount applies equality check predicate on the "target_entry_count" field. It's identical to TargetEntryCountEQ.
+func TargetEntryCount(v int) predicate.ProxySubscriptionSource {
+	return predicate.ProxySubscriptionSource(sql.FieldEQ(FieldTargetEntryCount, v))
+}
+
 // AutoAddToPool applies equality check predicate on the "auto_add_to_pool" field. It's identical to AutoAddToPoolEQ.
 func AutoAddToPool(v bool) predicate.ProxySubscriptionSource {
 	return predicate.ProxySubscriptionSource(sql.FieldEQ(FieldAutoAddToPool, v))
@@ -498,6 +503,46 @@ func RefreshIntervalHoursLT(v int) predicate.ProxySubscriptionSource {
 // RefreshIntervalHoursLTE applies the LTE predicate on the "refresh_interval_hours" field.
 func RefreshIntervalHoursLTE(v int) predicate.ProxySubscriptionSource {
 	return predicate.ProxySubscriptionSource(sql.FieldLTE(FieldRefreshIntervalHours, v))
+}
+
+// TargetEntryCountEQ applies the EQ predicate on the "target_entry_count" field.
+func TargetEntryCountEQ(v int) predicate.ProxySubscriptionSource {
+	return predicate.ProxySubscriptionSource(sql.FieldEQ(FieldTargetEntryCount, v))
+}
+
+// TargetEntryCountNEQ applies the NEQ predicate on the "target_entry_count" field.
+func TargetEntryCountNEQ(v int) predicate.ProxySubscriptionSource {
+	return predicate.ProxySubscriptionSource(sql.FieldNEQ(FieldTargetEntryCount, v))
+}
+
+// TargetEntryCountIn applies the In predicate on the "target_entry_count" field.
+func TargetEntryCountIn(vs ...int) predicate.ProxySubscriptionSource {
+	return predicate.ProxySubscriptionSource(sql.FieldIn(FieldTargetEntryCount, vs...))
+}
+
+// TargetEntryCountNotIn applies the NotIn predicate on the "target_entry_count" field.
+func TargetEntryCountNotIn(vs ...int) predicate.ProxySubscriptionSource {
+	return predicate.ProxySubscriptionSource(sql.FieldNotIn(FieldTargetEntryCount, vs...))
+}
+
+// TargetEntryCountGT applies the GT predicate on the "target_entry_count" field.
+func TargetEntryCountGT(v int) predicate.ProxySubscriptionSource {
+	return predicate.ProxySubscriptionSource(sql.FieldGT(FieldTargetEntryCount, v))
+}
+
+// TargetEntryCountGTE applies the GTE predicate on the "target_entry_count" field.
+func TargetEntryCountGTE(v int) predicate.ProxySubscriptionSource {
+	return predicate.ProxySubscriptionSource(sql.FieldGTE(FieldTargetEntryCount, v))
+}
+
+// TargetEntryCountLT applies the LT predicate on the "target_entry_count" field.
+func TargetEntryCountLT(v int) predicate.ProxySubscriptionSource {
+	return predicate.ProxySubscriptionSource(sql.FieldLT(FieldTargetEntryCount, v))
+}
+
+// TargetEntryCountLTE applies the LTE predicate on the "target_entry_count" field.
+func TargetEntryCountLTE(v int) predicate.ProxySubscriptionSource {
+	return predicate.ProxySubscriptionSource(sql.FieldLTE(FieldTargetEntryCount, v))
 }
 
 // AutoAddToPoolEQ applies the EQ predicate on the "auto_add_to_pool" field.

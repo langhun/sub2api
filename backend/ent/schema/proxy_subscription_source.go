@@ -44,6 +44,8 @@ func (ProxySubscriptionSource) Fields() []ent.Field {
 			Default(true),
 		field.Int("refresh_interval_hours").
 			Default(6),
+		field.Int("target_entry_count").
+			Default(1),
 		field.Bool("auto_add_to_pool").
 			Default(false),
 		field.Time("last_refreshed_at").

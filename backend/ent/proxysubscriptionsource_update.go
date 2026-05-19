@@ -132,6 +132,27 @@ func (_u *ProxySubscriptionSourceUpdate) AddRefreshIntervalHours(v int) *ProxySu
 	return _u
 }
 
+// SetTargetEntryCount sets the "target_entry_count" field.
+func (_u *ProxySubscriptionSourceUpdate) SetTargetEntryCount(v int) *ProxySubscriptionSourceUpdate {
+	_u.mutation.ResetTargetEntryCount()
+	_u.mutation.SetTargetEntryCount(v)
+	return _u
+}
+
+// SetNillableTargetEntryCount sets the "target_entry_count" field if the given value is not nil.
+func (_u *ProxySubscriptionSourceUpdate) SetNillableTargetEntryCount(v *int) *ProxySubscriptionSourceUpdate {
+	if v != nil {
+		_u.SetTargetEntryCount(*v)
+	}
+	return _u
+}
+
+// AddTargetEntryCount adds value to the "target_entry_count" field.
+func (_u *ProxySubscriptionSourceUpdate) AddTargetEntryCount(v int) *ProxySubscriptionSourceUpdate {
+	_u.mutation.AddTargetEntryCount(v)
+	return _u
+}
+
 // SetAutoAddToPool sets the "auto_add_to_pool" field.
 func (_u *ProxySubscriptionSourceUpdate) SetAutoAddToPool(v bool) *ProxySubscriptionSourceUpdate {
 	_u.mutation.SetAutoAddToPool(v)
@@ -390,6 +411,12 @@ func (_u *ProxySubscriptionSourceUpdate) sqlSave(ctx context.Context) (_node int
 	if value, ok := _u.mutation.AddedRefreshIntervalHours(); ok {
 		_spec.AddField(proxysubscriptionsource.FieldRefreshIntervalHours, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.TargetEntryCount(); ok {
+		_spec.SetField(proxysubscriptionsource.FieldTargetEntryCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTargetEntryCount(); ok {
+		_spec.AddField(proxysubscriptionsource.FieldTargetEntryCount, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.AutoAddToPool(); ok {
 		_spec.SetField(proxysubscriptionsource.FieldAutoAddToPool, field.TypeBool, value)
 	}
@@ -588,6 +615,27 @@ func (_u *ProxySubscriptionSourceUpdateOne) SetNillableRefreshIntervalHours(v *i
 // AddRefreshIntervalHours adds value to the "refresh_interval_hours" field.
 func (_u *ProxySubscriptionSourceUpdateOne) AddRefreshIntervalHours(v int) *ProxySubscriptionSourceUpdateOne {
 	_u.mutation.AddRefreshIntervalHours(v)
+	return _u
+}
+
+// SetTargetEntryCount sets the "target_entry_count" field.
+func (_u *ProxySubscriptionSourceUpdateOne) SetTargetEntryCount(v int) *ProxySubscriptionSourceUpdateOne {
+	_u.mutation.ResetTargetEntryCount()
+	_u.mutation.SetTargetEntryCount(v)
+	return _u
+}
+
+// SetNillableTargetEntryCount sets the "target_entry_count" field if the given value is not nil.
+func (_u *ProxySubscriptionSourceUpdateOne) SetNillableTargetEntryCount(v *int) *ProxySubscriptionSourceUpdateOne {
+	if v != nil {
+		_u.SetTargetEntryCount(*v)
+	}
+	return _u
+}
+
+// AddTargetEntryCount adds value to the "target_entry_count" field.
+func (_u *ProxySubscriptionSourceUpdateOne) AddTargetEntryCount(v int) *ProxySubscriptionSourceUpdateOne {
+	_u.mutation.AddTargetEntryCount(v)
 	return _u
 }
 
@@ -878,6 +926,12 @@ func (_u *ProxySubscriptionSourceUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := _u.mutation.AddedRefreshIntervalHours(); ok {
 		_spec.AddField(proxysubscriptionsource.FieldRefreshIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.TargetEntryCount(); ok {
+		_spec.SetField(proxysubscriptionsource.FieldTargetEntryCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedTargetEntryCount(); ok {
+		_spec.AddField(proxysubscriptionsource.FieldTargetEntryCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AutoAddToPool(); ok {
 		_spec.SetField(proxysubscriptionsource.FieldAutoAddToPool, field.TypeBool, value)

@@ -65,6 +65,12 @@ const (
 	EdgeAPIKeys = "api_keys"
 	// EdgeRedeemCodes holds the string denoting the redeem_codes edge name in mutations.
 	EdgeRedeemCodes = "redeem_codes"
+	// EdgeRedpackets holds the string denoting the redpackets edge name in mutations.
+	EdgeRedpackets = "redpackets"
+	// EdgeSentTransfers holds the string denoting the sent_transfers edge name in mutations.
+	EdgeSentTransfers = "sent_transfers"
+	// EdgeReceivedTransfers holds the string denoting the received_transfers edge name in mutations.
+	EdgeReceivedTransfers = "received_transfers"
 	// EdgeSubscriptions holds the string denoting the subscriptions edge name in mutations.
 	EdgeSubscriptions = "subscriptions"
 	// EdgeAssignedSubscriptions holds the string denoting the assigned_subscriptions edge name in mutations.
@@ -73,6 +79,10 @@ const (
 	EdgeAnnouncementReads = "announcement_reads"
 	// EdgeAllowedGroups holds the string denoting the allowed_groups edge name in mutations.
 	EdgeAllowedGroups = "allowed_groups"
+	// EdgeCheckins holds the string denoting the checkins edge name in mutations.
+	EdgeCheckins = "checkins"
+	// EdgeCheckinBlindboxRecords holds the string denoting the checkin_blindbox_records edge name in mutations.
+	EdgeCheckinBlindboxRecords = "checkin_blindbox_records"
 	// EdgeUsageLogs holds the string denoting the usage_logs edge name in mutations.
 	EdgeUsageLogs = "usage_logs"
 	// EdgeAttributeValues holds the string denoting the attribute_values edge name in mutations.
@@ -81,14 +91,6 @@ const (
 	EdgePromoCodeUsages = "promo_code_usages"
 	// EdgePaymentOrders holds the string denoting the payment_orders edge name in mutations.
 	EdgePaymentOrders = "payment_orders"
-	// EdgeCheckins holds the string denoting the checkins edge name in mutations.
-	EdgeCheckins = "checkins"
-	// EdgeSentTransfers holds the string denoting the sent_transfers edge name in mutations.
-	EdgeSentTransfers = "sent_transfers"
-	// EdgeReceivedTransfers holds the string denoting the received_transfers edge name in mutations.
-	EdgeReceivedTransfers = "received_transfers"
-	// EdgeRedpackets holds the string denoting the redpackets edge name in mutations.
-	EdgeRedpackets = "redpackets"
 	// EdgeAuthIdentities holds the string denoting the auth_identities edge name in mutations.
 	EdgeAuthIdentities = "auth_identities"
 	// EdgePendingAuthSessions holds the string denoting the pending_auth_sessions edge name in mutations.
@@ -111,6 +113,27 @@ const (
 	RedeemCodesInverseTable = "redeem_codes"
 	// RedeemCodesColumn is the table column denoting the redeem_codes relation/edge.
 	RedeemCodesColumn = "used_by"
+	// RedpacketsTable is the table that holds the redpackets relation/edge.
+	RedpacketsTable = "balance_redpackets"
+	// RedpacketsInverseTable is the table name for the BalanceRedPacket entity.
+	// It exists in this package in order to avoid circular dependency with the "balanceredpacket" package.
+	RedpacketsInverseTable = "balance_redpackets"
+	// RedpacketsColumn is the table column denoting the redpackets relation/edge.
+	RedpacketsColumn = "sender_id"
+	// SentTransfersTable is the table that holds the sent_transfers relation/edge.
+	SentTransfersTable = "balance_transfers"
+	// SentTransfersInverseTable is the table name for the BalanceTransfer entity.
+	// It exists in this package in order to avoid circular dependency with the "balancetransfer" package.
+	SentTransfersInverseTable = "balance_transfers"
+	// SentTransfersColumn is the table column denoting the sent_transfers relation/edge.
+	SentTransfersColumn = "sender_id"
+	// ReceivedTransfersTable is the table that holds the received_transfers relation/edge.
+	ReceivedTransfersTable = "balance_transfers"
+	// ReceivedTransfersInverseTable is the table name for the BalanceTransfer entity.
+	// It exists in this package in order to avoid circular dependency with the "balancetransfer" package.
+	ReceivedTransfersInverseTable = "balance_transfers"
+	// ReceivedTransfersColumn is the table column denoting the received_transfers relation/edge.
+	ReceivedTransfersColumn = "receiver_id"
 	// SubscriptionsTable is the table that holds the subscriptions relation/edge.
 	SubscriptionsTable = "user_subscriptions"
 	// SubscriptionsInverseTable is the table name for the UserSubscription entity.
@@ -137,6 +160,20 @@ const (
 	// AllowedGroupsInverseTable is the table name for the Group entity.
 	// It exists in this package in order to avoid circular dependency with the "group" package.
 	AllowedGroupsInverseTable = "groups"
+	// CheckinsTable is the table that holds the checkins relation/edge.
+	CheckinsTable = "checkins"
+	// CheckinsInverseTable is the table name for the Checkin entity.
+	// It exists in this package in order to avoid circular dependency with the "checkin" package.
+	CheckinsInverseTable = "checkins"
+	// CheckinsColumn is the table column denoting the checkins relation/edge.
+	CheckinsColumn = "user_id"
+	// CheckinBlindboxRecordsTable is the table that holds the checkin_blindbox_records relation/edge.
+	CheckinBlindboxRecordsTable = "checkin_blindbox_records"
+	// CheckinBlindboxRecordsInverseTable is the table name for the CheckinBlindboxRecord entity.
+	// It exists in this package in order to avoid circular dependency with the "checkinblindboxrecord" package.
+	CheckinBlindboxRecordsInverseTable = "checkin_blindbox_records"
+	// CheckinBlindboxRecordsColumn is the table column denoting the checkin_blindbox_records relation/edge.
+	CheckinBlindboxRecordsColumn = "user_id"
 	// UsageLogsTable is the table that holds the usage_logs relation/edge.
 	UsageLogsTable = "usage_logs"
 	// UsageLogsInverseTable is the table name for the UsageLog entity.
@@ -165,34 +202,6 @@ const (
 	PaymentOrdersInverseTable = "payment_orders"
 	// PaymentOrdersColumn is the table column denoting the payment_orders relation/edge.
 	PaymentOrdersColumn = "user_id"
-	// CheckinsTable is the table that holds the checkins relation/edge.
-	CheckinsTable = "checkins"
-	// CheckinsInverseTable is the table name for the Checkin entity.
-	// It exists in this package in order to avoid circular dependency with the "checkin" package.
-	CheckinsInverseTable = "checkins"
-	// CheckinsColumn is the table column denoting the checkins relation/edge.
-	CheckinsColumn = "user_id"
-	// SentTransfersTable is the table that holds the sent_transfers relation/edge.
-	SentTransfersTable = "balance_transfers"
-	// SentTransfersInverseTable is the table name for the BalanceTransfer entity.
-	// It exists in this package in order to avoid circular dependency with the "balancetransfer" package.
-	SentTransfersInverseTable = "balance_transfers"
-	// SentTransfersColumn is the table column denoting the sent_transfers relation/edge.
-	SentTransfersColumn = "sender_id"
-	// ReceivedTransfersTable is the table that holds the received_transfers relation/edge.
-	ReceivedTransfersTable = "balance_transfers"
-	// ReceivedTransfersInverseTable is the table name for the BalanceTransfer entity.
-	// It exists in this package in order to avoid circular dependency with the "balancetransfer" package.
-	ReceivedTransfersInverseTable = "balance_transfers"
-	// ReceivedTransfersColumn is the table column denoting the received_transfers relation/edge.
-	ReceivedTransfersColumn = "receiver_id"
-	// RedpacketsTable is the table that holds the redpackets relation/edge.
-	RedpacketsTable = "balance_redpackets"
-	// RedpacketsInverseTable is the table name for the BalanceRedPacket entity.
-	// It exists in this package in order to avoid circular dependency with the "balanceredpacket" package.
-	RedpacketsInverseTable = "balance_redpackets"
-	// RedpacketsColumn is the table column denoting the redpackets relation/edge.
-	RedpacketsColumn = "sender_id"
 	// AuthIdentitiesTable is the table that holds the auth_identities relation/edge.
 	AuthIdentitiesTable = "auth_identities"
 	// AuthIdentitiesInverseTable is the table name for the AuthIdentity entity.
@@ -465,6 +474,48 @@ func ByRedeemCodes(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByRedpacketsCount orders the results by redpackets count.
+func ByRedpacketsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRedpacketsStep(), opts...)
+	}
+}
+
+// ByRedpackets orders the results by redpackets terms.
+func ByRedpackets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRedpacketsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// BySentTransfersCount orders the results by sent_transfers count.
+func BySentTransfersCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newSentTransfersStep(), opts...)
+	}
+}
+
+// BySentTransfers orders the results by sent_transfers terms.
+func BySentTransfers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSentTransfersStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByReceivedTransfersCount orders the results by received_transfers count.
+func ByReceivedTransfersCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newReceivedTransfersStep(), opts...)
+	}
+}
+
+// ByReceivedTransfers orders the results by received_transfers terms.
+func ByReceivedTransfers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newReceivedTransfersStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // BySubscriptionsCount orders the results by subscriptions count.
 func BySubscriptionsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -518,6 +569,34 @@ func ByAllowedGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 func ByAllowedGroups(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newAllowedGroupsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCheckinsCount orders the results by checkins count.
+func ByCheckinsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCheckinsStep(), opts...)
+	}
+}
+
+// ByCheckins orders the results by checkins terms.
+func ByCheckins(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCheckinsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByCheckinBlindboxRecordsCount orders the results by checkin_blindbox_records count.
+func ByCheckinBlindboxRecordsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCheckinBlindboxRecordsStep(), opts...)
+	}
+}
+
+// ByCheckinBlindboxRecords orders the results by checkin_blindbox_records terms.
+func ByCheckinBlindboxRecords(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCheckinBlindboxRecordsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 
@@ -577,62 +656,6 @@ func ByPaymentOrders(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
-// ByCheckinsCount orders the results by checkins count.
-func ByCheckinsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newCheckinsStep(), opts...)
-	}
-}
-
-// ByCheckins orders the results by checkins terms.
-func ByCheckins(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newCheckinsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// BySentTransfersCount orders the results by sent_transfers count.
-func BySentTransfersCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newSentTransfersStep(), opts...)
-	}
-}
-
-// BySentTransfers orders the results by sent_transfers terms.
-func BySentTransfers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newSentTransfersStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByReceivedTransfersCount orders the results by received_transfers count.
-func ByReceivedTransfersCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newReceivedTransfersStep(), opts...)
-	}
-}
-
-// ByReceivedTransfers orders the results by received_transfers terms.
-func ByReceivedTransfers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newReceivedTransfersStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
-// ByRedpacketsCount orders the results by redpackets count.
-func ByRedpacketsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newRedpacketsStep(), opts...)
-	}
-}
-
-// ByRedpackets orders the results by redpackets terms.
-func ByRedpackets(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newRedpacketsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
 // ByAuthIdentitiesCount orders the results by auth_identities count.
 func ByAuthIdentitiesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -688,6 +711,27 @@ func newRedeemCodesStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.O2M, false, RedeemCodesTable, RedeemCodesColumn),
 	)
 }
+func newRedpacketsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RedpacketsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RedpacketsTable, RedpacketsColumn),
+	)
+}
+func newSentTransfersStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SentTransfersInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, SentTransfersTable, SentTransfersColumn),
+	)
+}
+func newReceivedTransfersStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ReceivedTransfersInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ReceivedTransfersTable, ReceivedTransfersColumn),
+	)
+}
 func newSubscriptionsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -716,6 +760,20 @@ func newAllowedGroupsStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.M2M, false, AllowedGroupsTable, AllowedGroupsPrimaryKey...),
 	)
 }
+func newCheckinsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CheckinsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CheckinsTable, CheckinsColumn),
+	)
+}
+func newCheckinBlindboxRecordsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CheckinBlindboxRecordsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CheckinBlindboxRecordsTable, CheckinBlindboxRecordsColumn),
+	)
+}
 func newUsageLogsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -742,34 +800,6 @@ func newPaymentOrdersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PaymentOrdersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, PaymentOrdersTable, PaymentOrdersColumn),
-	)
-}
-func newCheckinsStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(CheckinsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, CheckinsTable, CheckinsColumn),
-	)
-}
-func newSentTransfersStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(SentTransfersInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, SentTransfersTable, SentTransfersColumn),
-	)
-}
-func newReceivedTransfersStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ReceivedTransfersInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, ReceivedTransfersTable, ReceivedTransfersColumn),
-	)
-}
-func newRedpacketsStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(RedpacketsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, RedpacketsTable, RedpacketsColumn),
 	)
 }
 func newAuthIdentitiesStep() *sqlgraph.Step {

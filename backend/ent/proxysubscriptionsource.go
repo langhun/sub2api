@@ -33,6 +33,8 @@ type ProxySubscriptionSource struct {
 	Enabled bool `json:"enabled,omitempty"`
 	// RefreshIntervalHours holds the value of the "refresh_interval_hours" field.
 	RefreshIntervalHours int `json:"refresh_interval_hours,omitempty"`
+	// TargetEntryCount holds the value of the "target_entry_count" field.
+	TargetEntryCount int `json:"target_entry_count,omitempty"`
 	// AutoAddToPool holds the value of the "auto_add_to_pool" field.
 	AutoAddToPool bool `json:"auto_add_to_pool,omitempty"`
 	// LastRefreshedAt holds the value of the "last_refreshed_at" field.
@@ -76,7 +78,7 @@ func (*ProxySubscriptionSource) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case proxysubscriptionsource.FieldEnabled, proxysubscriptionsource.FieldAutoAddToPool:
 			values[i] = new(sql.NullBool)
-		case proxysubscriptionsource.FieldID, proxysubscriptionsource.FieldRefreshIntervalHours, proxysubscriptionsource.FieldLastNodeCount, proxysubscriptionsource.FieldLastMaterializedProxyCount:
+		case proxysubscriptionsource.FieldID, proxysubscriptionsource.FieldRefreshIntervalHours, proxysubscriptionsource.FieldTargetEntryCount, proxysubscriptionsource.FieldLastNodeCount, proxysubscriptionsource.FieldLastMaterializedProxyCount:
 			values[i] = new(sql.NullInt64)
 		case proxysubscriptionsource.FieldName, proxysubscriptionsource.FieldURL, proxysubscriptionsource.FieldSourceFormat, proxysubscriptionsource.FieldLastError:
 			values[i] = new(sql.NullString)
@@ -151,6 +153,12 @@ func (_m *ProxySubscriptionSource) assignValues(columns []string, values []any) 
 				return fmt.Errorf("unexpected type %T for field refresh_interval_hours", values[i])
 			} else if value.Valid {
 				_m.RefreshIntervalHours = int(value.Int64)
+			}
+		case proxysubscriptionsource.FieldTargetEntryCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field target_entry_count", values[i])
+			} else if value.Valid {
+				_m.TargetEntryCount = int(value.Int64)
 			}
 		case proxysubscriptionsource.FieldAutoAddToPool:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -257,6 +265,9 @@ func (_m *ProxySubscriptionSource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("refresh_interval_hours=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RefreshIntervalHours))
+	builder.WriteString(", ")
+	builder.WriteString("target_entry_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TargetEntryCount))
 	builder.WriteString(", ")
 	builder.WriteString("auto_add_to_pool=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AutoAddToPool))

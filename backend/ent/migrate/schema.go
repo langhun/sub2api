@@ -788,8 +788,6 @@ var (
 	// CheckinBlindboxRecordsColumns holds the columns for the "checkin_blindbox_records" table.
 	CheckinBlindboxRecordsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
-		{Name: "user_id", Type: field.TypeInt64},
-		{Name: "prize_item_id", Type: field.TypeInt64},
 		{Name: "prize_name", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "varchar(100)"}},
 		{Name: "rarity", Type: field.TypeString, Default: "common", SchemaType: map[string]string{"postgres": "varchar(20)"}},
 		{Name: "reward_type", Type: field.TypeString, Default: "balance", SchemaType: map[string]string{"postgres": "varchar(30)"}},
@@ -797,22 +795,43 @@ var (
 		{Name: "streak_days", Type: field.TypeInt, Default: 0},
 		{Name: "reward_detail", Type: field.TypeString, Nullable: true, Default: "", SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "prize_item_id", Type: field.TypeInt64},
+		{Name: "user_id", Type: field.TypeInt64},
 	}
 	// CheckinBlindboxRecordsTable holds the schema information for the "checkin_blindbox_records" table.
 	CheckinBlindboxRecordsTable = &schema.Table{
 		Name:       "checkin_blindbox_records",
 		Columns:    CheckinBlindboxRecordsColumns,
 		PrimaryKey: []*schema.Column{CheckinBlindboxRecordsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "checkin_blindbox_records_checkin_prize_items_blindbox_records",
+				Columns:    []*schema.Column{CheckinBlindboxRecordsColumns[8]},
+				RefColumns: []*schema.Column{CheckinPrizeItemsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "checkin_blindbox_records_users_checkin_blindbox_records",
+				Columns:    []*schema.Column{CheckinBlindboxRecordsColumns[9]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "checkinblindboxrecord_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{CheckinBlindboxRecordsColumns[1]},
+				Columns: []*schema.Column{CheckinBlindboxRecordsColumns[9]},
+			},
+			{
+				Name:    "checkinblindboxrecord_prize_item_id",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinBlindboxRecordsColumns[8]},
 			},
 			{
 				Name:    "checkinblindboxrecord_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{CheckinBlindboxRecordsColumns[9]},
+				Columns: []*schema.Column{CheckinBlindboxRecordsColumns[7]},
 			},
 		},
 	}
@@ -1411,21 +1430,6 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{ProxiesColumns[3]},
 			},
-			{
-				Name:    "proxy_subscription_source_id",
-				Unique:  false,
-				Columns: []*schema.Column{ProxiesColumns[11]},
-			},
-			{
-				Name:    "proxy_subscription_node_id",
-				Unique:  false,
-				Columns: []*schema.Column{ProxiesColumns[12]},
-			},
-			{
-				Name:    "proxy_managed_by_subscription",
-				Unique:  false,
-				Columns: []*schema.Column{ProxiesColumns[13]},
-			},
 		},
 	}
 	// ProxySubscriptionNodesColumns holds the columns for the "proxy_subscription_nodes" table.
@@ -1492,6 +1496,7 @@ var (
 		{Name: "source_format", Type: field.TypeString, Size: 32, Default: "auto"},
 		{Name: "enabled", Type: field.TypeBool, Default: true},
 		{Name: "refresh_interval_hours", Type: field.TypeInt, Default: 6},
+		{Name: "target_entry_count", Type: field.TypeInt, Default: 1},
 		{Name: "auto_add_to_pool", Type: field.TypeBool, Default: false},
 		{Name: "last_refreshed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "last_success_at", Type: field.TypeTime, Nullable: true},
@@ -1532,6 +1537,7 @@ var (
 		{Name: "used_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "notes", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "validity_days", Type: field.TypeInt, Default: 30},
 		{Name: "multiplier", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "bet_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
@@ -1546,13 +1552,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "redeem_codes_groups_redeem_codes",
-				Columns:    []*schema.Column{RedeemCodesColumns[11]},
+				Columns:    []*schema.Column{RedeemCodesColumns[12]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "redeem_codes_users_redeem_codes",
-				Columns:    []*schema.Column{RedeemCodesColumns[12]},
+				Columns:    []*schema.Column{RedeemCodesColumns[13]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -1566,12 +1572,17 @@ var (
 			{
 				Name:    "redeemcode_used_by",
 				Unique:  false,
-				Columns: []*schema.Column{RedeemCodesColumns[12]},
+				Columns: []*schema.Column{RedeemCodesColumns[13]},
 			},
 			{
 				Name:    "redeemcode_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{RedeemCodesColumns[11]},
+				Columns: []*schema.Column{RedeemCodesColumns[12]},
+			},
+			{
+				Name:    "redeemcode_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{RedeemCodesColumns[8]},
 			},
 		},
 	}
@@ -1706,16 +1717,14 @@ var (
 		{Name: "model", Type: field.TypeString, Size: 100},
 		{Name: "requested_model", Type: field.TypeString, Nullable: true, Size: 100},
 		{Name: "upstream_model", Type: field.TypeString, Nullable: true, Size: 100},
-		{Name: "channel_id", Type: field.TypeInt64, Nullable: true},
-		{Name: "model_mapping_chain", Type: field.TypeString, Nullable: true, Size: 500},
-		{Name: "billing_tier", Type: field.TypeString, Nullable: true, Size: 50},
-		{Name: "billing_mode", Type: field.TypeString, Nullable: true, Size: 20},
 		{Name: "input_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "output_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "cache_creation_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "cache_read_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "cache_creation_5m_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "cache_creation_1h_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "image_output_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "image_output_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "input_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "output_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "cache_creation_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
@@ -1725,7 +1734,9 @@ var (
 		{Name: "rate_multiplier", Type: field.TypeFloat64, Default: 1, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
 		{Name: "account_rate_multiplier", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
 		{Name: "billing_type", Type: field.TypeInt8, Default: 0},
+		{Name: "request_type", Type: field.TypeInt, Default: 0, SchemaType: map[string]string{"postgres": "smallint"}},
 		{Name: "stream", Type: field.TypeBool, Default: false},
+		{Name: "openai_ws_mode", Type: field.TypeBool, Default: false},
 		{Name: "duration_ms", Type: field.TypeInt, Nullable: true},
 		{Name: "first_token_ms", Type: field.TypeInt, Nullable: true},
 		{Name: "auth_latency_ms", Type: field.TypeInt, Nullable: true},
@@ -1736,7 +1747,20 @@ var (
 		{Name: "ip_address", Type: field.TypeString, Nullable: true, Size: 45},
 		{Name: "image_count", Type: field.TypeInt, Default: 0},
 		{Name: "image_size", Type: field.TypeString, Nullable: true, Size: 10},
+		{Name: "image_input_size", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "image_output_size", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "image_size_source", Type: field.TypeString, Nullable: true, Size: 16},
+		{Name: "image_size_breakdown", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "service_tier", Type: field.TypeString, Nullable: true, Size: 16},
+		{Name: "reasoning_effort", Type: field.TypeString, Nullable: true, Size: 20},
+		{Name: "inbound_endpoint", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "upstream_endpoint", Type: field.TypeString, Nullable: true, Size: 128},
 		{Name: "cache_ttl_overridden", Type: field.TypeBool, Default: false},
+		{Name: "channel_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "model_mapping_chain", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "billing_tier", Type: field.TypeString, Nullable: true, Size: 50},
+		{Name: "billing_mode", Type: field.TypeString, Nullable: true, Size: 20},
+		{Name: "account_stats_cost", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "api_key_id", Type: field.TypeInt64},
 		{Name: "account_id", Type: field.TypeInt64},
@@ -1752,31 +1776,31 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_logs_api_keys_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[37]},
+				Columns:    []*schema.Column{UsageLogsColumns[50]},
 				RefColumns: []*schema.Column{APIKeysColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_accounts_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[38]},
+				Columns:    []*schema.Column{UsageLogsColumns[51]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_groups_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[39]},
+				Columns:    []*schema.Column{UsageLogsColumns[52]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_users_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[40]},
+				Columns:    []*schema.Column{UsageLogsColumns[53]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_user_subscriptions_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[41]},
+				Columns:    []*schema.Column{UsageLogsColumns[54]},
 				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -1785,32 +1809,32 @@ var (
 			{
 				Name:    "usagelog_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[40]},
+				Columns: []*schema.Column{UsageLogsColumns[53]},
 			},
 			{
 				Name:    "usagelog_api_key_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[37]},
+				Columns: []*schema.Column{UsageLogsColumns[50]},
 			},
 			{
 				Name:    "usagelog_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[38]},
+				Columns: []*schema.Column{UsageLogsColumns[51]},
 			},
 			{
 				Name:    "usagelog_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[39]},
+				Columns: []*schema.Column{UsageLogsColumns[52]},
 			},
 			{
 				Name:    "usagelog_subscription_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[41]},
+				Columns: []*schema.Column{UsageLogsColumns[54]},
 			},
 			{
 				Name:    "usagelog_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[36]},
+				Columns: []*schema.Column{UsageLogsColumns[49]},
 			},
 			{
 				Name:    "usagelog_model",
@@ -1830,17 +1854,17 @@ var (
 			{
 				Name:    "usagelog_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[40], UsageLogsColumns[36]},
+				Columns: []*schema.Column{UsageLogsColumns[53], UsageLogsColumns[49]},
 			},
 			{
 				Name:    "usagelog_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[37], UsageLogsColumns[36]},
+				Columns: []*schema.Column{UsageLogsColumns[50], UsageLogsColumns[49]},
 			},
 			{
 				Name:    "usagelog_group_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[39], UsageLogsColumns[36]},
+				Columns: []*schema.Column{UsageLogsColumns[52], UsageLogsColumns[49]},
 			},
 		},
 	}
@@ -2208,6 +2232,8 @@ func init() {
 	CheckinsTable.Annotation = &entsql.Annotation{
 		Table: "checkins",
 	}
+	CheckinBlindboxRecordsTable.ForeignKeys[0].RefTable = CheckinPrizeItemsTable
+	CheckinBlindboxRecordsTable.ForeignKeys[1].RefTable = UsersTable
 	CheckinBlindboxRecordsTable.Annotation = &entsql.Annotation{
 		Table: "checkin_blindbox_records",
 	}

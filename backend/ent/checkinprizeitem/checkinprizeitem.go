@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -37,8 +38,17 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
+	// EdgeBlindboxRecords holds the string denoting the blindbox_records edge name in mutations.
+	EdgeBlindboxRecords = "blindbox_records"
 	// Table holds the table name of the checkinprizeitem in the database.
 	Table = "checkin_prize_items"
+	// BlindboxRecordsTable is the table that holds the blindbox_records relation/edge.
+	BlindboxRecordsTable = "checkin_blindbox_records"
+	// BlindboxRecordsInverseTable is the table name for the CheckinBlindboxRecord entity.
+	// It exists in this package in order to avoid circular dependency with the "checkinblindboxrecord" package.
+	BlindboxRecordsInverseTable = "checkin_blindbox_records"
+	// BlindboxRecordsColumn is the table column denoting the blindbox_records relation/edge.
+	BlindboxRecordsColumn = "prize_item_id"
 )
 
 // Columns holds all SQL columns for checkinprizeitem fields.
@@ -157,4 +167,25 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByDeletedAt orders the results by the deleted_at field.
 func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByBlindboxRecordsCount orders the results by blindbox_records count.
+func ByBlindboxRecordsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newBlindboxRecordsStep(), opts...)
+	}
+}
+
+// ByBlindboxRecords orders the results by blindbox_records terms.
+func ByBlindboxRecords(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBlindboxRecordsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newBlindboxRecordsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BlindboxRecordsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, BlindboxRecordsTable, BlindboxRecordsColumn),
+	)
 }

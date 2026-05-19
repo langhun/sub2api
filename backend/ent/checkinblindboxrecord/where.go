@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 )
 
@@ -119,26 +120,6 @@ func UserIDNotIn(vs ...int64) predicate.CheckinBlindboxRecord {
 	return predicate.CheckinBlindboxRecord(sql.FieldNotIn(FieldUserID, vs...))
 }
 
-// UserIDGT applies the GT predicate on the "user_id" field.
-func UserIDGT(v int64) predicate.CheckinBlindboxRecord {
-	return predicate.CheckinBlindboxRecord(sql.FieldGT(FieldUserID, v))
-}
-
-// UserIDGTE applies the GTE predicate on the "user_id" field.
-func UserIDGTE(v int64) predicate.CheckinBlindboxRecord {
-	return predicate.CheckinBlindboxRecord(sql.FieldGTE(FieldUserID, v))
-}
-
-// UserIDLT applies the LT predicate on the "user_id" field.
-func UserIDLT(v int64) predicate.CheckinBlindboxRecord {
-	return predicate.CheckinBlindboxRecord(sql.FieldLT(FieldUserID, v))
-}
-
-// UserIDLTE applies the LTE predicate on the "user_id" field.
-func UserIDLTE(v int64) predicate.CheckinBlindboxRecord {
-	return predicate.CheckinBlindboxRecord(sql.FieldLTE(FieldUserID, v))
-}
-
 // PrizeItemIDEQ applies the EQ predicate on the "prize_item_id" field.
 func PrizeItemIDEQ(v int64) predicate.CheckinBlindboxRecord {
 	return predicate.CheckinBlindboxRecord(sql.FieldEQ(FieldPrizeItemID, v))
@@ -157,26 +138,6 @@ func PrizeItemIDIn(vs ...int64) predicate.CheckinBlindboxRecord {
 // PrizeItemIDNotIn applies the NotIn predicate on the "prize_item_id" field.
 func PrizeItemIDNotIn(vs ...int64) predicate.CheckinBlindboxRecord {
 	return predicate.CheckinBlindboxRecord(sql.FieldNotIn(FieldPrizeItemID, vs...))
-}
-
-// PrizeItemIDGT applies the GT predicate on the "prize_item_id" field.
-func PrizeItemIDGT(v int64) predicate.CheckinBlindboxRecord {
-	return predicate.CheckinBlindboxRecord(sql.FieldGT(FieldPrizeItemID, v))
-}
-
-// PrizeItemIDGTE applies the GTE predicate on the "prize_item_id" field.
-func PrizeItemIDGTE(v int64) predicate.CheckinBlindboxRecord {
-	return predicate.CheckinBlindboxRecord(sql.FieldGTE(FieldPrizeItemID, v))
-}
-
-// PrizeItemIDLT applies the LT predicate on the "prize_item_id" field.
-func PrizeItemIDLT(v int64) predicate.CheckinBlindboxRecord {
-	return predicate.CheckinBlindboxRecord(sql.FieldLT(FieldPrizeItemID, v))
-}
-
-// PrizeItemIDLTE applies the LTE predicate on the "prize_item_id" field.
-func PrizeItemIDLTE(v int64) predicate.CheckinBlindboxRecord {
-	return predicate.CheckinBlindboxRecord(sql.FieldLTE(FieldPrizeItemID, v))
 }
 
 // PrizeNameEQ applies the EQ predicate on the "prize_name" field.
@@ -567,6 +528,52 @@ func CreatedAtLT(v time.Time) predicate.CheckinBlindboxRecord {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.CheckinBlindboxRecord {
 	return predicate.CheckinBlindboxRecord(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// HasUser applies the HasEdge predicate on the "user" edge.
+func HasUser() predicate.CheckinBlindboxRecord {
+	return predicate.CheckinBlindboxRecord(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, UserTable, UserColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasUserWith applies the HasEdge predicate on the "user" edge with a given conditions (other predicates).
+func HasUserWith(preds ...predicate.User) predicate.CheckinBlindboxRecord {
+	return predicate.CheckinBlindboxRecord(func(s *sql.Selector) {
+		step := newUserStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasPrizeItem applies the HasEdge predicate on the "prize_item" edge.
+func HasPrizeItem() predicate.CheckinBlindboxRecord {
+	return predicate.CheckinBlindboxRecord(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, PrizeItemTable, PrizeItemColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPrizeItemWith applies the HasEdge predicate on the "prize_item" edge with a given conditions (other predicates).
+func HasPrizeItemWith(preds ...predicate.CheckinPrizeItem) predicate.CheckinBlindboxRecord {
+	return predicate.CheckinBlindboxRecord(func(s *sql.Selector) {
+		step := newPrizeItemStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

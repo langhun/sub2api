@@ -76,8 +76,5 @@ func (Proxy) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("status"),
 		index.Fields("deleted_at"),
-		index.Fields("subscription_source_id"),
-		index.Fields("subscription_node_id"),
-		index.Fields("managed_by_subscription"),
 	}
 }

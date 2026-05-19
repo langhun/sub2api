@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 )
@@ -221,9 +222,45 @@ func (_u *CheckinPrizeItemUpdate) ClearDeletedAt() *CheckinPrizeItemUpdate {
 	return _u
 }
 
+// AddBlindboxRecordIDs adds the "blindbox_records" edge to the CheckinBlindboxRecord entity by IDs.
+func (_u *CheckinPrizeItemUpdate) AddBlindboxRecordIDs(ids ...int64) *CheckinPrizeItemUpdate {
+	_u.mutation.AddBlindboxRecordIDs(ids...)
+	return _u
+}
+
+// AddBlindboxRecords adds the "blindbox_records" edges to the CheckinBlindboxRecord entity.
+func (_u *CheckinPrizeItemUpdate) AddBlindboxRecords(v ...*CheckinBlindboxRecord) *CheckinPrizeItemUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddBlindboxRecordIDs(ids...)
+}
+
 // Mutation returns the CheckinPrizeItemMutation object of the builder.
 func (_u *CheckinPrizeItemUpdate) Mutation() *CheckinPrizeItemMutation {
 	return _u.mutation
+}
+
+// ClearBlindboxRecords clears all "blindbox_records" edges to the CheckinBlindboxRecord entity.
+func (_u *CheckinPrizeItemUpdate) ClearBlindboxRecords() *CheckinPrizeItemUpdate {
+	_u.mutation.ClearBlindboxRecords()
+	return _u
+}
+
+// RemoveBlindboxRecordIDs removes the "blindbox_records" edge to CheckinBlindboxRecord entities by IDs.
+func (_u *CheckinPrizeItemUpdate) RemoveBlindboxRecordIDs(ids ...int64) *CheckinPrizeItemUpdate {
+	_u.mutation.RemoveBlindboxRecordIDs(ids...)
+	return _u
+}
+
+// RemoveBlindboxRecords removes "blindbox_records" edges to CheckinBlindboxRecord entities.
+func (_u *CheckinPrizeItemUpdate) RemoveBlindboxRecords(v ...*CheckinBlindboxRecord) *CheckinPrizeItemUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveBlindboxRecordIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -324,6 +361,51 @@ func (_u *CheckinPrizeItemUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(checkinprizeitem.FieldDeletedAt, field.TypeTime)
+	}
+	if _u.mutation.BlindboxRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   checkinprizeitem.BlindboxRecordsTable,
+			Columns: []string{checkinprizeitem.BlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedBlindboxRecordsIDs(); len(nodes) > 0 && !_u.mutation.BlindboxRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   checkinprizeitem.BlindboxRecordsTable,
+			Columns: []string{checkinprizeitem.BlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BlindboxRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   checkinprizeitem.BlindboxRecordsTable,
+			Columns: []string{checkinprizeitem.BlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -538,9 +620,45 @@ func (_u *CheckinPrizeItemUpdateOne) ClearDeletedAt() *CheckinPrizeItemUpdateOne
 	return _u
 }
 
+// AddBlindboxRecordIDs adds the "blindbox_records" edge to the CheckinBlindboxRecord entity by IDs.
+func (_u *CheckinPrizeItemUpdateOne) AddBlindboxRecordIDs(ids ...int64) *CheckinPrizeItemUpdateOne {
+	_u.mutation.AddBlindboxRecordIDs(ids...)
+	return _u
+}
+
+// AddBlindboxRecords adds the "blindbox_records" edges to the CheckinBlindboxRecord entity.
+func (_u *CheckinPrizeItemUpdateOne) AddBlindboxRecords(v ...*CheckinBlindboxRecord) *CheckinPrizeItemUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddBlindboxRecordIDs(ids...)
+}
+
 // Mutation returns the CheckinPrizeItemMutation object of the builder.
 func (_u *CheckinPrizeItemUpdateOne) Mutation() *CheckinPrizeItemMutation {
 	return _u.mutation
+}
+
+// ClearBlindboxRecords clears all "blindbox_records" edges to the CheckinBlindboxRecord entity.
+func (_u *CheckinPrizeItemUpdateOne) ClearBlindboxRecords() *CheckinPrizeItemUpdateOne {
+	_u.mutation.ClearBlindboxRecords()
+	return _u
+}
+
+// RemoveBlindboxRecordIDs removes the "blindbox_records" edge to CheckinBlindboxRecord entities by IDs.
+func (_u *CheckinPrizeItemUpdateOne) RemoveBlindboxRecordIDs(ids ...int64) *CheckinPrizeItemUpdateOne {
+	_u.mutation.RemoveBlindboxRecordIDs(ids...)
+	return _u
+}
+
+// RemoveBlindboxRecords removes "blindbox_records" edges to CheckinBlindboxRecord entities.
+func (_u *CheckinPrizeItemUpdateOne) RemoveBlindboxRecords(v ...*CheckinBlindboxRecord) *CheckinPrizeItemUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveBlindboxRecordIDs(ids...)
 }
 
 // Where appends a list predicates to the CheckinPrizeItemUpdate builder.
@@ -671,6 +789,51 @@ func (_u *CheckinPrizeItemUpdateOne) sqlSave(ctx context.Context) (_node *Checki
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(checkinprizeitem.FieldDeletedAt, field.TypeTime)
+	}
+	if _u.mutation.BlindboxRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   checkinprizeitem.BlindboxRecordsTable,
+			Columns: []string{checkinprizeitem.BlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedBlindboxRecordsIDs(); len(nodes) > 0 && !_u.mutation.BlindboxRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   checkinprizeitem.BlindboxRecordsTable,
+			Columns: []string{checkinprizeitem.BlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BlindboxRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   checkinprizeitem.BlindboxRecordsTable,
+			Columns: []string{checkinprizeitem.BlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &CheckinPrizeItem{config: _u.config}
 	_spec.Assign = _node.assignValues

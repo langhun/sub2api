@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
+	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
 // CheckinBlindboxRecordCreate is the builder for creating a CheckinBlindboxRecord entity.
@@ -132,6 +134,16 @@ func (_c *CheckinBlindboxRecordCreate) SetNillableCreatedAt(v *time.Time) *Check
 	return _c
 }
 
+// SetUser sets the "user" edge to the User entity.
+func (_c *CheckinBlindboxRecordCreate) SetUser(v *User) *CheckinBlindboxRecordCreate {
+	return _c.SetUserID(v.ID)
+}
+
+// SetPrizeItem sets the "prize_item" edge to the CheckinPrizeItem entity.
+func (_c *CheckinBlindboxRecordCreate) SetPrizeItem(v *CheckinPrizeItem) *CheckinBlindboxRecordCreate {
+	return _c.SetPrizeItemID(v.ID)
+}
+
 // Mutation returns the CheckinBlindboxRecordMutation object of the builder.
 func (_c *CheckinBlindboxRecordCreate) Mutation() *CheckinBlindboxRecordMutation {
 	return _c.mutation
@@ -223,6 +235,12 @@ func (_c *CheckinBlindboxRecordCreate) check() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "CheckinBlindboxRecord.created_at"`)}
 	}
+	if len(_c.mutation.UserIDs()) == 0 {
+		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "CheckinBlindboxRecord.user"`)}
+	}
+	if len(_c.mutation.PrizeItemIDs()) == 0 {
+		return &ValidationError{Name: "prize_item", err: errors.New(`ent: missing required edge "CheckinBlindboxRecord.prize_item"`)}
+	}
 	return nil
 }
 
@@ -250,14 +268,6 @@ func (_c *CheckinBlindboxRecordCreate) createSpec() (*CheckinBlindboxRecord, *sq
 		_spec = sqlgraph.NewCreateSpec(checkinblindboxrecord.Table, sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64))
 	)
 	_spec.OnConflict = _c.conflict
-	if value, ok := _c.mutation.UserID(); ok {
-		_spec.SetField(checkinblindboxrecord.FieldUserID, field.TypeInt64, value)
-		_node.UserID = value
-	}
-	if value, ok := _c.mutation.PrizeItemID(); ok {
-		_spec.SetField(checkinblindboxrecord.FieldPrizeItemID, field.TypeInt64, value)
-		_node.PrizeItemID = value
-	}
 	if value, ok := _c.mutation.PrizeName(); ok {
 		_spec.SetField(checkinblindboxrecord.FieldPrizeName, field.TypeString, value)
 		_node.PrizeName = value
@@ -285,6 +295,40 @@ func (_c *CheckinBlindboxRecordCreate) createSpec() (*CheckinBlindboxRecord, *sq
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(checkinblindboxrecord.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   checkinblindboxrecord.UserTable,
+			Columns: []string{checkinblindboxrecord.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.UserID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.PrizeItemIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   checkinblindboxrecord.PrizeItemTable,
+			Columns: []string{checkinblindboxrecord.PrizeItemColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinprizeitem.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.PrizeItemID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }
@@ -350,12 +394,6 @@ func (u *CheckinBlindboxRecordUpsert) UpdateUserID() *CheckinBlindboxRecordUpser
 	return u
 }
 
-// AddUserID adds v to the "user_id" field.
-func (u *CheckinBlindboxRecordUpsert) AddUserID(v int64) *CheckinBlindboxRecordUpsert {
-	u.Add(checkinblindboxrecord.FieldUserID, v)
-	return u
-}
-
 // SetPrizeItemID sets the "prize_item_id" field.
 func (u *CheckinBlindboxRecordUpsert) SetPrizeItemID(v int64) *CheckinBlindboxRecordUpsert {
 	u.Set(checkinblindboxrecord.FieldPrizeItemID, v)
@@ -365,12 +403,6 @@ func (u *CheckinBlindboxRecordUpsert) SetPrizeItemID(v int64) *CheckinBlindboxRe
 // UpdatePrizeItemID sets the "prize_item_id" field to the value that was provided on create.
 func (u *CheckinBlindboxRecordUpsert) UpdatePrizeItemID() *CheckinBlindboxRecordUpsert {
 	u.SetExcluded(checkinblindboxrecord.FieldPrizeItemID)
-	return u
-}
-
-// AddPrizeItemID adds v to the "prize_item_id" field.
-func (u *CheckinBlindboxRecordUpsert) AddPrizeItemID(v int64) *CheckinBlindboxRecordUpsert {
-	u.Add(checkinblindboxrecord.FieldPrizeItemID, v)
 	return u
 }
 
@@ -516,13 +548,6 @@ func (u *CheckinBlindboxRecordUpsertOne) SetUserID(v int64) *CheckinBlindboxReco
 	})
 }
 
-// AddUserID adds v to the "user_id" field.
-func (u *CheckinBlindboxRecordUpsertOne) AddUserID(v int64) *CheckinBlindboxRecordUpsertOne {
-	return u.Update(func(s *CheckinBlindboxRecordUpsert) {
-		s.AddUserID(v)
-	})
-}
-
 // UpdateUserID sets the "user_id" field to the value that was provided on create.
 func (u *CheckinBlindboxRecordUpsertOne) UpdateUserID() *CheckinBlindboxRecordUpsertOne {
 	return u.Update(func(s *CheckinBlindboxRecordUpsert) {
@@ -534,13 +559,6 @@ func (u *CheckinBlindboxRecordUpsertOne) UpdateUserID() *CheckinBlindboxRecordUp
 func (u *CheckinBlindboxRecordUpsertOne) SetPrizeItemID(v int64) *CheckinBlindboxRecordUpsertOne {
 	return u.Update(func(s *CheckinBlindboxRecordUpsert) {
 		s.SetPrizeItemID(v)
-	})
-}
-
-// AddPrizeItemID adds v to the "prize_item_id" field.
-func (u *CheckinBlindboxRecordUpsertOne) AddPrizeItemID(v int64) *CheckinBlindboxRecordUpsertOne {
-	return u.Update(func(s *CheckinBlindboxRecordUpsert) {
-		s.AddPrizeItemID(v)
 	})
 }
 
@@ -874,13 +892,6 @@ func (u *CheckinBlindboxRecordUpsertBulk) SetUserID(v int64) *CheckinBlindboxRec
 	})
 }
 
-// AddUserID adds v to the "user_id" field.
-func (u *CheckinBlindboxRecordUpsertBulk) AddUserID(v int64) *CheckinBlindboxRecordUpsertBulk {
-	return u.Update(func(s *CheckinBlindboxRecordUpsert) {
-		s.AddUserID(v)
-	})
-}
-
 // UpdateUserID sets the "user_id" field to the value that was provided on create.
 func (u *CheckinBlindboxRecordUpsertBulk) UpdateUserID() *CheckinBlindboxRecordUpsertBulk {
 	return u.Update(func(s *CheckinBlindboxRecordUpsert) {
@@ -892,13 +903,6 @@ func (u *CheckinBlindboxRecordUpsertBulk) UpdateUserID() *CheckinBlindboxRecordU
 func (u *CheckinBlindboxRecordUpsertBulk) SetPrizeItemID(v int64) *CheckinBlindboxRecordUpsertBulk {
 	return u.Update(func(s *CheckinBlindboxRecordUpsert) {
 		s.SetPrizeItemID(v)
-	})
-}
-
-// AddPrizeItemID adds v to the "prize_item_id" field.
-func (u *CheckinBlindboxRecordUpsertBulk) AddPrizeItemID(v int64) *CheckinBlindboxRecordUpsertBulk {
-	return u.Update(func(s *CheckinBlindboxRecordUpsert) {
-		s.AddPrizeItemID(v)
 	})
 }
 

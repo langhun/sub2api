@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -12,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 )
@@ -19,11 +21,12 @@ import (
 // CheckinPrizeItemQuery is the builder for querying CheckinPrizeItem entities.
 type CheckinPrizeItemQuery struct {
 	config
-	ctx        *QueryContext
-	order      []checkinprizeitem.OrderOption
-	inters     []Interceptor
-	predicates []predicate.CheckinPrizeItem
-	modifiers  []func(*sql.Selector)
+	ctx                 *QueryContext
+	order               []checkinprizeitem.OrderOption
+	inters              []Interceptor
+	predicates          []predicate.CheckinPrizeItem
+	withBlindboxRecords *CheckinBlindboxRecordQuery
+	modifiers           []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -58,6 +61,28 @@ func (_q *CheckinPrizeItemQuery) Unique(unique bool) *CheckinPrizeItemQuery {
 func (_q *CheckinPrizeItemQuery) Order(o ...checkinprizeitem.OrderOption) *CheckinPrizeItemQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryBlindboxRecords chains the current query on the "blindbox_records" edge.
+func (_q *CheckinPrizeItemQuery) QueryBlindboxRecords() *CheckinBlindboxRecordQuery {
+	query := (&CheckinBlindboxRecordClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(checkinprizeitem.Table, checkinprizeitem.FieldID, selector),
+			sqlgraph.To(checkinblindboxrecord.Table, checkinblindboxrecord.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, checkinprizeitem.BlindboxRecordsTable, checkinprizeitem.BlindboxRecordsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first CheckinPrizeItem entity from the query.
@@ -247,15 +272,27 @@ func (_q *CheckinPrizeItemQuery) Clone() *CheckinPrizeItemQuery {
 		return nil
 	}
 	return &CheckinPrizeItemQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]checkinprizeitem.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.CheckinPrizeItem{}, _q.predicates...),
+		config:              _q.config,
+		ctx:                 _q.ctx.Clone(),
+		order:               append([]checkinprizeitem.OrderOption{}, _q.order...),
+		inters:              append([]Interceptor{}, _q.inters...),
+		predicates:          append([]predicate.CheckinPrizeItem{}, _q.predicates...),
+		withBlindboxRecords: _q.withBlindboxRecords.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithBlindboxRecords tells the query-builder to eager-load the nodes that are connected to
+// the "blindbox_records" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *CheckinPrizeItemQuery) WithBlindboxRecords(opts ...func(*CheckinBlindboxRecordQuery)) *CheckinPrizeItemQuery {
+	query := (&CheckinBlindboxRecordClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withBlindboxRecords = query
+	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -334,8 +371,11 @@ func (_q *CheckinPrizeItemQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *CheckinPrizeItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*CheckinPrizeItem, error) {
 	var (
-		nodes = []*CheckinPrizeItem{}
-		_spec = _q.querySpec()
+		nodes       = []*CheckinPrizeItem{}
+		_spec       = _q.querySpec()
+		loadedTypes = [1]bool{
+			_q.withBlindboxRecords != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*CheckinPrizeItem).scanValues(nil, columns)
@@ -343,6 +383,7 @@ func (_q *CheckinPrizeItemQuery) sqlAll(ctx context.Context, hooks ...queryHook)
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &CheckinPrizeItem{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	if len(_q.modifiers) > 0 {
@@ -357,7 +398,47 @@ func (_q *CheckinPrizeItemQuery) sqlAll(ctx context.Context, hooks ...queryHook)
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withBlindboxRecords; query != nil {
+		if err := _q.loadBlindboxRecords(ctx, query, nodes,
+			func(n *CheckinPrizeItem) { n.Edges.BlindboxRecords = []*CheckinBlindboxRecord{} },
+			func(n *CheckinPrizeItem, e *CheckinBlindboxRecord) {
+				n.Edges.BlindboxRecords = append(n.Edges.BlindboxRecords, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *CheckinPrizeItemQuery) loadBlindboxRecords(ctx context.Context, query *CheckinBlindboxRecordQuery, nodes []*CheckinPrizeItem, init func(*CheckinPrizeItem), assign func(*CheckinPrizeItem, *CheckinBlindboxRecord)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*CheckinPrizeItem)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(checkinblindboxrecord.FieldPrizeItemID)
+	}
+	query.Where(predicate.CheckinBlindboxRecord(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(checkinprizeitem.BlindboxRecordsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.PrizeItemID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "prize_item_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (_q *CheckinPrizeItemQuery) sqlCount(ctx context.Context) (int, error) {

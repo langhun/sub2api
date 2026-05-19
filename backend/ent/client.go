@@ -3071,6 +3071,38 @@ func (c *CheckinBlindboxRecordClient) GetX(ctx context.Context, id int64) *Check
 	return obj
 }
 
+// QueryUser queries the user edge of a CheckinBlindboxRecord.
+func (c *CheckinBlindboxRecordClient) QueryUser(_m *CheckinBlindboxRecord) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(checkinblindboxrecord.Table, checkinblindboxrecord.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, checkinblindboxrecord.UserTable, checkinblindboxrecord.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPrizeItem queries the prize_item edge of a CheckinBlindboxRecord.
+func (c *CheckinBlindboxRecordClient) QueryPrizeItem(_m *CheckinBlindboxRecord) *CheckinPrizeItemQuery {
+	query := (&CheckinPrizeItemClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(checkinblindboxrecord.Table, checkinblindboxrecord.FieldID, id),
+			sqlgraph.To(checkinprizeitem.Table, checkinprizeitem.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, checkinblindboxrecord.PrizeItemTable, checkinblindboxrecord.PrizeItemColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *CheckinBlindboxRecordClient) Hooks() []Hook {
 	return c.hooks.CheckinBlindboxRecord
@@ -3202,6 +3234,22 @@ func (c *CheckinPrizeItemClient) GetX(ctx context.Context, id int64) *CheckinPri
 		panic(err)
 	}
 	return obj
+}
+
+// QueryBlindboxRecords queries the blindbox_records edge of a CheckinPrizeItem.
+func (c *CheckinPrizeItemClient) QueryBlindboxRecords(_m *CheckinPrizeItem) *CheckinBlindboxRecordQuery {
+	query := (&CheckinBlindboxRecordClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(checkinprizeitem.Table, checkinprizeitem.FieldID, id),
+			sqlgraph.To(checkinblindboxrecord.Table, checkinblindboxrecord.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, checkinprizeitem.BlindboxRecordsTable, checkinprizeitem.BlindboxRecordsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -6586,6 +6634,54 @@ func (c *UserClient) QueryRedeemCodes(_m *User) *RedeemCodeQuery {
 	return query
 }
 
+// QueryRedpackets queries the redpackets edge of a User.
+func (c *UserClient) QueryRedpackets(_m *User) *BalanceRedPacketQuery {
+	query := (&BalanceRedPacketClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(balanceredpacket.Table, balanceredpacket.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.RedpacketsTable, user.RedpacketsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySentTransfers queries the sent_transfers edge of a User.
+func (c *UserClient) QuerySentTransfers(_m *User) *BalanceTransferQuery {
+	query := (&BalanceTransferClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SentTransfersTable, user.SentTransfersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryReceivedTransfers queries the received_transfers edge of a User.
+func (c *UserClient) QueryReceivedTransfers(_m *User) *BalanceTransferQuery {
+	query := (&BalanceTransferClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ReceivedTransfersTable, user.ReceivedTransfersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QuerySubscriptions queries the subscriptions edge of a User.
 func (c *UserClient) QuerySubscriptions(_m *User) *UserSubscriptionQuery {
 	query := (&UserSubscriptionClient{config: c.config}).Query()
@@ -6650,6 +6746,38 @@ func (c *UserClient) QueryAllowedGroups(_m *User) *GroupQuery {
 	return query
 }
 
+// QueryCheckins queries the checkins edge of a User.
+func (c *UserClient) QueryCheckins(_m *User) *CheckinQuery {
+	query := (&CheckinClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(checkin.Table, checkin.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CheckinsTable, user.CheckinsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCheckinBlindboxRecords queries the checkin_blindbox_records edge of a User.
+func (c *UserClient) QueryCheckinBlindboxRecords(_m *User) *CheckinBlindboxRecordQuery {
+	query := (&CheckinBlindboxRecordClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(checkinblindboxrecord.Table, checkinblindboxrecord.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CheckinBlindboxRecordsTable, user.CheckinBlindboxRecordsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryUsageLogs queries the usage_logs edge of a User.
 func (c *UserClient) QueryUsageLogs(_m *User) *UsageLogQuery {
 	query := (&UsageLogClient{config: c.config}).Query()
@@ -6707,70 +6835,6 @@ func (c *UserClient) QueryPaymentOrders(_m *User) *PaymentOrderQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(paymentorder.Table, paymentorder.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PaymentOrdersTable, user.PaymentOrdersColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryCheckins queries the checkins edge of a User.
-func (c *UserClient) QueryCheckins(_m *User) *CheckinQuery {
-	query := (&CheckinClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(checkin.Table, checkin.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.CheckinsTable, user.CheckinsColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QuerySentTransfers queries the sent_transfers edge of a User.
-func (c *UserClient) QuerySentTransfers(_m *User) *BalanceTransferQuery {
-	query := (&BalanceTransferClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.SentTransfersTable, user.SentTransfersColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryReceivedTransfers queries the received_transfers edge of a User.
-func (c *UserClient) QueryReceivedTransfers(_m *User) *BalanceTransferQuery {
-	query := (&BalanceTransferClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.ReceivedTransfersTable, user.ReceivedTransfersColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryRedpackets queries the redpackets edge of a User.
-func (c *UserClient) QueryRedpackets(_m *User) *BalanceRedPacketQuery {
-	query := (&BalanceRedPacketClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(balanceredpacket.Table, balanceredpacket.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.RedpacketsTable, user.RedpacketsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
