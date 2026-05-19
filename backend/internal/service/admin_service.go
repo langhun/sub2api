@@ -95,7 +95,7 @@ type AdminService interface {
 
 	// Proxy management
 	ListProxies(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]Proxy, int64, error)
-	ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error)
+	ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, runtimeStatus, search string, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error)
 	GetAllProxies(ctx context.Context) ([]Proxy, error)
 	GetAllProxiesWithAccountCount(ctx context.Context) ([]ProxyWithAccountCount, error)
 	GetProxy(ctx context.Context, id int64) (*Proxy, error)
@@ -406,8 +406,8 @@ type UpdateProxyInput struct {
 	Protocol                string
 	Host                    string
 	Port                    int
-	Username                string
-	Password                string
+	Username                *string
+	Password                *string
 	Status                  string
 	AutoFailoverPoolEnabled *bool
 	ManagedBySubscription   *bool
@@ -2886,10 +2886,11 @@ func (s *adminServiceImpl) ListProxies(ctx context.Context, page, pageSize int, 
 	return proxies, result.Total, nil
 }
 
-func (s *adminServiceImpl) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error) {
-	if strings.EqualFold(strings.TrimSpace(status), "failed") {
-		return s.listFailedProxiesWithAccountCount(ctx, page, pageSize, protocol, search, sortBy, sortOrder)
+func (s *adminServiceImpl) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, runtimeStatus, search string, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error) {
+	if strings.TrimSpace(runtimeStatus) != "" {
+		return s.listProxyWithRuntimeStatus(ctx, page, pageSize, protocol, status, runtimeStatus, search, sortBy, sortOrder)
 	}
+
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
 	proxies, result, err := s.proxyRepo.ListWithFiltersAndAccountCount(ctx, params, protocol, status, search)
 	if err != nil {
@@ -2940,6 +2941,12 @@ func (s *adminServiceImpl) GetProxiesByIDs(ctx context.Context, ids []int64) ([]
 }
 
 func (s *adminServiceImpl) CreateProxy(ctx context.Context, input *CreateProxyInput) (*Proxy, error) {
+	if input.ManagedBySubscription {
+		return nil, fmt.Errorf("managed subscription proxies must be created by the subscription runtime only")
+	}
+	if input.SubscriptionSourceID != nil || input.SubscriptionNodeID != nil {
+		return nil, fmt.Errorf("subscription-managed proxy fields are read-only")
+	}
 	proxy := &Proxy{
 		Name:                  input.Name,
 		Protocol:              input.Protocol,
@@ -2971,9 +2978,14 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	if err != nil {
 		return nil, err
 	}
+	if !input.AllowManagedOverride {
+		if input.ManagedBySubscription != nil || input.SubscriptionSourceID != nil || input.SubscriptionNodeID != nil {
+			return nil, fmt.Errorf("subscription-managed proxy fields are read-only")
+		}
+	}
 
 	if proxy.ManagedBySubscription && !input.AllowManagedOverride {
-		if input.Name != "" || input.Protocol != "" || input.Host != "" || input.Port != 0 || input.Username != "" || input.Password != "" {
+		if input.Name != "" || input.Protocol != "" || input.Host != "" || input.Port != 0 || input.Username != nil || input.Password != nil {
 			return nil, infraerrors.BadRequest("PROXY_SUBSCRIPTION_MANAGED", "subscription managed proxy fields are read-only")
 		}
 	}
@@ -2990,11 +3002,11 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	if input.Port != 0 {
 		proxy.Port = input.Port
 	}
-	if input.Username != "" {
-		proxy.Username = input.Username
+	if input.Username != nil {
+		proxy.Username = *input.Username
 	}
-	if input.Password != "" {
-		proxy.Password = input.Password
+	if input.Password != nil {
+		proxy.Password = *input.Password
 	}
 	if input.Status != "" {
 		proxy.Status = input.Status
@@ -3181,6 +3193,79 @@ func isFailedProxyWithAccountCount(proxy ProxyWithAccountCount) bool {
 		strings.EqualFold(proxy.QualityStatus, "failed") ||
 		strings.EqualFold(proxy.HealthStatus, "failed") ||
 		strings.EqualFold(proxy.HealthStatus, "cooldown")
+}
+
+func filterProxyRuntimeState(items []ProxyWithAccountCount, runtimeStatus string) []ProxyWithAccountCount {
+	normalized := strings.ToLower(strings.TrimSpace(runtimeStatus))
+	if normalized == "" {
+		return items
+	}
+
+	filtered := make([]ProxyWithAccountCount, 0, len(items))
+	for _, item := range items {
+		if matchesProxyRuntimeState(item, normalized) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+func matchesProxyRuntimeState(item ProxyWithAccountCount, runtimeStatus string) bool {
+	switch runtimeStatus {
+	case "failed":
+		return isFailedProxyWithAccountCount(item)
+	case "cooldown":
+		return strings.EqualFold(item.HealthStatus, "cooldown")
+	case "healthy":
+		return strings.EqualFold(item.HealthStatus, "healthy")
+	case "warn":
+		return strings.EqualFold(item.QualityStatus, "warn")
+	case "challenge":
+		return strings.EqualFold(item.QualityStatus, "challenge")
+	default:
+		return false
+	}
+}
+
+func (s *adminServiceImpl) listProxyWithRuntimeStatus(ctx context.Context, page, pageSize int, protocol, status, runtimeStatus, search, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error) {
+	scanPage := 1
+	scanPageSize := 1000
+	filtered := make([]ProxyWithAccountCount, 0)
+
+	for {
+		params := pagination.PaginationParams{
+			Page:      scanPage,
+			PageSize:  scanPageSize,
+			SortBy:    sortBy,
+			SortOrder: sortOrder,
+		}
+		proxies, result, err := s.proxyRepo.ListWithFiltersAndAccountCount(ctx, params, protocol, status, search)
+		if err != nil {
+			return nil, 0, err
+		}
+		s.attachProxyPoolMembershipWithAccountCount(ctx, proxies)
+		s.attachProxyLatency(ctx, proxies)
+		filtered = append(filtered, filterProxyRuntimeState(proxies, runtimeStatus)...)
+
+		if len(proxies) == 0 || result == nil || scanPage*scanPageSize >= int(result.Total) {
+			break
+		}
+		scanPage++
+	}
+
+	total := int64(len(filtered))
+	start := (page - 1) * pageSize
+	if start < 0 {
+		start = 0
+	}
+	if start >= len(filtered) {
+		return []ProxyWithAccountCount{}, total, nil
+	}
+	end := start + pageSize
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	return filtered[start:end], total, nil
 }
 
 func (s *adminServiceImpl) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {

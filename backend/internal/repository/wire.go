@@ -145,7 +145,7 @@ var ProviderSet = wire.NewSet(
 	NewGeminiOAuthClient,
 	NewGeminiCliCodeAssistClient,
 	NewGeminiDriveClient,
-	NewProxySubscriptionSidecarClient,
+	NewProxySubscriptionMihomoRuntimeManager,
 
 	ProvideEnt,
 	ProvideSQLDB,

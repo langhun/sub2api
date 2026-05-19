@@ -444,11 +444,15 @@ func ProvideProxySubscriptionService(
 	sourceRepo ProxySubscriptionSourceRepository,
 	nodeRepo ProxySubscriptionNodeRepository,
 	proxyRepo ProxyRepository,
+	accountRepo AccountRepository,
 	settingService *SettingService,
-	sidecar ProxySubscriptionSidecarClient,
+	runtime ProxySubscriptionRuntimeManager,
+	proxyProber ProxyExitInfoProber,
 	cfg *config.Config,
 ) *ProxySubscriptionService {
-	return NewProxySubscriptionService(sourceRepo, nodeRepo, proxyRepo, settingService, sidecar, cfg)
+	svc := NewProxySubscriptionService(sourceRepo, nodeRepo, proxyRepo, accountRepo, settingService, runtime, cfg)
+	svc.SetProxyProber(proxyProber)
+	return svc
 }
 
 func ProvideProxySubscriptionRefreshService(
@@ -457,6 +461,16 @@ func ProvideProxySubscriptionRefreshService(
 	cfg *config.Config,
 ) *ProxySubscriptionRefreshService {
 	svc := NewProxySubscriptionRefreshService(sourceRepo, subscriptionService, cfg)
+	svc.Start()
+	return svc
+}
+
+func ProvideProxySubscriptionRuntimeRehydrateService(
+	subscriptionService *ProxySubscriptionService,
+	sourceRepo ProxySubscriptionSourceRepository,
+	cfg *config.Config,
+) *ProxySubscriptionRuntimeRehydrateService {
+	svc := NewProxySubscriptionRuntimeRehydrateService(subscriptionService, sourceRepo, cfg)
 	svc.Start()
 	return svc
 }
@@ -631,6 +645,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAutoFailoverProxyPoolService,
 	ProvideProxySubscriptionService,
 	ProvideProxySubscriptionRefreshService,
+	ProvideProxySubscriptionRuntimeRehydrateService,
 	NewDataManagementService,
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,

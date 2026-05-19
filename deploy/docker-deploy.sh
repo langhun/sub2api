@@ -4,7 +4,6 @@
 # =============================================================================
 # This script prepares deployment files for Sub2API:
 #   - Downloads the local-directory Compose template as docker-compose.yml and .env.example
-#   - Downloads the proxy-subscription sidecar build context
 #   - Generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 #   - Creates necessary data directories
 #
@@ -98,22 +97,6 @@ main() {
     fi
     print_success "Downloaded .env.example"
 
-    # Download proxy subscription sidecar build context
-    print_info "Downloading proxy-subscription sidecar files..."
-    mkdir -p tools/proxy-subscription-sidecar
-    if command_exists curl; then
-        curl -sSL "${GITHUB_RAW_REPO_URL}/tools/proxy-subscription-sidecar/package.json" -o tools/proxy-subscription-sidecar/package.json
-        curl -sSL "${GITHUB_RAW_REPO_URL}/tools/proxy-subscription-sidecar/server.mjs" -o tools/proxy-subscription-sidecar/server.mjs
-        curl -sSL "${GITHUB_RAW_REPO_URL}/tools/proxy-subscription-sidecar/Dockerfile" -o tools/proxy-subscription-sidecar/Dockerfile
-        curl -sSL "${GITHUB_RAW_REPO_URL}/tools/proxy-subscription-sidecar/README.md" -o tools/proxy-subscription-sidecar/README.md
-    else
-        wget -q "${GITHUB_RAW_REPO_URL}/tools/proxy-subscription-sidecar/package.json" -O tools/proxy-subscription-sidecar/package.json
-        wget -q "${GITHUB_RAW_REPO_URL}/tools/proxy-subscription-sidecar/server.mjs" -O tools/proxy-subscription-sidecar/server.mjs
-        wget -q "${GITHUB_RAW_REPO_URL}/tools/proxy-subscription-sidecar/Dockerfile" -O tools/proxy-subscription-sidecar/Dockerfile
-        wget -q "${GITHUB_RAW_REPO_URL}/tools/proxy-subscription-sidecar/README.md" -O tools/proxy-subscription-sidecar/README.md
-    fi
-    print_success "Downloaded proxy-subscription sidecar files"
-
     # Generate .env file with auto-generated secrets
     print_info "Generating secure secrets..."
     echo ""
@@ -141,7 +124,7 @@ main() {
 
     # Create data directories
     print_info "Creating data directories..."
-    mkdir -p data postgres_data redis_data proxy_subscription_sidecar_data
+    mkdir -p data postgres_data redis_data
     print_success "Created data directories"
 
     # Set secure permissions for .env file (readable/writable only by owner)
@@ -168,7 +151,6 @@ main() {
     echo "  data/                     - Application data (will be created on first run)"
     echo "  postgres_data/            - PostgreSQL data"
     echo "  redis_data/               - Redis data"
-    echo "  proxy_subscription_sidecar_data/ - Proxy subscription sidecar runtime data"
     echo ""
     echo "Next steps:"
     echo "  1. (Optional) Edit .env to customize configuration"

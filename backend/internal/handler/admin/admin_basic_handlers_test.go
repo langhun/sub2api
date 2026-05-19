@@ -297,6 +297,37 @@ func TestProxyHandlerEndpoints(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 
+func TestProxyHandlerUpdateAllowsClearingCredentials(t *testing.T) {
+	router, adminSvc := setupAdminRouter()
+
+	body, err := json.Marshal(map[string]any{
+		"username": nil,
+		"password": nil,
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/proxies/4", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotEmpty(t, adminSvc.updatedProxies)
+	last := adminSvc.updatedProxies[len(adminSvc.updatedProxies)-1]
+	require.NotNil(t, last.Username)
+	require.NotNil(t, last.Password)
+	require.Equal(t, "", *last.Username)
+	require.Equal(t, "", *last.Password)
+}
+
+func TestProxyHandlerListSupportsRuntimeStatusFilter(t *testing.T) {
+	router, _ := setupAdminRouter()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies?runtime_status=failed", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+}
+
 func TestProxySubscriptionHandlerRequestMapping(t *testing.T) {
 	router, adminSvc := setupAdminRouter()
 

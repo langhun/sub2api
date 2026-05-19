@@ -106,24 +106,23 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 **Recommendation:** Use the local-directory compose file for easier data management and migration. `docker-deploy.sh` saves it as `docker-compose.yml`, so script-based installs can use plain `docker compose ...` commands.
 
-### Proxy Subscription Sidecar
+### Proxy Subscription Mihomo Runtime
 
 Sub2API now supports proxy subscription sources under the Admin proxy management page. For non-direct nodes
-such as `ss`, `vmess`, `vless`, `trojan`, and `hysteria2`, the main application delegates runtime materialization
-to the companion `proxy-subscription-sidecar` service.
+such as `ss`, `vmess`, `vless`, `trojan`, `hysteria`, and `hysteria2`, the main application now manages a built-in
+`mihomo` runtime directly instead of relying on a separate companion sidecar service.
 
-What the sidecar does:
-- Accepts runtime upsert / check / delete requests over HTTP
-- Writes a sing-box config per runtime
-- Starts a local `socks5h` listener backed by sing-box
-- Returns the listener address so Sub2API can materialize it into the normal proxy pool
+What the built-in runtime does:
+- Materializes each supported subscription node into a local `socks5h` listener
+- Writes generated runtime config files under the application data directory
+- Starts and stops `mihomo` child processes under the main Sub2API process lifecycle
+- Reuses the normal `proxies` table so the existing proxy pool, binding, testing, and failover logic keep working
 
 Important notes:
 - `PROXY_SUBSCRIPTIONS_ENABLED=true` enables subscription source management and background refresh
-- `PROXY_SUBSCRIPTION_SIDECAR_ENABLED=true` enables sidecar integration for non-direct proxy nodes
-- The Docker Compose templates in this directory already include a `proxy-subscription-sidecar` service
-- The sidecar image installs `sing-box` in-container; no extra host binary is required for Docker deployments
-- Current node mapping is intentionally minimal and focuses on the common fields required to bootstrap runtime creation
+- `PROXY_SUBSCRIPTION_MIHOMO_ENABLED=true` enables built-in runtime materialization for non-direct proxy nodes
+- Docker deployments no longer require an extra `proxy-subscription-sidecar` service
+- The main runtime image installs `mihomo` directly
 
 Recommended environment variables:
 
@@ -133,25 +132,25 @@ PROXY_SUBSCRIPTIONS_REFRESH_SCAN_INTERVAL_SECONDS=60
 PROXY_SUBSCRIPTIONS_DEFAULT_REFRESH_INTERVAL_HOURS=6
 PROXY_SUBSCRIPTIONS_SYNC_CONCURRENCY=2
 
-PROXY_SUBSCRIPTION_SIDECAR_ENABLED=true
-PROXY_SUBSCRIPTION_SIDECAR_BASE_URL=http://proxy-subscription-sidecar:8080
-PROXY_SUBSCRIPTION_SIDECAR_LISTENER_HOST=proxy-subscription-sidecar
-PROXY_SUBSCRIPTION_SIDECAR_LISTENER_PORT_RANGE=21080-21180
-PROXY_SUBSCRIPTION_SIDECAR_SING_BOX_BIN=/usr/bin/sing-box
+PROXY_SUBSCRIPTION_MIHOMO_ENABLED=true
+PROXY_SUBSCRIPTION_MIHOMO_BIN=/usr/bin/mihomo
+PROXY_SUBSCRIPTION_MIHOMO_DATA_DIR=/app/data/proxy-subscription-mihomo
+PROXY_SUBSCRIPTION_MIHOMO_LISTENER_HOST=127.0.0.1
+PROXY_SUBSCRIPTION_MIHOMO_LISTENER_PORT_RANGE=21080-21180
 ```
 
-To verify the sidecar after startup:
+To verify the runtime after startup:
 
 ```bash
-docker compose logs -f proxy-subscription-sidecar
-docker compose exec sub2api wget -qO- http://proxy-subscription-sidecar:8080/healthz
+docker compose logs -f sub2api
+docker compose exec sub2api which mihomo
 ```
 
-If you see `spawn sing-box ENOENT`, verify that:
-- the sidecar image contains `sing-box`
-- `PROXY_SUBSCRIPTION_SIDECAR_SING_BOX_BIN` points to the real executable path
-- `PROXY_SUBSCRIPTION_SIDECAR_LISTENER_HOST` resolves over the Compose network instead of `127.0.0.1`
-- the process user can execute that binary
+If you see `start mihomo` failures, verify that:
+- the container image contains `mihomo`
+- `PROXY_SUBSCRIPTION_MIHOMO_BIN` points to the real executable path
+- `PROXY_SUBSCRIPTION_MIHOMO_LISTENER_PORT_RANGE` has free local ports
+- the process user can execute that binary and write into the runtime data directory
 
 ### How Auto-Setup Works
 

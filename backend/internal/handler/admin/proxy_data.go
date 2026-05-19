@@ -32,6 +32,7 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 	} else {
 		protocol := c.Query("protocol")
 		status := c.Query("status")
+		runtimeStatus := c.Query("runtime_status")
 		search := strings.TrimSpace(c.Query("search"))
 		sortBy := c.DefaultQuery("sort_by", "id")
 		sortOrder := c.DefaultQuery("sort_order", "desc")
@@ -39,7 +40,7 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 			search = search[:100]
 		}
 
-		proxies, err = h.listProxiesFiltered(ctx, protocol, status, search, sortBy, sortOrder)
+		proxies, err = h.listProxiesFiltered(ctx, protocol, status, runtimeStatus, search, sortBy, sortOrder)
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return
@@ -92,7 +93,7 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 	ctx := c.Request.Context()
 	result := DataImportResult{}
 
-	existingProxies, err := h.listProxiesFiltered(ctx, "", "", "", "id", "desc")
+	existingProxies, err := h.listProxiesFiltered(ctx, "", "", "", "", "id", "desc")
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -246,15 +247,15 @@ func parseProxyIDs(c *gin.Context) ([]int64, error) {
 	return ids, nil
 }
 
-func (h *ProxyHandler) listProxiesFiltered(ctx context.Context, protocol, status, search, sortBy, sortOrder string) ([]service.Proxy, error) {
+func (h *ProxyHandler) listProxiesFiltered(ctx context.Context, protocol, status, runtimeStatus, search, sortBy, sortOrder string) ([]service.Proxy, error) {
 	page := 1
 	pageSize := dataPageCap
 	var out []service.Proxy
 	sortBy = strings.TrimSpace(sortBy)
-	useAccountCountSort := strings.EqualFold(sortBy, "account_count")
+	useAccountCountSort := strings.EqualFold(sortBy, "account_count") || strings.TrimSpace(runtimeStatus) != ""
 	for {
 		if useAccountCountSort {
-			items, total, err := h.adminService.ListProxiesWithAccountCount(ctx, page, pageSize, protocol, status, search, sortBy, sortOrder)
+			items, total, err := h.adminService.ListProxiesWithAccountCount(ctx, page, pageSize, protocol, status, runtimeStatus, search, sortBy, sortOrder)
 			if err != nil {
 				return nil, err
 			}

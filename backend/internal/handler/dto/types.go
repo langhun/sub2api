@@ -311,6 +311,7 @@ type ProxySubscriptionSource struct {
 	SourceFormat               string     `json:"source_format"`
 	Enabled                    bool       `json:"enabled"`
 	RefreshIntervalHours       int        `json:"refresh_interval_hours"`
+	TargetEntryCount           int        `json:"target_entry_count"`
 	AutoAddToPool              bool       `json:"auto_add_to_pool"`
 	LastRefreshedAt            *time.Time `json:"last_refreshed_at,omitempty"`
 	LastSuccessAt              *time.Time `json:"last_success_at,omitempty"`
