@@ -77,7 +77,7 @@ describe('useCheckinStore', () => {
     expect(store.status?.today_multiplier).toBe(0.88)
     expect(appStore.toasts).toHaveLength(1)
     expect(appStore.toasts[0].type).toBe('success')
-    expect(appStore.toasts[0].message).toBe('运气签到成功！倍率 $0.88x，失去 $1.25')
+    expect(appStore.toasts[0].message).toBe('运气签到成功！倍率 x0.88，失去 $1.25')
   })
 
   it('luck check-in 失败后显示错误提示并刷新状态', async () => {

@@ -64,10 +64,16 @@ vi.mock('@/stores/app', () => ({
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  const translations: Record<string, string> = {
+    'admin.proxies.disableAction': '停用代理',
+    'admin.proxies.enableAction': '启用代理',
+    'admin.proxies.statusDisabled': '代理已停用',
+    'admin.proxies.statusEnabled': '代理已启用'
+  }
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key
+      t: (key: string) => translations[key] ?? key
     })
   }
 })
@@ -597,14 +603,14 @@ describe('admin ProxiesView pool state', () => {
     await flushPromises()
 
     const teleportedButtons = Array.from(document.body.querySelectorAll('button'))
-    const disableButton = teleportedButtons.find((button) => button.textContent?.includes('common.disable'))
+    const disableButton = teleportedButtons.find((button) => button.textContent?.includes('停用代理'))
 
     expect(disableButton).toBeDefined()
     disableButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 
     expect(updateProxy).toHaveBeenCalledWith(1, { status: 'inactive' })
-    expect(showSuccess).toHaveBeenCalledWith('admin.proxies.statusDisabled')
+    expect(showSuccess).toHaveBeenCalledWith('代理已停用')
     expect(listProxies).toHaveBeenCalledTimes(2)
   })
 })
