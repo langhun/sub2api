@@ -27,6 +27,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/tidwall/gjson"
 )
 
 // sseDataPrefix matches SSE data lines with optional whitespace after colon.
@@ -37,6 +38,8 @@ const (
 	testClaudeAPIURL   = "https://api.anthropic.com/v1/messages?beta=true"
 	chatgptCodexAPIURL = "https://chatgpt.com/backend-api/codex/responses"
 )
+
+var openAIImageTestHeartbeatInterval = 15 * time.Second
 
 // TestEvent represents a SSE event for account testing
 type TestEvent struct {
@@ -1537,19 +1540,22 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("OpenAI-Beta", "responses=experimental")
-	req.Header.Set("originator", "opencode")
+	req.Header.Set("Originator", "codex_cli_rs")
+	req.Header.Set("Version", codexCLIVersion)
 	if customUA := strings.TrimSpace(account.GetOpenAIUserAgent()); customUA != "" {
 		req.Header.Set("User-Agent", customUA)
-	} else {
+	}
+	if !openai.IsCodexCLIRequest(req.Header.Get("User-Agent")) {
 		req.Header.Set("User-Agent", codexCLIUserAgent)
 	}
+	probeSessionID := compactProbeSessionID(account.ID)
+	req.Header.Set("Session_ID", probeSessionID)
+	req.Header.Set("Conversation_ID", probeSessionID)
 	if chatgptAccountID := strings.TrimSpace(account.GetChatGPTAccountID()); chatgptAccountID != "" {
 		req.Header.Set("chatgpt-account-id", chatgptAccountID)
 	}
 
-	resp, err := s.doTestRequest(ctx, account, req, func(clonedReq *http.Request, proxyURL string) (*http.Response, error) {
-		return s.httpUpstream.Do(clonedReq, proxyURL, account.ID, account.Concurrency)
-	})
+	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Responses API request failed: %s", err.Error()))
 	}
@@ -1567,20 +1573,43 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 		return s.sendErrorAndEnd(c, message)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to read image response: %s", err.Error()))
+	return s.processOpenAIImageStream(c, account, resp.Body)
+}
+
+func (s *AccountTestService) processOpenAIImageStream(c *gin.Context, account *Account, body io.Reader) error {
+	reader := bufio.NewReader(body)
+	flusher, _ := c.Writer.(http.Flusher)
+	var (
+		sseData      openAISSEDataAccumulator
+		streamMeta   openAIResponsesImageResult
+		pending      []openAIResponsesImageResult
+		pendingSeen  = make(map[string]struct{})
+		emitted      = make(map[string]struct{})
+		createdAt    int64
+		completed    bool
+	)
+	type streamReadResult struct {
+		line []byte
+		err  error
+	}
+	readCh := make(chan streamReadResult, 1)
+	go func() {
+		for {
+			line, err := reader.ReadBytes('\n')
+			readCh <- streamReadResult{line: append([]byte(nil), line...), err: err}
+			if err != nil {
+				close(readCh)
+				return
+			}
+		}
+	}()
+	var heartbeatTicker *time.Ticker
+	if flusher != nil && openAIImageTestHeartbeatInterval > 0 {
+		heartbeatTicker = time.NewTicker(openAIImageTestHeartbeatInterval)
+		defer heartbeatTicker.Stop()
 	}
 
-	results, _, _, _, _, err := collectOpenAIImagesFromResponsesBody(body)
-	if err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to parse image response: %s", err.Error()))
-	}
-	if len(results) == 0 {
-		return s.sendErrorAndEnd(c, "No images returned from responses API")
-	}
-
-	for _, item := range results {
+	emitImage := func(item openAIResponsesImageResult) {
 		if item.RevisedPrompt != "" {
 			s.sendEvent(c, TestEvent{Type: "content", Text: item.RevisedPrompt})
 		}
@@ -1592,7 +1621,145 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 		})
 	}
 
-	return s.completeSuccessfulTest(c, account)
+	processPayload := func(payload []byte) error {
+		if !gjson.ValidBytes(payload) {
+			return nil
+		}
+		if meta, eventCreatedAt, ok := extractOpenAIResponsesImageMetaFromLifecycleEvent(payload); ok {
+			mergeOpenAIResponsesImageMeta(&streamMeta, meta)
+			if eventCreatedAt > 0 {
+				createdAt = eventCreatedAt
+			}
+		}
+
+		switch gjson.GetBytes(payload, "type").String() {
+		case "response.output_item.done":
+			item, itemID, ok, err := extractOpenAIImageFromResponsesOutputItemDone(payload)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return nil
+			}
+			mergeOpenAIResponsesImageMeta(&item, streamMeta)
+			key := openAIResponsesImageResultKey(itemID, item)
+			if _, seen := emitted[key]; seen {
+				return nil
+			}
+			if _, seen := pendingSeen[key]; seen {
+				return nil
+			}
+			pendingSeen[key] = struct{}{}
+			pending = append(pending, item)
+			return nil
+		case "response.failed":
+			errorMsg := "OpenAI image response failed"
+			if responseData, ok := gjson.GetBytes(payload, "response.error.message").Value().(string); ok && strings.TrimSpace(responseData) != "" {
+				errorMsg = strings.TrimSpace(responseData)
+			}
+			return fmt.Errorf("%s", errorMsg)
+		case "error":
+			errorMsg := strings.TrimSpace(gjson.GetBytes(payload, "error.message").String())
+			if errorMsg == "" {
+				errorMsg = "Unknown error"
+			}
+			return fmt.Errorf("%s", errorMsg)
+		case "response.completed":
+			results, completedAt, _, firstMeta, err := extractOpenAIImagesFromResponsesCompleted(payload)
+			if err != nil {
+				return err
+			}
+			if completedAt > 0 {
+				createdAt = completedAt
+			}
+			mergeOpenAIResponsesImageMeta(&streamMeta, firstMeta)
+
+			finalResults := make([]openAIResponsesImageResult, 0, len(results)+len(pending))
+			finalSeen := make(map[string]struct{})
+			for _, item := range results {
+				mergeOpenAIResponsesImageMeta(&item, streamMeta)
+				appendOpenAIResponsesImageResultDedup(&finalResults, finalSeen, "", item)
+			}
+			for _, item := range pending {
+				mergeOpenAIResponsesImageMeta(&item, streamMeta)
+				appendOpenAIResponsesImageResultDedup(&finalResults, finalSeen, "", item)
+			}
+
+			if len(finalResults) == 0 {
+				return fmt.Errorf("No images returned from responses API")
+			}
+
+			for _, item := range finalResults {
+				key := openAIResponsesImageResultKey("", item)
+				if _, seen := emitted[key]; seen {
+					continue
+				}
+				emitted[key] = struct{}{}
+				emitImage(item)
+			}
+			completed = true
+			_ = createdAt
+			return nil
+		default:
+			return nil
+		}
+	}
+
+	for {
+		select {
+		case <-c.Request.Context().Done():
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", c.Request.Context().Err()))
+		case <-func() <-chan time.Time {
+			if heartbeatTicker != nil {
+				return heartbeatTicker.C
+			}
+			return nil
+		}():
+			if err := s.sendSSEComment(c, "keepalive"); err != nil {
+				return s.sendErrorAndEnd(c, fmt.Sprintf("Stream write error: %s", err.Error()))
+			}
+		case result, ok := <-readCh:
+			if !ok {
+				if completed {
+					return s.completeSuccessfulTest(c, account)
+				}
+				return s.sendErrorAndEnd(c, "Stream ended before response.completed")
+			}
+			line, err := result.line, result.err
+			if len(line) > 0 {
+			var completedPayloads [][]byte
+			sseData.AddLine(string(line), func(data []byte) {
+				completedPayloads = append(completedPayloads, append([]byte(nil), data...))
+			})
+			for _, payload := range completedPayloads {
+				if processErr := processPayload(payload); processErr != nil {
+					return s.sendErrorAndEnd(c, processErr.Error())
+				}
+			}
+			if completed {
+				return s.completeSuccessfulTest(c, account)
+			}
+			}
+			if err != nil {
+				if err == io.EOF {
+					var flushErr error
+					sseData.Flush(func(data []byte) {
+						if processErr := processPayload(data); processErr != nil && flushErr == nil {
+							flushErr = processErr
+						}
+					})
+					if flushErr != nil {
+						return s.sendErrorAndEnd(c, flushErr.Error())
+					}
+					if completed {
+						return s.completeSuccessfulTest(c, account)
+					}
+					return s.sendErrorAndEnd(c, "Stream ended before response.completed")
+				}
+				return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", err.Error()))
+			}
+		}
+	}
 }
 
 func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
@@ -1602,6 +1769,14 @@ func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
 		return
 	}
 	c.Writer.Flush()
+}
+
+func (s *AccountTestService) sendSSEComment(c *gin.Context, comment string) error {
+	if _, err := fmt.Fprintf(c.Writer, ": %s\n\n", strings.TrimSpace(comment)); err != nil {
+		return err
+	}
+	c.Writer.Flush()
+	return nil
 }
 
 func (s *AccountTestService) completeSuccessfulTest(c *gin.Context, account *Account) error {

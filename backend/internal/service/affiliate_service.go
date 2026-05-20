@@ -489,8 +489,12 @@ func (s *AffiliateService) AdminUpdateUserAffCode(ctx context.Context, userID in
 	if s == nil || s.repo == nil {
 		return infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
 	}
-	code := strings.ToUpper(strings.TrimSpace(rawCode))
-	if !s.isValidAffiliateCodeFormat(code) {
+	format := DefaultAffiliateCodeFormat()
+	if s.settingService != nil {
+		format = s.settingService.GetAffiliateCodeFormat(ctx)
+	}
+	code := NormalizeCodeValueWithFormat(rawCode, format)
+	if !IsCodeMatchingFormat(code, format) {
 		return ErrAffiliateCodeInvalid
 	}
 	return s.repo.UpdateUserAffCode(ctx, userID, code)

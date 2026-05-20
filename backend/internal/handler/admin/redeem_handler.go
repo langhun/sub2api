@@ -181,8 +181,9 @@ func (h *RedeemHandler) CreateInvitationCode(c *gin.Context) {
 		return
 	}
 
-	req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
-	if h.redeemService == nil || !service.IsCodeMatchingFormat(req.Code, h.redeemService.GenerateInvitationFormat(c.Request.Context())) {
+	format := h.redeemService.GenerateInvitationFormat(c.Request.Context())
+	req.Code = service.NormalizeRegistrationInvitationCodeWithSettings(req.Code, format)
+	if h.redeemService == nil || !service.IsCodeMatchingFormat(req.Code, format) {
 		response.BadRequest(c, "Invalid request: invalid invitation code format")
 		return
 	}
@@ -192,6 +193,7 @@ func (h *RedeemHandler) CreateInvitationCode(c *gin.Context) {
 		Type:   service.RedeemTypeInvitation,
 		Value:  0,
 		Status: service.StatusUnused,
+		Notes:  "source=admin_manual",
 	}
 	if err := h.redeemService.CreateCode(c.Request.Context(), code); err != nil {
 		response.ErrorFrom(c, err)
@@ -220,8 +222,9 @@ func (h *RedeemHandler) UpdateInvitationCode(c *gin.Context) {
 		return
 	}
 
-	req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
-	if h.redeemService == nil || !service.IsCodeMatchingFormat(req.Code, h.redeemService.GenerateInvitationFormat(c.Request.Context())) {
+	format := h.redeemService.GenerateInvitationFormat(c.Request.Context())
+	req.Code = service.NormalizeRegistrationInvitationCodeWithSettings(req.Code, format)
+	if h.redeemService == nil || !service.IsCodeMatchingFormat(req.Code, format) {
 		response.BadRequest(c, "Invalid request: invalid invitation code format")
 		return
 	}
@@ -274,8 +277,9 @@ func (h *RedeemHandler) CreateAndRedeem(c *gin.Context) {
 		req.Type = "balance"
 	}
 	if req.Type == "invitation" {
-		req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
-		if !service.IsCodeMatchingFormat(req.Code, h.redeemService.GenerateInvitationFormat(c.Request.Context())) {
+		format := h.redeemService.GenerateInvitationFormat(c.Request.Context())
+		req.Code = service.NormalizeRegistrationInvitationCodeWithSettings(req.Code, format)
+		if !service.IsCodeMatchingFormat(req.Code, format) {
 			response.BadRequest(c, "Invalid request: invalid invitation code format")
 			return
 		}
@@ -465,7 +469,14 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 	writer := csv.NewWriter(&buf)
 
 	// Write header
-	if err := writer.Write([]string{"id", "code", "type", "value", "status", "used_by", "used_by_email", "used_at", "expires_at", "created_at"}); err != nil {
+	if err := writer.Write([]string{
+		"id", "code", "type", "value", "status",
+		"source_type", "source_summary",
+		"winner_user_id", "winner_user_email",
+		"used_by", "used_by_email",
+		"inviter_user_id", "inviter_user_email",
+		"used_at", "expires_at", "created_at",
+	}); err != nil {
 		response.InternalError(c, "Failed to export redeem codes: "+err.Error())
 		return
 	}
@@ -479,6 +490,18 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 		usedByEmail := ""
 		if code.User != nil {
 			usedByEmail = code.User.Email
+		}
+		winnerUserID := ""
+		winnerUserEmail := ""
+		if code.WinningUser != nil {
+			winnerUserID = fmt.Sprintf("%d", code.WinningUser.ID)
+			winnerUserEmail = code.WinningUser.Email
+		}
+		inviterUserID := ""
+		inviterUserEmail := ""
+		if code.InviterUser != nil {
+			inviterUserID = fmt.Sprintf("%d", code.InviterUser.ID)
+			inviterUserEmail = code.InviterUser.Email
 		}
 		usedAt := ""
 		if code.UsedAt != nil {
@@ -494,8 +517,14 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 			code.Type,
 			fmt.Sprintf("%.2f", code.Value),
 			code.Status,
+			code.SourceType,
+			code.SourceSummary,
+			winnerUserID,
+			winnerUserEmail,
 			usedBy,
 			usedByEmail,
+			inviterUserID,
+			inviterUserEmail,
 			usedAt,
 			expiresAt,
 			code.CreatedAt.Format("2006-01-02 15:04:05"),

@@ -276,6 +276,22 @@ let abortController: AbortController | null = null
 const generatedImages = ref<PreviewImage[]>([])
 const previewImageUrl = ref('')
 const prioritizedGeminiModels = ['gemini-3.1-flash-image', 'gemini-2.5-flash-image', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.0-flash']
+
+const flushPendingBuffer = (buffer: string) => {
+  const trimmed = buffer.trim()
+  if (!trimmed.startsWith('data:')) return
+
+  const jsonStr = trimmed.replace(/^data:\s*/, '').trim()
+  if (!jsonStr) return
+
+  try {
+    const event = JSON.parse(jsonStr)
+    handleEvent(event)
+  } catch (e) {
+    console.error('Failed to parse trailing SSE event:', e)
+  }
+}
+
 const supportsGeminiImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
   if (!modelID.startsWith('gemini-') || !modelID.includes('-image')) return false
@@ -438,7 +454,10 @@ const startTest = async () => {
 
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
+      if (done) {
+        flushPendingBuffer(buffer)
+        break
+      }
 
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
@@ -463,10 +482,13 @@ const startTest = async () => {
       status.value = 'idle'
       return
     }
+    const fallbackMessage = error instanceof Error ? error.message : 'Unknown error'
+    const msg = errorMessage.value || fallbackMessage
     status.value = 'error'
-    const msg = error instanceof Error ? error.message : 'Unknown error'
     errorMessage.value = msg
-    addLine(`Error: ${msg}`, 'text-red-400')
+    if (!outputLines.value.some((line) => line.text === `Error: ${msg}`)) {
+      addLine(`Error: ${msg}`, 'text-red-400')
+    }
   }
 }
 

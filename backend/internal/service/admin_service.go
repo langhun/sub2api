@@ -17,11 +17,13 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/util/httputil"
+	"github.com/lib/pq"
 )
 
 // AdminService interface defines admin management operations
@@ -820,7 +822,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if concurrencyDiff != 0 {
 		format := DefaultRedeemCodeFormat()
 		if s.settingService != nil {
-			format = s.settingService.GetRedeemCodeFormat(ctx)
+			format = s.settingService.GetCodeFormatForRedeemType(ctx, AdjustmentTypeAdminConcurrency)
 		}
 		code, err := GenerateRedeemCodeWithFormat(format)
 		if err != nil {
@@ -938,7 +940,7 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 	if balanceDiff != 0 {
 		format := DefaultRedeemCodeFormat()
 		if s.settingService != nil {
-			format = s.settingService.GetRedeemCodeFormat(ctx)
+			format = s.settingService.GetCodeFormatForRedeemType(ctx, AdjustmentTypeAdminBalance)
 		}
 		code, err := GenerateRedeemCodeWithFormat(format)
 		if err != nil {
@@ -3312,11 +3314,17 @@ func (s *adminServiceImpl) ListRedeemCodes(ctx context.Context, page, pageSize i
 	if err != nil {
 		return nil, 0, err
 	}
+	s.enrichRedeemCodes(ctx, codes)
 	return codes, result.Total, nil
 }
 
 func (s *adminServiceImpl) GetRedeemCode(ctx context.Context, id int64) (*RedeemCode, error) {
-	return s.redeemCodeRepo.GetByID(ctx, id)
+	code, err := s.redeemCodeRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	s.enrichRedeemCodePointers(ctx, []*RedeemCode{code})
+	return code, nil
 }
 
 func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *GenerateRedeemCodesInput) ([]RedeemCode, error) {
@@ -3348,13 +3356,13 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 		if input.Type == RedeemTypeInvitation {
 			format := DefaultRegistrationInvitationCodeFormat()
 			if s.settingService != nil {
-				format = s.settingService.GetInvitationCodeFormat(ctx)
+				format = s.settingService.GetCodeFormatForRedeemType(ctx, input.Type)
 			}
 			codeValue, err = GenerateRegistrationInvitationCodeWithFormat(format)
 		} else {
 			format := DefaultRedeemCodeFormat()
 			if s.settingService != nil {
-				format = s.settingService.GetRedeemCodeFormat(ctx)
+				format = s.settingService.GetCodeFormatForRedeemType(ctx, input.Type)
 			}
 			codeValue, err = GenerateRedeemCodeWithFormat(format)
 		}
@@ -3367,6 +3375,9 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			Value:     input.Value,
 			Status:    StatusUnused,
 			ExpiresAt: input.ExpiresAt,
+		}
+		if input.Type == RedeemTypeInvitation {
+			code.Notes = "source=admin_generate"
 		}
 		// 订阅类型专用字段
 		if input.Type == RedeemTypeSubscription {
@@ -3382,6 +3393,212 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 		codes = append(codes, code)
 	}
 	return codes, nil
+}
+
+type redeemBlindboxInfo struct {
+	UserID     int64
+	PrizeName  string
+	RewardType string
+}
+
+func (s *adminServiceImpl) enrichRedeemCodes(ctx context.Context, codes []RedeemCode) {
+	if len(codes) == 0 {
+		return
+	}
+	ptrs := make([]*RedeemCode, 0, len(codes))
+	for i := range codes {
+		ptrs = append(ptrs, &codes[i])
+	}
+	s.enrichRedeemCodePointers(ctx, ptrs)
+}
+
+func (s *adminServiceImpl) enrichRedeemCodePointers(ctx context.Context, codes []*RedeemCode) {
+	if len(codes) == 0 || s == nil || s.entClient == nil {
+		return
+	}
+
+	codeValues := make([]string, 0, len(codes))
+	codeSeen := make(map[string]struct{}, len(codes))
+	userIDs := make(map[int64]struct{})
+	for _, code := range codes {
+		if code == nil {
+			continue
+		}
+		if code.Code != "" {
+			if _, ok := codeSeen[code.Code]; !ok {
+				codeSeen[code.Code] = struct{}{}
+				codeValues = append(codeValues, code.Code)
+			}
+		}
+		if code.UsedBy != nil && *code.UsedBy > 0 {
+			userIDs[*code.UsedBy] = struct{}{}
+		}
+	}
+
+	blindboxByCode, winnerIDs := s.loadBlindboxInfoByInvitationCode(ctx, codeValues)
+	for userID := range winnerIDs {
+		userIDs[userID] = struct{}{}
+	}
+
+	inviterByInvitee, inviterIDs := s.loadInviterIDsByInvitee(ctx, mapKeysInt64(userIDs))
+	for inviterID := range inviterIDs {
+		userIDs[inviterID] = struct{}{}
+	}
+
+	usersByID := s.loadUsersByID(ctx, mapKeysInt64(userIDs))
+
+	for _, code := range codes {
+		if code == nil {
+			continue
+		}
+
+		switch strings.TrimSpace(code.Notes) {
+		case "source=admin_generate":
+			code.SourceType = "admin_generate"
+			code.SourceSummary = "后台批量生成"
+		case "source=admin_manual":
+			code.SourceType = "admin_manual"
+			code.SourceSummary = "后台手动创建"
+		}
+
+		if info, ok := blindboxByCode[code.Code]; ok {
+			code.SourceType = "checkin_blindbox"
+			code.SourceSummary = "签到盲盒中奖"
+			code.WinningPrize = info.PrizeName
+			code.WinningReward = info.RewardType
+			if user, exists := usersByID[info.UserID]; exists {
+				code.WinningUser = user
+				code.SourceUser = user
+			}
+		}
+
+		if code.UsedBy != nil {
+			if inviterID, ok := inviterByInvitee[*code.UsedBy]; ok {
+				if inviter, exists := usersByID[inviterID]; exists {
+					code.InviterUser = inviter
+				}
+			}
+		}
+	}
+}
+
+func (s *adminServiceImpl) loadBlindboxInfoByInvitationCode(ctx context.Context, codeValues []string) (map[string]redeemBlindboxInfo, map[int64]struct{}) {
+	result := make(map[string]redeemBlindboxInfo)
+	userIDs := make(map[int64]struct{})
+	if len(codeValues) == 0 {
+		return result, userIDs
+	}
+
+	rows, err := s.entClient.QueryContext(ctx, `
+SELECT reward_detail, user_id, prize_name, reward_type
+FROM checkin_blindbox_records
+WHERE reward_type = 'invitation_code'
+  AND reward_detail = ANY($1)
+ORDER BY created_at DESC
+`, pq.Array(codeValues))
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "failed to load blindbox info for redeem codes: %v", err)
+		return result, userIDs
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			codeValue   string
+			userID      int64
+			prizeName   string
+			rewardType  string
+		)
+		if scanErr := rows.Scan(&codeValue, &userID, &prizeName, &rewardType); scanErr != nil {
+			logger.LegacyPrintf("service.admin", "failed to scan blindbox info for redeem codes: %v", scanErr)
+			return result, userIDs
+		}
+		if _, exists := result[codeValue]; exists {
+			continue
+		}
+		result[codeValue] = redeemBlindboxInfo{
+			UserID:     userID,
+			PrizeName:  prizeName,
+			RewardType: rewardType,
+		}
+		userIDs[userID] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		logger.LegacyPrintf("service.admin", "failed while iterating blindbox info for redeem codes: %v", err)
+	}
+	return result, userIDs
+}
+
+func (s *adminServiceImpl) loadInviterIDsByInvitee(ctx context.Context, inviteeIDs []int64) (map[int64]int64, map[int64]struct{}) {
+	result := make(map[int64]int64)
+	inviterIDs := make(map[int64]struct{})
+	if len(inviteeIDs) == 0 {
+		return result, inviterIDs
+	}
+
+	rows, err := s.entClient.QueryContext(ctx, `
+SELECT user_id, inviter_id
+FROM user_affiliates
+WHERE user_id = ANY($1)
+  AND inviter_id IS NOT NULL
+`, pq.Array(inviteeIDs))
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "failed to load inviter info for redeem codes: %v", err)
+		return result, inviterIDs
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var inviteeID, inviterID int64
+		if scanErr := rows.Scan(&inviteeID, &inviterID); scanErr != nil {
+			logger.LegacyPrintf("service.admin", "failed to scan inviter info for redeem codes: %v", scanErr)
+			return result, inviterIDs
+		}
+		result[inviteeID] = inviterID
+		inviterIDs[inviterID] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		logger.LegacyPrintf("service.admin", "failed while iterating inviter info for redeem codes: %v", err)
+	}
+	return result, inviterIDs
+}
+
+func (s *adminServiceImpl) loadUsersByID(ctx context.Context, ids []int64) map[int64]*User {
+	result := make(map[int64]*User)
+	if len(ids) == 0 {
+		return result
+	}
+
+	models, err := s.entClient.User.Query().Where(dbuser.IDIn(ids...)).All(ctx)
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "failed to load users for redeem code context: %v", err)
+		return result
+	}
+	for _, model := range models {
+		if model == nil {
+			continue
+		}
+		user := &User{
+			ID:       model.ID,
+			Email:    model.Email,
+			Username: model.Username,
+			Status:   model.Status,
+			Role:     model.Role,
+		}
+		result[user.ID] = user
+	}
+	return result
+}
+
+func mapKeysInt64(source map[int64]struct{}) []int64 {
+	if len(source) == 0 {
+		return nil
+	}
+	out := make([]int64, 0, len(source))
+	for id := range source {
+		out = append(out, id)
+	}
+	return out
 }
 
 func (s *adminServiceImpl) DeleteRedeemCode(ctx context.Context, id int64) error {

@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -123,24 +121,11 @@ func NewRedeemService(
 
 // GenerateRandomCode 生成随机兑换码
 func (s *RedeemService) GenerateRandomCode() (string, error) {
-	// 生成16字节随机数据
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("generate random bytes: %w", err)
+	format := DefaultRedeemCodeFormat()
+	if s != nil && s.settingService != nil {
+		format = s.settingService.GetBalanceCodeFormat(context.Background())
 	}
-
-	// 转换为十六进制字符串
-	code := hex.EncodeToString(bytes)
-
-	// 格式化为 XXXX-XXXX-XXXX-XXXX 格式
-	parts := []string{
-		strings.ToUpper(code[0:8]),
-		strings.ToUpper(code[8:16]),
-		strings.ToUpper(code[16:24]),
-		strings.ToUpper(code[24:32]),
-	}
-
-	return strings.Join(parts, "-"), nil
+	return GenerateRedeemCodeWithFormat(format)
 }
 
 func (s *RedeemService) GenerateInvitationCode() (string, error) {
@@ -228,8 +213,12 @@ func (s *RedeemService) CreateCode(ctx context.Context, code *RedeemCode) error 
 		code.Type = RedeemTypeBalance
 	}
 	if code.Type == RedeemTypeInvitation {
-		code.Code = NormalizeRegistrationInvitationCode(code.Code)
-		if !IsRegistrationInvitationCodeFormat(code.Code) {
+		format := DefaultRegistrationInvitationCodeFormat()
+		if s != nil && s.settingService != nil {
+			format = s.settingService.GetInvitationCodeFormat(ctx)
+		}
+		code.Code = NormalizeCodeValueWithFormat(code.Code, format)
+		if !IsCodeMatchingFormat(code.Code, format) {
 			return infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid invitation code format")
 		}
 	}
@@ -258,8 +247,12 @@ func (s *RedeemService) UpdateCode(ctx context.Context, code *RedeemCode) error 
 		return errors.New("code is required")
 	}
 	if code.Type == RedeemTypeInvitation {
-		code.Code = NormalizeRegistrationInvitationCode(code.Code)
-		if !IsRegistrationInvitationCodeFormat(code.Code) {
+		format := DefaultRegistrationInvitationCodeFormat()
+		if s != nil && s.settingService != nil {
+			format = s.settingService.GetInvitationCodeFormat(ctx)
+		}
+		code.Code = NormalizeCodeValueWithFormat(code.Code, format)
+		if !IsCodeMatchingFormat(code.Code, format) {
 			return infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid invitation code format")
 		}
 	}

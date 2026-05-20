@@ -147,11 +147,12 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	// 检查是否需要邀请码
 	var invitationRedeemCode *RedeemCode
 	if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
-		invitationCode = NormalizeRegistrationInvitationCode(invitationCode)
+		format := s.settingService.GetInvitationCodeFormat(ctx)
+		invitationCode = NormalizeRegistrationInvitationCodeWithSettings(invitationCode, format)
 		if invitationCode == "" {
 			return "", nil, ErrInvitationCodeRequired
 		}
-		if !IsRegistrationInvitationCodeFormatWithSettings(invitationCode, s.settingService.GetInvitationCodeFormat(ctx)) {
+		if !IsRegistrationInvitationCodeFormatWithSettings(invitationCode, format) {
 			return "", nil, ErrInvitationCodeInvalid
 		}
 		// 验证邀请码
@@ -632,11 +633,12 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			// 检查是否需要邀请码
 			var invitationRedeemCode *RedeemCode
 			if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
-				invitationCode = NormalizeRegistrationInvitationCode(invitationCode)
+				format := s.settingService.GetInvitationCodeFormat(ctx)
+				invitationCode = NormalizeRegistrationInvitationCodeWithSettings(invitationCode, format)
 				if invitationCode == "" {
 					return nil, nil, ErrOAuthInvitationRequired
 				}
-				if !IsRegistrationInvitationCodeFormatWithSettings(invitationCode, s.settingService.GetInvitationCodeFormat(ctx)) {
+				if !IsRegistrationInvitationCodeFormatWithSettings(invitationCode, format) {
 					return nil, nil, ErrInvitationCodeInvalid
 				}
 				redeemCode, err := s.redeemRepo.GetByCode(ctx, invitationCode)
@@ -1609,7 +1611,7 @@ func (s *AuthService) createRegistrationBonusRecord(ctx context.Context, userID 
 	}
 	format := DefaultRedeemCodeFormat()
 	if s.settingService != nil {
-		format = s.settingService.GetRedeemCodeFormat(ctx)
+		format = s.settingService.GetCodeFormatForRedeemType(ctx, AdjustmentTypeRegistration)
 	}
 	code, err := GenerateRedeemCodeWithFormat(format)
 	if err != nil {

@@ -426,6 +426,15 @@ type RedeemCode struct {
 
 	User  *User  `json:"user,omitempty"`
 	Group *Group `json:"group,omitempty"`
+
+	SourceType      string `json:"source_type,omitempty"`
+	SourceSummary   string `json:"source_summary,omitempty"`
+	SourceUser      *User  `json:"source_user,omitempty"`
+	InviterUser     *User  `json:"inviter_user,omitempty"`
+	WinningUser     *User  `json:"winning_user,omitempty"`
+	WinningPrize    string `json:"winning_prize,omitempty"`
+	WinningReward   string `json:"winning_reward,omitempty"`
+	GeneratedByUser *User  `json:"generated_by_user,omitempty"`
 }
 
 // AdminRedeemCode 是管理员接口使用的 redeem code DTO（包含 notes 等字段）。

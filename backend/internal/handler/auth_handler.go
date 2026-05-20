@@ -535,8 +535,9 @@ func (h *AuthHandler) ValidateInvitationCode(c *gin.Context) {
 		return
 	}
 
-	req.Code = service.NormalizeRegistrationInvitationCode(req.Code)
-	if !service.IsRegistrationInvitationCodeFormatWithSettings(req.Code, h.settingSvc.GetInvitationCodeFormat(c.Request.Context())) {
+	format := h.settingSvc.GetInvitationCodeFormat(c.Request.Context())
+	req.Code = service.NormalizeRegistrationInvitationCodeWithSettings(req.Code, format)
+	if !service.IsRegistrationInvitationCodeFormatWithSettings(req.Code, format) {
 		response.Success(c, ValidateInvitationCodeResponse{
 			Valid:     false,
 			ErrorCode: "INVITATION_CODE_INVALID",

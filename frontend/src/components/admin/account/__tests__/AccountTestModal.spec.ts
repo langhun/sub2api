@@ -177,4 +177,74 @@ describe('AccountTestModal', () => {
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
   })
+
+  it('流结束时会解析未换行的最后一条 SSE 错误事件，而不是退化成 network error', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'gpt-image-2', display_name: 'GPT Image 2' }
+    ])
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => {
+          const chunks = [
+            new TextEncoder().encode('data: {"type":"test_start","model":"gpt-image-2"}\n'),
+            new TextEncoder().encode('data: {"type":"content","text":"Calling Codex /responses image tool..."}\n'),
+            new TextEncoder().encode('data: {"type":"error","error":"Upstream returned 403: Codex official clients required"}')
+          ]
+          let index = 0
+          return {
+            read: vi.fn().mockImplementation(async () => {
+              if (index < chunks.length) {
+                return { done: false, value: chunks[index++] }
+              }
+              return { done: true, value: undefined }
+            })
+          }
+        }
+      }
+    } as Response) as any
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: true,
+        account: {
+          id: 88,
+          name: 'OpenAI Image Test',
+          platform: 'openai',
+          type: 'oauth',
+          status: 'active'
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: { template: '<div class="select-stub"></div>' },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+    ;(wrapper.vm as any).selectedModelId = 'gpt-image-2'
+
+    const buttons = wrapper.findAll('button')
+    const startButton = buttons.find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect((wrapper.vm as any).status).toBe('error')
+    expect((wrapper.vm as any).errorMessage).toBe('Upstream returned 403: Codex official clients required')
+    expect((wrapper.vm as any).outputLines.some((line: { text: string }) => line.text.includes('network error'))).toBe(false)
+    expect((wrapper.vm as any).streamingContent).toBe('')
+    expect((wrapper.vm as any).outputLines.some((line: { text: string }) => line.text === 'Calling Codex /responses image tool...')).toBe(true)
+  })
 })

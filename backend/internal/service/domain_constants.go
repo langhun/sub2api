@@ -135,7 +135,10 @@ const (
 	SettingKeyEmailVerifyEnabled               = "email_verify_enabled"                // 是否开启邮件验证
 	SettingKeyRegistrationEmailSuffixWhitelist = "registration_email_suffix_whitelist" // 注册邮箱后缀白名单（JSON 数组）
 	SettingKeyPromoCodeEnabled                 = "promo_code_enabled"                  // 是否启用优惠码功能
-	SettingKeyRedeemCodeFormat                 = "redeem_code_format"                  // 全局兑换码格式(JSON)
+	SettingKeyRedeemCodeFormat                 = "redeem_code_format"                  // 旧版通用兑换码格式(JSON)，新版本作为余额/并发/订阅格式回退
+	SettingKeyBalanceCodeFormat                = "balance_code_format"                 // 余额兑换码/余额审计码格式(JSON)
+	SettingKeyConcurrencyCodeFormat            = "concurrency_code_format"             // 并发兑换码/并发审计码格式(JSON)
+	SettingKeySubscriptionCodeFormat           = "subscription_code_format"            // 订阅兑换码格式(JSON)
 	SettingKeyPasswordResetEnabled             = "password_reset_enabled"              // 是否启用忘记密码功能（需要先开启邮件验证）
 	SettingKeyFrontendURL                      = "frontend_url"                        // 前端基础URL，用于生成邮件中的重置密码链接
 	SettingKeyInvitationCodeEnabled            = "invitation_code_enabled"             // 是否启用邀请码注册
