@@ -310,6 +310,43 @@ go test -tags=integration ./...
 golangci-lint run ./...
 ```
 
+### Windows 发布验收
+
+```powershell
+# 在仓库根目录执行
+powershell -ExecutionPolicy Bypass -File .\tools\release_smoke_windows.ps1
+```
+
+脚本会自动执行：
+
+- 后端全量测试 `go test ./...`
+- 前端类型检查 `vue-tsc --noEmit`
+- 前端全量测试 `vitest run`
+- 前端生产构建 `vite build`
+- 构建带 release 元数据的嵌入式后端二进制
+- 验证 `-version` 输出
+- setup 首页 / `/setup` / 静态资源 smoke test
+- 使用便携 PostgreSQL 18.4 + Redis 7.2.14 的隔离安装成功 smoke test
+
+常用参数：
+
+```powershell
+# 跳过前端测试
+powershell -ExecutionPolicy Bypass -File .\tools\release_smoke_windows.ps1 -SkipFrontendTests
+
+# 跳过便携 PG/Redis 正向安装链路
+powershell -ExecutionPolicy Bypass -File .\tools\release_smoke_windows.ps1 -SkipPortableInstall
+
+# 手动指定版本号
+powershell -ExecutionPolicy Bypass -File .\tools\release_smoke_windows.ps1 -Version 0.1.127
+```
+
+注意：
+
+- 脚本会在 `%TEMP%` 下下载并解压便携 PostgreSQL / Redis；
+- 默认会占用临时端口 `5438`、`6382`、`18111`、`18112`；
+- 如果网络无法访问 `get.enterprisedb.com` 或 GitHub Releases，可先加 `-SkipPortableInstall` 跑不依赖外部下载的部分。
+
 ## 六、项目结构速览
 
 ```
