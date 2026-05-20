@@ -328,11 +328,18 @@ func (m *proxySubscriptionMihomoRuntimeManager) buildEmbeddedConfigLocked() ([]b
 		runtimeIDs = append(runtimeIDs, runtimeID)
 	}
 	sort.Strings(runtimeIDs)
+	listenerEndpoints := make(map[string]string, len(runtimeIDs))
 	for _, runtimeID := range runtimeIDs {
 		state := m.runtimes[runtimeID]
 		if state == nil || state.Stopped || state.ProviderPath == "" || state.ListenerPort <= 0 {
 			continue
 		}
+		endpoint := net.JoinHostPort(state.ListenerHost, strconv.Itoa(state.ListenerPort))
+		if previousRuntimeID, exists := listenerEndpoints[endpoint]; exists {
+			return nil, fmt.Errorf("duplicate mihomo listener endpoint %s for runtimes %s and %s", endpoint, previousRuntimeID, runtimeID)
+		}
+		listenerEndpoints[endpoint] = runtimeID
+
 		providerPath := state.ProviderPath
 		if abs, err := filepath.Abs(providerPath); err == nil {
 			providerPath = abs
@@ -372,13 +379,18 @@ func (m *proxySubscriptionMihomoRuntimeManager) allocatePortLocked(runtimeID str
 	if current := m.runtimes[runtimeID]; current != nil && current.ListenerPort > 0 {
 		return current.ListenerPort, nil
 	}
-	if preferredPort > 0 && isTCPPortFree(listenerHost, preferredPort) {
-		return preferredPort, nil
-	}
 	start, end := parsePortRange(strings.TrimSpace(m.cfg.ListenerPortRange))
 	used := make(map[int]struct{}, len(m.runtimes))
-	for _, item := range m.runtimes {
+	for id, item := range m.runtimes {
+		if id == runtimeID || item == nil || item.ListenerPort <= 0 {
+			continue
+		}
 		used[item.ListenerPort] = struct{}{}
+	}
+	if preferredPort > 0 {
+		if _, ok := used[preferredPort]; !ok && isTCPPortFree(listenerHost, preferredPort) {
+			return preferredPort, nil
+		}
 	}
 	for port := start; port <= end; port++ {
 		if _, ok := used[port]; ok {
@@ -440,6 +452,26 @@ func (m *proxySubscriptionMihomoRuntimeManager) startPersistedRuntimeLocked(ctx 
 	listenerPort := cfgFile.SocksPort
 	if listenerPort <= 0 {
 		return fmt.Errorf("invalid socks port in config: %s", configPath)
+	}
+	allocatedPort, err := m.allocatePortLocked(runtimeID, listenerPort, listenerHost)
+	if err != nil {
+		return err
+	}
+	if allocatedPort != listenerPort {
+		cfgBytes, err := buildMihomoConfig(runtimeID, providerPath, listenerHost, allocatedPort)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(configPath, cfgBytes, 0o644); err != nil {
+			return err
+		}
+		slog.Info(
+			"proxy_subscription_mihomo_runtime.reassigned_persisted_listener_port",
+			"runtime_id", runtimeID,
+			"old_port", listenerPort,
+			"new_port", allocatedPort,
+		)
+		listenerPort = allocatedPort
 	}
 
 	_ = ctx
