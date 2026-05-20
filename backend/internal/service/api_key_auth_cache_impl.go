@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 10 // v10: invalidate legacy auth snapshots missing image-generation fields
+const apiKeyAuthSnapshotVersion = 10 // v10: reload legacy auth snapshots for updated availability + image-generation fields
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
