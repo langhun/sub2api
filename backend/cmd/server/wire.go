@@ -79,6 +79,7 @@ func provideCleanup(
 	opsScheduledReport *service.OpsScheduledReportService,
 	opsSystemLogSink *service.OpsSystemLogSink,
 	autoFailoverProxyPool *service.AutoFailoverProxyPoolService,
+	proxySubscriptionRuntime service.ProxySubscriptionRuntimeManager,
 	proxySubscriptionRefresh *service.ProxySubscriptionRefreshService,
 	proxySubscriptionRuntimeRehydrate *service.ProxySubscriptionRuntimeRehydrateService,
 	schedulerSnapshot *service.SchedulerSnapshotService,
@@ -172,6 +173,12 @@ func provideCleanup(
 			{"ProxySubscriptionRuntimeRehydrateService", func() error {
 				if proxySubscriptionRuntimeRehydrate != nil {
 					proxySubscriptionRuntimeRehydrate.Stop()
+				}
+				return nil
+			}},
+			{"ProxySubscriptionRuntimeManager", func() error {
+				if proxySubscriptionRuntime != nil {
+					return proxySubscriptionRuntime.Stop(ctx)
 				}
 				return nil
 			}},

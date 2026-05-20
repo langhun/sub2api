@@ -637,9 +637,11 @@ proxy_subscription_mihomo:
   # Enable built-in mihomo runtime management for non-direct proxy nodes
   # 启用内置 mihomo 运行时，用于承载非直连代理节点
   enabled: false
-  # mihomo executable path
-  # mihomo 可执行文件路径
-  mihomo_bin: "/usr/bin/mihomo"
+  # mihomo runtime mode: embedded links vendored Mihomo source into the Sub2API binary.
+  # A separate mihomo executable is not required.
+  # mihomo 运行模式：embedded 会把 vendored Mihomo 源码直接链接进 Sub2API 二进制。
+  # 不需要单独安装 mihomo 可执行文件。
+  mihomo_bin: "embedded"
   # Runtime data directory for generated configs
   # 运行时配置和状态文件目录
   data_dir: "/app/data/proxy-subscription-mihomo"

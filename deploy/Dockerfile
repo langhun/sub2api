@@ -82,7 +82,6 @@ RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     curl \
-    mihomo \
     su-exec \
     && rm -rf /var/cache/apk/*
 

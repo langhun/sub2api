@@ -1349,6 +1349,10 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if cfg.ProxySubscriptionMihomo.ListenerPortRange == "" {
 		cfg.ProxySubscriptionMihomo.ListenerPortRange = strings.TrimSpace(viper.GetString("proxy_subscription_sidecar.listener_port_range"))
 	}
+	cfg.ProxySubscriptionMihomo.MihomoBin = strings.TrimSpace(cfg.ProxySubscriptionMihomo.MihomoBin)
+	cfg.ProxySubscriptionMihomo.DataDir = strings.TrimSpace(cfg.ProxySubscriptionMihomo.DataDir)
+	cfg.ProxySubscriptionMihomo.ListenerHost = strings.TrimSpace(cfg.ProxySubscriptionMihomo.ListenerHost)
+	cfg.ProxySubscriptionMihomo.ListenerPortRange = strings.TrimSpace(cfg.ProxySubscriptionMihomo.ListenerPortRange)
 	cfg.Server.FrontendURL = strings.TrimSpace(cfg.Server.FrontendURL)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
@@ -1880,7 +1884,7 @@ func setDefaults() {
 	viper.SetDefault("proxy_subscriptions.sync_concurrency", 2)
 
 	viper.SetDefault("proxy_subscription_mihomo.enabled", false)
-	viper.SetDefault("proxy_subscription_mihomo.mihomo_bin", "mihomo")
+	viper.SetDefault("proxy_subscription_mihomo.mihomo_bin", "embedded")
 	viper.SetDefault("proxy_subscription_mihomo.data_dir", "")
 	viper.SetDefault("proxy_subscription_mihomo.listener_host", "127.0.0.1")
 	viper.SetDefault("proxy_subscription_mihomo.listener_port_range", "21080-21180")

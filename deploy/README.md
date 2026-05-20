@@ -115,14 +115,14 @@ such as `ss`, `vmess`, `vless`, `trojan`, `hysteria`, and `hysteria2`, the main 
 What the built-in runtime does:
 - Materializes each supported subscription node into a local `socks5h` listener
 - Writes generated runtime config files under the application data directory
-- Starts and stops `mihomo` child processes under the main Sub2API process lifecycle
+- Links the vendored Mihomo source into the Sub2API binary and reloads one in-process Mihomo runtime
 - Reuses the normal `proxies` table so the existing proxy pool, binding, testing, and failover logic keep working
 
 Important notes:
 - `PROXY_SUBSCRIPTIONS_ENABLED=true` enables subscription source management and background refresh
 - `PROXY_SUBSCRIPTION_MIHOMO_ENABLED=true` enables built-in runtime materialization for non-direct proxy nodes
 - Docker deployments no longer require an extra `proxy-subscription-sidecar` service
-- The main runtime image installs `mihomo` directly
+- The default runtime is `embedded`, so the container does not need a separate `mihomo` executable
 
 Recommended environment variables:
 
@@ -133,7 +133,7 @@ PROXY_SUBSCRIPTIONS_DEFAULT_REFRESH_INTERVAL_HOURS=6
 PROXY_SUBSCRIPTIONS_SYNC_CONCURRENCY=2
 
 PROXY_SUBSCRIPTION_MIHOMO_ENABLED=true
-PROXY_SUBSCRIPTION_MIHOMO_BIN=/usr/bin/mihomo
+PROXY_SUBSCRIPTION_MIHOMO_BIN=embedded
 PROXY_SUBSCRIPTION_MIHOMO_DATA_DIR=/app/data/proxy-subscription-mihomo
 PROXY_SUBSCRIPTION_MIHOMO_LISTENER_HOST=127.0.0.1
 PROXY_SUBSCRIPTION_MIHOMO_LISTENER_PORT_RANGE=21080-21180
@@ -143,14 +143,12 @@ To verify the runtime after startup:
 
 ```bash
 docker compose logs -f sub2api
-docker compose exec sub2api which mihomo
 ```
 
-If you see `start mihomo` failures, verify that:
-- the container image contains `mihomo`
-- `PROXY_SUBSCRIPTION_MIHOMO_BIN` points to the real executable path
+If you see embedded Mihomo listener failures, verify that:
+- `PROXY_SUBSCRIPTION_MIHOMO_BIN` is left as `embedded`
 - `PROXY_SUBSCRIPTION_MIHOMO_LISTENER_PORT_RANGE` has free local ports
-- the process user can execute that binary and write into the runtime data directory
+- the process user can write into the runtime data directory
 
 ### How Auto-Setup Works
 
