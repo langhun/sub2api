@@ -277,7 +277,7 @@
                     <p class="mt-0.5 text-xs text-gray-400 dark:text-dark-500">
                       {{ formatDateTime(item.used_at) }}
                       <span v-if="item.type === 'checkin_luck' && item.multiplier" class="ml-1 text-amber-600 dark:text-amber-400">
-                        · {{ t('checkin.multiplier') }} {{ item.multiplier.toFixed(2) }}x
+                        · {{ t('checkin.multiplier') }} x{{ item.multiplier.toFixed(2) }}
                       </span>
                     </p>
                   </div>

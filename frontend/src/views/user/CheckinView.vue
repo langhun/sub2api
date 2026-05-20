@@ -185,7 +185,7 @@
             </div>
             <div v-if="checkinStore.todayCheckinType === 'luck' && checkinStore.todayMultiplier" class="flex items-center justify-between">
               <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.page.todayMultiplier') }}</span>
-              <span class="text-sm font-semibold text-purple-600 dark:text-purple-400">{{ checkinStore.todayMultiplier?.toFixed(2) }}×</span>
+              <span class="text-sm font-semibold text-purple-600 dark:text-purple-400">x{{ checkinStore.todayMultiplier?.toFixed(2) }}</span>
             </div>
             <div v-if="checkinStore.blindboxResult" class="mt-2 rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-3 dark:border-purple-800/50 dark:from-purple-900/20 dark:to-indigo-900/20">
               <div class="mb-1.5 flex items-center justify-between">

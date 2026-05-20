@@ -979,7 +979,7 @@
               size="sm"
               :class="activeRowActionMenuRow.status === 'active' ? 'text-amber-500' : 'text-emerald-500'"
             />
-            {{ activeRowActionMenuRow.status === 'active' ? t('common.disable') : t('common.enable') }}
+            {{ activeRowActionMenuRow.status === 'active' ? t('admin.proxies.disableAction') : t('admin.proxies.enableAction') }}
           </button>
           <button
             v-if="activeRowActionMenuRow"
