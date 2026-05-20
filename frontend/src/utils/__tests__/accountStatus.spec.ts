@@ -168,6 +168,31 @@ describe('accountStatus utils', () => {
     expect(matchesAccountSchedulingStatusFilter(account, 'paused')).toBe(true)
   })
 
+  it('treats expired runtime 429 cooldown as normal when evaluated after reset time', () => {
+    const baseNow = Date.parse('2026-05-20T12:00:00Z')
+    const account = {
+      status: 'active',
+      schedulable: true,
+      auto_pause_on_expired: false,
+      expires_at: null,
+      rate_limit_reset_at: new Date(baseNow + 30_000).toISOString(),
+      overload_until: null,
+      temp_unschedulable_until: null,
+      temp_unschedulable_reason: null,
+      quota_limit: null,
+      quota_used: null,
+      quota_daily_limit: null,
+      quota_daily_used: null,
+      quota_weekly_limit: null,
+      quota_weekly_used: null,
+    } as const
+
+    expect(getAccountRuntimeStatusState(account, { nowMs: baseNow }).code).toBe('runtime_rate_limited')
+    expect(getAccountRuntimeStatusState(account, { nowMs: baseNow + 31_000 }).code).toBe('runtime_normal')
+    expect(matchesAccountRuntimeStatusFilter(account, 'rate_limited', { nowMs: baseNow + 31_000 })).toBe(false)
+    expect(matchesAccountRuntimeStatusFilter(account, 'normal', { nowMs: baseNow + 31_000 })).toBe(true)
+  })
+
   it('builds composite status tokens for server-side queries', () => {
     expect(composeAccountStatusFilterToken('active', 'overloaded', 'enabled')).toBe('main:active|runtime:overloaded|scheduling:enabled')
     expect(composeAccountStatusFilterToken('', '', '')).toBe('')

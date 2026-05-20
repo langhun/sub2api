@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
 import AccountStatusIndicator from '../AccountStatusIndicator.vue'
 import type { Account } from '@/types'
+import { accountStatusNowMsKey } from '../accountStatusClock'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -89,6 +91,31 @@ describe('AccountStatusIndicator', () => {
     expect(wrapper.text()).toContain('admin.accounts.status.scheduleEnabled')
     expect(wrapper.text()).toContain('admin.accounts.status.runtimeOauth401Cooldown')
     expect(wrapper.text()).toContain('admin.accounts.status.tempUnschedAutoResume')
+  })
+
+  it('429 到期后会自动从运行时限流切回正常', async () => {
+    const baseNow = Date.parse('2026-05-20T12:00:00Z')
+    const nowMs = ref(baseNow)
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          rate_limit_reset_at: new Date(baseNow + 30_000).toISOString()
+        })
+      },
+      global: {
+        stubs: {
+          Icon: true
+        },
+        provide: {
+          [accountStatusNowMsKey as symbol]: nowMs
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.status.runtimeRateLimited')
+    nowMs.value = baseNow + 31_000
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('admin.accounts.status.runtimeNormal')
   })
 
   it('手动关闭调度时，调度开关层显示关闭，运行时层保持正常', () => {

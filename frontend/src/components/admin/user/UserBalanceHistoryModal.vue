@@ -131,11 +131,11 @@
                 </div>
                 <!-- Notes (admin adjustment reason) -->
                 <p
-                  v-if="item.notes"
+                  v-if="getItemDescription(item)"
                   class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
-                  :title="item.notes"
+                  :title="getItemDescription(item) || ''"
                 >
-                  {{ item.notes.length > 60 ? item.notes.substring(0, 55) + '...' : item.notes }}
+                  {{ getItemDescription(item) }}
                 </p>
                 <p class="mt-0.5 text-xs text-gray-400 dark:text-dark-500">
                   {{ formatDateTime(item.used_at || item.created_at) }}
@@ -376,6 +376,37 @@ const isBlindboxConcurrency = (item: BalanceHistoryItem) => item.type === 'check
 const isBlindboxSubscription = (item: BalanceHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Subscription') || item.notes?.includes('订阅'))
 
 const isBlindboxInvitationCode = (item: BalanceHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Invitation Code') || item.notes?.includes('邀请码'))
+
+const formatHistoryUser = (user?: { id: number; email: string } | null) => {
+  if (!user) return null
+  if (user.email) return user.email
+  if (user.id) return `#${user.id}`
+  return null
+}
+
+const getInvitationDescription = (item: BalanceHistoryItem) => {
+  if (item.type !== 'invitation') return null
+
+  const parts: string[] = []
+  if (item.source_summary) {
+    parts.push(`邀请码来源：${item.source_summary}`)
+  }
+
+  const inviter = formatHistoryUser(item.inviter_user)
+  if (inviter) {
+    parts.push(`邀请人：${inviter}`)
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
+const getItemDescription = (item: BalanceHistoryItem) => {
+  if (item.type === 'invitation') {
+    return getInvitationDescription(item)
+  }
+  if (!item.notes) return ''
+  return item.notes.length > 60 ? item.notes.substring(0, 55) + '...' : item.notes
+}
 
 const getBlindboxRarity = (item: BalanceHistoryItem): string | null => {
   if (item.type !== 'checkin_blindbox' || !item.notes) return null

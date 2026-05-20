@@ -176,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -188,6 +188,7 @@ import {
   getAccountSchedulingStatusState,
   getBadgeClassForTone,
 } from '@/utils/accountStatus'
+import { accountStatusNowMsKey } from './accountStatusClock'
 
 const { t } = useI18n()
 
@@ -198,6 +199,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'show-temp-unsched', account: Account): void
 }>()
+
+const nowMs = inject(accountStatusNowMsKey, null)
+const statusEvalOptions = computed(() => ({
+  nowMs: nowMs?.value
+}))
 
 type AccountModelStatusItem = {
   kind: 'rate_limit' | 'credits_exhausted' | 'credits_active'
@@ -286,18 +292,26 @@ const hasError = computed(() => props.account.status === 'error')
 
 const mainStatusState = computed(() => getAccountMainStatusState(props.account))
 
-const schedulingStatusState = computed(() => getAccountSchedulingStatusState(props.account))
+const schedulingStatusState = computed(() => getAccountSchedulingStatusState(props.account, statusEvalOptions.value))
 
-const runtimeState = computed(() => getAccountRuntimeStatusState(props.account))
+const runtimeState = computed(() => {
+  return getAccountRuntimeStatusState(props.account, statusEvalOptions.value)
+})
 
-const rateLimitCountdown = computed(() => formatCountdown(props.account.rate_limit_reset_at))
+const rateLimitCountdown = computed(() => {
+  void nowMs?.value
+  return formatCountdown(props.account.rate_limit_reset_at)
+})
 
 const rateLimitResumeText = computed(() => {
   if (!rateLimitCountdown.value) return ''
   return t('admin.accounts.status.rateLimitedAutoResume', { time: rateLimitCountdown.value })
 })
 
-const overloadCountdown = computed(() => formatCountdownWithSuffix(props.account.overload_until))
+const overloadCountdown = computed(() => {
+  void nowMs?.value
+  return formatCountdownWithSuffix(props.account.overload_until)
+})
 
 const statusTextKeyMap = {
   main_active: 'admin.accounts.status.mainActive',
@@ -390,6 +404,7 @@ const runtimeDetailText = computed(() => {
       : t('admin.accounts.status.runtimeOverloaded')
   }
   if (runtimeState.value.clickable && runtimeState.value.until) {
+    void nowMs?.value
     const countdown = formatCountdown(runtimeState.value.until)
     if (!countdown) return runtimeStatusText.value
     return t('admin.accounts.status.tempUnschedAutoResume', {

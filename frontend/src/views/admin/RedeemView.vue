@@ -133,22 +133,6 @@
             </span>
           </template>
 
-          <template #cell-source="{ row }">
-            <div class="max-w-xs space-y-1 text-sm">
-              <div class="font-medium text-gray-900 dark:text-white">
-                {{ formatRedeemSource(row).title }}
-              </div>
-              <div
-                v-for="(line, index) in formatRedeemSource(row).lines"
-                :key="`${row.id}-source-${index}`"
-                class="truncate text-gray-500 dark:text-dark-400"
-                :title="line"
-              >
-                {{ line }}
-              </div>
-            </div>
-          </template>
-
           <template #cell-used_at="{ value }">
             <span class="text-sm text-gray-500 dark:text-dark-400">{{
               value ? formatDateTime(value) : '-'
@@ -594,7 +578,6 @@ const columns = computed<Column[]>(() => [
   { key: 'code', label: t('admin.redeem.columns.code') },
   { key: 'type', label: t('admin.redeem.columns.type'), sortable: true },
   { key: 'value', label: t('admin.redeem.columns.value'), sortable: true },
-  { key: 'source', label: t('admin.redeem.columns.source') },
   { key: 'status', label: t('admin.redeem.columns.status'), sortable: true },
   { key: 'used_by', label: t('admin.redeem.columns.usedBy') },
   { key: 'used_at', label: t('admin.redeem.columns.usedAt'), sortable: true },
@@ -811,50 +794,6 @@ function formatSignedValue(value: unknown): string {
   const rawValue = String(value)
   if (rawValue.startsWith('+') || rawValue.startsWith('-')) return rawValue
   return `+${rawValue}`
-}
-
-function displayUser(user?: RedeemCode['user'] | null): string | null {
-  if (!user) return null
-  if (user.email) return user.email
-  if (user.id) return t('admin.redeem.userPrefix', { id: user.id })
-  return null
-}
-
-function formatRedeemSource(row: RedeemCode): { title: string; lines: string[] } {
-  const lines: string[] = []
-
-  if (row.source_summary) {
-    lines.push(row.source_summary)
-  } else if (row.type === 'invitation') {
-    lines.push(t('admin.redeem.sourceUnknown'))
-  }
-
-  if (row.winning_user) {
-    const winner = displayUser(row.winning_user)
-    if (winner) lines.push(t('admin.redeem.winnerLine', { user: winner }))
-  }
-
-  if (row.winning_prize) {
-    lines.push(t('admin.redeem.prizeLine', { prize: row.winning_prize }))
-  }
-
-  if (row.user) {
-    const usedBy = displayUser(row.user)
-    if (usedBy) lines.push(t('admin.redeem.usedByLine', { user: usedBy }))
-  }
-
-  if (row.inviter_user) {
-    const inviter = displayUser(row.inviter_user)
-    if (inviter) lines.push(t('admin.redeem.inviterLine', { user: inviter }))
-  }
-
-  return {
-    title:
-      row.type === 'invitation'
-        ? t('admin.redeem.invitation')
-        : t(`admin.redeem.types.${row.type}`),
-    lines: lines.length > 0 ? lines : ['-']
-  }
 }
 
 const getRedeemCodeExpiresInDays = () => {

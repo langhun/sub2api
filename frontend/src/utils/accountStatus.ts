@@ -64,17 +64,24 @@ export type AccountRuntimeStatusState = AccountStatusBadgeState<AccountRuntimeSt
   statusCode: number | null
 }
 
-const tempUnschedStatusCodePattern = /\b([1-5][0-9]{2})\b/
-
-export function isFutureAt(value: string | null | undefined): boolean {
-  if (!value) return false
-  const time = new Date(value).getTime()
-  return Number.isFinite(time) && time > Date.now()
+export type AccountStatusEvaluationOptions = {
+  nowMs?: number
 }
 
-export function isExpiredAutoPaused(account: Pick<Account, 'auto_pause_on_expired' | 'expires_at'>): boolean {
+const tempUnschedStatusCodePattern = /\b([1-5][0-9]{2})\b/
+
+export function isFutureAt(value: string | null | undefined, nowMs: number = Date.now()): boolean {
+  if (!value) return false
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) && time > nowMs
+}
+
+export function isExpiredAutoPaused(
+  account: Pick<Account, 'auto_pause_on_expired' | 'expires_at'>,
+  nowMs: number = Date.now()
+): boolean {
   if (!account.auto_pause_on_expired || !account.expires_at) return false
-  return account.expires_at * 1000 <= Date.now()
+  return account.expires_at * 1000 <= nowMs
 }
 
 export function getBadgeClassForTone(tone: StatusTone): string {
@@ -158,16 +165,25 @@ function isQuotaExceeded(account: Pick<
   )
 }
 
-export function isAccountRateLimited(account: Pick<Account, 'rate_limit_reset_at'>): boolean {
-  return isFutureAt(account.rate_limit_reset_at)
+export function isAccountRateLimited(
+  account: Pick<Account, 'rate_limit_reset_at'>,
+  options?: AccountStatusEvaluationOptions
+): boolean {
+  return isFutureAt(account.rate_limit_reset_at, options?.nowMs)
 }
 
-export function isAccountOverloaded(account: Pick<Account, 'overload_until'>): boolean {
-  return isFutureAt(account.overload_until)
+export function isAccountOverloaded(
+  account: Pick<Account, 'overload_until'>,
+  options?: AccountStatusEvaluationOptions
+): boolean {
+  return isFutureAt(account.overload_until, options?.nowMs)
 }
 
-export function isAccountTempUnschedulable(account: Pick<Account, 'temp_unschedulable_until'>): boolean {
-  return isFutureAt(account.temp_unschedulable_until)
+export function isAccountTempUnschedulable(
+  account: Pick<Account, 'temp_unschedulable_until'>,
+  options?: AccountStatusEvaluationOptions
+): boolean {
+  return isFutureAt(account.temp_unschedulable_until, options?.nowMs)
 }
 
 export function isAccountInactive(account: Pick<Account, 'status'>): boolean {
@@ -207,11 +223,12 @@ export function matchesAccountStatusFilter(
     | 'quota_weekly_limit'
     | 'quota_weekly_used'
   >,
-  filter: AccountStatusFilterValue
+  filter: AccountStatusFilterValue,
+  options?: AccountStatusEvaluationOptions
 ): boolean {
   const mainState = getAccountMainStatusState(account)
-  const schedulingState = getAccountSchedulingStatusState(account)
-  const runtimeState = getAccountRuntimeStatusState(account)
+  const schedulingState = getAccountSchedulingStatusState(account, options)
+  const runtimeState = getAccountRuntimeStatusState(account, options)
 
   switch (filter) {
     case '':
@@ -276,12 +293,13 @@ export function matchesAccountRuntimeStatusFilter(
     | 'quota_weekly_limit'
     | 'quota_weekly_used'
   >,
-  filter: AccountRuntimeStatusFilterValue
+  filter: AccountRuntimeStatusFilterValue,
+  options?: AccountStatusEvaluationOptions
 ): boolean {
   if (!filter) return true
   if (account.status !== 'active') return false
 
-  const runtimeState = getAccountRuntimeStatusState(account)
+  const runtimeState = getAccountRuntimeStatusState(account, options)
   switch (filter) {
     case 'normal':
       return runtimeState.code === 'runtime_normal'
@@ -298,12 +316,13 @@ export function matchesAccountRuntimeStatusFilter(
 
 export function matchesAccountSchedulingStatusFilter(
   account: Pick<Account, 'status' | 'schedulable' | 'auto_pause_on_expired' | 'expires_at'>,
-  filter: AccountSchedulingStatusFilterValue
+  filter: AccountSchedulingStatusFilterValue,
+  options?: AccountStatusEvaluationOptions
 ): boolean {
   if (!filter) return true
   if (account.status !== 'active') return false
 
-  const schedulingState = getAccountSchedulingStatusState(account)
+  const schedulingState = getAccountSchedulingStatusState(account, options)
   switch (filter) {
     case 'enabled':
       return schedulingState.code === 'schedule_enabled'
@@ -339,9 +358,10 @@ export function getAccountMainStatusState(
 }
 
 export function getAccountSchedulingStatusState(
-  account: Pick<Account, 'schedulable' | 'auto_pause_on_expired' | 'expires_at'>
+  account: Pick<Account, 'schedulable' | 'auto_pause_on_expired' | 'expires_at'>,
+  options?: AccountStatusEvaluationOptions
 ): AccountStatusBadgeState<AccountSchedulingStatusCode> {
-  if (isExpiredAutoPaused(account)) {
+  if (isExpiredAutoPaused(account, options?.nowMs)) {
     return { code: 'schedule_expired_paused', tone: 'gray' }
   }
   if (!account.schedulable) {
@@ -384,11 +404,12 @@ export function getAccountRuntimeStatusState(
     | 'quota_daily_used'
     | 'quota_weekly_limit'
     | 'quota_weekly_used'
-  >
+  >,
+  options?: AccountStatusEvaluationOptions
 ): AccountRuntimeStatusState {
   const parsedReason = parseTempUnschedReason(account.temp_unschedulable_reason)
 
-  if (isAccountRateLimited(account)) {
+  if (isAccountRateLimited(account, options)) {
     return {
       code: 'runtime_rate_limited',
       tone: 'warning',
@@ -399,7 +420,7 @@ export function getAccountRuntimeStatusState(
     }
   }
 
-  if (isAccountOverloaded(account)) {
+  if (isAccountOverloaded(account, options)) {
     return {
       code: 'runtime_overloaded',
       tone: 'danger',
@@ -410,7 +431,7 @@ export function getAccountRuntimeStatusState(
     }
   }
 
-  if (isAccountTempUnschedulable(account)) {
+  if (isAccountTempUnschedulable(account, options)) {
     return {
       code: getTempUnschedRuntimeCode(parsedReason),
       tone: 'warning',

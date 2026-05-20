@@ -833,64 +833,116 @@
     <BaseDialog
       :show="showQualityReportDialog"
       :title="t('admin.proxies.qualityReportTitle')"
-      width="normal"
+      width="wide"
       @close="closeQualityReportDialog"
     >
       <div v-if="qualityReport" class="space-y-4">
-        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-700">
-          <div class="flex items-center justify-between gap-4">
-            <div>
-              <div class="text-sm text-gray-500 dark:text-gray-400">
+        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-700/80">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="min-w-0 space-y-3">
+              <div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
                 {{ qualityReportProxy?.name || '-' }}
+                </div>
+                <div class="mt-1 text-base font-medium text-gray-900 dark:text-white">
+                  {{ qualityReport.summary }}
+                </div>
               </div>
-              <div class="mt-1 text-sm text-gray-700 dark:text-gray-200">
-                {{ qualityReport.summary }}
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="badge" :class="qualityOverallClass(qualityOverallStatus(qualityReport))">
+                  {{ qualityOverallLabel(qualityOverallStatus(qualityReport)) }}
+                </span>
+                <span
+                  v-for="stat in qualityReportBreakdown(qualityReport)"
+                  :key="stat.key"
+                  class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-600 dark:border-dark-500 dark:bg-dark-800 dark:text-gray-300"
+                >
+                  <span class="font-medium text-gray-900 dark:text-white">{{ stat.label }}</span>
+                  <span>{{ stat.value }}</span>
+                </span>
               </div>
             </div>
-            <div class="text-right">
-              <div class="text-2xl font-semibold text-gray-900 dark:text-white">
-                {{ qualityReport.score }}
+            <div class="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+              <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
+                <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.proxies.qualityScoreLabel') }}
+                </div>
+                <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+                  {{ qualityReport.score }}
+                </div>
               </div>
-              <div class="text-xs text-gray-500 dark:text-gray-400">
-                {{ t('admin.proxies.qualityGrade', { grade: qualityReport.grade }) }}
+              <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
+                <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.proxies.qualityGradeLabel') }}
+                </div>
+                <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                  {{ qualityReport.grade }}
+                </div>
+              </div>
+              <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
+                <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.proxies.qualityBaseLatency') }}
+                </div>
+                <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                  {{ typeof qualityReport.base_latency_ms === 'number' ? `${qualityReport.base_latency_ms}ms` : '-' }}
+                </div>
+              </div>
+              <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
+                <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.proxies.qualityCountry') }}
+                </div>
+                <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                  {{ qualityReport.country || '-' }}
+                </div>
               </div>
             </div>
           </div>
-          <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-            <div>{{ t('admin.proxies.qualityExitIP') }}: {{ qualityReport.exit_ip || '-' }}</div>
-            <div>{{ t('admin.proxies.qualityCountry') }}: {{ qualityReport.country || '-' }}</div>
-            <div>
-              {{ t('admin.proxies.qualityBaseLatency') }}:
-              {{ typeof qualityReport.base_latency_ms === 'number' ? `${qualityReport.base_latency_ms}ms` : '-' }}
+          <div class="mt-4 grid gap-3 text-xs text-gray-600 dark:text-gray-300 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
+              <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityExitIP') }}</div>
+              <div class="mt-1 break-all text-sm text-gray-900 dark:text-white">{{ qualityReport.exit_ip || '-' }}</div>
             </div>
-            <div>{{ t('admin.proxies.qualityCheckedAt') }}: {{ new Date(qualityReport.checked_at * 1000).toLocaleString() }}</div>
+            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
+              <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityCountry') }}</div>
+              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ qualityReport.country || '-' }}</div>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
+              <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityCheckedAt') }}</div>
+              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatQualityCheckedAt(qualityReport.checked_at) }}</div>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
+              <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityInterpretation') }}</div>
+              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ qualityInterpretationLabel(qualityOverallStatus(qualityReport)) }}</div>
+            </div>
           </div>
         </div>
 
         <div class="max-h-80 overflow-auto rounded-lg border border-gray-200 dark:border-dark-600">
-          <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
+          <table class="min-w-full table-fixed divide-y divide-gray-200 text-sm dark:divide-dark-700">
             <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-dark-400">
               <tr>
-                <th class="px-3 py-2 text-left">{{ t('admin.proxies.qualityTableTarget') }}</th>
-                <th class="px-3 py-2 text-left">{{ t('admin.proxies.qualityTableStatus') }}</th>
-                <th class="px-3 py-2 text-left">HTTP</th>
-                <th class="px-3 py-2 text-left">{{ t('admin.proxies.qualityTableLatency') }}</th>
+                <th class="w-32 px-3 py-2 text-left">{{ t('admin.proxies.qualityTableTarget') }}</th>
+                <th class="w-28 px-3 py-2 text-left">{{ t('admin.proxies.qualityTableStatus') }}</th>
+                <th class="w-20 px-3 py-2 text-left">HTTP</th>
+                <th class="w-24 px-3 py-2 text-left">{{ t('admin.proxies.qualityTableLatency') }}</th>
                 <th class="px-3 py-2 text-left">{{ t('admin.proxies.qualityTableMessage') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
               <tr v-for="item in qualityReport.items" :key="item.target">
-                <td class="px-3 py-2 text-gray-900 dark:text-white">{{ qualityTargetLabel(item.target) }}</td>
+                <td class="px-3 py-3 align-top text-gray-900 dark:text-white">{{ qualityTargetLabel(item.target) }}</td>
                 <td class="px-3 py-2">
                   <span class="badge" :class="qualityStatusClass(item.status)">{{ qualityStatusLabel(item.status) }}</span>
                 </td>
-                <td class="px-3 py-2 text-gray-600 dark:text-gray-300">{{ item.http_status ?? '-' }}</td>
-                <td class="px-3 py-2 text-gray-600 dark:text-gray-300">
+                <td class="px-3 py-3 align-top text-gray-600 dark:text-gray-300">{{ item.http_status ?? '-' }}</td>
+                <td class="px-3 py-3 align-top text-gray-600 dark:text-gray-300">
                   {{ typeof item.latency_ms === 'number' ? `${item.latency_ms}ms` : '-' }}
                 </td>
-                <td class="px-3 py-2 text-gray-600 dark:text-gray-300">
-                  <span>{{ item.message || '-' }}</span>
-                  <span v-if="item.cf_ray" class="ml-1 text-xs text-gray-400">(cf-ray: {{ item.cf_ray }})</span>
+                <td class="px-3 py-3 align-top text-gray-600 dark:text-gray-300">
+                  <div class="space-y-1">
+                    <div>{{ qualityItemMessage(item) }}</div>
+                    <div v-if="item.cf_ray" class="text-xs text-gray-400">CF-Ray: {{ item.cf_ray }}</div>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -1058,6 +1110,7 @@ import type {
   Proxy,
   ProxyAccountSummary,
   ProxyProtocol,
+  ProxyQualityCheckItem,
   ProxyQualityCheckResult,
   ProxySubscriptionSource,
   ProxySubscriptionNode
@@ -1975,7 +2028,7 @@ const closeQualityReportDialog = () => {
 const qualityStatusClass = (status: string) => {
   if (status === 'pass') return 'badge-success'
   if (status === 'warn') return 'badge-warning'
-  if (status === 'challenge') return 'badge-danger'
+  if (status === 'challenge') return 'badge-purple'
   return 'badge-danger'
 }
 
@@ -1989,7 +2042,7 @@ const qualityStatusLabel = (status: string) => {
 const qualityOverallClass = (status?: string) => {
   if (status === 'healthy') return 'badge-success'
   if (status === 'warn') return 'badge-warning'
-  if (status === 'challenge') return 'badge-danger'
+  if (status === 'challenge') return 'badge-purple'
   return 'badge-danger'
 }
 
@@ -2013,6 +2066,35 @@ const qualityTargetLabel = (target: string) => {
     default:
       return target
   }
+}
+
+const qualityOverallStatus = (result?: ProxyQualityCheckResult | null): Proxy['quality_status'] => {
+  if (!result) return 'failed'
+  return summarizeQualityStatus(result)
+}
+
+const formatQualityCheckedAt = (checkedAt?: number) => {
+  if (!checkedAt) return '-'
+  return new Date(checkedAt * 1000).toLocaleString()
+}
+
+const qualityReportBreakdown = (result: ProxyQualityCheckResult) => [
+  { key: 'pass', label: t('admin.proxies.qualityStatusPass'), value: result.passed_count },
+  { key: 'warn', label: t('admin.proxies.qualityStatusWarn'), value: result.warn_count },
+  { key: 'challenge', label: t('admin.proxies.qualityStatusChallenge'), value: result.challenge_count },
+  { key: 'fail', label: t('admin.proxies.qualityStatusFail'), value: result.failed_count }
+]
+
+const qualityInterpretationLabel = (status?: Proxy['quality_status']) => {
+  if (status === 'healthy') return t('admin.proxies.qualityInterpretationHealthy')
+  if (status === 'warn') return t('admin.proxies.qualityInterpretationWarn')
+  if (status === 'challenge') return t('admin.proxies.qualityInterpretationChallenge')
+  return t('admin.proxies.qualityInterpretationFail')
+}
+
+const qualityItemMessage = (item: ProxyQualityCheckItem) => {
+  if (item.message) return item.message
+  return t('admin.proxies.qualityItemMessageEmpty')
 }
 
 const fetchAllProxiesForBatch = async (respectCurrentFilters: boolean = true): Promise<Proxy[]> => {
