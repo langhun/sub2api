@@ -2862,17 +2862,12 @@ import {
   resetMessagesDispatchFormState,
   type MessagesDispatchMappingRow,
 } from "./groupsMessagesDispatch";
+import { getAvailableAccountCount } from "./groupAccountStats";
 import { normalizeSupportedModelScopesForPlatform } from "./groupsSupportedModelScopes";
 
 const { t } = useI18n();
 const appStore = useAppStore();
 const onboardingStore = useOnboardingStore();
-
-const getAvailableAccountCount = (row: AdminGroup): number =>
-  Math.max(
-    0,
-    (row.active_account_count ?? 0) - (row.rate_limited_account_count ?? 0),
-  );
 
 const columns = computed<Column[]>(() => [
   { key: "name", label: t("admin.groups.columns.name"), sortable: true },

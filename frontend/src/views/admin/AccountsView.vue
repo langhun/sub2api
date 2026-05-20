@@ -493,7 +493,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, toRaw, watch, defineAsyncComponent } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, toRaw, watch, defineAsyncComponent, provide } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -532,6 +532,7 @@ import {
 } from '@/utils/accountStatus'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
+import { accountStatusNowMsKey } from '@/components/account/accountStatusClock'
 
 const CreateAccountModal = defineAsyncComponent(() => import('@/components/account/CreateAccountModal.vue'))
 const EditAccountModal = defineAsyncComponent(() => import('@/components/account/EditAccountModal.vue'))
@@ -706,6 +707,7 @@ const autoRefreshETag = ref<string | null>(null)
 const autoRefreshFetching = ref(false)
 const AUTO_REFRESH_SILENT_WINDOW_MS = 15000
 const autoRefreshSilentUntil = ref(0)
+const accountStatusNowMs = ref(Date.now())
 const hasPendingListSync = ref(false)
 const todayStatsByAccountId = ref<Record<string, WindowStats>>({})
 const todayStatsLoading = ref(false)
@@ -713,6 +715,16 @@ const todayStatsError = ref<string | null>(null)
 const todayStatsReqSeq = ref(0)
 const pendingTodayStatsRefresh = ref(false)
 const usageManualRefreshToken = ref(0)
+
+provide(accountStatusNowMsKey, accountStatusNowMs)
+
+const { pause: pauseAccountStatusClock, resume: resumeAccountStatusClock } = useIntervalFn(
+  () => {
+    accountStatusNowMs.value = Date.now()
+  },
+  1000,
+  { immediate: false }
+)
 
 const buildDefaultTodayStats = (): WindowStats => ({
   requests: 0,
@@ -1453,6 +1465,7 @@ const syncPendingListChanges = async () => {
 
 const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
   async () => {
+    accountStatusNowMs.value = Date.now()
     if (!autoRefreshEnabled.value) return
     if (document.hidden) return
     if (loading.value || autoRefreshFetching.value) return
@@ -1967,13 +1980,15 @@ const accountMatchesTier = (account: Account, selectedTier: string, fallbackPlat
 }
 
 const accountMatchesCurrentFilters = (account: Account) => {
+  void accountStatusNowMs.value
   const filters = buildAccountLocalFilters(params as AccountLocalFilterParams)
   if (filters.platform && account.platform !== filters.platform) return false
   if (filters.tier && !accountMatchesTier(account, filters.tier, filters.platform)) return false
   if (filters.type && account.type !== filters.type) return false
+  const statusEvalOptions = { nowMs: accountStatusNowMs.value }
   if (!matchesAccountMainStatusFilter(account, filters.main_status as AccountMainStatusFilterValue)) return false
-  if (!matchesAccountRuntimeStatusFilter(account, filters.runtime_status as AccountRuntimeStatusFilterValue)) return false
-  if (!matchesAccountSchedulingStatusFilter(account, filters.scheduling_status as AccountSchedulingStatusFilterValue)) return false
+  if (!matchesAccountRuntimeStatusFilter(account, filters.runtime_status as AccountRuntimeStatusFilterValue, statusEvalOptions)) return false
+  if (!matchesAccountSchedulingStatusFilter(account, filters.scheduling_status as AccountSchedulingStatusFilterValue, statusEvalOptions)) return false
   if (filters.group) {
     const groupIds = account.group_ids ?? account.groups?.map((group) => group.id) ?? []
     if (filters.group === ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE) {
@@ -2401,6 +2416,7 @@ onMounted(async () => {
   }
   window.addEventListener('scroll', handleScroll, true)
   document.addEventListener('click', handleClickOutside)
+  resumeAccountStatusClock()
 
   if (autoRefreshEnabled.value) {
     autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
@@ -2413,6 +2429,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll, true)
   document.removeEventListener('click', handleClickOutside)
+  pauseAccountStatusClock()
 })
 </script>
 

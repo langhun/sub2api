@@ -1085,6 +1085,7 @@ func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int
 	if err != nil {
 		return nil, 0, 0, err
 	}
+	s.enrichRedeemCodes(ctx, codes)
 	total := result.Total
 	// Aggregate total recharged amount (only once, regardless of type filter)
 	totalRecharged, err := s.redeemCodeRepo.SumPositiveBalanceByUser(ctx, userID)
@@ -1143,6 +1144,7 @@ func (s *adminServiceImpl) listRedeemBalanceHistoryForMerge(ctx context.Context,
 	if len(out) > needed {
 		out = out[:needed]
 	}
+	s.enrichRedeemCodes(ctx, out)
 	return out, total, nil
 }
 

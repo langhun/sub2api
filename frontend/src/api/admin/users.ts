@@ -237,6 +237,11 @@ export interface BalanceHistoryItem {
   notes: string
   user?: { id: number; email: string } | null
   group?: { id: number; name: string } | null
+  source_type?: string
+  source_summary?: string
+  inviter_user?: { id: number; email: string } | null
+  winning_user?: { id: number; email: string } | null
+  winning_prize?: string
   // Checkin luck-specific fields
   multiplier?: number
   bet_amount?: number
