@@ -67,8 +67,9 @@ func (s *AuthService) validateOAuthRegistrationInvitation(ctx context.Context, i
 	if invitationCode == "" {
 		return nil, ErrInvitationCodeRequired
 	}
-	invitationCode = NormalizeRegistrationInvitationCode(invitationCode)
-	if !IsRegistrationInvitationCodeFormatWithSettings(invitationCode, s.settingService.GetInvitationCodeFormat(ctx)) {
+	format := s.settingService.GetInvitationCodeFormat(ctx)
+	invitationCode = NormalizeRegistrationInvitationCodeWithSettings(invitationCode, format)
+	if !IsRegistrationInvitationCodeFormatWithSettings(invitationCode, format) {
 		return nil, ErrInvitationCodeInvalid
 	}
 
@@ -317,7 +318,7 @@ func (s *AuthService) restoreOAuthRegistrationInvitation(ctx context.Context, in
 		return ErrServiceUnavailable
 	}
 
-	invitationCode = NormalizeRegistrationInvitationCode(invitationCode)
+	invitationCode = NormalizeRegistrationInvitationCodeWithSettings(invitationCode, s.settingService.GetInvitationCodeFormat(ctx))
 	if invitationCode == "" || userID <= 0 {
 		return nil
 	}

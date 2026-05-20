@@ -393,7 +393,7 @@ describe('admin AccountsView bulk edit scope', () => {
     expect(deleteAccount).toHaveBeenNthCalledWith(2, 4020)
   })
 
-  it('uses original batch failure count in toast and reports queued 401 count separately', async () => {
+  it('excludes auto-deleted 401 accounts from follow-up selection and final failure summary', async () => {
     deleteAccount.mockResolvedValueOnce({ message: 'ok' })
 
     const wrapper = mount(AccountsView, {
@@ -447,11 +447,13 @@ describe('admin AccountsView bulk edit scope', () => {
     await flushPromises()
 
     expect(showError).toHaveBeenCalledWith('admin.accounts.batchTest.partialSuccess')
-    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
+    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
+    expect((wrapper.vm as any).selIds).not.toContain(1001)
+    expect((wrapper.vm as any).selIds).toHaveLength(996)
   })
 
-  it('reports queued 401 count even when auto-delete fails', async () => {
+  it('keeps failed 401 accounts selected when auto-delete fails', async () => {
     deleteAccount.mockRejectedValueOnce(new Error('delete failed'))
 
     const wrapper = mount(AccountsView, {
@@ -504,8 +506,9 @@ describe('admin AccountsView bulk edit scope', () => {
     })
     await flushPromises()
 
-    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
+    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
     expect(showError).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteFailed')
+    expect((wrapper.vm as any).selIds).toEqual([2001])
   })
 
   it('backfills missing queue-delete events from completed unauthorized ids', async () => {
@@ -565,8 +568,65 @@ describe('admin AccountsView bulk edit scope', () => {
     expect(deleteAccount).toHaveBeenNthCalledWith(1, 1001)
     expect(deleteAccount).toHaveBeenNthCalledWith(2, 1002)
     expect(deleteAccount).toHaveBeenNthCalledWith(3, 1003)
-    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
+    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
+  })
+
+  it('does not show a failure summary when all failed accounts were auto-deleted after 401', async () => {
+    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
+    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
+
+    const wrapper = mount(AccountsView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          AccountTableActions: { template: '<div><slot name="beforeCreate" /><slot name="after" /></div>' },
+          AccountTableFilters: { template: '<div></div>' },
+          AccountBulkActionsBar: AccountBulkActionsBarStub,
+          AccountActionMenu: true,
+          ImportDataModal: true,
+          ReAuthAccountModal: true,
+          AccountTestModal: true,
+          BatchAccountTestModal: BatchAccountTestModalStub,
+          AccountStatsModal: true,
+          ScheduledTestsPanel: true,
+          SyncFromCrsModal: true,
+          TempUnschedStatusModal: true,
+          ErrorPassthroughRulesModal: true,
+          TLSFingerprintProfilesModal: true,
+          CreateAccountModal: true,
+          EditAccountModal: true,
+          BulkEditAccountModal: BulkEditAccountModalStub,
+          PlatformTypeBadge: true,
+          AccountCapacityCell: true,
+          AccountStatusIndicator: true,
+          AccountTodayStatsCell: true,
+          AccountGroupsCell: true,
+          AccountUsageCell: true,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+    await (wrapper.vm as any).handleBatchTestCompleted({
+      success: 0,
+      failed: 2,
+      successIds: [],
+      failedIds: [3001, 3002],
+      unauthorizedFailedIds: [3001, 3002]
+    })
+    await flushPromises()
+
+    expect(showError).not.toHaveBeenCalledWith('admin.accounts.batchTest.partialSuccess')
+    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
+    expect((wrapper.vm as any).selIds).toEqual([])
   })
 
   it('calls batchSetPrivacy and shows success when all selected accounts are processed', async () => {

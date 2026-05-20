@@ -2228,24 +2228,23 @@ const handleBatchTestCompleted = async (result: {
   const deleteFailed401Ids = new Set(
     unauthorized401Ids.filter(id => batchTestDeleteFailedIds.value.has(id))
   )
-  const queued401Ids = new Set(unauthorized401Ids)
+  const remainingFailedIds = result.failedIds.filter(id => !deleted401Ids.has(id))
 
-  if (result.failed > 0) {
+  if (remainingFailedIds.length > 0) {
     appStore.showError(
       t('admin.accounts.batchTest.partialSuccess', {
         success: result.success,
-        failed: result.failed
+        failed: remainingFailedIds.length
       })
     )
-    setSelectedIds(result.failedIds)
+    setSelectedIds(remainingFailedIds)
   } else if (result.success > 0) {
     appStore.showSuccess(t('admin.accounts.batchTest.successToast', { count: result.success }))
     clearSelection()
+  } else {
+    clearSelection()
   }
 
-  if (queued401Ids.size > 0) {
-    appStore.showSuccess(t('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess', { count: queued401Ids.size }))
-  }
   if (deleted401Ids.size > 0) {
     appStore.showSuccess(t('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted', { count: deleted401Ids.size }))
   }

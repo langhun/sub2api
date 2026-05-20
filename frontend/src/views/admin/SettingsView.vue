@@ -1490,22 +1490,71 @@
                   兑换码格式
                 </label>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  控制余额、并发、订阅、审计等自动生成兑换码的前缀、后缀、随机位数和分隔规则。
+                  余额、并发数、订阅兑换码分别独立配置。每种格式都可以单独设置分组数、每组位数、字符类型、字母大小写、分隔符以及前后缀。
                 </p>
-                <div class="mt-4 grid gap-3 md:grid-cols-2">
-                  <input v-model="form.redeem_code_format.prefix" type="text" class="input" placeholder="前缀，例如 RC" />
-                  <input v-model="form.redeem_code_format.suffix" type="text" class="input" placeholder="后缀，可留空" />
-                  <input v-model.number="form.redeem_code_format.random_length" type="number" min="1" max="32" class="input" placeholder="随机位数" />
-                  <input v-model.number="form.redeem_code_format.group_size" type="number" min="0" max="32" class="input" placeholder="分组位数，0 为不分组" />
-                  <Select
-                    v-model="form.redeem_code_format.separator"
-                    :options="[
-                      { value: '', label: '无分隔符' },
-                      { value: '-', label: '-' },
-                      { value: '_', label: '_' },
-                    ]"
-                    class="md:col-span-2"
-                  />
+                <div class="mt-4 space-y-4">
+                  <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-600">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">余额兑换码</h3>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">用于余额类兑换码、注册赠送、签到余额审计等。</p>
+                      </div>
+                      <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">
+                        {{ buildCodeFormatPreview(balanceCodeFormatEditor) }}
+                      </code>
+                    </div>
+                    <div class="mt-4 grid gap-3 lg:grid-cols-3">
+                      <input v-model="balanceCodeFormatEditor.prefix" type="text" class="input" placeholder="前缀，可留空" />
+                      <input v-model="balanceCodeFormatEditor.suffix" type="text" class="input" placeholder="后缀，可留空" />
+                      <Select v-model="balanceCodeFormatEditor.separator" :options="codeSeparatorOptions" />
+                      <input v-model.number="balanceCodeFormatEditor.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
+                      <input v-model.number="balanceCodeFormatEditor.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
+                      <Select v-model="balanceCodeFormatEditor.charset" :options="codeCharsetOptions" />
+                      <Select v-model="balanceCodeFormatEditor.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
+                    </div>
+                  </div>
+
+                  <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-600">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">并发兑换码</h3>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">用于并发数兑换码和管理员并发调整审计。</p>
+                      </div>
+                      <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">
+                        {{ buildCodeFormatPreview(concurrencyCodeFormatEditor) }}
+                      </code>
+                    </div>
+                    <div class="mt-4 grid gap-3 lg:grid-cols-3">
+                      <input v-model="concurrencyCodeFormatEditor.prefix" type="text" class="input" placeholder="前缀，可留空" />
+                      <input v-model="concurrencyCodeFormatEditor.suffix" type="text" class="input" placeholder="后缀，可留空" />
+                      <Select v-model="concurrencyCodeFormatEditor.separator" :options="codeSeparatorOptions" />
+                      <input v-model.number="concurrencyCodeFormatEditor.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
+                      <input v-model.number="concurrencyCodeFormatEditor.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
+                      <Select v-model="concurrencyCodeFormatEditor.charset" :options="codeCharsetOptions" />
+                      <Select v-model="concurrencyCodeFormatEditor.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
+                    </div>
+                  </div>
+
+                  <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-600">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">订阅兑换码</h3>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">用于订阅类兑换码，和余额/并发数格式完全独立。</p>
+                      </div>
+                      <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">
+                        {{ buildCodeFormatPreview(subscriptionCodeFormatEditor) }}
+                      </code>
+                    </div>
+                    <div class="mt-4 grid gap-3 lg:grid-cols-3">
+                      <input v-model="subscriptionCodeFormatEditor.prefix" type="text" class="input" placeholder="前缀，可留空" />
+                      <input v-model="subscriptionCodeFormatEditor.suffix" type="text" class="input" placeholder="后缀，可留空" />
+                      <Select v-model="subscriptionCodeFormatEditor.separator" :options="codeSeparatorOptions" />
+                      <input v-model.number="subscriptionCodeFormatEditor.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
+                      <input v-model.number="subscriptionCodeFormatEditor.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
+                      <Select v-model="subscriptionCodeFormatEditor.charset" :options="codeCharsetOptions" />
+                      <Select v-model="subscriptionCodeFormatEditor.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1530,20 +1579,25 @@
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   单独控制注册邀请码、手动新建邀请码、盲盒邀请码的格式规则。
                 </p>
-                <div class="mt-4 grid gap-3 md:grid-cols-2">
-                  <input v-model="form.invitation_code_format.prefix" type="text" class="input" placeholder="前缀，例如 DG" />
-                  <input v-model="form.invitation_code_format.suffix" type="text" class="input" placeholder="后缀，可留空" />
-                  <input v-model.number="form.invitation_code_format.random_length" type="number" min="1" max="32" class="input" placeholder="随机位数" />
-                  <input v-model.number="form.invitation_code_format.group_size" type="number" min="0" max="32" class="input" placeholder="分组位数，0 为不分组" />
-                  <Select
-                    v-model="form.invitation_code_format.separator"
-                    :options="[
-                      { value: '', label: '无分隔符' },
-                      { value: '-', label: '-' },
-                      { value: '_', label: '_' },
-                    ]"
-                    class="md:col-span-2"
-                  />
+                <div class="mt-4 rounded-xl border border-gray-200 p-4 dark:border-dark-600">
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">邀请码</h3>
+                      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">用于注册邀请码、手动新建邀请码、盲盒邀请码。</p>
+                    </div>
+                    <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">
+                      {{ buildCodeFormatPreview(invitationCodeFormatEditor) }}
+                    </code>
+                  </div>
+                  <div class="mt-4 grid gap-3 lg:grid-cols-3">
+                    <input v-model="invitationCodeFormatEditor.prefix" type="text" class="input" placeholder="前缀，可留空" />
+                    <input v-model="invitationCodeFormatEditor.suffix" type="text" class="input" placeholder="后缀，可留空" />
+                    <Select v-model="invitationCodeFormatEditor.separator" :options="codeSeparatorOptions" />
+                    <input v-model.number="invitationCodeFormatEditor.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
+                    <input v-model.number="invitationCodeFormatEditor.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
+                    <Select v-model="invitationCodeFormatEditor.charset" :options="codeCharsetOptions" />
+                    <Select v-model="invitationCodeFormatEditor.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
+                  </div>
                 </div>
               </div>
               <!-- Password Reset - Only show when email verification is enabled -->
@@ -5282,20 +5336,14 @@
                 <p class="mt-1 text-xs text-gray-400">
                   控制用户邀请返利码、重置返利码后的新格式。
                 </p>
-                <div class="mt-3 grid gap-3 md:grid-cols-2">
+                <div class="mt-3 grid gap-3 lg:grid-cols-3">
                   <input v-model="form.affiliate_code_format.prefix" type="text" class="input" placeholder="前缀，例如 AFF" />
                   <input v-model="form.affiliate_code_format.suffix" type="text" class="input" placeholder="后缀，可留空" />
-                  <input v-model.number="form.affiliate_code_format.random_length" type="number" min="1" max="32" class="input" placeholder="随机位数" />
-                  <input v-model.number="form.affiliate_code_format.group_size" type="number" min="0" max="32" class="input" placeholder="分组位数，0 为不分组" />
-                  <Select
-                    v-model="form.affiliate_code_format.separator"
-                    :options="[
-                      { value: '', label: '无分隔符' },
-                      { value: '-', label: '-' },
-                      { value: '_', label: '_' },
-                    ]"
-                    class="md:col-span-2"
-                  />
+                  <Select v-model="form.affiliate_code_format.separator" :options="codeSeparatorOptions" />
+                  <input v-model.number="form.affiliate_code_format.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
+                  <input v-model.number="form.affiliate_code_format.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
+                  <Select v-model="form.affiliate_code_format.charset" :options="codeCharsetOptions" />
+                  <Select v-model="form.affiliate_code_format.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
                 </div>
               </div>
 
@@ -7105,6 +7153,7 @@ import {
 import type {
   AuthSourceDefaultsState,
   AuthSourceType,
+  CodeFormatSettings,
   SystemSettings,
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
@@ -7259,6 +7308,18 @@ const testEmailAddress = ref("");
 const registrationEmailSuffixWhitelistTags = ref<string[]>([]);
 const registrationEmailSuffixWhitelistDraft = ref("");
 const tablePageSizeOptionsInput = ref("10, 20, 50, 100");
+const balanceCodeFormatEditor = reactive(
+  defaultCodeFormatEditor(),
+);
+const concurrencyCodeFormatEditor = reactive(
+  defaultCodeFormatEditor(),
+);
+const subscriptionCodeFormatEditor = reactive(
+  defaultCodeFormatEditor(),
+);
+const invitationCodeFormatEditor = reactive(
+  defaultCodeFormatEditor({ prefix: "DG", group_count: 1, chars_per_group: 6 }),
+);
 
 // Admin API Key 状态
 const adminApiKeyLoading = ref(true);
@@ -7332,6 +7393,67 @@ const openaiFastPolicyLoaded = ref(false);
 const tablePageSizeMin = 5;
 const tablePageSizeMax = 1000;
 const tablePageSizeDefault = 20;
+
+function defaultCodeFormatEditor(
+  overrides: Partial<CodeFormatEditor> = {},
+): CodeFormatEditor {
+  return {
+    prefix: "",
+    suffix: "",
+    separator: "-",
+    group_count: 4,
+    chars_per_group: 4,
+    charset: "mixed",
+    letter_case: "upper",
+    ...overrides,
+  };
+}
+
+function codeFormatToEditor(format?: Partial<CodeFormatSettings> | null): CodeFormatEditor {
+  const normalized = format ?? {};
+  const charsPerGroup = Math.max(
+    1,
+    Math.min(
+      16,
+      Math.floor(
+        Number(
+          normalized.chars_per_group ??
+            normalized.group_size ??
+            normalized.random_length ??
+            4,
+        ) || 4,
+      ),
+    ),
+  );
+  const derivedGroupCount = Math.max(
+    1,
+    Math.min(
+      16,
+      Math.floor(Number(normalized.random_length ?? charsPerGroup) / charsPerGroup) || 1,
+    ),
+  );
+  const groupCount = Math.max(
+    1,
+    Math.min(16, Math.floor(Number(normalized.group_count ?? derivedGroupCount) || derivedGroupCount)),
+  );
+  return defaultCodeFormatEditor({
+    prefix: String(normalized.prefix ?? ""),
+    suffix: String(normalized.suffix ?? ""),
+    separator:
+      normalized.separator === "-" || normalized.separator === "_"
+        ? normalized.separator
+        : "",
+    group_count: groupCount,
+    chars_per_group: charsPerGroup,
+    charset:
+      normalized.charset === "digits" ||
+      normalized.charset === "letters" ||
+      normalized.charset === "mixed"
+        ? normalized.charset
+        : "mixed",
+    letter_case: normalized.letter_case === "lower" ? "lower" : "upper",
+  });
+}
 
 function defaultLoginAgreementDocuments(): LoginAgreementDocument[] {
   return [
@@ -7410,6 +7532,16 @@ type SettingsForm = Omit<
   openai_advanced_scheduler_enabled: boolean;
 };
 
+type CodeFormatEditor = {
+  prefix: string;
+  suffix: string;
+  separator: string;
+  group_count: number;
+  chars_per_group: number;
+  charset: "digits" | "letters" | "mixed";
+  letter_case: "upper" | "lower";
+};
+
 const homeNavLinkToggles = [
   {
     field: "home_nav_leaderboard_enabled",
@@ -7461,9 +7593,12 @@ const form = reactive<SettingsForm>({
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   promo_code_enabled: true,
-  redeem_code_format: { prefix: "", suffix: "", random_length: 32, separator: "-", group_size: 8 },
+  redeem_code_format: { prefix: "", suffix: "", random_length: 16, separator: "-", group_size: 4, group_count: 4, chars_per_group: 4, charset: "mixed", letter_case: "upper" },
+  balance_code_format: { prefix: "", suffix: "", random_length: 16, separator: "-", group_size: 4, group_count: 4, chars_per_group: 4, charset: "mixed", letter_case: "upper" },
+  concurrency_code_format: { prefix: "", suffix: "", random_length: 16, separator: "-", group_size: 4, group_count: 4, chars_per_group: 4, charset: "mixed", letter_case: "upper" },
+  subscription_code_format: { prefix: "", suffix: "", random_length: 16, separator: "-", group_size: 4, group_count: 4, chars_per_group: 4, charset: "mixed", letter_case: "upper" },
   invitation_code_enabled: false,
-  invitation_code_format: { prefix: "DG", suffix: "", random_length: 6, separator: "-", group_size: 0 },
+  invitation_code_format: { prefix: "DG", suffix: "", random_length: 6, separator: "-", group_size: 6, group_count: 1, chars_per_group: 6, charset: "mixed", letter_case: "upper" },
   password_reset_enabled: false,
   totp_enabled: false,
   totp_encryption_key_configured: false,
@@ -7472,7 +7607,7 @@ const form = reactive<SettingsForm>({
   login_agreement_updated_at: "2026-03-31",
   login_agreement_documents: defaultLoginAgreementDocuments(),
   default_balance: 0,
-  affiliate_code_format: { prefix: "", suffix: "", random_length: 12, separator: "", group_size: 0 },
+  affiliate_code_format: { prefix: "", suffix: "", random_length: 12, separator: "", group_size: 12, group_count: 1, chars_per_group: 12, charset: "mixed", letter_case: "upper" },
   affiliate_rebate_rate: 20,
   affiliate_rebate_freeze_hours: 0,
   affiliate_rebate_duration_days: 0,
@@ -8293,6 +8428,22 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    Object.assign(
+      balanceCodeFormatEditor,
+      codeFormatToEditor(settings.balance_code_format ?? settings.redeem_code_format),
+    );
+    Object.assign(
+      concurrencyCodeFormatEditor,
+      codeFormatToEditor(settings.concurrency_code_format ?? settings.redeem_code_format),
+    );
+    Object.assign(
+      subscriptionCodeFormatEditor,
+      codeFormatToEditor(settings.subscription_code_format ?? settings.redeem_code_format),
+    );
+    Object.assign(
+      invitationCodeFormatEditor,
+      codeFormatToEditor(settings.invitation_code_format),
+    );
     form.login_agreement_mode =
       settings.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
     form.login_agreement_updated_at =
@@ -8630,9 +8781,12 @@ async function saveSettings() {
           (suffix) => `@${suffix}`,
         ),
       promo_code_enabled: form.promo_code_enabled,
-      redeem_code_format: normalizeCodeFormatInput(form.redeem_code_format),
+      redeem_code_format: normalizeCodeFormatInput(balanceCodeFormatEditor),
+      balance_code_format: normalizeCodeFormatInput(balanceCodeFormatEditor),
+      concurrency_code_format: normalizeCodeFormatInput(concurrencyCodeFormatEditor),
+      subscription_code_format: normalizeCodeFormatInput(subscriptionCodeFormatEditor),
       invitation_code_enabled: form.invitation_code_enabled,
-      invitation_code_format: normalizeCodeFormatInput(form.invitation_code_format),
+      invitation_code_format: normalizeCodeFormatInput(invitationCodeFormatEditor),
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       login_agreement_enabled: form.login_agreement_enabled,
@@ -9925,18 +10079,62 @@ function normalizeCodeFormatInput(raw: {
   random_length?: number;
   separator?: string;
   group_size?: number;
+  group_count?: number;
+  chars_per_group?: number;
+  charset?: string;
+  letter_case?: string;
 }) {
   const separator = raw.separator === "-" || raw.separator === "_" ? raw.separator : "";
-  const randomLength = Math.max(1, Math.min(32, Math.floor(Number(raw.random_length) || 1)));
-  const groupSize = Math.max(0, Math.min(randomLength, Math.floor(Number(raw.group_size) || 0)));
+  const groupCount = Math.max(1, Math.min(16, Math.floor(Number(raw.group_count) || 1)));
+  const charsPerGroup = Math.max(
+    1,
+    Math.min(16, Math.floor(Number(raw.chars_per_group ?? raw.group_size) || 1)),
+  );
+  const randomLength = Math.max(1, Math.min(32, groupCount * charsPerGroup));
+  const groupSize = charsPerGroup;
   return {
-    prefix: String(raw.prefix ?? "").trim().toUpperCase(),
-    suffix: String(raw.suffix ?? "").trim().toUpperCase(),
+    prefix: String(raw.prefix ?? "").trim(),
+    suffix: String(raw.suffix ?? "").trim(),
     random_length: randomLength,
     separator,
     group_size: groupSize,
+    group_count: groupCount,
+    chars_per_group: charsPerGroup,
+    charset: raw.charset === "digits" || raw.charset === "letters" ? raw.charset : "mixed",
+    letter_case: raw.letter_case === "lower" ? "lower" : "upper",
   };
 }
+
+function buildCodeFormatPreview(editor: CodeFormatEditor): string {
+  const groupCount = Math.max(1, Math.min(16, Math.floor(Number(editor.group_count) || 1)));
+  const charsPerGroup = Math.max(1, Math.min(16, Math.floor(Number(editor.chars_per_group) || 1)));
+  const sampleChar =
+    editor.charset === "digits" ? "8" : editor.letter_case === "lower" ? "x" : "X";
+  const groups = Array.from({ length: groupCount }, () => sampleChar.repeat(charsPerGroup));
+  const parts = [
+    editor.prefix.trim(),
+    ...groups,
+    editor.suffix.trim(),
+  ].filter((part) => part.length > 0);
+  return (editor.separator || "").length > 0 ? parts.join(editor.separator) : parts.join("");
+}
+
+const codeCharsetOptions = [
+  { value: "mixed", label: "字母+数字" },
+  { value: "digits", label: "纯数字" },
+  { value: "letters", label: "纯字母" },
+];
+
+const codeLetterCaseOptions = [
+  { value: "upper", label: "大写" },
+  { value: "lower", label: "小写" },
+];
+
+const codeSeparatorOptions = [
+  { value: "", label: "无分隔符" },
+  { value: "-", label: "-" },
+  { value: "_", label: "_" },
+];
 
 async function loadAffiliateUsers() {
   affiliateState.loading = true;

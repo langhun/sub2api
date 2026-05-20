@@ -726,6 +726,9 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		RegistrationEmailSuffixWhitelist: registrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                 settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
 		RedeemCodeFormat:                 ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()),
+		BalanceCodeFormat:                ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		ConcurrencyCodeFormat:            ParseCodeFormatSettings(settings[SettingKeyConcurrencyCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		SubscriptionCodeFormat:           ParseCodeFormatSettings(settings[SettingKeySubscriptionCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		PasswordResetEnabled:             passwordResetEnabled,
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
 		InvitationCodeFormat:             ParseCodeFormatSettings(settings[SettingKeyInvitationCodeFormat], DefaultRegistrationInvitationCodeFormat()),
@@ -1477,6 +1480,15 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if settings.RedeemCodeFormat.RandomLength <= 0 {
 		settings.RedeemCodeFormat = DefaultRedeemCodeFormat()
 	}
+	if settings.BalanceCodeFormat.RandomLength <= 0 {
+		settings.BalanceCodeFormat = settings.RedeemCodeFormat
+	}
+	if settings.ConcurrencyCodeFormat.RandomLength <= 0 {
+		settings.ConcurrencyCodeFormat = settings.RedeemCodeFormat
+	}
+	if settings.SubscriptionCodeFormat.RandomLength <= 0 {
+		settings.SubscriptionCodeFormat = settings.RedeemCodeFormat
+	}
 	if settings.InvitationCodeFormat.RandomLength <= 0 {
 		settings.InvitationCodeFormat = DefaultRegistrationInvitationCodeFormat()
 	}
@@ -1510,6 +1522,21 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		return nil, fmt.Errorf("marshal redeem code format: %w", err)
 	}
 	updates[SettingKeyRedeemCodeFormat] = redeemCodeFormatJSON
+	balanceCodeFormatJSON, err := MarshalCodeFormatSettings(settings.BalanceCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal balance code format: %w", err)
+	}
+	updates[SettingKeyBalanceCodeFormat] = balanceCodeFormatJSON
+	concurrencyCodeFormatJSON, err := MarshalCodeFormatSettings(settings.ConcurrencyCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal concurrency code format: %w", err)
+	}
+	updates[SettingKeyConcurrencyCodeFormat] = concurrencyCodeFormatJSON
+	subscriptionCodeFormatJSON, err := MarshalCodeFormatSettings(settings.SubscriptionCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal subscription code format: %w", err)
+	}
+	updates[SettingKeySubscriptionCodeFormat] = subscriptionCodeFormatJSON
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
 	updates[SettingKeyFrontendURL] = settings.FrontendURL
 	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
@@ -2174,6 +2201,45 @@ func (s *SettingService) GetRedeemCodeFormat(ctx context.Context) CodeFormatSett
 	return ParseCodeFormatSettings(value, DefaultRedeemCodeFormat())
 }
 
+func (s *SettingService) GetBalanceCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyBalanceCodeFormat)
+	if err != nil {
+		return s.GetRedeemCodeFormat(ctx)
+	}
+	return ParseCodeFormatSettings(value, s.GetRedeemCodeFormat(ctx))
+}
+
+func (s *SettingService) GetConcurrencyCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyConcurrencyCodeFormat)
+	if err != nil {
+		return s.GetRedeemCodeFormat(ctx)
+	}
+	return ParseCodeFormatSettings(value, s.GetRedeemCodeFormat(ctx))
+}
+
+func (s *SettingService) GetSubscriptionCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeySubscriptionCodeFormat)
+	if err != nil {
+		return s.GetRedeemCodeFormat(ctx)
+	}
+	return ParseCodeFormatSettings(value, s.GetRedeemCodeFormat(ctx))
+}
+
+func (s *SettingService) GetCodeFormatForRedeemType(ctx context.Context, codeType string) CodeFormatSettings {
+	switch codeType {
+	case RedeemTypeInvitation:
+		return s.GetInvitationCodeFormat(ctx)
+	case RedeemTypeSubscription:
+		return s.GetSubscriptionCodeFormat(ctx)
+	case RedeemTypeConcurrency, AdjustmentTypeAdminConcurrency:
+		return s.GetConcurrencyCodeFormat(ctx)
+	case RedeemTypeBalance, AdjustmentTypeAdminBalance, AdjustmentTypeRegistration, AdjustmentTypeCheckin, AdjustmentTypeCheckinLuck, AdjustmentTypeCheckinBlindbox, RedeemTypeAffiliateBalance:
+		return s.GetBalanceCodeFormat(ctx)
+	default:
+		return s.GetBalanceCodeFormat(ctx)
+	}
+}
+
 // IsInvitationCodeEnabled 检查是否启用邀请码注册功能
 func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyInvitationCodeEnabled)
@@ -2641,6 +2707,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyRegistrationEmailSuffixWhitelist:         "[]",
 		SettingKeyPromoCodeEnabled:                         "true", // 默认启用优惠码功能
 		SettingKeyRedeemCodeFormat:                         mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+		SettingKeyBalanceCodeFormat:                        mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+		SettingKeyConcurrencyCodeFormat:                    mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+		SettingKeySubscriptionCodeFormat:                   mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
 		SettingKeyInvitationCodeFormat:                     mustMarshalCodeFormatDefaults(DefaultRegistrationInvitationCodeFormat()),
 		SettingKeyLoginAgreementEnabled:                    "false",
 		SettingKeyLoginAgreementMode:                       defaultLoginAgreementMode,
@@ -2861,6 +2930,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		RegistrationEmailSuffixWhitelist: ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]),
 		PromoCodeEnabled:                 settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
 		RedeemCodeFormat:                 ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()),
+		BalanceCodeFormat:                ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		ConcurrencyCodeFormat:            ParseCodeFormatSettings(settings[SettingKeyConcurrencyCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		SubscriptionCodeFormat:           ParseCodeFormatSettings(settings[SettingKeySubscriptionCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		PasswordResetEnabled:             emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                      settings[SettingKeyFrontendURL],
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",

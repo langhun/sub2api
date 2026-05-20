@@ -302,11 +302,77 @@ const baseSettingsResponse = {
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   promo_code_enabled: true,
+  redeem_code_format: {
+    prefix: "",
+    suffix: "",
+    random_length: 16,
+    separator: "-",
+    group_size: 4,
+    group_count: 4,
+    chars_per_group: 4,
+    charset: "mixed",
+    letter_case: "upper",
+  },
+  balance_code_format: {
+    prefix: "BAL",
+    suffix: "",
+    random_length: 12,
+    separator: "-",
+    group_size: 4,
+    group_count: 3,
+    chars_per_group: 4,
+    charset: "mixed",
+    letter_case: "upper",
+  },
+  concurrency_code_format: {
+    prefix: "CC",
+    suffix: "",
+    random_length: 12,
+    separator: "-",
+    group_size: 4,
+    group_count: 3,
+    chars_per_group: 4,
+    charset: "digits",
+    letter_case: "upper",
+  },
+  subscription_code_format: {
+    prefix: "SUB",
+    suffix: "",
+    random_length: 9,
+    separator: "-",
+    group_size: 3,
+    group_count: 3,
+    chars_per_group: 3,
+    charset: "letters",
+    letter_case: "upper",
+  },
   invitation_code_enabled: false,
+  invitation_code_format: {
+    prefix: "DG",
+    suffix: "",
+    random_length: 6,
+    separator: "-",
+    group_size: 6,
+    group_count: 1,
+    chars_per_group: 6,
+    charset: "mixed",
+    letter_case: "upper",
+  },
   password_reset_enabled: false,
   totp_enabled: false,
   totp_encryption_key_configured: false,
   default_balance: 0,
+  affiliate_code_format: {
+    prefix: "AFF",
+    suffix: "",
+    random_length: 12,
+    separator: "",
+    group_size: 12,
+    group_count: 1,
+    chars_per_group: 12,
+    charset: "mixed",
+    letter_case: "upper",
+  },
   default_concurrency: 1,
   default_subscriptions: [],
   site_name: "Sub2API",
@@ -656,6 +722,20 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(updateSettings.mock.calls[0]?.[0]).not.toHaveProperty(
       "home_nav_links_enabled",
     );
+  });
+
+  it("renders independent code format cards for balance, concurrency, subscription, and invitation", async () => {
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("余额兑换码");
+    expect(wrapper.text()).toContain("并发兑换码");
+    expect(wrapper.text()).toContain("订阅兑换码");
+    expect(wrapper.text()).toContain("邀请码");
+    expect(wrapper.text()).toContain("BAL-XXXX-XXXX-XXXX");
+    expect(wrapper.text()).toContain("CC-8888-8888-8888");
+    expect(wrapper.text()).toContain("SUB-XXX-XXX-XXX");
   });
 
   it("orders settings tabs by workflow and mounts backup content on demand", async () => {

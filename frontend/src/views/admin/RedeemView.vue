@@ -133,6 +133,22 @@
             </span>
           </template>
 
+          <template #cell-source="{ row }">
+            <div class="max-w-xs space-y-1 text-sm">
+              <div class="font-medium text-gray-900 dark:text-white">
+                {{ formatRedeemSource(row).title }}
+              </div>
+              <div
+                v-for="(line, index) in formatRedeemSource(row).lines"
+                :key="`${row.id}-source-${index}`"
+                class="truncate text-gray-500 dark:text-dark-400"
+                :title="line"
+              >
+                {{ line }}
+              </div>
+            </div>
+          </template>
+
           <template #cell-used_at="{ value }">
             <span class="text-sm text-gray-500 dark:text-dark-400">{{
               value ? formatDateTime(value) : '-'
@@ -232,6 +248,19 @@
             <div>
               <label class="input-label">{{ t('admin.redeem.codeType') }}</label>
               <Select v-model="generateForm.type" :options="typeOptions" />
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-700/40">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  当前格式预览
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ generateFormatLabel }}
+                </span>
+              </div>
+              <code class="mt-2 block break-all font-mono text-sm text-gray-900 dark:text-gray-100">
+                {{ generateCodePreview }}
+              </code>
             </div>
             <!-- 余额/并发类型：显示数值输入 -->
             <div v-if="generateForm.type !== 'subscription' && generateForm.type !== 'invitation'">
@@ -451,6 +480,7 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
 import { formatDateTime, formatSignedCurrency } from '@/utils/format'
 import type { RedeemCode, RedeemCodeType, Group, GroupPlatform, SubscriptionType } from '@/types'
+import type { CodeFormatSettings } from '@/api/admin/settings'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -475,10 +505,29 @@ interface GroupOption {
   rate: number
 }
 
+const defaultFormat = (overrides: Partial<CodeFormatSettings> = {}): CodeFormatSettings => ({
+  prefix: '',
+  suffix: '',
+  random_length: 16,
+  separator: '-',
+  group_size: 4,
+  group_count: 4,
+  chars_per_group: 4,
+  charset: 'mixed',
+  letter_case: 'upper',
+  ...overrides
+})
+
 const showGenerateDialog = ref(false)
 const showResultDialog = ref(false)
 const generatedCodes = ref<RedeemCode[]>([])
 const subscriptionGroups = ref<Group[]>([])
+const codeFormats = reactive({
+  balance: defaultFormat({ prefix: 'BAL', random_length: 12, group_size: 4, group_count: 3, chars_per_group: 4 }),
+  concurrency: defaultFormat({ prefix: 'CC', random_length: 12, group_size: 4, group_count: 3, chars_per_group: 4, charset: 'digits' }),
+  subscription: defaultFormat({ prefix: 'SUB', random_length: 9, group_size: 3, group_count: 3, chars_per_group: 3, charset: 'letters' }),
+  invitation: defaultFormat({ prefix: 'DG', random_length: 6, group_size: 6, group_count: 1, chars_per_group: 6 }),
+})
 
 // 订阅类型分组选项
 const subscriptionGroupOptions = computed(() => {
@@ -545,6 +594,7 @@ const columns = computed<Column[]>(() => [
   { key: 'code', label: t('admin.redeem.columns.code') },
   { key: 'type', label: t('admin.redeem.columns.type'), sortable: true },
   { key: 'value', label: t('admin.redeem.columns.value'), sortable: true },
+  { key: 'source', label: t('admin.redeem.columns.source') },
   { key: 'status', label: t('admin.redeem.columns.status'), sortable: true },
   { key: 'used_by', label: t('admin.redeem.columns.usedBy') },
   { key: 'used_at', label: t('admin.redeem.columns.usedAt'), sortable: true },
@@ -622,6 +672,49 @@ const generateForm = reactive({
   validity_days: 30,
   expiry_option: 'never' as RedeemCodeExpiryOption,
   custom_expiry_days: 7
+})
+
+function buildCodePreview(format: CodeFormatSettings): string {
+  const groupCount = Math.max(1, Math.floor(Number(format.group_count ?? 1) || 1))
+  const charsPerGroup = Math.max(1, Math.floor(Number(format.chars_per_group ?? format.group_size ?? 1) || 1))
+  const sampleChar =
+    format.charset === 'digits'
+      ? '8'
+      : format.letter_case === 'lower'
+        ? 'x'
+        : 'X'
+  const groups = Array.from({ length: groupCount }, () => sampleChar.repeat(charsPerGroup))
+  const parts = [String(format.prefix ?? '').trim(), ...groups, String(format.suffix ?? '').trim()].filter(Boolean)
+  const separator = format.separator === '-' || format.separator === '_' ? format.separator : ''
+  return separator ? parts.join(separator) : parts.join('')
+}
+
+const activeGenerateFormat = computed<CodeFormatSettings>(() => {
+  switch (generateForm.type) {
+    case 'concurrency':
+      return codeFormats.concurrency
+    case 'subscription':
+      return codeFormats.subscription
+    case 'invitation':
+      return codeFormats.invitation
+    default:
+      return codeFormats.balance
+  }
+})
+
+const generateCodePreview = computed(() => buildCodePreview(activeGenerateFormat.value))
+
+const generateFormatLabel = computed(() => {
+  switch (generateForm.type) {
+    case 'concurrency':
+      return '并发兑换码'
+    case 'subscription':
+      return '订阅兑换码'
+    case 'invitation':
+      return '邀请码'
+    default:
+      return '余额兑换码'
+  }
 })
 
 // 监听类型变化，邀请码类型时自动设置 value 为 0
@@ -718,6 +811,50 @@ function formatSignedValue(value: unknown): string {
   const rawValue = String(value)
   if (rawValue.startsWith('+') || rawValue.startsWith('-')) return rawValue
   return `+${rawValue}`
+}
+
+function displayUser(user?: RedeemCode['user'] | null): string | null {
+  if (!user) return null
+  if (user.email) return user.email
+  if (user.id) return t('admin.redeem.userPrefix', { id: user.id })
+  return null
+}
+
+function formatRedeemSource(row: RedeemCode): { title: string; lines: string[] } {
+  const lines: string[] = []
+
+  if (row.source_summary) {
+    lines.push(row.source_summary)
+  } else if (row.type === 'invitation') {
+    lines.push(t('admin.redeem.sourceUnknown'))
+  }
+
+  if (row.winning_user) {
+    const winner = displayUser(row.winning_user)
+    if (winner) lines.push(t('admin.redeem.winnerLine', { user: winner }))
+  }
+
+  if (row.winning_prize) {
+    lines.push(t('admin.redeem.prizeLine', { prize: row.winning_prize }))
+  }
+
+  if (row.user) {
+    const usedBy = displayUser(row.user)
+    if (usedBy) lines.push(t('admin.redeem.usedByLine', { user: usedBy }))
+  }
+
+  if (row.inviter_user) {
+    const inviter = displayUser(row.inviter_user)
+    if (inviter) lines.push(t('admin.redeem.inviterLine', { user: inviter }))
+  }
+
+  return {
+    title:
+      row.type === 'invitation'
+        ? t('admin.redeem.invitation')
+        : t(`admin.redeem.types.${row.type}`),
+    lines: lines.length > 0 ? lines : ['-']
+  }
 }
 
 const getRedeemCodeExpiresInDays = () => {
@@ -859,9 +996,22 @@ const loadSubscriptionGroups = async () => {
   }
 }
 
+const loadCodeFormats = async () => {
+  try {
+    const settings = await adminAPI.settings.getSettings()
+    Object.assign(codeFormats.balance, settings.balance_code_format ?? settings.redeem_code_format ?? codeFormats.balance)
+    Object.assign(codeFormats.concurrency, settings.concurrency_code_format ?? settings.redeem_code_format ?? codeFormats.concurrency)
+    Object.assign(codeFormats.subscription, settings.subscription_code_format ?? settings.redeem_code_format ?? codeFormats.subscription)
+    Object.assign(codeFormats.invitation, settings.invitation_code_format ?? codeFormats.invitation)
+  } catch (error) {
+    console.error('Error loading code formats:', error)
+  }
+}
+
 onMounted(() => {
   loadCodes()
   loadSubscriptionGroups()
+  loadCodeFormats()
 })
 
 onUnmounted(() => {

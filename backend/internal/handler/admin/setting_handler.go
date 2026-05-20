@@ -113,6 +113,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		RegistrationEmailSuffixWhitelist:       settings.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                       settings.PromoCodeEnabled,
 		RedeemCodeFormat:                       settings.RedeemCodeFormat,
+		BalanceCodeFormat:                      settings.BalanceCodeFormat,
+		ConcurrencyCodeFormat:                  settings.ConcurrencyCodeFormat,
+		SubscriptionCodeFormat:                 settings.SubscriptionCodeFormat,
 		PasswordResetEnabled:                   settings.PasswordResetEnabled,
 		FrontendURL:                            settings.FrontendURL,
 		InvitationCodeEnabled:                  settings.InvitationCodeEnabled,
@@ -398,6 +401,9 @@ type UpdateSettingsRequest struct {
 	RegistrationEmailSuffixWhitelist []string                     `json:"registration_email_suffix_whitelist"`
 	PromoCodeEnabled                 bool                         `json:"promo_code_enabled"`
 	RedeemCodeFormat                 *service.CodeFormatSettings  `json:"redeem_code_format"`
+	BalanceCodeFormat                *service.CodeFormatSettings  `json:"balance_code_format"`
+	ConcurrencyCodeFormat            *service.CodeFormatSettings  `json:"concurrency_code_format"`
+	SubscriptionCodeFormat           *service.CodeFormatSettings  `json:"subscription_code_format"`
 	PasswordResetEnabled             bool                         `json:"password_reset_enabled"`
 	FrontendURL                      string                       `json:"frontend_url"`
 	InvitationCodeEnabled            bool                         `json:"invitation_code_enabled"`
@@ -1490,6 +1496,24 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.RedeemCodeFormat
 		}(),
+		BalanceCodeFormat: func() service.CodeFormatSettings {
+			if req.BalanceCodeFormat != nil {
+				return *req.BalanceCodeFormat
+			}
+			return previousSettings.BalanceCodeFormat
+		}(),
+		ConcurrencyCodeFormat: func() service.CodeFormatSettings {
+			if req.ConcurrencyCodeFormat != nil {
+				return *req.ConcurrencyCodeFormat
+			}
+			return previousSettings.ConcurrencyCodeFormat
+		}(),
+		SubscriptionCodeFormat: func() service.CodeFormatSettings {
+			if req.SubscriptionCodeFormat != nil {
+				return *req.SubscriptionCodeFormat
+			}
+			return previousSettings.SubscriptionCodeFormat
+		}(),
 		PasswordResetEnabled:  req.PasswordResetEnabled,
 		FrontendURL:           req.FrontendURL,
 		InvitationCodeEnabled: req.InvitationCodeEnabled,
@@ -2035,6 +2059,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		RegistrationEmailSuffixWhitelist:       updatedSettings.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                       updatedSettings.PromoCodeEnabled,
 		RedeemCodeFormat:                       updatedSettings.RedeemCodeFormat,
+		BalanceCodeFormat:                      updatedSettings.BalanceCodeFormat,
+		ConcurrencyCodeFormat:                  updatedSettings.ConcurrencyCodeFormat,
+		SubscriptionCodeFormat:                 updatedSettings.SubscriptionCodeFormat,
 		PasswordResetEnabled:                   updatedSettings.PasswordResetEnabled,
 		FrontendURL:                            updatedSettings.FrontendURL,
 		InvitationCodeEnabled:                  updatedSettings.InvitationCodeEnabled,

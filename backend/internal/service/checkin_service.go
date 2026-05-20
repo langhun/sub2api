@@ -393,7 +393,7 @@ func (s *CheckinService) calculateStreak(ctx context.Context, userID int64, toda
 func (s *CheckinService) createAuditRecord(txCtx context.Context, userID int64, rewardAmount float64, adjType string, multiplier float64, betAmount float64) {
 	format := DefaultRedeemCodeFormat()
 	if s.settingService != nil {
-		format = s.settingService.GetRedeemCodeFormat(txCtx)
+		format = s.settingService.GetCodeFormatForRedeemType(txCtx, adjType)
 	}
 	code, err := GenerateRedeemCodeWithFormat(format)
 	if err != nil {

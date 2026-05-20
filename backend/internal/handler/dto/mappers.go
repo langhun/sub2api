@@ -630,6 +630,14 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 		BetAmount:    rc.BetAmount,
 		User:         UserFromServiceShallow(rc.User),
 		Group:        GroupFromServiceShallow(rc.Group),
+		SourceType:   rc.SourceType,
+		SourceSummary: rc.SourceSummary,
+		SourceUser:   UserFromServiceShallow(rc.SourceUser),
+		InviterUser:  UserFromServiceShallow(rc.InviterUser),
+		WinningUser:  UserFromServiceShallow(rc.WinningUser),
+		WinningPrize: rc.WinningPrize,
+		WinningReward: rc.WinningReward,
+		GeneratedByUser: UserFromServiceShallow(rc.GeneratedByUser),
 	}
 	if rc.IsExpired() {
 		out.Status = service.StatusExpired

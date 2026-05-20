@@ -628,6 +628,7 @@ func TestReconcilePendingWxpayOrdersBackfillsPaidOrder(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		client,
 		nil,
 		nil,

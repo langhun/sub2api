@@ -17,6 +17,9 @@ type SystemSettings struct {
 	RegistrationEmailSuffixWhitelist []string
 	PromoCodeEnabled                 bool
 	RedeemCodeFormat                 CodeFormatSettings
+	BalanceCodeFormat                CodeFormatSettings
+	ConcurrencyCodeFormat            CodeFormatSettings
+	SubscriptionCodeFormat           CodeFormatSettings
 	PasswordResetEnabled             bool
 	FrontendURL                      string
 	InvitationCodeEnabled            bool
@@ -268,6 +271,9 @@ type PublicSettings struct {
 	RegistrationEmailSuffixWhitelist []string
 	PromoCodeEnabled                 bool
 	RedeemCodeFormat                 CodeFormatSettings
+	BalanceCodeFormat                CodeFormatSettings
+	ConcurrencyCodeFormat            CodeFormatSettings
+	SubscriptionCodeFormat           CodeFormatSettings
 	PasswordResetEnabled             bool
 	InvitationCodeEnabled            bool
 	InvitationCodeFormat             CodeFormatSettings

@@ -846,8 +846,8 @@ SELECT user_id,
        created_at,
        updated_at
 FROM user_affiliates
-WHERE aff_code = $1
-LIMIT 1`, strings.ToUpper(strings.TrimSpace(code)))
+WHERE LOWER(aff_code) = LOWER($1)
+LIMIT 1`, strings.TrimSpace(code))
 	if err != nil {
 		return nil, err
 	}

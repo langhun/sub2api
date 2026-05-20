@@ -335,7 +335,7 @@ func (s *BlindBoxService) applyReward(ctx context.Context, userID int64, item *d
 	case BlindboxRewardInvitationCode:
 		format := DefaultRegistrationInvitationCodeFormat()
 		if s.settingSvc != nil {
-			format = s.settingSvc.GetInvitationCodeFormat(ctx)
+			format = s.settingSvc.GetCodeFormatForRedeemType(ctx, RedeemTypeInvitation)
 		}
 		code, err := GenerateRegistrationInvitationCodeWithFormat(format)
 		if err != nil {
@@ -373,7 +373,7 @@ func (s *BlindBoxService) applyReward(ctx context.Context, userID int64, item *d
 func (s *BlindBoxService) createAuditRecord(ctx context.Context, userID int64, value float64, item *dbent.CheckinPrizeItem) {
 	format := DefaultRedeemCodeFormat()
 	if s.settingSvc != nil {
-		format = s.settingSvc.GetRedeemCodeFormat(ctx)
+		format = s.settingSvc.GetCodeFormatForRedeemType(ctx, AdjustmentTypeCheckinBlindbox)
 	}
 	code, err := GenerateRedeemCodeWithFormat(format)
 	if err != nil {

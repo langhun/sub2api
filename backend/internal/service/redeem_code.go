@@ -1,11 +1,11 @@
 package service
 
 import (
-	"strings"
 	"time"
 )
 
 var registrationInvitationCodeCharset = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+var redeemCodeCharset = []byte("0123456789ABCDEF")
 
 type RedeemCode struct {
 	ID        int64
@@ -26,6 +26,15 @@ type RedeemCode struct {
 
 	User  *User
 	Group *Group
+
+	SourceType      string
+	SourceSummary   string
+	SourceUser      *User
+	InviterUser     *User
+	WinningUser     *User
+	WinningPrize    string
+	WinningReward   string
+	GeneratedByUser *User
 }
 
 func (r *RedeemCode) IsUsed() bool {
@@ -51,7 +60,11 @@ func (r *RedeemCode) CanUse() bool {
 }
 
 func NormalizeRegistrationInvitationCode(code string) string {
-	return strings.ToUpper(strings.TrimSpace(code))
+	return NormalizeCodeValueWithFormat(code, DefaultRegistrationInvitationCodeFormat())
+}
+
+func NormalizeRegistrationInvitationCodeWithSettings(code string, format CodeFormatSettings) string {
+	return NormalizeCodeValueWithFormat(code, format)
 }
 
 func IsRegistrationInvitationCodeFormat(code string) bool {
@@ -75,10 +88,5 @@ func GenerateRedeemCode() (string, error) {
 }
 
 func GenerateRedeemCodeWithFormat(format CodeFormatSettings) (string, error) {
-	raw, err := GenerateCodeWithFormat(format, []byte("0123456789ABCDEF"))
-	if err != nil {
-		return "", err
-	}
-	// 当随机部分长度是按 16 进制历史语义配置时，保持大写 0-9A-F 输出。
-	return strings.ToUpper(raw), nil
+	return GenerateCodeWithFormat(format, redeemCodeCharset)
 }

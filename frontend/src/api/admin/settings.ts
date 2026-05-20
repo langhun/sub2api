@@ -322,6 +322,10 @@ export interface CodeFormatSettings {
   random_length: number;
   separator: string;
   group_size: number;
+  group_count?: number;
+  chars_per_group?: number;
+  charset?: "digits" | "letters" | "mixed" | string;
+  letter_case?: "upper" | "lower" | string;
 }
 
 export interface SystemSettings {
@@ -331,6 +335,9 @@ export interface SystemSettings {
   registration_email_suffix_whitelist: string[];
   promo_code_enabled: boolean;
   redeem_code_format: CodeFormatSettings;
+  balance_code_format: CodeFormatSettings;
+  concurrency_code_format: CodeFormatSettings;
+  subscription_code_format: CodeFormatSettings;
   password_reset_enabled: boolean;
   frontend_url: string;
   invitation_code_enabled: boolean;
@@ -615,6 +622,9 @@ export interface UpdateSettingsRequest {
   registration_email_suffix_whitelist?: string[];
   promo_code_enabled?: boolean;
   redeem_code_format?: CodeFormatSettings;
+  balance_code_format?: CodeFormatSettings;
+  concurrency_code_format?: CodeFormatSettings;
+  subscription_code_format?: CodeFormatSettings;
   password_reset_enabled?: boolean;
   frontend_url?: string;
   invitation_code_enabled?: boolean;
