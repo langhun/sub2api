@@ -84,12 +84,18 @@ cors:
 # =============================================================================
 security:
   url_allowlist:
-    # Enable URL allowlist validation (disable to skip hostname allowlist only;
-    # scheme checks and private-host blocking still apply unless explicitly relaxed)
-    # 启用 URL 白名单验证（禁用后仅关闭主机白名单；协议校验和私网主机拦截仍默认生效）
+    # Enable URL allowlist validation.
+    # Production recommendation: set this to true and explicitly maintain every
+    # upstream / proxy / relay host your live accounts use in upstream_hosts.
+    # If left false, startup will warn that hostname allowlist validation is disabled.
+    # 启用 URL 白名单验证。
+    # 生产环境建议设为 true，并把所有线上账号实际使用的上游 / 代理 / 中转主机显式加入
+    # upstream_hosts。若保持 false，启动时会告警提示主机白名单校验未启用。
     enabled: false
-    # Allowed upstream hosts for API proxying
-    # 允许代理的上游 API 主机列表
+    # Allowed upstream hosts for API proxying.
+    # Add any custom OpenAI-compatible / relay domains used by live accounts here.
+    # 允许代理的上游 API 主机列表。
+    # 如线上账号使用了自定义 OpenAI-compatible / 中转域名，请一并加到这里。
     upstream_hosts:
       - "api.openai.com"
       - "api.anthropic.com"
@@ -887,6 +893,9 @@ totp:
   # 如果留空，每次启动将生成随机密钥，导致现有的 TOTP 配置失效（用户无法使用
   # 双因素认证登录）。
   # Generate with / 生成命令: openssl rand -hex 32
+  # Production recommendation: generate once, store it securely out-of-band,
+  # and keep the same value across restarts and host migrations.
+  # 生产环境建议：只生成一次，安全保存在仓库外，并在重启或迁移主机时保持同一个值。
   encryption_key: ""
 
 # =============================================================================
