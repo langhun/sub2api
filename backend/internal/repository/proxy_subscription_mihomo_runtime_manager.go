@@ -5,25 +5,30 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
+	appconfig "github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	mihomoConfig "github.com/metacubex/mihomo/config"
+	mihomoConstant "github.com/metacubex/mihomo/constant"
+	"github.com/metacubex/mihomo/hub/executor"
+	"github.com/metacubex/mihomo/hub/route"
+	"github.com/metacubex/mihomo/log"
+	"github.com/metacubex/mihomo/tunnel/statistic"
 	"gopkg.in/yaml.v3"
 )
 
 type proxySubscriptionMihomoRuntimeManager struct {
-	cfg         config.ProxySubscriptionMihomoConfig
+	cfg         appconfig.ProxySubscriptionMihomoConfig
 	dataDir     string
 	listenerDir string
 
@@ -38,21 +43,29 @@ type mihomoRuntimeState struct {
 	ProviderPath string
 	ListenerHost string
 	ListenerPort int
-	Command      *exec.Cmd
-	WaitCh       chan error
 	Stopped      bool
 }
 
 type mihomoConfigFile struct {
 	AllowLAN       bool                      `yaml:"allow-lan"`
 	BindAddress    string                    `yaml:"bind-address,omitempty"`
-	SocksPort      int                       `yaml:"socks-port"`
+	SocksPort      int                       `yaml:"socks-port,omitempty"`
 	Mode           string                    `yaml:"mode"`
 	LogLevel       string                    `yaml:"log-level"`
 	IPv6           bool                      `yaml:"ipv6"`
+	Listeners      []mihomoListener          `yaml:"listeners,omitempty"`
 	ProxyProviders map[string]mihomoProvider `yaml:"proxy-providers,omitempty"`
 	ProxyGroups    []mihomoProxyGroup        `yaml:"proxy-groups"`
 	Rules          []string                  `yaml:"rules"`
+}
+
+type mihomoListener struct {
+	Name   string `yaml:"name"`
+	Type   string `yaml:"type"`
+	Listen string `yaml:"listen"`
+	Port   int    `yaml:"port"`
+	UDP    bool   `yaml:"udp"`
+	Proxy  string `yaml:"proxy"`
 }
 
 type mihomoProvider struct {
@@ -77,7 +90,7 @@ type mihomoProxyGroup struct {
 	Tolerance int      `yaml:"tolerance,omitempty"`
 }
 
-func NewProxySubscriptionMihomoRuntimeManager(cfg *config.Config) service.ProxySubscriptionRuntimeManager {
+func NewProxySubscriptionMihomoRuntimeManager(cfg *appconfig.Config) service.ProxySubscriptionRuntimeManager {
 	if cfg == nil || !cfg.ProxySubscriptionMihomo.Enabled {
 		return nil
 	}
@@ -93,7 +106,7 @@ func NewProxySubscriptionMihomoRuntimeManager(cfg *config.Config) service.ProxyS
 	}
 }
 
-func (m *proxySubscriptionMihomoRuntimeManager) Start(context.Context) error {
+func (m *proxySubscriptionMihomoRuntimeManager) Start(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -103,29 +116,26 @@ func (m *proxySubscriptionMihomoRuntimeManager) Start(context.Context) error {
 	if m.initialized {
 		return nil
 	}
-	if err := m.rehydrateExistingRuntimesLocked(); err != nil {
+	if err := m.rehydrateExistingRuntimesLocked(ctx); err != nil {
+		return err
+	}
+	if err := m.applyEmbeddedConfigLocked(ctx); err != nil {
 		return err
 	}
 	m.initialized = true
 	return nil
 }
 
-func (m *proxySubscriptionMihomoRuntimeManager) Stop(_ context.Context) error {
+func (m *proxySubscriptionMihomoRuntimeManager) Stop(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	var errs []string
-	for runtimeID, state := range m.runtimes {
-		if err := m.stopRuntimeLocked(state); err != nil {
-			errs = append(errs, fmt.Sprintf("%s: %v", runtimeID, err))
-		}
-	}
+	closeEmbeddedMihomoConnections()
 	m.runtimes = make(map[string]*mihomoRuntimeState)
 	m.initialized = false
-	if len(errs) > 0 {
-		return errors.New(strings.Join(errs, "; "))
-	}
-	return nil
+	err := m.applyEmbeddedConfigLocked(ctx)
+	executor.Shutdown()
+	return err
 }
 
 func (m *proxySubscriptionMihomoRuntimeManager) UpsertRuntime(ctx context.Context, req service.ProxySubscriptionRuntimeUpsertRequest) (*service.ProxySubscriptionRuntimeUpsertResponse, error) {
@@ -149,30 +159,25 @@ func (m *proxySubscriptionMihomoRuntimeManager) UpsertRuntime(ctx context.Contex
 	if current != nil && current.ListenerPort > 0 && preferredPort == 0 {
 		preferredPort = current.ListenerPort
 	}
-	portKey := req.RuntimeID
-	if current != nil {
-		portKey = req.RuntimeID + "-candidate"
-	}
-	listenerPort, err := m.allocatePortLocked(portKey, preferredPort)
+	listenerPort, err := m.allocatePortLocked(req.RuntimeID, preferredPort, listenerHost)
 	if err != nil {
 		return nil, err
 	}
 
 	providerPath := filepath.Join(m.listenerDir, req.RuntimeID+".provider.yaml")
 	configPath := filepath.Join(m.listenerDir, req.RuntimeID+".yaml")
+	oldProvider, providerExisted := readRollbackFile(providerPath)
+	oldConfig, configExisted := readRollbackFile(configPath)
 	if err := os.WriteFile(providerPath, []byte(buildProviderContent(req)), 0o644); err != nil {
 		return nil, err
 	}
 	cfgBytes, err := buildMihomoConfig(req.RuntimeID, providerPath, listenerHost, listenerPort)
 	if err != nil {
+		restoreRollbackFile(providerPath, oldProvider, providerExisted)
 		return nil, err
 	}
 	if err := os.WriteFile(configPath, cfgBytes, 0o644); err != nil {
-		return nil, err
-	}
-
-	cmd, waitCh, err := m.startMihomoCommand(configPath)
-	if err != nil {
+		restoreRollbackFile(providerPath, oldProvider, providerExisted)
 		return nil, err
 	}
 
@@ -182,21 +187,18 @@ func (m *proxySubscriptionMihomoRuntimeManager) UpsertRuntime(ctx context.Contex
 		ProviderPath: providerPath,
 		ListenerHost: listenerHost,
 		ListenerPort: listenerPort,
-		Command:      cmd,
-		WaitCh:       waitCh,
 	}
 
-	if err := waitForTCP(listenerHost, listenerPort, 12*time.Second); err != nil {
-		_ = m.stopRuntimeLocked(state)
-		return nil, fmt.Errorf("mihomo listener not ready: %w", err)
-	}
-	if current != nil {
-		if err := m.stopRuntimeLocked(current); err != nil {
-			_ = m.stopRuntimeLocked(state)
-			return nil, err
-		}
-	}
 	m.runtimes[req.RuntimeID] = state
+	if err := m.applyEmbeddedConfigLocked(ctx); err != nil {
+		m.restoreRuntimeUpsertLocked(req.RuntimeID, current, providerPath, oldProvider, providerExisted, configPath, oldConfig, configExisted)
+		return nil, err
+	}
+	if err := waitForTCP(listenerHost, listenerPort, 12*time.Second); err != nil {
+		m.restoreRuntimeUpsertLocked(req.RuntimeID, current, providerPath, oldProvider, providerExisted, configPath, oldConfig, configExisted)
+		rollbackErr := m.applyEmbeddedConfigLocked(ctx)
+		return nil, errors.Join(fmt.Errorf("embedded mihomo listener not ready: %w", err), rollbackErr)
+	}
 
 	return &service.ProxySubscriptionRuntimeUpsertResponse{
 		RuntimeID:    req.RuntimeID,
@@ -206,16 +208,18 @@ func (m *proxySubscriptionMihomoRuntimeManager) UpsertRuntime(ctx context.Contex
 	}, nil
 }
 
-func (m *proxySubscriptionMihomoRuntimeManager) DeleteRuntime(_ context.Context, runtimeID string) error {
+func (m *proxySubscriptionMihomoRuntimeManager) DeleteRuntime(ctx context.Context, runtimeID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	state := m.runtimes[runtimeID]
-	if state != nil {
-		if err := m.stopRuntimeLocked(state); err != nil {
-			return err
-		}
-		delete(m.runtimes, runtimeID)
+	if state == nil {
+		return nil
+	}
+	delete(m.runtimes, runtimeID)
+	if err := m.applyEmbeddedConfigLocked(ctx); err != nil {
+		m.runtimes[runtimeID] = state
+		return err
 	}
 	_ = os.Remove(filepath.Join(m.listenerDir, runtimeID+".provider.yaml"))
 	_ = os.Remove(filepath.Join(m.listenerDir, runtimeID+".yaml"))
@@ -232,56 +236,143 @@ func (m *proxySubscriptionMihomoRuntimeManager) CheckRuntime(_ context.Context, 
 	return waitForTCP(state.ListenerHost, state.ListenerPort, 2*time.Second)
 }
 
-func (m *proxySubscriptionMihomoRuntimeManager) stopRuntimeLocked(state *mihomoRuntimeState) error {
-	if state == nil || state.Stopped || state.Command == nil || state.Command.Process == nil {
-		if state != nil {
-			state.Stopped = true
-			state.Command = nil
-			state.WaitCh = nil
-		}
-		return nil
-	}
-	_ = state.Command.Process.Signal(syscall.SIGTERM)
+func (m *proxySubscriptionMihomoRuntimeManager) applyEmbeddedConfigLocked(ctx context.Context) error {
 	select {
-	case err := <-state.WaitCh:
-		if err != nil && !strings.Contains(err.Error(), "exit status") {
-			return err
-		}
-	case <-time.After(5 * time.Second):
-		if err := state.Command.Process.Kill(); err != nil {
-			return err
-		}
-		err := <-state.WaitCh
-		if err != nil && !strings.Contains(err.Error(), "exit status") {
-			return err
-		}
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
-	state.Stopped = true
-	state.Command = nil
-	state.WaitCh = nil
+	if err := os.MkdirAll(m.dataDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(m.listenerDir, 0o755); err != nil {
+		return err
+	}
+	route.SetEmbedMode(true)
+	log.SetLevel(log.WARNING)
+	mihomoConstant.SetHomeDir(m.dataDir)
+	mihomoConstant.SetConfig(filepath.Join(m.listenerDir, "_embedded.yaml"))
+	if err := mihomoConfig.Init(m.dataDir); err != nil {
+		return err
+	}
+	cfgBytes, err := m.buildEmbeddedConfigLocked()
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(m.listenerDir, "_embedded.yaml"), cfgBytes, 0o644); err != nil {
+		return err
+	}
+	cfg, err := executor.ParseWithBytes(cfgBytes)
+	if err != nil {
+		return fmt.Errorf("parse embedded mihomo config: %w", err)
+	}
+	executor.ApplyConfig(cfg, true)
 	return nil
 }
 
-func (m *proxySubscriptionMihomoRuntimeManager) startMihomoCommand(configPath string) (*exec.Cmd, chan error, error) {
-	cmd := exec.Command(m.resolveBinary(), "-d", m.dataDir, "-f", configPath)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	cmd.SysProcAttr = buildRuntimeSysProcAttr()
-	if err := cmd.Start(); err != nil {
-		return nil, nil, fmt.Errorf("start mihomo: %w", err)
-	}
-	waitCh := make(chan error, 1)
-	go func() {
-		waitCh <- cmd.Wait()
-	}()
-	return cmd, waitCh, nil
+func closeEmbeddedMihomoConnections() {
+	statistic.DefaultManager.Range(func(c statistic.Tracker) bool {
+		_ = c.Close()
+		return true
+	})
 }
 
-func (m *proxySubscriptionMihomoRuntimeManager) allocatePortLocked(runtimeID string, preferredPort int) (int, error) {
+func (m *proxySubscriptionMihomoRuntimeManager) restoreRuntimeUpsertLocked(
+	runtimeID string,
+	current *mihomoRuntimeState,
+	providerPath string,
+	oldProvider []byte,
+	providerExisted bool,
+	configPath string,
+	oldConfig []byte,
+	configExisted bool,
+) {
+	if current != nil {
+		m.runtimes[runtimeID] = current
+	} else {
+		delete(m.runtimes, runtimeID)
+	}
+	restoreRollbackFile(providerPath, oldProvider, providerExisted)
+	restoreRollbackFile(configPath, oldConfig, configExisted)
+}
+
+func readRollbackFile(path string) ([]byte, bool) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, false
+	}
+	return data, true
+}
+
+func restoreRollbackFile(path string, data []byte, existed bool) {
+	if !existed {
+		_ = os.Remove(path)
+		return
+	}
+	_ = os.WriteFile(path, data, 0o644)
+}
+
+func (m *proxySubscriptionMihomoRuntimeManager) buildEmbeddedConfigLocked() ([]byte, error) {
+	cfg := mihomoConfigFile{
+		AllowLAN:       false,
+		Mode:           "rule",
+		LogLevel:       "warning",
+		IPv6:           true,
+		Listeners:      []mihomoListener{},
+		ProxyProviders: map[string]mihomoProvider{},
+		ProxyGroups:    []mihomoProxyGroup{},
+		Rules:          []string{"MATCH,DIRECT"},
+	}
+	runtimeIDs := make([]string, 0, len(m.runtimes))
+	for runtimeID := range m.runtimes {
+		runtimeIDs = append(runtimeIDs, runtimeID)
+	}
+	sort.Strings(runtimeIDs)
+	for _, runtimeID := range runtimeIDs {
+		state := m.runtimes[runtimeID]
+		if state == nil || state.Stopped || state.ProviderPath == "" || state.ListenerPort <= 0 {
+			continue
+		}
+		providerPath := state.ProviderPath
+		if abs, err := filepath.Abs(providerPath); err == nil {
+			providerPath = abs
+		}
+		providerName := mihomoRuntimeProviderName(runtimeID)
+		groupName := mihomoRuntimeGroupName(runtimeID)
+		cfg.ProxyProviders[providerName] = mihomoProvider{
+			Type: "file",
+			Path: providerPath,
+			HealthCheck: mihomoHealthCheck{
+				Enable:   true,
+				URL:      "https://chatgpt.com/cdn-cgi/trace",
+				Interval: 90,
+			},
+		}
+		cfg.ProxyGroups = append(cfg.ProxyGroups, mihomoProxyGroup{
+			Name:      groupName,
+			Type:      "url-test",
+			Use:       []string{providerName},
+			URL:       "https://chatgpt.com/cdn-cgi/trace",
+			Interval:  90,
+			Tolerance: 40,
+		})
+		cfg.Listeners = append(cfg.Listeners, mihomoListener{
+			Name:   mihomoRuntimeListenerName(runtimeID),
+			Type:   "socks",
+			Listen: state.ListenerHost,
+			Port:   state.ListenerPort,
+			UDP:    true,
+			Proxy:  groupName,
+		})
+	}
+	return yaml.Marshal(cfg)
+}
+
+func (m *proxySubscriptionMihomoRuntimeManager) allocatePortLocked(runtimeID string, preferredPort int, listenerHost string) (int, error) {
 	if current := m.runtimes[runtimeID]; current != nil && current.ListenerPort > 0 {
 		return current.ListenerPort, nil
 	}
-	if preferredPort > 0 && isTCPPortFree(preferredPort) {
+	if preferredPort > 0 && isTCPPortFree(listenerHost, preferredPort) {
 		return preferredPort, nil
 	}
 	start, end := parsePortRange(strings.TrimSpace(m.cfg.ListenerPortRange))
@@ -293,14 +384,14 @@ func (m *proxySubscriptionMihomoRuntimeManager) allocatePortLocked(runtimeID str
 		if _, ok := used[port]; ok {
 			continue
 		}
-		if isTCPPortFree(port) {
+		if isTCPPortFree(listenerHost, port) {
 			return port, nil
 		}
 	}
 	return 0, fmt.Errorf("no free mihomo listener ports available in %d-%d", start, end)
 }
 
-func (m *proxySubscriptionMihomoRuntimeManager) rehydrateExistingRuntimesLocked() error {
+func (m *proxySubscriptionMihomoRuntimeManager) rehydrateExistingRuntimesLocked(ctx context.Context) error {
 	entries, err := os.ReadDir(m.listenerDir)
 	if err != nil {
 		return err
@@ -325,14 +416,15 @@ func (m *proxySubscriptionMihomoRuntimeManager) rehydrateExistingRuntimesLocked(
 		if _, err := os.Stat(providerPath); err != nil {
 			continue
 		}
-		if err := m.startPersistedRuntimeLocked(runtimeID, configPath, providerPath); err != nil {
+		if err := m.startPersistedRuntimeLocked(ctx, runtimeID, configPath, providerPath); err != nil {
+			slog.Warn("proxy_subscription_mihomo_runtime.rehydrate_runtime_failed", "runtime_id", runtimeID, "config_path", configPath, "error", err)
 			continue
 		}
 	}
 	return nil
 }
 
-func (m *proxySubscriptionMihomoRuntimeManager) startPersistedRuntimeLocked(runtimeID, configPath, providerPath string) error {
+func (m *proxySubscriptionMihomoRuntimeManager) startPersistedRuntimeLocked(ctx context.Context, runtimeID, configPath, providerPath string) error {
 	raw, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
@@ -350,33 +442,27 @@ func (m *proxySubscriptionMihomoRuntimeManager) startPersistedRuntimeLocked(runt
 		return fmt.Errorf("invalid socks port in config: %s", configPath)
 	}
 
-	cmd, waitCh, err := m.startMihomoCommand(configPath)
-	if err != nil {
-		return fmt.Errorf("start persisted mihomo: %w", err)
-	}
-
-	state := &mihomoRuntimeState{
+	_ = ctx
+	m.runtimes[runtimeID] = &mihomoRuntimeState{
 		RuntimeID:    runtimeID,
 		ConfigPath:   configPath,
 		ProviderPath: providerPath,
 		ListenerHost: listenerHost,
 		ListenerPort: listenerPort,
-		Command:      cmd,
-		WaitCh:       waitCh,
 	}
-	if err := waitForTCP(listenerHost, listenerPort, 12*time.Second); err != nil {
-		_ = m.stopRuntimeLocked(state)
-		return fmt.Errorf("persisted mihomo listener not ready: %w", err)
-	}
-	m.runtimes[runtimeID] = state
 	return nil
 }
 
-func (m *proxySubscriptionMihomoRuntimeManager) resolveBinary() string {
-	if strings.TrimSpace(m.cfg.MihomoBin) != "" {
-		return strings.TrimSpace(m.cfg.MihomoBin)
-	}
-	return "mihomo"
+func mihomoRuntimeProviderName(runtimeID string) string {
+	return "sub2api-" + runtimeID + "-provider"
+}
+
+func mihomoRuntimeGroupName(runtimeID string) string {
+	return "sub2api-" + runtimeID + "-group"
+}
+
+func mihomoRuntimeListenerName(runtimeID string) string {
+	return "sub2api-" + runtimeID
 }
 
 func buildProviderContent(req service.ProxySubscriptionRuntimeUpsertRequest) string {
@@ -471,8 +557,8 @@ func parsePortRange(raw string) (int, int) {
 	return start, end
 }
 
-func isTCPPortFree(port int) bool {
-	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(port))
+func isTCPPortFree(host string, port int) bool {
+	ln, err := net.Listen("tcp", net.JoinHostPort(bindCheckHost(host), strconv.Itoa(port)))
 	if err != nil {
 		return false
 	}
@@ -482,7 +568,7 @@ func isTCPPortFree(port int) bool {
 
 func waitForTCP(host string, port int, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	address := net.JoinHostPort(host, strconv.Itoa(port))
+	address := net.JoinHostPort(dialCheckHost(host), strconv.Itoa(port))
 	var lastErr error
 	for time.Now().Before(deadline) {
 		conn, err := net.DialTimeout("tcp", address, 500*time.Millisecond)
@@ -497,6 +583,24 @@ func waitForTCP(host string, port int, timeout time.Duration) error {
 		lastErr = errors.New("timeout waiting for listener")
 	}
 	return lastErr
+}
+
+func bindCheckHost(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return "127.0.0.1"
+	}
+	return host
+}
+
+func dialCheckHost(host string) string {
+	host = strings.TrimSpace(host)
+	switch host {
+	case "", "0.0.0.0", "::", "[::]":
+		return "127.0.0.1"
+	default:
+		return host
+	}
 }
 
 func normalizeDirectNodeType(nodeType string) string {
@@ -568,10 +672,6 @@ func normalizeProviderValue(value any) any {
 	default:
 		return typed
 	}
-}
-
-func buildRuntimeSysProcAttr() *syscall.SysProcAttr {
-	return &syscall.SysProcAttr{}
 }
 
 func parseSubscriptionURI(raw string) (string, error) {

@@ -59,6 +59,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		&service.OpsScheduledReportService{},
 		opsSystemLogSinkSvc,
 		nil, // autoFailoverProxyPool
+		nil, // proxySubscriptionRuntime
 		nil, // proxySubscriptionRefresh
 		nil, // proxySubscriptionRuntimeRehydrate
 		schedulerSnapshotSvc,

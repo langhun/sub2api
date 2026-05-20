@@ -295,7 +295,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, accountRepository, groupRepository, configConfig)
 	paymentOrderExpiryService := service.ProvidePaymentOrderExpiryService(paymentService)
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, autoFailoverProxyPoolService, proxySubscriptionRefreshService, proxySubscriptionRuntimeRehydrateService, schedulerSnapshotService, tokenRefreshService, accountExpiryService, ungroupedAccountAutoTestService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, modelPricingAdminService, channelMonitorRunner)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, autoFailoverProxyPoolService, proxySubscriptionRuntimeManager, proxySubscriptionRefreshService, proxySubscriptionRuntimeRehydrateService, schedulerSnapshotService, tokenRefreshService, accountExpiryService, ungroupedAccountAutoTestService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, modelPricingAdminService, channelMonitorRunner)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -331,6 +331,7 @@ func provideCleanup(
 	opsScheduledReport *service.OpsScheduledReportService,
 	opsSystemLogSink *service.OpsSystemLogSink,
 	autoFailoverProxyPool *service.AutoFailoverProxyPoolService,
+	proxySubscriptionRuntime service.ProxySubscriptionRuntimeManager,
 	proxySubscriptionRefresh *service.ProxySubscriptionRefreshService,
 	proxySubscriptionRuntimeRehydrate *service.ProxySubscriptionRuntimeRehydrateService,
 	schedulerSnapshot *service.SchedulerSnapshotService,
@@ -423,6 +424,12 @@ func provideCleanup(
 			{"ProxySubscriptionRuntimeRehydrateService", func() error {
 				if proxySubscriptionRuntimeRehydrate != nil {
 					proxySubscriptionRuntimeRehydrate.Stop()
+				}
+				return nil
+			}},
+			{"ProxySubscriptionRuntimeManager", func() error {
+				if proxySubscriptionRuntime != nil {
+					return proxySubscriptionRuntime.Stop(ctx)
 				}
 				return nil
 			}},
