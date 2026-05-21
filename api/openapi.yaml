@@ -1,0 +1,353 @@
+openapi: 3.0.3
+info:
+  title: Sub2API Gateway
+  description: |
+    Sub2API 是一个统一的 AI 服务网关，提供多模型接入、用户管理、计费和监控功能。
+
+    ## 认证方式
+    - **API Key**: 在请求头中使用 `Authorization: Bearer <api_key>`
+    - **JWT Token**: 用户登录后获取的 JWT token
+
+    ## 响应格式
+    所有 API 响应遵循统一格式：
+    ```json
+    {
+      "code": 0,
+      "message": "success",
+      "data": {}
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: Sub2API Support
+    url: https://github.com/Wei-Shaw/sub2api
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: http://localhost:8080
+    description: Development server
+
+tags:
+  - name: auth
+    description: 用户认证和授权
+  - name: user
+    description: 用户管理
+  - name: gateway
+    description: AI 模型网关
+  - name: balance
+    description: 余额和转账
+  - name: admin
+    description: 管理员接口
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      description: API key for service access
+
+  schemas:
+    Response:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Response code (0 for success)
+        message:
+          type: string
+          description: Response message
+        reason:
+          type: string
+          description: Error reason code
+        data:
+          type: object
+          description: Response data
+      required:
+        - code
+        - message
+
+    PaginatedResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: {}
+            total:
+              type: integer
+              format: int64
+            page:
+              type: integer
+            page_size:
+              type: integer
+            pages:
+              type: integer
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        reason:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+        balance:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+
+    TransferRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        sender_id:
+          type: integer
+          format: int64
+        receiver_id:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: double
+        fee:
+          type: number
+          format: double
+        memo:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - auth
+      summary: User login
+      description: Authenticate user and return JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Response'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          token:
+                            type: string
+                          user:
+                            $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/user/profile:
+    get:
+      tags:
+        - user
+      summary: Get user profile
+      description: Retrieve current user's profile information
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Response'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/balance/transfer:
+    post:
+      tags:
+        - balance
+      summary: Transfer balance
+      description: Transfer balance to another user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                receiver_id:
+                  type: integer
+                  format: int64
+                amount:
+                  type: number
+                  format: double
+                  minimum: 0.01
+                memo:
+                  type: string
+              required:
+                - receiver_id
+                - amount
+      responses:
+        '200':
+          description: Transfer successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Response'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TransferRecord'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/balance/transfer/history:
+    get:
+      tags:
+        - balance
+      summary: Get transfer history
+      description: Retrieve user's transfer history with pagination
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [all, sender, receiver]
+            default: all
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Transfer history retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse'
+
+  /v1/chat/completions:
+    post:
+      tags:
+        - gateway
+      summary: Chat completions
+      description: OpenAI-compatible chat completions endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                  example: gpt-4
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                        enum: [system, user, assistant]
+                      content:
+                        type: string
+                stream:
+                  type: boolean
+                  default: false
+              required:
+                - model
+                - messages
+      responses:
+        '200':
+          description: Chat completion response
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
