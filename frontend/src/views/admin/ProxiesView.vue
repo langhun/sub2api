@@ -9,14 +9,14 @@
           :protocol-options="protocolOptions"
           :status-options="statusOptions"
           :runtime-status-options="runtimeStatusOptions"
-          :loading="loading"
-          :loading-subscriptions="loadingSubscriptions"
-          :batch-testing="batchTesting"
-          :batch-quality-checking="batchQualityChecking"
+          :loading="loadingState.loading"
+          :loading-subscriptions="loadingState.loadingSubscriptions"
+          :batch-testing="testingState.batchTesting"
+          :batch-quality-checking="testingState.batchQualityChecking"
           :selected-count="selectedCount"
-          :show-column-dropdown="showColumnDropdown"
-          :show-proxy-tools-dropdown="showProxyToolsDropdown"
-          :show-proxy-batch-dropdown="showProxyBatchDropdown"
+          :show-column-dropdown="dropdownState.showColumnDropdown"
+          :show-proxy-tools-dropdown="dropdownState.showProxyToolsDropdown"
+          :show-proxy-batch-dropdown="dropdownState.showProxyBatchDropdown"
           :toggleable-columns="toggleableColumns"
           :is-column-visible="isColumnVisible"
           @set-tab="handleToolbarSetTab"
@@ -25,30 +25,30 @@
           @reload-proxies="loadProxies"
           @reload-subscriptions="loadProxySubscriptions"
           @create-subscription="openCreateSubscriptionDialog"
-          @toggle-column-dropdown="showColumnDropdown = !showColumnDropdown"
-          @toggle-tools-dropdown="showProxyToolsDropdown = !showProxyToolsDropdown; showProxyBatchDropdown = false"
-          @toggle-batch-dropdown="showProxyBatchDropdown = !showProxyBatchDropdown; showProxyToolsDropdown = false"
+          @toggle-column-dropdown="dropdownState.showColumnDropdown = !dropdownState.showColumnDropdown"
+          @toggle-tools-dropdown="dropdownState.showProxyToolsDropdown = !dropdownState.showProxyToolsDropdown; dropdownState.showProxyBatchDropdown = false"
+          @toggle-batch-dropdown="dropdownState.showProxyBatchDropdown = !dropdownState.showProxyBatchDropdown; dropdownState.showProxyToolsDropdown = false"
           @toggle-column="toggleColumn"
-          @open-import="showImportData = true; showProxyToolsDropdown = false"
-          @open-export="showExportDataDialog = true; showProxyToolsDropdown = false"
-          @open-pool="openPoolDialog(); showProxyToolsDropdown = false"
-          @batch-test="handleBatchTest(); showProxyBatchDropdown = false"
-          @batch-quality-check="handleBatchQualityCheck(); showProxyBatchDropdown = false"
-          @batch-enable-pool="handleBatchPoolMembership(true); showProxyBatchDropdown = false"
-          @batch-disable-pool="handleBatchPoolMembership(false); showProxyBatchDropdown = false"
-          @batch-clear-cooldown="handleClearCooldown(Array.from(selectedProxyIds)); showProxyBatchDropdown = false"
-          @batch-assign="showAssignAccounts = true; showProxyBatchDropdown = false"
-          @batch-unassign="openBatchUnassign(); showProxyBatchDropdown = false"
-          @batch-delete="openBatchDelete(); showProxyBatchDropdown = false"
-          @create-proxy="showCreateModal = true"
+          @open-import="modalState.showImportData = true; dropdownState.showProxyToolsDropdown = false"
+          @open-export="modalState.showExportDataDialog = true; dropdownState.showProxyToolsDropdown = false"
+          @open-pool="openPoolDialog(); dropdownState.showProxyToolsDropdown = false"
+          @batch-test="handleBatchTest(); dropdownState.showProxyBatchDropdown = false"
+          @batch-quality-check="handleBatchQualityCheck(); dropdownState.showProxyBatchDropdown = false"
+          @batch-enable-pool="handleBatchPoolMembership(true); dropdownState.showProxyBatchDropdown = false"
+          @batch-disable-pool="handleBatchPoolMembership(false); dropdownState.showProxyBatchDropdown = false"
+          @batch-clear-cooldown="handleClearCooldown(Array.from(selectedProxyIds)); dropdownState.showProxyBatchDropdown = false"
+          @batch-assign="modalState.showAssignAccounts = true; dropdownState.showProxyBatchDropdown = false"
+          @batch-unassign="openBatchUnassign(); dropdownState.showProxyBatchDropdown = false"
+          @batch-delete="openBatchDelete(); dropdownState.showProxyBatchDropdown = false"
+          @create-proxy="modalState.showCreateModal = true"
         />
       </template>
 
       <template #table>
         <ProxySubscriptionsPanel
           v-if="activeTab === 'subscriptions'"
-          :loading="loadingSubscriptions"
-          :items="proxySubscriptions"
+          :loading="loadingState.loadingSubscriptions"
+          :items="dataState.proxySubscriptions"
           @refresh="handleRefreshSubscription"
           @edit="handleEditSubscription"
           @view-nodes="handleViewSubscriptionNodes"
@@ -60,22 +60,22 @@
         <ProxyBulkActionsBar
           v-if="selectedCount > 0"
           :selected-count="selectedCount"
-          :batch-testing="batchTesting"
-          :batch-quality-checking="batchQualityChecking"
+          :batch-testing="testingState.batchTesting"
+          :batch-quality-checking="testingState.batchQualityChecking"
           @test="handleBatchTest"
           @quality-check="handleBatchQualityCheck"
           @enable-pool="handleBatchPoolMembership(true)"
           @disable-pool="handleBatchPoolMembership(false)"
           @clear-cooldown="handleClearCooldown(Array.from(selectedProxyIds))"
-          @assign="showAssignAccounts = true"
+          @assign="modalState.showAssignAccounts = true"
           @unassign="openBatchUnassign"
           @delete="openBatchDelete"
           @clear="clearSelectedProxies"
         />
         <DataTable
           :columns="columns"
-          :data="proxies"
-          :loading="loading"
+          :data="dataState.proxies"
+          :loading="loadingState.loading"
           :server-side-sort="true"
           default-sort-key="id"
           default-sort-order="desc"
@@ -141,7 +141,7 @@
                 </button>
                 <!-- Context menu for alternate copy formats -->
                 <div
-                  v-if="copyMenuProxyId === row.id"
+                  v-if="dropdownState.copyMenuProxyId === row.id"
                   class="absolute left-0 top-full z-50 mt-1 w-auto min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-500 dark:bg-dark-700"
                 >
                   <button
@@ -162,16 +162,16 @@
               <div class="flex flex-col text-xs">
                 <span v-if="row.username" class="text-gray-700 dark:text-gray-200">{{ row.username }}</span>
                 <span v-if="row.password" class="font-mono text-gray-500 dark:text-gray-400">
-                  {{ visiblePasswordIds.has(row.id) ? row.password : '••••••' }}
+                  {{ passwordState.visiblePasswordIds.has(row.id) ? row.password : '••••••' }}
                 </span>
               </div>
               <button
                 v-if="row.password"
                 type="button"
                 class="ml-1 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                @click.stop="visiblePasswordIds.has(row.id) ? visiblePasswordIds.delete(row.id) : visiblePasswordIds.add(row.id)"
+                @click.stop="passwordState.visiblePasswordIds.has(row.id) ? passwordState.visiblePasswordIds.delete(row.id) : passwordState.visiblePasswordIds.add(row.id)"
               >
-                <Icon :name="visiblePasswordIds.has(row.id) ? 'eyeOff' : 'eye'" size="sm" />
+                <Icon :name="passwordState.visiblePasswordIds.has(row.id) ? 'eyeOff' : 'eye'" size="sm" />
               </button>
             </div>
             <span v-else class="text-sm text-gray-400">-</span>
@@ -364,10 +364,10 @@
                 type="button"
                 @click="toggleRowActionMenu(row.id, $event)"
                 class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white"
-                :class="{ 'bg-gray-100 text-gray-900 dark:bg-dark-700 dark:text-white': activeRowActionMenuId === row.id }"
+                :class="{ 'bg-gray-100 text-gray-900 dark:bg-dark-700 dark:text-white': dropdownState.activeRowActionMenuId === row.id }"
                 :title="t('common.more')"
                 :aria-label="t('common.more')"
-                :aria-expanded="activeRowActionMenuId === row.id"
+                :aria-expanded="dropdownState.activeRowActionMenuId === row.id"
               >
                 <Icon name="more" size="sm" />
                 <span class="sr-only">{{ t('common.more') }}</span>
@@ -402,7 +402,7 @@
 
     <!-- Create Proxy Modal -->
     <BaseDialog
-      :show="showCreateModal"
+      :show="modalState.showCreateModal"
       :title="t('admin.proxies.createProxy')"
       width="normal"
       @close="closeCreateModal"
@@ -508,14 +508,14 @@
           <div class="relative">
             <input
               v-model="createForm.password"
-              :type="createPasswordVisible ? 'text' : 'password'"
+              :type="passwordState.createPasswordVisible ? 'text' : 'password'"
               class="input pr-10"
               :placeholder="t('admin.proxies.optionalAuth')"
             />
             <button
               type="button"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              @click="createPasswordVisible = !createPasswordVisible"
+              @click="passwordState.createPasswordVisible = !passwordState.createPasswordVisible"
             >
               <Icon :name="createPasswordVisible ? 'eyeOff' : 'eye'" size="md" />
             </button>
@@ -603,7 +603,7 @@
             v-if="createMode === 'standard'"
             type="submit"
             form="create-proxy-form"
-            :disabled="submitting"
+            :disabled="loadingState.submitting"
             class="btn btn-primary"
           >
             <svg
@@ -667,13 +667,13 @@
 
     <!-- Edit Proxy Modal -->
     <BaseDialog
-      :show="showEditModal"
+      :show="modalState.showEditModal"
       :title="t('admin.proxies.editProxy')"
       width="normal"
       @close="closeEditModal"
     >
       <form
-        v-if="editingProxy"
+        v-if="currentItems.editingProxy"
         id="edit-proxy-form"
         @submit.prevent="handleUpdateProxy"
         class="space-y-5"
@@ -713,7 +713,7 @@
           <div class="relative">
             <input
               v-model="editForm.password"
-              :type="editPasswordVisible ? 'text' : 'password'"
+              :type="passwordState.editPasswordVisible ? 'text' : 'password'"
               :placeholder="t('admin.proxies.leaveEmptyToKeep')"
               class="input pr-10"
               @input="editPasswordDirty = true"
@@ -722,14 +722,14 @@
             <button
               type="button"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              @click="editPasswordVisible = !editPasswordVisible"
+              @click="passwordState.editPasswordVisible = !passwordState.editPasswordVisible"
             >
               <Icon :name="editPasswordVisible ? 'eyeOff' : 'eye'" size="md" />
             </button>
           </div>
         </div>
         <div
-          v-if="editingProxy?.managed_by_subscription"
+          v-if="currentItems.editingProxy?.managed_by_subscription"
           class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
         >
           {{ t('admin.proxies.subscriptions.managedReadonlyHint') }}
@@ -758,10 +758,10 @@
             {{ t('common.cancel') }}
           </button>
           <button
-            v-if="editingProxy"
+            v-if="currentItems.editingProxy"
             type="submit"
             form="edit-proxy-form"
-            :disabled="submitting"
+            :disabled="loadingState.submitting"
             class="btn btn-primary"
           >
             <svg
@@ -792,7 +792,7 @@
 
     <!-- Delete Confirmation Dialog -->
     <ConfirmDialog
-      :show="showDeleteDialog"
+      :show="modalState.showDeleteDialog"
       :title="t('admin.proxies.deleteProxy')"
       :message="t('admin.proxies.deleteConfirm', { name: deletingProxy?.name })"
       :confirm-text="t('common.delete')"
@@ -804,7 +804,7 @@
 
     <!-- Batch Delete Confirmation Dialog -->
     <ConfirmDialog
-      :show="showBatchDeleteDialog"
+      :show="modalState.showBatchDeleteDialog"
       :title="t('admin.proxies.batchDelete')"
       :message="t('admin.proxies.batchDeleteConfirm', { count: selectedCount })"
       :confirm-text="t('common.delete')"
@@ -814,7 +814,7 @@
       @cancel="showBatchDeleteDialog = false"
     />
     <ConfirmDialog
-      :show="showBatchUnassignDialog"
+      :show="modalState.showBatchUnassignDialog"
       :title="t('admin.proxies.quickUnassign')"
       :message="t('admin.proxies.quickUnassignConfirm', { count: selectedCount })"
       :confirm-text="t('admin.proxies.quickUnassignConfirmButton')"
@@ -823,7 +823,7 @@
       @cancel="showBatchUnassignDialog = false"
     />
     <ConfirmDialog
-      :show="showExportDataDialog"
+      :show="modalState.showExportDataDialog"
       :title="t('admin.proxies.dataExport')"
       :message="t('admin.proxies.dataExportConfirmMessage')"
       :confirm-text="t('admin.proxies.dataExportConfirm')"
@@ -833,13 +833,13 @@
     />
 
     <ImportDataModal
-      :show="showImportData"
+      :show="modalState.showImportData"
       @close="showImportData = false"
       @imported="handleDataImported"
     />
 
     <AssignAccountsModal
-      :show="showAssignAccounts"
+      :show="modalState.showAssignAccounts"
       :proxy-ids="Array.from(selectedProxyIds)"
       :groups="accountGroups"
       @close="showAssignAccounts = false"
@@ -847,18 +847,18 @@
     />
 
     <BaseDialog
-      :show="showQualityReportDialog"
+      :show="modalState.showQualityReportDialog"
       :title="t('admin.proxies.qualityReportTitle')"
       width="wide"
       @close="closeQualityReportDialog"
     >
-      <div v-if="qualityReport" class="space-y-4">
+      <div v-if="currentItems.qualityReport" class="space-y-4">
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-700/80">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div class="min-w-0 space-y-3">
               <div>
                 <div class="text-sm text-gray-500 dark:text-gray-400">
-                {{ qualityReportProxy?.name || '-' }}
+                {{ currentItems.qualityReportProxy?.name || '-' }}
                 </div>
                 <div class="mt-1 text-base font-medium text-gray-900 dark:text-white">
                   {{ qualityReport.summary }}
@@ -945,7 +945,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
-              <tr v-for="item in qualityReport.items" :key="item.target">
+              <tr v-for="item in currentItems.qualityReport.items" :key="item.target">
                 <td class="px-3 py-3 align-top text-gray-900 dark:text-white">{{ qualityTargetLabel(item.target) }}</td>
                 <td class="px-3 py-2">
                   <span class="badge" :class="qualityStatusClass(item.status)">{{ qualityStatusLabel(item.status) }}</span>
@@ -976,16 +976,16 @@
 
     <!-- Proxy Accounts Dialog -->
     <BaseDialog
-      :show="showAccountsModal"
+      :show="modalState.showAccountsModal"
       :title="t('admin.proxies.accountsTitle', { name: accountsProxy?.name || '' })"
       width="normal"
       @close="closeAccountsModal"
     >
-      <div v-if="accountsLoading" class="flex items-center justify-center py-8 text-sm text-gray-500">
+      <div v-if="loadingState.accountsLoading" class="flex items-center justify-center py-8 text-sm text-gray-500">
         <Icon name="refresh" size="md" class="mr-2 animate-spin" />
         {{ t('common.loading') }}
       </div>
-      <div v-else-if="proxyAccounts.length === 0" class="py-6 text-center text-sm text-gray-500">
+      <div v-else-if="dataState.proxyAccounts.length === 0" class="py-6 text-center text-sm text-gray-500">
         {{ t('admin.proxies.accountsEmpty') }}
       </div>
       <div v-else class="max-h-80 overflow-auto">
@@ -998,7 +998,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
-            <tr v-for="account in proxyAccounts" :key="account.id">
+            <tr v-for="account in dataState.proxyAccounts" :key="account.id">
               <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ account.name }}</td>
               <td class="px-4 py-2">
                 <PlatformTypeBadge :platform="account.platform" :type="account.type" />
@@ -1020,19 +1020,19 @@
     </BaseDialog>
 
     <PoolMembersDialog
-      :show="showPoolDialog"
-      :loading="poolDialogLoading"
-      :rows="poolDialogRows"
+      :show="modalState.showPoolDialog"
+      :loading="loadingState.poolDialogLoading"
+      :rows="dataState.poolDialogRows"
       @close="showPoolDialog = false"
     />
 
     <Teleport to="body">
       <div
-        v-if="activeRowActionMenuId !== null && rowActionMenuPosition"
+        v-if="dropdownState.activeRowActionMenuId !== null && dropdownState.rowActionMenuPosition"
         class="fixed z-[200] w-44 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
         :style="{
-          top: `${rowActionMenuPosition.top}px`,
-          left: `${rowActionMenuPosition.left}px`
+          top: `${dropdownState.rowActionMenuPosition.top}px`,
+          left: `${dropdownState.rowActionMenuPosition.left}px`
         }"
         @click.stop
       >
@@ -1079,9 +1079,9 @@
     </Teleport>
 
     <SubscriptionSourceDialog
-      :show="showCreateSubscriptionModal"
-      :editing="!!editingSubscription"
-      :submitting="submittingSubscription"
+      :show="modalState.showCreateSubscriptionModal"
+      :editing="!!currentItems.editingSubscription"
+      :submitting="loadingState.submittingSubscription"
       :form="subscriptionForm"
       :format-options="subscriptionFormatOptions"
       @close="showCreateSubscriptionModal = false"
@@ -1090,15 +1090,15 @@
     />
 
     <BaseDialog
-      :show="showSubscriptionNodesModal"
+      :show="modalState.showSubscriptionNodesModal"
       :title="t('admin.proxies.subscriptions.nodesTitle')"
       width="normal"
       @close="showSubscriptionNodesModal = false"
     >
       <div v-if="subscriptionNodesLoading" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
-      <div v-else-if="subscriptionNodes.length === 0" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.proxies.subscriptions.nodesEmpty') }}</div>
+      <div v-else-if="dataState.subscriptionNodes.length === 0" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.proxies.subscriptions.nodesEmpty') }}</div>
       <div v-else class="max-h-[60vh] space-y-2 overflow-y-auto">
-        <div v-for="node in subscriptionNodes" :key="node.id" class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+        <div v-for="node in dataState.subscriptionNodes" :key="node.id" class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
           <div class="flex items-center gap-2">
             <span class="font-medium text-gray-900 dark:text-white">{{ node.display_name || `${node.server}:${node.port}` }}</span>
             <span class="badge badge-gray">{{ node.node_type }}</span>
@@ -1155,12 +1155,14 @@ import { useTableSelection } from '@/composables/useTableSelection'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useProxyTesting } from '@/composables/useProxyTesting'
 import { useProxyResultHandler } from '@/composables/useProxyResultHandler'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import type { AdminGroup } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
 const activeTab = ref<'proxies' | 'subscriptions'>('proxies')
+const searchInputRef = ref<HTMLInputElement | null>(null)
 
 const {
   testingProxyIds,
@@ -1274,13 +1276,70 @@ const editStatusOptions = computed(() => [
   { value: 'inactive', label: t('admin.accounts.status.inactive') }
 ])
 
-const proxies = ref<Proxy[]>([])
-const proxySubscriptions = ref<ProxySubscriptionSource[]>([])
-const accountGroups = ref<AdminGroup[]>([])
-const visiblePasswordIds = reactive(new Set<number>())
-const copyMenuProxyId = ref<number | null>(null)
-const loading = ref(false)
-const loadingSubscriptions = ref(false)
+// Data state
+const dataState = reactive({
+  proxies: [] as Proxy[],
+  proxySubscriptions: [] as ProxySubscriptionSource[],
+  accountGroups: [] as AdminGroup[],
+  proxyAccounts: [] as ProxyAccountSummary[],
+  subscriptionNodes: [] as ProxySubscriptionNode[],
+  poolDialogRows: [] as Proxy[]
+})
+
+// UI state - Modals and dialogs
+const modalState = reactive({
+  showCreateModal: false,
+  showEditModal: false,
+  showImportData: false,
+  showAssignAccounts: false,
+  showDeleteDialog: false,
+  showBatchDeleteDialog: false,
+  showBatchUnassignDialog: false,
+  showExportDataDialog: false,
+  showAccountsModal: false,
+  showPoolDialog: false,
+  showCreateSubscriptionModal: false,
+  showSubscriptionNodesModal: false,
+  showQualityReportDialog: false
+})
+
+// UI state - Dropdowns and menus
+const dropdownState = reactive({
+  showColumnDropdown: false,
+  showProxyToolsDropdown: false,
+  showProxyBatchDropdown: false,
+  activeRowActionMenuId: null as number | null,
+  rowActionMenuPosition: null as { top: number; left: number } | null,
+  copyMenuProxyId: null as number | null
+})
+
+// UI state - Password visibility
+const passwordState = reactive({
+  visiblePasswordIds: new Set<number>(),
+  createPasswordVisible: false,
+  editPasswordVisible: false,
+  editPasswordDirty: false
+})
+
+// Loading state
+const loadingState = reactive({
+  loading: false,
+  loadingSubscriptions: false,
+  submitting: false,
+  submittingSubscription: false,
+  exportingData: false,
+  accountsLoading: false,
+  poolDialogLoading: false,
+  subscriptionNodesLoading: false
+})
+
+// Testing state
+const testingState = reactive({
+  batchTesting: false,
+  batchQualityChecking: false
+})
+
+// Filter and search state
 const searchQuery = ref('')
 const filters = reactive({
   protocol: '',
@@ -1298,36 +1357,23 @@ const sortState = reactive({
   sort_order: 'desc' as 'asc' | 'desc'
 })
 
-const showCreateModal = ref(false)
-const createPasswordVisible = ref(false)
-const showEditModal = ref(false)
-const editPasswordVisible = ref(false)
-const editPasswordDirty = ref(false)
-const showImportData = ref(false)
-const showAssignAccounts = ref(false)
-const showDeleteDialog = ref(false)
-const showBatchDeleteDialog = ref(false)
-const showBatchUnassignDialog = ref(false)
-const showExportDataDialog = ref(false)
-const showAccountsModal = ref(false)
-const showPoolDialog = ref(false)
-const showCreateSubscriptionModal = ref(false)
-const showSubscriptionNodesModal = ref(false)
-const showColumnDropdown = ref(false)
-const showProxyToolsDropdown = ref(false)
-const showProxyBatchDropdown = ref(false)
-const submitting = ref(false)
-const submittingSubscription = ref(false)
-const exportingData = ref(false)
-const batchTesting = ref(false)
-const batchQualityChecking = ref(false)
-const activeRowActionMenuId = ref<number | null>(null)
-const rowActionMenuPosition = ref<{ top: number; left: number } | null>(null)
+// Refs
 const proxyTableRef = ref<HTMLElement | null>(null)
-const activeRowActionMenuRow = computed(() => {
-  if (activeRowActionMenuId.value === null) return null
-  return proxies.value.find((row) => row.id === activeRowActionMenuId.value) || null
+// Current editing/viewing items
+const currentItems = reactive({
+  accountsProxy: null as Proxy | null,
+  editingProxy: null as Proxy | null,
+  deletingProxy: null as Proxy | null,
+  qualityReportProxy: null as Proxy | null,
+  qualityReport: null as ProxyQualityCheckResult | null,
+  editingSubscription: null as ProxySubscriptionSource | null
 })
+
+const activeRowActionMenuRow = computed(() => {
+  if (dropdownState.activeRowActionMenuId === null) return null
+  return dataState.proxies.find((row) => row.id === dropdownState.activeRowActionMenuId) || null
+})
+
 const {
   selectedSet: selectedProxyIds,
   selectedCount,
@@ -1340,28 +1386,16 @@ const {
   toggleVisible,
   batchUpdate
 } = useTableSelection<Proxy>({
-  rows: proxies,
+  rows: computed(() => dataState.proxies),
   getId: (proxy) => proxy.id
 })
+
 useSwipeSelect(proxyTableRef, {
   isSelected,
   select,
   deselect,
   batchUpdate
 })
-const accountsProxy = ref<Proxy | null>(null)
-const proxyAccounts = ref<ProxyAccountSummary[]>([])
-const accountsLoading = ref(false)
-const editingProxy = ref<Proxy | null>(null)
-const deletingProxy = ref<Proxy | null>(null)
-const showQualityReportDialog = ref(false)
-const qualityReportProxy = ref<Proxy | null>(null)
-const qualityReport = ref<ProxyQualityCheckResult | null>(null)
-const poolDialogRows = ref<Proxy[]>([])
-const poolDialogLoading = ref(false)
-const subscriptionNodes = ref<ProxySubscriptionNode[]>([])
-const subscriptionNodesLoading = ref(false)
-const editingSubscription = ref<ProxySubscriptionSource | null>(null)
 const subscriptionFormatOptions = [
   { value: 'auto' as const, label: t('admin.proxies.subscriptions.formats.auto') },
   { value: 'direct_list' as const, label: t('admin.proxies.subscriptions.formats.directList') },
@@ -1380,7 +1414,7 @@ const subscriptionForm = reactive({
 
 const switchToSubscriptions = async () => {
   activeTab.value = 'subscriptions'
-  if (proxySubscriptions.value.length === 0) {
+  if (dataState.proxySubscriptions.length === 0) {
     await loadProxySubscriptions()
   }
 }
@@ -1415,7 +1449,7 @@ const updateSubscriptionForm = (nextForm: typeof subscriptionForm) => {
 }
 
 const openCreateSubscriptionDialog = () => {
-  editingSubscription.value = null
+  currentItems.editingSubscription = null
   subscriptionForm.name = ''
   subscriptionForm.url = ''
   subscriptionForm.source_format = 'auto'
@@ -1423,11 +1457,11 @@ const openCreateSubscriptionDialog = () => {
   subscriptionForm.refresh_interval_hours = 6
   subscriptionForm.target_entry_count = 3
   subscriptionForm.auto_add_to_pool = true
-  showCreateSubscriptionModal.value = true
+  modalState.showCreateSubscriptionModal = true
 }
 
 const handleEditSubscription = (item: ProxySubscriptionSource) => {
-  editingSubscription.value = item
+  currentItems.editingSubscription = item
   subscriptionForm.name = item.name
   subscriptionForm.url = item.url
   subscriptionForm.source_format = item.source_format
@@ -1435,7 +1469,7 @@ const handleEditSubscription = (item: ProxySubscriptionSource) => {
   subscriptionForm.refresh_interval_hours = item.refresh_interval_hours
   subscriptionForm.target_entry_count = item.target_entry_count || 3
   subscriptionForm.auto_add_to_pool = item.auto_add_to_pool
-  showCreateSubscriptionModal.value = true
+  modalState.showCreateSubscriptionModal = true
 }
 
 // Batch import state
@@ -1508,15 +1542,15 @@ const buildProxyQueryFilters = () => ({
 })
 
 const loadProxySubscriptions = async () => {
-  loadingSubscriptions.value = true
+  loadingState.loadingSubscriptions = true
   try {
     const response = await adminAPI.proxySubscriptions.list(1, 100)
-    proxySubscriptions.value = response.items
+    dataState.proxySubscriptions = response.items
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.loadFailed'))
     console.error('Error loading proxy subscriptions:', error)
   } finally {
-    loadingSubscriptions.value = false
+    loadingState.loadingSubscriptions = false
   }
 }
 
@@ -1526,7 +1560,7 @@ const loadProxies = async () => {
   }
   const currentAbortController = new AbortController()
   abortController = currentAbortController
-  loading.value = true
+  loadingState.loading = true
   try {
     const response = await adminAPI.proxies.list(
       pagination.page,
@@ -1537,7 +1571,7 @@ const loadProxies = async () => {
     if (currentAbortController.signal.aborted || abortController !== currentAbortController) {
       return
     }
-    proxies.value = response.items
+    dataState.proxies = response.items
     pagination.total = response.total
     pagination.pages = response.pages
   } catch (error) {
@@ -1548,7 +1582,7 @@ const loadProxies = async () => {
     console.error('Error loading proxies:', error)
   } finally {
     if (abortController === currentAbortController) {
-      loading.value = false
+      loadingState.loading = false
       abortController = null
     }
   }
@@ -1556,7 +1590,7 @@ const loadProxies = async () => {
 
 const loadAccountGroups = async () => {
   try {
-    accountGroups.value = await adminAPI.groups.getAll()
+    dataState.accountGroups = await adminAPI.groups.getAll()
   } catch (error) {
     console.error('Error loading account groups:', error)
   }
@@ -1590,7 +1624,7 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
 }
 
 const closeCreateModal = () => {
-  showCreateModal.value = false
+  modalState.showCreateModal = false
   createMode.value = 'standard'
   createForm.name = ''
   createForm.protocol = 'http'
@@ -1599,7 +1633,7 @@ const closeCreateModal = () => {
   createForm.username = ''
   createForm.password = ''
   createForm.auto_failover_pool_enabled = false
-  createPasswordVisible.value = false
+  passwordState.createPasswordVisible = false
   batchInput.value = ''
   batchParseResult.total = 0
   batchParseResult.valid = 0
@@ -1609,7 +1643,7 @@ const closeCreateModal = () => {
 }
 
 const handleDataImported = () => {
-  showImportData.value = false
+  modalState.showImportData = false
   loadProxies()
 }
 
@@ -1680,7 +1714,7 @@ const parseBatchInput = () => {
 const handleBatchCreate = async () => {
   if (batchParseResult.valid === 0) return
 
-  submitting.value = true
+  loadingState.submitting = true
   try {
     const result = await adminAPI.proxies.batchCreate(batchParseResult.proxies)
     const created = result.created || 0
@@ -1698,7 +1732,7 @@ const handleBatchCreate = async () => {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToImport'))
     console.error('Error batch creating proxies:', error)
   } finally {
-    submitting.value = false
+    loadingState.submitting = false
   }
 }
 
@@ -1715,7 +1749,7 @@ const handleCreateProxy = async () => {
     appStore.showError(t('admin.proxies.portInvalid'))
     return
   }
-  submitting.value = true
+  loadingState.submitting = true
   try {
     await adminAPI.proxies.create({
       name: createForm.name.trim(),
@@ -1733,12 +1767,12 @@ const handleCreateProxy = async () => {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToCreate'))
     console.error('Error creating proxy:', error)
   } finally {
-    submitting.value = false
+    loadingState.submitting = false
   }
 }
 
 const handleEdit = (proxy: Proxy) => {
-  editingProxy.value = proxy
+  currentItems.editingProxy = proxy
   editForm.name = proxy.name
   editForm.protocol = proxy.protocol
   editForm.host = proxy.host
@@ -1747,20 +1781,20 @@ const handleEdit = (proxy: Proxy) => {
   editForm.password = proxy.password || ''
   editForm.status = proxy.status
   editForm.auto_failover_pool_enabled = !!proxy.auto_failover_pool_enabled
-  editPasswordVisible.value = false
-  editPasswordDirty.value = false
-  showEditModal.value = true
+  passwordState.editPasswordVisible = false
+  passwordState.editPasswordDirty = false
+  modalState.showEditModal = true
 }
 
 const closeEditModal = () => {
-  showEditModal.value = false
-  editingProxy.value = null
-  editPasswordVisible.value = false
-  editPasswordDirty.value = false
+  modalState.showEditModal = false
+  currentItems.editingProxy = null
+  passwordState.editPasswordVisible = false
+  passwordState.editPasswordDirty = false
 }
 
 const handleUpdateProxy = async () => {
-  if (!editingProxy.value) return
+  if (!currentItems.editingProxy) return
   if (!editForm.name.trim()) {
     appStore.showError(t('admin.proxies.nameRequired'))
     return
@@ -1774,7 +1808,7 @@ const handleUpdateProxy = async () => {
     return
   }
 
-  submitting.value = true
+  loadingState.submitting = true
   try {
     const updateData: any = {
       name: editForm.name.trim(),
@@ -1787,11 +1821,11 @@ const handleUpdateProxy = async () => {
     }
 
     // Only include password if user actually modified the field
-    if (editPasswordDirty.value) {
+    if (passwordState.editPasswordDirty) {
       updateData.password = editForm.password.trim() || null
     }
 
-    await adminAPI.proxies.update(editingProxy.value.id, updateData)
+    await adminAPI.proxies.update(currentItems.editingProxy.id, updateData)
     appStore.showSuccess(t('admin.proxies.proxyUpdated'))
     closeEditModal()
     loadProxies()
@@ -1799,7 +1833,7 @@ const handleUpdateProxy = async () => {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToUpdate'))
     console.error('Error updating proxy:', error)
   } finally {
-    submitting.value = false
+    loadingState.submitting = false
   }
 }
 
@@ -1880,9 +1914,9 @@ const handleQualityCheck = async (proxy: Proxy) => {
     return
   }
 
-  qualityReportProxy.value = proxy
-  qualityReport.value = result
-  showQualityReportDialog.value = true
+  currentItems.qualityReportProxy = proxy
+  currentItems.qualityReport = result
+  modalState.showQualityReportDialog = true
 
   const baseLatency = extractBaseConnectivityResult(result)
   if (baseLatency) {
@@ -1953,9 +1987,9 @@ const runBatchProxyQualityChecks = async (ids: number[]) => {
 }
 
 const closeQualityReportDialog = () => {
-  showQualityReportDialog.value = false
-  qualityReportProxy.value = null
-  qualityReport.value = null
+  modalState.showQualityReportDialog = false
+  currentItems.qualityReportProxy = null
+  currentItems.qualityReport = null
 }
 
 const qualityStatusClass = (status: string) => {
@@ -2087,9 +2121,9 @@ const runBatchProxyTests = async (ids: number[]) => {
 }
 
 const handleBatchTest = async () => {
-  if (batchTesting.value) return
+  if (testingState.batchTesting) return
 
-  batchTesting.value = true
+  testingState.batchTesting = true
   try {
     let ids: number[] = []
     if (selectedCount.value > 0) {
@@ -2111,14 +2145,14 @@ const handleBatchTest = async () => {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.batchTestFailed'))
     console.error('Error batch testing proxies:', error)
   } finally {
-    batchTesting.value = false
+    testingState.batchTesting = false
   }
 }
 
 const handleBatchQualityCheck = async () => {
-  if (batchQualityChecking.value) return
+  if (testingState.batchQualityChecking) return
 
-  batchQualityChecking.value = true
+  testingState.batchQualityChecking = true
   try {
     let ids: number[] = []
     if (selectedCount.value > 0) {
@@ -2148,7 +2182,7 @@ const handleBatchQualityCheck = async () => {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.batchQualityFailed'))
     console.error('Error batch checking quality:', error)
   } finally {
-    batchQualityChecking.value = false
+    testingState.batchQualityChecking = false
   }
 }
 
@@ -2179,7 +2213,7 @@ const handleTogglePoolMembership = async (proxy: Proxy) => {
     appStore.showSuccess(
       enabled ? t('admin.proxies.poolSingleEnabled', { name: proxy.name }) : t('admin.proxies.poolSingleDisabled', { name: proxy.name })
     )
-    if (showPoolDialog.value) {
+    if (modalState.showPoolDialog) {
       await openPoolDialog()
     }
   } catch (error: any) {
@@ -2198,7 +2232,7 @@ const handleToggleStatus = async (proxy: Proxy) => {
     )
 
     await loadProxies()
-    if (showPoolDialog.value) {
+    if (modalState.showPoolDialog) {
       await openPoolDialog()
     }
   } catch (error: any) {
@@ -2224,17 +2258,17 @@ const handleClearCooldown = async (ids: number[]) => {
 }
 
 const openPoolDialog = async () => {
-  showPoolDialog.value = true
-  poolDialogLoading.value = true
+  modalState.showPoolDialog = true
+  loadingState.poolDialogLoading = true
   try {
     const allProxies = await fetchAllProxiesForBatch(false)
-    poolDialogRows.value = allProxies.filter((proxy) => proxy.auto_failover_pool_enabled)
+    dataState.poolDialogRows = allProxies.filter((proxy) => proxy.auto_failover_pool_enabled)
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToLoad'))
     console.error('Error loading proxy pool members:', error)
-    poolDialogRows.value = []
+    dataState.poolDialogRows = []
   } finally {
-    poolDialogLoading.value = false
+    loadingState.poolDialogLoading = false
   }
 }
 
@@ -2245,8 +2279,8 @@ const formatExportTimestamp = () => {
 }
 
 const handleExportData = async () => {
-  if (exportingData.value) return
-  exportingData.value = true
+  if (loadingState.exportingData) return
+  loadingState.exportingData = true
   try {
     const dataPayload = await adminAPI.proxies.exportData(
       selectedCount.value > 0
@@ -2268,8 +2302,8 @@ const handleExportData = async () => {
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.proxies.dataExportFailed'))
   } finally {
-    exportingData.value = false
-    showExportDataDialog.value = false
+    loadingState.exportingData = false
+    modalState.showExportDataDialog = false
   }
 }
 
@@ -2291,15 +2325,15 @@ const handleRefreshSubscription = async (id: number) => {
 }
 
 const handleViewSubscriptionNodes = async (id: number) => {
-  showSubscriptionNodesModal.value = true
-  subscriptionNodesLoading.value = true
+  modalState.showSubscriptionNodesModal = true
+  loadingState.subscriptionNodesLoading = true
   try {
-    subscriptionNodes.value = await adminAPI.proxySubscriptions.listNodes(id)
+    dataState.subscriptionNodes = await adminAPI.proxySubscriptions.listNodes(id)
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.nodesLoadFailed'))
     console.error('Error loading subscription nodes:', error)
   } finally {
-    subscriptionNodesLoading.value = false
+    loadingState.subscriptionNodesLoading = false
   }
 }
 
@@ -2315,10 +2349,10 @@ const handleDeleteSubscription = async (id: number) => {
 }
 
 const handleSubmitSubscription = async () => {
-  submittingSubscription.value = true
+  loadingState.submittingSubscription = true
   try {
-    if (editingSubscription.value) {
-      await adminAPI.proxySubscriptions.update(editingSubscription.value.id, {
+    if (currentItems.editingSubscription) {
+      await adminAPI.proxySubscriptions.update(currentItems.editingSubscription.id, {
         name: subscriptionForm.name.trim(),
         url: subscriptionForm.url.trim(),
         source_format: subscriptionForm.source_format,
@@ -2340,19 +2374,19 @@ const handleSubmitSubscription = async () => {
       })
       appStore.showSuccess(t('admin.proxies.subscriptions.createSuccess'))
     }
-    showCreateSubscriptionModal.value = false
-    editingSubscription.value = null
+    modalState.showCreateSubscriptionModal = false
+    currentItems.editingSubscription = null
     await loadProxySubscriptions()
   } catch (error: any) {
     appStore.showError(
       error.response?.data?.detail ||
-      (editingSubscription.value
+      (currentItems.editingSubscription
         ? t('admin.proxies.subscriptions.updateFailed')
         : t('admin.proxies.subscriptions.createFailed'))
     )
     console.error('Error submitting proxy subscription:', error)
   } finally {
-    submittingSubscription.value = false
+    loadingState.submittingSubscription = false
   }
 }
 
@@ -2361,33 +2395,33 @@ const handleDelete = (proxy: Proxy) => {
     appStore.showError(t('admin.proxies.deleteBlockedInUse'))
     return
   }
-  deletingProxy.value = proxy
-  showDeleteDialog.value = true
+  currentItems.deletingProxy = proxy
+  modalState.showDeleteDialog = true
 }
 
 const openBatchDelete = () => {
   if (selectedCount.value === 0) {
     return
   }
-  showBatchDeleteDialog.value = true
+  modalState.showBatchDeleteDialog = true
 }
 
 const openBatchUnassign = () => {
   if (selectedCount.value === 0) {
     return
   }
-  showBatchUnassignDialog.value = true
+  modalState.showBatchUnassignDialog = true
 }
 
 const confirmDelete = async () => {
-  if (!deletingProxy.value) return
+  if (!currentItems.deletingProxy) return
 
   try {
-    await adminAPI.proxies.delete(deletingProxy.value.id)
+    await adminAPI.proxies.delete(currentItems.deletingProxy.id)
     appStore.showSuccess(t('admin.proxies.proxyDeleted'))
-    showDeleteDialog.value = false
-    removeSelectedProxies([deletingProxy.value.id])
-    deletingProxy.value = null
+    modalState.showDeleteDialog = false
+    removeSelectedProxies([currentItems.deletingProxy.id])
+    currentItems.deletingProxy = null
     loadProxies()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToDelete'))
@@ -2398,7 +2432,7 @@ const confirmDelete = async () => {
 const confirmBatchDelete = async () => {
   const ids = Array.from(selectedProxyIds.value)
   if (ids.length === 0) {
-    showBatchDeleteDialog.value = false
+    modalState.showBatchDeleteDialog = false
     return
   }
 
@@ -2414,7 +2448,7 @@ const confirmBatchDelete = async () => {
     }
 
     clearSelectedProxies()
-    showBatchDeleteDialog.value = false
+    modalState.showBatchDeleteDialog = false
     loadProxies()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.batchDeleteFailed'))
@@ -2425,7 +2459,7 @@ const confirmBatchDelete = async () => {
 const confirmBatchUnassign = async () => {
   const ids = Array.from(selectedProxyIds.value)
   if (ids.length === 0) {
-    showBatchUnassignDialog.value = false
+    modalState.showBatchUnassignDialog = false
     return
   }
 
@@ -2438,7 +2472,7 @@ const confirmBatchUnassign = async () => {
       })
     )
     clearSelectedProxies()
-    showBatchUnassignDialog.value = false
+    modalState.showBatchUnassignDialog = false
     loadProxies()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.quickUnassignFailed'))
@@ -2447,25 +2481,25 @@ const confirmBatchUnassign = async () => {
 }
 
 const openAccountsModal = async (proxy: Proxy) => {
-  accountsProxy.value = proxy
-  proxyAccounts.value = []
-  accountsLoading.value = true
-  showAccountsModal.value = true
+  currentItems.accountsProxy = proxy
+  dataState.proxyAccounts = []
+  loadingState.accountsLoading = true
+  modalState.showAccountsModal = true
 
   try {
-    proxyAccounts.value = await adminAPI.proxies.getProxyAccounts(proxy.id)
+    dataState.proxyAccounts = await adminAPI.proxies.getProxyAccounts(proxy.id)
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.accountsFailed'))
     console.error('Error loading proxy accounts:', error)
   } finally {
-    accountsLoading.value = false
+    loadingState.accountsLoading = false
   }
 }
 
 const closeAccountsModal = () => {
-  showAccountsModal.value = false
-  accountsProxy.value = null
-  proxyAccounts.value = []
+  modalState.showAccountsModal = false
+  currentItems.accountsProxy = null
+  dataState.proxyAccounts = []
 }
 
 // ── Proxy URL copy ──
@@ -2498,23 +2532,23 @@ function getCopyFormats(row: any) {
 
 function copyProxyUrl(row: any) {
   copyToClipboard(buildProxyUrl(row), t('admin.proxies.urlCopied'))
-  copyMenuProxyId.value = null
+  dropdownState.dropdownState.copyMenuProxyId = null
 }
 
 function toggleCopyMenu(id: number) {
-  copyMenuProxyId.value = copyMenuProxyId.value === id ? null : id
+  dropdownState.dropdownState.copyMenuProxyId = dropdownState.dropdownState.copyMenuProxyId === id ? null : id
 }
 
 function copyFormat(value: string) {
   copyToClipboard(value, t('admin.proxies.urlCopied'))
-  copyMenuProxyId.value = null
+  dropdownState.dropdownState.copyMenuProxyId = null
 }
 
 function toggleRowActionMenu(id: number, event: MouseEvent) {
   showColumnDropdown.value = false
   showProxyToolsDropdown.value = false
   showProxyBatchDropdown.value = false
-  if (activeRowActionMenuId.value === id) {
+  if (dropdownState.dropdownState.activeRowActionMenuId === id) {
     closeRowActionMenu()
     return
   }
@@ -2522,25 +2556,76 @@ function toggleRowActionMenu(id: number, event: MouseEvent) {
   if (!trigger) return
   const rect = trigger.getBoundingClientRect()
   const menuWidth = 176
-  rowActionMenuPosition.value = {
+  dropdownState.dropdownState.rowActionMenuPosition = {
     top: rect.bottom + 8,
     left: Math.max(8, rect.right - menuWidth)
   }
-  activeRowActionMenuId.value = id
+  dropdownState.dropdownState.activeRowActionMenuId = id
 }
 
 function closeRowActionMenu() {
-  activeRowActionMenuId.value = null
-  rowActionMenuPosition.value = null
+  dropdownState.dropdownState.activeRowActionMenuId = null
+  dropdownState.dropdownState.rowActionMenuPosition = null
 }
 
 function closeFloatingMenus() {
-  copyMenuProxyId.value = null
+  dropdownState.dropdownState.copyMenuProxyId = null
   showColumnDropdown.value = false
   showProxyToolsDropdown.value = false
   showProxyBatchDropdown.value = false
   closeRowActionMenu()
 }
+
+// 键盘快捷键
+const isAnyModalOpen = computed(() => {
+  return (
+    modalState.showCreateModal ||
+    modalState.showEditModal ||
+    modalState.showDeleteDialog ||
+    modalState.showBatchDeleteDialog ||
+    modalState.showBatchUnassignDialog ||
+    modalState.showExportDataDialog ||
+    modalState.showImportData ||
+    modalState.showAssignAccounts ||
+    modalState.showQualityReportDialog ||
+    modalState.showAccountsModal ||
+    modalState.showPoolDialog ||
+    modalState.showCreateSubscriptionModal ||
+    modalState.showSubscriptionNodesModal
+  )
+})
+
+useKeyboardShortcuts({
+  searchInputRef,
+  onRefresh: () => {
+    if (!isAnyModalOpen.value) {
+      loadProxies()
+    }
+  },
+  onSelectAll: () => {
+    if (!isAnyModalOpen.value && activeTab.value === 'proxies' && dataState.proxies.length > 0) {
+      const allIds = dataState.proxies.map(p => p.id)
+      allIds.forEach(id => select(id))
+    }
+  },
+  onClearSelection: () => {
+    if (!isAnyModalOpen.value && selectedCount.value > 0) {
+      clearSelectedProxies()
+    }
+  },
+  onDelete: () => {
+    if (!isAnyModalOpen.value && selectedCount.value > 0) {
+      openBatchDelete()
+    }
+  },
+  onEscape: () => {
+    if (selectedCount.value > 0) {
+      clearSelectedProxies()
+    }
+    closeFloatingMenus()
+  },
+  disabled: computed(() => isAnyModalOpen.value && selectedCount.value === 0)
+})
 
 onMounted(() => {
   loadSavedColumns()

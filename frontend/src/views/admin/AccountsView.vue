@@ -10,45 +10,45 @@
             @update:filters="(newFilters) => Object.assign(params, newFilters)"
             @change="debouncedReload"
             @update:searchQuery="debouncedReload"
-            @status-guide="showStatusGuide = true"
+            @status-guide="modalState.showStatusGuide = true"
           />
           <AccountTableActions
             :loading="loading"
             @refresh="handleManualRefresh"
-            @create="showCreate = true"
+            @create="modalState.showCreate = true"
           >
             <template #after>
               <!-- Auto Refresh Dropdown -->
               <div class="relative" ref="autoRefreshDropdownRef">
                 <button
                   @click="
-                    showAutoRefreshDropdown = !showAutoRefreshDropdown;
-                    showAccountToolsDropdown = false;
-                    showColumnSettingsDropdown = false
+                    dropdownState.showAutoRefreshDropdown = !dropdownState.showAutoRefreshDropdown;
+                    dropdownState.showAccountToolsDropdown = false;
+                    dropdownState.showColumnSettingsDropdown = false
                   "
                   class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.accounts.autoRefresh')"
                 >
-                  <Icon name="refresh" size="sm" :class="[autoRefreshEnabled ? 'animate-spin' : '']" />
+                  <Icon name="refresh" size="sm" :class="[autoRefreshState.enabled ? 'animate-spin' : '']" />
                   <span class="hidden md:inline">
                     {{
-                      autoRefreshEnabled
-                        ? t('admin.accounts.autoRefreshCountdown', { seconds: autoRefreshCountdown })
+                      autoRefreshState.enabled
+                        ? t('admin.accounts.autoRefreshState.countdown', { seconds: autoRefreshState.countdown })
                         : t('admin.accounts.autoRefresh')
                     }}
                   </span>
                 </button>
                 <div
-                  v-if="showAutoRefreshDropdown"
+                  v-if="dropdownState.showAutoRefreshDropdown"
                   class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
                 >
                   <div class="p-2">
                     <button
-                      @click="setAutoRefreshEnabled(!autoRefreshEnabled)"
+                      @click="setAutoRefreshEnabled(!autoRefreshState.enabled)"
                       class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
                       <span>{{ t('admin.accounts.enableAutoRefresh') }}</span>
-                      <Icon v-if="autoRefreshEnabled" name="check" size="sm" class="text-primary-500" />
+                      <Icon v-if="autoRefreshState.enabled" name="check" size="sm" class="text-primary-500" />
                     </button>
                     <div class="my-1 border-t border-gray-100 dark:border-gray-700"></div>
                     <button
@@ -58,7 +58,7 @@
                       class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
                       <span>{{ autoRefreshIntervalLabel(sec) }}</span>
-                      <Icon v-if="autoRefreshIntervalSeconds === sec" name="check" size="sm" class="text-primary-500" />
+                      <Icon v-if="autoRefreshState.intervalSeconds === sec" name="check" size="sm" class="text-primary-500" />
                     </button>
                   </div>
                 </div>
@@ -68,9 +68,9 @@
               <div class="relative" ref="columnSettingsDropdownRef">
                 <button
                   @click="
-                    showColumnSettingsDropdown = !showColumnSettingsDropdown;
-                    showAutoRefreshDropdown = false;
-                    showAccountToolsDropdown = false
+                    dropdownState.showColumnSettingsDropdown = !dropdownState.showColumnSettingsDropdown;
+                    dropdownState.showAutoRefreshDropdown = false;
+                    dropdownState.showAccountToolsDropdown = false
                   "
                   class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.accounts.viewColumns')"
@@ -79,7 +79,7 @@
                   <span class="hidden md:inline">{{ t('admin.accounts.viewColumns') }}</span>
                 </button>
                 <div
-                  v-if="showColumnSettingsDropdown"
+                  v-if="dropdownState.showColumnSettingsDropdown"
                   class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
                 >
                   <div class="max-h-[70vh] overflow-y-auto p-2">
@@ -100,9 +100,9 @@
               <div class="relative" ref="accountToolsDropdownRef">
                 <button
                   @click="
-                    showAccountToolsDropdown = !showAccountToolsDropdown;
-                    showAutoRefreshDropdown = false;
-                    showColumnSettingsDropdown = false
+                    dropdownState.showAccountToolsDropdown = !dropdownState.showAccountToolsDropdown;
+                    dropdownState.showAutoRefreshDropdown = false;
+                    dropdownState.showColumnSettingsDropdown = false
                   "
                   class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.accounts.moreActions')"
@@ -111,7 +111,7 @@
                   <span class="hidden md:inline">{{ t('admin.accounts.moreActions') }}</span>
                 </button>
                 <div
-                  v-if="showAccountToolsDropdown"
+                  v-if="dropdownState.showAccountToolsDropdown"
                   class="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
                 >
                   <div class="max-h-[70vh] overflow-y-auto p-2">
@@ -188,9 +188,9 @@
               </span>
               <button
                 class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-                @click="showFilterSummaryDetails = !showFilterSummaryDetails"
+                @click="modalState.showFilterSummaryDetails = !modalState.showFilterSummaryDetails"
               >
-                {{ showFilterSummaryDetails ? t('admin.accounts.hideFilterDetails') : t('admin.accounts.showFilterDetails') }}
+                {{ modalState.showFilterSummaryDetails ? t('admin.accounts.hideFilterDetails') : t('admin.accounts.showFilterDetails') }}
               </button>
             </div>
             <button
@@ -201,7 +201,7 @@
             </button>
           </div>
           <div
-            v-if="showFilterSummaryDetails"
+            v-if="modalState.showFilterSummaryDetails"
             class="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-200 pt-2 dark:border-dark-600"
           >
             <span
@@ -232,8 +232,8 @@
         <AccountBulkActionsBar
           :selected-ids="selIds"
           :show-test-all-ungrouped="hasUngroupedAccounts"
-          :test-all-ungrouped-loading="loadingUngroupedBatchTargets"
-          :ungrouped-test-limit="ungroupedBatchTestLimit"
+          :test-all-ungrouped-loading="batchTestState.loadingUngroupedBatchTargets"
+          :ungrouped-test-limit="batchTestState.ungroupedBatchTestLimit"
           :ungrouped-total-count="pagination.total"
           @delete="handleBulkDelete"
           @reset-status="handleBulkResetStatus"
@@ -330,9 +330,9 @@
           </template>
           <template #cell-today_stats="{ row }">
             <AccountTodayStatsCell
-              :stats="todayStatsByAccountId[String(row.id)] ?? null"
-              :loading="todayStatsLoading"
-              :error="todayStatsError"
+              :stats="todayStatsState.byAccountId[String(row.id)] ?? null"
+              :loading="todayStatsState.loading"
+              :error="todayStatsState.error"
             />
           </template>
           <template #cell-groups="{ row }">
@@ -341,8 +341,8 @@
           <template #cell-usage="{ row }">
             <AccountUsageCell
               :account="row"
-              :today-stats="todayStatsByAccountId[String(row.id)] ?? null"
-              :today-stats-loading="todayStatsLoading"
+              :today-stats="todayStatsState.byAccountId[String(row.id)] ?? null"
+              :today-stats-loading="todayStatsState.loading"
               :manual-refresh-token="usageManualRefreshToken"
             />
           </template>
@@ -415,47 +415,47 @@
       </template>
       <template #pagination><Pagination v-if="pagination.total > 0" :page="pagination.page" :total="pagination.total" :page-size="pagination.page_size" @update:page="handlePageChange" @update:pageSize="handlePageSizeChange" /></template>
     </TablePageLayout>
-    <CreateAccountModal v-if="showCreate" :show="showCreate" :proxies="proxies" :groups="groups" @close="showCreate = false" @created="reload" />
-    <EditAccountModal v-if="showEdit && edAcc" :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
-    <ReAuthAccountModal v-if="showReAuth && reAuthAcc" :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
-    <AccountTestModal v-if="showTest && testingAcc" :show="showTest" :account="testingAcc" @close="closeTestModal" />
+    <CreateAccountModal v-if="modalState.showCreate" :show="modalState.showCreate" :proxies="proxies" :groups="groups" @close="modalState.showCreate = false" @created="reload" />
+    <EditAccountModal v-if="modalState.showEdit && modalData.edAcc" :show="modalState.showEdit" :account="modalData.edAcc" :proxies="proxies" :groups="groups" @close="modalState.showEdit = false" @updated="handleAccountUpdated" />
+    <ReAuthAccountModal v-if="modalState.showReAuth && modalData.reAuthAcc" :show="modalState.showReAuth" :account="modalData.reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
+    <AccountTestModal v-if="modalState.showTest && modalData.testingAcc" :show="modalState.showTest" :account="modalData.testingAcc" @close="closeTestModal" />
     <BatchAccountTestModal
-      v-if="showBatchTest"
-      :show="showBatchTest"
-      :targets="modalBatchTestTargets"
-      :default-model-only="showBatchTestSource === 'ungrouped'"
+      v-if="modalState.showBatchTest"
+      :show="modalState.showBatchTest"
+      :targets="batchTestState.modalBatchTestTargets"
+      :default-model-only="batchTestState.showBatchTestSource === 'ungrouped'"
       @close="closeBatchTestModal"
       @completed="handleBatchTestCompleted"
       @queue-delete="enqueueBatchTestDelete"
     />
-    <AccountStatsModal v-if="showStats && statsAcc" :show="showStats" :account="statsAcc" @close="closeStatsModal" />
-    <ScheduledTestsPanel v-if="showSchedulePanel && scheduleAcc" :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
+    <AccountStatsModal v-if="modalState.showStats && modalData.statsAcc" :show="modalState.showStats" :account="modalData.statsAcc" @close="closeStatsModal" />
+    <ScheduledTestsPanel v-if="modalState.showSchedulePanel && modalData.scheduleAcc" :show="modalState.showSchedulePanel" :account-id="modalData.scheduleAcc?.id ?? null" :model-options="modalData.scheduleModelOptions" @close="closeSchedulePanel" />
     <AccountActionMenu v-if="menu.show && menu.acc" :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" />
-    <SyncFromCrsModal v-if="showSync" :show="showSync" @close="showSync = false" @synced="reload" />
-    <ImportDataModal v-if="showImportData" :show="showImportData" @close="showImportData = false" @imported="handleDataImported" />
-    <DuplicateAccountCheckModal v-if="showDuplicateCheck" :show="showDuplicateCheck" :groups="groups" @close="showDuplicateCheck = false" />
+    <SyncFromCrsModal v-if="modalState.showSync" :show="modalState.showSync" @close="modalState.showSync = false" @synced="reload" />
+    <ImportDataModal v-if="modalState.showImportData" :show="modalState.showImportData" @close="modalState.showImportData = false" @imported="handleDataImported" />
+    <DuplicateAccountCheckModal v-if="modalState.showDuplicateCheck" :show="modalState.showDuplicateCheck" :groups="groups" @close="modalState.showDuplicateCheck = false" />
     <BulkEditAccountModal
-      v-if="showBulkEdit"
-      :show="showBulkEdit"
+      v-if="modalState.showBulkEdit"
+      :show="modalState.showBulkEdit"
       :account-ids="selIds"
       :selected-platforms="selPlatforms"
       :selected-types="selTypes"
       :proxies="proxies"
       :groups="groups"
-      @close="showBulkEdit = false"
+      @close="modalState.showBulkEdit = false"
       @updated="handleBulkUpdated"
     />
-    <TempUnschedStatusModal v-if="showTempUnsched && tempUnschedAcc" :show="showTempUnsched" :account="tempUnschedAcc" @close="showTempUnsched = false" @reset="handleTempUnschedReset" />
-    <ConfirmDialog :show="showDeleteDialog" :title="t('admin.accounts.deleteAccount')" :message="t('admin.accounts.deleteConfirm', { name: deletingAcc?.name })" :confirm-text="t('common.delete')" :cancel-text="t('common.cancel')" :danger="true" @confirm="confirmDelete" @cancel="showDeleteDialog = false" />
-    <ConfirmDialog :show="showExportDataDialog" :title="t('admin.accounts.dataExport')" :message="t('admin.accounts.dataExportConfirmMessage')" :confirm-text="t('admin.accounts.dataExportConfirm')" :cancel-text="t('common.cancel')" @confirm="handleExportData" @cancel="showExportDataDialog = false">
+    <TempUnschedStatusModal v-if="modalState.showTempUnsched && modalData.tempUnschedAcc" :show="modalState.showTempUnsched" :account="modalData.tempUnschedAcc" @close="modalState.showTempUnsched = false" @reset="handleTempUnschedReset" />
+    <ConfirmDialog :show="modalState.showDeleteDialog" :title="t('admin.accounts.deleteAccount')" :message="t('admin.accounts.deleteConfirm', { name: modalData.deletingAcc?.name })" :confirm-text="t('common.delete')" :cancel-text="t('common.cancel')" :danger="true" @confirm="confirmDelete" @cancel="modalState.showDeleteDialog = false" />
+    <ConfirmDialog :show="modalState.showExportDataDialog" :title="t('admin.accounts.dataExport')" :message="t('admin.accounts.dataExportConfirmMessage')" :confirm-text="t('admin.accounts.dataExportConfirm')" :cancel-text="t('common.cancel')" @confirm="handleExportData" @cancel="modalState.showExportDataDialog = false">
       <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-        <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" v-model="includeProxyOnExport" />
+        <input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" v-model="modalData.includeProxyOnExport" />
         <span>{{ t('admin.accounts.dataExportIncludeProxies') }}</span>
       </label>
     </ConfirmDialog>
-    <ErrorPassthroughRulesModal v-if="showErrorPassthrough" :show="showErrorPassthrough" @close="showErrorPassthrough = false" />
-    <TLSFingerprintProfilesModal v-if="showTLSFingerprintProfiles" :show="showTLSFingerprintProfiles" @close="showTLSFingerprintProfiles = false" />
-    <BaseDialog :show="showStatusGuide" :title="t('admin.accounts.statusGuide.title')" width="normal" @close="showStatusGuide = false">
+    <ErrorPassthroughRulesModal v-if="modalState.showErrorPassthrough" :show="modalState.showErrorPassthrough" @close="modalState.showErrorPassthrough = false" />
+    <TLSFingerprintProfilesModal v-if="modalState.showTLSFingerprintProfiles" :show="modalState.showTLSFingerprintProfiles" @close="modalState.showTLSFingerprintProfiles = false" />
+    <BaseDialog :show="modalState.showStatusGuide" :title="t('admin.accounts.statusGuide.title')" width="normal" @close="modalState.showStatusGuide = false">
       <div class="space-y-4 text-sm text-gray-700 dark:text-gray-300">
         <p class="leading-6 text-gray-600 dark:text-gray-400">
           {{ t('admin.accounts.statusGuide.description') }}
@@ -515,6 +515,7 @@ import { useTableLoader } from '@/composables/useTableLoader'
 import { useSwipeSelect, type SwipeSelectVirtualContext } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { useAccountBulkOperations } from '@/composables/useAccountBulkOperations'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -583,10 +584,9 @@ const { operating: bulkOperating, handleBulkOperation } = useAccountBulkOperatio
 
 const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
-const showFilterSummaryDetails = ref(false)
-const showStatusGuide = ref(false)
 const accountTableRef = ref<HTMLElement | null>(null)
 const dataTableRef = ref<InstanceType<typeof DataTable> | null>(null)
+const searchInputRef = ref<HTMLInputElement | null>(null)
 const selPlatforms = computed<AccountPlatform[]>(() => {
   const platforms = new Set(
     accounts.value
@@ -603,52 +603,79 @@ const selTypes = computed<AccountType[]>(() => {
   )
   return [...types]
 })
-const showCreate = ref(false)
-const showEdit = ref(false)
-const showSync = ref(false)
-const showImportData = ref(false)
-const showDuplicateCheck = ref(false)
-const showExportDataDialog = ref(false)
-const includeProxyOnExport = ref(true)
-const showBulkEdit = ref(false)
-const showTempUnsched = ref(false)
-const showDeleteDialog = ref(false)
-const showReAuth = ref(false)
-const showTest = ref(false)
-const showBatchTest = ref(false)
-const loadingUngroupedBatchTargets = ref(false)
-const defaultUngroupedBatchTestLimit = 50
-const ungroupedBatchTestLimit = ref(defaultUngroupedBatchTestLimit)
-const showStats = ref(false)
-const showErrorPassthrough = ref(false)
-const showTLSFingerprintProfiles = ref(false)
-const edAcc = ref<Account | null>(null)
-const tempUnschedAcc = ref<Account | null>(null)
-const deletingAcc = ref<Account | null>(null)
-const reAuthAcc = ref<Account | null>(null)
-const testingAcc = ref<Account | null>(null)
-const statsAcc = ref<Account | null>(null)
-const showSchedulePanel = ref(false)
-const scheduleAcc = ref<Account | null>(null)
-const scheduleModelOptions = ref<SelectOption[]>([])
-const showBatchTestSource = ref<'selected' | 'ungrouped'>('selected')
-const modalBatchTestTargets = ref<BatchTestTarget[]>([])
-const togglingSchedulable = ref<number | null>(null)
-const batchTestDeleteQueue = ref<number[]>([])
-const batchTestDeleteSucceededIds = ref<Set<number>>(new Set())
-const batchTestDeleteFailedIds = ref<Set<number>>(new Set())
-const menu = reactive<{show:boolean, acc:Account|null, pos:{top:number, left:number}|null}>({ show: false, acc: null, pos: null })
-const exportingData = ref(false)
-let batchTestDeleteDrainPromise: Promise<void> | null = null
 
-// Account tools dropdown
-const showAccountToolsDropdown = ref(false)
+// UI State - Modal visibility
+const modalState = reactive({
+  showCreate: false,
+  showEdit: false,
+  showSync: false,
+  showImportData: false,
+  showDuplicateCheck: false,
+  showExportDataDialog: false,
+  showBulkEdit: false,
+  showTempUnsched: false,
+  showDeleteDialog: false,
+  showReAuth: false,
+  showTest: false,
+  showBatchTest: false,
+  showStats: false,
+  showErrorPassthrough: false,
+  showTLSFingerprintProfiles: false,
+  showSchedulePanel: false,
+  showFilterSummaryDetails: false,
+  showStatusGuide: false,
+})
+
+// UI State - Modal data
+const modalData = reactive({
+  edAcc: null as Account | null,
+  tempUnschedAcc: null as Account | null,
+  deletingAcc: null as Account | null,
+  reAuthAcc: null as Account | null,
+  testingAcc: null as Account | null,
+  statsAcc: null as Account | null,
+  scheduleAcc: null as Account | null,
+  scheduleModelOptions: [] as SelectOption[],
+  includeProxyOnExport: true,
+  exportingData: false,
+})
+
+// UI State - Dropdown menus
+const dropdownState = reactive({
+  showAccountToolsDropdown: false,
+  showColumnSettingsDropdown: false,
+  showAutoRefreshDropdown: false,
+})
+
 const accountToolsDropdownRef = ref<HTMLElement | null>(null)
-const showColumnSettingsDropdown = ref(false)
 const columnSettingsDropdownRef = ref<HTMLElement | null>(null)
+const autoRefreshDropdownRef = ref<HTMLElement | null>(null)
+
 const hiddenColumns = reactive<Set<string>>(new Set())
 const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority', 'rate_multiplier']
 const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
+
+// UI State - Context menu
+const menu = reactive<{show:boolean, acc:Account|null, pos:{top:number, left:number}|null}>({
+  show: false,
+  acc: null,
+  pos: null
+})
+
+// Batch Test State
+const defaultUngroupedBatchTestLimit = 50
+const batchTestState = reactive({
+  showBatchTestSource: 'selected' as 'selected' | 'ungrouped',
+  modalBatchTestTargets: [] as BatchTestTarget[],
+  loadingUngroupedBatchTargets: false,
+  ungroupedBatchTestLimit: defaultUngroupedBatchTestLimit,
+  deleteQueue: [] as number[],
+  deleteSucceededIds: new Set<number>(),
+  deleteFailedIds: new Set<number>(),
+})
+let batchTestDeleteDrainPromise: Promise<void> | null = null
+
+const togglingSchedulable = ref<number | null>(null)
 
 // Sorting settings
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
@@ -725,25 +752,31 @@ const loadInitialAccountSortState = (): AccountSortState => {
 }
 const sortState = reactive<AccountSortState>(loadInitialAccountSortState())
 
-// Auto refresh settings
-const showAutoRefreshDropdown = ref(false)
-const autoRefreshDropdownRef = ref<HTMLElement | null>(null)
+// Auto Refresh State
 const AUTO_REFRESH_STORAGE_KEY = 'account-auto-refresh'
 const autoRefreshIntervals = [5, 10, 15, 30] as const
-const autoRefreshEnabled = ref(false)
-const autoRefreshIntervalSeconds = ref<(typeof autoRefreshIntervals)[number]>(30)
-const autoRefreshCountdown = ref(0)
-const autoRefreshETag = ref<string | null>(null)
-const autoRefreshFetching = ref(false)
 const AUTO_REFRESH_SILENT_WINDOW_MS = 15000
-const autoRefreshSilentUntil = ref(0)
+const autoRefreshState = reactive({
+  enabled: false,
+  intervalSeconds: 30 as (typeof autoRefreshIntervals)[number],
+  countdown: 0,
+  etag: null as string | null,
+  fetching: false,
+  silentUntil: 0,
+})
+
+// Today Stats State
+const todayStatsState = reactive({
+  byAccountId: {} as Record<string, WindowStats>,
+  loading: false,
+  error: null as string | null,
+  reqSeq: 0,
+  pendingRefresh: false,
+})
+
+// Other State
 const accountStatusNowMs = ref(Date.now())
 const hasPendingListSync = ref(false)
-const todayStatsByAccountId = ref<Record<string, WindowStats>>({})
-const todayStatsLoading = ref(false)
-const todayStatsError = ref<string | null>(null)
-const todayStatsReqSeq = ref(0)
-const pendingTodayStatsRefresh = ref(false)
 const usageManualRefreshToken = ref(0)
 
 provide(accountStatusNowMsKey, accountStatusNowMs)
@@ -770,40 +803,40 @@ const refreshTodayStatsBatch = async () => {
   // - usage column also embeds today's stats for Key/Bedrock rows.
   // So we only skip fetching when BOTH columns are hidden.
   if (hiddenColumns.has('today_stats') && hiddenColumns.has('usage')) {
-    todayStatsLoading.value = false
-    todayStatsError.value = null
+    todayStatsState.loading = false
+    todayStatsState.error = null
     return
   }
 
   const accountIDs = accounts.value.map(account => account.id)
-  const reqSeq = ++todayStatsReqSeq.value
+  const reqSeq = ++todayStatsState.reqSeq
   if (accountIDs.length === 0) {
-    todayStatsByAccountId.value = {}
-    todayStatsError.value = null
-    todayStatsLoading.value = false
+    todayStatsState.byAccountId = {}
+    todayStatsState.error = null
+    todayStatsState.loading = false
     return
   }
 
-  todayStatsLoading.value = true
-  todayStatsError.value = null
+  todayStatsState.loading = true
+  todayStatsState.error = null
 
   try {
     const result = await adminAPI.accounts.getBatchTodayStats(accountIDs)
-    if (reqSeq !== todayStatsReqSeq.value) return
+    if (reqSeq !== todayStatsState.reqSeq) return
     const serverStats = result.stats ?? {}
     const nextStats: Record<string, WindowStats> = {}
     for (const accountID of accountIDs) {
       const key = String(accountID)
       nextStats[key] = serverStats[key] ?? buildDefaultTodayStats()
     }
-    todayStatsByAccountId.value = nextStats
+    todayStatsState.byAccountId = nextStats
   } catch (error) {
-    if (reqSeq !== todayStatsReqSeq.value) return
-    todayStatsError.value = 'Failed'
+    if (reqSeq !== todayStatsState.reqSeq) return
+    todayStatsState.error = 'Failed'
     console.error('Failed to load account today stats:', error)
   } finally {
-    if (reqSeq === todayStatsReqSeq.value) {
-      todayStatsLoading.value = false
+    if (reqSeq === todayStatsState.reqSeq) {
+      todayStatsState.loading = false
     }
   }
 }
@@ -850,10 +883,10 @@ const loadSavedAutoRefresh = () => {
     const saved = localStorage.getItem(AUTO_REFRESH_STORAGE_KEY)
     if (!saved) return
     const parsed = JSON.parse(saved) as { enabled?: boolean; interval_seconds?: number }
-    autoRefreshEnabled.value = parsed.enabled === true
+    autoRefreshState.enabled = parsed.enabled === true
     const interval = Number(parsed.interval_seconds)
     if (autoRefreshIntervals.includes(interval as any)) {
-      autoRefreshIntervalSeconds.value = interval as any
+      autoRefreshState.intervalSeconds = interval as any
     }
   } catch (e) {
     console.error('Failed to load saved auto refresh settings:', e)
@@ -865,8 +898,8 @@ const saveAutoRefreshToStorage = () => {
     localStorage.setItem(
       AUTO_REFRESH_STORAGE_KEY,
       JSON.stringify({
-        enabled: autoRefreshEnabled.value,
-        interval_seconds: autoRefreshIntervalSeconds.value
+        enabled: autoRefreshState.enabled,
+        interval_seconds: autoRefreshState.intervalSeconds
       })
     )
   } catch (e) {
@@ -880,22 +913,22 @@ if (typeof window !== 'undefined') {
 }
 
 const setAutoRefreshEnabled = (enabled: boolean) => {
-  autoRefreshEnabled.value = enabled
+  autoRefreshState.enabled = enabled
   saveAutoRefreshToStorage()
   if (enabled) {
-    autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
+    autoRefreshState.countdown = autoRefreshState.intervalSeconds
     resumeAutoRefresh()
   } else {
     pauseAutoRefresh()
-    autoRefreshCountdown.value = 0
+    autoRefreshState.countdown = 0
   }
 }
 
 const setAutoRefreshInterval = (seconds: (typeof autoRefreshIntervals)[number]) => {
-  autoRefreshIntervalSeconds.value = seconds
+  autoRefreshState.intervalSeconds = seconds
   saveAutoRefreshToStorage()
-  if (autoRefreshEnabled.value) {
-    autoRefreshCountdown.value = seconds
+  if (autoRefreshState.enabled) {
+    autoRefreshState.countdown = seconds
   }
 }
 
@@ -1214,7 +1247,7 @@ const isUngroupedGroupFilterActive = computed(() => {
 const hasUngroupedAccounts = computed(() => isUngroupedGroupFilterActive.value && pagination.total > 0)
 
 const clearAccountFilters = () => {
-  showFilterSummaryDetails.value = false
+  modalState.showFilterSummaryDetails = false
   Object.assign(params, {
     platform: '',
     tier: '',
@@ -1231,7 +1264,7 @@ const clearAccountFilters = () => {
 
 watch(activeFilterSummaryItems, (items) => {
   if (items.length === 0) {
-    showFilterSummaryDetails.value = false
+    modalState.showFilterSummaryDetails = false
   }
 })
 
@@ -1262,7 +1295,7 @@ useSwipeSelect(accountTableRef, {
 }, swipeVirtualContext)
 
 const resetAutoRefreshCache = () => {
-  autoRefreshETag.value = null
+  autoRefreshState.etag = null
 }
 
 const isFirstLoad = ref(true)
@@ -1271,7 +1304,7 @@ const load = async () => {
   const requestParams = params as any
   hasPendingListSync.value = false
   resetAutoRefreshCache()
-  pendingTodayStatsRefresh.value = false
+  todayStatsState.pendingRefresh = false
   if (isFirstLoad.value) {
     requestParams.lite = '1'
   }
@@ -1286,7 +1319,7 @@ const load = async () => {
 const reload = async () => {
   hasPendingListSync.value = false
   resetAutoRefreshCache()
-  pendingTodayStatsRefresh.value = false
+  todayStatsState.pendingRefresh = false
   await baseReload()
   await refreshTodayStatsBatch()
 }
@@ -1294,21 +1327,21 @@ const reload = async () => {
 const debouncedReload = () => {
   hasPendingListSync.value = false
   resetAutoRefreshCache()
-  pendingTodayStatsRefresh.value = true
+  todayStatsState.pendingRefresh = true
   baseDebouncedReload()
 }
 
 const handlePageChange = (page: number) => {
   hasPendingListSync.value = false
   resetAutoRefreshCache()
-  pendingTodayStatsRefresh.value = true
+  todayStatsState.pendingRefresh = true
   baseHandlePageChange(page)
 }
 
 const handlePageSizeChange = (size: number) => {
   hasPendingListSync.value = false
   resetAutoRefreshCache()
-  pendingTodayStatsRefresh.value = true
+  todayStatsState.pendingRefresh = true
   baseHandlePageSizeChange(size)
 }
 
@@ -1321,13 +1354,13 @@ const handleSort = (key: string, order: AccountSortOrder) => {
   pagination.page = 1
   hasPendingListSync.value = false
   resetAutoRefreshCache()
-  pendingTodayStatsRefresh.value = true
+  todayStatsState.pendingRefresh = true
   load()
 }
 
 watch(loading, (isLoading, wasLoading) => {
-  if (wasLoading && !isLoading && pendingTodayStatsRefresh.value) {
-    pendingTodayStatsRefresh.value = false
+  if (wasLoading && !isLoading && todayStatsState.pendingRefresh) {
+    todayStatsState.pendingRefresh = false
     refreshTodayStatsBatch().catch((error) => {
       console.error('Failed to refresh account today stats after table load:', error)
     })
@@ -1336,32 +1369,32 @@ watch(loading, (isLoading, wasLoading) => {
 
 const isAnyModalOpen = computed(() => {
   return (
-    showCreate.value ||
-    showEdit.value ||
-    showSync.value ||
-    showImportData.value ||
-    showDuplicateCheck.value ||
-    showExportDataDialog.value ||
-    showBulkEdit.value ||
-    showTempUnsched.value ||
-    showDeleteDialog.value ||
-    showReAuth.value ||
-    showTest.value ||
-    showBatchTest.value ||
-    showStats.value ||
-    showSchedulePanel.value ||
-    showErrorPassthrough.value ||
-    showTLSFingerprintProfiles.value
+    modalState.showCreate ||
+    modalState.showEdit ||
+    modalState.showSync ||
+    modalState.showImportData ||
+    modalState.showDuplicateCheck ||
+    modalState.showExportDataDialog ||
+    modalState.showBulkEdit ||
+    modalState.showTempUnsched ||
+    modalState.showDeleteDialog ||
+    modalState.showReAuth ||
+    modalState.showTest ||
+    modalState.showBatchTest ||
+    modalState.showStats ||
+    modalState.showSchedulePanel ||
+    modalState.showErrorPassthrough ||
+    modalState.showTLSFingerprintProfiles
   )
 })
 
 const enterAutoRefreshSilentWindow = () => {
-  autoRefreshSilentUntil.value = Date.now() + AUTO_REFRESH_SILENT_WINDOW_MS
-  autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
+  autoRefreshState.silentUntil = Date.now() + AUTO_REFRESH_SILENT_WINDOW_MS
+  autoRefreshState.countdown = autoRefreshState.intervalSeconds
 }
 
 const inAutoRefreshSilentWindow = () => {
-  return Date.now() < autoRefreshSilentUntil.value
+  return Date.now() < autoRefreshState.silentUntil
 }
 
 const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
@@ -1380,10 +1413,10 @@ const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
 }
 
 const syncAccountRefs = (nextAccount: Account) => {
-  if (edAcc.value?.id === nextAccount.id) edAcc.value = nextAccount
-  if (reAuthAcc.value?.id === nextAccount.id) reAuthAcc.value = nextAccount
-  if (tempUnschedAcc.value?.id === nextAccount.id) tempUnschedAcc.value = nextAccount
-  if (deletingAcc.value?.id === nextAccount.id) deletingAcc.value = nextAccount
+  if (modalData.edAcc?.id === nextAccount.id) modalData.edAcc = nextAccount
+  if (modalData.reAuthAcc?.id === nextAccount.id) modalData.reAuthAcc = nextAccount
+  if (modalData.tempUnschedAcc?.id === nextAccount.id) modalData.tempUnschedAcc = nextAccount
+  if (modalData.deletingAcc?.id === nextAccount.id) modalData.deletingAcc = nextAccount
   if (menu.acc?.id === nextAccount.id) menu.acc = nextAccount
 }
 
@@ -1418,18 +1451,18 @@ const mergeAccountsIncrementally = (nextRows: Account[]) => {
 }
 
 const refreshAccountsIncrementally = async () => {
-  if (autoRefreshFetching.value) return
-  autoRefreshFetching.value = true
+  if (autoRefreshState.fetching) return
+  autoRefreshState.fetching = true
   try {
     const result = await adminAPI.accounts.listWithEtag(
       pagination.page,
       pagination.page_size,
       buildAccountRequestFilters(toRaw(params) as Partial<AccountLocalFilterParams>),
-      { etag: autoRefreshETag.value }
+      { etag: autoRefreshState.etag }
     )
 
     if (result.etag) {
-      autoRefreshETag.value = result.etag
+      autoRefreshState.etag = result.etag
     }
     if (!result.notModified && result.data) {
       pagination.total = result.data.total || 0
@@ -1442,7 +1475,7 @@ const refreshAccountsIncrementally = async () => {
   } catch (error) {
     console.error('Auto refresh failed:', error)
   } finally {
-    autoRefreshFetching.value = false
+    autoRefreshState.fetching = false
   }
 }
 
@@ -1453,22 +1486,22 @@ const handleManualRefresh = async () => {
 }
 
 const closeAccountToolsDropdown = () => {
-  showAccountToolsDropdown.value = false
+  dropdownState.showAccountToolsDropdown = false
 }
 
 const openSyncFromCrs = () => {
   closeAccountToolsDropdown()
-  showSync.value = true
+  modalState.showSync = true
 }
 
 const openDuplicateCheck = () => {
   closeAccountToolsDropdown()
-  showDuplicateCheck.value = true
+  modalState.showDuplicateCheck = true
 }
 
 const openImportData = () => {
   closeAccountToolsDropdown()
-  showImportData.value = true
+  modalState.showImportData = true
 }
 
 const openExportDataDialogFromMenu = () => {
@@ -1478,12 +1511,12 @@ const openExportDataDialogFromMenu = () => {
 
 const openErrorPassthrough = () => {
   closeAccountToolsDropdown()
-  showErrorPassthrough.value = true
+  modalState.showErrorPassthrough = true
 }
 
 const openTLSFingerprintProfiles = () => {
   closeAccountToolsDropdown()
-  showTLSFingerprintProfiles.value = true
+  modalState.showTLSFingerprintProfiles = true
 }
 
 const syncPendingListChanges = async () => {
@@ -1498,35 +1531,35 @@ const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
     accountStatusNowMs.value = Date.now()
 
     const skipConditions = {
-      autoRefreshEnabled: autoRefreshEnabled.value,
+      enabled: autoRefreshState.enabled,
       documentHidden: document.hidden,
       loading: loading.value,
-      autoRefreshFetching: autoRefreshFetching.value,
+      fetching: autoRefreshState.fetching,
       isAnyModalOpen: isAnyModalOpen.value,
       menuShow: menu.show,
-      showAccountToolsDropdown: showAccountToolsDropdown.value,
-      showAutoRefreshDropdown: showAutoRefreshDropdown.value,
-      showColumnSettingsDropdown: showColumnSettingsDropdown.value,
+      showAccountToolsDropdown: dropdownState.showAccountToolsDropdown,
+      showAutoRefreshDropdown: dropdownState.showAutoRefreshDropdown,
+      showColumnSettingsDropdown: dropdownState.showColumnSettingsDropdown,
       inSilentWindow: inAutoRefreshSilentWindow()
     }
 
     if (shouldSkipAutoRefresh(skipConditions)) {
       if (skipConditions.inSilentWindow) {
-        autoRefreshCountdown.value = calculateSilentWindowCountdown(
-          autoRefreshSilentUntil.value,
+        autoRefreshState.countdown = calculateSilentWindowCountdown(
+          autoRefreshState.silentUntil,
           Date.now()
         )
       }
       return
     }
 
-    if (autoRefreshCountdown.value <= 0) {
-      autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
+    if (autoRefreshState.countdown <= 0) {
+      autoRefreshState.countdown = autoRefreshState.intervalSeconds
       await refreshAccountsIncrementally()
       return
     }
 
-    autoRefreshCountdown.value -= 1
+    autoRefreshState.countdown -= 1
   },
   1000,
   { immediate: false }
@@ -1638,7 +1671,7 @@ const cols = computed(() =>
   )
 )
 
-const handleEdit = (a: Account) => { edAcc.value = a; showEdit.value = true }
+const handleEdit = (a: Account) => { modalData.edAcc = a; modalState.showEdit = true }
 const openMenu = (a: Account, e: MouseEvent) => {
   menu.acc = a
 
@@ -1947,15 +1980,15 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
   }
 }
 const openBulkEditSelected = () => {
-  showBulkEdit.value = true
+  modalState.showBulkEdit = true
 }
 
 const handleBulkUpdated = () => {
-  showBulkEdit.value = false
+  modalState.showBulkEdit = false
   clearSelection()
   reload()
 }
-const handleDataImported = () => { showImportData.value = false; reload() }
+const handleDataImported = () => { modalState.showImportData = false; reload() }
 
 const accountMatchesCurrentFilters = (account: Account) => {
   void accountStatusNowMs.value
@@ -2032,18 +2065,18 @@ const formatExportTimestamp = () => {
   return `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`
 }
 const openExportDataDialog = () => {
-  includeProxyOnExport.value = true
-  showExportDataDialog.value = true
+  modalData.includeProxyOnExport = true
+  modalState.showExportDataDialog = true
 }
 const handleExportData = async () => {
-  if (exportingData.value) return
-  exportingData.value = true
+  if (modalData.exportingData) return
+  modalData.exportingData = true
   try {
     const dataPayload = await adminAPI.accounts.exportData(
       selIds.value.length > 0
-        ? { ids: selIds.value, includeProxies: includeProxyOnExport.value }
+        ? { ids: selIds.value, includeProxies: modalData.includeProxyOnExport }
         : {
-            includeProxies: includeProxyOnExport.value,
+            includeProxies: modalData.includeProxyOnExport,
             filters: buildAccountRequestFilters(params as AccountLocalFilterParams)
           }
     )
@@ -2060,15 +2093,15 @@ const handleExportData = async () => {
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.dataExportFailed'))
   } finally {
-    exportingData.value = false
-    showExportDataDialog.value = false
+    modalData.exportingData = false
+    modalState.showExportDataDialog = false
   }
 }
-const closeTestModal = () => { showTest.value = false; testingAcc.value = null }
+const closeTestModal = () => { modalState.showTest = false; modalData.testingAcc = null }
 const resetBatchTestDeleteState = () => {
-  batchTestDeleteQueue.value = []
-  batchTestDeleteSucceededIds.value = new Set()
-  batchTestDeleteFailedIds.value = new Set()
+  batchTestState.deleteQueue = []
+  batchTestState.deleteSucceededIds = new Set()
+  batchTestState.deleteFailedIds = new Set()
   batchTestDeleteDrainPromise = null
 }
 
@@ -2077,22 +2110,22 @@ const ensureBatchTestDeleteQueueDrain = () => {
 
   batchTestDeleteDrainPromise = drainBatchTestDeleteQueue().finally(() => {
     batchTestDeleteDrainPromise = null
-    if (batchTestDeleteQueue.value.length > 0) {
+    if (batchTestState.deleteQueue.length > 0) {
       ensureBatchTestDeleteQueueDrain()
     }
   })
 }
 
 const drainBatchTestDeleteQueue = async () => {
-  while (batchTestDeleteQueue.value.length > 0) {
-    const accountId = batchTestDeleteQueue.value.shift()
+  while (batchTestState.deleteQueue.length > 0) {
+    const accountId = batchTestState.deleteQueue.shift()
     if (accountId == null) continue
     try {
       await adminAPI.accounts.delete(accountId)
-      batchTestDeleteSucceededIds.value.add(accountId)
+      batchTestState.deleteSucceededIds.add(accountId)
       removeSelectedAccounts([accountId])
     } catch (error) {
-      batchTestDeleteFailedIds.value.add(accountId)
+      batchTestState.deleteFailedIds.add(accountId)
       console.error(`Failed to auto-delete 401 account ${accountId}:`, error)
     }
   }
@@ -2100,20 +2133,20 @@ const drainBatchTestDeleteQueue = async () => {
 
 const enqueueBatchTestDelete = (accountId: number) => {
   if (
-    batchTestDeleteSucceededIds.value.has(accountId) ||
-    batchTestDeleteFailedIds.value.has(accountId) ||
-    batchTestDeleteQueue.value.includes(accountId)
+    batchTestState.deleteSucceededIds.has(accountId) ||
+    batchTestState.deleteFailedIds.has(accountId) ||
+    batchTestState.deleteQueue.includes(accountId)
   ) {
     return
   }
 
-  batchTestDeleteQueue.value.push(accountId)
+  batchTestState.deleteQueue.push(accountId)
   ensureBatchTestDeleteQueueDrain()
 }
 
 const waitForBatchTestDeleteQueueIdle = async () => {
-  while (batchTestDeleteDrainPromise || batchTestDeleteQueue.value.length > 0) {
-    if (!batchTestDeleteDrainPromise && batchTestDeleteQueue.value.length > 0) {
+  while (batchTestDeleteDrainPromise || batchTestState.deleteQueue.length > 0) {
+    if (!batchTestDeleteDrainPromise && batchTestState.deleteQueue.length > 0) {
       ensureBatchTestDeleteQueueDrain()
       continue
     }
@@ -2122,14 +2155,14 @@ const waitForBatchTestDeleteQueueIdle = async () => {
 }
 
 const closeBatchTestModal = () => {
-  showBatchTest.value = false
-  showBatchTestSource.value = 'selected'
-  modalBatchTestTargets.value = []
+  modalState.showBatchTest = false
+  batchTestState.showBatchTestSource = 'selected'
+  batchTestState.modalBatchTestTargets = []
   resetBatchTestDeleteState()
 }
-const closeStatsModal = () => { showStats.value = false; statsAcc.value = null }
-const closeReAuthModal = () => { showReAuth.value = false; reAuthAcc.value = null }
-const handleTest = (a: Account) => { testingAcc.value = a; showTest.value = true }
+const closeStatsModal = () => { modalState.showStats = false; modalData.statsAcc = null }
+const closeReAuthModal = () => { modalState.showReAuth = false; modalData.reAuthAcc = null }
+const handleTest = (a: Account) => { modalData.testingAcc = a; modalState.showTest = true }
 
 const normalizeUngroupedBatchTestLimit = (value: number) => {
   if (!Number.isFinite(value)) return defaultUngroupedBatchTestLimit
@@ -2137,7 +2170,7 @@ const normalizeUngroupedBatchTestLimit = (value: number) => {
 }
 
 const updateUngroupedBatchTestLimit = (value: number) => {
-  ungroupedBatchTestLimit.value = normalizeUngroupedBatchTestLimit(value)
+  batchTestState.ungroupedBatchTestLimit = normalizeUngroupedBatchTestLimit(value)
 }
 
 const loadFilteredBatchTestTargets = async (limit: number): Promise<BatchTestTarget[]> => {
@@ -2171,29 +2204,29 @@ const loadFilteredBatchTestTargets = async (limit: number): Promise<BatchTestTar
 const openBatchTest = () => {
   if (selIds.value.length === 0) return
   resetBatchTestDeleteState()
-  showBatchTestSource.value = 'selected'
-  modalBatchTestTargets.value = [...batchTestTargets.value]
-  showBatchTest.value = true
+  batchTestState.showBatchTestSource = 'selected'
+  batchTestState.modalBatchTestTargets = [...batchTestTargets.value]
+  modalState.showBatchTest = true
 }
 const openUngroupedBatchTest = async () => {
-  if (loadingUngroupedBatchTargets.value || !hasUngroupedAccounts.value) return
+  if (batchTestState.loadingUngroupedBatchTargets || !hasUngroupedAccounts.value) return
 
-  loadingUngroupedBatchTargets.value = true
+  batchTestState.loadingUngroupedBatchTargets = true
   try {
     resetBatchTestDeleteState()
-    const targets = await loadFilteredBatchTestTargets(ungroupedBatchTestLimit.value)
+    const targets = await loadFilteredBatchTestTargets(batchTestState.ungroupedBatchTestLimit)
     if (targets.length === 0) {
       appStore.showInfo(t('admin.accounts.batchTest.noAccountsToTest'))
       return
     }
-    showBatchTestSource.value = 'ungrouped'
-    modalBatchTestTargets.value = targets
-    showBatchTest.value = true
+    batchTestState.showBatchTestSource = 'ungrouped'
+    batchTestState.modalBatchTestTargets = targets
+    modalState.showBatchTest = true
   } catch (error: any) {
     console.error('Failed to load filtered batch test targets:', error)
     appStore.showError(error?.message || t('admin.accounts.batchTest.loadTargetsFailed'))
   } finally {
-    loadingUngroupedBatchTargets.value = false
+    batchTestState.loadingUngroupedBatchTargets = false
   }
 }
 const handleBatchTestCompleted = async (result: {
@@ -2211,10 +2244,10 @@ const handleBatchTestCompleted = async (result: {
   await waitForBatchTestDeleteQueueIdle()
 
   const deleted401Ids = new Set(
-    unauthorized401Ids.filter(id => batchTestDeleteSucceededIds.value.has(id))
+    unauthorized401Ids.filter(id => batchTestState.deleteSucceededIds.has(id))
   )
   const deleteFailed401Ids = new Set(
-    unauthorized401Ids.filter(id => batchTestDeleteFailedIds.value.has(id))
+    unauthorized401Ids.filter(id => batchTestState.deleteFailedIds.has(id))
   )
   const remainingFailedIds = result.failedIds.filter(id => !deleted401Ids.has(id))
 
@@ -2242,20 +2275,20 @@ const handleBatchTestCompleted = async (result: {
 
   await reload()
 }
-const handleViewStats = (a: Account) => { statsAcc.value = a; showStats.value = true }
+const handleViewStats = (a: Account) => { modalData.statsAcc = a; modalState.showStats = true }
 const handleSchedule = async (a: Account) => {
-  scheduleAcc.value = a
-  scheduleModelOptions.value = []
-  showSchedulePanel.value = true
+  modalData.scheduleAcc = a
+  modalData.scheduleModelOptions = []
+  modalState.showSchedulePanel = true
   try {
     const models = await adminAPI.accounts.getAvailableModels(a.id)
-    scheduleModelOptions.value = models.map((m: ClaudeModel) => ({ value: m.id, label: m.display_name || m.id }))
+    modalData.scheduleModelOptions = models.map((m: ClaudeModel) => ({ value: m.id, label: m.display_name || m.id }))
   } catch {
-    scheduleModelOptions.value = []
+    modalData.scheduleModelOptions = []
   }
 }
-const closeSchedulePanel = () => { showSchedulePanel.value = false; scheduleAcc.value = null; scheduleModelOptions.value = [] }
-const handleReAuth = (a: Account) => { reAuthAcc.value = a; showReAuth.value = true }
+const closeSchedulePanel = () => { modalState.showSchedulePanel = false; modalData.scheduleAcc = null; modalData.scheduleModelOptions = [] }
+const handleReAuth = (a: Account) => { modalData.reAuthAcc = a; modalState.showReAuth = true }
 const handleRefresh = async (a: Account) => {
   try {
     const updated = await adminAPI.accounts.refreshCredentials(a.id)
@@ -2297,8 +2330,8 @@ const handleSetPrivacy = async (a: Account) => {
     appStore.showError(error?.response?.data?.message || t('admin.accounts.privacyFailed'))
   }
 }
-const handleDelete = (a: Account) => { deletingAcc.value = a; showDeleteDialog.value = true }
-const confirmDelete = async () => { if(!deletingAcc.value) return; try { await adminAPI.accounts.delete(deletingAcc.value.id); showDeleteDialog.value = false; deletingAcc.value = null; reload() } catch (error) { console.error('Failed to delete account:', error) } }
+const handleDelete = (a: Account) => { modalData.deletingAcc = a; modalState.showDeleteDialog = true }
+const confirmDelete = async () => { if(!modalData.deletingAcc) return; try { await adminAPI.accounts.delete(modalData.deletingAcc.id); modalState.showDeleteDialog = false; modalData.deletingAcc = null; reload() } catch (error) { console.error('Failed to delete account:', error) } }
 const handleToggleSchedulable = async (a: Account) => {
   const nextSchedulable = !a.schedulable
   togglingSchedulable.value = a.id
@@ -2313,10 +2346,10 @@ const handleToggleSchedulable = async (a: Account) => {
     togglingSchedulable.value = null
   }
 }
-const handleShowTempUnsched = (a: Account) => { tempUnschedAcc.value = a; showTempUnsched.value = true }
+const handleShowTempUnsched = (a: Account) => { modalData.tempUnschedAcc = a; modalState.showTempUnsched = true }
 const handleTempUnschedReset = async (updated: Account) => {
-  showTempUnsched.value = false
-  tempUnschedAcc.value = null
+  modalState.showTempUnsched = false
+  modalData.tempUnschedAcc = null
   patchAccountInList(updated)
   enterAutoRefreshSilentWindow()
 }
@@ -2371,15 +2404,49 @@ const handleScroll = () => {
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
   if (accountToolsDropdownRef.value && !accountToolsDropdownRef.value.contains(target)) {
-    showAccountToolsDropdown.value = false
+    dropdownState.showAccountToolsDropdown = false
   }
   if (autoRefreshDropdownRef.value && !autoRefreshDropdownRef.value.contains(target)) {
-    showAutoRefreshDropdown.value = false
+    dropdownState.showAutoRefreshDropdown = false
   }
   if (columnSettingsDropdownRef.value && !columnSettingsDropdownRef.value.contains(target)) {
-    showColumnSettingsDropdown.value = false
+    dropdownState.showColumnSettingsDropdown = false
   }
 }
+
+// 键盘快捷键
+useKeyboardShortcuts({
+  searchInputRef,
+  onRefresh: () => {
+    if (!isAnyModalOpen.value) {
+      handleManualRefresh()
+    }
+  },
+  onSelectAll: () => {
+    if (!isAnyModalOpen.value && accounts.value.length > 0) {
+      selectPage()
+    }
+  },
+  onClearSelection: () => {
+    if (!isAnyModalOpen.value && selIds.value.length > 0) {
+      clearSelection()
+    }
+  },
+  onDelete: () => {
+    if (!isAnyModalOpen.value && selIds.value.length > 0) {
+      handleBulkDelete()
+    }
+  },
+  onEscape: () => {
+    if (selIds.value.length > 0) {
+      clearSelection()
+    }
+    if (menu.show) {
+      menu.show = false
+    }
+  },
+  disabled: computed(() => isAnyModalOpen.value && selIds.value.length === 0)
+})
 
 onMounted(async () => {
   load()
@@ -2394,8 +2461,8 @@ onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
   resumeAccountStatusClock()
 
-  if (autoRefreshEnabled.value) {
-    autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
+  if (autoRefreshState.enabled) {
+    autoRefreshState.countdown = autoRefreshState.intervalSeconds
     resumeAutoRefresh()
   } else {
     pauseAutoRefresh()
