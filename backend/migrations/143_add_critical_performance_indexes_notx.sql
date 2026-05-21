@@ -1,4 +1,4 @@
--- Migration: 143_add_critical_performance_indexes
+-- Migration: 143_add_critical_performance_indexes_notx
 -- Purpose: 添加 5 个关键性能索引，优化高频查询路径
 -- Priority: HIGH - 解决数据库审查发现的性能瓶颈
 -- Reference: DATABASE_REVIEW.md
