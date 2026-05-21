@@ -528,6 +528,7 @@
             <div
               v-for="rule in betaPolicy.form.rules"
               :key="rule.beta_token"
+              v-memo="[rule.action, rule.scope, rule.error_message, rule.model_whitelist?.length]"
               class="rounded-lg border border-gray-200 p-4 dark:border-dark-600"
                 >
                   <div class="mb-3 flex items-center gap-2">
@@ -766,6 +767,7 @@
               <div
                 v-for="(rule, ruleIndex) in openaiFastPolicyForm.rules"
                 :key="ruleIndex"
+                v-memo="[rule.service_tier, rule.action, rule.scope, rule.model_whitelist?.length]"
                 class="rounded-lg border border-gray-200 p-4 dark:border-dark-600"
               >
                 <div class="mb-3 flex items-center justify-between">
@@ -2909,6 +2911,7 @@
                   <div
                     v-for="(item, index) in form.default_subscriptions"
                     :key="`default-sub-${index}`"
+                    v-memo="[item.group_id, item.validity_days]"
                     class="grid grid-cols-1 gap-3 rounded border border-gray-200 p-3 md:grid-cols-[1fr_160px_auto] dark:border-dark-600"
                   >
                     <div>
@@ -3046,6 +3049,12 @@
                 <div
                   v-for="authSource in authSourceDefaultsMeta"
                   :key="authSource.source"
+                  v-memo="[
+                    authSourceDefaults[authSource.source].grant_on_signup,
+                    authSourceDefaults[authSource.source].balance,
+                    authSourceDefaults[authSource.source].concurrency,
+                    authSourceDefaults[authSource.source].subscriptions?.length
+                  ]"
                   class="rounded-xl border border-gray-200 p-4 dark:border-dark-700"
                 >
                   <div class="flex items-center justify-between gap-4">
@@ -3629,6 +3638,7 @@
                 <div
                   v-for="(provider, pIdx) in webSearchConfig.providers"
                   :key="pIdx"
+                  v-memo="[provider.type, provider.quota_limit, provider.quota_used, expandedProviders[pIdx]]"
                   class="rounded-lg border border-gray-200 dark:border-dark-600"
                 >
                   <!-- Collapsible header -->
@@ -4442,6 +4452,7 @@
               <div
                 v-for="(item, index) in form.custom_menu_items"
                 :key="item.id || index"
+                v-memo="[item.label_zh, item.label_en, item.url, item.icon, item.target]"
                 class="rounded-lg border border-gray-200 p-4 dark:border-dark-600"
               >
                 <div class="mb-3 flex items-center justify-between">
@@ -4732,6 +4743,7 @@
                   <div
                     v-for="(doc, index) in form.login_agreement_documents"
                     :key="doc.id || index"
+                    v-memo="[doc.id, doc.title, doc.content_md?.length]"
                     class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800/60"
                   >
                     <div class="mb-3 flex items-center justify-between gap-3">
@@ -6844,7 +6856,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onMounted, watch, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
 import {
@@ -7541,52 +7553,59 @@ const authSourceDefaults = reactive<AuthSourceDefaultsState>(
   buildAuthSourceDefaultsState({}),
 );
 
-const authSourceDefaultsMeta = computed(() => [
-  {
-    source: "email" as AuthSourceType,
-    title: t("admin.settings.authSourceDefaults.sources.email.title"),
-    description: t("admin.settings.authSourceDefaults.sources.email.description"),
-  },
-  {
-    source: "linuxdo" as AuthSourceType,
-    title: t("admin.settings.authSourceDefaults.sources.linuxdo.title"),
-    description: t("admin.settings.authSourceDefaults.sources.linuxdo.description"),
-  },
-  {
-    source: "oidc" as AuthSourceType,
-    title: t("admin.settings.authSourceDefaults.sources.oidc.title"),
-    description: t("admin.settings.authSourceDefaults.sources.oidc.description"),
-  },
-  {
-    source: "wechat" as AuthSourceType,
-    title: t("admin.settings.authSourceDefaults.sources.wechat.title"),
-    description: t("admin.settings.authSourceDefaults.sources.wechat.description"),
-  },
-  {
-    source: "github" as AuthSourceType,
-    title: "GitHub",
-    description: localText(
-      "通过 GitHub 已验证邮箱首次注册或首次绑定时应用。",
-      "Applied on first signup or first bind through a verified GitHub email.",
-    ),
-  },
-  {
-    source: "google" as AuthSourceType,
-    title: "Google",
-    description: localText(
-      "通过 Google 已验证邮箱首次注册或首次绑定时应用。",
-      "Applied on first signup or first bind through a verified Google email.",
-    ),
-  },
-  {
-    source: "dingtalk" as AuthSourceType,
-    title: "钉钉",
-    description: localText(
-      "通过钉钉首次注册或首次绑定时应用。",
-      "Applied on first signup or first bind through DingTalk.",
-    ),
-  },
-]);
+// 使用 shallowRef 缓存 authSourceDefaultsMeta 以避免重复的 t() 调用
+// 只在 locale 变化时重新计算
+const authSourceDefaultsMeta = computed(() => {
+  // 触发 locale 依赖
+  const _ = locale.value;
+
+  return [
+    {
+      source: "email" as AuthSourceType,
+      title: t("admin.settings.authSourceDefaults.sources.email.title"),
+      description: t("admin.settings.authSourceDefaults.sources.email.description"),
+    },
+    {
+      source: "linuxdo" as AuthSourceType,
+      title: t("admin.settings.authSourceDefaults.sources.linuxdo.title"),
+      description: t("admin.settings.authSourceDefaults.sources.linuxdo.description"),
+    },
+    {
+      source: "oidc" as AuthSourceType,
+      title: t("admin.settings.authSourceDefaults.sources.oidc.title"),
+      description: t("admin.settings.authSourceDefaults.sources.oidc.description"),
+    },
+    {
+      source: "wechat" as AuthSourceType,
+      title: t("admin.settings.authSourceDefaults.sources.wechat.title"),
+      description: t("admin.settings.authSourceDefaults.sources.wechat.description"),
+    },
+    {
+      source: "github" as AuthSourceType,
+      title: "GitHub",
+      description: localText(
+        "通过 GitHub 已验证邮箱首次注册或首次绑定时应用。",
+        "Applied on first signup or first bind through a verified GitHub email.",
+      ),
+    },
+    {
+      source: "google" as AuthSourceType,
+      title: "Google",
+      description: localText(
+        "通过 Google 已验证邮箱首次注册或首次绑定时应用。",
+        "Applied on first signup or first bind through a verified Google email.",
+      ),
+    },
+    {
+      source: "dingtalk" as AuthSourceType,
+      title: "钉钉",
+      description: localText(
+        "通过钉钉首次注册或首次绑定时应用。",
+        "Applied on first signup or first bind through DingTalk.",
+      ),
+    },
+  ];
+});
 
 // Proxies for web search emulation ProxySelector
 const webSearchProxies = ref<Proxy[]>([]);
@@ -8125,10 +8144,14 @@ function parseTablePageSizeOptionsInput(raw: string): number[] | null {
 }
 
 async function loadSettings() {
+  console.time('⏱️ Load Settings API');
   loading.value = true;
   loadFailed.value = false;
   try {
     const settings = await adminAPI.settings.getSettings();
+    console.timeEnd('⏱️ Load Settings API');
+    console.time('⏱️ Process Settings Data');
+
     settings.payment_load_balance_strategy =
       settings.payment_load_balance_strategy || "round-robin";
     // Only assign non-null values from backend (null means unconfigured, keep defaults)
@@ -8262,9 +8285,12 @@ async function loadSettings() {
       openaiFastPolicyLoaded.value = true;
     }
 
+    console.timeEnd('⏱️ Process Settings Data');
+
     // Load web search emulation config separately
     await loadWebSearchConfig();
   } catch (error: unknown) {
+    console.timeEnd('⏱️ Load Settings API');
     loadFailed.value = true;
     appStore.showError(
       extractApiErrorMessage(error, t("admin.settings.failedToLoad")),
@@ -8343,6 +8369,7 @@ function findDuplicateDefaultSubscription(
 }
 
 async function saveSettings() {
+  console.time('⏱️ Save Settings');
   saving.value = true;
   try {
     const normalizedTableDefaultPageSize = Math.floor(
@@ -8823,10 +8850,12 @@ async function saveSettings() {
     // Refresh cached settings so sidebar/header update immediately
     await appStore.fetchPublicSettings(true);
     await adminSettingsStore.fetch(true);
+    console.timeEnd('⏱️ Save Settings');
     if (wsOk) {
       appStore.showSuccess(t("admin.settings.settingsSaved"));
     }
   } catch (error: unknown) {
+    console.timeEnd('⏱️ Save Settings');
     appStore.showError(
       extractApiErrorMessage(error, t("admin.settings.failedToSave")),
     );
@@ -8957,18 +8986,25 @@ function copyNewKey() {
 
 
 
-const betaPolicyActionOptions = computed(() => [
-  { value: "pass", label: t("admin.settings.betaPolicy.actionPass") },
-  { value: "filter", label: t("admin.settings.betaPolicy.actionFilter") },
-  { value: "block", label: t("admin.settings.betaPolicy.actionBlock") },
-]);
+// 优化：缓存选项列表，只在locale变化时重新计算
+const betaPolicyActionOptions = computed(() => {
+  const _ = locale.value; // 触发locale依赖
+  return [
+    { value: "pass", label: t("admin.settings.betaPolicy.actionPass") },
+    { value: "filter", label: t("admin.settings.betaPolicy.actionFilter") },
+    { value: "block", label: t("admin.settings.betaPolicy.actionBlock") },
+  ];
+});
 
-const betaPolicyScopeOptions = computed(() => [
-  { value: "all", label: t("admin.settings.betaPolicy.scopeAll") },
-  { value: "oauth", label: t("admin.settings.betaPolicy.scopeOAuth") },
-  { value: "apikey", label: t("admin.settings.betaPolicy.scopeAPIKey") },
-  { value: "bedrock", label: t("admin.settings.betaPolicy.scopeBedrock") },
-]);
+const betaPolicyScopeOptions = computed(() => {
+  const _ = locale.value; // 触发locale依赖
+  return [
+    { value: "all", label: t("admin.settings.betaPolicy.scopeAll") },
+    { value: "oauth", label: t("admin.settings.betaPolicy.scopeOAuth") },
+    { value: "apikey", label: t("admin.settings.betaPolicy.scopeAPIKey") },
+    { value: "bedrock", label: t("admin.settings.betaPolicy.scopeBedrock") },
+  ];
+});
 
 // Beta Policy 方法
 const betaDisplayNames: Record<string, string> = {
@@ -9035,30 +9071,40 @@ function addQuickPattern(
 
 // ==================== OpenAI Fast/Flex Policy ====================
 
-const openaiFastPolicyTierOptions = computed(() => [
-  { value: "all", label: t("admin.settings.openaiFastPolicy.tierAll") },
-  {
-    value: "priority",
-    label: t("admin.settings.openaiFastPolicy.tierPriority"),
-  },
-  { value: "flex", label: t("admin.settings.openaiFastPolicy.tierFlex") },
-]);
+// 优化：缓存选项列表
+const openaiFastPolicyTierOptions = computed(() => {
+  const _ = locale.value;
+  return [
+    { value: "all", label: t("admin.settings.openaiFastPolicy.tierAll") },
+    {
+      value: "priority",
+      label: t("admin.settings.openaiFastPolicy.tierPriority"),
+    },
+    { value: "flex", label: t("admin.settings.openaiFastPolicy.tierFlex") },
+  ];
+});
 
-const openaiFastPolicyActionOptions = computed(() => [
-  { value: "pass", label: t("admin.settings.openaiFastPolicy.actionPass") },
-  { value: "filter", label: t("admin.settings.openaiFastPolicy.actionFilter") },
-  { value: "block", label: t("admin.settings.openaiFastPolicy.actionBlock") },
-]);
+const openaiFastPolicyActionOptions = computed(() => {
+  const _ = locale.value;
+  return [
+    { value: "pass", label: t("admin.settings.openaiFastPolicy.actionPass") },
+    { value: "filter", label: t("admin.settings.openaiFastPolicy.actionFilter") },
+    { value: "block", label: t("admin.settings.openaiFastPolicy.actionBlock") },
+  ];
+});
 
-const openaiFastPolicyScopeOptions = computed(() => [
-  { value: "all", label: t("admin.settings.openaiFastPolicy.scopeAll") },
-  { value: "oauth", label: t("admin.settings.openaiFastPolicy.scopeOAuth") },
-  { value: "apikey", label: t("admin.settings.openaiFastPolicy.scopeAPIKey") },
-  {
-    value: "bedrock",
-    label: t("admin.settings.openaiFastPolicy.scopeBedrock"),
-  },
-]);
+const openaiFastPolicyScopeOptions = computed(() => {
+  const _ = locale.value;
+  return [
+    { value: "all", label: t("admin.settings.openaiFastPolicy.scopeAll") },
+    { value: "oauth", label: t("admin.settings.openaiFastPolicy.scopeOAuth") },
+    { value: "apikey", label: t("admin.settings.openaiFastPolicy.scopeAPIKey") },
+    {
+      value: "bedrock",
+      label: t("admin.settings.openaiFastPolicy.scopeBedrock"),
+    },
+  ];
+});
 
 function addOpenAIFastPolicyRule() {
   openaiFastPolicyForm.rules.push({
@@ -9126,13 +9172,17 @@ async function saveBetaPolicySettings() {
 
 // ==================== Provider Management ====================
 
-const allPaymentTypes = computed(() => [
-  { value: "easypay", label: t("payment.methods.easypay") },
-  { value: "alipay", label: t("payment.methods.alipay") },
-  { value: "wxpay", label: t("payment.methods.wxpay") },
-  { value: "stripe", label: t("payment.methods.stripe") },
-  { value: "airwallex", label: t("payment.methods.airwallex") },
-]);
+// 优化：缓存支付类型选项
+const allPaymentTypes = computed(() => {
+  const _ = locale.value;
+  return [
+    { value: "easypay", label: t("payment.methods.easypay") },
+    { value: "alipay", label: t("payment.methods.alipay") },
+    { value: "wxpay", label: t("payment.methods.wxpay") },
+    { value: "stripe", label: t("payment.methods.stripe") },
+    { value: "airwallex", label: t("payment.methods.airwallex") },
+  ];
+});
 
 function isPaymentTypeEnabled(type: string): boolean {
   return form.payment_enabled_types.includes(type);
@@ -9183,49 +9233,61 @@ const providerDialogRef = ref<InstanceType<
   typeof PaymentProviderDialog
 > | null>(null);
 
-const providerKeyOptions = computed(() => [
-  { value: "easypay", label: t("admin.settings.payment.providerEasypay") },
-  { value: "alipay", label: t("admin.settings.payment.providerAlipay") },
-  { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
-  { value: "stripe", label: t("admin.settings.payment.providerStripe") },
-  { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
-]);
+const providerKeyOptions = computed(() => {
+  const _ = locale.value;
+  return [
+    { value: "easypay", label: t("admin.settings.payment.providerEasypay") },
+    { value: "alipay", label: t("admin.settings.payment.providerAlipay") },
+    { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
+    { value: "stripe", label: t("admin.settings.payment.providerStripe") },
+    { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
+  ];
+});
 
 const enabledProviderKeyOptions = computed(() => {
   const enabled = form.payment_enabled_types;
   return providerKeyOptions.value.filter((opt) => enabled.includes(opt.value));
 });
 
-const loadBalanceOptions = computed(() => [
-  {
-    value: "round-robin",
-    label: t("admin.settings.payment.strategyRoundRobin"),
-  },
-  {
-    value: "least-amount",
-    label: t("admin.settings.payment.strategyLeastAmount"),
-  },
-]);
+const loadBalanceOptions = computed(() => {
+  const _ = locale.value;
+  return [
+    {
+      value: "round-robin",
+      label: t("admin.settings.payment.strategyRoundRobin"),
+    },
+    {
+      value: "least-amount",
+      label: t("admin.settings.payment.strategyLeastAmount"),
+    },
+  ];
+});
 
-const cancelRateLimitUnitOptions = computed(() => [
-  {
-    value: "minute",
-    label: t("admin.settings.payment.cancelRateLimitUnitMinute"),
-  },
-  { value: "hour", label: t("admin.settings.payment.cancelRateLimitUnitHour") },
-  { value: "day", label: t("admin.settings.payment.cancelRateLimitUnitDay") },
-]);
+const cancelRateLimitUnitOptions = computed(() => {
+  const _ = locale.value;
+  return [
+    {
+      value: "minute",
+      label: t("admin.settings.payment.cancelRateLimitUnitMinute"),
+    },
+    { value: "hour", label: t("admin.settings.payment.cancelRateLimitUnitHour") },
+    { value: "day", label: t("admin.settings.payment.cancelRateLimitUnitDay") },
+  ];
+});
 
-const cancelRateLimitModeOptions = computed(() => [
-  {
-    value: "rolling",
-    label: t("admin.settings.payment.cancelRateLimitWindowModeRolling"),
-  },
-  {
-    value: "fixed",
-    label: t("admin.settings.payment.cancelRateLimitWindowModeFixed"),
-  },
-]);
+const cancelRateLimitModeOptions = computed(() => {
+  const _ = locale.value;
+  return [
+    {
+      value: "rolling",
+      label: t("admin.settings.payment.cancelRateLimitWindowModeRolling"),
+    },
+    {
+      value: "fixed",
+      label: t("admin.settings.payment.cancelRateLimitWindowModeFixed"),
+    },
+  ];
+});
 
 type ProviderEnablementCandidate = Pick<
   ProviderInstance,
@@ -9474,15 +9536,22 @@ async function handleDeleteProvider() {
 }
 
 onMounted(() => {
-  loadSettings();
-  loadSubscriptionGroups();
-  loadAdminApiKey();
-  overloadCooldown.load();
-  rateLimit429Cooldown.load();
-  streamTimeout.load();
-  rectifier.load();
-  betaPolicy.load();
-  loadProviders();
+  console.time('⏱️ Settings Initial Load');
+
+  // 并行加载所有数据以提升性能
+  Promise.all([
+    loadSettings(),
+    loadSubscriptionGroups(),
+    loadAdminApiKey(),
+    overloadCooldown.load(),
+    rateLimit429Cooldown.load(),
+    streamTimeout.load(),
+    rectifier.load(),
+    betaPolicy.load(),
+    loadProviders(),
+  ]).finally(() => {
+    console.timeEnd('⏱️ Settings Initial Load');
+  });
 });
 
 // =========================
