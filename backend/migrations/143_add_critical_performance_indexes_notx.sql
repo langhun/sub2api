@@ -16,14 +16,13 @@ ON usage_logs(model, created_at DESC);
 -- 3. accounts 过期查询索引
 -- 优化场景：定时任务扫描过期账号、过期提醒
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_accounts_expired
-ON accounts(expired_at)
-WHERE deleted_at IS NULL AND expired_at IS NOT NULL;
+ON accounts(expires_at)
+WHERE deleted_at IS NULL AND expires_at IS NOT NULL;
 
--- 4. accounts 按组查询索引
+-- 4. account_groups 按组查询索引
 -- 优化场景：按分组筛选账号（账号管理、调度器）
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_accounts_group
-ON accounts(group_id, created_at DESC)
-WHERE deleted_at IS NULL;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_account_groups_group_created
+ON account_groups(group_id, created_at DESC);
 
 -- 5. proxy_subscriptions 刷新扫描索引
 -- 优化场景：定时任务扫描待刷新订阅
