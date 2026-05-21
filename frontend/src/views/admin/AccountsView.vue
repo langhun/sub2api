@@ -23,7 +23,8 @@
                 <button
                   @click="
                     showAutoRefreshDropdown = !showAutoRefreshDropdown;
-                    showAccountToolsDropdown = false
+                    showAccountToolsDropdown = false;
+                    showColumnSettingsDropdown = false
                   "
                   class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.accounts.autoRefresh')"
@@ -63,19 +64,51 @@
                 </div>
               </div>
 
-              <!-- More Tools Dropdown -->
+              <!-- Column Settings Dropdown -->
+              <div class="relative" ref="columnSettingsDropdownRef">
+                <button
+                  @click="
+                    showColumnSettingsDropdown = !showColumnSettingsDropdown;
+                    showAutoRefreshDropdown = false;
+                    showAccountToolsDropdown = false
+                  "
+                  class="btn btn-secondary btn-sm px-2 md:px-3"
+                  :title="t('admin.accounts.viewColumns')"
+                >
+                  <Icon name="grid" size="sm" />
+                  <span class="hidden md:inline">{{ t('admin.accounts.viewColumns') }}</span>
+                </button>
+                <div
+                  v-if="showColumnSettingsDropdown"
+                  class="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                >
+                  <div class="max-h-[70vh] overflow-y-auto p-2">
+                    <button
+                      v-for="col in toggleableColumns"
+                      :key="col.key"
+                      @click="toggleColumn(col.key)"
+                      class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      <span class="truncate">{{ col.label }}</span>
+                      <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="text-primary-500" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- More Actions Dropdown -->
               <div class="relative" ref="accountToolsDropdownRef">
                 <button
                   @click="
                     showAccountToolsDropdown = !showAccountToolsDropdown;
-                    showAutoRefreshDropdown = false
+                    showAutoRefreshDropdown = false;
+                    showColumnSettingsDropdown = false
                   "
                   class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.accounts.moreActions')"
                 >
-                  <Icon name="more" size="sm" class="md:mr-1.5" />
+                  <Icon name="more" size="sm" />
                   <span class="hidden md:inline">{{ t('admin.accounts.moreActions') }}</span>
-                  <Icon name="chevronDown" size="xs" class="ml-1 hidden md:inline" />
                 </button>
                 <div
                   v-if="showAccountToolsDropdown"
@@ -138,27 +171,6 @@
                       </span>
                       <span class="flex-1 text-left">{{ t('admin.tlsFingerprintProfiles.title') }}</span>
                     </button>
-
-                    <div class="my-2 border-t border-gray-100 dark:border-gray-700"></div>
-                    <div class="px-2 py-2">
-                      <div class="flex items-center justify-between gap-3">
-                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                          {{ t('admin.accounts.viewColumns') }}
-                        </span>
-                        <Icon name="grid" size="sm" class="text-gray-400" />
-                      </div>
-                    </div>
-                    <div class="grid grid-cols-1 gap-1">
-                      <button
-                        v-for="col in toggleableColumns"
-                        :key="col.key"
-                        @click="toggleColumn(col.key)"
-                        class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                      >
-                        <span class="truncate">{{ col.label }}</span>
-                        <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="text-primary-500" />
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -502,6 +514,7 @@ import { adminAPI } from '@/api/admin'
 import { useTableLoader } from '@/composables/useTableLoader'
 import { useSwipeSelect, type SwipeSelectVirtualContext } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
+import { useAccountBulkOperations } from '@/composables/useAccountBulkOperations'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -533,6 +546,20 @@ import {
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
 import { accountStatusNowMsKey } from '@/components/account/accountStatusClock'
+import {
+  matchesPlatform,
+  matchesType,
+  matchesTier,
+  matchesStatus,
+  matchesGroup,
+  matchesPrivacyMode,
+  matchesSearch,
+  getAntigravityTierFromAccount,
+  ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE,
+  ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE,
+  type StatusEvalOptions
+} from '@/utils/accountFilters'
+import { shouldSkipAutoRefresh, calculateSilentWindowCountdown } from '@/utils/autoRefreshHelpers'
 
 const CreateAccountModal = defineAsyncComponent(() => import('@/components/account/CreateAccountModal.vue'))
 const EditAccountModal = defineAsyncComponent(() => import('@/components/account/EditAccountModal.vue'))
@@ -552,6 +579,7 @@ const TLSFingerprintProfilesModal = defineAsyncComponent(() => import('@/compone
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const { operating: bulkOperating, handleBulkOperation } = useAccountBulkOperations()
 
 const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
@@ -616,6 +644,8 @@ let batchTestDeleteDrainPromise: Promise<void> | null = null
 // Account tools dropdown
 const showAccountToolsDropdown = ref(false)
 const accountToolsDropdownRef = ref<HTMLElement | null>(null)
+const showColumnSettingsDropdown = ref(false)
+const columnSettingsDropdownRef = ref<HTMLElement | null>(null)
 const hiddenColumns = reactive<Set<string>>(new Set())
 const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'priority', 'rate_multiplier']
 const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
@@ -1466,16 +1496,27 @@ const syncPendingListChanges = async () => {
 const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
   async () => {
     accountStatusNowMs.value = Date.now()
-    if (!autoRefreshEnabled.value) return
-    if (document.hidden) return
-    if (loading.value || autoRefreshFetching.value) return
-    if (isAnyModalOpen.value) return
-    if (menu.show || showAccountToolsDropdown.value || showAutoRefreshDropdown.value) return
-    if (inAutoRefreshSilentWindow()) {
-      autoRefreshCountdown.value = Math.max(
-        0,
-        Math.ceil((autoRefreshSilentUntil.value - Date.now()) / 1000)
-      )
+
+    const skipConditions = {
+      autoRefreshEnabled: autoRefreshEnabled.value,
+      documentHidden: document.hidden,
+      loading: loading.value,
+      autoRefreshFetching: autoRefreshFetching.value,
+      isAnyModalOpen: isAnyModalOpen.value,
+      menuShow: menu.show,
+      showAccountToolsDropdown: showAccountToolsDropdown.value,
+      showAutoRefreshDropdown: showAutoRefreshDropdown.value,
+      showColumnSettingsDropdown: showColumnSettingsDropdown.value,
+      inSilentWindow: inAutoRefreshSilentWindow()
+    }
+
+    if (shouldSkipAutoRefresh(skipConditions)) {
+      if (skipConditions.inSilentWindow) {
+        autoRefreshCountdown.value = calculateSilentWindowCountdown(
+          autoRefreshSilentUntil.value,
+          Date.now()
+        )
+      }
       return
     }
 
@@ -1491,37 +1532,8 @@ const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
   { immediate: false }
 )
 
-// Antigravity 订阅等级辅助函数
-function normalizeTierText(value: unknown): string {
-  if (typeof value !== 'string') return ''
-  return value.trim().toLowerCase().replace(/[\s-]+/g, '_')
-}
-
-function normalizeAntigravityPlanTier(value: unknown): string {
-  const tier = normalizeTierText(value)
-  if (tier === 'free' || tier === 'free_tier') return 'free-tier'
-  if (tier === 'pro' || tier === 'g1_pro_tier') return 'g1-pro-tier'
-  if (tier === 'ultra' || tier === 'g1_ultra_tier') return 'g1-ultra-tier'
-  return ''
-}
-
-function getAntigravityTierFromRow(row: any): string | null {
-  if (row.platform !== 'antigravity') return null
-  const planTier = normalizeAntigravityPlanTier(row.credentials?.plan_type)
-  if (planTier) return planTier
-  const extra = row.extra as Record<string, unknown> | undefined
-  if (!extra) return null
-  const lca = extra.load_code_assist as Record<string, unknown> | undefined
-  if (!lca) return null
-  const paid = lca.paidTier as Record<string, unknown> | undefined
-  if (paid && typeof paid.id === 'string') return paid.id
-  const current = lca.currentTier as Record<string, unknown> | undefined
-  if (current && typeof current.id === 'string') return current.id
-  return null
-}
-
 function getAntigravityTierLabel(row: any): string | null {
-  const tier = getAntigravityTierFromRow(row)
+  const tier = getAntigravityTierFromAccount(row)
   switch (tier) {
     case 'free-tier': return t('admin.accounts.tier.free')
     case 'g1-pro-tier': return t('admin.accounts.tier.pro')
@@ -1578,7 +1590,7 @@ function getOpenAICompactTitle(row: any): string {
 }
 
 function getAntigravityTierClass(row: any): string {
-  const tier = getAntigravityTierFromRow(row)
+  const tier = getAntigravityTierFromAccount(row)
   switch (tier) {
     case 'free-tier': return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
     case 'g1-pro-tier': return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
@@ -1682,110 +1694,155 @@ const toggleSelectAllVisible = (event: Event) => {
   const target = event.target as HTMLInputElement
   toggleVisible(target.checked)
 }
-const handleBulkDelete = async () => { if(!confirm(t('common.confirm'))) return; try { await Promise.all(selIds.value.map(id => adminAPI.accounts.delete(id))); clearSelection(); reload() } catch (error) { console.error('Failed to bulk delete accounts:', error) } }
-const handleBulkResetStatus = async () => {
-  if (!confirm(t('common.confirm'))) return
-  try {
-    const result = await adminAPI.accounts.batchClearError(selIds.value)
-    if (result.failed > 0) {
-      appStore.showError(t('admin.accounts.bulkActions.partialSuccess', { success: result.success, failed: result.failed }))
-    } else {
-      appStore.showSuccess(t('admin.accounts.bulkActions.resetStatusSuccess', { count: result.success }))
-      clearSelection()
+const handleBulkDelete = async () => {
+  await handleBulkOperation(
+    async () => {
+      await Promise.all(selIds.value.map(id => adminAPI.accounts.delete(id)))
+      return { success: selIds.value.length, failed: 0 }
+    },
+    {
+      confirmMessage: t('common.confirm'),
+      successMessage: t('admin.accounts.bulkActions.deleteSuccess', { count: selIds.value.length })
+    },
+    {
+      onSuccess: () => {
+        clearSelection()
+        reload()
+      }
     }
-    reload()
-  } catch (error) {
-    console.error('Failed to bulk reset status:', error)
-    appStore.showError(String(error))
-  }
+  )
+}
+const handleBulkResetStatus = async () => {
+  await handleBulkOperation(
+    () => adminAPI.accounts.batchClearError(selIds.value),
+    {
+      confirmMessage: t('common.confirm'),
+      successMessage: (result) => t('admin.accounts.bulkActions.resetStatusSuccess', { count: result.success })
+    },
+    {
+      onSuccess: () => {
+        clearSelection()
+        reload()
+      }
+    }
+  )
 }
 const handleBulkRefreshToken = async () => {
-  if (!confirm(t('common.confirm'))) return
-  try {
-    const result = await adminAPI.accounts.batchRefresh(selIds.value)
-    if (result.failed > 0) {
-      appStore.showError(t('admin.accounts.bulkActions.partialSuccess', { success: result.success, failed: result.failed }))
-    } else {
-      appStore.showSuccess(t('admin.accounts.bulkActions.refreshTokenSuccess', { count: result.success }))
-      clearSelection()
+  await handleBulkOperation(
+    () => adminAPI.accounts.batchRefresh(selIds.value),
+    {
+      confirmMessage: t('common.confirm'),
+      successMessage: (result) => t('admin.accounts.bulkActions.refreshTokenSuccess', { count: result.success })
+    },
+    {
+      onSuccess: () => {
+        clearSelection()
+        reload()
+      }
     }
-    reload()
-  } catch (error) {
-    console.error('Failed to bulk refresh token:', error)
-    appStore.showError(String(error))
-  }
+  )
 }
 const handleBulkSetPrivacy = async () => {
-  if (!confirm(t('admin.accounts.bulkActions.confirmSetPrivacy'))) return
-  try {
-    const result = await adminAPI.accounts.batchSetPrivacy(selIds.value)
-    const skipped = result.skipped ?? 0
-    if (result.failed > 0) {
-      appStore.showError(
-        skipped > 0
-          ? t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+  await handleBulkOperation(
+    () => adminAPI.accounts.batchSetPrivacy(selIds.value),
+    {
+      confirmMessage: t('admin.accounts.bulkActions.confirmSetPrivacy'),
+      successMessage: (result) => {
+        const skipped = result.skipped ?? 0
+        if (skipped > 0) {
+          return t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+            success: result.success,
+            failed: result.failed,
+            skipped
+          })
+        }
+        return t('admin.accounts.bulkActions.setPrivacySuccess', { count: result.success })
+      },
+      errorMessage: (result) => {
+        const skipped = result.skipped ?? 0
+        if (skipped > 0) {
+          return t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+            success: result.success,
+            failed: result.failed,
+            skipped
+          })
+        }
+        return t('admin.accounts.bulkActions.partialSuccess', {
+          success: result.success,
+          failed: result.failed
+        })
+      }
+    },
+    {
+      onSuccess: (result) => {
+        const skipped = result.skipped ?? 0
+        if (skipped > 0 && result.failed === 0) {
+          appStore.showInfo(
+            t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
               success: result.success,
               failed: result.failed,
               skipped
             })
-          : t('admin.accounts.bulkActions.partialSuccess', {
-              success: result.success,
-              failed: result.failed
-            })
-      )
-    } else if (skipped > 0) {
-      appStore.showInfo(
-        t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
-          success: result.success,
-          failed: result.failed,
-          skipped
-        })
-      )
-    } else {
-      appStore.showSuccess(t('admin.accounts.bulkActions.setPrivacySuccess', { count: result.success }))
-      clearSelection()
+          )
+        }
+        if (result.failed === 0 && skipped === 0) {
+          clearSelection()
+        }
+        reload()
+      }
     }
-    reload()
-  } catch (error) {
-    console.error('Failed to bulk set privacy:', error)
-    appStore.showError(String(error))
-  }
+  )
 }
 const handleBulkClearPrivacy = async () => {
-  if (!confirm(t('admin.accounts.bulkActions.confirmClearPrivacy'))) return
-  try {
-    const result = await adminAPI.accounts.batchClearPrivacy(selIds.value)
-    const skipped = result.skipped ?? 0
-    if (result.failed > 0) {
-      appStore.showError(
-        skipped > 0
-          ? t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+  await handleBulkOperation(
+    () => adminAPI.accounts.batchClearPrivacy(selIds.value),
+    {
+      confirmMessage: t('admin.accounts.bulkActions.confirmClearPrivacy'),
+      successMessage: (result) => {
+        const skipped = result.skipped ?? 0
+        if (skipped > 0) {
+          return t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+            success: result.success,
+            failed: result.failed,
+            skipped
+          })
+        }
+        return t('admin.accounts.bulkActions.clearPrivacySuccess', { count: result.success })
+      },
+      errorMessage: (result) => {
+        const skipped = result.skipped ?? 0
+        if (skipped > 0) {
+          return t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+            success: result.success,
+            failed: result.failed,
+            skipped
+          })
+        }
+        return t('admin.accounts.bulkActions.partialSuccess', {
+          success: result.success,
+          failed: result.failed
+        })
+      }
+    },
+    {
+      onSuccess: (result) => {
+        const skipped = result.skipped ?? 0
+        if (skipped > 0 && result.failed === 0) {
+          appStore.showInfo(
+            t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
               success: result.success,
               failed: result.failed,
               skipped
             })
-          : t('admin.accounts.bulkActions.partialSuccess', {
-              success: result.success,
-              failed: result.failed
-            })
-      )
-    } else if (skipped > 0) {
-      appStore.showInfo(
-        t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
-          success: result.success,
-          failed: result.failed,
-          skipped
-        })
-      )
-    } else {
-      appStore.showSuccess(t('admin.accounts.bulkActions.clearPrivacySuccess', { count: result.success }))
-      clearSelection()
+          )
+        }
+        if (result.failed === 0 && skipped === 0) {
+          clearSelection()
+        }
+        reload()
+      }
     }
-    reload()
-  } catch (error) {
-    console.error('Failed to bulk clear privacy:', error)
-    appStore.showError(String(error))
-  }
+  )
 }
 const updateSchedulableInList = (accountIds: number[], schedulable: boolean) => {
   if (accountIds.length === 0) return
@@ -1899,114 +1956,30 @@ const handleBulkUpdated = () => {
   reload()
 }
 const handleDataImported = () => { showImportData.value = false; reload() }
-const ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE = 'ungrouped'
-const ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE = '__unset__'
-const OPENAI_TIER_ALIASES: Record<string, string> = {
-  free: 'free',
-  free_plan: 'free',
-  chatgpt_free: 'free',
-  plus: 'plus',
-  plus_plan: 'plus',
-  chatgpt_plus: 'plus',
-  team: 'team',
-  team_plan: 'team',
-  chatgpt_team: 'team',
-  business: 'team',
-  pro: 'pro',
-  pro_plan: 'pro',
-  chatgpt_pro: 'pro',
-  enterprise: 'enterprise',
-  enterprise_plan: 'enterprise',
-  chatgpt_enterprise: 'enterprise'
-}
-const GEMINI_TIER_ALIASES: Record<string, string> = {
-  google_one_free: 'google_one_free',
-  google_ai_pro: 'google_ai_pro',
-  google_ai_ultra: 'google_ai_ultra',
-  gcp_standard: 'gcp_standard',
-  gcp_enterprise: 'gcp_enterprise',
-  aistudio_free: 'aistudio_free',
-  aistudio_paid: 'aistudio_paid',
-  google_one_unknown: 'google_one_unknown',
-  free: 'google_one_free',
-  google_one_basic: 'google_one_free',
-  google_one_standard: 'google_one_free',
-  ai_premium: 'google_ai_pro',
-  pro: 'google_ai_pro',
-  ultra: 'google_ai_ultra'
-}
-
-const normalizeOpenAITier = (value: unknown) => {
-  const tier = normalizeTierText(value)
-  return OPENAI_TIER_ALIASES[tier] || tier
-}
-
-const normalizeGeminiTier = (value: unknown) => {
-  const tier = normalizeTierText(value)
-  return GEMINI_TIER_ALIASES[tier] || tier
-}
-
-const parseSelectedTier = (tier: string, fallbackPlatform: string) => {
-  const trimmed = String(tier || '').trim()
-  if (!trimmed) return null
-  const separator = trimmed.indexOf(':')
-  if (separator >= 0) {
-    return {
-      platform: trimmed.slice(0, separator),
-      value: trimmed.slice(separator + 1)
-    }
-  }
-  return {
-    platform: fallbackPlatform,
-    value: trimmed
-  }
-}
-
-const accountMatchesTier = (account: Account, selectedTier: string, fallbackPlatform: string) => {
-  const tier = parseSelectedTier(selectedTier, fallbackPlatform)
-  if (!tier || !tier.value) return true
-  if (tier.platform && account.platform !== tier.platform) return false
-
-  if (account.platform === 'openai') {
-    return normalizeOpenAITier(account.credentials?.plan_type) === normalizeOpenAITier(tier.value)
-  }
-  if (account.platform === 'gemini') {
-    return normalizeGeminiTier(account.credentials?.tier_id) === normalizeGeminiTier(tier.value)
-  }
-  if (account.platform === 'antigravity') {
-    return getAntigravityTierFromRow(account) === tier.value
-  }
-  return false
-}
 
 const accountMatchesCurrentFilters = (account: Account) => {
   void accountStatusNowMs.value
   const filters = buildAccountLocalFilters(params as AccountLocalFilterParams)
-  if (filters.platform && account.platform !== filters.platform) return false
-  if (filters.tier && !accountMatchesTier(account, filters.tier, filters.platform)) return false
-  if (filters.type && account.type !== filters.type) return false
-  const statusEvalOptions = { nowMs: accountStatusNowMs.value }
-  if (!matchesAccountMainStatusFilter(account, filters.main_status as AccountMainStatusFilterValue)) return false
-  if (!matchesAccountRuntimeStatusFilter(account, filters.runtime_status as AccountRuntimeStatusFilterValue, statusEvalOptions)) return false
-  if (!matchesAccountSchedulingStatusFilter(account, filters.scheduling_status as AccountSchedulingStatusFilterValue, statusEvalOptions)) return false
-  if (filters.group) {
-    const groupIds = account.group_ids ?? account.groups?.map((group) => group.id) ?? []
-    if (filters.group === ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE) {
-      if (groupIds.length > 0) return false
-    } else if (!groupIds.includes(Number(filters.group))) {
-      return false
-    }
+
+  if (!matchesPlatform(account, filters.platform)) return false
+  if (!matchesTier(account, filters.tier, filters.platform)) return false
+  if (!matchesType(account, filters.type)) return false
+
+  const statusEvalOptions: StatusEvalOptions = { nowMs: accountStatusNowMs.value }
+  if (!matchesStatus(
+    account,
+    filters.main_status,
+    filters.runtime_status,
+    filters.scheduling_status,
+    statusEvalOptions
+  )) {
+    return false
   }
-  const privacyMode = typeof account.extra?.privacy_mode === 'string' ? account.extra.privacy_mode : ''
-  if (filters.privacy_mode) {
-    if (filters.privacy_mode === ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE) {
-      if (privacyMode.trim() !== '') return false
-    } else if (privacyMode !== filters.privacy_mode) {
-      return false
-    }
-  }
-  const search = String(filters.search || '').trim().toLowerCase()
-  if (search && !account.name.toLowerCase().includes(search)) return false
+
+  if (!matchesGroup(account, filters.group)) return false
+  if (!matchesPrivacyMode(account, filters.privacy_mode)) return false
+  if (!matchesSearch(account, filters.search)) return false
+
   return true
 }
 const mergeRuntimeFields = (oldAccount: Account, updatedAccount: Account): Account => ({
@@ -2402,6 +2375,9 @@ const handleClickOutside = (event: MouseEvent) => {
   }
   if (autoRefreshDropdownRef.value && !autoRefreshDropdownRef.value.contains(target)) {
     showAutoRefreshDropdown.value = false
+  }
+  if (columnSettingsDropdownRef.value && !columnSettingsDropdownRef.value.contains(target)) {
+    showColumnSettingsDropdown.value = false
   }
 }
 
