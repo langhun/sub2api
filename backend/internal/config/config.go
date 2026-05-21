@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/spf13/viper"
 )
@@ -1056,20 +1057,32 @@ type DatabaseConfig struct {
 	ConnMaxLifetimeMinutes int `mapstructure:"conn_max_lifetime_minutes"`
 	// ConnMaxIdleTimeMinutes: 空闲连接最大存活时间，及时释放不活跃连接
 	ConnMaxIdleTimeMinutes int `mapstructure:"conn_max_idle_time_minutes"`
+	// StatementTimeoutSeconds: SQL 语句执行超时时间（秒），0 表示不设置超时
+	// 防止慢查询长时间占用连接，建议设置为 30-60 秒
+	StatementTimeoutSeconds int `mapstructure:"statement_timeout_seconds"`
 }
 
 func (d *DatabaseConfig) DSN() string {
 	// 当密码为空时不包含 password 参数，避免 libpq 解析错误
+	dsn := ""
 	if d.Password == "" {
-		return fmt.Sprintf(
+		dsn = fmt.Sprintf(
 			"host=%s port=%d user=%s dbname=%s sslmode=%s",
 			d.Host, d.Port, d.User, d.DBName, d.SSLMode,
 		)
+	} else {
+		dsn = fmt.Sprintf(
+			"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+			d.Host, d.Port, d.User, d.Password, d.DBName, d.SSLMode,
+		)
 	}
-	return fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		d.Host, d.Port, d.User, d.Password, d.DBName, d.SSLMode,
-	)
+
+	// 添加 statement_timeout 参数（如果配置了）
+	if d.StatementTimeoutSeconds > 0 {
+		dsn += fmt.Sprintf(" options='-c statement_timeout=%ds'", d.StatementTimeoutSeconds)
+	}
+
+	return dsn
 }
 
 // DSNWithTimezone returns DSN with timezone setting
@@ -1078,16 +1091,25 @@ func (d *DatabaseConfig) DSNWithTimezone(tz string) string {
 		tz = "Asia/Shanghai"
 	}
 	// 当密码为空时不包含 password 参数，避免 libpq 解析错误
+	dsn := ""
 	if d.Password == "" {
-		return fmt.Sprintf(
+		dsn = fmt.Sprintf(
 			"host=%s port=%d user=%s dbname=%s sslmode=%s TimeZone=%s",
 			d.Host, d.Port, d.User, d.DBName, d.SSLMode, tz,
 		)
+	} else {
+		dsn = fmt.Sprintf(
+			"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
+			d.Host, d.Port, d.User, d.Password, d.DBName, d.SSLMode, tz,
+		)
 	}
-	return fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
-		d.Host, d.Port, d.User, d.Password, d.DBName, d.SSLMode, tz,
-	)
+
+	// 添加 statement_timeout 参数（如果配置了）
+	if d.StatementTimeoutSeconds > 0 {
+		dsn += fmt.Sprintf(" options='-c statement_timeout=%ds'", d.StatementTimeoutSeconds)
+	}
+
+	return dsn
 }
 
 // RedisConfig Redis 连接配置
@@ -1439,7 +1461,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	originalJWTSecret := cfg.JWT.Secret
 	if allowMissingJWTSecret && originalJWTSecret == "" {
 		// 启动阶段允许先无 JWT 密钥，后续在数据库初始化后补齐。
-		cfg.JWT.Secret = strings.Repeat("0", 32)
+		cfg.JWT.Secret = "bootstrap00000000000000000000000"
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -1632,6 +1654,7 @@ func setDefaults() {
 	viper.SetDefault("database.max_idle_conns", 128)
 	viper.SetDefault("database.conn_max_lifetime_minutes", 30)
 	viper.SetDefault("database.conn_max_idle_time_minutes", 5)
+	viper.SetDefault("database.statement_timeout_seconds", 30) // 30秒查询超时，防止慢查询
 
 	// Redis
 	viper.SetDefault("redis.host", "localhost")
@@ -1918,6 +1941,24 @@ func (c *Config) Validate() error {
 	if len([]byte(jwtSecret)) < 32 {
 		return fmt.Errorf("jwt.secret must be at least 32 bytes")
 	}
+	// 检查复杂度（至少包含字母和数字）
+	hasLetter := false
+	hasDigit := false
+	for _, ch := range jwtSecret {
+		if unicode.IsLetter(ch) {
+			hasLetter = true
+		}
+		if unicode.IsDigit(ch) {
+			hasDigit = true
+		}
+		if hasLetter && hasDigit {
+			break
+		}
+	}
+	if !hasLetter || !hasDigit {
+		return fmt.Errorf("jwt.secret must contain both letters and digits")
+	}
+
 	switch c.Log.Level {
 	case "debug", "info", "warn", "error":
 	case "":
@@ -2220,6 +2261,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Database.ConnMaxIdleTimeMinutes < 0 {
 		return fmt.Errorf("database.conn_max_idle_time_minutes must be non-negative")
+	}
+	if c.Database.StatementTimeoutSeconds < 0 {
+		return fmt.Errorf("database.statement_timeout_seconds must be non-negative")
+	}
+	if c.Database.StatementTimeoutSeconds > 0 && c.Database.StatementTimeoutSeconds < 5 {
+		return fmt.Errorf("database.statement_timeout_seconds must be at least 5 seconds or 0 to disable")
 	}
 	if c.Redis.DialTimeoutSeconds <= 0 {
 		return fmt.Errorf("redis.dial_timeout_seconds must be positive")

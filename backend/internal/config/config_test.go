@@ -14,7 +14,7 @@ import (
 func resetViperWithJWTSecret(t *testing.T) {
 	t.Helper()
 	viper.Reset()
-	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
+	t.Setenv("JWT_SECRET", "test1234567890abcdefghijklmnopqr")
 }
 
 func TestLoadForBootstrapAllowsMissingJWTSecret(t *testing.T) {
@@ -1006,11 +1006,11 @@ func TestValidateJWTSecret_UTF8Bytes(t *testing.T) {
 		t.Fatalf("Validate() error = %v", err)
 	}
 
-	// 32 bytes OK.
-	cfg.JWT.Secret = strings.Repeat("a", 32)
+	// 32 bytes with letters and digits OK.
+	cfg.JWT.Secret = "abcdefghijklmnopqrstuvwxyz123456"
 	err = cfg.Validate()
 	if err != nil {
-		t.Fatalf("Validate() should accept 32-byte secret: %v", err)
+		t.Fatalf("Validate() should accept 32-byte secret with letters and digits: %v", err)
 	}
 }
 
@@ -1039,6 +1039,16 @@ func TestValidateConfigErrors(t *testing.T) {
 			name:    "jwt secret min bytes",
 			mutate:  func(c *Config) { c.JWT.Secret = strings.Repeat("a", 31) },
 			wantErr: "jwt.secret must be at least 32 bytes",
+		},
+		{
+			name:    "jwt secret must contain letters and digits",
+			mutate:  func(c *Config) { c.JWT.Secret = strings.Repeat("a", 32) },
+			wantErr: "jwt.secret must contain both letters and digits",
+		},
+		{
+			name:    "jwt secret only digits",
+			mutate:  func(c *Config) { c.JWT.Secret = strings.Repeat("1", 32) },
+			wantErr: "jwt.secret must contain both letters and digits",
 		},
 		{
 			name:    "subscription maintenance worker_count non-negative",
