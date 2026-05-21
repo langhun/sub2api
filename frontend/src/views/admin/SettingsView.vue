@@ -4452,7 +4452,7 @@
               <div
                 v-for="(item, index) in form.custom_menu_items"
                 :key="item.id || index"
-                v-memo="[item.label_zh, item.label_en, item.url, item.icon, item.target]"
+                v-memo="[item.label, item.icon_svg, item.url, item.visibility, item.sort_order]"
                 class="rounded-lg border border-gray-200 p-4 dark:border-dark-600"
               >
                 <div class="mb-3 flex items-center justify-between">
@@ -6856,7 +6856,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch, shallowRef } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
 import {
@@ -7557,7 +7557,7 @@ const authSourceDefaults = reactive<AuthSourceDefaultsState>(
 // 只在 locale 变化时重新计算
 const authSourceDefaultsMeta = computed(() => {
   // 触发 locale 依赖
-  const _ = locale.value;
+  void locale.value;
 
   return [
     {
@@ -8988,7 +8988,7 @@ function copyNewKey() {
 
 // 优化：缓存选项列表，只在locale变化时重新计算
 const betaPolicyActionOptions = computed(() => {
-  const _ = locale.value; // 触发locale依赖
+  void locale.value; // 触发locale依赖
   return [
     { value: "pass", label: t("admin.settings.betaPolicy.actionPass") },
     { value: "filter", label: t("admin.settings.betaPolicy.actionFilter") },
@@ -8997,7 +8997,7 @@ const betaPolicyActionOptions = computed(() => {
 });
 
 const betaPolicyScopeOptions = computed(() => {
-  const _ = locale.value; // 触发locale依赖
+  void locale.value; // 触发locale依赖
   return [
     { value: "all", label: t("admin.settings.betaPolicy.scopeAll") },
     { value: "oauth", label: t("admin.settings.betaPolicy.scopeOAuth") },
@@ -9047,7 +9047,7 @@ function getBetaDisplayName(token: string): string {
 }
 
 function applyBetaPreset(
-  rule: (typeof betaPolicyForm.rules)[number],
+  rule: (typeof betaPolicy.form.rules)[number],
   preset: {
     action: "pass" | "filter" | "block";
     model_whitelist: string[];
@@ -9060,7 +9060,7 @@ function applyBetaPreset(
 }
 
 function addQuickPattern(
-  rule: (typeof betaPolicyForm.rules)[number],
+  rule: (typeof betaPolicy.form.rules)[number],
   pattern: string,
 ) {
   if (!rule.model_whitelist) rule.model_whitelist = [];
@@ -9073,7 +9073,7 @@ function addQuickPattern(
 
 // 优化：缓存选项列表
 const openaiFastPolicyTierOptions = computed(() => {
-  const _ = locale.value;
+  void locale.value;
   return [
     { value: "all", label: t("admin.settings.openaiFastPolicy.tierAll") },
     {
@@ -9085,7 +9085,7 @@ const openaiFastPolicyTierOptions = computed(() => {
 });
 
 const openaiFastPolicyActionOptions = computed(() => {
-  const _ = locale.value;
+  void locale.value;
   return [
     { value: "pass", label: t("admin.settings.openaiFastPolicy.actionPass") },
     { value: "filter", label: t("admin.settings.openaiFastPolicy.actionFilter") },
@@ -9094,7 +9094,7 @@ const openaiFastPolicyActionOptions = computed(() => {
 });
 
 const openaiFastPolicyScopeOptions = computed(() => {
-  const _ = locale.value;
+  void locale.value;
   return [
     { value: "all", label: t("admin.settings.openaiFastPolicy.scopeAll") },
     { value: "oauth", label: t("admin.settings.openaiFastPolicy.scopeOAuth") },
@@ -9134,47 +9134,11 @@ function removeOpenAIFastPolicyModelPattern(
   rule.model_whitelist?.splice(idx, 1);
 }
 
-async function saveBetaPolicySettings() {
-  betaPolicySaving.value = true;
-  try {
-    // Clean up empty patterns before saving
-    const cleanedRules = betaPolicyForm.rules.map((rule) => {
-      const whitelist = rule.model_whitelist?.filter((p) => p.trim() !== "");
-      const hasWhitelist = whitelist && whitelist.length > 0;
-      return {
-        beta_token: rule.beta_token,
-        action: rule.action,
-        scope: rule.scope,
-        error_message: rule.error_message,
-        model_whitelist: hasWhitelist ? whitelist : undefined,
-        fallback_action: hasWhitelist
-          ? rule.fallback_action || "pass"
-          : undefined,
-        fallback_error_message:
-          hasWhitelist && rule.fallback_action === "block"
-            ? rule.fallback_error_message
-            : undefined,
-      };
-    });
-    const updated = await adminAPI.settings.updateBetaPolicySettings({
-      rules: cleanedRules,
-    });
-    betaPolicyForm.rules = updated.rules;
-    appStore.showSuccess(t("admin.settings.betaPolicy.saved"));
-  } catch (error: unknown) {
-    appStore.showError(
-      extractApiErrorMessage(error, t("admin.settings.betaPolicy.saveFailed")),
-    );
-  } finally {
-    betaPolicySaving.value = false;
-  }
-}
-
 // ==================== Provider Management ====================
 
 // 优化：缓存支付类型选项
 const allPaymentTypes = computed(() => {
-  const _ = locale.value;
+  void locale.value;
   return [
     { value: "easypay", label: t("payment.methods.easypay") },
     { value: "alipay", label: t("payment.methods.alipay") },
@@ -9234,7 +9198,7 @@ const providerDialogRef = ref<InstanceType<
 > | null>(null);
 
 const providerKeyOptions = computed(() => {
-  const _ = locale.value;
+  void locale.value;
   return [
     { value: "easypay", label: t("admin.settings.payment.providerEasypay") },
     { value: "alipay", label: t("admin.settings.payment.providerAlipay") },
@@ -9250,7 +9214,7 @@ const enabledProviderKeyOptions = computed(() => {
 });
 
 const loadBalanceOptions = computed(() => {
-  const _ = locale.value;
+  void locale.value;
   return [
     {
       value: "round-robin",
@@ -9264,7 +9228,7 @@ const loadBalanceOptions = computed(() => {
 });
 
 const cancelRateLimitUnitOptions = computed(() => {
-  const _ = locale.value;
+  void locale.value;
   return [
     {
       value: "minute",
@@ -9276,7 +9240,7 @@ const cancelRateLimitUnitOptions = computed(() => {
 });
 
 const cancelRateLimitModeOptions = computed(() => {
-  const _ = locale.value;
+  void locale.value;
   return [
     {
       value: "rolling",

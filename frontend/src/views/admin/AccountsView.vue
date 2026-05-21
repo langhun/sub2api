@@ -537,9 +537,6 @@ import Icon from '@/components/icons/Icon.vue'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import {
   composeAccountStatusFilterToken,
-  matchesAccountMainStatusFilter,
-  matchesAccountRuntimeStatusFilter,
-  matchesAccountSchedulingStatusFilter,
   type AccountMainStatusFilterValue,
   type AccountRuntimeStatusFilterValue,
   type AccountSchedulingStatusFilterValue
@@ -556,6 +553,7 @@ import {
   matchesPrivacyMode,
   matchesSearch,
   getAntigravityTierFromAccount,
+  parseSelectedTier,
   ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE,
   ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE,
   type StatusEvalOptions
@@ -580,7 +578,7 @@ const TLSFingerprintProfilesModal = defineAsyncComponent(() => import('@/compone
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
-const { operating: bulkOperating, handleBulkOperation } = useAccountBulkOperations()
+const { handleBulkOperation } = useAccountBulkOperations()
 
 const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
@@ -1531,10 +1529,10 @@ const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
     accountStatusNowMs.value = Date.now()
 
     const skipConditions = {
-      enabled: autoRefreshState.enabled,
+      autoRefreshEnabled: autoRefreshState.enabled,
       documentHidden: document.hidden,
       loading: loading.value,
-      fetching: autoRefreshState.fetching,
+      autoRefreshFetching: autoRefreshState.fetching,
       isAnyModalOpen: isAnyModalOpen.value,
       menuShow: menu.show,
       showAccountToolsDropdown: dropdownState.showAccountToolsDropdown,

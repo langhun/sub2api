@@ -380,7 +380,7 @@
               :title="t('admin.proxies.noProxiesYet')"
               :description="t('admin.proxies.createFirstProxy')"
               :action-text="t('admin.proxies.createProxy')"
-              @action="showCreateModal = true"
+              @action="modalState.showCreateModal = true"
             />
           </template>
         </DataTable>
@@ -517,7 +517,7 @@
               class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               @click="passwordState.createPasswordVisible = !passwordState.createPasswordVisible"
             >
-              <Icon :name="createPasswordVisible ? 'eyeOff' : 'eye'" size="md" />
+              <Icon :name="passwordState.createPasswordVisible ? 'eyeOff' : 'eye'" size="md" />
             </button>
           </div>
         </div>
@@ -607,7 +607,7 @@
             class="btn btn-primary"
           >
             <svg
-              v-if="submitting"
+              v-if="loadingState.submitting"
               class="-ml-1 mr-2 h-4 w-4 animate-spin"
               fill="none"
               viewBox="0 0 24 24"
@@ -626,17 +626,17 @@
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               ></path>
             </svg>
-            {{ submitting ? t('admin.proxies.creating') : t('common.create') }}
+            {{ loadingState.submitting ? t('admin.proxies.creating') : t('common.create') }}
           </button>
           <button
             v-else
             @click="handleBatchCreate"
             type="button"
-            :disabled="submitting || batchParseResult.valid === 0"
+            :disabled="loadingState.submitting || batchParseResult.valid === 0"
             class="btn btn-primary"
           >
             <svg
-              v-if="submitting"
+              v-if="loadingState.submitting"
               class="-ml-1 mr-2 h-4 w-4 animate-spin"
               fill="none"
               viewBox="0 0 24 24"
@@ -656,7 +656,7 @@
               ></path>
             </svg>
             {{
-              submitting
+              loadingState.submitting
                 ? t('admin.proxies.importing')
                 : t('admin.proxies.importProxies', { count: batchParseResult.valid })
             }}
@@ -680,16 +680,16 @@
       >
         <div>
           <label class="input-label">{{ t('admin.proxies.name') }}</label>
-          <input v-model="editForm.name" type="text" required class="input" :disabled="editingProxy?.managed_by_subscription" />
+          <input v-model="editForm.name" type="text" required class="input" :disabled="currentItems.editingProxy?.managed_by_subscription" />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
-          <Select v-model="editForm.protocol" :options="protocolSelectOptions" :disabled="editingProxy?.managed_by_subscription" />
+          <Select v-model="editForm.protocol" :options="protocolSelectOptions" :disabled="currentItems.editingProxy?.managed_by_subscription" />
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="input-label">{{ t('admin.proxies.host') }}</label>
-            <input v-model="editForm.host" type="text" required class="input" :disabled="editingProxy?.managed_by_subscription" />
+            <input v-model="editForm.host" type="text" required class="input" :disabled="currentItems.editingProxy?.managed_by_subscription" />
           </div>
           <div>
             <label class="input-label">{{ t('admin.proxies.port') }}</label>
@@ -700,13 +700,13 @@
               min="1"
               max="65535"
               class="input"
-              :disabled="editingProxy?.managed_by_subscription"
+              :disabled="currentItems.editingProxy?.managed_by_subscription"
             />
           </div>
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.username') }}</label>
-          <input v-model="editForm.username" type="text" class="input" :disabled="editingProxy?.managed_by_subscription" />
+          <input v-model="editForm.username" type="text" class="input" :disabled="currentItems.editingProxy?.managed_by_subscription" />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.password') }}</label>
@@ -716,15 +716,15 @@
               :type="passwordState.editPasswordVisible ? 'text' : 'password'"
               :placeholder="t('admin.proxies.leaveEmptyToKeep')"
               class="input pr-10"
-              @input="editPasswordDirty = true"
-              :disabled="editingProxy?.managed_by_subscription"
+              @input="passwordState.editPasswordDirty = true"
+              :disabled="currentItems.editingProxy?.managed_by_subscription"
             />
             <button
               type="button"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               @click="passwordState.editPasswordVisible = !passwordState.editPasswordVisible"
             >
-              <Icon :name="editPasswordVisible ? 'eyeOff' : 'eye'" size="md" />
+              <Icon :name="passwordState.editPasswordVisible ? 'eyeOff' : 'eye'" size="md" />
             </button>
           </div>
         </div>
@@ -765,7 +765,7 @@
             class="btn btn-primary"
           >
             <svg
-              v-if="submitting"
+              v-if="loadingState.submitting"
               class="-ml-1 mr-2 h-4 w-4 animate-spin"
               fill="none"
               viewBox="0 0 24 24"
@@ -784,7 +784,7 @@
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               ></path>
             </svg>
-            {{ submitting ? t('admin.proxies.updating') : t('common.update') }}
+            {{ loadingState.submitting ? t('admin.proxies.updating') : t('common.update') }}
           </button>
         </div>
       </template>
@@ -794,12 +794,12 @@
     <ConfirmDialog
       :show="modalState.showDeleteDialog"
       :title="t('admin.proxies.deleteProxy')"
-      :message="t('admin.proxies.deleteConfirm', { name: deletingProxy?.name })"
+      :message="t('admin.proxies.deleteConfirm', { name: currentItems.deletingProxy?.name })"
       :confirm-text="t('common.delete')"
       :cancel-text="t('common.cancel')"
       :danger="true"
       @confirm="confirmDelete"
-      @cancel="showDeleteDialog = false"
+      @cancel="modalState.showDeleteDialog = false"
     />
 
     <!-- Batch Delete Confirmation Dialog -->
@@ -811,7 +811,7 @@
       :cancel-text="t('common.cancel')"
       :danger="true"
       @confirm="confirmBatchDelete"
-      @cancel="showBatchDeleteDialog = false"
+      @cancel="modalState.showBatchDeleteDialog = false"
     />
     <ConfirmDialog
       :show="modalState.showBatchUnassignDialog"
@@ -820,7 +820,7 @@
       :confirm-text="t('admin.proxies.quickUnassignConfirmButton')"
       :cancel-text="t('common.cancel')"
       @confirm="confirmBatchUnassign"
-      @cancel="showBatchUnassignDialog = false"
+      @cancel="modalState.showBatchUnassignDialog = false"
     />
     <ConfirmDialog
       :show="modalState.showExportDataDialog"
@@ -829,20 +829,20 @@
       :confirm-text="t('admin.proxies.dataExportConfirm')"
       :cancel-text="t('common.cancel')"
       @confirm="handleExportData"
-      @cancel="showExportDataDialog = false"
+      @cancel="modalState.showExportDataDialog = false"
     />
 
     <ImportDataModal
       :show="modalState.showImportData"
-      @close="showImportData = false"
+      @close="modalState.showImportData = false"
       @imported="handleDataImported"
     />
 
     <AssignAccountsModal
       :show="modalState.showAssignAccounts"
       :proxy-ids="Array.from(selectedProxyIds)"
-      :groups="accountGroups"
-      @close="showAssignAccounts = false"
+      :groups="dataState.accountGroups"
+      @close="modalState.showAssignAccounts = false"
       @assigned="loadProxies"
     />
 
@@ -861,15 +861,15 @@
                 {{ currentItems.qualityReportProxy?.name || '-' }}
                 </div>
                 <div class="mt-1 text-base font-medium text-gray-900 dark:text-white">
-                  {{ qualityReport.summary }}
+                  {{ currentItems.qualityReport.summary }}
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-2">
-                <span class="badge" :class="qualityOverallClass(qualityOverallStatus(qualityReport))">
-                  {{ qualityOverallLabel(qualityOverallStatus(qualityReport)) }}
+                <span class="badge" :class="qualityOverallClass(qualityOverallStatus(currentItems.qualityReport))">
+                  {{ qualityOverallLabel(qualityOverallStatus(currentItems.qualityReport)) }}
                 </span>
                 <span
-                  v-for="stat in qualityReportBreakdown(qualityReport)"
+                  v-for="stat in qualityReportBreakdown(currentItems.qualityReport)"
                   :key="stat.key"
                   class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-600 dark:border-dark-500 dark:bg-dark-800 dark:text-gray-300"
                 >
@@ -884,7 +884,7 @@
                   {{ t('admin.proxies.qualityScoreLabel') }}
                 </div>
                 <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
-                  {{ qualityReport.score }}
+                  {{ currentItems.qualityReport.score }}
                 </div>
               </div>
               <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
@@ -892,7 +892,7 @@
                   {{ t('admin.proxies.qualityGradeLabel') }}
                 </div>
                 <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-                  {{ qualityReport.grade }}
+                  {{ currentItems.qualityReport.grade }}
                 </div>
               </div>
               <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
@@ -900,7 +900,7 @@
                   {{ t('admin.proxies.qualityBaseLatency') }}
                 </div>
                 <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-                  {{ typeof qualityReport.base_latency_ms === 'number' ? `${qualityReport.base_latency_ms}ms` : '-' }}
+                  {{ typeof currentItems.qualityReport.base_latency_ms === 'number' ? `${currentItems.qualityReport.base_latency_ms}ms` : '-' }}
                 </div>
               </div>
               <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
@@ -908,7 +908,7 @@
                   {{ t('admin.proxies.qualityCountry') }}
                 </div>
                 <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-                  {{ qualityReport.country || '-' }}
+                  {{ currentItems.qualityReport.country || '-' }}
                 </div>
               </div>
             </div>
@@ -916,19 +916,19 @@
           <div class="mt-4 grid gap-3 text-xs text-gray-600 dark:text-gray-300 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
               <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityExitIP') }}</div>
-              <div class="mt-1 break-all text-sm text-gray-900 dark:text-white">{{ qualityReport.exit_ip || '-' }}</div>
+              <div class="mt-1 break-all text-sm text-gray-900 dark:text-white">{{ currentItems.qualityReport.exit_ip || '-' }}</div>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
               <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityCountry') }}</div>
-              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ qualityReport.country || '-' }}</div>
+              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ currentItems.qualityReport.country || '-' }}</div>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
               <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityCheckedAt') }}</div>
-              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatQualityCheckedAt(qualityReport.checked_at) }}</div>
+              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatQualityCheckedAt(currentItems.qualityReport.checked_at) }}</div>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
               <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityInterpretation') }}</div>
-              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ qualityInterpretationLabel(qualityOverallStatus(qualityReport)) }}</div>
+              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ qualityInterpretationLabel(qualityOverallStatus(currentItems.qualityReport)) }}</div>
             </div>
           </div>
         </div>
@@ -977,7 +977,7 @@
     <!-- Proxy Accounts Dialog -->
     <BaseDialog
       :show="modalState.showAccountsModal"
-      :title="t('admin.proxies.accountsTitle', { name: accountsProxy?.name || '' })"
+      :title="t('admin.proxies.accountsTitle', { name: currentItems.accountsProxy?.name || '' })"
       width="normal"
       @close="closeAccountsModal"
     >
@@ -1023,7 +1023,7 @@
       :show="modalState.showPoolDialog"
       :loading="loadingState.poolDialogLoading"
       :rows="dataState.poolDialogRows"
-      @close="showPoolDialog = false"
+      @close="modalState.showPoolDialog = false"
     />
 
     <Teleport to="body">
@@ -1084,7 +1084,7 @@
       :submitting="loadingState.submittingSubscription"
       :form="subscriptionForm"
       :format-options="subscriptionFormatOptions"
-      @close="showCreateSubscriptionModal = false"
+      @close="modalState.showCreateSubscriptionModal = false"
       @submit="handleSubmitSubscription"
       @update:form="updateSubscriptionForm"
     />
@@ -1093,9 +1093,9 @@
       :show="modalState.showSubscriptionNodesModal"
       :title="t('admin.proxies.subscriptions.nodesTitle')"
       width="normal"
-      @close="showSubscriptionNodesModal = false"
+      @close="modalState.showSubscriptionNodesModal = false"
     >
-      <div v-if="subscriptionNodesLoading" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
+      <div v-if="loadingState.subscriptionNodesLoading" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
       <div v-else-if="dataState.subscriptionNodes.length === 0" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.proxies.subscriptions.nodesEmpty') }}</div>
       <div v-else class="max-h-[60vh] space-y-2 overflow-y-auto">
         <div v-for="node in dataState.subscriptionNodes" :key="node.id" class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
@@ -1110,7 +1110,7 @@
       </div>
       <template #footer>
         <div class="flex justify-end">
-          <button class="btn btn-secondary" type="button" @click="showSubscriptionNodesModal = false">{{ t('common.close') }}</button>
+          <button class="btn btn-secondary" type="button" @click="modalState.showSubscriptionNodesModal = false">{{ t('common.close') }}</button>
         </div>
       </template>
     </BaseDialog>
@@ -1168,9 +1168,7 @@ const {
   testingProxyIds,
   qualityCheckingProxyIds,
   testSingleProxy,
-  testMultipleProxies,
-  checkSingleProxyQuality,
-  checkMultipleProxiesQuality
+  checkSingleProxyQuality
 } = useProxyTesting()
 
 const {
@@ -1178,7 +1176,7 @@ const {
   applyQualityResult,
   extractBaseConnectivityResult,
   summarizeQualityStatus
-} = useProxyResultHandler(proxies)
+} = useProxyResultHandler(computed(() => dataState.proxies))
 
 const allColumns = computed<Column[]>(() => [
   { key: 'select', label: '', sortable: false, class: 'w-[52px] min-w-[52px]' },
@@ -2532,23 +2530,23 @@ function getCopyFormats(row: any) {
 
 function copyProxyUrl(row: any) {
   copyToClipboard(buildProxyUrl(row), t('admin.proxies.urlCopied'))
-  dropdownState.dropdownState.copyMenuProxyId = null
+  dropdownState.copyMenuProxyId = null
 }
 
 function toggleCopyMenu(id: number) {
-  dropdownState.dropdownState.copyMenuProxyId = dropdownState.dropdownState.copyMenuProxyId === id ? null : id
+  dropdownState.copyMenuProxyId = dropdownState.copyMenuProxyId === id ? null : id
 }
 
 function copyFormat(value: string) {
   copyToClipboard(value, t('admin.proxies.urlCopied'))
-  dropdownState.dropdownState.copyMenuProxyId = null
+  dropdownState.copyMenuProxyId = null
 }
 
 function toggleRowActionMenu(id: number, event: MouseEvent) {
-  showColumnDropdown.value = false
-  showProxyToolsDropdown.value = false
-  showProxyBatchDropdown.value = false
-  if (dropdownState.dropdownState.activeRowActionMenuId === id) {
+  dropdownState.showColumnDropdown = false
+  dropdownState.showProxyToolsDropdown = false
+  dropdownState.showProxyBatchDropdown = false
+  if (dropdownState.activeRowActionMenuId === id) {
     closeRowActionMenu()
     return
   }
@@ -2556,23 +2554,23 @@ function toggleRowActionMenu(id: number, event: MouseEvent) {
   if (!trigger) return
   const rect = trigger.getBoundingClientRect()
   const menuWidth = 176
-  dropdownState.dropdownState.rowActionMenuPosition = {
+  dropdownState.rowActionMenuPosition = {
     top: rect.bottom + 8,
     left: Math.max(8, rect.right - menuWidth)
   }
-  dropdownState.dropdownState.activeRowActionMenuId = id
+  dropdownState.activeRowActionMenuId = id
 }
 
 function closeRowActionMenu() {
-  dropdownState.dropdownState.activeRowActionMenuId = null
-  dropdownState.dropdownState.rowActionMenuPosition = null
+  dropdownState.activeRowActionMenuId = null
+  dropdownState.rowActionMenuPosition = null
 }
 
 function closeFloatingMenus() {
-  dropdownState.dropdownState.copyMenuProxyId = null
-  showColumnDropdown.value = false
-  showProxyToolsDropdown.value = false
-  showProxyBatchDropdown.value = false
+  dropdownState.copyMenuProxyId = null
+  dropdownState.showColumnDropdown = false
+  dropdownState.showProxyToolsDropdown = false
+  dropdownState.showProxyBatchDropdown = false
   closeRowActionMenu()
 }
 

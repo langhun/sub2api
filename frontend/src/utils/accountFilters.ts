@@ -278,7 +278,7 @@ interface ParsedTier {
  * 解析选中的套餐等级（支持 'platform:tier' 格式）
  * @internal
  */
-function parseSelectedTier(tier: string, fallbackPlatform: string): ParsedTier | null {
+export function parseSelectedTier(tier: string, fallbackPlatform: string): ParsedTier | null {
   const trimmed = String(tier || '').trim()
   if (!trimmed) return null
   const separator = trimmed.indexOf(':')

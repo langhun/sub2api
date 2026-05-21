@@ -15,7 +15,7 @@
  * ```
  */
 
-import { ref, reactive, toRefs } from 'vue'
+import { reactive, toRaw } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useI18n } from 'vue-i18n'
 
@@ -27,7 +27,7 @@ export interface SettingsCardOptions<T> {
   /** 加载数据的函数 */
   loadFn: () => Promise<T>
   /** 保存数据的函数 */
-  saveFn: (data: T) => Promise<void>
+  saveFn: (data: T) => Promise<unknown>
   /** 保存成功提示消息 */
   successMessage?: string
   /** 错误提示消息 */
@@ -67,26 +67,28 @@ export function useSettingsCard<T extends Record<string, any>>(
   const { t } = useI18n()
   const appStore = useAppStore()
 
-  const loading = ref(true)
-  const saving = ref(false)
-  const form = reactive<T>({} as T)
+  const state = reactive({
+    loading: true,
+    saving: false,
+    form: reactive<T>({} as T)
+  })
 
   /**
    * 加载设置数据
    * 自动处理加载状态和错误提示
    */
   async function load() {
-    loading.value = true
+    state.loading = true
     try {
       const data = await options.loadFn()
-      Object.assign(form, data)
+      Object.assign(state.form, data)
     } catch (error: any) {
       console.error('Failed to load settings:', error)
       appStore.showError(
         options.errorMessage || error?.message || t('admin.settings.loadFailed')
       )
     } finally {
-      loading.value = false
+      state.loading = false
     }
   }
 
@@ -95,9 +97,9 @@ export function useSettingsCard<T extends Record<string, any>>(
    * 自动处理保存状态和成功/错误提示
    */
   async function save() {
-    saving.value = true
+    state.saving = true
     try {
-      await options.saveFn(form)
+      await options.saveFn(toRaw(state.form) as T)
       appStore.showSuccess(
         options.successMessage || t('admin.settings.saveSuccess')
       )
@@ -107,14 +109,12 @@ export function useSettingsCard<T extends Record<string, any>>(
         options.errorMessage || error?.message || t('admin.settings.saveFailed')
       )
     } finally {
-      saving.value = false
+      state.saving = false
     }
   }
 
   return {
-    loading,
-    saving,
-    form,
+    ...state,
     load,
     save
   }

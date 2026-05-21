@@ -7,6 +7,7 @@ export interface AutoRefreshSkipConditions {
   menuShow: boolean
   showAccountToolsDropdown: boolean
   showAutoRefreshDropdown: boolean
+  showColumnSettingsDropdown?: boolean
   inSilentWindow: boolean
 }
 
@@ -15,7 +16,7 @@ export function shouldSkipAutoRefresh(conditions: AutoRefreshSkipConditions): bo
   if (conditions.documentHidden) return true
   if (conditions.loading || conditions.autoRefreshFetching) return true
   if (conditions.isAnyModalOpen) return true
-  if (conditions.menuShow || conditions.showAccountToolsDropdown || conditions.showAutoRefreshDropdown) return true
+  if (conditions.menuShow || conditions.showAccountToolsDropdown || conditions.showAutoRefreshDropdown || conditions.showColumnSettingsDropdown) return true
   if (conditions.inSilentWindow) return true
 
   return false

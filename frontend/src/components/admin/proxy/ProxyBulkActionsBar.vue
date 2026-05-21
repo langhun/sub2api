@@ -161,7 +161,7 @@
               @click="handleAction('unassign')"
               class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
             >
-              <Icon name="unlink" size="sm" class="text-gray-500" />
+              <Icon name="xCircle" size="sm" class="text-gray-500" />
               {{ t('admin.proxies.quickUnassign') }}
             </button>
             <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>

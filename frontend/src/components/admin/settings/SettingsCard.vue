@@ -26,7 +26,7 @@
     @save="handleSave"
   >
     <div class="space-y-4">
-      <!-- 你的表单内容 -->
+      表单内容
     </div>
   </SettingsCard>
 -->
