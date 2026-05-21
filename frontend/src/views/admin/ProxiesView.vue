@@ -56,6 +56,22 @@
         />
         <div ref="proxyTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <template v-if="activeTab === 'proxies'">
+        <!-- Bulk Actions Bar -->
+        <ProxyBulkActionsBar
+          v-if="selectedCount > 0"
+          :selected-count="selectedCount"
+          :batch-testing="batchTesting"
+          :batch-quality-checking="batchQualityChecking"
+          @test="handleBatchTest"
+          @quality-check="handleBatchQualityCheck"
+          @enable-pool="handleBatchPoolMembership(true)"
+          @disable-pool="handleBatchPoolMembership(false)"
+          @clear-cooldown="handleClearCooldown(Array.from(selectedProxyIds))"
+          @assign="showAssignAccounts = true"
+          @unassign="openBatchUnassign"
+          @delete="openBatchDelete"
+          @clear="clearSelectedProxies"
+        />
         <DataTable
           :columns="columns"
           :data="proxies"
@@ -1129,6 +1145,7 @@ import PoolMembersDialog from '@/components/admin/proxy/PoolMembersDialog.vue'
 import ProxiesToolbar from '@/components/admin/proxy/ProxiesToolbar.vue'
 import ProxySubscriptionsPanel from '@/components/admin/proxy/ProxySubscriptionsPanel.vue'
 import SubscriptionSourceDialog from '@/components/admin/proxy/SubscriptionSourceDialog.vue'
+import ProxyBulkActionsBar from '@/components/admin/proxy/ProxyBulkActionsBar.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
