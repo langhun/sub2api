@@ -139,7 +139,17 @@ func (m *proxySubscriptionMihomoRuntimeManager) Stop(ctx context.Context) error 
 }
 
 func (m *proxySubscriptionMihomoRuntimeManager) UpsertRuntime(ctx context.Context, req service.ProxySubscriptionRuntimeUpsertRequest) (*service.ProxySubscriptionRuntimeUpsertResponse, error) {
+	slog.Debug("proxy_subscription_mihomo_runtime.upsert_runtime_start",
+		"runtime_id", req.RuntimeID,
+		"source_name", req.SourceName,
+		"entry_index", req.EntryIndex,
+		"node_type", req.NodeType,
+		"preferred_port", req.ListenerPort)
+
 	if err := m.Start(ctx); err != nil {
+		slog.Error("proxy_subscription_mihomo_runtime.start_failed",
+			"runtime_id", req.RuntimeID,
+			"error", err)
 		return nil, err
 	}
 
@@ -161,8 +171,18 @@ func (m *proxySubscriptionMihomoRuntimeManager) UpsertRuntime(ctx context.Contex
 	}
 	listenerPort, err := m.allocatePortLocked(req.RuntimeID, preferredPort, listenerHost)
 	if err != nil {
+		slog.Error("proxy_subscription_mihomo_runtime.port_allocation_failed",
+			"runtime_id", req.RuntimeID,
+			"preferred_port", preferredPort,
+			"listener_host", listenerHost,
+			"error", err)
 		return nil, err
 	}
+
+	slog.Debug("proxy_subscription_mihomo_runtime.port_allocated",
+		"runtime_id", req.RuntimeID,
+		"listener_host", listenerHost,
+		"listener_port", listenerPort)
 
 	providerPath := filepath.Join(m.listenerDir, req.RuntimeID+".provider.yaml")
 	configPath := filepath.Join(m.listenerDir, req.RuntimeID+".yaml")
@@ -191,14 +211,27 @@ func (m *proxySubscriptionMihomoRuntimeManager) UpsertRuntime(ctx context.Contex
 
 	m.runtimes[req.RuntimeID] = state
 	if err := m.applyEmbeddedConfigLocked(ctx); err != nil {
+		slog.Error("proxy_subscription_mihomo_runtime.apply_config_failed",
+			"runtime_id", req.RuntimeID,
+			"error", err)
 		m.restoreRuntimeUpsertLocked(req.RuntimeID, current, providerPath, oldProvider, providerExisted, configPath, oldConfig, configExisted)
 		return nil, err
 	}
 	if err := waitForTCP(listenerHost, listenerPort, 12*time.Second); err != nil {
+		slog.Error("proxy_subscription_mihomo_runtime.listener_not_ready",
+			"runtime_id", req.RuntimeID,
+			"listener_host", listenerHost,
+			"listener_port", listenerPort,
+			"error", err)
 		m.restoreRuntimeUpsertLocked(req.RuntimeID, current, providerPath, oldProvider, providerExisted, configPath, oldConfig, configExisted)
 		rollbackErr := m.applyEmbeddedConfigLocked(ctx)
 		return nil, errors.Join(fmt.Errorf("embedded mihomo listener not ready: %w", err), rollbackErr)
 	}
+
+	slog.Debug("proxy_subscription_mihomo_runtime.upsert_runtime_success",
+		"runtime_id", req.RuntimeID,
+		"listener_host", listenerHost,
+		"listener_port", listenerPort)
 
 	return &service.ProxySubscriptionRuntimeUpsertResponse{
 		RuntimeID:    req.RuntimeID,
@@ -209,31 +242,58 @@ func (m *proxySubscriptionMihomoRuntimeManager) UpsertRuntime(ctx context.Contex
 }
 
 func (m *proxySubscriptionMihomoRuntimeManager) DeleteRuntime(ctx context.Context, runtimeID string) error {
+	slog.Debug("proxy_subscription_mihomo_runtime.delete_runtime_start",
+		"runtime_id", runtimeID)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	state := m.runtimes[runtimeID]
 	if state == nil {
+		slog.Debug("proxy_subscription_mihomo_runtime.delete_runtime_not_found",
+			"runtime_id", runtimeID)
 		return nil
 	}
 	delete(m.runtimes, runtimeID)
 	if err := m.applyEmbeddedConfigLocked(ctx); err != nil {
+		slog.Error("proxy_subscription_mihomo_runtime.delete_runtime_apply_config_failed",
+			"runtime_id", runtimeID,
+			"error", err)
 		m.runtimes[runtimeID] = state
 		return err
 	}
-	_ = os.Remove(filepath.Join(m.listenerDir, runtimeID+".provider.yaml"))
-	_ = os.Remove(filepath.Join(m.listenerDir, runtimeID+".yaml"))
+	// 清理临时文件，添加错误日志
+	providerPath := filepath.Join(m.listenerDir, runtimeID+".provider.yaml")
+	if err := os.Remove(providerPath); err != nil && !os.IsNotExist(err) {
+		slog.Warn("failed to remove provider file",
+			"runtime_id", runtimeID,
+			"path", providerPath,
+			"error", err)
+	}
+	configPath := filepath.Join(m.listenerDir, runtimeID+".yaml")
+	if err := os.Remove(configPath); err != nil && !os.IsNotExist(err) {
+		slog.Warn("failed to remove config file",
+			"runtime_id", runtimeID,
+			"path", configPath,
+			"error", err)
+	}
+
+	slog.Debug("proxy_subscription_mihomo_runtime.delete_runtime_success",
+		"runtime_id", runtimeID)
 	return nil
 }
 
 func (m *proxySubscriptionMihomoRuntimeManager) CheckRuntime(_ context.Context, runtimeID string) error {
 	m.mu.Lock()
 	state := m.runtimes[runtimeID]
-	m.mu.Unlock()
 	if state == nil {
+		m.mu.Unlock()
 		return fmt.Errorf("runtime not found")
 	}
-	return waitForTCP(state.ListenerHost, state.ListenerPort, 2*time.Second)
+	listenerHost := state.ListenerHost
+	listenerPort := state.ListenerPort
+	m.mu.Unlock()
+	return waitForTCP(listenerHost, listenerPort, 2*time.Second)
 }
 
 func (m *proxySubscriptionMihomoRuntimeManager) applyEmbeddedConfigLocked(ctx context.Context) error {
@@ -336,7 +396,13 @@ func (m *proxySubscriptionMihomoRuntimeManager) buildEmbeddedConfigLocked() ([]b
 		}
 		endpoint := net.JoinHostPort(state.ListenerHost, strconv.Itoa(state.ListenerPort))
 		if previousRuntimeID, exists := listenerEndpoints[endpoint]; exists {
-			return nil, fmt.Errorf("duplicate mihomo listener endpoint %s for runtimes %s and %s", endpoint, previousRuntimeID, runtimeID)
+			slog.Error("duplicate mihomo listener endpoint detected",
+				"endpoint", endpoint,
+				"runtime_id", runtimeID,
+				"conflicting_runtime_id", previousRuntimeID)
+
+			state.Stopped = true
+			return nil, fmt.Errorf("duplicate endpoint %s", endpoint)
 		}
 		listenerEndpoints[endpoint] = runtimeID
 
@@ -377,6 +443,9 @@ func (m *proxySubscriptionMihomoRuntimeManager) buildEmbeddedConfigLocked() ([]b
 
 func (m *proxySubscriptionMihomoRuntimeManager) allocatePortLocked(runtimeID string, preferredPort int, listenerHost string) (int, error) {
 	if current := m.runtimes[runtimeID]; current != nil && current.ListenerPort > 0 {
+		slog.Debug("proxy_subscription_mihomo_runtime.reusing_existing_port",
+			"runtime_id", runtimeID,
+			"port", current.ListenerPort)
 		return current.ListenerPort, nil
 	}
 	start, end := parsePortRange(strings.TrimSpace(m.cfg.ListenerPortRange))
@@ -389,18 +458,33 @@ func (m *proxySubscriptionMihomoRuntimeManager) allocatePortLocked(runtimeID str
 	}
 	if preferredPort > 0 {
 		if _, ok := used[preferredPort]; !ok && isTCPPortFree(listenerHost, preferredPort) {
+			slog.Debug("proxy_subscription_mihomo_runtime.using_preferred_port",
+				"runtime_id", runtimeID,
+				"port", preferredPort)
 			return preferredPort, nil
 		}
+		slog.Debug("proxy_subscription_mihomo_runtime.preferred_port_unavailable",
+			"runtime_id", runtimeID,
+			"preferred_port", preferredPort,
+			"port_in_use", used[preferredPort])
 	}
 	for port := start; port <= end; port++ {
 		if _, ok := used[port]; ok {
 			continue
 		}
 		if isTCPPortFree(listenerHost, port) {
+			slog.Debug("proxy_subscription_mihomo_runtime.allocated_port",
+				"runtime_id", runtimeID,
+				"port", port)
 			return port, nil
 		}
 	}
-	return 0, fmt.Errorf("no free mihomo listener ports available in %d-%d", start, end)
+	slog.Error("proxy_subscription_mihomo_runtime.no_free_ports",
+		"runtime_id", runtimeID,
+		"port_range_start", start,
+		"port_range_end", end,
+		"used_port_count", len(used))
+	return 0, fmt.Errorf("no free mihomo listener ports available in range %d-%d (used: %d)", start, end, len(used))
 }
 
 func (m *proxySubscriptionMihomoRuntimeManager) rehydrateExistingRuntimesLocked(ctx context.Context) error {
@@ -589,15 +673,26 @@ func parsePortRange(raw string) (int, int) {
 	return start, end
 }
 
-func isTCPPortFree(host string, port int) bool {
-	ln, err := net.Listen("tcp", net.JoinHostPort(bindCheckHost(host), strconv.Itoa(port)))
+// isPortAvailable checks if a TCP port is available for binding on the specified host.
+// It attempts to create a listener on the given host:port combination and returns true if successful.
+func isPortAvailable(host string, port int) bool {
+	addr := net.JoinHostPort(bindCheckHost(host), strconv.Itoa(port))
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return false
 	}
-	_ = ln.Close()
+	_ = listener.Close()
 	return true
 }
 
+// isTCPPortFree is an alias for isPortAvailable for backward compatibility.
+func isTCPPortFree(host string, port int) bool {
+	return isPortAvailable(host, port)
+}
+
+// waitForTCP waits for a TCP listener to become available at the specified host:port.
+// It polls the endpoint until a connection succeeds or the timeout is reached.
+// Returns an error if the listener is not ready within the timeout period.
 func waitForTCP(host string, port int, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	address := net.JoinHostPort(dialCheckHost(host), strconv.Itoa(port))
