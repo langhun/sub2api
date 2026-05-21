@@ -90,7 +90,7 @@ func (h *BalanceTransferHandler) GetHistory(c *gin.Context) {
 		response.InternalError(c, err.Error())
 		return
 	}
-	response.Paginated(c, records, total, page, pageSize)
+	response.Paginated(c, records, int64(total), page, pageSize)
 }
 
 func (h *BalanceTransferHandler) GetStats(c *gin.Context) {
@@ -193,7 +193,7 @@ func (h *BalanceTransferHandler) GetMyRedPackets(c *gin.Context) {
 		response.InternalError(c, err.Error())
 		return
 	}
-	response.Paginated(c, records, total, page, pageSize)
+	response.Paginated(c, records, int64(total), page, pageSize)
 }
 
 func (h *BalanceTransferHandler) GetLeaderboard(c *gin.Context) {
