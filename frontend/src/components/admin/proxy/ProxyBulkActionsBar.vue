@@ -1,3 +1,40 @@
+<!--
+  ProxyBulkActionsBar 组件
+
+  代理批量操作工具栏，提供测试、质量检查、分配、删除等批量操作。
+
+  Props:
+  - selectedCount: 已选中的代理数量
+  - batchTesting: 是否正在批量测试（可选）
+  - batchQualityChecking: 是否正在批量质量检查（可选）
+
+  Events:
+  - test: 批量测试连接
+  - quality-check: 批量质量检查
+  - enable-pool: 批量启用代理池
+  - disable-pool: 批量禁用代理池
+  - clear-cooldown: 批量清除冷却时间
+  - assign: 分配账户
+  - unassign: 取消分配账户
+  - delete: 批量删除
+  - clear: 清除选择
+
+  特性:
+  - 使用 sticky 定位，固定在顶部
+  - 下拉菜单自动处理点击外部关闭
+  - 所有操作按钮在执行时显示加载状态
+
+  使用示例:
+  <ProxyBulkActionsBar
+    :selected-count="selectedProxies.length"
+    :batch-testing="batchTesting"
+    :batch-quality-checking="batchQualityChecking"
+    @test="handleBatchTest"
+    @quality-check="handleBatchQualityCheck"
+    @delete="handleDelete"
+    @clear="clearSelection"
+  />
+-->
 <template>
   <div
     class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-dark-600 dark:bg-dark-800"

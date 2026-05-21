@@ -1,3 +1,35 @@
+<!--
+  SettingsCard 组件
+
+  标准化的设置卡片容器组件，提供统一的加载状态、保存按钮和布局。
+
+  Props:
+  - title: 卡片标题
+  - description: 卡片描述文本（可选）
+  - loading: 是否显示加载状态（可选）
+  - saving: 是否正在保存（可选）
+  - showSaveButton: 是否显示保存按钮（可选）
+
+  Events:
+  - save: 点击保存按钮时触发
+
+  Slots:
+  - default: 卡片内容区域
+
+  使用示例:
+  <SettingsCard
+    :title="t('admin.settings.general')"
+    :description="t('admin.settings.generalDesc')"
+    :loading="loading"
+    :saving="saving"
+    :show-save-button="true"
+    @save="handleSave"
+  >
+    <div class="space-y-4">
+      <!-- 你的表单内容 -->
+    </div>
+  </SettingsCard>
+-->
 <template>
   <div class="card">
     <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
