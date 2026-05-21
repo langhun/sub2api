@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -48,6 +49,17 @@ func NewProxySubscriptionService(
 	if cfg != nil && cfg.ProxySubscriptions.DefaultRefreshIntervalHours > 0 {
 		defaultHours = cfg.ProxySubscriptions.DefaultRefreshIntervalHours
 	}
+	httpClient, err := httpclient.GetClient(httpclient.Options{
+		Timeout:               45 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
+	})
+	if err != nil {
+		httpClient = &http.Client{
+			Timeout: 45 * time.Second,
+		}
+	}
 	return &ProxySubscriptionService{
 		sourceRepo:   sourceRepo,
 		nodeRepo:     nodeRepo,
@@ -57,9 +69,7 @@ func NewProxySubscriptionService(
 		runtime:      runtime,
 		openAIProbe:  probeOpenAIReachable,
 		defaultHours: defaultHours,
-		httpClient: &http.Client{
-			Timeout: 45 * time.Second,
-		},
+		httpClient:   httpClient,
 	}
 }
 
@@ -161,6 +171,9 @@ func (s *ProxySubscriptionService) ListMaterializedProxies(ctx context.Context, 
 }
 
 func (s *ProxySubscriptionService) RefreshSource(ctx context.Context, id int64) (*ProxySubscriptionRefreshResult, error) {
+	slog.Debug("proxy_subscription.refresh_source_start",
+		"source_id", id)
+
 	unlock := s.lock(id)
 	defer unlock()
 
@@ -171,6 +184,10 @@ func (s *ProxySubscriptionService) RefreshSource(ctx context.Context, id int64) 
 
 	payload, err := s.fetchSubscriptionContent(ctx, source.URL)
 	if err != nil {
+		slog.Error("proxy_subscription.fetch_failed",
+			"source_id", id,
+			"source_url", source.URL,
+			"error", err)
 		source.LastError = err.Error()
 		now := time.Now()
 		source.LastRefreshedAt = &now
@@ -179,11 +196,22 @@ func (s *ProxySubscriptionService) RefreshSource(ctx context.Context, id int64) 
 	}
 
 	nodes, detectedFormat, parseErrors := parseProxySubscriptionPayload(payload, source.SourceFormat)
+	slog.Debug("proxy_subscription.payload_parsed",
+		"source_id", id,
+		"detected_format", detectedFormat,
+		"node_count", len(nodes),
+		"parse_error_count", len(parseErrors))
+
 	if source.SourceFormat == ProxySubscriptionSourceFormatAuto {
 		source.SourceFormat = detectedFormat
 	}
 	runtimeNodes, filterErrors := filterRuntimeCandidateSubscriptionNodes(nodes)
 	parseErrors = append(parseErrors, filterErrors...)
+
+	slog.Debug("proxy_subscription.nodes_filtered",
+		"source_id", id,
+		"runtime_node_count", len(runtimeNodes),
+		"filter_error_count", len(filterErrors))
 
 	result := &ProxySubscriptionRefreshResult{
 		SourceID:    id,
@@ -347,8 +375,8 @@ func (s *ProxySubscriptionService) materializeDirectProxy(ctx context.Context, s
 			Protocol:              node.NodeType,
 			Host:                  node.Server,
 			Port:                  node.Port,
-			Username:              stringValue(node.ConfigJSON["username"]),
-			Password:              stringValue(node.ConfigJSON["password"]),
+			Username:              getStringValue(node.ConfigJSON["username"]),
+			Password:              getStringValue(node.ConfigJSON["password"]),
 			Status:                StatusActive,
 			ManagedBySubscription: true,
 			SubscriptionSourceID:  &source.ID,
@@ -375,8 +403,8 @@ func (s *ProxySubscriptionService) materializeDirectProxy(ctx context.Context, s
 	existing.Protocol = node.NodeType
 	existing.Host = node.Server
 	existing.Port = node.Port
-	existing.Username = stringValue(node.ConfigJSON["username"])
-	existing.Password = stringValue(node.ConfigJSON["password"])
+	existing.Username = getStringValue(node.ConfigJSON["username"])
+	existing.Password = getStringValue(node.ConfigJSON["password"])
 	existing.ManagedBySubscription = true
 	existing.SubscriptionSourceID = &source.ID
 	existing.SubscriptionNodeID = &node.ID
@@ -395,7 +423,17 @@ func (s *ProxySubscriptionService) materializeDirectProxy(ctx context.Context, s
 }
 
 func (s *ProxySubscriptionService) materializeRuntimeProxy(ctx context.Context, source *ProxySubscriptionSource, payload []byte, providerContent string, entryIndex int, node *ProxySubscriptionNode, result *ProxySubscriptionRefreshResult) error {
+	slog.Debug("proxy_subscription.materialize_runtime_proxy_start",
+		"source_id", source.ID,
+		"entry_index", entryIndex,
+		"node_key", node.NodeKey,
+		"node_type", node.NodeType,
+		"display_name", node.DisplayName)
+
 	if s.runtime == nil {
+		slog.Warn("proxy_subscription.runtime_not_configured",
+			"source_id", source.ID,
+			"node_key", node.NodeKey)
 		node.LandingStatus = ProxySubscriptionLandingStatusUnsupported
 		node.LastError = "proxy subscription mihomo runtime is not configured"
 		_ = s.nodeRepo.Update(ctx, node)
@@ -434,11 +472,23 @@ func (s *ProxySubscriptionService) materializeRuntimeProxy(ctx context.Context, 
 		ListenerPort:    preferredPort,
 	})
 	if err != nil {
+		slog.Error("proxy_subscription.runtime_upsert_failed",
+			"source_id", source.ID,
+			"runtime_id", runtimeIDForSource(source.ID, entryIndex),
+			"entry_index", entryIndex,
+			"node_key", node.NodeKey,
+			"error", err)
 		node.LandingStatus = ProxySubscriptionLandingStatusFailed
 		node.LastError = err.Error()
 		_ = s.nodeRepo.Update(ctx, node)
 		return err
 	}
+
+	slog.Debug("proxy_subscription.runtime_upsert_success",
+		"source_id", source.ID,
+		"runtime_id", runtimeIDForSource(source.ID, entryIndex),
+		"listener_host", resp.ListenerHost,
+		"listener_port", resp.ListenerPort)
 	name := node.DisplayName
 	if strings.TrimSpace(name) == "" {
 		name = fmt.Sprintf("%s 自动选路入口 #%d", source.Name, entryIndex)
@@ -745,15 +795,15 @@ func parseClashYAMLNodes(text string) ([]ProxySubscriptionNode, []ProxySubscript
 	nodes := make([]ProxySubscriptionNode, 0, len(root.Proxies))
 	errs := make([]ProxySubscriptionError, 0)
 	for _, item := range root.Proxies {
-		nodeType := strings.ToLower(stringValue(item["type"]))
-		server := stringValue(item["server"])
-		port := intValue(item["port"])
+		nodeType := strings.ToLower(getStringValue(item["type"]))
+		server := getStringValue(item["server"])
+		port := getIntValue(item["port"])
 		if nodeType == "" || server == "" || port <= 0 {
-			errs = append(errs, ProxySubscriptionError{Name: stringValue(item["name"]), Message: "invalid clash node"})
+			errs = append(errs, ProxySubscriptionError{Name: getStringValue(item["name"]), Message: "invalid clash node"})
 			continue
 		}
 		cfg := cloneMap(item)
-		name := stringValue(item["name"])
+		name := getStringValue(item["name"])
 		nodes = append(nodes, ProxySubscriptionNode{
 			NodeKey:     stableNodeKey(nodeType, server, port, cfg),
 			DisplayName: name,
@@ -889,8 +939,16 @@ func (s *ProxySubscriptionService) probeRuntimeCandidate(ctx context.Context, so
 	if err != nil {
 		return runtimeProbeCandidate{}, err
 	}
+
+	// 使用独立的清理上下文，确保即使主上下文取消也能完成清理
+	cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cleanupCancel()
 	defer func() {
-		_ = s.runtime.DeleteRuntime(context.Background(), probeRuntimeID)
+		if cleanupErr := s.runtime.DeleteRuntime(cleanupCtx, probeRuntimeID); cleanupErr != nil {
+			slog.Warn("failed to cleanup probe runtime",
+				"runtime_id", probeRuntimeID,
+				"error", cleanupErr)
+		}
 	}()
 
 	proxyURL := fmt.Sprintf("%s://%s:%d", ProxyNodeTypeSOCKS5H, resp.ListenerHost, resp.ListenerPort)
@@ -1178,14 +1236,19 @@ func isDirectProxyNode(nodeType string) bool {
 	}
 }
 
-func stringValue(v any) string {
+// getStringValue extracts a string value from an any type.
+// Returns empty string if the value is not a string.
+func getStringValue(v any) string {
 	if s, ok := v.(string); ok {
 		return s
 	}
 	return ""
 }
 
-func intValue(v any) int {
+// getIntValue extracts an integer value from an any type.
+// Supports conversion from int, int64, float64, and string types.
+// Returns 0 if the value cannot be converted to an integer.
+func getIntValue(v any) int {
 	switch n := v.(type) {
 	case int:
 		return n
