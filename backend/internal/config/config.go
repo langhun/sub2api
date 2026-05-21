@@ -1882,6 +1882,11 @@ func setDefaults() {
 	viper.SetDefault("proxy_subscriptions.refresh_scan_interval_seconds", 60)
 	viper.SetDefault("proxy_subscriptions.default_refresh_interval_hours", 6)
 	viper.SetDefault("proxy_subscriptions.sync_concurrency", 2)
+	viper.SetDefault("proxy_subscriptions.probe_max_concurrency", 5)
+	viper.SetDefault("proxy_subscriptions.probe_trace_timeout_seconds", 15)
+	viper.SetDefault("proxy_subscriptions.probe_openai_timeout_seconds", 12)
+	viper.SetDefault("proxy_subscriptions.runtime_check_timeout_seconds", 2)
+	viper.SetDefault("proxy_subscriptions.listener_ready_timeout_seconds", 12)
 
 	viper.SetDefault("proxy_subscription_mihomo.enabled", false)
 	viper.SetDefault("proxy_subscription_mihomo.mihomo_bin", "embedded")
@@ -2862,4 +2867,66 @@ func warnIfInsecureURL(field, raw string) {
 	if strings.EqualFold(u.Scheme, "http") {
 		slog.Warn("url uses http scheme; use https in production to avoid token leakage", "field", field)
 	}
+}
+
+// parsePortRange 解析端口范围字符串 "start-end"
+func parsePortRange(portRange string) (start, end int) {
+	parts := strings.Split(strings.TrimSpace(portRange), "-")
+	if len(parts) != 2 {
+		return 0, 0
+	}
+	fmt.Sscanf(parts[0], "%d", &start)
+	fmt.Sscanf(parts[1], "%d", &end)
+	return start, end
+}
+
+// validateSubscriptionURL 验证订阅 URL 是否为 HTTPS
+func validateSubscriptionURL(rawURL string) error {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return fmt.Errorf("empty url")
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid url: %w", err)
+	}
+	if !u.IsAbs() {
+		return fmt.Errorf("must be absolute url")
+	}
+	if !strings.EqualFold(u.Scheme, "https") {
+		return fmt.Errorf("must use https scheme for security")
+	}
+	if strings.TrimSpace(u.Host) == "" {
+		return fmt.Errorf("missing host")
+	}
+	return nil
+}
+
+// validateDataDir 验证数据目录是否存在且可写
+func validateDataDir(dataDir string) error {
+	dataDir = strings.TrimSpace(dataDir)
+	if dataDir == "" {
+		return fmt.Errorf("data directory is empty")
+	}
+
+	info, err := os.Stat(dataDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("data directory does not exist: %s", dataDir)
+		}
+		return fmt.Errorf("cannot access data directory: %w", err)
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("path is not a directory: %s", dataDir)
+	}
+
+	// 测试写权限
+	testFile := fmt.Sprintf("%s/.write_test_%d", dataDir, time.Now().UnixNano())
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
+		return fmt.Errorf("data directory is not writable: %w", err)
+	}
+	os.Remove(testFile)
+
+	return nil
 }
