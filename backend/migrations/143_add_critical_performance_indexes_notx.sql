@@ -6,14 +6,12 @@
 -- 1. usage_logs 多维度查询索引
 -- 优化场景：按账号查询使用记录（用户仪表盘、账单统计）
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_usage_logs_account_time
-ON usage_logs(account_id, created_at DESC)
-WHERE deleted_at IS NULL;
+ON usage_logs(account_id, created_at DESC);
 
 -- 2. usage_logs 按模型统计索引
 -- 优化场景：按模型聚合统计（运营分析、成本核算）
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_usage_logs_model_time
-ON usage_logs(model_name, created_at DESC)
-WHERE deleted_at IS NULL;
+ON usage_logs(model, created_at DESC);
 
 -- 3. accounts 过期查询索引
 -- 优化场景：定时任务扫描过期账号、过期提醒
@@ -29,6 +27,6 @@ WHERE deleted_at IS NULL;
 
 -- 5. proxy_subscriptions 刷新扫描索引
 -- 优化场景：定时任务扫描待刷新订阅
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_proxy_subscriptions_refresh
-ON proxy_subscriptions(next_refresh_at)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_proxy_subscription_sources_refresh
+ON proxy_subscription_sources(enabled, last_refreshed_at)
 WHERE deleted_at IS NULL AND enabled = true;
