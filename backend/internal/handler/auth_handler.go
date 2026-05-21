@@ -535,6 +535,16 @@ func (h *AuthHandler) ValidateInvitationCode(c *gin.Context) {
 		return
 	}
 
+	format := h.settingSvc.GetInvitationCodeFormat(c.Request.Context())
+	req.Code = service.NormalizeRegistrationInvitationCodeWithSettings(req.Code, format)
+	if !service.IsRegistrationInvitationCodeFormatWithSettings(req.Code, format) {
+		response.Success(c, ValidateInvitationCodeResponse{
+			Valid:     false,
+			ErrorCode: "INVITATION_CODE_INVALID",
+		})
+		return
+	}
+
 	// 验证邀请码
 	redeemCode, err := h.redeemService.GetByCode(c.Request.Context(), req.Code)
 	if err != nil {

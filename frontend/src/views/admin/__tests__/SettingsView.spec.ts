@@ -163,6 +163,24 @@ vi.mock("vue-i18n", async () => {
     "admin.settings.openaiExperimentalScheduler.description": "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑，不代表上游 OpenAI 官方能力。",
     "admin.settings.site.uploadImage": "上传图片",
     "admin.settings.site.remove": "移除",
+    "admin.settings.site.homeNavLeaderboardEnabled": "显示排行榜入口",
+    "admin.settings.site.homeNavLeaderboardEnabledHint": "在公开首页顶部显示或隐藏排行榜入口。",
+    "admin.settings.site.homeNavKeyUsageEnabled": "显示用量查询入口",
+    "admin.settings.site.homeNavKeyUsageEnabledHint": "在公开首页顶部显示或隐藏用量查询入口。",
+    "admin.settings.site.homeNavMonitoringEnabled": "显示平台监控入口",
+    "admin.settings.site.homeNavMonitoringEnabledHint": "在公开首页顶部显示或隐藏平台监控入口。",
+    "admin.settings.site.homeNavPricingEnabled": "显示模型定价入口",
+    "admin.settings.site.homeNavPricingEnabledHint": "在公开首页顶部显示或隐藏模型定价入口。",
+    "admin.settings.site.leaderboardBalanceEnabled": "显示余额排行榜",
+    "admin.settings.site.leaderboardBalanceEnabledHint": "控制排行榜页面是否显示余额标签。",
+    "admin.settings.site.leaderboardConsumptionEnabled": "显示消费排行榜",
+    "admin.settings.site.leaderboardConsumptionEnabledHint": "控制排行榜页面是否显示消费标签。",
+    "admin.settings.site.leaderboardTransferEnabled": "显示转账排行榜",
+    "admin.settings.site.leaderboardTransferEnabledHint": "控制排行榜页面是否显示转账标签。",
+    "admin.settings.site.leaderboardCheckinEnabled": "显示签到排行榜",
+    "admin.settings.site.leaderboardCheckinEnabledHint": "控制排行榜页面是否显示签到标签。",
+    "admin.settings.site.leaderboardIncludeAdminEnabled": "排行榜包含管理员",
+    "admin.settings.site.leaderboardIncludeAdminEnabledHint": "控制公开排行榜和消费分布是否把管理员账号统计进去。关闭时管理员不会上榜。",
   };
   return {
     ...actual,
@@ -284,11 +302,77 @@ const baseSettingsResponse = {
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   promo_code_enabled: true,
+  redeem_code_format: {
+    prefix: "",
+    suffix: "",
+    random_length: 16,
+    separator: "-",
+    group_size: 4,
+    group_count: 4,
+    chars_per_group: 4,
+    charset: "mixed",
+    letter_case: "upper",
+  },
+  balance_code_format: {
+    prefix: "BAL",
+    suffix: "",
+    random_length: 12,
+    separator: "-",
+    group_size: 4,
+    group_count: 3,
+    chars_per_group: 4,
+    charset: "mixed",
+    letter_case: "upper",
+  },
+  concurrency_code_format: {
+    prefix: "CC",
+    suffix: "",
+    random_length: 12,
+    separator: "-",
+    group_size: 4,
+    group_count: 3,
+    chars_per_group: 4,
+    charset: "digits",
+    letter_case: "upper",
+  },
+  subscription_code_format: {
+    prefix: "SUB",
+    suffix: "",
+    random_length: 9,
+    separator: "-",
+    group_size: 3,
+    group_count: 3,
+    chars_per_group: 3,
+    charset: "letters",
+    letter_case: "upper",
+  },
   invitation_code_enabled: false,
+  invitation_code_format: {
+    prefix: "DG",
+    suffix: "",
+    random_length: 6,
+    separator: "-",
+    group_size: 6,
+    group_count: 1,
+    chars_per_group: 6,
+    charset: "mixed",
+    letter_case: "upper",
+  },
   password_reset_enabled: false,
   totp_enabled: false,
   totp_encryption_key_configured: false,
   default_balance: 0,
+  affiliate_code_format: {
+    prefix: "AFF",
+    suffix: "",
+    random_length: 12,
+    separator: "",
+    group_size: 12,
+    group_count: 1,
+    chars_per_group: 12,
+    charset: "mixed",
+    letter_case: "upper",
+  },
   default_concurrency: 1,
   default_subscriptions: [],
   site_name: "Sub2API",
@@ -298,6 +382,16 @@ const baseSettingsResponse = {
   contact_info: "",
   doc_url: "",
   home_content: "",
+  home_nav_links_enabled: true,
+  home_nav_leaderboard_enabled: true,
+  home_nav_key_usage_enabled: true,
+  home_nav_monitoring_enabled: true,
+  home_nav_pricing_enabled: true,
+  leaderboard_balance_enabled: true,
+  leaderboard_consumption_enabled: true,
+  leaderboard_transfer_enabled: true,
+  leaderboard_checkin_enabled: true,
+  leaderboard_include_admin_enabled: false,
   hide_ccs_import_button: false,
   table_default_page_size: 20,
   table_page_size_options: [10, 20, 50, 100],
@@ -420,6 +514,8 @@ function mountView() {
         ProxySelector: true,
         ImageUpload: ImageUploadStub,
         BackupSettings: true,
+        BlindboxPrizePoolCard: true,
+        RouterLink: true,
       },
     },
   });
@@ -432,6 +528,16 @@ async function openPaymentTab(wrapper: ReturnType<typeof mountView>) {
 
   expect(paymentTabButton).toBeDefined();
   await paymentTabButton?.trigger("click");
+  await flushPromises();
+}
+
+async function openBackupTab(wrapper: ReturnType<typeof mountView>) {
+  const backupTabButton = wrapper
+    .findAll("button")
+    .find((node) => node.text().includes("admin.settings.tabs.backup"));
+
+  expect(backupTabButton).toBeDefined();
+  await backupTabButton?.trigger("click");
   await flushPromises();
 }
 
@@ -584,6 +690,102 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_enabled");
   });
 
+  it("renders and submits split home nav link switches", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      home_nav_leaderboard_enabled: false,
+      home_nav_key_usage_enabled: true,
+      home_nav_monitoring_enabled: false,
+      home_nav_pricing_enabled: true,
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("显示排行榜入口");
+    expect(wrapper.text()).toContain("显示用量查询入口");
+    expect(wrapper.text()).toContain("显示平台监控入口");
+    expect(wrapper.text()).toContain("显示模型定价入口");
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        home_nav_leaderboard_enabled: false,
+        home_nav_key_usage_enabled: true,
+        home_nav_monitoring_enabled: false,
+        home_nav_pricing_enabled: true,
+      }),
+    );
+    expect(updateSettings.mock.calls[0]?.[0]).not.toHaveProperty(
+      "home_nav_links_enabled",
+    );
+  });
+
+  it("renders independent code format cards for balance, concurrency, subscription, and invitation", async () => {
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("余额兑换码");
+    expect(wrapper.text()).toContain("并发兑换码");
+    expect(wrapper.text()).toContain("订阅兑换码");
+    expect(wrapper.text()).toContain("邀请码");
+    expect(wrapper.text()).toContain("BAL-XXXX-XXXX-XXXX");
+    expect(wrapper.text()).toContain("CC-8888-8888-8888");
+    expect(wrapper.text()).toContain("SUB-XXX-XXX-XXX");
+  });
+
+  it("orders settings tabs by workflow and mounts backup content on demand", async () => {
+    const BackupSettingsStub = defineComponent({
+      template: '<div class="backup-settings-stub">backup settings</div>',
+    });
+
+    const wrapper = mount(SettingsView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          Select: SelectStub,
+          Toggle: ToggleStub,
+          Icon: true,
+          ConfirmDialog: true,
+          PaymentProviderList: true,
+          PaymentProviderDialog: true,
+          GroupBadge: true,
+          GroupOptionItem: true,
+          ProxySelector: true,
+          ImageUpload: ImageUploadStub,
+          BackupSettings: BackupSettingsStub,
+          BlindboxPrizePoolCard: true,
+          RouterLink: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.findAll(".settings-tab").map((node) => node.text())).toEqual([
+      "admin.settings.tabs.general",
+      "admin.settings.tabs.agreement",
+      "admin.settings.tabs.security",
+      "admin.settings.tabs.email",
+      "admin.settings.tabs.users",
+      "admin.settings.tabs.features",
+      "admin.settings.tabs.checkin",
+      "admin.settings.tabs.payment",
+      "admin.settings.tabs.gateway",
+      "admin.settings.tabs.backup",
+    ]);
+    expect(wrapper.find(".backup-settings-stub").exists()).toBe(false);
+
+    await openBackupTab(wrapper);
+
+    expect(wrapper.find(".backup-settings-stub").exists()).toBe(true);
+  });
+
   it("submits Anthropic cache TTL injection gateway setting", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
@@ -600,6 +802,43 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         enable_anthropic_cache_ttl_1h_injection: true,
+      }),
+    );
+  });
+
+  it("renders and submits leaderboard tab switches independently from home nav entry", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      home_nav_leaderboard_enabled: false,
+      leaderboard_balance_enabled: true,
+      leaderboard_consumption_enabled: false,
+      leaderboard_transfer_enabled: true,
+      leaderboard_checkin_enabled: false,
+      leaderboard_include_admin_enabled: true,
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("显示排行榜入口");
+    expect(wrapper.text()).toContain("显示余额排行榜");
+    expect(wrapper.text()).toContain("显示消费排行榜");
+    expect(wrapper.text()).toContain("显示转账排行榜");
+    expect(wrapper.text()).toContain("显示签到排行榜");
+    expect(wrapper.text()).toContain("排行榜包含管理员");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        home_nav_leaderboard_enabled: false,
+        leaderboard_balance_enabled: true,
+        leaderboard_consumption_enabled: false,
+        leaderboard_transfer_enabled: true,
+        leaderboard_checkin_enabled: false,
+        leaderboard_include_admin_enabled: true,
       }),
     );
   });
@@ -694,6 +933,8 @@ describe("admin SettingsView payment visible method controls", () => {
           ProxySelector: true,
           ImageUpload: ImageUploadStub,
           BackupSettings: true,
+          BlindboxPrizePoolCard: true,
+          RouterLink: true,
         },
       },
     });

@@ -1,10 +1,11 @@
 package service
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"time"
 )
+
+var registrationInvitationCodeCharset = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+var redeemCodeCharset = []byte("0123456789ABCDEF")
 
 type RedeemCode struct {
 	ID        int64
@@ -20,9 +21,20 @@ type RedeemCode struct {
 
 	GroupID      *int64
 	ValidityDays int
+	Multiplier   float64
+	BetAmount    float64
 
 	User  *User
 	Group *Group
+
+	SourceType      string
+	SourceSummary   string
+	SourceUser      *User
+	InviterUser     *User
+	WinningUser     *User
+	WinningPrize    string
+	WinningReward   string
+	GeneratedByUser *User
 }
 
 func (r *RedeemCode) IsUsed() bool {
@@ -47,10 +59,34 @@ func (r *RedeemCode) CanUse() bool {
 	return r.Status == StatusUnused && !r.IsExpired()
 }
 
+func NormalizeRegistrationInvitationCode(code string) string {
+	return NormalizeCodeValueWithFormat(code, DefaultRegistrationInvitationCodeFormat())
+}
+
+func NormalizeRegistrationInvitationCodeWithSettings(code string, format CodeFormatSettings) string {
+	return NormalizeCodeValueWithFormat(code, format)
+}
+
+func IsRegistrationInvitationCodeFormat(code string) bool {
+	return IsCodeMatchingFormat(code, DefaultRegistrationInvitationCodeFormat())
+}
+
+func IsRegistrationInvitationCodeFormatWithSettings(code string, format CodeFormatSettings) bool {
+	return IsCodeMatchingFormat(code, format)
+}
+
+func GenerateRegistrationInvitationCode() (string, error) {
+	return GenerateRegistrationInvitationCodeWithFormat(DefaultRegistrationInvitationCodeFormat())
+}
+
+func GenerateRegistrationInvitationCodeWithFormat(format CodeFormatSettings) (string, error) {
+	return GenerateCodeWithFormat(format, registrationInvitationCodeCharset)
+}
+
 func GenerateRedeemCode() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
+	return GenerateRedeemCodeWithFormat(DefaultRedeemCodeFormat())
+}
+
+func GenerateRedeemCodeWithFormat(format CodeFormatSettings) (string, error) {
+	return GenerateCodeWithFormat(format, redeemCodeCharset)
 }

@@ -66,6 +66,7 @@ type migrationChecksumCompatibilityRule struct {
 var migrationChecksumCompatibilityRules = map[string]migrationChecksumCompatibilityRule{
 	"054_drop_legacy_cache_columns.sql":                       newMigrationChecksumCompatibilityRule("82de761156e03876653e7a6a4eee883cd927847036f779b0b9f34c42a8af7a7d", "182c193f3359946cf094090cd9e57d5c3fd9abaffbc1e8fc378646b8a6fa12b4"),
 	"061_add_usage_log_request_type.sql":                      newMigrationChecksumCompatibilityRule("66207e7aa5dd0429c2e2c0fabdaf79783ff157fa0af2e81adff2ee03790ec65c", "08a248652cbab7cfde147fc6ef8cda464f2477674e20b718312faa252e0481c0", "222b4a09c797c22e5922b6b172327c824f5463aaa8760e4f621bc5c22e2be0f3"),
+	"108_add_checkin_luck_columns.sql":                        newMigrationChecksumCompatibilityRule("bcad80f916385e54a0f5947f3f7f69be74cc144705f8185601b2efaf69f129c7", "42f587590caab70558687f934b7d4a4e6cf53be00e359534597978259f9806ac"),
 	"109_auth_identity_compat_backfill.sql":                   newMigrationChecksumCompatibilityRule("0580b4602d85435edf9aca1633db580bb3932f26517f75134106f80275ec2ace", "551e498aa5616d2d91096e9d72cf9fb36e418ee22eacc557f8811cadbc9e20ee"),
 	"110_pending_auth_and_provider_default_grants.sql":        newMigrationChecksumCompatibilityRule("32cf87ee787b1bb36b5c691367c96eee37518fa3eed6f3322cf68795e3745279", "e3d1f433be2b564cfbdc549adf98fce13c5c7b363ebc20fd05b765d0563b0925"),
 	"112_add_payment_order_provider_key_snapshot.sql":         newMigrationChecksumCompatibilityRule("b75f8f56d39455682787696a3d92ad25b055444ca328fb7fca9a460a15d68d99", "ffd3e8a2c9295fa9cbefefd629a78268877e5b51bc970a82d9b3f46ec4ebd15e"),
@@ -157,14 +158,18 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 			return fmt.Errorf("read migration %s: %w", name, err)
 		}
 
-		content := strings.TrimSpace(string(contentBytes))
-		if content == "" {
+		rawContent := strings.TrimSpace(string(contentBytes))
+		if rawContent == "" {
 			continue // 跳过空文件
+		}
+		executableContent := strings.TrimSpace(extractExecutableMigrationContent(rawContent))
+		if executableContent == "" {
+			continue
 		}
 
 		// 计算文件内容的 SHA256 校验和，用于检测文件是否被修改。
 		// 这是一种防篡改机制：如果有人修改了已应用的迁移文件，系统会拒绝启动。
-		sum := sha256.Sum256([]byte(content))
+		sum := sha256.Sum256([]byte(rawContent))
 		checksum := hex.EncodeToString(sum[:])
 
 		// 检查该迁移是否已经应用
@@ -195,7 +200,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 			return fmt.Errorf("check migration %s: %w", name, rowErr)
 		}
 
-		nonTx, err := validateMigrationExecutionMode(name, content)
+		nonTx, err := validateMigrationExecutionMode(name, executableContent)
 		if err != nil {
 			return fmt.Errorf("validate migration %s: %w", name, err)
 		}
@@ -207,7 +212,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 
 			// *_notx.sql：用于 CREATE/DROP INDEX CONCURRENTLY 场景，必须非事务执行。
 			// 逐条语句执行，避免将多条 CONCURRENTLY 语句放入同一个隐式事务块。
-			statements := splitSQLStatements(content)
+			statements := splitSQLStatements(executableContent)
 			for i, stmt := range statements {
 				trimmed := strings.TrimSpace(stmt)
 				if trimmed == "" {
@@ -233,7 +238,7 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 		}
 
 		// 执行迁移 SQL
-		if _, err := tx.ExecContext(ctx, content); err != nil {
+		if _, err := tx.ExecContext(ctx, executableContent); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %s: %w", name, err)
 		}
@@ -252,6 +257,38 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 	}
 
 	return nil
+}
+
+func extractExecutableMigrationContent(content string) string {
+	lines := strings.Split(content, "\n")
+	collected := make([]string, 0, len(lines))
+	hasGooseDirectives := false
+	inUpSection := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "-- +goose ") {
+			hasGooseDirectives = true
+			directive := strings.TrimSpace(strings.TrimPrefix(trimmed, "-- +goose "))
+			switch directive {
+			case "Up":
+				inUpSection = true
+			case "Down":
+				inUpSection = false
+			}
+			continue
+		}
+
+		if !hasGooseDirectives || inUpSection {
+			collected = append(collected, line)
+		}
+	}
+
+	if !hasGooseDirectives {
+		return content
+	}
+
+	return strings.Join(collected, "\n")
 }
 
 func prepareNonTransactionalMigration(ctx context.Context, db *sql.DB, name string) error {

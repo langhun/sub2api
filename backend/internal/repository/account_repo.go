@@ -52,6 +52,7 @@ type accountRepository struct {
 }
 
 var schedulerNeutralExtraKeyPrefixes = []string{
+	"auto_test_",
 	"codex_primary_",
 	"codex_secondary_",
 	"codex_5h_",
@@ -62,6 +63,7 @@ var schedulerNeutralExtraKeyPrefixes = []string{
 var schedulerNeutralExtraKeys = map[string]struct{}{
 	"codex_usage_updated_at":     {},
 	"session_window_utilization": {},
+	"proxy_failover_state":       {},
 }
 
 // NewAccountRepository 创建账户仓储实例。
@@ -74,6 +76,28 @@ func NewAccountRepository(client *dbent.Client, sqlDB *sql.DB, schedulerCache se
 // 这种设计便于单元测试时注入 mock 对象。
 func newAccountRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor, schedulerCache service.SchedulerCache) *accountRepository {
 	return &accountRepository{client: client, sql: sqlq, schedulerCache: schedulerCache}
+}
+
+func normalizeAccountStatusForStorage(status string) string {
+	trimmed := strings.TrimSpace(status)
+	if trimmed == "" {
+		return status
+	}
+	switch strings.ToLower(trimmed) {
+	case service.StatusDisabled:
+		return service.StatusDisabled
+	case "inactive":
+		return service.StatusDisabled
+	default:
+		return trimmed
+	}
+}
+
+func normalizeAccountStatusForResponse(status string) string {
+	if status == service.StatusDisabled {
+		return "inactive"
+	}
+	return status
 }
 
 func (r *accountRepository) Create(ctx context.Context, account *service.Account) error {
@@ -90,7 +114,7 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 		SetExtra(normalizeJSONMap(account.Extra)).
 		SetConcurrency(account.Concurrency).
 		SetPriority(account.Priority).
-		SetStatus(account.Status).
+		SetStatus(normalizeAccountStatusForStorage(account.Status)).
 		SetErrorMessage(account.ErrorMessage).
 		SetSchedulable(account.Schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
@@ -317,6 +341,10 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 	if account == nil {
 		return nil
 	}
+	schedulable := account.Schedulable
+	if account.Status == service.StatusError {
+		schedulable = false
+	}
 
 	builder := r.client.Account.UpdateOneID(account.ID).
 		SetName(account.Name).
@@ -327,9 +355,9 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		SetExtra(normalizeJSONMap(account.Extra)).
 		SetConcurrency(account.Concurrency).
 		SetPriority(account.Priority).
-		SetStatus(account.Status).
+		SetStatus(normalizeAccountStatusForStorage(account.Status)).
 		SetErrorMessage(account.ErrorMessage).
-		SetSchedulable(account.Schedulable).
+		SetSchedulable(schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
 
 	if account.RateMultiplier != nil {
@@ -450,6 +478,7 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 			return err
 		}
 	}
+	r.deleteSchedulerAccountSnapshot(ctx, id)
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, buildSchedulerGroupPayload(groupIDs)); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue account delete failed: account=%d err=%v", id, err)
 	}
@@ -457,11 +486,12 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *accountRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
-	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "")
+	return r.ListWithFilters(ctx, params, "", "", "", "", 0, "", "")
 }
 
-func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
+func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, tier string) ([]service.Account, *pagination.PaginationResult, error) {
 	q := r.client.Account.Query()
+	now := time.Now()
 
 	if platform != "" {
 		q = q.Where(dbaccount.PlatformEQ(platform))
@@ -469,65 +499,45 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	if accountType != "" {
 		q = q.Where(dbaccount.TypeEQ(accountType))
 	}
-	if status != "" {
-		switch status {
+	statusFilter := parseAccountStatusListFilter(status)
+	if statusFilter.hasStructured() {
+		if preds := statusFilter.predicates(now); len(preds) > 0 {
+			q = q.Where(preds...)
+		}
+	} else if statusFilter.legacy != "" {
+		switch statusFilter.legacy {
 		case service.StatusActive:
-			q = q.Where(
-				dbaccount.StatusEQ(status),
-				dbaccount.SchedulableEQ(true),
-				dbaccount.Or(
-					dbaccount.RateLimitResetAtIsNil(),
-					dbaccount.RateLimitResetAtLTE(time.Now()),
-				),
-				dbpredicate.Account(func(s *entsql.Selector) {
-					col := s.C("temp_unschedulable_until")
-					s.Where(entsql.Or(
-						entsql.IsNull(col),
-						entsql.LTE(col, entsql.Expr("NOW()")),
-					))
-				}),
-			)
+			q = q.Where(activeSchedulablePredicates(now)...)
 		case "rate_limited":
 			q = q.Where(
 				dbaccount.StatusEQ(service.StatusActive),
-				dbaccount.RateLimitResetAtGT(time.Now()),
-				dbpredicate.Account(func(s *entsql.Selector) {
-					col := s.C("temp_unschedulable_until")
-					s.Where(entsql.Or(
-						entsql.IsNull(col),
-						entsql.LTE(col, entsql.Expr("NOW()")),
-					))
-				}),
+				rateLimitedPredicate(now),
+			)
+		case "overloaded":
+			q = q.Where(
+				dbaccount.StatusEQ(service.StatusActive),
+				notRateLimitedPredicate(now),
+				overloadedPredicate(now),
 			)
 		case "temp_unschedulable":
 			q = q.Where(
 				dbaccount.StatusEQ(service.StatusActive),
-				dbpredicate.Account(func(s *entsql.Selector) {
-					col := s.C("temp_unschedulable_until")
-					s.Where(entsql.And(
-						entsql.Not(entsql.IsNull(col)),
-						entsql.GT(col, entsql.Expr("NOW()")),
-					))
-				}),
+				notRateLimitedPredicate(now),
+				notOverloadedPredicate(now),
+				tempUnschedulableActivePredicate(now),
 			)
 		case "unschedulable":
 			q = q.Where(
 				dbaccount.StatusEQ(service.StatusActive),
-				dbaccount.SchedulableEQ(false),
-				dbaccount.Or(
-					dbaccount.RateLimitResetAtIsNil(),
-					dbaccount.RateLimitResetAtLTE(time.Now()),
-				),
-				dbpredicate.Account(func(s *entsql.Selector) {
-					col := s.C("temp_unschedulable_until")
-					s.Where(entsql.Or(
-						entsql.IsNull(col),
-						entsql.LTE(col, entsql.Expr("NOW()")),
-					))
-				}),
+				notRateLimitedPredicate(now),
+				notOverloadedPredicate(now),
+				notTempUnschedulablePredicate(now),
+				schedulingDisabledPredicate(now),
 			)
+		case "inactive", service.StatusDisabled:
+			q = q.Where(dbaccount.StatusIn("inactive", service.StatusDisabled))
 		default:
-			q = q.Where(dbaccount.StatusEQ(status))
+			q = q.Where(dbaccount.StatusEQ(normalizeAccountStatusForStorage(statusFilter.legacy)))
 		}
 	}
 	if search != "" {
@@ -552,6 +562,9 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 			}
 		}))
 	}
+	if tier != "" {
+		q = applyAccountTierFilter(q, platform, tier)
+	}
 
 	total, err := q.Count(ctx)
 	if err != nil {
@@ -575,6 +588,169 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 		return nil, nil, err
 	}
 	return outAccounts, paginationResultFromTotal(int64(total), params), nil
+}
+
+type accountTierFilter struct {
+	platform string
+	value    string
+}
+
+func parseAccountTierFilter(tier, fallbackPlatform string) accountTierFilter {
+	trimmed := strings.TrimSpace(tier)
+	if trimmed == "" {
+		return accountTierFilter{}
+	}
+	platform := strings.TrimSpace(fallbackPlatform)
+	value := trimmed
+	if parts := strings.SplitN(trimmed, ":", 2); len(parts) == 2 {
+		platform = strings.TrimSpace(parts[0])
+		value = strings.TrimSpace(parts[1])
+	}
+	return accountTierFilter{platform: platform, value: value}
+}
+
+func applyAccountTierFilter(q *dbent.AccountQuery, platform, tier string) *dbent.AccountQuery {
+	filter := parseAccountTierFilter(tier, platform)
+	if filter.value == "" {
+		return q
+	}
+	switch filter.platform {
+	case service.PlatformOpenAI:
+		values := openAIAccountTierValues(filter.value)
+		return q.Where(
+			dbaccount.PlatformEQ(service.PlatformOpenAI),
+			dbpredicate.Account(func(s *entsql.Selector) {
+				s.Where(jsonStringValuesPredicate(dbaccount.FieldCredentials, sqljson.Path("plan_type"), values))
+			}),
+		)
+	case service.PlatformGemini:
+		values := geminiAccountTierValues(filter.value)
+		return q.Where(
+			dbaccount.PlatformEQ(service.PlatformGemini),
+			dbpredicate.Account(func(s *entsql.Selector) {
+				s.Where(jsonStringValuesPredicate(dbaccount.FieldCredentials, sqljson.Path("tier_id"), values))
+			}),
+		)
+	case service.PlatformAntigravity:
+		tierIDs, planTypes := antigravityAccountTierValues(filter.value)
+		return q.Where(
+			dbaccount.PlatformEQ(service.PlatformAntigravity),
+			dbpredicate.Account(func(s *entsql.Selector) {
+				preds := []*entsql.Predicate{
+					jsonStringValuesPredicate(dbaccount.FieldExtra, sqljson.Path("load_code_assist", "paidTier", "id"), tierIDs),
+					jsonStringValuesPredicate(dbaccount.FieldExtra, sqljson.Path("load_code_assist", "currentTier", "id"), tierIDs),
+					jsonStringValuesPredicate(dbaccount.FieldCredentials, sqljson.Path("plan_type"), planTypes),
+				}
+				s.Where(entsql.Or(preds...))
+			}),
+		)
+	default:
+		return q.Where(dbaccount.IDEQ(-1))
+	}
+}
+
+func jsonStringValuesPredicate(field string, path sqljson.Option, values []string) *entsql.Predicate {
+	values = uniqueStringValues(values)
+	if len(values) == 0 {
+		return entsql.False()
+	}
+	preds := make([]*entsql.Predicate, 0, len(values))
+	for _, value := range values {
+		preds = append(preds, sqljson.ValueEQ(field, value, path))
+	}
+	if len(preds) == 1 {
+		return preds[0]
+	}
+	return entsql.Or(preds...)
+}
+
+func openAIAccountTierValues(value string) []string {
+	switch normalizeAccountTierValue(value) {
+	case "free":
+		return tierCaseVariants("free", "free_plan", "chatgpt_free", "ChatGPT Free")
+	case "plus":
+		return tierCaseVariants("plus", "plus_plan", "chatgpt_plus", "ChatGPT Plus")
+	case "team":
+		return tierCaseVariants("team", "team_plan", "chatgpt_team", "ChatGPT Team", "business")
+	case "pro":
+		return tierCaseVariants("pro", "pro_plan", "chatgpt_pro", "ChatGPT Pro")
+	case "enterprise":
+		return tierCaseVariants("enterprise", "enterprise_plan", "chatgpt_enterprise", "ChatGPT Enterprise")
+	default:
+		return tierCaseVariants(value)
+	}
+}
+
+func geminiAccountTierValues(value string) []string {
+	switch normalizeAccountTierValue(value) {
+	case "google_one_free", "free", "google_one_basic", "google_one_standard":
+		return tierCaseVariants("google_one_free", "FREE", "GOOGLE_ONE_BASIC", "GOOGLE_ONE_STANDARD")
+	case "google_ai_pro", "ai_premium", "pro":
+		return tierCaseVariants("google_ai_pro", "AI_PREMIUM", "PRO")
+	case "google_ai_ultra", "google_one_unlimited", "ultra":
+		return tierCaseVariants("google_ai_ultra", "GOOGLE_ONE_UNLIMITED", "ULTRA")
+	case "gcp_standard":
+		return tierCaseVariants("gcp_standard")
+	case "gcp_enterprise":
+		return tierCaseVariants("gcp_enterprise")
+	case "aistudio_free":
+		return tierCaseVariants("aistudio_free")
+	case "aistudio_paid":
+		return tierCaseVariants("aistudio_paid")
+	case "google_one_unknown", "unknown":
+		return tierCaseVariants("google_one_unknown")
+	default:
+		return tierCaseVariants(value)
+	}
+}
+
+func antigravityAccountTierValues(value string) ([]string, []string) {
+	switch normalizeAccountTierValue(value) {
+	case "free", "free_tier":
+		return tierCaseVariants("free-tier", "free_tier"), tierCaseVariants("Free", "free")
+	case "pro", "g1_pro_tier":
+		return tierCaseVariants("g1-pro-tier", "g1_pro_tier"), tierCaseVariants("Pro", "PRO", "pro")
+	case "ultra", "g1_ultra_tier":
+		return tierCaseVariants("g1-ultra-tier", "g1_ultra_tier"), tierCaseVariants("Ultra", "ULTRA", "ultra")
+	default:
+		return tierCaseVariants(value), tierCaseVariants(value)
+	}
+}
+
+func normalizeAccountTierValue(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	value = strings.ReplaceAll(value, "-", "_")
+	value = strings.ReplaceAll(value, " ", "_")
+	return value
+}
+
+func tierCaseVariants(values ...string) []string {
+	out := make([]string, 0, len(values)*3)
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		out = append(out, value, strings.ToLower(value), strings.ToUpper(value))
+	}
+	return uniqueStringValues(out)
+}
+
+func uniqueStringValues(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func accountListOrder(params pagination.PaginationParams) []func(*entsql.Selector) {
@@ -610,6 +786,9 @@ func accountListOrder(params pagination.PaginationParams) []func(*entsql.Selecto
 	case "created_at":
 		field = dbaccount.FieldCreatedAt
 		defaultOrder = false
+	case "updated_at":
+		field = dbaccount.FieldUpdatedAt
+		defaultOrder = false
 	}
 
 	if sortOrder == pagination.SortOrderDesc {
@@ -634,7 +813,7 @@ func (r *accountRepository) ListByGroup(ctx context.Context, groupID int64) ([]s
 func (r *accountRepository) ListActive(ctx context.Context) ([]service.Account, error) {
 	accounts, err := r.client.Account.Query().
 		Where(dbaccount.StatusEQ(service.StatusActive)).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -648,7 +827,7 @@ func (r *accountRepository) ListByPlatform(ctx context.Context, platform string)
 			dbaccount.PlatformEQ(platform),
 			dbaccount.StatusEQ(service.StatusActive),
 		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -716,6 +895,7 @@ func (r *accountRepository) SetError(ctx context.Context, id int64, errorMsg str
 		Where(dbaccount.IDEQ(id)).
 		SetStatus(service.StatusError).
 		SetErrorMessage(errorMsg).
+		SetSchedulable(false).
 		Save(ctx)
 	if err != nil {
 		return err
@@ -746,6 +926,15 @@ func (r *accountRepository) syncSchedulerAccountSnapshot(ctx context.Context, ac
 	}
 	if err := r.schedulerCache.SetAccount(ctx, account); err != nil {
 		logger.LegacyPrintf("repository.account", "[Scheduler] sync account snapshot write failed: id=%d err=%v", accountID, err)
+	}
+}
+
+func (r *accountRepository) deleteSchedulerAccountSnapshot(ctx context.Context, accountID int64) {
+	if r == nil || r.schedulerCache == nil || accountID <= 0 {
+		return
+	}
+	if err := r.schedulerCache.DeleteAccount(ctx, accountID); err != nil {
+		logger.LegacyPrintf("repository.account", "[Scheduler] delete account snapshot failed: id=%d err=%v", accountID, err)
 	}
 }
 
@@ -911,15 +1100,8 @@ func (r *accountRepository) BindGroups(ctx context.Context, accountID int64, gro
 func (r *accountRepository) ListSchedulable(ctx context.Context) ([]service.Account, error) {
 	now := time.Now()
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Where(activeSchedulablePredicates(now)...).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -936,17 +1118,10 @@ func (r *accountRepository) ListSchedulableByGroupID(ctx context.Context, groupI
 
 func (r *accountRepository) ListSchedulableByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
 	now := time.Now()
+	preds := append([]dbpredicate.Account{dbaccount.PlatformEQ(platform)}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.PlatformEQ(platform),
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Where(preds...).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -970,17 +1145,10 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 	// 仅返回可调度的活跃账号，并过滤处于过载/限流窗口的账号。
 	// 代理与分组信息统一在 accountsToService 中批量加载，避免 N+1 查询。
 	now := time.Now()
+	preds := append([]dbpredicate.Account{dbaccount.PlatformIn(platforms...)}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.PlatformIn(platforms...),
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Where(preds...).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -990,18 +1158,13 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 
 func (r *accountRepository) ListSchedulableUngroupedByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
 	now := time.Now()
+	preds := append([]dbpredicate.Account{
+		dbaccount.PlatformEQ(platform),
+		dbaccount.Not(dbaccount.HasAccountGroups()),
+	}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.PlatformEQ(platform),
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			dbaccount.Not(dbaccount.HasAccountGroups()),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Where(preds...).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1014,18 +1177,13 @@ func (r *accountRepository) ListSchedulableUngroupedByPlatforms(ctx context.Cont
 		return nil, nil
 	}
 	now := time.Now()
+	preds := append([]dbpredicate.Account{
+		dbaccount.PlatformIn(platforms...),
+		dbaccount.Not(dbaccount.HasAccountGroups()),
+	}, activeSchedulablePredicates(now)...)
 	accounts, err := r.client.Account.Query().
-		Where(
-			dbaccount.PlatformIn(platforms...),
-			dbaccount.StatusEQ(service.StatusActive),
-			dbaccount.SchedulableEQ(true),
-			dbaccount.Not(dbaccount.HasAccountGroups()),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		).
-		Order(dbent.Asc(dbaccount.FieldPriority)).
+		Where(preds...).
+		Order(dbent.Desc(dbaccount.FieldPriority)).
 		All(ctx)
 	if err != nil {
 		return nil, err
@@ -1106,6 +1264,7 @@ func (r *accountRepository) SetModelRateLimit(ctx context.Context, id int64, sco
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue model rate limit failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 
@@ -1120,6 +1279,7 @@ func (r *accountRepository) SetOverloaded(ctx context.Context, id int64, until t
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue overload failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 
@@ -1158,6 +1318,7 @@ func (r *accountRepository) ClearTempUnschedulable(ctx context.Context, id int64
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue clear temp unschedulable failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 
@@ -1199,6 +1360,7 @@ func (r *accountRepository) ClearAntigravityQuotaScopes(ctx context.Context, id 
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue clear quota scopes failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 
@@ -1223,6 +1385,7 @@ func (r *accountRepository) ClearModelRateLimits(ctx context.Context, id int64) 
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue clear model rate limit failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 
@@ -1246,6 +1409,7 @@ func (r *accountRepository) UpdateSessionWindow(ctx context.Context, id int64, s
 			logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue session window update failed: account=%d err=%v", id, err)
 		}
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 
@@ -1260,9 +1424,7 @@ func (r *accountRepository) SetSchedulable(ctx context.Context, id int64, schedu
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue schedulable change failed: account=%d err=%v", id, err)
 	}
-	if !schedulable {
-		r.syncSchedulerAccountSnapshot(ctx, id)
-	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 
@@ -1325,6 +1487,7 @@ func (r *accountRepository) UpdateExtra(ctx context.Context, id int64, updates m
 		if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 			logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue extra update failed: account=%d err=%v", id, err)
 		}
+		r.syncSchedulerAccountSnapshot(ctx, id)
 	} else {
 		// 观测型 extra 字段不需要触发 bucket 重建，但仍同步单账号快照，
 		// 让 sticky session / GetAccount 命中缓存时也能读到最新数据，
@@ -1412,8 +1575,9 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 		}
 	}
 	if updates.Status != nil {
+		normalizedStatus := normalizeAccountStatusForStorage(*updates.Status)
 		setClauses = append(setClauses, "status = $"+itoa(idx))
-		args = append(args, *updates.Status)
+		args = append(args, normalizedStatus)
 		idx++
 	}
 	if updates.Schedulable != nil {
@@ -1464,8 +1628,11 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 			logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue bulk update failed: err=%v", err)
 		}
 		shouldSync := false
-		if updates.Status != nil && (*updates.Status == service.StatusError || *updates.Status == service.StatusDisabled) {
-			shouldSync = true
+		if updates.Status != nil {
+			normalizedStatus := normalizeAccountStatusForStorage(*updates.Status)
+			if normalizedStatus == service.StatusError || normalizedStatus == service.StatusDisabled {
+				shouldSync = true
+			}
 		}
 		if updates.Schedulable != nil && !*updates.Schedulable {
 			shouldSync = true
@@ -1498,13 +1665,11 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 	}
 	if opts.schedulable {
 		now := time.Now()
-		preds = append(preds,
-			dbaccount.SchedulableEQ(true),
-			tempUnschedulablePredicate(),
-			notExpiredPredicate(now),
-			dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)),
-			dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now)),
-		)
+		schedulablePreds := activeSchedulablePredicates(now)
+		if opts.status == service.StatusActive {
+			schedulablePreds = schedulablePreds[1:]
+		}
+		preds = append(preds, schedulablePreds...)
 	}
 
 	if len(preds) > 0 {
@@ -1514,7 +1679,7 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 	groups, err := q.
 		Order(
 			dbaccountgroup.ByPriority(),
-			dbaccountgroup.ByAccountField(dbaccount.FieldPriority),
+			dbaccountgroup.ByAccountField(dbaccount.FieldPriority, entsql.OrderDesc()),
 		).
 		WithAccount().
 		All(ctx)
@@ -1595,13 +1760,7 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 }
 
 func tempUnschedulablePredicate() dbpredicate.Account {
-	return dbpredicate.Account(func(s *entsql.Selector) {
-		col := s.C("temp_unschedulable_until")
-		s.Where(entsql.Or(
-			entsql.IsNull(col),
-			entsql.LTE(col, entsql.Expr("NOW()")),
-		))
-	})
+	return notTempUnschedulablePredicate(time.Now())
 }
 
 func notExpiredPredicate(now time.Time) dbpredicate.Account {
@@ -1609,6 +1768,176 @@ func notExpiredPredicate(now time.Time) dbpredicate.Account {
 		dbaccount.ExpiresAtIsNil(),
 		dbaccount.ExpiresAtGT(now),
 		dbaccount.AutoPauseOnExpiredEQ(false),
+	)
+}
+
+type accountStatusListFilter struct {
+	legacy     string
+	main       string
+	runtime    string
+	scheduling string
+}
+
+func (f accountStatusListFilter) hasStructured() bool {
+	return f.main != "" || f.runtime != "" || f.scheduling != ""
+}
+
+func (f accountStatusListFilter) predicates(now time.Time) []dbpredicate.Account {
+	preds := make([]dbpredicate.Account, 0, 6)
+
+	switch f.main {
+	case service.StatusActive:
+		preds = append(preds, dbaccount.StatusEQ(service.StatusActive))
+	case "inactive", service.StatusDisabled:
+		preds = append(preds, dbaccount.StatusIn("inactive", service.StatusDisabled))
+	case service.StatusError:
+		preds = append(preds, dbaccount.StatusEQ(service.StatusError))
+	}
+
+	switch f.runtime {
+	case "normal":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			notRateLimitedPredicate(now),
+			notOverloadedPredicate(now),
+			notTempUnschedulablePredicate(now),
+		)
+	case "rate_limited":
+		preds = append(preds, dbaccount.StatusEQ(service.StatusActive), rateLimitedPredicate(now))
+	case "overloaded":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			notRateLimitedPredicate(now),
+			overloadedPredicate(now),
+		)
+	case "temp_unschedulable":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			notRateLimitedPredicate(now),
+			notOverloadedPredicate(now),
+			tempUnschedulableActivePredicate(now),
+		)
+	}
+
+	switch f.scheduling {
+	case "enabled":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			dbaccount.SchedulableEQ(true),
+			notExpiredPredicate(now),
+		)
+	case "paused":
+		preds = append(preds,
+			dbaccount.StatusEQ(service.StatusActive),
+			schedulingDisabledPredicate(now),
+		)
+	}
+
+	return preds
+}
+
+func parseAccountStatusListFilter(status string) accountStatusListFilter {
+	normalized := strings.TrimSpace(strings.ToLower(status))
+	if normalized == "" {
+		return accountStatusListFilter{}
+	}
+
+	filter := accountStatusListFilter{}
+	if !strings.Contains(normalized, ":") {
+		filter.legacy = normalizeLegacyAccountStatusFilterValue(normalized)
+		return filter
+	}
+
+	for _, part := range strings.Split(normalized, "|") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		key, value, ok := strings.Cut(part, ":")
+		if !ok {
+			filter.legacy = normalizeLegacyAccountStatusFilterValue(part)
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		switch key {
+		case "main":
+			filter.main = normalizeLegacyAccountStatusFilterValue(value)
+		case "runtime":
+			filter.runtime = value
+		case "scheduling":
+			filter.scheduling = value
+		default:
+			filter.legacy = normalizeLegacyAccountStatusFilterValue(part)
+		}
+	}
+
+	return filter
+}
+
+func normalizeLegacyAccountStatusFilterValue(status string) string {
+	if status == service.StatusDisabled {
+		return "inactive"
+	}
+	return status
+}
+
+func activeSchedulablePredicates(now time.Time) []dbpredicate.Account {
+	return []dbpredicate.Account{
+		dbaccount.StatusEQ(service.StatusActive),
+		dbaccount.SchedulableEQ(true),
+		notExpiredPredicate(now),
+		notOverloadedPredicate(now),
+		notRateLimitedPredicate(now),
+		notTempUnschedulablePredicate(now),
+	}
+}
+
+func notRateLimitedPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.Or(
+		dbaccount.RateLimitResetAtIsNil(),
+		dbaccount.RateLimitResetAtLTE(now),
+	)
+}
+
+func rateLimitedPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.RateLimitResetAtGT(now)
+}
+
+func notOverloadedPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.Or(
+		dbaccount.OverloadUntilIsNil(),
+		dbaccount.OverloadUntilLTE(now),
+	)
+}
+
+func overloadedPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.OverloadUntilGT(now)
+}
+
+func notTempUnschedulablePredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.Or(
+		dbaccount.TempUnschedulableUntilIsNil(),
+		dbaccount.TempUnschedulableUntilLTE(now),
+	)
+}
+
+func tempUnschedulableActivePredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.TempUnschedulableUntilGT(now)
+}
+
+func expiredAutoPausePredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.And(
+		dbaccount.AutoPauseOnExpiredEQ(true),
+		dbaccount.ExpiresAtNotNil(),
+		dbaccount.ExpiresAtLTE(now),
+	)
+}
+
+func schedulingDisabledPredicate(now time.Time) dbpredicate.Account {
+	return dbaccount.Or(
+		dbaccount.SchedulableEQ(false),
+		expiredAutoPausePredicate(now),
 	)
 }
 
@@ -1721,6 +2050,8 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 
 	rateMultiplier := m.RateMultiplier
 
+	status := normalizeAccountStatusForResponse(m.Status)
+
 	return &service.Account{
 		ID:                      m.ID,
 		Name:                    m.Name,
@@ -1734,7 +2065,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		Priority:                m.Priority,
 		RateMultiplier:          &rateMultiplier,
 		LoadFactor:              m.LoadFactor,
-		Status:                  m.Status,
+		Status:                  status,
 		ErrorMessage:            derefString(m.ErrorMessage),
 		LastUsedAt:              m.LastUsedAt,
 		ExpiresAt:               m.ExpiresAt,
@@ -1999,6 +2330,7 @@ func (r *accountRepository) IncrementQuotaUsed(ctx context.Context, id int64, am
 		if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 			logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue quota exceeded failed: account=%d err=%v", id, err)
 		}
+		r.syncSchedulerAccountSnapshot(ctx, id)
 	}
 	return nil
 }
@@ -2020,5 +2352,6 @@ func (r *accountRepository) ResetQuotaUsed(ctx context.Context, id int64) error 
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue quota reset failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }

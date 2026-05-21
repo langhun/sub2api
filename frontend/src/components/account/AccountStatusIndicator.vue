@@ -1,82 +1,116 @@
 <template>
-  <div class="flex items-center gap-2">
-    <!-- Rate Limit Display (429) - Two-line layout -->
-    <div v-if="isRateLimited" class="flex flex-col items-center gap-1">
-      <span class="badge text-xs badge-warning">{{ t('admin.accounts.status.rateLimited') }}</span>
-      <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ rateLimitResumeText }}</span>
-    </div>
+  <div class="flex flex-col items-start gap-1.5">
+    <div class="space-y-1">
+      <div class="flex items-center gap-2">
+        <span class="w-[64px] shrink-0 text-[11px] text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.statusLayers.main') }}
+        </span>
+        <span :class="['badge text-xs', mainStatusClass]">
+          {{ mainStatusText }}
+        </span>
+        <HelpTooltip :content="mainStatusTipText" width-class="w-56">
+          <template #trigger>
+            <button
+              type="button"
+              class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
+              :aria-label="t('admin.accounts.statusGuide.shortAction')"
+              @click.prevent
+            >
+              ?
+            </button>
+          </template>
+        </HelpTooltip>
 
-    <!-- Overload Display (529) - Two-line layout -->
-    <div v-else-if="isOverloaded" class="flex flex-col items-center gap-1">
-      <span class="badge text-xs badge-danger">{{ t('admin.accounts.status.overloaded') }}</span>
-      <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ overloadCountdown }}</span>
-    </div>
-
-    <!-- Main Status Badge (shown when not rate limited/overloaded) -->
-    <template v-else>
-      <button
-        v-if="isTempUnschedulable"
-        type="button"
-        :class="['badge text-xs', statusClass, 'cursor-pointer']"
-        :title="t('admin.accounts.status.viewTempUnschedDetails')"
-        @click="handleTempUnschedClick"
-      >
-        {{ statusText }}
-      </button>
-      <span v-else :class="['badge text-xs', statusClass]">
-        {{ statusText }}
-      </span>
-    </template>
-
-    <!-- Error Info Indicator -->
-    <div v-if="hasError && account.error_message" class="group/error relative">
-      <svg
-        class="h-4 w-4 cursor-help text-red-500 transition-colors hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"
-        />
-      </svg>
-      <!-- Tooltip - 向下显示 -->
-      <div
-        class="invisible absolute left-0 top-full z-[100] mt-1.5 min-w-[200px] max-w-[300px] rounded-lg bg-gray-800 px-3 py-2 text-xs text-white opacity-0 shadow-xl transition-all duration-200 group-hover/error:visible group-hover/error:opacity-100 dark:bg-gray-900"
-      >
-        <div class="whitespace-pre-wrap break-words leading-relaxed text-gray-300">
-          {{ account.error_message }}
+        <div v-if="hasError && account.error_message" class="group/error relative">
+          <svg
+            class="h-4 w-4 cursor-help text-red-500 transition-colors hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"
+            />
+          </svg>
+          <div
+            class="invisible absolute left-0 top-full z-[100] mt-1.5 min-w-[200px] max-w-[300px] rounded-lg bg-gray-800 px-3 py-2 text-xs text-white opacity-0 shadow-xl transition-all duration-200 group-hover/error:visible group-hover/error:opacity-100 dark:bg-gray-900"
+          >
+            <div class="whitespace-pre-wrap break-words leading-relaxed text-gray-300">
+              {{ account.error_message }}
+            </div>
+            <div
+              class="absolute bottom-full left-3 border-[6px] border-transparent border-b-gray-800 dark:border-b-gray-900"
+            ></div>
+          </div>
         </div>
-        <!-- 上方小三角 -->
-        <div
-          class="absolute bottom-full left-3 border-[6px] border-transparent border-b-gray-800 dark:border-b-gray-900"
-        ></div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="w-[64px] shrink-0 text-[11px] text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.statusLayers.scheduling') }}
+        </span>
+        <span :class="['badge text-xs', schedulingStatusClass]">
+          {{ schedulingStatusText }}
+        </span>
+        <HelpTooltip :content="schedulingStatusTipText" width-class="w-56">
+          <template #trigger>
+            <button
+              type="button"
+              class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
+              :aria-label="t('admin.accounts.statusGuide.shortAction')"
+              @click.prevent
+            >
+              ?
+            </button>
+          </template>
+        </HelpTooltip>
+      </div>
+
+      <div class="flex items-start gap-2">
+        <span class="w-[64px] shrink-0 pt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.statusLayers.runtime') }}
+        </span>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <button
+              v-if="runtimeState.clickable"
+              type="button"
+              :class="['badge text-xs cursor-pointer', runtimeStatusClass]"
+              :title="t('admin.accounts.status.viewTempUnschedDetails')"
+              @click="handleTempUnschedClick"
+            >
+              {{ runtimeStatusText }}
+            </button>
+            <span v-else :class="['badge text-xs', runtimeStatusClass]">
+              {{ runtimeStatusText }}
+            </span>
+            <HelpTooltip :content="runtimeStatusTipText" width-class="w-56">
+              <template #trigger>
+                <button
+                  type="button"
+                  class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-400 transition-colors hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:text-primary-400"
+                  :aria-label="t('admin.accounts.statusGuide.shortAction')"
+                  @click.prevent
+                >
+                  ?
+                </button>
+              </template>
+            </HelpTooltip>
+          </div>
+
+          <div
+            v-if="runtimeDetailText"
+            class="mt-1 text-[11px] leading-4 text-gray-500 dark:text-gray-400"
+          >
+            {{ runtimeDetailText }}
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Rate Limit Indicator (429) -->
-    <div v-if="isRateLimited" class="group relative">
-      <span
-        class="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-      >
-        <Icon name="exclamationTriangle" size="xs" :stroke-width="2" />
-        429
-      </span>
-      <!-- Tooltip -->
-      <div
-        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
-      >
-        {{ t('admin.accounts.status.rateLimitedUntil', { time: formatDateTime(account.rate_limit_reset_at) }) }}
-        <div
-          class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
-        ></div>
-      </div>
-    </div>
-
-    <!-- Model Status Indicators (普通限流 / 超量请求中) -->
     <div
       v-if="activeModelStatuses.length > 0"
       :class="[
@@ -87,8 +121,11 @@
             : 'columns-3 gap-x-2'
       ]"
     >
-      <div v-for="item in activeModelStatuses" :key="`${item.kind}-${item.model}`" class="group relative mb-1 break-inside-avoid">
-        <!-- 积分已用尽 -->
+      <div
+        v-for="item in activeModelStatuses"
+        :key="`${item.kind}-${item.model}`"
+        class="group relative mb-1 break-inside-avoid"
+      >
         <span
           v-if="item.kind === 'credits_exhausted'"
           class="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -97,7 +134,6 @@
           {{ t('admin.accounts.status.creditsExhausted') }}
           <span class="text-[10px] opacity-70">{{ formatModelResetTime(item.reset_at) }}</span>
         </span>
-        <!-- 正在走积分（模型限流但积分可用）-->
         <span
           v-else-if="item.kind === 'credits_active'"
           class="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
@@ -106,7 +142,6 @@
           {{ formatScopeName(item.model) }}
           <span class="text-[10px] opacity-70">{{ formatModelResetTime(item.reset_at) }}</span>
         </span>
-        <!-- 普通模型限流 -->
         <span
           v-else
           class="inline-flex items-center gap-1 rounded bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
@@ -115,7 +150,6 @@
           {{ formatScopeName(item.model) }}
           <span class="text-[10px] opacity-70">{{ formatModelResetTime(item.reset_at) }}</span>
         </span>
-        <!-- Tooltip -->
         <div
           class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
         >
@@ -123,8 +157,14 @@
             item.kind === 'credits_exhausted'
               ? t('admin.accounts.status.creditsExhaustedUntil', { time: formatTime(item.reset_at) })
               : item.kind === 'credits_active'
-                ? t('admin.accounts.status.modelCreditOveragesUntil', { model: formatScopeName(item.model), time: formatTime(item.reset_at) })
-                : t('admin.accounts.status.modelRateLimitedUntil', { model: formatScopeName(item.model), time: formatTime(item.reset_at) })
+                ? t('admin.accounts.status.modelCreditOveragesUntil', {
+                    model: formatScopeName(item.model),
+                    time: formatTime(item.reset_at),
+                  })
+                : t('admin.accounts.status.modelRateLimitedUntil', {
+                    model: formatScopeName(item.model),
+                    time: formatTime(item.reset_at),
+                  })
           }}
           <div
             class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
@@ -132,34 +172,23 @@
         </div>
       </div>
     </div>
-
-    <!-- Overload Indicator (529) -->
-    <div v-if="isOverloaded" class="group relative">
-      <span
-        class="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
-      >
-        <Icon name="exclamationTriangle" size="xs" :stroke-width="2" />
-        529
-      </span>
-      <!-- Tooltip -->
-      <div
-        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
-      >
-        {{ t('admin.accounts.status.overloadedUntil', { time: formatTime(account.overload_until) }) }}
-        <div
-          class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
-        ></div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
+import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Icon from '@/components/icons/Icon.vue'
 import type { Account } from '@/types'
-import { formatCountdown, formatDateTime, formatCountdownWithSuffix, formatTime } from '@/utils/format'
+import { formatCountdown, formatCountdownWithSuffix, formatTime } from '@/utils/format'
+import {
+  getAccountMainStatusState,
+  getAccountRuntimeStatusState,
+  getAccountSchedulingStatusState,
+  getBadgeClassForTone,
+} from '@/utils/accountStatus'
+import { accountStatusNowMsKey } from './accountStatusClock'
 
 const { t } = useI18n()
 
@@ -171,11 +200,10 @@ const emit = defineEmits<{
   (e: 'show-temp-unsched', account: Account): void
 }>()
 
-// Computed: is rate limited (429)
-const isRateLimited = computed(() => {
-  if (!props.account.rate_limit_reset_at) return false
-  return new Date(props.account.rate_limit_reset_at) > new Date()
-})
+const nowMs = inject(accountStatusNowMsKey, null)
+const statusEvalOptions = computed(() => ({
+  nowMs: nowMs?.value
+}))
 
 type AccountModelStatusItem = {
   kind: 'rate_limit' | 'credits_exhausted' | 'credits_active'
@@ -183,7 +211,6 @@ type AccountModelStatusItem = {
   reset_at: string
 }
 
-// Computed: active model statuses (普通模型限流 + 积分耗尽 + 走积分中)
 const activeModelStatuses = computed<AccountModelStatusItem[]>(() => {
   const extra = props.account.extra as Record<string, unknown> | undefined
   const modelLimits = extra?.model_rate_limits as
@@ -194,22 +221,18 @@ const activeModelStatuses = computed<AccountModelStatusItem[]>(() => {
 
   if (!modelLimits) return items
 
-  // 检查 AICredits key 是否生效（积分是否耗尽）
   const aiCreditsEntry = modelLimits['AICredits']
   const hasActiveAICredits = aiCreditsEntry && new Date(aiCreditsEntry.rate_limit_reset_at) > now
-  const allowOverages = !!(extra?.allow_overages)
+  const allowOverages = !!extra?.allow_overages
 
   for (const [model, info] of Object.entries(modelLimits)) {
     if (new Date(info.rate_limit_reset_at) <= now) continue
 
     if (model === 'AICredits') {
-      // AICredits key → 积分已用尽
       items.push({ kind: 'credits_exhausted', model, reset_at: info.rate_limit_reset_at })
     } else if (allowOverages && !hasActiveAICredits) {
-      // 普通模型限流 + overages 启用 + 积分可用 → 正在走积分
       items.push({ kind: 'credits_active', model, reset_at: info.rate_limit_reset_at })
     } else {
-      // 普通模型限流
       items.push({ kind: 'rate_limit', model, reset_at: info.rate_limit_reset_at })
     }
   }
@@ -219,13 +242,11 @@ const activeModelStatuses = computed<AccountModelStatusItem[]>(() => {
 
 const formatScopeName = (scope: string): string => {
   const aliases: Record<string, string> = {
-    // Claude 系列
     'claude-opus-4-6': 'COpus46',
     'claude-opus-4-6-thinking': 'COpus46T',
     'claude-sonnet-4-6': 'CSon46',
     'claude-sonnet-4-5': 'CSon45',
     'claude-sonnet-4-5-thinking': 'CSon45T',
-    // Gemini 2.5 系列
     'gemini-2.5-flash': 'G25F',
     'gemini-2.5-flash-lite': 'G25FL',
     'gemini-2.5-flash-thinking': 'G25FT',
@@ -239,10 +260,8 @@ const formatScopeName = (scope: string): string => {
     'gemini-3.1-pro-low': 'G3PL',
     'gemini-3-pro-image': 'G3PI',
     'gemini-3.1-flash-image': 'G31FI',
-    // 其他
     'gpt-oss-120b-medium': 'GPT120',
-    'tab_flash_lite_preview': 'TabFL',
-    // 旧版 scope 别名（兼容）
+    tab_flash_lite_preview: 'TabFL',
     claude: 'Claude',
     claude_sonnet: 'CSon',
     claude_opus: 'COpus',
@@ -269,35 +288,18 @@ const formatModelResetTime = (resetAt: string): string => {
   return `${s}s`
 }
 
-// Computed: is overloaded (529)
-const isOverloaded = computed(() => {
-  if (!props.account.overload_until) return false
-  return new Date(props.account.overload_until) > new Date()
+const hasError = computed(() => props.account.status === 'error')
+
+const mainStatusState = computed(() => getAccountMainStatusState(props.account))
+
+const schedulingStatusState = computed(() => getAccountSchedulingStatusState(props.account, statusEvalOptions.value))
+
+const runtimeState = computed(() => {
+  return getAccountRuntimeStatusState(props.account, statusEvalOptions.value)
 })
 
-// Computed: is temp unschedulable
-const isTempUnschedulable = computed(() => {
-  if (!props.account.temp_unschedulable_until) return false
-  return new Date(props.account.temp_unschedulable_until) > new Date()
-})
-
-// Computed: has error status
-const hasError = computed(() => {
-  return props.account.status === 'error'
-})
-
-const isQuotaExceeded = computed(() => {
-  const exceeded = (used?: number | null, limit?: number | null) =>
-    typeof limit === 'number' && limit > 0 && typeof used === 'number' && used >= limit
-  return (
-    exceeded(props.account.quota_used, props.account.quota_limit) ||
-    exceeded(props.account.quota_daily_used, props.account.quota_daily_limit) ||
-    exceeded(props.account.quota_weekly_used, props.account.quota_weekly_limit)
-  )
-})
-
-// Computed: countdown text for rate limit (429)
 const rateLimitCountdown = computed(() => {
+  void nowMs?.value
   return formatCountdown(props.account.rate_limit_reset_at)
 })
 
@@ -306,53 +308,118 @@ const rateLimitResumeText = computed(() => {
   return t('admin.accounts.status.rateLimitedAutoResume', { time: rateLimitCountdown.value })
 })
 
-// Computed: countdown text for overload (529)
 const overloadCountdown = computed(() => {
+  void nowMs?.value
   return formatCountdownWithSuffix(props.account.overload_until)
 })
 
-// Computed: status badge class
-const statusClass = computed(() => {
-  if (hasError.value) {
-    return 'badge-danger'
+const statusTextKeyMap = {
+  main_active: 'admin.accounts.status.mainActive',
+  main_inactive: 'admin.accounts.status.mainInactive',
+  main_error: 'admin.accounts.status.mainError',
+  schedule_enabled: 'admin.accounts.status.scheduleEnabled',
+  schedule_manual_paused: 'admin.accounts.status.scheduleManualPaused',
+  schedule_expired_paused: 'admin.accounts.status.scheduleExpiredPaused',
+  runtime_normal: 'admin.accounts.status.runtimeNormal',
+  runtime_rate_limited: 'admin.accounts.status.runtimeRateLimited',
+  runtime_overloaded: 'admin.accounts.status.runtimeOverloaded',
+  runtime_oauth401_cooldown: 'admin.accounts.status.runtimeOauth401Cooldown',
+  runtime_forbidden_cooldown: 'admin.accounts.status.runtimeForbiddenCooldown',
+  runtime_http_cooldown: 'admin.accounts.status.runtimeHttpCooldown',
+  runtime_stream_timeout_cooldown: 'admin.accounts.status.runtimeStreamTimeoutCooldown',
+  runtime_token_refresh_cooldown: 'admin.accounts.status.runtimeTokenRefreshCooldown',
+  runtime_quota_exceeded: 'admin.accounts.status.runtimeQuotaExceeded',
+  runtime_temp_unschedulable: 'admin.accounts.status.runtimeTempUnschedulable',
+} as const
+
+const mainStatusClass = computed(() => getBadgeClassForTone(mainStatusState.value.tone))
+
+const mainStatusText = computed(() => t(statusTextKeyMap[mainStatusState.value.code]))
+
+const mainStatusGuideKeyMap = {
+  main_active: 'admin.accounts.statusGuide.mainActive',
+  main_inactive: 'admin.accounts.statusGuide.mainInactive',
+  main_error: 'admin.accounts.statusGuide.mainError',
+} as const
+
+const mainStatusTipText = computed(() => t(mainStatusGuideKeyMap[mainStatusState.value.code]))
+
+const schedulingStatusClass = computed(() => getBadgeClassForTone(schedulingStatusState.value.tone))
+
+const schedulingStatusText = computed(() => t(statusTextKeyMap[schedulingStatusState.value.code]))
+
+const schedulingStatusGuideKeyMap = {
+  schedule_enabled: 'admin.accounts.statusGuide.scheduleEnabled',
+  schedule_manual_paused: 'admin.accounts.statusGuide.scheduleManualPaused',
+  schedule_expired_paused: 'admin.accounts.statusGuide.scheduleExpiredPaused',
+} as const
+
+const schedulingStatusTipText = computed(() => t(schedulingStatusGuideKeyMap[schedulingStatusState.value.code]))
+
+const runtimeStatusClass = computed(() => getBadgeClassForTone(runtimeState.value.tone))
+
+const runtimeStatusText = computed(() => {
+  if (runtimeState.value.code === 'runtime_http_cooldown') {
+    return t(statusTextKeyMap[runtimeState.value.code], {
+      code: runtimeState.value.statusCode,
+    })
   }
-  if (isTempUnschedulable.value) {
-    return 'badge-warning'
-  }
-  if (props.account.status !== 'active') {
-    return props.account.status === 'error' ? 'badge-danger' : 'badge-gray'
-  }
-  if (isQuotaExceeded.value) {
-    return 'badge-warning'
-  }
-  if (!props.account.schedulable) {
-    return 'badge-gray'
-  }
-  return 'badge-success'
+  return t(statusTextKeyMap[runtimeState.value.code])
 })
 
-// Computed: status text
-const statusText = computed(() => {
-  if (hasError.value) {
-    return t('admin.accounts.status.error')
+const runtimeStatusTipText = computed(() => {
+  switch (runtimeState.value.code) {
+    case 'runtime_normal':
+      return t('admin.accounts.statusGuide.runtimeNormal')
+    case 'runtime_rate_limited':
+      return t('admin.accounts.statusGuide.runtimeRateLimited')
+    case 'runtime_overloaded':
+      return t('admin.accounts.statusGuide.runtimeOverloaded')
+    case 'runtime_oauth401_cooldown':
+      return t('admin.accounts.statusGuide.runtimeOauth401Cooldown')
+    case 'runtime_forbidden_cooldown':
+      return t('admin.accounts.statusGuide.runtimeForbiddenCooldown')
+    case 'runtime_stream_timeout_cooldown':
+      return t('admin.accounts.statusGuide.runtimeStreamTimeoutCooldown')
+    case 'runtime_token_refresh_cooldown':
+      return t('admin.accounts.statusGuide.runtimeTokenRefreshCooldown')
+    case 'runtime_quota_exceeded':
+      return t('admin.accounts.statusGuide.runtimeQuotaExceeded')
+    case 'runtime_http_cooldown':
+      return t('admin.accounts.statusGuide.runtimeHttpCooldown', {
+        code: runtimeState.value.statusCode,
+      })
+    default:
+      return t('admin.accounts.statusGuide.runtimeTempUnschedulable')
   }
-  if (isTempUnschedulable.value) {
-    return t('admin.accounts.status.tempUnschedulable')
+})
+
+const runtimeDetailText = computed(() => {
+  if (runtimeState.value.code === 'runtime_rate_limited') {
+    return rateLimitResumeText.value
   }
-  if (props.account.status !== 'active') {
-    return t(`admin.accounts.status.${props.account.status}`)
+  if (runtimeState.value.code === 'runtime_overloaded') {
+    return overloadCountdown.value
+      ? t('admin.accounts.status.overloadedAutoResume', { time: overloadCountdown.value })
+      : t('admin.accounts.status.runtimeOverloaded')
   }
-  if (isQuotaExceeded.value) {
-    return t('admin.accounts.status.quotaExceeded')
+  if (runtimeState.value.clickable && runtimeState.value.until) {
+    void nowMs?.value
+    const countdown = formatCountdown(runtimeState.value.until)
+    if (!countdown) return runtimeStatusText.value
+    return t('admin.accounts.status.tempUnschedAutoResume', {
+      reason: runtimeStatusText.value,
+      time: countdown,
+    })
   }
-  if (!props.account.schedulable) {
-    return t('admin.accounts.status.paused')
+  if (runtimeState.value.code === 'runtime_quota_exceeded') {
+    return t('admin.accounts.status.quotaExceededHint')
   }
-  return t(`admin.accounts.status.${props.account.status}`)
+  return ''
 })
 
 const handleTempUnschedClick = () => {
-  if (!isTempUnschedulable.value) return
+  if (!runtimeState.value.clickable) return
   emit('show-temp-unsched', props.account)
 }
 </script>

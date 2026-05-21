@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -127,7 +127,7 @@ Sub2API 是一个 AI API 网关平台，用于分发和管理 AI 产品订阅的
 
 | 组件 | 技术 |
 |------|------|
-| 后端 | Go 1.25.7, Gin, Ent |
+| 后端 | Go 1.26.3, Gin, Ent |
 | 前端 | Vue 3.4+, Vite 5+, TailwindCSS |
 | 数据库 | PostgreSQL 15+ |
 | 缓存/队列 | Redis 7+ |
@@ -245,7 +245,7 @@ docker compose logs -f sub2api
 ```
 
 **脚本功能：**
-- 下载 `docker-compose.local.yml`（本地保存为 `docker-compose.yml`）和 `.env.example`
+- 下载本地目录版 Compose 模板并保存为 `docker-compose.yml`，同时下载 `.env.example`
 - 自动生成安全凭证（JWT_SECRET、TOTP_ENCRYPTION_KEY、POSTGRES_PASSWORD）
 - 创建 `.env` 文件并填充自动生成的密钥
 - 创建数据目录（使用本地目录，便于备份和迁移）
@@ -324,19 +324,23 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.local.yml** | 本地目录 | ✅ 简单（打包整个目录） | 生产环境、频繁备份 |
 | **docker-compose.yml** | 命名卷 | ⚠️ 需要 docker 命令 | 简单设置 |
 
-**推荐：** 使用 `docker-compose.local.yml`（脚本部署）以便更轻松地管理数据。
+**推荐：** 使用本地目录版 Compose 以便更轻松地管理数据。部署脚本会把它保存为 `docker-compose.yml`，因此脚本安装后可直接使用 `docker compose ...` 命令。
 
-#### 启用“数据管理”功能（datamanagementd）
+#### 高流量用量日志
 
-如需启用管理后台“数据管理”，需要额外部署宿主机数据管理进程 `datamanagementd`。
+如果部署中的 `usage_logs` 数据量较大，升级前请阅读 [usage_logs 容量与升级说明](docs/USAGE_LOGS_CAPACITY.md)。该文档包含 `EXPLAIN (ANALYZE, BUFFERS)` 检查、在线热路径索引、原始日志保留、分区建议，以及内网 HTTP 目标的 URL 安全兼容配置。
 
-关键点：
+#### “数据管理”功能（datamanagementd）已废弃
 
-- 主进程固定探测：`/tmp/sub2api-datamanagement.sock`
-- 只有该 Socket 可连通时，数据管理功能才会开启
-- Docker 场景需将宿主机 Socket 挂载到容器同路径
+当前仓库已移除 `datamanagementd` 源码，管理后台不再依赖独立宿主机数据管理进程。请不要按旧文档部署该守护进程。
 
-详细部署步骤见：`deploy/DATAMANAGEMENTD_CN.md`
+历史说明：
+
+- `deploy/DATAMANAGEMENTD_CN.md`、`deploy/install-datamanagementd.sh` 和 `deploy/sub2api-datamanagementd.service` 仅保留为废弃提示
+- 若已有旧版 `sub2api-datamanagementd` 服务，建议停用并删除对应 systemd 单元
+- 不需要再挂载 `/tmp/sub2api-datamanagement.sock`
+
+如需恢复数据管理能力，请先在新版代码中重新引入明确的服务端实现，再更新部署文档。
 
 #### 访问
 
@@ -344,24 +348,24 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 如果管理员密码是自动生成的，在日志中查找：
 ```bash
-docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+docker compose logs sub2api | grep "admin password"
 ```
 
 #### 升级
 
 ```bash
 # 拉取最新镜像并重建容器
-docker compose -f docker-compose.local.yml pull
-docker compose -f docker-compose.local.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
 #### 轻松迁移（本地目录版）
 
-使用 `docker-compose.local.yml` 时，可以轻松迁移到新服务器：
+使用本地目录版 Compose（手动为 `docker-compose.local.yml`，脚本生成后为 `docker-compose.yml`）时，可以轻松迁移到新服务器。下面命令按脚本生成的 `docker-compose.yml` 编写；手动使用本地目录文件时加上 `-f docker-compose.local.yml`。
 
 ```bash
 # 源服务器
-docker compose -f docker-compose.local.yml down
+docker compose down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
 
@@ -371,23 +375,23 @@ scp sub2api-complete.tar.gz user@new-server:/path/
 # 新服务器
 tar xzf sub2api-complete.tar.gz
 cd sub2api-deploy/
-docker compose -f docker-compose.local.yml up -d
+docker compose up -d
 ```
 
 #### 常用命令
 
 ```bash
 # 停止所有服务
-docker compose -f docker-compose.local.yml down
+docker compose down
 
 # 重启
-docker compose -f docker-compose.local.yml restart
+docker compose restart
 
 # 查看所有日志
-docker compose -f docker-compose.local.yml logs -f
+docker compose logs -f
 
 # 删除所有数据（谨慎！）
-docker compose -f docker-compose.local.yml down
+docker compose down
 rm -rf data/ postgres_data/ redis_data/
 ```
 
@@ -399,8 +403,9 @@ rm -rf data/ postgres_data/ redis_data/
 
 #### 前置条件
 
-- Go 1.21+
-- Node.js 18+
+- Go 1.26.3
+- Node.js 20+
+- pnpm 9.x
 - PostgreSQL 15+
 - Redis 7+
 
@@ -411,8 +416,9 @@ rm -rf data/ postgres_data/ redis_data/
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. 安装 pnpm（如果还没有安装）
-npm install -g pnpm
+# 2. 启用项目声明的包管理器
+corepack enable
+corepack prepare pnpm@9.15.9 --activate
 
 # 3. 编译前端
 cd frontend
@@ -495,8 +501,8 @@ gateway:
 
 - `cors.allowed_origins` 配置 CORS 白名单
 - `security.url_allowlist` 配置上游/价格数据/CRS 主机白名单
-- `security.url_allowlist.enabled` 可关闭 URL 校验（慎用）
-- `security.url_allowlist.allow_insecure_http` 关闭校验时允许 HTTP URL
+- `security.url_allowlist.enabled` 可关闭主机白名单校验（慎用）
+- `security.url_allowlist.allow_insecure_http` 关闭主机白名单时允许 HTTP URL
 - `security.url_allowlist.allow_private_hosts` 允许私有/本地 IP 地址
 - `security.response_headers.enabled` 可启用可配置响应头过滤（关闭时使用默认白名单）
 - `security.csp` 配置 Content-Security-Policy
@@ -514,13 +520,16 @@ gateway:
 
 **⚠️ 安全警告：HTTP URL 配置**
 
-当 `security.url_allowlist.enabled=false` 时，系统默认执行最小 URL 校验，**拒绝 HTTP URL**，仅允许 HTTPS。要允许 HTTP URL（例如用于开发或内网测试），必须显式设置：
+当 `security.url_allowlist.enabled=false` 时，系统会关闭主机白名单，但仍会校验 URL 协议，并且**默认阻断私网/回环主机**。HTTP URL 依然会被拒绝。若要访问本地或内网 HTTP 目标，必须显式设置：
+
+升级兼容说明：旧部署如果有意使用内网 HTTP 上游，关闭主机白名单后仍必须同时设置 `allow_insecure_http=true` 和 `allow_private_hosts=true`；否则服务可以启动，但实际使用这些目标时会被拒绝。
 
 ```yaml
 security:
   url_allowlist:
-    enabled: false                # 禁用白名单检查
+    enabled: false                # 禁用主机白名单检查
     allow_insecure_http: true     # 允许 HTTP URL（⚠️ 不安全）
+    allow_private_hosts: true     # 按需允许 localhost / 私网主机
 ```
 
 **或通过环境变量：**
@@ -528,6 +537,7 @@ security:
 ```bash
 SECURITY_URL_ALLOWLIST_ENABLED=false
 SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
+SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 ```
 
 **允许 HTTP 的风险：**
@@ -536,7 +546,7 @@ SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
 - **不适合生产环境**
 
 **适用场景：**
-- ✅ 开发/测试环境的本地服务器（http://localhost）
+- ✅ 开发/测试环境的本地服务器（http://localhost，且需 `allow_private_hosts=true`）
 - ✅ 内网可信端点
 - ✅ 获取 HTTPS 前测试账号连通性
 - ❌ 生产环境（仅使用 HTTPS）

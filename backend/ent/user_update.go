@@ -14,6 +14,10 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
+	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
+	"github.com/Wei-Shaw/sub2api/ent/checkin"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
@@ -440,6 +444,51 @@ func (_u *UserUpdate) AddRedeemCodes(v ...*RedeemCode) *UserUpdate {
 	return _u.AddRedeemCodeIDs(ids...)
 }
 
+// AddRedpacketIDs adds the "redpackets" edge to the BalanceRedPacket entity by IDs.
+func (_u *UserUpdate) AddRedpacketIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddRedpacketIDs(ids...)
+	return _u
+}
+
+// AddRedpackets adds the "redpackets" edges to the BalanceRedPacket entity.
+func (_u *UserUpdate) AddRedpackets(v ...*BalanceRedPacket) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRedpacketIDs(ids...)
+}
+
+// AddSentTransferIDs adds the "sent_transfers" edge to the BalanceTransfer entity by IDs.
+func (_u *UserUpdate) AddSentTransferIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddSentTransferIDs(ids...)
+	return _u
+}
+
+// AddSentTransfers adds the "sent_transfers" edges to the BalanceTransfer entity.
+func (_u *UserUpdate) AddSentTransfers(v ...*BalanceTransfer) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSentTransferIDs(ids...)
+}
+
+// AddReceivedTransferIDs adds the "received_transfers" edge to the BalanceTransfer entity by IDs.
+func (_u *UserUpdate) AddReceivedTransferIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddReceivedTransferIDs(ids...)
+	return _u
+}
+
+// AddReceivedTransfers adds the "received_transfers" edges to the BalanceTransfer entity.
+func (_u *UserUpdate) AddReceivedTransfers(v ...*BalanceTransfer) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReceivedTransferIDs(ids...)
+}
+
 // AddSubscriptionIDs adds the "subscriptions" edge to the UserSubscription entity by IDs.
 func (_u *UserUpdate) AddSubscriptionIDs(ids ...int64) *UserUpdate {
 	_u.mutation.AddSubscriptionIDs(ids...)
@@ -498,6 +547,36 @@ func (_u *UserUpdate) AddAllowedGroups(v ...*Group) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddAllowedGroupIDs(ids...)
+}
+
+// AddCheckinIDs adds the "checkins" edge to the Checkin entity by IDs.
+func (_u *UserUpdate) AddCheckinIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddCheckinIDs(ids...)
+	return _u
+}
+
+// AddCheckins adds the "checkins" edges to the Checkin entity.
+func (_u *UserUpdate) AddCheckins(v ...*Checkin) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCheckinIDs(ids...)
+}
+
+// AddCheckinBlindboxRecordIDs adds the "checkin_blindbox_records" edge to the CheckinBlindboxRecord entity by IDs.
+func (_u *UserUpdate) AddCheckinBlindboxRecordIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddCheckinBlindboxRecordIDs(ids...)
+	return _u
+}
+
+// AddCheckinBlindboxRecords adds the "checkin_blindbox_records" edges to the CheckinBlindboxRecord entity.
+func (_u *UserUpdate) AddCheckinBlindboxRecords(v ...*CheckinBlindboxRecord) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCheckinBlindboxRecordIDs(ids...)
 }
 
 // AddUsageLogIDs adds the "usage_logs" edge to the UsageLog entity by IDs.
@@ -637,6 +716,69 @@ func (_u *UserUpdate) RemoveRedeemCodes(v ...*RedeemCode) *UserUpdate {
 	return _u.RemoveRedeemCodeIDs(ids...)
 }
 
+// ClearRedpackets clears all "redpackets" edges to the BalanceRedPacket entity.
+func (_u *UserUpdate) ClearRedpackets() *UserUpdate {
+	_u.mutation.ClearRedpackets()
+	return _u
+}
+
+// RemoveRedpacketIDs removes the "redpackets" edge to BalanceRedPacket entities by IDs.
+func (_u *UserUpdate) RemoveRedpacketIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveRedpacketIDs(ids...)
+	return _u
+}
+
+// RemoveRedpackets removes "redpackets" edges to BalanceRedPacket entities.
+func (_u *UserUpdate) RemoveRedpackets(v ...*BalanceRedPacket) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRedpacketIDs(ids...)
+}
+
+// ClearSentTransfers clears all "sent_transfers" edges to the BalanceTransfer entity.
+func (_u *UserUpdate) ClearSentTransfers() *UserUpdate {
+	_u.mutation.ClearSentTransfers()
+	return _u
+}
+
+// RemoveSentTransferIDs removes the "sent_transfers" edge to BalanceTransfer entities by IDs.
+func (_u *UserUpdate) RemoveSentTransferIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveSentTransferIDs(ids...)
+	return _u
+}
+
+// RemoveSentTransfers removes "sent_transfers" edges to BalanceTransfer entities.
+func (_u *UserUpdate) RemoveSentTransfers(v ...*BalanceTransfer) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSentTransferIDs(ids...)
+}
+
+// ClearReceivedTransfers clears all "received_transfers" edges to the BalanceTransfer entity.
+func (_u *UserUpdate) ClearReceivedTransfers() *UserUpdate {
+	_u.mutation.ClearReceivedTransfers()
+	return _u
+}
+
+// RemoveReceivedTransferIDs removes the "received_transfers" edge to BalanceTransfer entities by IDs.
+func (_u *UserUpdate) RemoveReceivedTransferIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveReceivedTransferIDs(ids...)
+	return _u
+}
+
+// RemoveReceivedTransfers removes "received_transfers" edges to BalanceTransfer entities.
+func (_u *UserUpdate) RemoveReceivedTransfers(v ...*BalanceTransfer) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReceivedTransferIDs(ids...)
+}
+
 // ClearSubscriptions clears all "subscriptions" edges to the UserSubscription entity.
 func (_u *UserUpdate) ClearSubscriptions() *UserUpdate {
 	_u.mutation.ClearSubscriptions()
@@ -719,6 +861,48 @@ func (_u *UserUpdate) RemoveAllowedGroups(v ...*Group) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAllowedGroupIDs(ids...)
+}
+
+// ClearCheckins clears all "checkins" edges to the Checkin entity.
+func (_u *UserUpdate) ClearCheckins() *UserUpdate {
+	_u.mutation.ClearCheckins()
+	return _u
+}
+
+// RemoveCheckinIDs removes the "checkins" edge to Checkin entities by IDs.
+func (_u *UserUpdate) RemoveCheckinIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveCheckinIDs(ids...)
+	return _u
+}
+
+// RemoveCheckins removes "checkins" edges to Checkin entities.
+func (_u *UserUpdate) RemoveCheckins(v ...*Checkin) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCheckinIDs(ids...)
+}
+
+// ClearCheckinBlindboxRecords clears all "checkin_blindbox_records" edges to the CheckinBlindboxRecord entity.
+func (_u *UserUpdate) ClearCheckinBlindboxRecords() *UserUpdate {
+	_u.mutation.ClearCheckinBlindboxRecords()
+	return _u
+}
+
+// RemoveCheckinBlindboxRecordIDs removes the "checkin_blindbox_records" edge to CheckinBlindboxRecord entities by IDs.
+func (_u *UserUpdate) RemoveCheckinBlindboxRecordIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveCheckinBlindboxRecordIDs(ids...)
+	return _u
+}
+
+// RemoveCheckinBlindboxRecords removes "checkin_blindbox_records" edges to CheckinBlindboxRecord entities.
+func (_u *UserUpdate) RemoveCheckinBlindboxRecords(v ...*CheckinBlindboxRecord) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCheckinBlindboxRecordIDs(ids...)
 }
 
 // ClearUsageLogs clears all "usage_logs" edges to the UsageLog entity.
@@ -1125,6 +1309,141 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.RedpacketsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedpacketsTable,
+			Columns: []string{user.RedpacketsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balanceredpacket.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRedpacketsIDs(); len(nodes) > 0 && !_u.mutation.RedpacketsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedpacketsTable,
+			Columns: []string{user.RedpacketsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balanceredpacket.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RedpacketsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedpacketsTable,
+			Columns: []string{user.RedpacketsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balanceredpacket.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SentTransfersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentTransfersTable,
+			Columns: []string{user.SentTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSentTransfersIDs(); len(nodes) > 0 && !_u.mutation.SentTransfersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentTransfersTable,
+			Columns: []string{user.SentTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SentTransfersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentTransfersTable,
+			Columns: []string{user.SentTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReceivedTransfersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReceivedTransfersTable,
+			Columns: []string{user.ReceivedTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReceivedTransfersIDs(); len(nodes) > 0 && !_u.mutation.ReceivedTransfersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReceivedTransfersTable,
+			Columns: []string{user.ReceivedTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReceivedTransfersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReceivedTransfersTable,
+			Columns: []string{user.ReceivedTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.SubscriptionsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1315,6 +1634,96 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		createE.defaults()
 		_, specE := createE.createSpec()
 		edge.Target.Fields = specE.Fields
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CheckinsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinsTable,
+			Columns: []string{user.CheckinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkin.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCheckinsIDs(); len(nodes) > 0 && !_u.mutation.CheckinsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinsTable,
+			Columns: []string{user.CheckinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkin.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CheckinsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinsTable,
+			Columns: []string{user.CheckinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkin.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CheckinBlindboxRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinBlindboxRecordsTable,
+			Columns: []string{user.CheckinBlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCheckinBlindboxRecordsIDs(); len(nodes) > 0 && !_u.mutation.CheckinBlindboxRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinBlindboxRecordsTable,
+			Columns: []string{user.CheckinBlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CheckinBlindboxRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinBlindboxRecordsTable,
+			Columns: []string{user.CheckinBlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UsageLogsCleared() {
@@ -2008,6 +2417,51 @@ func (_u *UserUpdateOne) AddRedeemCodes(v ...*RedeemCode) *UserUpdateOne {
 	return _u.AddRedeemCodeIDs(ids...)
 }
 
+// AddRedpacketIDs adds the "redpackets" edge to the BalanceRedPacket entity by IDs.
+func (_u *UserUpdateOne) AddRedpacketIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddRedpacketIDs(ids...)
+	return _u
+}
+
+// AddRedpackets adds the "redpackets" edges to the BalanceRedPacket entity.
+func (_u *UserUpdateOne) AddRedpackets(v ...*BalanceRedPacket) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRedpacketIDs(ids...)
+}
+
+// AddSentTransferIDs adds the "sent_transfers" edge to the BalanceTransfer entity by IDs.
+func (_u *UserUpdateOne) AddSentTransferIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddSentTransferIDs(ids...)
+	return _u
+}
+
+// AddSentTransfers adds the "sent_transfers" edges to the BalanceTransfer entity.
+func (_u *UserUpdateOne) AddSentTransfers(v ...*BalanceTransfer) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddSentTransferIDs(ids...)
+}
+
+// AddReceivedTransferIDs adds the "received_transfers" edge to the BalanceTransfer entity by IDs.
+func (_u *UserUpdateOne) AddReceivedTransferIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddReceivedTransferIDs(ids...)
+	return _u
+}
+
+// AddReceivedTransfers adds the "received_transfers" edges to the BalanceTransfer entity.
+func (_u *UserUpdateOne) AddReceivedTransfers(v ...*BalanceTransfer) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReceivedTransferIDs(ids...)
+}
+
 // AddSubscriptionIDs adds the "subscriptions" edge to the UserSubscription entity by IDs.
 func (_u *UserUpdateOne) AddSubscriptionIDs(ids ...int64) *UserUpdateOne {
 	_u.mutation.AddSubscriptionIDs(ids...)
@@ -2066,6 +2520,36 @@ func (_u *UserUpdateOne) AddAllowedGroups(v ...*Group) *UserUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.AddAllowedGroupIDs(ids...)
+}
+
+// AddCheckinIDs adds the "checkins" edge to the Checkin entity by IDs.
+func (_u *UserUpdateOne) AddCheckinIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddCheckinIDs(ids...)
+	return _u
+}
+
+// AddCheckins adds the "checkins" edges to the Checkin entity.
+func (_u *UserUpdateOne) AddCheckins(v ...*Checkin) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCheckinIDs(ids...)
+}
+
+// AddCheckinBlindboxRecordIDs adds the "checkin_blindbox_records" edge to the CheckinBlindboxRecord entity by IDs.
+func (_u *UserUpdateOne) AddCheckinBlindboxRecordIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddCheckinBlindboxRecordIDs(ids...)
+	return _u
+}
+
+// AddCheckinBlindboxRecords adds the "checkin_blindbox_records" edges to the CheckinBlindboxRecord entity.
+func (_u *UserUpdateOne) AddCheckinBlindboxRecords(v ...*CheckinBlindboxRecord) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCheckinBlindboxRecordIDs(ids...)
 }
 
 // AddUsageLogIDs adds the "usage_logs" edge to the UsageLog entity by IDs.
@@ -2205,6 +2689,69 @@ func (_u *UserUpdateOne) RemoveRedeemCodes(v ...*RedeemCode) *UserUpdateOne {
 	return _u.RemoveRedeemCodeIDs(ids...)
 }
 
+// ClearRedpackets clears all "redpackets" edges to the BalanceRedPacket entity.
+func (_u *UserUpdateOne) ClearRedpackets() *UserUpdateOne {
+	_u.mutation.ClearRedpackets()
+	return _u
+}
+
+// RemoveRedpacketIDs removes the "redpackets" edge to BalanceRedPacket entities by IDs.
+func (_u *UserUpdateOne) RemoveRedpacketIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveRedpacketIDs(ids...)
+	return _u
+}
+
+// RemoveRedpackets removes "redpackets" edges to BalanceRedPacket entities.
+func (_u *UserUpdateOne) RemoveRedpackets(v ...*BalanceRedPacket) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRedpacketIDs(ids...)
+}
+
+// ClearSentTransfers clears all "sent_transfers" edges to the BalanceTransfer entity.
+func (_u *UserUpdateOne) ClearSentTransfers() *UserUpdateOne {
+	_u.mutation.ClearSentTransfers()
+	return _u
+}
+
+// RemoveSentTransferIDs removes the "sent_transfers" edge to BalanceTransfer entities by IDs.
+func (_u *UserUpdateOne) RemoveSentTransferIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveSentTransferIDs(ids...)
+	return _u
+}
+
+// RemoveSentTransfers removes "sent_transfers" edges to BalanceTransfer entities.
+func (_u *UserUpdateOne) RemoveSentTransfers(v ...*BalanceTransfer) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveSentTransferIDs(ids...)
+}
+
+// ClearReceivedTransfers clears all "received_transfers" edges to the BalanceTransfer entity.
+func (_u *UserUpdateOne) ClearReceivedTransfers() *UserUpdateOne {
+	_u.mutation.ClearReceivedTransfers()
+	return _u
+}
+
+// RemoveReceivedTransferIDs removes the "received_transfers" edge to BalanceTransfer entities by IDs.
+func (_u *UserUpdateOne) RemoveReceivedTransferIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveReceivedTransferIDs(ids...)
+	return _u
+}
+
+// RemoveReceivedTransfers removes "received_transfers" edges to BalanceTransfer entities.
+func (_u *UserUpdateOne) RemoveReceivedTransfers(v ...*BalanceTransfer) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReceivedTransferIDs(ids...)
+}
+
 // ClearSubscriptions clears all "subscriptions" edges to the UserSubscription entity.
 func (_u *UserUpdateOne) ClearSubscriptions() *UserUpdateOne {
 	_u.mutation.ClearSubscriptions()
@@ -2287,6 +2834,48 @@ func (_u *UserUpdateOne) RemoveAllowedGroups(v ...*Group) *UserUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAllowedGroupIDs(ids...)
+}
+
+// ClearCheckins clears all "checkins" edges to the Checkin entity.
+func (_u *UserUpdateOne) ClearCheckins() *UserUpdateOne {
+	_u.mutation.ClearCheckins()
+	return _u
+}
+
+// RemoveCheckinIDs removes the "checkins" edge to Checkin entities by IDs.
+func (_u *UserUpdateOne) RemoveCheckinIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveCheckinIDs(ids...)
+	return _u
+}
+
+// RemoveCheckins removes "checkins" edges to Checkin entities.
+func (_u *UserUpdateOne) RemoveCheckins(v ...*Checkin) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCheckinIDs(ids...)
+}
+
+// ClearCheckinBlindboxRecords clears all "checkin_blindbox_records" edges to the CheckinBlindboxRecord entity.
+func (_u *UserUpdateOne) ClearCheckinBlindboxRecords() *UserUpdateOne {
+	_u.mutation.ClearCheckinBlindboxRecords()
+	return _u
+}
+
+// RemoveCheckinBlindboxRecordIDs removes the "checkin_blindbox_records" edge to CheckinBlindboxRecord entities by IDs.
+func (_u *UserUpdateOne) RemoveCheckinBlindboxRecordIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveCheckinBlindboxRecordIDs(ids...)
+	return _u
+}
+
+// RemoveCheckinBlindboxRecords removes "checkin_blindbox_records" edges to CheckinBlindboxRecord entities.
+func (_u *UserUpdateOne) RemoveCheckinBlindboxRecords(v ...*CheckinBlindboxRecord) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCheckinBlindboxRecordIDs(ids...)
 }
 
 // ClearUsageLogs clears all "usage_logs" edges to the UsageLog entity.
@@ -2723,6 +3312,141 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.RedpacketsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedpacketsTable,
+			Columns: []string{user.RedpacketsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balanceredpacket.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRedpacketsIDs(); len(nodes) > 0 && !_u.mutation.RedpacketsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedpacketsTable,
+			Columns: []string{user.RedpacketsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balanceredpacket.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RedpacketsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RedpacketsTable,
+			Columns: []string{user.RedpacketsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balanceredpacket.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SentTransfersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentTransfersTable,
+			Columns: []string{user.SentTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedSentTransfersIDs(); len(nodes) > 0 && !_u.mutation.SentTransfersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentTransfersTable,
+			Columns: []string{user.SentTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SentTransfersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.SentTransfersTable,
+			Columns: []string{user.SentTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReceivedTransfersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReceivedTransfersTable,
+			Columns: []string{user.ReceivedTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReceivedTransfersIDs(); len(nodes) > 0 && !_u.mutation.ReceivedTransfersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReceivedTransfersTable,
+			Columns: []string{user.ReceivedTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReceivedTransfersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReceivedTransfersTable,
+			Columns: []string{user.ReceivedTransfersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(balancetransfer.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.SubscriptionsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -2913,6 +3637,96 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 		createE.defaults()
 		_, specE := createE.createSpec()
 		edge.Target.Fields = specE.Fields
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CheckinsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinsTable,
+			Columns: []string{user.CheckinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkin.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCheckinsIDs(); len(nodes) > 0 && !_u.mutation.CheckinsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinsTable,
+			Columns: []string{user.CheckinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkin.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CheckinsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinsTable,
+			Columns: []string{user.CheckinsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkin.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CheckinBlindboxRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinBlindboxRecordsTable,
+			Columns: []string{user.CheckinBlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCheckinBlindboxRecordsIDs(); len(nodes) > 0 && !_u.mutation.CheckinBlindboxRecordsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinBlindboxRecordsTable,
+			Columns: []string{user.CheckinBlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CheckinBlindboxRecordsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CheckinBlindboxRecordsTable,
+			Columns: []string{user.CheckinBlindboxRecordsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(checkinblindboxrecord.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UsageLogsCleared() {

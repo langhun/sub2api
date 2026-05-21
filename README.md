@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -129,7 +129,7 @@ Community projects that extend or integrate with Sub2API:
 
 | Component | Technology |
 |-----------|------------|
-| Backend | Go 1.25.7, Gin, Ent |
+| Backend | Go 1.26.3, Gin, Ent |
 | Frontend | Vue 3.4+, Vite 5+, TailwindCSS |
 | Database | PostgreSQL 15+ |
 | Cache/Queue | Redis 7+ |
@@ -247,7 +247,7 @@ docker compose logs -f sub2api
 ```
 
 **What the script does:**
-- Downloads `docker-compose.local.yml` (saved as `docker-compose.yml`) and `.env.example`
+- Downloads the local-directory Compose template as `docker-compose.yml` and `.env.example`
 - Generates secure credentials (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with auto-generated secrets
 - Creates data directories (uses local directories for easy backup/migration)
@@ -326,7 +326,11 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.local.yml** | Local directories | ✅ Easy (tar entire directory) | Production, frequent backups |
 | **docker-compose.yml** | Named volumes | ⚠️ Requires docker commands | Simple setup |
 
-**Recommendation:** Use `docker-compose.local.yml` (deployed by script) for easier data management.
+**Recommendation:** Use the local-directory compose file for easier data management. The deployment script saves it as `docker-compose.yml`, so script-based installs can use plain `docker compose ...` commands.
+
+#### High-Traffic Usage Logs
+
+For deployments with large `usage_logs` tables, see [usage_logs capacity and upgrade notes](docs/USAGE_LOGS_CAPACITY.md) before upgrading. The guide covers `EXPLAIN (ANALYZE, BUFFERS)` checks, online hot-path indexes, raw-log retention, partitioning, and URL security compatibility flags for internal HTTP targets.
 
 #### Access
 
@@ -334,24 +338,24 @@ Open `http://YOUR_SERVER_IP:8080` in your browser.
 
 If admin password was auto-generated, find it in logs:
 ```bash
-docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+docker compose logs sub2api | grep "admin password"
 ```
 
 #### Upgrade
 
 ```bash
 # Pull latest image and recreate container
-docker compose -f docker-compose.local.yml pull
-docker compose -f docker-compose.local.yml up -d
+docker compose pull
+docker compose up -d
 ```
 
 #### Easy Migration (Local Directory Version)
 
-When using `docker-compose.local.yml`, migrate to a new server easily:
+When using the local-directory compose file (`docker-compose.local.yml` manually, or script-generated `docker-compose.yml`), migrate to a new server easily. The commands below assume the script-generated `docker-compose.yml`; for a manual local file, add `-f docker-compose.local.yml`.
 
 ```bash
 # On source server
-docker compose -f docker-compose.local.yml down
+docker compose down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
 
@@ -361,23 +365,23 @@ scp sub2api-complete.tar.gz user@new-server:/path/
 # On new server
 tar xzf sub2api-complete.tar.gz
 cd sub2api-deploy/
-docker compose -f docker-compose.local.yml up -d
+docker compose up -d
 ```
 
 #### Useful Commands
 
 ```bash
 # Stop all services
-docker compose -f docker-compose.local.yml down
+docker compose down
 
 # Restart
-docker compose -f docker-compose.local.yml restart
+docker compose restart
 
 # View all logs
-docker compose -f docker-compose.local.yml logs -f
+docker compose logs -f
 
 # Remove all data (caution!)
-docker compose -f docker-compose.local.yml down
+docker compose down
 rm -rf data/ postgres_data/ redis_data/
 ```
 
@@ -389,8 +393,9 @@ Build and run from source code for development or customization.
 
 #### Prerequisites
 
-- Go 1.21+
-- Node.js 18+
+- Go 1.26.3
+- Node.js 20+
+- pnpm 9.x
 - PostgreSQL 15+
 - Redis 7+
 
@@ -401,8 +406,9 @@ Build and run from source code for development or customization.
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. Install pnpm (if not already installed)
-npm install -g pnpm
+# 2. Enable the project package manager
+corepack enable
+corepack prepare pnpm@9.15.9 --activate
 
 # 3. Build frontend
 cd frontend
@@ -464,8 +470,8 @@ Additional security-related options are available in `config.yaml`:
 
 - `cors.allowed_origins` for CORS allowlist
 - `security.url_allowlist` for upstream/pricing/CRS host allowlists
-- `security.url_allowlist.enabled` to disable URL validation (use with caution)
-- `security.url_allowlist.allow_insecure_http` to allow HTTP URLs when validation is disabled
+- `security.url_allowlist.enabled` to disable the hostname allowlist (use with caution)
+- `security.url_allowlist.allow_insecure_http` to allow HTTP URLs when the hostname allowlist is disabled
 - `security.url_allowlist.allow_private_hosts` to allow private/local IP addresses
 - `security.response_headers.enabled` to enable configurable response header filtering (disabled uses default allowlist)
 - `security.csp` to control Content-Security-Policy headers
@@ -475,13 +481,16 @@ Additional security-related options are available in `config.yaml`:
 
 **⚠️ Security Warning: HTTP URL Configuration**
 
-When `security.url_allowlist.enabled=false`, the system performs minimal URL validation by default, **rejecting HTTP URLs** and only allowing HTTPS. To allow HTTP URLs (e.g., for development or internal testing), you must explicitly set:
+When `security.url_allowlist.enabled=false`, the system disables the hostname allowlist, but it still validates URL scheme and **blocks private/loopback hosts by default**. HTTP URLs remain rejected unless you explicitly opt in. For local or internal HTTP targets, set:
+
+Upgrade compatibility: older deployments that intentionally used internal HTTP upstreams must set both `allow_insecure_http=true` and `allow_private_hosts=true` after disabling the hostname allowlist; otherwise startup succeeds, but those targets are rejected when used.
 
 ```yaml
 security:
   url_allowlist:
-    enabled: false                # Disable allowlist checks
+    enabled: false                # Disable hostname allowlist checks
     allow_insecure_http: true     # Allow HTTP URLs (⚠️ INSECURE)
+    allow_private_hosts: true     # Allow localhost/private hosts when needed
 ```
 
 **Or via environment variable:**
@@ -489,6 +498,7 @@ security:
 ```bash
 SECURITY_URL_ALLOWLIST_ENABLED=false
 SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
+SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 ```
 
 **Risks of allowing HTTP:**
@@ -497,7 +507,7 @@ SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
 - **NOT suitable for production** environments
 
 **When to use HTTP:**
-- ✅ Development/testing with local servers (http://localhost)
+- ✅ Development/testing with local servers (http://localhost, plus `allow_private_hosts=true`)
 - ✅ Internal networks with trusted endpoints
 - ✅ Testing account connectivity before obtaining HTTPS
 - ❌ Production environments (use HTTPS only)

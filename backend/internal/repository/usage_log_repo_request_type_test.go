@@ -6,6 +6,8 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"reflect"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,6 +74,10 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			true,
 			sqlmock.AnyArg(), // duration_ms
 			sqlmock.AnyArg(), // first_token_ms
+			sqlmock.AnyArg(), // auth_latency_ms
+			sqlmock.AnyArg(), // routing_latency_ms
+			sqlmock.AnyArg(), // upstream_latency_ms
+			sqlmock.AnyArg(), // response_latency_ms
 			sqlmock.AnyArg(), // user_agent
 			sqlmock.AnyArg(), // ip_address
 			log.ImageCount,
@@ -157,6 +163,10 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.ImageCount,
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(), // image_input_size
@@ -224,6 +234,42 @@ func TestExecUsageLogInsertNoResult_PersistsRequestedModel(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestExecUsageLogInsertNoResult_ColumnListMatchesPreparedArgs(t *testing.T) {
+	authLatency := 11
+	routingLatency := 22
+	upstreamLatency := 33
+	responseLatency := 44
+	prepared := prepareUsageLogInsert(&service.UsageLog{
+		UserID:            1,
+		APIKeyID:          2,
+		AccountID:         3,
+		RequestID:         "req-best-effort-column-count",
+		Model:             "gpt-5",
+		RequestedModel:    "gpt-5",
+		AuthLatencyMs:     &authLatency,
+		RoutingLatencyMs:  &routingLatency,
+		UpstreamLatencyMs: &upstreamLatency,
+		ResponseLatencyMs: &responseLatency,
+		CreatedAt:         time.Date(2025, 1, 4, 13, 0, 0, 0, time.UTC),
+	})
+	recorder := &capturingSQLExecutor{}
+
+	err := execUsageLogInsertNoResult(context.Background(), recorder, prepared)
+	require.NoError(t, err)
+
+	columns := extractUsageLogInsertColumns(t, recorder.query)
+	require.Len(t, columns, len(prepared.args))
+	require.Len(t, columns, len(usageLogInsertArgTypes))
+	require.Equal(t, len(prepared.args), countUsageLogInsertPlaceholders(recorder.query))
+	require.Equal(t, prepared.args, recorder.args)
+	require.Subset(t, columns, []string{
+		"auth_latency_ms",
+		"routing_latency_ms",
+		"upstream_latency_ms",
+		"response_latency_ms",
+	})
+}
+
 func TestPrepareUsageLogInsert_ArgCountMatchesTypes(t *testing.T) {
 	prepared := prepareUsageLogInsert(&service.UsageLog{
 		UserID:         1,
@@ -259,11 +305,11 @@ func TestPrepareUsageLogInsert_PersistsImageSizeMetadata(t *testing.T) {
 		CreatedAt:          time.Date(2025, 1, 6, 12, 0, 0, 0, time.UTC),
 	})
 
-	require.Equal(t, sql.NullString{String: imageSize, Valid: true}, prepared.args[34])
-	require.Equal(t, sql.NullString{String: inputSize, Valid: true}, prepared.args[35])
-	require.Equal(t, sql.NullString{String: outputSize, Valid: true}, prepared.args[36])
-	require.Equal(t, sql.NullString{String: source, Valid: true}, prepared.args[37])
-	breakdownJSON, ok := prepared.args[38].(string)
+	require.Equal(t, sql.NullString{String: imageSize, Valid: true}, prepared.args[38])
+	require.Equal(t, sql.NullString{String: inputSize, Valid: true}, prepared.args[39])
+	require.Equal(t, sql.NullString{String: outputSize, Valid: true}, prepared.args[40])
+	require.Equal(t, sql.NullString{String: source, Valid: true}, prepared.args[41])
+	breakdownJSON, ok := prepared.args[42].(string)
 	require.True(t, ok)
 	require.JSONEq(t, `{"1K":1,"4K":1}`, breakdownJSON)
 }
@@ -312,6 +358,51 @@ func anySliceToDriverValues(values []any) []driver.Value {
 		out = append(out, value)
 	}
 	return out
+}
+
+type capturingSQLExecutor struct {
+	query string
+	args  []any
+}
+
+func (c *capturingSQLExecutor) ExecContext(_ context.Context, query string, args ...any) (sql.Result, error) {
+	c.query = query
+	c.args = append([]any(nil), args...)
+	return driver.RowsAffected(1), nil
+}
+
+func (c *capturingSQLExecutor) QueryContext(context.Context, string, ...any) (*sql.Rows, error) {
+	return nil, fmt.Errorf("unexpected QueryContext")
+}
+
+func extractUsageLogInsertColumns(t *testing.T, query string) []string {
+	t.Helper()
+	const startMarker = "INSERT INTO usage_logs ("
+	const endMarker = ") VALUES"
+	start := strings.Index(query, startMarker)
+	require.NotEqual(t, -1, start)
+	columnBlock := query[start+len(startMarker):]
+	end := strings.Index(columnBlock, endMarker)
+	require.NotEqual(t, -1, end)
+
+	rawColumns := strings.Split(columnBlock[:end], ",")
+	columns := make([]string, 0, len(rawColumns))
+	for _, raw := range rawColumns {
+		column := strings.TrimSpace(raw)
+		if column != "" {
+			columns = append(columns, column)
+		}
+	}
+	return columns
+}
+
+func countUsageLogInsertPlaceholders(query string) int {
+	matches := regexp.MustCompile(`\$(\d+)`).FindAllStringSubmatch(query, -1)
+	seen := make(map[string]struct{}, len(matches))
+	for _, match := range matches {
+		seen[match[1]] = struct{}{}
+	}
+	return len(seen)
 }
 
 func TestUsageLogRepositoryListWithFiltersRequestTypePriority(t *testing.T) {
@@ -373,7 +464,28 @@ func TestUsageLogRepositoryGetModelStatsWithFiltersRequestTypePriority(t *testin
 		WithArgs(start, end, requestType).
 		WillReturnRows(sqlmock.NewRows([]string{"model", "requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens", "total_tokens", "cost", "actual_cost", "account_cost"}))
 
-	stats, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, &requestType, &stream, nil)
+	stats, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, &requestType, &stream, nil, 0)
+	require.NoError(t, err)
+	require.Empty(t, stats)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetModelStatsWithFiltersLimit(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+
+	mock.ExpectQuery("FROM usage_logs").
+		WithArgs(start, end, 25).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"model", "requests", "input_tokens", "output_tokens",
+			"cache_creation_tokens", "cache_read_tokens", "total_tokens",
+			"cost", "actual_cost", "account_cost",
+		}))
+
+	stats, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, nil, nil, nil, 25)
 	require.NoError(t, err)
 	require.Empty(t, stats)
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -421,6 +533,46 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetStatsWithFiltersEndpointLimit(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	filters := usagestats.UsageLogFilters{
+		StartTime:     &start,
+		EndTime:       &end,
+		EndpointLimit: 20,
+	}
+
+	mock.ExpectQuery("FROM usage_logs\\s+WHERE created_at >= \\$1 AND created_at < \\$2").
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"total_requests",
+			"total_input_tokens",
+			"total_output_tokens",
+			"total_cache_tokens",
+			"total_cost",
+			"total_actual_cost",
+			"total_account_cost",
+			"avg_duration_ms",
+		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, 1.2, 20.0))
+	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(inbound_endpoint\\), ''\\), 'unknown'\\) AS endpoint").
+		WithArgs(start, end, 20).
+		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
+	mock.ExpectQuery("SELECT COALESCE\\(NULLIF\\(TRIM\\(upstream_endpoint\\), ''\\), 'unknown'\\) AS endpoint").
+		WithArgs(start, end, 20).
+		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
+	mock.ExpectQuery("SELECT CONCAT\\(").
+		WithArgs(start, end, 20).
+		WillReturnRows(sqlmock.NewRows([]string{"endpoint", "requests", "total_tokens", "cost", "actual_cost"}))
+
+	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), stats.TotalRequests)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUsageLogRepositoryGetModelStatsAccountCostColumn(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &usageLogRepository{sql: db}
@@ -438,7 +590,7 @@ func TestUsageLogRepositoryGetModelStatsAccountCostColumn(t *testing.T) {
 			AddRow("claude-opus-4-6", int64(10), int64(100), int64(200), int64(5), int64(3), int64(308), 2.5, 2.0, 1.8).
 			AddRow("claude-sonnet-4-6", int64(5), int64(50), int64(100), int64(0), int64(0), int64(150), 1.0, 0.8, 0.7))
 
-	results, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, nil, nil, nil)
+	results, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, nil, nil, nil, 0)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	require.Equal(t, "claude-opus-4-6", results[0].Model)
@@ -479,6 +631,25 @@ func TestUsageLogRepositoryGetGroupStatsAccountCostColumn(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetAllGroupUsageSummaryExcludesDeletedGroups(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN usage_logs ul ON ul.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(1), 12.5, 2.5))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 1)
+	require.Equal(t, int64(1), summaries[0].GroupID)
+	require.Equal(t, 12.5, summaries[0].TotalCost)
+	require.Equal(t, 2.5, summaries[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUsageLogRepositoryGetStatsWithFiltersAlwaysReturnsAccountCost(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &usageLogRepository{sql: db}
@@ -513,10 +684,10 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
 
-	rows := sqlmock.NewRows([]string{"user_id", "email", "actual_cost", "requests", "tokens", "total_actual_cost", "total_requests", "total_tokens"}).
-		AddRow(int64(2), "beta@example.com", 12.5, int64(9), int64(900), 40.0, int64(30), int64(2600)).
-		AddRow(int64(1), "alpha@example.com", 12.5, int64(8), int64(800), 40.0, int64(30), int64(2600)).
-		AddRow(int64(3), "gamma@example.com", 4.25, int64(5), int64(300), 40.0, int64(30), int64(2600))
+	rows := sqlmock.NewRows([]string{"user_id", "email", "username", "actual_cost", "requests", "tokens", "total_actual_cost", "total_requests", "total_tokens"}).
+		AddRow(int64(2), "beta@example.com", "Beta", 12.5, int64(9), int64(900), 40.0, int64(30), int64(2600)).
+		AddRow(int64(1), "alpha@example.com", "", 12.5, int64(8), int64(800), 40.0, int64(30), int64(2600)).
+		AddRow(int64(3), "gamma@example.com", "Gamma", 4.25, int64(5), int64(300), 40.0, int64(30), int64(2600))
 
 	mock.ExpectQuery("WITH user_spend AS \\(").
 		WithArgs(start, end, 12).
@@ -526,9 +697,9 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, &usagestats.UserSpendingRankingResponse{
 		Ranking: []usagestats.UserSpendingRankingItem{
-			{UserID: 2, Email: "beta@example.com", ActualCost: 12.5, Requests: 9, Tokens: 900},
-			{UserID: 1, Email: "alpha@example.com", ActualCost: 12.5, Requests: 8, Tokens: 800},
-			{UserID: 3, Email: "gamma@example.com", ActualCost: 4.25, Requests: 5, Tokens: 300},
+			{UserID: 2, Email: "beta@example.com", Username: "Beta", ActualCost: 12.5, Requests: 9, Tokens: 900},
+			{UserID: 1, Email: "alpha@example.com", Username: "", ActualCost: 12.5, Requests: 8, Tokens: 800},
+			{UserID: 3, Email: "gamma@example.com", Username: "Gamma", ActualCost: 4.25, Requests: 5, Tokens: 300},
 		},
 		TotalActualCost: 40.0,
 		TotalRequests:   30,
@@ -622,6 +793,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			false,
 			sql.NullInt64{},
 			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
 			sql.NullString{},
 			sql.NullString{},
 			2,
@@ -690,6 +865,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			false, // legacy openai ws
 			sql.NullInt64{},
 			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
 			sql.NullString{},
 			sql.NullString{},
 			0,
@@ -740,6 +919,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int16(service.RequestTypeUnknown),
 			true,
 			false,
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
+			sql.NullInt64{},
 			sql.NullInt64{},
 			sql.NullInt64{},
 			sql.NullString{},
@@ -794,6 +977,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			false,
 			sql.NullInt64{},
 			sql.NullInt64{},
+			sql.NullInt64{Valid: true, Int64: 11},
+			sql.NullInt64{Valid: true, Int64: 22},
+			sql.NullInt64{Valid: true, Int64: 33},
+			sql.NullInt64{Valid: true, Int64: 44},
 			sql.NullString{},
 			sql.NullString{},
 			0,
@@ -817,6 +1004,14 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
 		require.Equal(t, "priority", *log.ServiceTier)
+		require.NotNil(t, log.AuthLatencyMs)
+		require.NotNil(t, log.RoutingLatencyMs)
+		require.NotNil(t, log.UpstreamLatencyMs)
+		require.NotNil(t, log.ResponseLatencyMs)
+		require.Equal(t, 11, *log.AuthLatencyMs)
+		require.Equal(t, 22, *log.RoutingLatencyMs)
+		require.Equal(t, 33, *log.UpstreamLatencyMs)
+		require.Equal(t, 44, *log.ResponseLatencyMs)
 	})
 
 }

@@ -142,93 +142,6 @@ func (_u *UsageLogUpdate) ClearUpstreamModel() *UsageLogUpdate {
 	return _u
 }
 
-// SetChannelID sets the "channel_id" field.
-func (_u *UsageLogUpdate) SetChannelID(v int64) *UsageLogUpdate {
-	_u.mutation.ResetChannelID()
-	_u.mutation.SetChannelID(v)
-	return _u
-}
-
-// SetNillableChannelID sets the "channel_id" field if the given value is not nil.
-func (_u *UsageLogUpdate) SetNillableChannelID(v *int64) *UsageLogUpdate {
-	if v != nil {
-		_u.SetChannelID(*v)
-	}
-	return _u
-}
-
-// AddChannelID adds value to the "channel_id" field.
-func (_u *UsageLogUpdate) AddChannelID(v int64) *UsageLogUpdate {
-	_u.mutation.AddChannelID(v)
-	return _u
-}
-
-// ClearChannelID clears the value of the "channel_id" field.
-func (_u *UsageLogUpdate) ClearChannelID() *UsageLogUpdate {
-	_u.mutation.ClearChannelID()
-	return _u
-}
-
-// SetModelMappingChain sets the "model_mapping_chain" field.
-func (_u *UsageLogUpdate) SetModelMappingChain(v string) *UsageLogUpdate {
-	_u.mutation.SetModelMappingChain(v)
-	return _u
-}
-
-// SetNillableModelMappingChain sets the "model_mapping_chain" field if the given value is not nil.
-func (_u *UsageLogUpdate) SetNillableModelMappingChain(v *string) *UsageLogUpdate {
-	if v != nil {
-		_u.SetModelMappingChain(*v)
-	}
-	return _u
-}
-
-// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
-func (_u *UsageLogUpdate) ClearModelMappingChain() *UsageLogUpdate {
-	_u.mutation.ClearModelMappingChain()
-	return _u
-}
-
-// SetBillingTier sets the "billing_tier" field.
-func (_u *UsageLogUpdate) SetBillingTier(v string) *UsageLogUpdate {
-	_u.mutation.SetBillingTier(v)
-	return _u
-}
-
-// SetNillableBillingTier sets the "billing_tier" field if the given value is not nil.
-func (_u *UsageLogUpdate) SetNillableBillingTier(v *string) *UsageLogUpdate {
-	if v != nil {
-		_u.SetBillingTier(*v)
-	}
-	return _u
-}
-
-// ClearBillingTier clears the value of the "billing_tier" field.
-func (_u *UsageLogUpdate) ClearBillingTier() *UsageLogUpdate {
-	_u.mutation.ClearBillingTier()
-	return _u
-}
-
-// SetBillingMode sets the "billing_mode" field.
-func (_u *UsageLogUpdate) SetBillingMode(v string) *UsageLogUpdate {
-	_u.mutation.SetBillingMode(v)
-	return _u
-}
-
-// SetNillableBillingMode sets the "billing_mode" field if the given value is not nil.
-func (_u *UsageLogUpdate) SetNillableBillingMode(v *string) *UsageLogUpdate {
-	if v != nil {
-		_u.SetBillingMode(*v)
-	}
-	return _u
-}
-
-// ClearBillingMode clears the value of the "billing_mode" field.
-func (_u *UsageLogUpdate) ClearBillingMode() *UsageLogUpdate {
-	_u.mutation.ClearBillingMode()
-	return _u
-}
-
 // SetGroupID sets the "group_id" field.
 func (_u *UsageLogUpdate) SetGroupID(v int64) *UsageLogUpdate {
 	_u.mutation.SetGroupID(v)
@@ -392,6 +305,48 @@ func (_u *UsageLogUpdate) SetNillableCacheCreation1hTokens(v *int) *UsageLogUpda
 // AddCacheCreation1hTokens adds value to the "cache_creation_1h_tokens" field.
 func (_u *UsageLogUpdate) AddCacheCreation1hTokens(v int) *UsageLogUpdate {
 	_u.mutation.AddCacheCreation1hTokens(v)
+	return _u
+}
+
+// SetImageOutputTokens sets the "image_output_tokens" field.
+func (_u *UsageLogUpdate) SetImageOutputTokens(v int) *UsageLogUpdate {
+	_u.mutation.ResetImageOutputTokens()
+	_u.mutation.SetImageOutputTokens(v)
+	return _u
+}
+
+// SetNillableImageOutputTokens sets the "image_output_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableImageOutputTokens(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetImageOutputTokens(*v)
+	}
+	return _u
+}
+
+// AddImageOutputTokens adds value to the "image_output_tokens" field.
+func (_u *UsageLogUpdate) AddImageOutputTokens(v int) *UsageLogUpdate {
+	_u.mutation.AddImageOutputTokens(v)
+	return _u
+}
+
+// SetImageOutputCost sets the "image_output_cost" field.
+func (_u *UsageLogUpdate) SetImageOutputCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetImageOutputCost()
+	_u.mutation.SetImageOutputCost(v)
+	return _u
+}
+
+// SetNillableImageOutputCost sets the "image_output_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableImageOutputCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetImageOutputCost(*v)
+	}
+	return _u
+}
+
+// AddImageOutputCost adds value to the "image_output_cost" field.
+func (_u *UsageLogUpdate) AddImageOutputCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddImageOutputCost(v)
 	return _u
 }
 
@@ -590,6 +545,27 @@ func (_u *UsageLogUpdate) AddBillingType(v int8) *UsageLogUpdate {
 	return _u
 }
 
+// SetRequestType sets the "request_type" field.
+func (_u *UsageLogUpdate) SetRequestType(v int) *UsageLogUpdate {
+	_u.mutation.ResetRequestType()
+	_u.mutation.SetRequestType(v)
+	return _u
+}
+
+// SetNillableRequestType sets the "request_type" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableRequestType(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetRequestType(*v)
+	}
+	return _u
+}
+
+// AddRequestType adds value to the "request_type" field.
+func (_u *UsageLogUpdate) AddRequestType(v int) *UsageLogUpdate {
+	_u.mutation.AddRequestType(v)
+	return _u
+}
+
 // SetStream sets the "stream" field.
 func (_u *UsageLogUpdate) SetStream(v bool) *UsageLogUpdate {
 	_u.mutation.SetStream(v)
@@ -600,6 +576,20 @@ func (_u *UsageLogUpdate) SetStream(v bool) *UsageLogUpdate {
 func (_u *UsageLogUpdate) SetNillableStream(v *bool) *UsageLogUpdate {
 	if v != nil {
 		_u.SetStream(*v)
+	}
+	return _u
+}
+
+// SetOpenaiWsMode sets the "openai_ws_mode" field.
+func (_u *UsageLogUpdate) SetOpenaiWsMode(v bool) *UsageLogUpdate {
+	_u.mutation.SetOpenaiWsMode(v)
+	return _u
+}
+
+// SetNillableOpenaiWsMode sets the "openai_ws_mode" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableOpenaiWsMode(v *bool) *UsageLogUpdate {
+	if v != nil {
+		_u.SetOpenaiWsMode(*v)
 	}
 	return _u
 }
@@ -655,6 +645,114 @@ func (_u *UsageLogUpdate) AddFirstTokenMs(v int) *UsageLogUpdate {
 // ClearFirstTokenMs clears the value of the "first_token_ms" field.
 func (_u *UsageLogUpdate) ClearFirstTokenMs() *UsageLogUpdate {
 	_u.mutation.ClearFirstTokenMs()
+	return _u
+}
+
+// SetAuthLatencyMs sets the "auth_latency_ms" field.
+func (_u *UsageLogUpdate) SetAuthLatencyMs(v int) *UsageLogUpdate {
+	_u.mutation.ResetAuthLatencyMs()
+	_u.mutation.SetAuthLatencyMs(v)
+	return _u
+}
+
+// SetNillableAuthLatencyMs sets the "auth_latency_ms" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableAuthLatencyMs(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetAuthLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddAuthLatencyMs adds value to the "auth_latency_ms" field.
+func (_u *UsageLogUpdate) AddAuthLatencyMs(v int) *UsageLogUpdate {
+	_u.mutation.AddAuthLatencyMs(v)
+	return _u
+}
+
+// ClearAuthLatencyMs clears the value of the "auth_latency_ms" field.
+func (_u *UsageLogUpdate) ClearAuthLatencyMs() *UsageLogUpdate {
+	_u.mutation.ClearAuthLatencyMs()
+	return _u
+}
+
+// SetRoutingLatencyMs sets the "routing_latency_ms" field.
+func (_u *UsageLogUpdate) SetRoutingLatencyMs(v int) *UsageLogUpdate {
+	_u.mutation.ResetRoutingLatencyMs()
+	_u.mutation.SetRoutingLatencyMs(v)
+	return _u
+}
+
+// SetNillableRoutingLatencyMs sets the "routing_latency_ms" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableRoutingLatencyMs(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetRoutingLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddRoutingLatencyMs adds value to the "routing_latency_ms" field.
+func (_u *UsageLogUpdate) AddRoutingLatencyMs(v int) *UsageLogUpdate {
+	_u.mutation.AddRoutingLatencyMs(v)
+	return _u
+}
+
+// ClearRoutingLatencyMs clears the value of the "routing_latency_ms" field.
+func (_u *UsageLogUpdate) ClearRoutingLatencyMs() *UsageLogUpdate {
+	_u.mutation.ClearRoutingLatencyMs()
+	return _u
+}
+
+// SetUpstreamLatencyMs sets the "upstream_latency_ms" field.
+func (_u *UsageLogUpdate) SetUpstreamLatencyMs(v int) *UsageLogUpdate {
+	_u.mutation.ResetUpstreamLatencyMs()
+	_u.mutation.SetUpstreamLatencyMs(v)
+	return _u
+}
+
+// SetNillableUpstreamLatencyMs sets the "upstream_latency_ms" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableUpstreamLatencyMs(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetUpstreamLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddUpstreamLatencyMs adds value to the "upstream_latency_ms" field.
+func (_u *UsageLogUpdate) AddUpstreamLatencyMs(v int) *UsageLogUpdate {
+	_u.mutation.AddUpstreamLatencyMs(v)
+	return _u
+}
+
+// ClearUpstreamLatencyMs clears the value of the "upstream_latency_ms" field.
+func (_u *UsageLogUpdate) ClearUpstreamLatencyMs() *UsageLogUpdate {
+	_u.mutation.ClearUpstreamLatencyMs()
+	return _u
+}
+
+// SetResponseLatencyMs sets the "response_latency_ms" field.
+func (_u *UsageLogUpdate) SetResponseLatencyMs(v int) *UsageLogUpdate {
+	_u.mutation.ResetResponseLatencyMs()
+	_u.mutation.SetResponseLatencyMs(v)
+	return _u
+}
+
+// SetNillableResponseLatencyMs sets the "response_latency_ms" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableResponseLatencyMs(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetResponseLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddResponseLatencyMs adds value to the "response_latency_ms" field.
+func (_u *UsageLogUpdate) AddResponseLatencyMs(v int) *UsageLogUpdate {
+	_u.mutation.AddResponseLatencyMs(v)
+	return _u
+}
+
+// ClearResponseLatencyMs clears the value of the "response_latency_ms" field.
+func (_u *UsageLogUpdate) ClearResponseLatencyMs() *UsageLogUpdate {
+	_u.mutation.ClearResponseLatencyMs()
 	return _u
 }
 
@@ -811,6 +909,86 @@ func (_u *UsageLogUpdate) ClearImageSizeBreakdown() *UsageLogUpdate {
 	return _u
 }
 
+// SetServiceTier sets the "service_tier" field.
+func (_u *UsageLogUpdate) SetServiceTier(v string) *UsageLogUpdate {
+	_u.mutation.SetServiceTier(v)
+	return _u
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableServiceTier(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetServiceTier(*v)
+	}
+	return _u
+}
+
+// ClearServiceTier clears the value of the "service_tier" field.
+func (_u *UsageLogUpdate) ClearServiceTier() *UsageLogUpdate {
+	_u.mutation.ClearServiceTier()
+	return _u
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (_u *UsageLogUpdate) SetReasoningEffort(v string) *UsageLogUpdate {
+	_u.mutation.SetReasoningEffort(v)
+	return _u
+}
+
+// SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableReasoningEffort(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetReasoningEffort(*v)
+	}
+	return _u
+}
+
+// ClearReasoningEffort clears the value of the "reasoning_effort" field.
+func (_u *UsageLogUpdate) ClearReasoningEffort() *UsageLogUpdate {
+	_u.mutation.ClearReasoningEffort()
+	return _u
+}
+
+// SetInboundEndpoint sets the "inbound_endpoint" field.
+func (_u *UsageLogUpdate) SetInboundEndpoint(v string) *UsageLogUpdate {
+	_u.mutation.SetInboundEndpoint(v)
+	return _u
+}
+
+// SetNillableInboundEndpoint sets the "inbound_endpoint" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableInboundEndpoint(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetInboundEndpoint(*v)
+	}
+	return _u
+}
+
+// ClearInboundEndpoint clears the value of the "inbound_endpoint" field.
+func (_u *UsageLogUpdate) ClearInboundEndpoint() *UsageLogUpdate {
+	_u.mutation.ClearInboundEndpoint()
+	return _u
+}
+
+// SetUpstreamEndpoint sets the "upstream_endpoint" field.
+func (_u *UsageLogUpdate) SetUpstreamEndpoint(v string) *UsageLogUpdate {
+	_u.mutation.SetUpstreamEndpoint(v)
+	return _u
+}
+
+// SetNillableUpstreamEndpoint sets the "upstream_endpoint" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableUpstreamEndpoint(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetUpstreamEndpoint(*v)
+	}
+	return _u
+}
+
+// ClearUpstreamEndpoint clears the value of the "upstream_endpoint" field.
+func (_u *UsageLogUpdate) ClearUpstreamEndpoint() *UsageLogUpdate {
+	_u.mutation.ClearUpstreamEndpoint()
+	return _u
+}
+
 // SetCacheTTLOverridden sets the "cache_ttl_overridden" field.
 func (_u *UsageLogUpdate) SetCacheTTLOverridden(v bool) *UsageLogUpdate {
 	_u.mutation.SetCacheTTLOverridden(v)
@@ -822,6 +1000,120 @@ func (_u *UsageLogUpdate) SetNillableCacheTTLOverridden(v *bool) *UsageLogUpdate
 	if v != nil {
 		_u.SetCacheTTLOverridden(*v)
 	}
+	return _u
+}
+
+// SetChannelID sets the "channel_id" field.
+func (_u *UsageLogUpdate) SetChannelID(v int64) *UsageLogUpdate {
+	_u.mutation.ResetChannelID()
+	_u.mutation.SetChannelID(v)
+	return _u
+}
+
+// SetNillableChannelID sets the "channel_id" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableChannelID(v *int64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetChannelID(*v)
+	}
+	return _u
+}
+
+// AddChannelID adds value to the "channel_id" field.
+func (_u *UsageLogUpdate) AddChannelID(v int64) *UsageLogUpdate {
+	_u.mutation.AddChannelID(v)
+	return _u
+}
+
+// ClearChannelID clears the value of the "channel_id" field.
+func (_u *UsageLogUpdate) ClearChannelID() *UsageLogUpdate {
+	_u.mutation.ClearChannelID()
+	return _u
+}
+
+// SetModelMappingChain sets the "model_mapping_chain" field.
+func (_u *UsageLogUpdate) SetModelMappingChain(v string) *UsageLogUpdate {
+	_u.mutation.SetModelMappingChain(v)
+	return _u
+}
+
+// SetNillableModelMappingChain sets the "model_mapping_chain" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableModelMappingChain(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetModelMappingChain(*v)
+	}
+	return _u
+}
+
+// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
+func (_u *UsageLogUpdate) ClearModelMappingChain() *UsageLogUpdate {
+	_u.mutation.ClearModelMappingChain()
+	return _u
+}
+
+// SetBillingTier sets the "billing_tier" field.
+func (_u *UsageLogUpdate) SetBillingTier(v string) *UsageLogUpdate {
+	_u.mutation.SetBillingTier(v)
+	return _u
+}
+
+// SetNillableBillingTier sets the "billing_tier" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBillingTier(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBillingTier(*v)
+	}
+	return _u
+}
+
+// ClearBillingTier clears the value of the "billing_tier" field.
+func (_u *UsageLogUpdate) ClearBillingTier() *UsageLogUpdate {
+	_u.mutation.ClearBillingTier()
+	return _u
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (_u *UsageLogUpdate) SetBillingMode(v string) *UsageLogUpdate {
+	_u.mutation.SetBillingMode(v)
+	return _u
+}
+
+// SetNillableBillingMode sets the "billing_mode" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBillingMode(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBillingMode(*v)
+	}
+	return _u
+}
+
+// ClearBillingMode clears the value of the "billing_mode" field.
+func (_u *UsageLogUpdate) ClearBillingMode() *UsageLogUpdate {
+	_u.mutation.ClearBillingMode()
+	return _u
+}
+
+// SetAccountStatsCost sets the "account_stats_cost" field.
+func (_u *UsageLogUpdate) SetAccountStatsCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetAccountStatsCost()
+	_u.mutation.SetAccountStatsCost(v)
+	return _u
+}
+
+// SetNillableAccountStatsCost sets the "account_stats_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableAccountStatsCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetAccountStatsCost(*v)
+	}
+	return _u
+}
+
+// AddAccountStatsCost adds value to the "account_stats_cost" field.
+func (_u *UsageLogUpdate) AddAccountStatsCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddAccountStatsCost(v)
+	return _u
+}
+
+// ClearAccountStatsCost clears the value of the "account_stats_cost" field.
+func (_u *UsageLogUpdate) ClearAccountStatsCost() *UsageLogUpdate {
+	_u.mutation.ClearAccountStatsCost()
 	return _u
 }
 
@@ -934,21 +1226,6 @@ func (_u *UsageLogUpdate) check() error {
 			return &ValidationError{Name: "upstream_model", err: fmt.Errorf(`ent: validator failed for field "UsageLog.upstream_model": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.ModelMappingChain(); ok {
-		if err := usagelog.ModelMappingChainValidator(v); err != nil {
-			return &ValidationError{Name: "model_mapping_chain", err: fmt.Errorf(`ent: validator failed for field "UsageLog.model_mapping_chain": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.BillingTier(); ok {
-		if err := usagelog.BillingTierValidator(v); err != nil {
-			return &ValidationError{Name: "billing_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_tier": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.BillingMode(); ok {
-		if err := usagelog.BillingModeValidator(v); err != nil {
-			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -977,6 +1254,41 @@ func (_u *UsageLogUpdate) check() error {
 	if v, ok := _u.mutation.ImageSizeSource(); ok {
 		if err := usagelog.ImageSizeSourceValidator(v); err != nil {
 			return &ValidationError{Name: "image_size_source", err: fmt.Errorf(`ent: validator failed for field "UsageLog.image_size_source": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ServiceTier(); ok {
+		if err := usagelog.ServiceTierValidator(v); err != nil {
+			return &ValidationError{Name: "service_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.service_tier": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReasoningEffort(); ok {
+		if err := usagelog.ReasoningEffortValidator(v); err != nil {
+			return &ValidationError{Name: "reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "UsageLog.reasoning_effort": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.InboundEndpoint(); ok {
+		if err := usagelog.InboundEndpointValidator(v); err != nil {
+			return &ValidationError{Name: "inbound_endpoint", err: fmt.Errorf(`ent: validator failed for field "UsageLog.inbound_endpoint": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.UpstreamEndpoint(); ok {
+		if err := usagelog.UpstreamEndpointValidator(v); err != nil {
+			return &ValidationError{Name: "upstream_endpoint", err: fmt.Errorf(`ent: validator failed for field "UsageLog.upstream_endpoint": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelMappingChain(); ok {
+		if err := usagelog.ModelMappingChainValidator(v); err != nil {
+			return &ValidationError{Name: "model_mapping_chain", err: fmt.Errorf(`ent: validator failed for field "UsageLog.model_mapping_chain": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BillingTier(); ok {
+		if err := usagelog.BillingTierValidator(v); err != nil {
+			return &ValidationError{Name: "billing_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_tier": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BillingMode(); ok {
+		if err := usagelog.BillingModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
 		}
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
@@ -1021,33 +1333,6 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.UpstreamModelCleared() {
 		_spec.ClearField(usagelog.FieldUpstreamModel, field.TypeString)
 	}
-	if value, ok := _u.mutation.ChannelID(); ok {
-		_spec.SetField(usagelog.FieldChannelID, field.TypeInt64, value)
-	}
-	if value, ok := _u.mutation.AddedChannelID(); ok {
-		_spec.AddField(usagelog.FieldChannelID, field.TypeInt64, value)
-	}
-	if _u.mutation.ChannelIDCleared() {
-		_spec.ClearField(usagelog.FieldChannelID, field.TypeInt64)
-	}
-	if value, ok := _u.mutation.ModelMappingChain(); ok {
-		_spec.SetField(usagelog.FieldModelMappingChain, field.TypeString, value)
-	}
-	if _u.mutation.ModelMappingChainCleared() {
-		_spec.ClearField(usagelog.FieldModelMappingChain, field.TypeString)
-	}
-	if value, ok := _u.mutation.BillingTier(); ok {
-		_spec.SetField(usagelog.FieldBillingTier, field.TypeString, value)
-	}
-	if _u.mutation.BillingTierCleared() {
-		_spec.ClearField(usagelog.FieldBillingTier, field.TypeString)
-	}
-	if value, ok := _u.mutation.BillingMode(); ok {
-		_spec.SetField(usagelog.FieldBillingMode, field.TypeString, value)
-	}
-	if _u.mutation.BillingModeCleared() {
-		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
-	}
 	if value, ok := _u.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)
 	}
@@ -1083,6 +1368,18 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedCacheCreation1hTokens(); ok {
 		_spec.AddField(usagelog.FieldCacheCreation1hTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ImageOutputTokens(); ok {
+		_spec.SetField(usagelog.FieldImageOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedImageOutputTokens(); ok {
+		_spec.AddField(usagelog.FieldImageOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ImageOutputCost(); ok {
+		_spec.SetField(usagelog.FieldImageOutputCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedImageOutputCost(); ok {
+		_spec.AddField(usagelog.FieldImageOutputCost, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)
@@ -1141,8 +1438,17 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedBillingType(); ok {
 		_spec.AddField(usagelog.FieldBillingType, field.TypeInt8, value)
 	}
+	if value, ok := _u.mutation.RequestType(); ok {
+		_spec.SetField(usagelog.FieldRequestType, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRequestType(); ok {
+		_spec.AddField(usagelog.FieldRequestType, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.Stream(); ok {
 		_spec.SetField(usagelog.FieldStream, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.OpenaiWsMode(); ok {
+		_spec.SetField(usagelog.FieldOpenaiWsMode, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.DurationMs(); ok {
 		_spec.SetField(usagelog.FieldDurationMs, field.TypeInt, value)
@@ -1161,6 +1467,42 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.FirstTokenMsCleared() {
 		_spec.ClearField(usagelog.FieldFirstTokenMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AuthLatencyMs(); ok {
+		_spec.SetField(usagelog.FieldAuthLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAuthLatencyMs(); ok {
+		_spec.AddField(usagelog.FieldAuthLatencyMs, field.TypeInt, value)
+	}
+	if _u.mutation.AuthLatencyMsCleared() {
+		_spec.ClearField(usagelog.FieldAuthLatencyMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.RoutingLatencyMs(); ok {
+		_spec.SetField(usagelog.FieldRoutingLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRoutingLatencyMs(); ok {
+		_spec.AddField(usagelog.FieldRoutingLatencyMs, field.TypeInt, value)
+	}
+	if _u.mutation.RoutingLatencyMsCleared() {
+		_spec.ClearField(usagelog.FieldRoutingLatencyMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.UpstreamLatencyMs(); ok {
+		_spec.SetField(usagelog.FieldUpstreamLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUpstreamLatencyMs(); ok {
+		_spec.AddField(usagelog.FieldUpstreamLatencyMs, field.TypeInt, value)
+	}
+	if _u.mutation.UpstreamLatencyMsCleared() {
+		_spec.ClearField(usagelog.FieldUpstreamLatencyMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ResponseLatencyMs(); ok {
+		_spec.SetField(usagelog.FieldResponseLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResponseLatencyMs(); ok {
+		_spec.AddField(usagelog.FieldResponseLatencyMs, field.TypeInt, value)
+	}
+	if _u.mutation.ResponseLatencyMsCleared() {
+		_spec.ClearField(usagelog.FieldResponseLatencyMs, field.TypeInt)
 	}
 	if value, ok := _u.mutation.UserAgent(); ok {
 		_spec.SetField(usagelog.FieldUserAgent, field.TypeString, value)
@@ -1210,8 +1552,68 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.ImageSizeBreakdownCleared() {
 		_spec.ClearField(usagelog.FieldImageSizeBreakdown, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.ServiceTier(); ok {
+		_spec.SetField(usagelog.FieldServiceTier, field.TypeString, value)
+	}
+	if _u.mutation.ServiceTierCleared() {
+		_spec.ClearField(usagelog.FieldServiceTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReasoningEffort(); ok {
+		_spec.SetField(usagelog.FieldReasoningEffort, field.TypeString, value)
+	}
+	if _u.mutation.ReasoningEffortCleared() {
+		_spec.ClearField(usagelog.FieldReasoningEffort, field.TypeString)
+	}
+	if value, ok := _u.mutation.InboundEndpoint(); ok {
+		_spec.SetField(usagelog.FieldInboundEndpoint, field.TypeString, value)
+	}
+	if _u.mutation.InboundEndpointCleared() {
+		_spec.ClearField(usagelog.FieldInboundEndpoint, field.TypeString)
+	}
+	if value, ok := _u.mutation.UpstreamEndpoint(); ok {
+		_spec.SetField(usagelog.FieldUpstreamEndpoint, field.TypeString, value)
+	}
+	if _u.mutation.UpstreamEndpointCleared() {
+		_spec.ClearField(usagelog.FieldUpstreamEndpoint, field.TypeString)
+	}
 	if value, ok := _u.mutation.CacheTTLOverridden(); ok {
 		_spec.SetField(usagelog.FieldCacheTTLOverridden, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ChannelID(); ok {
+		_spec.SetField(usagelog.FieldChannelID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedChannelID(); ok {
+		_spec.AddField(usagelog.FieldChannelID, field.TypeInt64, value)
+	}
+	if _u.mutation.ChannelIDCleared() {
+		_spec.ClearField(usagelog.FieldChannelID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ModelMappingChain(); ok {
+		_spec.SetField(usagelog.FieldModelMappingChain, field.TypeString, value)
+	}
+	if _u.mutation.ModelMappingChainCleared() {
+		_spec.ClearField(usagelog.FieldModelMappingChain, field.TypeString)
+	}
+	if value, ok := _u.mutation.BillingTier(); ok {
+		_spec.SetField(usagelog.FieldBillingTier, field.TypeString, value)
+	}
+	if _u.mutation.BillingTierCleared() {
+		_spec.ClearField(usagelog.FieldBillingTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.BillingMode(); ok {
+		_spec.SetField(usagelog.FieldBillingMode, field.TypeString, value)
+	}
+	if _u.mutation.BillingModeCleared() {
+		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
+	}
+	if value, ok := _u.mutation.AccountStatsCost(); ok {
+		_spec.SetField(usagelog.FieldAccountStatsCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAccountStatsCost(); ok {
+		_spec.AddField(usagelog.FieldAccountStatsCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.AccountStatsCostCleared() {
+		_spec.ClearField(usagelog.FieldAccountStatsCost, field.TypeFloat64)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -1488,93 +1890,6 @@ func (_u *UsageLogUpdateOne) ClearUpstreamModel() *UsageLogUpdateOne {
 	return _u
 }
 
-// SetChannelID sets the "channel_id" field.
-func (_u *UsageLogUpdateOne) SetChannelID(v int64) *UsageLogUpdateOne {
-	_u.mutation.ResetChannelID()
-	_u.mutation.SetChannelID(v)
-	return _u
-}
-
-// SetNillableChannelID sets the "channel_id" field if the given value is not nil.
-func (_u *UsageLogUpdateOne) SetNillableChannelID(v *int64) *UsageLogUpdateOne {
-	if v != nil {
-		_u.SetChannelID(*v)
-	}
-	return _u
-}
-
-// AddChannelID adds value to the "channel_id" field.
-func (_u *UsageLogUpdateOne) AddChannelID(v int64) *UsageLogUpdateOne {
-	_u.mutation.AddChannelID(v)
-	return _u
-}
-
-// ClearChannelID clears the value of the "channel_id" field.
-func (_u *UsageLogUpdateOne) ClearChannelID() *UsageLogUpdateOne {
-	_u.mutation.ClearChannelID()
-	return _u
-}
-
-// SetModelMappingChain sets the "model_mapping_chain" field.
-func (_u *UsageLogUpdateOne) SetModelMappingChain(v string) *UsageLogUpdateOne {
-	_u.mutation.SetModelMappingChain(v)
-	return _u
-}
-
-// SetNillableModelMappingChain sets the "model_mapping_chain" field if the given value is not nil.
-func (_u *UsageLogUpdateOne) SetNillableModelMappingChain(v *string) *UsageLogUpdateOne {
-	if v != nil {
-		_u.SetModelMappingChain(*v)
-	}
-	return _u
-}
-
-// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
-func (_u *UsageLogUpdateOne) ClearModelMappingChain() *UsageLogUpdateOne {
-	_u.mutation.ClearModelMappingChain()
-	return _u
-}
-
-// SetBillingTier sets the "billing_tier" field.
-func (_u *UsageLogUpdateOne) SetBillingTier(v string) *UsageLogUpdateOne {
-	_u.mutation.SetBillingTier(v)
-	return _u
-}
-
-// SetNillableBillingTier sets the "billing_tier" field if the given value is not nil.
-func (_u *UsageLogUpdateOne) SetNillableBillingTier(v *string) *UsageLogUpdateOne {
-	if v != nil {
-		_u.SetBillingTier(*v)
-	}
-	return _u
-}
-
-// ClearBillingTier clears the value of the "billing_tier" field.
-func (_u *UsageLogUpdateOne) ClearBillingTier() *UsageLogUpdateOne {
-	_u.mutation.ClearBillingTier()
-	return _u
-}
-
-// SetBillingMode sets the "billing_mode" field.
-func (_u *UsageLogUpdateOne) SetBillingMode(v string) *UsageLogUpdateOne {
-	_u.mutation.SetBillingMode(v)
-	return _u
-}
-
-// SetNillableBillingMode sets the "billing_mode" field if the given value is not nil.
-func (_u *UsageLogUpdateOne) SetNillableBillingMode(v *string) *UsageLogUpdateOne {
-	if v != nil {
-		_u.SetBillingMode(*v)
-	}
-	return _u
-}
-
-// ClearBillingMode clears the value of the "billing_mode" field.
-func (_u *UsageLogUpdateOne) ClearBillingMode() *UsageLogUpdateOne {
-	_u.mutation.ClearBillingMode()
-	return _u
-}
-
 // SetGroupID sets the "group_id" field.
 func (_u *UsageLogUpdateOne) SetGroupID(v int64) *UsageLogUpdateOne {
 	_u.mutation.SetGroupID(v)
@@ -1738,6 +2053,48 @@ func (_u *UsageLogUpdateOne) SetNillableCacheCreation1hTokens(v *int) *UsageLogU
 // AddCacheCreation1hTokens adds value to the "cache_creation_1h_tokens" field.
 func (_u *UsageLogUpdateOne) AddCacheCreation1hTokens(v int) *UsageLogUpdateOne {
 	_u.mutation.AddCacheCreation1hTokens(v)
+	return _u
+}
+
+// SetImageOutputTokens sets the "image_output_tokens" field.
+func (_u *UsageLogUpdateOne) SetImageOutputTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetImageOutputTokens()
+	_u.mutation.SetImageOutputTokens(v)
+	return _u
+}
+
+// SetNillableImageOutputTokens sets the "image_output_tokens" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableImageOutputTokens(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetImageOutputTokens(*v)
+	}
+	return _u
+}
+
+// AddImageOutputTokens adds value to the "image_output_tokens" field.
+func (_u *UsageLogUpdateOne) AddImageOutputTokens(v int) *UsageLogUpdateOne {
+	_u.mutation.AddImageOutputTokens(v)
+	return _u
+}
+
+// SetImageOutputCost sets the "image_output_cost" field.
+func (_u *UsageLogUpdateOne) SetImageOutputCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetImageOutputCost()
+	_u.mutation.SetImageOutputCost(v)
+	return _u
+}
+
+// SetNillableImageOutputCost sets the "image_output_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableImageOutputCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetImageOutputCost(*v)
+	}
+	return _u
+}
+
+// AddImageOutputCost adds value to the "image_output_cost" field.
+func (_u *UsageLogUpdateOne) AddImageOutputCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddImageOutputCost(v)
 	return _u
 }
 
@@ -1936,6 +2293,27 @@ func (_u *UsageLogUpdateOne) AddBillingType(v int8) *UsageLogUpdateOne {
 	return _u
 }
 
+// SetRequestType sets the "request_type" field.
+func (_u *UsageLogUpdateOne) SetRequestType(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetRequestType()
+	_u.mutation.SetRequestType(v)
+	return _u
+}
+
+// SetNillableRequestType sets the "request_type" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableRequestType(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetRequestType(*v)
+	}
+	return _u
+}
+
+// AddRequestType adds value to the "request_type" field.
+func (_u *UsageLogUpdateOne) AddRequestType(v int) *UsageLogUpdateOne {
+	_u.mutation.AddRequestType(v)
+	return _u
+}
+
 // SetStream sets the "stream" field.
 func (_u *UsageLogUpdateOne) SetStream(v bool) *UsageLogUpdateOne {
 	_u.mutation.SetStream(v)
@@ -1946,6 +2324,20 @@ func (_u *UsageLogUpdateOne) SetStream(v bool) *UsageLogUpdateOne {
 func (_u *UsageLogUpdateOne) SetNillableStream(v *bool) *UsageLogUpdateOne {
 	if v != nil {
 		_u.SetStream(*v)
+	}
+	return _u
+}
+
+// SetOpenaiWsMode sets the "openai_ws_mode" field.
+func (_u *UsageLogUpdateOne) SetOpenaiWsMode(v bool) *UsageLogUpdateOne {
+	_u.mutation.SetOpenaiWsMode(v)
+	return _u
+}
+
+// SetNillableOpenaiWsMode sets the "openai_ws_mode" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableOpenaiWsMode(v *bool) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetOpenaiWsMode(*v)
 	}
 	return _u
 }
@@ -2001,6 +2393,114 @@ func (_u *UsageLogUpdateOne) AddFirstTokenMs(v int) *UsageLogUpdateOne {
 // ClearFirstTokenMs clears the value of the "first_token_ms" field.
 func (_u *UsageLogUpdateOne) ClearFirstTokenMs() *UsageLogUpdateOne {
 	_u.mutation.ClearFirstTokenMs()
+	return _u
+}
+
+// SetAuthLatencyMs sets the "auth_latency_ms" field.
+func (_u *UsageLogUpdateOne) SetAuthLatencyMs(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetAuthLatencyMs()
+	_u.mutation.SetAuthLatencyMs(v)
+	return _u
+}
+
+// SetNillableAuthLatencyMs sets the "auth_latency_ms" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableAuthLatencyMs(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetAuthLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddAuthLatencyMs adds value to the "auth_latency_ms" field.
+func (_u *UsageLogUpdateOne) AddAuthLatencyMs(v int) *UsageLogUpdateOne {
+	_u.mutation.AddAuthLatencyMs(v)
+	return _u
+}
+
+// ClearAuthLatencyMs clears the value of the "auth_latency_ms" field.
+func (_u *UsageLogUpdateOne) ClearAuthLatencyMs() *UsageLogUpdateOne {
+	_u.mutation.ClearAuthLatencyMs()
+	return _u
+}
+
+// SetRoutingLatencyMs sets the "routing_latency_ms" field.
+func (_u *UsageLogUpdateOne) SetRoutingLatencyMs(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetRoutingLatencyMs()
+	_u.mutation.SetRoutingLatencyMs(v)
+	return _u
+}
+
+// SetNillableRoutingLatencyMs sets the "routing_latency_ms" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableRoutingLatencyMs(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetRoutingLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddRoutingLatencyMs adds value to the "routing_latency_ms" field.
+func (_u *UsageLogUpdateOne) AddRoutingLatencyMs(v int) *UsageLogUpdateOne {
+	_u.mutation.AddRoutingLatencyMs(v)
+	return _u
+}
+
+// ClearRoutingLatencyMs clears the value of the "routing_latency_ms" field.
+func (_u *UsageLogUpdateOne) ClearRoutingLatencyMs() *UsageLogUpdateOne {
+	_u.mutation.ClearRoutingLatencyMs()
+	return _u
+}
+
+// SetUpstreamLatencyMs sets the "upstream_latency_ms" field.
+func (_u *UsageLogUpdateOne) SetUpstreamLatencyMs(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetUpstreamLatencyMs()
+	_u.mutation.SetUpstreamLatencyMs(v)
+	return _u
+}
+
+// SetNillableUpstreamLatencyMs sets the "upstream_latency_ms" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableUpstreamLatencyMs(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetUpstreamLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddUpstreamLatencyMs adds value to the "upstream_latency_ms" field.
+func (_u *UsageLogUpdateOne) AddUpstreamLatencyMs(v int) *UsageLogUpdateOne {
+	_u.mutation.AddUpstreamLatencyMs(v)
+	return _u
+}
+
+// ClearUpstreamLatencyMs clears the value of the "upstream_latency_ms" field.
+func (_u *UsageLogUpdateOne) ClearUpstreamLatencyMs() *UsageLogUpdateOne {
+	_u.mutation.ClearUpstreamLatencyMs()
+	return _u
+}
+
+// SetResponseLatencyMs sets the "response_latency_ms" field.
+func (_u *UsageLogUpdateOne) SetResponseLatencyMs(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetResponseLatencyMs()
+	_u.mutation.SetResponseLatencyMs(v)
+	return _u
+}
+
+// SetNillableResponseLatencyMs sets the "response_latency_ms" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableResponseLatencyMs(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetResponseLatencyMs(*v)
+	}
+	return _u
+}
+
+// AddResponseLatencyMs adds value to the "response_latency_ms" field.
+func (_u *UsageLogUpdateOne) AddResponseLatencyMs(v int) *UsageLogUpdateOne {
+	_u.mutation.AddResponseLatencyMs(v)
+	return _u
+}
+
+// ClearResponseLatencyMs clears the value of the "response_latency_ms" field.
+func (_u *UsageLogUpdateOne) ClearResponseLatencyMs() *UsageLogUpdateOne {
+	_u.mutation.ClearResponseLatencyMs()
 	return _u
 }
 
@@ -2157,6 +2657,86 @@ func (_u *UsageLogUpdateOne) ClearImageSizeBreakdown() *UsageLogUpdateOne {
 	return _u
 }
 
+// SetServiceTier sets the "service_tier" field.
+func (_u *UsageLogUpdateOne) SetServiceTier(v string) *UsageLogUpdateOne {
+	_u.mutation.SetServiceTier(v)
+	return _u
+}
+
+// SetNillableServiceTier sets the "service_tier" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableServiceTier(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetServiceTier(*v)
+	}
+	return _u
+}
+
+// ClearServiceTier clears the value of the "service_tier" field.
+func (_u *UsageLogUpdateOne) ClearServiceTier() *UsageLogUpdateOne {
+	_u.mutation.ClearServiceTier()
+	return _u
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (_u *UsageLogUpdateOne) SetReasoningEffort(v string) *UsageLogUpdateOne {
+	_u.mutation.SetReasoningEffort(v)
+	return _u
+}
+
+// SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableReasoningEffort(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetReasoningEffort(*v)
+	}
+	return _u
+}
+
+// ClearReasoningEffort clears the value of the "reasoning_effort" field.
+func (_u *UsageLogUpdateOne) ClearReasoningEffort() *UsageLogUpdateOne {
+	_u.mutation.ClearReasoningEffort()
+	return _u
+}
+
+// SetInboundEndpoint sets the "inbound_endpoint" field.
+func (_u *UsageLogUpdateOne) SetInboundEndpoint(v string) *UsageLogUpdateOne {
+	_u.mutation.SetInboundEndpoint(v)
+	return _u
+}
+
+// SetNillableInboundEndpoint sets the "inbound_endpoint" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableInboundEndpoint(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetInboundEndpoint(*v)
+	}
+	return _u
+}
+
+// ClearInboundEndpoint clears the value of the "inbound_endpoint" field.
+func (_u *UsageLogUpdateOne) ClearInboundEndpoint() *UsageLogUpdateOne {
+	_u.mutation.ClearInboundEndpoint()
+	return _u
+}
+
+// SetUpstreamEndpoint sets the "upstream_endpoint" field.
+func (_u *UsageLogUpdateOne) SetUpstreamEndpoint(v string) *UsageLogUpdateOne {
+	_u.mutation.SetUpstreamEndpoint(v)
+	return _u
+}
+
+// SetNillableUpstreamEndpoint sets the "upstream_endpoint" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableUpstreamEndpoint(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetUpstreamEndpoint(*v)
+	}
+	return _u
+}
+
+// ClearUpstreamEndpoint clears the value of the "upstream_endpoint" field.
+func (_u *UsageLogUpdateOne) ClearUpstreamEndpoint() *UsageLogUpdateOne {
+	_u.mutation.ClearUpstreamEndpoint()
+	return _u
+}
+
 // SetCacheTTLOverridden sets the "cache_ttl_overridden" field.
 func (_u *UsageLogUpdateOne) SetCacheTTLOverridden(v bool) *UsageLogUpdateOne {
 	_u.mutation.SetCacheTTLOverridden(v)
@@ -2168,6 +2748,120 @@ func (_u *UsageLogUpdateOne) SetNillableCacheTTLOverridden(v *bool) *UsageLogUpd
 	if v != nil {
 		_u.SetCacheTTLOverridden(*v)
 	}
+	return _u
+}
+
+// SetChannelID sets the "channel_id" field.
+func (_u *UsageLogUpdateOne) SetChannelID(v int64) *UsageLogUpdateOne {
+	_u.mutation.ResetChannelID()
+	_u.mutation.SetChannelID(v)
+	return _u
+}
+
+// SetNillableChannelID sets the "channel_id" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableChannelID(v *int64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetChannelID(*v)
+	}
+	return _u
+}
+
+// AddChannelID adds value to the "channel_id" field.
+func (_u *UsageLogUpdateOne) AddChannelID(v int64) *UsageLogUpdateOne {
+	_u.mutation.AddChannelID(v)
+	return _u
+}
+
+// ClearChannelID clears the value of the "channel_id" field.
+func (_u *UsageLogUpdateOne) ClearChannelID() *UsageLogUpdateOne {
+	_u.mutation.ClearChannelID()
+	return _u
+}
+
+// SetModelMappingChain sets the "model_mapping_chain" field.
+func (_u *UsageLogUpdateOne) SetModelMappingChain(v string) *UsageLogUpdateOne {
+	_u.mutation.SetModelMappingChain(v)
+	return _u
+}
+
+// SetNillableModelMappingChain sets the "model_mapping_chain" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableModelMappingChain(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetModelMappingChain(*v)
+	}
+	return _u
+}
+
+// ClearModelMappingChain clears the value of the "model_mapping_chain" field.
+func (_u *UsageLogUpdateOne) ClearModelMappingChain() *UsageLogUpdateOne {
+	_u.mutation.ClearModelMappingChain()
+	return _u
+}
+
+// SetBillingTier sets the "billing_tier" field.
+func (_u *UsageLogUpdateOne) SetBillingTier(v string) *UsageLogUpdateOne {
+	_u.mutation.SetBillingTier(v)
+	return _u
+}
+
+// SetNillableBillingTier sets the "billing_tier" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBillingTier(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBillingTier(*v)
+	}
+	return _u
+}
+
+// ClearBillingTier clears the value of the "billing_tier" field.
+func (_u *UsageLogUpdateOne) ClearBillingTier() *UsageLogUpdateOne {
+	_u.mutation.ClearBillingTier()
+	return _u
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (_u *UsageLogUpdateOne) SetBillingMode(v string) *UsageLogUpdateOne {
+	_u.mutation.SetBillingMode(v)
+	return _u
+}
+
+// SetNillableBillingMode sets the "billing_mode" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBillingMode(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBillingMode(*v)
+	}
+	return _u
+}
+
+// ClearBillingMode clears the value of the "billing_mode" field.
+func (_u *UsageLogUpdateOne) ClearBillingMode() *UsageLogUpdateOne {
+	_u.mutation.ClearBillingMode()
+	return _u
+}
+
+// SetAccountStatsCost sets the "account_stats_cost" field.
+func (_u *UsageLogUpdateOne) SetAccountStatsCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetAccountStatsCost()
+	_u.mutation.SetAccountStatsCost(v)
+	return _u
+}
+
+// SetNillableAccountStatsCost sets the "account_stats_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableAccountStatsCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetAccountStatsCost(*v)
+	}
+	return _u
+}
+
+// AddAccountStatsCost adds value to the "account_stats_cost" field.
+func (_u *UsageLogUpdateOne) AddAccountStatsCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddAccountStatsCost(v)
+	return _u
+}
+
+// ClearAccountStatsCost clears the value of the "account_stats_cost" field.
+func (_u *UsageLogUpdateOne) ClearAccountStatsCost() *UsageLogUpdateOne {
+	_u.mutation.ClearAccountStatsCost()
 	return _u
 }
 
@@ -2293,21 +2987,6 @@ func (_u *UsageLogUpdateOne) check() error {
 			return &ValidationError{Name: "upstream_model", err: fmt.Errorf(`ent: validator failed for field "UsageLog.upstream_model": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.ModelMappingChain(); ok {
-		if err := usagelog.ModelMappingChainValidator(v); err != nil {
-			return &ValidationError{Name: "model_mapping_chain", err: fmt.Errorf(`ent: validator failed for field "UsageLog.model_mapping_chain": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.BillingTier(); ok {
-		if err := usagelog.BillingTierValidator(v); err != nil {
-			return &ValidationError{Name: "billing_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_tier": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.BillingMode(); ok {
-		if err := usagelog.BillingModeValidator(v); err != nil {
-			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -2336,6 +3015,41 @@ func (_u *UsageLogUpdateOne) check() error {
 	if v, ok := _u.mutation.ImageSizeSource(); ok {
 		if err := usagelog.ImageSizeSourceValidator(v); err != nil {
 			return &ValidationError{Name: "image_size_source", err: fmt.Errorf(`ent: validator failed for field "UsageLog.image_size_source": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ServiceTier(); ok {
+		if err := usagelog.ServiceTierValidator(v); err != nil {
+			return &ValidationError{Name: "service_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.service_tier": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReasoningEffort(); ok {
+		if err := usagelog.ReasoningEffortValidator(v); err != nil {
+			return &ValidationError{Name: "reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "UsageLog.reasoning_effort": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.InboundEndpoint(); ok {
+		if err := usagelog.InboundEndpointValidator(v); err != nil {
+			return &ValidationError{Name: "inbound_endpoint", err: fmt.Errorf(`ent: validator failed for field "UsageLog.inbound_endpoint": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.UpstreamEndpoint(); ok {
+		if err := usagelog.UpstreamEndpointValidator(v); err != nil {
+			return &ValidationError{Name: "upstream_endpoint", err: fmt.Errorf(`ent: validator failed for field "UsageLog.upstream_endpoint": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelMappingChain(); ok {
+		if err := usagelog.ModelMappingChainValidator(v); err != nil {
+			return &ValidationError{Name: "model_mapping_chain", err: fmt.Errorf(`ent: validator failed for field "UsageLog.model_mapping_chain": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BillingTier(); ok {
+		if err := usagelog.BillingTierValidator(v); err != nil {
+			return &ValidationError{Name: "billing_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_tier": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BillingMode(); ok {
+		if err := usagelog.BillingModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
 		}
 	}
 	if _u.mutation.UserCleared() && len(_u.mutation.UserIDs()) > 0 {
@@ -2397,33 +3111,6 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	if _u.mutation.UpstreamModelCleared() {
 		_spec.ClearField(usagelog.FieldUpstreamModel, field.TypeString)
 	}
-	if value, ok := _u.mutation.ChannelID(); ok {
-		_spec.SetField(usagelog.FieldChannelID, field.TypeInt64, value)
-	}
-	if value, ok := _u.mutation.AddedChannelID(); ok {
-		_spec.AddField(usagelog.FieldChannelID, field.TypeInt64, value)
-	}
-	if _u.mutation.ChannelIDCleared() {
-		_spec.ClearField(usagelog.FieldChannelID, field.TypeInt64)
-	}
-	if value, ok := _u.mutation.ModelMappingChain(); ok {
-		_spec.SetField(usagelog.FieldModelMappingChain, field.TypeString, value)
-	}
-	if _u.mutation.ModelMappingChainCleared() {
-		_spec.ClearField(usagelog.FieldModelMappingChain, field.TypeString)
-	}
-	if value, ok := _u.mutation.BillingTier(); ok {
-		_spec.SetField(usagelog.FieldBillingTier, field.TypeString, value)
-	}
-	if _u.mutation.BillingTierCleared() {
-		_spec.ClearField(usagelog.FieldBillingTier, field.TypeString)
-	}
-	if value, ok := _u.mutation.BillingMode(); ok {
-		_spec.SetField(usagelog.FieldBillingMode, field.TypeString, value)
-	}
-	if _u.mutation.BillingModeCleared() {
-		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
-	}
 	if value, ok := _u.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)
 	}
@@ -2459,6 +3146,18 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.AddedCacheCreation1hTokens(); ok {
 		_spec.AddField(usagelog.FieldCacheCreation1hTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ImageOutputTokens(); ok {
+		_spec.SetField(usagelog.FieldImageOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedImageOutputTokens(); ok {
+		_spec.AddField(usagelog.FieldImageOutputTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ImageOutputCost(); ok {
+		_spec.SetField(usagelog.FieldImageOutputCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedImageOutputCost(); ok {
+		_spec.AddField(usagelog.FieldImageOutputCost, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.InputCost(); ok {
 		_spec.SetField(usagelog.FieldInputCost, field.TypeFloat64, value)
@@ -2517,8 +3216,17 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	if value, ok := _u.mutation.AddedBillingType(); ok {
 		_spec.AddField(usagelog.FieldBillingType, field.TypeInt8, value)
 	}
+	if value, ok := _u.mutation.RequestType(); ok {
+		_spec.SetField(usagelog.FieldRequestType, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRequestType(); ok {
+		_spec.AddField(usagelog.FieldRequestType, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.Stream(); ok {
 		_spec.SetField(usagelog.FieldStream, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.OpenaiWsMode(); ok {
+		_spec.SetField(usagelog.FieldOpenaiWsMode, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.DurationMs(); ok {
 		_spec.SetField(usagelog.FieldDurationMs, field.TypeInt, value)
@@ -2537,6 +3245,42 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.FirstTokenMsCleared() {
 		_spec.ClearField(usagelog.FieldFirstTokenMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AuthLatencyMs(); ok {
+		_spec.SetField(usagelog.FieldAuthLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAuthLatencyMs(); ok {
+		_spec.AddField(usagelog.FieldAuthLatencyMs, field.TypeInt, value)
+	}
+	if _u.mutation.AuthLatencyMsCleared() {
+		_spec.ClearField(usagelog.FieldAuthLatencyMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.RoutingLatencyMs(); ok {
+		_spec.SetField(usagelog.FieldRoutingLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRoutingLatencyMs(); ok {
+		_spec.AddField(usagelog.FieldRoutingLatencyMs, field.TypeInt, value)
+	}
+	if _u.mutation.RoutingLatencyMsCleared() {
+		_spec.ClearField(usagelog.FieldRoutingLatencyMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.UpstreamLatencyMs(); ok {
+		_spec.SetField(usagelog.FieldUpstreamLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUpstreamLatencyMs(); ok {
+		_spec.AddField(usagelog.FieldUpstreamLatencyMs, field.TypeInt, value)
+	}
+	if _u.mutation.UpstreamLatencyMsCleared() {
+		_spec.ClearField(usagelog.FieldUpstreamLatencyMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ResponseLatencyMs(); ok {
+		_spec.SetField(usagelog.FieldResponseLatencyMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResponseLatencyMs(); ok {
+		_spec.AddField(usagelog.FieldResponseLatencyMs, field.TypeInt, value)
+	}
+	if _u.mutation.ResponseLatencyMsCleared() {
+		_spec.ClearField(usagelog.FieldResponseLatencyMs, field.TypeInt)
 	}
 	if value, ok := _u.mutation.UserAgent(); ok {
 		_spec.SetField(usagelog.FieldUserAgent, field.TypeString, value)
@@ -2586,8 +3330,68 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	if _u.mutation.ImageSizeBreakdownCleared() {
 		_spec.ClearField(usagelog.FieldImageSizeBreakdown, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.ServiceTier(); ok {
+		_spec.SetField(usagelog.FieldServiceTier, field.TypeString, value)
+	}
+	if _u.mutation.ServiceTierCleared() {
+		_spec.ClearField(usagelog.FieldServiceTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReasoningEffort(); ok {
+		_spec.SetField(usagelog.FieldReasoningEffort, field.TypeString, value)
+	}
+	if _u.mutation.ReasoningEffortCleared() {
+		_spec.ClearField(usagelog.FieldReasoningEffort, field.TypeString)
+	}
+	if value, ok := _u.mutation.InboundEndpoint(); ok {
+		_spec.SetField(usagelog.FieldInboundEndpoint, field.TypeString, value)
+	}
+	if _u.mutation.InboundEndpointCleared() {
+		_spec.ClearField(usagelog.FieldInboundEndpoint, field.TypeString)
+	}
+	if value, ok := _u.mutation.UpstreamEndpoint(); ok {
+		_spec.SetField(usagelog.FieldUpstreamEndpoint, field.TypeString, value)
+	}
+	if _u.mutation.UpstreamEndpointCleared() {
+		_spec.ClearField(usagelog.FieldUpstreamEndpoint, field.TypeString)
+	}
 	if value, ok := _u.mutation.CacheTTLOverridden(); ok {
 		_spec.SetField(usagelog.FieldCacheTTLOverridden, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ChannelID(); ok {
+		_spec.SetField(usagelog.FieldChannelID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedChannelID(); ok {
+		_spec.AddField(usagelog.FieldChannelID, field.TypeInt64, value)
+	}
+	if _u.mutation.ChannelIDCleared() {
+		_spec.ClearField(usagelog.FieldChannelID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ModelMappingChain(); ok {
+		_spec.SetField(usagelog.FieldModelMappingChain, field.TypeString, value)
+	}
+	if _u.mutation.ModelMappingChainCleared() {
+		_spec.ClearField(usagelog.FieldModelMappingChain, field.TypeString)
+	}
+	if value, ok := _u.mutation.BillingTier(); ok {
+		_spec.SetField(usagelog.FieldBillingTier, field.TypeString, value)
+	}
+	if _u.mutation.BillingTierCleared() {
+		_spec.ClearField(usagelog.FieldBillingTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.BillingMode(); ok {
+		_spec.SetField(usagelog.FieldBillingMode, field.TypeString, value)
+	}
+	if _u.mutation.BillingModeCleared() {
+		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
+	}
+	if value, ok := _u.mutation.AccountStatsCost(); ok {
+		_spec.SetField(usagelog.FieldAccountStatsCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAccountStatsCost(); ok {
+		_spec.AddField(usagelog.FieldAccountStatsCost, field.TypeFloat64, value)
+	}
+	if _u.mutation.AccountStatsCostCleared() {
+		_spec.ClearField(usagelog.FieldAccountStatsCost, field.TypeFloat64)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{

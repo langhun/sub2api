@@ -45,7 +45,7 @@ func TestAffiliateRepository_TransferQuotaToBalance_UsesClaimedQuotaBeforeClear(
 	txCtx := dbent.NewTxContext(ctx, tx)
 	client := tx.Client()
 
-	repo := NewAffiliateRepository(client, integrationDB)
+	repo := NewAffiliateRepository(client, integrationDB, nil)
 
 	u := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("affiliate-transfer-%d@example.com", time.Now().UnixNano()),
@@ -135,7 +135,7 @@ func TestAffiliateRepository_AccrueQuota_ReusesOuterTransaction(t *testing.T) {
 		Concurrency:  5,
 	})
 
-	repo := NewAffiliateRepository(client, integrationDB)
+	repo := NewAffiliateRepository(client, integrationDB, nil)
 	_, err = repo.EnsureUserAffiliate(txCtx, inviter.ID)
 	require.NoError(t, err)
 	_, err = repo.EnsureUserAffiliate(txCtx, invitee.ID)
@@ -176,7 +176,7 @@ func TestAffiliateRepository_TransferQuotaToBalance_EmptyQuota(t *testing.T) {
 	txCtx := dbent.NewTxContext(ctx, tx)
 	client := tx.Client()
 
-	repo := NewAffiliateRepository(client, integrationDB)
+	repo := NewAffiliateRepository(client, integrationDB, nil)
 
 	u := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("affiliate-empty-%d@example.com", time.Now().UnixNano()),
@@ -218,7 +218,7 @@ func TestAffiliateRepository_AdminCustomCode(t *testing.T) {
 	txCtx := dbent.NewTxContext(ctx, tx)
 	client := tx.Client()
 
-	repo := NewAffiliateRepository(client, integrationDB)
+	repo := NewAffiliateRepository(client, integrationDB, nil)
 
 	u := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("affiliate-custom-%d@example.com", time.Now().UnixNano()),
@@ -275,7 +275,7 @@ func TestAffiliateRepository_AdminCustomCode_Conflict(t *testing.T) {
 	txCtx := dbent.NewTxContext(ctx, tx)
 	client := tx.Client()
 
-	repo := NewAffiliateRepository(client, integrationDB)
+	repo := NewAffiliateRepository(client, integrationDB, nil)
 
 	taker := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("affiliate-conflict-taker-%d@example.com", time.Now().UnixNano()),
@@ -304,7 +304,7 @@ func TestAffiliateRepository_AdminRebateRate(t *testing.T) {
 	txCtx := dbent.NewTxContext(ctx, tx)
 	client := tx.Client()
 
-	repo := NewAffiliateRepository(client, integrationDB)
+	repo := NewAffiliateRepository(client, integrationDB, nil)
 
 	u1 := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("affiliate-rate-%d-a@example.com", time.Now().UnixNano()),
@@ -362,7 +362,7 @@ func TestAffiliateRepository_ListUsersWithCustomSettings(t *testing.T) {
 	txCtx := dbent.NewTxContext(ctx, tx)
 	client := tx.Client()
 
-	repo := NewAffiliateRepository(client, integrationDB)
+	repo := NewAffiliateRepository(client, integrationDB, nil)
 
 	// User without any custom config — should NOT appear in the list.
 	plainEmail := fmt.Sprintf("affiliate-plain-%d@example.com", time.Now().UnixNano())

@@ -28,6 +28,12 @@ type Tx struct {
 	AuthIdentity *AuthIdentityClient
 	// AuthIdentityChannel is the client for interacting with the AuthIdentityChannel builders.
 	AuthIdentityChannel *AuthIdentityChannelClient
+	// BalanceRedPacket is the client for interacting with the BalanceRedPacket builders.
+	BalanceRedPacket *BalanceRedPacketClient
+	// BalanceRedPacketClaim is the client for interacting with the BalanceRedPacketClaim builders.
+	BalanceRedPacketClaim *BalanceRedPacketClaimClient
+	// BalanceTransfer is the client for interacting with the BalanceTransfer builders.
+	BalanceTransfer *BalanceTransferClient
 	// ChannelMonitor is the client for interacting with the ChannelMonitor builders.
 	ChannelMonitor *ChannelMonitorClient
 	// ChannelMonitorDailyRollup is the client for interacting with the ChannelMonitorDailyRollup builders.
@@ -36,6 +42,12 @@ type Tx struct {
 	ChannelMonitorHistory *ChannelMonitorHistoryClient
 	// ChannelMonitorRequestTemplate is the client for interacting with the ChannelMonitorRequestTemplate builders.
 	ChannelMonitorRequestTemplate *ChannelMonitorRequestTemplateClient
+	// Checkin is the client for interacting with the Checkin builders.
+	Checkin *CheckinClient
+	// CheckinBlindboxRecord is the client for interacting with the CheckinBlindboxRecord builders.
+	CheckinBlindboxRecord *CheckinBlindboxRecordClient
+	// CheckinPrizeItem is the client for interacting with the CheckinPrizeItem builders.
+	CheckinPrizeItem *CheckinPrizeItemClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -44,6 +56,8 @@ type Tx struct {
 	IdempotencyRecord *IdempotencyRecordClient
 	// IdentityAdoptionDecision is the client for interacting with the IdentityAdoptionDecision builders.
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
+	// ModelPricing is the client for interacting with the ModelPricing builders.
+	ModelPricing *ModelPricingClient
 	// PaymentAuditLog is the client for interacting with the PaymentAuditLog builders.
 	PaymentAuditLog *PaymentAuditLogClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
@@ -58,6 +72,10 @@ type Tx struct {
 	PromoCodeUsage *PromoCodeUsageClient
 	// Proxy is the client for interacting with the Proxy builders.
 	Proxy *ProxyClient
+	// ProxySubscriptionNode is the client for interacting with the ProxySubscriptionNode builders.
+	ProxySubscriptionNode *ProxySubscriptionNodeClient
+	// ProxySubscriptionSource is the client for interacting with the ProxySubscriptionSource builders.
+	ProxySubscriptionSource *ProxySubscriptionSourceClient
 	// RedeemCode is the client for interacting with the RedeemCode builders.
 	RedeemCode *RedeemCodeClient
 	// SecuritySecret is the client for interacting with the SecuritySecret builders.
@@ -220,14 +238,21 @@ func (tx *Tx) init() {
 	tx.AnnouncementRead = NewAnnouncementReadClient(tx.config)
 	tx.AuthIdentity = NewAuthIdentityClient(tx.config)
 	tx.AuthIdentityChannel = NewAuthIdentityChannelClient(tx.config)
+	tx.BalanceRedPacket = NewBalanceRedPacketClient(tx.config)
+	tx.BalanceRedPacketClaim = NewBalanceRedPacketClaimClient(tx.config)
+	tx.BalanceTransfer = NewBalanceTransferClient(tx.config)
 	tx.ChannelMonitor = NewChannelMonitorClient(tx.config)
 	tx.ChannelMonitorDailyRollup = NewChannelMonitorDailyRollupClient(tx.config)
 	tx.ChannelMonitorHistory = NewChannelMonitorHistoryClient(tx.config)
 	tx.ChannelMonitorRequestTemplate = NewChannelMonitorRequestTemplateClient(tx.config)
+	tx.Checkin = NewCheckinClient(tx.config)
+	tx.CheckinBlindboxRecord = NewCheckinBlindboxRecordClient(tx.config)
+	tx.CheckinPrizeItem = NewCheckinPrizeItemClient(tx.config)
 	tx.ErrorPassthroughRule = NewErrorPassthroughRuleClient(tx.config)
 	tx.Group = NewGroupClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
 	tx.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(tx.config)
+	tx.ModelPricing = NewModelPricingClient(tx.config)
 	tx.PaymentAuditLog = NewPaymentAuditLogClient(tx.config)
 	tx.PaymentOrder = NewPaymentOrderClient(tx.config)
 	tx.PaymentProviderInstance = NewPaymentProviderInstanceClient(tx.config)
@@ -235,6 +260,8 @@ func (tx *Tx) init() {
 	tx.PromoCode = NewPromoCodeClient(tx.config)
 	tx.PromoCodeUsage = NewPromoCodeUsageClient(tx.config)
 	tx.Proxy = NewProxyClient(tx.config)
+	tx.ProxySubscriptionNode = NewProxySubscriptionNodeClient(tx.config)
+	tx.ProxySubscriptionSource = NewProxySubscriptionSourceClient(tx.config)
 	tx.RedeemCode = NewRedeemCodeClient(tx.config)
 	tx.SecuritySecret = NewSecuritySecretClient(tx.config)
 	tx.Setting = NewSettingClient(tx.config)

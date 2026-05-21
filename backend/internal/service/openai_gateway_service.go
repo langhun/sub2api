@@ -342,6 +342,7 @@ type OpenAIGatewayService struct {
 	channelService        *ChannelService
 	balanceNotifyService  *BalanceNotifyService
 	settingService        *SettingService
+	proxyPool             *AutoFailoverProxyPoolService
 
 	openaiWSPoolOnce              sync.Once
 	openaiWSStateStoreOnce        sync.Once
@@ -509,6 +510,10 @@ func (s *OpenAIGatewayService) getCodexSnapshotThrottle() *accountWriteThrottle 
 		return s.codexSnapshotThrottle
 	}
 	return defaultOpenAICodexSnapshotPersistThrottle
+}
+
+func (s *OpenAIGatewayService) SetAutoFailoverProxyPool(proxyPool *AutoFailoverProxyPoolService) {
+	s.proxyPool = proxyPool
 }
 
 func (s *OpenAIGatewayService) billingDeps() *billingDeps {
@@ -1489,7 +1494,7 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 			}
 		}
 
-		// 选择优先级最高且最久未使用的账号
+		// 选择优先级最高（数值更大）且最久未使用的账号
 		// Select highest priority and least recently used
 		if selected == nil {
 			selected = fresh
@@ -1516,17 +1521,17 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 }
 
 // isBetterAccount 判断 candidate 是否比 current 更优。
-// 规则：优先级更高（数值更小）优先；同优先级时，未使用过的优先，其次是最久未使用的。
+// 规则：优先级更高（数值更大）优先；同优先级时，未使用过的优先，其次是最久未使用的。
 //
 // isBetterAccount checks if candidate is better than current.
-// Rules: higher priority (lower value) wins; same priority: never used > least recently used.
+// Rules: higher priority (larger value) wins; same priority: never used > least recently used.
 func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account) bool {
-	// 优先级更高（数值更小）
-	// Higher priority (lower value)
-	if candidate.Priority < current.Priority {
+	// 优先级更高（数值更大）
+	// Higher priority (larger value)
+	if candidate.Priority > current.Priority {
 		return true
 	}
-	if candidate.Priority > current.Priority {
+	if candidate.Priority < current.Priority {
 		return false
 	}
 
@@ -1733,7 +1738,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 			sort.SliceStable(available, func(i, j int) bool {
 				a, b := available[i], available[j]
 				if a.account.Priority != b.account.Priority {
-					return a.account.Priority < b.account.Priority
+					return a.account.Priority > b.account.Priority
 				}
 				if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 					return a.loadInfo.LoadRate < b.loadInfo.LoadRate
@@ -1829,6 +1834,9 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, PlatformOpenAI, false)
 		return accounts, err
 	}
+	if s.accountRepo == nil {
+		return nil, ErrNoAvailableAccounts
+	}
 	var accounts []Account
 	var err error
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
@@ -1842,6 +1850,33 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
 	return accounts, nil
+}
+
+func (s *OpenAIGatewayService) GetAvailableModels(ctx context.Context, groupID *int64) []string {
+	accounts, err := s.listSchedulableAccounts(ctx, groupID)
+	if err != nil || len(accounts) == 0 {
+		return nil
+	}
+	modelSet := make(map[string]struct{})
+	hasAnyMapping := false
+	for _, acc := range accounts {
+		mapping := acc.GetModelMapping()
+		if len(mapping) > 0 {
+			hasAnyMapping = true
+			for model := range mapping {
+				modelSet[model] = struct{}{}
+			}
+		}
+	}
+	if !hasAnyMapping {
+		return nil
+	}
+	models := make([]string, 0, len(modelSet))
+	for model := range modelSet {
+		models = append(models, model)
+	}
+	sort.Strings(models)
+	return models
 }
 
 func (s *OpenAIGatewayService) tryAcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int) (*AcquireResult, error) {
@@ -1957,7 +1992,13 @@ func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Acco
 		if s.openAITokenProvider != nil {
 			accessToken, err := s.openAITokenProvider.GetAccessToken(ctx, account)
 			if err != nil {
-				return "", "", err
+				if ctx != nil && ctx.Err() != nil {
+					return "", "", ctx.Err()
+				}
+				return "", "", &UpstreamFailoverError{
+					StatusCode:   http.StatusUnauthorized,
+					ResponseBody: []byte(err.Error()),
+				}
 			}
 			return accessToken, "oauth", nil
 		}
@@ -2307,19 +2348,20 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 	}
 
-	// Handle max_output_tokens based on platform and account type
-	if !isCodexCLI {
-		if maxOutputTokens, hasMaxOutputTokens := reqBody["max_output_tokens"]; hasMaxOutputTokens {
-			switch account.Platform {
-			case PlatformOpenAI:
-				// For OpenAI API Key, remove max_output_tokens (not supported)
-				// For OpenAI OAuth (Responses API), keep it (supported)
-				if account.Type == AccountTypeAPIKey {
-					delete(reqBody, "max_output_tokens")
-					bodyModified = true
-					markPatchDelete("max_output_tokens")
-				}
-			case PlatformAnthropic:
+	// Handle max_output_tokens based on platform and account type.
+	if maxOutputTokens, hasMaxOutputTokens := reqBody["max_output_tokens"]; hasMaxOutputTokens {
+		switch account.Platform {
+		case PlatformOpenAI:
+			// Official OpenAI /v1/responses accepts max_output_tokens for Codex
+			// requests. Third-party OpenAI-compatible base_url accounts often
+			// reject it, so keep the legacy compatibility stripping there.
+			if account.Type == AccountTypeAPIKey && (!isCodexCLI || !shouldPreserveOpenAIAPIKeyResponsesFields(account)) {
+				delete(reqBody, "max_output_tokens")
+				bodyModified = true
+				markPatchDelete("max_output_tokens")
+			}
+		case PlatformAnthropic:
+			if !isCodexCLI {
 				// For Anthropic (Claude), convert to max_tokens
 				delete(reqBody, "max_output_tokens")
 				markPatchDelete("max_output_tokens")
@@ -2328,28 +2370,41 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 					disablePatch()
 				}
 				bodyModified = true
-			case PlatformGemini:
+			}
+		case PlatformGemini:
+			if !isCodexCLI {
 				// For Gemini, remove (will be handled by Gemini-specific transform)
 				delete(reqBody, "max_output_tokens")
 				bodyModified = true
 				markPatchDelete("max_output_tokens")
-			default:
+			}
+		default:
+			if !isCodexCLI {
 				// For unknown platforms, remove to be safe
 				delete(reqBody, "max_output_tokens")
 				bodyModified = true
 				markPatchDelete("max_output_tokens")
 			}
 		}
+	}
 
-		// Also handle max_completion_tokens (similar logic)
-		if _, hasMaxCompletionTokens := reqBody["max_completion_tokens"]; hasMaxCompletionTokens {
-			if account.Type == AccountTypeAPIKey || account.Platform != PlatformOpenAI {
+	// Also handle max_completion_tokens (similar logic)
+	if _, hasMaxCompletionTokens := reqBody["max_completion_tokens"]; hasMaxCompletionTokens {
+		switch {
+		case account.Type == AccountTypeAPIKey:
+			if !isCodexCLI || !shouldPreserveOpenAIAPIKeyResponsesFields(account) {
 				delete(reqBody, "max_completion_tokens")
 				bodyModified = true
 				markPatchDelete("max_completion_tokens")
 			}
+		case !isCodexCLI && account.Platform != PlatformOpenAI:
+			delete(reqBody, "max_completion_tokens")
+			bodyModified = true
+			markPatchDelete("max_completion_tokens")
 		}
+	}
 
+	if !isCodexCLI {
 		// Remove unsupported fields (not supported by upstream OpenAI API)
 		unsupportedFields := []string{"prompt_cache_retention", "safety_identifier"}
 		for _, unsupportedField := range unsupportedFields {
@@ -2705,15 +2760,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			return nil, err
 		}
 
-		// Get proxy URL
-		proxyURL := ""
-		if account.ProxyID != nil && account.Proxy != nil {
-			proxyURL = account.Proxy.URL()
-		}
-
 		// Send request
 		upstreamStart := time.Now()
-		resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+		resp, err := s.doUpstreamWithAutoFailover(account, upstreamReq, nil)
 		SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
 		if err != nil {
 			// Ensure the client receives an error response (handlers assume Forward writes on non-failover errors).
@@ -2906,6 +2955,15 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		}
 		reqStream = gjson.GetBytes(body, "stream").Bool()
 	}
+	if account != nil && account.Type == AccountTypeAPIKey {
+		normalizedBody, normalized, err := normalizeOpenAIAPIKeyPassthroughCompatBody(body, account)
+		if err != nil {
+			return nil, err
+		}
+		if normalized {
+			body = normalizedBody
+		}
+	}
 
 	sanitizedBody, sanitized, err := sanitizeEmptyBase64InputImagesInOpenAIBody(body)
 	if err != nil {
@@ -3004,17 +3062,13 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		return nil, err
 	}
 
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
-
+	setOpsUpstreamRequestBody(c, body)
 	if c != nil {
 		c.Set("openai_passthrough", true)
 	}
 
 	upstreamStart := time.Now()
-	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+	resp, err := s.doUpstreamWithAutoFailover(account, upstreamReq, nil)
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
 	if err != nil {
 		safeErr := sanitizeUpstreamErrorMessage(err.Error())
@@ -3454,6 +3508,8 @@ func openAIStreamFailedEventShouldFailover(payload []byte, message string) bool 
 	}
 	nonRetryableMarkers := []string{
 		"invalid_request",
+		"context_length_exceeded",
+		"context window",
 		"content_policy",
 		"policy",
 		"safety",
@@ -3602,11 +3658,17 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				}
 			}
 			eventType := strings.TrimSpace(gjson.Get(trimmedData, "type").String())
+			if preOutputErr := newOpenAIContextLengthPreOutputError(dataBytes, clientOutputStarted, extractOpenAISSEErrorMessage(dataBytes)); preOutputErr != nil {
+				return resultWithUsage(), preOutputErr
+			}
 			if eventType == "response.failed" {
 				failedMessage = extractOpenAISSEErrorMessage(dataBytes)
-				if !openAIStreamClientOutputStarted(c, clientOutputStarted) && openAIStreamFailedEventShouldFailover(dataBytes, failedMessage) {
+				if !clientOutputStarted && openAIStreamFailedEventShouldFailover(dataBytes, failedMessage) {
 					return resultWithUsage(),
 						s.newOpenAIStreamFailoverError(c, account, true, upstreamRequestID, dataBytes, failedMessage)
+				}
+				if preOutputErr := newOpenAIContextLengthPreOutputError(dataBytes, clientOutputStarted, failedMessage); preOutputErr != nil {
+					return resultWithUsage(), preOutputErr
 				}
 				forceFlushFailedEvent = true
 				sawFailedEvent = true
@@ -4270,6 +4332,23 @@ type openaiNonStreamingResult struct {
 	imageOutputSizes []string
 }
 
+type OpenAIStreamPreOutputError struct {
+	StatusCode int
+	ErrorType  string
+	Message    string
+}
+
+func (e *OpenAIStreamPreOutputError) Error() string {
+	if e == nil {
+		return ""
+	}
+	msg := strings.TrimSpace(e.Message)
+	if msg == "" {
+		msg = "OpenAI stream failed before output"
+	}
+	return msg
+}
+
 func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, startTime time.Time, originalModel, mappedModel string) (*openaiStreamingResult, error) {
 	if s.responseHeaderFilter != nil {
 		responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
@@ -4469,12 +4548,22 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 				sawTerminalEvent = true
 			}
 			eventType := strings.TrimSpace(gjson.GetBytes(dataBytes, "type").String())
+			if preOutputErr := newOpenAIContextLengthPreOutputError(dataBytes, clientOutputStarted, extractOpenAISSEErrorMessage(dataBytes)); preOutputErr != nil {
+				sawFailedEvent = true
+				streamFailoverErr = preOutputErr
+				return
+			}
 			forceFlushFailedEvent := false
 			if eventType == "response.failed" {
 				failedMessage = extractOpenAISSEErrorMessage(dataBytes)
-				if !openAIStreamClientOutputStarted(c, clientOutputStarted) && openAIStreamFailedEventShouldFailover(dataBytes, failedMessage) {
+				if !clientOutputStarted && openAIStreamFailedEventShouldFailover(dataBytes, failedMessage) {
 					sawFailedEvent = true
 					streamFailoverErr = s.newOpenAIStreamFailoverError(c, account, false, upstreamRequestID, dataBytes, failedMessage)
+					return
+				}
+				if preOutputErr := newOpenAIContextLengthPreOutputError(dataBytes, clientOutputStarted, failedMessage); preOutputErr != nil {
+					sawFailedEvent = true
+					streamFailoverErr = preOutputErr
 					return
 				}
 				forceFlushFailedEvent = true
@@ -4986,6 +5075,29 @@ func extractOpenAISSEErrorMessage(payload []byte) string {
 	return sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(payload)))
 }
 
+func extractOpenAISSEErrorCode(payload []byte) string {
+	if len(payload) == 0 {
+		return ""
+	}
+	for _, path := range []string{"response.error.code", "error.code", "code"} {
+		if code := strings.TrimSpace(gjson.GetBytes(payload, path).String()); code != "" {
+			return code
+		}
+	}
+	return ""
+}
+
+func newOpenAIContextLengthPreOutputError(payload []byte, clientOutputStarted bool, message string) *OpenAIStreamPreOutputError {
+	if clientOutputStarted || extractOpenAISSEErrorCode(payload) != "context_length_exceeded" {
+		return nil
+	}
+	return &OpenAIStreamPreOutputError{
+		StatusCode: http.StatusBadRequest,
+		ErrorType:  "invalid_request_error",
+		Message:    message,
+	}
+}
+
 func (s *OpenAIGatewayService) writeOpenAINonStreamingProtocolError(resp *http.Response, c *gin.Context, message string) error {
 	message = sanitizeUpstreamErrorMessage(strings.TrimSpace(message))
 	if message == "" {
@@ -5109,7 +5221,9 @@ func (s *OpenAIGatewayService) replaceModelInSSEBody(body, fromModel, toModel st
 
 func (s *OpenAIGatewayService) validateUpstreamBaseURL(raw string) (string, error) {
 	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
+		normalized, err := urlvalidator.ValidateHTTPURL(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
+			AllowPrivate: s.cfg.Security.URLAllowlist.AllowPrivateHosts,
+		})
 		if err != nil {
 			return "", fmt.Errorf("invalid base_url: %w", err)
 		}
@@ -5363,6 +5477,10 @@ type OpenAIRecordUsageInput struct {
 	IPAddress          string // 请求的客户端 IP 地址
 	RequestPayloadHash string
 	APIKeyService      APIKeyQuotaUpdater
+	AuthLatencyMs      *int64
+	RoutingLatencyMs   *int64
+	UpstreamLatencyMs  *int64
+	ResponseLatencyMs  *int64
 	ChannelUsageFields
 }
 
@@ -5518,6 +5636,22 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	usageLog.OpenAIWSMode = result.OpenAIWSMode
 	usageLog.DurationMs = &durationMs
 	usageLog.FirstTokenMs = result.FirstTokenMs
+	if input.AuthLatencyMs != nil {
+		value := int(*input.AuthLatencyMs)
+		usageLog.AuthLatencyMs = &value
+	}
+	if input.RoutingLatencyMs != nil {
+		value := int(*input.RoutingLatencyMs)
+		usageLog.RoutingLatencyMs = &value
+	}
+	if input.UpstreamLatencyMs != nil {
+		value := int(*input.UpstreamLatencyMs)
+		usageLog.UpstreamLatencyMs = &value
+	}
+	if input.ResponseLatencyMs != nil {
+		value := int(*input.ResponseLatencyMs)
+		usageLog.ResponseLatencyMs = &value
+	}
 	usageLog.CreatedAt = time.Now()
 	// 设置渠道信息
 	usageLog.ChannelID = optionalInt64Ptr(input.ChannelID)
@@ -5956,8 +6090,9 @@ func extractOpenAIRequestMetaFromBody(body []byte) (model string, stream bool, p
 	return model, stream, promptCacheKey
 }
 
-// normalizeOpenAIPassthroughOAuthBody 将透传 OAuth 请求体收敛为旧链路关键行为：
-// 1) 删除 ChatGPT internal API 不支持的顶层 Responses 参数
+// normalizeOpenAIPassthroughOAuthBody 将透传 OAuth 请求体收敛为 ChatGPT internal
+// Codex 端点可接受的请求体：
+// 1) 删除 ChatGPT internal / Codex passthrough 不支持的顶层 Responses 参数
 // 2) store=false 3) 非 compact 保持 stream=true；compact 强制 stream=false
 func normalizeOpenAIPassthroughOAuthBody(body []byte, compact bool) ([]byte, bool, error) {
 	if len(body) == 0 {
@@ -5967,7 +6102,7 @@ func normalizeOpenAIPassthroughOAuthBody(body []byte, compact bool) ([]byte, boo
 	normalized := body
 	changed := false
 
-	for _, field := range openAIChatGPTInternalUnsupportedFields {
+	for _, field := range openAICodexOAuthUnsupportedFields {
 		if value := gjson.GetBytes(normalized, field); !value.Exists() {
 			continue
 		}

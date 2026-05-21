@@ -145,7 +145,7 @@ func newOpenAIRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo U
 		cfg,
 		nil,
 		nil,
-		NewBillingService(cfg, nil),
+		NewBillingService(cfg, nil, nil),
 		nil,
 		&BillingCacheService{},
 		nil,
@@ -1020,6 +1020,48 @@ func TestOpenAIGatewayServiceRecordUsage_UsesRequestedModelAndUpstreamModelMetad
 	require.Equal(t, 1, userRepo.deductCalls)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_PersistsLatencyBreakdown(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
+
+	authLatency := int64(11)
+	routingLatency := int64(22)
+	upstreamLatency := int64(33)
+	responseLatency := int64(44)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_latency_breakdown",
+			Model:     "gpt-5.1",
+			Usage: OpenAIUsage{
+				InputTokens:  20,
+				OutputTokens: 10,
+			},
+			Duration: time.Second,
+		},
+		APIKey:            &APIKey{ID: 10, GroupID: i64p(11), Group: &Group{ID: 11, RateMultiplier: 1.2}},
+		User:              &User{ID: 20},
+		Account:           &Account{ID: 30},
+		AuthLatencyMs:     &authLatency,
+		RoutingLatencyMs:  &routingLatency,
+		UpstreamLatencyMs: &upstreamLatency,
+		ResponseLatencyMs: &responseLatency,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.AuthLatencyMs)
+	require.NotNil(t, usageRepo.lastLog.RoutingLatencyMs)
+	require.NotNil(t, usageRepo.lastLog.UpstreamLatencyMs)
+	require.NotNil(t, usageRepo.lastLog.ResponseLatencyMs)
+	require.Equal(t, int(authLatency), *usageRepo.lastLog.AuthLatencyMs)
+	require.Equal(t, int(routingLatency), *usageRepo.lastLog.RoutingLatencyMs)
+	require.Equal(t, int(upstreamLatency), *usageRepo.lastLog.UpstreamLatencyMs)
+	require.Equal(t, int(responseLatency), *usageRepo.lastLog.ResponseLatencyMs)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_BillsMappedRequestsUsingRequestedModel(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	userRepo := &openAIRecordUsageUserRepoStub{}
@@ -1663,12 +1705,12 @@ func newOpenAIImageChannelPricingResolverForTest(t *testing.T, groupID int64, mo
 	cache.loadedAt = time.Now()
 	cs := &ChannelService{}
 	cs.cache.Store(cache)
-	return NewModelPricingResolver(cs, NewBillingService(&config.Config{}, nil))
+	return NewModelPricingResolver(cs, NewBillingService(&config.Config{}, nil, nil))
 }
 
 func TestGatewayServiceCalculateRecordUsageCost_ChannelImageBillingUsesImageCount(t *testing.T) {
 	groupID := int64(126)
-	billingService := NewBillingService(&config.Config{}, nil)
+	billingService := NewBillingService(&config.Config{}, nil, nil)
 	svc := &GatewayService{
 		billingService: billingService,
 		resolver:       newOpenAIImageChannelPricingResolverForTest(t, groupID, "gemini-image", 0.25),
@@ -1709,8 +1751,8 @@ func TestGatewayServiceCalculateRecordUsageCost_ChannelImageBillingUsesSizeTier(
 	channelService.cache.Store(cache)
 
 	svc := &GatewayService{
-		billingService: NewBillingService(&config.Config{}, nil),
-		resolver:       NewModelPricingResolver(channelService, NewBillingService(&config.Config{}, nil)),
+		billingService: NewBillingService(&config.Config{}, nil, nil),
+		resolver:       NewModelPricingResolver(channelService, NewBillingService(&config.Config{}, nil, nil)),
 	}
 
 	cost := svc.calculateRecordUsageCost(
@@ -1748,8 +1790,8 @@ func TestGatewayServiceCalculateRecordUsageCost_ChannelImageBillingNormalizesMis
 	channelService.cache.Store(cache)
 
 	svc := &GatewayService{
-		billingService: NewBillingService(&config.Config{}, nil),
-		resolver:       NewModelPricingResolver(channelService, NewBillingService(&config.Config{}, nil)),
+		billingService: NewBillingService(&config.Config{}, nil, nil),
+		resolver:       NewModelPricingResolver(channelService, NewBillingService(&config.Config{}, nil, nil)),
 	}
 
 	cost := svc.calculateRecordUsageCost(

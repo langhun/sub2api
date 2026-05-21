@@ -52,6 +52,14 @@ func (Proxy) Fields() []ent.Field {
 		field.String("status").
 			MaxLen(20).
 			Default("active"),
+		field.Int64("subscription_source_id").
+			Optional().
+			Nillable(),
+		field.Int64("subscription_node_id").
+			Optional().
+			Nillable(),
+		field.Bool("managed_by_subscription").
+			Default(false),
 	}
 }
 

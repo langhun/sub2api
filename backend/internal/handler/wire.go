@@ -21,6 +21,7 @@ func ProvideAdminHandlers(
 	geminiOAuthHandler *admin.GeminiOAuthHandler,
 	antigravityOAuthHandler *admin.AntigravityOAuthHandler,
 	proxyHandler *admin.ProxyHandler,
+	proxySubscriptionHandler *admin.ProxySubscriptionHandler,
 	redeemHandler *admin.RedeemHandler,
 	promoHandler *admin.PromoHandler,
 	settingHandler *admin.SettingHandler,
@@ -38,7 +39,11 @@ func ProvideAdminHandlers(
 	channelMonitorTemplateHandler *admin.ChannelMonitorRequestTemplateHandler,
 	contentModerationHandler *admin.ContentModerationHandler,
 	paymentHandler *admin.PaymentHandler,
+	blindboxHandler *admin.BlindboxHandler,
+	transferAdminHandler *admin.TransferAdminHandler,
 	affiliateHandler *admin.AffiliateHandler,
+	monitoringHandler *admin.MonitoringHandler,
+	modelPricingHandler *admin.ModelPricingHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
@@ -53,6 +58,7 @@ func ProvideAdminHandlers(
 		GeminiOAuth:            geminiOAuthHandler,
 		AntigravityOAuth:       antigravityOAuthHandler,
 		Proxy:                  proxyHandler,
+		ProxySubscription:      proxySubscriptionHandler,
 		Redeem:                 redeemHandler,
 		Promo:                  promoHandler,
 		Setting:                settingHandler,
@@ -70,7 +76,11 @@ func ProvideAdminHandlers(
 		ChannelMonitorTemplate: channelMonitorTemplateHandler,
 		ContentModeration:      contentModerationHandler,
 		Payment:                paymentHandler,
+		Blindbox:               blindboxHandler,
+		TransferAdmin:          transferAdminHandler,
 		Affiliate:              affiliateHandler,
+		Monitoring:             monitoringHandler,
+		ModelPricing:           modelPricingHandler,
 	}
 }
 
@@ -110,7 +120,10 @@ func ProvideHandlers(
 	totpHandler *TotpHandler,
 	paymentHandler *PaymentHandler,
 	paymentWebhookHandler *PaymentWebhookHandler,
+	checkinHandler *CheckinHandler,
+	leaderboardHandler *LeaderboardHandler,
 	availableChannelHandler *AvailableChannelHandler,
+	transferHandler *BalanceTransferHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -130,7 +143,10 @@ func ProvideHandlers(
 		Totp:             totpHandler,
 		Payment:          paymentHandler,
 		PaymentWebhook:   paymentWebhookHandler,
+		Checkin:          checkinHandler,
+		Leaderboard:      leaderboardHandler,
 		AvailableChannel: availableChannelHandler,
+		Transfer:         transferHandler,
 	}
 }
 
@@ -151,7 +167,10 @@ var ProviderSet = wire.NewSet(
 	ProvideSettingHandler,
 	NewPaymentHandler,
 	NewPaymentWebhookHandler,
+	NewCheckinHandler,
+	NewLeaderboardHandler,
 	NewAvailableChannelHandler,
+	NewBalanceTransferHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -166,6 +185,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewGeminiOAuthHandler,
 	admin.NewAntigravityOAuthHandler,
 	admin.NewProxyHandler,
+	admin.NewProxySubscriptionHandler,
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,
 	ProvideAdminSettingHandler,
@@ -183,6 +203,11 @@ var ProviderSet = wire.NewSet(
 	admin.NewChannelMonitorRequestTemplateHandler,
 	admin.NewContentModerationHandler,
 	admin.NewPaymentHandler,
+	admin.ProvideMonitoringQueryService,
+	admin.NewMonitoringHandler,
+	admin.NewModelPricingHandler,
+	admin.NewBlindboxHandler,
+	admin.NewTransferAdminHandler,
 	admin.NewAffiliateHandler,
 
 	// AdminHandlers and Handlers constructors

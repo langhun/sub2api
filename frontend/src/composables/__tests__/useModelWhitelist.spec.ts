@@ -4,7 +4,13 @@ vi.mock('@/api/admin/accounts', () => ({
   getAntigravityDefaultModelMapping: vi.fn()
 }))
 
-import { buildModelMappingObject, getModelsByPlatform, splitModelMappingObject } from '../useModelWhitelist'
+import {
+  buildModelMappingObject,
+  getModelsByPlatform,
+  getPresetMappingsByPlatform,
+  openaiPresetMappingDefaults,
+  splitModelMappingObject
+} from '../useModelWhitelist'
 
 describe('useModelWhitelist', () => {
   it('openai 模型列表包含 GPT-5.4 官方快照', () => {
@@ -72,6 +78,21 @@ describe('useModelWhitelist', () => {
     expect(mapping).toEqual({
       'gpt-5.4-mini': 'gpt-5.4-mini'
     })
+  })
+
+  it('openai 默认预设映射配置可直接修改目标模型', () => {
+    const original = openaiPresetMappingDefaults.gpt53CodexSpark.to
+
+    try {
+      openaiPresetMappingDefaults.gpt53CodexSpark.to = 'gpt-5.5'
+
+      const presets = getPresetMappingsByPlatform('openai')
+      const sparkPreset = presets.find(preset => preset.label === 'GPT-5.3 Codex Spark')
+
+      expect(sparkPreset?.to).toBe('gpt-5.5')
+    } finally {
+      openaiPresetMappingDefaults.gpt53CodexSpark.to = original
+    }
   })
 
   it('combined 模式会同时保留白名单身份映射和模型映射', () => {

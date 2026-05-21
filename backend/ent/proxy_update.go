@@ -172,6 +172,74 @@ func (_u *ProxyUpdate) SetNillableStatus(v *string) *ProxyUpdate {
 	return _u
 }
 
+// SetSubscriptionSourceID sets the "subscription_source_id" field.
+func (_u *ProxyUpdate) SetSubscriptionSourceID(v int64) *ProxyUpdate {
+	_u.mutation.ResetSubscriptionSourceID()
+	_u.mutation.SetSubscriptionSourceID(v)
+	return _u
+}
+
+// SetNillableSubscriptionSourceID sets the "subscription_source_id" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableSubscriptionSourceID(v *int64) *ProxyUpdate {
+	if v != nil {
+		_u.SetSubscriptionSourceID(*v)
+	}
+	return _u
+}
+
+// AddSubscriptionSourceID adds value to the "subscription_source_id" field.
+func (_u *ProxyUpdate) AddSubscriptionSourceID(v int64) *ProxyUpdate {
+	_u.mutation.AddSubscriptionSourceID(v)
+	return _u
+}
+
+// ClearSubscriptionSourceID clears the value of the "subscription_source_id" field.
+func (_u *ProxyUpdate) ClearSubscriptionSourceID() *ProxyUpdate {
+	_u.mutation.ClearSubscriptionSourceID()
+	return _u
+}
+
+// SetSubscriptionNodeID sets the "subscription_node_id" field.
+func (_u *ProxyUpdate) SetSubscriptionNodeID(v int64) *ProxyUpdate {
+	_u.mutation.ResetSubscriptionNodeID()
+	_u.mutation.SetSubscriptionNodeID(v)
+	return _u
+}
+
+// SetNillableSubscriptionNodeID sets the "subscription_node_id" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableSubscriptionNodeID(v *int64) *ProxyUpdate {
+	if v != nil {
+		_u.SetSubscriptionNodeID(*v)
+	}
+	return _u
+}
+
+// AddSubscriptionNodeID adds value to the "subscription_node_id" field.
+func (_u *ProxyUpdate) AddSubscriptionNodeID(v int64) *ProxyUpdate {
+	_u.mutation.AddSubscriptionNodeID(v)
+	return _u
+}
+
+// ClearSubscriptionNodeID clears the value of the "subscription_node_id" field.
+func (_u *ProxyUpdate) ClearSubscriptionNodeID() *ProxyUpdate {
+	_u.mutation.ClearSubscriptionNodeID()
+	return _u
+}
+
+// SetManagedBySubscription sets the "managed_by_subscription" field.
+func (_u *ProxyUpdate) SetManagedBySubscription(v bool) *ProxyUpdate {
+	_u.mutation.SetManagedBySubscription(v)
+	return _u
+}
+
+// SetNillableManagedBySubscription sets the "managed_by_subscription" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableManagedBySubscription(v *bool) *ProxyUpdate {
+	if v != nil {
+		_u.SetManagedBySubscription(*v)
+	}
+	return _u
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
 func (_u *ProxyUpdate) AddAccountIDs(ids ...int64) *ProxyUpdate {
 	_u.mutation.AddAccountIDs(ids...)
@@ -340,6 +408,27 @@ func (_u *ProxyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(proxy.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SubscriptionSourceID(); ok {
+		_spec.SetField(proxy.FieldSubscriptionSourceID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSubscriptionSourceID(); ok {
+		_spec.AddField(proxy.FieldSubscriptionSourceID, field.TypeInt64, value)
+	}
+	if _u.mutation.SubscriptionSourceIDCleared() {
+		_spec.ClearField(proxy.FieldSubscriptionSourceID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SubscriptionNodeID(); ok {
+		_spec.SetField(proxy.FieldSubscriptionNodeID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSubscriptionNodeID(); ok {
+		_spec.AddField(proxy.FieldSubscriptionNodeID, field.TypeInt64, value)
+	}
+	if _u.mutation.SubscriptionNodeIDCleared() {
+		_spec.ClearField(proxy.FieldSubscriptionNodeID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ManagedBySubscription(); ok {
+		_spec.SetField(proxy.FieldManagedBySubscription, field.TypeBool, value)
 	}
 	if _u.mutation.AccountsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -549,6 +638,74 @@ func (_u *ProxyUpdateOne) SetNillableStatus(v *string) *ProxyUpdateOne {
 	return _u
 }
 
+// SetSubscriptionSourceID sets the "subscription_source_id" field.
+func (_u *ProxyUpdateOne) SetSubscriptionSourceID(v int64) *ProxyUpdateOne {
+	_u.mutation.ResetSubscriptionSourceID()
+	_u.mutation.SetSubscriptionSourceID(v)
+	return _u
+}
+
+// SetNillableSubscriptionSourceID sets the "subscription_source_id" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableSubscriptionSourceID(v *int64) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionSourceID(*v)
+	}
+	return _u
+}
+
+// AddSubscriptionSourceID adds value to the "subscription_source_id" field.
+func (_u *ProxyUpdateOne) AddSubscriptionSourceID(v int64) *ProxyUpdateOne {
+	_u.mutation.AddSubscriptionSourceID(v)
+	return _u
+}
+
+// ClearSubscriptionSourceID clears the value of the "subscription_source_id" field.
+func (_u *ProxyUpdateOne) ClearSubscriptionSourceID() *ProxyUpdateOne {
+	_u.mutation.ClearSubscriptionSourceID()
+	return _u
+}
+
+// SetSubscriptionNodeID sets the "subscription_node_id" field.
+func (_u *ProxyUpdateOne) SetSubscriptionNodeID(v int64) *ProxyUpdateOne {
+	_u.mutation.ResetSubscriptionNodeID()
+	_u.mutation.SetSubscriptionNodeID(v)
+	return _u
+}
+
+// SetNillableSubscriptionNodeID sets the "subscription_node_id" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableSubscriptionNodeID(v *int64) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetSubscriptionNodeID(*v)
+	}
+	return _u
+}
+
+// AddSubscriptionNodeID adds value to the "subscription_node_id" field.
+func (_u *ProxyUpdateOne) AddSubscriptionNodeID(v int64) *ProxyUpdateOne {
+	_u.mutation.AddSubscriptionNodeID(v)
+	return _u
+}
+
+// ClearSubscriptionNodeID clears the value of the "subscription_node_id" field.
+func (_u *ProxyUpdateOne) ClearSubscriptionNodeID() *ProxyUpdateOne {
+	_u.mutation.ClearSubscriptionNodeID()
+	return _u
+}
+
+// SetManagedBySubscription sets the "managed_by_subscription" field.
+func (_u *ProxyUpdateOne) SetManagedBySubscription(v bool) *ProxyUpdateOne {
+	_u.mutation.SetManagedBySubscription(v)
+	return _u
+}
+
+// SetNillableManagedBySubscription sets the "managed_by_subscription" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableManagedBySubscription(v *bool) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetManagedBySubscription(*v)
+	}
+	return _u
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
 func (_u *ProxyUpdateOne) AddAccountIDs(ids ...int64) *ProxyUpdateOne {
 	_u.mutation.AddAccountIDs(ids...)
@@ -747,6 +904,27 @@ func (_u *ProxyUpdateOne) sqlSave(ctx context.Context) (_node *Proxy, err error)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(proxy.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SubscriptionSourceID(); ok {
+		_spec.SetField(proxy.FieldSubscriptionSourceID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSubscriptionSourceID(); ok {
+		_spec.AddField(proxy.FieldSubscriptionSourceID, field.TypeInt64, value)
+	}
+	if _u.mutation.SubscriptionSourceIDCleared() {
+		_spec.ClearField(proxy.FieldSubscriptionSourceID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SubscriptionNodeID(); ok {
+		_spec.SetField(proxy.FieldSubscriptionNodeID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSubscriptionNodeID(); ok {
+		_spec.AddField(proxy.FieldSubscriptionNodeID, field.TypeInt64, value)
+	}
+	if _u.mutation.SubscriptionNodeIDCleared() {
+		_spec.ClearField(proxy.FieldSubscriptionNodeID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ManagedBySubscription(); ok {
+		_spec.SetField(proxy.FieldManagedBySubscription, field.TypeBool, value)
 	}
 	if _u.mutation.AccountsCleared() {
 		edge := &sqlgraph.EdgeSpec{

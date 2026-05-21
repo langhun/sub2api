@@ -177,6 +177,9 @@ let statsReqSeq = 0
 let modelStatsReqSeq = 0
 const exportProgress = reactive({ show: false, progress: 0, current: 0, total: 0, estimatedTime: '' })
 const cleanupDialogVisible = ref(false)
+const USAGE_STATS_ENDPOINT_LIMIT = 20
+const USAGE_MODEL_STATS_LIMIT = 24
+const USAGE_INITIAL_PAGE_SIZE = 20
 // Balance history modal state
 const showBalanceHistoryModal = ref(false)
 const balanceHistoryUser = ref<AdminUser | null>(null)
@@ -227,7 +230,7 @@ const getGranularityForRange = (start: string, end: string): 'day' | 'hour' => {
 const defaultRange = getLast24HoursRangeDates()
 const startDate = ref(defaultRange.start); const endDate = ref(defaultRange.end)
 const filters = ref<AdminUsageQueryParams>({ user_id: undefined, model: undefined, group_id: undefined, request_type: undefined, billing_type: null, start_date: startDate.value, end_date: endDate.value })
-const pagination = reactive({ page: 1, page_size: getPersistedPageSize(), total: 0 })
+const pagination = reactive({ page: 1, page_size: Math.min(getPersistedPageSize(), USAGE_INITIAL_PAGE_SIZE), total: 0 })
 const sortState = reactive({
   sort_by: 'created_at',
   sort_order: 'desc' as 'asc' | 'desc'
@@ -243,6 +246,15 @@ const getNumericQueryValue = (value: string | null | Array<string | null> | unde
   if (!raw) return undefined
   const parsed = Number(raw)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const scheduleDeferredDashboardLoads = (modelDelay = 180, chartDelay = 260) => {
+  window.setTimeout(() => {
+    void loadModelStats(modelDistributionSource.value, true)
+  }, modelDelay)
+  window.setTimeout(() => {
+    void loadChartData()
+  }, chartDelay)
 }
 
 const applyRouteQueryFilters = () => {
@@ -312,7 +324,11 @@ const loadStats = async () => {
   try {
     const requestType = filters.value.request_type
     const legacyStream = requestType ? requestTypeToLegacyStream(requestType) : filters.value.stream
-    const s = await adminAPI.usage.getStats({ ...filters.value, stream: legacyStream === null ? undefined : legacyStream })
+    const s = await adminAPI.usage.getStats({
+      ...filters.value,
+      stream: legacyStream === null ? undefined : legacyStream,
+      endpoint_limit: USAGE_STATS_ENDPOINT_LIMIT,
+    })
     if (seq !== statsReqSeq) return
     usageStats.value = s
     inboundEndpointStats.value = s.endpoints || []
@@ -361,8 +377,11 @@ const loadModelStats = async (source: ModelDistributionSource, force = false) =>
       billing_type: filters.value.billing_type,
     }
 
-    const response = await adminAPI.dashboard.getModelStats({ ...baseParams, model_source: source })
-
+    const response = await adminAPI.dashboard.getModelStats({
+      ...baseParams,
+      model_source: source,
+      limit: USAGE_MODEL_STATS_LIMIT,
+    })
     if (seq !== modelStatsReqSeq) return
 
     const models = response.models || []
@@ -424,15 +443,13 @@ const applyFilters = () => {
   resetModelStatsCache()
   loadLogs()
   loadStats()
-  loadModelStats(modelDistributionSource.value, true)
-  loadChartData()
+  scheduleDeferredDashboardLoads()
 }
 const refreshData = () => {
   resetModelStatsCache()
   loadLogs()
   loadStats()
-  loadModelStats(modelDistributionSource.value, true)
-  loadChartData()
+  scheduleDeferredDashboardLoads()
 }
 const resetFilters = () => {
   const range = getLast24HoursRangeDates()
@@ -458,6 +475,10 @@ const getRequestTypeLabel = (log: AdminUsageLog): string => {
   if (requestType === 'stream') return t('usage.stream')
   if (requestType === 'sync') return t('usage.sync')
   return t('usage.unknown')
+}
+
+const getUsageUserDisplayName = (log: AdminUsageLog): string => {
+  return log.user?.username?.trim() || log.user?.email?.trim() || ''
 }
 
 const exportToExcel = async () => {
@@ -487,7 +508,7 @@ const exportToExcel = async () => {
       )
       if (c.signal.aborted) break; if (p === 1) { total = res.total; exportProgress.total = total }
       const rows = (res.items || []).map((log: AdminUsageLog) => [
-        log.created_at, log.user?.email || '', log.api_key?.name || '', log.account?.name || '', log.model,
+        log.created_at, getUsageUserDisplayName(log), log.api_key?.name || '', log.account?.name || '', log.model,
         log.upstream_model || '', formatReasoningEffort(log.reasoning_effort), log.group?.name || '',
         log.inbound_endpoint || '', log.upstream_endpoint || '', getRequestTypeLabel(log),
         log.input_tokens, log.output_tokens, log.cache_read_tokens, log.cache_creation_tokens,
@@ -599,16 +620,15 @@ onMounted(() => {
   applyRouteQueryFilters()
   loadLogs()
   loadStats()
-  loadModelStats(modelDistributionSource.value, true)
-  window.setTimeout(() => {
-    void loadChartData()
-  }, 120)
+  scheduleDeferredDashboardLoads(220, 320)
   loadSavedColumns()
   document.addEventListener('click', handleColumnClickOutside)
 })
 onUnmounted(() => { abortController?.abort(); exportAbortController?.abort(); document.removeEventListener('click', handleColumnClickOutside) })
 
 watch(modelDistributionSource, (source) => {
-  void loadModelStats(source)
+  window.setTimeout(() => {
+    void loadModelStats(source)
+  }, 80)
 })
 </script>

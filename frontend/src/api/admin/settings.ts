@@ -205,7 +205,13 @@ export function appendAuthSourceDefaultsToUpdateRequest(
   const target = payload as Record<string, unknown>;
 
   for (const source of AUTH_SOURCE_TYPES) {
-    const current = authSourceDefaults[source];
+    const current = authSourceDefaults[source] ?? {
+      balance: AUTH_SOURCE_DEFAULT_BALANCE,
+      concurrency: AUTH_SOURCE_DEFAULT_CONCURRENCY,
+      subscriptions: [],
+      grant_on_signup: false,
+      grant_on_first_bind: false,
+    };
     target[`auth_source_default_${source}_balance`] =
       Number(current.balance) || 0;
     target[`auth_source_default_${source}_concurrency`] = Math.max(
@@ -310,15 +316,32 @@ export function deriveWeChatConnectStoredMode(
 /**
  * System settings interface
  */
+export interface CodeFormatSettings {
+  prefix: string;
+  suffix: string;
+  random_length: number;
+  separator: string;
+  group_size: number;
+  group_count?: number;
+  chars_per_group?: number;
+  charset?: "digits" | "letters" | "mixed" | string;
+  letter_case?: "upper" | "lower" | string;
+}
+
 export interface SystemSettings {
   // Registration settings
   registration_enabled: boolean;
   email_verify_enabled: boolean;
   registration_email_suffix_whitelist: string[];
   promo_code_enabled: boolean;
+  redeem_code_format: CodeFormatSettings;
+  balance_code_format: CodeFormatSettings;
+  concurrency_code_format: CodeFormatSettings;
+  subscription_code_format: CodeFormatSettings;
   password_reset_enabled: boolean;
   frontend_url: string;
   invitation_code_enabled: boolean;
+  invitation_code_format: CodeFormatSettings;
   totp_enabled: boolean; // TOTP 双因素认证
   totp_encryption_key_configured: boolean; // TOTP 加密密钥是否已配置
   login_agreement_enabled: boolean;
@@ -327,6 +350,7 @@ export interface SystemSettings {
   login_agreement_documents: LoginAgreementDocument[];
   // Default settings
   default_balance: number;
+  affiliate_code_format: CodeFormatSettings;
   affiliate_rebate_rate: number;
   affiliate_rebate_freeze_hours: number;
   affiliate_rebate_duration_days: number;
@@ -378,6 +402,16 @@ export interface SystemSettings {
   contact_info: string;
   doc_url: string;
   home_content: string;
+  home_nav_links_enabled?: boolean;
+  home_nav_leaderboard_enabled: boolean;
+  home_nav_key_usage_enabled: boolean;
+  home_nav_monitoring_enabled: boolean;
+  home_nav_pricing_enabled: boolean;
+  leaderboard_balance_enabled: boolean;
+  leaderboard_consumption_enabled: boolean;
+  leaderboard_transfer_enabled: boolean;
+  leaderboard_checkin_enabled: boolean;
+  leaderboard_include_admin_enabled: boolean;
   hide_ccs_import_button: boolean;
   table_default_page_size: number;
   table_page_size_options: number[];
@@ -543,12 +577,38 @@ export interface SystemSettings {
   account_quota_notify_enabled: boolean;
   account_quota_notify_emails: NotifyEmailEntry[];
 
+  // Checkin 签到设置
+  checkin_enabled: boolean;
+  checkin_min_balance: number;
+  checkin_max_balance: number;
+  // Checkin Luck 运气签到设置
+  checkin_luck_enabled: boolean;
+  checkin_luck_min_multiplier: number;
+  checkin_luck_max_multiplier: number;
+
+  // Checkin Blind Box
+  checkin_blindbox_enabled: boolean;
+  checkin_blindbox_trigger_type: string;
+  checkin_blindbox_interval: number;
+
   // Channel Monitor feature switch
   channel_monitor_enabled: boolean;
   channel_monitor_default_interval_seconds: number;
 
   // Available Channels feature switch
   available_channels_enabled: boolean;
+
+  // Balance Transfer 余额流转设置
+  transfer_enabled: boolean;
+  transfer_fee_rate: number;
+  transfer_min_amount: number;
+  transfer_max_amount: number;
+  transfer_daily_limit: number;
+  transfer_daily_count_limit: number;
+  transfer_vip_fee_exempt: boolean;
+  redpacket_enabled: boolean;
+  redpacket_max_count: number;
+  redpacket_expire_hours: number;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
@@ -562,15 +622,21 @@ export interface UpdateSettingsRequest {
   email_verify_enabled?: boolean;
   registration_email_suffix_whitelist?: string[];
   promo_code_enabled?: boolean;
+  redeem_code_format?: CodeFormatSettings;
+  balance_code_format?: CodeFormatSettings;
+  concurrency_code_format?: CodeFormatSettings;
+  subscription_code_format?: CodeFormatSettings;
   password_reset_enabled?: boolean;
   frontend_url?: string;
   invitation_code_enabled?: boolean;
+  invitation_code_format?: CodeFormatSettings;
   totp_enabled?: boolean; // TOTP 双因素认证
   login_agreement_enabled?: boolean;
   login_agreement_mode?: "modal" | "checkbox" | string;
   login_agreement_updated_at?: string;
   login_agreement_documents?: LoginAgreementDocument[];
   default_balance?: number;
+  affiliate_code_format?: CodeFormatSettings;
   affiliate_rebate_rate?: number;
   affiliate_rebate_freeze_hours?: number;
   affiliate_rebate_duration_days?: number;
@@ -621,6 +687,16 @@ export interface UpdateSettingsRequest {
   contact_info?: string;
   doc_url?: string;
   home_content?: string;
+  home_nav_links_enabled?: boolean;
+  home_nav_leaderboard_enabled?: boolean;
+  home_nav_key_usage_enabled?: boolean;
+  home_nav_monitoring_enabled?: boolean;
+  home_nav_pricing_enabled?: boolean;
+  leaderboard_balance_enabled?: boolean;
+  leaderboard_consumption_enabled?: boolean;
+  leaderboard_transfer_enabled?: boolean;
+  leaderboard_checkin_enabled?: boolean;
+  leaderboard_include_admin_enabled?: boolean;
   hide_ccs_import_button?: boolean;
   table_default_page_size?: number;
   table_page_size_options?: number[];
@@ -760,6 +836,18 @@ export interface UpdateSettingsRequest {
   balance_low_notify_recharge_url?: string;
   account_quota_notify_enabled?: boolean;
   account_quota_notify_emails?: NotifyEmailEntry[];
+  // Checkin 签到设置
+  checkin_enabled?: boolean;
+  checkin_min_balance?: number;
+  checkin_max_balance?: number;
+  // Checkin Luck 运气签到设置
+  checkin_luck_enabled?: boolean;
+  checkin_luck_min_multiplier?: number;
+  checkin_luck_max_multiplier?: number;
+  // Checkin Blind Box
+  checkin_blindbox_enabled?: boolean;
+  checkin_blindbox_trigger_type?: string;
+  checkin_blindbox_interval?: number;
 
   // Channel Monitor feature switch
   channel_monitor_enabled?: boolean;
@@ -773,10 +861,20 @@ export interface UpdateSettingsRequest {
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
-}
 
+  // Balance Transfer 余额流转设置
+  transfer_enabled?: boolean;
+  transfer_fee_rate?: number;
+  transfer_min_amount?: number;
+  transfer_max_amount?: number;
+  transfer_daily_limit?: number;
+  transfer_daily_count_limit?: number;
+  transfer_vip_fee_exempt?: boolean;
+  redpacket_enabled?: boolean;
+  redpacket_max_count?: number;
+  redpacket_expire_hours?: number;
+}
 /**
- * Get all system settings
  * @returns System settings
  */
 export async function getSettings(): Promise<SystemSettings> {

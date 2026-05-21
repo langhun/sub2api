@@ -204,6 +204,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.RequestType,
 			filters.Stream,
 			filters.BillingType,
+			0,
 		)
 		if err != nil {
 			return nil, errors.New("failed to get model statistics")

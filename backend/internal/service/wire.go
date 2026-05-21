@@ -30,6 +30,17 @@ func ProvidePricingService(cfg *config.Config, remoteClient PricingRemoteClient)
 	return svc, nil
 }
 
+// ProvideModelPricingAdminService creates and initializes ModelPricingAdminService
+func ProvideModelPricingAdminService(client *dbent.Client, db *sql.DB, cfg *config.Config, remoteClient PricingRemoteClient, channelService *ChannelService, pricingService *PricingService) (*ModelPricingAdminService, error) {
+	svc := NewModelPricingAdminService(client, db, cfg, remoteClient, channelService, pricingService)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	if err := svc.Initialize(ctx); err != nil {
+		println("[Service] Warning: ModelPricingAdminService initialization failed:", err.Error())
+	}
+	return svc, nil
+}
+
 // ProvideUpdateService creates UpdateService with BuildInfo
 func ProvideUpdateService(cache UpdateCache, githubClient GitHubReleaseClient, buildInfo BuildInfo) *UpdateService {
 	return NewUpdateService(cache, githubClient, buildInfo.Version, buildInfo.BuildType)
@@ -58,11 +69,13 @@ func ProvideTokenRefreshService(
 	tempUnschedCache TempUnschedCache,
 	privacyClientFactory PrivacyClientFactory,
 	proxyRepo ProxyRepository,
+	proxyPool *AutoFailoverProxyPoolService,
 	refreshAPI *OAuthRefreshAPI,
 ) *TokenRefreshService {
 	svc := NewTokenRefreshService(accountRepo, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, cacheInvalidator, schedulerCache, cfg, tempUnschedCache)
 	// 注入 OpenAI privacy opt-out 依赖
 	svc.SetPrivacyDeps(privacyClientFactory, proxyRepo)
+	svc.SetAutoFailoverProxyPool(proxyPool)
 	// 注入统一 OAuth 刷新 API（消除 TokenRefreshService 与 TokenProvider 之间的竞争条件）
 	svc.SetRefreshAPI(refreshAPI)
 	// 调用侧显式注入后台刷新策略，避免策略漂移
@@ -146,6 +159,18 @@ func ProvideUsageCleanupService(repo UsageCleanupRepository, timingWheel *Timing
 // ProvideAccountExpiryService creates and starts AccountExpiryService.
 func ProvideAccountExpiryService(accountRepo AccountRepository) *AccountExpiryService {
 	svc := NewAccountExpiryService(accountRepo, time.Minute)
+	svc.Start()
+	return svc
+}
+
+// ProvideUngroupedAccountAutoTestService creates and starts the background
+// ungrouped-account auto-test worker.
+func ProvideUngroupedAccountAutoTestService(
+	accountRepo AccountRepository,
+	accountTestSvc *AccountTestService,
+	cfg *config.Config,
+) *UngroupedAccountAutoTestService {
+	svc := NewUngroupedAccountAutoTestService(accountRepo, accountTestSvc, cfg)
 	svc.Start()
 	return svc
 }
@@ -235,11 +260,12 @@ func ProvideOpsMetricsCollector(
 	settingRepo SettingRepository,
 	accountRepo AccountRepository,
 	concurrencyService *ConcurrencyService,
+	proxyLatencyCache ProxyLatencyCache,
 	db *sql.DB,
 	redisClient *redis.Client,
 	cfg *config.Config,
 ) *OpsMetricsCollector {
-	collector := NewOpsMetricsCollector(opsRepo, settingRepo, accountRepo, concurrencyService, db, redisClient, cfg)
+	collector := NewOpsMetricsCollector(opsRepo, settingRepo, accountRepo, concurrencyService, proxyLatencyCache, db, redisClient, cfg)
 	collector.Start()
 	return collector
 }
@@ -352,9 +378,11 @@ func ProvideScheduledTestRunnerService(
 	scheduledSvc *ScheduledTestService,
 	accountTestSvc *AccountTestService,
 	rateLimitSvc *RateLimitService,
+	accountRepo AccountRepository,
+	groupRepo GroupRepository,
 	cfg *config.Config,
 ) *ScheduledTestRunnerService {
-	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, cfg)
+	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, accountRepo, groupRepo, cfg)
 	svc.Start()
 	return svc
 }
@@ -399,6 +427,152 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	svc.SetProxyRepository(proxyRepo)
 	antigravity.SetUserAgentVersionResolver(svc.GetAntigravityUserAgentVersion)
 	return svc
+}
+
+func ProvideAutoFailoverProxyPoolService(
+	proxyRepo ProxyRepository,
+	accountRepo AccountRepository,
+	settingService *SettingService,
+	proxyLatencyCache ProxyLatencyCache,
+	proxyProber ProxyExitInfoProber,
+) *AutoFailoverProxyPoolService {
+	svc := NewAutoFailoverProxyPoolService(proxyRepo, accountRepo, settingService, proxyLatencyCache, proxyProber)
+	svc.Start()
+	return svc
+}
+
+func ProvideProxySubscriptionService(
+	sourceRepo ProxySubscriptionSourceRepository,
+	nodeRepo ProxySubscriptionNodeRepository,
+	proxyRepo ProxyRepository,
+	accountRepo AccountRepository,
+	settingService *SettingService,
+	runtime ProxySubscriptionRuntimeManager,
+	proxyProber ProxyExitInfoProber,
+	cfg *config.Config,
+) *ProxySubscriptionService {
+	svc := NewProxySubscriptionService(sourceRepo, nodeRepo, proxyRepo, accountRepo, settingService, runtime, cfg)
+	svc.SetProxyProber(proxyProber)
+	return svc
+}
+
+func ProvideProxySubscriptionRefreshService(
+	sourceRepo ProxySubscriptionSourceRepository,
+	subscriptionService *ProxySubscriptionService,
+	cfg *config.Config,
+) *ProxySubscriptionRefreshService {
+	svc := NewProxySubscriptionRefreshService(sourceRepo, subscriptionService, cfg)
+	svc.Start()
+	return svc
+}
+
+func ProvideProxySubscriptionRuntimeRehydrateService(
+	subscriptionService *ProxySubscriptionService,
+	sourceRepo ProxySubscriptionSourceRepository,
+	cfg *config.Config,
+) *ProxySubscriptionRuntimeRehydrateService {
+	svc := NewProxySubscriptionRuntimeRehydrateService(subscriptionService, sourceRepo, cfg)
+	svc.Start()
+	return svc
+}
+
+func ProvideOpenAIOAuthService(
+	proxyRepo ProxyRepository,
+	oauthClient OpenAIOAuthClient,
+	proxyPool *AutoFailoverProxyPoolService,
+) *OpenAIOAuthService {
+	svc := NewOpenAIOAuthService(proxyRepo, oauthClient)
+	svc.SetAutoFailoverProxyPool(proxyPool)
+	return svc
+}
+
+func ProvideAntigravityOAuthService(
+	proxyRepo ProxyRepository,
+	proxyPool *AutoFailoverProxyPoolService,
+) *AntigravityOAuthService {
+	svc := NewAntigravityOAuthService(proxyRepo)
+	svc.SetAutoFailoverProxyPool(proxyPool)
+	return svc
+}
+
+func ProvideOpenAIGatewayService(
+	accountRepo AccountRepository,
+	usageLogRepo UsageLogRepository,
+	usageBillingRepo UsageBillingRepository,
+	userRepo UserRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache GatewayCache,
+	cfg *config.Config,
+	schedulerSnapshot *SchedulerSnapshotService,
+	concurrencyService *ConcurrencyService,
+	billingService *BillingService,
+	rateLimitService *RateLimitService,
+	billingCacheService *BillingCacheService,
+	httpUpstream HTTPUpstream,
+	deferredService *DeferredService,
+	openAITokenProvider *OpenAITokenProvider,
+	resolver *ModelPricingResolver,
+	channelService *ChannelService,
+	balanceNotifyService *BalanceNotifyService,
+	settingService *SettingService,
+	proxyPool *AutoFailoverProxyPoolService,
+) *OpenAIGatewayService {
+	svc := NewOpenAIGatewayService(
+		accountRepo,
+		usageLogRepo,
+		usageBillingRepo,
+		userRepo,
+		userSubRepo,
+		userGroupRateRepo,
+		cache,
+		cfg,
+		schedulerSnapshot,
+		concurrencyService,
+		billingService,
+		rateLimitService,
+		billingCacheService,
+		httpUpstream,
+		deferredService,
+		openAITokenProvider,
+		resolver,
+		channelService,
+		balanceNotifyService,
+		settingService,
+	)
+	svc.SetAutoFailoverProxyPool(proxyPool)
+	return svc
+}
+
+func ProvideAntigravityGatewayService(
+	accountRepo AccountRepository,
+	cache GatewayCache,
+	schedulerSnapshot *SchedulerSnapshotService,
+	tokenProvider *AntigravityTokenProvider,
+	rateLimitService *RateLimitService,
+	httpUpstream HTTPUpstream,
+	settingService *SettingService,
+	internal500Cache Internal500CounterCache,
+	proxyPool *AutoFailoverProxyPoolService,
+) *AntigravityGatewayService {
+	svc := NewAntigravityGatewayService(
+		accountRepo,
+		cache,
+		schedulerSnapshot,
+		tokenProvider,
+		rateLimitService,
+		httpUpstream,
+		settingService,
+		internal500Cache,
+	)
+	svc.SetAutoFailoverProxyPool(proxyPool)
+	return svc
+}
+
+func ProvideAntigravityQuotaFetcher(proxyRepo ProxyRepository, proxyPool *AutoFailoverProxyPoolService) *AntigravityQuotaFetcher {
+	fetcher := NewAntigravityQuotaFetcher(proxyRepo)
+	fetcher.SetAutoFailoverProxyPool(proxyPool)
+	return fetcher
 }
 
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
@@ -450,25 +624,29 @@ var ProviderSet = wire.NewSet(
 	NewAnnouncementService,
 	NewAdminService,
 	NewGatewayService,
-	NewOpenAIGatewayService,
+	ProvideOpenAIGatewayService,
 	NewOAuthService,
-	NewOpenAIOAuthService,
+	ProvideOpenAIOAuthService,
 	NewGeminiOAuthService,
 	NewGeminiQuotaService,
 	NewCompositeTokenCacheInvalidator,
 	wire.Bind(new(TokenCacheInvalidator), new(*CompositeTokenCacheInvalidator)),
-	NewAntigravityOAuthService,
+	ProvideAntigravityOAuthService,
 	ProvideOAuthRefreshAPI,
 	ProvideGeminiTokenProvider,
 	NewGeminiMessagesCompatService,
 	ProvideAntigravityTokenProvider,
 	ProvideOpenAITokenProvider,
 	ProvideClaudeTokenProvider,
-	NewAntigravityGatewayService,
+	ProvideAntigravityGatewayService,
 	ProvideRateLimitService,
 	NewAccountUsageService,
 	NewAccountTestService,
 	ProvideSettingService,
+	ProvideAutoFailoverProxyPoolService,
+	ProvideProxySubscriptionService,
+	ProvideProxySubscriptionRefreshService,
+	ProvideProxySubscriptionRuntimeRehydrateService,
 	NewDataManagementService,
 	ProvideBackupService,
 	ProvideOpsSystemLogSink,
@@ -493,12 +671,13 @@ var ProviderSet = wire.NewSet(
 	ProvideUpdateService,
 	ProvideTokenRefreshService,
 	ProvideAccountExpiryService,
+	ProvideUngroupedAccountAutoTestService,
 	ProvideSubscriptionExpiryService,
 	ProvideTimingWheelService,
 	ProvideDashboardAggregationService,
 	ProvideUsageCleanupService,
 	ProvideDeferredService,
-	NewAntigravityQuotaFetcher,
+	ProvideAntigravityQuotaFetcher,
 	NewUserAttributeService,
 	NewUsageCache,
 	NewTotpService,
@@ -519,9 +698,15 @@ var ProviderSet = wire.NewSet(
 	ProvidePaymentService,
 	ProvidePaymentOrderExpiryService,
 	ProvideBalanceNotifyService,
+	NewCheckinService,
+	NewLeaderboardService,
+	NewBlindBoxService,
+	NewMonitoringService,
+	ProvideModelPricingAdminService,
 	ProvideChannelMonitorService,
 	ProvideChannelMonitorRunner,
 	NewChannelMonitorRequestTemplateService,
+	NewBalanceTransferService,
 )
 
 // ProvidePaymentConfigService wraps NewPaymentConfigService to accept the named

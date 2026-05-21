@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,6 +16,7 @@ import (
 var (
 	ErrRedeemCodeNotFound  = infraerrors.NotFound("REDEEM_CODE_NOT_FOUND", "redeem code not found")
 	ErrRedeemCodeUsed      = infraerrors.Conflict("REDEEM_CODE_USED", "redeem code already used")
+	ErrRedeemCodeConflict  = infraerrors.Conflict("REDEEM_CODE_CONFLICT", "redeem code already exists")
 	ErrRedeemCodeExpired   = infraerrors.Conflict("REDEEM_CODE_EXPIRED", "redeem code expired")
 	ErrInsufficientBalance = infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance")
 	ErrRedeemRateLimited   = infraerrors.TooManyRequests("REDEEM_RATE_LIMITED", "too many failed attempts, please try again later")
@@ -87,6 +86,7 @@ type RedeemService struct {
 	redeemRepo           RedeemCodeRepository
 	userRepo             UserRepository
 	subscriptionService  *SubscriptionService
+	settingService       *SettingService
 	cache                RedeemCache
 	billingCacheService  *BillingCacheService
 	entClient            *dbent.Client
@@ -99,6 +99,7 @@ func NewRedeemService(
 	redeemRepo RedeemCodeRepository,
 	userRepo UserRepository,
 	subscriptionService *SubscriptionService,
+	settingService *SettingService,
 	cache RedeemCache,
 	billingCacheService *BillingCacheService,
 	entClient *dbent.Client,
@@ -109,6 +110,7 @@ func NewRedeemService(
 		redeemRepo:           redeemRepo,
 		userRepo:             userRepo,
 		subscriptionService:  subscriptionService,
+		settingService:       settingService,
 		cache:                cache,
 		billingCacheService:  billingCacheService,
 		entClient:            entClient,
@@ -119,24 +121,24 @@ func NewRedeemService(
 
 // GenerateRandomCode 生成随机兑换码
 func (s *RedeemService) GenerateRandomCode() (string, error) {
-	// 生成16字节随机数据
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("generate random bytes: %w", err)
+	format := DefaultRedeemCodeFormat()
+	if s != nil && s.settingService != nil {
+		format = s.settingService.GetBalanceCodeFormat(context.Background())
 	}
+	return GenerateRedeemCodeWithFormat(format)
+}
 
-	// 转换为十六进制字符串
-	code := hex.EncodeToString(bytes)
+func (s *RedeemService) GenerateInvitationCode() (string, error) {
+	format := s.GenerateInvitationFormat(context.Background())
+	return GenerateRegistrationInvitationCodeWithFormat(format)
+}
 
-	// 格式化为 XXXX-XXXX-XXXX-XXXX 格式
-	parts := []string{
-		strings.ToUpper(code[0:8]),
-		strings.ToUpper(code[8:16]),
-		strings.ToUpper(code[16:24]),
-		strings.ToUpper(code[24:32]),
+func (s *RedeemService) GenerateInvitationFormat(ctx context.Context) CodeFormatSettings {
+	format := DefaultRegistrationInvitationCodeFormat()
+	if s != nil && s.settingService != nil {
+		format = s.settingService.GetInvitationCodeFormat(ctx)
 	}
-
-	return strings.Join(parts, "-"), nil
+	return format
 }
 
 // GenerateCodes 批量生成兑换码
@@ -167,7 +169,15 @@ func (s *RedeemService) GenerateCodes(ctx context.Context, req GenerateCodesRequ
 
 	codes := make([]RedeemCode, 0, req.Count)
 	for i := 0; i < req.Count; i++ {
-		code, err := s.GenerateRandomCode()
+		var (
+			code string
+			err  error
+		)
+		if codeType == RedeemTypeInvitation {
+			code, err = s.GenerateInvitationCode()
+		} else {
+			code, err = s.GenerateRandomCode()
+		}
 		if err != nil {
 			return nil, fmt.Errorf("generate code: %w", err)
 		}
@@ -202,6 +212,16 @@ func (s *RedeemService) CreateCode(ctx context.Context, code *RedeemCode) error 
 	if code.Type == "" {
 		code.Type = RedeemTypeBalance
 	}
+	if code.Type == RedeemTypeInvitation {
+		format := DefaultRegistrationInvitationCodeFormat()
+		if s != nil && s.settingService != nil {
+			format = s.settingService.GetInvitationCodeFormat(ctx)
+		}
+		code.Code = NormalizeCodeValueWithFormat(code.Code, format)
+		if !IsCodeMatchingFormat(code.Code, format) {
+			return infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid invitation code format")
+		}
+	}
 	if code.Type != RedeemTypeInvitation && code.Value == 0 {
 		return errors.New("value must not be zero")
 	}
@@ -214,6 +234,30 @@ func (s *RedeemService) CreateCode(ctx context.Context, code *RedeemCode) error 
 
 	if err := s.redeemRepo.Create(ctx, code); err != nil {
 		return fmt.Errorf("create redeem code: %w", err)
+	}
+	return nil
+}
+
+func (s *RedeemService) UpdateCode(ctx context.Context, code *RedeemCode) error {
+	if code == nil {
+		return errors.New("redeem code is required")
+	}
+	code.Code = strings.TrimSpace(code.Code)
+	if code.Code == "" {
+		return errors.New("code is required")
+	}
+	if code.Type == RedeemTypeInvitation {
+		format := DefaultRegistrationInvitationCodeFormat()
+		if s != nil && s.settingService != nil {
+			format = s.settingService.GetInvitationCodeFormat(ctx)
+		}
+		code.Code = NormalizeCodeValueWithFormat(code.Code, format)
+		if !IsCodeMatchingFormat(code.Code, format) {
+			return infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid invitation code format")
+		}
+	}
+	if err := s.redeemRepo.Update(ctx, code); err != nil {
+		return fmt.Errorf("update redeem code: %w", err)
 	}
 	return nil
 }
@@ -272,6 +316,7 @@ func (s *RedeemService) releaseRedeemLock(ctx context.Context, code string) {
 
 // Redeem 使用兑换码
 func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (*RedeemCode, error) {
+	code = strings.TrimSpace(code)
 	// 检查限流
 	if err := s.checkRedeemRateLimit(ctx, userID); err != nil {
 		return nil, err
@@ -475,6 +520,7 @@ func (s *RedeemService) GetByID(ctx context.Context, id int64) (*RedeemCode, err
 
 // GetByCode 根据Code获取兑换码
 func (s *RedeemService) GetByCode(ctx context.Context, code string) (*RedeemCode, error) {
+	code = strings.TrimSpace(code)
 	redeemCode, err := s.redeemRepo.GetByCode(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("get redeem code: %w", err)

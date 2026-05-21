@@ -315,6 +315,25 @@ func TestTokenRefreshService_RefreshWithRetry_UsesCredentialsUpdater(t *testing.
 	require.WithinDuration(t, resetAt, *account.RateLimitResetAt, time.Second)
 }
 
+func TestTokenRefreshService_PostRefreshActions_ClearsExpiredTempUnschedulableCache(t *testing.T) {
+	repo := &tokenRefreshAccountRepo{}
+	cache := &tempUnschedCacheStub{}
+	cfg := &config.Config{}
+	service := NewTokenRefreshService(repo, nil, nil, nil, nil, nil, nil, cfg, cache)
+	expiredAt := time.Now().Add(-5 * time.Minute)
+	account := &Account{
+		ID:                     18,
+		Platform:               PlatformOpenAI,
+		Type:                   AccountTypeOAuth,
+		TempUnschedulableUntil: &expiredAt,
+	}
+
+	service.postRefreshActions(context.Background(), account)
+
+	require.Equal(t, 1, repo.clearTempCalls)
+	require.Equal(t, 1, cache.deleteCalls)
+}
+
 // TestTokenRefreshService_RefreshWithRetry_UpdateFailed 测试更新失败的情况
 func TestTokenRefreshService_RefreshWithRetry_UpdateFailed(t *testing.T) {
 	repo := &tokenRefreshAccountRepo{updateErr: errors.New("update failed")}
@@ -531,7 +550,9 @@ func TestIsNonRetryableRefreshError(t *testing.T) {
 		{name: "nil_error", err: nil, expected: false},
 		{name: "network_error", err: errors.New("network timeout"), expected: false},
 		{name: "invalid_grant", err: errors.New("invalid_grant"), expected: true},
+		{name: "refresh_token_reused", err: errors.New("refresh_token_reused"), expected: true},
 		{name: "invalid_client", err: errors.New("invalid_client"), expected: true},
+		{name: "refresh_token_reused", err: errors.New(`OPENAI_OAUTH_TOKEN_REFRESH_FAILED: token refresh failed: status 401, body: {"error":{"code":"refresh_token_reused"}}`), expected: true},
 		{name: "unauthorized_client", err: errors.New("unauthorized_client"), expected: true},
 		{name: "access_denied", err: errors.New("access_denied"), expected: true},
 		{name: "no_refresh_token", err: errors.New("no refresh token available"), expected: true},

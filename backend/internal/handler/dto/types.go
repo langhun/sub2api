@@ -265,34 +265,101 @@ type AccountGroup struct {
 }
 
 type Proxy struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	Protocol  string    `json:"protocol"`
-	Host      string    `json:"host"`
-	Port      int       `json:"port"`
-	Username  string    `json:"username"`
-	Password  string    `json:"-"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID                      int64     `json:"id"`
+	Name                    string    `json:"name"`
+	Protocol                string    `json:"protocol"`
+	Host                    string    `json:"host"`
+	Port                    int       `json:"port"`
+	Username                string    `json:"username"`
+	Password                string    `json:"-"`
+	Status                  string    `json:"status"`
+	AutoFailoverPoolEnabled bool      `json:"auto_failover_pool_enabled"`
+	ManagedBySubscription   bool      `json:"managed_by_subscription"`
+	SubscriptionSourceID    *int64    `json:"subscription_source_id,omitempty"`
+	SubscriptionSourceName  string    `json:"subscription_source_name,omitempty"`
+	SubscriptionNodeID      *int64    `json:"subscription_node_id,omitempty"`
+	SubscriptionNodeType    string    `json:"subscription_node_type,omitempty"`
+	CreatedAt               time.Time `json:"created_at"`
+	UpdatedAt               time.Time `json:"updated_at"`
 }
 
 type ProxyWithAccountCount struct {
 	Proxy
-	AccountCount   int64  `json:"account_count"`
-	LatencyMs      *int64 `json:"latency_ms,omitempty"`
-	LatencyStatus  string `json:"latency_status,omitempty"`
-	LatencyMessage string `json:"latency_message,omitempty"`
-	IPAddress      string `json:"ip_address,omitempty"`
-	Country        string `json:"country,omitempty"`
-	CountryCode    string `json:"country_code,omitempty"`
-	Region         string `json:"region,omitempty"`
-	City           string `json:"city,omitempty"`
-	QualityStatus  string `json:"quality_status,omitempty"`
-	QualityScore   *int   `json:"quality_score,omitempty"`
-	QualityGrade   string `json:"quality_grade,omitempty"`
-	QualitySummary string `json:"quality_summary,omitempty"`
-	QualityChecked *int64 `json:"quality_checked,omitempty"`
+	AccountCount        int64  `json:"account_count"`
+	LatencyMs           *int64 `json:"latency_ms,omitempty"`
+	LatencyStatus       string `json:"latency_status,omitempty"`
+	LatencyMessage      string `json:"latency_message,omitempty"`
+	IPAddress           string `json:"ip_address,omitempty"`
+	Country             string `json:"country,omitempty"`
+	CountryCode         string `json:"country_code,omitempty"`
+	Region              string `json:"region,omitempty"`
+	City                string `json:"city,omitempty"`
+	QualityStatus       string `json:"quality_status,omitempty"`
+	QualityScore        *int   `json:"quality_score,omitempty"`
+	QualityGrade        string `json:"quality_grade,omitempty"`
+	QualitySummary      string `json:"quality_summary,omitempty"`
+	QualityChecked      *int64 `json:"quality_checked,omitempty"`
+	HealthStatus        string `json:"health_status,omitempty"`
+	CooldownUntilUnix   *int64 `json:"cooldown_until_unix,omitempty"`
+	LastFailReason      string `json:"last_fail_reason,omitempty"`
+	LastFailAtUnix      *int64 `json:"last_fail_at_unix,omitempty"`
+	LastRecoveredAtUnix *int64 `json:"last_recovered_at_unix,omitempty"`
+	FailoverSwitchCount *int64 `json:"failover_switch_count,omitempty"`
+}
+
+type ProxySubscriptionSource struct {
+	ID                         int64      `json:"id"`
+	Name                       string     `json:"name"`
+	URL                        string     `json:"url"`
+	SourceFormat               string     `json:"source_format"`
+	Enabled                    bool       `json:"enabled"`
+	RefreshIntervalHours       int        `json:"refresh_interval_hours"`
+	TargetEntryCount           int        `json:"target_entry_count"`
+	AutoAddToPool              bool       `json:"auto_add_to_pool"`
+	LastRefreshedAt            *time.Time `json:"last_refreshed_at,omitempty"`
+	LastSuccessAt              *time.Time `json:"last_success_at,omitempty"`
+	LastError                  string     `json:"last_error,omitempty"`
+	LastNodeCount              int        `json:"last_node_count"`
+	LastMaterializedProxyCount int        `json:"last_materialized_proxy_count"`
+	CreatedAt                  time.Time  `json:"created_at"`
+	UpdatedAt                  time.Time  `json:"updated_at"`
+}
+
+type ProxySubscriptionNode struct {
+	ID            int64          `json:"id"`
+	SourceID      int64          `json:"source_id"`
+	NodeKey       string         `json:"node_key"`
+	DisplayName   string         `json:"display_name"`
+	NodeType      string         `json:"node_type"`
+	Server        string         `json:"server"`
+	Port          int            `json:"port"`
+	ConfigJSON    map[string]any `json:"config_json"`
+	LandingStatus string         `json:"landing_status"`
+	LastError     string         `json:"last_error,omitempty"`
+	LastSeenAt    time.Time      `json:"last_seen_at"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+}
+
+type ProxySubscriptionRefreshError struct {
+	NodeKey string `json:"node_key,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Message string `json:"message"`
+}
+
+type ProxySubscriptionRefreshResult struct {
+	SourceID               int64                           `json:"source_id"`
+	RefreshedAt            time.Time                       `json:"refreshed_at"`
+	NodeCount              int                             `json:"node_count"`
+	MaterializedProxyCount int                             `json:"materialized_proxy_count"`
+	CreatedProxyCount      int                             `json:"created_proxy_count"`
+	UpdatedProxyCount      int                             `json:"updated_proxy_count"`
+	DisabledProxyCount     int                             `json:"disabled_proxy_count"`
+	DeletedProxyCount      int                             `json:"deleted_proxy_count"`
+	SkippedNodeCount       int                             `json:"skipped_node_count"`
+	ConflictNodeCount      int                             `json:"conflict_node_count"`
+	UnsupportedNodeCount   int                             `json:"unsupported_node_count"`
+	Errors                 []ProxySubscriptionRefreshError `json:"errors"`
 }
 
 // AdminProxy 是管理员接口使用的 proxy DTO（包含密码等敏感字段）。
@@ -305,20 +372,26 @@ type AdminProxy struct {
 // AdminProxyWithAccountCount 是管理员接口使用的带账号统计的 proxy DTO。
 type AdminProxyWithAccountCount struct {
 	AdminProxy
-	AccountCount   int64  `json:"account_count"`
-	LatencyMs      *int64 `json:"latency_ms,omitempty"`
-	LatencyStatus  string `json:"latency_status,omitempty"`
-	LatencyMessage string `json:"latency_message,omitempty"`
-	IPAddress      string `json:"ip_address,omitempty"`
-	Country        string `json:"country,omitempty"`
-	CountryCode    string `json:"country_code,omitempty"`
-	Region         string `json:"region,omitempty"`
-	City           string `json:"city,omitempty"`
-	QualityStatus  string `json:"quality_status,omitempty"`
-	QualityScore   *int   `json:"quality_score,omitempty"`
-	QualityGrade   string `json:"quality_grade,omitempty"`
-	QualitySummary string `json:"quality_summary,omitempty"`
-	QualityChecked *int64 `json:"quality_checked,omitempty"`
+	AccountCount        int64  `json:"account_count"`
+	LatencyMs           *int64 `json:"latency_ms,omitempty"`
+	LatencyStatus       string `json:"latency_status,omitempty"`
+	LatencyMessage      string `json:"latency_message,omitempty"`
+	IPAddress           string `json:"ip_address,omitempty"`
+	Country             string `json:"country,omitempty"`
+	CountryCode         string `json:"country_code,omitempty"`
+	Region              string `json:"region,omitempty"`
+	City                string `json:"city,omitempty"`
+	QualityStatus       string `json:"quality_status,omitempty"`
+	QualityScore        *int   `json:"quality_score,omitempty"`
+	QualityGrade        string `json:"quality_grade,omitempty"`
+	QualitySummary      string `json:"quality_summary,omitempty"`
+	QualityChecked      *int64 `json:"quality_checked,omitempty"`
+	HealthStatus        string `json:"health_status,omitempty"`
+	CooldownUntilUnix   *int64 `json:"cooldown_until_unix,omitempty"`
+	LastFailReason      string `json:"last_fail_reason,omitempty"`
+	LastFailAtUnix      *int64 `json:"last_fail_at_unix,omitempty"`
+	LastRecoveredAtUnix *int64 `json:"last_recovered_at_unix,omitempty"`
+	FailoverSwitchCount *int64 `json:"failover_switch_count,omitempty"`
 }
 
 type ProxyAccountSummary struct {
@@ -347,8 +420,21 @@ type RedeemCode struct {
 	// so users can see why they were charged or credited
 	Notes *string `json:"notes,omitempty"`
 
+	// Multiplier and BetAmount are populated for checkin_luck type
+	Multiplier float64 `json:"multiplier,omitempty"`
+	BetAmount  float64 `json:"bet_amount,omitempty"`
+
 	User  *User  `json:"user,omitempty"`
 	Group *Group `json:"group,omitempty"`
+
+	SourceType      string `json:"source_type,omitempty"`
+	SourceSummary   string `json:"source_summary,omitempty"`
+	SourceUser      *User  `json:"source_user,omitempty"`
+	InviterUser     *User  `json:"inviter_user,omitempty"`
+	WinningUser     *User  `json:"winning_user,omitempty"`
+	WinningPrize    string `json:"winning_prize,omitempty"`
+	WinningReward   string `json:"winning_reward,omitempty"`
+	GeneratedByUser *User  `json:"generated_by_user,omitempty"`
 }
 
 // AdminRedeemCode 是管理员接口使用的 redeem code DTO（包含 notes 等字段）。

@@ -47,7 +47,16 @@ func (s *AntigravityGatewayService) applyInternal500Penalty(
 	case count == 2:
 		until := time.Now().Add(internal500PenaltyTier2Duration)
 		reason := fmt.Sprintf("INTERNAL 500 x%d (temp unsched %v)", count, internal500PenaltyTier2Duration)
-		if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); err != nil {
+		structuredReason := BuildTempUnschedReason(&TempUnschedState{
+			UntilUnix:       until.Unix(),
+			TriggeredAtUnix: time.Now().Unix(),
+			StatusCode:      http.StatusInternalServerError,
+			ReasonCode:      TempUnschedReasonCodeAntigravityInternal500Penalty,
+			MatchedKeyword:  "internal_500",
+			RuleIndex:       -1,
+			ErrorMessage:    reason,
+		}, reason)
+		if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, structuredReason); err != nil {
 			slog.Error("internal500_temp_unsched_failed", "account_id", account.ID, "error", err)
 			return
 		}
@@ -57,7 +66,16 @@ func (s *AntigravityGatewayService) applyInternal500Penalty(
 	case count == 1:
 		until := time.Now().Add(internal500PenaltyTier1Duration)
 		reason := fmt.Sprintf("INTERNAL 500 x%d (temp unsched %v)", count, internal500PenaltyTier1Duration)
-		if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); err != nil {
+		structuredReason := BuildTempUnschedReason(&TempUnschedState{
+			UntilUnix:       until.Unix(),
+			TriggeredAtUnix: time.Now().Unix(),
+			StatusCode:      http.StatusInternalServerError,
+			ReasonCode:      TempUnschedReasonCodeAntigravityInternal500Penalty,
+			MatchedKeyword:  "internal_500",
+			RuleIndex:       -1,
+			ErrorMessage:    reason,
+		}, reason)
+		if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, structuredReason); err != nil {
 			slog.Error("internal500_temp_unsched_failed", "account_id", account.ID, "error", err)
 			return
 		}

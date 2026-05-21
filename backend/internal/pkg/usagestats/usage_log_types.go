@@ -149,6 +149,7 @@ type UserUsageTrendPoint struct {
 type UserSpendingRankingItem struct {
 	UserID     int64   `json:"user_id"`
 	Email      string  `json:"email"`
+	Username   string  `json:"username"`
 	ActualCost float64 `json:"actual_cost"` // 实际扣除
 	Requests   int64   `json:"requests"`
 	Tokens     int64   `json:"tokens"`
@@ -272,6 +273,12 @@ type UsageLogFilters struct {
 	BillingMode string
 	StartTime   *time.Time
 	EndTime     *time.Time
+	// ModelLimit limits model distribution rows returned for model stats queries.
+	// Zero keeps the historical unbounded behavior for callers that do not opt in.
+	ModelLimit int
+	// EndpointLimit limits endpoint distribution rows returned with aggregate stats.
+	// Zero keeps the historical unbounded behavior for callers that do not opt in.
+	EndpointLimit int
 	// ExactTotal requests exact COUNT(*) for pagination. Default false for fast large-table paging.
 	ExactTotal bool
 }

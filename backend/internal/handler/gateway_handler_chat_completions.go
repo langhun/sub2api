@@ -78,6 +78,13 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 	reqStream := gjson.GetBytes(body, "stream").Bool()
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
 
+	// 验证模型是否存在（不存在的模型直接返回错误，不记录失败日志）
+	if !h.isModelAvailableForGroup(c, apiKey, reqModel) {
+		c.Set(service.OpsSkipPassthroughKey, true)
+		h.chatCompletionsErrorResponse(c, http.StatusNotFound, "not_found_error", "model '"+reqModel+"' does not exist")
+		return
+	}
+
 	setOpsRequestContext(c, reqModel, reqStream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(reqStream, false)))
 
@@ -290,6 +297,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 		requestPayloadHash := service.HashUsageRequestPayload(body)
 		inboundEndpoint := GetInboundEndpoint(c)
 		upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
+		authLatencyMs, hasAuthLatencyMs := getContextInt64(c, service.OpsAuthLatencyMsKey)
 
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
@@ -303,6 +311,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 				UserAgent:          userAgent,
 				IPAddress:          clientIP,
 				RequestPayloadHash: requestPayloadHash,
+				AuthLatencyMs:      optionalIntValue(authLatencyMs, hasAuthLatencyMs),
 				APIKeyService:      h.apiKeyService,
 				ChannelUsageFields: channelMapping.ToUsageFields(reqModel, result.UpstreamModel),
 			}); err != nil {

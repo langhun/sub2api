@@ -207,6 +207,15 @@ export interface PublicSettings {
   contact_info: string
   doc_url: string
   home_content: string
+  home_nav_links_enabled?: boolean
+  home_nav_leaderboard_enabled?: boolean
+  home_nav_key_usage_enabled?: boolean
+  home_nav_monitoring_enabled?: boolean
+  home_nav_pricing_enabled?: boolean
+  leaderboard_balance_enabled?: boolean
+  leaderboard_consumption_enabled?: boolean
+  leaderboard_transfer_enabled?: boolean
+  leaderboard_checkin_enabled?: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean
   risk_control_enabled: boolean
@@ -232,6 +241,8 @@ export interface PublicSettings {
   channel_monitor_enabled: boolean
   channel_monitor_default_interval_seconds: number
   available_channels_enabled: boolean
+  transfer_enabled?: boolean
+  redpacket_enabled?: boolean
   affiliate_enabled: boolean
 }
 
@@ -261,6 +272,44 @@ export interface Subscription {
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+export interface ProxySubscriptionSource {
+  id: number
+  name: string
+  url: string
+  source_format: 'auto' | 'direct_list' | 'uri_list' | 'clash_yaml'
+  enabled: boolean
+  refresh_interval_hours: number
+  target_entry_count: number
+  auto_add_to_pool: boolean
+  last_refreshed_at: string | null
+  last_success_at: string | null
+  last_error: string
+  last_node_count: number
+  last_materialized_proxy_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateProxySubscriptionSourceRequest {
+  name: string
+  url: string
+  source_format?: ProxySubscriptionSource['source_format']
+  enabled?: boolean
+  refresh_interval_hours?: number
+  target_entry_count?: number
+  auto_add_to_pool?: boolean
+}
+
+export interface UpdateProxySubscriptionSourceRequest {
+  name?: string
+  url?: string
+  source_format?: ProxySubscriptionSource['source_format']
+  enabled?: boolean
+  refresh_interval_hours?: number
+  target_entry_count?: number
+  auto_add_to_pool?: boolean
 }
 
 export interface CreateSubscriptionRequest {
@@ -373,6 +422,43 @@ export interface ProxyNode {
   is_available: boolean
   created_at: string
   updated_at: string
+}
+
+export interface ProxySubscriptionNode {
+  id: number
+  source_id: number
+  node_key: string
+  display_name: string
+  node_type: 'http' | 'https' | 'socks5' | 'socks5h' | 'ss' | 'ssr' | 'vmess' | 'vless' | 'trojan' | 'hysteria' | 'hysteria2'
+  server: string
+  port: number
+  config_json: Record<string, unknown>
+  landing_status: 'pending' | 'active' | 'conflicted' | 'unsupported' | 'failed' | 'stale'
+  last_error: string
+  last_seen_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProxySubscriptionRefreshError {
+  node_key?: string
+  name?: string
+  message: string
+}
+
+export interface ProxySubscriptionRefreshResult {
+  source_id: number
+  refreshed_at: string
+  node_count: number
+  materialized_proxy_count: number
+  created_proxy_count: number
+  updated_proxy_count: number
+  disabled_proxy_count: number
+  deleted_proxy_count: number
+  skipped_node_count: number
+  conflict_node_count: number
+  unsupported_node_count: number
+  errors: ProxySubscriptionRefreshError[]
 }
 
 // ==================== Conversion Types ====================
@@ -689,6 +775,12 @@ export interface Proxy {
   username: string | null
   password?: string | null
   status: 'active' | 'inactive'
+  auto_failover_pool_enabled?: boolean
+  managed_by_subscription?: boolean
+  subscription_source_id?: number | null
+  subscription_source_name?: string
+  subscription_node_id?: number | null
+  subscription_node_type?: string
   account_count?: number // Number of accounts using this proxy
   latency_ms?: number
   latency_status?: 'success' | 'failed'
@@ -703,6 +795,12 @@ export interface Proxy {
   quality_grade?: string
   quality_summary?: string
   quality_checked?: number
+  health_status?: 'healthy' | 'failed' | 'cooldown'
+  cooldown_until_unix?: number
+  last_fail_reason?: string
+  last_fail_at_unix?: number
+  last_recovered_at_unix?: number
+  failover_switch_count?: number
   created_at: string
   updated_at: string
 }
@@ -739,6 +837,52 @@ export interface ProxyQualityCheckResult {
   challenge_count: number
   checked_at: number
   items: ProxyQualityCheckItem[]
+}
+
+export interface AssignProxyAccountsRequest {
+  proxy_ids: number[]
+  dry_run: boolean
+  filters?: {
+    platforms?: string[]
+    group_ids?: number[]
+    statuses?: string[]
+  }
+}
+
+export interface ProxyAccountAssignmentAccount {
+  account_id: number
+  account_name: string
+  platform: AccountPlatform
+  type: AccountType
+  status: string
+  assigned: boolean
+  skipped_reason?: string
+}
+
+export interface ProxyAccountAssignmentProxy {
+  proxy_id: number
+  proxy_name: string
+  before_account_count: number
+  planned_count: number
+  assigned_count: number
+  after_account_count: number
+  accounts: ProxyAccountAssignmentAccount[]
+}
+
+export interface ProxyAccountAssignmentResult {
+  dry_run: boolean
+  matched_account_count: number
+  unique_account_count: number
+  duplicate_hit_count: number
+  planned_assignment_count: number
+  actual_assignment_count: number
+  proxies: ProxyAccountAssignmentProxy[]
+}
+
+export interface ProxyUnassignAccountsResult {
+  proxy_ids: number[]
+  matched_accounts: number
+  unassigned_accounts: number
 }
 
 // Gemini credentials structure for OAuth and API Key authentication
@@ -889,6 +1033,48 @@ export interface Account {
   current_window_cost?: number | null // 当前窗口费用
   active_sessions?: number | null // 当前活跃会话数
   current_rpm?: number | null // 当前分钟 RPM 计数
+}
+
+export interface DuplicateAccountCheckRequest {
+  platforms?: string[]
+  group_ids?: number[]
+  statuses?: string[]
+  include_inactive?: boolean
+}
+
+export interface DuplicateAccountGroupRef {
+  id: number
+  name: string
+}
+
+export interface DuplicateAccountSummary {
+  id: number
+  name: string
+  platform: AccountPlatform
+  type: AccountType
+  status: string
+  proxy_id: number | null
+  groups: DuplicateAccountGroupRef[]
+}
+
+export interface DuplicateAccountGroup {
+  key_type: string
+  severity: 'strong' | 'weak'
+  platform: AccountPlatform | string
+  type?: AccountType | string
+  masked_value: string
+  value_hash: string
+  account_count: number
+  accounts: DuplicateAccountSummary[]
+}
+
+export interface DuplicateAccountCheckResult {
+  total_accounts: number
+  duplicate_group_count: number
+  duplicate_account_count: number
+  strong_group_count: number
+  weak_group_count: number
+  groups: DuplicateAccountGroup[]
 }
 
 // Account Usage types
@@ -1055,6 +1241,7 @@ export interface CreateProxyRequest {
   port: number
   username?: string | null
   password?: string | null
+  auto_failover_pool_enabled?: boolean
 }
 
 export interface UpdateProxyRequest {
@@ -1065,6 +1252,7 @@ export interface UpdateProxyRequest {
   username?: string | null
   password?: string | null
   status?: 'active' | 'inactive'
+  auto_failover_pool_enabled?: boolean
 }
 
 export interface AdminDataPayload {
@@ -1124,6 +1312,7 @@ export interface CodexSessionImportRequest {
   notes?: string | null
   group_ids?: number[]
   proxy_id?: number | null
+  proxy_mode?: 'direct' | 'single' | 'pool'
   concurrency?: number
   priority?: number
   rate_multiplier?: number
@@ -1164,7 +1353,18 @@ export interface CodexSessionImportResult {
 
 // ==================== Usage & Redeem Types ====================
 
-export type RedeemCodeType = 'balance' | 'concurrency' | 'subscription' | 'invitation'
+export type RedeemCodeType =
+  | 'balance'
+  | 'concurrency'
+  | 'subscription'
+  | 'invitation'
+  | 'checkin'
+  | 'checkin_luck'
+  | 'checkin_blindbox'
+  | 'registration'
+  | 'admin_balance'
+  | 'admin_concurrency'
+  | 'affiliate_balance'
 export type UsageRequestType = 'unknown' | 'sync' | 'stream' | 'ws_v2'
 export type ImageSizeSource = 'output' | 'input' | 'default' | 'legacy'
 export type ImageSizeBreakdown = Record<string, number>
@@ -1299,6 +1499,15 @@ export interface RedeemCode {
   validity_days?: number // 订阅类型专用
   user?: User
   group?: Group // 关联的分组
+  notes?: string | null
+  source_type?: string
+  source_summary?: string
+  source_user?: User
+  inviter_user?: User
+  winning_user?: User
+  winning_prize?: string
+  winning_reward?: string
+  generated_by_user?: User
 }
 
 export interface GenerateRedeemCodesRequest {
@@ -1450,6 +1659,7 @@ export interface UserUsageTrendPoint {
 export interface UserSpendingRankingItem {
   user_id: number
   email: string
+  username?: string
   actual_cost: number
   requests: number
   tokens: number
@@ -1804,6 +2014,9 @@ export interface ScheduledTestPlan {
   enabled: boolean
   max_results: number
   auto_recover: boolean
+  delete_on_confirmed_401: boolean
+  switch_group_from_id: number | null
+  switch_group_to_id: number | null
   last_run_at: string | null
   next_run_at: string | null
   created_at: string
@@ -1817,6 +2030,9 @@ export interface ScheduledTestResult {
   response_text: string
   error_message: string
   latency_ms: number
+  http_status_code: number | null
+  attempt_no: number | null
+  action_taken: string | null
   started_at: string
   finished_at: string
   created_at: string
@@ -1829,6 +2045,9 @@ export interface CreateScheduledTestPlanRequest {
   enabled?: boolean
   max_results?: number
   auto_recover?: boolean
+  delete_on_confirmed_401?: boolean
+  switch_group_from_id?: number | null
+  switch_group_to_id?: number | null
 }
 
 export interface UpdateScheduledTestPlanRequest {
@@ -1837,6 +2056,9 @@ export interface UpdateScheduledTestPlanRequest {
   enabled?: boolean
   max_results?: number
   auto_recover?: boolean
+  delete_on_confirmed_401?: boolean
+  switch_group_from_id?: number | null
+  switch_group_to_id?: number | null
 }
 
 // Payment types

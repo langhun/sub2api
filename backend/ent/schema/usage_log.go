@@ -53,10 +53,6 @@ func (UsageLog) Fields() []ent.Field {
 			MaxLen(100).
 			Optional().
 			Nillable(),
-		field.Int64("channel_id").Optional().Nillable().Comment("渠道 ID"),
-		field.String("model_mapping_chain").MaxLen(500).Optional().Nillable().Comment("模型映射链"),
-		field.String("billing_tier").MaxLen(50).Optional().Nillable().Comment("计费层级标签"),
-		field.String("billing_mode").MaxLen(20).Optional().Nillable().Comment("计费模式：token/per_request/image"),
 		field.Int64("group_id").
 			Optional().
 			Nillable(),
@@ -77,6 +73,11 @@ func (UsageLog) Fields() []ent.Field {
 			Default(0),
 		field.Int("cache_creation_1h_tokens").
 			Default(0),
+		field.Int("image_output_tokens").
+			Default(0),
+		field.Float("image_output_cost").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
 
 		// 成本字段
 		field.Float("input_cost").
@@ -110,12 +111,29 @@ func (UsageLog) Fields() []ent.Field {
 		// 其他字段
 		field.Int8("billing_type").
 			Default(0),
+		field.Int("request_type").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "smallint"}),
 		field.Bool("stream").
+			Default(false),
+		field.Bool("openai_ws_mode").
 			Default(false),
 		field.Int("duration_ms").
 			Optional().
 			Nillable(),
 		field.Int("first_token_ms").
+			Optional().
+			Nillable(),
+		field.Int("auth_latency_ms").
+			Optional().
+			Nillable(),
+		field.Int("routing_latency_ms").
+			Optional().
+			Nillable(),
+		field.Int("upstream_latency_ms").
+			Optional().
+			Nillable(),
+		field.Int("response_latency_ms").
 			Optional().
 			Nillable(),
 		field.String("user_agent").
@@ -149,9 +167,48 @@ func (UsageLog) Fields() []ent.Field {
 		field.JSON("image_size_breakdown", map[string]int{}).
 			Optional().
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.String("service_tier").
+			MaxLen(16).
+			Optional().
+			Nillable(),
+		field.String("reasoning_effort").
+			MaxLen(20).
+			Optional().
+			Nillable(),
+		field.String("inbound_endpoint").
+			MaxLen(128).
+			Optional().
+			Nillable(),
+		field.String("upstream_endpoint").
+			MaxLen(128).
+			Optional().
+			Nillable(),
 		// Cache TTL Override 标记（管理员强制替换了缓存 TTL 计费）
 		field.Bool("cache_ttl_overridden").
 			Default(false),
+		field.Int64("channel_id").
+			Optional().
+			Nillable().
+			Comment("渠道 ID"),
+		field.String("model_mapping_chain").
+			MaxLen(500).
+			Optional().
+			Nillable().
+			Comment("模型映射链"),
+		field.String("billing_tier").
+			MaxLen(50).
+			Optional().
+			Nillable().
+			Comment("计费层级标签"),
+		field.String("billing_mode").
+			MaxLen(20).
+			Optional().
+			Nillable().
+			Comment("计费模式：token/per_request/image"),
+		field.Float("account_stats_cost").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
 
 		// 时间戳（只有 created_at，日志不可修改）
 		field.Time("created_at").

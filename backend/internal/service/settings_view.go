@@ -16,9 +16,14 @@ type SystemSettings struct {
 	EmailVerifyEnabled               bool
 	RegistrationEmailSuffixWhitelist []string
 	PromoCodeEnabled                 bool
+	RedeemCodeFormat                 CodeFormatSettings
+	BalanceCodeFormat                CodeFormatSettings
+	ConcurrencyCodeFormat            CodeFormatSettings
+	SubscriptionCodeFormat           CodeFormatSettings
 	PasswordResetEnabled             bool
 	FrontendURL                      string
 	InvitationCodeEnabled            bool
+	InvitationCodeFormat             CodeFormatSettings
 	TotpEnabled                      bool // TOTP 双因素认证
 	LoginAgreementEnabled            bool
 	LoginAgreementMode               string
@@ -126,25 +131,36 @@ type SystemSettings struct {
 	GoogleOAuthRedirectURL            string
 	GoogleOAuthFrontendRedirectURL    string
 
-	SiteName                    string
-	SiteLogo                    string
-	SiteSubtitle                string
-	APIBaseURL                  string
-	ContactInfo                 string
-	DocURL                      string
-	HomeContent                 string
-	HideCcsImportButton         bool
-	PurchaseSubscriptionEnabled bool
-	PurchaseSubscriptionURL     string
-	TableDefaultPageSize        int
-	TablePageSizeOptions        []int
-	CustomMenuItems             string // JSON array of custom menu items
-	CustomEndpoints             string // JSON array of custom endpoints
+	SiteName                      string
+	SiteLogo                      string
+	SiteSubtitle                  string
+	APIBaseURL                    string
+	ContactInfo                   string
+	DocURL                        string
+	HomeContent                   string
+	HomeNavLinksEnabled           bool
+	HomeNavLeaderboardEnabled     bool
+	HomeNavKeyUsageEnabled        bool
+	HomeNavMonitoringEnabled      bool
+	HomeNavPricingEnabled         bool
+	LeaderboardBalanceEnabled     bool
+	LeaderboardConsumptionEnabled bool
+	LeaderboardTransferEnabled    bool
+	LeaderboardCheckinEnabled     bool
+	LeaderboardIncludeAdmin       bool
+	HideCcsImportButton           bool
+	PurchaseSubscriptionEnabled   bool
+	PurchaseSubscriptionURL       string
+	TableDefaultPageSize          int
+	TablePageSizeOptions          []int
+	CustomMenuItems               string // JSON array of custom menu items
+	CustomEndpoints               string // JSON array of custom endpoints
 
 	DefaultConcurrency           int
 	DefaultBalance               float64
 	RiskControlEnabled           bool
 	AffiliateEnabled             bool
+	AffiliateCodeFormat          CodeFormatSettings
 	AffiliateRebateRate          float64
 	AffiliateRebateFreezeHours   int
 	AffiliateRebateDurationDays  int
@@ -215,6 +231,33 @@ type SystemSettings struct {
 	// Account quota notification
 	AccountQuotaNotifyEnabled bool
 	AccountQuotaNotifyEmails  []NotifyEmailEntry
+
+	// Checkin 签到设置
+	CheckinEnabled    bool
+	CheckinMinBalance float64
+	CheckinMaxBalance float64
+
+	// Checkin Luck 运气签到设置
+	CheckinLuckEnabled       bool
+	CheckinLuckMinMultiplier float64
+	CheckinLuckMaxMultiplier float64
+
+	// Checkin Blind Box 签到盲盒设置
+	CheckinBlindboxEnabled     bool
+	CheckinBlindboxTriggerType string
+	CheckinBlindboxInterval    int
+
+	// Balance Transfer 余额流转设置
+	TransferEnabled         bool
+	TransferFeeRate         float64
+	TransferMinAmount       float64
+	TransferMaxAmount       float64
+	TransferDailyLimit      float64
+	TransferDailyCountLimit int
+	TransferVIPFeeExempt    bool
+	RedPacketEnabled        bool
+	RedPacketMaxCount       int
+	RedPacketExpireHours    int
 }
 
 type DefaultSubscriptionSetting struct {
@@ -228,8 +271,13 @@ type PublicSettings struct {
 	ForceEmailOnThirdPartySignup     bool
 	RegistrationEmailSuffixWhitelist []string
 	PromoCodeEnabled                 bool
+	RedeemCodeFormat                 CodeFormatSettings
+	BalanceCodeFormat                CodeFormatSettings
+	ConcurrencyCodeFormat            CodeFormatSettings
+	SubscriptionCodeFormat           CodeFormatSettings
 	PasswordResetEnabled             bool
 	InvitationCodeEnabled            bool
+	InvitationCodeFormat             CodeFormatSettings
 	TotpEnabled                      bool // TOTP 双因素认证
 	LoginAgreementEnabled            bool
 	LoginAgreementMode               string
@@ -245,6 +293,15 @@ type PublicSettings struct {
 	ContactInfo                      string
 	DocURL                           string
 	HomeContent                      string
+	HomeNavLinksEnabled              bool
+	HomeNavLeaderboardEnabled        bool
+	HomeNavKeyUsageEnabled           bool
+	HomeNavMonitoringEnabled         bool
+	HomeNavPricingEnabled            bool
+	LeaderboardBalanceEnabled        bool
+	LeaderboardConsumptionEnabled    bool
+	LeaderboardTransferEnabled       bool
+	LeaderboardCheckinEnabled        bool
 	HideCcsImportButton              bool
 
 	PurchaseSubscriptionEnabled bool
@@ -280,8 +337,13 @@ type PublicSettings struct {
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	// Balance transfer / red packet feature switches (user-facing entry visibility)
+	TransferEnabled  bool `json:"transfer_enabled"`
+	RedPacketEnabled bool `json:"redpacket_enabled"`
+
 	// Affiliate (邀请返利) feature toggle
-	AffiliateEnabled bool `json:"affiliate_enabled"`
+	AffiliateEnabled    bool               `json:"affiliate_enabled"`
+	AffiliateCodeFormat CodeFormatSettings `json:"affiliate_code_format"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`

@@ -33,14 +33,15 @@ type DataPayload struct {
 }
 
 type DataProxy struct {
-	ProxyKey string `json:"proxy_key"`
-	Name     string `json:"name"`
-	Protocol string `json:"protocol"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Status   string `json:"status"`
+	ProxyKey                string `json:"proxy_key"`
+	Name                    string `json:"name"`
+	Protocol                string `json:"protocol"`
+	Host                    string `json:"host"`
+	Port                    int    `json:"port"`
+	Username                string `json:"username,omitempty"`
+	Password                string `json:"password,omitempty"`
+	Status                  string `json:"status"`
+	AutoFailoverPoolEnabled bool   `json:"auto_failover_pool_enabled,omitempty"`
 }
 
 // DataAccount 是管理员显式备份导出使用的账号结构，故意不走 dto.Account 的脱敏路径，
@@ -193,7 +194,7 @@ func (h *AccountHandler) ImportData(c *gin.Context) {
 }
 
 func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) (DataImportResult, error) {
-	skipDefaultGroupBind := true
+	skipDefaultGroupBind := false
 	if req.SkipDefaultGroupBind != nil {
 		skipDefaultGroupBind = *req.SkipDefaultGroupBind
 	}
@@ -376,12 +377,12 @@ func (h *AccountHandler) listAllProxies(ctx context.Context) ([]service.Proxy, e
 	return out, nil
 }
 
-func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, accountType, status, search string, groupID int64, privacyMode, sortBy, sortOrder string) ([]service.Account, error) {
+func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, accountType, status, search string, groupID int64, privacyMode, tier, sortBy, sortOrder string) ([]service.Account, error) {
 	page := 1
 	pageSize := dataPageCap
 	var out []service.Account
 	for {
-		items, total, err := h.adminService.ListAccounts(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, sortBy, sortOrder)
+		items, total, err := h.adminService.ListAccounts(ctx, page, pageSize, platform, accountType, status, search, groupID, privacyMode, tier, sortBy, sortOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -414,6 +415,7 @@ func (h *AccountHandler) resolveExportAccounts(ctx context.Context, ids []int64,
 	accountType := c.Query("type")
 	status := c.Query("status")
 	privacyMode := strings.TrimSpace(c.Query("privacy_mode"))
+	tier := strings.TrimSpace(c.Query("tier"))
 	search := strings.TrimSpace(c.Query("search"))
 	sortBy := c.DefaultQuery("sort_by", "name")
 	sortOrder := c.DefaultQuery("sort_order", "asc")
@@ -434,7 +436,7 @@ func (h *AccountHandler) resolveExportAccounts(ctx context.Context, ids []int64,
 		}
 	}
 
-	return h.listAccountsFiltered(ctx, platform, accountType, status, search, groupID, privacyMode, sortBy, sortOrder)
+	return h.listAccountsFiltered(ctx, platform, accountType, status, search, groupID, privacyMode, tier, sortBy, sortOrder)
 }
 
 func (h *AccountHandler) resolveExportProxies(ctx context.Context, accounts []service.Account) ([]service.Proxy, error) {

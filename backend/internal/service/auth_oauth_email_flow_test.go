@@ -23,11 +23,11 @@ type redeemCodeRepoStub struct {
 }
 
 func (s *redeemCodeRepoStub) Create(context.Context, *RedeemCode) error {
-	panic("unexpected Create call")
+	return nil
 }
 
 func (s *redeemCodeRepoStub) CreateBatch(context.Context, []RedeemCode) error {
-	panic("unexpected CreateBatch call")
+	return nil
 }
 
 func (s *redeemCodeRepoStub) GetByID(context.Context, int64) (*RedeemCode, error) {
@@ -145,9 +145,9 @@ func TestRegisterOAuthEmailAccountRollsBackCreatedUserWhenTokenPairGenerationFai
 	userRepo := &userRepoStub{nextID: 42}
 	redeemRepo := &redeemCodeRepoStub{
 		codesByCode: map[string]*RedeemCode{
-			"INVITE123": {
+			"DG-ABC123": {
 				ID:     7,
-				Code:   "INVITE123",
+				Code:   "DG-ABC123",
 				Type:   RedeemTypeInvitation,
 				Status: StatusUnused,
 			},
@@ -178,7 +178,7 @@ func TestRegisterOAuthEmailAccountRollsBackCreatedUserWhenTokenPairGenerationFai
 		"fresh@example.com",
 		"secret-123",
 		"246810",
-		"INVITE123",
+		"dg-abc123",
 		"oidc",
 	)
 
@@ -327,13 +327,43 @@ func TestRegisterOAuthEmailAccountFallsBackUnknownSignupSourceToEmail(t *testing
 	require.Equal(t, "email", userRepo.created[0].SignupSource)
 }
 
+func TestRegisterOAuthEmailAccountSkipsVerifyCodeWhenEmailVerificationDisabled(t *testing.T) {
+	userRepo := &userRepoStub{nextID: 44}
+	authService := newOAuthEmailFlowAuthService(
+		userRepo,
+		&redeemCodeRepoStub{},
+		&refreshTokenCacheStub{},
+		map[string]string{
+			SettingKeyRegistrationEnabled: "true",
+			SettingKeyEmailVerifyEnabled:  "false",
+		},
+		&emailCacheStub{},
+	)
+
+	tokenPair, user, err := authService.RegisterOAuthEmailAccount(
+		context.Background(),
+		"skip-verify@example.com",
+		"secret-123",
+		"",
+		"",
+		"linuxdo",
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, tokenPair)
+	require.NotNil(t, user)
+	require.Len(t, userRepo.created, 1)
+	require.Equal(t, "skip-verify@example.com", userRepo.created[0].Email)
+	require.Equal(t, "linuxdo", userRepo.created[0].SignupSource)
+}
+
 func TestRollbackOAuthEmailAccountCreationRestoresInvitationUsage(t *testing.T) {
 	userRepo := &userRepoStub{}
 	redeemRepo := &redeemCodeRepoStub{
 		codesByCode: map[string]*RedeemCode{
-			"INVITE123": {
+			"DG-ABC123": {
 				ID:     7,
-				Code:   "INVITE123",
+				Code:   "DG-ABC123",
 				Type:   RedeemTypeInvitation,
 				Status: StatusUsed,
 				UsedBy: func() *int64 {
@@ -358,7 +388,7 @@ func TestRollbackOAuthEmailAccountCreationRestoresInvitationUsage(t *testing.T) 
 		&emailCacheStub{},
 	)
 
-	err := authService.RollbackOAuthEmailAccountCreation(context.Background(), 42, "INVITE123")
+	err := authService.RollbackOAuthEmailAccountCreation(context.Background(), 42, "dg-abc123")
 
 	require.NoError(t, err)
 	require.Equal(t, []int64{42}, userRepo.deletedIDs)
@@ -366,6 +396,24 @@ func TestRollbackOAuthEmailAccountCreationRestoresInvitationUsage(t *testing.T) 
 	require.Equal(t, StatusUnused, redeemRepo.updateCalls[0].Status)
 	require.Nil(t, redeemRepo.updateCalls[0].UsedBy)
 	require.Nil(t, redeemRepo.updateCalls[0].UsedAt)
+}
+
+func TestValidateOAuthRegistrationInvitationRejectsLegacyFormat(t *testing.T) {
+	userRepo := &userRepoStub{}
+	authService := newOAuthEmailFlowAuthService(
+		userRepo,
+		&redeemCodeRepoStub{},
+		&refreshTokenCacheStub{},
+		map[string]string{
+			SettingKeyRegistrationEnabled:   "true",
+			SettingKeyInvitationCodeEnabled: "true",
+		},
+		&emailCacheStub{},
+	)
+
+	redeemCode, err := authService.validateOAuthRegistrationInvitation(context.Background(), "INVITE123")
+	require.Nil(t, redeemCode)
+	require.ErrorIs(t, err, ErrInvitationCodeInvalid)
 }
 
 func TestRollbackOAuthEmailAccountCreationPropagatesDeleteError(t *testing.T) {

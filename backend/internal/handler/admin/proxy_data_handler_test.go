@@ -23,6 +23,15 @@ type proxyImportResponse struct {
 	Data DataImportResult `json:"data"`
 }
 
+type paginatedProxyListResponse struct {
+	Code int `json:"code"`
+	Data struct {
+		Items []map[string]any `json:"items"`
+		Total int64            `json:"total"`
+		Page  int              `json:"page"`
+	} `json:"data"`
+}
+
 func setupProxyDataRouter() (*gin.Engine, *stubAdminService) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -137,16 +146,86 @@ func TestProxyExportDataPassesSortParams(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/data?protocol=http&status=active&search=proxy&sort_by=name&sort_order=asc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/data?protocol=http&status=active&runtime_status=failed&search=proxy&sort_by=name&sort_order=asc", nil)
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	require.Equal(t, 1, adminSvc.lastListProxies.calls)
 	require.Equal(t, "http", adminSvc.lastListProxies.protocol)
 	require.Equal(t, "active", adminSvc.lastListProxies.status)
+	require.Equal(t, "failed", adminSvc.lastListProxies.runtimeStatus)
 	require.Equal(t, "proxy", adminSvc.lastListProxies.search)
 	require.Equal(t, "name", adminSvc.lastListProxies.sortBy)
 	require.Equal(t, "asc", adminSvc.lastListProxies.sortOrder)
+	require.Equal(t, 0, adminSvc.lastListProxies.calls)
+	require.Equal(t, 1, adminSvc.lastListProxies.accountCalls)
+}
+
+func TestProxyExportDataUsesRuntimeStatusAwareListingForNonAccountCountSort(t *testing.T) {
+	router, adminSvc := setupProxyDataRouter()
+
+	adminSvc.proxies = []service.Proxy{
+		{
+			ID:       1,
+			Name:     "plain-list-proxy",
+			Protocol: "http",
+			Host:     "127.0.0.1",
+			Port:     8080,
+			Status:   service.StatusActive,
+		},
+	}
+	adminSvc.proxyCounts = []service.ProxyWithAccountCount{
+		{
+			Proxy: service.Proxy{
+				ID:       2,
+				Name:     "runtime-filtered-proxy",
+				Protocol: "http",
+				Host:     "127.0.0.2",
+				Port:     8081,
+				Status:   service.StatusActive,
+			},
+			HealthStatus: "failed",
+		},
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies/data?runtime_status=failed&sort_by=name&sort_order=asc", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp proxyDataResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Len(t, resp.Data.Proxies, 1)
+	require.Equal(t, "runtime-filtered-proxy", resp.Data.Proxies[0].Name)
+	require.Equal(t, "failed", adminSvc.lastListProxies.runtimeStatus)
+	require.Equal(t, "name", adminSvc.lastListProxies.sortBy)
+	require.Equal(t, "asc", adminSvc.lastListProxies.sortOrder)
+	require.Equal(t, 0, adminSvc.lastListProxies.calls)
+	require.Equal(t, 1, adminSvc.lastListProxies.accountCalls)
+}
+
+func TestProxyHandlerListPassesRuntimeStatusToService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	adminSvc := newStubAdminService()
+	h := NewProxyHandler(adminSvc)
+	router.GET("/api/v1/admin/proxies", h.List)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/proxies?runtime_status=failed&page=2&page_size=1&sort_by=name&sort_order=asc", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp paginatedProxyListResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Equal(t, int64(1), resp.Data.Total)
+	require.Equal(t, 2, resp.Data.Page)
+	require.Equal(t, "failed", adminSvc.lastListProxies.runtimeStatus)
+	require.Equal(t, "name", adminSvc.lastListProxies.sortBy)
+	require.Equal(t, "asc", adminSvc.lastListProxies.sortOrder)
+	require.Equal(t, 0, adminSvc.lastListProxies.calls)
+	require.Equal(t, 1, adminSvc.lastListProxies.accountCalls)
 }
 
 func TestProxyExportDataSortByAccountCountUsesAccountCountListing(t *testing.T) {
@@ -207,6 +286,7 @@ func TestProxyExportDataSortByAccountCountUsesAccountCountListing(t *testing.T) 
 	require.Equal(t, "proxy-count-high", resp.Data.Proxies[0].Name)
 	require.Equal(t, "proxy-count-low", resp.Data.Proxies[1].Name)
 	require.Equal(t, 0, adminSvc.lastListProxies.calls)
+	require.Equal(t, 1, adminSvc.lastListProxies.accountCalls)
 }
 
 func TestProxyImportDataReusesAndTriggersLatencyProbe(t *testing.T) {

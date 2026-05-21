@@ -79,7 +79,7 @@ func (m *mockAccountRepoForGemini) Delete(ctx context.Context, id int64) error  
 func (m *mockAccountRepoForGemini) List(ctx context.Context, params pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (m *mockAccountRepoForGemini) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
+func (m *mockAccountRepoForGemini) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, tier string) ([]Account, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
 func (m *mockAccountRepoForGemini) ListByGroup(ctx context.Context, groupID int64) ([]Account, error) {
@@ -170,6 +170,14 @@ func (m *mockAccountRepoForGemini) UpdateSessionWindow(ctx context.Context, id i
 	return nil
 }
 func (m *mockAccountRepoForGemini) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
+	if acc, ok := m.accountsByID[id]; ok {
+		if acc.Extra == nil {
+			acc.Extra = make(map[string]any, len(updates))
+		}
+		for k, v := range updates {
+			acc.Extra[k] = v
+		}
+	}
 	return nil
 }
 func (m *mockAccountRepoForGemini) BulkUpdate(ctx context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {
@@ -317,7 +325,7 @@ func TestGeminiMessagesCompatService_SelectAccountForModelWithExclusions_GeminiP
 	acc, err := svc.SelectAccountForModelWithExclusions(ctx, nil, "", "gemini-2.5-flash", nil)
 	require.NoError(t, err)
 	require.NotNil(t, acc)
-	require.Equal(t, int64(1), acc.ID, "应选择优先级最高的 gemini 账户")
+	require.Equal(t, int64(2), acc.ID, "应选择优先级最高的 gemini 账户")
 	require.Equal(t, PlatformGemini, acc.Platform, "无分组时应只返回 gemini 平台账户")
 }
 
@@ -576,7 +584,7 @@ func TestGeminiMessagesCompatService_SelectAccountForModelWithExclusions_StickyS
 		require.NoError(t, err)
 		require.NotNil(t, acc)
 		// 粘性会话未命中，按优先级选择
-		require.Equal(t, int64(2), acc.ID, "粘性会话未命中，应按优先级选择")
+		require.Equal(t, int64(1), acc.ID, "粘性会话未命中，应按优先级选择")
 	})
 
 	t.Run("粘性会话不可调度-清理并回退选择", func(t *testing.T) {

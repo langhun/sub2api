@@ -10,6 +10,35 @@ const (
 	StatusExpired  = "expired"
 )
 
+const (
+	ProxySubscriptionSourceFormatAuto       = "auto"
+	ProxySubscriptionSourceFormatDirectList = "direct_list"
+	ProxySubscriptionSourceFormatURIList    = "uri_list"
+	ProxySubscriptionSourceFormatClashYAML  = "clash_yaml"
+)
+
+const (
+	ProxyNodeTypeHTTP      = "http"
+	ProxyNodeTypeHTTPS     = "https"
+	ProxyNodeTypeSOCKS5    = "socks5"
+	ProxyNodeTypeSOCKS5H   = "socks5h"
+	ProxyNodeTypeSS        = "ss"
+	ProxyNodeTypeVMess     = "vmess"
+	ProxyNodeTypeVLess     = "vless"
+	ProxyNodeTypeTrojan    = "trojan"
+	ProxyNodeTypeHysteria  = "hysteria"
+	ProxyNodeTypeHysteria2 = "hysteria2"
+)
+
+const (
+	ProxySubscriptionLandingStatusPending     = "pending"
+	ProxySubscriptionLandingStatusActive      = "active"
+	ProxySubscriptionLandingStatusConflicted  = "conflicted"
+	ProxySubscriptionLandingStatusUnsupported = "unsupported"
+	ProxySubscriptionLandingStatusFailed      = "failed"
+	ProxySubscriptionLandingStatusStale       = "stale"
+)
+
 // Role constants
 const (
 	RoleAdmin = "admin"
@@ -53,6 +82,14 @@ const (
 	AdjustmentTypeAdminBalance     = "admin_balance"     // 管理员调整余额
 	AdjustmentTypeAdminConcurrency = "admin_concurrency" // 管理员调整并发数
 )
+
+// Checkin type constant
+const AdjustmentTypeCheckin = "checkin"                  // 签到奖励
+const AdjustmentTypeCheckinLuck = "checkin_luck"         // 运气签到
+const AdjustmentTypeCheckinBlindbox = "checkin_blindbox" // 签到盲盒奖励
+
+// Registration type constant
+const AdjustmentTypeRegistration = "registration" // 注册赠送
 
 // Group subscription type constants
 const (

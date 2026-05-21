@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -38,12 +39,19 @@ func (r *proxyRepository) Create(ctx context.Context, proxyIn *service.Proxy) er
 		SetProtocol(proxyIn.Protocol).
 		SetHost(proxyIn.Host).
 		SetPort(proxyIn.Port).
-		SetStatus(proxyIn.Status)
+		SetStatus(proxyIn.Status).
+		SetManagedBySubscription(proxyIn.ManagedBySubscription)
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	}
 	if proxyIn.Password != "" {
 		builder.SetPassword(proxyIn.Password)
+	}
+	if proxyIn.SubscriptionSourceID != nil {
+		builder.SetSubscriptionSourceID(*proxyIn.SubscriptionSourceID)
+	}
+	if proxyIn.SubscriptionNodeID != nil {
+		builder.SetSubscriptionNodeID(*proxyIn.SubscriptionNodeID)
 	}
 
 	created, err := builder.Save(ctx)
@@ -83,13 +91,67 @@ func (r *proxyRepository) ListByIDs(ctx context.Context, ids []int64) ([]service
 	return out, nil
 }
 
+func (r *proxyRepository) ListBySubscriptionSourceID(ctx context.Context, sourceID int64) ([]service.Proxy, error) {
+	proxies, err := r.client.Proxy.Query().
+		Where(proxy.SubscriptionSourceIDEQ(sourceID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]service.Proxy, 0, len(proxies))
+	for i := range proxies {
+		out = append(out, *proxyEntityToService(proxies[i]))
+	}
+	return out, nil
+}
+
+func (r *proxyRepository) FindBySubscriptionNodeID(ctx context.Context, nodeID int64) (*service.Proxy, error) {
+	item, err := r.client.Proxy.Query().
+		Where(proxy.SubscriptionNodeIDEQ(nodeID)).
+		First(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return proxyEntityToService(item), nil
+}
+
+func (r *proxyRepository) FindByHostPortAuth(ctx context.Context, host string, port int, username, password string) (*service.Proxy, error) {
+	q := r.client.Proxy.Query().
+		Where(proxy.HostEQ(host), proxy.PortEQ(port))
+
+	if username == "" {
+		q = q.Where(proxy.Or(proxy.UsernameIsNil(), proxy.UsernameEQ("")))
+	} else {
+		q = q.Where(proxy.UsernameEQ(username))
+	}
+	if password == "" {
+		q = q.Where(proxy.Or(proxy.PasswordIsNil(), proxy.PasswordEQ("")))
+	} else {
+		q = q.Where(proxy.PasswordEQ(password))
+	}
+
+	item, err := q.First(ctx)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return proxyEntityToService(item), nil
+}
+
 func (r *proxyRepository) Update(ctx context.Context, proxyIn *service.Proxy) error {
 	builder := r.client.Proxy.UpdateOneID(proxyIn.ID).
 		SetName(proxyIn.Name).
 		SetProtocol(proxyIn.Protocol).
 		SetHost(proxyIn.Host).
 		SetPort(proxyIn.Port).
-		SetStatus(proxyIn.Status)
+		SetStatus(proxyIn.Status).
+		SetManagedBySubscription(proxyIn.ManagedBySubscription)
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	} else {
@@ -99,6 +161,16 @@ func (r *proxyRepository) Update(ctx context.Context, proxyIn *service.Proxy) er
 		builder.SetPassword(proxyIn.Password)
 	} else {
 		builder.ClearPassword()
+	}
+	if proxyIn.SubscriptionSourceID != nil {
+		builder.SetSubscriptionSourceID(*proxyIn.SubscriptionSourceID)
+	} else {
+		builder.ClearSubscriptionSourceID()
+	}
+	if proxyIn.SubscriptionNodeID != nil {
+		builder.SetSubscriptionNodeID(*proxyIn.SubscriptionNodeID)
+	} else {
+		builder.ClearSubscriptionNodeID()
 	}
 
 	updated, err := builder.Save(ctx)
@@ -131,7 +203,12 @@ func (r *proxyRepository) ListWithFilters(ctx context.Context, params pagination
 		q = q.Where(proxy.StatusEQ(status))
 	}
 	if search != "" {
-		q = q.Where(proxy.NameContainsFold(search))
+		q = q.Where(
+			proxy.Or(
+				proxy.NameContainsFold(search),
+				proxy.HostContainsFold(search),
+			),
+		)
 	}
 
 	total, err := q.Count(ctx)
@@ -169,7 +246,12 @@ func (r *proxyRepository) ListWithFiltersAndAccountCount(ctx context.Context, pa
 		q = q.Where(proxy.StatusEQ(status))
 	}
 	if search != "" {
-		q = q.Where(proxy.NameContainsFold(search))
+		q = q.Where(
+			proxy.Or(
+				proxy.NameContainsFold(search),
+				proxy.HostContainsFold(search),
+			),
+		)
 	}
 
 	total, err := q.Count(ctx)
@@ -228,12 +310,20 @@ func (r *proxyRepository) buildProxyWithAccountCountResult(ctx context.Context, 
 	if err != nil {
 		return nil, nil, err
 	}
+	details, err := r.loadSubscriptionProxyDetails(ctx, proxies)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	result := make([]service.ProxyWithAccountCount, 0, len(proxies))
 	for i := range proxies {
 		proxyOut := proxyEntityToService(proxies[i])
 		if proxyOut == nil {
 			continue
+		}
+		if detail, ok := details[proxyOut.ID]; ok {
+			proxyOut.SubscriptionSourceName = detail.SourceName
+			proxyOut.SubscriptionNodeType = detail.NodeType
 		}
 		result = append(result, service.ProxyWithAccountCount{
 			Proxy:        *proxyOut,
@@ -397,11 +487,19 @@ func (r *proxyRepository) ListActiveWithAccountCount(ctx context.Context) ([]ser
 	}
 
 	// Build result with account counts
+	details, err := r.loadSubscriptionProxyDetails(ctx, proxies)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]service.ProxyWithAccountCount, 0, len(proxies))
 	for i := range proxies {
 		proxyOut := proxyEntityToService(proxies[i])
 		if proxyOut == nil {
 			continue
+		}
+		if detail, ok := details[proxyOut.ID]; ok {
+			proxyOut.SubscriptionSourceName = detail.SourceName
+			proxyOut.SubscriptionNodeType = detail.NodeType
 		}
 		result = append(result, service.ProxyWithAccountCount{
 			Proxy:        *proxyOut,
@@ -417,20 +515,27 @@ func proxyEntityToService(m *dbent.Proxy) *service.Proxy {
 		return nil
 	}
 	out := &service.Proxy{
-		ID:        m.ID,
-		Name:      m.Name,
-		Protocol:  m.Protocol,
-		Host:      m.Host,
-		Port:      m.Port,
-		Status:    m.Status,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:                    m.ID,
+		Name:                  m.Name,
+		Protocol:              m.Protocol,
+		Host:                  m.Host,
+		Port:                  m.Port,
+		Status:                m.Status,
+		ManagedBySubscription: m.ManagedBySubscription,
+		CreatedAt:             m.CreatedAt,
+		UpdatedAt:             m.UpdatedAt,
 	}
 	if m.Username != nil {
 		out.Username = *m.Username
 	}
 	if m.Password != nil {
 		out.Password = *m.Password
+	}
+	if m.SubscriptionSourceID != nil {
+		out.SubscriptionSourceID = m.SubscriptionSourceID
+	}
+	if m.SubscriptionNodeID != nil {
+		out.SubscriptionNodeID = m.SubscriptionNodeID
 	}
 	return out
 }
@@ -442,4 +547,73 @@ func applyProxyEntityToService(dst *service.Proxy, src *dbent.Proxy) {
 	dst.ID = src.ID
 	dst.CreatedAt = src.CreatedAt
 	dst.UpdatedAt = src.UpdatedAt
+	dst.SubscriptionSourceID = src.SubscriptionSourceID
+	dst.SubscriptionNodeID = src.SubscriptionNodeID
+	dst.ManagedBySubscription = src.ManagedBySubscription
+}
+
+type subscriptionProxyDetail struct {
+	SourceName string
+	NodeType   string
+}
+
+func (r *proxyRepository) loadSubscriptionProxyDetails(ctx context.Context, proxies []*dbent.Proxy) (map[int64]subscriptionProxyDetail, error) {
+	result := make(map[int64]subscriptionProxyDetail)
+	if len(proxies) == 0 || r.sql == nil {
+		return result, nil
+	}
+
+	ids := make([]int64, 0, len(proxies))
+	for _, item := range proxies {
+		if item == nil || !item.ManagedBySubscription {
+			continue
+		}
+		ids = append(ids, item.ID)
+	}
+	if len(ids) == 0 {
+		return result, nil
+	}
+
+	args := make([]any, 0, len(ids))
+	placeholders := make([]string, 0, len(ids))
+	for i, id := range ids {
+		args = append(args, id)
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
+	}
+
+	query := fmt.Sprintf(`
+		SELECT
+			p.id,
+			COALESCE(pss.name, '') AS source_name,
+			COALESCE(psn.node_type, '') AS node_type
+		FROM proxies p
+		LEFT JOIN proxy_subscription_sources pss ON p.subscription_source_id = pss.id
+		LEFT JOIN proxy_subscription_nodes psn ON p.subscription_node_id = psn.id
+		WHERE p.id IN (%s)
+	`, strings.Join(placeholders, ","))
+
+	rows, err := r.sql.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			id         int64
+			sourceName string
+			nodeType   string
+		)
+		if err := rows.Scan(&id, &sourceName, &nodeType); err != nil {
+			return nil, err
+		}
+		result[id] = subscriptionProxyDetail{
+			SourceName: sourceName,
+			NodeType:   nodeType,
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

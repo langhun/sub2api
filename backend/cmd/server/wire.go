@@ -78,9 +78,14 @@ func provideCleanup(
 	opsCleanup *service.OpsCleanupService,
 	opsScheduledReport *service.OpsScheduledReportService,
 	opsSystemLogSink *service.OpsSystemLogSink,
+	autoFailoverProxyPool *service.AutoFailoverProxyPoolService,
+	proxySubscriptionRuntime service.ProxySubscriptionRuntimeManager,
+	proxySubscriptionRefresh *service.ProxySubscriptionRefreshService,
+	proxySubscriptionRuntimeRehydrate *service.ProxySubscriptionRuntimeRehydrateService,
 	schedulerSnapshot *service.SchedulerSnapshotService,
 	tokenRefresh *service.TokenRefreshService,
 	accountExpiry *service.AccountExpiryService,
+	ungroupedAccountAutoTest *service.UngroupedAccountAutoTestService,
 	subscriptionExpiry *service.SubscriptionExpiryService,
 	usageCleanup *service.UsageCleanupService,
 	idempotencyCleanup *service.IdempotencyCleanupService,
@@ -97,6 +102,7 @@ func provideCleanup(
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	backupSvc *service.BackupService,
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
+	modelPricingAdmin *service.ModelPricingAdminService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
 ) func() {
 	return func() {
@@ -152,6 +158,30 @@ func provideCleanup(
 				}
 				return nil
 			}},
+			{"AutoFailoverProxyPoolService", func() error {
+				if autoFailoverProxyPool != nil {
+					autoFailoverProxyPool.Stop()
+				}
+				return nil
+			}},
+			{"ProxySubscriptionRefreshService", func() error {
+				if proxySubscriptionRefresh != nil {
+					proxySubscriptionRefresh.Stop()
+				}
+				return nil
+			}},
+			{"ProxySubscriptionRuntimeRehydrateService", func() error {
+				if proxySubscriptionRuntimeRehydrate != nil {
+					proxySubscriptionRuntimeRehydrate.Stop()
+				}
+				return nil
+			}},
+			{"ProxySubscriptionRuntimeManager", func() error {
+				if proxySubscriptionRuntime != nil {
+					return proxySubscriptionRuntime.Stop(ctx)
+				}
+				return nil
+			}},
 			{"UsageCleanupService", func() error {
 				if usageCleanup != nil {
 					usageCleanup.Stop()
@@ -172,6 +202,12 @@ func provideCleanup(
 				accountExpiry.Stop()
 				return nil
 			}},
+			{"UngroupedAccountAutoTestService", func() error {
+				if ungroupedAccountAutoTest != nil {
+					ungroupedAccountAutoTest.Stop()
+				}
+				return nil
+			}},
 			{"SubscriptionExpiryService", func() error {
 				subscriptionExpiry.Stop()
 				return nil
@@ -184,6 +220,12 @@ func provideCleanup(
 			}},
 			{"PricingService", func() error {
 				pricing.Stop()
+				return nil
+			}},
+			{"ModelPricingAdminService", func() error {
+				if modelPricingAdmin != nil {
+					modelPricingAdmin.Stop()
+				}
 				return nil
 			}},
 			{"EmailQueueService", func() error {

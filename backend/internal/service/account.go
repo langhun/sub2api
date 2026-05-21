@@ -160,6 +160,65 @@ func (a *Account) IsPrivacySet() bool {
 	}
 }
 
+const (
+	AccountProxyModeDirect = "direct"
+	AccountProxyModeSingle = "single"
+	AccountProxyModePool   = "pool"
+)
+
+func normalizeAccountProxyMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case AccountProxyModePool:
+		return AccountProxyModePool
+	case AccountProxyModeSingle:
+		return AccountProxyModeSingle
+	default:
+		return AccountProxyModeDirect
+	}
+}
+
+func (a *Account) GetProxyMode() string {
+	if a == nil {
+		return AccountProxyModeDirect
+	}
+
+	mode := normalizeAccountProxyMode(a.GetExtraString("proxy_mode"))
+	switch mode {
+	case AccountProxyModePool:
+		switch a.Platform {
+		case PlatformOpenAI, PlatformAntigravity:
+			return AccountProxyModePool
+		default:
+			if a.ProxyID != nil {
+				return AccountProxyModeSingle
+			}
+			return AccountProxyModeDirect
+		}
+	case AccountProxyModeSingle:
+		if a.ProxyID != nil {
+			return AccountProxyModeSingle
+		}
+		return AccountProxyModeDirect
+	default:
+		if a.ProxyID != nil {
+			return AccountProxyModeSingle
+		}
+		return AccountProxyModeDirect
+	}
+}
+
+func (a *Account) UsesAutoFailoverProxyPool() bool {
+	if a == nil {
+		return false
+	}
+	switch a.Platform {
+	case PlatformOpenAI, PlatformAntigravity:
+		return a.GetProxyMode() == AccountProxyModePool
+	default:
+		return false
+	}
+}
+
 func (a *Account) IsGemini() bool {
 	return a.Platform == PlatformGemini
 }

@@ -30,16 +30,24 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetStatus(code.Status).
 		SetNotes(code.Notes).
 		SetValidityDays(code.ValidityDays).
+		SetMultiplier(code.Multiplier).
+		SetBetAmount(code.BetAmount).
 		SetNillableExpiresAt(code.ExpiresAt).
 		SetNillableUsedBy(code.UsedBy).
 		SetNillableUsedAt(code.UsedAt).
 		SetNillableGroupID(code.GroupID).
 		Save(ctx)
+	if err != nil {
+		if dbent.IsConstraintError(err) {
+			return service.ErrRedeemCodeConflict
+		}
+		return err
+	}
 	if err == nil {
 		code.ID = created.ID
 		code.CreatedAt = created.CreatedAt
 	}
-	return err
+	return nil
 }
 
 func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.RedeemCode) error {
@@ -82,7 +90,7 @@ func (r *redeemCodeRepository) GetByID(ctx context.Context, id int64) (*service.
 
 func (r *redeemCodeRepository) GetByCode(ctx context.Context, code string) (*service.RedeemCode, error) {
 	m, err := r.client.RedeemCode.Query().
-		Where(redeemcode.CodeEQ(code)).
+		Where(redeemcode.CodeEqualFold(strings.TrimSpace(code))).
 		Only(ctx)
 	if err != nil {
 		if dbent.IsNotFound(err) {
@@ -230,6 +238,9 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 		if dbent.IsNotFound(err) {
 			return service.ErrRedeemCodeNotFound
 		}
+		if dbent.IsConstraintError(err) {
+			return service.ErrRedeemCodeConflict
+		}
 		return err
 	}
 	code.CreatedAt = updated.CreatedAt
@@ -340,6 +351,8 @@ func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
 		ExpiresAt:    m.ExpiresAt,
 		GroupID:      m.GroupID,
 		ValidityDays: m.ValidityDays,
+		Multiplier:   m.Multiplier,
+		BetAmount:    m.BetAmount,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)

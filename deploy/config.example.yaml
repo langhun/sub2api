@@ -84,11 +84,18 @@ cors:
 # =============================================================================
 security:
   url_allowlist:
-    # Enable URL allowlist validation (disable to skip all URL checks)
-    # 启用 URL 白名单验证（禁用则跳过所有 URL 检查）
+    # Enable URL allowlist validation.
+    # Production recommendation: set this to true and explicitly maintain every
+    # upstream / proxy / relay host your live accounts use in upstream_hosts.
+    # If left false, startup will warn that hostname allowlist validation is disabled.
+    # 启用 URL 白名单验证。
+    # 生产环境建议设为 true，并把所有线上账号实际使用的上游 / 代理 / 中转主机显式加入
+    # upstream_hosts。若保持 false，启动时会告警提示主机白名单校验未启用。
     enabled: false
-    # Allowed upstream hosts for API proxying
-    # 允许代理的上游 API 主机列表
+    # Allowed upstream hosts for API proxying.
+    # Add any custom OpenAI-compatible / relay domains used by live accounts here.
+    # 允许代理的上游 API 主机列表。
+    # 如线上账号使用了自定义 OpenAI-compatible / 中转域名，请一并加到这里。
     upstream_hosts:
       - "api.openai.com"
       - "api.anthropic.com"
@@ -107,10 +114,10 @@ security:
     crs_hosts: []
     # Allow localhost/private IPs for upstream/pricing/CRS (use only in trusted networks)
     # 允许本地/私有 IP 地址用于上游/定价/CRS（仅在可信网络中使用）
-    allow_private_hosts: true
+    allow_private_hosts: false
     # Allow http:// URLs when allowlist is disabled (default: false, require https)
     # 白名单禁用时是否允许 http:// URL（默认: false，要求 https）
-    allow_insecure_http: true
+    allow_insecure_http: false
   response_headers:
     # Enable configurable response header filtering (default: true)
     # 启用可配置的响应头过滤（默认启用，过滤上游敏感响应头）
@@ -609,6 +616,43 @@ token_refresh:
   sync_linked_sora_accounts: false
 
 # =============================================================================
+# Proxy Subscription Configuration
+# 代理订阅配置
+# =============================================================================
+proxy_subscriptions:
+  # Enable proxy subscription source management and background refresh
+  # 启用代理订阅源管理和后台刷新
+  enabled: false
+  # Refresh due-scan interval (seconds)
+  # 扫描到期订阅的间隔（秒）
+  refresh_scan_interval_seconds: 60
+  # Default refresh interval (hours) for newly created sources
+  # 新建订阅源的默认刷新间隔（小时）
+  default_refresh_interval_hours: 6
+  # Max concurrent refresh jobs
+  # 最大并发刷新任务数
+  sync_concurrency: 2
+
+proxy_subscription_mihomo:
+  # Enable built-in mihomo runtime management for non-direct proxy nodes
+  # 启用内置 mihomo 运行时，用于承载非直连代理节点
+  enabled: false
+  # mihomo runtime mode: embedded links vendored Mihomo source into the Sub2API binary.
+  # A separate mihomo executable is not required.
+  # mihomo 运行模式：embedded 会把 vendored Mihomo 源码直接链接进 Sub2API 二进制。
+  # 不需要单独安装 mihomo 可执行文件。
+  mihomo_bin: "embedded"
+  # Runtime data directory for generated configs
+  # 运行时配置和状态文件目录
+  data_dir: "/app/data/proxy-subscription-mihomo"
+  # Default local listener host returned to the proxy pool
+  # 返回给代理池的本地监听地址
+  listener_host: "127.0.0.1"
+  # Allowed listener port range allocated by the runtime manager
+  # 运行时分配的监听端口范围
+  listener_port_range: "21080-21180"
+
+# =============================================================================
 # API Key Auth Cache Configuration
 # API Key 认证缓存配置
 # =============================================================================
@@ -851,6 +895,9 @@ totp:
   # 如果留空，每次启动将生成随机密钥，导致现有的 TOTP 配置失效（用户无法使用
   # 双因素认证登录）。
   # Generate with / 生成命令: openssl rand -hex 32
+  # Production recommendation: generate once, store it securely out-of-band,
+  # and keep the same value across restarts and host migrations.
+  # 生产环境建议：只生成一次，安全保存在仓库外，并在重启或迁移主机时保持同一个值。
   encryption_key: ""
 
 # =============================================================================
@@ -926,7 +973,7 @@ default:
   # Initial admin account (created on first run)
   # 初始管理员账户（首次运行时创建）
   admin_email: "admin@example.com"
-  admin_password: "admin123"
+  admin_password: "change-this-password"
 
   # Default settings for new users
   # 新用户默认设置

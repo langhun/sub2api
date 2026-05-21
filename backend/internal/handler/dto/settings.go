@@ -3,6 +3,8 @@ package dto
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 // CustomMenuItem represents a user-configured custom menu entry.
@@ -25,19 +27,24 @@ type CustomEndpoint struct {
 
 // SystemSettings represents the admin settings API response payload.
 type SystemSettings struct {
-	RegistrationEnabled              bool                     `json:"registration_enabled"`
-	EmailVerifyEnabled               bool                     `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist []string                 `json:"registration_email_suffix_whitelist"`
-	PromoCodeEnabled                 bool                     `json:"promo_code_enabled"`
-	PasswordResetEnabled             bool                     `json:"password_reset_enabled"`
-	FrontendURL                      string                   `json:"frontend_url"`
-	InvitationCodeEnabled            bool                     `json:"invitation_code_enabled"`
-	TotpEnabled                      bool                     `json:"totp_enabled"`                   // TOTP 双因素认证
-	TotpEncryptionKeyConfigured      bool                     `json:"totp_encryption_key_configured"` // TOTP 加密密钥是否已配置
-	LoginAgreementEnabled            bool                     `json:"login_agreement_enabled"`
-	LoginAgreementMode               string                   `json:"login_agreement_mode"`
-	LoginAgreementUpdatedAt          string                   `json:"login_agreement_updated_at"`
-	LoginAgreementDocuments          []LoginAgreementDocument `json:"login_agreement_documents"`
+	RegistrationEnabled              bool                       `json:"registration_enabled"`
+	EmailVerifyEnabled               bool                       `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist []string                   `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                 bool                       `json:"promo_code_enabled"`
+	RedeemCodeFormat                 service.CodeFormatSettings `json:"redeem_code_format"`
+	BalanceCodeFormat                service.CodeFormatSettings `json:"balance_code_format"`
+	ConcurrencyCodeFormat            service.CodeFormatSettings `json:"concurrency_code_format"`
+	SubscriptionCodeFormat           service.CodeFormatSettings `json:"subscription_code_format"`
+	PasswordResetEnabled             bool                       `json:"password_reset_enabled"`
+	FrontendURL                      string                     `json:"frontend_url"`
+	InvitationCodeEnabled            bool                       `json:"invitation_code_enabled"`
+	InvitationCodeFormat             service.CodeFormatSettings `json:"invitation_code_format"`
+	TotpEnabled                      bool                       `json:"totp_enabled"`                   // TOTP 双因素认证
+	TotpEncryptionKeyConfigured      bool                       `json:"totp_encryption_key_configured"` // TOTP 加密密钥是否已配置
+	LoginAgreementEnabled            bool                       `json:"login_agreement_enabled"`
+	LoginAgreementMode               string                     `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt          string                     `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments          []LoginAgreementDocument   `json:"login_agreement_documents"`
 
 	SMTPHost               string `json:"smtp_host"`
 	SMTPPort               int    `json:"smtp_port"`
@@ -113,34 +120,44 @@ type SystemSettings struct {
 	OIDCConnectUserInfoIDPath         string `json:"oidc_connect_userinfo_id_path"`
 	OIDCConnectUserInfoUsernamePath   string `json:"oidc_connect_userinfo_username_path"`
 
-	GitHubOAuthEnabled                bool   `json:"github_oauth_enabled"`
-	GitHubOAuthClientID               string `json:"github_oauth_client_id"`
-	GitHubOAuthClientSecretConfigured bool   `json:"github_oauth_client_secret_configured"`
-	GitHubOAuthRedirectURL            string `json:"github_oauth_redirect_url"`
-	GitHubOAuthFrontendRedirectURL    string `json:"github_oauth_frontend_redirect_url"`
-	GoogleOAuthEnabled                bool   `json:"google_oauth_enabled"`
-	GoogleOAuthClientID               string `json:"google_oauth_client_id"`
-	GoogleOAuthClientSecretConfigured bool   `json:"google_oauth_client_secret_configured"`
-	GoogleOAuthRedirectURL            string `json:"google_oauth_redirect_url"`
-	GoogleOAuthFrontendRedirectURL    string `json:"google_oauth_frontend_redirect_url"`
-
-	SiteName                    string           `json:"site_name"`
-	SiteLogo                    string           `json:"site_logo"`
-	SiteSubtitle                string           `json:"site_subtitle"`
-	APIBaseURL                  string           `json:"api_base_url"`
-	ContactInfo                 string           `json:"contact_info"`
-	DocURL                      string           `json:"doc_url"`
-	HomeContent                 string           `json:"home_content"`
-	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
-	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
-	TableDefaultPageSize        int              `json:"table_default_page_size"`
-	TablePageSizeOptions        []int            `json:"table_page_size_options"`
-	CustomMenuItems             []CustomMenuItem `json:"custom_menu_items"`
-	CustomEndpoints             []CustomEndpoint `json:"custom_endpoints"`
+	SiteName                          string           `json:"site_name"`
+	SiteLogo                          string           `json:"site_logo"`
+	SiteSubtitle                      string           `json:"site_subtitle"`
+	APIBaseURL                        string           `json:"api_base_url"`
+	ContactInfo                       string           `json:"contact_info"`
+	DocURL                            string           `json:"doc_url"`
+	HomeContent                       string           `json:"home_content"`
+	HomeNavLinksEnabled               bool             `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled         bool             `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled            bool             `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled          bool             `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled             bool             `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled         bool             `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled     bool             `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled        bool             `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled         bool             `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin           bool             `json:"leaderboard_include_admin_enabled"`
+	HideCcsImportButton               bool             `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled       bool             `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL           string           `json:"purchase_subscription_url"`
+	TableDefaultPageSize              int              `json:"table_default_page_size"`
+	TablePageSizeOptions              []int            `json:"table_page_size_options"`
+	CustomMenuItems                   []CustomMenuItem `json:"custom_menu_items"`
+	CustomEndpoints                   []CustomEndpoint `json:"custom_endpoints"`
+	GitHubOAuthEnabled                bool             `json:"github_oauth_enabled"`
+	GitHubOAuthClientID               string           `json:"github_oauth_client_id"`
+	GitHubOAuthClientSecretConfigured bool             `json:"github_oauth_client_secret_configured"`
+	GitHubOAuthRedirectURL            string           `json:"github_oauth_redirect_url"`
+	GitHubOAuthFrontendRedirectURL    string           `json:"github_oauth_frontend_redirect_url"`
+	GoogleOAuthEnabled                bool             `json:"google_oauth_enabled"`
+	GoogleOAuthClientID               string           `json:"google_oauth_client_id"`
+	GoogleOAuthClientSecretConfigured bool             `json:"google_oauth_client_secret_configured"`
+	GoogleOAuthRedirectURL            string           `json:"google_oauth_redirect_url"`
+	GoogleOAuthFrontendRedirectURL    string           `json:"google_oauth_frontend_redirect_url"`
 
 	DefaultConcurrency           int                          `json:"default_concurrency"`
 	DefaultBalance               float64                      `json:"default_balance"`
+	AffiliateCodeFormat          service.CodeFormatSettings   `json:"affiliate_code_format"`
 	AffiliateRebateRate          float64                      `json:"affiliate_rebate_rate"`
 	AffiliateRebateFreezeHours   int                          `json:"affiliate_rebate_freeze_hours"`
 	AffiliateRebateDurationDays  int                          `json:"affiliate_rebate_duration_days"`
@@ -229,12 +246,39 @@ type SystemSettings struct {
 	AccountQuotaNotifyEnabled   bool               `json:"account_quota_notify_enabled"`
 	AccountQuotaNotifyEmails    []NotifyEmailEntry `json:"account_quota_notify_emails"`
 
+	// Checkin 签到设置
+	CheckinEnabled    bool    `json:"checkin_enabled"`
+	CheckinMinBalance float64 `json:"checkin_min_balance"`
+	CheckinMaxBalance float64 `json:"checkin_max_balance"`
+
+	// Checkin Luck 运气签到设置
+	CheckinLuckEnabled       bool    `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier float64 `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier float64 `json:"checkin_luck_max_multiplier"`
+
+	// Checkin Blind Box 签到盲盒设置
+	CheckinBlindboxEnabled     bool   `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType string `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval    int    `json:"checkin_blindbox_interval"`
+
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
 	// Available Channels feature switch (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	// Balance Transfer 余额流转设置
+	TransferEnabled         bool    `json:"transfer_enabled"`
+	TransferFeeRate         float64 `json:"transfer_fee_rate"`
+	TransferMinAmount       float64 `json:"transfer_min_amount"`
+	TransferMaxAmount       float64 `json:"transfer_max_amount"`
+	TransferDailyLimit      float64 `json:"transfer_daily_limit"`
+	TransferDailyCountLimit int     `json:"transfer_daily_count_limit"`
+	TransferVIPFeeExempt    bool    `json:"transfer_vip_fee_exempt"`
+	RedPacketEnabled        bool    `json:"redpacket_enabled"`
+	RedPacketMaxCount       int     `json:"redpacket_max_count"`
+	RedPacketExpireHours    int     `json:"redpacket_expire_hours"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`
@@ -274,6 +318,15 @@ type PublicSettings struct {
 	ContactInfo                      string                   `json:"contact_info"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
+	HomeNavLinksEnabled              bool                     `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled        bool                     `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled           bool                     `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled         bool                     `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled            bool                     `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled        bool                     `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled    bool                     `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled       bool                     `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled        bool                     `json:"leaderboard_checkin_enabled"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string                   `json:"purchase_subscription_url"`
@@ -304,6 +357,9 @@ type PublicSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	TransferEnabled  bool `json:"transfer_enabled"`
+	RedPacketEnabled bool `json:"redpacket_enabled"`
 
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 

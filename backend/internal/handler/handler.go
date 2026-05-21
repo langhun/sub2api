@@ -18,6 +18,7 @@ type AdminHandlers struct {
 	GeminiOAuth            *admin.GeminiOAuthHandler
 	AntigravityOAuth       *admin.AntigravityOAuthHandler
 	Proxy                  *admin.ProxyHandler
+	ProxySubscription      *admin.ProxySubscriptionHandler
 	Redeem                 *admin.RedeemHandler
 	Promo                  *admin.PromoHandler
 	Setting                *admin.SettingHandler
@@ -35,6 +36,10 @@ type AdminHandlers struct {
 	ChannelMonitorTemplate *admin.ChannelMonitorRequestTemplateHandler
 	ContentModeration      *admin.ContentModerationHandler
 	Payment                *admin.PaymentHandler
+	Monitoring             *admin.MonitoringHandler
+	ModelPricing           *admin.ModelPricingHandler
+	Blindbox               *admin.BlindboxHandler
+	TransferAdmin          *admin.TransferAdminHandler
 	Affiliate              *admin.AffiliateHandler
 }
 
@@ -55,7 +60,10 @@ type Handlers struct {
 	Totp             *TotpHandler
 	Payment          *PaymentHandler
 	PaymentWebhook   *PaymentWebhookHandler
+	Checkin          *CheckinHandler
+	Leaderboard      *LeaderboardHandler
 	AvailableChannel *AvailableChannelHandler
+	Transfer         *BalanceTransferHandler
 }
 
 // BuildInfo contains build-time information

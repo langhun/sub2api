@@ -453,6 +453,89 @@ func TestRelay_OnTurnComplete_PerTerminalEvent(t *testing.T) {
 	require.Equal(t, 5, result.Usage.OutputTokens)
 }
 
+func TestRelay_OnTurnComplete_NonSuccessTerminalEventsStillEmitTerminalCallback(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                 string
+		eventType            string
+		payload              string
+		wantInputTokens      int
+		wantOutputTokens     int
+		wantAggregatedInput  int
+		wantAggregatedOutput int
+	}{
+		{
+			name:                 "response_failed_keeps_usage",
+			eventType:            "response.failed",
+			payload:              `{"type":"response.failed","response":{"id":"resp_failed","usage":{"input_tokens":3,"output_tokens":4}}}`,
+			wantInputTokens:      3,
+			wantOutputTokens:     4,
+			wantAggregatedInput:  3,
+			wantAggregatedOutput: 4,
+		},
+		{
+			name:                 "response_incomplete_no_usage_parse",
+			eventType:            "response.incomplete",
+			payload:              `{"type":"response.incomplete","response":{"id":"resp_incomplete","usage":{"input_tokens":5,"output_tokens":6}}}`,
+			wantInputTokens:      0,
+			wantOutputTokens:     0,
+			wantAggregatedInput:  0,
+			wantAggregatedOutput: 0,
+		},
+		{
+			name:                 "response_cancelled_no_usage_parse",
+			eventType:            "response.cancelled",
+			payload:              `{"type":"response.cancelled","response":{"id":"resp_cancelled","usage":{"input_tokens":7,"output_tokens":8}}}`,
+			wantInputTokens:      0,
+			wantOutputTokens:     0,
+			wantAggregatedInput:  0,
+			wantAggregatedOutput: 0,
+		},
+		{
+			name:                 "response_canceled_no_usage_parse",
+			eventType:            "response.canceled",
+			payload:              `{"type":"response.canceled","response":{"id":"resp_canceled","usage":{"input_tokens":9,"output_tokens":10}}}`,
+			wantInputTokens:      0,
+			wantOutputTokens:     0,
+			wantAggregatedInput:  0,
+			wantAggregatedOutput: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			clientConn := newPassthroughTestFrameConn(nil, false)
+			upstreamConn := newPassthroughTestFrameConn([]passthroughTestFrame{
+				{
+					msgType: coderws.MessageText,
+					payload: []byte(tc.payload),
+				},
+			}, true)
+
+			firstPayload := []byte(`{"type":"response.create","model":"gpt-5.3-codex","input":[]}`)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			var turn RelayTurnResult
+			result, relayExit := Relay(ctx, clientConn, upstreamConn, firstPayload, RelayOptions{
+				OnTurnComplete: func(current RelayTurnResult) {
+					turn = current
+				},
+			})
+			require.Nil(t, relayExit)
+			require.Equal(t, tc.eventType, turn.TerminalEventType)
+			require.Equal(t, tc.wantInputTokens, turn.Usage.InputTokens)
+			require.Equal(t, tc.wantOutputTokens, turn.Usage.OutputTokens)
+			require.Equal(t, tc.wantAggregatedInput, result.Usage.InputTokens)
+			require.Equal(t, tc.wantAggregatedOutput, result.Usage.OutputTokens)
+		})
+	}
+}
+
 func TestRelay_OnTurnComplete_ProvidesTurnMetrics(t *testing.T) {
 	t.Parallel()
 

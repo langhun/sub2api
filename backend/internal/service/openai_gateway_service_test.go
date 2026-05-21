@@ -595,10 +595,10 @@ func TestOpenAISelectAccountWithLoadAwareness_LoadBatchErrorFallback(t *testing.
 	if selection == nil || selection.Account == nil {
 		t.Fatalf("expected selection")
 	}
-	if selection.Account.ID != 2 {
-		t.Fatalf("expected account 2, got %d", selection.Account.ID)
+	if selection.Account.ID != 1 {
+		t.Fatalf("expected account 1, got %d", selection.Account.ID)
 	}
-	if cache.sessionBindings["openai:fallback"] != 2 {
+	if cache.sessionBindings["openai:fallback"] != 1 {
 		t.Fatalf("expected sticky session updated")
 	}
 	if selection.ReleaseFunc != nil {
@@ -1270,6 +1270,45 @@ func TestOpenAIStreamingPolicyResponseFailedBeforeOutputPassesThrough(t *testing
 	require.Contains(t, rec.Body.String(), "high-risk cyber activity")
 }
 
+func TestOpenAIStreamingContextLengthExceededBeforeOutputReturnsStructuredError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		Gateway: config.GatewayConfig{
+			StreamDataIntervalTimeout: 0,
+			StreamKeepaliveInterval:   0,
+			MaxLineSize:               defaultMaxLineSize,
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: io.NopCloser(strings.NewReader(strings.Join([]string{
+			"event: response.created",
+			`data: {"type":"response.created","response":{"id":"resp_1"}}`,
+			"",
+			"event: response.failed",
+			`data: {"type":"response.failed","response":{"error":{"code":"context_length_exceeded","message":"Your input exceeds the context window of this model. Please adjust your input and try again."}}}`,
+			"",
+		}, "\n"))),
+		Header: http.Header{"X-Request-Id": []string{"rid-context-failed"}},
+	}
+
+	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1, Platform: PlatformOpenAI, Name: "acc"}, time.Now(), "model", "model")
+	require.Error(t, err)
+	var preOutputErr *OpenAIStreamPreOutputError
+	require.ErrorAs(t, err, &preOutputErr)
+	require.Equal(t, http.StatusBadRequest, preOutputErr.StatusCode)
+	require.Equal(t, "invalid_request_error", preOutputErr.ErrorType)
+	require.Contains(t, preOutputErr.Message, "context window")
+	require.False(t, c.Writer.Written(), "pre-output structured errors must not start streaming to the client")
+	require.Empty(t, rec.Body.String())
+}
+
 func TestOpenAIStreamingClientDisconnectDrainsUpstreamUsage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{
@@ -1737,6 +1776,25 @@ func TestOpenAIValidateUpstreamBaseURLDisabledAllowsHTTP(t *testing.T) {
 	}
 	if normalized != "http://not-https.example.com" {
 		t.Fatalf("expected raw url passthrough, got %q", normalized)
+	}
+}
+
+func TestOpenAIValidateUpstreamBaseURLDisabledBlocksPrivateHostsByDefault(t *testing.T) {
+	cfg := &config.Config{
+		Security: config.SecurityConfig{
+			URLAllowlist: config.URLAllowlistConfig{
+				Enabled:           false,
+				AllowPrivateHosts: false,
+			},
+		},
+	}
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	if _, err := svc.validateUpstreamBaseURL("https://localhost"); err == nil {
+		t.Fatalf("expected localhost to be rejected when allow_private_hosts is false")
+	}
+	if _, err := svc.validateUpstreamBaseURL("https://127.0.0.1"); err == nil {
+		t.Fatalf("expected loopback ip to be rejected when allow_private_hosts is false")
 	}
 }
 

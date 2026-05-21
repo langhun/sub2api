@@ -2,93 +2,60 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-wrap items-center gap-3">
-          <!-- Left: Search + Filters -->
-          <div class="relative w-full sm:w-64">
-            <Icon
-              name="search"
-              size="md"
-              class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
-            />
-            <input
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('admin.proxies.searchProxies')"
-              class="input pl-10"
-              @input="handleSearch"
-            />
-          </div>
-
-          <div class="w-full sm:w-40">
-            <Select
-              v-model="filters.protocol"
-              :options="protocolOptions"
-              :placeholder="t('admin.proxies.allProtocols')"
-              @change="loadProxies"
-            />
-          </div>
-          <div class="w-full sm:w-36">
-            <Select
-              v-model="filters.status"
-              :options="statusOptions"
-              :placeholder="t('admin.proxies.allStatus')"
-              @change="loadProxies"
-            />
-          </div>
-
-          <!-- Right: All action buttons -->
-          <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
-            <button
-              @click="loadProxies"
-              :disabled="loading"
-              class="btn btn-secondary"
-              :title="t('common.refresh')"
-            >
-              <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
-            </button>
-            <button
-              @click="handleBatchTest"
-              :disabled="batchTesting || loading"
-              class="btn btn-secondary"
-              :title="t('admin.proxies.testConnection')"
-            >
-              <Icon name="play" size="md" class="mr-2" />
-              {{ t('admin.proxies.testConnection') }}
-            </button>
-            <button
-              @click="handleBatchQualityCheck"
-              :disabled="batchQualityChecking || loading"
-              class="btn btn-secondary"
-              :title="t('admin.proxies.batchQualityCheck')"
-            >
-              <Icon name="shield" size="md" class="mr-2" :class="batchQualityChecking ? 'animate-pulse' : ''" />
-              {{ t('admin.proxies.batchQualityCheck') }}
-            </button>
-            <button
-              @click="openBatchDelete"
-              :disabled="selectedCount === 0"
-              class="btn btn-danger"
-              :title="t('admin.proxies.batchDeleteAction')"
-            >
-              <Icon name="trash" size="md" class="mr-2" />
-              {{ t('admin.proxies.batchDeleteAction') }}
-            </button>
-            <button @click="showImportData = true" class="btn btn-secondary">
-              {{ t('admin.proxies.dataImport') }}
-            </button>
-            <button @click="showExportDataDialog = true" class="btn btn-secondary">
-              {{ selectedCount > 0 ? t('admin.proxies.dataExportSelected') : t('admin.proxies.dataExport') }}
-            </button>
-            <button @click="showCreateModal = true" class="btn btn-primary">
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.proxies.createProxy') }}
-            </button>
-          </div>
-        </div>
+        <ProxiesToolbar
+          :active-tab="activeTab"
+          :search-query="searchQuery"
+          :filters="filters"
+          :protocol-options="protocolOptions"
+          :status-options="statusOptions"
+          :runtime-status-options="runtimeStatusOptions"
+          :loading="loading"
+          :loading-subscriptions="loadingSubscriptions"
+          :batch-testing="batchTesting"
+          :batch-quality-checking="batchQualityChecking"
+          :selected-count="selectedCount"
+          :show-column-dropdown="showColumnDropdown"
+          :show-proxy-tools-dropdown="showProxyToolsDropdown"
+          :show-proxy-batch-dropdown="showProxyBatchDropdown"
+          :toggleable-columns="toggleableColumns"
+          :is-column-visible="isColumnVisible"
+          @set-tab="handleToolbarSetTab"
+          @update:search-query="updateToolbarSearch"
+          @update:filters="updateToolbarFilters"
+          @reload-proxies="loadProxies"
+          @reload-subscriptions="loadProxySubscriptions"
+          @create-subscription="openCreateSubscriptionDialog"
+          @toggle-column-dropdown="showColumnDropdown = !showColumnDropdown"
+          @toggle-tools-dropdown="showProxyToolsDropdown = !showProxyToolsDropdown; showProxyBatchDropdown = false"
+          @toggle-batch-dropdown="showProxyBatchDropdown = !showProxyBatchDropdown; showProxyToolsDropdown = false"
+          @toggle-column="toggleColumn"
+          @open-import="showImportData = true; showProxyToolsDropdown = false"
+          @open-export="showExportDataDialog = true; showProxyToolsDropdown = false"
+          @open-pool="openPoolDialog(); showProxyToolsDropdown = false"
+          @batch-test="handleBatchTest(); showProxyBatchDropdown = false"
+          @batch-quality-check="handleBatchQualityCheck(); showProxyBatchDropdown = false"
+          @batch-enable-pool="handleBatchPoolMembership(true); showProxyBatchDropdown = false"
+          @batch-disable-pool="handleBatchPoolMembership(false); showProxyBatchDropdown = false"
+          @batch-clear-cooldown="handleClearCooldown(Array.from(selectedProxyIds)); showProxyBatchDropdown = false"
+          @batch-assign="showAssignAccounts = true; showProxyBatchDropdown = false"
+          @batch-unassign="openBatchUnassign(); showProxyBatchDropdown = false"
+          @batch-delete="openBatchDelete(); showProxyBatchDropdown = false"
+          @create-proxy="showCreateModal = true"
+        />
       </template>
 
       <template #table>
+        <ProxySubscriptionsPanel
+          v-if="activeTab === 'subscriptions'"
+          :loading="loadingSubscriptions"
+          :items="proxySubscriptions"
+          @refresh="handleRefreshSubscription"
+          @edit="handleEditSubscription"
+          @view-nodes="handleViewSubscriptionNodes"
+          @delete="handleDeleteSubscription"
+        />
         <div ref="proxyTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <template v-if="activeTab === 'proxies'">
         <DataTable
           :columns="columns"
           :data="proxies"
@@ -118,8 +85,19 @@
             />
           </template>
 
-          <template #cell-name="{ value }">
-            <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+          <template #cell-name="{ value, row }">
+            <div class="flex flex-col gap-1">
+                <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+              <div v-if="row.managed_by_subscription" class="flex flex-wrap items-center gap-1">
+                <span class="badge badge-warning">{{ t('admin.proxies.subscriptions.managedBadge') }}</span>
+                <span v-if="row.subscription_source_name" class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ row.subscription_source_name }}
+                </span>
+                <span v-if="row.subscription_node_type" class="text-xs text-gray-500 dark:text-gray-400">
+                  [{{ row.subscription_node_type }}]
+                </span>
+              </div>
+            </div>
           </template>
 
           <template #cell-protocol="{ value }">
@@ -145,7 +123,7 @@
                 >
                   <Icon name="copy" size="sm" />
                 </button>
-                <!-- 右键展开格式选择菜单 -->
+                <!-- Context menu for alternate copy formats -->
                 <div
                   v-if="copyMenuProxyId === row.id"
                   class="absolute left-0 top-full z-50 mt-1 w-auto min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-500 dark:bg-dark-700"
@@ -185,12 +163,20 @@
 
           <template #cell-location="{ row }">
             <div class="flex items-center gap-2">
-              <img
-                v-if="row.country_code"
-                :src="flagUrl(row.country_code)"
-                :alt="row.country || row.country_code"
-                class="h-4 w-6 rounded-sm"
-              />
+              <span
+                v-if="countryFlagEmoji(row.country_code)"
+                class="inline-flex h-4 w-6 items-center justify-center text-sm leading-none"
+                role="img"
+                :aria-label="row.country || normalizedCountryCode(row.country_code)"
+              >
+                {{ countryFlagEmoji(row.country_code) }}
+              </span>
+              <span
+                v-else-if="normalizedCountryCode(row.country_code)"
+                class="inline-flex min-w-6 items-center justify-center rounded-sm bg-gray-100 px-1 py-0.5 text-[10px] font-medium uppercase leading-none text-gray-500 dark:bg-dark-600 dark:text-gray-300"
+              >
+                {{ normalizedCountryCode(row.country_code) }}
+              </span>
               <span v-if="formatLocation(row)" class="text-sm text-gray-700 dark:text-gray-200">
                 {{ formatLocation(row) }}
               </span>
@@ -213,6 +199,20 @@
             >
               {{ t('admin.groups.accountsCount', { count: 0 }) }}
             </span>
+          </template>
+
+          <template #cell-pool="{ row }">
+            <div class="flex flex-col items-start gap-1">
+              <span :class="['badge', row.auto_failover_pool_enabled ? 'badge-primary' : 'badge-gray']">
+                {{ row.auto_failover_pool_enabled ? t('admin.proxies.poolEnabled') : t('admin.proxies.poolDisabled') }}
+              </span>
+              <span
+                v-if="typeof row.failover_switch_count === 'number' && row.failover_switch_count > 0"
+                class="text-xs text-gray-500 dark:text-gray-400"
+              >
+                {{ t('admin.proxies.failoverSwitchCount', { count: row.failover_switch_count }) }}
+              </span>
+            </div>
           </template>
 
           <template #cell-latency="{ row }">
@@ -244,18 +244,43 @@
             </div>
           </template>
 
-          <template #cell-status="{ value }">
-            <span :class="['badge', value === 'active' ? 'badge-success' : 'badge-danger']">
-              {{ t('admin.accounts.status.' + value) }}
-            </span>
+          <template #cell-status="{ row, value }">
+            <div class="flex flex-col items-start gap-1">
+              <div class="flex flex-wrap items-center gap-1">
+                <span :class="['badge', value === 'active' ? 'badge-success' : 'badge-danger']">
+                  {{ t('admin.accounts.status.' + value) }}
+                </span>
+                <span v-if="row.health_status" :class="['badge', healthStatusClass(row.health_status)]">
+                  {{ healthStatusLabel(row.health_status) }}
+                </span>
+              </div>
+              <div v-if="row.health_status === 'cooldown' && row.cooldown_until_unix" class="text-xs text-amber-600 dark:text-amber-400">
+                {{ t('admin.proxies.cooldownUntil', { time: formatCooldownCountdown(row.cooldown_until_unix) }) }}
+              </div>
+              <div
+                v-if="row.last_fail_reason"
+                class="text-xs text-gray-500 dark:text-gray-400"
+                :title="`${row.last_fail_reason}\n${formatRuntimeTime(row.last_fail_at_unix)}`"
+              >
+                {{ row.last_fail_reason }}
+              </div>
+              <div
+                v-if="typeof row.failover_switch_count === 'number' && row.failover_switch_count > 0"
+                class="text-xs text-gray-500 dark:text-gray-400"
+              >
+                {{ t('admin.proxies.failoverSwitchCount', { count: row.failover_switch_count }) }}
+              </div>
+            </div>
           </template>
 
           <template #cell-actions="{ row }">
-            <div class="flex items-center gap-1">
+            <div class="relative flex items-center justify-end gap-1" @click.stop>
               <button
                 @click="handleTestConnection(row)"
                 :disabled="testingProxyIds.has(row.id)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
+                :title="t('admin.proxies.testConnection')"
+                :aria-label="t('admin.proxies.testConnection')"
               >
                 <svg
                   v-if="testingProxyIds.has(row.id)"
@@ -278,12 +303,14 @@
                   ></path>
                 </svg>
                 <Icon v-else name="checkCircle" size="sm" />
-                <span class="text-xs">{{ t('admin.proxies.testConnection') }}</span>
+                <span class="sr-only">{{ t('admin.proxies.testConnection') }}</span>
               </button>
               <button
                 @click="handleQualityCheck(row)"
                 :disabled="qualityCheckingProxyIds.has(row.id)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                :title="t('admin.proxies.qualityCheck')"
+                :aria-label="t('admin.proxies.qualityCheck')"
               >
                 <svg
                   v-if="qualityCheckingProxyIds.has(row.id)"
@@ -306,21 +333,28 @@
                   ></path>
                 </svg>
                 <Icon v-else name="shield" size="sm" />
-                <span class="text-xs">{{ t('admin.proxies.qualityCheck') }}</span>
+                <span class="sr-only">{{ t('admin.proxies.qualityCheck') }}</span>
               </button>
               <button
                 @click="handleEdit(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                :title="t('common.edit')"
+                :aria-label="t('common.edit')"
               >
                 <Icon name="edit" size="sm" />
-                <span class="text-xs">{{ t('common.edit') }}</span>
+                <span class="sr-only">{{ t('common.edit') }}</span>
               </button>
               <button
-                @click="handleDelete(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                type="button"
+                @click="toggleRowActionMenu(row.id, $event)"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white"
+                :class="{ 'bg-gray-100 text-gray-900 dark:bg-dark-700 dark:text-white': activeRowActionMenuId === row.id }"
+                :title="t('common.more')"
+                :aria-label="t('common.more')"
+                :aria-expanded="activeRowActionMenuId === row.id"
               >
-                <Icon name="trash" size="sm" />
-                <span class="text-xs">{{ t('common.delete') }}</span>
+                <Icon name="more" size="sm" />
+                <span class="sr-only">{{ t('common.more') }}</span>
               </button>
             </div>
           </template>
@@ -334,12 +368,13 @@
             />
           </template>
         </DataTable>
+        </template>
         </div>
       </template>
 
       <template #pagination>
         <Pagination
-          v-if="pagination.total > 0"
+          v-if="activeTab === 'proxies' && pagination.total > 0"
           :page="pagination.page"
           :total="pagination.total"
           :page-size="pagination.page_size"
@@ -470,6 +505,17 @@
             </button>
           </div>
         </div>
+        <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 text-sm dark:border-dark-600">
+          <input
+            v-model="createForm.auto_failover_pool_enabled"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span class="space-y-1">
+            <span class="font-medium text-gray-900 dark:text-white">{{ t('admin.proxies.poolToggleLabel') }}</span>
+            <span class="block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.poolToggleHint') }}</span>
+          </span>
+        </label>
 
       </form>
 
@@ -618,16 +664,16 @@
       >
         <div>
           <label class="input-label">{{ t('admin.proxies.name') }}</label>
-          <input v-model="editForm.name" type="text" required class="input" />
+          <input v-model="editForm.name" type="text" required class="input" :disabled="editingProxy?.managed_by_subscription" />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
-          <Select v-model="editForm.protocol" :options="protocolSelectOptions" />
+          <Select v-model="editForm.protocol" :options="protocolSelectOptions" :disabled="editingProxy?.managed_by_subscription" />
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="input-label">{{ t('admin.proxies.host') }}</label>
-            <input v-model="editForm.host" type="text" required class="input" />
+            <input v-model="editForm.host" type="text" required class="input" :disabled="editingProxy?.managed_by_subscription" />
           </div>
           <div>
             <label class="input-label">{{ t('admin.proxies.port') }}</label>
@@ -638,12 +684,13 @@
               min="1"
               max="65535"
               class="input"
+              :disabled="editingProxy?.managed_by_subscription"
             />
           </div>
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.username') }}</label>
-          <input v-model="editForm.username" type="text" class="input" />
+          <input v-model="editForm.username" type="text" class="input" :disabled="editingProxy?.managed_by_subscription" />
         </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.password') }}</label>
@@ -654,6 +701,7 @@
               :placeholder="t('admin.proxies.leaveEmptyToKeep')"
               class="input pr-10"
               @input="editPasswordDirty = true"
+              :disabled="editingProxy?.managed_by_subscription"
             />
             <button
               type="button"
@@ -664,10 +712,27 @@
             </button>
           </div>
         </div>
+        <div
+          v-if="editingProxy?.managed_by_subscription"
+          class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+        >
+          {{ t('admin.proxies.subscriptions.managedReadonlyHint') }}
+        </div>
         <div>
           <label class="input-label">{{ t('admin.proxies.status') }}</label>
           <Select v-model="editForm.status" :options="editStatusOptions" />
         </div>
+        <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 text-sm dark:border-dark-600">
+          <input
+            v-model="editForm.auto_failover_pool_enabled"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span class="space-y-1">
+            <span class="font-medium text-gray-900 dark:text-white">{{ t('admin.proxies.poolToggleLabel') }}</span>
+            <span class="block text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.poolToggleHint') }}</span>
+          </span>
+        </label>
 
       </form>
 
@@ -733,6 +798,15 @@
       @cancel="showBatchDeleteDialog = false"
     />
     <ConfirmDialog
+      :show="showBatchUnassignDialog"
+      :title="t('admin.proxies.quickUnassign')"
+      :message="t('admin.proxies.quickUnassignConfirm', { count: selectedCount })"
+      :confirm-text="t('admin.proxies.quickUnassignConfirmButton')"
+      :cancel-text="t('common.cancel')"
+      @confirm="confirmBatchUnassign"
+      @cancel="showBatchUnassignDialog = false"
+    />
+    <ConfirmDialog
       :show="showExportDataDialog"
       :title="t('admin.proxies.dataExport')"
       :message="t('admin.proxies.dataExportConfirmMessage')"
@@ -748,67 +822,127 @@
       @imported="handleDataImported"
     />
 
+    <AssignAccountsModal
+      :show="showAssignAccounts"
+      :proxy-ids="Array.from(selectedProxyIds)"
+      :groups="accountGroups"
+      @close="showAssignAccounts = false"
+      @assigned="loadProxies"
+    />
+
     <BaseDialog
       :show="showQualityReportDialog"
       :title="t('admin.proxies.qualityReportTitle')"
-      width="normal"
+      width="wide"
       @close="closeQualityReportDialog"
     >
       <div v-if="qualityReport" class="space-y-4">
-        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-700">
-          <div class="flex items-center justify-between gap-4">
-            <div>
-              <div class="text-sm text-gray-500 dark:text-gray-400">
+        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-dark-600 dark:bg-dark-700/80">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="min-w-0 space-y-3">
+              <div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
                 {{ qualityReportProxy?.name || '-' }}
+                </div>
+                <div class="mt-1 text-base font-medium text-gray-900 dark:text-white">
+                  {{ qualityReport.summary }}
+                </div>
               </div>
-              <div class="mt-1 text-sm text-gray-700 dark:text-gray-200">
-                {{ qualityReport.summary }}
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="badge" :class="qualityOverallClass(qualityOverallStatus(qualityReport))">
+                  {{ qualityOverallLabel(qualityOverallStatus(qualityReport)) }}
+                </span>
+                <span
+                  v-for="stat in qualityReportBreakdown(qualityReport)"
+                  :key="stat.key"
+                  class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-600 dark:border-dark-500 dark:bg-dark-800 dark:text-gray-300"
+                >
+                  <span class="font-medium text-gray-900 dark:text-white">{{ stat.label }}</span>
+                  <span>{{ stat.value }}</span>
+                </span>
               </div>
             </div>
-            <div class="text-right">
-              <div class="text-2xl font-semibold text-gray-900 dark:text-white">
-                {{ qualityReport.score }}
+            <div class="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+              <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
+                <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.proxies.qualityScoreLabel') }}
+                </div>
+                <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+                  {{ qualityReport.score }}
+                </div>
               </div>
-              <div class="text-xs text-gray-500 dark:text-gray-400">
-                {{ t('admin.proxies.qualityGrade', { grade: qualityReport.grade }) }}
+              <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
+                <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.proxies.qualityGradeLabel') }}
+                </div>
+                <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                  {{ qualityReport.grade }}
+                </div>
+              </div>
+              <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
+                <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.proxies.qualityBaseLatency') }}
+                </div>
+                <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
+                  {{ typeof qualityReport.base_latency_ms === 'number' ? `${qualityReport.base_latency_ms}ms` : '-' }}
+                </div>
+              </div>
+              <div class="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-dark-800">
+                <div class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.proxies.qualityCountry') }}
+                </div>
+                <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                  {{ qualityReport.country || '-' }}
+                </div>
               </div>
             </div>
           </div>
-          <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
-            <div>{{ t('admin.proxies.qualityExitIP') }}: {{ qualityReport.exit_ip || '-' }}</div>
-            <div>{{ t('admin.proxies.qualityCountry') }}: {{ qualityReport.country || '-' }}</div>
-            <div>
-              {{ t('admin.proxies.qualityBaseLatency') }}:
-              {{ typeof qualityReport.base_latency_ms === 'number' ? `${qualityReport.base_latency_ms}ms` : '-' }}
+          <div class="mt-4 grid gap-3 text-xs text-gray-600 dark:text-gray-300 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
+              <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityExitIP') }}</div>
+              <div class="mt-1 break-all text-sm text-gray-900 dark:text-white">{{ qualityReport.exit_ip || '-' }}</div>
             </div>
-            <div>{{ t('admin.proxies.qualityCheckedAt') }}: {{ new Date(qualityReport.checked_at * 1000).toLocaleString() }}</div>
+            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
+              <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityCountry') }}</div>
+              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ qualityReport.country || '-' }}</div>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
+              <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityCheckedAt') }}</div>
+              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatQualityCheckedAt(qualityReport.checked_at) }}</div>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-dark-500 dark:bg-dark-800">
+              <div class="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{{ t('admin.proxies.qualityInterpretation') }}</div>
+              <div class="mt-1 text-sm text-gray-900 dark:text-white">{{ qualityInterpretationLabel(qualityOverallStatus(qualityReport)) }}</div>
+            </div>
           </div>
         </div>
 
         <div class="max-h-80 overflow-auto rounded-lg border border-gray-200 dark:border-dark-600">
-          <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
+          <table class="min-w-full table-fixed divide-y divide-gray-200 text-sm dark:divide-dark-700">
             <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-dark-400">
               <tr>
-                <th class="px-3 py-2 text-left">{{ t('admin.proxies.qualityTableTarget') }}</th>
-                <th class="px-3 py-2 text-left">{{ t('admin.proxies.qualityTableStatus') }}</th>
-                <th class="px-3 py-2 text-left">HTTP</th>
-                <th class="px-3 py-2 text-left">{{ t('admin.proxies.qualityTableLatency') }}</th>
+                <th class="w-32 px-3 py-2 text-left">{{ t('admin.proxies.qualityTableTarget') }}</th>
+                <th class="w-28 px-3 py-2 text-left">{{ t('admin.proxies.qualityTableStatus') }}</th>
+                <th class="w-20 px-3 py-2 text-left">HTTP</th>
+                <th class="w-24 px-3 py-2 text-left">{{ t('admin.proxies.qualityTableLatency') }}</th>
                 <th class="px-3 py-2 text-left">{{ t('admin.proxies.qualityTableMessage') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
               <tr v-for="item in qualityReport.items" :key="item.target">
-                <td class="px-3 py-2 text-gray-900 dark:text-white">{{ qualityTargetLabel(item.target) }}</td>
+                <td class="px-3 py-3 align-top text-gray-900 dark:text-white">{{ qualityTargetLabel(item.target) }}</td>
                 <td class="px-3 py-2">
                   <span class="badge" :class="qualityStatusClass(item.status)">{{ qualityStatusLabel(item.status) }}</span>
                 </td>
-                <td class="px-3 py-2 text-gray-600 dark:text-gray-300">{{ item.http_status ?? '-' }}</td>
-                <td class="px-3 py-2 text-gray-600 dark:text-gray-300">
+                <td class="px-3 py-3 align-top text-gray-600 dark:text-gray-300">{{ item.http_status ?? '-' }}</td>
+                <td class="px-3 py-3 align-top text-gray-600 dark:text-gray-300">
                   {{ typeof item.latency_ms === 'number' ? `${item.latency_ms}ms` : '-' }}
                 </td>
-                <td class="px-3 py-2 text-gray-600 dark:text-gray-300">
-                  <span>{{ item.message || '-' }}</span>
-                  <span v-if="item.cf_ray" class="ml-1 text-xs text-gray-400">(cf-ray: {{ item.cf_ray }})</span>
+                <td class="px-3 py-3 align-top text-gray-600 dark:text-gray-300">
+                  <div class="space-y-1">
+                    <div>{{ qualityItemMessage(item) }}</div>
+                    <div v-if="item.cf_ray" class="text-xs text-gray-400">CF-Ray: {{ item.cf_ray }}</div>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -868,6 +1002,102 @@
         </div>
       </template>
     </BaseDialog>
+
+    <PoolMembersDialog
+      :show="showPoolDialog"
+      :loading="poolDialogLoading"
+      :rows="poolDialogRows"
+      @close="showPoolDialog = false"
+    />
+
+    <Teleport to="body">
+      <div
+        v-if="activeRowActionMenuId !== null && rowActionMenuPosition"
+        class="fixed z-[200] w-44 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
+        :style="{
+          top: `${rowActionMenuPosition.top}px`,
+          left: `${rowActionMenuPosition.left}px`
+        }"
+        @click.stop
+      >
+        <div class="py-1">
+          <button
+            v-if="activeRowActionMenuRow"
+            @click="handleToggleStatus(activeRowActionMenuRow); closeRowActionMenu()"
+            class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+          >
+            <Icon
+              :name="activeRowActionMenuRow.status === 'active' ? 'ban' : 'play'"
+              size="sm"
+              :class="activeRowActionMenuRow.status === 'active' ? 'text-amber-500' : 'text-emerald-500'"
+            />
+            {{ activeRowActionMenuRow.status === 'active' ? t('admin.proxies.disableAction') : t('admin.proxies.enableAction') }}
+          </button>
+          <button
+            v-if="activeRowActionMenuRow"
+            @click="handleTogglePoolMembership(activeRowActionMenuRow); closeRowActionMenu()"
+            class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+          >
+            <Icon :name="activeRowActionMenuRow.auto_failover_pool_enabled ? 'x' : 'plus'" size="sm" class="text-violet-500" />
+            {{ activeRowActionMenuRow.auto_failover_pool_enabled ? t('admin.proxies.poolDisableAction') : t('admin.proxies.poolEnableAction') }}
+          </button>
+          <button
+            v-if="activeRowActionMenuRow"
+            @click="handleClearCooldown([activeRowActionMenuRow.id]); closeRowActionMenu()"
+            class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+          >
+            <Icon name="refresh" size="sm" class="text-amber-500" />
+            {{ t('admin.proxies.clearCooldownAction') }}
+          </button>
+          <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
+          <button
+            v-if="activeRowActionMenuRow"
+            @click="handleDelete(activeRowActionMenuRow); closeRowActionMenu()"
+            class="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            <Icon name="trash" size="sm" />
+            {{ t('common.delete') }}
+          </button>
+        </div>
+      </div>
+    </Teleport>
+
+    <SubscriptionSourceDialog
+      :show="showCreateSubscriptionModal"
+      :editing="!!editingSubscription"
+      :submitting="submittingSubscription"
+      :form="subscriptionForm"
+      :format-options="subscriptionFormatOptions"
+      @close="showCreateSubscriptionModal = false"
+      @submit="handleSubmitSubscription"
+      @update:form="updateSubscriptionForm"
+    />
+
+    <BaseDialog
+      :show="showSubscriptionNodesModal"
+      :title="t('admin.proxies.subscriptions.nodesTitle')"
+      width="normal"
+      @close="showSubscriptionNodesModal = false"
+    >
+      <div v-if="subscriptionNodesLoading" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
+      <div v-else-if="subscriptionNodes.length === 0" class="p-2 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.proxies.subscriptions.nodesEmpty') }}</div>
+      <div v-else class="max-h-[60vh] space-y-2 overflow-y-auto">
+        <div v-for="node in subscriptionNodes" :key="node.id" class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-gray-900 dark:text-white">{{ node.display_name || `${node.server}:${node.port}` }}</span>
+            <span class="badge badge-gray">{{ node.node_type }}</span>
+            <span class="badge" :class="node.landing_status === 'active' ? 'badge-success' : 'badge-warning'">{{ node.landing_status }}</span>
+          </div>
+          <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ node.server }}:{{ node.port }}</div>
+          <div v-if="node.last_error" class="mt-2 text-xs text-red-500 dark:text-red-400">{{ node.last_error }}</div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end">
+          <button class="btn btn-secondary" type="button" @click="showSubscriptionNodesModal = false">{{ t('common.close') }}</button>
+        </div>
+      </template>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -876,7 +1106,15 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Proxy, ProxyAccountSummary, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
+import type {
+  Proxy,
+  ProxyAccountSummary,
+  ProxyProtocol,
+  ProxyQualityCheckItem,
+  ProxyQualityCheckResult,
+  ProxySubscriptionSource,
+  ProxySubscriptionNode
+} from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -886,6 +1124,11 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
+import AssignAccountsModal from '@/components/admin/proxy/AssignAccountsModal.vue'
+import PoolMembersDialog from '@/components/admin/proxy/PoolMembersDialog.vue'
+import ProxiesToolbar from '@/components/admin/proxy/ProxiesToolbar.vue'
+import ProxySubscriptionsPanel from '@/components/admin/proxy/ProxySubscriptionsPanel.vue'
+import SubscriptionSourceDialog from '@/components/admin/proxy/SubscriptionSourceDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
@@ -893,23 +1136,71 @@ import { useClipboard } from '@/composables/useClipboard'
 import { useSwipeSelect } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import type { AdminGroup } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
+const activeTab = ref<'proxies' | 'subscriptions'>('proxies')
 
-const columns = computed<Column[]>(() => [
-  { key: 'select', label: '', sortable: false },
-  { key: 'name', label: t('admin.proxies.columns.name'), sortable: true },
-  { key: 'protocol', label: t('admin.proxies.columns.protocol'), sortable: true },
-  { key: 'address', label: t('admin.proxies.columns.address'), sortable: false },
-  { key: 'auth', label: t('admin.proxies.columns.auth'), sortable: false },
-  { key: 'location', label: t('admin.proxies.columns.location'), sortable: false },
-  { key: 'account_count', label: t('admin.proxies.columns.accounts'), sortable: true },
-  { key: 'latency', label: t('admin.proxies.columns.latency'), sortable: false },
-  { key: 'status', label: t('admin.proxies.columns.status'), sortable: true },
-  { key: 'actions', label: t('admin.proxies.columns.actions'), sortable: false }
+const allColumns = computed<Column[]>(() => [
+  { key: 'select', label: '', sortable: false, class: 'w-[52px] min-w-[52px]' },
+  { key: 'name', label: t('admin.proxies.columns.name'), sortable: true, class: 'min-w-[160px]' },
+  { key: 'protocol', label: t('admin.proxies.columns.protocol'), sortable: true, class: 'min-w-[88px]' },
+  { key: 'address', label: t('admin.proxies.columns.address'), sortable: false, class: 'min-w-[200px]' },
+  { key: 'auth', label: t('admin.proxies.columns.auth'), sortable: false, class: 'min-w-[160px]' },
+  { key: 'location', label: t('admin.proxies.columns.location'), sortable: false, class: 'min-w-[180px]' },
+  { key: 'account_count', label: t('admin.proxies.columns.accounts'), sortable: true, class: 'min-w-[100px]' },
+  { key: 'pool', label: t('admin.proxies.columns.pool'), sortable: false, class: 'min-w-[120px]' },
+  { key: 'latency', label: t('admin.proxies.columns.latency'), sortable: false, class: 'min-w-[140px]' },
+  { key: 'status', label: t('admin.proxies.columns.status'), sortable: true, class: 'min-w-[160px]' },
+  { key: 'actions', label: t('admin.proxies.columns.actions'), sortable: false, class: 'w-[176px] min-w-[176px]' }
 ])
+const toggleableColumns = computed(() =>
+  allColumns.value.filter((column) => column.key !== 'select' && column.key !== 'actions')
+)
+const hiddenColumns = reactive<Set<string>>(new Set())
+const HIDDEN_COLUMNS_KEY = 'admin-proxies-hidden-columns'
+
+const loadSavedColumns = () => {
+  hiddenColumns.clear()
+  try {
+    const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY)
+    if (!saved) return
+    const parsed = JSON.parse(saved) as string[]
+    const toggleableKeys = new Set(toggleableColumns.value.map((column) => column.key))
+    parsed
+      .filter((key) => toggleableKeys.has(key))
+      .forEach((key) => hiddenColumns.add(key))
+  } catch (error) {
+    console.error('Failed to load saved proxy columns:', error)
+  }
+}
+
+const saveColumnsToStorage = () => {
+  try {
+    localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
+  } catch (error) {
+    console.error('Failed to save proxy columns:', error)
+  }
+}
+
+const toggleColumn = (key: string) => {
+  if (hiddenColumns.has(key)) {
+    hiddenColumns.delete(key)
+  } else {
+    hiddenColumns.add(key)
+  }
+  saveColumnsToStorage()
+}
+
+const isColumnVisible = (key: string) => !hiddenColumns.has(key)
+
+const columns = computed<Column[]>(() =>
+  allColumns.value.filter((column) =>
+    column.key === 'select' || column.key === 'actions' || !hiddenColumns.has(column.key)
+  )
+)
 
 // Filter options
 const protocolOptions = computed(() => [
@@ -926,6 +1217,15 @@ const statusOptions = computed(() => [
   { value: 'inactive', label: t('admin.accounts.status.inactive') }
 ])
 
+const runtimeStatusOptions = computed(() => [
+  { value: '', label: t('admin.proxies.allRuntimeStatus') },
+  { value: 'healthy', label: t('admin.proxies.healthHealthy') },
+  { value: 'cooldown', label: t('admin.proxies.healthCooldown') },
+  { value: 'warn', label: t('admin.proxies.qualityStatusWarn') },
+  { value: 'challenge', label: t('admin.proxies.qualityStatusChallenge') },
+  { value: 'failed', label: t('admin.proxies.failedStatus') }
+])
+
 // Form options
 const protocolSelectOptions = computed(() => [
   { value: 'http', label: t('admin.proxies.protocols.http') },
@@ -940,13 +1240,17 @@ const editStatusOptions = computed(() => [
 ])
 
 const proxies = ref<Proxy[]>([])
+const proxySubscriptions = ref<ProxySubscriptionSource[]>([])
+const accountGroups = ref<AdminGroup[]>([])
 const visiblePasswordIds = reactive(new Set<number>())
 const copyMenuProxyId = ref<number | null>(null)
 const loading = ref(false)
+const loadingSubscriptions = ref(false)
 const searchQuery = ref('')
 const filters = reactive({
   protocol: '',
-  status: ''
+  status: '',
+  runtime_status: ''
 })
 const pagination = reactive({
   page: 1,
@@ -965,17 +1269,32 @@ const showEditModal = ref(false)
 const editPasswordVisible = ref(false)
 const editPasswordDirty = ref(false)
 const showImportData = ref(false)
+const showAssignAccounts = ref(false)
 const showDeleteDialog = ref(false)
 const showBatchDeleteDialog = ref(false)
+const showBatchUnassignDialog = ref(false)
 const showExportDataDialog = ref(false)
 const showAccountsModal = ref(false)
+const showPoolDialog = ref(false)
+const showCreateSubscriptionModal = ref(false)
+const showSubscriptionNodesModal = ref(false)
+const showColumnDropdown = ref(false)
+const showProxyToolsDropdown = ref(false)
+const showProxyBatchDropdown = ref(false)
 const submitting = ref(false)
+const submittingSubscription = ref(false)
 const exportingData = ref(false)
 const testingProxyIds = ref<Set<number>>(new Set())
 const qualityCheckingProxyIds = ref<Set<number>>(new Set())
 const batchTesting = ref(false)
 const batchQualityChecking = ref(false)
+const activeRowActionMenuId = ref<number | null>(null)
+const rowActionMenuPosition = ref<{ top: number; left: number } | null>(null)
 const proxyTableRef = ref<HTMLElement | null>(null)
+const activeRowActionMenuRow = computed(() => {
+  if (activeRowActionMenuId.value === null) return null
+  return proxies.value.find((row) => row.id === activeRowActionMenuId.value) || null
+})
 const {
   selectedSet: selectedProxyIds,
   selectedCount,
@@ -1005,6 +1324,86 @@ const deletingProxy = ref<Proxy | null>(null)
 const showQualityReportDialog = ref(false)
 const qualityReportProxy = ref<Proxy | null>(null)
 const qualityReport = ref<ProxyQualityCheckResult | null>(null)
+const poolDialogRows = ref<Proxy[]>([])
+const poolDialogLoading = ref(false)
+const subscriptionNodes = ref<ProxySubscriptionNode[]>([])
+const subscriptionNodesLoading = ref(false)
+const editingSubscription = ref<ProxySubscriptionSource | null>(null)
+const subscriptionFormatOptions = [
+  { value: 'auto' as const, label: t('admin.proxies.subscriptions.formats.auto') },
+  { value: 'direct_list' as const, label: t('admin.proxies.subscriptions.formats.directList') },
+  { value: 'uri_list' as const, label: t('admin.proxies.subscriptions.formats.uriList') },
+  { value: 'clash_yaml' as const, label: t('admin.proxies.subscriptions.formats.clashYaml') }
+]
+const subscriptionForm = reactive({
+  name: '',
+  url: '',
+  source_format: 'auto' as 'auto' | 'direct_list' | 'uri_list' | 'clash_yaml',
+  enabled: true,
+  refresh_interval_hours: 6,
+  target_entry_count: 3,
+  auto_add_to_pool: true
+})
+
+const switchToSubscriptions = async () => {
+  activeTab.value = 'subscriptions'
+  if (proxySubscriptions.value.length === 0) {
+    await loadProxySubscriptions()
+  }
+}
+
+const handleToolbarSetTab = async (tab: 'proxies' | 'subscriptions') => {
+  if (tab === 'subscriptions') {
+    await switchToSubscriptions()
+    return
+  }
+  activeTab.value = 'proxies'
+}
+
+const updateToolbarSearch = (value: string) => {
+  searchQuery.value = value
+  handleSearch()
+}
+
+const updateToolbarFilters = (nextFilters: { protocol: string; status: string; runtime_status: string }) => {
+  filters.protocol = nextFilters.protocol
+  filters.status = nextFilters.status
+  filters.runtime_status = nextFilters.runtime_status
+}
+
+const updateSubscriptionForm = (nextForm: typeof subscriptionForm) => {
+  subscriptionForm.name = nextForm.name
+  subscriptionForm.url = nextForm.url
+  subscriptionForm.source_format = nextForm.source_format
+  subscriptionForm.enabled = nextForm.enabled
+  subscriptionForm.refresh_interval_hours = nextForm.refresh_interval_hours
+  subscriptionForm.target_entry_count = nextForm.target_entry_count
+  subscriptionForm.auto_add_to_pool = nextForm.auto_add_to_pool
+}
+
+const openCreateSubscriptionDialog = () => {
+  editingSubscription.value = null
+  subscriptionForm.name = ''
+  subscriptionForm.url = ''
+  subscriptionForm.source_format = 'auto'
+  subscriptionForm.enabled = true
+  subscriptionForm.refresh_interval_hours = 6
+  subscriptionForm.target_entry_count = 3
+  subscriptionForm.auto_add_to_pool = true
+  showCreateSubscriptionModal.value = true
+}
+
+const handleEditSubscription = (item: ProxySubscriptionSource) => {
+  editingSubscription.value = item
+  subscriptionForm.name = item.name
+  subscriptionForm.url = item.url
+  subscriptionForm.source_format = item.source_format
+  subscriptionForm.enabled = item.enabled
+  subscriptionForm.refresh_interval_hours = item.refresh_interval_hours
+  subscriptionForm.target_entry_count = item.target_entry_count || 3
+  subscriptionForm.auto_add_to_pool = item.auto_add_to_pool
+  showCreateSubscriptionModal.value = true
+}
 
 // Batch import state
 const createMode = ref<'standard' | 'batch'>('standard')
@@ -1029,7 +1428,8 @@ const createForm = reactive({
   host: '',
   port: 8080,
   username: '',
-  password: ''
+  password: '',
+  auto_failover_pool_enabled: false
 })
 
 const editForm = reactive({
@@ -1039,7 +1439,8 @@ const editForm = reactive({
   port: 8080,
   username: '',
   password: '',
-  status: 'active' as 'active' | 'inactive'
+  status: 'active' as 'active' | 'inactive',
+  auto_failover_pool_enabled: false
 })
 
 let abortController: AbortController | null = null
@@ -1067,10 +1468,24 @@ const toggleSelectAllVisible = (event: Event) => {
 const buildProxyQueryFilters = () => ({
   protocol: filters.protocol || undefined,
   status: (filters.status || undefined) as 'active' | 'inactive' | undefined,
+  runtime_status: (filters.runtime_status || undefined) as 'failed' | 'cooldown' | 'healthy' | 'warn' | 'challenge' | undefined,
   search: searchQuery.value || undefined,
   sort_by: sortState.sort_by,
   sort_order: sortState.sort_order
 })
+
+const loadProxySubscriptions = async () => {
+  loadingSubscriptions.value = true
+  try {
+    const response = await adminAPI.proxySubscriptions.list(1, 100)
+    proxySubscriptions.value = response.items
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.loadFailed'))
+    console.error('Error loading proxy subscriptions:', error)
+  } finally {
+    loadingSubscriptions.value = false
+  }
+}
 
 const loadProxies = async () => {
   if (abortController) {
@@ -1103,6 +1518,14 @@ const loadProxies = async () => {
       loading.value = false
       abortController = null
     }
+  }
+}
+
+const loadAccountGroups = async () => {
+  try {
+    accountGroups.value = await adminAPI.groups.getAll()
+  } catch (error) {
+    console.error('Error loading account groups:', error)
   }
 }
 
@@ -1142,6 +1565,7 @@ const closeCreateModal = () => {
   createForm.port = 8080
   createForm.username = ''
   createForm.password = ''
+  createForm.auto_failover_pool_enabled = false
   createPasswordVisible.value = false
   batchInput.value = ''
   batchParseResult.total = 0
@@ -1266,7 +1690,8 @@ const handleCreateProxy = async () => {
       host: createForm.host.trim(),
       port: createForm.port,
       username: createForm.username.trim() || null,
-      password: createForm.password.trim() || null
+      password: createForm.password.trim() || null,
+      auto_failover_pool_enabled: createForm.auto_failover_pool_enabled
     })
     appStore.showSuccess(t('admin.proxies.proxyCreated'))
     closeCreateModal()
@@ -1288,6 +1713,7 @@ const handleEdit = (proxy: Proxy) => {
   editForm.username = proxy.username || ''
   editForm.password = proxy.password || ''
   editForm.status = proxy.status
+  editForm.auto_failover_pool_enabled = !!proxy.auto_failover_pool_enabled
   editPasswordVisible.value = false
   editPasswordDirty.value = false
   showEditModal.value = true
@@ -1323,7 +1749,8 @@ const handleUpdateProxy = async () => {
       host: editForm.host.trim(),
       port: editForm.port,
       username: editForm.username.trim() || null,
-      status: editForm.status
+      status: editForm.status,
+      auto_failover_pool_enabled: editForm.auto_failover_pool_enabled
     }
 
     // Only include password if user actually modified the field
@@ -1366,6 +1793,8 @@ const applyLatencyResult = (
     target.country_code = result.country_code
     target.region = result.region
     target.city = result.city
+    target.health_status = 'healthy'
+    target.cooldown_until_unix = undefined
   } else {
     target.latency_status = 'failed'
     target.latency_ms = undefined
@@ -1374,6 +1803,9 @@ const applyLatencyResult = (
     target.country_code = undefined
     target.region = undefined
     target.city = undefined
+    target.health_status = 'failed'
+    target.last_fail_reason = result.message
+    target.last_fail_at_unix = Math.floor(Date.now() / 1000)
   }
   target.latency_message = result.message
 }
@@ -1400,8 +1832,46 @@ const formatLocation = (proxy: Proxy) => {
   return parts.join(' · ')
 }
 
-const flagUrl = (code: string) =>
-  `https://unpkg.com/flag-icons/flags/4x3/${code.toLowerCase()}.svg`
+const formatRuntimeTime = (unix?: number) => {
+  if (!unix) return '-'
+  return new Date(unix * 1000).toLocaleString()
+}
+
+const formatCooldownCountdown = (unix?: number) => {
+  if (!unix) return ''
+  const remaining = unix * 1000 - Date.now()
+  if (remaining <= 0) return t('admin.proxies.cooldownExpired')
+  const minutes = Math.floor(remaining / 60000)
+  const seconds = Math.floor((remaining % 60000) / 1000)
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`
+}
+
+const healthStatusClass = (status?: Proxy['health_status']) => {
+  if (status === 'healthy') return 'badge-success'
+  if (status === 'cooldown') return 'badge-warning'
+  if (status === 'failed') return 'badge-danger'
+  return 'badge-gray'
+}
+
+const healthStatusLabel = (status?: Proxy['health_status']) => {
+  if (status === 'healthy') return t('admin.proxies.healthHealthy')
+  if (status === 'cooldown') return t('admin.proxies.healthCooldown')
+  if (status === 'failed') return t('admin.proxies.healthFailed')
+  return t('admin.proxies.healthUnknown')
+}
+
+const normalizedCountryCode = (code?: string) => {
+  const normalized = code?.trim().toUpperCase() ?? ''
+  return /^[A-Z]{2}$/.test(normalized) ? normalized : ''
+}
+
+const countryFlagEmoji = (code?: string) => {
+  const normalized = normalizedCountryCode(code)
+  if (!normalized) return ''
+  return String.fromCodePoint(
+    ...Array.from(normalized, (char) => 0x1f1a5 + char.charCodeAt(0))
+  )
+}
 
 const startTestingProxy = (proxyId: number) => {
   testingProxyIds.value = new Set([...testingProxyIds.value, proxyId])
@@ -1558,7 +2028,7 @@ const closeQualityReportDialog = () => {
 const qualityStatusClass = (status: string) => {
   if (status === 'pass') return 'badge-success'
   if (status === 'warn') return 'badge-warning'
-  if (status === 'challenge') return 'badge-danger'
+  if (status === 'challenge') return 'badge-purple'
   return 'badge-danger'
 }
 
@@ -1572,7 +2042,7 @@ const qualityStatusLabel = (status: string) => {
 const qualityOverallClass = (status?: string) => {
   if (status === 'healthy') return 'badge-success'
   if (status === 'warn') return 'badge-warning'
-  if (status === 'challenge') return 'badge-danger'
+  if (status === 'challenge') return 'badge-purple'
   return 'badge-danger'
 }
 
@@ -1598,7 +2068,36 @@ const qualityTargetLabel = (target: string) => {
   }
 }
 
-const fetchAllProxiesForBatch = async (): Promise<Proxy[]> => {
+const qualityOverallStatus = (result?: ProxyQualityCheckResult | null): Proxy['quality_status'] => {
+  if (!result) return 'failed'
+  return summarizeQualityStatus(result)
+}
+
+const formatQualityCheckedAt = (checkedAt?: number) => {
+  if (!checkedAt) return '-'
+  return new Date(checkedAt * 1000).toLocaleString()
+}
+
+const qualityReportBreakdown = (result: ProxyQualityCheckResult) => [
+  { key: 'pass', label: t('admin.proxies.qualityStatusPass'), value: result.passed_count },
+  { key: 'warn', label: t('admin.proxies.qualityStatusWarn'), value: result.warn_count },
+  { key: 'challenge', label: t('admin.proxies.qualityStatusChallenge'), value: result.challenge_count },
+  { key: 'fail', label: t('admin.proxies.qualityStatusFail'), value: result.failed_count }
+]
+
+const qualityInterpretationLabel = (status?: Proxy['quality_status']) => {
+  if (status === 'healthy') return t('admin.proxies.qualityInterpretationHealthy')
+  if (status === 'warn') return t('admin.proxies.qualityInterpretationWarn')
+  if (status === 'challenge') return t('admin.proxies.qualityInterpretationChallenge')
+  return t('admin.proxies.qualityInterpretationFail')
+}
+
+const qualityItemMessage = (item: ProxyQualityCheckItem) => {
+  if (item.message) return item.message
+  return t('admin.proxies.qualityItemMessageEmpty')
+}
+
+const fetchAllProxiesForBatch = async (respectCurrentFilters: boolean = true): Promise<Proxy[]> => {
   const pageSize = 200
   const result: Proxy[] = []
   let page = 1
@@ -1608,13 +2107,19 @@ const fetchAllProxiesForBatch = async (): Promise<Proxy[]> => {
     const response = await adminAPI.proxies.list(
       page,
       pageSize,
-      {
-        protocol: filters.protocol || undefined,
-        status: filters.status as any,
-        search: searchQuery.value || undefined,
-        sort_by: sortState.sort_by,
-        sort_order: sortState.sort_order
-      }
+      respectCurrentFilters
+        ? {
+            protocol: filters.protocol || undefined,
+            status: filters.status as any,
+            runtime_status: filters.runtime_status as any,
+            search: searchQuery.value || undefined,
+            sort_by: sortState.sort_by,
+            sort_order: sortState.sort_order
+          }
+        : {
+            sort_by: sortState.sort_by,
+            sort_order: sortState.sort_order
+          }
     )
     result.push(...response.items)
     totalPages = response.pages || 1
@@ -1707,6 +2212,92 @@ const handleBatchQualityCheck = async () => {
   }
 }
 
+const handleBatchPoolMembership = async (enabled: boolean) => {
+  const ids = Array.from(selectedProxyIds.value)
+  if (ids.length === 0) return
+
+  try {
+    await adminAPI.proxies.updatePoolMembership(ids, enabled)
+    appStore.showSuccess(
+      enabled
+        ? t('admin.proxies.poolBatchEnabled', { count: ids.length })
+        : t('admin.proxies.poolBatchDisabled', { count: ids.length })
+    )
+    clearSelectedProxies()
+    loadProxies()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.poolUpdateFailed'))
+    console.error('Error updating proxy pool membership:', error)
+  }
+}
+
+const handleTogglePoolMembership = async (proxy: Proxy) => {
+  const enabled = !proxy.auto_failover_pool_enabled
+  try {
+    await adminAPI.proxies.updatePoolMembership([proxy.id], enabled)
+    proxy.auto_failover_pool_enabled = enabled
+    appStore.showSuccess(
+      enabled ? t('admin.proxies.poolSingleEnabled', { name: proxy.name }) : t('admin.proxies.poolSingleDisabled', { name: proxy.name })
+    )
+    if (showPoolDialog.value) {
+      await openPoolDialog()
+    }
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.poolUpdateFailed'))
+    console.error('Error toggling proxy pool membership:', error)
+  }
+}
+
+const handleToggleStatus = async (proxy: Proxy) => {
+  const nextStatus: 'active' | 'inactive' = proxy.status === 'active' ? 'inactive' : 'active'
+  try {
+    await adminAPI.proxies.update(proxy.id, { status: nextStatus })
+    proxy.status = nextStatus
+    appStore.showSuccess(
+      nextStatus === 'active' ? t('admin.proxies.statusEnabled') : t('admin.proxies.statusDisabled')
+    )
+
+    await loadProxies()
+    if (showPoolDialog.value) {
+      await openPoolDialog()
+    }
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToToggle'))
+    console.error('Error toggling proxy status:', error)
+  }
+}
+
+const handleClearCooldown = async (ids: number[]) => {
+  if (ids.length === 0) return
+  try {
+    await adminAPI.proxies.clearCooldown(ids)
+    appStore.showSuccess(
+      ids.length === 1
+        ? t('admin.proxies.cooldownClearedSingle')
+        : t('admin.proxies.cooldownClearedBatch', { count: ids.length })
+    )
+    loadProxies()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.cooldownClearFailed'))
+    console.error('Error clearing proxy cooldown:', error)
+  }
+}
+
+const openPoolDialog = async () => {
+  showPoolDialog.value = true
+  poolDialogLoading.value = true
+  try {
+    const allProxies = await fetchAllProxiesForBatch(false)
+    poolDialogRows.value = allProxies.filter((proxy) => proxy.auto_failover_pool_enabled)
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToLoad'))
+    console.error('Error loading proxy pool members:', error)
+    poolDialogRows.value = []
+  } finally {
+    poolDialogLoading.value = false
+  }
+}
+
 const formatExportTimestamp = () => {
   const now = new Date()
   const pad2 = (value: number) => String(value).padStart(2, '0')
@@ -1742,6 +2333,89 @@ const handleExportData = async () => {
   }
 }
 
+const handleRefreshSubscription = async (id: number) => {
+  try {
+    const result = await adminAPI.proxySubscriptions.refresh(id)
+    appStore.showSuccess(t('admin.proxies.subscriptions.refreshSuccess', {
+      nodes: result.node_count,
+      proxies: result.materialized_proxy_count
+    }))
+    await loadProxySubscriptions()
+    if (activeTab.value === 'proxies') {
+      await loadProxies()
+    }
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.refreshFailed'))
+    console.error('Error refreshing proxy subscription:', error)
+  }
+}
+
+const handleViewSubscriptionNodes = async (id: number) => {
+  showSubscriptionNodesModal.value = true
+  subscriptionNodesLoading.value = true
+  try {
+    subscriptionNodes.value = await adminAPI.proxySubscriptions.listNodes(id)
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.nodesLoadFailed'))
+    console.error('Error loading subscription nodes:', error)
+  } finally {
+    subscriptionNodesLoading.value = false
+  }
+}
+
+const handleDeleteSubscription = async (id: number) => {
+  try {
+    await adminAPI.proxySubscriptions.delete(id)
+    appStore.showSuccess(t('admin.proxies.subscriptions.deleteSuccess'))
+    await loadProxySubscriptions()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.deleteFailed'))
+    console.error('Error deleting proxy subscription:', error)
+  }
+}
+
+const handleSubmitSubscription = async () => {
+  submittingSubscription.value = true
+  try {
+    if (editingSubscription.value) {
+      await adminAPI.proxySubscriptions.update(editingSubscription.value.id, {
+        name: subscriptionForm.name.trim(),
+        url: subscriptionForm.url.trim(),
+        source_format: subscriptionForm.source_format,
+        enabled: subscriptionForm.enabled,
+        refresh_interval_hours: subscriptionForm.refresh_interval_hours,
+        target_entry_count: subscriptionForm.target_entry_count,
+        auto_add_to_pool: subscriptionForm.auto_add_to_pool
+      })
+      appStore.showSuccess(t('admin.proxies.subscriptions.updateSuccess'))
+    } else {
+      await adminAPI.proxySubscriptions.create({
+        name: subscriptionForm.name.trim(),
+        url: subscriptionForm.url.trim(),
+        source_format: subscriptionForm.source_format,
+        enabled: subscriptionForm.enabled,
+        refresh_interval_hours: subscriptionForm.refresh_interval_hours,
+        target_entry_count: subscriptionForm.target_entry_count,
+        auto_add_to_pool: subscriptionForm.auto_add_to_pool
+      })
+      appStore.showSuccess(t('admin.proxies.subscriptions.createSuccess'))
+    }
+    showCreateSubscriptionModal.value = false
+    editingSubscription.value = null
+    await loadProxySubscriptions()
+  } catch (error: any) {
+    appStore.showError(
+      error.response?.data?.detail ||
+      (editingSubscription.value
+        ? t('admin.proxies.subscriptions.updateFailed')
+        : t('admin.proxies.subscriptions.createFailed'))
+    )
+    console.error('Error submitting proxy subscription:', error)
+  } finally {
+    submittingSubscription.value = false
+  }
+}
+
 const handleDelete = (proxy: Proxy) => {
   if ((proxy.account_count || 0) > 0) {
     appStore.showError(t('admin.proxies.deleteBlockedInUse'))
@@ -1756,6 +2430,13 @@ const openBatchDelete = () => {
     return
   }
   showBatchDeleteDialog.value = true
+}
+
+const openBatchUnassign = () => {
+  if (selectedCount.value === 0) {
+    return
+  }
+  showBatchUnassignDialog.value = true
 }
 
 const confirmDelete = async () => {
@@ -1798,6 +2479,30 @@ const confirmBatchDelete = async () => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.batchDeleteFailed'))
     console.error('Error batch deleting proxies:', error)
+  }
+}
+
+const confirmBatchUnassign = async () => {
+  const ids = Array.from(selectedProxyIds.value)
+  if (ids.length === 0) {
+    showBatchUnassignDialog.value = false
+    return
+  }
+
+  try {
+    const result = await adminAPI.proxies.unassignAccounts(ids)
+    appStore.showSuccess(
+      t('admin.proxies.quickUnassignDone', {
+        matched: result.matched_accounts,
+        unassigned: result.unassigned_accounts
+      })
+    )
+    clearSelectedProxies()
+    showBatchUnassignDialog.value = false
+    loadProxies()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.proxies.quickUnassignFailed'))
+    console.error('Error unassigning proxy accounts:', error)
   }
 }
 
@@ -1865,18 +2570,52 @@ function copyFormat(value: string) {
   copyMenuProxyId.value = null
 }
 
-function closeCopyMenu() {
+function toggleRowActionMenu(id: number, event: MouseEvent) {
+  showColumnDropdown.value = false
+  showProxyToolsDropdown.value = false
+  showProxyBatchDropdown.value = false
+  if (activeRowActionMenuId.value === id) {
+    closeRowActionMenu()
+    return
+  }
+  const trigger = event.currentTarget as HTMLElement | null
+  if (!trigger) return
+  const rect = trigger.getBoundingClientRect()
+  const menuWidth = 176
+  rowActionMenuPosition.value = {
+    top: rect.bottom + 8,
+    left: Math.max(8, rect.right - menuWidth)
+  }
+  activeRowActionMenuId.value = id
+}
+
+function closeRowActionMenu() {
+  activeRowActionMenuId.value = null
+  rowActionMenuPosition.value = null
+}
+
+function closeFloatingMenus() {
   copyMenuProxyId.value = null
+  showColumnDropdown.value = false
+  showProxyToolsDropdown.value = false
+  showProxyBatchDropdown.value = false
+  closeRowActionMenu()
 }
 
 onMounted(() => {
+  loadSavedColumns()
   loadProxies()
-  document.addEventListener('click', closeCopyMenu)
+  loadAccountGroups()
+  document.addEventListener('click', closeFloatingMenus)
+  window.addEventListener('scroll', closeRowActionMenu, true)
+  window.addEventListener('resize', closeRowActionMenu)
 })
 
 onUnmounted(() => {
   clearTimeout(searchTimeout)
   abortController?.abort()
-  document.removeEventListener('click', closeCopyMenu)
+  document.removeEventListener('click', closeFloatingMenus)
+  window.removeEventListener('scroll', closeRowActionMenu, true)
+  window.removeEventListener('resize', closeRowActionMenu)
 })
 </script>

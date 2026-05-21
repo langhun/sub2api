@@ -33,6 +33,20 @@
           {{ t('admin.accounts.recoverStateHint') }}
         </div>
 
+        <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <p class="text-xs text-amber-700 dark:text-amber-300">
+            {{ t('admin.accounts.statusLayers.runtime') }}
+          </p>
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <span :class="['badge text-xs', summaryStatusClass]">
+              {{ summaryStatusText }}
+            </span>
+            <span class="text-xs text-amber-700 dark:text-amber-300">
+              {{ remainingText }}
+            </span>
+          </div>
+        </div>
+
         <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-600">
           <p class="text-xs text-gray-500 dark:text-gray-400">
             {{ t('admin.accounts.tempUnschedulable.accountName') }}
@@ -150,6 +164,7 @@ import { adminAPI } from '@/api/admin'
 import type { Account, TempUnschedulableStatus } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import { formatDateTime } from '@/utils/format'
+import { getBadgeClassForTone, getTempUnschedRuntimeCode } from '@/utils/accountStatus'
 
 const props = defineProps<{
   show: boolean
@@ -170,13 +185,47 @@ const status = ref<TempUnschedulableStatus | null>(null)
 
 const state = computed(() => status.value?.state || null)
 
+const statusTextKeyMap = {
+  runtime_normal: 'admin.accounts.status.runtimeNormal',
+  runtime_rate_limited: 'admin.accounts.status.runtimeRateLimited',
+  runtime_overloaded: 'admin.accounts.status.runtimeOverloaded',
+  runtime_oauth401_cooldown: 'admin.accounts.status.runtimeOauth401Cooldown',
+  runtime_forbidden_cooldown: 'admin.accounts.status.runtimeForbiddenCooldown',
+  runtime_http_cooldown: 'admin.accounts.status.runtimeHttpCooldown',
+  runtime_stream_timeout_cooldown: 'admin.accounts.status.runtimeStreamTimeoutCooldown',
+  runtime_token_refresh_cooldown: 'admin.accounts.status.runtimeTokenRefreshCooldown',
+  runtime_temp_unschedulable: 'admin.accounts.status.runtimeTempUnschedulable',
+  runtime_quota_exceeded: 'admin.accounts.status.runtimeQuotaExceeded',
+} as const
+
 const isActive = computed(() => {
   if (!status.value?.active || !state.value) return false
   return state.value.until_unix * 1000 > Date.now()
 })
 
+const summaryStatusCode = computed(() => {
+  if (!state.value) return null
+  return getTempUnschedRuntimeCode({
+    statusCode: state.value.status_code || null,
+    matchedKeyword: state.value.matched_keyword || null,
+    errorMessage: state.value.error_message || null,
+    ruleIndex: state.value.rule_index,
+  })
+})
+
+const summaryStatusClass = computed(() => getBadgeClassForTone('warning'))
+
+const summaryStatusText = computed(() => {
+  if (!summaryStatusCode.value) return '-'
+  if (summaryStatusCode.value === 'runtime_http_cooldown') {
+    return t(statusTextKeyMap[summaryStatusCode.value], { code: state.value?.status_code })
+  }
+  return t(statusTextKeyMap[summaryStatusCode.value])
+})
+
 const ruleIndexDisplay = computed(() => {
   if (!state.value) return '-'
+  if (state.value.rule_index < 0) return t('admin.accounts.tempUnschedulable.autoRule')
   return state.value.rule_index + 1
 })
 

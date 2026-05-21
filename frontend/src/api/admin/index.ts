@@ -8,6 +8,7 @@ import usersAPI from './users'
 import groupsAPI from './groups'
 import accountsAPI from './accounts'
 import proxiesAPI from './proxies'
+import proxySubscriptionsAPI from './proxySubscriptions'
 import redeemAPI from './redeem'
 import promoAPI from './promo'
 import announcementsAPI from './announcements'
@@ -30,6 +31,7 @@ import channelMonitorAPI from './channelMonitor'
 import channelMonitorTemplateAPI from './channelMonitorTemplate'
 import adminPaymentAPI from './payment'
 import affiliatesAPI from './affiliates'
+import transferAPI from './transfer'
 import riskControlAPI from './riskControl'
 
 /**
@@ -41,6 +43,7 @@ export const adminAPI = {
   groups: groupsAPI,
   accounts: accountsAPI,
   proxies: proxiesAPI,
+  proxySubscriptions: proxySubscriptionsAPI,
   redeem: redeemAPI,
   promo: promoAPI,
   announcements: announcementsAPI,
@@ -63,6 +66,7 @@ export const adminAPI = {
   channelMonitorTemplate: channelMonitorTemplateAPI,
   payment: adminPaymentAPI,
   affiliates: affiliatesAPI,
+  transfer: transferAPI,
   riskControl: riskControlAPI
 }
 
@@ -72,6 +76,7 @@ export {
   groupsAPI,
   accountsAPI,
   proxiesAPI,
+  proxySubscriptionsAPI,
   redeemAPI,
   promoAPI,
   announcementsAPI,
@@ -94,7 +99,8 @@ export {
   channelMonitorTemplateAPI,
   adminPaymentAPI,
   affiliatesAPI,
-  riskControlAPI
+  riskControlAPI,
+  transferAPI
 }
 
 export default adminAPI

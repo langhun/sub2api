@@ -87,6 +87,7 @@ export interface ModelStatsParams {
   request_type?: UsageRequestType
   stream?: boolean
   billing_type?: number | null
+  limit?: number
 }
 
 export interface ModelStatsResponse {

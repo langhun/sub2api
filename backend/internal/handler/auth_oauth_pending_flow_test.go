@@ -990,6 +990,136 @@ func TestExchangePendingOAuthCompletionInvitationRequiredFalseFalsePersistsDecis
 	require.Nil(t, storedSession.ConsumedAt)
 }
 
+func TestExchangePendingOAuthCompletionAutoRegisterPreviewThenFinalizeCreatesUser(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandler(t, false)
+	ctx := context.Background()
+
+	session, err := client.PendingAuthSession.Create().
+		SetSessionToken("auto-register-session-token").
+		SetIntent("login").
+		SetProviderType("linuxdo").
+		SetProviderKey("linuxdo").
+		SetProviderSubject("auto-register-123").
+		SetResolvedEmail("linuxdo-auto-register-123@linuxdo-connect.invalid").
+		SetBrowserSessionKey("auto-register-browser-session-key").
+		SetUpstreamIdentityClaims(map[string]any{
+			"username":               "linuxdo_user",
+			"suggested_display_name": "Auto Register User",
+			"suggested_avatar_url":   "https://cdn.example/autoreg.png",
+		}).
+		SetLocalFlowState(map[string]any{
+			oauthCompletionResponseKey: map[string]any{
+				"auto_register": true,
+				"redirect":      "/dashboard",
+			},
+		}).
+		SetExpiresAt(time.Now().UTC().Add(10 * time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	previewRecorder := httptest.NewRecorder()
+	previewCtx, _ := gin.CreateTestContext(previewRecorder)
+	previewReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/pending/exchange", nil)
+	previewReq.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	previewReq.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("auto-register-browser-session-key")})
+	previewCtx.Request = previewReq
+
+	handler.ExchangePendingOAuthCompletion(previewCtx)
+
+	require.Equal(t, http.StatusOK, previewRecorder.Code)
+	previewData := decodeJSONResponseData(t, previewRecorder)
+	require.Equal(t, true, previewData["adoption_required"])
+	require.Equal(t, true, previewData["auto_register"])
+	require.Equal(t, "/dashboard", previewData["redirect"])
+	require.Empty(t, previewData["access_token"])
+
+	finalizeBody := bytes.NewBufferString(`{"adopt_display_name":true,"adopt_avatar":true}`)
+	finalizeRecorder := httptest.NewRecorder()
+	finalizeCtx, _ := gin.CreateTestContext(finalizeRecorder)
+	finalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/pending/exchange", finalizeBody)
+	finalizeReq.Header.Set("Content-Type", "application/json")
+	finalizeReq.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	finalizeReq.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("auto-register-browser-session-key")})
+	finalizeCtx.Request = finalizeReq
+
+	handler.ExchangePendingOAuthCompletion(finalizeCtx)
+
+	require.Equal(t, http.StatusOK, finalizeRecorder.Code)
+	finalData := decodeJSONResponseData(t, finalizeRecorder)
+	require.NotEmpty(t, finalData["access_token"])
+	require.NotEmpty(t, finalData["refresh_token"])
+	require.Equal(t, "/dashboard", finalData["redirect"])
+
+	userEntity, err := client.User.Query().
+		Where(dbuser.EmailEQ("linuxdo-auto-register-123@linuxdo-connect.invalid")).
+		Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "Auto Register User", userEntity.Username)
+
+	identity, err := client.AuthIdentity.Query().
+		Where(
+			authidentity.ProviderTypeEQ("linuxdo"),
+			authidentity.ProviderKeyEQ("linuxdo"),
+			authidentity.ProviderSubjectEQ("auto-register-123"),
+		).
+		Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, userEntity.ID, identity.UserID)
+	require.Equal(t, "Auto Register User", identity.Metadata["display_name"])
+	require.Equal(t, "https://cdn.example/autoreg.png", identity.Metadata["avatar_url"])
+
+	storedSession, err := client.PendingAuthSession.Get(ctx, session.ID)
+	require.NoError(t, err)
+	require.NotNil(t, storedSession.ConsumedAt)
+}
+
+func TestCreatePendingOAuthAccountRequiresTurnstileWhenEmailVerificationDisabled(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
+		emailVerifyEnabled: false,
+		settingValues: map[string]string{
+			service.SettingKeyTurnstileEnabled:   "true",
+			service.SettingKeyTurnstileSecretKey: "secret",
+		},
+		turnstileVerifier: oauthPendingFlowTurnstileVerifierStub{},
+	})
+	ctx := context.Background()
+
+	session, err := client.PendingAuthSession.Create().
+		SetSessionToken("create-account-turnstile-session-token").
+		SetIntent("login").
+		SetProviderType("linuxdo").
+		SetProviderKey("linuxdo").
+		SetProviderSubject("turnstile-123").
+		SetResolvedEmail("linuxdo-turnstile-123@linuxdo-connect.invalid").
+		SetBrowserSessionKey("create-account-turnstile-browser-session-key").
+		SetUpstreamIdentityClaims(map[string]any{
+			"username": "linuxdo_user",
+		}).
+		SetLocalFlowState(map[string]any{
+			oauthCompletionResponseKey: map[string]any{
+				"redirect": "/dashboard",
+			},
+		}).
+		SetExpiresAt(time.Now().UTC().Add(10 * time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	body := bytes.NewBufferString(`{"email":"user@example.com","password":"secret-123"}`)
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/pending/create-account", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("create-account-turnstile-browser-session-key")})
+	ginCtx.Request = req
+
+	handler.CreatePendingOAuthAccount(ginCtx)
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	payload := decodeJSONBody(t, recorder)
+	require.Equal(t, "TURNSTILE_VERIFICATION_FAILED", payload["reason"])
+}
+
 func TestCreateOIDCOAuthAccountCreatesUserBindsIdentityAndConsumesSession(t *testing.T) {
 	handler, client := newOAuthPendingFlowTestHandlerWithEmailVerification(t, false, "fresh@example.com", "246810")
 	ctx := context.Background()
@@ -1334,7 +1464,7 @@ func TestCreateOIDCOAuthAccountRollsBackCreatedUserWhenBindingFails(t *testing.T
 	require.NoError(t, err)
 
 	invitation, err := client.RedeemCode.Create().
-		SetCode("INVITE123").
+		SetCode("DG-ABC123").
 		SetType(service.RedeemTypeInvitation).
 		SetStatus(service.StatusUnused).
 		SetValue(0).
@@ -1356,7 +1486,7 @@ func TestCreateOIDCOAuthAccountRollsBackCreatedUserWhenBindingFails(t *testing.T
 		Save(ctx)
 	require.NoError(t, err)
 
-	body := bytes.NewBufferString(`{"email":"fresh@example.com","verify_code":"246810","password":"secret-123","invitation_code":"INVITE123"}`)
+	body := bytes.NewBufferString(`{"email":"fresh@example.com","verify_code":"246810","password":"secret-123","invitation_code":"dg-abc123"}`)
 	recorder := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(recorder)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/create-account", body)
@@ -2120,6 +2250,7 @@ type oauthPendingFlowTestHandlerOptions struct {
 	emailVerifyEnabled bool
 	emailCache         service.EmailCache
 	settingValues      map[string]string
+	turnstileVerifier  service.TurnstileVerifier
 	defaultSubAssigner service.DefaultSubscriptionAssigner
 	affiliateService   *service.AffiliateService
 	affiliateFactory   func(*dbent.Client, *service.SettingService) *service.AffiliateService
@@ -2220,6 +2351,10 @@ CREATE TABLE IF NOT EXISTS user_affiliates (
 			},
 		}, options.emailCache)
 	}
+	var turnstileService *service.TurnstileService
+	if options.turnstileVerifier != nil {
+		turnstileService = service.NewTurnstileService(settingSvc, options.turnstileVerifier)
+	}
 	authSvc := service.NewAuthService(
 		client,
 		userRepo,
@@ -2228,7 +2363,7 @@ CREATE TABLE IF NOT EXISTS user_affiliates (
 		cfg,
 		settingSvc,
 		emailService,
-		nil,
+		turnstileService,
 		nil,
 		nil,
 		options.defaultSubAssigner,
@@ -2265,6 +2400,12 @@ func boolSettingValue(v bool) string {
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+type oauthPendingFlowTurnstileVerifierStub struct{}
+
+func (oauthPendingFlowTurnstileVerifierStub) VerifyToken(context.Context, string, string, string) (*service.TurnstileVerifyResponse, error) {
+	return &service.TurnstileVerifyResponse{Success: true}, nil
 }
 
 type oauthPendingFlowSettingRepoStub struct {

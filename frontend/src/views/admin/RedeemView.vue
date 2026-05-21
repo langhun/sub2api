@@ -90,7 +90,9 @@
                   ? 'badge-success'
                   : value === 'subscription'
                     ? 'badge-warning'
-                    : 'badge-primary'
+                    : value === 'checkin' || value === 'checkin_luck' || value === 'checkin_blindbox'
+                      ? 'badge-warning'
+                      : 'badge-primary'
               ]"
             >
               {{ t('admin.redeem.types.' + value) }}
@@ -99,14 +101,14 @@
 
           <template #cell-value="{ value, row }">
             <span class="text-sm font-medium text-gray-900 dark:text-white">
-              <template v-if="row.type === 'balance'">${{ value.toFixed(2) }}</template>
+              <template v-if="row.type === 'balance'">{{ formatSignedCurrency(value) }}</template>
               <template v-else-if="row.type === 'subscription'">
                 {{ row.validity_days || 30 }} {{ t('admin.redeem.days') }}
                 <span v-if="row.group" class="ml-1 text-xs text-gray-500 dark:text-gray-400"
                   >({{ row.group.name }})</span
                 >
               </template>
-              <template v-else>{{ value }}</template>
+              <template v-else>{{ formatSignedValue(value) }}</template>
             </span>
           </template>
 
@@ -230,6 +232,19 @@
             <div>
               <label class="input-label">{{ t('admin.redeem.codeType') }}</label>
               <Select v-model="generateForm.type" :options="typeOptions" />
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-700/40">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  当前格式预览
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ generateFormatLabel }}
+                </span>
+              </div>
+              <code class="mt-2 block break-all font-mono text-sm text-gray-900 dark:text-gray-100">
+                {{ generateCodePreview }}
+              </code>
             </div>
             <!-- 余额/并发类型：显示数值输入 -->
             <div v-if="generateForm.type !== 'subscription' && generateForm.type !== 'invitation'">
@@ -447,8 +462,9 @@ import { useAppStore } from '@/stores/app'
 import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, formatSignedCurrency } from '@/utils/format'
 import type { RedeemCode, RedeemCodeType, Group, GroupPlatform, SubscriptionType } from '@/types'
+import type { CodeFormatSettings } from '@/api/admin/settings'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -473,10 +489,29 @@ interface GroupOption {
   rate: number
 }
 
+const defaultFormat = (overrides: Partial<CodeFormatSettings> = {}): CodeFormatSettings => ({
+  prefix: '',
+  suffix: '',
+  random_length: 16,
+  separator: '-',
+  group_size: 4,
+  group_count: 4,
+  chars_per_group: 4,
+  charset: 'mixed',
+  letter_case: 'upper',
+  ...overrides
+})
+
 const showGenerateDialog = ref(false)
 const showResultDialog = ref(false)
 const generatedCodes = ref<RedeemCode[]>([])
 const subscriptionGroups = ref<Group[]>([])
+const codeFormats = reactive({
+  balance: defaultFormat({ prefix: 'BAL', random_length: 12, group_size: 4, group_count: 3, chars_per_group: 4 }),
+  concurrency: defaultFormat({ prefix: 'CC', random_length: 12, group_size: 4, group_count: 3, chars_per_group: 4, charset: 'digits' }),
+  subscription: defaultFormat({ prefix: 'SUB', random_length: 9, group_size: 3, group_count: 3, chars_per_group: 3, charset: 'letters' }),
+  invitation: defaultFormat({ prefix: 'DG', random_length: 6, group_size: 6, group_count: 1, chars_per_group: 6 }),
+})
 
 // 订阅类型分组选项
 const subscriptionGroupOptions = computed(() => {
@@ -562,7 +597,11 @@ const filterTypeOptions = computed(() => [
   { value: 'balance', label: t('admin.redeem.balance') },
   { value: 'concurrency', label: t('admin.redeem.concurrency') },
   { value: 'subscription', label: t('admin.redeem.subscription') },
-  { value: 'invitation', label: t('admin.redeem.invitation') }
+  { value: 'invitation', label: t('admin.redeem.invitation') },
+  { value: 'checkin', label: t('admin.redeem.types.checkin') },
+  { value: 'checkin_luck', label: t('admin.redeem.types.checkin_luck') },
+  { value: 'checkin_blindbox', label: t('admin.redeem.types.checkin_blindbox') },
+  { value: 'registration', label: t('admin.redeem.types.registration') }
 ])
 
 const filterStatusOptions = computed(() => [
@@ -616,6 +655,49 @@ const generateForm = reactive({
   validity_days: 30,
   expiry_option: 'never' as RedeemCodeExpiryOption,
   custom_expiry_days: 7
+})
+
+function buildCodePreview(format: CodeFormatSettings): string {
+  const groupCount = Math.max(1, Math.floor(Number(format.group_count ?? 1) || 1))
+  const charsPerGroup = Math.max(1, Math.floor(Number(format.chars_per_group ?? format.group_size ?? 1) || 1))
+  const sampleChar =
+    format.charset === 'digits'
+      ? '8'
+      : format.letter_case === 'lower'
+        ? 'x'
+        : 'X'
+  const groups = Array.from({ length: groupCount }, () => sampleChar.repeat(charsPerGroup))
+  const parts = [String(format.prefix ?? '').trim(), ...groups, String(format.suffix ?? '').trim()].filter(Boolean)
+  const separator = format.separator === '-' || format.separator === '_' ? format.separator : ''
+  return separator ? parts.join(separator) : parts.join('')
+}
+
+const activeGenerateFormat = computed<CodeFormatSettings>(() => {
+  switch (generateForm.type) {
+    case 'concurrency':
+      return codeFormats.concurrency
+    case 'subscription':
+      return codeFormats.subscription
+    case 'invitation':
+      return codeFormats.invitation
+    default:
+      return codeFormats.balance
+  }
+})
+
+const generateCodePreview = computed(() => buildCodePreview(activeGenerateFormat.value))
+
+const generateFormatLabel = computed(() => {
+  switch (generateForm.type) {
+    case 'concurrency':
+      return '并发兑换码'
+    case 'subscription':
+      return '订阅兑换码'
+    case 'invitation':
+      return '邀请码'
+    default:
+      return '余额兑换码'
+  }
 })
 
 // 监听类型变化，邀请码类型时自动设置 value 为 0
@@ -703,6 +785,15 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
   sortState.sort_order = order
   pagination.page = 1
   loadCodes()
+}
+
+function formatSignedValue(value: unknown): string {
+  const numericValue = Number(value)
+  if (!Number.isFinite(numericValue) || numericValue === 0) return String(value ?? '')
+
+  const rawValue = String(value)
+  if (rawValue.startsWith('+') || rawValue.startsWith('-')) return rawValue
+  return `+${rawValue}`
 }
 
 const getRedeemCodeExpiresInDays = () => {
@@ -844,9 +935,22 @@ const loadSubscriptionGroups = async () => {
   }
 }
 
+const loadCodeFormats = async () => {
+  try {
+    const settings = await adminAPI.settings.getSettings()
+    Object.assign(codeFormats.balance, settings.balance_code_format ?? settings.redeem_code_format ?? codeFormats.balance)
+    Object.assign(codeFormats.concurrency, settings.concurrency_code_format ?? settings.redeem_code_format ?? codeFormats.concurrency)
+    Object.assign(codeFormats.subscription, settings.subscription_code_format ?? settings.redeem_code_format ?? codeFormats.subscription)
+    Object.assign(codeFormats.invitation, settings.invitation_code_format ?? codeFormats.invitation)
+  } catch (error) {
+    console.error('Error loading code formats:', error)
+  }
+}
+
 onMounted(() => {
   loadCodes()
   loadSubscriptionGroups()
+  loadCodeFormats()
 })
 
 onUnmounted(() => {

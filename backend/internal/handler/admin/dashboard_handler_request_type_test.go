@@ -19,6 +19,7 @@ type dashboardUsageRepoCapture struct {
 	trendStream      *bool
 	modelRequestType *int16
 	modelStream      *bool
+	modelLimit       int
 	rankingLimit     int
 	ranking          []usagestats.UserSpendingRankingItem
 	rankingTotal     float64
@@ -46,9 +47,11 @@ func (s *dashboardUsageRepoCapture) GetModelStatsWithFilters(
 	requestType *int16,
 	stream *bool,
 	billingType *int8,
+	limit int,
 ) ([]usagestats.ModelStat, error) {
 	s.modelRequestType = requestType
 	s.modelStream = stream
+	s.modelLimit = limit
 	return []usagestats.ModelStat{}, nil
 }
 
@@ -169,13 +172,37 @@ func TestDashboardModelStatsValidModelSource(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 0, repo.modelLimit)
+}
+
+func TestDashboardModelStatsLimitClamped(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/models?limit=999", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 100, repo.modelLimit)
+}
+
+func TestDashboardModelStatsInvalidLimit(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/models?limit=-1", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestDashboardUsersRankingLimitAndCache(t *testing.T) {
 	dashboardUsersRankingCache = newSnapshotCache(5 * time.Minute)
 	repo := &dashboardUsageRepoCapture{
 		ranking: []usagestats.UserSpendingRankingItem{
-			{UserID: 7, Email: "rank@example.com", ActualCost: 10.5, Requests: 3, Tokens: 300},
+			{UserID: 7, Email: "rank@example.com", Username: "rank-user", ActualCost: 10.5, Requests: 3, Tokens: 300},
 		},
 		rankingTotal: 88.8,
 	}
@@ -187,6 +214,7 @@ func TestDashboardUsersRankingLimitAndCache(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, 50, repo.rankingLimit)
+	require.Contains(t, rec.Body.String(), "\"username\":\"rank-user\"")
 	require.Contains(t, rec.Body.String(), "\"total_actual_cost\":88.8")
 	require.Contains(t, rec.Body.String(), "\"total_requests\":44")
 	require.Contains(t, rec.Body.String(), "\"total_tokens\":1234")

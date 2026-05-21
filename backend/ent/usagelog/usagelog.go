@@ -28,14 +28,6 @@ const (
 	FieldRequestedModel = "requested_model"
 	// FieldUpstreamModel holds the string denoting the upstream_model field in the database.
 	FieldUpstreamModel = "upstream_model"
-	// FieldChannelID holds the string denoting the channel_id field in the database.
-	FieldChannelID = "channel_id"
-	// FieldModelMappingChain holds the string denoting the model_mapping_chain field in the database.
-	FieldModelMappingChain = "model_mapping_chain"
-	// FieldBillingTier holds the string denoting the billing_tier field in the database.
-	FieldBillingTier = "billing_tier"
-	// FieldBillingMode holds the string denoting the billing_mode field in the database.
-	FieldBillingMode = "billing_mode"
 	// FieldGroupID holds the string denoting the group_id field in the database.
 	FieldGroupID = "group_id"
 	// FieldSubscriptionID holds the string denoting the subscription_id field in the database.
@@ -52,6 +44,10 @@ const (
 	FieldCacheCreation5mTokens = "cache_creation_5m_tokens"
 	// FieldCacheCreation1hTokens holds the string denoting the cache_creation_1h_tokens field in the database.
 	FieldCacheCreation1hTokens = "cache_creation_1h_tokens"
+	// FieldImageOutputTokens holds the string denoting the image_output_tokens field in the database.
+	FieldImageOutputTokens = "image_output_tokens"
+	// FieldImageOutputCost holds the string denoting the image_output_cost field in the database.
+	FieldImageOutputCost = "image_output_cost"
 	// FieldInputCost holds the string denoting the input_cost field in the database.
 	FieldInputCost = "input_cost"
 	// FieldOutputCost holds the string denoting the output_cost field in the database.
@@ -70,12 +66,24 @@ const (
 	FieldAccountRateMultiplier = "account_rate_multiplier"
 	// FieldBillingType holds the string denoting the billing_type field in the database.
 	FieldBillingType = "billing_type"
+	// FieldRequestType holds the string denoting the request_type field in the database.
+	FieldRequestType = "request_type"
 	// FieldStream holds the string denoting the stream field in the database.
 	FieldStream = "stream"
+	// FieldOpenaiWsMode holds the string denoting the openai_ws_mode field in the database.
+	FieldOpenaiWsMode = "openai_ws_mode"
 	// FieldDurationMs holds the string denoting the duration_ms field in the database.
 	FieldDurationMs = "duration_ms"
 	// FieldFirstTokenMs holds the string denoting the first_token_ms field in the database.
 	FieldFirstTokenMs = "first_token_ms"
+	// FieldAuthLatencyMs holds the string denoting the auth_latency_ms field in the database.
+	FieldAuthLatencyMs = "auth_latency_ms"
+	// FieldRoutingLatencyMs holds the string denoting the routing_latency_ms field in the database.
+	FieldRoutingLatencyMs = "routing_latency_ms"
+	// FieldUpstreamLatencyMs holds the string denoting the upstream_latency_ms field in the database.
+	FieldUpstreamLatencyMs = "upstream_latency_ms"
+	// FieldResponseLatencyMs holds the string denoting the response_latency_ms field in the database.
+	FieldResponseLatencyMs = "response_latency_ms"
 	// FieldUserAgent holds the string denoting the user_agent field in the database.
 	FieldUserAgent = "user_agent"
 	// FieldIPAddress holds the string denoting the ip_address field in the database.
@@ -92,8 +100,26 @@ const (
 	FieldImageSizeSource = "image_size_source"
 	// FieldImageSizeBreakdown holds the string denoting the image_size_breakdown field in the database.
 	FieldImageSizeBreakdown = "image_size_breakdown"
+	// FieldServiceTier holds the string denoting the service_tier field in the database.
+	FieldServiceTier = "service_tier"
+	// FieldReasoningEffort holds the string denoting the reasoning_effort field in the database.
+	FieldReasoningEffort = "reasoning_effort"
+	// FieldInboundEndpoint holds the string denoting the inbound_endpoint field in the database.
+	FieldInboundEndpoint = "inbound_endpoint"
+	// FieldUpstreamEndpoint holds the string denoting the upstream_endpoint field in the database.
+	FieldUpstreamEndpoint = "upstream_endpoint"
 	// FieldCacheTTLOverridden holds the string denoting the cache_ttl_overridden field in the database.
 	FieldCacheTTLOverridden = "cache_ttl_overridden"
+	// FieldChannelID holds the string denoting the channel_id field in the database.
+	FieldChannelID = "channel_id"
+	// FieldModelMappingChain holds the string denoting the model_mapping_chain field in the database.
+	FieldModelMappingChain = "model_mapping_chain"
+	// FieldBillingTier holds the string denoting the billing_tier field in the database.
+	FieldBillingTier = "billing_tier"
+	// FieldBillingMode holds the string denoting the billing_mode field in the database.
+	FieldBillingMode = "billing_mode"
+	// FieldAccountStatsCost holds the string denoting the account_stats_cost field in the database.
+	FieldAccountStatsCost = "account_stats_cost"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -155,10 +181,6 @@ var Columns = []string{
 	FieldModel,
 	FieldRequestedModel,
 	FieldUpstreamModel,
-	FieldChannelID,
-	FieldModelMappingChain,
-	FieldBillingTier,
-	FieldBillingMode,
 	FieldGroupID,
 	FieldSubscriptionID,
 	FieldInputTokens,
@@ -167,6 +189,8 @@ var Columns = []string{
 	FieldCacheReadTokens,
 	FieldCacheCreation5mTokens,
 	FieldCacheCreation1hTokens,
+	FieldImageOutputTokens,
+	FieldImageOutputCost,
 	FieldInputCost,
 	FieldOutputCost,
 	FieldCacheCreationCost,
@@ -176,9 +200,15 @@ var Columns = []string{
 	FieldRateMultiplier,
 	FieldAccountRateMultiplier,
 	FieldBillingType,
+	FieldRequestType,
 	FieldStream,
+	FieldOpenaiWsMode,
 	FieldDurationMs,
 	FieldFirstTokenMs,
+	FieldAuthLatencyMs,
+	FieldRoutingLatencyMs,
+	FieldUpstreamLatencyMs,
+	FieldResponseLatencyMs,
 	FieldUserAgent,
 	FieldIPAddress,
 	FieldImageCount,
@@ -187,7 +217,16 @@ var Columns = []string{
 	FieldImageOutputSize,
 	FieldImageSizeSource,
 	FieldImageSizeBreakdown,
+	FieldServiceTier,
+	FieldReasoningEffort,
+	FieldInboundEndpoint,
+	FieldUpstreamEndpoint,
 	FieldCacheTTLOverridden,
+	FieldChannelID,
+	FieldModelMappingChain,
+	FieldBillingTier,
+	FieldBillingMode,
+	FieldAccountStatsCost,
 	FieldCreatedAt,
 }
 
@@ -210,12 +249,6 @@ var (
 	RequestedModelValidator func(string) error
 	// UpstreamModelValidator is a validator for the "upstream_model" field. It is called by the builders before save.
 	UpstreamModelValidator func(string) error
-	// ModelMappingChainValidator is a validator for the "model_mapping_chain" field. It is called by the builders before save.
-	ModelMappingChainValidator func(string) error
-	// BillingTierValidator is a validator for the "billing_tier" field. It is called by the builders before save.
-	BillingTierValidator func(string) error
-	// BillingModeValidator is a validator for the "billing_mode" field. It is called by the builders before save.
-	BillingModeValidator func(string) error
 	// DefaultInputTokens holds the default value on creation for the "input_tokens" field.
 	DefaultInputTokens int
 	// DefaultOutputTokens holds the default value on creation for the "output_tokens" field.
@@ -228,6 +261,10 @@ var (
 	DefaultCacheCreation5mTokens int
 	// DefaultCacheCreation1hTokens holds the default value on creation for the "cache_creation_1h_tokens" field.
 	DefaultCacheCreation1hTokens int
+	// DefaultImageOutputTokens holds the default value on creation for the "image_output_tokens" field.
+	DefaultImageOutputTokens int
+	// DefaultImageOutputCost holds the default value on creation for the "image_output_cost" field.
+	DefaultImageOutputCost float64
 	// DefaultInputCost holds the default value on creation for the "input_cost" field.
 	DefaultInputCost float64
 	// DefaultOutputCost holds the default value on creation for the "output_cost" field.
@@ -244,8 +281,12 @@ var (
 	DefaultRateMultiplier float64
 	// DefaultBillingType holds the default value on creation for the "billing_type" field.
 	DefaultBillingType int8
+	// DefaultRequestType holds the default value on creation for the "request_type" field.
+	DefaultRequestType int
 	// DefaultStream holds the default value on creation for the "stream" field.
 	DefaultStream bool
+	// DefaultOpenaiWsMode holds the default value on creation for the "openai_ws_mode" field.
+	DefaultOpenaiWsMode bool
 	// UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
 	UserAgentValidator func(string) error
 	// IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
@@ -260,8 +301,22 @@ var (
 	ImageOutputSizeValidator func(string) error
 	// ImageSizeSourceValidator is a validator for the "image_size_source" field. It is called by the builders before save.
 	ImageSizeSourceValidator func(string) error
+	// ServiceTierValidator is a validator for the "service_tier" field. It is called by the builders before save.
+	ServiceTierValidator func(string) error
+	// ReasoningEffortValidator is a validator for the "reasoning_effort" field. It is called by the builders before save.
+	ReasoningEffortValidator func(string) error
+	// InboundEndpointValidator is a validator for the "inbound_endpoint" field. It is called by the builders before save.
+	InboundEndpointValidator func(string) error
+	// UpstreamEndpointValidator is a validator for the "upstream_endpoint" field. It is called by the builders before save.
+	UpstreamEndpointValidator func(string) error
 	// DefaultCacheTTLOverridden holds the default value on creation for the "cache_ttl_overridden" field.
 	DefaultCacheTTLOverridden bool
+	// ModelMappingChainValidator is a validator for the "model_mapping_chain" field. It is called by the builders before save.
+	ModelMappingChainValidator func(string) error
+	// BillingTierValidator is a validator for the "billing_tier" field. It is called by the builders before save.
+	BillingTierValidator func(string) error
+	// BillingModeValidator is a validator for the "billing_mode" field. It is called by the builders before save.
+	BillingModeValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
@@ -309,26 +364,6 @@ func ByUpstreamModel(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpstreamModel, opts...).ToFunc()
 }
 
-// ByChannelID orders the results by the channel_id field.
-func ByChannelID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldChannelID, opts...).ToFunc()
-}
-
-// ByModelMappingChain orders the results by the model_mapping_chain field.
-func ByModelMappingChain(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldModelMappingChain, opts...).ToFunc()
-}
-
-// ByBillingTier orders the results by the billing_tier field.
-func ByBillingTier(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBillingTier, opts...).ToFunc()
-}
-
-// ByBillingMode orders the results by the billing_mode field.
-func ByBillingMode(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldBillingMode, opts...).ToFunc()
-}
-
 // ByGroupID orders the results by the group_id field.
 func ByGroupID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGroupID, opts...).ToFunc()
@@ -367,6 +402,16 @@ func ByCacheCreation5mTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByCacheCreation1hTokens orders the results by the cache_creation_1h_tokens field.
 func ByCacheCreation1hTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCacheCreation1hTokens, opts...).ToFunc()
+}
+
+// ByImageOutputTokens orders the results by the image_output_tokens field.
+func ByImageOutputTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageOutputTokens, opts...).ToFunc()
+}
+
+// ByImageOutputCost orders the results by the image_output_cost field.
+func ByImageOutputCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageOutputCost, opts...).ToFunc()
 }
 
 // ByInputCost orders the results by the input_cost field.
@@ -414,9 +459,19 @@ func ByBillingType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBillingType, opts...).ToFunc()
 }
 
+// ByRequestType orders the results by the request_type field.
+func ByRequestType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestType, opts...).ToFunc()
+}
+
 // ByStream orders the results by the stream field.
 func ByStream(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStream, opts...).ToFunc()
+}
+
+// ByOpenaiWsMode orders the results by the openai_ws_mode field.
+func ByOpenaiWsMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOpenaiWsMode, opts...).ToFunc()
 }
 
 // ByDurationMs orders the results by the duration_ms field.
@@ -427,6 +482,26 @@ func ByDurationMs(opts ...sql.OrderTermOption) OrderOption {
 // ByFirstTokenMs orders the results by the first_token_ms field.
 func ByFirstTokenMs(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFirstTokenMs, opts...).ToFunc()
+}
+
+// ByAuthLatencyMs orders the results by the auth_latency_ms field.
+func ByAuthLatencyMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAuthLatencyMs, opts...).ToFunc()
+}
+
+// ByRoutingLatencyMs orders the results by the routing_latency_ms field.
+func ByRoutingLatencyMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRoutingLatencyMs, opts...).ToFunc()
+}
+
+// ByUpstreamLatencyMs orders the results by the upstream_latency_ms field.
+func ByUpstreamLatencyMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpstreamLatencyMs, opts...).ToFunc()
+}
+
+// ByResponseLatencyMs orders the results by the response_latency_ms field.
+func ByResponseLatencyMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResponseLatencyMs, opts...).ToFunc()
 }
 
 // ByUserAgent orders the results by the user_agent field.
@@ -464,9 +539,54 @@ func ByImageSizeSource(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldImageSizeSource, opts...).ToFunc()
 }
 
+// ByServiceTier orders the results by the service_tier field.
+func ByServiceTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceTier, opts...).ToFunc()
+}
+
+// ByReasoningEffort orders the results by the reasoning_effort field.
+func ByReasoningEffort(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReasoningEffort, opts...).ToFunc()
+}
+
+// ByInboundEndpoint orders the results by the inbound_endpoint field.
+func ByInboundEndpoint(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInboundEndpoint, opts...).ToFunc()
+}
+
+// ByUpstreamEndpoint orders the results by the upstream_endpoint field.
+func ByUpstreamEndpoint(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpstreamEndpoint, opts...).ToFunc()
+}
+
 // ByCacheTTLOverridden orders the results by the cache_ttl_overridden field.
 func ByCacheTTLOverridden(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCacheTTLOverridden, opts...).ToFunc()
+}
+
+// ByChannelID orders the results by the channel_id field.
+func ByChannelID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChannelID, opts...).ToFunc()
+}
+
+// ByModelMappingChain orders the results by the model_mapping_chain field.
+func ByModelMappingChain(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelMappingChain, opts...).ToFunc()
+}
+
+// ByBillingTier orders the results by the billing_tier field.
+func ByBillingTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingTier, opts...).ToFunc()
+}
+
+// ByBillingMode orders the results by the billing_mode field.
+func ByBillingMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingMode, opts...).ToFunc()
+}
+
+// ByAccountStatsCost orders the results by the account_stats_cost field.
+func ByAccountStatsCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountStatsCost, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

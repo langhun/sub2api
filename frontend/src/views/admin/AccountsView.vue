@@ -2,7 +2,7 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-wrap-reverse items-start justify-between gap-3">
+        <div class="flex flex-wrap-reverse items-start justify-between gap-2">
           <AccountTableFilters
             v-model:searchQuery="params.search"
             :filters="params"
@@ -10,6 +10,7 @@
             @update:filters="(newFilters) => Object.assign(params, newFilters)"
             @change="debouncedReload"
             @update:searchQuery="debouncedReload"
+            @status-guide="showStatusGuide = true"
           />
           <AccountTableActions
             :loading="loading"
@@ -24,7 +25,7 @@
                     showAutoRefreshDropdown = !showAutoRefreshDropdown;
                     showAccountToolsDropdown = false
                   "
-                  class="btn btn-secondary px-2 md:px-3"
+                  class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.accounts.autoRefresh')"
                 >
                   <Icon name="refresh" size="sm" :class="[autoRefreshEnabled ? 'animate-spin' : '']" />
@@ -69,7 +70,7 @@
                     showAccountToolsDropdown = !showAccountToolsDropdown;
                     showAutoRefreshDropdown = false
                   "
-                  class="btn btn-secondary px-2 md:px-3"
+                  class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.accounts.moreActions')"
                 >
                   <Icon name="more" size="sm" class="md:mr-1.5" />
@@ -91,6 +92,12 @@
                         <Icon name="sync" size="sm" />
                       </span>
                       <span class="flex-1 text-left">{{ t('admin.accounts.syncFromCrs') }}</span>
+                    </button>
+                    <button class="account-tools-menu-item" @click="openDuplicateCheck">
+                      <span class="account-tools-menu-icon bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300">
+                        <Icon name="search" size="sm" />
+                      </span>
+                      <span class="flex-1 text-left">{{ t('admin.accounts.duplicateCheck.open') }}</span>
                     </button>
                     <button class="account-tools-menu-item" @click="openImportData">
                       <span class="account-tools-menu-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
@@ -159,6 +166,44 @@
           </AccountTableActions>
         </div>
         <div
+          v-if="activeFilterSummaryItems.length > 0"
+          class="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-dark-600 dark:bg-dark-800/70"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.activeFiltersCompact', { count: activeFilterSummaryItems.length }) }}
+              </span>
+              <button
+                class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                @click="showFilterSummaryDetails = !showFilterSummaryDetails"
+              >
+                {{ showFilterSummaryDetails ? t('admin.accounts.hideFilterDetails') : t('admin.accounts.showFilterDetails') }}
+              </button>
+            </div>
+            <button
+              class="btn btn-secondary px-2 py-1 text-xs"
+              @click="clearAccountFilters"
+            >
+              {{ t('admin.accounts.clearFilters') }}
+            </button>
+          </div>
+          <div
+            v-if="showFilterSummaryDetails"
+            class="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-200 pt-2 dark:border-dark-600"
+          >
+            <span
+              v-for="item in activeFilterSummaryItems"
+              :key="item.key"
+              class="inline-flex max-w-full items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-200"
+              :title="item.label"
+            >
+              <span class="font-medium text-gray-500 dark:text-gray-400">{{ item.prefix }}</span>
+              <span class="truncate">{{ item.label }}</span>
+            </span>
+          </div>
+        </div>
+        <div
           v-if="hasPendingListSync"
           class="mt-2 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-200"
         >
@@ -174,14 +219,22 @@
       <template #table>
         <AccountBulkActionsBar
           :selected-ids="selIds"
+          :show-test-all-ungrouped="hasUngroupedAccounts"
+          :test-all-ungrouped-loading="loadingUngroupedBatchTargets"
+          :ungrouped-test-limit="ungroupedBatchTestLimit"
+          :ungrouped-total-count="pagination.total"
           @delete="handleBulkDelete"
           @reset-status="handleBulkResetStatus"
           @refresh-token="handleBulkRefreshToken"
+          @set-privacy="handleBulkSetPrivacy"
+          @clear-privacy="handleBulkClearPrivacy"
           @edit-selected="openBulkEditSelected"
-          @edit-filtered="openBulkEditFiltered"
           @clear="clearSelection"
           @select-page="selectPage"
           @toggle-schedulable="handleBulkToggleSchedulable"
+          @test="openBatchTest"
+          @test-all-ungrouped="openUngroupedBatchTest"
+          @update:ungrouped-test-limit="updateUngroupedBatchTestLimit"
         />
         <div ref="accountTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <DataTable
@@ -282,11 +335,20 @@
             />
           </template>
           <template #cell-proxy="{ row }">
-            <div v-if="row.proxy" class="flex items-center gap-2">
-              <span class="text-sm text-gray-700 dark:text-gray-300">{{ row.proxy.name }}</span>
-              <span v-if="row.proxy.country_code" class="text-xs text-gray-500 dark:text-gray-400">
-                ({{ row.proxy.country_code }})
-              </span>
+            <div v-if="row.proxy" class="flex flex-col items-start gap-1">
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-700 dark:text-gray-300">{{ row.proxy.name }}</span>
+                <span v-if="row.proxy.country_code" class="text-xs text-gray-500 dark:text-gray-400">
+                  ({{ row.proxy.country_code }})
+                </span>
+              </div>
+              <div
+                v-if="getProxyFailoverSummary(row)"
+                class="text-xs text-gray-500 dark:text-gray-400"
+                :title="getProxyFailoverReason(row) || undefined"
+              >
+                {{ getProxyFailoverSummary(row) }}
+              </div>
             </div>
             <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
           </template>
@@ -341,27 +403,37 @@
       </template>
       <template #pagination><Pagination v-if="pagination.total > 0" :page="pagination.page" :total="pagination.total" :page-size="pagination.page_size" @update:page="handlePageChange" @update:pageSize="handlePageSizeChange" /></template>
     </TablePageLayout>
-    <CreateAccountModal :show="showCreate" :proxies="proxies" :groups="groups" @close="showCreate = false" @created="reload" />
-    <EditAccountModal :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
-    <ReAuthAccountModal :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
-    <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
-    <AccountStatsModal :show="showStats" :account="statsAcc" @close="closeStatsModal" />
-    <ScheduledTestsPanel :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
-    <AccountActionMenu :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" />
-    <SyncFromCrsModal :show="showSync" @close="showSync = false" @synced="reload" />
-    <ImportDataModal :show="showImportData" @close="showImportData = false" @imported="handleDataImported" />
+    <CreateAccountModal v-if="showCreate" :show="showCreate" :proxies="proxies" :groups="groups" @close="showCreate = false" @created="reload" />
+    <EditAccountModal v-if="showEdit && edAcc" :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
+    <ReAuthAccountModal v-if="showReAuth && reAuthAcc" :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
+    <AccountTestModal v-if="showTest && testingAcc" :show="showTest" :account="testingAcc" @close="closeTestModal" />
+    <BatchAccountTestModal
+      v-if="showBatchTest"
+      :show="showBatchTest"
+      :targets="modalBatchTestTargets"
+      :default-model-only="showBatchTestSource === 'ungrouped'"
+      @close="closeBatchTestModal"
+      @completed="handleBatchTestCompleted"
+      @queue-delete="enqueueBatchTestDelete"
+    />
+    <AccountStatsModal v-if="showStats && statsAcc" :show="showStats" :account="statsAcc" @close="closeStatsModal" />
+    <ScheduledTestsPanel v-if="showSchedulePanel && scheduleAcc" :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
+    <AccountActionMenu v-if="menu.show && menu.acc" :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @set-privacy="handleSetPrivacy" />
+    <SyncFromCrsModal v-if="showSync" :show="showSync" @close="showSync = false" @synced="reload" />
+    <ImportDataModal v-if="showImportData" :show="showImportData" @close="showImportData = false" @imported="handleDataImported" />
+    <DuplicateAccountCheckModal v-if="showDuplicateCheck" :show="showDuplicateCheck" :groups="groups" @close="showDuplicateCheck = false" />
     <BulkEditAccountModal
+      v-if="showBulkEdit"
       :show="showBulkEdit"
       :account-ids="selIds"
       :selected-platforms="selPlatforms"
       :selected-types="selTypes"
-      :target="bulkEditTarget ?? undefined"
       :proxies="proxies"
       :groups="groups"
       @close="showBulkEdit = false"
       @updated="handleBulkUpdated"
     />
-    <TempUnschedStatusModal :show="showTempUnsched" :account="tempUnschedAcc" @close="showTempUnsched = false" @reset="handleTempUnschedReset" />
+    <TempUnschedStatusModal v-if="showTempUnsched && tempUnschedAcc" :show="showTempUnsched" :account="tempUnschedAcc" @close="showTempUnsched = false" @reset="handleTempUnschedReset" />
     <ConfirmDialog :show="showDeleteDialog" :title="t('admin.accounts.deleteAccount')" :message="t('admin.accounts.deleteConfirm', { name: deletingAcc?.name })" :confirm-text="t('common.delete')" :cancel-text="t('common.cancel')" :danger="true" @confirm="confirmDelete" @cancel="showDeleteDialog = false" />
     <ConfirmDialog :show="showExportDataDialog" :title="t('admin.accounts.dataExport')" :message="t('admin.accounts.dataExportConfirmMessage')" :confirm-text="t('admin.accounts.dataExportConfirm')" :cancel-text="t('common.cancel')" @confirm="handleExportData" @cancel="showExportDataDialog = false">
       <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -369,13 +441,59 @@
         <span>{{ t('admin.accounts.dataExportIncludeProxies') }}</span>
       </label>
     </ConfirmDialog>
-    <ErrorPassthroughRulesModal :show="showErrorPassthrough" @close="showErrorPassthrough = false" />
-    <TLSFingerprintProfilesModal :show="showTLSFingerprintProfiles" @close="showTLSFingerprintProfiles = false" />
+    <ErrorPassthroughRulesModal v-if="showErrorPassthrough" :show="showErrorPassthrough" @close="showErrorPassthrough = false" />
+    <TLSFingerprintProfilesModal v-if="showTLSFingerprintProfiles" :show="showTLSFingerprintProfiles" @close="showTLSFingerprintProfiles = false" />
+    <BaseDialog :show="showStatusGuide" :title="t('admin.accounts.statusGuide.title')" width="normal" @close="showStatusGuide = false">
+      <div class="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+        <p class="leading-6 text-gray-600 dark:text-gray-400">
+          {{ t('admin.accounts.statusGuide.description') }}
+        </p>
+
+        <div class="grid gap-3 md:grid-cols-3">
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800/70">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.statusLayers.main') }}
+            </div>
+            <ul class="space-y-1.5 text-sm">
+              <li>{{ t('admin.accounts.status.mainActive') }}：{{ t('admin.accounts.statusGuide.mainActive') }}</li>
+              <li>{{ t('admin.accounts.status.mainInactive') }}：{{ t('admin.accounts.statusGuide.mainInactive') }}</li>
+              <li>{{ t('admin.accounts.status.mainError') }}：{{ t('admin.accounts.statusGuide.mainError') }}</li>
+            </ul>
+          </div>
+
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800/70">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.statusLayers.runtime') }}
+            </div>
+            <ul class="space-y-1.5 text-sm">
+              <li>{{ t('admin.accounts.status.runtimeRateLimited') }}：{{ t('admin.accounts.statusGuide.runtimeRateLimited') }}</li>
+              <li>{{ t('admin.accounts.status.runtimeOverloaded') }}：{{ t('admin.accounts.statusGuide.runtimeOverloaded') }}</li>
+              <li>{{ t('admin.accounts.status.runtimeTempUnschedulable') }}：{{ t('admin.accounts.statusGuide.runtimeTempUnschedulable') }}</li>
+            </ul>
+          </div>
+
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800/70">
+            <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.statusLayers.scheduling') }}
+            </div>
+            <ul class="space-y-1.5 text-sm">
+              <li>{{ t('admin.accounts.status.scheduleEnabled') }}：{{ t('admin.accounts.statusGuide.scheduleEnabled') }}</li>
+              <li>{{ t('admin.accounts.status.scheduleManualPaused') }}：{{ t('admin.accounts.statusGuide.scheduleManualPaused') }}</li>
+              <li>{{ t('admin.accounts.status.scheduleExpiredPaused') }}：{{ t('admin.accounts.statusGuide.scheduleExpiredPaused') }}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-200">
+          {{ t('admin.accounts.statusGuide.oauth401Hint') }}
+        </div>
+      </div>
+    </BaseDialog>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, toRaw, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, toRaw, watch, defineAsyncComponent, provide } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -388,17 +506,12 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import { CreateAccountModal, EditAccountModal, BulkEditAccountModal, SyncFromCrsModal, TempUnschedStatusModal } from '@/components/account'
 import AccountTableActions from '@/components/admin/account/AccountTableActions.vue'
 import AccountTableFilters from '@/components/admin/account/AccountTableFilters.vue'
 import AccountBulkActionsBar from '@/components/admin/account/AccountBulkActionsBar.vue'
 import AccountActionMenu from '@/components/admin/account/AccountActionMenu.vue'
-import ImportDataModal from '@/components/admin/account/ImportDataModal.vue'
-import ReAuthAccountModal from '@/components/admin/account/ReAuthAccountModal.vue'
-import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
-import AccountStatsModal from '@/components/admin/account/AccountStatsModal.vue'
-import ScheduledTestsPanel from '@/components/admin/account/ScheduledTestsPanel.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
 import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.vue'
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
@@ -407,11 +520,34 @@ import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
-import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
-import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfilesModal.vue'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
+import {
+  composeAccountStatusFilterToken,
+  matchesAccountMainStatusFilter,
+  matchesAccountRuntimeStatusFilter,
+  matchesAccountSchedulingStatusFilter,
+  type AccountMainStatusFilterValue,
+  type AccountRuntimeStatusFilterValue,
+  type AccountSchedulingStatusFilterValue
+} from '@/utils/accountStatus'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
+import { accountStatusNowMsKey } from '@/components/account/accountStatusClock'
+
+const CreateAccountModal = defineAsyncComponent(() => import('@/components/account/CreateAccountModal.vue'))
+const EditAccountModal = defineAsyncComponent(() => import('@/components/account/EditAccountModal.vue'))
+const BulkEditAccountModal = defineAsyncComponent(() => import('@/components/account/BulkEditAccountModal.vue'))
+const SyncFromCrsModal = defineAsyncComponent(() => import('@/components/account/SyncFromCrsModal.vue'))
+const TempUnschedStatusModal = defineAsyncComponent(() => import('@/components/account/TempUnschedStatusModal.vue'))
+const ImportDataModal = defineAsyncComponent(() => import('@/components/admin/account/ImportDataModal.vue'))
+const DuplicateAccountCheckModal = defineAsyncComponent(() => import('@/components/admin/account/DuplicateAccountCheckModal.vue'))
+const ReAuthAccountModal = defineAsyncComponent(() => import('@/components/admin/account/ReAuthAccountModal.vue'))
+const AccountTestModal = defineAsyncComponent(() => import('@/components/admin/account/AccountTestModal.vue'))
+const BatchAccountTestModal = defineAsyncComponent(() => import('@/components/admin/account/BatchAccountTestModal.vue'))
+const AccountStatsModal = defineAsyncComponent(() => import('@/components/admin/account/AccountStatsModal.vue'))
+const ScheduledTestsPanel = defineAsyncComponent(() => import('@/components/admin/account/ScheduledTestsPanel.vue'))
+const ErrorPassthroughRulesModal = defineAsyncComponent(() => import('@/components/admin/ErrorPassthroughRulesModal.vue'))
+const TLSFingerprintProfilesModal = defineAsyncComponent(() => import('@/components/admin/TLSFingerprintProfilesModal.vue'))
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -419,31 +555,10 @@ const authStore = useAuthStore()
 
 const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
+const showFilterSummaryDetails = ref(false)
+const showStatusGuide = ref(false)
 const accountTableRef = ref<HTMLElement | null>(null)
 const dataTableRef = ref<InstanceType<typeof DataTable> | null>(null)
-type AccountBulkEditTarget =
-  | {
-      mode: 'selected'
-      accountIds: number[]
-      selectedPlatforms: AccountPlatform[]
-      selectedTypes: AccountType[]
-    }
-  | {
-      mode: 'filtered'
-      filters: {
-        platform?: string
-        type?: string
-        status?: string
-        group?: string
-        search?: string
-        privacy_mode?: string
-        sort_by?: string
-        sort_order?: AccountSortOrder
-      }
-      previewCount: number
-      selectedPlatforms: AccountPlatform[]
-      selectedTypes: AccountType[]
-    }
 const selPlatforms = computed<AccountPlatform[]>(() => {
   const platforms = new Set(
     accounts.value
@@ -464,14 +579,18 @@ const showCreate = ref(false)
 const showEdit = ref(false)
 const showSync = ref(false)
 const showImportData = ref(false)
+const showDuplicateCheck = ref(false)
 const showExportDataDialog = ref(false)
 const includeProxyOnExport = ref(true)
 const showBulkEdit = ref(false)
-const bulkEditTarget = ref<AccountBulkEditTarget | null>(null)
 const showTempUnsched = ref(false)
 const showDeleteDialog = ref(false)
 const showReAuth = ref(false)
 const showTest = ref(false)
+const showBatchTest = ref(false)
+const loadingUngroupedBatchTargets = ref(false)
+const defaultUngroupedBatchTestLimit = 50
+const ungroupedBatchTestLimit = ref(defaultUngroupedBatchTestLimit)
 const showStats = ref(false)
 const showErrorPassthrough = ref(false)
 const showTLSFingerprintProfiles = ref(false)
@@ -484,9 +603,15 @@ const statsAcc = ref<Account | null>(null)
 const showSchedulePanel = ref(false)
 const scheduleAcc = ref<Account | null>(null)
 const scheduleModelOptions = ref<SelectOption[]>([])
+const showBatchTestSource = ref<'selected' | 'ungrouped'>('selected')
+const modalBatchTestTargets = ref<BatchTestTarget[]>([])
 const togglingSchedulable = ref<number | null>(null)
+const batchTestDeleteQueue = ref<number[]>([])
+const batchTestDeleteSucceededIds = ref<Set<number>>(new Set())
+const batchTestDeleteFailedIds = ref<Set<number>>(new Set())
 const menu = reactive<{show:boolean, acc:Account|null, pos:{top:number, left:number}|null}>({ show: false, acc: null, pos: null })
 const exportingData = ref(false)
+let batchTestDeleteDrainPromise: Promise<void> | null = null
 
 // Account tools dropdown
 const showAccountToolsDropdown = ref(false)
@@ -502,6 +627,47 @@ type AccountSortState = {
   sort_by: string
   sort_order: AccountSortOrder
 }
+
+type AccountLocalFilterParams = {
+  platform: string
+  tier: string
+  type: string
+  main_status: string
+  runtime_status: string
+  scheduling_status: string
+  privacy_mode: string
+  group: string
+  search: string
+  sort_by: string
+  sort_order: AccountSortOrder
+  status?: string
+}
+
+type AccountRequestFilterParams = {
+  platform: string
+  tier: string
+  type: string
+  status: string
+  privacy_mode: string
+  group: string
+  search: string
+  sort_by: string
+  sort_order: AccountSortOrder
+}
+
+type ActiveFilterSummaryItem = {
+  key: string
+  prefix: string
+  label: string
+}
+
+type BatchTestTarget = {
+  id: number
+  name: string
+  platform?: string
+  type?: string
+}
+
 const ACCOUNT_SORTABLE_KEYS = new Set([
   'name',
   'status',
@@ -541,6 +707,7 @@ const autoRefreshETag = ref<string | null>(null)
 const autoRefreshFetching = ref(false)
 const AUTO_REFRESH_SILENT_WINDOW_MS = 15000
 const autoRefreshSilentUntil = ref(0)
+const accountStatusNowMs = ref(Date.now())
 const hasPendingListSync = ref(false)
 const todayStatsByAccountId = ref<Record<string, WindowStats>>({})
 const todayStatsLoading = ref(false)
@@ -548,6 +715,16 @@ const todayStatsError = ref<string | null>(null)
 const todayStatsReqSeq = ref(0)
 const pendingTodayStatsRefresh = ref(false)
 const usageManualRefreshToken = ref(0)
+
+provide(accountStatusNowMsKey, accountStatusNowMs)
+
+const { pause: pauseAccountStatusClock, resume: resumeAccountStatusClock } = useIntervalFn(
+  () => {
+    accountStatusNowMs.value = Date.now()
+  },
+  1000,
+  { immediate: false }
+)
 
 const buildDefaultTodayStats = (): WindowStats => ({
   requests: 0,
@@ -709,6 +886,179 @@ const toggleColumn = (key: string) => {
 
 const isColumnVisible = (key: string) => !hiddenColumns.has(key)
 
+const buildAccountLocalFilters = (source: Partial<AccountLocalFilterParams>): AccountLocalFilterParams => {
+  const current = source
+  return {
+    platform: current.platform || '',
+    tier: current.tier || '',
+    type: current.type || '',
+    main_status: current.main_status || '',
+    runtime_status: current.runtime_status || '',
+    scheduling_status: current.scheduling_status || '',
+    group: current.group || '',
+    privacy_mode: current.privacy_mode || '',
+    search: current.search || '',
+    sort_by: current.sort_by || sortState.sort_by,
+    sort_order: current.sort_order || sortState.sort_order
+  }
+}
+
+const buildAccountRequestFilters = (source: Partial<AccountLocalFilterParams>): AccountRequestFilterParams => {
+  const filters = buildAccountLocalFilters(source)
+  const encodedStatus = composeAccountStatusFilterToken(
+    filters.main_status as AccountMainStatusFilterValue,
+    filters.runtime_status as AccountRuntimeStatusFilterValue,
+    filters.scheduling_status as AccountSchedulingStatusFilterValue
+  ) || (source?.status || '')
+  return {
+    platform: filters.platform,
+    tier: filters.tier,
+    type: filters.type,
+    status: encodedStatus,
+    group: filters.group,
+    privacy_mode: filters.privacy_mode,
+    search: filters.search,
+    sort_by: filters.sort_by,
+    sort_order: filters.sort_order
+  }
+}
+
+const getPlatformFilterLabel = (platform: string) => {
+  switch (platform) {
+    case 'anthropic':
+      return 'Anthropic'
+    case 'openai':
+      return 'OpenAI'
+    case 'gemini':
+      return 'Gemini'
+    case 'antigravity':
+      return 'Antigravity'
+    default:
+      return platform
+  }
+}
+
+const getTypeFilterLabel = (type: string) => {
+  switch (type) {
+    case 'oauth':
+      return t('admin.accounts.oauthType')
+    case 'setup-token':
+      return t('admin.accounts.setupToken')
+    case 'apikey':
+      return t('admin.accounts.apiKey')
+    case 'bedrock':
+      return 'AWS Bedrock'
+    default:
+      return type
+  }
+}
+
+const getMainStatusFilterLabel = (status: string) => {
+  switch (status) {
+    case 'active':
+      return t('admin.accounts.status.mainActive')
+    case 'inactive':
+      return t('admin.accounts.status.mainInactive')
+    case 'error':
+      return t('admin.accounts.status.mainError')
+    default:
+      return status
+  }
+}
+
+const getRuntimeStatusFilterLabel = (status: string) => {
+  switch (status) {
+    case 'normal':
+      return t('admin.accounts.status.runtimeNormal')
+    case 'rate_limited':
+      return t('admin.accounts.status.runtimeRateLimited')
+    case 'overloaded':
+      return t('admin.accounts.status.runtimeOverloaded')
+    case 'temp_unschedulable':
+      return t('admin.accounts.statusFilters.tempUnschedulable')
+    default:
+      return status
+  }
+}
+
+const getSchedulingStatusFilterLabel = (status: string) => {
+  switch (status) {
+    case 'enabled':
+      return t('admin.accounts.status.scheduleEnabled')
+    case 'paused':
+      return t('admin.accounts.statusFilters.unschedulable')
+    default:
+      return status
+  }
+}
+
+const getPrivacyModeFilterLabel = (privacyMode: string) => {
+  switch (privacyMode) {
+    case ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE:
+      return t('admin.accounts.privacyUnset')
+    case 'training_off':
+      return t('admin.accounts.privacyTrainingOff')
+    case 'training_set_cf_blocked':
+      return t('admin.accounts.privacyCfBlocked')
+    case 'training_set_failed':
+      return t('admin.accounts.privacyFailed')
+    case 'privacy_set':
+      return t('admin.accounts.privacyAntigravitySet')
+    default:
+      return privacyMode
+  }
+}
+
+const getGroupFilterLabel = (groupValue: string) => {
+  if (groupValue === ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE) {
+    return t('admin.accounts.ungroupedGroup')
+  }
+  return groups.value.find(group => String(group.id) === groupValue)?.name || groupValue
+}
+
+const getTierFilterLabel = (selectedTier: string, fallbackPlatform: string) => {
+  const tier = parseSelectedTier(selectedTier, fallbackPlatform)
+  if (!tier?.value) return selectedTier
+
+  const value = tier.value
+  switch (`${tier.platform}:${value}`) {
+    case 'openai:free':
+      return t('admin.accounts.tier.free')
+    case 'openai:plus':
+      return t('admin.accounts.tier.plus')
+    case 'openai:team':
+      return t('admin.accounts.tier.team')
+    case 'openai:pro':
+      return t('admin.accounts.tier.pro')
+    case 'openai:enterprise':
+      return t('admin.accounts.tier.enterprise')
+    case 'gemini:google_one_free':
+      return t('admin.accounts.tier.googleOneFree')
+    case 'gemini:google_ai_pro':
+      return t('admin.accounts.tier.googleAIPro')
+    case 'gemini:google_ai_ultra':
+      return t('admin.accounts.tier.googleAIUltra')
+    case 'gemini:gcp_standard':
+      return t('admin.accounts.tier.gcpStandard')
+    case 'gemini:gcp_enterprise':
+      return t('admin.accounts.tier.gcpEnterprise')
+    case 'gemini:aistudio_free':
+      return t('admin.accounts.tier.aiStudioFree')
+    case 'gemini:aistudio_paid':
+      return t('admin.accounts.tier.aiStudioPaid')
+    case 'gemini:google_one_unknown':
+      return t('admin.accounts.tier.unknown')
+    case 'antigravity:free-tier':
+      return t('admin.accounts.tier.free')
+    case 'antigravity:g1-pro-tier':
+      return t('admin.accounts.tier.pro')
+    case 'antigravity:g1-ultra-tier':
+      return t('admin.accounts.tier.ultra')
+    default:
+      return value
+  }
+}
+
 const {
   items: accounts,
   loading,
@@ -720,11 +1070,15 @@ const {
   handlePageChange: baseHandlePageChange,
   handlePageSizeChange: baseHandlePageSizeChange
 } = useTableLoader<Account, any>({
-  fetchFn: adminAPI.accounts.list,
+  fetchFn: (page, pageSize, filters, options) =>
+    adminAPI.accounts.list(page, pageSize, buildAccountRequestFilters(filters as Partial<AccountLocalFilterParams>), options),
   initialParams: {
     platform: '',
+    tier: '',
     type: '',
-    status: '',
+    main_status: '',
+    runtime_status: '',
+    scheduling_status: '',
     privacy_mode: '',
     group: '',
     search: '',
@@ -750,6 +1104,119 @@ const {
   rows: accounts,
   getId: (account) => account.id
 })
+
+const activeFilterSummaryItems = computed<ActiveFilterSummaryItem[]>(() => {
+  const filters = buildAccountLocalFilters(params as AccountLocalFilterParams)
+  const items: ActiveFilterSummaryItem[] = []
+
+  if (filters.search.trim()) {
+    items.push({
+      key: 'search',
+      prefix: t('admin.accounts.filterSummary.search'),
+      label: filters.search.trim()
+    })
+  }
+  if (filters.platform) {
+    items.push({
+      key: 'platform',
+      prefix: t('admin.accounts.filterSummary.platform'),
+      label: getPlatformFilterLabel(filters.platform)
+    })
+  }
+  if (filters.tier) {
+    items.push({
+      key: 'tier',
+      prefix: t('admin.accounts.filterSummary.tier'),
+      label: getTierFilterLabel(filters.tier, filters.platform)
+    })
+  }
+  if (filters.type) {
+    items.push({
+      key: 'type',
+      prefix: t('admin.accounts.filterSummary.type'),
+      label: getTypeFilterLabel(filters.type)
+    })
+  }
+  if (filters.main_status) {
+    items.push({
+      key: 'main_status',
+      prefix: t('admin.accounts.statusLayers.main'),
+      label: getMainStatusFilterLabel(filters.main_status)
+    })
+  }
+  if (filters.runtime_status) {
+    items.push({
+      key: 'runtime_status',
+      prefix: t('admin.accounts.statusLayers.runtime'),
+      label: getRuntimeStatusFilterLabel(filters.runtime_status)
+    })
+  }
+  if (filters.scheduling_status) {
+    items.push({
+      key: 'scheduling_status',
+      prefix: t('admin.accounts.statusLayers.scheduling'),
+      label: getSchedulingStatusFilterLabel(filters.scheduling_status)
+    })
+  }
+  if (filters.group) {
+    items.push({
+      key: 'group',
+      prefix: t('admin.accounts.filterSummary.group'),
+      label: getGroupFilterLabel(filters.group)
+    })
+  }
+  if (filters.privacy_mode) {
+    items.push({
+      key: 'privacy_mode',
+      prefix: t('admin.accounts.filterSummary.privacy'),
+      label: getPrivacyModeFilterLabel(filters.privacy_mode)
+    })
+  }
+
+  return items
+})
+
+const isUngroupedGroupFilterActive = computed(() => {
+  const filters = buildAccountLocalFilters(params as AccountLocalFilterParams)
+  return filters.group === ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE
+})
+
+const hasUngroupedAccounts = computed(() => isUngroupedGroupFilterActive.value && pagination.total > 0)
+
+const clearAccountFilters = () => {
+  showFilterSummaryDetails.value = false
+  Object.assign(params, {
+    platform: '',
+    tier: '',
+    type: '',
+    main_status: '',
+    runtime_status: '',
+    scheduling_status: '',
+    privacy_mode: '',
+    group: '',
+    search: '',
+  })
+  baseReload()
+}
+
+watch(activeFilterSummaryItems, (items) => {
+  if (items.length === 0) {
+    showFilterSummaryDetails.value = false
+  }
+})
+
+const toBatchTestTarget = (account: Partial<Account> & { id: number; name?: string }): BatchTestTarget => ({
+  id: account.id,
+  name: account.name || `#${account.id}`,
+  platform: account.platform || '',
+  type: account.type || ''
+})
+
+const batchTestTargets = computed<BatchTestTarget[]>(() => {
+  const accountById = new Map(accounts.value.map(account => [account.id, account]))
+  return selIds.value.map((id) => toBatchTestTarget(accountById.get(id) || { id }))
+})
+
 
 const swipeVirtualContext: SwipeSelectVirtualContext = {
   getVirtualizer: () => dataTableRef.value?.virtualizer ?? null,
@@ -843,12 +1310,14 @@ const isAnyModalOpen = computed(() => {
     showEdit.value ||
     showSync.value ||
     showImportData.value ||
+    showDuplicateCheck.value ||
     showExportDataDialog.value ||
     showBulkEdit.value ||
     showTempUnsched.value ||
     showDeleteDialog.value ||
     showReAuth.value ||
     showTest.value ||
+    showBatchTest.value ||
     showStats.value ||
     showSchedulePanel.value ||
     showErrorPassthrough.value ||
@@ -925,17 +1394,7 @@ const refreshAccountsIncrementally = async () => {
     const result = await adminAPI.accounts.listWithEtag(
       pagination.page,
       pagination.page_size,
-      toRaw(params) as {
-        platform?: string
-        type?: string
-        status?: string
-        privacy_mode?: string
-        group?: string
-        search?: string
-        sort_by?: string
-        sort_order?: AccountSortOrder
-
-      },
+      buildAccountRequestFilters(toRaw(params) as Partial<AccountLocalFilterParams>),
       { etag: autoRefreshETag.value }
     )
 
@@ -972,6 +1431,11 @@ const openSyncFromCrs = () => {
   showSync.value = true
 }
 
+const openDuplicateCheck = () => {
+  closeAccountToolsDropdown()
+  showDuplicateCheck.value = true
+}
+
 const openImportData = () => {
   closeAccountToolsDropdown()
   showImportData.value = true
@@ -1001,6 +1465,7 @@ const syncPendingListChanges = async () => {
 
 const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
   async () => {
+    accountStatusNowMs.value = Date.now()
     if (!autoRefreshEnabled.value) return
     if (document.hidden) return
     if (loading.value || autoRefreshFetching.value) return
@@ -1027,8 +1492,23 @@ const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
 )
 
 // Antigravity 订阅等级辅助函数
+function normalizeTierText(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  return value.trim().toLowerCase().replace(/[\s-]+/g, '_')
+}
+
+function normalizeAntigravityPlanTier(value: unknown): string {
+  const tier = normalizeTierText(value)
+  if (tier === 'free' || tier === 'free_tier') return 'free-tier'
+  if (tier === 'pro' || tier === 'g1_pro_tier') return 'g1-pro-tier'
+  if (tier === 'ultra' || tier === 'g1_ultra_tier') return 'g1-ultra-tier'
+  return ''
+}
+
 function getAntigravityTierFromRow(row: any): string | null {
   if (row.platform !== 'antigravity') return null
+  const planTier = normalizeAntigravityPlanTier(row.credentials?.plan_type)
+  if (planTier) return planTier
   const extra = row.extra as Record<string, unknown> | undefined
   if (!extra) return null
   const lca = extra.load_code_assist as Record<string, unknown> | undefined
@@ -1235,6 +1715,78 @@ const handleBulkRefreshToken = async () => {
     appStore.showError(String(error))
   }
 }
+const handleBulkSetPrivacy = async () => {
+  if (!confirm(t('admin.accounts.bulkActions.confirmSetPrivacy'))) return
+  try {
+    const result = await adminAPI.accounts.batchSetPrivacy(selIds.value)
+    const skipped = result.skipped ?? 0
+    if (result.failed > 0) {
+      appStore.showError(
+        skipped > 0
+          ? t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+              success: result.success,
+              failed: result.failed,
+              skipped
+            })
+          : t('admin.accounts.bulkActions.partialSuccess', {
+              success: result.success,
+              failed: result.failed
+            })
+      )
+    } else if (skipped > 0) {
+      appStore.showInfo(
+        t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+          success: result.success,
+          failed: result.failed,
+          skipped
+        })
+      )
+    } else {
+      appStore.showSuccess(t('admin.accounts.bulkActions.setPrivacySuccess', { count: result.success }))
+      clearSelection()
+    }
+    reload()
+  } catch (error) {
+    console.error('Failed to bulk set privacy:', error)
+    appStore.showError(String(error))
+  }
+}
+const handleBulkClearPrivacy = async () => {
+  if (!confirm(t('admin.accounts.bulkActions.confirmClearPrivacy'))) return
+  try {
+    const result = await adminAPI.accounts.batchClearPrivacy(selIds.value)
+    const skipped = result.skipped ?? 0
+    if (result.failed > 0) {
+      appStore.showError(
+        skipped > 0
+          ? t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+              success: result.success,
+              failed: result.failed,
+              skipped
+            })
+          : t('admin.accounts.bulkActions.partialSuccess', {
+              success: result.success,
+              failed: result.failed
+            })
+      )
+    } else if (skipped > 0) {
+      appStore.showInfo(
+        t('admin.accounts.bulkActions.partialSuccessWithSkipped', {
+          success: result.success,
+          failed: result.failed,
+          skipped
+        })
+      )
+    } else {
+      appStore.showSuccess(t('admin.accounts.bulkActions.clearPrivacySuccess', { count: result.success }))
+      clearSelection()
+    }
+    reload()
+  } catch (error) {
+    console.error('Failed to bulk clear privacy:', error)
+    appStore.showError(String(error))
+  }
+}
 const updateSchedulableInList = (accountIds: number[], schedulable: boolean) => {
   if (accountIds.length === 0) return
   const idSet = new Set(accountIds)
@@ -1337,93 +1889,106 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
     appStore.showError(t('common.error'))
   }
 }
-const buildBulkEditFilterSnapshot = () => {
-  const rawParams = toRaw(params) as Record<string, unknown>
-  const sortOrder: AccountSortOrder = rawParams.sort_order === 'desc' ? 'desc' : 'asc'
-  return {
-    platform: typeof rawParams.platform === 'string' ? rawParams.platform : '',
-    type: typeof rawParams.type === 'string' ? rawParams.type : '',
-    status: typeof rawParams.status === 'string' ? rawParams.status : '',
-    group: typeof rawParams.group === 'string' ? rawParams.group : '',
-    search: typeof rawParams.search === 'string' ? rawParams.search : '',
-    privacy_mode: typeof rawParams.privacy_mode === 'string' ? rawParams.privacy_mode : '',
-    sort_by: typeof rawParams.sort_by === 'string' ? rawParams.sort_by : '',
-    sort_order: sortOrder
-  }
-}
-
-const collectSelectionMetadata = (rows: Account[]) => {
-  const selectedPlatforms = Array.from(new Set(rows.map(account => account.platform)))
-  const selectedTypes = Array.from(new Set(rows.map(account => account.type)))
-  return { selectedPlatforms, selectedTypes }
-}
-
 const openBulkEditSelected = () => {
-  bulkEditTarget.value = {
-    mode: 'selected',
-    accountIds: [...selIds.value],
-    selectedPlatforms: [...selPlatforms.value],
-    selectedTypes: [...selTypes.value]
-  }
-  showBulkEdit.value = true
-}
-
-const openBulkEditFiltered = async () => {
-  const filters = buildBulkEditFilterSnapshot()
-  const preview = await adminAPI.accounts.list(1, 100, filters)
-  const { selectedPlatforms, selectedTypes } = collectSelectionMetadata(preview.items)
-  bulkEditTarget.value = {
-    mode: 'filtered',
-    filters,
-    previewCount: preview.total,
-    selectedPlatforms,
-    selectedTypes
-  }
   showBulkEdit.value = true
 }
 
 const handleBulkUpdated = () => {
   showBulkEdit.value = false
-  bulkEditTarget.value = null
   clearSelection()
   reload()
 }
 const handleDataImported = () => { showImportData.value = false; reload() }
 const ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE = 'ungrouped'
 const ACCOUNT_PRIVACY_MODE_UNSET_QUERY_VALUE = '__unset__'
-const buildAccountQueryFilters = () => ({
-  platform: params.platform || '',
-  type: params.type || '',
-  status: params.status || '',
-  group: params.group || '',
-  privacy_mode: params.privacy_mode || '',
-  search: params.search || '',
-  sort_by: sortState.sort_by,
-  sort_order: sortState.sort_order
-})
-const accountMatchesCurrentFilters = (account: Account) => {
-  const filters = buildAccountQueryFilters()
-  if (filters.platform && account.platform !== filters.platform) return false
-  if (filters.type && account.type !== filters.type) return false
-  if (filters.status) {
-    const now = Date.now()
-    const rateLimitResetAt = account.rate_limit_reset_at ? new Date(account.rate_limit_reset_at).getTime() : Number.NaN
-    const isRateLimited = Number.isFinite(rateLimitResetAt) && rateLimitResetAt > now
-    const tempUnschedUntil = account.temp_unschedulable_until ? new Date(account.temp_unschedulable_until).getTime() : Number.NaN
-    const isTempUnschedulable = Number.isFinite(tempUnschedUntil) && tempUnschedUntil > now
+const OPENAI_TIER_ALIASES: Record<string, string> = {
+  free: 'free',
+  free_plan: 'free',
+  chatgpt_free: 'free',
+  plus: 'plus',
+  plus_plan: 'plus',
+  chatgpt_plus: 'plus',
+  team: 'team',
+  team_plan: 'team',
+  chatgpt_team: 'team',
+  business: 'team',
+  pro: 'pro',
+  pro_plan: 'pro',
+  chatgpt_pro: 'pro',
+  enterprise: 'enterprise',
+  enterprise_plan: 'enterprise',
+  chatgpt_enterprise: 'enterprise'
+}
+const GEMINI_TIER_ALIASES: Record<string, string> = {
+  google_one_free: 'google_one_free',
+  google_ai_pro: 'google_ai_pro',
+  google_ai_ultra: 'google_ai_ultra',
+  gcp_standard: 'gcp_standard',
+  gcp_enterprise: 'gcp_enterprise',
+  aistudio_free: 'aistudio_free',
+  aistudio_paid: 'aistudio_paid',
+  google_one_unknown: 'google_one_unknown',
+  free: 'google_one_free',
+  google_one_basic: 'google_one_free',
+  google_one_standard: 'google_one_free',
+  ai_premium: 'google_ai_pro',
+  pro: 'google_ai_pro',
+  ultra: 'google_ai_ultra'
+}
 
-    if (filters.status === 'active') {
-      if (account.status !== 'active' || isRateLimited || isTempUnschedulable || !account.schedulable) return false
-    } else if (filters.status === 'rate_limited') {
-      if (account.status !== 'active' || !isRateLimited || isTempUnschedulable) return false
-    } else if (filters.status === 'temp_unschedulable') {
-      if (account.status !== 'active' || !isTempUnschedulable) return false
-    } else if (filters.status === 'unschedulable') {
-      if (account.status !== 'active' || account.schedulable || isRateLimited || isTempUnschedulable) return false
-    } else if (account.status !== filters.status) {
-      return false
+const normalizeOpenAITier = (value: unknown) => {
+  const tier = normalizeTierText(value)
+  return OPENAI_TIER_ALIASES[tier] || tier
+}
+
+const normalizeGeminiTier = (value: unknown) => {
+  const tier = normalizeTierText(value)
+  return GEMINI_TIER_ALIASES[tier] || tier
+}
+
+const parseSelectedTier = (tier: string, fallbackPlatform: string) => {
+  const trimmed = String(tier || '').trim()
+  if (!trimmed) return null
+  const separator = trimmed.indexOf(':')
+  if (separator >= 0) {
+    return {
+      platform: trimmed.slice(0, separator),
+      value: trimmed.slice(separator + 1)
     }
   }
+  return {
+    platform: fallbackPlatform,
+    value: trimmed
+  }
+}
+
+const accountMatchesTier = (account: Account, selectedTier: string, fallbackPlatform: string) => {
+  const tier = parseSelectedTier(selectedTier, fallbackPlatform)
+  if (!tier || !tier.value) return true
+  if (tier.platform && account.platform !== tier.platform) return false
+
+  if (account.platform === 'openai') {
+    return normalizeOpenAITier(account.credentials?.plan_type) === normalizeOpenAITier(tier.value)
+  }
+  if (account.platform === 'gemini') {
+    return normalizeGeminiTier(account.credentials?.tier_id) === normalizeGeminiTier(tier.value)
+  }
+  if (account.platform === 'antigravity') {
+    return getAntigravityTierFromRow(account) === tier.value
+  }
+  return false
+}
+
+const accountMatchesCurrentFilters = (account: Account) => {
+  void accountStatusNowMs.value
+  const filters = buildAccountLocalFilters(params as AccountLocalFilterParams)
+  if (filters.platform && account.platform !== filters.platform) return false
+  if (filters.tier && !accountMatchesTier(account, filters.tier, filters.platform)) return false
+  if (filters.type && account.type !== filters.type) return false
+  const statusEvalOptions = { nowMs: accountStatusNowMs.value }
+  if (!matchesAccountMainStatusFilter(account, filters.main_status as AccountMainStatusFilterValue)) return false
+  if (!matchesAccountRuntimeStatusFilter(account, filters.runtime_status as AccountRuntimeStatusFilterValue, statusEvalOptions)) return false
+  if (!matchesAccountSchedulingStatusFilter(account, filters.scheduling_status as AccountSchedulingStatusFilterValue, statusEvalOptions)) return false
   if (filters.group) {
     const groupIds = account.group_ids ?? account.groups?.map((group) => group.id) ?? []
     if (filters.group === ACCOUNT_UNGROUPED_GROUP_QUERY_VALUE) {
@@ -1506,7 +2071,7 @@ const handleExportData = async () => {
         ? { ids: selIds.value, includeProxies: includeProxyOnExport.value }
         : {
             includeProxies: includeProxyOnExport.value,
-            filters: buildAccountQueryFilters()
+            filters: buildAccountRequestFilters(params as AccountLocalFilterParams)
           }
     )
     const timestamp = formatExportTimestamp()
@@ -1527,9 +2092,183 @@ const handleExportData = async () => {
   }
 }
 const closeTestModal = () => { showTest.value = false; testingAcc.value = null }
+const resetBatchTestDeleteState = () => {
+  batchTestDeleteQueue.value = []
+  batchTestDeleteSucceededIds.value = new Set()
+  batchTestDeleteFailedIds.value = new Set()
+  batchTestDeleteDrainPromise = null
+}
+
+const ensureBatchTestDeleteQueueDrain = () => {
+  if (batchTestDeleteDrainPromise) return
+
+  batchTestDeleteDrainPromise = drainBatchTestDeleteQueue().finally(() => {
+    batchTestDeleteDrainPromise = null
+    if (batchTestDeleteQueue.value.length > 0) {
+      ensureBatchTestDeleteQueueDrain()
+    }
+  })
+}
+
+const drainBatchTestDeleteQueue = async () => {
+  while (batchTestDeleteQueue.value.length > 0) {
+    const accountId = batchTestDeleteQueue.value.shift()
+    if (accountId == null) continue
+    try {
+      await adminAPI.accounts.delete(accountId)
+      batchTestDeleteSucceededIds.value.add(accountId)
+      removeSelectedAccounts([accountId])
+    } catch (error) {
+      batchTestDeleteFailedIds.value.add(accountId)
+      console.error(`Failed to auto-delete 401 account ${accountId}:`, error)
+    }
+  }
+}
+
+const enqueueBatchTestDelete = (accountId: number) => {
+  if (
+    batchTestDeleteSucceededIds.value.has(accountId) ||
+    batchTestDeleteFailedIds.value.has(accountId) ||
+    batchTestDeleteQueue.value.includes(accountId)
+  ) {
+    return
+  }
+
+  batchTestDeleteQueue.value.push(accountId)
+  ensureBatchTestDeleteQueueDrain()
+}
+
+const waitForBatchTestDeleteQueueIdle = async () => {
+  while (batchTestDeleteDrainPromise || batchTestDeleteQueue.value.length > 0) {
+    if (!batchTestDeleteDrainPromise && batchTestDeleteQueue.value.length > 0) {
+      ensureBatchTestDeleteQueueDrain()
+      continue
+    }
+    await batchTestDeleteDrainPromise
+  }
+}
+
+const closeBatchTestModal = () => {
+  showBatchTest.value = false
+  showBatchTestSource.value = 'selected'
+  modalBatchTestTargets.value = []
+  resetBatchTestDeleteState()
+}
 const closeStatsModal = () => { showStats.value = false; statsAcc.value = null }
 const closeReAuthModal = () => { showReAuth.value = false; reAuthAcc.value = null }
 const handleTest = (a: Account) => { testingAcc.value = a; showTest.value = true }
+
+const normalizeUngroupedBatchTestLimit = (value: number) => {
+  if (!Number.isFinite(value)) return defaultUngroupedBatchTestLimit
+  return Math.max(1, Math.trunc(value))
+}
+
+const updateUngroupedBatchTestLimit = (value: number) => {
+  ungroupedBatchTestLimit.value = normalizeUngroupedBatchTestLimit(value)
+}
+
+const loadFilteredBatchTestTargets = async (limit: number): Promise<BatchTestTarget[]> => {
+  const filters = buildAccountRequestFilters(params as AccountLocalFilterParams)
+  const targetLimit = normalizeUngroupedBatchTestLimit(limit)
+  const pageSize = Math.max(1, Math.min(targetLimit, 100))
+  const targets: BatchTestTarget[] = []
+  const seen = new Set<number>()
+  let page = 1
+
+  while (targets.length < targetLimit) {
+    const response = await adminAPI.accounts.list(page, pageSize, filters)
+    for (const account of response.items) {
+      if (seen.has(account.id)) continue
+      seen.add(account.id)
+      targets.push(toBatchTestTarget(account))
+      if (targets.length >= targetLimit) {
+        break
+      }
+    }
+
+    if (page >= response.pages || response.items.length === 0 || targets.length >= targetLimit) {
+      break
+    }
+    page += 1
+  }
+
+  return targets
+}
+
+const openBatchTest = () => {
+  if (selIds.value.length === 0) return
+  resetBatchTestDeleteState()
+  showBatchTestSource.value = 'selected'
+  modalBatchTestTargets.value = [...batchTestTargets.value]
+  showBatchTest.value = true
+}
+const openUngroupedBatchTest = async () => {
+  if (loadingUngroupedBatchTargets.value || !hasUngroupedAccounts.value) return
+
+  loadingUngroupedBatchTargets.value = true
+  try {
+    resetBatchTestDeleteState()
+    const targets = await loadFilteredBatchTestTargets(ungroupedBatchTestLimit.value)
+    if (targets.length === 0) {
+      appStore.showInfo(t('admin.accounts.batchTest.noAccountsToTest'))
+      return
+    }
+    showBatchTestSource.value = 'ungrouped'
+    modalBatchTestTargets.value = targets
+    showBatchTest.value = true
+  } catch (error: any) {
+    console.error('Failed to load filtered batch test targets:', error)
+    appStore.showError(error?.message || t('admin.accounts.batchTest.loadTargetsFailed'))
+  } finally {
+    loadingUngroupedBatchTargets.value = false
+  }
+}
+const handleBatchTestCompleted = async (result: {
+  success: number
+  failed: number
+  successIds: number[]
+  failedIds: number[]
+  unauthorizedFailedIds?: number[]
+}) => {
+  const unauthorized401Ids = Array.from(new Set(result.unauthorizedFailedIds || []))
+  for (const accountId of unauthorized401Ids) {
+    enqueueBatchTestDelete(accountId)
+  }
+
+  await waitForBatchTestDeleteQueueIdle()
+
+  const deleted401Ids = new Set(
+    unauthorized401Ids.filter(id => batchTestDeleteSucceededIds.value.has(id))
+  )
+  const deleteFailed401Ids = new Set(
+    unauthorized401Ids.filter(id => batchTestDeleteFailedIds.value.has(id))
+  )
+  const remainingFailedIds = result.failedIds.filter(id => !deleted401Ids.has(id))
+
+  if (remainingFailedIds.length > 0) {
+    appStore.showError(
+      t('admin.accounts.batchTest.partialSuccess', {
+        success: result.success,
+        failed: remainingFailedIds.length
+      })
+    )
+    setSelectedIds(remainingFailedIds)
+  } else if (result.success > 0) {
+    appStore.showSuccess(t('admin.accounts.batchTest.successToast', { count: result.success }))
+    clearSelection()
+  } else {
+    clearSelection()
+  }
+
+  if (deleted401Ids.size > 0) {
+    appStore.showSuccess(t('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted', { count: deleted401Ids.size }))
+  }
+  if (deleteFailed401Ids.size > 0) {
+    appStore.showError(t('admin.accounts.batchTest.unauthorizedAutoDeleteFailed', { count: deleteFailed401Ids.size }))
+  }
+
+  await reload()
+}
 const handleViewStats = (a: Account) => { statsAcc.value = a; showStats.value = true }
 const handleSchedule = async (a: Account) => {
   scheduleAcc.value = a
@@ -1623,6 +2362,28 @@ const formatExpiresAt = (value: number | null) => {
     'sv-SE'
   )
 }
+
+const getProxyFailoverState = (account: Account) => {
+  const raw = account.extra?.proxy_failover_state
+  if (!raw || typeof raw !== 'object') return null
+  return raw as {
+    last_switch_at?: string
+    last_switch_reason?: string
+  }
+}
+
+const getProxyFailoverSummary = (account: Account) => {
+  const state = getProxyFailoverState(account)
+  if (!state?.last_switch_at) return ''
+  return t('admin.accounts.proxyAutoFailoverAt', {
+    time: formatRelativeTime(state.last_switch_at)
+  })
+}
+
+const getProxyFailoverReason = (account: Account) => {
+  const state = getProxyFailoverState(account)
+  return state?.last_switch_reason || ''
+}
 const isExpired = (value: number | null) => {
   if (!value) return false
   return value * 1000 <= Date.now()
@@ -1655,6 +2416,7 @@ onMounted(async () => {
   }
   window.addEventListener('scroll', handleScroll, true)
   document.addEventListener('click', handleClickOutside)
+  resumeAccountStatusClock()
 
   if (autoRefreshEnabled.value) {
     autoRefreshCountdown.value = autoRefreshIntervalSeconds.value
@@ -1667,6 +2429,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll, true)
   document.removeEventListener('click', handleClickOutside)
+  pauseAccountStatusClock()
 })
 </script>
 

@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
 import AccountStatusIndicator from '../AccountStatusIndicator.vue'
 import type { Account } from '@/types'
+import { accountStatusNowMsKey } from '../accountStatusClock'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -12,6 +14,13 @@ vi.mock('vue-i18n', async () => {
     })
   }
 })
+
+vi.mock('@/utils/format', () => ({
+  formatCountdown: () => '10m',
+  formatCountdownWithSuffix: () => '10m later',
+  formatDateTime: (value: unknown) => String(value ?? ''),
+  formatTime: (value: unknown) => String(value ?? '')
+}))
 
 function makeAccount(overrides: Partial<Account>): Account {
   return {
@@ -43,6 +52,90 @@ function makeAccount(overrides: Partial<Account>): Account {
 }
 
 describe('AccountStatusIndicator', () => {
+  it('每个状态层后面都有悬浮 tips 入口', () => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({})
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    const tipButtons = wrapper.findAll('button[aria-label="admin.accounts.statusGuide.shortAction"]')
+    expect(tipButtons).toHaveLength(3)
+  })
+
+  it('把主状态、调度开关和 401 运行时冷却分层显示出来', () => {
+    const future = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          temp_unschedulable_until: future,
+          temp_unschedulable_reason: 'OAuth 401: invalid or expired credentials'
+        })
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.statusLayers.main')
+    expect(wrapper.text()).toContain('admin.accounts.statusLayers.scheduling')
+    expect(wrapper.text()).toContain('admin.accounts.statusLayers.runtime')
+    expect(wrapper.text()).toContain('admin.accounts.status.mainActive')
+    expect(wrapper.text()).toContain('admin.accounts.status.scheduleEnabled')
+    expect(wrapper.text()).toContain('admin.accounts.status.runtimeOauth401Cooldown')
+    expect(wrapper.text()).toContain('admin.accounts.status.tempUnschedAutoResume')
+  })
+
+  it('429 到期后会自动从运行时限流切回正常', async () => {
+    const baseNow = Date.parse('2026-05-20T12:00:00Z')
+    const nowMs = ref(baseNow)
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          rate_limit_reset_at: new Date(baseNow + 30_000).toISOString()
+        })
+      },
+      global: {
+        stubs: {
+          Icon: true
+        },
+        provide: {
+          [accountStatusNowMsKey as symbol]: nowMs
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.status.runtimeRateLimited')
+    nowMs.value = baseNow + 31_000
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('admin.accounts.status.runtimeNormal')
+  })
+
+  it('手动关闭调度时，调度开关层显示关闭，运行时层保持正常', () => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          schedulable: false
+        })
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.status.scheduleManualPaused')
+    expect(wrapper.text()).toContain('admin.accounts.status.runtimeNormal')
+  })
+
   it('模型限流 + overages 启用 + 无 AICredits key → 显示 ⚡ (credits_active)', () => {
     const wrapper = mount(AccountStatusIndicator, {
       props: {

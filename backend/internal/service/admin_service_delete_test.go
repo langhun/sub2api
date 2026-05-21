@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
@@ -264,6 +265,8 @@ type proxyRepoStub struct {
 	countErr     error
 	accountCount int64
 	deletedIDs   []int64
+	proxyByID    map[int64]*Proxy
+	updated      []*Proxy
 }
 
 func (s *proxyRepoStub) Create(ctx context.Context, proxy *Proxy) error {
@@ -271,6 +274,12 @@ func (s *proxyRepoStub) Create(ctx context.Context, proxy *Proxy) error {
 }
 
 func (s *proxyRepoStub) GetByID(ctx context.Context, id int64) (*Proxy, error) {
+	if s.proxyByID != nil {
+		if item, ok := s.proxyByID[id]; ok {
+			cloned := *item
+			return &cloned, nil
+		}
+	}
 	panic("unexpected GetByID call")
 }
 
@@ -278,7 +287,25 @@ func (s *proxyRepoStub) ListByIDs(ctx context.Context, ids []int64) ([]Proxy, er
 	panic("unexpected ListByIDs call")
 }
 
+func (s *proxyRepoStub) ListBySubscriptionSourceID(ctx context.Context, sourceID int64) ([]Proxy, error) {
+	panic("unexpected ListBySubscriptionSourceID call")
+}
+
+func (s *proxyRepoStub) FindBySubscriptionNodeID(ctx context.Context, nodeID int64) (*Proxy, error) {
+	panic("unexpected FindBySubscriptionNodeID call")
+}
+
+func (s *proxyRepoStub) FindByHostPortAuth(ctx context.Context, host string, port int, username, password string) (*Proxy, error) {
+	panic("unexpected FindByHostPortAuth call")
+}
+
 func (s *proxyRepoStub) Update(ctx context.Context, proxy *Proxy) error {
+	s.updated = append(s.updated, proxy)
+	if s.proxyByID != nil {
+		cloned := *proxy
+		s.proxyByID[proxy.ID] = &cloned
+		return nil
+	}
 	panic("unexpected Update call")
 }
 
@@ -583,6 +610,62 @@ func TestAdminService_DeleteProxy_Error(t *testing.T) {
 
 	err := svc.DeleteProxy(context.Background(), 33)
 	require.ErrorIs(t, err, deleteErr)
+}
+
+func TestAdminService_UpdateProxy_RejectsManagedFieldMutation(t *testing.T) {
+	repo := &proxyRepoStub{
+		proxyByID: map[int64]*Proxy{
+			7: {
+				ID:                    7,
+				Name:                  "managed",
+				Protocol:              ProxyNodeTypeHTTP,
+				Host:                  "1.2.3.4",
+				Port:                  8080,
+				Status:                StatusActive,
+				ManagedBySubscription: true,
+			},
+		},
+	}
+	svc := &adminServiceImpl{proxyRepo: repo}
+
+	_, err := svc.UpdateProxy(context.Background(), 7, &UpdateProxyInput{
+		Host: "8.8.8.8",
+	})
+	require.Error(t, err)
+	var appErr *infraerrors.ApplicationError
+	require.ErrorAs(t, err, &appErr)
+	require.Equal(t, "PROXY_SUBSCRIPTION_MANAGED", appErr.Code)
+}
+
+func TestAdminService_UpdateProxy_ClearsUsernameAndPassword(t *testing.T) {
+	repo := &proxyRepoStub{
+		proxyByID: map[int64]*Proxy{
+			7: {
+				ID:       7,
+				Name:     "proxy",
+				Protocol: ProxyNodeTypeHTTP,
+				Host:     "1.2.3.4",
+				Port:     8080,
+				Username: "user",
+				Password: "pass",
+				Status:   StatusActive,
+			},
+		},
+	}
+	svc := &adminServiceImpl{proxyRepo: repo}
+
+	empty := ""
+	updated, err := svc.UpdateProxy(context.Background(), 7, &UpdateProxyInput{
+		Username: &empty,
+		Password: &empty,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, updated)
+	require.Equal(t, "", updated.Username)
+	require.Equal(t, "", updated.Password)
+	require.NotEmpty(t, repo.updated)
+	require.Equal(t, "", repo.updated[len(repo.updated)-1].Username)
+	require.Equal(t, "", repo.updated[len(repo.updated)-1].Password)
 }
 
 func TestAdminService_DeleteRedeemCode_Success(t *testing.T) {

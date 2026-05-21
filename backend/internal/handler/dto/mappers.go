@@ -410,15 +410,21 @@ func ProxyFromService(p *service.Proxy) *Proxy {
 		return nil
 	}
 	return &Proxy{
-		ID:        p.ID,
-		Name:      p.Name,
-		Protocol:  p.Protocol,
-		Host:      p.Host,
-		Port:      p.Port,
-		Username:  p.Username,
-		Status:    p.Status,
-		CreatedAt: p.CreatedAt,
-		UpdatedAt: p.UpdatedAt,
+		ID:                      p.ID,
+		Name:                    p.Name,
+		Protocol:                p.Protocol,
+		Host:                    p.Host,
+		Port:                    p.Port,
+		Username:                p.Username,
+		Status:                  p.Status,
+		AutoFailoverPoolEnabled: p.AutoFailoverPoolEnabled,
+		ManagedBySubscription:   p.ManagedBySubscription,
+		SubscriptionSourceID:    p.SubscriptionSourceID,
+		SubscriptionSourceName:  p.SubscriptionSourceName,
+		SubscriptionNodeID:      p.SubscriptionNodeID,
+		SubscriptionNodeType:    p.SubscriptionNodeType,
+		CreatedAt:               p.CreatedAt,
+		UpdatedAt:               p.UpdatedAt,
 	}
 }
 
@@ -427,21 +433,99 @@ func ProxyWithAccountCountFromService(p *service.ProxyWithAccountCount) *ProxyWi
 		return nil
 	}
 	return &ProxyWithAccountCount{
-		Proxy:          *ProxyFromService(&p.Proxy),
-		AccountCount:   p.AccountCount,
-		LatencyMs:      p.LatencyMs,
-		LatencyStatus:  p.LatencyStatus,
-		LatencyMessage: p.LatencyMessage,
-		IPAddress:      p.IPAddress,
-		Country:        p.Country,
-		CountryCode:    p.CountryCode,
-		Region:         p.Region,
-		City:           p.City,
-		QualityStatus:  p.QualityStatus,
-		QualityScore:   p.QualityScore,
-		QualityGrade:   p.QualityGrade,
-		QualitySummary: p.QualitySummary,
-		QualityChecked: p.QualityChecked,
+		Proxy:               *ProxyFromService(&p.Proxy),
+		AccountCount:        p.AccountCount,
+		LatencyMs:           p.LatencyMs,
+		LatencyStatus:       p.LatencyStatus,
+		LatencyMessage:      p.LatencyMessage,
+		IPAddress:           p.IPAddress,
+		Country:             p.Country,
+		CountryCode:         p.CountryCode,
+		Region:              p.Region,
+		City:                p.City,
+		QualityStatus:       p.QualityStatus,
+		QualityScore:        p.QualityScore,
+		QualityGrade:        p.QualityGrade,
+		QualitySummary:      p.QualitySummary,
+		QualityChecked:      p.QualityChecked,
+		HealthStatus:        p.HealthStatus,
+		CooldownUntilUnix:   p.CooldownUntilUnix,
+		LastFailReason:      p.LastFailReason,
+		LastFailAtUnix:      p.LastFailAtUnix,
+		LastRecoveredAtUnix: p.LastRecoveredAtUnix,
+		FailoverSwitchCount: p.FailoverSwitchCount,
+	}
+}
+
+func ProxySubscriptionSourceFromService(s *service.ProxySubscriptionSource) *ProxySubscriptionSource {
+	if s == nil {
+		return nil
+	}
+	return &ProxySubscriptionSource{
+		ID:                         s.ID,
+		Name:                       s.Name,
+		URL:                        s.URL,
+		SourceFormat:               s.SourceFormat,
+		Enabled:                    s.Enabled,
+		RefreshIntervalHours:       s.RefreshIntervalHours,
+		TargetEntryCount:           s.TargetEntryCount,
+		AutoAddToPool:              s.AutoAddToPool,
+		LastRefreshedAt:            s.LastRefreshedAt,
+		LastSuccessAt:              s.LastSuccessAt,
+		LastError:                  s.LastError,
+		LastNodeCount:              s.LastNodeCount,
+		LastMaterializedProxyCount: s.LastMaterializedProxyCount,
+		CreatedAt:                  s.CreatedAt,
+		UpdatedAt:                  s.UpdatedAt,
+	}
+}
+
+func ProxySubscriptionNodeFromService(n *service.ProxySubscriptionNode) *ProxySubscriptionNode {
+	if n == nil {
+		return nil
+	}
+	return &ProxySubscriptionNode{
+		ID:            n.ID,
+		SourceID:      n.SourceID,
+		NodeKey:       n.NodeKey,
+		DisplayName:   n.DisplayName,
+		NodeType:      n.NodeType,
+		Server:        n.Server,
+		Port:          n.Port,
+		ConfigJSON:    n.ConfigJSON,
+		LandingStatus: n.LandingStatus,
+		LastError:     n.LastError,
+		LastSeenAt:    n.LastSeenAt,
+		CreatedAt:     n.CreatedAt,
+		UpdatedAt:     n.UpdatedAt,
+	}
+}
+
+func ProxySubscriptionRefreshResultFromService(r *service.ProxySubscriptionRefreshResult) *ProxySubscriptionRefreshResult {
+	if r == nil {
+		return nil
+	}
+	errorsOut := make([]ProxySubscriptionRefreshError, 0, len(r.Errors))
+	for i := range r.Errors {
+		errorsOut = append(errorsOut, ProxySubscriptionRefreshError{
+			NodeKey: r.Errors[i].NodeKey,
+			Name:    r.Errors[i].Name,
+			Message: r.Errors[i].Message,
+		})
+	}
+	return &ProxySubscriptionRefreshResult{
+		SourceID:               r.SourceID,
+		RefreshedAt:            r.RefreshedAt,
+		NodeCount:              r.NodeCount,
+		MaterializedProxyCount: r.MaterializedProxyCount,
+		CreatedProxyCount:      r.CreatedProxyCount,
+		UpdatedProxyCount:      r.UpdatedProxyCount,
+		DisabledProxyCount:     r.DisabledProxyCount,
+		DeletedProxyCount:      r.DeletedProxyCount,
+		SkippedNodeCount:       r.SkippedNodeCount,
+		ConflictNodeCount:      r.ConflictNodeCount,
+		UnsupportedNodeCount:   r.UnsupportedNodeCount,
+		Errors:                 errorsOut,
 	}
 }
 
@@ -472,21 +556,27 @@ func ProxyWithAccountCountFromServiceAdmin(p *service.ProxyWithAccountCount) *Ad
 		return nil
 	}
 	return &AdminProxyWithAccountCount{
-		AdminProxy:     *admin,
-		AccountCount:   p.AccountCount,
-		LatencyMs:      p.LatencyMs,
-		LatencyStatus:  p.LatencyStatus,
-		LatencyMessage: p.LatencyMessage,
-		IPAddress:      p.IPAddress,
-		Country:        p.Country,
-		CountryCode:    p.CountryCode,
-		Region:         p.Region,
-		City:           p.City,
-		QualityStatus:  p.QualityStatus,
-		QualityScore:   p.QualityScore,
-		QualityGrade:   p.QualityGrade,
-		QualitySummary: p.QualitySummary,
-		QualityChecked: p.QualityChecked,
+		AdminProxy:          *admin,
+		AccountCount:        p.AccountCount,
+		LatencyMs:           p.LatencyMs,
+		LatencyStatus:       p.LatencyStatus,
+		LatencyMessage:      p.LatencyMessage,
+		IPAddress:           p.IPAddress,
+		Country:             p.Country,
+		CountryCode:         p.CountryCode,
+		Region:              p.Region,
+		City:                p.City,
+		QualityStatus:       p.QualityStatus,
+		QualityScore:        p.QualityScore,
+		QualityGrade:        p.QualityGrade,
+		QualitySummary:      p.QualitySummary,
+		QualityChecked:      p.QualityChecked,
+		HealthStatus:        p.HealthStatus,
+		CooldownUntilUnix:   p.CooldownUntilUnix,
+		LastFailReason:      p.LastFailReason,
+		LastFailAtUnix:      p.LastFailAtUnix,
+		LastRecoveredAtUnix: p.LastRecoveredAtUnix,
+		FailoverSwitchCount: p.FailoverSwitchCount,
 	}
 }
 
@@ -536,8 +626,18 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 		ExpiresAt:    rc.ExpiresAt,
 		GroupID:      rc.GroupID,
 		ValidityDays: rc.ValidityDays,
+		Multiplier:   rc.Multiplier,
+		BetAmount:    rc.BetAmount,
 		User:         UserFromServiceShallow(rc.User),
 		Group:        GroupFromServiceShallow(rc.Group),
+		SourceType:   rc.SourceType,
+		SourceSummary: rc.SourceSummary,
+		SourceUser:   UserFromServiceShallow(rc.SourceUser),
+		InviterUser:  UserFromServiceShallow(rc.InviterUser),
+		WinningUser:  UserFromServiceShallow(rc.WinningUser),
+		WinningPrize: rc.WinningPrize,
+		WinningReward: rc.WinningReward,
+		GeneratedByUser: UserFromServiceShallow(rc.GeneratedByUser),
 	}
 	if rc.IsExpired() {
 		out.Status = service.StatusExpired
@@ -545,7 +645,8 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 
 	// For admin_balance/admin_concurrency types, include notes so users can see
 	// why they were charged or credited by admin
-	if (rc.Type == "admin_balance" || rc.Type == "admin_concurrency") && rc.Notes != "" {
+	// For checkin_blindbox type, include notes for rarity/prize display
+	if rc.Notes != "" && (rc.Type == "admin_balance" || rc.Type == "admin_concurrency" || rc.Type == "checkin_blindbox") {
 		out.Notes = &rc.Notes
 	}
 

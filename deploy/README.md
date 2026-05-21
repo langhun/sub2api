@@ -19,10 +19,10 @@ This directory contains files for deploying Sub2API on Linux servers.
 | `.env.example` | Docker environment variables template |
 | `DOCKER.md` | Docker Hub documentation |
 | `install.sh` | One-click binary installation script |
-| `install-datamanagementd.sh` | datamanagementd 一键安装脚本 |
+| `install-datamanagementd.sh` | Deprecated datamanagementd tombstone script; exits with guidance |
 | `sub2api.service` | Systemd service unit file |
-| `sub2api-datamanagementd.service` | datamanagementd systemd service unit file |
-| `DATAMANAGEMENTD_CN.md` | datamanagementd 部署与联动说明（中文） |
+| `sub2api-datamanagementd.service` | Deprecated datamanagementd tombstone unit; do not install |
+| `DATAMANAGEMENTD_CN.md` | datamanagementd deprecation and cleanup note (Chinese) |
 | `config.example.yaml` | Example configuration file |
 
 ---
@@ -44,7 +44,7 @@ chmod +x docker-deploy.sh
 ```
 
 **What the script does:**
-- Downloads `docker-compose.local.yml` and `.env.example`
+- Downloads the local-directory Compose template as `docker-compose.yml` and `.env.example`
 - Automatically generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with generated secrets
 - Creates necessary data directories (data/, postgres_data/, redis_data/)
@@ -53,13 +53,13 @@ chmod +x docker-deploy.sh
 **After running the script:**
 ```bash
 # Start services
-docker compose -f docker-compose.local.yml up -d
+docker compose up -d
 
 # View logs
-docker compose -f docker-compose.local.yml logs -f sub2api
+docker compose logs -f sub2api
 
 # If admin password was auto-generated, find it in logs:
-docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+docker compose logs sub2api | grep "admin password"
 
 # Access Web UI
 # http://localhost:8080
@@ -104,7 +104,51 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.local.yml** | Local directories (./data, ./postgres_data, ./redis_data) | ✅ Easy (tar entire directory) | Production, need frequent backups/migration |
 | **docker-compose.yml** | Named volumes (/var/lib/docker/volumes/) | ⚠️ Requires docker commands | Simple setup, don't need migration |
 
-**Recommendation:** Use `docker-compose.local.yml` (deployed by `docker-deploy.sh`) for easier data management and migration.
+**Recommendation:** Use the local-directory compose file for easier data management and migration. `docker-deploy.sh` saves it as `docker-compose.yml`, so script-based installs can use plain `docker compose ...` commands.
+
+### Proxy Subscription Mihomo Runtime
+
+Sub2API now supports proxy subscription sources under the Admin proxy management page. For non-direct nodes
+such as `ss`, `vmess`, `vless`, `trojan`, `hysteria`, and `hysteria2`, the main application now manages a built-in
+`mihomo` runtime directly instead of relying on a separate companion sidecar service.
+
+What the built-in runtime does:
+- Materializes each supported subscription node into a local `socks5h` listener
+- Writes generated runtime config files under the application data directory
+- Links the vendored Mihomo source into the Sub2API binary and reloads one in-process Mihomo runtime
+- Reuses the normal `proxies` table so the existing proxy pool, binding, testing, and failover logic keep working
+
+Important notes:
+- `PROXY_SUBSCRIPTIONS_ENABLED=true` enables subscription source management and background refresh
+- `PROXY_SUBSCRIPTION_MIHOMO_ENABLED=true` enables built-in runtime materialization for non-direct proxy nodes
+- Docker deployments no longer require an extra `proxy-subscription-sidecar` service
+- The default runtime is `embedded`, so the container does not need a separate `mihomo` executable
+
+Recommended environment variables:
+
+```bash
+PROXY_SUBSCRIPTIONS_ENABLED=true
+PROXY_SUBSCRIPTIONS_REFRESH_SCAN_INTERVAL_SECONDS=60
+PROXY_SUBSCRIPTIONS_DEFAULT_REFRESH_INTERVAL_HOURS=6
+PROXY_SUBSCRIPTIONS_SYNC_CONCURRENCY=2
+
+PROXY_SUBSCRIPTION_MIHOMO_ENABLED=true
+PROXY_SUBSCRIPTION_MIHOMO_BIN=embedded
+PROXY_SUBSCRIPTION_MIHOMO_DATA_DIR=/app/data/proxy-subscription-mihomo
+PROXY_SUBSCRIPTION_MIHOMO_LISTENER_HOST=127.0.0.1
+PROXY_SUBSCRIPTION_MIHOMO_LISTENER_PORT_RANGE=21080-21180
+```
+
+To verify the runtime after startup:
+
+```bash
+docker compose logs -f sub2api
+```
+
+If you see embedded Mihomo listener failures, verify that:
+- `PROXY_SUBSCRIPTION_MIHOMO_BIN` is left as `embedded`
+- `PROXY_SUBSCRIPTION_MIHOMO_LISTENER_PORT_RANGE` has free local ports
+- the process user can write into the runtime data directory
 
 ### How Auto-Setup Works
 
@@ -129,6 +173,33 @@ When using Docker Compose with `AUTO_SETUP=true`:
 - Migrations are applied in lexicographic order (e.g. `001_...sql`, `002_...sql`).
 - `schema_migrations` tracks applied migrations (filename + checksum).
 - Migrations are forward-only; rollback requires a DB backup restore or a manual compensating SQL script.
+- Migrations ending in `_notx.sql` may contain `CREATE INDEX CONCURRENTLY`; keep them outside manual transaction wrappers.
+- For high-traffic `usage_logs` deployments, review [usage_logs capacity and upgrade notes](../docs/USAGE_LOGS_CAPACITY.md) before upgrade. It includes EXPLAIN checks, online index verification, raw-log retention, partitioning guidance, and URL security compatibility flags for internal HTTP targets.
+
+**Verify the usage_logs hot-path indexes after upgrade**
+
+```sql
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE schemaname = 'public'
+  AND tablename = 'usage_logs'
+  AND indexname IN (
+    'idx_usage_logs_created_id_desc',
+    'idx_usage_logs_account_created_id_desc',
+    'idx_usage_logs_group_created_id_desc_not_null',
+    'idx_usage_logs_duration_tail_created',
+    'idx_usage_logs_ttft_tail_created'
+  )
+ORDER BY indexname;
+```
+
+If your deployment uses local or internal HTTP upstream URLs, the secure defaults still require explicit opt-in after disabling the hostname allowlist:
+
+```bash
+SECURITY_URL_ALLOWLIST_ENABLED=false
+SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
+SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
+```
 
 **Verify `users.allowed_groups` → `user_allowed_groups` backfill**
 
@@ -148,13 +219,14 @@ SELECT
   (SELECT COUNT(*) FROM user_allowed_groups) AS new_pair_count;
 ```
 
-### datamanagementd（数据管理）联动
+### datamanagementd（数据管理）已废弃
 
-如需启用管理后台“数据管理”功能，请额外部署宿主机 `datamanagementd`：
+`datamanagementd` was an early host-side daemon for the Data Management feature. It is no longer shipped by current Sub2API releases.
 
-- 主进程固定探测 `/tmp/sub2api-datamanagement.sock`
-- Docker 场景下需把宿主机 Socket 挂载到容器内同路径
-- 详细步骤见：`deploy/DATAMANAGEMENTD_CN.md`
+- Do not install `sub2api-datamanagementd.service`.
+- Do not mount `/tmp/sub2api-datamanagement.sock`.
+- `install-datamanagementd.sh` is kept only as a fail-fast tombstone.
+- For old deployments, see `deploy/DATAMANAGEMENTD_CN.md` for cleanup steps.
 
 ### Commands
 
@@ -227,12 +299,12 @@ See `.env.example` for all available options.
 
 ### Easy Migration (Local Directory Version)
 
-When using `docker-compose.local.yml`, all data is stored in local directories, making migration simple:
+When using the local-directory compose file (`docker-compose.local.yml` manually, or script-generated `docker-compose.yml`), all data is stored in local directories, making migration simple. The commands below assume the script-generated `docker-compose.yml`; for a manual local file, add `-f docker-compose.local.yml`.
 
 ```bash
 # On source server: Stop services and create archive
 cd /path/to/deployment
-docker compose -f docker-compose.local.yml down
+docker compose down
 cd ..
 tar czf sub2api-complete.tar.gz deployment/
 
@@ -242,7 +314,7 @@ scp sub2api-complete.tar.gz user@new-server:/path/to/destination/
 # On new server: Extract and start
 tar xzf sub2api-complete.tar.gz
 cd deployment/
-docker compose -f docker-compose.local.yml up -d
+docker compose up -d
 ```
 
 Your entire deployment (configuration + data) is migrated!

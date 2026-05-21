@@ -15,6 +15,7 @@ const (
 	OpsUpstreamErrorMessageKey = "ops_upstream_error_message"
 	OpsUpstreamErrorDetailKey  = "ops_upstream_error_detail"
 	OpsUpstreamErrorsKey       = "ops_upstream_errors"
+	OpsUpstreamRequestBodyKey  = "ops_upstream_request_body"
 
 	// Optional stage latencies (milliseconds) for troubleshooting and alerting.
 	OpsAuthLatencyMsKey      = "ops_auth_latency_ms"
@@ -88,6 +89,13 @@ func setOpsUpstreamError(c *gin.Context, upstreamStatusCode int, upstreamMessage
 	if detail := strings.TrimSpace(upstreamDetail); detail != "" {
 		c.Set(OpsUpstreamErrorDetailKey, detail)
 	}
+}
+
+func setOpsUpstreamRequestBody(c *gin.Context, body []byte) {
+	if c == nil || len(body) == 0 {
+		return
+	}
+	c.Set(OpsUpstreamRequestBodyKey, string(body))
 }
 
 // OpsUpstreamErrorEvent describes one upstream error attempt during a single gateway request.

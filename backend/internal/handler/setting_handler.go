@@ -65,6 +65,15 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		ContactInfo:                      settings.ContactInfo,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
+		HomeNavLinksEnabled:              settings.HomeNavLinksEnabled,
+		HomeNavLeaderboardEnabled:        settings.HomeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:           settings.HomeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:         settings.HomeNavMonitoringEnabled,
+		HomeNavPricingEnabled:            settings.HomeNavPricingEnabled,
+		LeaderboardBalanceEnabled:        settings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:    settings.LeaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:       settings.LeaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:        settings.LeaderboardCheckinEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
@@ -94,6 +103,8 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+		TransferEnabled:          settings.TransferEnabled,
+		RedPacketEnabled:         settings.RedPacketEnabled,
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 

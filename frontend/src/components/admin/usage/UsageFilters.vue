@@ -79,7 +79,7 @@
         </div>
 
         <!-- Model Filter -->
-        <div class="w-full sm:w-auto sm:min-w-[220px]">
+        <div class="w-full sm:w-auto sm:min-w-[220px]" @focusin="loadModelOptions">
           <label class="input-label">{{ t('usage.model') }}</label>
           <Select v-model="filters.model" :options="modelOptions" searchable @change="emitChange" />
         </div>
@@ -224,6 +224,8 @@ let accountSearchTimeout: ReturnType<typeof setTimeout> | null = null
 
 const modelOptions = ref<SelectOption[]>([{ value: null, label: t('admin.usage.allModels') }])
 const groupOptions = ref<SelectOption[]>([{ value: null, label: t('admin.usage.allGroups') }])
+const modelOptionsLoaded = ref(false)
+const modelOptionsLoading = ref(false)
 
 const requestTypeOptions = ref<SelectOption[]>([
   { value: null, label: t('admin.usage.allTypes') },
@@ -246,6 +248,34 @@ const billingModeOptions = ref<SelectOption[]>([
 ])
 
 const emitChange = () => emit('change')
+
+const loadModelOptions = async () => {
+  if (modelOptionsLoaded.value || modelOptionsLoading.value) return
+  modelOptionsLoading.value = true
+  try {
+    const ms = await adminAPI.dashboard.getModelStats({
+      start_date: props.startDate,
+      end_date: props.endDate,
+    })
+    const uniqueModels = new Set<string>()
+    ms.models?.forEach((s: any) => {
+      if (s.model) {
+        uniqueModels.add(s.model)
+      }
+    })
+    modelOptions.value = [
+      { value: null, label: t('admin.usage.allModels') },
+      ...Array.from(uniqueModels)
+        .sort()
+        .map((m) => ({ value: m, label: m })),
+    ]
+    modelOptionsLoaded.value = true
+  } catch {
+    // Ignore filter option loading errors (page still usable)
+  } finally {
+    modelOptionsLoading.value = false
+  }
+}
 
 const debounceUserSearch = () => {
   if (userSearchTimeout) clearTimeout(userSearchTimeout)
@@ -418,28 +448,22 @@ watch(
   }
 )
 
+watch(
+  () => filters.value.model,
+  (model) => {
+    if (model) {
+      void loadModelOptions()
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
 
   try {
-    const [gs, ms] = await Promise.all([
-      adminAPI.groups.list(1, 1000),
-      adminAPI.dashboard.getModelStats({ start_date: props.startDate, end_date: props.endDate })
-    ])
-
+    const gs = await adminAPI.groups.list(1, 1000)
     groupOptions.value.push(...gs.items.map((g: any) => ({ value: g.id, label: g.name })))
-
-    const uniqueModels = new Set<string>()
-    ms.models?.forEach((s: any) => {
-      if (s.model) {
-        uniqueModels.add(s.model)
-      }
-    })
-    modelOptions.value.push(
-      ...Array.from(uniqueModels)
-        .sort()
-        .map((m) => ({ value: m, label: m }))
-    )
   } catch {
     // Ignore filter option loading errors (page still usable)
   }

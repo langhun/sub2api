@@ -8,6 +8,9 @@ import type {
   Proxy,
   ProxyAccountSummary,
   ProxyQualityCheckResult,
+  AssignProxyAccountsRequest,
+  ProxyAccountAssignmentResult,
+  ProxyUnassignAccountsResult,
   CreateProxyRequest,
   UpdateProxyRequest,
   PaginatedResponse,
@@ -28,6 +31,7 @@ export async function list(
   filters?: {
     protocol?: string
     status?: 'active' | 'inactive'
+    runtime_status?: 'failed' | 'cooldown' | 'healthy' | 'warn' | 'challenge'
     search?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
@@ -188,6 +192,42 @@ export async function getProxyAccounts(id: number): Promise<ProxyAccountSummary[
   return data
 }
 
+export async function assignAccounts(
+  payload: AssignProxyAccountsRequest
+): Promise<ProxyAccountAssignmentResult> {
+  const { data } = await apiClient.post<ProxyAccountAssignmentResult>(
+    '/admin/proxies/assign-accounts',
+    payload
+  )
+  return data
+}
+
+export async function unassignAccounts(proxyIds: number[]): Promise<ProxyUnassignAccountsResult> {
+  const { data } = await apiClient.post<ProxyUnassignAccountsResult>(
+    '/admin/proxies/unassign-accounts',
+    { proxy_ids: proxyIds }
+  )
+  return data
+}
+
+export async function updatePoolMembership(ids: number[], enabled: boolean): Promise<{
+  updated: number
+  enabled: boolean
+}> {
+  const { data } = await apiClient.post<{
+    updated: number
+    enabled: boolean
+  }>('/admin/proxies/pool-membership', { ids, enabled })
+  return data
+}
+
+export async function clearCooldown(ids: number[]): Promise<{ cleared: number }> {
+  const { data } = await apiClient.post<{ cleared: number }>('/admin/proxies/clear-cooldown', {
+    ids
+  })
+  return data
+}
+
 /**
  * Batch create proxies
  * @param proxies - Array of proxy data to create
@@ -228,6 +268,7 @@ export async function exportData(options?: {
   filters?: {
     protocol?: string
     status?: 'active' | 'inactive'
+    runtime_status?: 'failed' | 'cooldown' | 'healthy' | 'warn' | 'challenge'
     search?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
@@ -237,9 +278,10 @@ export async function exportData(options?: {
   if (options?.ids && options.ids.length > 0) {
     params.ids = options.ids.join(',')
   } else if (options?.filters) {
-    const { protocol, status, search, sort_by, sort_order } = options.filters
+    const { protocol, status, runtime_status, search, sort_by, sort_order } = options.filters
     if (protocol) params.protocol = protocol
     if (status) params.status = status
+    if (runtime_status) params.runtime_status = runtime_status
     if (search) params.search = search
     if (sort_by) params.sort_by = sort_by
     if (sort_order) params.sort_order = sort_order
@@ -268,6 +310,10 @@ export const proxiesAPI = {
   checkProxyQuality,
   getStats,
   getProxyAccounts,
+  assignAccounts,
+  unassignAccounts,
+  updatePoolMembership,
+  clearCooldown,
   batchCreate,
   batchDelete,
   exportData,

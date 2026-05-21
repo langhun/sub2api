@@ -24,15 +24,18 @@ type queuedHTTPUpstream struct {
 	responses []*http.Response
 	requests  []*http.Request
 	tlsFlags  []bool
+	proxyURLs []string
 }
 
-func (u *queuedHTTPUpstream) Do(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+func (u *queuedHTTPUpstream) Do(_ *http.Request, proxyURL string, _ int64, _ int) (*http.Response, error) {
+	u.proxyURLs = append(u.proxyURLs, proxyURL)
 	return nil, fmt.Errorf("unexpected Do call")
 }
 
-func (u *queuedHTTPUpstream) DoWithTLS(req *http.Request, _ string, _ int64, _ int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *queuedHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, _ int64, _ int, profile *tlsfingerprint.Profile) (*http.Response, error) {
 	u.requests = append(u.requests, req)
 	u.tlsFlags = append(u.tlsFlags, profile != nil)
+	u.proxyURLs = append(u.proxyURLs, proxyURL)
 	if len(u.responses) == 0 {
 		return nil, fmt.Errorf("no mocked response")
 	}
@@ -69,6 +72,8 @@ type openAIAccountTestRepo struct {
 	clearedErrorID     int64
 	setErrorID         int64
 	setErrorMsg        string
+	boundAccountID     int64
+	boundGroupIDs      []int64
 }
 
 func (r *openAIAccountTestRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
@@ -90,13 +95,39 @@ func (r *openAIAccountTestRepo) SetRateLimited(_ context.Context, id int64, rese
 
 func (r *openAIAccountTestRepo) ClearError(_ context.Context, id int64) error {
 	r.clearedErrorID = id
+	if account, ok := r.accountsByID[id]; ok {
+		account.Status = StatusActive
+		account.ErrorMessage = ""
+	}
 	return nil
 }
 
 func (r *openAIAccountTestRepo) SetError(_ context.Context, id int64, errorMsg string) error {
 	r.setErrorID = id
 	r.setErrorMsg = errorMsg
+	if account, ok := r.accountsByID[id]; ok {
+		account.Status = StatusError
+		account.ErrorMessage = errorMsg
+	}
 	return nil
+}
+
+func (r *openAIAccountTestRepo) BindGroups(_ context.Context, accountID int64, groupIDs []int64) error {
+	r.boundAccountID = accountID
+	r.boundGroupIDs = append([]int64(nil), groupIDs...)
+	if account, ok := r.accountsByID[accountID]; ok {
+		account.GroupIDs = append([]int64(nil), groupIDs...)
+	}
+	return nil
+}
+
+type accountTestGroupRepoStub struct {
+	GroupRepository
+	groupsByPlatform map[string][]Group
+}
+
+func (s *accountTestGroupRepoStub) ListActiveByPlatform(_ context.Context, platform string) ([]Group, error) {
+	return append([]Group(nil), s.groupsByPlatform[platform]...), nil
 }
 
 func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.T) {
@@ -130,6 +161,237 @@ func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.
 	require.NotEmpty(t, repo.updatedExtra)
 	require.Equal(t, 42.0, repo.updatedExtra["codex_5h_used_percent"])
 	require.Equal(t, 88.0, repo.updatedExtra["codex_7d_used_percent"])
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAISuccessBindsPlatformDefaultGroupForUngroupedAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				89: {
+					ID:          89,
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeOAuth,
+					Concurrency: 1,
+					Credentials: map[string]any{"access_token": "test-token"},
+				},
+			},
+		},
+	}
+	groupRepo := &accountTestGroupRepoStub{
+		groupsByPlatform: map[string][]Group{
+			PlatformOpenAI: {
+				{ID: 501, Name: "openai-default", Platform: PlatformOpenAI},
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, groupRepo: groupRepo, httpUpstream: upstream}
+
+	account := &Account{
+		ID:          89,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.NoError(t, err)
+	require.Equal(t, int64(89), repo.boundAccountID)
+	require.Equal(t, []int64{501}, repo.boundGroupIDs)
+	require.Equal(t, []int64{501}, account.GroupIDs)
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAISuccessDoesNotOverrideExplicitGroups(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				90: {
+					ID:          90,
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeOAuth,
+					Concurrency: 1,
+					GroupIDs:    []int64{700},
+					Credentials: map[string]any{"access_token": "test-token"},
+				},
+			},
+		},
+	}
+	groupRepo := &accountTestGroupRepoStub{
+		groupsByPlatform: map[string][]Group{
+			PlatformOpenAI: {
+				{ID: 501, Name: "openai-default", Platform: PlatformOpenAI},
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, groupRepo: groupRepo, httpUpstream: upstream}
+
+	account := &Account{
+		ID:          90,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		GroupIDs:    []int64{700},
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.NoError(t, err)
+	require.Zero(t, repo.boundAccountID)
+	require.Nil(t, repo.boundGroupIDs)
+	require.Equal(t, []int64{700}, account.GroupIDs)
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAIUsesAutoFailoverProxyPoolForTesting(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[11]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			11: {ID: 11, Name: "pool", Protocol: "http", Host: "pool.example", Port: 8080, Status: StatusActive},
+		},
+	}
+	poolSvc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{
+		httpUpstream: upstream,
+		proxyPool:    poolSvc,
+	}
+	account := &Account{
+		ID:          91,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+		Extra: map[string]any{
+			"proxy_mode": AccountProxyModePool,
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.NoError(t, err)
+	require.Len(t, upstream.proxyURLs, 1)
+	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[0])
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAIExplicitPoolWithoutCandidateFailsClearly(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	poolSvc := NewAutoFailoverProxyPoolService(&proxyRepoStubForPool{}, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
+	upstream := &queuedHTTPUpstream{}
+	svc := &AccountTestService{
+		httpUpstream: upstream,
+		proxyPool:    poolSvc,
+	}
+	account := &Account{
+		ID:          92,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+		Extra: map[string]any{
+			"proxy_mode": AccountProxyModePool,
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.Error(t, err)
+	require.Empty(t, upstream.proxyURLs)
+	require.Contains(t, err.Error(), "no available proxy in auto failover proxy pool")
+	require.Contains(t, recorder.Body.String(), "no available proxy in auto failover proxy pool")
+}
+
+func TestAccountTestService_OpenAI403SwitchesToPoolAndRetries(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[11]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			11: {ID: 11, Name: "pool", Protocol: "http", Host: "pool.example", Port: 8080, Status: StatusActive},
+		},
+	}
+	poolSvc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
+
+	forbiddenResp := newJSONResponse(http.StatusForbidden, `{"error":"forbidden"}`)
+	successResp := newJSONResponse(http.StatusOK, "")
+	successResp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
+	account := &Account{
+		ID:          93,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				93: account,
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{forbiddenResp, successResp}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+		proxyPool:    poolSvc,
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.NoError(t, err)
+	require.Equal(t, AccountProxyModePool, account.Extra["proxy_mode"])
+	require.Equal(t, AccountProxyModePool, repo.updatedExtra["proxy_mode"])
+	require.Len(t, upstream.proxyURLs, 2)
+	require.Equal(t, "", upstream.proxyURLs[0])
+	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[1])
 	require.Contains(t, recorder.Body.String(), "test_complete")
 }
 
@@ -278,7 +540,7 @@ func TestAccountTestService_OpenAI429ActiveAccountDoesNotClearError(t *testing.T
 	require.NotNil(t, account.RateLimitResetAt)
 }
 
-func TestAccountTestService_OpenAI429WithoutResetSignalDoesNotMutateRuntimeState(t *testing.T) {
+func TestAccountTestService_OpenAI429WithoutResetSignalUsesFallbackCooldown(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, _ := newTestContext()
 
@@ -299,12 +561,12 @@ func TestAccountTestService_OpenAI429WithoutResetSignalDoesNotMutateRuntimeState
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
 	require.Error(t, err)
-	require.Zero(t, repo.rateLimitedID)
-	require.Nil(t, repo.rateLimitedAt)
-	require.Zero(t, repo.clearedErrorID)
-	require.Equal(t, StatusError, account.Status)
-	require.Equal(t, "stale 403", account.ErrorMessage)
-	require.Nil(t, account.RateLimitResetAt)
+	require.Equal(t, account.ID, repo.rateLimitedID)
+	require.NotNil(t, repo.rateLimitedAt)
+	require.NotNil(t, account.RateLimitResetAt)
+	require.Equal(t, account.ID, repo.clearedErrorID)
+	require.Equal(t, StatusActive, account.Status)
+	require.Empty(t, account.ErrorMessage)
 }
 
 func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
@@ -313,9 +575,6 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 
 	resp := newJSONResponse(http.StatusUnauthorized, `{"error":"bad token"}`)
 
-	repo := &openAIAccountTestRepo{}
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
-	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
 		ID:          80,
 		Platform:    PlatformOpenAI,
@@ -324,6 +583,15 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 		Concurrency: 1,
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				80: account,
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
 	require.Error(t, err)
@@ -332,4 +600,137 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 	require.Zero(t, repo.rateLimitedID)
 	require.Zero(t, repo.clearedErrorID)
 	require.Nil(t, account.RateLimitResetAt)
+	require.Equal(t, StatusError, account.Status)
+	require.Contains(t, account.ErrorMessage, "Authentication failed (401)")
+}
+
+func TestAccountTestService_RunTestBackground_OpenAI401ReturnsFailedResult(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				80: {
+					ID:          80,
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeOAuth,
+					Status:      StatusActive,
+					Concurrency: 1,
+					Credentials: map[string]any{"access_token": "test-token"},
+				},
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{
+		responses: []*http.Response{
+			newJSONResponse(http.StatusUnauthorized, `{"error":"bad token"}`),
+		},
+	}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+	}
+
+	result, err := svc.RunTestBackground(context.Background(), 80, "gpt-5.4")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "failed", result.Status)
+	require.Contains(t, result.ErrorMessage, "API returned 401")
+	require.Empty(t, result.ResponseText)
+	require.NotZero(t, result.StartedAt)
+	require.NotZero(t, result.FinishedAt)
+	require.GreaterOrEqual(t, result.LatencyMs, int64(0))
+	require.Equal(t, int64(80), repo.setErrorID)
+	require.Equal(t, StatusError, repo.accountsByID[80].Status)
+	require.Contains(t, repo.accountsByID[80].ErrorMessage, "Authentication failed (401)")
+}
+
+func TestAccountTestService_RunTestBackground_OpenAI429ReturnsFailedResult(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				88: {
+					ID:          88,
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeOAuth,
+					Status:      StatusError,
+					Concurrency: 1,
+					Credentials: map[string]any{"access_token": "test-token"},
+				},
+			},
+		},
+	}
+	resp := newJSONResponse(http.StatusTooManyRequests, `{"error":{"type":"usage_limit_reached","message":"limit reached","resets_at":1777283883}}`)
+	resp.Header.Set("x-codex-primary-used-percent", "100")
+	resp.Header.Set("x-codex-primary-reset-after-seconds", "604800")
+	resp.Header.Set("x-codex-primary-window-minutes", "10080")
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+	}
+
+	result, err := svc.RunTestBackground(context.Background(), 88, "gpt-5.4")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "failed", result.Status)
+	require.Contains(t, result.ErrorMessage, "API returned 429")
+	require.Empty(t, result.ResponseText)
+	require.Equal(t, int64(88), repo.rateLimitedID)
+	require.NotNil(t, repo.rateLimitedAt)
+}
+
+func TestAccountTestService_RunTestBackground_OpenAI403SwitchesToPoolAndReturnsSuccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[11]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			11: {ID: 11, Name: "pool", Protocol: "http", Host: "pool.example", Port: 8080, Status: StatusActive},
+		},
+	}
+	poolSvc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
+
+	account := &Account{
+		ID:          94,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				94: account,
+			},
+		},
+	}
+	forbiddenResp := newJSONResponse(http.StatusForbidden, `{"error":"forbidden"}`)
+	successResp := newJSONResponse(http.StatusOK, "")
+	successResp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{forbiddenResp, successResp}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+		proxyPool:    poolSvc,
+	}
+
+	result, err := svc.RunTestBackground(context.Background(), 94, "gpt-5.4")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "success", result.Status)
+	require.Equal(t, AccountProxyModePool, repo.accountsByID[94].Extra["proxy_mode"])
+	require.Len(t, upstream.proxyURLs, 2)
+	require.Equal(t, "", upstream.proxyURLs[0])
+	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[1])
 }

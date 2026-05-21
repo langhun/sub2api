@@ -145,6 +145,29 @@ const validation = computed(() => {
     if (hourly_metrics_retention_days < 0 || hourly_metrics_retention_days > 365) {
       errors.push(t('admin.ops.settings.validation.retentionDaysRange'))
     }
+
+    const slowTail = advancedSettings.value.slow_tail_isolation
+    if (slowTail.window_minutes < 1 || slowTail.window_minutes > 120) {
+      errors.push(t('admin.ops.settings.validation.slowTailWindowMinutesRange'))
+    }
+    if (slowTail.min_requests < 1 || slowTail.min_requests > 100) {
+      errors.push(t('admin.ops.settings.validation.slowTailMinRequestsRange'))
+    }
+    if (slowTail.ttft_p95_ms_threshold < 100 || slowTail.ttft_p95_ms_threshold > 120000) {
+      errors.push(t('admin.ops.settings.validation.slowTailTTFTP95ThresholdRange'))
+    }
+    if (slowTail.duration_p95_ms_threshold < 0 || slowTail.duration_p95_ms_threshold > 600000) {
+      errors.push(t('admin.ops.settings.validation.slowTailDurationP95ThresholdRange'))
+    }
+    if (slowTail.response_latency_p95_ms_threshold < 0 || slowTail.response_latency_p95_ms_threshold > 600000) {
+      errors.push(t('admin.ops.settings.validation.slowTailResponseLatencyP95ThresholdRange'))
+    }
+    if (slowTail.temp_unsched_minutes < 1 || slowTail.temp_unsched_minutes > 1440) {
+      errors.push(t('admin.ops.settings.validation.slowTailTempUnschedMinutesRange'))
+    }
+    if (slowTail.max_accounts_per_run < 1 || slowTail.max_accounts_per_run > 100) {
+      errors.push(t('admin.ops.settings.validation.slowTailMaxAccountsPerRunRange'))
+    }
   }
 
   // 验证指标阈值
@@ -470,6 +493,98 @@ async function saveAllSettings() {
                 <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.aggregationHint') }}</p>
               </div>
               <Toggle v-model="advancedSettings.aggregation.aggregation_enabled" />
+            </div>
+          </div>
+
+          <!-- Slow Tail Isolation -->
+          <div class="space-y-3">
+            <h5 class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ t('admin.ops.settings.slowTailIsolation') }}</h5>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.ops.settings.enableSlowTailIsolation') }}</label>
+                <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.slowTailIsolationHint') }}</p>
+              </div>
+              <Toggle v-model="advancedSettings.slow_tail_isolation.enabled" />
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.slowTailWindowMinutes') }}</label>
+                <input
+                  v-model.number="advancedSettings.slow_tail_isolation.window_minutes"
+                  type="number"
+                  min="1"
+                  max="120"
+                  class="input"
+                />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.slowTailMinRequests') }}</label>
+                <input
+                  v-model.number="advancedSettings.slow_tail_isolation.min_requests"
+                  type="number"
+                  min="1"
+                  max="100"
+                  class="input"
+                />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.slowTailTempUnschedMinutes') }}</label>
+                <input
+                  v-model.number="advancedSettings.slow_tail_isolation.temp_unsched_minutes"
+                  type="number"
+                  min="1"
+                  max="1440"
+                  class="input"
+                />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.slowTailMaxAccountsPerRun') }}</label>
+                <input
+                  v-model.number="advancedSettings.slow_tail_isolation.max_accounts_per_run"
+                  type="number"
+                  min="1"
+                  max="100"
+                  class="input"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.slowTailTTFTP95Threshold') }}</label>
+                <input
+                  v-model.number="advancedSettings.slow_tail_isolation.ttft_p95_ms_threshold"
+                  type="number"
+                  min="100"
+                  max="120000"
+                  step="100"
+                  class="input"
+                />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.slowTailDurationP95Threshold') }}</label>
+                <input
+                  v-model.number="advancedSettings.slow_tail_isolation.duration_p95_ms_threshold"
+                  type="number"
+                  min="0"
+                  max="600000"
+                  step="100"
+                  class="input"
+                />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.slowTailResponseLatencyP95Threshold') }}</label>
+                <input
+                  v-model.number="advancedSettings.slow_tail_isolation.response_latency_p95_ms_threshold"
+                  type="number"
+                  min="0"
+                  max="600000"
+                  step="100"
+                  class="input"
+                />
+              </div>
             </div>
           </div>
 

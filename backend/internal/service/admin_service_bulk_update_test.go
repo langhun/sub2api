@@ -16,6 +16,7 @@ type accountRepoStubForBulkUpdate struct {
 	accountRepoStub
 	bulkUpdateErr    error
 	bulkUpdateIDs    []int64
+	bulkUpdateInput  AccountBulkUpdate
 	bindGroupErrByID map[int64]error
 	bindGroupsCalls  []int64
 	getByIDsAccounts []*Account
@@ -34,6 +35,7 @@ type accountRepoStubForBulkUpdate struct {
 	lastListParams   pagination.PaginationParams
 	lastListFilters  struct {
 		platform    string
+		tier        string
 		accountType string
 		status      string
 		search      string
@@ -42,8 +44,9 @@ type accountRepoStubForBulkUpdate struct {
 	}
 }
 
-func (s *accountRepoStubForBulkUpdate) BulkUpdate(_ context.Context, ids []int64, _ AccountBulkUpdate) (int64, error) {
+func (s *accountRepoStubForBulkUpdate) BulkUpdate(_ context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {
 	s.bulkUpdateIDs = append([]int64{}, ids...)
+	s.bulkUpdateInput = updates
 	if s.bulkUpdateErr != nil {
 		return 0, s.bulkUpdateErr
 	}
@@ -88,10 +91,11 @@ func (s *accountRepoStubForBulkUpdate) ListByGroup(_ context.Context, groupID in
 	return nil, nil
 }
 
-func (s *accountRepoStubForBulkUpdate) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
+func (s *accountRepoStubForBulkUpdate) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, tier string) ([]Account, *pagination.PaginationResult, error) {
 	s.listCalled = true
 	s.lastListParams = params
 	s.lastListFilters.platform = platform
+	s.lastListFilters.tier = tier
 	s.lastListFilters.accountType = accountType
 	s.lastListFilters.status = status
 	s.lastListFilters.search = search
@@ -225,6 +229,7 @@ func TestAdminServiceBulkUpdateAccounts_ResolvesIDsFromFilters(t *testing.T) {
 
 	filtersValue := reflect.New(filtersField.Type().Elem())
 	filtersValue.Elem().FieldByName("Platform").SetString(PlatformOpenAI)
+	filtersValue.Elem().FieldByName("Tier").SetString("openai:plus")
 	filtersValue.Elem().FieldByName("Type").SetString(AccountTypeOAuth)
 	filtersValue.Elem().FieldByName("Status").SetString(StatusActive)
 	filtersValue.Elem().FieldByName("Group").SetString("12")
@@ -236,6 +241,7 @@ func TestAdminServiceBulkUpdateAccounts_ResolvesIDsFromFilters(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, repo.listCalled, "expected filter-target bulk update to resolve matching IDs via account list filters")
 	require.Equal(t, PlatformOpenAI, repo.lastListFilters.platform)
+	require.Equal(t, "openai:plus", repo.lastListFilters.tier)
 	require.Equal(t, AccountTypeOAuth, repo.lastListFilters.accountType)
 	require.Equal(t, StatusActive, repo.lastListFilters.status)
 	require.Equal(t, "bulk-target", repo.lastListFilters.search)
@@ -245,4 +251,34 @@ func TestAdminServiceBulkUpdateAccounts_ResolvesIDsFromFilters(t *testing.T) {
 	require.Equal(t, 2, result.Success)
 	require.Equal(t, 0, result.Failed)
 	require.Equal(t, []int64{7, 11}, result.SuccessIDs)
+}
+
+func TestAdminService_UnassignProxiesFromAccounts_ClearsMatchedAccounts(t *testing.T) {
+	accountRepo := &accountRepoStubForBulkUpdate{}
+	proxyRepo := &proxyRepoStubForUnassign{
+		summaries: map[int64][]ProxyAccountSummary{
+			2: {
+				{ID: 11, Name: "a11"},
+				{ID: 12, Name: "a12"},
+			},
+			1: {
+				{ID: 12, Name: "a12"},
+				{ID: 13, Name: "a13"},
+			},
+		},
+	}
+	svc := &adminServiceImpl{
+		accountRepo: accountRepo,
+		proxyRepo:   proxyRepo,
+	}
+
+	result, err := svc.UnassignProxiesFromAccounts(context.Background(), []int64{2, 2, 0, 1})
+	require.NoError(t, err)
+	require.Equal(t, []int64{2, 1}, result.ProxyIDs)
+	require.Equal(t, int64(3), result.MatchedAccounts)
+	require.Equal(t, int64(3), result.UnassignedAccounts)
+	require.ElementsMatch(t, []int64{11, 12, 13}, accountRepo.bulkUpdateIDs)
+	require.NotNil(t, accountRepo.bulkUpdateInput.ProxyID)
+	require.Equal(t, int64(0), *accountRepo.bulkUpdateInput.ProxyID)
+	require.Equal(t, []int64{2, 1}, proxyRepo.listCalls)
 }

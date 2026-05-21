@@ -31,6 +31,7 @@ type TokenRefreshService struct {
 	// OpenAI privacy: 刷新成功后检查并设置 training opt-out
 	privacyClientFactory PrivacyClientFactory
 	proxyRepo            ProxyRepository
+	proxyPool            *AutoFailoverProxyPoolService
 
 	stopCh   chan struct{}
 	stopOnce sync.Once
@@ -88,6 +89,10 @@ func NewTokenRefreshService(
 func (s *TokenRefreshService) SetPrivacyDeps(factory PrivacyClientFactory, proxyRepo ProxyRepository) {
 	s.privacyClientFactory = factory
 	s.proxyRepo = proxyRepo
+}
+
+func (s *TokenRefreshService) SetAutoFailoverProxyPool(proxyPool *AutoFailoverProxyPoolService) {
+	s.proxyPool = proxyPool
 }
 
 // SetRefreshAPI 注入统一的 OAuth 刷新 API
@@ -327,7 +332,16 @@ func (s *TokenRefreshService) refreshWithRetry(ctx context.Context, account *Acc
 	// 设置临时不可调度 10 分钟（不标记 error，保持 status=active 让下个刷新周期能继续尝试）
 	until := time.Now().Add(tokenRefreshTempUnschedDuration)
 	reason := fmt.Sprintf("token refresh retry exhausted: %v", lastErr)
-	if setErr := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); setErr != nil {
+	structuredReason := BuildTempUnschedReason(&TempUnschedState{
+		UntilUnix:       until.Unix(),
+		TriggeredAtUnix: time.Now().Unix(),
+		StatusCode:      0,
+		ReasonCode:      TempUnschedReasonCodeTokenRefreshRetryExhausted,
+		MatchedKeyword:  "token_refresh",
+		RuleIndex:       -1,
+		ErrorMessage:    reason,
+	}, reason)
+	if setErr := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, structuredReason); setErr != nil {
 		slog.Warn("token_refresh.set_temp_unschedulable_failed",
 			"account_id", account.ID,
 			"error", setErr,
@@ -357,8 +371,9 @@ func (s *TokenRefreshService) postRefreshActions(ctx context.Context, account *A
 			slog.Info("token_refresh.cleared_missing_project_id_error", "account_id", account.ID)
 		}
 	}
-	// 刷新成功后清除临时不可调度状态（处理 OAuth 401 恢复场景）
-	if account.TempUnschedulableUntil != nil && time.Now().Before(*account.TempUnschedulableUntil) {
+	// 刷新成功后清除临时不可调度状态（处理 OAuth 401 恢复场景 + 已过期 Redis 残留）
+	// 不再依赖 DB 时间判断，因为 Redis 侧可能仍残留 temp_unsched 缓存。
+	if account.TempUnschedulableUntil != nil {
 		if clearErr := s.accountRepo.ClearTempUnschedulable(ctx, account.ID); clearErr != nil {
 			slog.Warn("token_refresh.clear_temp_unschedulable_failed",
 				"account_id", account.ID,
@@ -417,11 +432,12 @@ func isNonRetryableRefreshError(err error) bool {
 	}
 	msg := strings.ToLower(err.Error())
 	nonRetryable := []string{
-		"invalid_grant",       // refresh_token 已失效
-		"invalid_client",      // 客户端配置错误
-		"unauthorized_client", // 客户端未授权
-		"access_denied",       // 访问被拒绝
-		"missing_project_id",  // 缺少 project_id
+		"invalid_grant",        // refresh_token 已失效
+		"refresh_token_reused", // OpenAI refresh_token 已被使用，必须重新授权
+		"invalid_client",       // 客户端配置错误
+		"unauthorized_client",  // 客户端未授权
+		"access_denied",        // 访问被拒绝
+		"missing_project_id",   // 缺少 project_id
 		"no refresh token available",
 	}
 	for _, needle := range nonRetryable {
@@ -430,6 +446,23 @@ func isNonRetryableRefreshError(err error) bool {
 		}
 	}
 	return false
+}
+
+func (s *TokenRefreshService) resolveProxyURLForBackgroundTask(ctx context.Context, account *Account) string {
+	if account == nil {
+		return ""
+	}
+	if s.proxyPool != nil {
+		if proxyURL, _, _, err := s.proxyPool.ResolveProxyURL(ctx, account); err == nil {
+			return proxyURL
+		}
+	}
+	if account.ProxyID != nil && s.proxyRepo != nil {
+		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
+			return p.URL()
+		}
+	}
+	return ""
 }
 
 // ensureOpenAIPrivacy 检查 OpenAI OAuth 账号是否已设置 privacy_mode，
@@ -450,12 +483,7 @@ func (s *TokenRefreshService) ensureOpenAIPrivacy(ctx context.Context, account *
 		return
 	}
 
-	var proxyURL string
-	if account.ProxyID != nil && s.proxyRepo != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
+	proxyURL := s.resolveProxyURLForBackgroundTask(ctx, account)
 
 	mode := disableOpenAITraining(ctx, s.privacyClientFactory, token, proxyURL)
 	if mode == "" {
@@ -468,6 +496,10 @@ func (s *TokenRefreshService) ensureOpenAIPrivacy(ctx context.Context, account *
 			"error", err,
 		)
 	} else {
+		if account.Extra == nil {
+			account.Extra = make(map[string]any)
+		}
+		account.Extra["privacy_mode"] = mode
 		slog.Info("token_refresh.privacy_mode_set",
 			"account_id", account.ID,
 			"privacy_mode", mode,
@@ -495,12 +527,7 @@ func (s *TokenRefreshService) ensureAntigravityPrivacy(ctx context.Context, acco
 
 	projectID, _ := account.Credentials["project_id"].(string)
 
-	var proxyURL string
-	if account.ProxyID != nil && s.proxyRepo != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
+	proxyURL := s.resolveProxyURLForBackgroundTask(ctx, account)
 
 	mode := setAntigravityPrivacy(ctx, token, projectID, proxyURL)
 	if mode == "" {

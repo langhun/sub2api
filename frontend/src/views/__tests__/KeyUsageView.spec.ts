@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 
 import KeyUsageView from '../KeyUsageView.vue'
 
@@ -99,6 +100,7 @@ vi.mock('@/stores', () => ({
 
 describe('KeyUsageView daily detail', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     showInfo.mockReset()
     showSuccess.mockReset()
     showError.mockReset()
@@ -169,6 +171,7 @@ describe('KeyUsageView daily detail', () => {
     const wrapper = mount(KeyUsageView, {
       global: {
         stubs: {
+          PublicPageHeader: { template: '<div class="public-page-header-stub" />' },
           RouterLink: { template: '<a><slot /></a>' },
           LocaleSwitcher: true,
           Icon: true,

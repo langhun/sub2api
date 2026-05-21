@@ -17,7 +17,7 @@
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          {{ t('admin.accounts.bulkEdit.selectionInfo', { count: targetMode === 'filtered' ? targetPreviewCount : accountIds.length }) }}
+          {{ t('admin.accounts.bulkEdit.selectionInfo', { count: accountIds.length }) }}
         </p>
       </div>
 
@@ -505,7 +505,71 @@
           />
         </div>
         <div id="bulk-edit-proxy-body" :class="!enableProxy && 'pointer-events-none opacity-50'">
+          <div v-if="supportsBulkProxyMode" class="space-y-3">
+            <div class="grid gap-2 lg:grid-cols-3">
+              <button
+                type="button"
+                :class="proxyModeOptionClass(proxyMode, 'direct')"
+                @click="proxyMode = 'direct'"
+              >
+                <span class="text-sm font-medium">{{ t('admin.accounts.proxyModeDirectLabel') }}</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.accounts.proxyModeDirectDesc') }}
+                </span>
+              </button>
+              <button
+                type="button"
+                :class="proxyModeOptionClass(proxyMode, 'single')"
+                @click="proxyMode = 'single'"
+              >
+                <span class="text-sm font-medium">{{ t('admin.accounts.proxyModeSingleLabel') }}</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.accounts.proxyModeSingleDesc') }}
+                </span>
+              </button>
+              <button
+                type="button"
+                :class="proxyModeOptionClass(proxyMode, 'pool')"
+                @click="proxyMode = 'pool'"
+              >
+                <span class="text-sm font-medium">{{ t('admin.accounts.proxyModePoolLabel') }}</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.accounts.proxyModePoolDesc') }}
+                </span>
+              </button>
+            </div>
+            <p class="input-hint">{{ t('admin.accounts.proxyRouteHint') }}</p>
+
+            <ProxySelector
+              v-if="proxyMode === 'single'"
+              v-model="proxyId"
+              :proxies="proxies"
+              aria-labelledby="bulk-edit-proxy-label"
+            />
+
+            <div
+              v-else-if="proxyMode === 'pool'"
+              class="rounded-lg border px-3 py-2 text-sm"
+              :class="poolEnabledProxyCount > 0
+                ? 'border-primary-200 bg-primary-50 text-primary-700 dark:border-primary-900/60 dark:bg-primary-900/20 dark:text-primary-200'
+                : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-200'"
+            >
+              {{
+                poolEnabledProxyCount > 0
+                  ? t('admin.accounts.proxyModePoolNotice', { count: poolEnabledProxyCount })
+                  : t('admin.accounts.proxyModePoolEmpty')
+              }}
+            </div>
+
+            <div
+              v-else
+              class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300"
+            >
+              {{ t('admin.accounts.proxyModeDirectNotice') }}
+            </div>
+          </div>
           <ProxySelector
+            v-else
             v-model="proxyId"
             :proxies="proxies"
             aria-labelledby="bulk-edit-proxy-label"
@@ -1118,13 +1182,6 @@ interface Props {
   accountIds: number[]
   selectedPlatforms: AccountPlatform[]
   selectedTypes: AccountType[]
-  target?: {
-    mode: 'selected' | 'filtered'
-    filters?: Record<string, unknown>
-    previewCount?: number
-    selectedPlatforms?: AccountPlatform[]
-    selectedTypes?: AccountType[]
-  }
   proxies: ProxyConfig[]
   groups: AdminGroup[]
 }
@@ -1139,10 +1196,8 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 // Platform awareness
-const targetMode = computed(() => props.target?.mode ?? 'selected')
-const targetPreviewCount = computed(() => props.target?.previewCount ?? props.accountIds.length)
-const targetSelectedPlatforms = computed(() => props.target?.selectedPlatforms ?? props.selectedPlatforms)
-const targetSelectedTypes = computed(() => props.target?.selectedTypes ?? props.selectedTypes)
+const targetSelectedPlatforms = computed(() => props.selectedPlatforms)
+const targetSelectedTypes = computed(() => props.selectedTypes)
 const isMixedPlatform = computed(() => targetSelectedPlatforms.value.length > 1)
 
 const allOpenAIPassthroughCapable = computed(() => {
@@ -1181,6 +1236,19 @@ const allAnthropicOAuthOrSetupToken = computed(() => {
   )
 })
 
+const supportsBulkProxyMode = computed(() => {
+  return (
+    targetSelectedPlatforms.value.length > 0 &&
+    targetSelectedPlatforms.value.every(
+      platform => platform === 'openai' || platform === 'antigravity'
+    )
+  )
+})
+
+const poolEnabledProxyCount = computed(() =>
+  props.proxies.filter(proxy => proxy.auto_failover_pool_enabled === true).length
+)
+
 const filteredPresets = computed(() => {
   if (targetSelectedPlatforms.value.length === 0) return []
 
@@ -1202,6 +1270,8 @@ interface ModelMapping {
   from: string
   to: string
 }
+
+type BulkProxyMode = 'direct' | 'single' | 'pool'
 
 // State - field enable flags
 const enableBaseUrl = ref(false)
@@ -1236,6 +1306,7 @@ const selectedErrorCodes = ref<number[]>([])
 const customErrorCodeInput = ref<number | null>(null)
 const interceptWarmupRequests = ref(false)
 const proxyId = ref<number | null>(null)
+const proxyMode = ref<BulkProxyMode>('pool')
 const concurrency = ref(1)
 const loadFactor = ref<number | null>(null)
 const priority = ref(1)
@@ -1297,6 +1368,19 @@ const openAIWSModeConcurrencyHintKey = computed(() =>
 const openAIAPIKeyWSModeConcurrencyHintKey = computed(() =>
   resolveOpenAIWSModeConcurrencyHintKey(openaiAPIKeyResponsesWebSocketV2Mode.value)
 )
+
+const proxyModeOptionClass = (
+  currentMode: BulkProxyMode,
+  optionMode: BulkProxyMode
+) => {
+  const selected = currentMode === optionMode
+  return [
+    'flex min-h-[84px] flex-col justify-between rounded-xl border px-3 py-3 text-left transition-colors',
+    selected
+      ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-900/20 dark:text-primary-200'
+      : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300 hover:bg-primary-50/40 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-primary-700 dark:hover:bg-primary-900/10'
+  ]
+}
 
 // Model mapping helpers
 const addModelMapping = () => {
@@ -1399,8 +1483,20 @@ const buildUpdatePayload = (): Record<string, unknown> | null => {
   }
 
   if (enableProxy.value) {
-    // 后端期望 proxy_id: 0 表示清除代理，而不是 null
-    updates.proxy_id = proxyId.value === null ? 0 : proxyId.value
+    if (supportsBulkProxyMode.value) {
+      const extra = ensureExtra()
+      extra.proxy_mode = proxyMode.value
+
+      if (proxyMode.value === 'direct' || proxyMode.value === 'pool') {
+        updates.proxy_id = 0
+      } else {
+        // 后端期望 proxy_id: 0 表示清除代理，而不是 null
+        updates.proxy_id = proxyId.value === null ? 0 : proxyId.value
+      }
+    } else {
+      // 后端期望 proxy_id: 0 表示清除代理，而不是 null
+      updates.proxy_id = proxyId.value === null ? 0 : proxyId.value
+    }
   }
 
   if (enableConcurrency.value) {
@@ -1581,7 +1677,7 @@ const preCheckMixedChannelRisk = async (built: Record<string, unknown>): Promise
 }
 
 const handleSubmit = async () => {
-  if (targetMode.value === 'selected' && props.accountIds.length === 0) {
+  if (props.accountIds.length === 0) {
     appStore.showError(t('admin.accounts.bulkEdit.noSelection'))
     return
   }
@@ -1617,6 +1713,15 @@ const handleSubmit = async () => {
     appStore.showError(t('admin.accounts.bulkEdit.noFieldsSelected'))
     return
   }
+  if (
+    enableProxy.value &&
+    supportsBulkProxyMode.value &&
+    proxyMode.value === 'single' &&
+    proxyId.value === null
+  ) {
+    appStore.showError(t('admin.accounts.selectProxyForSingleMode'))
+    return
+  }
 
   const canContinue = await preCheckMixedChannelRisk(built)
   if (!canContinue) return
@@ -1633,12 +1738,7 @@ const submitBulkUpdate = async (baseUpdates: Record<string, unknown>) => {
   submitting.value = true
 
   try {
-    const res = targetMode.value === 'filtered' && props.target?.filters
-      ? await adminAPI.accounts.bulkUpdate({
-        filters: props.target.filters,
-        ...updates
-      })
-      : await adminAPI.accounts.bulkUpdate(props.accountIds, updates)
+    const res = await adminAPI.accounts.bulkUpdate(props.accountIds, updates)
     const success = res.success || 0
     const failed = res.failed || 0
 
@@ -1718,6 +1818,7 @@ watch(
       customErrorCodeInput.value = null
       interceptWarmupRequests.value = false
       proxyId.value = null
+      proxyMode.value = supportsBulkProxyMode.value ? 'pool' : 'single'
       concurrency.value = 1
       loadFactor.value = null
       priority.value = 1

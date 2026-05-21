@@ -17,11 +17,13 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/util/httputil"
+	"github.com/lib/pq"
 )
 
 // AdminService interface defines admin management operations
@@ -67,7 +69,7 @@ type AdminService interface {
 	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
 
 	// Account management
-	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode string, sortBy, sortOrder string) ([]Account, int64, error)
+	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, tier string, sortBy, sortOrder string) ([]Account, int64, error)
 	GetAccount(ctx context.Context, id int64) (*Account, error)
 	GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error)
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
@@ -84,13 +86,18 @@ type AdminService interface {
 	ForceOpenAIPrivacy(ctx context.Context, account *Account) string
 	// ForceAntigravityPrivacy 强制重新设置 Antigravity OAuth 账号隐私，无论当前状态。
 	ForceAntigravityPrivacy(ctx context.Context, account *Account) string
+	// ClearAccountPrivacyMode 清除账号的 privacy_mode 字段（设置为空字符串），
+	// 使下次 EnsureOpenAIPrivacy 能重新生效。
+	// 仅对 OpenAI OAuth 账号操作，其他账号类型返回 error。
+	ClearAccountPrivacyMode(ctx context.Context, account *Account) error
 	SetAccountSchedulable(ctx context.Context, id int64, schedulable bool) (*Account, error)
 	BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error)
 	CheckMixedChannelRisk(ctx context.Context, currentAccountID int64, currentAccountPlatform string, groupIDs []int64) error
+	CheckDuplicateAccounts(ctx context.Context, input *AccountDuplicateCheckInput) (*AccountDuplicateCheckResult, error)
 
 	// Proxy management
 	ListProxies(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]Proxy, int64, error)
-	ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error)
+	ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, runtimeStatus, search string, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error)
 	GetAllProxies(ctx context.Context) ([]Proxy, error)
 	GetAllProxiesWithAccountCount(ctx context.Context) ([]ProxyWithAccountCount, error)
 	GetProxy(ctx context.Context, id int64) (*Proxy, error)
@@ -100,9 +107,19 @@ type AdminService interface {
 	DeleteProxy(ctx context.Context, id int64) error
 	BatchDeleteProxies(ctx context.Context, ids []int64) (*ProxyBatchDeleteResult, error)
 	GetProxyAccounts(ctx context.Context, proxyID int64) ([]ProxyAccountSummary, error)
+	AssignProxiesToAccounts(ctx context.Context, input *AssignProxiesToAccountsInput) (*ProxyAccountAssignmentResult, error)
+	UnassignProxiesFromAccounts(ctx context.Context, proxyIDs []int64) (*ProxyUnassignAccountsResult, error)
 	CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error)
 	TestProxy(ctx context.Context, id int64) (*ProxyTestResult, error)
 	CheckProxyQuality(ctx context.Context, id int64) (*ProxyQualityCheckResult, error)
+	ListProxySubscriptionSources(ctx context.Context, page, pageSize int, search string, enabled *bool) ([]ProxySubscriptionSource, int64, error)
+	GetProxySubscriptionSource(ctx context.Context, id int64) (*ProxySubscriptionSource, error)
+	CreateProxySubscriptionSource(ctx context.Context, input *CreateProxySubscriptionSourceInput) (*ProxySubscriptionSource, error)
+	UpdateProxySubscriptionSource(ctx context.Context, id int64, input *UpdateProxySubscriptionSourceInput) (*ProxySubscriptionSource, error)
+	DeleteProxySubscriptionSource(ctx context.Context, id int64) error
+	ListProxySubscriptionNodes(ctx context.Context, sourceID int64) ([]ProxySubscriptionNode, error)
+	ListMaterializedProxiesBySubscriptionSource(ctx context.Context, sourceID int64) ([]Proxy, error)
+	RefreshProxySubscriptionSource(ctx context.Context, id int64) (*ProxySubscriptionRefreshResult, error)
 
 	// Redeem code management
 	ListRedeemCodes(ctx context.Context, page, pageSize int, codeType, status, search string, sortBy, sortOrder string) ([]RedeemCode, int64, error)
@@ -320,6 +337,7 @@ type BulkUpdateAccountsInput struct {
 
 type BulkUpdateAccountFilters struct {
 	Platform    string
+	Tier        string
 	Type        string
 	Status      string
 	Group       string
@@ -373,22 +391,31 @@ type BulkUpdateAccountsResult struct {
 }
 
 type CreateProxyInput struct {
-	Name     string
-	Protocol string
-	Host     string
-	Port     int
-	Username string
-	Password string
+	Name                    string
+	Protocol                string
+	Host                    string
+	Port                    int
+	Username                string
+	Password                string
+	AutoFailoverPoolEnabled bool
+	ManagedBySubscription   bool
+	SubscriptionSourceID    *int64
+	SubscriptionNodeID      *int64
 }
 
 type UpdateProxyInput struct {
-	Name     string
-	Protocol string
-	Host     string
-	Port     int
-	Username string
-	Password string
-	Status   string
+	Name                    string
+	Protocol                string
+	Host                    string
+	Port                    int
+	Username                *string
+	Password                *string
+	Status                  string
+	AutoFailoverPoolEnabled *bool
+	ManagedBySubscription   *bool
+	SubscriptionSourceID    *int64
+	SubscriptionNodeID      *int64
+	AllowManagedOverride    bool
 }
 
 type GenerateRedeemCodesInput struct {
@@ -408,6 +435,12 @@ type ProxyBatchDeleteResult struct {
 type ProxyBatchDeleteSkipped struct {
 	ID     int64  `json:"id"`
 	Reason string `json:"reason"`
+}
+
+type ProxyUnassignAccountsResult struct {
+	ProxyIDs           []int64 `json:"proxy_ids"`
+	MatchedAccounts    int64   `json:"matched_accounts"`
+	UnassignedAccounts int64   `json:"unassigned_accounts"`
 }
 
 // ProxyTestResult represents the result of testing a proxy
@@ -514,23 +547,26 @@ var ErrRPMStatusUnavailable = infraerrors.New(http.StatusNotImplemented, "RPM_ST
 
 // adminServiceImpl implements AdminService
 type adminServiceImpl struct {
-	userRepo             UserRepository
-	groupRepo            GroupRepository
-	accountRepo          AccountRepository
-	proxyRepo            ProxyRepository
-	apiKeyRepo           APIKeyRepository
-	redeemCodeRepo       RedeemCodeRepository
-	userGroupRateRepo    UserGroupRateRepository
-	userRPMCache         UserRPMCache
-	billingCacheService  *BillingCacheService
-	proxyProber          ProxyExitInfoProber
-	proxyLatencyCache    ProxyLatencyCache
-	authCacheInvalidator APIKeyAuthCacheInvalidator
-	entClient            *dbent.Client // 用于开启数据库事务
-	settingService       *SettingService
-	defaultSubAssigner   DefaultSubscriptionAssigner
-	userSubRepo          UserSubscriptionRepository
-	privacyClientFactory PrivacyClientFactory
+	userRepo                    UserRepository
+	groupRepo                   GroupRepository
+	accountRepo                 AccountRepository
+	proxyRepo                   ProxyRepository
+	proxySubscriptionSourceRepo ProxySubscriptionSourceRepository
+	proxySubscriptionNodeRepo   ProxySubscriptionNodeRepository
+	apiKeyRepo                  APIKeyRepository
+	redeemCodeRepo              RedeemCodeRepository
+	userGroupRateRepo           UserGroupRateRepository
+	userRPMCache                UserRPMCache
+	billingCacheService         *BillingCacheService
+	proxyProber                 ProxyExitInfoProber
+	proxyLatencyCache           ProxyLatencyCache
+	authCacheInvalidator        APIKeyAuthCacheInvalidator
+	entClient                   *dbent.Client // 用于开启数据库事务
+	settingService              *SettingService
+	defaultSubAssigner          DefaultSubscriptionAssigner
+	userSubRepo                 UserSubscriptionRepository
+	privacyClientFactory        PrivacyClientFactory
+	proxySubscriptionService    *ProxySubscriptionService
 }
 
 type userGroupRateBatchReader interface {
@@ -543,6 +579,8 @@ func NewAdminService(
 	groupRepo GroupRepository,
 	accountRepo AccountRepository,
 	proxyRepo ProxyRepository,
+	proxySubscriptionSourceRepo ProxySubscriptionSourceRepository,
+	proxySubscriptionNodeRepo ProxySubscriptionNodeRepository,
 	apiKeyRepo APIKeyRepository,
 	redeemCodeRepo RedeemCodeRepository,
 	userGroupRateRepo UserGroupRateRepository,
@@ -556,25 +594,29 @@ func NewAdminService(
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	userSubRepo UserSubscriptionRepository,
 	privacyClientFactory PrivacyClientFactory,
+	proxySubscriptionService *ProxySubscriptionService,
 ) AdminService {
 	return &adminServiceImpl{
-		userRepo:             userRepo,
-		groupRepo:            groupRepo,
-		accountRepo:          accountRepo,
-		proxyRepo:            proxyRepo,
-		apiKeyRepo:           apiKeyRepo,
-		redeemCodeRepo:       redeemCodeRepo,
-		userGroupRateRepo:    userGroupRateRepo,
-		userRPMCache:         userRPMCache,
-		billingCacheService:  billingCacheService,
-		proxyProber:          proxyProber,
-		proxyLatencyCache:    proxyLatencyCache,
-		authCacheInvalidator: authCacheInvalidator,
-		entClient:            entClient,
-		settingService:       settingService,
-		defaultSubAssigner:   defaultSubAssigner,
-		userSubRepo:          userSubRepo,
-		privacyClientFactory: privacyClientFactory,
+		userRepo:                    userRepo,
+		groupRepo:                   groupRepo,
+		accountRepo:                 accountRepo,
+		proxyRepo:                   proxyRepo,
+		proxySubscriptionSourceRepo: proxySubscriptionSourceRepo,
+		proxySubscriptionNodeRepo:   proxySubscriptionNodeRepo,
+		apiKeyRepo:                  apiKeyRepo,
+		redeemCodeRepo:              redeemCodeRepo,
+		userGroupRateRepo:           userGroupRateRepo,
+		userRPMCache:                userRPMCache,
+		billingCacheService:         billingCacheService,
+		proxyProber:                 proxyProber,
+		proxyLatencyCache:           proxyLatencyCache,
+		authCacheInvalidator:        authCacheInvalidator,
+		entClient:                   entClient,
+		settingService:              settingService,
+		defaultSubAssigner:          defaultSubAssigner,
+		userSubRepo:                 userSubRepo,
+		privacyClientFactory:        privacyClientFactory,
+		proxySubscriptionService:    proxySubscriptionService,
 	}
 }
 
@@ -778,7 +820,11 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 
 	concurrencyDiff := user.Concurrency - oldConcurrency
 	if concurrencyDiff != 0 {
-		code, err := GenerateRedeemCode()
+		format := DefaultRedeemCodeFormat()
+		if s.settingService != nil {
+			format = s.settingService.GetCodeFormatForRedeemType(ctx, AdjustmentTypeAdminConcurrency)
+		}
+		code, err := GenerateRedeemCodeWithFormat(format)
 		if err != nil {
 			logger.LegacyPrintf("service.admin", "failed to generate adjustment redeem code: %v", err)
 			return user, nil
@@ -892,7 +938,11 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 	}
 
 	if balanceDiff != 0 {
-		code, err := GenerateRedeemCode()
+		format := DefaultRedeemCodeFormat()
+		if s.settingService != nil {
+			format = s.settingService.GetCodeFormatForRedeemType(ctx, AdjustmentTypeAdminBalance)
+		}
+		code, err := GenerateRedeemCodeWithFormat(format)
 		if err != nil {
 			logger.LegacyPrintf("service.admin", "failed to generate adjustment redeem code: %v", err)
 			return user, nil
@@ -1035,6 +1085,7 @@ func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int
 	if err != nil {
 		return nil, 0, 0, err
 	}
+	s.enrichRedeemCodes(ctx, codes)
 	total := result.Total
 	// Aggregate total recharged amount (only once, regardless of type filter)
 	totalRecharged, err := s.redeemCodeRepo.SumPositiveBalanceByUser(ctx, userID)
@@ -1093,6 +1144,7 @@ func (s *adminServiceImpl) listRedeemBalanceHistoryForMerge(ctx context.Context,
 	if len(out) > needed {
 		out = out[:needed]
 	}
+	s.enrichRedeemCodes(ctx, out)
 	return out, total, nil
 }
 
@@ -2326,9 +2378,9 @@ func (s *adminServiceImpl) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 }
 
 // Account management implementations
-func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode string, sortBy, sortOrder string) ([]Account, int64, error) {
+func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, tier string, sortBy, sortOrder string) ([]Account, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
-	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode)
+	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode, tier)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -2352,19 +2404,38 @@ func (s *adminServiceImpl) GetAccountsByIDs(ctx context.Context, ids []int64) ([
 	return accounts, nil
 }
 
+func resolveCreateAccountDefaultGroupID(platform string, groups []Group) (int64, bool) {
+	defaultGroupName := platform + "-default"
+	var legacyAntigravityGroup *Group
+
+	for i := range groups {
+		current := &groups[i]
+		if current.Name == defaultGroupName {
+			return current.ID, true
+		}
+		if platform == PlatformAntigravity && strings.HasPrefix(current.Name, defaultGroupName+"-") {
+			if legacyAntigravityGroup == nil || current.Name < legacyAntigravityGroup.Name {
+				legacyAntigravityGroup = current
+			}
+		}
+	}
+
+	if legacyAntigravityGroup != nil {
+		return legacyAntigravityGroup.ID, true
+	}
+
+	return 0, false
+}
+
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
 	// 绑定分组
 	groupIDs := input.GroupIDs
 	// 如果没有指定分组,自动绑定对应平台的默认分组
 	if len(groupIDs) == 0 && !input.SkipDefaultGroupBind {
-		defaultGroupName := input.Platform + "-default"
 		groups, err := s.groupRepo.ListActiveByPlatform(ctx, input.Platform)
 		if err == nil {
-			for _, g := range groups {
-				if g.Name == defaultGroupName {
-					groupIDs = []int64{g.ID}
-					break
-				}
+			if defaultGroupID, ok := resolveCreateAccountDefaultGroupID(input.Platform, groups); ok {
+				groupIDs = []int64{defaultGroupID}
 			}
 		}
 	}
@@ -2743,6 +2814,7 @@ func (s *adminServiceImpl) resolveBulkUpdateTargetIDs(ctx context.Context, filte
 			filters.Search,
 			groupID,
 			filters.PrivacyMode,
+			filters.Tier,
 			"",
 			"",
 		)
@@ -2811,26 +2883,40 @@ func (s *adminServiceImpl) SetAccountSchedulable(ctx context.Context, id int64, 
 
 // Proxy management implementations
 func (s *adminServiceImpl) ListProxies(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]Proxy, int64, error) {
+	if strings.EqualFold(strings.TrimSpace(status), "failed") {
+		return s.listFailedProxies(ctx, page, pageSize, protocol, search, sortBy, sortOrder)
+	}
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
 	proxies, result, err := s.proxyRepo.ListWithFilters(ctx, params, protocol, status, search)
 	if err != nil {
 		return nil, 0, err
 	}
+	s.attachProxyPoolMembership(ctx, proxies)
 	return proxies, result.Total, nil
 }
 
-func (s *adminServiceImpl) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error) {
+func (s *adminServiceImpl) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, runtimeStatus, search string, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error) {
+	if strings.TrimSpace(runtimeStatus) != "" {
+		return s.listProxyWithRuntimeStatus(ctx, page, pageSize, protocol, status, runtimeStatus, search, sortBy, sortOrder)
+	}
+
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
 	proxies, result, err := s.proxyRepo.ListWithFiltersAndAccountCount(ctx, params, protocol, status, search)
 	if err != nil {
 		return nil, 0, err
 	}
+	s.attachProxyPoolMembershipWithAccountCount(ctx, proxies)
 	s.attachProxyLatency(ctx, proxies)
 	return proxies, result.Total, nil
 }
 
 func (s *adminServiceImpl) GetAllProxies(ctx context.Context) ([]Proxy, error) {
-	return s.proxyRepo.ListActive(ctx)
+	proxies, err := s.proxyRepo.ListActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.attachProxyPoolMembership(ctx, proxies)
+	return proxies, nil
 }
 
 func (s *adminServiceImpl) GetAllProxiesWithAccountCount(ctx context.Context) ([]ProxyWithAccountCount, error) {
@@ -2838,30 +2924,58 @@ func (s *adminServiceImpl) GetAllProxiesWithAccountCount(ctx context.Context) ([
 	if err != nil {
 		return nil, err
 	}
+	s.attachProxyPoolMembershipWithAccountCount(ctx, proxies)
 	s.attachProxyLatency(ctx, proxies)
 	return proxies, nil
 }
 
 func (s *adminServiceImpl) GetProxy(ctx context.Context, id int64) (*Proxy, error) {
-	return s.proxyRepo.GetByID(ctx, id)
+	proxy, err := s.proxyRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if proxy != nil {
+		proxy.AutoFailoverPoolEnabled = s.isProxyInAutoFailoverPool(ctx, proxy.ID)
+	}
+	return proxy, nil
 }
 
 func (s *adminServiceImpl) GetProxiesByIDs(ctx context.Context, ids []int64) ([]Proxy, error) {
-	return s.proxyRepo.ListByIDs(ctx, ids)
+	proxies, err := s.proxyRepo.ListByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	s.attachProxyPoolMembership(ctx, proxies)
+	return proxies, nil
 }
 
 func (s *adminServiceImpl) CreateProxy(ctx context.Context, input *CreateProxyInput) (*Proxy, error) {
+	if input.ManagedBySubscription {
+		return nil, fmt.Errorf("managed subscription proxies must be created by the subscription runtime only")
+	}
+	if input.SubscriptionSourceID != nil || input.SubscriptionNodeID != nil {
+		return nil, fmt.Errorf("subscription-managed proxy fields are read-only")
+	}
 	proxy := &Proxy{
-		Name:     input.Name,
-		Protocol: input.Protocol,
-		Host:     input.Host,
-		Port:     input.Port,
-		Username: input.Username,
-		Password: input.Password,
-		Status:   StatusActive,
+		Name:                  input.Name,
+		Protocol:              input.Protocol,
+		Host:                  input.Host,
+		Port:                  input.Port,
+		Username:              input.Username,
+		Password:              input.Password,
+		Status:                StatusActive,
+		ManagedBySubscription: input.ManagedBySubscription,
+		SubscriptionSourceID:  input.SubscriptionSourceID,
+		SubscriptionNodeID:    input.SubscriptionNodeID,
 	}
 	if err := s.proxyRepo.Create(ctx, proxy); err != nil {
 		return nil, err
+	}
+	if input.AutoFailoverPoolEnabled && s.settingService != nil {
+		if err := s.settingService.SetAutoFailoverProxyEnabled(ctx, proxy.ID, true); err != nil {
+			return nil, err
+		}
+		proxy.AutoFailoverPoolEnabled = true
 	}
 	// Probe latency asynchronously so creation isn't blocked by network timeout.
 	go s.probeProxyLatency(context.Background(), proxy)
@@ -2872,6 +2986,17 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	proxy, err := s.proxyRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if !input.AllowManagedOverride {
+		if input.ManagedBySubscription != nil || input.SubscriptionSourceID != nil || input.SubscriptionNodeID != nil {
+			return nil, fmt.Errorf("subscription-managed proxy fields are read-only")
+		}
+	}
+
+	if proxy.ManagedBySubscription && !input.AllowManagedOverride {
+		if input.Name != "" || input.Protocol != "" || input.Host != "" || input.Port != 0 || input.Username != nil || input.Password != nil {
+			return nil, infraerrors.BadRequest("PROXY_SUBSCRIPTION_MANAGED", "subscription managed proxy fields are read-only")
+		}
 	}
 
 	if input.Name != "" {
@@ -2886,18 +3011,35 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	if input.Port != 0 {
 		proxy.Port = input.Port
 	}
-	if input.Username != "" {
-		proxy.Username = input.Username
+	if input.Username != nil {
+		proxy.Username = *input.Username
 	}
-	if input.Password != "" {
-		proxy.Password = input.Password
+	if input.Password != nil {
+		proxy.Password = *input.Password
 	}
 	if input.Status != "" {
 		proxy.Status = input.Status
 	}
+	if input.ManagedBySubscription != nil {
+		proxy.ManagedBySubscription = *input.ManagedBySubscription
+	}
+	if input.SubscriptionSourceID != nil || input.AllowManagedOverride {
+		proxy.SubscriptionSourceID = input.SubscriptionSourceID
+	}
+	if input.SubscriptionNodeID != nil || input.AllowManagedOverride {
+		proxy.SubscriptionNodeID = input.SubscriptionNodeID
+	}
 
 	if err := s.proxyRepo.Update(ctx, proxy); err != nil {
 		return nil, err
+	}
+	if input.AutoFailoverPoolEnabled != nil && s.settingService != nil {
+		if err := s.settingService.SetAutoFailoverProxyEnabled(ctx, proxy.ID, *input.AutoFailoverPoolEnabled); err != nil {
+			return nil, err
+		}
+		proxy.AutoFailoverPoolEnabled = *input.AutoFailoverPoolEnabled
+	} else {
+		proxy.AutoFailoverPoolEnabled = s.isProxyInAutoFailoverPool(ctx, proxy.ID)
 	}
 	return proxy, nil
 }
@@ -2952,8 +3094,219 @@ func (s *adminServiceImpl) GetProxyAccounts(ctx context.Context, proxyID int64) 
 	return s.proxyRepo.ListAccountSummariesByProxyID(ctx, proxyID)
 }
 
+func (s *adminServiceImpl) UnassignProxiesFromAccounts(ctx context.Context, proxyIDs []int64) (*ProxyUnassignAccountsResult, error) {
+	if len(proxyIDs) == 0 {
+		return &ProxyUnassignAccountsResult{ProxyIDs: []int64{}}, nil
+	}
+
+	normalized := dedupePositiveInt64s(proxyIDs)
+	if len(normalized) == 0 {
+		return &ProxyUnassignAccountsResult{ProxyIDs: []int64{}}, nil
+	}
+
+	accountIDs := make([]int64, 0)
+	seenAccountIDs := make(map[int64]struct{})
+	for _, proxyID := range normalized {
+		accounts, err := s.proxyRepo.ListAccountSummariesByProxyID(ctx, proxyID)
+		if err != nil {
+			return nil, err
+		}
+		for _, account := range accounts {
+			if _, exists := seenAccountIDs[account.ID]; exists {
+				continue
+			}
+			seenAccountIDs[account.ID] = struct{}{}
+			accountIDs = append(accountIDs, account.ID)
+		}
+	}
+
+	result := &ProxyUnassignAccountsResult{
+		ProxyIDs:        normalized,
+		MatchedAccounts: int64(len(accountIDs)),
+	}
+	if len(accountIDs) == 0 {
+		return result, nil
+	}
+
+	clearProxyID := int64(0)
+	updateResult, err := s.BulkUpdateAccounts(ctx, &BulkUpdateAccountsInput{
+		AccountIDs: accountIDs,
+		ProxyID:    &clearProxyID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result.UnassignedAccounts = int64(updateResult.Success)
+	return result, nil
+}
+
+func (s *adminServiceImpl) listFailedProxies(ctx context.Context, page, pageSize int, protocol, search, sortBy, sortOrder string) ([]Proxy, int64, error) {
+	items, total, err := s.listFailedProxiesWithAccountCount(ctx, page, pageSize, protocol, search, sortBy, sortOrder)
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]Proxy, 0, len(items))
+	for i := range items {
+		out = append(out, items[i].Proxy)
+	}
+	return out, total, nil
+}
+
+func (s *adminServiceImpl) listFailedProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, search, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error) {
+	requestParams := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
+	scanParams := pagination.PaginationParams{Page: 1, PageSize: 1000, SortBy: sortBy, SortOrder: sortOrder}
+	filtered := make([]ProxyWithAccountCount, 0)
+	fetched := int64(0)
+
+	for {
+		batch, result, err := s.proxyRepo.ListWithFiltersAndAccountCount(ctx, scanParams, protocol, "", search)
+		if err != nil {
+			return nil, 0, err
+		}
+		if len(batch) == 0 {
+			break
+		}
+
+		fetched += int64(len(batch))
+		s.attachProxyPoolMembershipWithAccountCount(ctx, batch)
+		s.attachProxyLatency(ctx, batch)
+		for i := range batch {
+			if isFailedProxyWithAccountCount(batch[i]) {
+				filtered = append(filtered, batch[i])
+			}
+		}
+
+		if result == nil || fetched >= result.Total || len(batch) < scanParams.Limit() {
+			break
+		}
+		scanParams.Page++
+	}
+
+	total := int64(len(filtered))
+	start := requestParams.Offset()
+	if start < 0 {
+		start = 0
+	}
+	if start >= len(filtered) {
+		return []ProxyWithAccountCount{}, total, nil
+	}
+	end := start + requestParams.Limit()
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	return filtered[start:end], total, nil
+}
+
+func isFailedProxyWithAccountCount(proxy ProxyWithAccountCount) bool {
+	return strings.EqualFold(proxy.LatencyStatus, "failed") ||
+		strings.EqualFold(proxy.QualityStatus, "failed") ||
+		strings.EqualFold(proxy.HealthStatus, "failed") ||
+		strings.EqualFold(proxy.HealthStatus, "cooldown")
+}
+
+func filterProxyRuntimeState(items []ProxyWithAccountCount, runtimeStatus string) []ProxyWithAccountCount {
+	normalized := strings.ToLower(strings.TrimSpace(runtimeStatus))
+	if normalized == "" {
+		return items
+	}
+
+	filtered := make([]ProxyWithAccountCount, 0, len(items))
+	for _, item := range items {
+		if matchesProxyRuntimeState(item, normalized) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+func matchesProxyRuntimeState(item ProxyWithAccountCount, runtimeStatus string) bool {
+	switch runtimeStatus {
+	case "failed":
+		return isFailedProxyWithAccountCount(item)
+	case "cooldown":
+		return strings.EqualFold(item.HealthStatus, "cooldown")
+	case "healthy":
+		return strings.EqualFold(item.HealthStatus, "healthy")
+	case "warn":
+		return strings.EqualFold(item.QualityStatus, "warn")
+	case "challenge":
+		return strings.EqualFold(item.QualityStatus, "challenge")
+	default:
+		return false
+	}
+}
+
+func (s *adminServiceImpl) listProxyWithRuntimeStatus(ctx context.Context, page, pageSize int, protocol, status, runtimeStatus, search, sortBy, sortOrder string) ([]ProxyWithAccountCount, int64, error) {
+	scanPage := 1
+	scanPageSize := 1000
+	filtered := make([]ProxyWithAccountCount, 0)
+
+	for {
+		params := pagination.PaginationParams{
+			Page:      scanPage,
+			PageSize:  scanPageSize,
+			SortBy:    sortBy,
+			SortOrder: sortOrder,
+		}
+		proxies, result, err := s.proxyRepo.ListWithFiltersAndAccountCount(ctx, params, protocol, status, search)
+		if err != nil {
+			return nil, 0, err
+		}
+		s.attachProxyPoolMembershipWithAccountCount(ctx, proxies)
+		s.attachProxyLatency(ctx, proxies)
+		filtered = append(filtered, filterProxyRuntimeState(proxies, runtimeStatus)...)
+
+		if len(proxies) == 0 || result == nil || scanPage*scanPageSize >= int(result.Total) {
+			break
+		}
+		scanPage++
+	}
+
+	total := int64(len(filtered))
+	start := (page - 1) * pageSize
+	if start < 0 {
+		start = 0
+	}
+	if start >= len(filtered) {
+		return []ProxyWithAccountCount{}, total, nil
+	}
+	end := start + pageSize
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	return filtered[start:end], total, nil
+}
+
 func (s *adminServiceImpl) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {
 	return s.proxyRepo.ExistsByHostPortAuth(ctx, host, port, username, password)
+}
+
+func (s *adminServiceImpl) SetAutoFailoverProxyPoolMembership(ctx context.Context, proxyIDs []int64, enabled bool) (int, error) {
+	if s.settingService == nil {
+		return 0, errors.New("setting service not configured")
+	}
+	normalized := dedupePositiveInt64s(proxyIDs)
+	if len(normalized) == 0 {
+		return 0, nil
+	}
+
+	for _, proxyID := range normalized {
+		if _, err := s.proxyRepo.GetByID(ctx, proxyID); err != nil {
+			return 0, err
+		}
+		if err := s.settingService.SetAutoFailoverProxyEnabled(ctx, proxyID, enabled); err != nil {
+			return 0, err
+		}
+	}
+	return len(normalized), nil
+}
+
+func (s *adminServiceImpl) ClearProxyCooldownState(ctx context.Context, proxyIDs []int64) error {
+	if len(proxyIDs) == 0 {
+		return nil
+	}
+	poolSvc := NewAutoFailoverProxyPoolService(s.proxyRepo, s.accountRepo, s.settingService, s.proxyLatencyCache, s.proxyProber)
+	return poolSvc.ClearCooldowns(ctx, proxyIDs)
 }
 
 // Redeem code management implementations
@@ -2963,11 +3316,17 @@ func (s *adminServiceImpl) ListRedeemCodes(ctx context.Context, page, pageSize i
 	if err != nil {
 		return nil, 0, err
 	}
+	s.enrichRedeemCodes(ctx, codes)
 	return codes, result.Total, nil
 }
 
 func (s *adminServiceImpl) GetRedeemCode(ctx context.Context, id int64) (*RedeemCode, error) {
-	return s.redeemCodeRepo.GetByID(ctx, id)
+	code, err := s.redeemCodeRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	s.enrichRedeemCodePointers(ctx, []*RedeemCode{code})
+	return code, nil
 }
 
 func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *GenerateRedeemCodesInput) ([]RedeemCode, error) {
@@ -2992,7 +3351,23 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 
 	codes := make([]RedeemCode, 0, input.Count)
 	for i := 0; i < input.Count; i++ {
-		codeValue, err := GenerateRedeemCode()
+		var (
+			codeValue string
+			err       error
+		)
+		if input.Type == RedeemTypeInvitation {
+			format := DefaultRegistrationInvitationCodeFormat()
+			if s.settingService != nil {
+				format = s.settingService.GetCodeFormatForRedeemType(ctx, input.Type)
+			}
+			codeValue, err = GenerateRegistrationInvitationCodeWithFormat(format)
+		} else {
+			format := DefaultRedeemCodeFormat()
+			if s.settingService != nil {
+				format = s.settingService.GetCodeFormatForRedeemType(ctx, input.Type)
+			}
+			codeValue, err = GenerateRedeemCodeWithFormat(format)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -3002,6 +3377,9 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			Value:     input.Value,
 			Status:    StatusUnused,
 			ExpiresAt: input.ExpiresAt,
+		}
+		if input.Type == RedeemTypeInvitation {
+			code.Notes = "source=admin_generate"
 		}
 		// 订阅类型专用字段
 		if input.Type == RedeemTypeSubscription {
@@ -3017,6 +3395,212 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 		codes = append(codes, code)
 	}
 	return codes, nil
+}
+
+type redeemBlindboxInfo struct {
+	UserID     int64
+	PrizeName  string
+	RewardType string
+}
+
+func (s *adminServiceImpl) enrichRedeemCodes(ctx context.Context, codes []RedeemCode) {
+	if len(codes) == 0 {
+		return
+	}
+	ptrs := make([]*RedeemCode, 0, len(codes))
+	for i := range codes {
+		ptrs = append(ptrs, &codes[i])
+	}
+	s.enrichRedeemCodePointers(ctx, ptrs)
+}
+
+func (s *adminServiceImpl) enrichRedeemCodePointers(ctx context.Context, codes []*RedeemCode) {
+	if len(codes) == 0 || s == nil || s.entClient == nil {
+		return
+	}
+
+	codeValues := make([]string, 0, len(codes))
+	codeSeen := make(map[string]struct{}, len(codes))
+	userIDs := make(map[int64]struct{})
+	for _, code := range codes {
+		if code == nil {
+			continue
+		}
+		if code.Code != "" {
+			if _, ok := codeSeen[code.Code]; !ok {
+				codeSeen[code.Code] = struct{}{}
+				codeValues = append(codeValues, code.Code)
+			}
+		}
+		if code.UsedBy != nil && *code.UsedBy > 0 {
+			userIDs[*code.UsedBy] = struct{}{}
+		}
+	}
+
+	blindboxByCode, winnerIDs := s.loadBlindboxInfoByInvitationCode(ctx, codeValues)
+	for userID := range winnerIDs {
+		userIDs[userID] = struct{}{}
+	}
+
+	inviterByInvitee, inviterIDs := s.loadInviterIDsByInvitee(ctx, mapKeysInt64(userIDs))
+	for inviterID := range inviterIDs {
+		userIDs[inviterID] = struct{}{}
+	}
+
+	usersByID := s.loadUsersByID(ctx, mapKeysInt64(userIDs))
+
+	for _, code := range codes {
+		if code == nil {
+			continue
+		}
+
+		switch strings.TrimSpace(code.Notes) {
+		case "source=admin_generate":
+			code.SourceType = "admin_generate"
+			code.SourceSummary = "后台批量生成"
+		case "source=admin_manual":
+			code.SourceType = "admin_manual"
+			code.SourceSummary = "后台手动创建"
+		}
+
+		if info, ok := blindboxByCode[code.Code]; ok {
+			code.SourceType = "checkin_blindbox"
+			code.SourceSummary = "签到盲盒中奖"
+			code.WinningPrize = info.PrizeName
+			code.WinningReward = info.RewardType
+			if user, exists := usersByID[info.UserID]; exists {
+				code.WinningUser = user
+				code.SourceUser = user
+			}
+		}
+
+		if code.UsedBy != nil {
+			if inviterID, ok := inviterByInvitee[*code.UsedBy]; ok {
+				if inviter, exists := usersByID[inviterID]; exists {
+					code.InviterUser = inviter
+				}
+			}
+		}
+	}
+}
+
+func (s *adminServiceImpl) loadBlindboxInfoByInvitationCode(ctx context.Context, codeValues []string) (map[string]redeemBlindboxInfo, map[int64]struct{}) {
+	result := make(map[string]redeemBlindboxInfo)
+	userIDs := make(map[int64]struct{})
+	if len(codeValues) == 0 {
+		return result, userIDs
+	}
+
+	rows, err := s.entClient.QueryContext(ctx, `
+SELECT reward_detail, user_id, prize_name, reward_type
+FROM checkin_blindbox_records
+WHERE reward_type = 'invitation_code'
+  AND reward_detail = ANY($1)
+ORDER BY created_at DESC
+`, pq.Array(codeValues))
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "failed to load blindbox info for redeem codes: %v", err)
+		return result, userIDs
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			codeValue   string
+			userID      int64
+			prizeName   string
+			rewardType  string
+		)
+		if scanErr := rows.Scan(&codeValue, &userID, &prizeName, &rewardType); scanErr != nil {
+			logger.LegacyPrintf("service.admin", "failed to scan blindbox info for redeem codes: %v", scanErr)
+			return result, userIDs
+		}
+		if _, exists := result[codeValue]; exists {
+			continue
+		}
+		result[codeValue] = redeemBlindboxInfo{
+			UserID:     userID,
+			PrizeName:  prizeName,
+			RewardType: rewardType,
+		}
+		userIDs[userID] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		logger.LegacyPrintf("service.admin", "failed while iterating blindbox info for redeem codes: %v", err)
+	}
+	return result, userIDs
+}
+
+func (s *adminServiceImpl) loadInviterIDsByInvitee(ctx context.Context, inviteeIDs []int64) (map[int64]int64, map[int64]struct{}) {
+	result := make(map[int64]int64)
+	inviterIDs := make(map[int64]struct{})
+	if len(inviteeIDs) == 0 {
+		return result, inviterIDs
+	}
+
+	rows, err := s.entClient.QueryContext(ctx, `
+SELECT user_id, inviter_id
+FROM user_affiliates
+WHERE user_id = ANY($1)
+  AND inviter_id IS NOT NULL
+`, pq.Array(inviteeIDs))
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "failed to load inviter info for redeem codes: %v", err)
+		return result, inviterIDs
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var inviteeID, inviterID int64
+		if scanErr := rows.Scan(&inviteeID, &inviterID); scanErr != nil {
+			logger.LegacyPrintf("service.admin", "failed to scan inviter info for redeem codes: %v", scanErr)
+			return result, inviterIDs
+		}
+		result[inviteeID] = inviterID
+		inviterIDs[inviterID] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		logger.LegacyPrintf("service.admin", "failed while iterating inviter info for redeem codes: %v", err)
+	}
+	return result, inviterIDs
+}
+
+func (s *adminServiceImpl) loadUsersByID(ctx context.Context, ids []int64) map[int64]*User {
+	result := make(map[int64]*User)
+	if len(ids) == 0 {
+		return result
+	}
+
+	models, err := s.entClient.User.Query().Where(dbuser.IDIn(ids...)).All(ctx)
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "failed to load users for redeem code context: %v", err)
+		return result
+	}
+	for _, model := range models {
+		if model == nil {
+			continue
+		}
+		user := &User{
+			ID:       model.ID,
+			Email:    model.Email,
+			Username: model.Username,
+			Status:   model.Status,
+			Role:     model.Role,
+		}
+		result[user.ID] = user
+	}
+	return result
+}
+
+func mapKeysInt64(source map[int64]struct{}) []int64 {
+	if len(source) == 0 {
+		return nil
+	}
+	out := make([]int64, 0, len(source))
+	for id := range source {
+		out = append(out, id)
+	}
+	return out
 }
 
 func (s *adminServiceImpl) DeleteRedeemCode(ctx context.Context, id int64) error {
@@ -3055,9 +3639,12 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestR
 	exitInfo, latencyMs, err := s.proxyProber.ProbeProxy(ctx, proxyURL)
 	if err != nil {
 		s.saveProxyLatency(ctx, id, &ProxyLatencyInfo{
-			Success:   false,
-			Message:   err.Error(),
-			UpdatedAt: time.Now(),
+			Success:        false,
+			Message:        err.Error(),
+			HealthStatus:   "failed",
+			LastFailReason: err.Error(),
+			LastFailAtUnix: ptrInt64(time.Now().Unix()),
+			UpdatedAt:      time.Now(),
 		})
 		return &ProxyTestResult{
 			Success: false,
@@ -3067,15 +3654,18 @@ func (s *adminServiceImpl) TestProxy(ctx context.Context, id int64) (*ProxyTestR
 
 	latency := latencyMs
 	s.saveProxyLatency(ctx, id, &ProxyLatencyInfo{
-		Success:     true,
-		LatencyMs:   &latency,
-		Message:     "Proxy is accessible",
-		IPAddress:   exitInfo.IP,
-		Country:     exitInfo.Country,
-		CountryCode: exitInfo.CountryCode,
-		Region:      exitInfo.Region,
-		City:        exitInfo.City,
-		UpdatedAt:   time.Now(),
+		Success:             true,
+		LatencyMs:           &latency,
+		Message:             "Proxy is accessible",
+		IPAddress:           exitInfo.IP,
+		Country:             exitInfo.Country,
+		CountryCode:         exitInfo.CountryCode,
+		Region:              exitInfo.Region,
+		City:                exitInfo.City,
+		HealthStatus:        "healthy",
+		CooldownUntilUnix:   nil,
+		LastRecoveredAtUnix: ptrInt64(time.Now().Unix()),
+		UpdatedAt:           time.Now(),
 	})
 	return &ProxyTestResult{
 		Success:     true,
@@ -3177,6 +3767,62 @@ func (s *adminServiceImpl) CheckProxyQuality(ctx context.Context, id int64) (*Pr
 	finalizeProxyQualityResult(result)
 	s.saveProxyQualitySnapshot(ctx, id, result, exitInfo)
 	return result, nil
+}
+
+func (s *adminServiceImpl) ListProxySubscriptionSources(ctx context.Context, page, pageSize int, search string, enabled *bool) ([]ProxySubscriptionSource, int64, error) {
+	if s.proxySubscriptionService == nil {
+		return []ProxySubscriptionSource{}, 0, nil
+	}
+	return s.proxySubscriptionService.ListSources(ctx, page, pageSize, search, enabled)
+}
+
+func (s *adminServiceImpl) GetProxySubscriptionSource(ctx context.Context, id int64) (*ProxySubscriptionSource, error) {
+	if s.proxySubscriptionService == nil {
+		return nil, ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.GetSource(ctx, id)
+}
+
+func (s *adminServiceImpl) CreateProxySubscriptionSource(ctx context.Context, input *CreateProxySubscriptionSourceInput) (*ProxySubscriptionSource, error) {
+	if s.proxySubscriptionService == nil {
+		return nil, ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.CreateSource(ctx, input)
+}
+
+func (s *adminServiceImpl) UpdateProxySubscriptionSource(ctx context.Context, id int64, input *UpdateProxySubscriptionSourceInput) (*ProxySubscriptionSource, error) {
+	if s.proxySubscriptionService == nil {
+		return nil, ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.UpdateSource(ctx, id, input)
+}
+
+func (s *adminServiceImpl) DeleteProxySubscriptionSource(ctx context.Context, id int64) error {
+	if s.proxySubscriptionService == nil {
+		return ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.DeleteSource(ctx, id)
+}
+
+func (s *adminServiceImpl) ListProxySubscriptionNodes(ctx context.Context, sourceID int64) ([]ProxySubscriptionNode, error) {
+	if s.proxySubscriptionService == nil {
+		return []ProxySubscriptionNode{}, nil
+	}
+	return s.proxySubscriptionService.ListNodes(ctx, sourceID)
+}
+
+func (s *adminServiceImpl) ListMaterializedProxiesBySubscriptionSource(ctx context.Context, sourceID int64) ([]Proxy, error) {
+	if s.proxySubscriptionService == nil {
+		return []Proxy{}, nil
+	}
+	return s.proxySubscriptionService.ListMaterializedProxies(ctx, sourceID)
+}
+
+func (s *adminServiceImpl) RefreshProxySubscriptionSource(ctx context.Context, id int64) (*ProxySubscriptionRefreshResult, error) {
+	if s.proxySubscriptionService == nil {
+		return nil, ErrProxyNotFound
+	}
+	return s.proxySubscriptionService.RefreshSource(ctx, id)
 }
 
 func runProxyQualityTarget(ctx context.Context, client *http.Client, target proxyQualityTarget) ProxyQualityCheckItem {
@@ -3339,6 +3985,17 @@ func (s *adminServiceImpl) saveProxyQualitySnapshot(ctx context.Context, proxyID
 		QualityCFRay:     proxyQualityFirstCFRay(result),
 		UpdatedAt:        time.Now(),
 	}
+	if info.Success {
+		nowUnix := time.Now().Unix()
+		info.HealthStatus = "healthy"
+		info.CooldownUntilUnix = nil
+		info.LastRecoveredAtUnix = ptrInt64(nowUnix)
+	} else if result.FailedCount > 0 || result.ChallengeCount > 0 {
+		nowUnix := time.Now().Unix()
+		info.HealthStatus = "failed"
+		info.LastFailReason = result.Summary
+		info.LastFailAtUnix = ptrInt64(nowUnix)
+	}
 	if result.BaseLatencyMs > 0 {
 		latency := result.BaseLatencyMs
 		info.LatencyMs = &latency
@@ -3360,24 +4017,30 @@ func (s *adminServiceImpl) probeProxyLatency(ctx context.Context, proxy *Proxy) 
 	exitInfo, latencyMs, err := s.proxyProber.ProbeProxy(ctx, proxy.URL())
 	if err != nil {
 		s.saveProxyLatency(ctx, proxy.ID, &ProxyLatencyInfo{
-			Success:   false,
-			Message:   err.Error(),
-			UpdatedAt: time.Now(),
+			Success:        false,
+			Message:        err.Error(),
+			HealthStatus:   "failed",
+			LastFailReason: err.Error(),
+			LastFailAtUnix: ptrInt64(time.Now().Unix()),
+			UpdatedAt:      time.Now(),
 		})
 		return
 	}
 
 	latency := latencyMs
 	s.saveProxyLatency(ctx, proxy.ID, &ProxyLatencyInfo{
-		Success:     true,
-		LatencyMs:   &latency,
-		Message:     "Proxy is accessible",
-		IPAddress:   exitInfo.IP,
-		Country:     exitInfo.Country,
-		CountryCode: exitInfo.CountryCode,
-		Region:      exitInfo.Region,
-		City:        exitInfo.City,
-		UpdatedAt:   time.Now(),
+		Success:             true,
+		LatencyMs:           &latency,
+		Message:             "Proxy is accessible",
+		IPAddress:           exitInfo.IP,
+		Country:             exitInfo.Country,
+		CountryCode:         exitInfo.CountryCode,
+		Region:              exitInfo.Region,
+		City:                exitInfo.City,
+		HealthStatus:        "healthy",
+		CooldownUntilUnix:   nil,
+		LastRecoveredAtUnix: ptrInt64(time.Now().Unix()),
+		UpdatedAt:           time.Now(),
 	})
 }
 
@@ -3428,6 +4091,59 @@ func (s *adminServiceImpl) checkMixedChannelRisk(ctx context.Context, currentAcc
 	}
 
 	return nil
+}
+
+func (s *adminServiceImpl) attachProxyPoolMembership(ctx context.Context, proxies []Proxy) {
+	if len(proxies) == 0 || s.settingService == nil {
+		return
+	}
+	poolIDs, err := s.settingService.GetAutoFailoverProxyPoolIDs(ctx)
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "Warning: load proxy pool settings failed: %v", err)
+		return
+	}
+	set := make(map[int64]struct{}, len(poolIDs))
+	for _, id := range poolIDs {
+		set[id] = struct{}{}
+	}
+	for i := range proxies {
+		_, proxies[i].AutoFailoverPoolEnabled = set[proxies[i].ID]
+	}
+}
+
+func (s *adminServiceImpl) isProxyInAutoFailoverPool(ctx context.Context, proxyID int64) bool {
+	if proxyID <= 0 || s.settingService == nil {
+		return false
+	}
+	poolIDs, err := s.settingService.GetAutoFailoverProxyPoolIDs(ctx)
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "Warning: load proxy pool settings failed: %v", err)
+		return false
+	}
+	for _, id := range poolIDs {
+		if id == proxyID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *adminServiceImpl) attachProxyPoolMembershipWithAccountCount(ctx context.Context, proxies []ProxyWithAccountCount) {
+	if len(proxies) == 0 || s.settingService == nil {
+		return
+	}
+	poolIDs, err := s.settingService.GetAutoFailoverProxyPoolIDs(ctx)
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "Warning: load proxy pool settings failed: %v", err)
+		return
+	}
+	set := make(map[int64]struct{}, len(poolIDs))
+	for _, id := range poolIDs {
+		set[id] = struct{}{}
+	}
+	for i := range proxies {
+		_, proxies[i].AutoFailoverPoolEnabled = set[proxies[i].ID]
+	}
 }
 
 func (s *adminServiceImpl) validateGroupIDsExist(ctx context.Context, groupIDs []int64) error {
@@ -3502,6 +4218,12 @@ func (s *adminServiceImpl) attachProxyLatency(ctx context.Context, proxies []Pro
 		proxies[i].QualityGrade = info.QualityGrade
 		proxies[i].QualitySummary = info.QualitySummary
 		proxies[i].QualityChecked = info.QualityCheckedAt
+		proxies[i].HealthStatus = info.HealthStatus
+		proxies[i].CooldownUntilUnix = info.CooldownUntilUnix
+		proxies[i].LastFailReason = info.LastFailReason
+		proxies[i].LastFailAtUnix = info.LastFailAtUnix
+		proxies[i].LastRecoveredAtUnix = info.LastRecoveredAtUnix
+		proxies[i].FailoverSwitchCount = info.FailoverSwitchCount
 	}
 }
 
@@ -3563,6 +4285,22 @@ func (s *adminServiceImpl) ResetAccountQuota(ctx context.Context, id int64) erro
 	return s.accountRepo.ResetQuotaUsed(ctx, id)
 }
 
+func (s *adminServiceImpl) resolveAccountAutoFailoverProxyURL(ctx context.Context, account *Account) string {
+	if account == nil {
+		return ""
+	}
+	poolSvc := NewAutoFailoverProxyPoolService(s.proxyRepo, s.accountRepo, s.settingService, s.proxyLatencyCache, s.proxyProber)
+	if proxyURL, _, _, err := poolSvc.ResolveProxyURL(ctx, account); err == nil {
+		return proxyURL
+	}
+	if account.ProxyID != nil {
+		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
+			return p.URL()
+		}
+	}
+	return ""
+}
+
 // EnsureOpenAIPrivacy 检查 OpenAI OAuth 账号是否已设置 privacy_mode，
 // 未设置则调用 disableOpenAITraining 并持久化到 Extra，返回设置的 mode 值。
 func (s *adminServiceImpl) EnsureOpenAIPrivacy(ctx context.Context, account *Account) string {
@@ -3581,19 +4319,21 @@ func (s *adminServiceImpl) EnsureOpenAIPrivacy(ctx context.Context, account *Acc
 		return ""
 	}
 
-	var proxyURL string
-	if account.ProxyID != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
+	proxyURL := s.resolveAccountAutoFailoverProxyURL(ctx, account)
 
 	mode := disableOpenAITraining(ctx, s.privacyClientFactory, token, proxyURL)
 	if mode == "" {
 		return ""
 	}
 
-	_ = s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{"privacy_mode": mode})
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{"privacy_mode": mode}); err != nil {
+		logger.LegacyPrintf("service.admin", "update_openai_privacy_mode_failed: account_id=%d err=%v", account.ID, err)
+		return mode
+	}
+	if account.Extra == nil {
+		account.Extra = make(map[string]any)
+	}
+	account.Extra["privacy_mode"] = mode
 	return mode
 }
 
@@ -3611,12 +4351,7 @@ func (s *adminServiceImpl) ForceOpenAIPrivacy(ctx context.Context, account *Acco
 		return ""
 	}
 
-	var proxyURL string
-	if account.ProxyID != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
+	proxyURL := s.resolveAccountAutoFailoverProxyURL(ctx, account)
 
 	mode := disableOpenAITraining(ctx, s.privacyClientFactory, token, proxyURL)
 	if mode == "" {
@@ -3654,12 +4389,7 @@ func (s *adminServiceImpl) EnsureAntigravityPrivacy(ctx context.Context, account
 
 	projectID, _ := account.Credentials["project_id"].(string)
 
-	var proxyURL string
-	if account.ProxyID != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
+	proxyURL := s.resolveAccountAutoFailoverProxyURL(ctx, account)
 
 	mode := setAntigravityPrivacy(ctx, token, projectID, proxyURL)
 	if mode == "" {
@@ -3687,12 +4417,7 @@ func (s *adminServiceImpl) ForceAntigravityPrivacy(ctx context.Context, account 
 
 	projectID, _ := account.Credentials["project_id"].(string)
 
-	var proxyURL string
-	if account.ProxyID != nil {
-		if p, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && p != nil {
-			proxyURL = p.URL()
-		}
-	}
+	proxyURL := s.resolveAccountAutoFailoverProxyURL(ctx, account)
 
 	mode := setAntigravityPrivacy(ctx, token, projectID, proxyURL)
 	if mode == "" {
@@ -3705,4 +4430,22 @@ func (s *adminServiceImpl) ForceAntigravityPrivacy(ctx context.Context, account 
 	}
 	applyAntigravityPrivacyMode(account, mode)
 	return mode
+}
+
+// ClearAccountPrivacyMode 清除账号的 privacy_mode 字段（设置为空字符串），
+// 使下次 EnsureOpenAIPrivacy 能重新尝试设置。
+// 仅对 OpenAI OAuth 账号操作，其他平台或类型返回 error。
+func (s *adminServiceImpl) ClearAccountPrivacyMode(ctx context.Context, account *Account) error {
+	if account.Platform != PlatformOpenAI || account.Type != AccountTypeOAuth {
+		return errors.New("仅 OpenAI OAuth 账号支持清除隐私状态")
+	}
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{"privacy_mode": ""}); err != nil {
+		logger.LegacyPrintf("service.admin", "clear_openai_privacy_mode_failed: account_id=%d err=%v", account.ID, err)
+		return err
+	}
+	if account.Extra == nil {
+		account.Extra = make(map[string]any)
+	}
+	account.Extra["privacy_mode"] = ""
+	return nil
 }

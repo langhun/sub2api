@@ -661,6 +661,12 @@ func TestAPIContracts(t *testing.T) {
 					service.SettingPaymentVisibleMethodAlipayEnabled: "true",
 					service.SettingPaymentVisibleMethodWxpayEnabled:  "false",
 					"openai_advanced_scheduler_enabled":              "true",
+					service.SettingKeyHomeNavLeaderboardEnabled:      "false",
+					service.SettingKeyLeaderboardBalanceEnabled:      "false",
+					service.SettingKeyLeaderboardConsumptionEnabled:  "true",
+					service.SettingKeyLeaderboardTransferEnabled:     "false",
+					service.SettingKeyLeaderboardCheckinEnabled:      "true",
+					service.SettingKeyLeaderboardIncludeAdmin:        "false",
 				})
 			},
 			method:     http.MethodGet,
@@ -812,9 +818,19 @@ func TestAPIContracts(t *testing.T) {
 						"identity_patch_prompt": "",
 						"invitation_code_enabled": false,
 						"home_content": "",
-					"hide_ccs_import_button": false,
-					"purchase_subscription_enabled": false,
-					"purchase_subscription_url": "",
+						"home_nav_links_enabled": false,
+						"home_nav_leaderboard_enabled": false,
+						"home_nav_key_usage_enabled": true,
+						"home_nav_monitoring_enabled": true,
+						"home_nav_pricing_enabled": true,
+						"leaderboard_balance_enabled": false,
+						"leaderboard_consumption_enabled": true,
+						"leaderboard_transfer_enabled": false,
+						"leaderboard_checkin_enabled": true,
+						"leaderboard_include_admin_enabled": false,
+						"hide_ccs_import_button": false,
+						"purchase_subscription_enabled": false,
+						"purchase_subscription_url": "",
 					"table_default_page_size": 20,
 						"table_page_size_options": [10, 20, 50, 100],
 					"min_claude_code_version": "",
@@ -865,6 +881,25 @@ func TestAPIContracts(t *testing.T) {
 					"balance_low_notify_threshold": 0,
 					"balance_low_notify_recharge_url": "",
 					"account_quota_notify_emails": [],
+					"checkin_enabled": false,
+					"checkin_min_balance": 0.1,
+					"checkin_max_balance": 1,
+					"checkin_luck_enabled": false,
+					"checkin_luck_min_multiplier": 0.1,
+					"checkin_luck_max_multiplier": 3,
+					"checkin_blindbox_enabled": false,
+					"checkin_blindbox_trigger_type": "streak",
+					"checkin_blindbox_interval": 7,
+					"transfer_enabled": false,
+					"transfer_fee_rate": 0.01,
+					"transfer_min_amount": 0.01,
+					"transfer_max_amount": 1000,
+					"transfer_daily_limit": 1000,
+					"transfer_daily_count_limit": 50,
+					"transfer_vip_fee_exempt": false,
+					"redpacket_enabled": false,
+					"redpacket_max_count": 100,
+					"redpacket_expire_hours": 24,
 					"channel_monitor_enabled": true,
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
@@ -1017,6 +1052,15 @@ func TestAPIContracts(t *testing.T) {
 					"contact_info": "",
 					"doc_url": "",
 					"home_content": "",
+					"home_nav_links_enabled": true,
+					"home_nav_leaderboard_enabled": true,
+					"home_nav_key_usage_enabled": true,
+					"home_nav_monitoring_enabled": true,
+					"home_nav_pricing_enabled": true,
+					"leaderboard_balance_enabled": true,
+					"leaderboard_consumption_enabled": true,
+					"leaderboard_transfer_enabled": true,
+					"leaderboard_checkin_enabled": true,
 					"hide_ccs_import_button": false,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
@@ -1089,6 +1133,25 @@ func TestAPIContracts(t *testing.T) {
 					"balance_low_notify_threshold": 0,
 					"balance_low_notify_recharge_url": "",
 					"account_quota_notify_emails": [],
+					"checkin_enabled": false,
+					"checkin_min_balance": 0.1,
+					"checkin_max_balance": 1,
+					"checkin_luck_enabled": false,
+					"checkin_luck_min_multiplier": 0.1,
+					"checkin_luck_max_multiplier": 3,
+					"checkin_blindbox_enabled": false,
+					"checkin_blindbox_trigger_type": "streak",
+					"checkin_blindbox_interval": 7,
+					"transfer_enabled": false,
+					"transfer_fee_rate": 0.01,
+					"transfer_min_amount": 0.01,
+					"transfer_max_amount": 1000,
+					"transfer_daily_limit": 1000,
+					"transfer_daily_count_limit": 50,
+					"transfer_vip_fee_exempt": false,
+					"redpacket_enabled": false,
+					"redpacket_max_count": 100,
+					"redpacket_expire_hours": 24,
 					"channel_monitor_enabled": true,
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
@@ -1248,13 +1311,13 @@ func newContractDeps(t *testing.T) *contractDeps {
 	subscriptionService := service.NewSubscriptionService(groupRepo, userSubRepo, nil, nil, cfg)
 	subscriptionHandler := handler.NewSubscriptionHandler(subscriptionService)
 
-	redeemService := service.NewRedeemService(redeemRepo, userRepo, subscriptionService, nil, nil, nil, nil, nil)
+	redeemService := service.NewRedeemService(redeemRepo, userRepo, subscriptionService, nil, nil, nil, nil, nil, nil)
 	redeemHandler := handler.NewRedeemHandler(redeemService)
 
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
 
-	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, nil, nil, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService)
@@ -1631,7 +1694,7 @@ func (s *stubAccountRepo) List(ctx context.Context, params pagination.Pagination
 	return nil, nil, errors.New("not implemented")
 }
 
-func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
+func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode, tier string) ([]service.Account, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
@@ -2284,7 +2347,7 @@ func (r *stubUsageLogRepo) GetUsageTrendWithFilters(ctx context.Context, startTi
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUsageLogRepo) GetModelStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID int64, requestType *int16, stream *bool, billingType *int8) ([]usagestats.ModelStat, error) {
+func (r *stubUsageLogRepo) GetModelStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID int64, requestType *int16, stream *bool, billingType *int8, limit int) ([]usagestats.ModelStat, error) {
 	return nil, errors.New("not implemented")
 }
 

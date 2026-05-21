@@ -87,6 +87,8 @@ type Config struct {
 	UsageCleanup            UsageCleanupConfig            `mapstructure:"usage_cleanup"`
 	Concurrency             ConcurrencyConfig             `mapstructure:"concurrency"`
 	TokenRefresh            TokenRefreshConfig            `mapstructure:"token_refresh"`
+	ProxySubscriptions      ProxySubscriptionsConfig      `mapstructure:"proxy_subscriptions"`
+	ProxySubscriptionMihomo ProxySubscriptionMihomoConfig `mapstructure:"proxy_subscription_mihomo"`
 	RunMode                 string                        `mapstructure:"run_mode" yaml:"run_mode"`
 	Timezone                string                        `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
 	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
@@ -153,6 +155,21 @@ type UpdateConfig struct {
 	// 支持 http/https/socks5/socks5h 协议
 	// 例如: "http://127.0.0.1:7890", "socks5://127.0.0.1:1080"
 	ProxyURL string `mapstructure:"proxy_url"`
+}
+
+type ProxySubscriptionsConfig struct {
+	Enabled                     bool `mapstructure:"enabled"`
+	RefreshScanIntervalSeconds  int  `mapstructure:"refresh_scan_interval_seconds"`
+	DefaultRefreshIntervalHours int  `mapstructure:"default_refresh_interval_hours"`
+	SyncConcurrency             int  `mapstructure:"sync_concurrency"`
+}
+
+type ProxySubscriptionMihomoConfig struct {
+	Enabled           bool   `mapstructure:"enabled"`
+	MihomoBin         string `mapstructure:"mihomo_bin"`
+	DataDir           string `mapstructure:"data_dir"`
+	ListenerHost      string `mapstructure:"listener_host"`
+	ListenerPortRange string `mapstructure:"listener_port_range"`
 }
 
 type IdempotencyConfig struct {
@@ -1323,6 +1340,19 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	if cfg.Server.Mode == "" {
 		cfg.Server.Mode = "debug"
 	}
+	if !cfg.ProxySubscriptionMihomo.Enabled {
+		cfg.ProxySubscriptionMihomo.Enabled = viper.GetBool("proxy_subscription_sidecar.enabled")
+	}
+	if cfg.ProxySubscriptionMihomo.ListenerHost == "" {
+		cfg.ProxySubscriptionMihomo.ListenerHost = strings.TrimSpace(viper.GetString("proxy_subscription_sidecar.listener_host"))
+	}
+	if cfg.ProxySubscriptionMihomo.ListenerPortRange == "" {
+		cfg.ProxySubscriptionMihomo.ListenerPortRange = strings.TrimSpace(viper.GetString("proxy_subscription_sidecar.listener_port_range"))
+	}
+	cfg.ProxySubscriptionMihomo.MihomoBin = strings.TrimSpace(cfg.ProxySubscriptionMihomo.MihomoBin)
+	cfg.ProxySubscriptionMihomo.DataDir = strings.TrimSpace(cfg.ProxySubscriptionMihomo.DataDir)
+	cfg.ProxySubscriptionMihomo.ListenerHost = strings.TrimSpace(cfg.ProxySubscriptionMihomo.ListenerHost)
+	cfg.ProxySubscriptionMihomo.ListenerPortRange = strings.TrimSpace(cfg.ProxySubscriptionMihomo.ListenerPortRange)
 	cfg.Server.FrontendURL = strings.TrimSpace(cfg.Server.FrontendURL)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
@@ -1421,7 +1451,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 
 	if !cfg.Security.URLAllowlist.Enabled {
-		slog.Warn("security.url_allowlist.enabled=false; allowlist/SSRF checks disabled (minimal format validation only).")
+		slog.Warn("security.url_allowlist.enabled=false; hostname allowlist disabled, but scheme and private-host validation still apply.")
 	}
 	if !cfg.Security.ResponseHeaders.Enabled {
 		slog.Warn("security.response_headers.enabled=false; configurable header filtering disabled (default allowlist only).")
@@ -1499,8 +1529,8 @@ func setDefaults() {
 		"raw.githubusercontent.com",
 	})
 	viper.SetDefault("security.url_allowlist.crs_hosts", []string{})
-	viper.SetDefault("security.url_allowlist.allow_private_hosts", true)
-	viper.SetDefault("security.url_allowlist.allow_insecure_http", true)
+	viper.SetDefault("security.url_allowlist.allow_private_hosts", false)
+	viper.SetDefault("security.url_allowlist.allow_insecure_http", false)
 	viper.SetDefault("security.response_headers.enabled", true)
 	viper.SetDefault("security.response_headers.additional_allowed", []string{})
 	viper.SetDefault("security.response_headers.force_remove", []string{})
@@ -1847,6 +1877,17 @@ func setDefaults() {
 	viper.SetDefault("token_refresh.refresh_before_expiry_hours", 0.5) // 提前30分钟刷新（适配Google 1小时token）
 	viper.SetDefault("token_refresh.max_retries", 3)                   // 最多重试3次
 	viper.SetDefault("token_refresh.retry_backoff_seconds", 2)         // 重试退避基础2秒
+
+	viper.SetDefault("proxy_subscriptions.enabled", false)
+	viper.SetDefault("proxy_subscriptions.refresh_scan_interval_seconds", 60)
+	viper.SetDefault("proxy_subscriptions.default_refresh_interval_hours", 6)
+	viper.SetDefault("proxy_subscriptions.sync_concurrency", 2)
+
+	viper.SetDefault("proxy_subscription_mihomo.enabled", false)
+	viper.SetDefault("proxy_subscription_mihomo.mihomo_bin", "embedded")
+	viper.SetDefault("proxy_subscription_mihomo.data_dir", "")
+	viper.SetDefault("proxy_subscription_mihomo.listener_host", "127.0.0.1")
+	viper.SetDefault("proxy_subscription_mihomo.listener_port_range", "21080-21180")
 
 	// Gemini OAuth - configure via environment variables or config file
 	// GEMINI_OAUTH_CLIENT_ID and GEMINI_OAUTH_CLIENT_SECRET

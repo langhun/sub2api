@@ -167,7 +167,11 @@ func (api *OAuthRefreshAPI) RefreshIfNeeded(
 
 // isInvalidGrantError 检查错误是否为 invalid_grant
 func isInvalidGrantError(err error) bool {
-	return err != nil && strings.Contains(strings.ToLower(err.Error()), "invalid_grant")
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "invalid_grant") || strings.Contains(lower, "refresh_token_reused")
 }
 
 // tryRecoverFromRefreshRace 在 invalid_grant 错误后尝试竞争恢复

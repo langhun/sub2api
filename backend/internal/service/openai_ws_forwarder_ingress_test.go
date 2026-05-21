@@ -61,6 +61,18 @@ func TestIsOpenAIWSIngressPreviousResponseNotFound(t *testing.T) {
 	))
 }
 
+func TestIsOpenAIWSSuccessTerminalEvent(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, isOpenAIWSSuccessTerminalEvent("response.completed"))
+	require.True(t, isOpenAIWSSuccessTerminalEvent(" response.done "))
+	require.False(t, isOpenAIWSSuccessTerminalEvent("response.failed"))
+	require.False(t, isOpenAIWSSuccessTerminalEvent("response.incomplete"))
+	require.False(t, isOpenAIWSSuccessTerminalEvent("response.cancelled"))
+	require.False(t, isOpenAIWSSuccessTerminalEvent("response.canceled"))
+	require.False(t, isOpenAIWSSuccessTerminalEvent(""))
+}
+
 func TestOpenAIWSIngressPreviousResponseRecoveryEnabled(t *testing.T) {
 	t.Parallel()
 

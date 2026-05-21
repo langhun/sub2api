@@ -19,7 +19,9 @@ import type {
   CodexSessionImportRequest,
   CodexSessionImportResult,
   CheckMixedChannelRequest,
-  CheckMixedChannelResponse
+  CheckMixedChannelResponse,
+  DuplicateAccountCheckRequest,
+  DuplicateAccountCheckResult
 } from '@/types'
 
 /**
@@ -34,6 +36,7 @@ export async function list(
   pageSize: number = 20,
   filters?: {
     platform?: string
+    tier?: string
     type?: string
     status?: string
     group?: string
@@ -69,6 +72,7 @@ export async function listWithEtag(
   pageSize: number = 20,
   filters?: {
     platform?: string
+    tier?: string
     type?: string
     status?: string
     group?: string
@@ -308,7 +312,7 @@ export async function resetTempUnschedulable(id: number): Promise<{ message: str
  */
 export async function generateAuthUrl(
   endpoint: string,
-  config: { proxy_id?: number }
+  config: { proxy_id?: number; proxy_mode?: string }
 ): Promise<{ auth_url: string; session_id: string }> {
   const { data } = await apiClient.post<{ auth_url: string; session_id: string }>(endpoint, config)
   return data
@@ -322,7 +326,7 @@ export async function generateAuthUrl(
  */
 export async function exchangeCode(
   endpoint: string,
-  exchangeData: { session_id: string; code: string; state?: string; proxy_id?: number }
+  exchangeData: { session_id: string; code: string; state?: string; proxy_id?: number; proxy_mode?: string }
 ): Promise<Record<string, unknown>> {
   const { data } = await apiClient.post<Record<string, unknown>>(endpoint, exchangeData)
   return data
@@ -375,8 +379,8 @@ export async function batchUpdateCredentials(request: {
  * @returns Success confirmation
  */
 export async function bulkUpdate(
-  accountIdsOrPayload: number[] | Record<string, unknown>,
-  updates?: Record<string, unknown>
+  accountIds: number[],
+  updates: Record<string, unknown> = {}
 ): Promise<{
   success: number
   failed: number
@@ -384,12 +388,10 @@ export async function bulkUpdate(
   failed_ids?: number[]
   results: Array<{ account_id: number; success: boolean; error?: string }>
   }> {
-  const payload = Array.isArray(accountIdsOrPayload)
-    ? {
-        account_ids: accountIdsOrPayload,
-        ...(updates ?? {})
-      }
-    : accountIdsOrPayload
+  const payload = {
+    account_ids: accountIds,
+    ...updates
+  }
   const { data } = await apiClient.post<{
     success: number
     failed: number
@@ -397,6 +399,16 @@ export async function bulkUpdate(
     failed_ids?: number[]
     results: Array<{ account_id: number; success: boolean; error?: string }>
   }>('/admin/accounts/bulk-update', payload)
+  return data
+}
+
+export async function checkDuplicates(
+  payload: DuplicateAccountCheckRequest = {}
+): Promise<DuplicateAccountCheckResult> {
+  const { data } = await apiClient.post<DuplicateAccountCheckResult>(
+    '/admin/accounts/duplicate-check',
+    payload
+  )
   return data
 }
 
@@ -524,6 +536,7 @@ export async function exportData(options?: {
   ids?: number[]
   filters?: {
     platform?: string
+    tier?: string
     type?: string
     status?: string
     group?: string
@@ -538,8 +551,9 @@ export async function exportData(options?: {
   if (options?.ids && options.ids.length > 0) {
     params.ids = options.ids.join(',')
   } else if (options?.filters) {
-    const { platform, type, status, group, privacy_mode, search, sort_by, sort_order } = options.filters
+    const { platform, tier, type, status, group, privacy_mode, search, sort_by, sort_order } = options.filters
     if (platform) params.platform = platform
+    if (tier) params.tier = tier
     if (type) params.type = type
     if (status) params.status = status
     if (group) params.group = group
@@ -592,9 +606,10 @@ export async function refreshOpenAIToken(
   refreshToken: string,
   proxyId?: number | null,
   endpoint: string = '/admin/openai/refresh-token',
-  clientId?: string
+  clientId?: string,
+  proxyMode?: string
 ): Promise<Record<string, unknown>> {
-  const payload: { refresh_token: string; proxy_id?: number; client_id?: string } = {
+  const payload: { refresh_token: string; proxy_id?: number; client_id?: string; proxy_mode?: string } = {
     refresh_token: refreshToken
   }
   if (proxyId) {
@@ -602,6 +617,9 @@ export async function refreshOpenAIToken(
   }
   if (clientId) {
     payload.client_id = clientId
+  }
+  if (proxyMode) {
+    payload.proxy_mode = proxyMode
   }
   const { data } = await apiClient.post<Record<string, unknown>>(endpoint, payload)
   return data
@@ -614,8 +632,47 @@ export interface BatchOperationResult {
   total: number
   success: number
   failed: number
+  skipped?: number
   errors?: Array<{ account_id: number; error: string }>
   warnings?: Array<{ account_id: number; warning: string }>
+  job_id?: string
+  status?: string
+}
+
+interface BatchPrivacyJobResponse {
+  job_id: string
+  status: 'queued' | 'running' | 'completed' | 'failed'
+  result?: BatchOperationResult
+  error?: string
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function waitForBatchPrivacyJob(jobId: string): Promise<BatchOperationResult> {
+  const deadline = Date.now() + 10 * 60 * 1000
+  while (Date.now() < deadline) {
+    const { data } = await apiClient.get<BatchPrivacyJobResponse>(`/admin/accounts/batch-privacy-jobs/${jobId}`)
+    if (data.status === 'completed' && data.result) {
+      return { ...data.result, job_id: jobId, status: data.status }
+    }
+    if (data.status === 'failed') {
+      if (data.result) {
+        return { ...data.result, job_id: jobId, status: data.status }
+      }
+      throw new Error(data.error || 'Batch privacy job failed')
+    }
+    await sleep(2000)
+  }
+  throw new Error(`Batch privacy job ${jobId} timed out`)
+}
+
+async function resolveBatchPrivacyResponse(result: BatchOperationResult): Promise<BatchOperationResult> {
+  if (!result.job_id) {
+    return result
+  }
+  return waitForBatchPrivacyJob(result.job_id)
 }
 
 /**
@@ -654,6 +711,32 @@ export async function setPrivacy(id: number): Promise<Account> {
   return data
 }
 
+/**
+ * Batch set privacy (force training_off) for OpenAI OAuth accounts
+ * @param accountIds - Array of account IDs
+ * @returns Batch operation result
+ */
+export async function batchSetPrivacy(accountIds: number[]): Promise<BatchOperationResult> {
+  const { data } = await apiClient.post<BatchOperationResult>('/admin/accounts/batch-set-privacy', {
+    account_ids: accountIds,
+  }, {
+    timeout: 120000
+  })
+  return resolveBatchPrivacyResponse(data)
+}
+
+/**
+ * Batch clear privacy_mode for OpenAI OAuth accounts
+ * @param accountIds - Array of account IDs
+ * @returns Batch operation result
+ */
+export async function batchClearPrivacy(accountIds: number[]): Promise<BatchOperationResult> {
+  const { data } = await apiClient.post<BatchOperationResult>('/admin/accounts/batch-clear-privacy', {
+    account_ids: accountIds,
+  })
+  return resolveBatchPrivacyResponse(data)
+}
+
 export const accountsAPI = {
   list,
   listWithEtag,
@@ -684,6 +767,7 @@ export const accountsAPI = {
   batchCreate,
   batchUpdateCredentials,
   bulkUpdate,
+  checkDuplicates,
   previewFromCrs,
   syncFromCrs,
   exportData,
@@ -692,7 +776,9 @@ export const accountsAPI = {
   getAntigravityDefaultModelMapping,
   batchClearError,
   batchRefresh,
-  setPrivacy
+  setPrivacy,
+  batchSetPrivacy,
+  batchClearPrivacy
 }
 
 export default accountsAPI

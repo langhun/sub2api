@@ -107,7 +107,7 @@ export interface OpsThroughputTrendResponse {
 
 export type OpsRequestKind = 'success' | 'error'
 export type OpsRequestDetailsKind = OpsRequestKind | 'all'
-export type OpsRequestDetailsSort = 'created_at_desc' | 'duration_desc'
+export type OpsRequestDetailsSort = 'created_at_desc' | 'duration_desc' | 'ttft_desc' | 'response_desc'
 
 export interface OpsRequestDetail {
   kind: OpsRequestKind
@@ -117,6 +117,11 @@ export interface OpsRequestDetail {
   platform?: string
   model?: string
   duration_ms?: number | null
+  first_token_ms?: number | null
+  auth_latency_ms?: number | null
+  routing_latency_ms?: number | null
+  upstream_latency_ms?: number | null
+  response_latency_ms?: number | null
   status_code?: number | null
 
   error_id?: number | null
@@ -781,6 +786,7 @@ export interface OpsAlertRuntimeSettings {
 export interface OpsAdvancedSettings {
   data_retention: OpsDataRetentionSettings
   aggregation: OpsAggregationSettings
+  slow_tail_isolation: OpsSlowTailIsolationSettings
   ignore_count_tokens_errors: boolean
   ignore_context_canceled: boolean
   ignore_no_available_accounts: boolean
@@ -790,6 +796,20 @@ export interface OpsAdvancedSettings {
   display_alert_events: boolean
   auto_refresh_enabled: boolean
   auto_refresh_interval_seconds: number
+}
+
+export interface OpsSlowTailIsolationSettings {
+  enabled: boolean
+  window_minutes: number
+  min_requests: number
+  ttft_p95_ms_threshold: number
+  duration_p95_ms_threshold: number
+  response_latency_p95_ms_threshold: number
+  temp_unsched_minutes: number
+  platforms: string[]
+  models: string[]
+  group_ids: number[]
+  max_accounts_per_run: number
 }
 
 export interface OpsDataRetentionSettings {

@@ -23,6 +23,7 @@ type AccountRepoSuite struct {
 
 type schedulerCacheRecorder struct {
 	setAccounts []*service.Account
+	deleteIDs   []int64
 	accounts    map[int64]*service.Account
 }
 
@@ -53,6 +54,10 @@ func (s *schedulerCacheRecorder) SetAccount(ctx context.Context, account *servic
 }
 
 func (s *schedulerCacheRecorder) DeleteAccount(ctx context.Context, accountID int64) error {
+	s.deleteIDs = append(s.deleteIDs, accountID)
+	if s.accounts != nil {
+		delete(s.accounts, accountID)
+	}
 	return nil
 }
 
@@ -185,6 +190,27 @@ func (s *AccountRepoSuite) TestDelete() {
 	s.Require().Error(err, "expected error after delete")
 }
 
+func (s *AccountRepoSuite) TestDelete_RemovesSchedulerAccountSnapshot() {
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "to-delete-cache"})
+	cacheRecorder := &schedulerCacheRecorder{
+		accounts: map[int64]*service.Account{
+			account.ID: {
+				ID:          account.ID,
+				Name:        account.Name,
+				Status:      service.StatusActive,
+				Schedulable: true,
+			},
+		},
+	}
+	s.repo.schedulerCache = cacheRecorder
+
+	err := s.repo.Delete(s.ctx, account.ID)
+	s.Require().NoError(err, "Delete")
+
+	s.Require().Equal([]int64{account.ID}, cacheRecorder.deleteIDs)
+	s.Require().NotContains(cacheRecorder.accounts, account.ID)
+}
+
 func (s *AccountRepoSuite) TestDelete_WithGroupBindings() {
 	group := mustCreateGroup(s.T(), s.client, &service.Group{Name: "g-del"})
 	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-del"})
@@ -220,6 +246,7 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 		search      string
 		groupID     int64
 		privacyMode string
+		tier        string
 		wantCount   int
 		validate    func(accounts []service.Account)
 	}{
@@ -256,7 +283,19 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 			status:    service.StatusDisabled,
 			wantCount: 1,
 			validate: func(accounts []service.Account) {
-				s.Require().Equal(service.StatusDisabled, accounts[0].Status)
+				s.Require().Equal("inactive", accounts[0].Status)
+			},
+		},
+		{
+			name: "filter_by_status_inactive_alias",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "s1", Status: service.StatusActive})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "s2", Status: service.StatusDisabled})
+			},
+			status:    "inactive",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("inactive", accounts[0].Status)
 			},
 		},
 		{
@@ -273,9 +312,24 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 					SetTempUnschedulableUntil(time.Now().Add(15 * time.Minute)).
 					Exec(context.Background())
 				s.Require().NoError(err)
+				overloaded := mustCreateAccount(s.T(), client, &service.Account{Name: "active-overloaded", Status: service.StatusActive})
+				err = client.Account.UpdateOneID(overloaded.ID).
+					SetOverloadUntil(time.Now().Add(12 * time.Minute)).
+					Exec(context.Background())
+				s.Require().NoError(err)
 				unsched := mustCreateAccount(s.T(), client, &service.Account{Name: "active-unsched", Status: service.StatusActive})
 				err = client.Account.UpdateOneID(unsched.ID).
 					SetSchedulable(false).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				expired := mustCreateAccount(s.T(), client, &service.Account{
+					Name:               "active-expired",
+					Status:             service.StatusActive,
+					Schedulable:        true,
+					AutoPauseOnExpired: true,
+				})
+				err = client.Account.UpdateOneID(expired.ID).
+					SetExpiresAt(time.Now().Add(-5 * time.Minute)).
 					Exec(context.Background())
 				s.Require().NoError(err)
 			},
@@ -286,12 +340,22 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 			},
 		},
 		{
-			name: "filter_by_status_unschedulable_excludes_rate_limited_and_temp_unschedulable",
+			name: "filter_by_status_unschedulable_includes_expired_auto_pause_and_excludes_runtime_blocked_accounts",
 			setup: func(client *dbent.Client) {
 				mustCreateAccount(s.T(), client, &service.Account{Name: "active-normal", Status: service.StatusActive, Schedulable: true})
 				unsched := mustCreateAccount(s.T(), client, &service.Account{Name: "active-unsched", Status: service.StatusActive})
 				err := client.Account.UpdateOneID(unsched.ID).
 					SetSchedulable(false).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				expired := mustCreateAccount(s.T(), client, &service.Account{
+					Name:               "active-expired-auto-pause",
+					Status:             service.StatusActive,
+					Schedulable:        true,
+					AutoPauseOnExpired: true,
+				})
+				err = client.Account.UpdateOneID(expired.ID).
+					SetExpiresAt(time.Now().Add(-10 * time.Minute)).
 					Exec(context.Background())
 				s.Require().NoError(err)
 				rateLimited := mustCreateAccount(s.T(), client, &service.Account{Name: "active-rate-limited", Status: service.StatusActive})
@@ -306,24 +370,37 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 					SetTempUnschedulableUntil(time.Now().Add(15 * time.Minute)).
 					Exec(context.Background())
 				s.Require().NoError(err)
+				overloaded := mustCreateAccount(s.T(), client, &service.Account{
+					Name:               "active-overloaded-expired",
+					Status:             service.StatusActive,
+					Schedulable:        true,
+					AutoPauseOnExpired: true,
+				})
+				err = client.Account.UpdateOneID(overloaded.ID).
+					SetExpiresAt(time.Now().Add(-15 * time.Minute)).
+					SetOverloadUntil(time.Now().Add(20 * time.Minute)).
+					Exec(context.Background())
+				s.Require().NoError(err)
 			},
 			status:    "unschedulable",
-			wantCount: 1,
+			wantCount: 2,
 			validate: func(accounts []service.Account) {
-				s.Require().Equal("active-unsched", accounts[0].Name)
+				names := []string{accounts[0].Name, accounts[1].Name}
+				s.Require().Equal([]string{"active-expired-auto-pause", "active-unsched"}, names)
 			},
 		},
 		{
-			name: "filter_by_status_rate_limited_excludes_temp_unschedulable",
+			name: "filter_by_status_rate_limited_has_runtime_priority",
 			setup: func(client *dbent.Client) {
 				rateLimited := mustCreateAccount(s.T(), client, &service.Account{Name: "active-rate-limited", Status: service.StatusActive})
 				err := client.Account.UpdateOneID(rateLimited.ID).
 					SetRateLimitResetAt(time.Now().Add(10 * time.Minute)).
+					SetTempUnschedulableUntil(time.Now().Add(15 * time.Minute)).
+					SetOverloadUntil(time.Now().Add(20 * time.Minute)).
 					Exec(context.Background())
 				s.Require().NoError(err)
 				tempUnsched := mustCreateAccount(s.T(), client, &service.Account{Name: "active-temp-unsched", Status: service.StatusActive})
 				err = client.Account.UpdateOneID(tempUnsched.ID).
-					SetRateLimitResetAt(time.Now().Add(20 * time.Minute)).
 					SetTempUnschedulableUntil(time.Now().Add(15 * time.Minute)).
 					Exec(context.Background())
 				s.Require().NoError(err)
@@ -335,16 +412,23 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 			},
 		},
 		{
-			name: "filter_by_status_temp_unschedulable_excludes_manually_unschedulable",
+			name: "filter_by_status_temp_unschedulable_excludes_higher_priority_runtime_states",
 			setup: func(client *dbent.Client) {
 				tempUnsched := mustCreateAccount(s.T(), client, &service.Account{Name: "active-temp-unsched", Status: service.StatusActive, Schedulable: true})
 				err := client.Account.UpdateOneID(tempUnsched.ID).
 					SetTempUnschedulableUntil(time.Now().Add(15 * time.Minute)).
 					Exec(context.Background())
 				s.Require().NoError(err)
-				unsched := mustCreateAccount(s.T(), client, &service.Account{Name: "active-unsched", Status: service.StatusActive})
-				err = client.Account.UpdateOneID(unsched.ID).
-					SetSchedulable(false).
+				rateLimited := mustCreateAccount(s.T(), client, &service.Account{Name: "active-rate-limited-temp", Status: service.StatusActive})
+				err = client.Account.UpdateOneID(rateLimited.ID).
+					SetRateLimitResetAt(time.Now().Add(10 * time.Minute)).
+					SetTempUnschedulableUntil(time.Now().Add(15 * time.Minute)).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				overloaded := mustCreateAccount(s.T(), client, &service.Account{Name: "active-overloaded", Status: service.StatusActive})
+				err = client.Account.UpdateOneID(overloaded.ID).
+					SetTempUnschedulableUntil(time.Now().Add(20 * time.Minute)).
+					SetOverloadUntil(time.Now().Add(25 * time.Minute)).
 					Exec(context.Background())
 				s.Require().NoError(err)
 			},
@@ -352,6 +436,76 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 			wantCount: 1,
 			validate: func(accounts []service.Account) {
 				s.Require().Equal("active-temp-unsched", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_status_overloaded_excludes_rate_limited_accounts_but_keeps_temp_unschedulable_overlap",
+			setup: func(client *dbent.Client) {
+				overloaded := mustCreateAccount(s.T(), client, &service.Account{Name: "active-overloaded", Status: service.StatusActive})
+				err := client.Account.UpdateOneID(overloaded.ID).
+					SetOverloadUntil(time.Now().Add(15 * time.Minute)).
+					SetTempUnschedulableUntil(time.Now().Add(20 * time.Minute)).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				rateLimited := mustCreateAccount(s.T(), client, &service.Account{Name: "active-rate-limited", Status: service.StatusActive})
+				err = client.Account.UpdateOneID(rateLimited.ID).
+					SetRateLimitResetAt(time.Now().Add(30 * time.Minute)).
+					SetOverloadUntil(time.Now().Add(20 * time.Minute)).
+					Exec(context.Background())
+				s.Require().NoError(err)
+			},
+			status:    "overloaded",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("active-overloaded", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_structured_status_runtime_normal_and_scheduling_enabled",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "active-normal", Status: service.StatusActive, Schedulable: true})
+				paused := mustCreateAccount(s.T(), client, &service.Account{Name: "active-paused", Status: service.StatusActive})
+				err := client.Account.UpdateOneID(paused.ID).
+					SetSchedulable(false).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				rateLimited := mustCreateAccount(s.T(), client, &service.Account{Name: "active-rate-limited", Status: service.StatusActive})
+				err = client.Account.UpdateOneID(rateLimited.ID).
+					SetRateLimitResetAt(time.Now().Add(10 * time.Minute)).
+					Exec(context.Background())
+				s.Require().NoError(err)
+			},
+			status:    "main:active|runtime:normal|scheduling:enabled",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("active-normal", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_structured_status_scheduling_paused",
+			setup: func(client *dbent.Client) {
+				expired := mustCreateAccount(s.T(), client, &service.Account{
+					Name:               "active-expired",
+					Status:             service.StatusActive,
+					Schedulable:        true,
+					AutoPauseOnExpired: true,
+				})
+				err := client.Account.UpdateOneID(expired.ID).
+					SetExpiresAt(time.Now().Add(-5 * time.Minute)).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				manual := mustCreateAccount(s.T(), client, &service.Account{Name: "active-paused", Status: service.StatusActive})
+				err = client.Account.UpdateOneID(manual.ID).
+					SetSchedulable(false).
+					Exec(context.Background())
+				s.Require().NoError(err)
+				mustCreateAccount(s.T(), client, &service.Account{Name: "active-normal", Status: service.StatusActive, Schedulable: true})
+			},
+			status:    "scheduling:paused",
+			wantCount: 2,
+			validate: func(accounts []service.Account) {
+				names := []string{accounts[0].Name, accounts[1].Name}
+				s.ElementsMatch([]string{"active-expired", "active-paused"}, names)
 			},
 		},
 		{
@@ -407,6 +561,51 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 				s.ElementsMatch([]string{"privacy-unset", "privacy-empty"}, names)
 			},
 		},
+		{
+			name: "filter_by_openai_plus_tier",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "openai-plus", Platform: service.PlatformOpenAI, Credentials: map[string]any{"plan_type": "plus"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "openai-team", Platform: service.PlatformOpenAI, Credentials: map[string]any{"plan_type": "team"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "gemini-pro", Platform: service.PlatformGemini, Credentials: map[string]any{"tier_id": "google_ai_pro"}})
+			},
+			tier:      "openai:plus",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("openai-plus", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_gemini_legacy_ai_premium_tier",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "gemini-pro", Platform: service.PlatformGemini, Credentials: map[string]any{"tier_id": "AI_PREMIUM"}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "gemini-free", Platform: service.PlatformGemini, Credentials: map[string]any{"tier_id": "google_one_free"}})
+			},
+			tier:      "gemini:google_ai_pro",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("gemini-pro", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_antigravity_extra_tier",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "ag-pro", Platform: service.PlatformAntigravity, Extra: map[string]any{
+					"load_code_assist": map[string]any{
+						"paidTier": map[string]any{"id": "g1-pro-tier"},
+					},
+				}})
+				mustCreateAccount(s.T(), client, &service.Account{Name: "ag-free", Platform: service.PlatformAntigravity, Extra: map[string]any{
+					"load_code_assist": map[string]any{
+						"currentTier": map[string]any{"id": "free-tier"},
+					},
+				}})
+			},
+			tier:      "antigravity:g1-pro-tier",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("ag-pro", accounts[0].Name)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -419,7 +618,7 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 
 			tt.setup(client)
 
-			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID, tt.privacyMode)
+			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID, tt.privacyMode, tt.tier)
 			s.Require().NoError(err)
 			s.Require().Len(accounts, tt.wantCount)
 			if tt.validate != nil {
@@ -486,7 +685,7 @@ func (s *AccountRepoSuite) TestPreload_And_VirtualFields() {
 	s.Require().Len(got.Groups, 1, "expected Groups to be populated")
 	s.Require().Equal(group.ID, got.Groups[0].ID)
 
-	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0, "")
+	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0, "", "")
 	s.Require().NoError(err, "ListWithFilters")
 	s.Require().Equal(int64(1), page.Total)
 	s.Require().Len(accounts, 1)
@@ -639,6 +838,27 @@ func (s *AccountRepoSuite) TestBulkUpdate_SyncSchedulerSnapshotOnDisabled() {
 	s.Require().Contains(ids, account2.ID)
 }
 
+func (s *AccountRepoSuite) TestBulkUpdate_SyncSchedulerSnapshotOnInactiveAlias() {
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "bulk-inactive", Status: service.StatusActive, Schedulable: true})
+	cacheRecorder := &schedulerCacheRecorder{}
+	s.repo.schedulerCache = cacheRecorder
+
+	inactive := "inactive"
+	rows, err := s.repo.BulkUpdate(s.ctx, []int64{account.ID}, service.AccountBulkUpdate{
+		Status: &inactive,
+	})
+	s.Require().NoError(err)
+	s.Require().Equal(int64(1), rows)
+
+	got, err := s.repo.GetByID(s.ctx, account.ID)
+	s.Require().NoError(err)
+	s.Require().Equal("inactive", got.Status)
+
+	s.Require().Len(cacheRecorder.setAccounts, 1)
+	s.Require().Equal(account.ID, cacheRecorder.setAccounts[0].ID)
+	s.Require().Equal("inactive", cacheRecorder.setAccounts[0].Status)
+}
+
 // --- SetOverloaded / SetRateLimited / ClearRateLimit ---
 
 func (s *AccountRepoSuite) TestSetOverloaded() {
@@ -729,7 +949,7 @@ func (s *AccountRepoSuite) TestUpdateLastUsed() {
 // --- SetError ---
 
 func (s *AccountRepoSuite) TestSetError() {
-	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-err", Status: service.StatusActive})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-err", Status: service.StatusActive, Schedulable: true})
 
 	s.Require().NoError(s.repo.SetError(s.ctx, account.ID, "something went wrong"))
 
@@ -737,6 +957,22 @@ func (s *AccountRepoSuite) TestSetError() {
 	s.Require().NoError(err)
 	s.Require().Equal(service.StatusError, got.Status)
 	s.Require().Equal("something went wrong", got.ErrorMessage)
+	s.Require().False(got.Schedulable)
+}
+
+func (s *AccountRepoSuite) TestUpdateErrorStatusUnschedulesAccount() {
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-update-err", Status: service.StatusActive, Schedulable: true})
+	account.Status = service.StatusError
+	account.ErrorMessage = "token revoked"
+	account.Schedulable = true
+
+	s.Require().NoError(s.repo.Update(s.ctx, account))
+
+	got, err := s.repo.GetByID(s.ctx, account.ID)
+	s.Require().NoError(err)
+	s.Require().Equal(service.StatusError, got.Status)
+	s.Require().Equal("token revoked", got.ErrorMessage)
+	s.Require().False(got.Schedulable)
 }
 
 func (s *AccountRepoSuite) TestClearError_SyncSchedulerSnapshotOnRecovery() {

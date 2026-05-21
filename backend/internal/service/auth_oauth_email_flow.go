@@ -67,6 +67,11 @@ func (s *AuthService) validateOAuthRegistrationInvitation(ctx context.Context, i
 	if invitationCode == "" {
 		return nil, ErrInvitationCodeRequired
 	}
+	format := s.settingService.GetInvitationCodeFormat(ctx)
+	invitationCode = NormalizeRegistrationInvitationCodeWithSettings(invitationCode, format)
+	if !IsRegistrationInvitationCodeFormatWithSettings(invitationCode, format) {
+		return nil, ErrInvitationCodeInvalid
+	}
 
 	redeemCode, err := s.loadOAuthRegistrationInvitation(ctx, invitationCode)
 	if err != nil {
@@ -98,7 +103,8 @@ func (s *AuthService) VerifyOAuthEmailCode(ctx context.Context, email, verifyCod
 }
 
 // RegisterOAuthEmailAccount creates a local account from a third-party first
-// login after the user has verified a local email address.
+// login after the user has supplied a local email address. When global email
+// verification is enabled, the supplied verify code must also pass validation.
 func (s *AuthService) RegisterOAuthEmailAccount(
 	ctx context.Context,
 	email string,
@@ -122,9 +128,11 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 		slog.Error("oauth email register: policy rejected", "email", email, "error", err.Error())
 		return nil, nil, err
 	}
-	if err := s.VerifyOAuthEmailCode(ctx, email, verifyCode); err != nil {
-		slog.Error("oauth email register: verify code failed", "email", email, "error", err.Error())
-		return nil, nil, err
+	if s.IsEmailVerifyEnabled(ctx) {
+		if err := s.VerifyOAuthEmailCode(ctx, email, verifyCode); err != nil {
+			slog.Error("oauth email register: verify code failed", "email", email, "error", err.Error())
+			return nil, nil, err
+		}
 	}
 
 	if _, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode); err != nil {
@@ -310,7 +318,7 @@ func (s *AuthService) restoreOAuthRegistrationInvitation(ctx context.Context, in
 		return ErrServiceUnavailable
 	}
 
-	invitationCode = strings.TrimSpace(invitationCode)
+	invitationCode = NormalizeRegistrationInvitationCodeWithSettings(invitationCode, s.settingService.GetInvitationCodeFormat(ctx))
 	if invitationCode == "" || userID <= 0 {
 		return nil
 	}

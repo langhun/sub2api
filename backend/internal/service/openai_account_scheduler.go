@@ -430,7 +430,7 @@ func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right open
 		return left.score > right.score
 	}
 	if left.account.Priority != right.account.Priority {
-		return left.account.Priority < right.account.Priority
+		return left.account.Priority > right.account.Priority
 	}
 	if left.loadInfo.LoadRate != right.loadInfo.LoadRate {
 		return left.loadInfo.LoadRate < right.loadInfo.LoadRate
@@ -722,7 +722,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			item := &candidates[i]
 			priorityFactor := 1.0
 			if maxPriority > minPriority {
-				priorityFactor = 1 - float64(item.account.Priority-minPriority)/float64(maxPriority-minPriority)
+				priorityFactor = float64(item.account.Priority-minPriority) / float64(maxPriority-minPriority)
 			}
 			loadFactor := 1 - clamp01(float64(item.loadInfo.LoadRate)/100.0)
 			queueFactor := 1 - clamp01(float64(item.loadInfo.WaitingCount)/float64(maxWaiting))
@@ -770,7 +770,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		sort.SliceStable(ordered, func(i, j int) bool {
 			a, b := ordered[i], ordered[j]
 			if a.account.Priority != b.account.Priority {
-				return a.account.Priority < b.account.Priority
+				return a.account.Priority > b.account.Priority
 			}
 			if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 				return a.loadInfo.LoadRate < b.loadInfo.LoadRate
@@ -1044,6 +1044,35 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImages(
 		return s.selectAccountWithScheduler(ctx, groupID, "", sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportHTTPSSE, OpenAIImagesCapabilityBasic, false)
 	}
 	return selection, decision, err
+}
+
+func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImagesStrict(
+	ctx context.Context,
+	groupID *int64,
+	sessionHash string,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+	requiredCapability OpenAIImagesCapability,
+) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	return s.selectAccountWithScheduler(ctx, groupID, "", sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportHTTPSSE, requiredCapability, false)
+}
+
+func (s *OpenAIGatewayService) HasStrictOpenAINativeImageAccounts(ctx context.Context, groupID *int64, requestedModel string) bool {
+	accounts, err := s.listSchedulableAccounts(ctx, groupID)
+	if err != nil {
+		return false
+	}
+	for i := range accounts {
+		account := &accounts[i]
+		if !account.SupportsOpenAIImageCapability(OpenAIImagesCapabilityNative) {
+			continue
+		}
+		if requestedModel != "" && !account.IsModelSupported(requestedModel) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func (s *OpenAIGatewayService) selectAccountWithScheduler(
