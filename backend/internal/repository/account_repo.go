@@ -320,7 +320,7 @@ func (r *accountRepository) ListCRSAccountIDs(ctx context.Context) (map[string]i
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
+	defer rows.Close()
 
 	result := make(map[string]int64)
 	for rows.Next() {
@@ -331,10 +331,8 @@ func (r *accountRepository) ListCRSAccountIDs(ctx context.Context) (map[string]i
 		}
 		result[crsID] = id
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return result, nil
+
+	return result, rows.Err()
 }
 
 func (r *accountRepository) Update(ctx context.Context, account *service.Account) error {
@@ -860,12 +858,22 @@ func (r *accountRepository) BatchUpdateLastUsed(ctx context.Context, updates map
 		return nil
 	}
 
+	// 限制批量更新的最大数量，防止资源耗尽
+	const maxBatchSize = 1000
+	if len(updates) > maxBatchSize {
+		return errors.New("batch update size exceeds maximum allowed limit")
+	}
+
 	ids := make([]int64, 0, len(updates))
 	args := make([]any, 0, len(updates)*2+1)
 	caseSQL := "UPDATE accounts SET last_used_at = CASE id"
 
 	idx := 1
 	for id, ts := range updates {
+		// 验证 ID 为正数
+		if id <= 0 {
+			return errors.New("invalid account ID: must be positive")
+		}
 		caseSQL += " WHEN $" + itoa(idx) + " THEN $" + itoa(idx+1) + "::timestamptz"
 		args = append(args, id, ts)
 		ids = append(ids, id)

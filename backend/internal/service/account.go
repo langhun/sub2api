@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -58,6 +59,7 @@ type Account struct {
 	Groups        []*Group
 
 	// model_mapping 热路径缓存（非持久化字段）
+	modelMappingMu                  sync.RWMutex
 	modelMappingCache               map[string]string
 	modelMappingCacheReady          bool
 	modelMappingCacheCredentialsPtr uintptr
@@ -510,12 +512,35 @@ func (a *Account) GetModelMapping() map[string]string {
 	rawSig := uint64(0)
 	rawSigReady := false
 
+	// 先尝试读锁检查缓存
+	a.modelMappingMu.RLock()
 	if a.modelMappingCacheReady &&
 		a.modelMappingCacheCredentialsPtr == credentialsPtr &&
 		a.modelMappingCacheRawPtr == rawPtr &&
 		a.modelMappingCacheRawLen == rawLen {
 		rawSig = modelMappingSignature(rawMapping)
 		rawSigReady = true
+		if a.modelMappingCacheRawSig == rawSig {
+			result := a.modelMappingCache
+			a.modelMappingMu.RUnlock()
+			return result
+		}
+	}
+	a.modelMappingMu.RUnlock()
+
+	// 获取写锁更新缓存
+	a.modelMappingMu.Lock()
+	defer a.modelMappingMu.Unlock()
+
+	// 双重检查：可能在等待写锁期间已被其他 goroutine 更新
+	if a.modelMappingCacheReady &&
+		a.modelMappingCacheCredentialsPtr == credentialsPtr &&
+		a.modelMappingCacheRawPtr == rawPtr &&
+		a.modelMappingCacheRawLen == rawLen {
+		if !rawSigReady {
+			rawSig = modelMappingSignature(rawMapping)
+			rawSigReady = true
+		}
 		if a.modelMappingCacheRawSig == rawSig {
 			return a.modelMappingCache
 		}
