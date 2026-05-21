@@ -7,6 +7,10 @@ import (
 	"github.com/google/wire"
 )
 
+func ProvideAdminProxyHandler(adminService service.AdminService, projectMihomoService *service.ProjectMihomoService) *admin.ProxyHandler {
+	return admin.NewProxyHandler(adminService, projectMihomoService)
+}
+
 // ProvideAdminHandlers creates the AdminHandlers struct
 func ProvideAdminHandlers(
 	dashboardHandler *admin.DashboardHandler,
@@ -184,7 +188,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewOpenAIOAuthHandler,
 	admin.NewGeminiOAuthHandler,
 	admin.NewAntigravityOAuthHandler,
-	admin.NewProxyHandler,
+	ProvideAdminProxyHandler,
 	admin.NewProxySubscriptionHandler,
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,

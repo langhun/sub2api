@@ -645,6 +645,7 @@ var ProviderSet = wire.NewSet(
 	ProvideSettingService,
 	ProvideAutoFailoverProxyPoolService,
 	ProvideProxySubscriptionService,
+	NewProjectMihomoService,
 	ProvideProxySubscriptionRefreshService,
 	ProvideProxySubscriptionRuntimeRehydrateService,
 	NewDataManagementService,

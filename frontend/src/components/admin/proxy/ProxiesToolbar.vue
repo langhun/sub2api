@@ -1,26 +1,7 @@
 <template>
   <div class="space-y-3">
-    <div class="flex items-center gap-2">
-      <button
-        type="button"
-        class="btn"
-        :class="activeTab === 'proxies' ? 'btn-primary' : 'btn-secondary'"
-        @click="$emit('set-tab', 'proxies')"
-      >
-        {{ t('admin.proxies.title') }}
-      </button>
-      <button
-        type="button"
-        class="btn"
-        :class="activeTab === 'subscriptions' ? 'btn-primary' : 'btn-secondary'"
-        @click="$emit('set-tab', 'subscriptions')"
-      >
-        {{ t('admin.proxies.subscriptions.tab') }}
-      </button>
-    </div>
-
     <div class="flex flex-wrap items-center gap-3">
-      <div v-if="activeTab === 'proxies'" class="relative w-full sm:w-64">
+      <div class="relative w-full sm:w-64">
         <Icon
           name="search"
           size="md"
@@ -35,7 +16,7 @@
         />
       </div>
 
-      <div v-if="activeTab === 'proxies'" class="w-full sm:w-40">
+      <div class="w-full sm:w-40">
         <Select
           :model-value="filters.protocol"
           :options="protocolOptions"
@@ -44,7 +25,7 @@
           @change="$emit('reload-proxies')"
         />
       </div>
-      <div v-if="activeTab === 'proxies'" class="w-full sm:w-36">
+      <div class="w-full sm:w-36">
         <Select
           :model-value="filters.status"
           :options="statusOptions"
@@ -53,7 +34,7 @@
           @change="$emit('reload-proxies')"
         />
       </div>
-      <div v-if="activeTab === 'proxies'" class="w-full sm:w-44">
+      <div class="w-full sm:w-44">
         <Select
           :model-value="filters.runtime_status"
           :options="runtimeStatusOptions"
@@ -65,7 +46,6 @@
 
       <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
         <button
-          v-if="activeTab === 'proxies'"
           @click="$emit('reload-proxies')"
           :disabled="loading"
           class="btn btn-secondary"
@@ -74,22 +54,18 @@
           <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
         </button>
 
-        <template v-if="activeTab === 'subscriptions'">
-          <button
-            @click="$emit('reload-subscriptions')"
-            :disabled="loadingSubscriptions"
-            class="btn btn-secondary"
-          >
-            <Icon name="refresh" size="md" :class="loadingSubscriptions ? 'animate-spin' : ''" />
-          </button>
-          <button @click="$emit('create-subscription')" class="btn btn-primary">
-            <Icon name="plus" size="md" class="mr-2" />
-            {{ t('admin.proxies.subscriptions.create') }}
-          </button>
-        </template>
-
-        <template v-if="activeTab === 'proxies'">
+        <template>
           <div class="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200/80 bg-white/90 p-2 shadow-sm shadow-gray-100/60 dark:border-gray-700/80 dark:bg-gray-900/70 dark:shadow-black/10">
+            <button
+              type="button"
+              class="btn btn-secondary gap-2 border-indigo-200 bg-indigo-50 px-3 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900/60 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-900/30"
+              data-test="proxy-toolbar-mihomo"
+              @click="$emit('open-mihomo')"
+            >
+              <Icon name="server" size="sm" />
+              <span>{{ t('admin.proxies.projectMihomo.manage') }}</span>
+            </button>
+
             <div class="relative" @click.stop>
               <button
                 @click.stop="$emit('toggle-column-dropdown')"
@@ -123,24 +99,6 @@
                 </div>
               </div>
             </div>
-
-            <button
-              class="btn btn-secondary gap-2 px-3"
-              data-test="proxy-toolbar-import"
-              @click="$emit('open-import')"
-            >
-              <Icon name="upload" size="sm" />
-              <span>{{ t('admin.proxies.dataImport') }}</span>
-            </button>
-
-            <button
-              class="btn btn-secondary gap-2 px-3"
-              data-test="proxy-toolbar-export"
-              @click="$emit('open-export')"
-            >
-              <Icon name="download" size="sm" />
-              <span>{{ exportButtonLabel }}</span>
-            </button>
 
             <button
               class="btn btn-secondary gap-2 px-3"
@@ -191,6 +149,30 @@
                   >
                     {{ selectedCount > 0 ? selectedCount : t('common.all') }}
                   </span>
+                </div>
+
+                <div class="grid gap-2 sm:grid-cols-2">
+                  <button
+                    class="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5 text-left transition hover:border-sky-300 hover:bg-sky-50/60 dark:border-gray-700 dark:hover:border-sky-700 dark:hover:bg-sky-900/10"
+                    data-test="proxy-toolbar-import"
+                    @click="$emit('open-import')"
+                  >
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300">
+                      <Icon name="upload" size="sm" />
+                    </span>
+                    <span class="min-w-0 flex-1 text-sm text-gray-700 dark:text-gray-200">{{ t('admin.proxies.dataImport') }}</span>
+                  </button>
+
+                  <button
+                    class="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5 text-left transition hover:border-indigo-300 hover:bg-indigo-50/60 dark:border-gray-700 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/10"
+                    data-test="proxy-toolbar-export"
+                    @click="$emit('open-export')"
+                  >
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
+                      <Icon name="download" size="sm" />
+                    </span>
+                    <span class="min-w-0 flex-1 text-sm text-gray-700 dark:text-gray-200">{{ exportButtonLabel }}</span>
+                  </button>
                 </div>
 
                 <div class="grid gap-2 sm:grid-cols-2">
@@ -318,7 +300,6 @@ import type { Column } from '@/components/common/types'
 const { t } = useI18n()
 
 const props = defineProps<{
-  activeTab: 'proxies' | 'subscriptions'
   searchQuery: string
   filters: {
     protocol: string
@@ -329,7 +310,6 @@ const props = defineProps<{
   statusOptions: Array<{ value: string; label: string }>
   runtimeStatusOptions: Array<{ value: string; label: string }>
   loading: boolean
-  loadingSubscriptions: boolean
   batchTesting: boolean
   batchQualityChecking: boolean
   selectedCount: number
@@ -341,12 +321,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'set-tab', tab: 'proxies' | 'subscriptions'): void
   (e: 'update:searchQuery', value: string): void
   (e: 'update:filters', filters: { protocol: string; status: string; runtime_status: string }): void
   (e: 'reload-proxies'): void
-  (e: 'reload-subscriptions'): void
-  (e: 'create-subscription'): void
   (e: 'toggle-column-dropdown'): void
   (e: 'toggle-tools-dropdown'): void
   (e: 'toggle-batch-dropdown'): void
@@ -354,6 +331,7 @@ const emit = defineEmits<{
   (e: 'open-import'): void
   (e: 'open-export'): void
   (e: 'open-pool'): void
+  (e: 'open-mihomo'): void
   (e: 'batch-test'): void
   (e: 'batch-quality-check'): void
   (e: 'batch-enable-pool'): void

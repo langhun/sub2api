@@ -2,8 +2,8 @@ package admin
 
 import (
 	"bytes"
-	"encoding/json"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -18,13 +18,19 @@ import (
 
 // ProxyHandler handles admin proxy management
 type ProxyHandler struct {
-	adminService service.AdminService
+	adminService         service.AdminService
+	projectMihomoService *service.ProjectMihomoService
 }
 
-// NewProxyHandler creates a new admin proxy handler
-func NewProxyHandler(adminService service.AdminService) *ProxyHandler {
+// NewProxyHandler creates a new admin proxy handler.
+func NewProxyHandler(adminService service.AdminService, projectMihomoService ...*service.ProjectMihomoService) *ProxyHandler {
+	var mihomoService *service.ProjectMihomoService
+	if len(projectMihomoService) > 0 {
+		mihomoService = projectMihomoService[0]
+	}
 	return &ProxyHandler{
-		adminService: adminService,
+		adminService:         adminService,
+		projectMihomoService: mihomoService,
 	}
 }
 
@@ -71,14 +77,14 @@ func (f optionalProxyStringField) ToServiceInput() *string {
 
 // UpdateProxyRequest represents update proxy request
 type UpdateProxyRequest struct {
-	Name                    string `json:"name"`
-	Protocol                string `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
-	Host                    string `json:"host"`
-	Port                    int    `json:"port" binding:"omitempty,min=1,max=65535"`
+	Name                    string                   `json:"name"`
+	Protocol                string                   `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
+	Host                    string                   `json:"host"`
+	Port                    int                      `json:"port" binding:"omitempty,min=1,max=65535"`
 	Username                optionalProxyStringField `json:"username"`
 	Password                optionalProxyStringField `json:"password"`
-	Status                  string `json:"status" binding:"omitempty,oneof=active inactive"`
-	AutoFailoverPoolEnabled *bool  `json:"auto_failover_pool_enabled"`
+	Status                  string                   `json:"status" binding:"omitempty,oneof=active inactive"`
+	AutoFailoverPoolEnabled *bool                    `json:"auto_failover_pool_enabled"`
 }
 
 type UnassignProxyAccountsRequest struct {
