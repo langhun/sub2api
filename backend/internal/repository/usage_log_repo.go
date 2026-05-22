@@ -200,13 +200,14 @@ const (
 	usageLogCreateBatchQueueCap = 4096
 	usageLogCreateCancelWait    = 2 * time.Second
 
-	usageLogBestEffortBatchMaxSize  = 256
-	usageLogBestEffortBatchWindow   = 20 * time.Millisecond
-	usageLogBestEffortBatchQueueCap = 32768
-	usageLogBestEffortRecentTTL     = 30 * time.Second
-	usageLogGroupSummaryCacheTTL    = 30 * time.Second
-	usageLogGroupTotalCostCacheTTL  = 10 * time.Minute
-	usageLogGroupTotalCostRebuildAt = 6 * time.Hour
+	usageLogBestEffortBatchMaxSize               = 256
+	usageLogBestEffortBatchWindow                = 20 * time.Millisecond
+	usageLogBestEffortBatchQueueCap              = 32768
+	usageLogBestEffortRecentTTL                  = 30 * time.Second
+	usageLogGroupSummaryCacheTTL                 = 30 * time.Second
+	usageLogGroupSummaryCacheCleanupThreshold    = 64
+	usageLogGroupTotalCostCacheTTL               = 10 * time.Minute
+	usageLogGroupTotalCostRebuildAt              = 6 * time.Hour
 	usageLogGroupTotalCostIncrementalMinInterval = 2 * time.Minute
 )
 
@@ -3665,7 +3666,16 @@ func (r *usageLogRepository) getGroupUsageSummaryCache(cacheKey int64) ([]usages
 	r.groupUsageSummaryCacheMu.RLock()
 	entry, ok := r.groupUsageSummaryCache[cacheKey]
 	r.groupUsageSummaryCacheMu.RUnlock()
-	if !ok || !entry.expiresAt.After(now) {
+	if !ok {
+		return nil, false
+	}
+	if !entry.expiresAt.After(now) {
+		r.groupUsageSummaryCacheMu.Lock()
+		currentEntry, exists := r.groupUsageSummaryCache[cacheKey]
+		if exists && !currentEntry.expiresAt.After(time.Now()) {
+			delete(r.groupUsageSummaryCache, cacheKey)
+		}
+		r.groupUsageSummaryCacheMu.Unlock()
 		return nil, false
 	}
 	return cloneGroupUsageSummaries(entry.summaries), true
@@ -3679,7 +3689,7 @@ func (r *usageLogRepository) setGroupUsageSummaryCache(cacheKey int64, summaries
 	r.groupUsageSummaryCacheMu.Lock()
 	if r.groupUsageSummaryCache == nil {
 		r.groupUsageSummaryCache = make(map[int64]usageLogGroupUsageSummaryCacheEntry)
-	} else {
+	} else if len(r.groupUsageSummaryCache) >= usageLogGroupSummaryCacheCleanupThreshold {
 		for key, entry := range r.groupUsageSummaryCache {
 			if !entry.expiresAt.After(now) {
 				delete(r.groupUsageSummaryCache, key)

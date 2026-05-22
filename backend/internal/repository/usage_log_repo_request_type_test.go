@@ -727,7 +727,7 @@ func TestUsageLogRepositoryGetAllGroupUsageSummaryExpiredTotalCacheUsesTodayAndI
 	now := time.Now().UTC()
 	incrementalFrom := now.Add(-10 * time.Minute)
 	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
-		expiresAt:       now.Add(-time.Minute),                          // 强制 needsRefresh=true
+		expiresAt:       now.Add(-time.Minute),                           // 强制 needsRefresh=true
 		fullRebuildAt:   now.Add(-(usageLogGroupTotalCostRebuildAt / 2)), // 未超阈值
 		incrementalFrom: incrementalFrom,
 		totalCost: map[int64]float64{
@@ -1250,6 +1250,89 @@ func TestUsageLogRepositoryGetAllGroupUsageSummaryCacheKeyUsesUTCNormalizedDaySt
 	require.NoError(t, err)
 	require.Equal(t, first, second)
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryExpiredCacheMissDeletesKey(t *testing.T) {
+	repo := &usageLogRepository{}
+
+	cacheKey := int64(12345)
+	repo.groupUsageSummaryCache = map[int64]usageLogGroupUsageSummaryCacheEntry{
+		cacheKey: {
+			expiresAt: time.Now().Add(-time.Hour),
+			summaries: []usagestats.GroupUsageSummary{
+				{GroupID: 1, TotalCost: 1.0, TodayCost: 0.1},
+			},
+		},
+	}
+
+	cached, ok := repo.getGroupUsageSummaryCache(cacheKey)
+	require.False(t, ok)
+	require.Nil(t, cached)
+
+	repo.groupUsageSummaryCacheMu.RLock()
+	_, exists := repo.groupUsageSummaryCache[cacheKey]
+	cacheLen := len(repo.groupUsageSummaryCache)
+	repo.groupUsageSummaryCacheMu.RUnlock()
+
+	require.False(t, exists, "expired summary key should be deleted after miss")
+	require.Zero(t, cacheLen)
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummarySetGroupUsageSummaryCacheAtThresholdPrunesExpiredAndKeepsLiveAndNewKeys(t *testing.T) {
+	repo := &usageLogRepository{}
+
+	const largeCacheEntries = 4096
+	const expiredKey int64 = 1
+	const liveKey int64 = 2
+	const newKey int64 = 1000000
+
+	now := time.Now()
+	liveSummaries := []usagestats.GroupUsageSummary{
+		{GroupID: liveKey, TotalCost: 22.0, TodayCost: 2.2},
+	}
+	newSummaries := []usagestats.GroupUsageSummary{
+		{GroupID: 99, TotalCost: 99.0, TodayCost: 9.9},
+	}
+
+	repo.groupUsageSummaryCache = make(map[int64]usageLogGroupUsageSummaryCacheEntry, largeCacheEntries+2)
+	repo.groupUsageSummaryCache[expiredKey] = usageLogGroupUsageSummaryCacheEntry{
+		expiresAt: now.Add(-time.Hour),
+		summaries: []usagestats.GroupUsageSummary{
+			{GroupID: expiredKey, TotalCost: 11.0, TodayCost: 1.1},
+		},
+	}
+	repo.groupUsageSummaryCache[liveKey] = usageLogGroupUsageSummaryCacheEntry{
+		expiresAt: now.Add(time.Hour),
+		summaries: cloneGroupUsageSummaries(liveSummaries),
+	}
+	for i := 0; i < largeCacheEntries; i++ {
+		key := int64(10000 + i)
+		repo.groupUsageSummaryCache[key] = usageLogGroupUsageSummaryCacheEntry{
+			expiresAt: now.Add(time.Hour),
+			summaries: []usagestats.GroupUsageSummary{
+				{GroupID: key, TotalCost: float64(i + 1), TodayCost: float64(i+1) / 10},
+			},
+		}
+	}
+
+	beforeLen := len(repo.groupUsageSummaryCache)
+	require.GreaterOrEqual(t, beforeLen, largeCacheEntries+2)
+
+	repo.setGroupUsageSummaryCache(newKey, newSummaries)
+
+	repo.groupUsageSummaryCacheMu.RLock()
+	_, expiredExists := repo.groupUsageSummaryCache[expiredKey]
+	liveEntry, liveExists := repo.groupUsageSummaryCache[liveKey]
+	newEntry, newExists := repo.groupUsageSummaryCache[newKey]
+	afterLen := len(repo.groupUsageSummaryCache)
+	repo.groupUsageSummaryCacheMu.RUnlock()
+
+	require.False(t, expiredExists, "expired keys should be pruned before writing the new summary cache entry")
+	require.True(t, liveExists, "live cache entries should survive cleanup")
+	require.Equal(t, liveSummaries, liveEntry.summaries)
+	require.True(t, newExists, "new cache entry should be stored")
+	require.Equal(t, newSummaries, newEntry.summaries)
+	require.Equal(t, beforeLen, afterLen, "cleanup should remove expired entries while preserving live ones and adding the new key")
 }
 
 func TestUsageLogRepositoryGetAllGroupUsageSummaryExpiredCacheKeyRewriteKeepsSingleNormalizedEntry(t *testing.T) {
@@ -1788,4 +1871,3 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 	})
 
 }
-
