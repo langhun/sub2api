@@ -2,9 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
 
@@ -57,14 +61,60 @@ type UpdateProxyRequest struct {
 
 // ProxyService 代理管理服务
 type ProxyService struct {
-	proxyRepo ProxyRepository
+	proxyRepo        ProxyRepository
+	connectionTester proxyConnectionTester
 }
 
 // NewProxyService 创建代理服务实例
 func NewProxyService(proxyRepo ProxyRepository) *ProxyService {
+	return NewProxyServiceWithTester(proxyRepo, &httpProxyConnectionTester{})
+}
+
+// NewProxyServiceWithTester creates a proxy service with injectable connectivity tester.
+func NewProxyServiceWithTester(proxyRepo ProxyRepository, tester proxyConnectionTester) *ProxyService {
 	return &ProxyService{
-		proxyRepo: proxyRepo,
+		proxyRepo:        proxyRepo,
+		connectionTester: tester,
 	}
+}
+
+type proxyConnectionTester interface {
+	TestConnection(ctx context.Context, proxyURL string) error
+}
+
+var errProxyConnectionTesterNotConfigured = errors.New("proxy connection tester is not configured")
+
+const (
+	defaultProxyConnectivityProbeURL = "https://www.cloudflare.com/cdn-cgi/trace"
+	defaultProxyConnectivityTimeout  = 10 * time.Second
+)
+
+type httpProxyConnectionTester struct{}
+
+func (t *httpProxyConnectionTester) TestConnection(ctx context.Context, proxyURL string) error {
+	client, err := httpclient.GetClient(httpclient.Options{
+		ProxyURL: proxyURL,
+		Timeout:  defaultProxyConnectivityTimeout,
+	})
+	if err != nil {
+		return fmt.Errorf("create proxy test client: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, defaultProxyConnectivityProbeURL, nil)
+	if err != nil {
+		return fmt.Errorf("build proxy test request: %w", err)
+	}
+	req.Header.Set("User-Agent", "sub2api-proxy-service/1.0")
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("probe proxy: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("probe returned unexpected status: %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // Create 创建代理
@@ -172,16 +222,23 @@ func (s *ProxyService) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-// TestConnection 测试代理连接（需要实现具体测试逻辑）
+// TestConnection 测试代理连接
 func (s *ProxyService) TestConnection(ctx context.Context, id int64) error {
 	proxy, err := s.proxyRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("get proxy: %w", err)
 	}
+	if proxy == nil {
+		return fmt.Errorf("get proxy: proxy is nil")
+	}
+	if s.connectionTester == nil {
+		return fmt.Errorf("test proxy connection: %w", errProxyConnectionTesterNotConfigured)
+	}
 
-	// TODO: 实现代理连接测试逻辑
-	// 可以尝试通过代理发送测试请求
-	_ = proxy
+	proxyURL := proxy.URL()
+	if err := s.connectionTester.TestConnection(ctx, proxyURL); err != nil {
+		return fmt.Errorf("test proxy connection via %s: %w", proxyURL, err)
+	}
 
 	return nil
 }
