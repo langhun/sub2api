@@ -541,6 +541,17 @@ func TestBackupService_Schedule_CronValidation(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestBackupService_GetSchedule_Corrupted(t *testing.T) {
+	repo := newMockSettingRepo()
+	_ = repo.Set(context.Background(), settingKeyBackupSchedule, "{bad json")
+	svc := newTestBackupService(repo, &mockDumper{}, newMockObjectStore())
+
+	cfg, err := svc.GetSchedule(context.Background())
+	require.Error(t, err)
+	require.Nil(t, cfg)
+	require.ErrorIs(t, err, ErrBackupScheduleCorrupt)
+}
+
 func TestBackupService_LoadS3Config_Corrupted(t *testing.T) {
 	repo := newMockSettingRepo()
 	_ = repo.Set(context.Background(), settingKeyBackupS3Config, "not json!!!!")

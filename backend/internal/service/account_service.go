@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -401,24 +402,69 @@ func (s *AccountService) GetCredential(ctx context.Context, id int64, key string
 	return account.GetCredential(key), nil
 }
 
-// TestCredentials 测试账号凭证是否有效（需要实现具体平台的测试逻辑）
+func validateCredentialNonEmpty(account *Account, key, label string) error {
+	if account == nil {
+		return fmt.Errorf("account is nil")
+	}
+	if strings.TrimSpace(account.GetCredential(key)) == "" {
+		return fmt.Errorf("missing required credential: %s", label)
+	}
+	return nil
+}
+
+// TestCredentials 测试账号凭证是否有效（基础字段校验）
 func (s *AccountService) TestCredentials(ctx context.Context, id int64) error {
 	account, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("get account: %w", err)
 	}
+	if account == nil {
+		return ErrAccountNotFound
+	}
 
 	// 根据平台执行不同的测试逻辑
 	switch account.Platform {
 	case PlatformAnthropic:
-		// TODO: 测试Anthropic API凭证
-		return nil
+		if account.Type == AccountTypeAPIKey {
+			return validateCredentialNonEmpty(account, "api_key", "anthropic.api_key")
+		}
+		if account.IsOAuth() {
+			return validateCredentialNonEmpty(account, "access_token", "anthropic.access_token")
+		}
+		if account.Type == AccountTypeBedrock {
+			if err := validateCredentialNonEmpty(account, "aws_access_key_id", "anthropic.bedrock.aws_access_key_id"); err != nil {
+				return err
+			}
+			if err := validateCredentialNonEmpty(account, "aws_secret_access_key", "anthropic.bedrock.aws_secret_access_key"); err != nil {
+				return err
+			}
+			return validateCredentialNonEmpty(account, "aws_region", "anthropic.bedrock.aws_region")
+		}
+		return fmt.Errorf("unsupported anthropic account type: %s", account.Type)
+	case PlatformAntigravity:
+		if account.Type == AccountTypeAPIKey {
+			return validateCredentialNonEmpty(account, "api_key", "antigravity.api_key")
+		}
+		if account.IsOAuth() {
+			return validateCredentialNonEmpty(account, "access_token", "antigravity.access_token")
+		}
+		return fmt.Errorf("unsupported antigravity account type: %s", account.Type)
 	case PlatformOpenAI:
-		// TODO: 测试OpenAI API凭证
-		return nil
+		if account.Type == AccountTypeAPIKey {
+			return validateCredentialNonEmpty(account, "api_key", "openai.api_key")
+		}
+		if account.IsOAuth() {
+			return validateCredentialNonEmpty(account, "access_token", "openai.access_token")
+		}
+		return fmt.Errorf("unsupported openai account type: %s", account.Type)
 	case PlatformGemini:
-		// TODO: 测试Gemini API凭证
-		return nil
+		if account.Type == AccountTypeAPIKey {
+			return validateCredentialNonEmpty(account, "api_key", "gemini.api_key")
+		}
+		if account.IsOAuth() {
+			return validateCredentialNonEmpty(account, "access_token", "gemini.access_token")
+		}
+		return fmt.Errorf("unsupported gemini account type: %s", account.Type)
 	default:
 		return fmt.Errorf("unsupported platform: %s", account.Platform)
 	}

@@ -210,7 +210,7 @@ func (s *MonitoringService) queryGroupHealth(ctx context.Context, overview *Moni
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var g GroupHealth
@@ -249,7 +249,7 @@ func (s *MonitoringService) queryGroupModelStats(ctx context.Context, overview *
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var m GroupModelStats
@@ -281,7 +281,7 @@ func (s *MonitoringService) queryGroupModelStats(ctx context.Context, overview *
 	if err != nil {
 		return err
 	}
-	defer errRows.Close()
+	defer func() { _ = errRows.Close() }()
 
 	type groupModelKey struct {
 		groupID int64
@@ -355,7 +355,7 @@ func (s *MonitoringService) queryModelLatency(ctx context.Context, overview *Mon
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var m ModelLatency
@@ -383,7 +383,7 @@ func (s *MonitoringService) queryModelLatency(ctx context.Context, overview *Mon
 	if err != nil {
 		return err
 	}
-	defer errRows.Close()
+	defer func() { _ = errRows.Close() }()
 
 	errMap := make(map[string]int)
 	for errRows.Next() {
@@ -446,7 +446,7 @@ func (s *MonitoringService) queryErrorAccounts(ctx context.Context, overview *Mo
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var e ErrorAccount
@@ -527,7 +527,7 @@ func (s *MonitoringService) queryHourlyStats(ctx context.Context, overview *Moni
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var h HourlyStats
@@ -584,7 +584,7 @@ func (s *MonitoringService) queryModelHourlyStats(ctx context.Context, overview 
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var m ModelHourlyStats

@@ -131,7 +131,7 @@ func (h *ModelPricingHandler) GetSyncStatus(c *gin.Context) {
 
 func (h *ModelPricingHandler) SetAutoSync(c *gin.Context) {
 	var req struct {
-			Enabled bool `json:"enabled"`
+		Enabled bool `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request body")
@@ -143,7 +143,7 @@ func (h *ModelPricingHandler) SetAutoSync(c *gin.Context) {
 }
 
 type PublicPricingResponse struct {
-	Groups  []service.PublicPricingGroup `json:"groups"`
+	Groups []service.PublicPricingGroup `json:"groups"`
 }
 
 func (h *ModelPricingHandler) GetPublicPricing(c *gin.Context) {

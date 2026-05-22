@@ -235,7 +235,10 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 			if upstreamMsg != "" {
 				msg = "OAuth 401: " + upstreamMsg
 			}
-			cooldownMinutes := s.cfg.RateLimit.OAuth401CooldownMinutes
+			cooldownMinutes := 0
+			if s.cfg != nil {
+				cooldownMinutes = s.cfg.RateLimit.OAuth401CooldownMinutes
+			}
 			if cooldownMinutes <= 0 {
 				cooldownMinutes = 10
 			}
@@ -1292,7 +1295,10 @@ func (s *RateLimitService) handle529(ctx context.Context, account *Account) {
 	}
 	// 回退到配置文件
 	if settings == nil {
-		cooldown := s.cfg.RateLimit.OverloadCooldownMinutes
+		cooldown := 0
+		if s.cfg != nil {
+			cooldown = s.cfg.RateLimit.OverloadCooldownMinutes
+		}
 		if cooldown <= 0 {
 			cooldown = 10
 		}

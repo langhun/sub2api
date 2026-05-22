@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
 type TransferAdminHandler struct {
@@ -96,7 +96,7 @@ func (h *TransferAdminHandler) RevokeTransfer(c *gin.Context) {
 func (h *TransferAdminHandler) BatchDistribute(c *gin.Context) {
 	var req struct {
 		Targets []service.BatchDistributeTarget `json:"targets" binding:"required"`
-		Memo    *string                          `json:"memo"`
+		Memo    *string                         `json:"memo"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

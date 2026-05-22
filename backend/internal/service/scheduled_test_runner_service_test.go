@@ -99,6 +99,15 @@ func (s *scheduledRunnerAccountRepoStub) ClearRateLimit(ctx context.Context, acc
 	return nil
 }
 
+func (s *scheduledRunnerAccountRepoStub) SetRateLimited(ctx context.Context, accountID int64, resetAt time.Time) error {
+	if account, ok := s.accountsByID[accountID]; ok {
+		now := time.Now()
+		account.RateLimitedAt = &now
+		account.RateLimitResetAt = &resetAt
+	}
+	return nil
+}
+
 func (s *scheduledRunnerAccountRepoStub) ClearAntigravityQuotaScopes(ctx context.Context, accountID int64) error {
 	return nil
 }

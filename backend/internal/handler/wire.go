@@ -7,8 +7,18 @@ import (
 	"github.com/google/wire"
 )
 
-func ProvideAdminProxyHandler(adminService service.AdminService, projectMihomoService *service.ProjectMihomoService) *admin.ProxyHandler {
-	return admin.NewProxyHandler(adminService, projectMihomoService)
+func ProvideAdminProxyHandler(adminService service.AdminService, mihomoService *service.MihomoService) *admin.ProxyHandler {
+	return admin.NewProxyHandler(adminService, mihomoService)
+}
+
+func ProvideDashboardHandler(
+	dashboardService *service.DashboardService,
+	aggregationService *service.DashboardAggregationService,
+	monitoringService *service.MonitoringService,
+) *admin.DashboardHandler {
+	h := admin.NewDashboardHandler(dashboardService, aggregationService)
+	h.SetMonitoringService(monitoringService)
+	return h
 }
 
 // ProvideAdminHandlers creates the AdminHandlers struct
@@ -177,7 +187,7 @@ var ProviderSet = wire.NewSet(
 	NewBalanceTransferHandler,
 
 	// Admin handlers
-	admin.NewDashboardHandler,
+	ProvideDashboardHandler,
 	admin.NewUserHandler,
 	admin.NewGroupHandler,
 	admin.NewAccountHandler,

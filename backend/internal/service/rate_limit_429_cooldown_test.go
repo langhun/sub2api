@@ -49,6 +49,16 @@ func TestGetRateLimit429CooldownSettings_ReadsFromDB(t *testing.T) {
 	require.Equal(t, 12, settings.CooldownSeconds)
 }
 
+func TestGetRateLimit429CooldownSettings_InvalidJSON_ReturnsError(t *testing.T) {
+	repo := newMockSettingRepo()
+	repo.data[SettingKeyRateLimit429CooldownSettings] = "not-json"
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetRateLimit429CooldownSettings(context.Background())
+	require.ErrorIs(t, err, ErrRateLimit429CooldownSettingsCorrupt)
+	require.Nil(t, settings)
+}
+
 func TestSetRateLimit429CooldownSettings_EnabledRejectsOutOfRange(t *testing.T) {
 	svc := NewSettingService(newMockSettingRepo(), &config.Config{})
 

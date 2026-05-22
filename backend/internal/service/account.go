@@ -58,14 +58,36 @@ type Account struct {
 	GroupIDs      []int64
 	Groups        []*Group
 
-	// model_mapping 热路径缓存（非持久化字段）
-	modelMappingMu                  sync.RWMutex
-	modelMappingCache               map[string]string
-	modelMappingCacheReady          bool
-	modelMappingCacheCredentialsPtr uintptr
-	modelMappingCacheRawPtr         uintptr
-	modelMappingCacheRawLen         int
-	modelMappingCacheRawSig         uint64
+	// model_mapping 热路径缓存（非持久化字段）。
+	// 缓存状态放在独立指针里，避免 Account 值拷贝时把锁也一起拷贝。
+	modelMappingState *accountModelMappingState
+}
+
+type accountModelMappingState struct {
+	mu             sync.RWMutex
+	cache          map[string]string
+	cacheReady     bool
+	credentialsPtr uintptr
+	rawPtr         uintptr
+	rawLen         int
+	rawSig         uint64
+}
+
+var accountModelMappingStateInitMu sync.Mutex
+
+func (a *Account) getModelMappingState() *accountModelMappingState {
+	if a == nil {
+		return nil
+	}
+	if a.modelMappingState != nil {
+		return a.modelMappingState
+	}
+	accountModelMappingStateInitMu.Lock()
+	defer accountModelMappingStateInitMu.Unlock()
+	if a.modelMappingState == nil {
+		a.modelMappingState = &accountModelMappingState{}
+	}
+	return a.modelMappingState
 }
 
 type TempUnschedulableRule struct {
@@ -505,44 +527,48 @@ func stringMappingFromRaw(raw any) map[string]string {
 }
 
 func (a *Account) GetModelMapping() map[string]string {
+	if a == nil {
+		return nil
+	}
 	credentialsPtr := mapPtr(a.Credentials)
 	rawMapping, _ := a.Credentials["model_mapping"].(map[string]any)
 	rawPtr := mapPtr(rawMapping)
 	rawLen := len(rawMapping)
 	rawSig := uint64(0)
 	rawSigReady := false
+	state := a.getModelMappingState()
 
 	// 先尝试读锁检查缓存
-	a.modelMappingMu.RLock()
-	if a.modelMappingCacheReady &&
-		a.modelMappingCacheCredentialsPtr == credentialsPtr &&
-		a.modelMappingCacheRawPtr == rawPtr &&
-		a.modelMappingCacheRawLen == rawLen {
+	state.mu.RLock()
+	if state.cacheReady &&
+		state.credentialsPtr == credentialsPtr &&
+		state.rawPtr == rawPtr &&
+		state.rawLen == rawLen {
 		rawSig = modelMappingSignature(rawMapping)
 		rawSigReady = true
-		if a.modelMappingCacheRawSig == rawSig {
-			result := a.modelMappingCache
-			a.modelMappingMu.RUnlock()
+		if state.rawSig == rawSig {
+			result := state.cache
+			state.mu.RUnlock()
 			return result
 		}
 	}
-	a.modelMappingMu.RUnlock()
+	state.mu.RUnlock()
 
 	// 获取写锁更新缓存
-	a.modelMappingMu.Lock()
-	defer a.modelMappingMu.Unlock()
+	state.mu.Lock()
+	defer state.mu.Unlock()
 
 	// 双重检查：可能在等待写锁期间已被其他 goroutine 更新
-	if a.modelMappingCacheReady &&
-		a.modelMappingCacheCredentialsPtr == credentialsPtr &&
-		a.modelMappingCacheRawPtr == rawPtr &&
-		a.modelMappingCacheRawLen == rawLen {
+	if state.cacheReady &&
+		state.credentialsPtr == credentialsPtr &&
+		state.rawPtr == rawPtr &&
+		state.rawLen == rawLen {
 		if !rawSigReady {
 			rawSig = modelMappingSignature(rawMapping)
 			rawSigReady = true
 		}
-		if a.modelMappingCacheRawSig == rawSig {
-			return a.modelMappingCache
+		if state.rawSig == rawSig {
+			return state.cache
 		}
 	}
 
@@ -551,12 +577,12 @@ func (a *Account) GetModelMapping() map[string]string {
 		rawSig = modelMappingSignature(rawMapping)
 	}
 
-	a.modelMappingCache = mapping
-	a.modelMappingCacheReady = true
-	a.modelMappingCacheCredentialsPtr = credentialsPtr
-	a.modelMappingCacheRawPtr = rawPtr
-	a.modelMappingCacheRawLen = rawLen
-	a.modelMappingCacheRawSig = rawSig
+	state.cache = mapping
+	state.cacheReady = true
+	state.credentialsPtr = credentialsPtr
+	state.rawPtr = rawPtr
+	state.rawLen = rawLen
+	state.rawSig = rawSig
 	return mapping
 }
 
@@ -564,7 +590,7 @@ func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]stri
 	if a.Credentials == nil {
 		// Antigravity 平台使用默认映射
 		if a.Platform == domain.PlatformAntigravity {
-			return domain.DefaultAntigravityModelMapping
+			return cloneStringMap(domain.DefaultAntigravityModelMapping)
 		}
 		// Bedrock 默认映射由 forwardBedrock 统一处理（需配合 region prefix 调整）
 		return nil
@@ -572,7 +598,7 @@ func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]stri
 	if len(rawMapping) == 0 {
 		// Antigravity 平台使用默认映射
 		if a.Platform == domain.PlatformAntigravity {
-			return domain.DefaultAntigravityModelMapping
+			return cloneStringMap(domain.DefaultAntigravityModelMapping)
 		}
 		return nil
 	}
@@ -596,9 +622,20 @@ func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]stri
 
 	// Antigravity 平台使用默认映射
 	if a.Platform == domain.PlatformAntigravity {
-		return domain.DefaultAntigravityModelMapping
+		return cloneStringMap(domain.DefaultAntigravityModelMapping)
 	}
 	return nil
+}
+
+func cloneStringMap(src map[string]string) map[string]string {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make(map[string]string, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }
 
 func mapPtr(m map[string]any) uintptr {

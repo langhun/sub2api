@@ -29,7 +29,9 @@ func TestProxyLatencyInfoHashRoundTripPreservesRuntimeFields(t *testing.T) {
 
 	stringFields := make(map[string]string, len(fields))
 	for key, value := range fields {
-		stringFields[key] = value.(string)
+		valueStr, ok := value.(string)
+		require.True(t, ok)
+		stringFields[key] = valueStr
 	}
 	roundTrip, err := proxyLatencyInfoFromHash(stringFields)
 	require.NoError(t, err)

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
@@ -392,6 +394,52 @@ func TestAccountTestService_OpenAI403SwitchesToPoolAndRetries(t *testing.T) {
 	require.Len(t, upstream.proxyURLs, 2)
 	require.Equal(t, "", upstream.proxyURLs[0])
 	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[1])
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAIAPIKeyUnsupportedResponsesUsesCCChatCompletionsPath(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"choices":[{"delta":{"content":"hi"}}]}
+data: {"choices":[{"delta":{"content":" there"},"finish_reason":"stop"}]}
+
+`))
+
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{
+		httpUpstream: upstream,
+		cfg: &config.Config{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{
+					Enabled: false,
+				},
+			},
+		},
+	}
+	account := &Account{
+		ID:          901,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://relay.example.com/v1",
+		},
+		Extra: map[string]any{
+			openai_compat.ExtraKeyResponsesSupported: false,
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.NoError(t, err)
+
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "https://relay.example.com/v1/chat/completions", upstream.requests[0].URL.String())
+	require.Equal(t, "text/event-stream", upstream.requests[0].Header.Get("Accept"))
+	require.Contains(t, recorder.Body.String(), `"text":"hi"`)
+	require.Contains(t, recorder.Body.String(), `"text":" there"`)
 	require.Contains(t, recorder.Body.String(), "test_complete")
 }
 

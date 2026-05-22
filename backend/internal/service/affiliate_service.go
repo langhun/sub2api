@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -189,11 +190,29 @@ func (s *AffiliateService) isValidAffiliateCodeFormat(code string) bool {
 	if s != nil && s.settingService != nil {
 		format = s.settingService.GetAffiliateCodeFormat(context.Background())
 	}
+	if format == DefaultAffiliateCodeFormat() {
+		return isValidAffiliateCodeFormat(code)
+	}
 	return IsCodeMatchingFormat(code, format)
 }
 
 func isValidAffiliateCodeFormat(code string) bool {
-	return IsCodeMatchingFormat(code, DefaultAffiliateCodeFormat())
+	if code == "" || !utf8.ValidString(code) {
+		return false
+	}
+	if len(code) < 4 || len(code) > 32 {
+		return false
+	}
+	for _, r := range code {
+		switch {
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '_' || r == '-':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // IsEnabled reports whether the affiliate (邀请返利) feature is turned on.

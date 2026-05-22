@@ -327,9 +327,6 @@ func TestAutoFailoverProxyPoolServiceDoHTTPRequestFailsOverAndMutatesTransientAc
 	if !ok {
 		t.Fatalf("proxy_failover_state missing from account.Extra: %#v", account.Extra)
 	}
-	if got, _ := state["active_proxy_id"].(int64); got != 0 {
-		// JSON-like maps in runtime state use float64/int64 depending on source. Allow fallback below.
-	}
 	if activeID, ok := state["active_proxy_id"].(int64); ok && activeID != 2 {
 		t.Fatalf("active_proxy_id = %d, want 2", activeID)
 	}

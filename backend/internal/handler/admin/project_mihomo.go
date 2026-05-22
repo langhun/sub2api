@@ -7,11 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type projectMihomoRequest struct {
-	SubscriptionURL  string   `json:"subscription_url"`
-	SubscriptionURLs []string `json:"subscription_urls"`
-	SubscriptionUA   string   `json:"subscription_user_agent"`
-	UpdateInterval   int      `json:"update_interval"`
+type mihomoRequest struct {
 	Protocol         string   `json:"protocol"`
 	TargetHost       string   `json:"target_host"`
 	StartPort        int      `json:"start_port"`
@@ -20,14 +16,16 @@ type projectMihomoRequest struct {
 	ControllerSecret string   `json:"controller_secret"`
 	ProxyNamePrefix  string   `json:"proxy_name_prefix"`
 	ListenerRegions  []string `json:"listener_regions"`
+	AutoOptimize     bool     `json:"auto_optimize"`
+	CountryFilter    string   `json:"country_filter"`
 }
 
-func (h *ProxyHandler) GetProjectMihomo(c *gin.Context) {
-	if h.projectMihomoService == nil {
-		response.NotFound(c, "Project Mihomo service is not configured")
+func (h *ProxyHandler) GetMihomo(c *gin.Context) {
+	if h.mihomoService == nil {
+		response.NotFound(c, "Mihomo service is not configured")
 		return
 	}
-	status, err := h.projectMihomoService.GetStatus(c.Request.Context())
+	status, err := h.mihomoService.GetStatus(c.Request.Context())
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -35,17 +33,17 @@ func (h *ProxyHandler) GetProjectMihomo(c *gin.Context) {
 	response.Success(c, status)
 }
 
-func (h *ProxyHandler) UpdateProjectMihomo(c *gin.Context) {
-	if h.projectMihomoService == nil {
-		response.NotFound(c, "Project Mihomo service is not configured")
+func (h *ProxyHandler) UpdateMihomo(c *gin.Context) {
+	if h.mihomoService == nil {
+		response.NotFound(c, "Mihomo service is not configured")
 		return
 	}
-	var req projectMihomoRequest
+	var req mihomoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	settings, err := h.projectMihomoService.SetSettings(c.Request.Context(), projectMihomoSettingsFromRequest(req))
+	settings, err := h.mihomoService.SetSettings(c.Request.Context(), mihomoSettingsFromRequest(req))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -53,17 +51,17 @@ func (h *ProxyHandler) UpdateProjectMihomo(c *gin.Context) {
 	response.Success(c, settings)
 }
 
-func (h *ProxyHandler) SyncProjectMihomo(c *gin.Context) {
-	if h.projectMihomoService == nil {
-		response.NotFound(c, "Project Mihomo service is not configured")
+func (h *ProxyHandler) SyncMihomo(c *gin.Context) {
+	if h.mihomoService == nil {
+		response.NotFound(c, "Mihomo service is not configured")
 		return
 	}
-	var req projectMihomoRequest
+	var req mihomoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	result, err := h.projectMihomoService.Sync(c.Request.Context(), projectMihomoSettingsFromRequest(req))
+	result, err := h.mihomoService.Sync(c.Request.Context(), mihomoSettingsFromRequest(req))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -71,12 +69,8 @@ func (h *ProxyHandler) SyncProjectMihomo(c *gin.Context) {
 	response.Success(c, result)
 }
 
-func projectMihomoSettingsFromRequest(req projectMihomoRequest) *service.ProjectMihomoSettings {
-	return &service.ProjectMihomoSettings{
-		SubscriptionURL:  req.SubscriptionURL,
-		SubscriptionURLs: req.SubscriptionURLs,
-		SubscriptionUA:   req.SubscriptionUA,
-		UpdateInterval:   req.UpdateInterval,
+func mihomoSettingsFromRequest(req mihomoRequest) *service.MihomoSettings {
+	return &service.MihomoSettings{
 		Protocol:         req.Protocol,
 		TargetHost:       req.TargetHost,
 		StartPort:        req.StartPort,
@@ -85,5 +79,7 @@ func projectMihomoSettingsFromRequest(req projectMihomoRequest) *service.Project
 		ControllerSecret: req.ControllerSecret,
 		ProxyNamePrefix:  req.ProxyNamePrefix,
 		ListenerRegions:  req.ListenerRegions,
+		AutoOptimize:     req.AutoOptimize,
+		CountryFilter:    req.CountryFilter,
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -2922,8 +2923,15 @@ func parsePortRange(portRange string) (start, end int) {
 	if len(parts) != 2 {
 		return 0, 0
 	}
-	fmt.Sscanf(parts[0], "%d", &start)
-	fmt.Sscanf(parts[1], "%d", &end)
+	var err error
+	start, err = strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return 0, 0
+	}
+	end, err = strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return 0, 0
+	}
 	return start, end
 }
 
@@ -2973,7 +2981,9 @@ func validateDataDir(dataDir string) error {
 	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		return fmt.Errorf("data directory is not writable: %w", err)
 	}
-	os.Remove(testFile)
+	if err := os.Remove(testFile); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove write test file: %w", err)
+	}
 
 	return nil
 }

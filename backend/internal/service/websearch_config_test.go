@@ -71,31 +71,44 @@ func TestValidateWebSearchConfig_NilQuotaLimit(t *testing.T) {
 
 func TestParseWebSearchConfigJSON_ValidJSON(t *testing.T) {
 	raw := `{"enabled":true,"providers":[{"type":"brave","api_key":"sk-xxx"}]}`
-	cfg := parseWebSearchConfigJSON(raw)
+	cfg, err := parseWebSearchConfigJSON(raw)
+	require.NoError(t, err)
 	require.True(t, cfg.Enabled)
 	require.Len(t, cfg.Providers, 1)
 	require.Equal(t, "brave", cfg.Providers[0].Type)
 }
 
 func TestParseWebSearchConfigJSON_EmptyString(t *testing.T) {
-	cfg := parseWebSearchConfigJSON("")
+	cfg, err := parseWebSearchConfigJSON("")
+	require.NoError(t, err)
 	require.False(t, cfg.Enabled)
 	require.Empty(t, cfg.Providers)
 }
 
-func TestParseWebSearchConfigJSON_InvalidJSON(t *testing.T) {
-	cfg := parseWebSearchConfigJSON("not{json")
-	require.False(t, cfg.Enabled)
-	require.Empty(t, cfg.Providers)
+func TestParseWebSearchConfigJSON_InvalidJSONReturnsError(t *testing.T) {
+	cfg, err := parseWebSearchConfigJSON("not{json")
+	require.Error(t, err)
+	require.Nil(t, cfg)
 }
 
 func TestParseWebSearchConfigJSON_BackwardCompatibility(t *testing.T) {
 	// Old config with priority and quota_refresh_interval should parse without error
 	raw := `{"enabled":true,"providers":[{"type":"brave","priority":1,"quota_refresh_interval":"monthly","quota_limit":1000}]}`
-	cfg := parseWebSearchConfigJSON(raw)
+	cfg, err := parseWebSearchConfigJSON(raw)
+	require.NoError(t, err)
 	require.True(t, cfg.Enabled)
 	require.Len(t, cfg.Providers, 1)
 	require.Equal(t, int64(1000), *cfg.Providers[0].QuotaLimit)
+}
+
+func TestGetWebSearchEmulationConfig_InvalidJSONReturnsError(t *testing.T) {
+	repo := newMockSettingRepo()
+	repo.data[SettingKeyWebSearchEmulationConfig] = "not{json"
+	svc := NewSettingService(repo, nil)
+
+	cfg, err := svc.GetWebSearchEmulationConfig(context.Background())
+	require.ErrorIs(t, err, ErrWebSearchEmulationConfigCorrupt)
+	require.Nil(t, cfg)
 }
 
 // --- SanitizeWebSearchConfig ---

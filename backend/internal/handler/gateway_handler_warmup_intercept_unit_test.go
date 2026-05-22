@@ -59,6 +59,37 @@ func (f *fakeSchedulerCache) ListBuckets(_ context.Context) ([]service.Scheduler
 func (f *fakeSchedulerCache) GetOutboxWatermark(_ context.Context) (int64, error) { return 0, nil }
 func (f *fakeSchedulerCache) SetOutboxWatermark(_ context.Context, _ int64) error { return nil }
 
+type fakeAccountRepo struct {
+	service.AccountRepository
+	accounts []*service.Account
+}
+
+func (f *fakeAccountRepo) ListSchedulable(context.Context) ([]service.Account, error) {
+	result := make([]service.Account, 0, len(f.accounts))
+	for _, account := range f.accounts {
+		if account != nil {
+			result = append(result, *account)
+		}
+	}
+	return result, nil
+}
+
+func (f *fakeAccountRepo) ListSchedulableByGroupID(_ context.Context, groupID int64) ([]service.Account, error) {
+	result := make([]service.Account, 0, len(f.accounts))
+	for _, account := range f.accounts {
+		if account == nil {
+			continue
+		}
+		for _, group := range account.AccountGroups {
+			if group.GroupID == groupID {
+				result = append(result, *account)
+				break
+			}
+		}
+	}
+	return result, nil
+}
+
 type fakeGroupRepo struct {
 	group *service.Group
 }
@@ -144,9 +175,10 @@ func newTestGatewayHandler(t *testing.T, group *service.Group, accounts []*servi
 
 	schedulerCache := &fakeSchedulerCache{accounts: accounts}
 	schedulerSnapshot := service.NewSchedulerSnapshotService(schedulerCache, nil, nil, nil, nil)
+	accountRepo := &fakeAccountRepo{accounts: accounts}
 
 	gwSvc := service.NewGatewayService(
-		nil, // accountRepo (not used: scheduler snapshot hit)
+		accountRepo,
 		&fakeGroupRepo{group: group},
 		nil, // usageLogRepo
 		nil, // usageBillingRepo

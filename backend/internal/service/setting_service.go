@@ -25,9 +25,15 @@ import (
 )
 
 var (
-	ErrRegistrationDisabled   = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
-	ErrSettingNotFound        = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
-	ErrDefaultSubGroupInvalid = infraerrors.BadRequest(
+	ErrRegistrationDisabled                = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
+	ErrSettingNotFound                     = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
+	ErrOverloadCooldownSettingsCorrupt     = infraerrors.InternalServer("OVERLOAD_COOLDOWN_SETTINGS_CORRUPT", "overload cooldown settings are corrupted")
+	ErrRateLimit429CooldownSettingsCorrupt = infraerrors.InternalServer("RATE_LIMIT_429_COOLDOWN_SETTINGS_CORRUPT", "rate limit 429 cooldown settings are corrupted")
+	ErrStreamTimeoutSettingsCorrupt        = infraerrors.InternalServer("STREAM_TIMEOUT_SETTINGS_CORRUPT", "stream timeout settings are corrupted")
+	ErrRectifierSettingsCorrupt            = infraerrors.InternalServer("RECTIFIER_SETTINGS_CORRUPT", "rectifier settings are corrupted")
+	ErrBetaPolicySettingsCorrupt           = infraerrors.InternalServer("BETA_POLICY_SETTINGS_CORRUPT", "beta policy settings are corrupted")
+	ErrOpenAIFastPolicySettingsCorrupt     = infraerrors.InternalServer("OPENAI_FAST_POLICY_SETTINGS_CORRUPT", "openai fast policy settings are corrupted")
+	ErrDefaultSubGroupInvalid              = infraerrors.BadRequest(
 		"DEFAULT_SUBSCRIPTION_GROUP_INVALID",
 		"default subscription group must exist and be subscription type",
 	)
@@ -152,6 +158,8 @@ type ProviderDefaultGrantSettings struct {
 	Subscriptions    []DefaultSubscriptionSetting
 	GrantOnSignup    bool
 	GrantOnFirstBind bool
+	balanceSet       bool
+	concurrencySet   bool
 }
 
 type AuthSourceDefaultSettings struct {
@@ -3675,9 +3683,15 @@ func parseProviderDefaultGrantSettings(settings map[string]string, keys authSour
 
 	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[keys.balance]), 64); err == nil {
 		result.Balance = v
+		if _, ok := settings[keys.balance]; ok {
+			result.balanceSet = true
+		}
 	}
 	if v, err := strconv.Atoi(strings.TrimSpace(settings[keys.concurrency])); err == nil {
 		result.Concurrency = v
+		if _, ok := settings[keys.concurrency]; ok {
+			result.concurrencySet = true
+		}
 	}
 	if items := parseDefaultSubscriptions(settings[keys.subscriptions]); items != nil {
 		result.Subscriptions = items
@@ -3718,10 +3732,10 @@ func mergeProviderDefaultGrantSettings(globalDefaults ProviderDefaultGrantSettin
 		GrantOnFirstBind: providerDefaults.GrantOnFirstBind,
 	}
 
-	if providerDefaults.Balance != defaultAuthSourceBalance {
+	if providerDefaults.balanceSet {
 		result.Balance = providerDefaults.Balance
 	}
-	if providerDefaults.Concurrency > 0 && providerDefaults.Concurrency != defaultAuthSourceConcurrency {
+	if providerDefaults.concurrencySet {
 		result.Concurrency = providerDefaults.Concurrency
 	}
 	if len(providerDefaults.Subscriptions) > 0 {
@@ -4051,7 +4065,7 @@ func (s *SettingService) GetOverloadCooldownSettings(ctx context.Context) (*Over
 
 	var settings OverloadCooldownSettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return DefaultOverloadCooldownSettings(), nil
+		return nil, ErrOverloadCooldownSettingsCorrupt.WithCause(err)
 	}
 
 	// 修正配置值范围
@@ -4102,7 +4116,7 @@ func (s *SettingService) GetRateLimit429CooldownSettings(ctx context.Context) (*
 
 	var settings RateLimit429CooldownSettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return DefaultRateLimit429CooldownSettings(), nil
+		return nil, ErrRateLimit429CooldownSettingsCorrupt.WithCause(err)
 	}
 
 	if settings.CooldownSeconds < 1 {
@@ -4482,7 +4496,7 @@ func (s *SettingService) GetStreamTimeoutSettings(ctx context.Context) (*StreamT
 
 	var settings StreamTimeoutSettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return DefaultStreamTimeoutSettings(), nil
+		return nil, ErrStreamTimeoutSettingsCorrupt.WithCause(err)
 	}
 
 	// 验证并修正配置值
@@ -4597,7 +4611,7 @@ func (s *SettingService) GetRectifierSettings(ctx context.Context) (*RectifierSe
 
 	var settings RectifierSettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return DefaultRectifierSettings(), nil
+		return nil, ErrRectifierSettingsCorrupt.WithCause(err)
 	}
 
 	return &settings, nil
@@ -4650,7 +4664,7 @@ func (s *SettingService) GetBetaPolicySettings(ctx context.Context) (*BetaPolicy
 
 	var settings BetaPolicySettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return DefaultBetaPolicySettings(), nil
+		return nil, ErrBetaPolicySettingsCorrupt.WithCause(err)
 	}
 
 	return &settings, nil
@@ -4716,13 +4730,10 @@ func (s *SettingService) GetOpenAIFastPolicySettings(ctx context.Context) (*Open
 
 	var settings OpenAIFastPolicySettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		// JSON 损坏时静默 fallback 到默认配置会让策略意外失效（管理员配
-		// 置的 block/filter 规则被忽略）。记录 Warn 让运维能在出现异常
-		// 行为时定位到 settings 表里的脏数据。
-		slog.Warn("failed to unmarshal openai fast policy settings, falling back to defaults",
+		slog.Warn("failed to unmarshal openai fast policy settings",
 			"error", err,
 			"key", SettingKeyOpenAIFastPolicySettings)
-		return DefaultOpenAIFastPolicySettings(), nil
+		return nil, ErrOpenAIFastPolicySettingsCorrupt.WithCause(err)
 	}
 
 	return &settings, nil

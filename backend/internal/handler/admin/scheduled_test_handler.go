@@ -67,13 +67,13 @@ func (h *ScheduledTestHandler) Create(c *gin.Context) {
 	}
 
 	plan := &service.ScheduledTestPlan{
-		AccountID:            req.AccountID,
-		ModelID:              req.ModelID,
-		CronExpression:       req.CronExpression,
-		Enabled:              true,
-		MaxResults:           req.MaxResults,
-		SwitchGroupFromID:    req.SwitchGroupFromID,
-		SwitchGroupToID:      req.SwitchGroupToID,
+		AccountID:         req.AccountID,
+		ModelID:           req.ModelID,
+		CronExpression:    req.CronExpression,
+		Enabled:           true,
+		MaxResults:        req.MaxResults,
+		SwitchGroupFromID: req.SwitchGroupFromID,
+		SwitchGroupToID:   req.SwitchGroupToID,
 	}
 	if req.Enabled != nil {
 		plan.Enabled = *req.Enabled

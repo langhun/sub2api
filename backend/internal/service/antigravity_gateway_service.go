@@ -305,7 +305,7 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 				}
 			}
 
-			retryResp, retryErr := s.doUpstreamWithAutoFailover(p.account, retryReq)
+			retryResp, retryErr := s.doUpstreamWithAutoFailover(p.account, retryReq, p.httpUpstream)
 			if retryErr == nil && retryResp != nil && retryResp.StatusCode != http.StatusTooManyRequests && retryResp.StatusCode != http.StatusServiceUnavailable {
 				log.Printf("%s status=%d smart_retry_success attempt=%d/%d", p.prefix, retryResp.StatusCode, attempt, maxAttempts)
 				// 重试成功，清除 MODEL_CAPACITY_EXHAUSTED cooldown
@@ -490,7 +490,7 @@ func (s *AntigravityGatewayService) handleSingleAccountRetryInPlace(
 			break
 		}
 
-		retryResp, retryErr := s.doUpstreamWithAutoFailover(p.account, retryReq)
+		retryResp, retryErr := s.doUpstreamWithAutoFailover(p.account, retryReq, p.httpUpstream)
 		if retryErr == nil && retryResp != nil && retryResp.StatusCode != http.StatusTooManyRequests && retryResp.StatusCode != http.StatusServiceUnavailable {
 			logger.LegacyPrintf("service.antigravity_gateway", "%s status=%d single_account_503_retry_success attempt=%d/%d total_waited=%v",
 				p.prefix, retryResp.StatusCode, attempt, antigravitySingleAccountSmartRetryMaxAttempts, totalWaited)
@@ -633,7 +633,7 @@ urlFallbackLoop:
 				p.c.Set(OpsUpstreamRequestBodyKey, string(p.body))
 			}
 
-			resp, err = s.doUpstreamWithAutoFailover(p.account, upstreamReq)
+			resp, err = s.doUpstreamWithAutoFailover(p.account, upstreamReq, p.httpUpstream)
 			if err == nil && resp == nil {
 				err = errors.New("upstream returned nil response")
 			}
@@ -2230,7 +2230,7 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 				if err == nil {
 					fallbackReq, err := antigravity.NewAPIRequest(ctx, upstreamAction, accessToken, fallbackWrapped)
 					if err == nil {
-						fallbackResp, err := s.doUpstreamWithAutoFailover(account, fallbackReq)
+						fallbackResp, err := s.doUpstreamWithAutoFailover(account, fallbackReq, nil)
 						if err == nil && fallbackResp.StatusCode < 400 {
 							_ = resp.Body.Close()
 							resp = fallbackResp
@@ -4253,7 +4253,7 @@ func (s *AntigravityGatewayService) ForwardUpstream(ctx context.Context, c *gin.
 	}
 
 	// 发送请求
-	resp, err := s.doUpstreamWithAutoFailover(account, req)
+	resp, err := s.doUpstreamWithAutoFailover(account, req, nil)
 	if err != nil {
 		logger.LegacyPrintf("service.antigravity_gateway", "%s upstream request failed: %v", prefix, err)
 		return nil, fmt.Errorf("upstream request failed: %w", err)

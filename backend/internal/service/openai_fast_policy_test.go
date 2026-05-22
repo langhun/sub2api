@@ -304,3 +304,14 @@ func TestSetOpenAIFastPolicySettings_Validation(t *testing.T) {
 	require.Len(t, got.Rules, 1)
 	require.Equal(t, OpenAIFastTierPriority, got.Rules[0].ServiceTier)
 }
+
+func TestGetOpenAIFastPolicySettings_InvalidJSONReturnsError(t *testing.T) {
+	repo := &openAIFastPolicyRepoStub{values: map[string]string{
+		SettingKeyOpenAIFastPolicySettings: "not-json",
+	}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	got, err := svc.GetOpenAIFastPolicySettings(context.Background())
+	require.ErrorIs(t, err, ErrOpenAIFastPolicySettingsCorrupt)
+	require.Nil(t, got)
+}

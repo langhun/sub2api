@@ -833,7 +833,7 @@ func (s *ModelPricingAdminService) GetGroupsWithModelsAndPricing(ctx context.Con
 	if err != nil {
 		return nil, fmt.Errorf("query groups with models: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	groupMap := make(map[int64]*PublicPricingGroup)
 	var order []int64

@@ -1147,7 +1147,7 @@ func enqueueOpsClientDisconnectLog(c *gin.Context, ops *service.OpsService, disc
 		ErrorSource: "gateway",
 		ErrorOwner:  "client",
 
-		CreatedAt:   time.Now(),
+		CreatedAt: time.Now(),
 	}
 	applyOpsLatencyFieldsFromContext(c, entry)
 

@@ -7,6 +7,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -611,6 +613,30 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "<!doctype html>")
 	})
 
+	t.Run("serves_override_index_html_for_root", func(t *testing.T) {
+		cwd, err := os.Getwd()
+		require.NoError(t, err)
+		tempDir := t.TempDir()
+		overrideDir := filepath.Join(tempDir, "data", "public")
+		require.NoError(t, os.MkdirAll(overrideDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(overrideDir, "index.html"), []byte("<!doctype html><html><body>override home</body></html>"), 0o644))
+		require.NoError(t, os.Chdir(tempDir))
+		t.Cleanup(func() {
+			_ = os.Chdir(cwd)
+		})
+
+		middleware := ServeEmbeddedFrontend()
+		router := gin.New()
+		router.Use(middleware)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "override home")
+	})
+
 	t.Run("serves_index_html_for_spa_routes", func(t *testing.T) {
 		middleware := ServeEmbeddedFrontend()
 
@@ -665,6 +691,29 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestFrontendServerMiddlewareServesOverrideIndexHTML(t *testing.T) {
+	provider := &mockSettingsProvider{
+		settings: map[string]string{"test": "value"},
+	}
+
+	server, err := NewFrontendServer(provider)
+	require.NoError(t, err)
+
+	overrideDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(overrideDir, "index.html"), []byte("<!doctype html><html><body>server override</body></html>"), 0o644))
+	server.overrideDir = overrideDir
+
+	router := gin.New()
+	router.Use(server.Middleware())
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "server override")
 }
 
 // Tests for HTMLCache

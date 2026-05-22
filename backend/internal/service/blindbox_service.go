@@ -472,7 +472,7 @@ func (s *BlindBoxService) GetUserRecords(ctx context.Context, userID int64, page
 	return &BlindboxRecordList{Items: items, Total: int64(total)}, nil
 }
 
-func (s *BlindBoxService) GetStats(ctx context.Context) (map[string]interface{}, error) {
+func (s *BlindBoxService) GetStats(ctx context.Context) (map[string]any, error) {
 	totalItems, err := s.entClient.CheckinPrizeItem.Query().
 		Where(checkinprizeitem.DeletedAtIsNil()).
 		Count(ctx)
@@ -492,7 +492,7 @@ func (s *BlindBoxService) GetStats(ctx context.Context) (map[string]interface{},
 		return nil, err
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"total_items":   totalItems,
 		"enabled_items": enabledItems,
 		"total_draws":   totalDraws,

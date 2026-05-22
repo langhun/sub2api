@@ -40,6 +40,8 @@ var validProviderTypes = map[string]bool{
 	websearch.ProviderTypeTavily: true,
 }
 
+var ErrWebSearchEmulationConfigCorrupt = infraerrors.InternalServer("WEB_SEARCH_EMULATION_CONFIG_CORRUPT", "web search emulation config is corrupted")
+
 func validateWebSearchConfig(cfg *WebSearchEmulationConfig) error {
 	if cfg == nil {
 		return nil
@@ -84,7 +86,7 @@ const (
 // GetWebSearchEmulationConfig returns the configuration with in-process cache + singleflight.
 func (s *SettingService) GetWebSearchEmulationConfig(ctx context.Context) (*WebSearchEmulationConfig, error) {
 	if cached := webSearchEmulationCache.Load(); cached != nil {
-		if c, ok := cached.(*cachedWebSearchEmulationConfig); ok && time.Now().UnixNano() < c.expiresAt {
+		if c, ok := cached.(*cachedWebSearchEmulationConfig); ok && c != nil && time.Now().UnixNano() < c.expiresAt {
 			return c.config, nil
 		}
 	}
@@ -92,7 +94,7 @@ func (s *SettingService) GetWebSearchEmulationConfig(ctx context.Context) (*WebS
 		return s.loadWebSearchConfigFromDB()
 	})
 	if err != nil {
-		return &WebSearchEmulationConfig{}, err
+		return nil, err
 	}
 	if cfg, ok := result.(*WebSearchEmulationConfig); ok {
 		return cfg, nil
@@ -112,7 +114,14 @@ func (s *SettingService) loadWebSearchConfigFromDB() (*WebSearchEmulationConfig,
 		})
 		return &WebSearchEmulationConfig{}, err
 	}
-	cfg := parseWebSearchConfigJSON(raw)
+	cfg, parseErr := parseWebSearchConfigJSON(raw)
+	if parseErr != nil {
+		webSearchEmulationCache.Store(&cachedWebSearchEmulationConfig{
+			config:    &WebSearchEmulationConfig{},
+			expiresAt: time.Now().Add(webSearchEmulationErrorTTL).UnixNano(),
+		})
+		return nil, ErrWebSearchEmulationConfigCorrupt.WithCause(parseErr)
+	}
 	webSearchEmulationCache.Store(&cachedWebSearchEmulationConfig{
 		config:    cfg,
 		expiresAt: time.Now().Add(webSearchEmulationCacheTTL).UnixNano(),
@@ -120,16 +129,16 @@ func (s *SettingService) loadWebSearchConfigFromDB() (*WebSearchEmulationConfig,
 	return cfg, nil
 }
 
-func parseWebSearchConfigJSON(raw string) *WebSearchEmulationConfig {
+func parseWebSearchConfigJSON(raw string) (*WebSearchEmulationConfig, error) {
 	cfg := &WebSearchEmulationConfig{}
 	if raw == "" {
-		return cfg
+		return cfg, nil
 	}
 	if err := json.Unmarshal([]byte(raw), cfg); err != nil {
 		slog.Warn("websearch: failed to parse config JSON", "error", err)
-		return &WebSearchEmulationConfig{}
+		return nil, err
 	}
-	return cfg
+	return cfg, nil
 }
 
 // SaveWebSearchEmulationConfig validates and persists the configuration.
@@ -195,7 +204,7 @@ func (s *SettingService) getWebSearchEmulationConfigRaw(ctx context.Context) (*W
 	if err != nil {
 		return nil, err
 	}
-	return parseWebSearchConfigJSON(raw), nil
+	return parseWebSearchConfigJSON(raw)
 }
 
 // IsWebSearchEmulationEnabled is a quick check for whether the global switch is on.

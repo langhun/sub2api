@@ -48,15 +48,19 @@ func TestBatchSetPrivacyCountsSuccessFailedAndSkipped(t *testing.T) {
 	var resp map[string]any
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 
-	data := resp["data"].(map[string]any)
+	data, ok := resp["data"].(map[string]any)
+	require.True(t, ok)
 	require.Equal(t, float64(3), data["total"])
 	require.Equal(t, float64(1), data["success"])
 	require.Equal(t, float64(1), data["failed"])
 	require.Equal(t, float64(1), data["skipped"])
 
-	errorsPayload := data["errors"].([]any)
+	errorsPayload, ok := data["errors"].([]any)
+	require.True(t, ok)
 	require.Len(t, errorsPayload, 1)
-	require.Equal(t, float64(3), errorsPayload[0].(map[string]any)["account_id"])
+	firstError, ok := errorsPayload[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(3), firstError["account_id"])
 	require.Equal(t, []int64{1}, adminSvc.forcedPrivacyIDs)
 }
 
@@ -86,15 +90,19 @@ func TestBatchSetPrivacyTreatsKnownFailureModesAsFailed(t *testing.T) {
 			var resp map[string]any
 			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 
-			data := resp["data"].(map[string]any)
+			data, ok := resp["data"].(map[string]any)
+			require.True(t, ok)
 			require.Equal(t, float64(1), data["total"])
 			require.Equal(t, float64(0), data["success"])
 			require.Equal(t, float64(1), data["failed"])
 			require.Equal(t, float64(0), data["skipped"])
 
-			errorsPayload := data["errors"].([]any)
+			errorsPayload, ok := data["errors"].([]any)
+			require.True(t, ok)
 			require.Len(t, errorsPayload, 1)
-			require.Equal(t, float64(21), errorsPayload[0].(map[string]any)["account_id"])
+			firstError, ok := errorsPayload[0].(map[string]any)
+			require.True(t, ok)
+			require.Equal(t, float64(21), firstError["account_id"])
 		})
 	}
 }
@@ -123,15 +131,19 @@ func TestBatchClearPrivacyCountsSuccessFailedAndSkipped(t *testing.T) {
 	var resp map[string]any
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 
-	data := resp["data"].(map[string]any)
+	data, ok := resp["data"].(map[string]any)
+	require.True(t, ok)
 	require.Equal(t, float64(3), data["total"])
 	require.Equal(t, float64(1), data["success"])
 	require.Equal(t, float64(1), data["failed"])
 	require.Equal(t, float64(1), data["skipped"])
 
-	errorsPayload := data["errors"].([]any)
+	errorsPayload, ok := data["errors"].([]any)
+	require.True(t, ok)
 	require.Len(t, errorsPayload, 1)
-	require.Equal(t, float64(13), errorsPayload[0].(map[string]any)["account_id"])
+	firstError, ok := errorsPayload[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(13), firstError["account_id"])
 	require.Equal(t, []int64{11}, adminSvc.clearedPrivacyIDs)
 }
 
@@ -168,7 +180,8 @@ func TestBatchSetPrivacyLargeBatchReturnsBackgroundJob(t *testing.T) {
 
 	var resp map[string]any
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	data := resp["data"].(map[string]any)
+	data, ok := resp["data"].(map[string]any)
+	require.True(t, ok)
 	jobID, ok := data["job_id"].(string)
 	require.True(t, ok)
 	require.NotEmpty(t, jobID)
@@ -186,11 +199,17 @@ func TestBatchSetPrivacyLargeBatchReturnsBackgroundJob(t *testing.T) {
 		if err := json.Unmarshal(rec.Body.Bytes(), &statusResp); err != nil {
 			return false
 		}
-		job := statusResp["data"].(map[string]any)
+		job, ok := statusResp["data"].(map[string]any)
+		if !ok {
+			return false
+		}
 		if job["status"] != "completed" {
 			return false
 		}
-		result := job["result"].(map[string]any)
+		result, ok := job["result"].(map[string]any)
+		if !ok {
+			return false
+		}
 		return result["success"] == float64(len(ids))
 	}, 2*time.Second, 20*time.Millisecond)
 }

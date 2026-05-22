@@ -125,7 +125,9 @@ func TestValidateDataDir(t *testing.T) {
 			name: "file instead of directory",
 			setup: func() string {
 				f := filepath.Join(tmpDir, "testfile")
-				os.WriteFile(f, []byte("test"), 0644)
+				if err := os.WriteFile(f, []byte("test"), 0644); err != nil {
+					t.Fatalf("write test file: %v", err)
+				}
 				return f
 			},
 			wantErr: true,

@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strconv"
@@ -19,7 +20,12 @@ import (
 type DashboardHandler struct {
 	dashboardService   *service.DashboardService
 	aggregationService *service.DashboardAggregationService
+	monitoringService  dashboardMonitoringService
 	startTime          time.Time // Server start time for uptime calculation
+}
+
+type dashboardMonitoringService interface {
+	GetSummary(ctx context.Context) (*service.MonitoringSummary, error)
 }
 
 const maxDashboardModelStatsLimit = 100
@@ -31,6 +37,11 @@ func NewDashboardHandler(dashboardService *service.DashboardService, aggregation
 		aggregationService: aggregationService,
 		startTime:          time.Now(),
 	}
+}
+
+// SetMonitoringService injects optional monitoring summary source for realtime metrics.
+func (h *DashboardHandler) SetMonitoringService(monitoringService dashboardMonitoringService) {
+	h.monitoringService = monitoringService
 }
 
 // parseTimeRange parses start_date, end_date query parameters
@@ -180,12 +191,46 @@ func (h *DashboardHandler) BackfillAggregation(c *gin.Context) {
 // GetRealtimeMetrics handles getting real-time system metrics
 // GET /api/v1/admin/dashboard/realtime
 func (h *DashboardHandler) GetRealtimeMetrics(c *gin.Context) {
-	// Return mock data for now
+	if h.monitoringService != nil {
+		summary, err := h.monitoringService.GetSummary(c.Request.Context())
+		if err == nil && summary != nil {
+			rpm := int64(0)
+			if len(summary.HourlyStats) > 0 {
+				latest := summary.HourlyStats[len(summary.HourlyStats)-1]
+				rpm = int64(latest.Total / 60)
+			}
+
+			errorRate := 0.0
+			if summary.TotalRequests > 0 {
+				errorRate = float64(summary.ErrorCount) / float64(summary.TotalRequests)
+			}
+
+			response.Success(c, gin.H{
+				"active_requests":       summary.TotalRequests,
+				"requests_per_minute":   rpm,
+				"average_response_time": summary.AvgLatencyMs,
+				"error_rate":            errorRate,
+			})
+			return
+		}
+	}
+
+	stats, err := h.dashboardService.GetDashboardStats(c.Request.Context())
+	if err != nil {
+		response.Error(c, 500, "Failed to get realtime metrics")
+		return
+	}
+
+	errorRate := 0.0
+	if stats.TotalAccounts > 0 {
+		errorRate = float64(stats.ErrorAccounts) / float64(stats.TotalAccounts)
+	}
+
 	response.Success(c, gin.H{
-		"active_requests":       0,
-		"requests_per_minute":   0,
-		"average_response_time": 0,
-		"error_rate":            0.0,
+		"active_requests":       stats.ActiveUsers,
+		"requests_per_minute":   stats.Rpm,
+		"average_response_time": stats.AverageDurationMs,
+		"error_rate":            errorRate,
 	})
 }
 

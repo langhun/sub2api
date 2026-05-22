@@ -337,7 +337,6 @@ func replaceGroupID(groupIDs []int64, fromID int64, toID int64) ([]int64, bool) 
 			updated = append(updated[:i], updated[i+1:]...)
 		} else {
 			updated[i] = toID
-			hasTarget = true
 		}
 		changed = true
 		break

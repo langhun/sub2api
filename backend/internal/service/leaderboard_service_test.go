@@ -82,7 +82,7 @@ func TestLeaderboardService_GetConsumptionLeaderboard_ReturnsSummaryAndChartItem
 		t.Run(tc.name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
-			defer db.Close()
+			defer func() { _ = db.Close() }()
 
 			mock.ExpectQuery(countQuery).
 				WithArgs(exactTimeArg{expected: tc.expected}).
@@ -172,7 +172,7 @@ func TestLeaderboardService_GetConsumptionLeaderboard_CanIncludeAdmins(t *testin
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	startTime := timezone.Today()
 	mock.ExpectQuery(countQuery).
@@ -235,7 +235,7 @@ func TestLeaderboardService_GetCheckinLeaderboard_UsesAggregatedSingleQuery(t *t
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	yesterday := timezone.Today().AddDate(0, 0, -1)
 	lastDate := timezone.Today()
@@ -266,7 +266,7 @@ func TestLeaderboardService_GetCheckinLeaderboard_UsesAggregatedSingleQuery(t *t
 func TestLeaderboardService_GetCheckinCounts_BatchesUsers(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	batchQuery := regexp.QuoteMeta(`
 		SELECT user_id, COUNT(*)

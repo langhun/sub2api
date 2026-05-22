@@ -421,7 +421,10 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 
 	lockKey := fmt.Sprintf("rp:%d", rp.ID)
 	actual, _ := s.claimLocks.LoadOrStore(lockKey, &sync.Mutex{})
-	mu := actual.(*sync.Mutex)
+	mu, ok := actual.(*sync.Mutex)
+	if !ok {
+		return nil, fmt.Errorf("claim lock type mismatch for %s", lockKey)
+	}
 	mu.Lock()
 	defer mu.Unlock()
 

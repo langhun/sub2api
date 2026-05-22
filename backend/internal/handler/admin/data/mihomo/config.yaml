@@ -1,0 +1,70 @@
+allow-lan: true
+bind-address: '*'
+external-controller: 0.0.0.0:53131
+listeners:
+    - listen: 0.0.0.0
+      name: mihomo-01
+      port: 41001
+      proxy: mihomo-01
+      type: mixed
+      udp: true
+    - listen: 0.0.0.0
+      name: mihomo-02
+      port: 41002
+      proxy: mihomo-02
+      type: mixed
+      udp: true
+    - listen: 0.0.0.0
+      name: mihomo-03
+      port: 41003
+      proxy: mihomo-03
+      type: mixed
+      udp: true
+    - listen: 0.0.0.0
+      name: mihomo-04
+      port: 41004
+      proxy: mihomo-04
+      type: mixed
+      udp: true
+log-level: info
+mode: rule
+proxy-groups:
+    - interval: 300
+      name: mihomo-01
+      tolerance: 50
+      type: url-test
+      url: https://www.gstatic.com/generate_204
+      use:
+        - source-a-1
+    - interval: 300
+      name: mihomo-02
+      tolerance: 50
+      type: url-test
+      url: https://www.gstatic.com/generate_204
+      use:
+        - source-a-1
+    - interval: 300
+      name: mihomo-03
+      tolerance: 50
+      type: url-test
+      url: https://www.gstatic.com/generate_204
+      use:
+        - source-a-1
+    - interval: 300
+      name: mihomo-04
+      tolerance: 50
+      type: url-test
+      url: https://www.gstatic.com/generate_204
+      use:
+        - source-a-1
+proxy-providers:
+    source-a-1:
+        health-check:
+            enable: true
+            interval: 300
+            lazy: true
+            timeout: 5000
+            url: https://www.gstatic.com/generate_204
+        path: data\mihomo\providers\mihomo-subscription-1.yaml
+        type: file
+secret: ""

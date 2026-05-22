@@ -7,6 +7,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	htmlpkg "html"
 	"io"
 	"io/fs"
 	"net/http"
@@ -97,9 +98,19 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 			cleanPath = "index.html"
 		}
 
-		// For index.html or SPA routes, serve with injected settings
-		if cleanPath == "index.html" || !s.fileExists(cleanPath) {
+		// For index.html or SPA routes, serve with injected settings. Missing
+		// static assets must stay 404; returning HTML for JS chunks causes blank
+		// pages after deploy/rollback cache mismatches.
+		if cleanPath == "index.html" || (!s.fileExists(cleanPath) && !isStaticAssetPath(cleanPath)) {
+			if s.tryServeOverride(c, "index.html") {
+				return
+			}
 			s.serveIndexHTML(c)
+			return
+		}
+		if !s.fileExists(cleanPath) {
+			c.String(http.StatusNotFound, "Frontend asset not found")
+			c.Abort()
 			return
 		}
 
@@ -215,26 +226,26 @@ func (s *FrontendServer) injectSettings(settingsJSON []byte) []byte {
 
 // injectSiteTitle replaces the static <title> in HTML with the configured site name.
 // This ensures the browser tab shows the correct title before JS executes.
-func injectSiteTitle(html, settingsJSON []byte) []byte {
+func injectSiteTitle(htmlContent, settingsJSON []byte) []byte {
 	var cfg struct {
 		SiteName string `json:"site_name"`
 	}
 	if err := json.Unmarshal(settingsJSON, &cfg); err != nil || cfg.SiteName == "" {
-		return html
+		return htmlContent
 	}
 
 	// Find and replace the existing <title>...</title>
-	titleStart := bytes.Index(html, []byte("<title>"))
-	titleEnd := bytes.Index(html, []byte("</title>"))
+	titleStart := bytes.Index(htmlContent, []byte("<title>"))
+	titleEnd := bytes.Index(htmlContent, []byte("</title>"))
 	if titleStart == -1 || titleEnd == -1 || titleEnd <= titleStart {
-		return html
+		return htmlContent
 	}
 
-	newTitle := []byte("<title>" + cfg.SiteName + " - AI API Gateway</title>")
+	newTitle := []byte("<title>" + htmlpkg.EscapeString(cfg.SiteName) + " - AI API Gateway</title>")
 	var buf bytes.Buffer
-	buf.Write(html[:titleStart])
+	buf.Write(htmlContent[:titleStart])
 	buf.Write(newTitle)
-	buf.Write(html[titleEnd+len("</title>"):])
+	buf.Write(htmlContent[titleEnd+len("</title>"):])
 	return buf.Bytes()
 }
 
@@ -277,6 +288,15 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 			return
 		}
 
+		if isStaticAssetPath(cleanPath) {
+			c.String(http.StatusNotFound, "Frontend asset not found")
+			c.Abort()
+			return
+		}
+
+		if tryServeOverrideFile(c, overrideDir, "index.html") {
+			return
+		}
 		serveIndexHTML(c, distFS)
 	}
 }
@@ -308,6 +328,19 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		trimmed == "/responses" ||
 		strings.HasPrefix(trimmed, "/responses/") ||
 		strings.HasPrefix(trimmed, "/images/")
+}
+
+func isStaticAssetPath(path string) bool {
+	clean := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(path)), "/")
+	if strings.HasPrefix(clean, "assets/") {
+		return true
+	}
+	switch filepath.Ext(clean) {
+	case ".js", ".css", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".woff", ".woff2", ".ttf", ".otf":
+		return true
+	default:
+		return false
+	}
 }
 
 func serveIndexHTML(c *gin.Context, fsys fs.FS) {

@@ -320,7 +320,7 @@ func (r *accountRepository) ListCRSAccountIDs(ctx context.Context) (map[string]i
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := make(map[string]int64)
 	for rows.Next() {
@@ -1765,10 +1765,6 @@ func (r *accountRepository) accountsToService(ctx context.Context, accounts []*d
 	}
 
 	return outAccounts, nil
-}
-
-func tempUnschedulablePredicate() dbpredicate.Account {
-	return notTempUnschedulablePredicate(time.Now())
 }
 
 func notExpiredPredicate(now time.Time) dbpredicate.Account {

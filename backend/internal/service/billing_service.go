@@ -116,10 +116,10 @@ var ErrModelPricingUnavailable = errors.New("pricing not found")
 
 // BillingService 计费服务
 type BillingService struct {
-	cfg                       *config.Config
-	pricingService            *PricingService
-	modelPricingAdminService  *ModelPricingAdminService
-	fallbackPrices            map[string]*ModelPricing
+	cfg                      *config.Config
+	pricingService           *PricingService
+	modelPricingAdminService *ModelPricingAdminService
+	fallbackPrices           map[string]*ModelPricing
 }
 
 func NewBillingService(cfg *config.Config, pricingService *PricingService, modelPricingAdminService *ModelPricingAdminService) *BillingService {

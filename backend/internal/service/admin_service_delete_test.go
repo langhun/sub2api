@@ -634,7 +634,7 @@ func TestAdminService_UpdateProxy_RejectsManagedFieldMutation(t *testing.T) {
 	require.Error(t, err)
 	var appErr *infraerrors.ApplicationError
 	require.ErrorAs(t, err, &appErr)
-	require.Equal(t, "PROXY_SUBSCRIPTION_MANAGED", appErr.Code)
+	require.Equal(t, "PROXY_SUBSCRIPTION_MANAGED", appErr.Reason)
 }
 
 func TestAdminService_UpdateProxy_ClearsUsernameAndPassword(t *testing.T) {

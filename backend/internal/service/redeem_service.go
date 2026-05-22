@@ -559,16 +559,62 @@ func (s *RedeemService) Delete(ctx context.Context, id int64) error {
 
 // GetStats 获取兑换码统计信息
 func (s *RedeemService) GetStats(ctx context.Context) (map[string]any, error) {
-	// TODO: 实现统计逻辑
-	// 统计未使用、已使用的兑换码数量
-	// 统计总面值等
-
 	stats := map[string]any{
 		"total_codes":  0,
 		"unused_codes": 0,
 		"used_codes":   0,
 		"total_value":  0.0,
 	}
+
+	const pageSize = 1000
+	now := time.Now()
+	totalCodes := int64(0)
+	scannedCodes := int64(0)
+	unusedCodes := int64(0)
+	usedCodes := int64(0)
+	totalValue := 0.0
+
+	for page := 1; ; page++ {
+		params := pagination.PaginationParams{
+			Page:      page,
+			PageSize:  pageSize,
+			SortBy:    "id",
+			SortOrder: pagination.SortOrderAsc,
+		}
+		codes, result, err := s.redeemRepo.ListWithFilters(ctx, params, "", "", "")
+		if err != nil {
+			return nil, fmt.Errorf("list redeem codes for stats: %w", err)
+		}
+
+		if page == 1 && result != nil {
+			totalCodes = result.Total
+		}
+
+		for i := range codes {
+			code := &codes[i]
+			scannedCodes++
+			if code.Status == StatusUsed {
+				usedCodes++
+				totalValue += code.Value
+				continue
+			}
+			if code.Status == StatusUnused && (code.ExpiresAt == nil || code.ExpiresAt.After(now)) {
+				unusedCodes++
+			}
+		}
+
+		if result == nil || int64(page*pageSize) >= result.Total || len(codes) == 0 {
+			break
+		}
+	}
+
+	if totalCodes == 0 {
+		totalCodes = scannedCodes
+	}
+	stats["total_codes"] = totalCodes
+	stats["unused_codes"] = unusedCodes
+	stats["used_codes"] = usedCodes
+	stats["total_value"] = totalValue
 
 	return stats, nil
 }

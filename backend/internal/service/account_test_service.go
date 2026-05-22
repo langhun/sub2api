@@ -627,6 +627,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	var apiURL string
 	var isOAuth bool
 	var chatgptAccountID string
+	var useCCChatCompletions bool
 
 	if account.IsOAuth() {
 		isOAuth = true
@@ -654,16 +655,12 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		if err != nil {
 			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
 		}
-		// 账号已被探测为不支持 Responses（如 DeepSeek/Kimi 等）时，丢出明确提示。
-		// 账号本身可用（网关会走 CC 直转），仅测试入口需要补齐 CC SSE 处理逻辑。
-		// TODO：实现 CC 格式的账号测试路径（需专门的 CC SSE handler）。
 		if !openai_compat.ShouldUseResponsesAPI(account.Extra) {
-			return s.sendErrorAndEnd(c,
-				"账号已被探测为不支持 OpenAI Responses API（如 DeepSeek/Kimi 等三方兼容上游），"+
-					"账号本身可正常使用，但当前测试接口仅支持 Responses API 路径。请直接通过实际 API 调用验证。",
-			)
+			apiURL = buildOpenAIChatCompletionsURL(normalizedBaseURL)
+			useCCChatCompletions = true
+		} else {
+			apiURL = buildOpenAIResponsesURL(normalizedBaseURL)
 		}
-		apiURL = buildOpenAIResponsesURL(normalizedBaseURL)
 	} else {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported account type: %s", account.Type))
 	}
@@ -675,8 +672,10 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.Flush()
 
-	// Create OpenAI Responses API payload
 	payload := createOpenAITestPayload(testModelID, isOAuth)
+	if useCCChatCompletions {
+		payload = createOpenAIChatCompletionsTestPayload(testModelID)
+	}
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event
@@ -690,6 +689,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	// Set common headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+authToken)
+	if useCCChatCompletions {
+		req.Header.Set("Accept", "text/event-stream")
+	}
 
 	// Set OAuth-specific headers for ChatGPT internal API
 	if isOAuth {
@@ -715,7 +717,11 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 
 		if resp.StatusCode == http.StatusOK {
-			err = s.processOpenAIStream(c, account, resp.Body)
+			if useCCChatCompletions {
+				err = s.processOpenAIChatCompletionsStream(c, account, resp.Body)
+			} else {
+				err = s.processOpenAIStream(c, account, resp.Body)
+			}
 			_ = resp.Body.Close()
 			return err
 		}
@@ -1296,6 +1302,21 @@ func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
 	return payload
 }
 
+// createOpenAIChatCompletionsTestPayload creates a minimal test payload for
+// OpenAI-compatible chat/completions upstreams (CC passthrough path).
+func createOpenAIChatCompletionsTestPayload(modelID string) map[string]any {
+	return map[string]any{
+		"model": modelID,
+		"messages": []map[string]any{
+			{
+				"role":    "user",
+				"content": "hi",
+			},
+		},
+		"stream": true,
+	}
+}
+
 // processClaudeStream processes the SSE stream from Claude API
 func (s *AccountTestService) processClaudeStream(c *gin.Context, account *Account, body io.Reader) error {
 	reader := bufio.NewReader(body)
@@ -1350,15 +1371,11 @@ func (s *AccountTestService) processClaudeStream(c *gin.Context, account *Accoun
 // processOpenAIStream processes the SSE stream from OpenAI Responses API
 func (s *AccountTestService) processOpenAIStream(c *gin.Context, account *Account, body io.Reader) error {
 	reader := bufio.NewReader(body)
-	seenCompleted := false
 
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
-				if seenCompleted {
-					return s.completeSuccessfulTest(c, account)
-				}
 				return s.sendErrorAndEnd(c, "Stream ended before response.completed")
 			}
 			return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", err.Error()))
@@ -1371,9 +1388,6 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, account *Accoun
 
 		jsonStr := sseDataPrefix.ReplaceAllString(line, "")
 		if jsonStr == "[DONE]" {
-			if seenCompleted {
-				return s.completeSuccessfulTest(c, account)
-			}
 			return s.sendErrorAndEnd(c, "Stream ended before response.completed")
 		}
 
@@ -1391,7 +1405,6 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, account *Accoun
 				s.sendEvent(c, TestEvent{Type: "content", Text: delta})
 			}
 		case "response.completed", "response.done":
-			seenCompleted = true
 			return s.completeSuccessfulTest(c, account)
 		case "response.failed":
 			errorMsg := "OpenAI response failed"
@@ -1411,6 +1424,64 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, account *Accoun
 				}
 			}
 			return s.sendErrorAndEnd(c, errorMsg)
+		}
+	}
+}
+
+// processOpenAIChatCompletionsStream processes SSE stream from OpenAI-compatible
+// chat/completions upstreams used by the CC passthrough test path.
+func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, account *Account, body io.Reader) error {
+	reader := bufio.NewReader(body)
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				return s.sendErrorAndEnd(c, "Stream ended before completion")
+			}
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", err.Error()))
+		}
+
+		line = strings.TrimSpace(line)
+		if line == "" || !sseDataPrefix.MatchString(line) {
+			continue
+		}
+
+		jsonStr := sseDataPrefix.ReplaceAllString(line, "")
+		if jsonStr == "[DONE]" {
+			return s.completeSuccessfulTest(c, account)
+		}
+
+		var data map[string]any
+		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+			continue
+		}
+
+		if errData, ok := data["error"].(map[string]any); ok {
+			errorMsg := "Unknown error"
+			if msg, ok := errData["message"].(string); ok && strings.TrimSpace(msg) != "" {
+				errorMsg = strings.TrimSpace(msg)
+			}
+			return s.sendErrorAndEnd(c, errorMsg)
+		}
+
+		choices, ok := data["choices"].([]any)
+		if !ok {
+			continue
+		}
+		for _, choiceRaw := range choices {
+			choice, ok := choiceRaw.(map[string]any)
+			if !ok {
+				continue
+			}
+			if delta, ok := choice["delta"].(map[string]any); ok {
+				if text, ok := delta["content"].(string); ok && text != "" {
+					s.sendEvent(c, TestEvent{Type: "content", Text: text})
+				}
+			}
+			if finishReason, ok := choice["finish_reason"].(string); ok && finishReason != "" {
+				return s.completeSuccessfulTest(c, account)
+			}
 		}
 	}
 }
@@ -1580,13 +1651,13 @@ func (s *AccountTestService) processOpenAIImageStream(c *gin.Context, account *A
 	reader := bufio.NewReader(body)
 	flusher, _ := c.Writer.(http.Flusher)
 	var (
-		sseData      openAISSEDataAccumulator
-		streamMeta   openAIResponsesImageResult
-		pending      []openAIResponsesImageResult
-		pendingSeen  = make(map[string]struct{})
-		emitted      = make(map[string]struct{})
-		createdAt    int64
-		completed    bool
+		sseData     openAISSEDataAccumulator
+		streamMeta  openAIResponsesImageResult
+		pending     []openAIResponsesImageResult
+		pendingSeen = make(map[string]struct{})
+		emitted     = make(map[string]struct{})
+		createdAt   int64
+		completed   bool
 	)
 	type streamReadResult struct {
 		line []byte
@@ -1686,7 +1757,7 @@ func (s *AccountTestService) processOpenAIImageStream(c *gin.Context, account *A
 			}
 
 			if len(finalResults) == 0 {
-				return fmt.Errorf("No images returned from responses API")
+				return fmt.Errorf("no images returned from responses API")
 			}
 
 			for _, item := range finalResults {
@@ -1727,18 +1798,18 @@ func (s *AccountTestService) processOpenAIImageStream(c *gin.Context, account *A
 			}
 			line, err := result.line, result.err
 			if len(line) > 0 {
-			var completedPayloads [][]byte
-			sseData.AddLine(string(line), func(data []byte) {
-				completedPayloads = append(completedPayloads, append([]byte(nil), data...))
-			})
-			for _, payload := range completedPayloads {
-				if processErr := processPayload(payload); processErr != nil {
-					return s.sendErrorAndEnd(c, processErr.Error())
+				var completedPayloads [][]byte
+				sseData.AddLine(string(line), func(data []byte) {
+					completedPayloads = append(completedPayloads, append([]byte(nil), data...))
+				})
+				for _, payload := range completedPayloads {
+					if processErr := processPayload(payload); processErr != nil {
+						return s.sendErrorAndEnd(c, processErr.Error())
+					}
 				}
-			}
-			if completed {
-				return s.completeSuccessfulTest(c, account)
-			}
+				if completed {
+					return s.completeSuccessfulTest(c, account)
+				}
 			}
 			if err != nil {
 				if err == io.EOF {

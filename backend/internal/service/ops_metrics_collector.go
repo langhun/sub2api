@@ -562,7 +562,6 @@ func (c *OpsMetricsCollector) listSlowTailCandidates(ctx context.Context, now ti
 	if len(rule.GroupIDs) > 0 {
 		conditions = append(conditions, fmt.Sprintf("u.group_id = ANY($%d)", argPos))
 		args = append(args, pqInt64Array(rule.GroupIDs))
-		argPos++
 	}
 
 	query := fmt.Sprintf(`
@@ -753,7 +752,6 @@ func (c *OpsMetricsCollector) listSlowProxyCandidates(ctx context.Context, now t
 	if len(rule.GroupIDs) > 0 {
 		conditions = append(conditions, fmt.Sprintf("u.group_id = ANY($%d)", argPos))
 		args = append(args, pqInt64Array(rule.GroupIDs))
-		argPos++
 	}
 
 	query := fmt.Sprintf(`

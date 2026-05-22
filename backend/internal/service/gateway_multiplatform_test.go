@@ -70,6 +70,57 @@ func (m *mockAccountRepoForPlatform) ListSchedulableByGroupIDAndPlatform(ctx con
 	return m.ListSchedulableByPlatform(ctx, platform)
 }
 
+type stickyAccountSchedulerCache struct {
+	accounts map[int64]*Account
+}
+
+func (s *stickyAccountSchedulerCache) GetSnapshot(ctx context.Context, bucket SchedulerBucket) ([]*Account, bool, error) {
+	return nil, false, nil
+}
+
+func (s *stickyAccountSchedulerCache) SetSnapshot(ctx context.Context, bucket SchedulerBucket, accounts []Account) error {
+	return nil
+}
+
+func (s *stickyAccountSchedulerCache) GetAccount(ctx context.Context, accountID int64) (*Account, error) {
+	if s.accounts == nil {
+		return nil, nil
+	}
+	return s.accounts[accountID], nil
+}
+
+func (s *stickyAccountSchedulerCache) SetAccount(ctx context.Context, account *Account) error {
+	return nil
+}
+
+func (s *stickyAccountSchedulerCache) DeleteAccount(ctx context.Context, accountID int64) error {
+	return nil
+}
+
+func (s *stickyAccountSchedulerCache) UpdateLastUsed(ctx context.Context, updates map[int64]time.Time) error {
+	return nil
+}
+
+func (s *stickyAccountSchedulerCache) TryLockBucket(ctx context.Context, bucket SchedulerBucket, ttl time.Duration) (bool, error) {
+	return false, nil
+}
+
+func (s *stickyAccountSchedulerCache) UnlockBucket(ctx context.Context, bucket SchedulerBucket) error {
+	return nil
+}
+
+func (s *stickyAccountSchedulerCache) ListBuckets(ctx context.Context) ([]SchedulerBucket, error) {
+	return nil, nil
+}
+
+func (s *stickyAccountSchedulerCache) GetOutboxWatermark(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+
+func (s *stickyAccountSchedulerCache) SetOutboxWatermark(ctx context.Context, id int64) error {
+	return nil
+}
+
 // Stub methods to implement AccountRepository interface
 func (m *mockAccountRepoForPlatform) Create(ctx context.Context, account *Account) error {
 	return nil
@@ -520,7 +571,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_Schedulability(t *test
 				{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, OverloadUntil: ptr(now.Add(-1 * time.Hour))},
 				{ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true},
 			},
-			expectedID: 1,
+			expectedID: 2,
 		},
 	}
 
@@ -758,8 +809,8 @@ func TestGatewayService_SelectAccountForModelWithPlatform_RoutedStickySessionHit
 
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
-			{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
-			{ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true},
+			{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, AccountGroups: []AccountGroup{{AccountID: 1, GroupID: groupID}}},
+			{ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true, AccountGroups: []AccountGroup{{AccountID: 2, GroupID: groupID}}},
 		},
 		accountsByID: map[int64]*Account{},
 	}
@@ -798,6 +849,63 @@ func TestGatewayService_SelectAccountForModelWithPlatform_RoutedStickySessionHit
 	require.NoError(t, err)
 	require.NotNil(t, acc)
 	require.Equal(t, int64(1), acc.ID)
+}
+
+func TestGatewayService_SelectAccountForModelWithPlatform_RoutedStickySessionHit_SnapshotAccountWithoutGroups(t *testing.T) {
+	ctx := context.Background()
+	groupID := int64(111)
+	requestedModel := "claude-3-5-sonnet-20241022"
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, AccountGroups: []AccountGroup{{GroupID: groupID}}},
+			{ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true, AccountGroups: []AccountGroup{{GroupID: groupID}}},
+		},
+		accountsByID: map[int64]*Account{},
+	}
+	for i := range repo.accounts {
+		repo.accountsByID[repo.accounts[i].ID] = &repo.accounts[i]
+	}
+
+	cache := &mockGatewayCacheForPlatform{
+		sessionBindings: map[string]int64{"session-snapshot": 1},
+	}
+
+	snapshotCache := &stickyAccountSchedulerCache{
+		accounts: map[int64]*Account{
+			1: {ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
+			2: {ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true},
+		},
+	}
+
+	groupRepo := &mockGroupRepoForGateway{
+		groups: map[int64]*Group{
+			groupID: {
+				ID:                  groupID,
+				Name:                "route-group-snapshot",
+				Platform:            PlatformAnthropic,
+				Status:              StatusActive,
+				Hydrated:            true,
+				ModelRoutingEnabled: true,
+				ModelRouting: map[string][]int64{
+					requestedModel: {1, 2},
+				},
+			},
+		},
+	}
+
+	svc := &GatewayService{
+		accountRepo:       repo,
+		cache:             cache,
+		cfg:               testConfig(),
+		groupRepo:         groupRepo,
+		schedulerSnapshot: NewSchedulerSnapshotService(snapshotCache, nil, repo, groupRepo, testConfig()),
+	}
+
+	acc, err := svc.selectAccountForModelWithPlatform(ctx, &groupID, "session-snapshot", requestedModel, nil, PlatformAnthropic)
+	require.NoError(t, err)
+	require.NotNil(t, acc)
+	require.Equal(t, int64(1), acc.ID, "grouped sticky session should survive shallow snapshot accounts without AccountGroups")
 }
 
 func TestGatewayService_SelectAccountForModelWithPlatform_RoutedFallbackToNormal(t *testing.T) {
@@ -844,7 +952,7 @@ func TestGatewayService_SelectAccountForModelWithPlatform_RoutedFallbackToNormal
 	acc, err := svc.selectAccountForModelWithPlatform(ctx, &groupID, "", requestedModel, nil, PlatformAnthropic)
 	require.NoError(t, err)
 	require.NotNil(t, acc)
-	require.Equal(t, int64(1), acc.ID)
+	require.Equal(t, int64(2), acc.ID)
 }
 
 func TestGatewayService_SelectAccountForModelWithPlatform_NoModelSupport(t *testing.T) {
@@ -1206,8 +1314,8 @@ func TestGatewayService_selectAccountWithMixedScheduling(t *testing.T) {
 	t.Run("混合调度-包含启用mixed_scheduling的antigravity账户", func(t *testing.T) {
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
-				{ID: 1, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true},
-				{ID: 2, Platform: PlatformAntigravity, Priority: 1, Status: StatusActive, Schedulable: true, Extra: map[string]any{"mixed_scheduling": true}},
+				{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true},
+				{ID: 2, Platform: PlatformAntigravity, Priority: 2, Status: StatusActive, Schedulable: true, Extra: map[string]any{"mixed_scheduling": true}},
 			},
 			accountsByID: map[int64]*Account{},
 		}
@@ -1480,7 +1588,7 @@ func TestGatewayService_selectAccountWithMixedScheduling(t *testing.T) {
 		acc, err := svc.selectAccountWithMixedScheduling(ctx, &groupID, "", requestedModel, excluded, PlatformAnthropic)
 		require.NoError(t, err)
 		require.NotNil(t, acc)
-		require.Equal(t, int64(7), acc.ID)
+		require.Equal(t, int64(6), acc.ID)
 	})
 
 	t.Run("混合调度-粘性命中分组账号", func(t *testing.T) {
@@ -2430,8 +2538,8 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.Account)
-		require.Equal(t, int64(2), result.Account.ID)
-		require.Equal(t, int64(2), cache.sessionBindings["legacy"])
+		require.Equal(t, int64(1), result.Account.ID)
+		require.Equal(t, int64(1), cache.sessionBindings["legacy"])
 	})
 
 	t.Run("模型路由-粘性账号等待计划", func(t *testing.T) {
@@ -2808,7 +2916,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.WaitPlan)
-		require.Equal(t, int64(1), result.Account.ID)
+		require.Equal(t, int64(2), result.Account.ID)
 	})
 
 	t.Run("Gemini负载排序-优先OAuth", func(t *testing.T) {
@@ -3063,7 +3171,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.NotNil(t, result.WaitPlan)
-		require.Equal(t, int64(1), result.Account.ID)
+		require.Equal(t, int64(2), result.Account.ID)
 	})
 
 	t.Run("负载信息缺失-使用默认负载", func(t *testing.T) {

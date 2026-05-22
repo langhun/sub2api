@@ -904,6 +904,72 @@ func TestAPIContracts(t *testing.T) {
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
 					"risk_control_enabled": false,
+					"redeem_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 16,
+						"separator": "-",
+						"group_size": 4,
+						"group_count": 4,
+						"chars_per_group": 4,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"balance_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 16,
+						"separator": "-",
+						"group_size": 4,
+						"group_count": 4,
+						"chars_per_group": 4,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"concurrency_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 16,
+						"separator": "-",
+						"group_size": 4,
+						"group_count": 4,
+						"chars_per_group": 4,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"subscription_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 16,
+						"separator": "-",
+						"group_size": 4,
+						"group_count": 4,
+						"chars_per_group": 4,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"invitation_code_format": {
+						"prefix": "DG",
+						"suffix": "",
+						"random_length": 6,
+						"separator": "-",
+						"group_size": 6,
+						"group_count": 1,
+						"chars_per_group": 6,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"affiliate_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 12,
+						"separator": "",
+						"group_size": 12,
+						"group_count": 1,
+						"chars_per_group": 12,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
 					"affiliate_enabled": false,
 					"wechat_connect_enabled": false,
 					"wechat_connect_app_id": "",
@@ -1059,6 +1125,7 @@ func TestAPIContracts(t *testing.T) {
 					"home_nav_pricing_enabled": true,
 					"leaderboard_balance_enabled": true,
 					"leaderboard_consumption_enabled": true,
+					"leaderboard_include_admin_enabled": false,
 					"leaderboard_transfer_enabled": true,
 					"leaderboard_checkin_enabled": true,
 					"hide_ccs_import_button": false,
@@ -1156,6 +1223,72 @@ func TestAPIContracts(t *testing.T) {
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
 					"risk_control_enabled": false,
+					"redeem_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 16,
+						"separator": "-",
+						"group_size": 4,
+						"group_count": 4,
+						"chars_per_group": 4,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"balance_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 16,
+						"separator": "-",
+						"group_size": 4,
+						"group_count": 4,
+						"chars_per_group": 4,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"concurrency_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 16,
+						"separator": "-",
+						"group_size": 4,
+						"group_count": 4,
+						"chars_per_group": 4,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"subscription_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 16,
+						"separator": "-",
+						"group_size": 4,
+						"group_count": 4,
+						"chars_per_group": 4,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"invitation_code_format": {
+						"prefix": "DG",
+						"suffix": "",
+						"random_length": 6,
+						"separator": "-",
+						"group_size": 6,
+						"group_count": 1,
+						"chars_per_group": 6,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
+					"affiliate_code_format": {
+						"prefix": "",
+						"suffix": "",
+						"random_length": 12,
+						"separator": "",
+						"group_size": 12,
+						"group_count": 1,
+						"chars_per_group": 12,
+						"charset": "mixed",
+						"letter_case": "upper"
+					},
 					"affiliate_enabled": false,
 					"wechat_connect_enabled": true,
 					"wechat_connect_app_id": "wx-open-config",
@@ -1317,7 +1450,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
 
-	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, nil, nil, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, nil, nil, nil, nil, nil, proxyRepo, nil, nil, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, settingService, nil, userSubRepo, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService)
@@ -1838,6 +1971,18 @@ func (stubProxyRepo) GetByID(ctx context.Context, id int64) (*service.Proxy, err
 }
 
 func (stubProxyRepo) ListByIDs(ctx context.Context, ids []int64) ([]service.Proxy, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (stubProxyRepo) ListBySubscriptionSourceID(ctx context.Context, sourceID int64) ([]service.Proxy, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (stubProxyRepo) FindBySubscriptionNodeID(ctx context.Context, nodeID int64) (*service.Proxy, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (stubProxyRepo) FindByHostPortAuth(ctx context.Context, host string, port int, username, password string) (*service.Proxy, error) {
 	return nil, errors.New("not implemented")
 }
 

@@ -95,15 +95,14 @@ func TestGetOverloadCooldownSettings_ClampsMaxValue(t *testing.T) {
 	require.Equal(t, 120, settings.CooldownMinutes)
 }
 
-func TestGetOverloadCooldownSettings_InvalidJSON_ReturnsDefaults(t *testing.T) {
+func TestGetOverloadCooldownSettings_InvalidJSON_ReturnsError(t *testing.T) {
 	repo := newMockSettingRepo()
 	repo.data[SettingKeyOverloadCooldownSettings] = "not-json"
 	svc := NewSettingService(repo, &config.Config{})
 
 	settings, err := svc.GetOverloadCooldownSettings(context.Background())
-	require.NoError(t, err)
-	require.True(t, settings.Enabled)
-	require.Equal(t, 10, settings.CooldownMinutes)
+	require.ErrorIs(t, err, ErrOverloadCooldownSettingsCorrupt)
+	require.Nil(t, settings)
 }
 
 func TestGetOverloadCooldownSettings_EmptyValue_ReturnsDefaults(t *testing.T) {

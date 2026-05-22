@@ -1,0 +1,6 @@
+proxies:
+    - name: jp
+      port: 443
+      server: example.com
+      type: vmess
+      uuid: 11111111-1111-1111-1111-111111111111

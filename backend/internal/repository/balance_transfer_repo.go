@@ -76,7 +76,7 @@ FOR UPDATE
 	if err != nil {
 		return nil, fmt.Errorf("lock balance transfer %d: %w", id, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -140,7 +140,7 @@ func (r *balanceTransferRepo) LockUserBalance(ctx context.Context, userID int64)
 	if err != nil {
 		return 0, fmt.Errorf("lock user %d balance: %w", userID, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -251,7 +251,7 @@ func (r *balanceTransferRepo) GetDailyTransferTotal(ctx context.Context, userID 
 	if err != nil {
 		return 0, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -273,7 +273,7 @@ func (r *balanceTransferRepo) GetFeeStats(ctx context.Context, startTime, endTim
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var stats []*service.DailyFeeStat
 	for rows.Next() {
 		var s service.DailyFeeStat
@@ -298,7 +298,7 @@ func (r *balanceTransferRepo) GetLeaderboard(ctx context.Context, startTime, end
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var entries []*service.TransferRankEntry
 	rank := 1
 	for rows.Next() {

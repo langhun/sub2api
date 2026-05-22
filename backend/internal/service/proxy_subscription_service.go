@@ -153,11 +153,10 @@ func (s *ProxySubscriptionService) DeleteSource(ctx context.Context, id int64) e
 	if err != nil {
 		return err
 	}
-	for range proxies {
+	if len(proxies) > 0 {
 		if err := s.deleteManagedRuntime(ctx, id); err != nil {
 			return err
 		}
-		break
 	}
 	return s.sourceRepo.Delete(ctx, id)
 }
@@ -673,7 +672,10 @@ func (s *ProxySubscriptionService) deleteManagedRuntimeByID(ctx context.Context,
 
 func (s *ProxySubscriptionService) lock(sourceID int64) func() {
 	ch, _ := s.mu.LoadOrStore(sourceID, &sync.Mutex{})
-	mu := ch.(*sync.Mutex)
+	mu, ok := ch.(*sync.Mutex)
+	if !ok {
+		panic(fmt.Sprintf("proxy subscription lock type mismatch for source %d", sourceID))
+	}
 	mu.Lock()
 	return mu.Unlock
 }
@@ -896,12 +898,6 @@ func buildRuntimeCandidateProviderContent(nodes []ProxySubscriptionNode) string 
 	return string(raw)
 }
 
-type runtimeProbeCandidate struct {
-	node       ProxySubscriptionNode
-	latencyMs  int64
-	exitInfo   *ProxyExitInfo
-}
-
 type runtimeMaterializationPlan struct {
 	selected []ProxySubscriptionNode
 	groups   map[int][]ProxySubscriptionNode
@@ -920,62 +916,6 @@ func (s *ProxySubscriptionService) selectRuntimeEntryNodesForMaterialization(ctx
 		selected: fallback,
 		groups:   buildRuntimeEntryGroups(fallback, nodes),
 	}
-}
-
-func (s *ProxySubscriptionService) probeRuntimeCandidate(ctx context.Context, source *ProxySubscriptionSource, ordinal int, node ProxySubscriptionNode) (runtimeProbeCandidate, error) {
-	probeRuntimeID := fmt.Sprintf("probe-src-%d-%d", source.ID, ordinal)
-	resp, err := s.runtime.UpsertRuntime(ctx, ProxySubscriptionRuntimeUpsertRequest{
-		RuntimeID:       probeRuntimeID,
-		SourceName:      source.Name,
-		SourceFormat:    source.SourceFormat,
-		ProviderContent: buildRuntimeCandidateProviderContent([]ProxySubscriptionNode{node}),
-		EntryIndex:      ordinal,
-		NodeType:        node.NodeType,
-		DisplayName:     node.DisplayName,
-		Server:          node.Server,
-		Port:            node.Port,
-		Config:          node.ConfigJSON,
-	})
-	if err != nil {
-		return runtimeProbeCandidate{}, err
-	}
-
-	// 使用独立的清理上下文，确保即使主上下文取消也能完成清理
-	cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cleanupCancel()
-	defer func() {
-		if cleanupErr := s.runtime.DeleteRuntime(cleanupCtx, probeRuntimeID); cleanupErr != nil {
-			slog.Warn("failed to cleanup probe runtime",
-				"runtime_id", probeRuntimeID,
-				"error", cleanupErr)
-		}
-	}()
-
-	proxyURL := fmt.Sprintf("%s://%s:%d", ProxyNodeTypeSOCKS5H, resp.ListenerHost, resp.ListenerPort)
-	traceCtx, cancelTrace := context.WithTimeout(ctx, 15*time.Second)
-	defer cancelTrace()
-	exitInfo, latencyMs, err := s.proxyProber.ProbeProxy(traceCtx, proxyURL)
-	if err != nil {
-		return runtimeProbeCandidate{}, err
-	}
-	openAIProbe := s.openAIProbe
-	if openAIProbe == nil {
-		openAIProbe = probeOpenAIReachable
-	}
-	openAICtx, cancelOpenAI := context.WithTimeout(ctx, 12*time.Second)
-	defer cancelOpenAI()
-	openAIReachable, err := openAIProbe(openAICtx, proxyURL)
-	if err != nil {
-		return runtimeProbeCandidate{}, err
-	}
-	if !openAIReachable {
-		return runtimeProbeCandidate{}, fmt.Errorf("node skipped: OpenAI endpoint was not reachable through this exit")
-	}
-	return runtimeProbeCandidate{
-		node:      node,
-		latencyMs: latencyMs,
-		exitInfo:  exitInfo,
-	}, nil
 }
 
 func probeOpenAIReachable(ctx context.Context, proxyURL string) (bool, error) {
@@ -1008,68 +948,6 @@ func probeOpenAIReachable(ctx context.Context, proxyURL string) (bool, error) {
 	}
 }
 
-func probeCloudflareTrace(ctx context.Context, proxyURL string) (*ProxyExitInfo, int64, error) {
-	client, err := httpclient.GetClient(httpclient.Options{
-		ProxyURL:              proxyURL,
-		Timeout:               10 * time.Second,
-		ResponseHeaderTimeout: 8 * time.Second,
-	})
-	if err != nil {
-		return nil, 0, err
-	}
-	start := time.Now()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.cloudflare.com/cdn-cgi/trace", nil)
-	if err != nil {
-		return nil, 0, err
-	}
-	req.Header.Set("User-Agent", proxyQualityClientUserAgent)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return nil, 0, fmt.Errorf("cloudflare trace status: %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 16*1024))
-	if err != nil {
-		return nil, 0, err
-	}
-	latencyMs := time.Since(start).Milliseconds()
-	return parseCloudflareTraceBody(body, latencyMs)
-}
-
-func parseCloudflareTraceBody(body []byte, latencyMs int64) (*ProxyExitInfo, int64, error) {
-	lines := strings.Split(strings.ReplaceAll(string(body), "\r\n", "\n"), "\n")
-	values := make(map[string]string, len(lines))
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		values[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
-	}
-
-	ip := strings.TrimSpace(values["ip"])
-	countryCode := strings.TrimSpace(values["loc"])
-	if ip == "" {
-		return nil, latencyMs, fmt.Errorf("cloudflare trace returned empty ip")
-	}
-	if countryCode == "" {
-		return nil, latencyMs, fmt.Errorf("cloudflare trace returned empty country")
-	}
-	info := &ProxyExitInfo{
-		IP:          ip,
-		Country:     countryCode,
-		CountryCode: countryCode,
-	}
-	return info, latencyMs, nil
-}
-
 func buildRuntimeEntryGroups(selectedNodes []ProxySubscriptionNode, candidateNodes []ProxySubscriptionNode) map[int][]ProxySubscriptionNode {
 	groups := make(map[int][]ProxySubscriptionNode)
 	if len(selectedNodes) == 0 || len(candidateNodes) == 0 {
@@ -1098,37 +976,6 @@ func buildRuntimeEntryGroups(selectedNodes []ProxySubscriptionNode, candidateNod
 		seen[groupIndex][node.NodeKey] = struct{}{}
 	}
 	return groups
-}
-
-func runtimeProbePriority(name string) int {
-	normalized := strings.ToLower(strings.TrimSpace(name))
-	if normalized == "" {
-		return 1
-	}
-	if strings.Contains(normalized, "香港") || strings.Contains(normalized, " hk") || strings.Contains(normalized, "hkg") ||
-		strings.Contains(normalized, "澳门") || strings.Contains(normalized, " macau") || strings.Contains(normalized, "macao") ||
-		strings.Contains(normalized, "中国") || strings.Contains(normalized, " china") || strings.Contains(normalized, " cn") {
-		return 2
-	}
-	if strings.Contains(normalized, "日本") || strings.Contains(normalized, " jp") ||
-		strings.Contains(normalized, "新加坡") || strings.Contains(normalized, " sg") ||
-		strings.Contains(normalized, "美国") || strings.Contains(normalized, " us") ||
-		strings.Contains(normalized, "加拿大") || strings.Contains(normalized, " ca") ||
-		strings.Contains(normalized, "德国") || strings.Contains(normalized, " de") ||
-		strings.Contains(normalized, "法国") || strings.Contains(normalized, " fr") ||
-		strings.Contains(normalized, "台湾") || strings.Contains(normalized, " tw") {
-		return 0
-	}
-	return 1
-}
-
-func isBlockedExitCountryCode(code string) bool {
-	switch strings.ToUpper(strings.TrimSpace(code)) {
-	case "HK", "MO", "CN":
-		return true
-	default:
-		return false
-	}
 }
 
 func parseProxyURI(raw string) (*ProxySubscriptionNode, error) {
@@ -1195,7 +1042,7 @@ func stripAllWhitespace(text string) string {
 	b.Grow(len(text))
 	for _, r := range text {
 		if r != '\n' && r != '\r' && r != '\t' && r != ' ' {
-			b.WriteRune(r)
+			_, _ = b.WriteRune(r)
 		}
 	}
 	return b.String()
@@ -1207,7 +1054,10 @@ func maybeBase64(text string) bool {
 		return false
 	}
 	for _, r := range trimmed {
-		if !(r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '+' || r == '/' || r == '=') {
+		if (r < 'A' || r > 'Z') &&
+			(r < 'a' || r > 'z') &&
+			(r < '0' || r > '9') &&
+			r != '+' && r != '/' && r != '=' {
 			return false
 		}
 	}
@@ -1270,10 +1120,6 @@ func cloneMap(in map[string]any) map[string]any {
 		out[k] = v
 	}
 	return out
-}
-
-func runtimeIDForNode(sourceID int64, nodeKey string) string {
-	return fmt.Sprintf("src-%d-%s", sourceID, nodeKey[:12])
 }
 
 func runtimeIDForSource(sourceID int64, entryIndex int) string {

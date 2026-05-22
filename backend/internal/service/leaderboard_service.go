@@ -153,7 +153,7 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 	if err != nil {
 		return nil, fmt.Errorf("query consumption: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	entries := make([]LeaderboardEntry, 0)
 	rank := offset
@@ -186,7 +186,7 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 	if err != nil {
 		return nil, fmt.Errorf("query consumption chart: %w", err)
 	}
-	defer chartRows.Close()
+	defer func() { _ = chartRows.Close() }()
 
 	chartItems := make([]LeaderboardChartItem, 0, total)
 	var totalValue float64
@@ -257,7 +257,7 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 	if err != nil {
 		return nil, fmt.Errorf("query checkin: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	entries := make([]LeaderboardEntry, 0)
 	var total int64
@@ -308,7 +308,7 @@ func (s *LeaderboardService) getCheckinCounts(ctx context.Context, userIDs []int
 	if err != nil {
 		return nil, fmt.Errorf("query checkin counts: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var userID int64
