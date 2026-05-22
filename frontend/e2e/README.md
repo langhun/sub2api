@@ -8,6 +8,7 @@
 - `admin-login.spec.js`: 验证登录后进入管理台
 - `admin-proxies.spec.js`: 验证代理页关键入口，并走一条创建代理成功流程
 - `admin-settings.spec.js`: 验证设置页加载、切换 tab、保存成功
+- `admin-settings-admin-api-key.spec.js`: 验证安全页管理员 API Key 的创建、刷新后脱敏展示、重新生成与删除流程
 - `mobile-smoke.spec.js`: 验证移动端可打开菜单并进入后台页面
 
 ## 设计约束

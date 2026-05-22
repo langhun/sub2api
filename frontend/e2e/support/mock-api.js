@@ -1,4 +1,4 @@
-import { ADMIN_EMAIL, ADMIN_PASSWORD, buildAccounts, buildActiveSubscriptions, buildAuthResponse, buildBatchTodayStats, buildCheckinStatus, buildDashboardSnapshot, buildGroupCapacitySummary, buildGroups, buildGroupUsageSummary, buildMihomoStatus, buildProxyList, buildProxySubscriptions, buildPublicSettings, buildSettings, buildSetupStatus, buildUserRanking, buildUserTrend } from './fixtures.js'
+import { ADMIN_EMAIL, ADMIN_PASSWORD, buildAccounts, buildActiveSubscriptions, buildAdminApiKeyState, buildAdminApiKeyValue, buildAuthResponse, buildBatchTodayStats, buildCheckinStatus, buildDashboardSnapshot, buildGroupCapacitySummary, buildGroups, buildGroupUsageSummary, buildMihomoStatus, buildProxyList, buildProxySubscriptions, buildPublicSettings, buildSettings, buildSetupStatus, buildUserRanking, buildUserTrend, maskAdminApiKey } from './fixtures.js'
 
 function jsonResponse(body, status = 200) {
   return {
@@ -38,6 +38,7 @@ export async function mockCommonAppRoutes(page, options = {}) {
     mihomoStatus: buildMihomoStatus(),
     activeSubscriptions: buildActiveSubscriptions(),
     checkinStatus: buildCheckinStatus(),
+    adminApiKey: buildAdminApiKeyState(options.adminApiKey),
   }
 
   await page.route('**/*', async (route) => {
@@ -154,7 +155,28 @@ export async function mockCommonAppRoutes(page, options = {}) {
     }
 
     if (pathname === '/api/v1/admin/settings/admin-api-key' && method === 'GET') {
-      await route.fulfill(jsonResponse(apiSuccess({ exists: false, masked_key: '' })))
+      await route.fulfill(jsonResponse(apiSuccess({
+        exists: state.adminApiKey.exists,
+        masked_key: state.adminApiKey.masked_key,
+      })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/admin-api-key/regenerate' && method === 'POST') {
+      const rotation = (state.adminApiKey.rotation || 0) + 1
+      const key = buildAdminApiKeyValue(rotation)
+      state.adminApiKey = buildAdminApiKeyState({
+        currentKey: key,
+        rotation,
+        masked_key: maskAdminApiKey(key),
+      })
+      await route.fulfill(jsonResponse(apiSuccess({ key })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/admin-api-key' && method === 'DELETE') {
+      state.adminApiKey = buildAdminApiKeyState()
+      await route.fulfill(jsonResponse(apiSuccess({ message: 'deleted' })))
       return
     }
 

@@ -1,6 +1,28 @@
 export const ADMIN_EMAIL = 'admin@example.com'
 export const ADMIN_PASSWORD = 'Passw0rd!'
 
+export function maskAdminApiKey(key) {
+  if (!key) return ''
+  return `${key.substring(0, 10)}...${key.slice(-4)}`
+}
+
+export function buildAdminApiKeyValue(rotation = 1) {
+  return `sk-admin-e2e-${String(rotation).padStart(4, '0')}-secret`
+}
+
+export function buildAdminApiKeyState(overrides = {}) {
+  const currentKey = overrides.currentKey ?? ''
+  const rotation = overrides.rotation ?? (currentKey ? 1 : 0)
+  const exists = overrides.exists ?? currentKey.length > 0
+
+  return {
+    exists,
+    masked_key: overrides.masked_key ?? (exists && currentKey ? maskAdminApiKey(currentKey) : ''),
+    currentKey,
+    rotation,
+  }
+}
+
 export function buildAuthUser(overrides = {}) {
   return {
     id: 1,
