@@ -3507,7 +3507,6 @@ func (r *usageLogRepository) GetAllGroupUsageSummary(ctx context.Context, todayS
 	if totalCostByGroup, ok, needsRebuild, needsRefresh, shouldRefreshIncremental, _, _ := r.getGroupUsageTotalCostCacheState(false); ok && !needsRebuild {
 		// total_cost 长缓存命中时，先按 created_at 窗口做增量刷新，再与 today 查询结果合并。
 		if needsRefresh || shouldRefreshIncremental {
-			totalCostByGroup = cloneGroupUsageTotalCostMap(totalCostByGroup)
 			refreshedTotalCost, err := r.refreshGroupUsageTotalCostIncremental(ctx, totalCostByGroup)
 			if err != nil {
 				summaries, fullErr := r.queryAllGroupUsageSummary(ctx, todayStartUTC)
@@ -3676,12 +3675,19 @@ func (r *usageLogRepository) setGroupUsageSummaryCache(cacheKey int64, summaries
 	if r == nil {
 		return
 	}
+	now := time.Now()
 	r.groupUsageSummaryCacheMu.Lock()
 	if r.groupUsageSummaryCache == nil {
 		r.groupUsageSummaryCache = make(map[int64]usageLogGroupUsageSummaryCacheEntry)
+	} else {
+		for key, entry := range r.groupUsageSummaryCache {
+			if !entry.expiresAt.After(now) {
+				delete(r.groupUsageSummaryCache, key)
+			}
+		}
 	}
 	r.groupUsageSummaryCache[cacheKey] = usageLogGroupUsageSummaryCacheEntry{
-		expiresAt: time.Now().Add(usageLogGroupSummaryCacheTTL),
+		expiresAt: now.Add(usageLogGroupSummaryCacheTTL),
 		summaries: cloneGroupUsageSummaries(summaries),
 	}
 	r.groupUsageSummaryCacheMu.Unlock()
@@ -3718,17 +3724,21 @@ func (r *usageLogRepository) refreshGroupUsageTotalCostIncremental(ctx context.C
 	if r == nil {
 		return current, nil
 	}
+	currentShared := false
 	// 并发请求可能同时读取同一 incrementalFrom。这里做一次有限重试：
 	// 条件推进失败后，基于最新快照重算，避免返回过时 total_cost。
 	for attempt := 0; attempt < 2; attempt++ {
-		latest, ok, needsRebuild, needsRefresh, shouldRefreshIncremental, incrementalFrom, hasIncrementalFrom := r.getGroupUsageTotalCostCacheState(true)
+		latest, ok, needsRebuild, needsRefresh, shouldRefreshIncremental, incrementalFrom, hasIncrementalFrom := r.getGroupUsageTotalCostCacheState(false)
 		if ok {
 			// 并发下优先使用最新快照作为增量基线，避免在旧快照上叠加 delta。
 			current = latest
+			currentShared = true
 			// 缓存已 fresh 且未到最小增量间隔时，直接复用快照，避免不必要的 delta SQL。
 			if !needsRebuild && !needsRefresh && !shouldRefreshIncremental {
-				return latest, nil
+				return snapshotGroupUsageTotalCost(current, currentShared), nil
 			}
+		} else {
+			currentShared = false
 		}
 
 		if !hasIncrementalFrom {
@@ -3736,7 +3746,7 @@ func (r *usageLogRepository) refreshGroupUsageTotalCostIncremental(ctx context.C
 				// 长缓存已过期但增量锚点缺失时，交由上层走全量兜底，避免继续 today 合并陈旧 total_cost。
 				return nil, errGroupUsageTotalCostIncrementalAnchorMissing
 			}
-			return current, nil
+			return snapshotGroupUsageTotalCost(current, currentShared), nil
 		}
 
 		deltaByGroup, upperBound, err := r.queryGroupUsageTotalCostIncrement(ctx, incrementalFrom)
@@ -3746,9 +3756,9 @@ func (r *usageLogRepository) refreshGroupUsageTotalCostIncremental(ctx context.C
 
 		refreshed := current
 		if len(deltaByGroup) == 0 {
-			// 无增量时只推进增量锚点和 TTL，避免复制 totalCost map。
+			// 无增量时只推进增量锚点和 TTL，返回前再按需复制快照。
 			if r.advanceGroupUsageTotalCostCacheWindow(incrementalFrom, upperBound) {
-				return refreshed, nil
+				return snapshotGroupUsageTotalCost(refreshed, currentShared), nil
 			}
 		} else {
 			refreshed = cloneGroupUsageTotalCostMap(current)
@@ -3763,17 +3773,18 @@ func (r *usageLogRepository) refreshGroupUsageTotalCostIncremental(ctx context.C
 			}
 		}
 
-		latest, ok, needsRebuild, needsRefresh, _, _, _ = r.getGroupUsageTotalCostCacheState(true)
+		latest, ok, needsRebuild, needsRefresh, _, _, _ = r.getGroupUsageTotalCostCacheState(false)
 		if !ok {
-			return refreshed, nil
+			return snapshotGroupUsageTotalCost(refreshed, currentShared), nil
 		}
 		// 并发冲突下，若其他请求已把缓存推进到 fresh，优先返回最新快照，避免回传本次 stale 计算结果。
 		if !needsRebuild && !needsRefresh {
-			return latest, nil
+			return snapshotGroupUsageTotalCost(latest, true), nil
 		}
 		current = latest
+		currentShared = true
 	}
-	return current, nil
+	return snapshotGroupUsageTotalCost(current, currentShared), nil
 }
 
 func (r *usageLogRepository) setGroupUsageTotalCostCache(totalCostByGroup map[int64]float64) {
@@ -3869,6 +3880,13 @@ func cloneGroupUsageTotalCostMap(in map[int64]float64) map[int64]float64 {
 		out[groupID] = totalCost
 	}
 	return out
+}
+
+func snapshotGroupUsageTotalCost(totalCostByGroup map[int64]float64, shared bool) map[int64]float64 {
+	if !shared {
+		return totalCostByGroup
+	}
+	return cloneGroupUsageTotalCostMap(totalCostByGroup)
 }
 
 // resolveModelDimensionExpression maps model source type to a safe SQL expression.

@@ -1108,6 +1108,47 @@ func TestUsageLogRepositoryRefreshGroupUsageTotalCostIncrementalConflictReturnsL
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryRefreshGroupUsageTotalCostIncrementalFreshCacheSkipsWriteSideEffects(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	baseNow := time.Now().UTC()
+	entry := usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       baseNow.Add(10 * time.Minute),
+		fullRebuildAt:   baseNow.Add(-30 * time.Minute),
+		incrementalFrom: baseNow.Add(-time.Minute), // 未达到最小增量刷新间隔
+		totalCost: map[int64]float64{
+			1: 88.0,
+			2: 12.0,
+		},
+	}
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       entry.expiresAt,
+		fullRebuildAt:   entry.fullRebuildAt,
+		incrementalFrom: entry.incrementalFrom,
+		totalCost:       cloneGroupUsageTotalCostMap(entry.totalCost),
+	}
+
+	refreshed, err := repo.refreshGroupUsageTotalCostIncremental(context.Background(), map[int64]float64{
+		1: 999.0, // 传入 stale current，不应回写或覆盖 fresh cache
+	})
+	require.NoError(t, err)
+	require.Equal(t, entry.totalCost, refreshed)
+
+	// 返回值应是独立副本；调用方修改不应反向污染缓存。
+	refreshed[1] = -1
+
+	repo.groupUsageTotalCostCacheMu.RLock()
+	cached := repo.groupUsageTotalCostCache
+	repo.groupUsageTotalCostCacheMu.RUnlock()
+
+	require.Equal(t, entry.expiresAt, cached.expiresAt)
+	require.Equal(t, entry.fullRebuildAt, cached.fullRebuildAt)
+	require.Equal(t, entry.incrementalFrom, cached.incrementalFrom)
+	require.Equal(t, entry.totalCost, cached.totalCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUsageLogRepositorySetGroupUsageTotalCostCacheFromIncrementKeepsAnchorMonotonic(t *testing.T) {
 	repo := &usageLogRepository{}
 
@@ -1208,6 +1249,62 @@ func TestUsageLogRepositoryGetAllGroupUsageSummaryCacheKeyUsesUTCNormalizedDaySt
 	second, err := repo.GetAllGroupUsageSummary(context.Background(), todayStartUTC)
 	require.NoError(t, err)
 	require.Equal(t, first, second)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryExpiredCacheKeyRewriteKeepsSingleNormalizedEntry(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStartLocal := time.Date(2026, 5, 16, 8, 0, 0, 0, time.FixedZone("UTC+8", 8*3600))
+	todayStartUTC := todayStartLocal.UTC()
+	cacheKey := todayStartUTC.Unix()
+	repo.groupUsageSummaryCache = map[int64]usageLogGroupUsageSummaryCacheEntry{
+		cacheKey: {
+			expiresAt: time.Now().Add(-time.Minute),
+			summaries: []usagestats.GroupUsageSummary{
+				{GroupID: 1, TotalCost: 1.0, TodayCost: 0.1},
+			},
+		},
+	}
+
+	// 先确认过期键只会 miss，不会把过期值当成命中返回。
+	cached, ok := repo.getGroupUsageSummaryCache(cacheKey)
+	require.False(t, ok)
+	require.Nil(t, cached)
+
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStartUTC).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(11), 110.0, 11.0))
+
+	first, err := repo.GetAllGroupUsageSummary(context.Background(), todayStartLocal)
+	require.NoError(t, err)
+	require.Equal(t, []usagestats.GroupUsageSummary{
+		{GroupID: 11, TotalCost: 110.0, TodayCost: 11.0},
+	}, first)
+
+	repo.groupUsageSummaryCacheMu.RLock()
+	entry, exists := repo.groupUsageSummaryCache[cacheKey]
+	cacheLen := len(repo.groupUsageSummaryCache)
+	repo.groupUsageSummaryCacheMu.RUnlock()
+
+	require.True(t, exists)
+	require.Equal(t, 1, cacheLen)
+	require.True(t, entry.expiresAt.After(time.Now()))
+	require.Equal(t, []usagestats.GroupUsageSummary{
+		{GroupID: 11, TotalCost: 110.0, TodayCost: 11.0},
+	}, entry.summaries)
+
+	// 等价 UTC 日起点再次访问应直接命中同一键，不再产生新 SQL 或新增 map 项。
+	second, err := repo.GetAllGroupUsageSummary(context.Background(), todayStartUTC)
+	require.NoError(t, err)
+	require.Equal(t, first, second)
+
+	repo.groupUsageSummaryCacheMu.RLock()
+	finalCacheLen := len(repo.groupUsageSummaryCache)
+	repo.groupUsageSummaryCacheMu.RUnlock()
+	require.Equal(t, 1, finalCacheLen)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
