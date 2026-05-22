@@ -67,7 +67,11 @@ type stubAdminService struct {
 		calls         int
 		accountCalls  int
 	}
+	lastGetGroupAPIKeyCalls    []groupAPIKeyCall
 	lastUnassignProxyIDs       []int64
+	lastPoolMembershipIDs      []int64
+	lastPoolMembershipEnabled  bool
+	lastClearCooldownIDs       []int64
 	lastListProxySubscriptions struct {
 		page     int
 		pageSize int
@@ -90,7 +94,15 @@ type stubAdminService struct {
 		sortOrder string
 		calls     int
 	}
-	mu sync.Mutex
+	redeemStats    service.RedeemCodeStats
+	redeemStatsErr error
+	mu             sync.Mutex
+}
+
+type groupAPIKeyCall struct {
+	groupID  int64
+	page     int
+	pageSize int
 }
 
 func newStubAdminService() *stubAdminService {
@@ -155,6 +167,13 @@ func newStubAdminService() *stubAdminService {
 		proxies:     []service.Proxy{proxy},
 		proxyCounts: []service.ProxyWithAccountCount{{Proxy: proxy, AccountCount: 1}},
 		redeems:     []service.RedeemCode{redeem},
+		redeemStats: service.RedeemCodeStats{
+			TotalCodes:  1,
+			ActiveCodes: 1,
+			ByType: service.RedeemCodeStatsByType{
+				Balance: 1,
+			},
+		},
 	}
 }
 
@@ -298,7 +317,34 @@ func (s *stubAdminService) DeleteGroup(ctx context.Context, id int64) error {
 }
 
 func (s *stubAdminService) GetGroupAPIKeys(ctx context.Context, groupID int64, page, pageSize int) ([]service.APIKey, int64, error) {
-	return s.apiKeys, int64(len(s.apiKeys)), nil
+	s.lastGetGroupAPIKeyCalls = append(s.lastGetGroupAPIKeyCalls, groupAPIKeyCall{
+		groupID:  groupID,
+		page:     page,
+		pageSize: pageSize,
+	})
+
+	total := int64(len(s.apiKeys))
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 1000 {
+		pageSize = 1000
+	}
+
+	start := (page - 1) * pageSize
+	if start >= len(s.apiKeys) {
+		return []service.APIKey{}, total, nil
+	}
+
+	end := start + pageSize
+	if end > len(s.apiKeys) {
+		end = len(s.apiKeys)
+	}
+
+	return s.apiKeys[start:end], total, nil
 }
 
 func (s *stubAdminService) GetGroupRateMultipliers(_ context.Context, _ int64) ([]service.UserGroupRateEntry, error) {
@@ -546,6 +592,17 @@ func (s *stubAdminService) CheckProxyExists(ctx context.Context, host string, po
 	return false, nil
 }
 
+func (s *stubAdminService) SetAutoFailoverProxyPoolMembership(ctx context.Context, proxyIDs []int64, enabled bool) (int, error) {
+	s.lastPoolMembershipIDs = append([]int64(nil), proxyIDs...)
+	s.lastPoolMembershipEnabled = enabled
+	return len(proxyIDs), nil
+}
+
+func (s *stubAdminService) ClearProxyCooldownState(ctx context.Context, proxyIDs []int64) error {
+	s.lastClearCooldownIDs = append([]int64(nil), proxyIDs...)
+	return nil
+}
+
 func (s *stubAdminService) TestProxy(ctx context.Context, id int64) (*service.ProxyTestResult, error) {
 	s.mu.Lock()
 	s.testedProxyIDs = append(s.testedProxyIDs, id)
@@ -570,6 +627,16 @@ func (s *stubAdminService) CheckProxyQuality(ctx context.Context, id int64) (*se
 			{Target: "anthropic", Status: "pass", HTTPStatus: 401},
 			{Target: "gemini", Status: "pass", HTTPStatus: 200},
 		},
+	}, nil
+}
+
+func (s *stubAdminService) GetProxyStats(ctx context.Context, id int64) (*service.ProxyStatsResult, error) {
+	return &service.ProxyStatsResult{
+		TotalAccounts:  3,
+		ActiveAccounts: 2,
+		TotalRequests:  42,
+		SuccessRate:    97.5,
+		AverageLatency: 123,
 	}, nil
 }
 
@@ -641,6 +708,14 @@ func (s *stubAdminService) ListRedeemCodes(ctx context.Context, page, pageSize i
 func (s *stubAdminService) GetRedeemCode(ctx context.Context, id int64) (*service.RedeemCode, error) {
 	code := service.RedeemCode{ID: id, Code: "R-TEST", Status: service.StatusUnused}
 	return &code, nil
+}
+
+func (s *stubAdminService) GetRedeemCodeStats(ctx context.Context) (*service.RedeemCodeStats, error) {
+	if s.redeemStatsErr != nil {
+		return nil, s.redeemStatsErr
+	}
+	stats := s.redeemStats
+	return &stats, nil
 }
 
 func (s *stubAdminService) GenerateRedeemCodes(ctx context.Context, input *service.GenerateRedeemCodesInput) ([]service.RedeemCode, error) {

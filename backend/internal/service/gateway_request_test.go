@@ -76,6 +76,42 @@ func TestParseGatewayRequest_InvalidStreamType(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestParseGatewayRequest_DuplicateTopLevelKeysUseFirstValue(t *testing.T) {
+	body := []byte(`{
+		"model":"first-model",
+		"model":"second-model",
+		"stream":false,
+		"stream":true,
+		"metadata":{"user_id":"first-user"},
+		"metadata":{"user_id":"second-user"},
+		"thinking":{"type":"enabled"},
+		"thinking":{"type":"disabled"},
+		"output_config":{"effort":" medium "},
+		"output_config":{"effort":"high"},
+		"max_tokens":1024,
+		"max_tokens":2048,
+		"system":"first system",
+		"system":"second system",
+		"messages":[{"role":"user","content":"first"}],
+		"messages":[{"role":"user","content":"second"}]
+	}`)
+
+	parsed, err := ParseGatewayRequest(body, "")
+	require.NoError(t, err)
+	require.Equal(t, "first-model", parsed.Model)
+	require.False(t, parsed.Stream)
+	require.Equal(t, "first-user", parsed.MetadataUserID)
+	require.True(t, parsed.ThinkingEnabled)
+	require.Equal(t, "medium", parsed.OutputEffort)
+	require.Equal(t, 1024, parsed.MaxTokens)
+	require.True(t, parsed.HasSystem)
+	require.Equal(t, "first system", parsed.System)
+	require.Len(t, parsed.Messages, 1)
+	msg, ok := parsed.Messages[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "first", msg["content"])
+}
+
 // ============ Gemini 原生格式解析测试 ============
 
 func TestParseGatewayRequest_GeminiContents(t *testing.T) {
@@ -1010,14 +1046,24 @@ func TestParseGatewayRequest_MaxTokensBoundary(t *testing.T) {
 			wantMaxTokens: -1,
 		},
 		{
-			name:          "超大值不 panic",
-			body:          `{"max_tokens":9999999999999999}`,
-			wantMaxTokens: 0, // 超出 math.MaxInt 时应被忽略，但不能 panic
+			name:          "超出 int 范围的值不 panic",
+			body:          `{"max_tokens":18446744073709551616}`,
+			wantMaxTokens: 0, // 明确超出 64 位 int 上限，应被忽略，但不能 panic
 		},
 		{
 			name:          "null 值被忽略",
 			body:          `{"max_tokens":null}`,
 			wantMaxTokens: 0, // gjson Type=Null != Number → 条件不满足，跳过
+		},
+		{
+			name:          "科学计数法被忽略",
+			body:          `{"max_tokens":1e3}`,
+			wantMaxTokens: 0,
+		},
+		{
+			name:          "超出 JSON 精确整数范围的值被忽略",
+			body:          `{"max_tokens":9007199254740992}`,
+			wantMaxTokens: 0,
 		},
 	}
 

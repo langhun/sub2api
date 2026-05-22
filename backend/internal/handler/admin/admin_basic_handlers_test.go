@@ -2,11 +2,15 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -215,6 +219,72 @@ func TestGroupHandlerEndpoints(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/groups/2/api-keys", nil)
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestGroupHandlerGetStatsReturnsAggregatedValues(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	adminSvc := newStubAdminService()
+	adminSvc.apiKeys = make([]service.APIKey, 0, 205)
+	for i := 1; i <= 205; i++ {
+		status := service.StatusDisabled
+		if i <= 203 {
+			status = service.StatusActive
+		}
+		adminSvc.apiKeys = append(adminSvc.apiKeys, service.APIKey{
+			ID:     int64(i),
+			Status: status,
+		})
+	}
+
+	usageRepo := &groupStatsUsageRepoStub{
+		stats: []usagestats.GroupStat{
+			{GroupID: 2, Requests: 11, ActualCost: 1.2},
+			{GroupID: 2, Requests: 9, ActualCost: 2.3},
+		},
+	}
+	dashboardSvc := service.NewDashboardService(usageRepo, nil, nil, nil)
+	groupHandler := NewGroupHandler(adminSvc, dashboardSvc, nil)
+
+	router.GET("/api/v1/admin/groups/:id/stats", groupHandler.GetStats)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/groups/2/stats", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	data, ok := payload["data"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(205), data["total_api_keys"])
+	require.Equal(t, float64(203), data["active_api_keys"])
+	require.Equal(t, float64(20), data["total_requests"])
+	require.InDelta(t, 3.5, data["total_cost"], 1e-9)
+	require.Len(t, adminSvc.lastGetGroupAPIKeyCalls, 2)
+	require.Equal(t, []groupAPIKeyCall{
+		{groupID: 2, page: 1, pageSize: 200},
+		{groupID: 2, page: 2, pageSize: 200},
+	}, adminSvc.lastGetGroupAPIKeyCalls)
+}
+
+type groupStatsUsageRepoStub struct {
+	service.UsageLogRepository
+	stats []usagestats.GroupStat
+}
+
+func (s *groupStatsUsageRepoStub) GetGroupStatsWithFilters(
+	_ context.Context,
+	_, _ time.Time,
+	_, _, _, groupID int64,
+	_ *int16,
+	_ *bool,
+	_ *int8,
+) ([]usagestats.GroupStat, error) {
+	if groupID <= 0 {
+		return nil, nil
+	}
+	return s.stats, nil
 }
 
 func TestProxyHandlerEndpoints(t *testing.T) {
@@ -430,4 +500,42 @@ func TestRedeemHandlerEndpoints(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/redeem-codes/5/stats", nil)
 	router.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestStubAdminServiceGetGroupAPIKeysPaginatesLikeContract(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.apiKeys = []service.APIKey{
+		{ID: 1, Status: service.StatusActive},
+		{ID: 2, Status: service.StatusDisabled},
+		{ID: 3, Status: service.StatusActive},
+	}
+
+	page1, total, err := adminSvc.GetGroupAPIKeys(context.Background(), 2, 1, 2)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, total)
+	require.Len(t, page1, 2)
+	require.EqualValues(t, []int64{1, 2}, []int64{page1[0].ID, page1[1].ID})
+
+	page2, total, err := adminSvc.GetGroupAPIKeys(context.Background(), 2, 2, 2)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, total)
+	require.Len(t, page2, 1)
+	require.EqualValues(t, int64(3), page2[0].ID)
+
+	pageOutOfRange, total, err := adminSvc.GetGroupAPIKeys(context.Background(), 2, 3, 2)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, total)
+	require.Empty(t, pageOutOfRange)
+
+	pageDefaultSize, total, err := adminSvc.GetGroupAPIKeys(context.Background(), 2, 1, 0)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, total)
+	require.Len(t, pageDefaultSize, 3)
+
+	require.Equal(t, []groupAPIKeyCall{
+		{groupID: 2, page: 1, pageSize: 2},
+		{groupID: 2, page: 2, pageSize: 2},
+		{groupID: 2, page: 3, pageSize: 2},
+		{groupID: 2, page: 1, pageSize: 0},
+	}, adminSvc.lastGetGroupAPIKeyCalls)
 }

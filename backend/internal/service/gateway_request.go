@@ -7,6 +7,7 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unsafe"
 
@@ -22,6 +23,10 @@ var (
 	patternTypeThinkingSpaced   = []byte(`"type": "thinking"`)
 	patternTypeRedactedThinking = []byte(`"type":"redacted_thinking"`)
 	patternTypeRedactedSpaced   = []byte(`"type": "redacted_thinking"`)
+	patternTypeToolUse          = []byte(`"type":"tool_use"`)
+	patternTypeToolUseSpaced    = []byte(`"type": "tool_use"`)
+	patternTypeToolResult       = []byte(`"type":"tool_result"`)
+	patternTypeToolResultSpaced = []byte(`"type": "tool_result"`)
 
 	patternThinkingField       = []byte(`"thinking":`)
 	patternThinkingFieldSpaced = []byte(`"thinking" :`)
@@ -40,6 +45,8 @@ var (
 	sessionUserAgentProductPattern = regexp.MustCompile(`([A-Za-z0-9._-]+)/[A-Za-z0-9._-]+`)
 	sessionUserAgentVersionPattern = regexp.MustCompile(`\bv?\d+(?:\.\d+){1,3}\b`)
 )
+
+const maxExactJSONInteger = 1<<53 - 1
 
 // SessionContext 粘性会话上下文，用于区分不同来源的请求。
 // 仅在 GenerateSessionHash 第 3 级 fallback（消息内容 hash）时混入，
@@ -146,9 +153,106 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 	}
 
 	// --- gjson 提取简单字段（避免完整 Unmarshal） ---
+	// 对象根节点场景下先单次遍历顶层字段，减少热路径里对同一 JSON 的重复路径扫描。
+	// 使用 found flag 保持与 gjson.Get 一致的“首个同名键生效”语义。
+	root := gjson.Parse(jsonStr)
+	var (
+		modelResult      gjson.Result
+		streamResult     gjson.Result
+		metadataResult   gjson.Result
+		thinkingResult   gjson.Result
+		outputConfig     gjson.Result
+		maxTokensResult  gjson.Result
+		systemResult     gjson.Result
+		messagesResult   gjson.Result
+		systemInstResult gjson.Result
+		contentsResult   gjson.Result
+
+		foundModel      bool
+		foundStream     bool
+		foundMetadata   bool
+		foundThinking   bool
+		foundOutput     bool
+		foundMaxTokens  bool
+		foundSystem     bool
+		foundMessages   bool
+		foundSystemInst bool
+		foundContents   bool
+	)
+	if root.IsObject() {
+		root.ForEach(func(key, value gjson.Result) bool {
+			switch key.Str {
+			case "model":
+				if !foundModel {
+					modelResult = value
+					foundModel = true
+				}
+			case "stream":
+				if !foundStream {
+					streamResult = value
+					foundStream = true
+				}
+			case "metadata":
+				if !foundMetadata {
+					metadataResult = value
+					foundMetadata = true
+				}
+			case "thinking":
+				if !foundThinking {
+					thinkingResult = value
+					foundThinking = true
+				}
+			case "output_config":
+				if !foundOutput {
+					outputConfig = value
+					foundOutput = true
+				}
+			case "max_tokens":
+				if !foundMaxTokens {
+					maxTokensResult = value
+					foundMaxTokens = true
+				}
+			case "system":
+				if protocol != domain.PlatformGemini && !foundSystem {
+					systemResult = value
+					foundSystem = true
+				}
+			case "messages":
+				if protocol != domain.PlatformGemini && !foundMessages {
+					messagesResult = value
+					foundMessages = true
+				}
+			case "systemInstruction":
+				if protocol == domain.PlatformGemini && !foundSystemInst {
+					systemInstResult = value
+					foundSystemInst = true
+				}
+			case "contents":
+				if protocol == domain.PlatformGemini && !foundContents {
+					contentsResult = value
+					foundContents = true
+				}
+			}
+			return true
+		})
+	} else {
+		modelResult = gjson.Get(jsonStr, "model")
+		streamResult = gjson.Get(jsonStr, "stream")
+		metadataResult = gjson.Get(jsonStr, "metadata")
+		thinkingResult = gjson.Get(jsonStr, "thinking")
+		outputConfig = gjson.Get(jsonStr, "output_config")
+		maxTokensResult = gjson.Get(jsonStr, "max_tokens")
+		switch protocol {
+		case domain.PlatformGemini:
+			systemInstResult = gjson.Get(jsonStr, "systemInstruction")
+			contentsResult = gjson.Get(jsonStr, "contents")
+		default:
+			systemResult = gjson.Get(jsonStr, "system")
+			messagesResult = gjson.Get(jsonStr, "messages")
+		}
+	}
 
 	// model: 需要严格类型校验，非 string 返回错误
-	modelResult := gjson.Get(jsonStr, "model")
 	if modelResult.Exists() {
 		if modelResult.Type != gjson.String {
 			return nil, fmt.Errorf("invalid model field type")
@@ -157,7 +261,6 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 	}
 
 	// stream: 需要严格类型校验，非 bool 返回错误
-	streamResult := gjson.Get(jsonStr, "stream")
 	if streamResult.Exists() {
 		if streamResult.Type != gjson.True && streamResult.Type != gjson.False {
 			return nil, fmt.Errorf("invalid stream field type")
@@ -166,24 +269,29 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 	}
 
 	// metadata.user_id: 直接路径提取，不需要严格类型校验
-	parsed.MetadataUserID = gjson.Get(jsonStr, "metadata.user_id").String()
+	if metadataResult.Exists() {
+		parsed.MetadataUserID = metadataResult.Get("user_id").String()
+	}
 
 	// thinking.type: enabled/adaptive 都视为开启
-	thinkingType := gjson.Get(jsonStr, "thinking.type").String()
+	thinkingType := thinkingResult.Get("type").String()
 	if thinkingType == "enabled" || thinkingType == "adaptive" {
 		parsed.ThinkingEnabled = true
 	}
 
 	// output_config.effort: Claude API 的推理强度控制参数
-	parsed.OutputEffort = strings.TrimSpace(gjson.Get(jsonStr, "output_config.effort").String())
+	parsed.OutputEffort = strings.TrimSpace(outputConfig.Get("effort").String())
 
-	// max_tokens: 仅接受整数值
-	maxTokensResult := gjson.Get(jsonStr, "max_tokens")
+	// max_tokens: 仅接受落在原生 int 范围内、且能被 JSON number 精确表示的十进制整数值
 	if maxTokensResult.Exists() && maxTokensResult.Type == gjson.Number {
-		f := maxTokensResult.Float()
-		if !math.IsNaN(f) && !math.IsInf(f, 0) && f == math.Trunc(f) &&
-			f <= float64(math.MaxInt) && f >= float64(math.MinInt) {
-			parsed.MaxTokens = int(f)
+		raw := strings.TrimSpace(maxTokensResult.Raw)
+		if raw != "" && !strings.ContainsAny(raw, ".eE") {
+			if v, err := strconv.ParseInt(raw, 10, strconv.IntSize); err == nil {
+				if v <= maxExactJSONInteger && v >= -maxExactJSONInteger &&
+					v <= int64(math.MaxInt) && v >= int64(math.MinInt) {
+					parsed.MaxTokens = int(v)
+				}
+			}
 		}
 	}
 
@@ -194,7 +302,7 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 	switch protocol {
 	case domain.PlatformGemini:
 		// Gemini 原生格式: systemInstruction.parts / contents
-		if sysParts := gjson.Get(jsonStr, "systemInstruction.parts"); sysParts.Exists() && sysParts.IsArray() {
+		if sysParts := systemInstResult.Get("parts"); sysParts.Exists() && sysParts.IsArray() {
 			var parts []any
 			if err := json.Unmarshal(sliceRawFromBody(body, sysParts), &parts); err != nil {
 				return nil, err
@@ -202,7 +310,7 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 			parsed.System = parts
 		}
 
-		if contents := gjson.Get(jsonStr, "contents"); contents.Exists() && contents.IsArray() {
+		if contents := contentsResult; contents.Exists() && contents.IsArray() {
 			var msgs []any
 			if err := json.Unmarshal(sliceRawFromBody(body, contents), &msgs); err != nil {
 				return nil, err
@@ -213,7 +321,7 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 		// Anthropic / OpenAI 格式: system / messages
 		// system 字段只要存在就视为显式提供（即使为 null），
 		// 以避免客户端传 null 时被默认 system 误注入。
-		if sys := gjson.Get(jsonStr, "system"); sys.Exists() {
+		if sys := systemResult; sys.Exists() {
 			parsed.HasSystem = true
 			switch sys.Type {
 			case gjson.Null:
@@ -230,7 +338,7 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 			}
 		}
 
-		if msgs := gjson.Get(jsonStr, "messages"); msgs.Exists() && msgs.IsArray() {
+		if msgs := messagesResult; msgs.Exists() && msgs.IsArray() {
 			var messages []any
 			if err := json.Unmarshal(sliceRawFromBody(body, msgs), &messages); err != nil {
 				return nil, err
@@ -254,6 +362,39 @@ func sliceRawFromBody(body []byte, r gjson.Result) []byte {
 	}
 	// fallback: 不影响正确性，但会产生一次拷贝
 	return []byte(r.Raw)
+}
+
+func bodyContainsThinkingTypeBlocks(body []byte) bool {
+	return bytes.Contains(body, patternTypeThinking) ||
+		bytes.Contains(body, patternTypeThinkingSpaced) ||
+		bytes.Contains(body, patternTypeRedactedThinking) ||
+		bytes.Contains(body, patternTypeRedactedSpaced)
+}
+
+func bodyContainsThinkingField(body []byte) bool {
+	return bytes.Contains(body, patternThinkingField) ||
+		bytes.Contains(body, patternThinkingFieldSpaced)
+}
+
+func bodyContainsEmptyContent(body []byte) bool {
+	return bytes.Contains(body, patternEmptyContent) ||
+		bytes.Contains(body, patternEmptyContentSpaced) ||
+		bytes.Contains(body, patternEmptyContentSp1) ||
+		bytes.Contains(body, patternEmptyContentSp2)
+}
+
+func bodyContainsEmptyText(body []byte) bool {
+	return bytes.Contains(body, patternEmptyText) ||
+		bytes.Contains(body, patternEmptyTextSpaced) ||
+		bytes.Contains(body, patternEmptyTextSp1) ||
+		bytes.Contains(body, patternEmptyTextSp2)
+}
+
+func bodyContainsToolBlocks(body []byte) bool {
+	return bytes.Contains(body, patternTypeToolUse) ||
+		bytes.Contains(body, patternTypeToolUseSpaced) ||
+		bytes.Contains(body, patternTypeToolResult) ||
+		bytes.Contains(body, patternTypeToolResultSpaced)
 }
 
 // stripEmptyTextBlocksFromSlice removes empty text blocks from a content slice (including nested tool_result content).
@@ -318,11 +459,7 @@ func stripEmptyTextBlocksFromSlice(blocks []any) ([]any, bool) {
 // Returns the original body unchanged if no empty text blocks are found.
 func StripEmptyTextBlocks(body []byte) []byte {
 	// Fast path: check if body contains empty text patterns
-	hasEmptyTextBlock := bytes.Contains(body, patternEmptyText) ||
-		bytes.Contains(body, patternEmptyTextSpaced) ||
-		bytes.Contains(body, patternEmptyTextSp1) ||
-		bytes.Contains(body, patternEmptyTextSp2)
-	if !hasEmptyTextBlock {
+	if !bodyContainsEmptyText(body) {
 		return body
 	}
 
@@ -395,26 +532,17 @@ func FilterThinkingBlocks(body []byte) []byte {
 //   - Remove `redacted_thinking` blocks (cannot be converted to text).
 //   - Ensure no message ends up with empty content.
 func FilterThinkingBlocksForRetry(body []byte) []byte {
-	hasThinkingContent := bytes.Contains(body, patternTypeThinking) ||
-		bytes.Contains(body, patternTypeThinkingSpaced) ||
-		bytes.Contains(body, patternTypeRedactedThinking) ||
-		bytes.Contains(body, patternTypeRedactedSpaced) ||
-		bytes.Contains(body, patternThinkingField) ||
-		bytes.Contains(body, patternThinkingFieldSpaced)
+	hasThinkingTypeBlocks := bodyContainsThinkingTypeBlocks(body)
+	hasThinkingFieldSpaced := bytes.Contains(body, patternThinkingFieldSpaced)
+	hasThinkingContent := hasThinkingTypeBlocks || hasThinkingFieldSpaced || bytes.Contains(body, patternThinkingField)
 
 	// Also check for empty content arrays and empty text blocks that need fixing.
 	// Note: This is a heuristic check; the actual empty content handling is done below.
-	hasEmptyContent := bytes.Contains(body, patternEmptyContent) ||
-		bytes.Contains(body, patternEmptyContentSpaced) ||
-		bytes.Contains(body, patternEmptyContentSp1) ||
-		bytes.Contains(body, patternEmptyContentSp2)
+	hasEmptyContent := bodyContainsEmptyContent(body)
 
 	// Check for empty text blocks: {"type":"text","text":""}
 	// These cause upstream 400: "text content blocks must be non-empty"
-	hasEmptyTextBlock := bytes.Contains(body, patternEmptyText) ||
-		bytes.Contains(body, patternEmptyTextSpaced) ||
-		bytes.Contains(body, patternEmptyTextSp1) ||
-		bytes.Contains(body, patternEmptyTextSp2)
+	hasEmptyTextBlock := bodyContainsEmptyText(body)
 
 	// Fast path: nothing to process
 	if !hasThinkingContent && !hasEmptyContent && !hasEmptyTextBlock {
@@ -431,11 +559,7 @@ func FilterThinkingBlocksForRetry(body []byte) []byte {
 
 	// Fast path：只需要删除顶层 thinking，不需要改 messages。
 	// 注意：patternThinkingField 可能来自嵌套字段（如 tool_use.input.thinking），因此必须用 gjson 判断顶层字段是否存在。
-	containsThinkingBlocks := bytes.Contains(body, patternTypeThinking) ||
-		bytes.Contains(body, patternTypeThinkingSpaced) ||
-		bytes.Contains(body, patternTypeRedactedThinking) ||
-		bytes.Contains(body, patternTypeRedactedSpaced) ||
-		bytes.Contains(body, patternThinkingFieldSpaced)
+	containsThinkingBlocks := hasThinkingTypeBlocks || hasThinkingFieldSpaced
 	if !hasEmptyContent && !hasEmptyTextBlock && !containsThinkingBlocks {
 		if topThinking := gjson.Get(jsonStr, "thinking"); topThinking.Exists() {
 			if out, err := sjson.DeleteBytes(body, "thinking"); err == nil {
@@ -640,7 +764,7 @@ func removeThinkingDependentContextStrategies(body []byte) []byte {
 			hasRemoved = true
 			return true
 		}
-		filtered = append(filtered, json.RawMessage(v.Raw))
+		filtered = append(filtered, json.RawMessage(sliceRawFromBody(body, v)))
 		return true
 	})
 
@@ -676,16 +800,9 @@ func removeThinkingDependentContextStrategies(body []byte) []byte {
 // risk of prompt injection (tool output becomes plain conversation text).
 func FilterSignatureSensitiveBlocksForRetry(body []byte) []byte {
 	// Fast path: only run when we see likely relevant constructs.
-	if !bytes.Contains(body, []byte(`"type":"thinking"`)) &&
-		!bytes.Contains(body, []byte(`"type": "thinking"`)) &&
-		!bytes.Contains(body, []byte(`"type":"redacted_thinking"`)) &&
-		!bytes.Contains(body, []byte(`"type": "redacted_thinking"`)) &&
-		!bytes.Contains(body, []byte(`"type":"tool_use"`)) &&
-		!bytes.Contains(body, []byte(`"type": "tool_use"`)) &&
-		!bytes.Contains(body, []byte(`"type":"tool_result"`)) &&
-		!bytes.Contains(body, []byte(`"type": "tool_result"`)) &&
-		!bytes.Contains(body, []byte(`"thinking":`)) &&
-		!bytes.Contains(body, []byte(`"thinking" :`)) {
+	if !bodyContainsThinkingTypeBlocks(body) &&
+		!bodyContainsToolBlocks(body) &&
+		!bodyContainsThinkingField(body) {
 		return body
 	}
 
@@ -859,12 +976,8 @@ func FilterSignatureSensitiveBlocksForRetry(body []byte) []byte {
 //   - 当 thinking.type 是 "enabled"/"adaptive"：仅移除缺失/无效 signature 的 thinking 块
 func filterThinkingBlocksInternal(body []byte, _ bool) []byte {
 	// Fast path: if body doesn't contain "thinking", skip parsing
-	if !bytes.Contains(body, []byte(`"type":"thinking"`)) &&
-		!bytes.Contains(body, []byte(`"type": "thinking"`)) &&
-		!bytes.Contains(body, []byte(`"type":"redacted_thinking"`)) &&
-		!bytes.Contains(body, []byte(`"type": "redacted_thinking"`)) &&
-		!bytes.Contains(body, []byte(`"thinking":`)) &&
-		!bytes.Contains(body, []byte(`"thinking" :`)) {
+	if !bodyContainsThinkingTypeBlocks(body) &&
+		!bodyContainsThinkingField(body) {
 		return body
 	}
 
