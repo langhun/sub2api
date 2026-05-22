@@ -389,10 +389,97 @@ long-run 运行后会上传两类独立 artifact：
 - `perf-long-run-trend-<timestamp>-<sha12>`
   - `perf-trend.md`
   - `perf-trend.csv`
+  - `perf-trend-history.csv`（启用历史对比时）
+  - `perf-trend-latest.md`（启用历史对比时）
   - `perf-thresholds.md`
   - `perf-threshold-report.json`
   - `perf-stability-summary.md`
   - `perf-stability-summary.json`
+
+#### 如何启用历史对比
+
+`Perf Long Run` 已支持把历史 CSV 输入接到 `export-k6-trend.mjs --history-csv`，用于跨运行对比与更连续的稳定性分析。默认策略是“尽量使用历史，但拿不到时安全降级为当前运行单独输出”。
+
+可选历史源有 4 种：
+
+- `previous-run-artifact`
+  - 默认值
+  - 自动查找当前 workflow 最近一次成功运行的 `perf-long-run-trend-*` artifact
+- `artifact`
+  - 手动指定某个历史 workflow run 的 artifact
+- `path`
+  - 使用仓库工作区中已有的 CSV 路径
+- `none`
+  - 明确禁用历史对比
+
+##### 方案 1：默认自动接上一轮 long-run artifact
+
+这是最省心的方式：
+
+1. 保持 `history_source=previous-run-artifact`
+2. 先至少成功跑过一次 `Perf Long Run`
+3. 从第二次开始，workflow 会自动尝试下载上一轮成功运行的 `perf-long-run-trend-*`
+4. 如果下载到：
+   - 优先使用 `perf-trend-history.csv`
+   - 否则回退使用 `perf-trend.csv`
+5. 如果上一轮 artifact 不存在、已过期或下载失败：
+   - workflow 会写 warning
+   - 但仍继续产出本轮 `perf-trend.md` / `perf-trend.csv`
+
+##### 方案 2：手动指定历史 artifact
+
+适合你想和某个固定 run 做对比时使用：
+
+1. 在 GitHub Actions 页面手动运行 `Perf Long Run`
+2. 设置：
+   - `history_source=artifact`
+   - `history_run_id=<某次历史 run id>`
+3. 可选再填：
+   - `history_artifact_name=<精确 artifact 名>`
+4. 如果 `history_artifact_name` 留空，workflow 会自动在该 run 中查找最新的 `perf-long-run-trend-*`
+5. 若 run id 或 artifact 找不到：
+   - workflow 会安全降级
+   - 不会因为缺历史而阻断整次压测
+
+##### 方案 3：手动指定 CSV 路径
+
+适合你把历史 CSV 先放到工作区后再运行，例如自定义调试或从别处复制来的基线：
+
+1. 手动运行 `Perf Long Run`
+2. 设置：
+   - `history_source=path`
+   - `history_csv_path=<工作区相对路径或绝对路径>`
+3. 推荐传入：
+   - 某次导出的 `perf-trend-history.csv`
+   - 或单次 `perf-trend.csv`
+4. 如果该路径不存在：
+   - workflow 会写 warning
+   - 然后自动回退到 current-only 模式
+
+##### 方案 4：显式关闭历史对比
+
+如果你只想看本轮数据：
+
+1. 手动运行 `Perf Long Run`
+2. 设置 `history_source=none`
+3. workflow 不会尝试下载或读取任何历史 CSV
+
+##### 启用历史对比后会多出什么产物
+
+当 `--history-csv` 实际传入后，trend artifact 中会额外出现：
+
+- `perf-trend-history.csv`
+  - 历史与当前合并后的完整趋势 CSV
+- `perf-trend-latest.md`
+  - 当前样本与上一个同场景样本的 delta 对比
+
+同时，稳定性汇总步骤会优先使用：
+
+- `perf-trend-history.csv`
+
+如果历史未启用或未获取成功，才回退使用：
+
+- `perf-trend.csv`
 
 #### 如何读取 longer-run 产物
 
@@ -400,18 +487,21 @@ long-run 运行后会上传两类独立 artifact：
 
 1. `perf-trend.md`
    - 先看 4 个场景的 `requests`、`rps`、`error_rate`、`timeout_rate`、`p95`、`p99`
-2. `perf-thresholds.md`
+2. `perf-trend-latest.md`
+   - 如果启用了历史对比，优先看它给出的当前值与上一轮同场景 delta
+3. `perf-thresholds.md`
    - 看当前是否命中阈值，以及哪些指标偏离
-3. `perf-stability-summary.md`
+4. `perf-stability-summary.md`
    - 看最近多次运行的稳定性汇总，判断是否是偶发抖动
-4. `run-metadata.json`
+5. `run-metadata.json`
    - 确认本次 `base_url`、`vus`、`duration`、`timeout`、`rps`、commit 和 run id
-5. 单场景 `*.log`
+6. 单场景 `*.log`
    - 当某个场景异常时，再下钻看对应原始日志
 
 如果你要做长期观察，最适合消费的是：
 
 - `perf-trend.csv`：适合导入表格、BI 或外部报表
+- `perf-trend-history.csv`：适合保存连续多轮 long-run 趋势
 - `perf-threshold-report.json`：适合做自动判定或外部通知
 - `perf-stability-summary.json`：适合做“最近 N 次”波动分析
 

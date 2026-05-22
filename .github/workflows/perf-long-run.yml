@@ -34,8 +34,31 @@ on:
         required: false
         default: false
         type: boolean
+      history_source:
+        description: 'History source for trend comparison'
+        required: false
+        default: 'previous-run-artifact'
+        type: choice
+        options:
+          - previous-run-artifact
+          - artifact
+          - path
+          - none
+      history_run_id:
+        description: 'Workflow run id used when history_source=artifact'
+        required: false
+        type: string
+      history_artifact_name:
+        description: 'Exact artifact name when history_source=artifact; empty = auto-detect perf-long-run-trend-*'
+        required: false
+        type: string
+      history_csv_path:
+        description: 'Workspace-relative or absolute CSV path when history_source=path'
+        required: false
+        type: string
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -180,6 +203,218 @@ jobs:
             echo "- Weekly schedule: Sunday 19:00 UTC"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Resolve history config
+        if: steps.resolve.outputs.skip != 'true'
+        id: history_config
+        env:
+          INPUT_HISTORY_SOURCE: ${{ inputs.history_source }}
+          INPUT_HISTORY_RUN_ID: ${{ inputs.history_run_id }}
+          INPUT_HISTORY_ARTIFACT_NAME: ${{ inputs.history_artifact_name }}
+          INPUT_HISTORY_CSV_PATH: ${{ inputs.history_csv_path }}
+        run: |
+          set -euo pipefail
+
+          HISTORY_SOURCE="${INPUT_HISTORY_SOURCE:-previous-run-artifact}"
+          if [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+            HISTORY_SOURCE="previous-run-artifact"
+          fi
+
+          HISTORY_RUN_ID="${INPUT_HISTORY_RUN_ID:-}"
+          HISTORY_ARTIFACT_NAME="${INPUT_HISTORY_ARTIFACT_NAME:-}"
+          HISTORY_CSV_PATH_INPUT="${INPUT_HISTORY_CSV_PATH:-}"
+          HISTORY_DIR="artifacts/perf-long-run/history"
+
+          mkdir -p "$HISTORY_DIR"
+
+          echo "history_dir=$HISTORY_DIR" >> "$GITHUB_OUTPUT"
+          echo "source=$HISTORY_SOURCE" >> "$GITHUB_OUTPUT"
+          echo "run_id=$HISTORY_RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$HISTORY_ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+          echo "csv_path_input=$HISTORY_CSV_PATH_INPUT" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Perf long-run history config"
+            echo
+            echo "- Source: \`$HISTORY_SOURCE\`"
+            if [ -n "$HISTORY_RUN_ID" ]; then
+              echo "- Requested run id: \`$HISTORY_RUN_ID\`"
+            fi
+            if [ -n "$HISTORY_ARTIFACT_NAME" ]; then
+              echo "- Requested artifact: \`$HISTORY_ARTIFACT_NAME\`"
+            fi
+            if [ -n "$HISTORY_CSV_PATH_INPUT" ]; then
+              echo "- Requested CSV path: \`$HISTORY_CSV_PATH_INPUT\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve history artifact metadata
+        if: ${{ steps.resolve.outputs.skip != 'true' && (steps.history_config.outputs.source == 'previous-run-artifact' || steps.history_config.outputs.source == 'artifact') }}
+        id: history_artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HISTORY_SOURCE: ${{ steps.history_config.outputs.source }}
+          HISTORY_RUN_ID: ${{ steps.history_config.outputs.run_id }}
+          HISTORY_ARTIFACT_NAME: ${{ steps.history_config.outputs.artifact_name }}
+        run: |
+          set -euo pipefail
+
+          TARGET_RUN_ID="${HISTORY_RUN_ID:-}"
+          TARGET_ARTIFACT_NAME="${HISTORY_ARTIFACT_NAME:-}"
+
+          if [ "$HISTORY_SOURCE" = "previous-run-artifact" ]; then
+            TARGET_RUN_ID="$(
+              gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/perf-long-run.yml/runs?status=completed&per_page=20" |
+                node -e "const fs = require('node:fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); const current = String(process.env.GITHUB_RUN_ID || ''); const run = (data.workflow_runs || []).find((item) => String(item.id) !== current && item.conclusion === 'success'); if (run) process.stdout.write(String(run.id));"
+            )"
+          fi
+
+          if [ -z "$TARGET_RUN_ID" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "run_id=" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=" >> "$GITHUB_OUTPUT"
+            echo "reason=no_history_run" >> "$GITHUB_OUTPUT"
+            echo "::warning::No history run available for source ${HISTORY_SOURCE}; continuing without history compare."
+            exit 0
+          fi
+
+          if [ -z "$TARGET_ARTIFACT_NAME" ]; then
+            TARGET_ARTIFACT_NAME="$(
+              gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${TARGET_RUN_ID}/artifacts?per_page=100" |
+                node -e "const fs = require('node:fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); const artifact = (data.artifacts || []).filter((item) => !item.expired && typeof item.name === 'string' && item.name.startsWith('perf-long-run-trend-')).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0]; if (artifact) process.stdout.write(artifact.name);"
+            )"
+          fi
+
+          if [ -z "$TARGET_ARTIFACT_NAME" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "run_id=$TARGET_RUN_ID" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=" >> "$GITHUB_OUTPUT"
+            echo "reason=no_history_artifact" >> "$GITHUB_OUTPUT"
+            echo "::warning::No matching perf-long-run trend artifact found in run ${TARGET_RUN_ID}; continuing without history compare."
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "run_id=$TARGET_RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$TARGET_ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+          echo "reason=ok" >> "$GITHUB_OUTPUT"
+
+      - name: Download history artifact
+        if: ${{ steps.resolve.outputs.skip != 'true' && steps.history_artifact.outputs.available == 'true' }}
+        id: history_download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_RUN_ID: ${{ steps.history_artifact.outputs.run_id }}
+          TARGET_ARTIFACT_NAME: ${{ steps.history_artifact.outputs.artifact_name }}
+          HISTORY_DIR: ${{ steps.history_config.outputs.history_dir }}
+        run: |
+          set -euo pipefail
+
+          DOWNLOAD_DIR="${HISTORY_DIR}/download"
+          mkdir -p "$DOWNLOAD_DIR"
+
+          if ! gh run download "$TARGET_RUN_ID" -R "$GITHUB_REPOSITORY" -n "$TARGET_ARTIFACT_NAME" --dir "$DOWNLOAD_DIR"; then
+            echo "csv_path=" >> "$GITHUB_OUTPUT"
+            echo "kind=" >> "$GITHUB_OUTPUT"
+            echo "::warning::Failed to download history artifact ${TARGET_ARTIFACT_NAME} from run ${TARGET_RUN_ID}; continuing without history compare."
+            exit 0
+          fi
+
+          HISTORY_CSV_FILE=''
+          HISTORY_KIND=''
+
+          if [ -f "$DOWNLOAD_DIR/perf-trend-history.csv" ]; then
+            HISTORY_CSV_FILE="$DOWNLOAD_DIR/perf-trend-history.csv"
+            HISTORY_KIND='history'
+          elif [ -f "$DOWNLOAD_DIR/perf-trend.csv" ]; then
+            HISTORY_CSV_FILE="$DOWNLOAD_DIR/perf-trend.csv"
+            HISTORY_KIND='current'
+          else
+            HISTORY_CSV_FILE="$(find "$DOWNLOAD_DIR" -type f -name 'perf-trend-history.csv' | head -n 1 || true)"
+            if [ -n "$HISTORY_CSV_FILE" ]; then
+              HISTORY_KIND='history'
+            else
+              HISTORY_CSV_FILE="$(find "$DOWNLOAD_DIR" -type f -name 'perf-trend.csv' | head -n 1 || true)"
+              if [ -n "$HISTORY_CSV_FILE" ]; then
+                HISTORY_KIND='current'
+              fi
+            fi
+          fi
+
+          echo "csv_path=$HISTORY_CSV_FILE" >> "$GITHUB_OUTPUT"
+          echo "kind=$HISTORY_KIND" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve history CSV path
+        if: ${{ steps.resolve.outputs.skip != 'true' && steps.history_config.outputs.source == 'path' }}
+        id: history_path
+        env:
+          HISTORY_CSV_PATH_INPUT: ${{ steps.history_config.outputs.csv_path_input }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${HISTORY_CSV_PATH_INPUT:-}" ]; then
+            echo "csv_path=" >> "$GITHUB_OUTPUT"
+            echo "::warning::history_source=path but no history_csv_path was provided; continuing without history compare."
+            exit 0
+          fi
+
+          CANDIDATE_PATH="$HISTORY_CSV_PATH_INPUT"
+          if [ ! -f "$CANDIDATE_PATH" ]; then
+            echo "csv_path=" >> "$GITHUB_OUTPUT"
+            echo "::warning::History CSV path ${HISTORY_CSV_PATH_INPUT} does not exist; continuing without history compare."
+            exit 0
+          fi
+
+          echo "csv_path=$CANDIDATE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Finalize history input
+        if: steps.resolve.outputs.skip != 'true'
+        id: history_final
+        env:
+          HISTORY_SOURCE: ${{ steps.history_config.outputs.source }}
+          ARTIFACT_CSV_PATH: ${{ steps.history_download.outputs.csv_path }}
+          ARTIFACT_KIND: ${{ steps.history_download.outputs.kind }}
+          PATH_CSV_PATH: ${{ steps.history_path.outputs.csv_path }}
+        run: |
+          set -euo pipefail
+
+          HISTORY_CSV_PATH=''
+          HISTORY_NOTE='History compare disabled.'
+
+          case "$HISTORY_SOURCE" in
+            previous-run-artifact|artifact)
+              HISTORY_CSV_PATH="${ARTIFACT_CSV_PATH:-}"
+              if [ -n "$HISTORY_CSV_PATH" ]; then
+                HISTORY_NOTE="History compare enabled via artifact (${ARTIFACT_KIND:-csv})."
+              else
+                HISTORY_NOTE='History artifact unavailable; falling back to current-run-only trend outputs.'
+              fi
+              ;;
+            path)
+              HISTORY_CSV_PATH="${PATH_CSV_PATH:-}"
+              if [ -n "$HISTORY_CSV_PATH" ]; then
+                HISTORY_NOTE="History compare enabled via CSV path \`${HISTORY_CSV_PATH}\`."
+              else
+                HISTORY_NOTE='History CSV path unavailable; falling back to current-run-only trend outputs.'
+              fi
+              ;;
+            none)
+              HISTORY_NOTE='History compare disabled by configuration.'
+              ;;
+          esac
+
+          echo "HISTORY_CSV_PATH=$HISTORY_CSV_PATH" >> "$GITHUB_ENV"
+          echo "csv_path=$HISTORY_CSV_PATH" >> "$GITHUB_OUTPUT"
+          if [ -n "$HISTORY_CSV_PATH" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          {
+            echo
+            echo "- History resolution: $HISTORY_NOTE"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run k6 long-run scenarios
         if: steps.resolve.outputs.skip != 'true'
         env:
@@ -238,6 +473,10 @@ jobs:
             cmd+=(--thresholds-json "$PERF_LONGRUN_THRESHOLDS")
           fi
 
+          if [ -n "${HISTORY_CSV_PATH:-}" ]; then
+            cmd+=(--history-csv "$HISTORY_CSV_PATH")
+          fi
+
           "${cmd[@]}"
 
       - name: Evaluate perf thresholds
@@ -252,8 +491,12 @@ jobs:
         if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-long-run/trend/perf-trend.csv') != '' }}
         run: |
           set -euo pipefail
+          STABILITY_INPUT="$TREND_DIR/perf-trend.csv"
+          if [ -f "$TREND_DIR/perf-trend-history.csv" ]; then
+            STABILITY_INPUT="$TREND_DIR/perf-trend-history.csv"
+          fi
           node tools/perf/summarize-trend-stability.mjs \
-            --input "$TREND_DIR/perf-trend.csv" \
+            --input "$STABILITY_INPUT" \
             --output-md "$TREND_DIR/perf-stability-summary.md" \
             --output-json "$TREND_DIR/perf-stability-summary.json" \
             --recent-runs 10
@@ -262,6 +505,10 @@ jobs:
         if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-long-run/trend/*') != '' }}
         run: |
           cat "$TREND_DIR/perf-trend.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$TREND_DIR/perf-trend-latest.md" ]; then
+            echo >> "$GITHUB_STEP_SUMMARY"
+            cat "$TREND_DIR/perf-trend-latest.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo >> "$GITHUB_STEP_SUMMARY"
           cat "$TREND_DIR/perf-thresholds.md" >> "$GITHUB_STEP_SUMMARY"
           if [ -f "$TREND_DIR/perf-stability-summary.md" ]; then
