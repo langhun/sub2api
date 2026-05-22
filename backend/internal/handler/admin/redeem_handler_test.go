@@ -3,6 +3,7 @@ package admin
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -189,4 +190,61 @@ func TestResolveRedeemCodeExpiresAt_RejectsConflictingInputs(t *testing.T) {
 	expiresAt, err := resolveRedeemCodeExpiresAt(&future, &days)
 	require.Error(t, err)
 	require.Nil(t, expiresAt)
+}
+
+func TestRedeemHandlerGetStats_ReturnsServiceStats(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	adminSvc.redeemStats = service.RedeemCodeStats{
+		TotalCodes:            12,
+		ActiveCodes:           4,
+		UsedCodes:             5,
+		ExpiredCodes:          3,
+		TotalValueDistributed: 19.5,
+		ByType: service.RedeemCodeStatsByType{
+			Balance:     7,
+			Concurrency: 2,
+			Trial:       1,
+		},
+	}
+	handler := NewRedeemHandler(adminSvc, nil)
+
+	router := gin.New()
+	router.GET("/api/v1/admin/redeem-codes/stats", handler.GetStats)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/redeem-codes/stats", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	data, ok := payload["data"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(12), data["total_codes"])
+	require.Equal(t, float64(4), data["active_codes"])
+	require.Equal(t, float64(5), data["used_codes"])
+	require.Equal(t, float64(3), data["expired_codes"])
+	require.Equal(t, 19.5, data["total_value_distributed"])
+
+	byType, ok := data["by_type"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(7), byType["balance"])
+	require.Equal(t, float64(2), byType["concurrency"])
+	require.Equal(t, float64(1), byType["trial"])
+}
+
+func TestRedeemHandlerGetStats_PropagatesServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+	adminSvc.redeemStatsErr = errors.New("stats failed")
+	handler := NewRedeemHandler(adminSvc, nil)
+
+	router := gin.New()
+	router.GET("/api/v1/admin/redeem-codes/stats", handler.GetStats)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/redeem-codes/stats", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
 }

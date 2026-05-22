@@ -110,8 +110,11 @@ type AdminService interface {
 	AssignProxiesToAccounts(ctx context.Context, input *AssignProxiesToAccountsInput) (*ProxyAccountAssignmentResult, error)
 	UnassignProxiesFromAccounts(ctx context.Context, proxyIDs []int64) (*ProxyUnassignAccountsResult, error)
 	CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error)
+	SetAutoFailoverProxyPoolMembership(ctx context.Context, proxyIDs []int64, enabled bool) (int, error)
+	ClearProxyCooldownState(ctx context.Context, proxyIDs []int64) error
 	TestProxy(ctx context.Context, id int64) (*ProxyTestResult, error)
 	CheckProxyQuality(ctx context.Context, id int64) (*ProxyQualityCheckResult, error)
+	GetProxyStats(ctx context.Context, id int64) (*ProxyStatsResult, error)
 	ListProxySubscriptionSources(ctx context.Context, page, pageSize int, search string, enabled *bool) ([]ProxySubscriptionSource, int64, error)
 	GetProxySubscriptionSource(ctx context.Context, id int64) (*ProxySubscriptionSource, error)
 	CreateProxySubscriptionSource(ctx context.Context, input *CreateProxySubscriptionSourceInput) (*ProxySubscriptionSource, error)
@@ -123,6 +126,7 @@ type AdminService interface {
 
 	// Redeem code management
 	ListRedeemCodes(ctx context.Context, page, pageSize int, codeType, status, search string, sortBy, sortOrder string) ([]RedeemCode, int64, error)
+	GetRedeemCodeStats(ctx context.Context) (*RedeemCodeStats, error)
 	GetRedeemCode(ctx context.Context, id int64) (*RedeemCode, error)
 	GenerateRedeemCodes(ctx context.Context, input *GenerateRedeemCodesInput) ([]RedeemCode, error)
 	DeleteRedeemCode(ctx context.Context, id int64) error
@@ -427,6 +431,21 @@ type GenerateRedeemCodesInput struct {
 	ExpiresAt    *time.Time
 }
 
+type RedeemCodeStatsByType struct {
+	Balance     int64
+	Concurrency int64
+	Trial       int64
+}
+
+type RedeemCodeStats struct {
+	TotalCodes            int64
+	ActiveCodes           int64
+	UsedCodes             int64
+	ExpiredCodes          int64
+	TotalValueDistributed float64
+	ByType                RedeemCodeStatsByType
+}
+
 type ProxyBatchDeleteResult struct {
 	DeletedIDs []int64                   `json:"deleted_ids"`
 	Skipped    []ProxyBatchDeleteSkipped `json:"skipped"`
@@ -470,6 +489,14 @@ type ProxyQualityCheckResult struct {
 	ChallengeCount int                     `json:"challenge_count"`
 	CheckedAt      int64                   `json:"checked_at"`
 	Items          []ProxyQualityCheckItem `json:"items"`
+}
+
+type ProxyStatsResult struct {
+	TotalAccounts  int64   `json:"total_accounts"`
+	ActiveAccounts int64   `json:"active_accounts"`
+	TotalRequests  int64   `json:"total_requests"`
+	SuccessRate    float64 `json:"success_rate"`
+	AverageLatency int64   `json:"average_latency"`
 }
 
 type ProxyQualityCheckItem struct {
@@ -550,6 +577,11 @@ type adminServiceImpl struct {
 	userRepo                    UserRepository
 	groupRepo                   GroupRepository
 	accountRepo                 AccountRepository
+	oauthService                *OAuthService
+	openAIOAuthService          *OpenAIOAuthService
+	geminiOAuthService          *GeminiOAuthService
+	antigravityOAuthService     *AntigravityOAuthService
+	tokenCacheInvalidator       TokenCacheInvalidator
 	proxyRepo                   ProxyRepository
 	proxySubscriptionSourceRepo ProxySubscriptionSourceRepository
 	proxySubscriptionNodeRepo   ProxySubscriptionNodeRepository
@@ -578,6 +610,11 @@ func NewAdminService(
 	userRepo UserRepository,
 	groupRepo GroupRepository,
 	accountRepo AccountRepository,
+	oauthService *OAuthService,
+	openAIOAuthService *OpenAIOAuthService,
+	geminiOAuthService *GeminiOAuthService,
+	antigravityOAuthService *AntigravityOAuthService,
+	tokenCacheInvalidator TokenCacheInvalidator,
 	proxyRepo ProxyRepository,
 	proxySubscriptionSourceRepo ProxySubscriptionSourceRepository,
 	proxySubscriptionNodeRepo ProxySubscriptionNodeRepository,
@@ -600,6 +637,11 @@ func NewAdminService(
 		userRepo:                    userRepo,
 		groupRepo:                   groupRepo,
 		accountRepo:                 accountRepo,
+		oauthService:                oauthService,
+		openAIOAuthService:          openAIOAuthService,
+		geminiOAuthService:          geminiOAuthService,
+		antigravityOAuthService:     antigravityOAuthService,
+		tokenCacheInvalidator:       tokenCacheInvalidator,
 		proxyRepo:                   proxyRepo,
 		proxySubscriptionSourceRepo: proxySubscriptionSourceRepo,
 		proxySubscriptionNodeRepo:   proxySubscriptionNodeRepo,
@@ -1052,13 +1094,80 @@ func (s *adminServiceImpl) GetUserRPMStatus(ctx context.Context, userID int64) (
 }
 
 func (s *adminServiceImpl) GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error) {
-	// Return mock data for now
+	if s == nil || s.entClient == nil {
+		return nil, fmt.Errorf("entClient is nil, cannot get user usage stats")
+	}
+
+	now := time.Now()
+	normalizedPeriod := strings.ToLower(strings.TrimSpace(period))
+	startTime := now.AddDate(0, -1, 0)
+	switch normalizedPeriod {
+	case "today":
+		startTime = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	case "week":
+		startTime = now.AddDate(0, 0, -7)
+	case "month":
+		startTime = now.AddDate(0, -1, 0)
+	case "year":
+		startTime = now.AddDate(-1, 0, 0)
+	default:
+		normalizedPeriod = "month"
+	}
+
+	rows, err := s.entClient.QueryContext(ctx, `
+SELECT
+	COALESCE(COUNT(*), 0) AS total_requests,
+	COALESCE(SUM(input_tokens), 0) AS total_input_tokens,
+	COALESCE(SUM(output_tokens), 0) AS total_output_tokens,
+	COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) AS total_cache_tokens,
+	COALESCE(SUM(total_cost), 0) AS total_cost,
+	COALESCE(SUM(actual_cost), 0) AS total_actual_cost,
+	COALESCE(AVG(COALESCE(duration_ms, 0))::bigint, 0) AS avg_duration_ms
+FROM usage_logs
+WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
+`, userID, startTime, now)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var (
+		totalRequests     int64
+		totalInputTokens  int64
+		totalOutputTokens int64
+		totalCacheTokens  int64
+		totalCost         float64
+		totalActualCost   float64
+		avgDurationMs     int64
+	)
+	if rows.Next() {
+		if err := rows.Scan(
+			&totalRequests,
+			&totalInputTokens,
+			&totalOutputTokens,
+			&totalCacheTokens,
+			&totalCost,
+			&totalActualCost,
+			&avgDurationMs,
+		); err != nil {
+			return nil, err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	totalTokens := totalInputTokens + totalOutputTokens + totalCacheTokens
 	return map[string]any{
-		"period":          period,
-		"total_requests":  0,
-		"total_cost":      0.0,
-		"total_tokens":    0,
-		"avg_duration_ms": 0,
+		"period":              normalizedPeriod,
+		"total_requests":      totalRequests,
+		"total_cost":          totalCost,
+		"total_tokens":        totalTokens,
+		"avg_duration_ms":     avgDurationMs,
+		"total_input_tokens":  totalInputTokens,
+		"total_output_tokens": totalOutputTokens,
+		"total_cache_tokens":  totalCacheTokens,
+		"total_actual_cost":   totalActualCost,
 	}, nil
 }
 
@@ -2843,8 +2952,62 @@ func (s *adminServiceImpl) RefreshAccountCredentials(ctx context.Context, id int
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Implement refresh logic
-	return account, nil
+	refresher := s.selectTokenRefresher(account)
+	if refresher == nil || !refresher.CanRefresh(account) {
+		return nil, infraerrors.BadRequest(
+			"ACCOUNT_REFRESH_UNSUPPORTED",
+			fmt.Sprintf("credential refresh is not supported for platform=%s type=%s", account.Platform, account.Type),
+		)
+	}
+
+	newCredentials, err := refresher.Refresh(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	if len(newCredentials) == 0 {
+		return nil, infraerrors.New(http.StatusInternalServerError, "ACCOUNT_REFRESH_EMPTY_CREDENTIALS", "refresh returned empty credentials")
+	}
+	if err := persistAccountCredentials(ctx, s.accountRepo, account, newCredentials); err != nil {
+		return nil, err
+	}
+
+	if s.tokenCacheInvalidator != nil {
+		if invalidateErr := s.tokenCacheInvalidator.InvalidateToken(ctx, account); invalidateErr != nil {
+			slog.Warn("admin.refresh_account.invalidate_token_failed", "account_id", account.ID, "error", invalidateErr)
+		}
+	}
+
+	return s.accountRepo.GetByID(ctx, id)
+}
+
+func (s *adminServiceImpl) selectTokenRefresher(account *Account) TokenRefresher {
+	if account == nil {
+		return nil
+	}
+	switch account.Platform {
+	case PlatformOpenAI:
+		if s.openAIOAuthService == nil {
+			return nil
+		}
+		return NewOpenAITokenRefresher(s.openAIOAuthService, s.accountRepo)
+	case PlatformGemini:
+		if s.geminiOAuthService == nil {
+			return nil
+		}
+		return NewGeminiTokenRefresher(s.geminiOAuthService)
+	case PlatformAntigravity:
+		if s.antigravityOAuthService == nil {
+			return nil
+		}
+		return NewAntigravityTokenRefresher(s.antigravityOAuthService)
+	case PlatformAnthropic:
+		if s.oauthService == nil {
+			return nil
+		}
+		return NewClaudeTokenRefresher(s.oauthService)
+	default:
+		return nil
+	}
 }
 
 func (s *adminServiceImpl) ClearAccountError(ctx context.Context, id int64) (*Account, error) {
@@ -3094,6 +3257,74 @@ func (s *adminServiceImpl) GetProxyAccounts(ctx context.Context, proxyID int64) 
 	return s.proxyRepo.ListAccountSummariesByProxyID(ctx, proxyID)
 }
 
+func (s *adminServiceImpl) GetProxyStats(ctx context.Context, id int64) (*ProxyStatsResult, error) {
+	if id <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_PROXY_ID", "invalid proxy id")
+	}
+	if s == nil || s.entClient == nil {
+		return nil, fmt.Errorf("entClient is nil")
+	}
+
+	if _, err := s.proxyRepo.GetByID(ctx, id); err != nil {
+		return nil, err
+	}
+
+	result := &ProxyStatsResult{}
+
+	accountRows, err := s.entClient.QueryContext(ctx, `
+SELECT
+	COALESCE(COUNT(*) FILTER (WHERE a.deleted_at IS NULL), 0) AS total_accounts,
+	COALESCE(COUNT(*) FILTER (WHERE a.deleted_at IS NULL AND a.status = 'active'), 0) AS active_accounts
+FROM accounts a
+WHERE a.proxy_id = $1
+`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = accountRows.Close() }()
+
+	if accountRows.Next() {
+		if err := accountRows.Scan(&result.TotalAccounts, &result.ActiveAccounts); err != nil {
+			return nil, err
+		}
+	}
+	if err := accountRows.Err(); err != nil {
+		return nil, err
+	}
+
+	usageRows, err := s.entClient.QueryContext(ctx, `
+SELECT
+	COALESCE(COUNT(*), 0) AS total_requests,
+	COALESCE(AVG(response_latency_ms)::bigint, 0) AS average_latency,
+	COALESCE(
+		100.0 * COUNT(*) FILTER (
+			WHERE COALESCE(status_code, 0) >= 200
+				AND COALESCE(status_code, 0) < 400
+		) / NULLIF(COUNT(*), 0),
+		100.0
+	) AS success_rate
+FROM ops_error_logs
+WHERE account_id IN (
+	SELECT id FROM accounts WHERE proxy_id = $1 AND deleted_at IS NULL
+)
+`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = usageRows.Close() }()
+
+	if usageRows.Next() {
+		if err := usageRows.Scan(&result.TotalRequests, &result.AverageLatency, &result.SuccessRate); err != nil {
+			return nil, err
+		}
+	}
+	if err := usageRows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (s *adminServiceImpl) UnassignProxiesFromAccounts(ctx context.Context, proxyIDs []int64) (*ProxyUnassignAccountsResult, error) {
 	if len(proxyIDs) == 0 {
 		return &ProxyUnassignAccountsResult{ProxyIDs: []int64{}}, nil
@@ -3240,6 +3471,7 @@ func (s *adminServiceImpl) listProxyWithRuntimeStatus(ctx context.Context, page,
 	scanPage := 1
 	scanPageSize := 1000
 	filtered := make([]ProxyWithAccountCount, 0)
+	fetched := int64(0)
 
 	for {
 		params := pagination.PaginationParams{
@@ -3252,11 +3484,15 @@ func (s *adminServiceImpl) listProxyWithRuntimeStatus(ctx context.Context, page,
 		if err != nil {
 			return nil, 0, err
 		}
+		if len(proxies) == 0 {
+			break
+		}
+		fetched += int64(len(proxies))
 		s.attachProxyPoolMembershipWithAccountCount(ctx, proxies)
 		s.attachProxyLatency(ctx, proxies)
 		filtered = append(filtered, filterProxyRuntimeState(proxies, runtimeStatus)...)
 
-		if len(proxies) == 0 || result == nil || scanPage*scanPageSize >= int(result.Total) {
+		if result == nil || fetched >= result.Total {
 			break
 		}
 		scanPage++
@@ -3318,6 +3554,66 @@ func (s *adminServiceImpl) ListRedeemCodes(ctx context.Context, page, pageSize i
 	}
 	s.enrichRedeemCodes(ctx, codes)
 	return codes, result.Total, nil
+}
+
+func (s *adminServiceImpl) GetRedeemCodeStats(ctx context.Context) (*RedeemCodeStats, error) {
+	const pageSize = 1000
+	now := time.Now()
+	stats := &RedeemCodeStats{}
+
+	for page := 1; ; page++ {
+		params := pagination.PaginationParams{
+			Page:      page,
+			PageSize:  pageSize,
+			SortBy:    "id",
+			SortOrder: pagination.SortOrderAsc,
+		}
+		codes, result, err := s.redeemCodeRepo.ListWithFilters(ctx, params, "", "", "")
+		if err != nil {
+			return nil, err
+		}
+
+		if page == 1 && result != nil {
+			stats.TotalCodes = result.Total
+		}
+
+		for i := range codes {
+			code := &codes[i]
+
+			switch code.Type {
+			case RedeemTypeBalance, AdjustmentTypeAdminBalance, AdjustmentTypeRegistration, AdjustmentTypeCheckin, AdjustmentTypeCheckinLuck, AdjustmentTypeCheckinBlindbox:
+				stats.ByType.Balance++
+			case RedeemTypeConcurrency, AdjustmentTypeAdminConcurrency:
+				stats.ByType.Concurrency++
+			case RedeemTypeInvitation:
+				stats.ByType.Trial++
+			}
+
+			if code.Status == StatusUsed {
+				stats.UsedCodes++
+				stats.TotalValueDistributed += code.Value
+				continue
+			}
+
+			if code.Status == StatusExpired || (code.Status == StatusUnused && code.ExpiresAt != nil && !code.ExpiresAt.After(now)) {
+				stats.ExpiredCodes++
+				continue
+			}
+
+			if code.Status == StatusUnused {
+				stats.ActiveCodes++
+			}
+		}
+
+		if result == nil || int64(page*pageSize) >= result.Total || len(codes) == 0 {
+			break
+		}
+	}
+
+	if stats.TotalCodes == 0 {
+		stats.TotalCodes = stats.ActiveCodes + stats.UsedCodes + stats.ExpiredCodes
+	}
+	return stats, nil
 }
 
 func (s *adminServiceImpl) GetRedeemCode(ctx context.Context, id int64) (*RedeemCode, error) {
@@ -3506,10 +3802,10 @@ ORDER BY created_at DESC
 
 	for rows.Next() {
 		var (
-			codeValue   string
-			userID      int64
-			prizeName   string
-			rewardType  string
+			codeValue  string
+			userID     int64
+			prizeName  string
+			rewardType string
 		)
 		if scanErr := rows.Scan(&codeValue, &userID, &prizeName, &rewardType); scanErr != nil {
 			logger.LegacyPrintf("service.admin", "failed to scan blindbox info for redeem codes: %v", scanErr)

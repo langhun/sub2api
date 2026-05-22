@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 
@@ -18,19 +17,19 @@ import (
 
 // ProxyHandler handles admin proxy management
 type ProxyHandler struct {
-	adminService         service.AdminService
-	projectMihomoService *service.ProjectMihomoService
+	adminService  service.AdminService
+	mihomoService *service.MihomoService
 }
 
 // NewProxyHandler creates a new admin proxy handler.
-func NewProxyHandler(adminService service.AdminService, projectMihomoService ...*service.ProjectMihomoService) *ProxyHandler {
-	var mihomoService *service.ProjectMihomoService
-	if len(projectMihomoService) > 0 {
-		mihomoService = projectMihomoService[0]
+func NewProxyHandler(adminService service.AdminService, mihomoService ...*service.MihomoService) *ProxyHandler {
+	var svc *service.MihomoService
+	if len(mihomoService) > 0 {
+		svc = mihomoService[0]
 	}
 	return &ProxyHandler{
-		adminService:         adminService,
-		projectMihomoService: mihomoService,
+		adminService:  adminService,
+		mihomoService: svc,
 	}
 }
 
@@ -98,14 +97,6 @@ type proxyPoolBatchUpdateRequest struct {
 
 type proxyCooldownBatchRequest struct {
 	IDs []int64 `json:"ids" binding:"required,min=1"`
-}
-
-type proxyPoolBatchUpdater interface {
-	SetAutoFailoverProxyPoolMembership(ctx context.Context, proxyIDs []int64, enabled bool) (int, error)
-}
-
-type proxyCooldownClearer interface {
-	ClearProxyCooldownState(ctx context.Context, proxyIDs []int64) error
 }
 
 // List handles listing all proxies with pagination
@@ -317,13 +308,7 @@ func (h *ProxyHandler) UpdatePoolMembership(c *gin.Context) {
 		return
 	}
 
-	updater, ok := h.adminService.(proxyPoolBatchUpdater)
-	if !ok {
-		response.Error(c, http.StatusNotImplemented, "proxy pool update is unavailable")
-		return
-	}
-
-	updated, err := updater.SetAutoFailoverProxyPoolMembership(c.Request.Context(), req.IDs, req.Enabled)
+	updated, err := h.adminService.SetAutoFailoverProxyPoolMembership(c.Request.Context(), req.IDs, req.Enabled)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -344,12 +329,7 @@ func (h *ProxyHandler) ClearCooldown(c *gin.Context) {
 		return
 	}
 
-	clearer, ok := h.adminService.(proxyCooldownClearer)
-	if !ok {
-		response.Error(c, http.StatusNotImplemented, "proxy cooldown clear is unavailable")
-		return
-	}
-	if err := clearer.ClearProxyCooldownState(c.Request.Context(), req.IDs); err != nil {
+	if err := h.adminService.ClearProxyCooldownState(c.Request.Context(), req.IDs); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -402,15 +382,13 @@ func (h *ProxyHandler) GetStats(c *gin.Context) {
 		return
 	}
 
-	// Return mock data for now
-	_ = proxyID
-	response.Success(c, gin.H{
-		"total_accounts":  0,
-		"active_accounts": 0,
-		"total_requests":  0,
-		"success_rate":    100.0,
-		"average_latency": 0,
-	})
+	stats, err := h.adminService.GetProxyStats(c.Request.Context(), proxyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, stats)
 }
 
 // GetProxyAccounts handles getting accounts using a proxy

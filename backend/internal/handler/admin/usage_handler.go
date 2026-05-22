@@ -52,7 +52,7 @@ func parseUsageStatsEndpointLimit(c *gin.Context) (int, error) {
 	}
 	limit, err := strconv.Atoi(raw)
 	if err != nil || limit < 0 {
-		return 0, fmt.Errorf("Invalid endpoint_limit")
+		return 0, fmt.Errorf("invalid endpoint_limit")
 	}
 	if limit > maxUsageStatsEndpointLimit {
 		limit = maxUsageStatsEndpointLimit
