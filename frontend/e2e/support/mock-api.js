@@ -1,4 +1,4 @@
-import { ADMIN_EMAIL, ADMIN_PASSWORD, buildAccounts, buildActiveSubscriptions, buildAdminApiKeyState, buildAdminApiKeyValue, buildAuthResponse, buildBatchTodayStats, buildCheckinStatus, buildDashboardSnapshot, buildGroupCapacitySummary, buildGroups, buildGroupUsageSummary, buildMihomoStatus, buildProxyList, buildProxySubscriptions, buildPublicSettings, buildSettings, buildSetupStatus, buildUserRanking, buildUserTrend, maskAdminApiKey } from './fixtures.js'
+import { ADMIN_EMAIL, ADMIN_PASSWORD, buildAccounts, buildActiveSubscriptions, buildAdminApiKeyState, buildAdminApiKeyValue, buildAuthResponse, buildBatchTodayStats, buildCheckinStatus, buildDashboardSnapshot, buildGroupCapacitySummary, buildGroups, buildGroupUsageSummary, buildMihomoStatus, buildPaymentConfig, buildPaymentProviders, buildProxyList, buildProxySubscriptions, buildPublicSettings, buildSettings, buildSetupStatus, buildUserRanking, buildUserTrend, maskAdminApiKey } from './fixtures.js'
 
 function jsonResponse(body, status = 200) {
   return {
@@ -17,8 +17,27 @@ function matches(pathname, target) {
 }
 
 export async function mockCommonAppRoutes(page, options = {}) {
+  const initialSettings = buildSettings()
+  const initialPaymentConfig = buildPaymentConfig({
+    enabled: initialSettings.payment_enabled,
+    min_amount: initialSettings.payment_min_amount,
+    max_amount: initialSettings.payment_max_amount,
+    daily_limit: initialSettings.payment_daily_limit,
+    order_timeout_minutes: initialSettings.payment_order_timeout_minutes,
+    max_pending_orders: initialSettings.payment_max_pending_orders,
+    enabled_payment_types: [...initialSettings.payment_enabled_types],
+    balance_disabled: initialSettings.payment_balance_disabled,
+    balance_recharge_multiplier: initialSettings.payment_balance_recharge_multiplier,
+    load_balance_strategy: initialSettings.payment_load_balance_strategy,
+    product_name_prefix: initialSettings.payment_product_name_prefix,
+    product_name_suffix: initialSettings.payment_product_name_suffix,
+    help_image_url: initialSettings.payment_help_image_url,
+    help_text: initialSettings.payment_help_text,
+  })
   const state = {
-    settings: buildSettings(),
+    settings: initialSettings,
+    paymentConfig: initialPaymentConfig,
+    paymentProviders: buildPaymentProviders(),
     proxies: buildProxyList(),
     allProxies: buildProxyList().items,
     createdProxies: [],
@@ -39,6 +58,26 @@ export async function mockCommonAppRoutes(page, options = {}) {
     activeSubscriptions: buildActiveSubscriptions(),
     checkinStatus: buildCheckinStatus(),
     adminApiKey: buildAdminApiKeyState(options.adminApiKey),
+  }
+
+  function syncPaymentStateFromSettings(payload = {}) {
+    state.paymentConfig = {
+      ...state.paymentConfig,
+      enabled: payload.payment_enabled ?? state.settings.payment_enabled,
+      min_amount: payload.payment_min_amount ?? state.settings.payment_min_amount,
+      max_amount: payload.payment_max_amount ?? state.settings.payment_max_amount,
+      daily_limit: payload.payment_daily_limit ?? state.settings.payment_daily_limit,
+      order_timeout_minutes: payload.payment_order_timeout_minutes ?? state.settings.payment_order_timeout_minutes,
+      max_pending_orders: payload.payment_max_pending_orders ?? state.settings.payment_max_pending_orders,
+      enabled_payment_types: [...(payload.payment_enabled_types ?? state.settings.payment_enabled_types ?? [])],
+      balance_disabled: payload.payment_balance_disabled ?? state.settings.payment_balance_disabled,
+      balance_recharge_multiplier: payload.payment_balance_recharge_multiplier ?? state.settings.payment_balance_recharge_multiplier,
+      load_balance_strategy: payload.payment_load_balance_strategy ?? state.settings.payment_load_balance_strategy,
+      product_name_prefix: payload.payment_product_name_prefix ?? state.settings.payment_product_name_prefix,
+      product_name_suffix: payload.payment_product_name_suffix ?? state.settings.payment_product_name_suffix,
+      help_image_url: payload.payment_help_image_url ?? state.settings.payment_help_image_url,
+      help_text: payload.payment_help_text ?? state.settings.payment_help_text,
+    }
   }
 
   await page.route('**/*', async (route) => {
@@ -103,27 +142,42 @@ export async function mockCommonAppRoutes(page, options = {}) {
     }
 
     if (pathname === '/api/v1/admin/payment/config' && method === 'GET') {
-      await route.fulfill(jsonResponse(apiSuccess({
-        enabled: false,
-        min_amount: 1,
-        max_amount: 10000,
-        daily_limit: 50000,
-        order_timeout_minutes: 30,
-        max_pending_orders: 3,
-        enabled_payment_types: [],
-        balance_disabled: false,
-        balance_recharge_multiplier: 1,
-        load_balance_strategy: 'round-robin',
-        product_name_prefix: '',
-        product_name_suffix: '',
-        help_image_url: '',
-        help_text: '',
-      })))
+      await route.fulfill(jsonResponse(apiSuccess(state.paymentConfig)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/payment/config' && method === 'PUT') {
+      const payload = request.postDataJSON() || {}
+      state.paymentConfig = {
+        ...state.paymentConfig,
+        ...payload,
+      }
+      await route.fulfill(jsonResponse(apiSuccess(state.paymentConfig)))
       return
     }
 
     if (pathname === '/api/v1/admin/payment/providers' && method === 'GET') {
-      await route.fulfill(jsonResponse(apiSuccess([])))
+      await route.fulfill(jsonResponse(apiSuccess(state.paymentProviders)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/payment/providers' && method === 'POST') {
+      const payload = request.postDataJSON() || {}
+      const created = {
+        id: 4000 + state.paymentProviders.length + 1,
+        provider_key: payload.provider_key || 'easypay',
+        name: payload.name || `provider-${state.paymentProviders.length + 1}`,
+        config: payload.config || {},
+        supported_types: Array.isArray(payload.supported_types) ? payload.supported_types : [],
+        enabled: payload.enabled === true,
+        payment_mode: payload.payment_mode || '',
+        refund_enabled: payload.refund_enabled === true,
+        allow_user_refund: payload.allow_user_refund === true,
+        limits: payload.limits || '',
+        sort_order: payload.sort_order ?? state.paymentProviders.length,
+      }
+      state.paymentProviders = [...state.paymentProviders, created]
+      await route.fulfill(jsonResponse(apiSuccess(created)))
       return
     }
 
@@ -150,6 +204,7 @@ export async function mockCommonAppRoutes(page, options = {}) {
     if (pathname === '/api/v1/admin/settings' && method === 'PUT') {
       const payload = request.postDataJSON() || {}
       state.settings = { ...state.settings, ...payload }
+      syncPaymentStateFromSettings(payload)
       await route.fulfill(jsonResponse(apiSuccess(state.settings)))
       return
     }
@@ -176,6 +231,36 @@ export async function mockCommonAppRoutes(page, options = {}) {
 
     if (pathname === '/api/v1/admin/settings/admin-api-key' && method === 'DELETE') {
       state.adminApiKey = buildAdminApiKeyState()
+      await route.fulfill(jsonResponse(apiSuccess({ message: 'deleted' })))
+      return
+    }
+
+    if (matches(pathname, '/api/v1/admin/payment/providers') && method === 'PUT') {
+      const payload = request.postDataJSON() || {}
+      const id = Number(pathname.split('/').pop())
+      const current = state.paymentProviders.find((provider) => provider.id === id)
+
+      if (!current) {
+        await route.fulfill(jsonResponse({ code: 404, message: 'provider not found', data: null }, 404))
+        return
+      }
+
+      const updated = {
+        ...current,
+        ...payload,
+        config: payload.config ? { ...current.config, ...payload.config } : current.config,
+        supported_types: Array.isArray(payload.supported_types) ? payload.supported_types : current.supported_types,
+      }
+      state.paymentProviders = state.paymentProviders.map((provider) =>
+        provider.id === id ? updated : provider,
+      )
+      await route.fulfill(jsonResponse(apiSuccess(updated)))
+      return
+    }
+
+    if (matches(pathname, '/api/v1/admin/payment/providers') && method === 'DELETE') {
+      const id = Number(pathname.split('/').pop())
+      state.paymentProviders = state.paymentProviders.filter((provider) => provider.id !== id)
       await route.fulfill(jsonResponse(apiSuccess({ message: 'deleted' })))
       return
     }

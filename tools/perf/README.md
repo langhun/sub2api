@@ -19,6 +19,7 @@
 ```text
 tools/perf/
   README.md
+  export-k6-trend.mjs
   k6/
     all.js
     health.js
@@ -243,6 +244,103 @@ k6 run tools/perf/k6/mixed.js
 - PR 或 nightly job 只跑短时基线，例如 `K6_VUS=5 K6_DURATION=15s`
 - 将摘要结果归档为 artifact
 - 如果后续需要门禁，可在 CI 中比对 `error_rate`、`timeout_rate`、`p(95)` 的阈值
+
+### GitHub Actions nightly
+
+仓库已提供 `.github/workflows/perf-nightly.yml`，默认能力如下：
+
+- 每天 UTC `18:30` 定时触发，换算为北京时间 `02:30`
+- 支持手动 `workflow_dispatch`
+- 固定跑 4 个场景：`health` / `pricing` / `monitoring-summary` / `mixed`
+- 每个场景都会保留：
+  - `*.summary.json`
+  - `*.log`
+- 汇总生成：
+  - `perf-trend.md`
+  - `perf-trend.csv`
+
+#### 需要配置的仓库变量 / Secret
+
+必填：
+
+| 类型 | 名称 | 说明 |
+| --- | --- | --- |
+| Variable | `PERF_BASE_URL` | nightly 压测目标，例如 `https://perf.example.com` |
+
+可选：
+
+| 类型 | 名称 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| Variable | `PERF_K6_VUS` | `10` | nightly 默认并发 |
+| Variable | `PERF_K6_DURATION` | `5m` | nightly 默认时长 |
+| Variable | `PERF_K6_TIMEOUT` | `5s` | 单请求超时 |
+| Variable | `PERF_K6_RPS` | `0` | 限速，`0` 表示不限速 |
+| Variable | `PERF_EXPECTED_STATUS` | `200` | 期望 HTTP 状态码 |
+| Variable | `PERF_AUTH_HEADER` | `Authorization` | 认证头名 |
+| Variable | `PERF_AUTH_SCHEME` | `Bearer` | 认证前缀 |
+| Variable | `PERF_EXTRA_HEADERS` | 空 | 额外请求头 JSON 字符串 |
+| Variable | `PERF_K6_INSECURE_SKIP_TLS_VERIFY` | `false` | 是否跳过 TLS 校验 |
+| Secret | `PERF_AUTH_TOKEN` | 空 | 需要鉴权时使用 |
+
+说明：
+
+- 如果 `schedule` 触发时没有配置 `PERF_BASE_URL`，workflow 会写明原因并跳过，不会误报“压测通过”。
+- 如果手动触发且未提供 `base_url` 输入，也没有仓库级 `PERF_BASE_URL`，workflow 会直接报错。
+
+#### Artifact 内容
+
+nightly 运行后会上传两类 artifact：
+
+- `perf-nightly-raw-<timestamp>-<sha12>`
+  - `run-metadata.json`
+  - `*.summary.json`
+  - `*.log`
+- `perf-nightly-trend-<timestamp>-<sha12>`
+  - `perf-trend.md`
+  - `perf-trend.csv`
+
+#### 手动触发覆盖参数
+
+在 GitHub Actions 页面手动运行时，可覆盖：
+
+- `base_url`
+- `k6_vus`
+- `k6_duration`
+- `k6_timeout`
+- `k6_rps`
+
+适合在同一套 workflow 下临时放大或缩小基线参数，而不改仓库文件。
+
+### 趋势提取脚本
+
+`tools/perf/export-k6-trend.mjs` 会从 `k6 --summary-export` 产出的 JSON 中提取以下字段：
+
+- `scenario`
+- `requests`
+- `rps`
+- `error_rate`
+- `timeout_rate`
+- `p95`
+- `p99`
+- `commit`
+- `date`
+
+本地手动生成趋势文件示例：
+
+```bash
+mkdir -p tools/perf/output/raw tools/perf/output/trend
+
+k6 run tools/perf/k6/health.js \
+  --summary-export tools/perf/output/raw/health.summary.json \
+  > tools/perf/output/raw/health.log
+
+node tools/perf/export-k6-trend.mjs \
+  --input-dir tools/perf/output/raw \
+  --output-dir tools/perf/output/trend \
+  --metadata tools/perf/output/raw/run-metadata.json
+```
+
+如果没有 `run-metadata.json`，也可以只传 `--input-dir` 和 `--output-dir`；这时 `commit` / `date` 会回退到环境变量或留空。
 
 ## Vegeta 辅助脚本
 

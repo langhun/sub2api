@@ -428,6 +428,30 @@ export function buildProxySubscriptions() {
   }
 }
 
+export function buildPaymentConfig(overrides = {}) {
+  return {
+    enabled: false,
+    min_amount: 1,
+    max_amount: 10000,
+    daily_limit: 50000,
+    order_timeout_minutes: 30,
+    max_pending_orders: 3,
+    enabled_payment_types: [],
+    balance_disabled: false,
+    balance_recharge_multiplier: 1,
+    load_balance_strategy: 'round-robin',
+    product_name_prefix: '',
+    product_name_suffix: '',
+    help_image_url: '',
+    help_text: '',
+    ...overrides,
+  }
+}
+
+export function buildPaymentProviders() {
+  return []
+}
+
 export function buildMihomoStatus() {
   return {
     config_path: '/tmp/mihomo/config.yaml',

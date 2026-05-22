@@ -1,0 +1,203 @@
+name: Perf Nightly
+
+on:
+  schedule:
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Override target base URL'
+        required: false
+        type: string
+      k6_vus:
+        description: 'Override K6_VUS'
+        required: false
+        default: '10'
+        type: string
+      k6_duration:
+        description: 'Override K6_DURATION'
+        required: false
+        default: '5m'
+        type: string
+      k6_timeout:
+        description: 'Override K6_TIMEOUT'
+        required: false
+        default: '5s'
+        type: string
+      k6_rps:
+        description: 'Override K6_RPS (0 means unlimited)'
+        required: false
+        default: '0'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-nightly
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Resolve nightly config
+        id: resolve
+        env:
+          INPUT_BASE_URL: ${{ inputs.base_url }}
+          INPUT_K6_VUS: ${{ inputs.k6_vus }}
+          INPUT_K6_DURATION: ${{ inputs.k6_duration }}
+          INPUT_K6_TIMEOUT: ${{ inputs.k6_timeout }}
+          INPUT_K6_RPS: ${{ inputs.k6_rps }}
+          PERF_BASE_URL: ${{ vars.PERF_BASE_URL }}
+          PERF_K6_VUS: ${{ vars.PERF_K6_VUS }}
+          PERF_K6_DURATION: ${{ vars.PERF_K6_DURATION }}
+          PERF_K6_TIMEOUT: ${{ vars.PERF_K6_TIMEOUT }}
+          PERF_K6_RPS: ${{ vars.PERF_K6_RPS }}
+        run: |
+          set -euo pipefail
+
+          pick() {
+            local input_value="$1"
+            local repo_value="$2"
+            local default_value="$3"
+
+            if [ -n "$input_value" ]; then
+              printf '%s' "$input_value"
+              return
+            fi
+
+            if [ -n "$repo_value" ]; then
+              printf '%s' "$repo_value"
+              return
+            fi
+
+            printf '%s' "$default_value"
+          }
+
+          BASE_URL="$(pick "${INPUT_BASE_URL:-}" "${PERF_BASE_URL:-}" "")"
+          K6_VUS="$(pick "${INPUT_K6_VUS:-}" "${PERF_K6_VUS:-}" "10")"
+          K6_DURATION="$(pick "${INPUT_K6_DURATION:-}" "${PERF_K6_DURATION:-}" "5m")"
+          K6_TIMEOUT="$(pick "${INPUT_K6_TIMEOUT:-}" "${PERF_K6_TIMEOUT:-}" "5s")"
+          K6_RPS="$(pick "${INPUT_K6_RPS:-}" "${PERF_K6_RPS:-}" "0")"
+          DATE_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          DATE_COMPACT="$(date -u +%Y%m%dT%H%M%SZ)"
+          COMMIT_SHORT="${GITHUB_SHA::12}"
+
+          if [ -z "$BASE_URL" ]; then
+            if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+              echo "::error::Missing target base URL. Provide workflow input 'base_url' or configure repository variable PERF_BASE_URL."
+              exit 1
+            fi
+
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=PERF_BASE_URL is not configured; nightly baseline skipped." >> "$GITHUB_OUTPUT"
+            {
+              echo "### Perf nightly skipped"
+              echo
+              echo "- Reason: \`PERF_BASE_URL\` is not configured."
+              echo "- Configure repository variable \`PERF_BASE_URL\` and rerun, or use \`workflow_dispatch\` with \`base_url\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "artifact_suffix=${DATE_COMPACT}-${COMMIT_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "date_utc=$DATE_UTC" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "BASE_URL=$BASE_URL"
+            echo "K6_VUS=$K6_VUS"
+            echo "K6_DURATION=$K6_DURATION"
+            echo "K6_TIMEOUT=$K6_TIMEOUT"
+            echo "K6_RPS=$K6_RPS"
+            echo "RUN_DATE_UTC=$DATE_UTC"
+            echo "RAW_DIR=artifacts/perf-nightly/raw"
+            echo "TREND_DIR=artifacts/perf-nightly/trend"
+          } >> "$GITHUB_ENV"
+
+      - name: Run k6 baseline scenarios
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          AUTH_TOKEN: ${{ secrets.PERF_AUTH_TOKEN }}
+          AUTH_HEADER: ${{ vars.PERF_AUTH_HEADER || 'Authorization' }}
+          AUTH_SCHEME: ${{ vars.PERF_AUTH_SCHEME || 'Bearer' }}
+          EXTRA_HEADERS: ${{ vars.PERF_EXTRA_HEADERS || '' }}
+          EXPECTED_STATUS: ${{ vars.PERF_EXPECTED_STATUS || '200' }}
+          SUMMARY_TREND_STATS: avg,min,med,max,p(50),p(95),p(99)
+          K6_INSECURE_SKIP_TLS_VERIFY: ${{ vars.PERF_K6_INSECURE_SKIP_TLS_VERIFY || 'false' }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RAW_DIR"
+          scenarios=(health pricing monitoring-summary mixed)
+
+          cat > "$RAW_DIR/run-metadata.json" <<EOF
+          {
+            "date": "${RUN_DATE_UTC}",
+            "commit": "${GITHUB_SHA}",
+            "base_url": "${BASE_URL}",
+            "vus": "${K6_VUS}",
+            "duration": "${K6_DURATION}",
+            "timeout": "${K6_TIMEOUT}",
+            "rps": "${K6_RPS}",
+            "github_run_id": "${GITHUB_RUN_ID}",
+            "github_run_number": "${GITHUB_RUN_NUMBER}",
+            "github_ref_name": "${GITHUB_REF_NAME}"
+          }
+          EOF
+
+          for scenario in "${scenarios[@]}"; do
+            script_path="tools/perf/k6/${scenario}.js"
+            summary_path="$RAW_DIR/${scenario}.summary.json"
+            log_path="$RAW_DIR/${scenario}.log"
+
+            echo "::group::k6 ${scenario}"
+            k6 run "$script_path" --summary-export "$summary_path" 2>&1 | tee "$log_path"
+            echo "::endgroup::"
+          done
+
+      - name: Build trend markdown and csv
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/raw/*.summary.json') != '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$TREND_DIR"
+          node tools/perf/export-k6-trend.mjs \
+            --input-dir "$RAW_DIR" \
+            --output-dir "$TREND_DIR" \
+            --metadata "$RAW_DIR/run-metadata.json"
+
+      - name: Attach trend summary to workflow
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/trend/*') != '' }}
+        run: |
+          cat "$TREND_DIR/perf-trend.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload raw perf artifacts
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/raw/*') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-nightly-raw-${{ steps.resolve.outputs.artifact_suffix }}
+          path: artifacts/perf-nightly/raw/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload trend artifacts
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/trend/*') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-nightly-trend-${{ steps.resolve.outputs.artifact_suffix }}
+          path: artifacts/perf-nightly/trend/
+          if-no-files-found: error
+          retention-days: 30
