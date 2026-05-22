@@ -42,11 +42,33 @@ async function createEasyPayProvider(page, name) {
   await expect(page.getByText(name, { exact: true })).toBeVisible()
 }
 
+async function expectAccountsPageReachable(page) {
+  await page.goto('/admin/accounts')
+  await expect(page).toHaveURL(/\/admin\/accounts$/)
+  await expect(page.getByRole('button', { name: '添加账号' })).toBeVisible()
+  await expect(page.getByPlaceholder('搜索账号...')).toBeVisible()
+}
+
+async function expectGroupsPageReachable(page) {
+  await page.goto('/admin/groups')
+  await expect(page).toHaveURL(/\/admin\/groups$/)
+  await expect(page.getByRole('button', { name: '创建分组' })).toBeVisible()
+  await expect(page.getByPlaceholder('搜索分组...')).toBeVisible()
+}
+
+async function expectProxiesPageReachable(page) {
+  await page.goto('/admin/proxies')
+  await expect(page).toHaveURL(/\/admin\/proxies$/)
+  await expect(page.getByRole('button', { name: '添加代理' })).toBeVisible()
+  await expect(page.getByPlaceholder('搜索代理...')).toBeVisible()
+  await expect(page.locator('[data-test="proxy-toolbar-pool"]')).toBeVisible()
+}
+
 test.beforeEach(async ({ page }) => {
   await bootstrapAdminPage(page)
 })
 
-test('管理台 smoke 串联 dashboard、payment provider 与 proxies 页面', async ({ page }) => {
+test('管理台 smoke 串联跨页访问并保持 payment provider 状态', async ({ page }) => {
   const providerName = '管理联动 Smoke 服务商'
 
   await page.goto('/admin/dashboard')
@@ -56,9 +78,11 @@ test('管理台 smoke 串联 dashboard、payment provider 与 proxies 页面', a
   await enablePaymentProviderManagement(page)
   await createEasyPayProvider(page, providerName)
 
-  await page.goto('/admin/proxies')
-  await expect(page).toHaveURL(/\/admin\/proxies$/)
-  await expect(page.getByRole('button', { name: '添加代理' })).toBeVisible()
-  await expect(page.getByPlaceholder('搜索代理...')).toBeVisible()
-  await expect(page.locator('[data-test="proxy-toolbar-pool"]')).toBeVisible()
+  await expectAccountsPageReachable(page)
+  await expectGroupsPageReachable(page)
+  await expectProxiesPageReachable(page)
+
+  await openPaymentSettings(page)
+  await expect(page.getByRole('button', { name: '创建服务商' })).toBeVisible()
+  await expect(page.getByText(providerName, { exact: true })).toBeVisible()
 })

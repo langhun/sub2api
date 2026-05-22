@@ -222,12 +222,26 @@ jobs:
             --report "$TREND_DIR/perf-threshold-report.json" \
             --enforce "${PERF_NIGHTLY_ENFORCE:-false}"
 
+      - name: Build stability summary
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/trend/perf-trend.csv') != '' }}
+        run: |
+          set -euo pipefail
+          node tools/perf/summarize-trend-stability.mjs \
+            --input "$TREND_DIR/perf-trend.csv" \
+            --output-md "$TREND_DIR/perf-stability-summary.md" \
+            --output-json "$TREND_DIR/perf-stability-summary.json" \
+            --recent-runs 10
+
       - name: Attach trend summary to workflow
         if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/trend/*') != '' }}
         run: |
           cat "$TREND_DIR/perf-trend.md" >> "$GITHUB_STEP_SUMMARY"
           echo >> "$GITHUB_STEP_SUMMARY"
           cat "$TREND_DIR/perf-thresholds.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$TREND_DIR/perf-stability-summary.md" ]; then
+            echo >> "$GITHUB_STEP_SUMMARY"
+            cat "$TREND_DIR/perf-stability-summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload raw perf artifacts
         if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/raw/*') != '' }}

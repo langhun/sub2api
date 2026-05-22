@@ -453,6 +453,61 @@ func TestGatewayServiceRecordUsage_DroppedUsageLogDoesNotSyncFallback(t *testing
 	require.Equal(t, 0, usageRepo.createCalls)
 }
 
+func TestGatewayServiceRecordUsage_BestEffortErrorFallsBackToSyncCreate(t *testing.T) {
+	usageRepo := &openAIRecordUsageBestEffortLogRepoStub{
+		bestEffortErr: errors.New("usage log queue unavailable"),
+	}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_best_effort_fallback_sync",
+			Usage: ClaudeUsage{
+				InputTokens:  10,
+				OutputTokens: 6,
+			},
+			Model:    "claude-sonnet-4",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 509},
+		User:    &User{ID: 609},
+		Account: &Account{ID: 709},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, usageRepo.bestEffortCalls)
+	require.Equal(t, 1, usageRepo.createCalls)
+}
+
+func TestGatewayServiceRecordUsage_BestEffortAndSyncCreateFailureStillReturnsSuccess(t *testing.T) {
+	usageRepo := &openAIRecordUsageBestEffortLogRepoStub{
+		bestEffortErr: errors.New("usage log queue unavailable"),
+		createErr:     context.DeadlineExceeded,
+	}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_best_effort_sync_both_failed",
+			Usage: ClaudeUsage{
+				InputTokens:  10,
+				OutputTokens: 6,
+			},
+			Model:    "claude-sonnet-4",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 510},
+		User:    &User{ID: 610},
+		Account: &Account{ID: 710},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, usageRepo.bestEffortCalls)
+	require.Equal(t, 1, usageRepo.createCalls)
+}
+
 func TestGatewayServiceRecordUsage_BillingErrorSkipsUsageLogWrite(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{}
 	billingRepo := &openAIRecordUsageBillingRepoStub{err: context.DeadlineExceeded}
