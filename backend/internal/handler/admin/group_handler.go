@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -368,14 +369,55 @@ func (h *GroupHandler) GetStats(c *gin.Context) {
 		return
 	}
 
-	// Return mock data for now
+	// 按页扫描计数，避免累计完整 key 列表。
+	totalAPIKeys := int64(0)
+	activeAPIKeys := int64(0)
+	processedAPIKeys := int64(0)
+	page := 1
+	pageSize := 200
+	for {
+		pageItems, total, err := h.adminService.GetGroupAPIKeys(c.Request.Context(), groupID, page, pageSize)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		totalAPIKeys = total
+		for _, key := range pageItems {
+			if key.Status == service.StatusActive {
+				activeAPIKeys++
+			}
+		}
+		processedAPIKeys += int64(len(pageItems))
+		if len(pageItems) == 0 || processedAPIKeys >= total {
+			break
+		}
+		page++
+	}
+
+	// 使用仪表盘聚合能力获取真实请求量与费用，避免返回占位 0。
+	totalRequests := int64(0)
+	totalCost := 0.0
+	if h.dashboardService != nil {
+		stats, err := h.dashboardService.GetGroupStatsWithFilters(c.Request.Context(), time.Time{}, time.Now().UTC(), 0, 0, 0, groupID, nil, nil, nil)
+		if err != nil {
+			response.Error(c, 500, "Failed to get group stats")
+			return
+		}
+		if len(stats) > 0 {
+			// group_id 过滤后仅返回该组（或空）；这里做稳健累加。
+			for _, stat := range stats {
+				totalRequests += stat.Requests
+				totalCost += stat.ActualCost
+			}
+		}
+	}
+
 	response.Success(c, gin.H{
-		"total_api_keys":  0,
-		"active_api_keys": 0,
-		"total_requests":  0,
-		"total_cost":      0.0,
+		"total_api_keys":  totalAPIKeys,
+		"active_api_keys": activeAPIKeys,
+		"total_requests":  totalRequests,
+		"total_cost":      totalCost,
 	})
-	_ = groupID // TODO: implement actual stats
 }
 
 // GetUsageSummary returns today's and cumulative cost for all groups.
