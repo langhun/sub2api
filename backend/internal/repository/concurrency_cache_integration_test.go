@@ -121,6 +121,19 @@ func (s *ConcurrencyCacheSuite) TestAccountSlot_MaxZero() {
 	require.False(s.T(), ok, "expected acquire to fail with max=0")
 }
 
+func (s *ConcurrencyCacheSuite) TestUserSlot_MaxZero() {
+	userID := int64(15)
+	reqID := "user-max-zero-test"
+
+	ok, err := s.cache.AcquireUserSlot(s.ctx, userID, 0, reqID)
+	require.NoError(s.T(), err)
+	require.False(s.T(), ok, "expected user slot acquire to fail with max=0")
+
+	cur, err := s.cache.GetUserConcurrency(s.ctx, userID)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), 0, cur, "expected no user slots to be created when max=0")
+}
+
 func (s *ConcurrencyCacheSuite) TestUserSlot_AcquireAndRelease() {
 	userID := int64(42)
 	reqID1, reqID2 := "req1", "req2"
@@ -187,6 +200,18 @@ func (s *ConcurrencyCacheSuite) TestWaitQueue_IncrementAndDecrement() {
 		require.NoError(s.T(), err, "Get waitKey")
 	}
 	require.Equal(s.T(), 1, val, "expected wait count 1")
+}
+
+func (s *ConcurrencyCacheSuite) TestWaitQueue_MaxZero() {
+	userID := int64(21)
+	waitKey := fmt.Sprintf("%s%d", waitQueueKeyPrefix, userID)
+
+	ok, err := s.cache.IncrementWaitCount(s.ctx, userID, 0)
+	require.NoError(s.T(), err, "IncrementWaitCount max=0")
+	require.False(s.T(), ok, "expected wait increment to fail when max=0")
+
+	_, err = s.rdb.Get(s.ctx, waitKey).Result()
+	require.ErrorIs(s.T(), err, redis.Nil, "max=0 should not create wait key")
 }
 
 func (s *ConcurrencyCacheSuite) TestWaitQueue_DecrementNoNegative() {

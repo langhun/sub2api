@@ -94,9 +94,24 @@ jobs:
           K6_DURATION="$(pick "${INPUT_K6_DURATION:-}" "${PERF_K6_DURATION:-}" "5m")"
           K6_TIMEOUT="$(pick "${INPUT_K6_TIMEOUT:-}" "${PERF_K6_TIMEOUT:-}" "5s")"
           K6_RPS="$(pick "${INPUT_K6_RPS:-}" "${PERF_K6_RPS:-}" "0")"
+          ENFORCE_VALUE="${PERF_NIGHTLY_ENFORCE:-false}"
           DATE_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           DATE_COMPACT="$(date -u +%Y%m%dT%H%M%SZ)"
           COMMIT_SHORT="${GITHUB_SHA::12}"
+          BASE_URL_SOURCE="default"
+          THRESHOLD_SOURCE="not_configured"
+          THRESHOLD_SOURCE_LABEL="repository variable PERF_NIGHTLY_THRESHOLDS is empty"
+
+          if [ -n "${INPUT_BASE_URL:-}" ]; then
+            BASE_URL_SOURCE="workflow_dispatch input"
+          elif [ -n "${PERF_BASE_URL:-}" ]; then
+            BASE_URL_SOURCE="repository variable PERF_BASE_URL"
+          fi
+
+          if [ -n "${PERF_NIGHTLY_THRESHOLDS//[[:space:]]/}" ]; then
+            THRESHOLD_SOURCE="env:PERF_NIGHTLY_THRESHOLDS"
+            THRESHOLD_SOURCE_LABEL="repository variable PERF_NIGHTLY_THRESHOLDS"
+          fi
 
           if [ -z "$BASE_URL" ]; then
             if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
@@ -118,6 +133,8 @@ jobs:
           echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "artifact_suffix=${DATE_COMPACT}-${COMMIT_SHORT}" >> "$GITHUB_OUTPUT"
           echo "date_utc=$DATE_UTC" >> "$GITHUB_OUTPUT"
+          echo "threshold_source=$THRESHOLD_SOURCE" >> "$GITHUB_OUTPUT"
+          echo "enforce_value=$ENFORCE_VALUE" >> "$GITHUB_OUTPUT"
 
           {
             echo "BASE_URL=$BASE_URL"
@@ -125,7 +142,7 @@ jobs:
             echo "K6_DURATION=$K6_DURATION"
             echo "K6_TIMEOUT=$K6_TIMEOUT"
             echo "K6_RPS=$K6_RPS"
-            echo "PERF_NIGHTLY_ENFORCE=${PERF_NIGHTLY_ENFORCE:-false}"
+            echo "PERF_NIGHTLY_ENFORCE=$ENFORCE_VALUE"
             echo "RUN_DATE_UTC=$DATE_UTC"
             echo "RAW_DIR=artifacts/perf-nightly/raw"
             echo "TREND_DIR=artifacts/perf-nightly/trend"
@@ -136,6 +153,15 @@ jobs:
             printf '%s\n' "${PERF_NIGHTLY_THRESHOLDS:-}"
             echo "__EOF__"
           } >> "$GITHUB_ENV"
+
+          {
+            echo "### Perf nightly config"
+            echo
+            echo "- Threshold source: \`$THRESHOLD_SOURCE\`"
+            echo "- Threshold source detail: $THRESHOLD_SOURCE_LABEL"
+            echo "- Enforce: \`$ENFORCE_VALUE\`"
+            echo "- Base URL source: \`$BASE_URL_SOURCE\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run k6 baseline scenarios
         if: steps.resolve.outputs.skip != 'true'

@@ -1,0 +1,28 @@
+{
+  "default": {
+    "error_rate": 0.01,
+    "timeout_rate": 0.005,
+    "p95": 400,
+    "p99": 800
+  },
+  "scenarios": {
+    "health": {
+      "p95": 120,
+      "p99": 250
+    },
+    "pricing": {
+      "p95": 300,
+      "p99": 600
+    },
+    "monitoring-summary": {
+      "p95": 450,
+      "p99": 900
+    },
+    "mixed": {
+      "error_rate": 0.02,
+      "timeout_rate": 0.01,
+      "p95": 600,
+      "p99": 1200
+    }
+  }
+}

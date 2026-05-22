@@ -9,6 +9,42 @@ function providerSwitch(page, label) {
   return page.locator('label').filter({ hasText: new RegExp(`^${label}$`) }).getByRole('switch')
 }
 
+function providerCard(page, name) {
+  return page
+    .getByText(name, { exact: true })
+    .locator('xpath=ancestor::div[.//button[normalize-space()="编辑"] and .//button[normalize-space()="删除"]][1]')
+}
+
+function paymentTypeBadge(page, providerName, label) {
+  return providerCard(page, providerName).getByRole('button', { name: label })
+}
+
+async function expectPaymentTypeBadgeSelected(page, providerName, label, selected) {
+  const badge = paymentTypeBadge(page, providerName, label)
+  if (selected) {
+    await expect(badge).toHaveClass(/bg-primary-500/)
+    await expect(badge).toHaveClass(/text-white/)
+    return
+  }
+
+  await expect(badge).toHaveClass(/bg-gray-100/)
+  await expect(badge).toHaveClass(/text-gray-400/)
+}
+
+async function togglePaymentTypeBadge(page, providerName, label, expectedSupportedTypes) {
+  const updateRequestPromise = page.waitForRequest((request) => {
+    const pathname = new URL(request.url()).pathname
+    return request.method() === 'PUT' && /\/api\/v1\/admin\/payment\/providers\/\d+$/.test(pathname)
+  })
+
+  await paymentTypeBadge(page, providerName, label).click()
+
+  const updateRequest = await updateRequestPromise
+  expect(updateRequest.postDataJSON()).toMatchObject({
+    supported_types: expectedSupportedTypes,
+  })
+}
+
 async function openPaymentSettings(page) {
   await page.goto('/admin/settings')
   await expect(page).toHaveURL(/\/admin\/settings$/)
@@ -45,10 +81,11 @@ async function createEasyPayProvider(page, name = '易支付 E2E') {
   await page.getByRole('button', { name: '保存' }).click()
 
   await expect(page.getByRole('heading', { name: '创建服务商' })).toHaveCount(0)
-  await expect(page.getByText(name)).toBeVisible()
+  const card = providerCard(page, name)
+  await expect(card).toBeVisible()
   await expect(page.getByText('易支付')).toBeVisible()
-  await expect(page.getByRole('button', { name: '支付宝' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '微信支付' })).toBeVisible()
+  await expect(card.getByRole('button', { name: '支付宝' })).toBeVisible()
+  await expect(card.getByRole('button', { name: '微信支付' })).toBeVisible()
 }
 
 test.beforeEach(async ({ page }) => {
@@ -120,4 +157,31 @@ test('设置页支持切换退款与用户退款开关', async ({ page }) => {
   await refundSwitch.click()
   await expect(refundSwitch).toHaveAttribute('aria-checked', 'false')
   await expect(page.locator('label').filter({ hasText: /^允许用户退款$/ })).toHaveCount(0)
+})
+
+test('设置页支持切换服务商支付方式 badge 并在刷新后保持状态', async ({ page }) => {
+  const providerName = '易支付 支付方式测试'
+  await enablePaymentAndOpenProviderManagement(page)
+  await createEasyPayProvider(page, providerName)
+
+  await expectPaymentTypeBadgeSelected(page, providerName, '支付宝', true)
+  await expectPaymentTypeBadgeSelected(page, providerName, '微信支付', true)
+
+  await togglePaymentTypeBadge(page, providerName, '支付宝', ['wxpay'])
+  await expectPaymentTypeBadgeSelected(page, providerName, '支付宝', false)
+  await expectPaymentTypeBadgeSelected(page, providerName, '微信支付', true)
+
+  await togglePaymentTypeBadge(page, providerName, '支付宝', ['wxpay', 'alipay'])
+  await expectPaymentTypeBadgeSelected(page, providerName, '支付宝', true)
+  await expectPaymentTypeBadgeSelected(page, providerName, '微信支付', true)
+
+  await togglePaymentTypeBadge(page, providerName, '微信支付', ['alipay'])
+  await expectPaymentTypeBadgeSelected(page, providerName, '支付宝', true)
+  await expectPaymentTypeBadgeSelected(page, providerName, '微信支付', false)
+
+  await page.reload()
+  await openPaymentSettings(page)
+  await expect(page.getByText(providerName)).toBeVisible()
+  await expectPaymentTypeBadgeSelected(page, providerName, '支付宝', true)
+  await expectPaymentTypeBadgeSelected(page, providerName, '微信支付', false)
 })

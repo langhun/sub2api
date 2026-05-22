@@ -351,6 +351,26 @@ nightly workflow 与本地脚本共用同一套阈值模型，支持 4 个指标
 - 所有阈值语义均为“实际值必须小于等于阈值”
 - 可以先定义默认阈值，再按 scenario 覆盖
 
+#### 推荐阈值模板
+
+仓库已提供可直接复用的模板文件：
+
+- `tools/perf/nightly-thresholds.example.json`
+
+推荐用法：
+
+1. 先复制模板为你自己的基线版本，例如 `tools/perf/output/raw/thresholds.json` 或本地任意不提交路径
+2. 先按最近一轮稳定 nightly / 预发基线填入默认值
+3. 再只对波动明显不同的场景单独覆盖，例如 `health` 更严格、`mixed` 更宽松
+4. 先以 `PERF_NIGHTLY_ENFORCE=false` 跑几轮观察，再决定是否切到强制模式
+
+这个模板覆盖了当前 nightly 固定执行的 4 个 scenario：
+
+- `health`
+- `pricing`
+- `monitoring-summary`
+- `mixed`
+
 示例：
 
 ```json
@@ -418,6 +438,38 @@ node tools/perf/export-k6-trend.mjs \
 | --- | --- | --- | --- |
 | Variable | `PERF_NIGHTLY_THRESHOLDS` | 空 | 阈值 JSON 字符串，格式同上 |
 | Variable | `PERF_NIGHTLY_ENFORCE` | `false` | 是否把阈值失败升级为阻塞失败 |
+
+#### 如何落地到仓库变量 `PERF_NIGHTLY_THRESHOLDS`
+
+推荐步骤：
+
+1. 打开 `tools/perf/nightly-thresholds.example.json`
+2. 按你的服务基线调整默认值与各 scenario 覆盖值
+3. 将文件内容压缩成单行合法 JSON
+4. 进入 GitHub 仓库 `Settings -> Secrets and variables -> Actions -> Variables`
+5. 新建或更新变量 `PERF_NIGHTLY_THRESHOLDS`
+6. 把单行 JSON 粘贴进去保存
+7. 初次启用时，建议同时确认 `PERF_NIGHTLY_ENFORCE=false`
+8. 手动触发一次 `Perf Nightly`，在 `GITHUB_STEP_SUMMARY` 中确认：
+   - Threshold source 显示为 `env:PERF_NIGHTLY_THRESHOLDS`
+   - Status 不是 `not_configured`
+   - 各 scenario 的阈值判定符合预期
+
+如果你想在本地先压缩 JSON，可直接运行：
+
+```bash
+node -e "process.stdout.write(JSON.stringify(JSON.parse(require('node:fs').readFileSync('tools/perf/nightly-thresholds.example.json','utf8'))))"
+```
+
+也可以先在本地验证导出逻辑是否能正确读取：
+
+```bash
+node tools/perf/export-k6-trend.mjs \
+  --input-dir tools/perf/output/raw \
+  --output-dir tools/perf/output/trend \
+  --metadata tools/perf/output/raw/run-metadata.json \
+  --thresholds tools/perf/nightly-thresholds.example.json
+```
 
 行为说明：
 
