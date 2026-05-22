@@ -1,6 +1,6 @@
 allow-lan: true
 bind-address: '*'
-external-controller: 0.0.0.0:53131
+external-controller: 0.0.0.0:56341
 listeners:
     - listen: 0.0.0.0
       name: mihomo-01
