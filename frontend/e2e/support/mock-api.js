@@ -1,0 +1,271 @@
+import { ADMIN_EMAIL, ADMIN_PASSWORD, buildActiveSubscriptions, buildAuthResponse, buildCheckinStatus, buildDashboardSnapshot, buildGroups, buildMihomoStatus, buildProxyList, buildProxySubscriptions, buildPublicSettings, buildSettings, buildSetupStatus, buildUserRanking, buildUserTrend } from './fixtures.js'
+
+function jsonResponse(body, status = 200) {
+  return {
+    status,
+    contentType: 'application/json; charset=utf-8',
+    body: JSON.stringify(body),
+  }
+}
+
+function apiSuccess(data) {
+  return { code: 0, message: 'ok', data }
+}
+
+function matches(pathname, target) {
+  return pathname === target || pathname.startsWith(`${target}/`)
+}
+
+export async function mockCommonAppRoutes(page, options = {}) {
+  const state = {
+    settings: buildSettings(),
+    proxies: buildProxyList(),
+    createdProxies: [],
+    loginResponse: buildAuthResponse(),
+    publicSettings: buildPublicSettings(options.publicSettings),
+    setupStatus: buildSetupStatus(),
+    dashboardSnapshot: buildDashboardSnapshot(),
+    userTrend: buildUserTrend(),
+    userRanking: buildUserRanking(),
+    groups: buildGroups(),
+    proxySubscriptions: buildProxySubscriptions(),
+    mihomoStatus: buildMihomoStatus(),
+    activeSubscriptions: buildActiveSubscriptions(),
+    checkinStatus: buildCheckinStatus(),
+  }
+
+  await page.route('**/*', async (route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+    const { pathname } = url
+    const method = request.method()
+
+    if (pathname.startsWith('/assets/') || pathname === '/' || pathname.endsWith('.js') || pathname.endsWith('.css') || pathname.endsWith('.svg') || pathname.endsWith('.png') || pathname.endsWith('.ico')) {
+      await route.continue()
+      return
+    }
+
+    if (pathname === '/setup/status' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.setupStatus)))
+      return
+    }
+
+    if (pathname === '/api/v1/settings/public' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.publicSettings)))
+      return
+    }
+
+    if (pathname === '/api/v1/auth/login' && method === 'POST') {
+      const body = request.postDataJSON() || {}
+      if (body.email === ADMIN_EMAIL && body.password === ADMIN_PASSWORD) {
+        await route.fulfill(jsonResponse(apiSuccess(state.loginResponse)))
+        return
+      }
+      await route.fulfill(jsonResponse({ code: 40101, message: 'invalid credentials', data: null }, 401))
+      return
+    }
+
+    if (pathname === '/api/v1/auth/me' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.loginResponse.user)))
+      return
+    }
+
+    if (pathname === '/api/v1/auth/logout' && method === 'POST') {
+      await route.fulfill(jsonResponse(apiSuccess({ message: 'logged out' })))
+      return
+    }
+
+    if (pathname === '/api/v1/subscriptions/active' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.activeSubscriptions)))
+      return
+    }
+
+    if (pathname === '/api/v1/announcements' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess([])))
+      return
+    }
+
+    if (matches(pathname, '/api/v1/announcements') && method === 'POST') {
+      await route.fulfill(jsonResponse(apiSuccess({ message: 'read' })))
+      return
+    }
+
+    if (pathname === '/api/v1/checkin/status' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.checkinStatus)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/payment/config' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({
+        enabled: false,
+        min_amount: 1,
+        max_amount: 10000,
+        daily_limit: 50000,
+        order_timeout_minutes: 30,
+        max_pending_orders: 3,
+        enabled_payment_types: [],
+        balance_disabled: false,
+        balance_recharge_multiplier: 1,
+        load_balance_strategy: 'round-robin',
+        product_name_prefix: '',
+        product_name_suffix: '',
+        help_image_url: '',
+        help_text: '',
+      })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/payment/providers' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess([])))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/dashboard/snapshot-v2' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.dashboardSnapshot)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/dashboard/users-trend' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.userTrend)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/dashboard/users-ranking' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.userRanking)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.settings)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings' && method === 'PUT') {
+      const payload = request.postDataJSON() || {}
+      state.settings = { ...state.settings, ...payload }
+      await route.fulfill(jsonResponse(apiSuccess(state.settings)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/admin-api-key' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({ exists: false, masked_key: '' })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/overload-cooldown' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({ enabled: false, cooldown_minutes: 10 })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/rate-limit-429-cooldown' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({ enabled: false, cooldown_seconds: 300 })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/stream-timeout' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({
+        enabled: false,
+        action: 'temp_unsched',
+        temp_unsched_minutes: 5,
+        threshold_count: 3,
+        threshold_window_minutes: 10,
+      })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/rectifier' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({
+        enabled: false,
+        thinking_signature_enabled: false,
+        thinking_budget_enabled: false,
+        apikey_signature_enabled: false,
+        apikey_signature_patterns: [],
+      })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/beta-policy' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({ rules: [] })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/web-search-emulation' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({ enabled: false, providers: [] })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/groups/all' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.groups)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/proxy-subscriptions' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.proxySubscriptions)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/proxies' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.proxies)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/proxies' && method === 'POST') {
+      const payload = request.postDataJSON() || {}
+      const created = {
+        id: 102 + state.createdProxies.length,
+        name: payload.name || 'new-proxy',
+        protocol: payload.protocol || 'http',
+        host: payload.host || '127.0.0.1',
+        port: payload.port || 8080,
+        username: payload.username || '',
+        password: payload.password || '',
+        status: 'active',
+        runtime_status: 'healthy',
+        health_status: 'healthy',
+        account_count: 0,
+        auto_failover_pool_enabled: payload.auto_failover_pool_enabled === true,
+        failover_switch_count: 0,
+        managed_by_subscription: false,
+        created_at: '2026-05-22T00:00:00Z',
+        updated_at: '2026-05-22T00:00:00Z',
+      }
+      state.createdProxies.push(created)
+      state.proxies = {
+        ...state.proxies,
+        items: [created, ...state.proxies.items],
+        total: state.proxies.total + 1,
+      }
+      await route.fulfill(jsonResponse(apiSuccess(created)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/proxies/mihomo' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.mihomoStatus)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/proxies/data' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({ version: '1', exported_at: '2026-05-22T00:00:00Z', proxies: state.proxies.items })))
+      return
+    }
+
+    if (matches(pathname, '/api/v1/admin/proxies') && method === 'POST') {
+      await route.fulfill(jsonResponse(apiSuccess({ success: true })))
+      return
+    }
+
+    if (matches(pathname, '/api/v1/admin/proxies') && method === 'PUT') {
+      await route.fulfill(jsonResponse(apiSuccess({ success: true })))
+      return
+    }
+
+    if (matches(pathname, '/api/v1/admin/proxies') && method === 'DELETE') {
+      await route.fulfill(jsonResponse(apiSuccess({ message: 'deleted' })))
+      return
+    }
+
+    await route.continue()
+  })
+
+  return state
+}
