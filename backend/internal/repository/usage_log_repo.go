@@ -96,6 +96,8 @@ var usageLogInsertArgTypes = [...]string{
 
 const rawUsageLogModelColumn = "model"
 
+var errGroupUsageTotalCostIncrementalAnchorMissing = errors.New("group usage total cost incremental anchor missing")
+
 // rawUsageLogModelColumn preserves the exact stored usage_logs.model semantics for direct filters.
 // Historical rows may contain upstream/billing model values, while newer rows store requested_model.
 // Requested/upstream/mapping analytics must use resolveModelDimensionExpression instead.
@@ -184,6 +186,12 @@ type usageLogRepository struct {
 	bestEffortBatchOnce sync.Once
 	bestEffortBatchCh   chan usageLogBestEffortRequest
 	bestEffortRecent    *gocache.Cache
+
+	groupUsageSummaryCacheMu sync.RWMutex
+	groupUsageSummaryCache   map[int64]usageLogGroupUsageSummaryCacheEntry
+
+	groupUsageTotalCostCacheMu sync.RWMutex
+	groupUsageTotalCostCache   usageLogGroupUsageTotalCostCacheEntry
 }
 
 const (
@@ -196,6 +204,10 @@ const (
 	usageLogBestEffortBatchWindow   = 20 * time.Millisecond
 	usageLogBestEffortBatchQueueCap = 32768
 	usageLogBestEffortRecentTTL     = 30 * time.Second
+	usageLogGroupSummaryCacheTTL    = 30 * time.Second
+	usageLogGroupTotalCostCacheTTL  = 10 * time.Minute
+	usageLogGroupTotalCostRebuildAt = 6 * time.Hour
+	usageLogGroupTotalCostIncrementalMinInterval = 2 * time.Minute
 )
 
 type usageLogCreateRequest struct {
@@ -235,6 +247,18 @@ type usageLogBatchRow struct {
 	ID        int64     `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	Inserted  bool      `json:"inserted"`
+}
+
+type usageLogGroupUsageSummaryCacheEntry struct {
+	expiresAt time.Time
+	summaries []usagestats.GroupUsageSummary
+}
+
+type usageLogGroupUsageTotalCostCacheEntry struct {
+	expiresAt       time.Time
+	fullRebuildAt   time.Time
+	incrementalFrom time.Time
+	totalCost       map[int64]float64
 }
 
 type usageLogCreateShared struct {
@@ -3469,22 +3493,81 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 
 // GetAllGroupUsageSummary returns today's and cumulative actual_cost for every group.
 // todayStart is the start-of-day in the caller's timezone (UTC-based).
-// TODO(perf): This query scans ALL usage_logs rows for total_cost aggregation.
-// When usage_logs exceeds ~1M rows, consider adding a short-lived cache (30s)
-// or a materialized view / pre-aggregation table for cumulative costs.
+// 为降低热点压力，采用分层缓存：
+// 1) 全量汇总（total_cost + today_cost）短 TTL（30s）缓存；
+// 2) total_cost 额外长 TTL（10m）缓存；
+// 3) 短缓存失效且长缓存命中时，仅查询 today_cost 并与 total_cost 合并。
 func (r *usageLogRepository) GetAllGroupUsageSummary(ctx context.Context, todayStart time.Time) ([]usagestats.GroupUsageSummary, error) {
+	todayStartUTC := todayStart.UTC()
+	cacheKey := todayStartUTC.Unix()
+	if cached, ok := r.getGroupUsageSummaryCache(cacheKey); ok {
+		return cached, nil
+	}
+
+	if totalCostByGroup, ok, needsRebuild, needsRefresh, shouldRefreshIncremental, _, _ := r.getGroupUsageTotalCostCacheState(false); ok && !needsRebuild {
+		// total_cost 长缓存命中时，先按 created_at 窗口做增量刷新，再与 today 查询结果合并。
+		if needsRefresh || shouldRefreshIncremental {
+			totalCostByGroup = cloneGroupUsageTotalCostMap(totalCostByGroup)
+			refreshedTotalCost, err := r.refreshGroupUsageTotalCostIncremental(ctx, totalCostByGroup)
+			if err != nil {
+				summaries, fullErr := r.queryAllGroupUsageSummary(ctx, todayStartUTC)
+				if fullErr != nil {
+					return nil, fmt.Errorf("incremental refresh failed: %w; full rebuild failed: %v", err, fullErr)
+				}
+				r.setGroupUsageSummaryCache(cacheKey, summaries)
+				r.setGroupUsageTotalCostCache(extractGroupUsageTotalCostMap(summaries))
+				return summaries, nil
+			}
+			totalCostByGroup = refreshedTotalCost
+		}
+		todayOnly, err := r.queryAllGroupTodayUsageSummary(ctx, todayStartUTC)
+		if err != nil {
+			summaries, fullErr := r.queryAllGroupUsageSummary(ctx, todayStartUTC)
+			if fullErr != nil {
+				return nil, fmt.Errorf("today summary query failed: %w; full rebuild failed: %v", err, fullErr)
+			}
+			r.setGroupUsageSummaryCache(cacheKey, summaries)
+			r.setGroupUsageTotalCostCache(extractGroupUsageTotalCostMap(summaries))
+			return summaries, nil
+		}
+		for i := range todayOnly {
+			if totalCost, exists := totalCostByGroup[todayOnly[i].GroupID]; exists {
+				todayOnly[i].TotalCost = totalCost
+			}
+		}
+		r.setGroupUsageSummaryCache(cacheKey, todayOnly)
+		return todayOnly, nil
+	}
+
+	// 长缓存缺失、过期或达到全量校准窗口时，走全量重建，控制删改带来的累计漂移。
+	summaries, err := r.queryAllGroupUsageSummary(ctx, todayStartUTC)
+	if err != nil {
+		return nil, err
+	}
+	r.setGroupUsageSummaryCache(cacheKey, summaries)
+	r.setGroupUsageTotalCostCache(extractGroupUsageTotalCostMap(summaries))
+	return summaries, nil
+}
+
+func (r *usageLogRepository) queryAllGroupUsageSummary(ctx context.Context, todayStartUTC time.Time) ([]usagestats.GroupUsageSummary, error) {
 	query := `
 		SELECT
 			g.id AS group_id,
-			COALESCE(SUM(ul.actual_cost), 0) AS total_cost,
-			COALESCE(SUM(CASE WHEN ul.created_at >= $1 THEN ul.actual_cost ELSE 0 END), 0) AS today_cost
+			COALESCE(agg.total_cost, 0) AS total_cost,
+			COALESCE(agg.today_cost, 0) AS today_cost
 		FROM groups g
-		LEFT JOIN usage_logs ul ON ul.group_id = g.id
+		LEFT JOIN (
+			SELECT
+				ul.group_id,
+				COALESCE(SUM(ul.actual_cost), 0) AS total_cost,
+				COALESCE(SUM(ul.actual_cost) FILTER (WHERE ul.created_at >= $1), 0) AS today_cost
+			FROM usage_logs ul
+			WHERE ul.group_id IS NOT NULL
+			GROUP BY ul.group_id
+		) agg ON agg.group_id = g.id
 		WHERE g.deleted_at IS NULL
-		GROUP BY g.id
 	`
-
-	rows, err := r.sql.QueryContext(ctx, query, todayStart)
+	rows, err := r.sql.QueryContext(ctx, query, todayStartUTC)
 	if err != nil {
 		return nil, err
 	}
@@ -3501,6 +3584,291 @@ func (r *usageLogRepository) GetAllGroupUsageSummary(ctx context.Context, todayS
 		return nil, err
 	}
 	return results, nil
+}
+
+func (r *usageLogRepository) queryAllGroupTodayUsageSummary(ctx context.Context, todayStartUTC time.Time) ([]usagestats.GroupUsageSummary, error) {
+	query := `
+		SELECT
+			g.id AS group_id,
+			COALESCE(agg.today_cost, 0) AS today_cost
+		FROM groups g
+		LEFT JOIN (
+			SELECT
+				ul.group_id,
+				COALESCE(SUM(ul.actual_cost), 0) AS today_cost
+			FROM usage_logs ul
+			WHERE ul.group_id IS NOT NULL
+				AND ul.created_at >= $1
+			GROUP BY ul.group_id
+		) agg ON agg.group_id = g.id
+		WHERE g.deleted_at IS NULL
+	`
+
+	rows, err := r.sql.QueryContext(ctx, query, todayStartUTC)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	results := make([]usagestats.GroupUsageSummary, 0, 32)
+	for rows.Next() {
+		var row usagestats.GroupUsageSummary
+		if err := rows.Scan(&row.GroupID, &row.TodayCost); err != nil {
+			return nil, err
+		}
+		results = append(results, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func (r *usageLogRepository) queryGroupUsageTotalCostIncrement(ctx context.Context, from time.Time) (map[int64]float64, time.Time, error) {
+	upperBound := time.Now().UTC()
+	query := `
+		SELECT
+			ul.group_id,
+			COALESCE(SUM(ul.actual_cost), 0) AS delta_total_cost
+		FROM usage_logs ul
+		WHERE ul.group_id IS NOT NULL
+			AND ul.created_at >= $1
+			AND ul.created_at < $2
+		GROUP BY ul.group_id
+	`
+
+	rows, err := r.sql.QueryContext(ctx, query, from, upperBound)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	deltaByGroup := make(map[int64]float64)
+	for rows.Next() {
+		var groupID int64
+		var delta float64
+		if err := rows.Scan(&groupID, &delta); err != nil {
+			return nil, time.Time{}, err
+		}
+		deltaByGroup[groupID] = delta
+	}
+	if err := rows.Err(); err != nil {
+		return nil, time.Time{}, err
+	}
+	return deltaByGroup, upperBound, nil
+}
+
+func (r *usageLogRepository) getGroupUsageSummaryCache(cacheKey int64) ([]usagestats.GroupUsageSummary, bool) {
+	if r == nil {
+		return nil, false
+	}
+	now := time.Now()
+	r.groupUsageSummaryCacheMu.RLock()
+	entry, ok := r.groupUsageSummaryCache[cacheKey]
+	r.groupUsageSummaryCacheMu.RUnlock()
+	if !ok || !entry.expiresAt.After(now) {
+		return nil, false
+	}
+	return cloneGroupUsageSummaries(entry.summaries), true
+}
+
+func (r *usageLogRepository) setGroupUsageSummaryCache(cacheKey int64, summaries []usagestats.GroupUsageSummary) {
+	if r == nil {
+		return
+	}
+	r.groupUsageSummaryCacheMu.Lock()
+	if r.groupUsageSummaryCache == nil {
+		r.groupUsageSummaryCache = make(map[int64]usageLogGroupUsageSummaryCacheEntry)
+	}
+	r.groupUsageSummaryCache[cacheKey] = usageLogGroupUsageSummaryCacheEntry{
+		expiresAt: time.Now().Add(usageLogGroupSummaryCacheTTL),
+		summaries: cloneGroupUsageSummaries(summaries),
+	}
+	r.groupUsageSummaryCacheMu.Unlock()
+}
+
+func (r *usageLogRepository) getGroupUsageTotalCostCacheState(cloneTotalCost ...bool) (map[int64]float64, bool, bool, bool, bool, time.Time, bool) {
+	if r == nil {
+		return nil, false, false, false, false, time.Time{}, false
+	}
+	now := time.Now()
+	r.groupUsageTotalCostCacheMu.RLock()
+	entry := r.groupUsageTotalCostCache
+	r.groupUsageTotalCostCacheMu.RUnlock()
+	if len(entry.totalCost) == 0 {
+		return nil, false, false, false, false, time.Time{}, false
+	}
+	needsRefresh := !entry.expiresAt.After(now)
+	needsRebuild := entry.fullRebuildAt.IsZero() || now.Sub(entry.fullRebuildAt) >= usageLogGroupTotalCostRebuildAt
+	hasIncrementalFrom := !entry.incrementalFrom.IsZero()
+	shouldRefreshIncremental := hasIncrementalFrom && now.Sub(entry.incrementalFrom) >= usageLogGroupTotalCostIncrementalMinInterval
+
+	needClone := true
+	if len(cloneTotalCost) > 0 {
+		needClone = cloneTotalCost[0]
+	}
+	totalCostByGroup := entry.totalCost
+	if needClone {
+		totalCostByGroup = cloneGroupUsageTotalCostMap(entry.totalCost)
+	}
+	return totalCostByGroup, true, needsRebuild, needsRefresh, shouldRefreshIncremental, entry.incrementalFrom, hasIncrementalFrom
+}
+
+func (r *usageLogRepository) refreshGroupUsageTotalCostIncremental(ctx context.Context, current map[int64]float64) (map[int64]float64, error) {
+	if r == nil {
+		return current, nil
+	}
+	// 并发请求可能同时读取同一 incrementalFrom。这里做一次有限重试：
+	// 条件推进失败后，基于最新快照重算，避免返回过时 total_cost。
+	for attempt := 0; attempt < 2; attempt++ {
+		latest, ok, needsRebuild, needsRefresh, shouldRefreshIncremental, incrementalFrom, hasIncrementalFrom := r.getGroupUsageTotalCostCacheState(true)
+		if ok {
+			// 并发下优先使用最新快照作为增量基线，避免在旧快照上叠加 delta。
+			current = latest
+			// 缓存已 fresh 且未到最小增量间隔时，直接复用快照，避免不必要的 delta SQL。
+			if !needsRebuild && !needsRefresh && !shouldRefreshIncremental {
+				return latest, nil
+			}
+		}
+
+		if !hasIncrementalFrom {
+			if needsRefresh {
+				// 长缓存已过期但增量锚点缺失时，交由上层走全量兜底，避免继续 today 合并陈旧 total_cost。
+				return nil, errGroupUsageTotalCostIncrementalAnchorMissing
+			}
+			return current, nil
+		}
+
+		deltaByGroup, upperBound, err := r.queryGroupUsageTotalCostIncrement(ctx, incrementalFrom)
+		if err != nil {
+			return nil, err
+		}
+
+		refreshed := current
+		if len(deltaByGroup) == 0 {
+			// 无增量时只推进增量锚点和 TTL，避免复制 totalCost map。
+			if r.advanceGroupUsageTotalCostCacheWindow(incrementalFrom, upperBound) {
+				return refreshed, nil
+			}
+		} else {
+			refreshed = cloneGroupUsageTotalCostMap(current)
+			if len(refreshed) == 0 {
+				refreshed = make(map[int64]float64, len(deltaByGroup))
+			}
+			for groupID, delta := range deltaByGroup {
+				refreshed[groupID] += delta
+			}
+			if r.setGroupUsageTotalCostCacheFromIncrement(refreshed, incrementalFrom, upperBound) {
+				return refreshed, nil
+			}
+		}
+
+		latest, ok, needsRebuild, needsRefresh, _, _, _ = r.getGroupUsageTotalCostCacheState(true)
+		if !ok {
+			return refreshed, nil
+		}
+		// 并发冲突下，若其他请求已把缓存推进到 fresh，优先返回最新快照，避免回传本次 stale 计算结果。
+		if !needsRebuild && !needsRefresh {
+			return latest, nil
+		}
+		current = latest
+	}
+	return current, nil
+}
+
+func (r *usageLogRepository) setGroupUsageTotalCostCache(totalCostByGroup map[int64]float64) {
+	if r == nil {
+		return
+	}
+	now := time.Now().UTC()
+	r.groupUsageTotalCostCacheMu.Lock()
+	r.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       now.Add(usageLogGroupTotalCostCacheTTL),
+		fullRebuildAt:   now,
+		incrementalFrom: now,
+		totalCost:       cloneGroupUsageTotalCostMap(totalCostByGroup),
+	}
+	r.groupUsageTotalCostCacheMu.Unlock()
+}
+
+func (r *usageLogRepository) setGroupUsageTotalCostCacheFromIncrement(totalCostByGroup map[int64]float64, expectedFrom, incrementalUpperBound time.Time) bool {
+	if r == nil {
+		return false
+	}
+	r.groupUsageTotalCostCacheMu.Lock()
+	defer r.groupUsageTotalCostCacheMu.Unlock()
+	entry := r.groupUsageTotalCostCache
+	if !applyGroupUsageTotalCostCacheWindowUpdate(&entry, expectedFrom, incrementalUpperBound) {
+		return false
+	}
+	entry.totalCost = cloneGroupUsageTotalCostMap(totalCostByGroup)
+	r.groupUsageTotalCostCache = entry
+	return true
+}
+
+func (r *usageLogRepository) advanceGroupUsageTotalCostCacheWindow(expectedFrom, incrementalUpperBound time.Time) bool {
+	if r == nil {
+		return false
+	}
+	r.groupUsageTotalCostCacheMu.Lock()
+	defer r.groupUsageTotalCostCacheMu.Unlock()
+	entry := r.groupUsageTotalCostCache
+	if !applyGroupUsageTotalCostCacheWindowUpdate(&entry, expectedFrom, incrementalUpperBound) {
+		return false
+	}
+	r.groupUsageTotalCostCache = entry
+	return true
+}
+
+func applyGroupUsageTotalCostCacheWindowUpdate(entry *usageLogGroupUsageTotalCostCacheEntry, expectedFrom, incrementalUpperBound time.Time) bool {
+	if entry == nil {
+		return false
+	}
+	if entry.incrementalFrom.IsZero() || !entry.incrementalFrom.Equal(expectedFrom) {
+		return false
+	}
+	// 增量刷新不改变 fullRebuildAt；仅推进增量窗口并续长 TTL。
+	if entry.fullRebuildAt.IsZero() {
+		entry.fullRebuildAt = time.Now().UTC()
+	}
+	// 保持锚点单调递增，避免回退窗口。
+	if incrementalUpperBound.Before(expectedFrom) {
+		incrementalUpperBound = expectedFrom
+	}
+	entry.expiresAt = time.Now().Add(usageLogGroupTotalCostCacheTTL)
+	entry.incrementalFrom = incrementalUpperBound
+	return true
+}
+
+func extractGroupUsageTotalCostMap(summaries []usagestats.GroupUsageSummary) map[int64]float64 {
+	if len(summaries) == 0 {
+		return nil
+	}
+	totalCostByGroup := make(map[int64]float64, len(summaries))
+	for i := range summaries {
+		totalCostByGroup[summaries[i].GroupID] = summaries[i].TotalCost
+	}
+	return totalCostByGroup
+}
+
+func cloneGroupUsageSummaries(in []usagestats.GroupUsageSummary) []usagestats.GroupUsageSummary {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]usagestats.GroupUsageSummary, len(in))
+	copy(out, in)
+	return out
+}
+
+func cloneGroupUsageTotalCostMap(in map[int64]float64) map[int64]float64 {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[int64]float64, len(in))
+	for groupID, totalCost := range in {
+		out[groupID] = totalCost
+	}
+	return out
 }
 
 // resolveModelDimensionExpression maps model source type to a safe SQL expression.

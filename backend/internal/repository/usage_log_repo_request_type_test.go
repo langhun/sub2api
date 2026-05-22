@@ -636,7 +636,7 @@ func TestUsageLogRepositoryGetAllGroupUsageSummaryExcludesDeletedGroups(t *testi
 	repo := &usageLogRepository{sql: db}
 
 	todayStart := time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)
-	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN usage_logs ul ON ul.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
 		WithArgs(todayStart).
 		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
 			AddRow(int64(1), 12.5, 2.5))
@@ -647,6 +647,682 @@ func TestUsageLogRepositoryGetAllGroupUsageSummaryExcludesDeletedGroups(t *testi
 	require.Equal(t, int64(1), summaries[0].GroupID)
 	require.Equal(t, 12.5, summaries[0].TotalCost)
 	require.Equal(t, 2.5, summaries[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryUsesCache(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(1), 12.5, 2.5))
+
+	first, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+
+	// 命中缓存后不应再次触发 SQL；若触发将因 sqlmock 无新期望而报错。
+	second, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Equal(t, first, second)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryTotalCacheHitSkipsRequery(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(100), 88.8, 8.8))
+
+	first, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+	require.Equal(t, 88.8, first[0].TotalCost)
+
+	// 第二次同日请求应命中 total cache，不应再触发 SQL。
+	second, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, second, 1)
+	require.Equal(t, 88.8, second[0].TotalCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryTodayCacheHit(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	// 本地时区日界线转换为同一 UTC 日界线后，应命中同一缓存键（today cache）。
+	todayStartLocal := time.Date(2026, 5, 21, 8, 0, 0, 0, time.FixedZone("UTC+8", 8*3600))
+	todayStartUTC := todayStartLocal.UTC()
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStartUTC).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(200), 66.6, 6.6))
+
+	first, err := repo.GetAllGroupUsageSummary(context.Background(), todayStartLocal)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+	require.Equal(t, 6.6, first[0].TodayCost)
+
+	// 使用等价 UTC 起始时间再次查询：应命中 today cache，不应二次查询数据库。
+	second, err := repo.GetAllGroupUsageSummary(context.Background(), todayStartUTC)
+	require.NoError(t, err)
+	require.Len(t, second, 1)
+	require.Equal(t, 6.6, second[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryExpiredTotalCacheUsesTodayAndIncrementalBeforeRebuildThreshold(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	// total_cost 长缓存过期，但 fullRebuildAt 仍在重建阈值内，应走增量+today 路径而非全量。
+	now := time.Now().UTC()
+	incrementalFrom := now.Add(-10 * time.Minute)
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       now.Add(-time.Minute),                          // 强制 needsRefresh=true
+		fullRebuildAt:   now.Add(-(usageLogGroupTotalCostRebuildAt / 2)), // 未超阈值
+		incrementalFrom: incrementalFrom,
+		totalCost: map[int64]float64{
+			1: 100.0,
+			2: 200.0,
+		},
+	}
+
+	todayStart := time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC)
+
+	// 1) 先触发增量 total_cost 查询
+	mock.ExpectQuery("SELECT\\s+ul.group_id,[\\s\\S]*delta_total_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*AND ul.created_at >= \\$1[\\s\\S]*AND ul.created_at < \\$2").
+		WithArgs(incrementalFrom, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "delta_total_cost"}).
+			AddRow(int64(1), 1.25).
+			AddRow(int64(2), 2.5))
+
+	// 2) 再触发 today 查询并与增量后的 total_cost 合并
+	mock.ExpectQuery("COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*AND ul.created_at >= \\$1[\\s\\S]*WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "today_cost"}).
+			AddRow(int64(1), 10.0).
+			AddRow(int64(2), 20.0))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 2)
+
+	got := map[int64]usagestats.GroupUsageSummary{}
+	for _, item := range summaries {
+		got[item.GroupID] = item
+	}
+	require.Equal(t, 101.25, got[1].TotalCost)
+	require.Equal(t, 10.0, got[1].TodayCost)
+	require.Equal(t, 202.5, got[2].TotalCost)
+	require.Equal(t, 20.0, got[2].TodayCost)
+
+	// 若误走全量查询，这里会因未设置 full-query 期望而失败。
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryExpiredTotalCacheWithoutIncrementalFromFallsBackToFullQuery(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	now := time.Now().UTC()
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       now.Add(-time.Minute),                           // 强制 needsRefresh=true
+		fullRebuildAt:   now.Add(-(usageLogGroupTotalCostRebuildAt / 2)), // 未超全量重建阈值
+		incrementalFrom: time.Time{},                                     // 缺失增量窗口起点
+		totalCost: map[int64]float64{
+			1: 100.0,
+			2: 200.0,
+		},
+	}
+
+	todayStart := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
+	// 仅允许 full query；若误走 today+旧 total 路径会因无匹配期望失败。
+	mock.ExpectQuery("COALESCE\\(agg.total_cost, 0\\) AS total_cost[\\s\\S]*COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*GROUP BY ul.group_id").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(1), 12.0, 2.0).
+			AddRow(int64(2), 0.0, 0.0))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 2)
+	require.Equal(t, 12.0, summaries[0].TotalCost)
+	require.Equal(t, 2.0, summaries[0].TodayCost)
+	require.Equal(t, 0.0, summaries[1].TotalCost)
+	require.Equal(t, 0.0, summaries[1].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryIncrementalRefreshMergesTotalCost(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	repo.setGroupUsageTotalCostCache(map[int64]float64{
+		1: 10.5,
+		2: 20.0,
+	})
+
+	todayStart := time.Date(2026, 5, 23, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*AND ul.created_at >= \\$1[\\s\\S]*WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "today_cost"}).
+			AddRow(int64(1), 1.5).
+			AddRow(int64(2), 0.0))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 2)
+
+	got := map[int64]usagestats.GroupUsageSummary{}
+	for _, item := range summaries {
+		got[item.GroupID] = item
+	}
+	require.Equal(t, 10.5, got[1].TotalCost)
+	require.Equal(t, 1.5, got[1].TodayCost)
+	require.Equal(t, 20.0, got[2].TotalCost)
+	require.Equal(t, 0.0, got[2].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryFreshTotalCacheSkipsIncrementalDeltaQuery(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	// fresh total_cost 缓存：未过期且 incrementalFrom 刚设置，未达到增量刷新最小间隔。
+	repo.setGroupUsageTotalCostCache(map[int64]float64{
+		1: 88.0,
+	})
+	beforeTotalCost, ok, _, beforeNeedsRefresh, _, beforeIncrementalFrom, beforeHasIncrementalFrom := repo.getGroupUsageTotalCostCacheState(true)
+	require.True(t, ok)
+	require.True(t, beforeHasIncrementalFrom)
+	require.False(t, beforeNeedsRefresh)
+	require.Equal(t, map[int64]float64{1: 88.0}, beforeTotalCost)
+	require.False(t, beforeIncrementalFrom.IsZero())
+
+	todayStart := time.Date(2026, 5, 23, 0, 0, 0, 0, time.UTC)
+	// 仅期望 today 查询；若误触发 delta SQL，会因无匹配期望而失败。
+	mock.ExpectQuery("COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*AND ul.created_at >= \\$1[\\s\\S]*WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "today_cost"}).
+			AddRow(int64(1), 8.0))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 1)
+	require.Equal(t, int64(1), summaries[0].GroupID)
+	require.Equal(t, 88.0, summaries[0].TotalCost)
+	require.Equal(t, 8.0, summaries[0].TodayCost)
+	afterTotalCost, ok, _, afterNeedsRefresh, _, afterIncrementalFrom, afterHasIncrementalFrom := repo.getGroupUsageTotalCostCacheState(true)
+	require.True(t, ok)
+	require.True(t, afterHasIncrementalFrom)
+	require.False(t, afterNeedsRefresh)
+	require.Equal(t, map[int64]float64{1: 88.0}, afterTotalCost)
+	require.Equal(t, beforeIncrementalFrom, afterIncrementalFrom)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryFreshTotalCacheWithStaleIncrementalFromTriggersDeltaQuery(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	now := time.Now().UTC()
+	incrementalFrom := now.Add(-usageLogGroupTotalCostIncrementalMinInterval - time.Second)
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       now.Add(10 * time.Minute), // fresh total cache
+		fullRebuildAt:   now.Add(-30 * time.Minute),
+		incrementalFrom: incrementalFrom, // 触发 shouldRefreshIncremental=true
+		totalCost: map[int64]float64{
+			1: 88.0,
+		},
+	}
+
+	todayStart := time.Date(2026, 5, 23, 0, 0, 0, 0, time.UTC)
+	// fresh 缓存但 incrementalFrom 达到最小刷新间隔，必须触发 delta SQL。
+	mock.ExpectQuery("SELECT\\s+ul.group_id,[\\s\\S]*delta_total_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*AND ul.created_at >= \\$1[\\s\\S]*AND ul.created_at < \\$2").
+		WithArgs(incrementalFrom, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "delta_total_cost"}).
+			AddRow(int64(1), 2.0))
+
+	mock.ExpectQuery("COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*AND ul.created_at >= \\$1[\\s\\S]*WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "today_cost"}).
+			AddRow(int64(1), 8.0))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 1)
+	require.Equal(t, int64(1), summaries[0].GroupID)
+	require.Equal(t, 90.0, summaries[0].TotalCost)
+	require.Equal(t, 8.0, summaries[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryFreshTotalCacheWithEmptyDeltaKeepsTotalCostAndMergesToday(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	now := time.Now().UTC()
+	incrementalFrom := now.Add(-usageLogGroupTotalCostIncrementalMinInterval - time.Second)
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       now.Add(10 * time.Minute), // fresh total cache
+		fullRebuildAt:   now.Add(-30 * time.Minute),
+		incrementalFrom: incrementalFrom, // 触发 shouldRefreshIncremental=true
+		totalCost: map[int64]float64{
+			1: 88.0,
+			2: 12.0,
+		},
+	}
+
+	todayStart := time.Date(2026, 5, 23, 0, 0, 0, 0, time.UTC)
+	// 增量查询返回空结果：refresh 仍应成功，不改变 total_cost 语义。
+	mock.ExpectQuery("SELECT\\s+ul.group_id,[\\s\\S]*delta_total_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*AND ul.created_at >= \\$1[\\s\\S]*AND ul.created_at < \\$2").
+		WithArgs(incrementalFrom, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "delta_total_cost"}))
+
+	mock.ExpectQuery("COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*AND ul.created_at >= \\$1[\\s\\S]*WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "today_cost"}).
+			AddRow(int64(1), 8.0).
+			AddRow(int64(2), 1.2))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 2)
+
+	got := map[int64]usagestats.GroupUsageSummary{}
+	for _, item := range summaries {
+		got[item.GroupID] = item
+	}
+	require.Equal(t, 88.0, got[1].TotalCost)
+	require.Equal(t, 8.0, got[1].TodayCost)
+	require.Equal(t, 12.0, got[2].TotalCost)
+	require.Equal(t, 1.2, got[2].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryRecalibrationThresholdForcesFullQuery(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	// 超过 total_cost 长缓存阈值后，应回到全量汇总查询路径（校准）。
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt: time.Now().Add(-time.Minute),
+		totalCost: map[int64]float64{1: 99.9},
+	}
+
+	todayStart := time.Date(2026, 5, 24, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("COALESCE\\(agg.total_cost, 0\\) AS total_cost[\\s\\S]*COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*GROUP BY ul.group_id").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(1), 12.0, 2.0).
+			AddRow(int64(2), 0.0, 0.0))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 2)
+	require.Equal(t, 12.0, summaries[0].TotalCost)
+	require.Equal(t, 2.0, summaries[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryIncrementalQueryFailureFallsBackToFull(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	repo.setGroupUsageTotalCostCache(map[int64]float64{1: 30.0})
+
+	mock.ExpectQuery("COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*AND ul.created_at >= \\$1").
+		WithArgs(todayStart).
+		WillReturnError(fmt.Errorf("today query failed"))
+
+	_, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.Error(t, err)
+
+	// 增量路径失败后，触发一次“全量校准”回退。
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt: time.Now().Add(-time.Second),
+		totalCost: map[int64]float64{1: 30.0},
+	}
+	mock.ExpectQuery("COALESCE\\(agg.total_cost, 0\\) AS total_cost[\\s\\S]*COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*GROUP BY ul.group_id").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(1), 31.5, 1.5))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 1)
+	require.Equal(t, 31.5, summaries[0].TotalCost)
+	require.Equal(t, 1.5, summaries[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryTodayQueryFailureFallsBackToFull(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	repo.setGroupUsageTotalCostCache(map[int64]float64{1: 30.0})
+
+	mock.ExpectQuery("COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*AND ul.created_at >= \\$1").
+		WithArgs(todayStart).
+		WillReturnError(fmt.Errorf("today query failed"))
+
+	mock.ExpectQuery("COALESCE\\(agg.total_cost, 0\\) AS total_cost[\\s\\S]*COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*GROUP BY ul.group_id").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(1), 31.5, 1.5))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 1)
+	require.Equal(t, 31.5, summaries[0].TotalCost)
+	require.Equal(t, 1.5, summaries[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryIncrementalCacheReturnsCopy(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	repo.setGroupUsageTotalCostCache(map[int64]float64{1: 50.0})
+	todayStart := time.Date(2026, 5, 26, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("COALESCE\\(agg.today_cost, 0\\) AS today_cost[\\s\\S]*AND ul.created_at >= \\$1").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "today_cost"}).
+			AddRow(int64(1), 5.0))
+
+	first, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+	require.Equal(t, 50.0, first[0].TotalCost)
+	require.Equal(t, 5.0, first[0].TodayCost)
+
+	first[0].TotalCost = 999
+	first[0].TodayCost = -10
+
+	second, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, second, 1)
+	require.Equal(t, 50.0, second[0].TotalCost)
+	require.Equal(t, 5.0, second[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryRefreshGroupUsageTotalCostIncrementalConflictReturnsLatestSnapshot(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	baseNow := time.Now().UTC()
+	baseFrom := baseNow.Add(-15 * time.Minute)
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       baseNow.Add(10 * time.Minute),
+		fullRebuildAt:   baseNow.Add(-30 * time.Minute),
+		incrementalFrom: baseFrom,
+		totalCost: map[int64]float64{
+			1: 10.0,
+		},
+	}
+
+	// 延迟增量查询，给并发 goroutine 留出时间推进 incrementalFrom。
+	mock.ExpectQuery("SELECT\\s+ul.group_id,[\\s\\S]*delta_total_cost[\\s\\S]*FROM usage_logs ul[\\s\\S]*AND ul.created_at >= \\$1[\\s\\S]*AND ul.created_at < \\$2").
+		WithArgs(baseFrom, sqlmock.AnyArg()).
+		WillDelayFor(80 * time.Millisecond).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "delta_total_cost"}).
+			AddRow(int64(1), 3.0))
+
+	advancedDone := make(chan struct{})
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		repo.groupUsageTotalCostCacheMu.Lock()
+		repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+			expiresAt:       time.Now().Add(10 * time.Minute),
+			fullRebuildAt:   baseNow.Add(-20 * time.Minute),
+			incrementalFrom: baseFrom.Add(5 * time.Minute), // 使 expectedFrom 不匹配
+			totalCost: map[int64]float64{
+				1: 999.0, // 最新快照（应优先返回）
+			},
+		}
+		repo.groupUsageTotalCostCacheMu.Unlock()
+		close(advancedDone)
+	}()
+
+	refreshed, err := repo.refreshGroupUsageTotalCostIncremental(context.Background(), map[int64]float64{
+		1: 10.0, // stale current（若无冲突会变成 13）
+	})
+	require.NoError(t, err)
+	<-advancedDone
+
+	// 并发推进导致 setGroupUsageTotalCostCacheFromIncrement 返回 false，
+	// 函数应返回最新缓存快照，而不是 stale refreshed 结果。
+	require.Equal(t, 999.0, refreshed[1])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositorySetGroupUsageTotalCostCacheFromIncrementKeepsAnchorMonotonic(t *testing.T) {
+	repo := &usageLogRepository{}
+
+	baseNow := time.Now().UTC()
+	expectedFrom := baseNow.Add(-5 * time.Minute)
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       baseNow.Add(-time.Minute),
+		fullRebuildAt:   baseNow.Add(-20 * time.Minute),
+		incrementalFrom: expectedFrom,
+		totalCost: map[int64]float64{
+			1: 10.0,
+		},
+	}
+
+	// 锚点单调性：即使传入更早的 incrementalUpperBound，也不应让缓存 incrementalFrom 倒退。
+	backwardUpperBound := expectedFrom.Add(-time.Minute)
+	updatedTotalCost := map[int64]float64{
+		1: 11.0,
+	}
+	updated := repo.setGroupUsageTotalCostCacheFromIncrement(updatedTotalCost, expectedFrom, backwardUpperBound)
+	require.True(t, updated)
+
+	totalCostByGroup, ok, _, _, _, incrementalFrom, hasIncrementalFrom := repo.getGroupUsageTotalCostCacheState(true)
+	require.True(t, ok)
+	require.True(t, hasIncrementalFrom)
+	require.Equal(t, expectedFrom, incrementalFrom)
+	require.Equal(t, updatedTotalCost, totalCostByGroup)
+
+	// expectedFrom 校验：起点不匹配时必须拒绝更新，且不改变已缓存数据。
+	rejected := repo.setGroupUsageTotalCostCacheFromIncrement(map[int64]float64{
+		1: 999.0,
+	}, expectedFrom.Add(-time.Second), expectedFrom.Add(2*time.Minute))
+	require.False(t, rejected)
+	totalCostAfterRejected, ok, _, _, _, incrementalFromAfterRejected, hasIncrementalFromAfterRejected := repo.getGroupUsageTotalCostCacheState(true)
+	require.True(t, ok)
+	require.True(t, hasIncrementalFromAfterRejected)
+	require.Equal(t, expectedFrom, incrementalFromAfterRejected)
+	require.Equal(t, updatedTotalCost, totalCostAfterRejected)
+}
+
+func TestUsageLogRepositoryAdvanceGroupUsageTotalCostCacheWindowEmptyDeltaKeepsTotalCostAndAnchorMonotonic(t *testing.T) {
+	repo := &usageLogRepository{}
+
+	baseNow := time.Now().UTC()
+	expectedFrom := baseNow.Add(-5 * time.Minute)
+	originalTotalCost := map[int64]float64{
+		1: 88.0,
+		2: 12.0,
+	}
+	repo.groupUsageTotalCostCache = usageLogGroupUsageTotalCostCacheEntry{
+		expiresAt:       baseNow.Add(-time.Minute),
+		fullRebuildAt:   baseNow.Add(-20 * time.Minute),
+		incrementalFrom: expectedFrom,
+		totalCost:       cloneGroupUsageTotalCostMap(originalTotalCost),
+	}
+
+	// 空增量语义：仅推进窗口；即使 upperBound 回退，也不应让锚点倒退，且 totalCost 保持不变。
+	backwardUpperBound := expectedFrom.Add(-2 * time.Minute)
+	advanced := repo.advanceGroupUsageTotalCostCacheWindow(expectedFrom, backwardUpperBound)
+	require.True(t, advanced)
+
+	totalCostByGroup, ok, _, needsRefresh, _, incrementalFrom, hasIncrementalFrom := repo.getGroupUsageTotalCostCacheState(true)
+	require.True(t, ok)
+	require.True(t, hasIncrementalFrom)
+	require.False(t, needsRefresh)
+	require.Equal(t, expectedFrom, incrementalFrom)
+	require.Equal(t, originalTotalCost, totalCostByGroup)
+
+	// expectedFrom 校验：窗口起点不匹配时必须拒绝推进，且不改变 totalCost 与锚点。
+	rejected := repo.advanceGroupUsageTotalCostCacheWindow(expectedFrom.Add(-time.Second), expectedFrom.Add(2*time.Minute))
+	require.False(t, rejected)
+	totalCostAfterRejected, ok, _, _, _, incrementalFromAfterRejected, hasIncrementalFromAfterRejected := repo.getGroupUsageTotalCostCacheState(true)
+	require.True(t, ok)
+	require.True(t, hasIncrementalFromAfterRejected)
+	require.Equal(t, expectedFrom, incrementalFromAfterRejected)
+	require.Equal(t, originalTotalCost, totalCostAfterRejected)
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryCacheKeyUsesUTCNormalizedDayStart(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	// +08:00 的 08:00 等价于 UTC 当天 00:00；仓库应统一按 UTC 参数查询并命中同一个缓存键。
+	todayStartLocal := time.Date(2026, 5, 15, 8, 0, 0, 0, time.FixedZone("UTC+8", 8*3600))
+	todayStartUTC := todayStartLocal.UTC()
+
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStartUTC).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(11), 110.0, 11.0))
+
+	first, err := repo.GetAllGroupUsageSummary(context.Background(), todayStartLocal)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+	require.Equal(t, int64(11), first[0].GroupID)
+
+	// 同一 UTC 时刻再次请求应命中缓存，不再触发 SQL。
+	second, err := repo.GetAllGroupUsageSummary(context.Background(), todayStartUTC)
+	require.NoError(t, err)
+	require.Equal(t, first, second)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryKeepsGroupsWithoutLogs(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 22, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(1), 10.5, 1.5).
+			AddRow(int64(2), 0.0, 0.0))
+
+	summaries, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, summaries, 2)
+
+	got := map[int64]usagestats.GroupUsageSummary{}
+	for _, item := range summaries {
+		got[item.GroupID] = item
+	}
+	require.Contains(t, got, int64(1))
+	require.Equal(t, 10.5, got[1].TotalCost)
+	require.Equal(t, 1.5, got[1].TodayCost)
+	require.Contains(t, got, int64(2))
+	require.Equal(t, 0.0, got[2].TotalCost)
+	require.Equal(t, 0.0, got[2].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryCacheReturnsCopy(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 13, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(7), 70.0, 7.0))
+
+	first, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+
+	// 篡改第一次返回结果，不应污染缓存中的原始值。
+	first[0].TotalCost = 9999
+
+	second, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, second, 1)
+	require.Equal(t, 70.0, second[0].TotalCost)
+
+	// 再次篡改第二次返回值，第三次读取应仍保持原值，证明每次返回都是独立拷贝。
+	second[0].TodayCost = -1
+	third, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, third, 1)
+	require.Equal(t, 70.0, third[0].TotalCost)
+	require.Equal(t, 7.0, third[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryCallerMutationDoesNotAffectCachedHit(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 23, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(13), 130.0, 13.0))
+
+	// 首次调用走查询路径，主线当前返回 query 结果本体。
+	first, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+	first[0].TotalCost = 9999
+	first[0].TodayCost = -999
+
+	// 第二次同键调用应命中缓存，且不受调用方篡改影响。
+	second, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, second, 1)
+	require.Equal(t, int64(13), second[0].GroupID)
+	require.Equal(t, 130.0, second[0].TotalCost)
+	require.Equal(t, 13.0, second[0].TodayCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummaryQueryFailureDoesNotPolluteCache(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	todayStart := time.Date(2026, 5, 14, 0, 0, 0, 0, time.UTC)
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnError(fmt.Errorf("db unavailable"))
+	mock.ExpectQuery("FROM groups g\\s+LEFT JOIN \\(\\s*SELECT\\s+ul.group_id[\\s\\S]*FROM usage_logs ul\\s+WHERE ul.group_id IS NOT NULL\\s+GROUP BY ul.group_id\\s*\\) agg ON agg.group_id = g.id\\s+WHERE g.deleted_at IS NULL").
+		WithArgs(todayStart).
+		WillReturnRows(sqlmock.NewRows([]string{"group_id", "total_cost", "today_cost"}).
+			AddRow(int64(9), 90.0, 9.0))
+
+	_, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.Error(t, err)
+
+	got, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, int64(9), got[0].GroupID)
+
+	// 成功后应写入缓存，后续同键读取不应再查询数据库。
+	cached, err := repo.GetAllGroupUsageSummary(context.Background(), todayStart)
+	require.NoError(t, err)
+	require.Equal(t, got, cached)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -1015,3 +1691,4 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 	})
 
 }
+
