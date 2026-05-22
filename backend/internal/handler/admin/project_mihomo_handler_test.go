@@ -165,6 +165,7 @@ func TestMihomoHandlerRejectsInvalidJSON(t *testing.T) {
 }
 
 func TestMihomoHandlerSyncRejectsInvalidSubscriptionURL(t *testing.T) {
+	t.Setenv("DATA_DIR", t.TempDir())
 	router := setupMihomoRouter(service.NewMihomoService(
 		&projectMihomoSettingRepoStub{},
 		&projectMihomoSourceRepoStub{
@@ -188,6 +189,7 @@ func TestMihomoHandlerSyncRejectsInvalidSubscriptionURL(t *testing.T) {
 }
 
 func TestMihomoHandlerUpdateAndSyncSuccess(t *testing.T) {
+	t.Setenv("DATA_DIR", t.TempDir())
 	controller := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, http.MethodPut, r.Method)
 		require.Equal(t, "/configs", r.URL.Path)
