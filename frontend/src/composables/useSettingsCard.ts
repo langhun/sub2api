@@ -15,7 +15,7 @@
  * ```
  */
 
-import { reactive, toRaw } from 'vue'
+import { reactive, toRaw, toRef } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useI18n } from 'vue-i18n'
 
@@ -81,6 +81,11 @@ export function useSettingsCard<T extends Record<string, any>>(
     state.loading = true
     try {
       const data = await options.loadFn()
+      for (const key of Object.keys(state.form)) {
+        if (!(key in data)) {
+          delete state.form[key]
+        }
+      }
       Object.assign(state.form, data)
     } catch (error: any) {
       console.error('Failed to load settings:', error)
@@ -114,7 +119,9 @@ export function useSettingsCard<T extends Record<string, any>>(
   }
 
   return {
-    ...state,
+    loading: toRef(state, 'loading'),
+    saving: toRef(state, 'saving'),
+    form: state.form,
     load,
     save
   }

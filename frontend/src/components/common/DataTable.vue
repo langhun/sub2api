@@ -376,6 +376,14 @@ const sortKey = ref<string>('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const actionsExpanded = ref(false)
 
+watch(actionsColumnNeedsExpanding, (needsExpand) => {
+  if (!props.expandableActions) {
+    actionsExpanded.value = false
+    return
+  }
+  actionsExpanded.value = needsExpand
+})
+
 type PersistedSortState = {
   key: string
   order: 'asc' | 'desc'
@@ -470,12 +478,6 @@ const toSortableString = (value: any): string => {
 }
 
 const compareSortValues = (a: any, b: any): number => {
-  const aEmpty = isNullishOrEmpty(a)
-  const bEmpty = isNullishOrEmpty(b)
-  if (aEmpty && bEmpty) return 0
-  if (aEmpty) return 1
-  if (bEmpty) return -1
-
   const aNum = toFiniteNumberOrNull(a)
   const bNum = toFiniteNumberOrNull(b)
   if (aNum !== null && bNum !== null) {
@@ -565,7 +567,15 @@ const sortedData = computed(() => {
   return props.data
     .map((row, index) => ({ row, index }))
     .sort((a, b) => {
-      const cmp = compareSortValues(a.row?.[key], b.row?.[key])
+      const aValue = a.row?.[key]
+      const bValue = b.row?.[key]
+      const aEmpty = isNullishOrEmpty(aValue)
+      const bEmpty = isNullishOrEmpty(bValue)
+      if (aEmpty && bEmpty) return a.index - b.index
+      if (aEmpty) return 1
+      if (bEmpty) return -1
+
+      const cmp = compareSortValues(aValue, bValue)
       if (cmp !== 0) return order === 'asc' ? cmp : -cmp
       return a.index - b.index
     })

@@ -510,10 +510,10 @@
       callbackHint: 'If you are not redirected automatically, go back to the login page and try again.',
       callbackMissingToken: 'Missing login token, please try again.',
       backToLogin: 'Back to Login',
-      invitationRequired: 'This Linux.do account is not yet registered. The site requires an invitation code 鈥?please enter one to complete registration.',
+      invitationRequired: 'This Linux.do account is not yet registered. The site requires an invitation code - please enter one to complete registration.',
       invalidPendingToken: 'The registration token has expired. Please sign in with Linux.do again.',
       completeRegistration: 'Complete Registration',
-      completing: 'Completing registration鈥?,
+      completing: 'Completing registration...',
       completeRegistrationFailed: 'Registration failed. Please check your invitation code and try again.'
     },
     dingtalk: {
@@ -523,10 +523,10 @@
       callbackHint: 'If you are not redirected automatically, go back to the login page and try again.',
       callbackMissingToken: 'Missing login token, please try again.',
       backToLogin: 'Back to Login',
-      invitationRequired: 'This DingTalk account is not yet registered. The site requires an invitation code 鈥?please enter one to complete registration.',
+      invitationRequired: 'This DingTalk account is not yet registered. The site requires an invitation code - please enter one to complete registration.',
       invalidPendingToken: 'The registration token has expired. Please sign in with DingTalk again.',
       completeRegistration: 'Complete Registration',
-      completing: 'Completing registration鈥?,
+      completing: 'Completing registration...',
       completeRegistrationFailed: 'Registration failed. Please check your invitation code and try again.',
       createAccountTitle: 'Create DingTalk Account',
       registrationDisabledRedirectToBind: 'New account registration is currently disabled. Please bind to your existing account with its email and password.',
@@ -555,10 +555,10 @@
       callbackMissingToken: 'Missing login token, please try again.',
       backToLogin: 'Back to Login',
       invitationRequired:
-        'This {providerName} account is not yet registered. The site requires an invitation code 鈥?please enter one to complete registration.',
+        'This {providerName} account is not yet registered. The site requires an invitation code - please enter one to complete registration.',
       invalidPendingToken: 'The registration token has expired. Please sign in again.',
       completeRegistration: 'Complete Registration',
-      completing: 'Completing registration鈥?,
+      completing: 'Completing registration...',
       completeRegistrationFailed: 'Registration failed. Please check your invitation code and try again.'
     },
     oauthFlow: {
@@ -1700,7 +1700,7 @@
           line2: 'Click "Create API token", set permission to "Object Read & Write"',
           line3: 'Recommended: restrict to specific bucket for better security',
           line4: 'After creation, you will see the Access Key ID and Secret Access Key',
-          warning: 'The Secret Access Key is only shown once 鈥?copy and save it immediately!'
+          warning: 'The Secret Access Key is only shown once - copy and save it immediately!'
         },
         step3: {
           title: 'Get the S3 Endpoint',
@@ -1714,7 +1714,7 @@
           fromStep2: 'Value from Step 2',
           unchecked: 'Unchecked'
         },
-        freeTier: 'R2 Free Tier: 10GB storage + 1M Class A requests + 10M Class B requests per month 鈥?more than enough for database backups.'
+        freeTier: 'R2 Free Tier: 10GB storage + 1M Class A requests + 10M Class B requests per month - more than enough for database backups.'
       }
     },
 
@@ -2369,7 +2369,7 @@
         tooltipEdit: 'Select one or more groups of the same platform. After saving, current group accounts will be replaced with accounts from these groups (deduplicated).',
         selectPlaceholder: 'Select groups to copy accounts from...',
         hint: 'Multiple groups can be selected, accounts will be deduplicated',
-        hintEdit: '鈿狅笍 Warning: This will replace all existing account bindings'
+        hintEdit: 'Warning: This will replace all existing account bindings'
       },
       modelRouting: {
         title: 'Model Routing',
@@ -2548,12 +2548,12 @@
         defaultImagePrice: 'Default image price (fallback when no tier matches)',
         platformConfig: 'Platform Configuration',
         webSearchEmulation: 'Web Search Emulation',
-        webSearchEmulationHint: '鈿狅笍 When enabled, all accounts in this channel\'s Anthropic groups will intercept web_search requests. Use with caution.',
+        webSearchEmulationHint: 'Warning: When enabled, all accounts in this channel\'s Anthropic groups will intercept web_search requests. Use with caution.',
         webSearchEmulationGlobalDisabled: 'Please enable the global switch first in Settings 鈫?Gateway 鈫?Web Search Emulation',
         codexImageGenerationBridge: 'Codex Image Generation Bridge',
         codexImageGenerationBridgeHint: 'When enabled, Codex /responses text requests in OpenAI groups may be automatically given the image_generation tool. Keep off unless the routed accounts support image generation.',
         bedrockCCCompat: 'Bedrock CC Compatibility',
-        bedrockCCCompatHint: '鈿狅笍 When enabled, requests to Bedrock accounts in this channel will be transformed for Claude Code compatibility (thinking type conversion, tool_use ID sanitization).',
+        bedrockCCCompatHint: 'Warning: When enabled, requests to Bedrock accounts in this channel will be transformed for Claude Code compatibility (thinking type conversion, tool_use ID sanitization).',
         basicSettings: 'Basic Settings',
         addPlatform: 'Add Platform',
         noPlatforms: 'Click "Add Platform" to start configuring the channel',
@@ -3112,7 +3112,7 @@
       syncFromCrsTitle: 'Sync Accounts from CRS',
       syncFromCrsDesc:
         'Sync accounts from claude-relay-service (CRS) into this system (CRS is called server-to-server).',
-      crsVersionRequirement: '鈿狅笍 Note: CRS version must be 鈮?v1.1.240 to support this feature',
+      crsVersionRequirement: 'Note: CRS version must be >= v1.1.240 to support this feature',
       crsBaseUrl: 'CRS Base URL',
       crsBaseUrlPlaceholder: 'e.g. http://127.0.0.1:3000',
       crsUsername: 'Username',
@@ -3139,7 +3139,7 @@
       crsWillUpdate: 'Will update {count} existing accounts.',
       crsSelectedCount: '{count} new accounts selected',
       crsUpdateBehaviorNote:
-        'Existing accounts only sync fields returned by CRS; missing fields keep their current values. Credentials are merged by key 鈥?keys not returned by CRS are preserved. Proxies are kept when "Sync proxies" is unchecked.',
+        'Existing accounts only sync fields returned by CRS; missing fields keep their current values. Credentials are merged by key - keys not returned by CRS are preserved. Proxies are kept when "Sync proxies" is unchecked.',
       crsBack: 'Back',
       editAccount: 'Edit Account',
       deleteAccount: 'Delete Account',
@@ -3423,7 +3423,7 @@
       quotaWeeklyLimit: 'Weekly Limit',
       quotaWeeklyLimitHint: 'Automatically resets every 7 days from first usage.',
       quotaTotalLimit: 'Total Limit',
-      quotaTotalLimitHint: 'Cumulative spending limit. Does not auto-reset 鈥?use "Reset Quota" to clear.',
+      quotaTotalLimitHint: 'Cumulative spending limit. Does not auto-reset - use "Reset Quota" to clear.',
       quotaResetMode: 'Reset Mode',
       quotaResetModeRolling: 'Rolling Window',
       quotaResetModeFixed: 'Fixed Time',
@@ -3549,7 +3549,7 @@
         failed: 'Bulk update failed',
         noSelection: 'Please select accounts to edit',
         noFieldsSelected: 'Select at least one field to update',
-        mixedPlatformWarning: 'Selected accounts span multiple platforms ({platforms}). Model mapping presets shown are combined 鈥?ensure mappings are appropriate for each platform.'
+        mixedPlatformWarning: 'Selected accounts span multiple platforms ({platforms}). Model mapping presets shown are combined - ensure mappings are appropriate for each platform.'
       },
       bulkDeleteTitle: 'Bulk Delete Accounts',
       bulkDeleteConfirm: 'Delete the selected {count} account(s)? This action cannot be undone.',
@@ -4499,12 +4499,13 @@
       accountName: 'Account',
       accountPlatform: 'Platform',
       accountNotes: 'Notes',
-      projectMihomo: {
-        title: 'Mihomo Management',
-        manage: 'Mihomo Manager',
-        summary: 'Turn subscriptions into local multi-port proxy entries',
+      mihomo: {
+        title: 'Mihomo',
+        manage: 'Mihomo / Sources',
+        summary: 'Reuse subscription sources as Mihomo multi-port entries',
         summaryHint: '{count} listeners',
         protocolLabel: 'Protocol: {protocol}',
+        sourceHint: 'Project Mihomo now reuses the subscription sources below as its only input. There is no separate URL list anymore. Update the sources here, then save and sync to rebuild the Mihomo entries.',
         subscriptionUrls: 'Subscription URLs',
         subscriptionUrlsHint: 'One subscription URL per line. Sync writes the Mihomo config and creates local proxy entries.',
         targetHost: 'Proxy Target Host',
@@ -4533,7 +4534,7 @@
       subscriptions: {
         title: 'Subscription Sources',
         tab: 'Subscriptions',
-        modalHint: 'Subscription nodes are materialized as proxy entries and managed together with Mihomo.',
+        modalHint: 'Project Mihomo now reuses these subscription sources directly instead of keeping a second subscription list.',
         create: 'New Subscription',
         empty: 'No subscription sources',
         refreshInterval: 'Refresh interval: {hours}h',
@@ -4862,9 +4863,9 @@
       },
       operators: {
         gt: '>',
-        gte: '鈮?,
+        gte: '>=',
         lt: '<',
-        lte: '鈮?,
+        lte: '<=',
         eq: '='
       },
       targetingSummaryAll: 'All users',
@@ -5107,7 +5108,7 @@
       db: 'DB',
       goroutines: 'Goroutines',
       jobs: 'Jobs',
-      jobsHelp: 'Click 鈥淒etails鈥?to view job heartbeats and recent errors',
+      jobsHelp: 'Click "Details" to view job heartbeats and recent errors',
       active: 'active',
       idle: 'idle',
       waiting: 'waiting',
@@ -5372,7 +5373,7 @@
           expand: 'Response (click to expand)',
           collapse: 'Response (click to collapse)'
         },
-        loading: 'Loading鈥?,
+        loading: 'Loading...',
         requestId: 'Request ID',
         time: 'Time',
         phase: 'Phase',
@@ -5654,7 +5655,7 @@
           lockKeyHint: 'Recommended: start with "{prefix}" to avoid conflicts',
           lockTtlRange: 'Distributed lock TTL must be between 1 and 86400 seconds',
           slaMinPercentRange: 'SLA minimum percentage must be between 0 and 100',
-          ttftP99MaxRange: 'TTFT P99 maximum must be a number 鈮?0',
+          ttftP99MaxRange: 'TTFT P99 maximum must be a number >= 0',
           requestErrorRateMaxRange: 'Request error rate maximum must be between 0 and 100',
           upstreamErrorRateMaxRange: 'Upstream error rate maximum must be between 0 and 100'
         }
@@ -5690,11 +5691,11 @@
           alertRecipientsRequired: 'Alert emails are enabled but no recipients are configured',
           reportRecipientsRequired: 'Report emails are enabled but no recipients are configured',
           invalidRecipients: 'One or more recipient emails are invalid',
-          rateLimitRange: 'Rate limit per hour must be a number 鈮?0',
+          rateLimitRange: 'Rate limit per hour must be a number >= 0',
           batchWindowRange: 'Batch window must be between 0 and 86400 seconds',
           cronRequired: 'A cron expression is required when schedule is enabled',
           cronFormat: 'Cron expression format looks invalid (expected at least 5 parts)',
-          digestMinCountRange: 'Min errors for digest must be a number 鈮?0',
+          digestMinCountRange: 'Min errors for digest must be a number >= 0',
           accountHealthThresholdRange: 'Account health threshold must be between 0 and 100'
         }
       },
@@ -5784,7 +5785,7 @@
           slowTailTempUnschedMinutesRange: 'Slow tail temp unsched duration must be between 1 and 1440 minutes',
           slowTailMaxAccountsPerRunRange: 'Slow tail max isolated accounts per run must be between 1 and 100',
           slaMinPercentRange: 'SLA minimum percentage must be between 0 and 100',
-          ttftP99MaxRange: 'TTFT P99 maximum must be a number 鈮?0',
+          ttftP99MaxRange: 'TTFT P99 maximum must be a number >= 0',
           requestErrorRateMaxRange: 'Request error rate maximum must be between 0 and 100',
           upstreamErrorRateMaxRange: 'Upstream error rate maximum must be between 0 and 100'
         }
@@ -5833,7 +5834,7 @@
         errorTrend: 'Error counts over time (SLA scope excludes business limits; upstream excludes 429/529).',
         errorDistribution: 'Error distribution by status code (SLA scope, excluding business limits).',
         goroutines:
-          'Number of Go runtime goroutines (lightweight threads). There is no absolute "safe" number鈥攗se your historical baseline. Heuristic: <2k is common; 2k鈥?k watch; >8k plus rising queue/latency often suggests blocking/leaks.',
+          'Number of Go runtime goroutines (lightweight threads). There is no absolute "safe" number - use your historical baseline. Heuristic: <2k is common; 2k-8k needs watching; >8k plus rising queue/latency often suggests blocking/leaks.',
         cpu: 'CPU usage percentage, showing system processor load.',
         memory: 'Memory usage, including used and total available memory.',
         db: 'Database connection pool status, including active, idle, and waiting connections.',
@@ -5882,7 +5883,7 @@
           enabled: 'Enable Channel Monitor',
           enabledHint: 'Disabling stops background checks; existing history is preserved.',
           defaultInterval: 'Default check interval (seconds)',
-          defaultIntervalHint: 'Pre-fills the interval when creating a new monitor; each monitor can override it. Range 15 鈥?3600.',
+          defaultIntervalHint: 'Pre-fills the interval when creating a new monitor; each monitor can override it. Range 15-3600.',
         },
         availableChannels: {
           title: 'Available Channels',
@@ -5900,7 +5901,7 @@
         },
         affiliate: {
           title: 'Affiliate (Invite Rebate)',
-          description: 'Existing users invite new ones; the inviter earns a percentage rebate on the invitee鈥檚 recharges. Disabled by default.',
+          description: 'Existing users invite new ones; the inviter earns a percentage rebate on the invitee\'s recharges. Disabled by default.',
           enabled: 'Enable Affiliate',
           enabledHint: 'When off, the affiliate menu is hidden, the aff parameter is ignored at signup, and new recharges generate no rebate. Existing rebate balances can still be transferred.',
           rebateRate: 'Global Rebate Rate',
@@ -5924,7 +5925,7 @@
             resetConfirm: 'Reset this user\'s invite code to a new system-generated code? Previously shared invite links will stop working.',
             clearConfirm: 'Clear this user\'s exclusive rebate rate? They will fall back to the global rate.',
             resetTitle: 'Reset Custom Settings',
-            resetMessage: 'Reset all custom settings for {email}?\n鈥?The exclusive rebate rate will be cleared (fall back to the global rate)\n鈥?The invite code will be regenerated as a new system code (previously shared links will stop working)',
+            resetMessage: 'Reset all custom settings for {email}?\n- The exclusive rebate rate will be cleared (fall back to the global rate)\n- The invite code will be regenerated as a new system code (previously shared links will stop working)',
             totalLabel: '{total} total',
             col: {
               email: 'Email',
@@ -6278,7 +6279,7 @@
         homeContent: 'Home Page Content',
         homeContentPlaceholder: 'Enter custom content for the home page. Supports Markdown & HTML. If a URL is entered, it will be displayed as an iframe.',
         homeContentHint: 'Customize the home page content. Supports Markdown/HTML. If you enter a URL (starting with http:// or https://), it will be used as an iframe src to embed an external page. When set, the default status information will no longer be displayed.',
-        homeContentIframeWarning: '鈿狅笍 iframe mode note: Some websites have X-Frame-Options or CSP security policies that prevent embedding in iframes. If the page appears blank or shows an error, please verify the target website allows embedding, or consider using HTML mode to build your own content.',
+        homeContentIframeWarning: 'iframe mode note: Some websites have X-Frame-Options or CSP security policies that prevent embedding in iframes. If the page appears blank or shows an error, please verify the target website allows embedding, or consider using HTML mode to build your own content.',
         homeNavLeaderboardEnabled: 'Show Leaderboard Link',
         homeNavLeaderboardEnabledHint: 'Show or hide the Leaderboard link in the public home page header.',
         homeNavKeyUsageEnabled: 'Show Key Usage Link',
@@ -6311,7 +6312,7 @@
         urlPlaceholder: 'https://example.com/purchase',
         urlHint: 'Must be an absolute http(s) URL',
         iframeWarning:
-          '鈿狅笍 iframe note: Some websites block embedding via X-Frame-Options or CSP (frame-ancestors). If the page is blank, provide an "Open in new tab" alternative.',
+          'iframe note: Some websites block embedding via X-Frame-Options or CSP (frame-ancestors). If the page is blank, provide an "Open in new tab" alternative.',
         integrationDoc: 'Payment Integration Docs',
         integrationDocHint: 'Covers endpoint specs, idempotency semantics, and code samples'
       },
@@ -6759,7 +6760,7 @@
         thinkingSignature: 'Thinking Signature Rectifier',
         thinkingSignatureHint: 'Automatically strip signatures and retry when upstream returns thinking block signature validation errors',
         thinkingBudget: 'Thinking Budget Rectifier',
-        thinkingBudgetHint: 'Automatically set budget to 32000 and retry when upstream returns budget_tokens constraint error (鈮?024)',
+        thinkingBudgetHint: 'Automatically set budget to 32000 and retry when upstream returns budget_tokens constraint error (>=1024)',
         apikeySignature: 'API Key Signature Rectifier',
         apikeySignatureHint:
           'Automatically strip signatures and retry when API Key accounts receive signature-related errors (built-in patterns always apply)',
@@ -7205,132 +7206,132 @@
     // Admin tour steps
     admin: {
       welcome: {
-        title: '馃憢 Welcome to Sub2API',
-        description: '<div style="line-height: 1.8;"><p style="margin-bottom: 16px;">Sub2API is a powerful AI service gateway platform that helps you easily manage and distribute AI services.</p><p style="margin-bottom: 12px;"><b>馃幆 Core Features:</b></p><ul style="margin-left: 20px; margin-bottom: 16px;"><li>馃摝 <b>Group Management</b> - Create service tiers (VIP, Free Trial, etc.)</li><li>馃敆 <b>Account Pool</b> - Connect multiple upstream AI service accounts</li><li>馃攽 <b>Key Distribution</b> - Generate independent API Keys for users</li><li>馃挵 <b>Billing Control</b> - Flexible rate and quota management</li></ul><p style="color: #10b981; font-weight: 600;">Let\'s complete the initial setup in 3 minutes 鈫?/p></div>',
-        nextBtn: 'Start Setup 馃殌',
+        title: 'Welcome to Sub2API',
+        description: '<div style="line-height: 1.8;"><p style="margin-bottom: 16px;">Sub2API is a powerful AI service gateway platform that helps you easily manage and distribute AI services.</p><p style="margin-bottom: 12px;"><b>Core Features:</b></p><ul style="margin-left: 20px; margin-bottom: 16px;"><li><b>Group Management</b> - Create service tiers (VIP, Free Trial, etc.)</li><li><b>Account Pool</b> - Connect multiple upstream AI service accounts</li><li><b>Key Distribution</b> - Generate independent API keys for users</li><li><b>Billing Control</b> - Flexible rate and quota management</li></ul><p style="color: #10b981; font-weight: 600;">Let\'s complete the initial setup in 3 minutes.</p></div>',
+        nextBtn: 'Start Setup',
         prevBtn: 'Skip'
       },
       groupManage: {
-        title: '馃摝 Step 1: Group Management',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;"><b>What is a Group?</b></p><p style="margin-bottom: 12px;">Groups are the core concept of Sub2API, like a "service package":</p><ul style="margin-left: 20px; margin-bottom: 12px; font-size: 13px;"><li>馃幆 Each group can contain multiple upstream accounts</li><li>馃挵 Each group has independent billing multiplier</li><li>馃懃 Can be set as public or exclusive</li></ul><p style="margin-top: 12px; padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Example:</b> You can create "VIP Premium" (high rate) and "Free Trial" (low rate) groups</p><p style="margin-top: 16px; color: #10b981; font-weight: 600;">馃憠 Click "Group Management" on the left sidebar</p></div>'
+        title: 'Step 1: Group Management',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;"><b>What is a Group?</b></p><p style="margin-bottom: 12px;">Groups are the core concept of Sub2API, like a "service package":</p><ul style="margin-left: 20px; margin-bottom: 12px; font-size: 13px;"><li>Each group can contain multiple upstream accounts</li><li>Each group has an independent billing multiplier</li><li>Each group can be public or exclusive</li></ul><p style="margin-top: 12px; padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Example:</b> You can create "VIP Premium" (high rate) and "Free Trial" (low rate) groups</p><p style="margin-top: 16px; color: #10b981; font-weight: 600;">Click "Group Management" on the left sidebar</p></div>'
       },
       createGroup: {
-        title: '鉃?Create New Group',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Let\'s create your first group.</p><p style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃摑 Tip:</b> Recommend creating a test group first to familiarize yourself with the process</p><p style="color: #10b981; font-weight: 600;">馃憠 Click the "Create Group" button</p></div>'
+        title: 'Create New Group',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Let\'s create your first group.</p><p style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Tip:</b> Recommend creating a test group first to familiarize yourself with the process</p><p style="color: #10b981; font-weight: 600;">Click the "Create Group" button</p></div>'
       },
       groupName: {
-        title: '鉁忥笍 1. Group Name',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Give your group an easy-to-identify name.</p><div style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃挕 Naming Suggestions:</b><ul style="margin: 8px 0 0 16px;"><li>"Test Group" - For testing</li><li>"VIP Premium" - High-quality service</li><li>"Free Trial" - Trial version</li></ul></div><p style="font-size: 13px; color: #6b7280;">Click "Next" when done</p></div>',
+        title: '1. Group Name',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Give your group an easy-to-identify name.</p><div style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Naming Suggestions:</b><ul style="margin: 8px 0 0 16px;"><li>"Test Group" - For testing</li><li>"VIP Premium" - High-quality service</li><li>"Free Trial" - Trial version</li></ul></div><p style="font-size: 13px; color: #6b7280;">Click "Next" when done</p></div>',
         nextBtn: 'Next'
       },
       groupPlatform: {
-        title: '馃 2. Select Platform',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Choose the AI platform this group supports.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃搶 Platform Guide:</b><ul style="margin: 8px 0 0 16px;"><li><b>Anthropic</b> - Claude models</li><li><b>OpenAI</b> - GPT models</li><li><b>Google</b> - Gemini models</li></ul></div><p style="font-size: 13px; color: #6b7280;">One group can only have one platform</p></div>',
+        title: '2. Select Platform',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Choose the AI platform this group supports.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Platform Guide:</b><ul style="margin: 8px 0 0 16px;"><li><b>Anthropic</b> - Claude models</li><li><b>OpenAI</b> - GPT models</li><li><b>Google</b> - Gemini models</li></ul></div><p style="font-size: 13px; color: #6b7280;">One group can only have one platform</p></div>',
         nextBtn: 'Next'
       },
       groupMultiplier: {
-        title: '馃挵 3. Rate Multiplier',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Set the billing multiplier to control user charges.</p><div style="padding: 8px 12px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>鈿欙笍 Billing Rules:</b><ul style="margin: 8px 0 0 16px;"><li><b>1.0</b> - Original price (cost price)</li><li><b>1.5</b> - User consumes $1, charged $1.5</li><li><b>2.0</b> - User consumes $1, charged $2</li><li><b>0.8</b> - Subsidy mode (loss-making)</li></ul></div><p style="font-size: 13px; color: #6b7280;">Recommend setting test group to 1.0</p></div>',
+        title: '3. Rate Multiplier',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Set the billing multiplier to control user charges.</p><div style="padding: 8px 12px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Billing Rules:</b><ul style="margin: 8px 0 0 16px;"><li><b>1.0</b> - Original price (cost price)</li><li><b>1.5</b> - User consumes $1, charged $1.5</li><li><b>2.0</b> - User consumes $1, charged $2</li><li><b>0.8</b> - Subsidy mode (loss-making)</li></ul></div><p style="font-size: 13px; color: #6b7280;">Recommend setting test group to 1.0</p></div>',
         nextBtn: 'Next'
       },
       groupExclusive: {
-        title: '馃敀 4. Exclusive Group (Optional)',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Control group visibility and access permissions.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃攼 Permission Guide:</b><ul style="margin: 8px 0 0 16px;"><li><b>Off</b> - Public group, visible to all users</li><li><b>On</b> - Exclusive group, only for specified users</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Use Cases:</b> VIP exclusive, internal testing, special customers</p></div>',
+        title: '4. Exclusive Group (Optional)',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Control group visibility and access permissions.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Permission Guide:</b><ul style="margin: 8px 0 0 16px;"><li><b>Off</b> - Public group, visible to all users</li><li><b>On</b> - Exclusive group, only for specified users</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Use Cases:</b> VIP exclusive, internal testing, special customers</p></div>',
         nextBtn: 'Next'
       },
       groupSubmit: {
-        title: '鉁?Save Group',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Confirm the information and click create to save the group.</p><p style="padding: 8px 12px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>鈿狅笍 Note:</b> Platform type cannot be changed after creation, but other settings can be edited anytime</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃搶 Next Step:</b> After creation, we\'ll add upstream accounts to this group</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">馃憠 Click "Create" button</p></div>'
+        title: 'Save Group',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Confirm the information and click create to save the group.</p><p style="padding: 8px 12px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Note:</b> Platform type cannot be changed after creation, but other settings can be edited anytime</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Next Step:</b> After creation, we\'ll add upstream accounts to this group</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">Click the "Create" button</p></div>'
       },
       accountManage: {
-        title: '馃敆 Step 2: Add Account',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;"><b>Great! Group created successfully 馃帀</b></p><p style="margin-bottom: 12px;">Now add upstream AI service accounts to enable actual service delivery.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃攽 Account Purpose:</b><ul style="margin: 8px 0 0 16px;"><li>Connect to upstream AI services (Claude, GPT, etc.)</li><li>One group can contain multiple accounts (load balancing)</li><li>Supports OAuth and Session Key methods</li></ul></div><p style="margin-top: 16px; color: #10b981; font-weight: 600;">馃憠 Click "Account Management" on the left sidebar</p></div>'
+        title: 'Step 2: Add Account',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;"><b>Great! Group created successfully.</b></p><p style="margin-bottom: 12px;">Now add upstream AI service accounts to enable actual service delivery.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Account Purpose:</b><ul style="margin: 8px 0 0 16px;"><li>Connect to upstream AI services (Claude, GPT, etc.)</li><li>One group can contain multiple accounts (load balancing)</li><li>Supports OAuth and Session Key methods</li></ul></div><p style="margin-top: 16px; color: #10b981; font-weight: 600;">Click "Account Management" on the left sidebar</p></div>'
       },
       createAccount: {
-        title: '鉃?Add New Account',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Click the button to start adding your first upstream account.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Tip:</b> Recommend using OAuth method - more secure and no manual key extraction needed</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">馃憠 Click "Add Account" button</p></div>'
+        title: 'Add New Account',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Click the button to start adding your first upstream account.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Tip:</b> Recommend using OAuth method - more secure and no manual key extraction needed</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">Click "Add Account" button</p></div>'
       },
       accountName: {
-        title: '鉁忥笍 1. Account Name',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Set an easy-to-identify name for the account.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Naming Suggestions:</b> "Claude Main", "GPT Backup 1", "Test Account", etc.</p></div>',
+        title: '1. Account Name',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Set an easy-to-identify name for the account.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Naming Suggestions:</b> "Claude Main", "GPT Backup 1", "Test Account", etc.</p></div>',
         nextBtn: 'Next'
       },
       accountPlatform: {
-        title: '馃 2. Select Platform',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Choose the service provider platform for this account.</p><p style="padding: 8px 12px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px;"><b>鈿狅笍 Important:</b> Platform must match the group you just created</p></div>',
+        title: '2. Select Platform',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Choose the service provider platform for this account.</p><p style="padding: 8px 12px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px;"><b>Important:</b> Platform must match the group you just created</p></div>',
         nextBtn: 'Next'
       },
       accountType: {
-        title: '馃攼 3. Authorization Method',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Choose the account authorization method.</p><div style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>鉁?Recommended: OAuth Method</b><ul style="margin: 8px 0 0 16px;"><li>No manual key extraction needed</li><li>More secure with auto-refresh support</li><li>Works with Claude Code, ChatGPT OAuth</li></ul></div><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;"><b>馃搶 Session Key Method</b><ul style="margin: 8px 0 0 16px;"><li>Requires manual extraction from browser</li><li>May need periodic updates</li><li>For platforms without OAuth support</li></ul></div></div>',
+        title: '3. Authorization Method',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Choose the account authorization method.</p><div style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Recommended: OAuth Method</b><ul style="margin: 8px 0 0 16px;"><li>No manual key extraction needed</li><li>More secure with auto-refresh support</li><li>Works with Claude Code and ChatGPT OAuth</li></ul></div><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;"><b>Session Key Method</b><ul style="margin: 8px 0 0 16px;"><li>Requires manual extraction from browser</li><li>May need periodic updates</li><li>For platforms without OAuth support</li></ul></div></div>',
         nextBtn: 'Next'
       },
       accountPriority: {
-        title: '鈿栵笍 4. Priority (Optional)',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Set the account call priority.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃搳 Priority Rules:</b><ul style="margin: 8px 0 0 16px;"><li>Higher number = higher priority</li><li>System uses high-value accounts first</li><li>Same priority = random selection</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Use Case:</b> Set main account to higher value, backup accounts to lower value</p></div>',
+        title: '4. Priority (Optional)',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Set the account call priority.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Priority Rules:</b><ul style="margin: 8px 0 0 16px;"><li>Higher number = higher priority</li><li>System uses high-value accounts first</li><li>Same priority = random selection</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Use Case:</b> Set the main account higher and backup accounts lower</p></div>',
         nextBtn: 'Next'
       },
       accountGroups: {
-        title: '馃幆 5. Assign Groups',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;"><b>Key Step!</b> Assign the account to the group you just created.</p><div style="padding: 8px 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>鈿狅笍 Important Reminder:</b><ul style="margin: 8px 0 0 16px;"><li>Must select at least one group</li><li>Unassigned accounts cannot be used</li><li>One account can be assigned to multiple groups</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Tip:</b> Select the test group you just created</p></div>',
+        title: '5. Assign Groups',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;"><b>Key Step!</b> Assign the account to the group you just created.</p><div style="padding: 8px 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Important Reminder:</b><ul style="margin: 8px 0 0 16px;"><li>Must select at least one group</li><li>Unassigned accounts cannot be used</li><li>One account can be assigned to multiple groups</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Tip:</b> Select the test group you just created</p></div>',
         nextBtn: 'Next'
       },
       accountSubmit: {
-        title: '鉁?Save Account',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Confirm the information and click save.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃搶 OAuth Flow:</b><ul style="margin: 8px 0 0 16px;"><li>Will redirect to service provider page after clicking save</li><li>Complete login and authorization on provider page</li><li>Auto-return after successful authorization</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃搶 Next Step:</b> After adding account, we\'ll create an API key</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">馃憠 Click "Save" button</p></div>'
+        title: 'Save Account',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Confirm the information and click save.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>OAuth Flow:</b><ul style="margin: 8px 0 0 16px;"><li>Will redirect to the service provider page after clicking save</li><li>Complete login and authorization on the provider page</li><li>Auto-return after successful authorization</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Next Step:</b> After adding the account, we\'ll create an API key</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">Click the "Save" button</p></div>'
       },
       keyManage: {
-        title: '馃攽 Step 3: Generate Key',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;"><b>Congratulations! Account setup complete 馃帀</b></p><p style="margin-bottom: 12px;">Final step: generate an API Key to test if the service works properly.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃攽 API Key Purpose:</b><ul style="margin: 8px 0 0 16px;"><li>Credential for calling AI services</li><li>Each key is bound to one group</li><li>Can set quota and expiration</li><li>Supports independent usage statistics</li></ul></div><p style="margin-top: 16px; color: #10b981; font-weight: 600;">馃憠 Click "API Keys" on the left sidebar</p></div>'
+        title: 'Step 3: Generate Key',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;"><b>Congratulations! Account setup is complete.</b></p><p style="margin-bottom: 12px;">Final step: generate an API key to test if the service works properly.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>API Key Purpose:</b><ul style="margin: 8px 0 0 16px;"><li>Credential for calling AI services</li><li>Each key is bound to one group</li><li>Can set quota and expiration</li><li>Supports independent usage statistics</li></ul></div><p style="margin-top: 16px; color: #10b981; font-weight: 600;">Click "API Keys" on the left sidebar</p></div>'
       },
       createKey: {
-        title: '鉃?Create Key',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Click the button to create your first API Key.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Tip:</b> Copy and save immediately after creation - key is only shown once</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">馃憠 Click "Create Key" button</p></div>'
+        title: 'Create Key',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Click the button to create your first API key.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Tip:</b> Copy and save it immediately after creation - the key is only shown once</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">Click the "Create Key" button</p></div>'
       },
       keyName: {
-        title: '鉁忥笍 1. Key Name',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Set an easy-to-manage name for the key.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Naming Suggestions:</b> "Test Key", "Production", "Mobile", etc.</p></div>',
+        title: '1. Key Name',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Set an easy-to-manage name for the key.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Naming Suggestions:</b> "Test Key", "Production", "Mobile", etc.</p></div>',
         nextBtn: 'Next'
       },
       keyGroup: {
-        title: '馃幆 2. Select Group',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Select the group you just configured.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃搶 Group Determines:</b><ul style="margin: 8px 0 0 16px;"><li>Which accounts this key can use</li><li>What billing multiplier applies</li><li>Whether it\'s an exclusive key</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Tip:</b> Select the test group you just created</p></div>',
+        title: '2. Select Group',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Select the group you just configured.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Group Determines:</b><ul style="margin: 8px 0 0 16px;"><li>Which accounts this key can use</li><li>What billing multiplier applies</li><li>Whether it\'s an exclusive key</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Tip:</b> Select the test group you just created</p></div>',
         nextBtn: 'Next'
       },
       keySubmit: {
-        title: '馃帀 Generate and Copy',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">System will generate a complete API Key after clicking create.</p><div style="padding: 8px 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>鈿狅笍 Important Reminder:</b><ul style="margin: 8px 0 0 16px;"><li>Key is only shown once, copy immediately</li><li>Need to regenerate if lost</li><li>Keep it safe, don\'t share with others</li></ul></div><div style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>馃殌 Next Steps:</b><ul style="margin: 8px 0 0 16px;"><li>Copy the generated sk-xxx key</li><li>Use in any OpenAI-compatible client</li><li>Start experiencing AI services!</li></ul></div><p style="margin-top: 12px; color: #10b981; font-weight: 600;">馃憠 Click "Create" button</p></div>'
+        title: 'Generate and Copy',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">System will generate a complete API Key after clicking create.</p><div style="padding: 8px 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Important Reminder:</b><ul style="margin: 8px 0 0 16px;"><li>Key is only shown once, copy immediately</li><li>Need to regenerate if lost</li><li>Keep it safe, don\'t share with others</li></ul></div><div style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Next Steps:</b><ul style="margin: 8px 0 0 16px;"><li>Copy the generated sk-xxx key</li><li>Use in any OpenAI-compatible client</li><li>Start experiencing AI services!</li></ul></div><p style="margin-top: 12px; color: #10b981; font-weight: 600;">Click the "Create" button</p></div>'
       }
     },
     // User tour steps
     user: {
       welcome: {
-        title: '馃憢 Welcome to Sub2API',
-        description: '<div style="line-height: 1.8;"><p style="margin-bottom: 16px;">Hello! Welcome to the Sub2API AI service platform.</p><p style="margin-bottom: 12px;"><b>馃幆 Quick Start:</b></p><ul style="margin-left: 20px; margin-bottom: 16px;"><li>馃攽 Create API Key</li><li>馃搵 Copy key to your application</li><li>馃殌 Start using AI services</li></ul><p style="color: #10b981; font-weight: 600;">Just 1 minute, let\'s get started 鈫?/p></div>',
-        nextBtn: 'Start 馃殌',
+        title: 'Welcome to Sub2API',
+        description: '<div style="line-height: 1.8;"><p style="margin-bottom: 16px;">Hello! Welcome to the Sub2API AI service platform.</p><p style="margin-bottom: 12px;"><b>Quick Start:</b></p><ul style="margin-left: 20px; margin-bottom: 16px;"><li>Create an API key</li><li>Copy the key to your application</li><li>Start using AI services</li></ul><p style="color: #10b981; font-weight: 600;">Just 1 minute and you are ready to go.</p></div>',
+        nextBtn: 'Start',
         prevBtn: 'Skip'
       },
       keyManage: {
-        title: '馃攽 API Key Management',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Manage all your API access keys here.</p><p style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;"><b>馃搶 What is an API Key?</b><br/>An API key is your credential for accessing AI services, like a key that allows your application to call AI capabilities.</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">馃憠 Click to enter key page</p></div>'
+        title: 'API Key Management',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Manage all your API access keys here.</p><p style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;"><b>What is an API Key?</b><br/>An API key is your credential for accessing AI services, like a key that allows your application to call AI capabilities.</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">Click to enter the key page</p></div>'
       },
       createKey: {
-        title: '鉃?Create New Key',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Click the button to create your first API key.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Tip:</b> Key is only shown once after creation, make sure to copy and save</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">馃憠 Click "Create Key"</p></div>'
+        title: 'Create New Key',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Click the button to create your first API key.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Tip:</b> The key is only shown once after creation, so make sure to copy and save it</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">Click "Create Key"</p></div>'
       },
       keyName: {
-        title: '鉁忥笍 Key Name',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Give your key an easy-to-identify name.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃挕 Examples:</b> "My First Key", "For Testing", etc.</p></div>',
+        title: 'Key Name',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Give your key an easy-to-identify name.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>Examples:</b> "My First Key", "For Testing", etc.</p></div>',
         nextBtn: 'Next'
       },
       keyGroup: {
-        title: '馃幆 Select Group',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Select the service group assigned by the administrator.</p><p style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;"><b>馃搶 Group Info:</b><br/>Different groups may have different service quality and billing rates, choose according to your needs.</p></div>',
+        title: 'Select Group',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Select the service group assigned by the administrator.</p><p style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;"><b>Group Info:</b><br/>Different groups may have different service quality and billing rates, choose according to your needs.</p></div>',
         nextBtn: 'Next'
       },
       keySubmit: {
-        title: '馃帀 Complete Creation',
-        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Click to confirm and create your API key.</p><div style="padding: 8px 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>鈿狅笍 Important:</b><ul style="margin: 8px 0 0 16px;"><li>Copy the key (sk-xxx) immediately after creation</li><li>Key is only shown once, need to regenerate if lost</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>馃殌 How to Use:</b><br/>Configure the key in any OpenAI-compatible client (like ChatBox, OpenCat, etc.) and start using!</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">馃憠 Click "Create" button</p></div>'
+        title: 'Complete Creation',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Click to confirm and create your API key.</p><div style="padding: 8px 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>Important:</b><ul style="margin: 8px 0 0 16px;"><li>Copy the key (sk-xxx) immediately after creation</li><li>Key is only shown once, need to regenerate if lost</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>How to Use:</b><br/>Configure the key in any OpenAI-compatible client (like ChatBox, OpenCat, etc.) and start using!</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">Click the "Create" button</p></div>'
       }
     }
   },
@@ -7565,7 +7566,7 @@
       deductBalanceHint: 'Subtract recharged amount from user balance',
       userBalance: 'User Balance',
       orderAmount: 'Order Amount',
-      insufficientBalance: 'Insufficient balance 鈥?will deduct to $0',
+      insufficientBalance: 'Insufficient balance - will deduct to $0',
       noDeduction: 'Will NOT deduct user balance',
       forceRefund: 'Force refund (ignore balance check)',
       orderCancelled: 'Order Cancelled',

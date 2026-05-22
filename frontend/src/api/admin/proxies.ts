@@ -8,9 +8,9 @@ import type {
   Proxy,
   ProxyAccountSummary,
   ProxyQualityCheckResult,
-  ProjectMihomoSettings,
-  ProjectMihomoStatus,
-  ProjectMihomoSyncResult,
+  MihomoSettings,
+  MihomoStatus,
+  MihomoSyncResult,
   AssignProxyAccountsRequest,
   ProxyAccountAssignmentResult,
   ProxyUnassignAccountsResult,
@@ -300,18 +300,18 @@ export async function importData(payload: {
   return data
 }
 
-export async function getProjectMihomo(): Promise<ProjectMihomoStatus> {
-  const { data } = await apiClient.get<ProjectMihomoStatus>('/admin/proxies/project-mihomo')
+export async function getMihomo(): Promise<MihomoStatus> {
+  const { data } = await apiClient.get<MihomoStatus>('/admin/proxies/mihomo')
   return data
 }
 
-export async function updateProjectMihomo(payload: ProjectMihomoSettings): Promise<ProjectMihomoSettings> {
-  const { data } = await apiClient.put<ProjectMihomoSettings>('/admin/proxies/project-mihomo', payload)
+export async function updateMihomo(payload: MihomoSettings): Promise<MihomoSettings> {
+  const { data } = await apiClient.put<MihomoSettings>('/admin/proxies/mihomo', payload)
   return data
 }
 
-export async function syncProjectMihomo(payload: ProjectMihomoSettings): Promise<ProjectMihomoSyncResult> {
-  const { data } = await apiClient.post<ProjectMihomoSyncResult>('/admin/proxies/project-mihomo/sync', payload)
+export async function syncMihomo(payload: MihomoSettings): Promise<MihomoSyncResult> {
+  const { data } = await apiClient.post<MihomoSyncResult>('/admin/proxies/mihomo/sync', payload)
   return data
 }
 
@@ -336,9 +336,9 @@ export const proxiesAPI = {
   batchDelete,
   exportData,
   importData,
-  getProjectMihomo,
-  updateProjectMihomo,
-  syncProjectMihomo
+  getMihomo,
+  updateMihomo,
+  syncMihomo
 }
 
 export default proxiesAPI

@@ -9,6 +9,20 @@ vi.mock('@/api/admin/system', () => ({
 vi.mock('@/api/auth', () => ({
   getPublicSettings: vi.fn()
 }))
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string, params?: Record<string, unknown>) => {
+        if (key === 'admin.accounts.bulkActions.partialSuccess') {
+          return `partial ${params?.success}/${params?.failed}`
+        }
+        return key
+      }
+    })
+  }
+})
 
 describe('useAccountBulkOperations', () => {
   let appStore: ReturnType<typeof useAppStore>
@@ -243,4 +257,3 @@ describe('useAccountBulkOperations', () => {
     })
   })
 })
-

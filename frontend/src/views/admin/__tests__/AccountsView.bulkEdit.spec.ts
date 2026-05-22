@@ -334,8 +334,6 @@ describe('admin AccountsView bulk edit scope', () => {
   })
 
   it('keeps draining when new 401 deletions arrive during drain shutdown', async () => {
-    let wrapper: ReturnType<typeof mount>
-
     deleteAccount.mockImplementationOnce(() => {
       const firstDelete = Promise.resolve({ message: 'ok' })
       firstDelete.then(() => Promise.resolve().then(() => (wrapper.vm as any).enqueueBatchTestDelete(4020)))
@@ -343,7 +341,7 @@ describe('admin AccountsView bulk edit scope', () => {
     })
     deleteAccount.mockResolvedValueOnce({ message: 'ok' })
 
-    wrapper = mount(AccountsView, {
+    const wrapper = mount(AccountsView, {
       global: {
         stubs: {
           AppLayout: { template: '<div><slot /></div>' },

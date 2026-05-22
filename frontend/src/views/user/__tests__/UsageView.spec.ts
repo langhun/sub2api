@@ -216,6 +216,54 @@ describe('user UsageView tooltip', () => {
     expect(text).toContain('$30.0000 / 1M tokens')
   })
 
+  it('loads all api key pages for the filter options', async () => {
+    query.mockResolvedValue({
+      items: [],
+      total: 0,
+      pages: 1,
+    })
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    })
+    list
+      .mockResolvedValueOnce({
+        items: [{ id: 1, name: 'key-a' }],
+        total: 2,
+        pages: 2,
+      })
+      .mockResolvedValueOnce({
+        items: [{ id: 2, name: 'key-b' }],
+        total: 2,
+        pages: 2,
+      })
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          DataTable: DataTableStub,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    const setupState = (wrapper.vm as any).$?.setupState
+    expect(list).toHaveBeenNthCalledWith(1, 1, 100)
+    expect(list).toHaveBeenNthCalledWith(2, 2, 100)
+    expect(setupState.apiKeys.map((item: { name: string }) => item.name)).toEqual(['key-a', 'key-b'])
+  })
+
   it('exports csv with input and output unit price columns', async () => {
     const exportedLogs = [
       {

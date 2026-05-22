@@ -839,11 +839,7 @@ export interface ProxyQualityCheckResult {
   items: ProxyQualityCheckItem[]
 }
 
-export interface ProjectMihomoSettings {
-  subscription_url: string
-  subscription_urls: string[]
-  subscription_user_agent: string
-  update_interval: number
+export interface MihomoSettings {
   protocol: ProxyProtocol
   target_host: string
   start_port: number
@@ -852,25 +848,27 @@ export interface ProjectMihomoSettings {
   controller_secret: string
   proxy_name_prefix: string
   listener_regions: string[]
+  auto_optimize: boolean
+  country_filter: string
 }
 
-export interface ProjectMihomoProxy {
+export interface MihomoProxy {
   name: string
   protocol: ProxyProtocol
   host: string
   port: number
 }
 
-export interface ProjectMihomoStatus {
-  settings: ProjectMihomoSettings
+export interface MihomoStatus {
+  settings: MihomoSettings
   config_path: string
-  proxies: ProjectMihomoProxy[]
+  proxies: MihomoProxy[]
   available_regions: string[]
 }
 
-export interface ProjectMihomoSyncResult {
+export interface MihomoSyncResult {
   config_path: string
-  proxies: ProjectMihomoProxy[]
+  proxies: MihomoProxy[]
   created: number
   reused: number
   reloaded: boolean

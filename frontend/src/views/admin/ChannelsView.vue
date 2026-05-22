@@ -539,10 +539,23 @@
                     />
                     <!-- Search results dropdown -->
                     <div
-                      v-if="showRuleAccountDropdown[`${section.platform}-${ruleIndex}`] && (ruleAccountSearchResults[`${section.platform}-${ruleIndex}`]?.length ?? 0) > 0"
+                      v-if="showRuleAccountDropdown[`${section.platform}-${ruleIndex}`]"
                       class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800"
                     >
+                      <div
+                        v-if="ruleAccountSearchLoading[`${section.platform}-${ruleIndex}`]"
+                        class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400"
+                      >
+                        {{ t('common.loading') }}
+                      </div>
+                      <div
+                        v-else-if="(ruleAccountSearchResults[`${section.platform}-${ruleIndex}`]?.length ?? 0) === 0"
+                        class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400"
+                      >
+                        {{ t('common.noData') }}
+                      </div>
                       <button
+                        v-else
                         v-for="account in ruleAccountSearchResults[`${section.platform}-${ruleIndex}`]"
                         :key="account.id"
                         type="button"
@@ -979,6 +992,7 @@ interface SimpleAccount { id: number; name: string; platform: string }
 const ruleAccountSearchKeyword = ref<Record<string, string>>({})
 const ruleAccountSearchResults = ref<Record<string, SimpleAccount[]>>({})
 const showRuleAccountDropdown = ref<Record<string, boolean>>({})
+const ruleAccountSearchLoading = ref<Record<string, boolean>>({})
 // Cache: account ID → name, populated when search results are selected
 const ruleAccountNameCache = ref<Record<number, string>>({})
 
@@ -989,13 +1003,20 @@ const ruleAccountSearchRunner = useKeyedDebouncedSearch<SimpleAccount[]>({
     const res = await adminAPI.accounts.list(1, 20, { platform, search: keyword }, { signal })
     return res.items.map(a => ({ id: a.id, name: a.name, platform: a.platform }))
   },
-  onSuccess: (key, result) => { ruleAccountSearchResults.value[key] = result },
-  onError: (key) => { ruleAccountSearchResults.value[key] = [] },
+  onSuccess: (key, result) => {
+    ruleAccountSearchResults.value[key] = result
+    ruleAccountSearchLoading.value[key] = false
+  },
+  onError: (key) => {
+    ruleAccountSearchResults.value[key] = []
+    ruleAccountSearchLoading.value[key] = false
+  },
 })
 
 function onRuleAccountSearchInput(platform: string, ruleIndex: number) {
   const key = `${platform}-${ruleIndex}`
   showRuleAccountDropdown.value[key] = true
+  ruleAccountSearchLoading.value[key] = true
   ruleAccountSearchRunner.trigger(key, ruleAccountSearchKeyword.value[key] || '')
 }
 
@@ -1003,6 +1024,7 @@ function onRuleAccountSearchFocus(platform: string, ruleIndex: number) {
   const key = `${platform}-${ruleIndex}`
   showRuleAccountDropdown.value[key] = true
   if (!ruleAccountSearchResults.value[key]?.length) {
+    ruleAccountSearchLoading.value[key] = true
     ruleAccountSearchRunner.trigger(key, ruleAccountSearchKeyword.value[key] || '')
   }
 }
@@ -1020,6 +1042,7 @@ function selectRuleAccount(
   const key = `${platform}-${ruleIndex}`
   ruleAccountSearchKeyword.value[key] = ''
   showRuleAccountDropdown.value[key] = false
+  ruleAccountSearchLoading.value[key] = false
 }
 
 function removeRuleAccount(rule: { account_ids: number[] }, accountId: number) {
@@ -1045,6 +1068,7 @@ function clearAllRuleAccountSearchState() {
   ruleAccountSearchKeyword.value = {}
   ruleAccountSearchResults.value = {}
   showRuleAccountDropdown.value = {}
+  ruleAccountSearchLoading.value = {}
 }
 
 function accountStatsRulesToAPI(): AccountStatsPricingRule[] {
@@ -1517,7 +1541,7 @@ async function handleSubmit() {
     if (editingChannel.value) {
       const req: UpdateChannelRequest = {
         name: form.name.trim(),
-        description: form.description.trim() || undefined,
+        description: form.description.trim(),
         status: form.status,
         group_ids,
         model_pricing,
@@ -1533,7 +1557,7 @@ async function handleSubmit() {
     } else {
       const req: CreateChannelRequest = {
         name: form.name.trim(),
-        description: form.description.trim() || undefined,
+        description: form.description.trim(),
         group_ids,
         model_pricing,
         model_mapping: Object.keys(model_mapping).length > 0 ? model_mapping : {},

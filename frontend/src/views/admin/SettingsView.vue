@@ -207,8 +207,8 @@
           <SettingsCard
             :title="t('admin.settings.overloadCooldown.title')"
             :description="t('admin.settings.overloadCooldown.description')"
-            :loading="overloadCooldown.loading"
-            :saving="overloadCooldown.saving"
+            :loading="overloadCooldown.loading.value"
+            :saving="overloadCooldown.saving.value"
             :show-save-button="true"
             @save="overloadCooldown.save"
           >
@@ -252,8 +252,8 @@
           <SettingsCard
             :title="t('admin.settings.rateLimit429Cooldown.title')"
             :description="t('admin.settings.rateLimit429Cooldown.description')"
-            :loading="rateLimit429Cooldown.loading"
-            :saving="rateLimit429Cooldown.saving"
+            :loading="rateLimit429Cooldown.loading.value"
+            :saving="rateLimit429Cooldown.saving.value"
             :show-save-button="true"
             @save="rateLimit429Cooldown.save"
           >
@@ -297,8 +297,8 @@
           <SettingsCard
             :title="t('admin.settings.streamTimeout.title')"
             :description="t('admin.settings.streamTimeout.description')"
-            :loading="streamTimeout.loading"
-            :saving="streamTimeout.saving"
+            :loading="streamTimeout.loading.value"
+            :saving="streamTimeout.saving.value"
             :show-save-button="true"
             @save="streamTimeout.save"
           >
@@ -409,8 +409,8 @@
           <SettingsCard
             :title="t('admin.settings.rectifier.title')"
             :description="t('admin.settings.rectifier.description')"
-            :loading="rectifier.loading"
-            :saving="rectifier.saving"
+            :loading="rectifier.loading.value"
+            :saving="rectifier.saving.value"
             :show-save-button="true"
             @save="rectifier.save"
           >
@@ -519,8 +519,8 @@
           <SettingsCard
             :title="t('admin.settings.betaPolicy.title')"
             :description="t('admin.settings.betaPolicy.description')"
-            :loading="betaPolicy.loading"
-            :saving="betaPolicy.saving"
+            :loading="betaPolicy.loading.value"
+            :saving="betaPolicy.saving.value"
             :show-save-button="true"
             @save="betaPolicy.save"
           >
@@ -4743,7 +4743,6 @@
                   <div
                     v-for="(doc, index) in form.login_agreement_documents"
                     :key="doc.id || index"
-                    v-memo="[doc.id, doc.title, doc.content_md?.length]"
                     class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800/60"
                   >
                     <div class="mb-3 flex items-center justify-between gap-3">
@@ -6856,7 +6855,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onMounted, watch, toRaw } from "vue";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
 import {
@@ -7548,6 +7547,7 @@ const form = reactive<SettingsForm>({
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
 });
+const defaultSettingsFormState = structuredClone(toRaw(form));
 
 const authSourceDefaults = reactive<AuthSourceDefaultsState>(
   buildAuthSourceDefaultsState({}),
@@ -8152,6 +8152,7 @@ async function loadSettings() {
     console.timeEnd('⏱️ Load Settings API');
     console.time('⏱️ Process Settings Data');
 
+    Object.assign(form, structuredClone(defaultSettingsFormState));
     settings.payment_load_balance_strategy =
       settings.payment_load_balance_strategy || "round-robin";
     // Only assign non-null values from backend (null means unconfigured, keep defaults)
@@ -8441,7 +8442,6 @@ async function saveSettings() {
     }
     form.login_agreement_mode =
       form.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
-    form.login_agreement_documents = normalizedLoginAgreementDocuments;
 
     const normalizedDefaultSubscriptions = normalizeDefaultSubscriptionSettings(
       form.default_subscriptions,
@@ -8528,7 +8528,7 @@ async function saveSettings() {
       login_agreement_enabled: form.login_agreement_enabled,
       login_agreement_mode: form.login_agreement_mode,
       login_agreement_updated_at: form.login_agreement_updated_at,
-      login_agreement_documents: form.login_agreement_documents,
+      login_agreement_documents: normalizedLoginAgreementDocuments,
       default_balance: form.default_balance,
       affiliate_code_format: normalizeCodeFormatInput(form.affiliate_code_format),
       affiliate_rebate_rate: Math.min(
@@ -8785,7 +8785,13 @@ async function saveSettings() {
     const updated = await adminAPI.settings.updateSettings(payload);
     for (const [key, value] of Object.entries(updated)) {
       if (key === "openai_fast_policy_settings") continue;
-      if (value !== null && value !== undefined) {
+      if (value === null) {
+        (form as Record<string, unknown>)[key] = structuredClone(
+          (defaultSettingsFormState as Record<string, unknown>)[key],
+        );
+        continue;
+      }
+      if (value !== undefined) {
         (form as Record<string, unknown>)[key] = value;
       }
     }

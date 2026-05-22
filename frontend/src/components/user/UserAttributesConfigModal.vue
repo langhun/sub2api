@@ -350,11 +350,11 @@ const handleSave = async () => {
   saving.value = true
   try {
     const data = {
-      key: form.key,
-      name: form.name,
+      key: form.key.trim(),
+      name: form.name.trim(),
       type: form.type,
-      description: form.description || undefined,
-      placeholder: form.placeholder || undefined,
+      description: form.description.trim(),
+      placeholder: form.placeholder.trim(),
       required: form.required,
       enabled: form.enabled,
       options: (form.type === 'select' || form.type === 'multi_select') ? form.options : undefined

@@ -11,11 +11,15 @@ const {
   updateWebSearchEmulationConfig,
   getAdminApiKey,
   getOverloadCooldownSettings,
+  updateOverloadCooldownSettings,
   getRateLimit429CooldownSettings,
   updateRateLimit429CooldownSettings,
   getStreamTimeoutSettings,
+  updateStreamTimeoutSettings,
   getRectifierSettings,
+  updateRectifierSettings,
   getBetaPolicySettings,
+  updateBetaPolicySettings,
   getGroups,
   listProxies,
   getProviders,
@@ -33,11 +37,15 @@ const {
   updateWebSearchEmulationConfig: vi.fn(),
   getAdminApiKey: vi.fn(),
   getOverloadCooldownSettings: vi.fn(),
+  updateOverloadCooldownSettings: vi.fn(),
   getRateLimit429CooldownSettings: vi.fn(),
   updateRateLimit429CooldownSettings: vi.fn(),
   getStreamTimeoutSettings: vi.fn(),
+  updateStreamTimeoutSettings: vi.fn(),
   getRectifierSettings: vi.fn(),
+  updateRectifierSettings: vi.fn(),
   getBetaPolicySettings: vi.fn(),
+  updateBetaPolicySettings: vi.fn(),
   getGroups: vi.fn(),
   listProxies: vi.fn(),
   getProviders: vi.fn(),
@@ -61,11 +69,15 @@ vi.mock("@/api", () => ({
       updateWebSearchEmulationConfig,
       getAdminApiKey,
       getOverloadCooldownSettings,
+      updateOverloadCooldownSettings,
       getRateLimit429CooldownSettings,
       updateRateLimit429CooldownSettings,
       getStreamTimeoutSettings,
+      updateStreamTimeoutSettings,
       getRectifierSettings,
+      updateRectifierSettings,
       getBetaPolicySettings,
+      updateBetaPolicySettings,
     },
     groups: {
       getAll: getGroups,
@@ -83,6 +95,16 @@ vi.mock("@/api", () => ({
 }));
 
 vi.mock("@/stores", () => ({
+  useAppStore: () => ({
+    showError,
+    showSuccess,
+    showWarning: vi.fn(),
+    showInfo: vi.fn(),
+    fetchPublicSettings,
+  }),
+}));
+
+vi.mock("@/stores/app", () => ({
   useAppStore: () => ({
     showError,
     showSuccess,
@@ -569,11 +591,15 @@ describe("admin SettingsView payment visible method controls", () => {
     updateWebSearchEmulationConfig.mockReset();
     getAdminApiKey.mockReset();
     getOverloadCooldownSettings.mockReset();
+    updateOverloadCooldownSettings.mockReset();
     getRateLimit429CooldownSettings.mockReset();
     updateRateLimit429CooldownSettings.mockReset();
     getStreamTimeoutSettings.mockReset();
+    updateStreamTimeoutSettings.mockReset();
     getRectifierSettings.mockReset();
+    updateRectifierSettings.mockReset();
     getBetaPolicySettings.mockReset();
+    updateBetaPolicySettings.mockReset();
     getGroups.mockReset();
     listProxies.mockReset();
     getProviders.mockReset();
@@ -607,6 +633,7 @@ describe("admin SettingsView payment visible method controls", () => {
       enabled: true,
       cooldown_minutes: 10,
     });
+    updateOverloadCooldownSettings.mockImplementation(async (payload) => payload);
     getRateLimit429CooldownSettings.mockResolvedValue({
       enabled: true,
       cooldown_seconds: 5,
@@ -619,6 +646,7 @@ describe("admin SettingsView payment visible method controls", () => {
       threshold_count: 3,
       threshold_window_minutes: 10,
     });
+    updateStreamTimeoutSettings.mockImplementation(async (payload) => payload);
     getRectifierSettings.mockResolvedValue({
       enabled: true,
       thinking_signature_enabled: true,
@@ -626,9 +654,11 @@ describe("admin SettingsView payment visible method controls", () => {
       apikey_signature_enabled: false,
       apikey_signature_patterns: [],
     });
+    updateRectifierSettings.mockImplementation(async (payload) => payload);
     getBetaPolicySettings.mockResolvedValue({
       rules: [],
     });
+    updateBetaPolicySettings.mockImplementation(async (payload) => payload);
     getGroups.mockResolvedValue([]);
     listProxies.mockResolvedValue({
       items: [],
@@ -976,6 +1006,98 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(paymentHelpImageUpload).toBeDefined();
     expect(paymentHelpImageUpload?.attributes("data-upload-label")).toBe("上传图片");
     expect(paymentHelpImageUpload?.attributes("data-remove-label")).toBe("移除");
+  });
+
+  it("saves overload cooldown, stream timeout, rectifier, and beta policy cards through their dedicated APIs", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    const setupState = (wrapper.vm as any).$?.setupState ?? (wrapper.vm as any);
+
+    setupState.overloadCooldown.form.enabled = false;
+    setupState.overloadCooldown.form.cooldown_minutes = 25;
+    await setupState.overloadCooldown.save();
+    expect(updateOverloadCooldownSettings).toHaveBeenCalledWith({
+      enabled: false,
+      cooldown_minutes: 25,
+    });
+
+    setupState.streamTimeout.form.enabled = true;
+    setupState.streamTimeout.form.action = "error";
+    setupState.streamTimeout.form.threshold_count = 4;
+    setupState.streamTimeout.form.threshold_window_minutes = 20;
+    await setupState.streamTimeout.save();
+    expect(updateStreamTimeoutSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        action: "error",
+        threshold_count: 4,
+        threshold_window_minutes: 20,
+      }),
+    );
+
+    setupState.rectifier.form.enabled = true;
+    setupState.rectifier.form.apikey_signature_patterns = ["sk-test"];
+    await setupState.rectifier.save();
+    expect(updateRectifierSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        apikey_signature_patterns: ["sk-test"],
+      }),
+    );
+
+    setupState.betaPolicy.form.rules = [{ model: "gpt-4o-mini", beta: true }];
+    await setupState.betaPolicy.save();
+    expect(updateBetaPolicySettings).toHaveBeenCalledWith({
+      rules: [{ model: "gpt-4o-mini", beta: true }],
+    });
+  });
+
+  it("clears nullable fields on reload instead of keeping stale values", async () => {
+    getSettings
+      .mockResolvedValueOnce({
+        ...baseSettingsResponse,
+        doc_url: "https://old.example.com/docs",
+      })
+      .mockResolvedValueOnce({
+        ...baseSettingsResponse,
+        doc_url: null,
+      });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    const setupState = (wrapper.vm as any).$?.setupState ?? (wrapper.vm as any);
+    expect(setupState.form.doc_url).toBe("https://old.example.com/docs");
+
+    await setupState.loadSettings();
+    await flushPromises();
+
+    expect(setupState.form.doc_url).toBe("");
+
+    await setupState.saveSettings();
+    expect(updateSettings).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        doc_url: "",
+      }),
+    );
+  });
+
+  it("clears nullable fields after save when backend returns null", async () => {
+    updateSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      doc_url: null,
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    const setupState = (wrapper.vm as any).$?.setupState ?? (wrapper.vm as any);
+    setupState.form.doc_url = "https://stale.example.com/docs";
+
+    await setupState.saveSettings();
+
+    expect(setupState.form.doc_url).toBe("");
   });
 });
 

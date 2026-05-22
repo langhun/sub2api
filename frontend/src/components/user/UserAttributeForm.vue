@@ -89,10 +89,18 @@
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
     </svg>
   </div>
+
+  <div v-else-if="loadFailed" class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+    <p>{{ loadErrorMessage }}</p>
+    <button type="button" class="mt-2 text-xs font-medium underline" @click="retryLoad">
+      {{ retryLabel }}
+    </button>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { UserAttributeDefinition, UserAttributeValuesMap } from '@/types'
 import Select from '@/components/common/Select.vue'
@@ -108,16 +116,33 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+const { t } = useI18n()
 
 const loading = ref(false)
+const loadFailed = ref(false)
 const attributes = ref<UserAttributeDefinition[]>([])
 const localValues = ref<UserAttributeValuesMap>({})
+let latestLoadRequestId = 0
+
+const loadErrorMessage = computed(() => t('admin.settings.attributes.failedToLoad'))
+const retryLabel = computed(() => t('common.retry'))
+
+const markLoadFailed = () => {
+  loadFailed.value = true
+}
+
+const clearLoadFailed = () => {
+  loadFailed.value = false
+}
 
 const loadAttributes = async () => {
   loading.value = true
+  clearLoadFailed()
   try {
     attributes.value = await adminAPI.userAttributes.listEnabledDefinitions()
   } catch (error) {
+    attributes.value = []
+    markLoadFailed()
     console.error('Failed to load attributes:', error)
   } finally {
     loading.value = false
@@ -126,9 +151,14 @@ const loadAttributes = async () => {
 
 const loadUserValues = async () => {
   if (!props.userId) return
+  const requestId = ++latestLoadRequestId
+  const targetUserId = props.userId
 
   try {
-    const values = await adminAPI.userAttributes.getUserAttributeValues(props.userId)
+    const values = await adminAPI.userAttributes.getUserAttributeValues(targetUserId)
+    if (requestId !== latestLoadRequestId || props.userId !== targetUserId) {
+      return
+    }
     const valuesMap: UserAttributeValuesMap = {}
     values.forEach(v => {
       valuesMap[v.attribute_id] = v.value
@@ -136,7 +166,17 @@ const loadUserValues = async () => {
     localValues.value = { ...valuesMap }
     emit('update:modelValue', localValues.value)
   } catch (error) {
+    if (requestId === latestLoadRequestId) {
+      markLoadFailed()
+    }
     console.error('Failed to load user attribute values:', error)
+  }
+}
+
+const retryLoad = async () => {
+  await loadAttributes()
+  if (props.userId) {
+    await loadUserValues()
   }
 }
 
@@ -179,17 +219,19 @@ const toggleMultiSelectOption = (attrId: number, optionValue: string) => {
 }
 
 watch(() => props.modelValue, (newVal) => {
-  if (newVal && Object.keys(newVal).length > 0) {
-    localValues.value = { ...newVal }
-  }
+  localValues.value = newVal ? { ...newVal } : {}
 }, { immediate: true })
 
 watch(() => props.userId, (newUserId) => {
   if (newUserId) {
+    localValues.value = {}
+    emitChange()
     loadUserValues()
   } else {
     // Reset for new user
+    latestLoadRequestId += 1
     localValues.value = {}
+    emitChange()
   }
 }, { immediate: true })
 

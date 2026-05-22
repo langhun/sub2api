@@ -289,12 +289,29 @@ function toggleUpstreamDetail(id: number) {
 async function fetchCorrelatedUpstreamErrors(requestErrorId: number) {
   correlatedUpstreamLoading.value = true
   try {
-    const res = await opsAPI.listRequestErrorUpstreamErrors(
-      requestErrorId,
-      { page: 1, page_size: 100, view: 'all' },
-      { include_detail: true }
-    )
-    correlatedUpstream.value = res.items || []
+    const pageSize = 100
+    const items: OpsErrorDetail[] = []
+    let page = 1
+    let totalPages = 1
+
+    do {
+      const res = await opsAPI.listRequestErrorUpstreamErrors(
+        requestErrorId,
+        { page, page_size: pageSize, view: 'all' },
+        { include_detail: true }
+      )
+      items.push(...(res.items || []))
+      totalPages = Math.max(
+        1,
+        res.pages || Math.ceil((res.total || items.length) / pageSize)
+      )
+      if (!res.items?.length) {
+        break
+      }
+      page += 1
+    } while (page <= totalPages)
+
+    correlatedUpstream.value = items
   } catch (err) {
     console.error('[OpsErrorDetailModal] Failed to load correlated upstream errors', err)
     correlatedUpstream.value = []

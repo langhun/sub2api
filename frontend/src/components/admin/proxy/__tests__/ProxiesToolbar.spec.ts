@@ -29,7 +29,6 @@ const SelectStub = {
 }
 
 const baseProps = {
-  activeTab: 'proxies' as const,
   searchQuery: '',
   filters: {
     protocol: '',
@@ -40,7 +39,6 @@ const baseProps = {
   statusOptions: [{ value: '', label: 'all' }],
   runtimeStatusOptions: [{ value: '', label: 'all' }],
   loading: false,
-  loadingSubscriptions: false,
   batchTesting: false,
   batchQualityChecking: false,
   selectedCount: 0,
@@ -52,7 +50,7 @@ const baseProps = {
 }
 
 describe('ProxiesToolbar', () => {
-  it('emits tab switch and search updates', async () => {
+  it('emits search updates and opens the unified Mihomo entry', async () => {
     const wrapper = mount(ProxiesToolbar, {
       props: baseProps,
       global: {
@@ -63,15 +61,13 @@ describe('ProxiesToolbar', () => {
       }
     })
 
-    const buttons = wrapper.findAll('button')
-    const subscriptionsTab = buttons.find((button) => button.text().includes('admin.proxies.subscriptions.tab'))
-    expect(subscriptionsTab).toBeDefined()
-    await subscriptionsTab!.trigger('click')
+    const mihomoButton = wrapper.get('[data-test="proxy-toolbar-mihomo"]')
+    await mihomoButton.trigger('click')
 
     const search = wrapper.get('input')
     await search.setValue('proxy-host')
 
-    expect(wrapper.emitted('set-tab')?.[0]).toEqual(['subscriptions'])
+    expect(wrapper.emitted('open-mihomo')).toHaveLength(1)
     expect(wrapper.emitted('update:searchQuery')?.[0]).toEqual(['proxy-host'])
   })
 
@@ -139,30 +135,5 @@ describe('ProxiesToolbar', () => {
     expect(wrapper.emitted('open-pool')).toHaveLength(1)
     expect(wrapper.emitted('batch-assign')).toHaveLength(1)
     expect(wrapper.emitted('batch-delete')).toHaveLength(1)
-  })
-
-  it('renders subscription-specific actions on subscriptions tab', async () => {
-    const wrapper = mount(ProxiesToolbar, {
-      props: {
-        ...baseProps,
-        activeTab: 'subscriptions'
-      },
-      global: {
-        stubs: {
-          Select: SelectStub,
-          Icon: true
-        }
-      }
-    })
-
-    expect(wrapper.find('input').exists()).toBe(false)
-    const buttons = wrapper.findAll('button')
-    const refresh = buttons.find((button) => button.attributes('title') !== 'admin.proxies.subscriptions.create')
-    const create = buttons.find((button) => button.text().includes('admin.proxies.subscriptions.create'))
-    expect(refresh).toBeDefined()
-    expect(create).toBeDefined()
-
-    await create!.trigger('click')
-    expect(wrapper.emitted('create-subscription')).toHaveLength(1)
   })
 })

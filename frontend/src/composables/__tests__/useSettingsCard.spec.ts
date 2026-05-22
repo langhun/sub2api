@@ -9,6 +9,15 @@ vi.mock('@/api/admin/system', () => ({
 vi.mock('@/api/auth', () => ({
   getPublicSettings: vi.fn()
 }))
+vi.mock('vue-i18n', async () => {
+  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string) => key
+    })
+  }
+})
 
 describe('useSettingsCard', () => {
   let appStore: ReturnType<typeof useAppStore>
@@ -69,6 +78,24 @@ describe('useSettingsCard', () => {
       await card.load()
 
       expect(showErrorSpy).toHaveBeenCalledWith('Network error')
+    })
+
+    it('should remove stale keys before applying a narrower payload', async () => {
+      const loadFn = vi
+        .fn()
+        .mockResolvedValueOnce({ setting1: 'value1', setting2: 42 })
+        .mockResolvedValueOnce({ setting1: 'value2' })
+      const saveFn = vi.fn()
+
+      const card = useSettingsCard({ loadFn, saveFn })
+
+      await card.load()
+      expect(card.form).toEqual({ setting1: 'value1', setting2: 42 })
+
+      await card.load()
+
+      expect(card.form).toEqual({ setting1: 'value2' })
+      expect('setting2' in card.form).toBe(false)
     })
   })
 
@@ -193,4 +220,3 @@ describe('useSettingsCard', () => {
     })
   })
 })
-
