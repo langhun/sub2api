@@ -29,6 +29,31 @@ func (s *openAIRecordUsageLogRepoStub) Create(ctx context.Context, log *UsageLog
 	return s.inserted, s.err
 }
 
+type openAIBestEffortUsageLogRepoStub struct {
+	UsageLogRepository
+
+	bestEffortErr   error
+	createErr       error
+	bestEffortCalls int
+	createCalls     int
+	lastLog         *UsageLog
+	lastCtxErr      error
+}
+
+func (s *openAIBestEffortUsageLogRepoStub) CreateBestEffort(ctx context.Context, log *UsageLog) error {
+	s.bestEffortCalls++
+	s.lastLog = log
+	s.lastCtxErr = ctx.Err()
+	return s.bestEffortErr
+}
+
+func (s *openAIBestEffortUsageLogRepoStub) Create(ctx context.Context, log *UsageLog) (bool, error) {
+	s.createCalls++
+	s.lastLog = log
+	s.lastCtxErr = ctx.Err()
+	return false, s.createErr
+}
+
 type openAIRecordUsageBillingRepoStub struct {
 	UsageBillingRepository
 
@@ -632,6 +657,136 @@ func TestOpenAIGatewayServiceRecordUsage_BillingRepoUsesDetachedContext(t *testi
 	require.NoError(t, billingRepo.lastCtxErr)
 	require.Equal(t, 1, usageRepo.calls)
 	require.NoError(t, usageRepo.lastCtxErr)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_UsageLogRepoUsesDetachedContextWhenRequestCanceled(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, userRepo, subRepo, nil)
+
+	reqCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := svc.RecordUsage(reqCtx, &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_usage_repo_detached_ctx",
+			Usage: OpenAIUsage{
+				InputTokens:  8,
+				OutputTokens: 4,
+			},
+			Model:    "gpt-5.1",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 10051},
+		User:    &User{ID: 20051},
+		Account: &Account{ID: 30051},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, billingRepo.calls)
+	require.NoError(t, billingRepo.lastCtxErr)
+	require.Equal(t, 1, usageRepo.calls)
+	require.NoError(t, usageRepo.lastCtxErr)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_UsageLogErrorAfterBillingDoesNotReturnError(t *testing.T) {
+	usage := OpenAIUsage{InputTokens: 9, OutputTokens: 5}
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: false, err: context.DeadlineExceeded}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, userRepo, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_usage_log_failed_after_billing",
+			Usage:     usage,
+			Model:     "gpt-5.1",
+			Duration:  time.Second,
+		},
+		APIKey:  &APIKey{ID: 10052},
+		User:    &User{ID: 20052},
+		Account: &Account{ID: 30052},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, billingRepo.calls)
+	require.Equal(t, 1, usageRepo.calls)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.InDelta(t, expectedOpenAICost(t, svc, "gpt-5.1", usage, 1.1).ActualCost, billingRepo.lastCmd.BalanceCost, 1e-12)
+	require.Equal(t, 0, userRepo.deductCalls)
+	require.Equal(t, 0, subRepo.incrementCalls)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_BestEffortUsageLogUsesDetachedContextWhenRequestCanceled(t *testing.T) {
+	usageRepo := &openAIBestEffortUsageLogRepoStub{}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, userRepo, subRepo, nil)
+
+	reqCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := svc.RecordUsage(reqCtx, &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_best_effort_usage_repo_detached_ctx",
+			Usage: OpenAIUsage{
+				InputTokens:  8,
+				OutputTokens: 4,
+			},
+			Model:    "gpt-5.1",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 10053},
+		User:    &User{ID: 20053},
+		Account: &Account{ID: 30053},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, billingRepo.calls)
+	require.NoError(t, billingRepo.lastCtxErr)
+	require.Equal(t, 1, usageRepo.bestEffortCalls)
+	require.Equal(t, 0, usageRepo.createCalls)
+	require.NoError(t, usageRepo.lastCtxErr)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, "resp_best_effort_usage_repo_detached_ctx", usageRepo.lastLog.RequestID)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_BestEffortUsageLogFailureAfterBillingStillReturnsSuccess(t *testing.T) {
+	usage := OpenAIUsage{InputTokens: 9, OutputTokens: 5}
+	usageRepo := &openAIBestEffortUsageLogRepoStub{
+		bestEffortErr: errors.New("usage log queue unavailable"),
+		createErr:     context.DeadlineExceeded,
+	}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, userRepo, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_best_effort_usage_log_failed_after_billing",
+			Usage:     usage,
+			Model:     "gpt-5.1",
+			Duration:  time.Second,
+		},
+		APIKey:  &APIKey{ID: 10054},
+		User:    &User{ID: 20054},
+		Account: &Account{ID: 30054},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, billingRepo.calls)
+	require.Equal(t, 1, usageRepo.bestEffortCalls)
+	require.Equal(t, 1, usageRepo.createCalls)
+	require.NoError(t, usageRepo.lastCtxErr)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.InDelta(t, expectedOpenAICost(t, svc, "gpt-5.1", usage, 1.1).ActualCost, billingRepo.lastCmd.BalanceCost, 1e-12)
+	require.Equal(t, 0, userRepo.deductCalls)
+	require.Equal(t, 0, subRepo.incrementCalls)
 }
 
 func TestOpenAIGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(t *testing.T) {
