@@ -28,6 +28,7 @@ export function createTextSummary(data, context) {
   const p50 = safeMetric(data.metrics, 'http_req_duration', 'p(50)');
   const p95 = safeMetric(data.metrics, 'http_req_duration', 'p(95)');
   const p99 = safeMetric(data.metrics, 'http_req_duration', 'p(99)');
+  const extraLines = context.extraLines || [];
 
   return [
     '',
@@ -44,6 +45,7 @@ export function createTextSummary(data, context) {
     `p95_ms=${formatNumber(p95)}`,
     `p99_ms=${formatNumber(p99)}`,
     `iteration_avg_ms=${formatNumber(durationMs)}`,
+    ...extraLines,
     '',
   ].join('\n');
 }

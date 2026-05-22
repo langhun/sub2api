@@ -1,4 +1,4 @@
-import { ADMIN_EMAIL, ADMIN_PASSWORD, buildActiveSubscriptions, buildAuthResponse, buildCheckinStatus, buildDashboardSnapshot, buildGroups, buildMihomoStatus, buildProxyList, buildProxySubscriptions, buildPublicSettings, buildSettings, buildSetupStatus, buildUserRanking, buildUserTrend } from './fixtures.js'
+import { ADMIN_EMAIL, ADMIN_PASSWORD, buildAccounts, buildActiveSubscriptions, buildAuthResponse, buildBatchTodayStats, buildCheckinStatus, buildDashboardSnapshot, buildGroupCapacitySummary, buildGroups, buildGroupUsageSummary, buildMihomoStatus, buildProxyList, buildProxySubscriptions, buildPublicSettings, buildSettings, buildSetupStatus, buildUserRanking, buildUserTrend } from './fixtures.js'
 
 function jsonResponse(body, status = 200) {
   return {
@@ -20,6 +20,7 @@ export async function mockCommonAppRoutes(page, options = {}) {
   const state = {
     settings: buildSettings(),
     proxies: buildProxyList(),
+    allProxies: buildProxyList().items,
     createdProxies: [],
     loginResponse: buildAuthResponse(),
     publicSettings: buildPublicSettings(options.publicSettings),
@@ -28,6 +29,11 @@ export async function mockCommonAppRoutes(page, options = {}) {
     userTrend: buildUserTrend(),
     userRanking: buildUserRanking(),
     groups: buildGroups(),
+    createdGroups: [],
+    groupUsageSummary: buildGroupUsageSummary(),
+    groupCapacitySummary: buildGroupCapacitySummary(),
+    accounts: buildAccounts(),
+    batchTodayStats: buildBatchTodayStats(),
     proxySubscriptions: buildProxySubscriptions(),
     mihomoStatus: buildMihomoStatus(),
     activeSubscriptions: buildActiveSubscriptions(),
@@ -196,6 +202,162 @@ export async function mockCommonAppRoutes(page, options = {}) {
 
     if (pathname === '/api/v1/admin/groups/all' && method === 'GET') {
       await route.fulfill(jsonResponse(apiSuccess(state.groups)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/groups' && method === 'GET') {
+      const search = (url.searchParams.get('search') || '').trim().toLowerCase()
+      const platform = (url.searchParams.get('platform') || '').trim()
+      const status = (url.searchParams.get('status') || '').trim()
+      const isExclusiveRaw = url.searchParams.get('is_exclusive')
+      const pageNumber = Number(url.searchParams.get('page') || '1')
+      const pageSize = Number(url.searchParams.get('page_size') || '20')
+
+      let items = [...state.groups]
+
+      if (search) {
+        items = items.filter((group) =>
+          group.name.toLowerCase().includes(search) ||
+          String(group.description || '').toLowerCase().includes(search)
+        )
+      }
+
+      if (platform) {
+        items = items.filter((group) => group.platform === platform)
+      }
+
+      if (status) {
+        items = items.filter((group) => group.status === status)
+      }
+
+      if (isExclusiveRaw === 'true' || isExclusiveRaw === 'false') {
+        const isExclusive = isExclusiveRaw === 'true'
+        items = items.filter((group) => group.is_exclusive === isExclusive)
+      }
+
+      const start = (pageNumber - 1) * pageSize
+      const pagedItems = items.slice(start, start + pageSize)
+
+      await route.fulfill(jsonResponse(apiSuccess({
+        items: pagedItems,
+        total: items.length,
+        page: pageNumber,
+        page_size: pageSize,
+        pages: Math.max(1, Math.ceil(items.length / pageSize)),
+      })))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/groups/usage-summary' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.groupUsageSummary)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/groups/capacity-summary' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.groupCapacitySummary)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/groups' && method === 'POST') {
+      const payload = request.postDataJSON() || {}
+      const created = {
+        id: 1000 + state.createdGroups.length + 1,
+        name: payload.name || '新分组',
+        description: payload.description || '',
+        platform: payload.platform || 'anthropic',
+        rate_multiplier: payload.rate_multiplier ?? 1,
+        rpm_limit: payload.rpm_limit ?? 0,
+        is_exclusive: payload.is_exclusive === true,
+        status: 'active',
+        subscription_type: payload.subscription_type || 'standard',
+        daily_limit_usd: payload.daily_limit_usd ?? null,
+        weekly_limit_usd: payload.weekly_limit_usd ?? null,
+        monthly_limit_usd: payload.monthly_limit_usd ?? null,
+        allow_image_generation: payload.allow_image_generation === true,
+        image_rate_independent: payload.image_rate_independent === true,
+        image_rate_multiplier: payload.image_rate_multiplier ?? 1,
+        image_price_1k: payload.image_price_1k ?? null,
+        image_price_2k: payload.image_price_2k ?? null,
+        image_price_4k: payload.image_price_4k ?? null,
+        claude_code_only: payload.claude_code_only === true,
+        fallback_group_id: payload.fallback_group_id ?? null,
+        fallback_group_id_on_invalid_request: payload.fallback_group_id_on_invalid_request ?? null,
+        allow_messages_dispatch: payload.allow_messages_dispatch === true,
+        require_oauth_only: payload.require_oauth_only === true,
+        require_privacy_set: payload.require_privacy_set === true,
+        model_routing: payload.model_routing ?? null,
+        model_routing_enabled: payload.model_routing_enabled === true,
+        mcp_xml_inject: payload.mcp_xml_inject !== false,
+        supported_model_scopes: payload.supported_model_scopes || ['claude', 'gemini_text', 'gemini_image'],
+        account_count: 0,
+        active_account_count: 0,
+        rate_limited_account_count: 0,
+        sort_order: state.groups.length + 1,
+        created_at: '2026-05-22T00:00:00Z',
+        updated_at: '2026-05-22T00:00:00Z',
+      }
+      state.createdGroups.push(created)
+      state.groups = [created, ...state.groups]
+      await route.fulfill(jsonResponse(apiSuccess(created)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/proxies/all' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess(state.allProxies)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/accounts/today-stats/batch' && method === 'POST') {
+      await route.fulfill(jsonResponse(apiSuccess(state.batchTodayStats)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/accounts' && method === 'GET') {
+      const search = (url.searchParams.get('search') || '').trim().toLowerCase()
+      const platform = (url.searchParams.get('platform') || '').trim()
+      const group = (url.searchParams.get('group') || '').trim()
+      const mainStatus = (url.searchParams.get('main_status') || url.searchParams.get('status') || '').trim()
+      const pageNumber = Number(url.searchParams.get('page') || '1')
+      const pageSize = Number(url.searchParams.get('page_size') || '20')
+
+      let items = [...state.accounts.items]
+
+      if (search) {
+        items = items.filter((account) =>
+          account.name.toLowerCase().includes(search) ||
+          String(account.notes || '').toLowerCase().includes(search)
+        )
+      }
+
+      if (platform) {
+        items = items.filter((account) => account.platform === platform)
+      }
+
+      if (group === 'ungrouped') {
+        items = items.filter((account) => !Array.isArray(account.groups) || account.groups.length === 0)
+      } else if (group) {
+        items = items.filter((account) => Array.isArray(account.groups) && account.groups.some((item) => String(item.id) === group))
+      }
+
+      if (mainStatus) {
+        items = items.filter((account) => account.status === mainStatus)
+      }
+
+      const start = (pageNumber - 1) * pageSize
+      const pagedItems = items.slice(start, start + pageSize)
+
+      await route.fulfill({
+        ...jsonResponse(apiSuccess({
+          items: pagedItems,
+          total: items.length,
+          page: pageNumber,
+          page_size: pageSize,
+          pages: Math.max(1, Math.ceil(items.length / pageSize)),
+        })),
+        headers: {
+          ETag: '"playwright-accounts-etag"',
+        },
+      })
       return
     }
 

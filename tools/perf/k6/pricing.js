@@ -1,9 +1,10 @@
 import { createOptions, getScenarioConfig } from './lib/config.js';
-import { executeScenario } from './lib/helpers.js';
+import { executeNamedScenario, getScenarioDefinition } from './lib/scenarios.js';
 import { createSummary } from './lib/summary.js';
 
 const scenario = 'pricing';
 const config = getScenarioConfig(scenario);
+const definition = getScenarioDefinition(scenario);
 
 export const options = createOptions({
   suite: 'perf-baseline',
@@ -11,22 +12,13 @@ export const options = createOptions({
 });
 
 export default function () {
-  executeScenario({
-    scenario,
-    name: 'public-pricing',
-    pathname: '/api/v1/public/pricing',
-    assertBody: (response) => {
-      const code = response.json('code');
-      const groups = response.json('data.groups');
-      return code === 0 && Array.isArray(groups);
-    },
-  });
+  executeNamedScenario(scenario);
 }
 
 export function handleSummary(data) {
   return createSummary(data, {
     scenario,
-    target: `${config.baseUrl}/api/v1/public/pricing`,
+    target: `${config.baseUrl}${definition.pathname}`,
     vus: config.vus,
     duration: config.duration,
   });

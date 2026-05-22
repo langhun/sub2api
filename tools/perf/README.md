@@ -9,6 +9,7 @@
 - `health`: `GET /health`
 - `pricing`: `GET /api/v1/public/pricing`
 - `monitoring-summary`: `GET /api/v1/monitoring/summary`
+- `mixed`: 按权重混合请求 `health + pricing + monitoring-summary`
 - `all`: 统一入口，通过 `SCENARIO` 选择具体场景
 
 这套脚本的定位是“建立基线”和“做回归对比”，不是直接替代完整容量规划。
@@ -21,11 +22,14 @@ tools/perf/
   k6/
     all.js
     health.js
+    mixed.js
     pricing.js
     monitoring-summary.js
     lib/
       config.js
       helpers.js
+      mixed.js
+      scenarios.js
       summary.js
   vegeta/
     run-baseline.ps1
@@ -62,7 +66,7 @@ vegeta -version
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `BASE_URL` | `http://127.0.0.1:18808` | 压测目标根地址，建议先指向隔离实例 |
-| `SCENARIO` | `health` | `all.js` 使用，支持 `health` / `pricing` / `monitoring-summary` |
+| `SCENARIO` | `health` | `all.js` 使用，支持 `health` / `pricing` / `monitoring-summary` / `mixed` |
 | `K6_VUS` | `5` | 并发虚拟用户数 |
 | `K6_DURATION` | `30s` | 持续时间，例如 `30s` / `2m` |
 | `K6_TIMEOUT` | `5s` | 单请求超时 |
@@ -74,12 +78,19 @@ vegeta -version
 | `EXTRA_HEADERS` | 空 | 额外请求头，JSON 字符串，例如 `{"X-Debug":"1"}` |
 | `EXPECTED_STATUS` | `200` | 期望状态码 |
 | `SUMMARY_TREND_STATS` | `avg,min,med,max,p(50),p(95),p(99)` | k6 趋势指标输出项 |
+| `MIXED_WEIGHT_HEALTH` | `60` | `mixed` 场景中 `health` 的权重 |
+| `MIXED_WEIGHT_PRICING` | `30` | `mixed` 场景中 `pricing` 的权重 |
+| `MIXED_WEIGHT_MONITORING_SUMMARY` | `10` | `mixed` 场景中 `monitoring-summary` 的权重 |
+| `MIXED_PACE_MS` | 空 | `mixed` 场景固定节奏，单位毫秒；设置后优先于范围配置 |
+| `MIXED_PACE_MIN_MS` | `0` | `mixed` 场景节奏下界，单位毫秒 |
+| `MIXED_PACE_MAX_MS` | `0` | `mixed` 场景节奏上界，单位毫秒 |
 
 说明：
 
 - `monitoring-summary` 默认按公开接口处理，不强制要求鉴权。
 - 如果后续环境把该接口挂到需要鉴权的入口，只需要设置 `AUTH_TOKEN` 或覆写 `AUTH_HEADER` / `AUTH_SCHEME`，不用改脚本。
 - `EXTRA_HEADERS` 适合放灰度标记、租户头、追踪头等临时字段。
+- `mixed` 场景每次迭代只发 1 个请求，请求类型由权重随机选出；若设置 `MIXED_PACE_MS` 或 `MIXED_PACE_MIN_MS/MAX_MS`，会在每次迭代后追加 sleep，用于模拟更稳定或更离散的请求节奏。
 
 ## 运行命令
 
@@ -132,6 +143,38 @@ BASE_URL=http://127.0.0.1:18808 AUTH_TOKEN=replace-me k6 run tools/perf/k6/monit
 SCENARIO=pricing k6 run tools/perf/k6/all.js
 ```
 
+### 5. 混合基线场景
+
+按权重混合三个只读端点：
+
+```bash
+k6 run tools/perf/k6/mixed.js
+```
+
+调整权重与节奏：
+
+```bash
+BASE_URL=http://127.0.0.1:18808 \
+MIXED_WEIGHT_HEALTH=50 \
+MIXED_WEIGHT_PRICING=35 \
+MIXED_WEIGHT_MONITORING_SUMMARY=15 \
+MIXED_PACE_MIN_MS=100 \
+MIXED_PACE_MAX_MS=300 \
+k6 run tools/perf/k6/mixed.js
+```
+
+PowerShell 示例：
+
+```powershell
+$env:BASE_URL='http://127.0.0.1:18808'
+$env:MIXED_WEIGHT_HEALTH='50'
+$env:MIXED_WEIGHT_PRICING='35'
+$env:MIXED_WEIGHT_MONITORING_SUMMARY='15'
+$env:MIXED_PACE_MIN_MS='100'
+$env:MIXED_PACE_MAX_MS='300'
+k6 run tools/perf/k6/mixed.js
+```
+
 ## 指标说明
 
 脚本重点关注以下统一指标：
@@ -154,6 +197,7 @@ SCENARIO=pricing k6 run tools/perf/k6/all.js
 - 错误率
 - 超时率
 - P50 / P95 / P99
+- `mixed` 场景会在同一摘要后额外补充本次权重和节奏配置，方便横向对比
 
 ## 结果解读建议
 

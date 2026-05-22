@@ -7,7 +7,8 @@ const DEFAULT_VUS = 5;
 const DEFAULT_EXPECTED_STATUS = 200;
 const DEFAULT_AUTH_HEADER = 'Authorization';
 const DEFAULT_AUTH_SCHEME = 'Bearer';
-const SUPPORTED_SCENARIOS = ['health', 'pricing', 'monitoring-summary'];
+export const BASELINE_SCENARIOS = ['health', 'pricing', 'monitoring-summary'];
+const SUPPORTED_SCENARIOS = [...BASELINE_SCENARIOS, 'mixed'];
 
 function parsePositiveInt(name, fallbackValue) {
   const raw = __ENV[name];
@@ -53,6 +54,46 @@ function normalizeBaseUrl(rawBaseUrl) {
   return String(rawBaseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
 }
 
+function parseMixedWeights() {
+  const weights = {
+    health: parsePositiveInt('MIXED_WEIGHT_HEALTH', 60),
+    pricing: parsePositiveInt('MIXED_WEIGHT_PRICING', 30),
+    'monitoring-summary': parsePositiveInt('MIXED_WEIGHT_MONITORING_SUMMARY', 10),
+  };
+  const totalWeight = Object.values(weights).reduce((sum, value) => sum + value, 0);
+
+  if (totalWeight <= 0) {
+    fail('At least one mixed scenario weight must be greater than 0');
+  }
+
+  return {
+    weights,
+    totalWeight,
+  };
+}
+
+function parseMixedPacing() {
+  if (__ENV.MIXED_PACE_MS !== undefined && __ENV.MIXED_PACE_MS !== '') {
+    const fixedPaceMs = parsePositiveInt('MIXED_PACE_MS', 0);
+    return {
+      minMs: fixedPaceMs,
+      maxMs: fixedPaceMs,
+    };
+  }
+
+  const minMs = parsePositiveInt('MIXED_PACE_MIN_MS', 0);
+  const maxMs = parsePositiveInt('MIXED_PACE_MAX_MS', minMs);
+
+  if (maxMs < minMs) {
+    fail(`MIXED_PACE_MAX_MS must be greater than or equal to MIXED_PACE_MIN_MS, got: ${maxMs} < ${minMs}`);
+  }
+
+  return {
+    minMs,
+    maxMs,
+  };
+}
+
 export function getScenarioName(defaultScenario, options = {}) {
   const { allowEnvOverride = false } = options;
   const rawScenario = allowEnvOverride ? __ENV.SCENARIO || defaultScenario || 'health' : defaultScenario || 'health';
@@ -96,6 +137,19 @@ export function getScenarioConfig(defaultScenario, options = {}) {
     rps,
     insecureSkipTLSVerify,
     headers,
+  };
+}
+
+export function getMixedScenarioConfig() {
+  const config = getScenarioConfig('mixed');
+  const { weights, totalWeight } = parseMixedWeights();
+  const pacing = parseMixedPacing();
+
+  return {
+    ...config,
+    weights,
+    totalWeight,
+    pacing,
   };
 }
 

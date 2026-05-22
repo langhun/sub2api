@@ -1,4 +1,5 @@
 import health, { handleSummary as healthSummary, options as healthOptions } from './health.js';
+import mixed, { handleSummary as mixedSummary, options as mixedOptions } from './mixed.js';
 import pricing, { handleSummary as pricingSummary, options as pricingOptions } from './pricing.js';
 import monitoringSummary, {
   handleSummary as monitoringSummaryHandler,
@@ -11,6 +12,11 @@ const scenarioHandlers = {
     run: health,
     summary: healthSummary,
     options: healthOptions,
+  },
+  mixed: {
+    run: mixed,
+    summary: mixedSummary,
+    options: mixedOptions,
   },
   pricing: {
     run: pricing,

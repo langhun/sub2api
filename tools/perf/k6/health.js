@@ -1,9 +1,10 @@
 import { createOptions, getScenarioConfig } from './lib/config.js';
-import { executeScenario } from './lib/helpers.js';
+import { executeNamedScenario, getScenarioDefinition } from './lib/scenarios.js';
 import { createSummary } from './lib/summary.js';
 
 const scenario = 'health';
 const config = getScenarioConfig(scenario);
+const definition = getScenarioDefinition(scenario);
 
 export const options = createOptions({
   suite: 'perf-baseline',
@@ -11,18 +12,13 @@ export const options = createOptions({
 });
 
 export default function () {
-  executeScenario({
-    scenario,
-    name: 'health',
-    pathname: '/health',
-    assertBody: (response) => response.json('status') === 'ok',
-  });
+  executeNamedScenario(scenario);
 }
 
 export function handleSummary(data) {
   return createSummary(data, {
     scenario,
-    target: `${config.baseUrl}/health`,
+    target: `${config.baseUrl}${definition.pathname}`,
     vus: config.vus,
     duration: config.duration,
   });
