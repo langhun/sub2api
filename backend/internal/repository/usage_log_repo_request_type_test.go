@@ -1278,15 +1278,15 @@ func TestUsageLogRepositoryGetAllGroupUsageSummaryExpiredCacheMissDeletesKey(t *
 	require.Zero(t, cacheLen)
 }
 
-func TestUsageLogRepositoryGetAllGroupUsageSummarySetGroupUsageSummaryCacheAtThresholdPrunesExpiredAndKeepsLiveAndNewKeys(t *testing.T) {
+func TestUsageLogRepositoryGetAllGroupUsageSummarySetGroupUsageSummaryCacheBelowCleanupIntervalSkipsExpiredPrune(t *testing.T) {
 	repo := &usageLogRepository{}
 
-	const largeCacheEntries = 4096
 	const expiredKey int64 = 1
 	const liveKey int64 = 2
 	const newKey int64 = 1000000
 
 	now := time.Now()
+	recentCleanupAt := now.Add(-(usageLogGroupSummaryCacheCleanupMinInterval / 2))
 	liveSummaries := []usagestats.GroupUsageSummary{
 		{GroupID: liveKey, TotalCost: 22.0, TodayCost: 2.2},
 	}
@@ -1294,7 +1294,9 @@ func TestUsageLogRepositoryGetAllGroupUsageSummarySetGroupUsageSummaryCacheAtThr
 		{GroupID: 99, TotalCost: 99.0, TodayCost: 9.9},
 	}
 
-	repo.groupUsageSummaryCache = make(map[int64]usageLogGroupUsageSummaryCacheEntry, largeCacheEntries+2)
+	fillerEntries := usageLogGroupSummaryCacheCleanupThreshold - 1
+	repo.groupUsageSummaryCache = make(map[int64]usageLogGroupUsageSummaryCacheEntry, fillerEntries+3)
+	repo.groupUsageSummaryCacheLastCleanupAt = recentCleanupAt
 	repo.groupUsageSummaryCache[expiredKey] = usageLogGroupUsageSummaryCacheEntry{
 		expiresAt: now.Add(-time.Hour),
 		summaries: []usagestats.GroupUsageSummary{
@@ -1305,7 +1307,7 @@ func TestUsageLogRepositoryGetAllGroupUsageSummarySetGroupUsageSummaryCacheAtThr
 		expiresAt: now.Add(time.Hour),
 		summaries: cloneGroupUsageSummaries(liveSummaries),
 	}
-	for i := 0; i < largeCacheEntries; i++ {
+	for i := 0; i < fillerEntries; i++ {
 		key := int64(10000 + i)
 		repo.groupUsageSummaryCache[key] = usageLogGroupUsageSummaryCacheEntry{
 			expiresAt: now.Add(time.Hour),
@@ -1316,7 +1318,7 @@ func TestUsageLogRepositoryGetAllGroupUsageSummarySetGroupUsageSummaryCacheAtThr
 	}
 
 	beforeLen := len(repo.groupUsageSummaryCache)
-	require.GreaterOrEqual(t, beforeLen, largeCacheEntries+2)
+	require.Greater(t, beforeLen, usageLogGroupSummaryCacheCleanupThreshold)
 
 	repo.setGroupUsageSummaryCache(newKey, newSummaries)
 
@@ -1325,6 +1327,69 @@ func TestUsageLogRepositoryGetAllGroupUsageSummarySetGroupUsageSummaryCacheAtThr
 	liveEntry, liveExists := repo.groupUsageSummaryCache[liveKey]
 	newEntry, newExists := repo.groupUsageSummaryCache[newKey]
 	afterLen := len(repo.groupUsageSummaryCache)
+	afterCleanupAt := repo.groupUsageSummaryCacheLastCleanupAt
+	repo.groupUsageSummaryCacheMu.RUnlock()
+
+	require.True(t, expiredExists, "cleanup should stay throttled before the minimum interval elapses")
+	require.True(t, liveExists, "live cache entries should remain untouched when cleanup is skipped")
+	require.Equal(t, liveSummaries, liveEntry.summaries)
+	require.True(t, newExists, "new cache entry should still be written when cleanup is throttled")
+	require.Equal(t, newSummaries, newEntry.summaries)
+	require.Equal(t, beforeLen+1, afterLen, "skipping cleanup should retain the expired key and append the new key")
+	require.Equal(t, recentCleanupAt, afterCleanupAt, "cleanup timestamp should not move when throttling skips cleanup")
+}
+
+func TestUsageLogRepositoryGetAllGroupUsageSummarySetGroupUsageSummaryCachePastCleanupIntervalPrunesExpiredAndKeepsLiveAndNewKeys(t *testing.T) {
+	repo := &usageLogRepository{}
+
+	const expiredKey int64 = 1
+	const liveKey int64 = 2
+	const newKey int64 = 1000000
+
+	now := time.Now()
+	staleCleanupAt := now.Add(-usageLogGroupSummaryCacheCleanupMinInterval - time.Second)
+	liveSummaries := []usagestats.GroupUsageSummary{
+		{GroupID: liveKey, TotalCost: 22.0, TodayCost: 2.2},
+	}
+	newSummaries := []usagestats.GroupUsageSummary{
+		{GroupID: 99, TotalCost: 99.0, TodayCost: 9.9},
+	}
+
+	fillerEntries := usageLogGroupSummaryCacheCleanupThreshold - 1
+	repo.groupUsageSummaryCache = make(map[int64]usageLogGroupUsageSummaryCacheEntry, fillerEntries+3)
+	repo.groupUsageSummaryCacheLastCleanupAt = staleCleanupAt
+	repo.groupUsageSummaryCache[expiredKey] = usageLogGroupUsageSummaryCacheEntry{
+		expiresAt: now.Add(-time.Hour),
+		summaries: []usagestats.GroupUsageSummary{
+			{GroupID: expiredKey, TotalCost: 11.0, TodayCost: 1.1},
+		},
+	}
+	repo.groupUsageSummaryCache[liveKey] = usageLogGroupUsageSummaryCacheEntry{
+		expiresAt: now.Add(time.Hour),
+		summaries: cloneGroupUsageSummaries(liveSummaries),
+	}
+	for i := 0; i < fillerEntries; i++ {
+		key := int64(10000 + i)
+		repo.groupUsageSummaryCache[key] = usageLogGroupUsageSummaryCacheEntry{
+			expiresAt: now.Add(time.Hour),
+			summaries: []usagestats.GroupUsageSummary{
+				{GroupID: key, TotalCost: float64(i + 1), TodayCost: float64(i+1) / 10},
+			},
+		}
+	}
+
+	beforeLen := len(repo.groupUsageSummaryCache)
+	require.Greater(t, beforeLen, usageLogGroupSummaryCacheCleanupThreshold)
+
+	cleanupStartedAt := time.Now()
+	repo.setGroupUsageSummaryCache(newKey, newSummaries)
+
+	repo.groupUsageSummaryCacheMu.RLock()
+	_, expiredExists := repo.groupUsageSummaryCache[expiredKey]
+	liveEntry, liveExists := repo.groupUsageSummaryCache[liveKey]
+	newEntry, newExists := repo.groupUsageSummaryCache[newKey]
+	afterLen := len(repo.groupUsageSummaryCache)
+	afterCleanupAt := repo.groupUsageSummaryCacheLastCleanupAt
 	repo.groupUsageSummaryCacheMu.RUnlock()
 
 	require.False(t, expiredExists, "expired keys should be pruned before writing the new summary cache entry")
@@ -1333,6 +1398,8 @@ func TestUsageLogRepositoryGetAllGroupUsageSummarySetGroupUsageSummaryCacheAtThr
 	require.True(t, newExists, "new cache entry should be stored")
 	require.Equal(t, newSummaries, newEntry.summaries)
 	require.Equal(t, beforeLen, afterLen, "cleanup should remove expired entries while preserving live ones and adding the new key")
+	require.True(t, afterCleanupAt.After(staleCleanupAt), "cleanup should advance the last cleanup timestamp once the interval is reached")
+	require.False(t, afterCleanupAt.Before(cleanupStartedAt), "cleanup timestamp should be refreshed during this write")
 }
 
 func TestUsageLogRepositoryGetAllGroupUsageSummaryExpiredCacheKeyRewriteKeepsSingleNormalizedEntry(t *testing.T) {

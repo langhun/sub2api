@@ -187,8 +187,9 @@ type usageLogRepository struct {
 	bestEffortBatchCh   chan usageLogBestEffortRequest
 	bestEffortRecent    *gocache.Cache
 
-	groupUsageSummaryCacheMu sync.RWMutex
-	groupUsageSummaryCache   map[int64]usageLogGroupUsageSummaryCacheEntry
+	groupUsageSummaryCacheMu            sync.RWMutex
+	groupUsageSummaryCache              map[int64]usageLogGroupUsageSummaryCacheEntry
+	groupUsageSummaryCacheLastCleanupAt time.Time
 
 	groupUsageTotalCostCacheMu sync.RWMutex
 	groupUsageTotalCostCache   usageLogGroupUsageTotalCostCacheEntry
@@ -206,6 +207,7 @@ const (
 	usageLogBestEffortRecentTTL                  = 30 * time.Second
 	usageLogGroupSummaryCacheTTL                 = 30 * time.Second
 	usageLogGroupSummaryCacheCleanupThreshold    = 64
+	usageLogGroupSummaryCacheCleanupMinInterval  = 10 * time.Second
 	usageLogGroupTotalCostCacheTTL               = 10 * time.Minute
 	usageLogGroupTotalCostRebuildAt              = 6 * time.Hour
 	usageLogGroupTotalCostIncrementalMinInterval = 2 * time.Minute
@@ -3689,12 +3691,14 @@ func (r *usageLogRepository) setGroupUsageSummaryCache(cacheKey int64, summaries
 	r.groupUsageSummaryCacheMu.Lock()
 	if r.groupUsageSummaryCache == nil {
 		r.groupUsageSummaryCache = make(map[int64]usageLogGroupUsageSummaryCacheEntry)
-	} else if len(r.groupUsageSummaryCache) >= usageLogGroupSummaryCacheCleanupThreshold {
+	} else if len(r.groupUsageSummaryCache) >= usageLogGroupSummaryCacheCleanupThreshold &&
+		(r.groupUsageSummaryCacheLastCleanupAt.IsZero() || now.Sub(r.groupUsageSummaryCacheLastCleanupAt) >= usageLogGroupSummaryCacheCleanupMinInterval) {
 		for key, entry := range r.groupUsageSummaryCache {
 			if !entry.expiresAt.After(now) {
 				delete(r.groupUsageSummaryCache, key)
 			}
 		}
+		r.groupUsageSummaryCacheLastCleanupAt = now
 	}
 	r.groupUsageSummaryCache[cacheKey] = usageLogGroupUsageSummaryCacheEntry{
 		expiresAt: now.Add(usageLogGroupSummaryCacheTTL),
