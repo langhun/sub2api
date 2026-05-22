@@ -1,0 +1,288 @@
+name: Perf Long Run
+
+on:
+  schedule:
+    - cron: '0 19 * * 0'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Override target base URL'
+        required: false
+        type: string
+      k6_vus:
+        description: 'Override K6_VUS'
+        required: false
+        default: '25'
+        type: string
+      k6_duration:
+        description: 'Override K6_DURATION'
+        required: false
+        default: '15m'
+        type: string
+      k6_timeout:
+        description: 'Override K6_TIMEOUT'
+        required: false
+        default: '5s'
+        type: string
+      k6_rps:
+        description: 'Override K6_RPS (0 means unlimited)'
+        required: false
+        default: '0'
+        type: string
+      enforce_thresholds:
+        description: 'Fail the job when thresholds fail'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-long-run
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    continue-on-error: ${{ github.event_name != 'workflow_dispatch' || inputs.enforce_thresholds != true }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Resolve long-run config
+        id: resolve
+        env:
+          INPUT_BASE_URL: ${{ inputs.base_url }}
+          INPUT_K6_VUS: ${{ inputs.k6_vus }}
+          INPUT_K6_DURATION: ${{ inputs.k6_duration }}
+          INPUT_K6_TIMEOUT: ${{ inputs.k6_timeout }}
+          INPUT_K6_RPS: ${{ inputs.k6_rps }}
+          INPUT_ENFORCE_THRESHOLDS: ${{ inputs.enforce_thresholds }}
+          PERF_BASE_URL: ${{ vars.PERF_BASE_URL }}
+          PERF_LONGRUN_BASE_URL: ${{ vars.PERF_LONGRUN_BASE_URL }}
+          PERF_LONGRUN_K6_VUS: ${{ vars.PERF_LONGRUN_K6_VUS }}
+          PERF_LONGRUN_K6_DURATION: ${{ vars.PERF_LONGRUN_K6_DURATION }}
+          PERF_LONGRUN_K6_TIMEOUT: ${{ vars.PERF_LONGRUN_K6_TIMEOUT }}
+          PERF_LONGRUN_K6_RPS: ${{ vars.PERF_LONGRUN_K6_RPS }}
+          PERF_LONGRUN_THRESHOLDS: ${{ vars.PERF_LONGRUN_THRESHOLDS }}
+          PERF_LONGRUN_ENFORCE: ${{ vars.PERF_LONGRUN_ENFORCE }}
+        run: |
+          set -euo pipefail
+
+          pick() {
+            local input_value="$1"
+            local repo_value="$2"
+            local fallback_repo_value="$3"
+            local default_value="$4"
+
+            if [ -n "$input_value" ]; then
+              printf '%s' "$input_value"
+              return
+            fi
+
+            if [ -n "$repo_value" ]; then
+              printf '%s' "$repo_value"
+              return
+            fi
+
+            if [ -n "$fallback_repo_value" ]; then
+              printf '%s' "$fallback_repo_value"
+              return
+            fi
+
+            printf '%s' "$default_value"
+          }
+
+          BASE_URL="$(pick "${INPUT_BASE_URL:-}" "${PERF_LONGRUN_BASE_URL:-}" "${PERF_BASE_URL:-}" "")"
+          K6_VUS="$(pick "${INPUT_K6_VUS:-}" "${PERF_LONGRUN_K6_VUS:-}" "" "25")"
+          K6_DURATION="$(pick "${INPUT_K6_DURATION:-}" "${PERF_LONGRUN_K6_DURATION:-}" "" "15m")"
+          K6_TIMEOUT="$(pick "${INPUT_K6_TIMEOUT:-}" "${PERF_LONGRUN_K6_TIMEOUT:-}" "" "5s")"
+          K6_RPS="$(pick "${INPUT_K6_RPS:-}" "${PERF_LONGRUN_K6_RPS:-}" "" "0")"
+          ENFORCE_VALUE="$(pick "${INPUT_ENFORCE_THRESHOLDS:-}" "${PERF_LONGRUN_ENFORCE:-}" "" "false")"
+          DATE_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          DATE_COMPACT="$(date -u +%Y%m%dT%H%M%SZ)"
+          COMMIT_SHORT="${GITHUB_SHA::12}"
+          BASE_URL_SOURCE="default"
+          THRESHOLD_SOURCE="not_configured"
+          THRESHOLD_SOURCE_LABEL="repository variable PERF_LONGRUN_THRESHOLDS is empty"
+
+          if [ -n "${INPUT_BASE_URL:-}" ]; then
+            BASE_URL_SOURCE="workflow_dispatch input"
+          elif [ -n "${PERF_LONGRUN_BASE_URL:-}" ]; then
+            BASE_URL_SOURCE="repository variable PERF_LONGRUN_BASE_URL"
+          elif [ -n "${PERF_BASE_URL:-}" ]; then
+            BASE_URL_SOURCE="repository variable PERF_BASE_URL"
+          fi
+
+          if [ -n "${PERF_LONGRUN_THRESHOLDS//[[:space:]]/}" ]; then
+            THRESHOLD_SOURCE="env:PERF_LONGRUN_THRESHOLDS"
+            THRESHOLD_SOURCE_LABEL="repository variable PERF_LONGRUN_THRESHOLDS"
+          fi
+
+          if [ -z "$BASE_URL" ]; then
+            if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+              echo "::error::Missing target base URL. Provide workflow input 'base_url' or configure repository variable PERF_LONGRUN_BASE_URL / PERF_BASE_URL."
+              exit 1
+            fi
+
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=PERF_LONGRUN_BASE_URL and PERF_BASE_URL are not configured; long-run baseline skipped." >> "$GITHUB_OUTPUT"
+            {
+              echo "### Perf long-run skipped"
+              echo
+              echo "- Reason: \`PERF_LONGRUN_BASE_URL\` and fallback \`PERF_BASE_URL\` are not configured."
+              echo "- Configure repository variable \`PERF_LONGRUN_BASE_URL\` or \`PERF_BASE_URL\`, then rerun or wait for next weekly schedule."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "artifact_suffix=${DATE_COMPACT}-${COMMIT_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "date_utc=$DATE_UTC" >> "$GITHUB_OUTPUT"
+          echo "threshold_source=$THRESHOLD_SOURCE" >> "$GITHUB_OUTPUT"
+          echo "enforce_value=$ENFORCE_VALUE" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "BASE_URL=$BASE_URL"
+            echo "K6_VUS=$K6_VUS"
+            echo "K6_DURATION=$K6_DURATION"
+            echo "K6_TIMEOUT=$K6_TIMEOUT"
+            echo "K6_RPS=$K6_RPS"
+            echo "PERF_LONGRUN_ENFORCE=$ENFORCE_VALUE"
+            echo "RUN_DATE_UTC=$DATE_UTC"
+            echo "RAW_DIR=artifacts/perf-long-run/raw"
+            echo "TREND_DIR=artifacts/perf-long-run/trend"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "PERF_LONGRUN_THRESHOLDS<<__EOF__"
+            printf '%s\n' "${PERF_LONGRUN_THRESHOLDS:-}"
+            echo "__EOF__"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "### Perf long-run config"
+            echo
+            echo "- Threshold source: \`$THRESHOLD_SOURCE\`"
+            echo "- Threshold source detail: $THRESHOLD_SOURCE_LABEL"
+            echo "- Enforce: \`$ENFORCE_VALUE\`"
+            echo "- Base URL source: \`$BASE_URL_SOURCE\`"
+            echo "- Weekly schedule: Sunday 19:00 UTC"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run k6 long-run scenarios
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          AUTH_TOKEN: ${{ secrets.PERF_AUTH_TOKEN }}
+          AUTH_HEADER: ${{ vars.PERF_AUTH_HEADER || 'Authorization' }}
+          AUTH_SCHEME: ${{ vars.PERF_AUTH_SCHEME || 'Bearer' }}
+          EXTRA_HEADERS: ${{ vars.PERF_EXTRA_HEADERS || '' }}
+          EXPECTED_STATUS: ${{ vars.PERF_EXPECTED_STATUS || '200' }}
+          SUMMARY_TREND_STATS: avg,min,med,max,p(50),p(95),p(99)
+          K6_INSECURE_SKIP_TLS_VERIFY: ${{ vars.PERF_K6_INSECURE_SKIP_TLS_VERIFY || 'false' }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RAW_DIR"
+          scenarios=(health pricing monitoring-summary mixed)
+
+          cat > "$RAW_DIR/run-metadata.json" <<EOF
+          {
+            "date": "${RUN_DATE_UTC}",
+            "commit": "${GITHUB_SHA}",
+            "base_url": "${BASE_URL}",
+            "vus": "${K6_VUS}",
+            "duration": "${K6_DURATION}",
+            "timeout": "${K6_TIMEOUT}",
+            "rps": "${K6_RPS}",
+            "github_run_id": "${GITHUB_RUN_ID}",
+            "github_run_number": "${GITHUB_RUN_NUMBER}",
+            "github_ref_name": "${GITHUB_REF_NAME}",
+            "workflow_name": "Perf Long Run"
+          }
+          EOF
+
+          for scenario in "${scenarios[@]}"; do
+            script_path="tools/perf/k6/${scenario}.js"
+            summary_path="$RAW_DIR/${scenario}.summary.json"
+            log_path="$RAW_DIR/${scenario}.log"
+
+            echo "::group::k6 ${scenario}"
+            k6 run "$script_path" --summary-export "$summary_path" 2>&1 | tee "$log_path"
+            echo "::endgroup::"
+          done
+
+      - name: Build trend markdown and csv
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-long-run/raw/*.summary.json') != '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$TREND_DIR"
+          cmd=(
+            node tools/perf/export-k6-trend.mjs
+            --input-dir "$RAW_DIR"
+            --output-dir "$TREND_DIR"
+            --metadata "$RAW_DIR/run-metadata.json"
+          )
+
+          if [ -n "${PERF_LONGRUN_THRESHOLDS//[[:space:]]/}" ]; then
+            cmd+=(--thresholds-json "$PERF_LONGRUN_THRESHOLDS")
+          fi
+
+          "${cmd[@]}"
+
+      - name: Evaluate perf thresholds
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-long-run/trend/perf-threshold-report.json') != '' }}
+        run: |
+          set -euo pipefail
+          node tools/perf/check-threshold-report.mjs \
+            --report "$TREND_DIR/perf-threshold-report.json" \
+            --enforce "${PERF_LONGRUN_ENFORCE:-false}"
+
+      - name: Build stability summary
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-long-run/trend/perf-trend.csv') != '' }}
+        run: |
+          set -euo pipefail
+          node tools/perf/summarize-trend-stability.mjs \
+            --input "$TREND_DIR/perf-trend.csv" \
+            --output-md "$TREND_DIR/perf-stability-summary.md" \
+            --output-json "$TREND_DIR/perf-stability-summary.json" \
+            --recent-runs 10
+
+      - name: Attach trend summary to workflow
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-long-run/trend/*') != '' }}
+        run: |
+          cat "$TREND_DIR/perf-trend.md" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          cat "$TREND_DIR/perf-thresholds.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$TREND_DIR/perf-stability-summary.md" ]; then
+            echo >> "$GITHUB_STEP_SUMMARY"
+            cat "$TREND_DIR/perf-stability-summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload raw perf artifacts
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-long-run/raw/*') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-long-run-raw-${{ steps.resolve.outputs.artifact_suffix }}
+          path: artifacts/perf-long-run/raw/
+          if-no-files-found: error
+          retention-days: 45
+
+      - name: Upload trend artifacts
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-long-run/trend/*') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-long-run-trend-${{ steps.resolve.outputs.artifact_suffix }}
+          path: artifacts/perf-long-run/trend/
+          if-no-files-found: error
+          retention-days: 45

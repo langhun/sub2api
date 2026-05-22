@@ -300,6 +300,10 @@ nightly 运行后会上传两类 artifact：
 - `perf-nightly-trend-<timestamp>-<sha12>`
   - `perf-trend.md`
   - `perf-trend.csv`
+  - `perf-thresholds.md`
+  - `perf-threshold-report.json`
+  - `perf-stability-summary.md`
+  - `perf-stability-summary.json`
 
 #### 手动触发覆盖参数
 
@@ -312,6 +316,104 @@ nightly 运行后会上传两类 artifact：
 - `k6_rps`
 
 适合在同一套 workflow 下临时放大或缩小基线参数，而不改仓库文件。
+
+### GitHub Actions longer-run
+
+仓库还提供独立的 `.github/workflows/perf-long-run.yml`，用于和 nightly 解耦的长时压测守护。默认能力如下：
+
+- 每周 UTC `19:00` 定时触发，换算为北京时间周一 `03:00`
+- 支持手动 `workflow_dispatch`
+- 固定跑同一组 4 个场景：`health` / `pricing` / `monitoring-summary` / `mixed`
+- 默认参数更偏向长稳态：
+  - `K6_VUS=25`
+  - `K6_DURATION=15m`
+  - `K6_TIMEOUT=5s`
+  - `K6_RPS=0`
+- 复用与 nightly 相同的趋势导出、阈值评估、稳定性总结逻辑
+- 使用独立 artifact 前缀和输出目录，不会和 nightly 混在一起
+- 默认非阻塞：
+  - workflow 级别 `continue-on-error` 会在手动输入 `enforce_thresholds=false` 时生效
+  - 阈值检查默认也按 warning 模式运行，除非显式开启强制模式
+
+#### longer-run 变量与默认值
+
+long-run 优先读取以下仓库变量：
+
+| 类型 | 名称 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| Variable | `PERF_LONGRUN_BASE_URL` | 回退到 `PERF_BASE_URL` | long-run 默认目标地址 |
+| Variable | `PERF_LONGRUN_K6_VUS` | `25` | long-run 默认并发 |
+| Variable | `PERF_LONGRUN_K6_DURATION` | `15m` | long-run 默认时长 |
+| Variable | `PERF_LONGRUN_K6_TIMEOUT` | `5s` | 单请求超时 |
+| Variable | `PERF_LONGRUN_K6_RPS` | `0` | 限速，`0` 表示不限速 |
+| Variable | `PERF_LONGRUN_THRESHOLDS` | 空 | long-run 专用阈值 JSON |
+| Variable | `PERF_LONGRUN_ENFORCE` | `false` | 是否把阈值失败升级为阻塞失败 |
+
+说明：
+
+- 如果 `PERF_LONGRUN_BASE_URL` 未配置，会自动回退到 `PERF_BASE_URL`
+- 鉴权相关变量与 Secret 仍复用 nightly 那套：
+  - `PERF_AUTH_TOKEN`
+  - `PERF_AUTH_HEADER`
+  - `PERF_AUTH_SCHEME`
+  - `PERF_EXTRA_HEADERS`
+  - `PERF_EXPECTED_STATUS`
+  - `PERF_K6_INSECURE_SKIP_TLS_VERIFY`
+- 如果 weekly schedule 触发时目标地址仍为空，workflow 会写明原因并跳过
+
+#### 手动触发 longer-run
+
+在 GitHub Actions 页面选择 `Perf Long Run` 后，可覆盖：
+
+- `base_url`
+- `k6_vus`
+- `k6_duration`
+- `k6_timeout`
+- `k6_rps`
+- `enforce_thresholds`
+
+推荐用法：
+
+- 常规周守护：直接等待 schedule，使用仓库变量默认值
+- 临时放大压测：手动把 `k6_vus`、`k6_duration` 提高
+- 想让本次结果真正阻塞：手动把 `enforce_thresholds` 设为 `true`
+
+#### longer-run artifact 内容
+
+long-run 运行后会上传两类独立 artifact：
+
+- `perf-long-run-raw-<timestamp>-<sha12>`
+  - `run-metadata.json`
+  - `*.summary.json`
+  - `*.log`
+- `perf-long-run-trend-<timestamp>-<sha12>`
+  - `perf-trend.md`
+  - `perf-trend.csv`
+  - `perf-thresholds.md`
+  - `perf-threshold-report.json`
+  - `perf-stability-summary.md`
+  - `perf-stability-summary.json`
+
+#### 如何读取 longer-run 产物
+
+建议按以下顺序看：
+
+1. `perf-trend.md`
+   - 先看 4 个场景的 `requests`、`rps`、`error_rate`、`timeout_rate`、`p95`、`p99`
+2. `perf-thresholds.md`
+   - 看当前是否命中阈值，以及哪些指标偏离
+3. `perf-stability-summary.md`
+   - 看最近多次运行的稳定性汇总，判断是否是偶发抖动
+4. `run-metadata.json`
+   - 确认本次 `base_url`、`vus`、`duration`、`timeout`、`rps`、commit 和 run id
+5. 单场景 `*.log`
+   - 当某个场景异常时，再下钻看对应原始日志
+
+如果你要做长期观察，最适合消费的是：
+
+- `perf-trend.csv`：适合导入表格、BI 或外部报表
+- `perf-threshold-report.json`：适合做自动判定或外部通知
+- `perf-stability-summary.json`：适合做“最近 N 次”波动分析
 
 ### 趋势提取脚本
 
@@ -477,6 +579,26 @@ node tools/perf/export-k6-trend.mjs \
 - 已配置阈值但 `PERF_NIGHTLY_ENFORCE=false` 时，阈值失败只发 `warning` annotation，不阻塞 nightly
 - 已配置阈值且 `PERF_NIGHTLY_ENFORCE=true` 时，任一 scenario 触发阈值失败会让该步骤退出非零
 - `perf-threshold-report.json` 可供后续脚本或外部报表继续消费
+
+### longer-run 阈值守护
+
+`.github/workflows/perf-long-run.yml` 与 nightly 使用同一套阈值模型，但变量名独立，默认面向更长时长与更高并发的压测结果。
+
+相关仓库变量：
+
+| 类型 | 名称 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| Variable | `PERF_LONGRUN_THRESHOLDS` | 空 | long-run 阈值 JSON 字符串 |
+| Variable | `PERF_LONGRUN_ENFORCE` | `false` | 是否把阈值失败升级为阻塞失败 |
+
+行为说明：
+
+- 未配置 `PERF_LONGRUN_THRESHOLDS` 时，会生成 `not_configured` 结果，不阻塞 workflow
+- 已配置阈值但 `PERF_LONGRUN_ENFORCE=false` 时，阈值失败只发 warning
+- 已配置阈值且 `PERF_LONGRUN_ENFORCE=true` 时，阈值失败会让阈值步骤返回非零
+- 手动触发时如果输入 `enforce_thresholds=true`，会同时：
+  - 让阈值步骤按强制模式执行
+  - 关闭 job 级默认非阻塞语义，使整个 workflow 对失败敏感
 
 ## Vegeta 辅助脚本
 
