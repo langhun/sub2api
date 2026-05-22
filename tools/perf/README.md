@@ -20,6 +20,8 @@
 tools/perf/
   README.md
   export-k6-trend.mjs
+  check-threshold-report.mjs
+  thresholds.mjs
   k6/
     all.js
     health.js
@@ -324,6 +326,70 @@ nightly 运行后会上传两类 artifact：
 - `p99`
 - `commit`
 - `date`
+- `threshold_status`
+- `threshold_failed_metrics`
+- 各阈值对应的 `*_threshold` / `*_check`
+
+如果提供阈值配置，它还会额外生成：
+
+- `perf-thresholds.md`
+- `perf-threshold-report.json`
+
+### 阈值配置
+
+nightly workflow 与本地脚本共用同一套阈值模型，支持 4 个指标：
+
+- `error_rate`
+- `timeout_rate`
+- `p95`
+- `p99`
+
+其中：
+
+- `error_rate` / `timeout_rate` 使用小数比例，例如 `0.01` 代表 `1%`
+- `p95` / `p99` 使用毫秒值，例如 `350`
+- 所有阈值语义均为“实际值必须小于等于阈值”
+- 可以先定义默认阈值，再按 scenario 覆盖
+
+示例：
+
+```json
+{
+  "default": {
+    "error_rate": 0.01,
+    "timeout_rate": 0.005,
+    "p95": 400,
+    "p99": 800
+  },
+  "scenarios": {
+    "health": {
+      "p95": 150,
+      "p99": 300
+    },
+    "mixed": {
+      "error_rate": 0.02,
+      "p95": 600,
+      "p99": 1200
+    }
+  }
+}
+```
+
+本地可通过以下方式传入：
+
+- `--thresholds <path-to-json>`
+- `--thresholds-json '<json-string>'`
+- 环境变量 `PERF_NIGHTLY_THRESHOLDS`
+
+示例：
+
+```bash
+node tools/perf/export-k6-trend.mjs \
+  --input-dir tools/perf/output/raw \
+  --output-dir tools/perf/output/trend \
+  --metadata tools/perf/output/raw/run-metadata.json \
+  --thresholds tools/perf/output/raw/thresholds.json
+```
 
 本地手动生成趋势文件示例：
 
@@ -341,6 +407,24 @@ node tools/perf/export-k6-trend.mjs \
 ```
 
 如果没有 `run-metadata.json`，也可以只传 `--input-dir` 和 `--output-dir`；这时 `commit` / `date` 会回退到环境变量或留空。
+
+### nightly 阈值守护
+
+`.github/workflows/perf-nightly.yml` 默认会在导出趋势后执行阈值检查，并把结果追加到 `GITHUB_STEP_SUMMARY`。
+
+相关仓库变量：
+
+| 类型 | 名称 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| Variable | `PERF_NIGHTLY_THRESHOLDS` | 空 | 阈值 JSON 字符串，格式同上 |
+| Variable | `PERF_NIGHTLY_ENFORCE` | `false` | 是否把阈值失败升级为阻塞失败 |
+
+行为说明：
+
+- 未配置 `PERF_NIGHTLY_THRESHOLDS` 时，workflow 会生成 `not_configured` 结果，不会误判失败
+- 已配置阈值但 `PERF_NIGHTLY_ENFORCE=false` 时，阈值失败只发 `warning` annotation，不阻塞 nightly
+- 已配置阈值且 `PERF_NIGHTLY_ENFORCE=true` 时，任一 scenario 触发阈值失败会让该步骤退出非零
+- `perf-threshold-report.json` 可供后续脚本或外部报表继续消费
 
 ## Vegeta 辅助脚本
 

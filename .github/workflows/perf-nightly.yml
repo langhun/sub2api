@@ -66,6 +66,8 @@ jobs:
           PERF_K6_DURATION: ${{ vars.PERF_K6_DURATION }}
           PERF_K6_TIMEOUT: ${{ vars.PERF_K6_TIMEOUT }}
           PERF_K6_RPS: ${{ vars.PERF_K6_RPS }}
+          PERF_NIGHTLY_THRESHOLDS: ${{ vars.PERF_NIGHTLY_THRESHOLDS }}
+          PERF_NIGHTLY_ENFORCE: ${{ vars.PERF_NIGHTLY_ENFORCE }}
         run: |
           set -euo pipefail
 
@@ -123,9 +125,16 @@ jobs:
             echo "K6_DURATION=$K6_DURATION"
             echo "K6_TIMEOUT=$K6_TIMEOUT"
             echo "K6_RPS=$K6_RPS"
+            echo "PERF_NIGHTLY_ENFORCE=${PERF_NIGHTLY_ENFORCE:-false}"
             echo "RUN_DATE_UTC=$DATE_UTC"
             echo "RAW_DIR=artifacts/perf-nightly/raw"
             echo "TREND_DIR=artifacts/perf-nightly/trend"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "PERF_NIGHTLY_THRESHOLDS<<__EOF__"
+            printf '%s\n' "${PERF_NIGHTLY_THRESHOLDS:-}"
+            echo "__EOF__"
           } >> "$GITHUB_ENV"
 
       - name: Run k6 baseline scenarios
@@ -179,10 +188,20 @@ jobs:
             --output-dir "$TREND_DIR" \
             --metadata "$RAW_DIR/run-metadata.json"
 
+      - name: Evaluate perf thresholds
+        if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/trend/perf-threshold-report.json') != '' }}
+        run: |
+          set -euo pipefail
+          node tools/perf/check-threshold-report.mjs \
+            --report "$TREND_DIR/perf-threshold-report.json" \
+            --enforce "${PERF_NIGHTLY_ENFORCE:-false}"
+
       - name: Attach trend summary to workflow
         if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/trend/*') != '' }}
         run: |
           cat "$TREND_DIR/perf-trend.md" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          cat "$TREND_DIR/perf-thresholds.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload raw perf artifacts
         if: ${{ always() && steps.resolve.outputs.skip != 'true' && hashFiles('artifacts/perf-nightly/raw/*') != '' }}

@@ -1,5 +1,10 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import {
+  applyThresholds,
+  buildThresholdMarkdown,
+  loadThresholdConfig,
+} from './thresholds.mjs';
 
 const SCENARIO_ORDER = ['health', 'pricing', 'monitoring-summary', 'mixed'];
 
@@ -8,6 +13,8 @@ function parseArgs(argv) {
     'input-dir': '',
     'output-dir': '',
     metadata: '',
+    thresholds: '',
+    'thresholds-json': '',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -175,13 +182,13 @@ function buildMarkdown(rows, metadata) {
 
   lines.push(
     '',
-    '| scenario | requests | rps | error_rate | timeout_rate | p95 | p99 | commit | date |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |',
+    '| scenario | requests | rps | error_rate | timeout_rate | p95 | p99 | threshold_result | commit | date |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |',
   );
 
   for (const row of rows) {
     lines.push(
-      `| ${row.scenario} | ${formatNumber(row.requests, 0)} | ${formatNumber(row.rps, 2)} | ${formatPercent(row.error_rate)} | ${formatPercent(row.timeout_rate)} | ${formatNumber(row.p95, 2)} ms | ${formatNumber(row.p99, 2)} ms | ${row.commit || 'n/a'} | ${row.date || 'n/a'} |`,
+      `| ${row.scenario} | ${formatNumber(row.requests, 0)} | ${formatNumber(row.rps, 2)} | ${formatPercent(row.error_rate)} | ${formatPercent(row.timeout_rate)} | ${formatNumber(row.p95, 2)} ms | ${formatNumber(row.p99, 2)} ms | ${row.threshold_status} | ${row.commit || 'n/a'} | ${row.date || 'n/a'} |`,
     );
   }
 
@@ -190,7 +197,28 @@ function buildMarkdown(rows, metadata) {
 }
 
 function buildCsv(rows) {
-  const header = ['scenario', 'requests', 'rps', 'error_rate', 'timeout_rate', 'p95', 'p99', 'commit', 'date'];
+  const header = [
+    'scenario',
+    'requests',
+    'rps',
+    'error_rate',
+    'timeout_rate',
+    'p95',
+    'p99',
+    'threshold_status',
+    'threshold_failed_metrics',
+    'threshold_checked_metrics',
+    'error_rate_threshold',
+    'error_rate_check',
+    'timeout_rate_threshold',
+    'timeout_rate_check',
+    'p95_threshold',
+    'p95_check',
+    'p99_threshold',
+    'p99_check',
+    'commit',
+    'date',
+  ];
   const lines = [header.join(',')];
 
   for (const row of rows) {
@@ -202,6 +230,17 @@ function buildCsv(rows) {
       formatNumber(row.timeout_rate, 6),
       formatNumber(row.p95, 2),
       formatNumber(row.p99, 2),
+      row.threshold_status,
+      row.threshold_failed_metrics,
+      row.threshold_checked_metrics,
+      formatNumber(row.error_rate_threshold, 6),
+      row.error_rate_check,
+      formatNumber(row.timeout_rate_threshold, 6),
+      row.timeout_rate_check,
+      formatNumber(row.p95_threshold, 2),
+      row.p95_check,
+      formatNumber(row.p99_threshold, 2),
+      row.p99_check,
       row.commit,
       row.date,
     ].map(toCsvValue).join(','));
@@ -216,17 +255,46 @@ async function main() {
   const inputDir = path.resolve(args['input-dir']);
   const outputDir = path.resolve(args['output-dir']);
   const metadata = await loadMetadata(args.metadata);
-  const rows = await loadRows(inputDir, metadata);
+  const thresholdConfig = await loadThresholdConfig({
+    thresholdsPath: args.thresholds,
+    thresholdsJson: args['thresholds-json'],
+  });
+  const baseRows = await loadRows(inputDir, metadata);
+  const { rows, report } = applyThresholds(baseRows, thresholdConfig);
   const markdown = buildMarkdown(rows, metadata);
   const csv = buildCsv(rows);
+  const thresholdMarkdown = buildThresholdMarkdown(rows, report);
+  const thresholdReport = {
+    configured: report.configured,
+    checked: report.checked,
+    source: report.source,
+    overall_status: report.overall_status,
+    has_failures: report.has_failures,
+    checked_scenarios: report.checked_scenarios,
+    failed_scenarios: report.failed_scenarios,
+    rows: rows.map((row) => ({
+      scenario: row.scenario,
+      threshold_status: row.threshold_status,
+      threshold_failed_metrics: row.threshold_failed_metrics
+        ? row.threshold_failed_metrics.split('|').filter(Boolean)
+        : [],
+      threshold_checked_metrics: row.threshold_checked_metrics
+        ? row.threshold_checked_metrics.split('|').filter(Boolean)
+        : [],
+      checks: row.checks,
+    })),
+  };
 
   await fs.mkdir(outputDir, { recursive: true });
   await Promise.all([
     fs.writeFile(path.join(outputDir, 'perf-trend.md'), markdown, 'utf8'),
     fs.writeFile(path.join(outputDir, 'perf-trend.csv'), csv, 'utf8'),
+    fs.writeFile(path.join(outputDir, 'perf-thresholds.md'), thresholdMarkdown, 'utf8'),
+    fs.writeFile(path.join(outputDir, 'perf-threshold-report.json'), `${JSON.stringify(thresholdReport, null, 2)}\n`, 'utf8'),
   ]);
 
   process.stdout.write(`Generated ${rows.length} trend rows in ${outputDir}\n`);
+  process.stdout.write(`Threshold status: ${report.overall_status}\n`);
 }
 
 main().catch((error) => {
