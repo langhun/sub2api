@@ -300,6 +300,8 @@ nightly 运行后会上传两类 artifact：
 - `perf-nightly-trend-<timestamp>-<sha12>`
   - `perf-trend.md`
   - `perf-trend.csv`
+  - `perf-trend-history.csv`（启用历史对比时）
+  - `perf-trend-latest.md`（启用历史对比时）
   - `perf-thresholds.md`
   - `perf-threshold-report.json`
   - `perf-stability-summary.md`
@@ -314,8 +316,60 @@ nightly 运行后会上传两类 artifact：
 - `k6_duration`
 - `k6_timeout`
 - `k6_rps`
+- `history_source`
+- `history_run_id`
+- `history_artifact_name`
+- `history_csv_path`
 
 适合在同一套 workflow 下临时放大或缩小基线参数，而不改仓库文件。
+
+#### nightly 历史对比
+
+`Perf Nightly` 现在也支持把历史 CSV 传给 `export-k6-trend.mjs --history-csv`，用于和上一轮或指定基线做连续对比。默认策略保持安全兼容：
+
+- `schedule` 触发时固定按 `history_source=previous-run-artifact`
+- 手动 `workflow_dispatch` 时可显式选择历史源
+- 历史不可用时只发 warning，并安全降级为当前运行单独输出
+
+可选历史源与 `Perf Long Run` 对齐：
+
+- `previous-run-artifact`
+  - 默认值
+  - 自动查找当前 workflow 最近一次成功运行的 `perf-nightly-trend-*` artifact
+- `artifact`
+  - 手动指定某个 nightly 历史 run 的 artifact
+- `path`
+  - 使用工作区中已有的 CSV 路径
+- `none`
+  - 明确禁用历史对比
+
+输入组合非法时，workflow 会给 warning 但不会失败：
+
+- `history_source=previous-run-artifact`
+  - 忽略 `history_run_id`
+  - 忽略 `history_artifact_name`
+  - 忽略 `history_csv_path`
+- `history_source=artifact`
+  - 忽略 `history_csv_path`
+- `history_source=path`
+  - 忽略 `history_run_id`
+  - 忽略 `history_artifact_name`
+- `history_source=none`
+  - 忽略任意其他 `history_*`
+
+历史相关 summary 会额外输出：
+
+- 最终 `history_source`
+- 选中的 history run / branch / event / artifact
+- 最终使用的 history CSV path
+- 最终 fallback reason
+
+这样即使历史下载失败、artifact 过期、路径不存在，nightly 仍会继续产出：
+
+- `perf-trend.md`
+- `perf-trend.csv`
+- `perf-thresholds.md`
+- `perf-stability-summary.md`
 
 ### GitHub Actions longer-run
 

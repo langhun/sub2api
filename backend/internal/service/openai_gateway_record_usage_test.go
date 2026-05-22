@@ -791,6 +791,42 @@ func TestOpenAIGatewayServiceRecordUsage_DroppedBestEffortUsageLogDoesNotSyncFal
 	require.Equal(t, "resp_best_effort_usage_log_dropped", usageRepo.lastLog.RequestID)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_NotPersistedBestEffortErrorStillSyncsFallbackAndReturnsSuccess(t *testing.T) {
+	usage := OpenAIUsage{InputTokens: 11, OutputTokens: 7}
+	usageRepo := &openAIBestEffortUsageLogRepoStub{
+		bestEffortErr: MarkUsageLogCreateNotPersisted(errors.New("usage log queue timeout")),
+		createErr:     MarkUsageLogCreateDropped(errors.New("usage log sync fallback dropped")),
+	}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, userRepo, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_best_effort_not_persisted_sync_fallback",
+			Usage:     usage,
+			Model:     "gpt-5.1",
+			Duration:  time.Second,
+		},
+		APIKey:  &APIKey{ID: 10056},
+		User:    &User{ID: 20056},
+		Account: &Account{ID: 30056},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, billingRepo.calls)
+	require.Equal(t, 1, usageRepo.bestEffortCalls)
+	require.Equal(t, 1, usageRepo.createCalls)
+	require.NoError(t, usageRepo.lastCtxErr)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, "resp_best_effort_not_persisted_sync_fallback", usageRepo.lastLog.RequestID)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.InDelta(t, expectedOpenAICost(t, svc, "gpt-5.1", usage, 1.1).ActualCost, billingRepo.lastCmd.BalanceCost, 1e-12)
+	require.Equal(t, 0, userRepo.deductCalls)
+	require.Equal(t, 0, subRepo.incrementCalls)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_BestEffortUsageLogFailureAfterBillingStillReturnsSuccess(t *testing.T) {
 	usage := OpenAIUsage{InputTokens: 9, OutputTokens: 5}
 	usageRepo := &openAIBestEffortUsageLogRepoStub{
@@ -865,6 +901,47 @@ func TestOpenAIGatewayServiceRecordUsage_BestEffortSyncFallbackUsesDetachedConte
 	require.NoError(t, usageRepo.lastCtxErr)
 	require.NotNil(t, usageRepo.lastLog)
 	require.Equal(t, "resp_best_effort_usage_log_sync_fallback_detached_ctx", usageRepo.lastLog.RequestID)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_ExceptionPathKeepsClientRequestIDAndPayloadFallbackStable(t *testing.T) {
+	usageRepo := &openAIBestEffortUsageLogRepoStub{
+		bestEffortErr: errors.New("usage log queue unavailable"),
+		createErr:     context.DeadlineExceeded,
+	}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{},
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+
+	ctx := context.WithValue(context.Background(), ctxkey.ClientRequestID, "openai-client-exception-123")
+	err := svc.RecordUsage(ctx, &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "upstream-openai-volatile-456",
+			Usage: OpenAIUsage{
+				InputTokens:  8,
+				OutputTokens: 4,
+			},
+			Model:    "gpt-5.1",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 10057},
+		User:    &User{ID: 20057},
+		Account: &Account{ID: 30057},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, billingRepo.calls)
+	require.Equal(t, 1, usageRepo.bestEffortCalls)
+	require.Equal(t, 1, usageRepo.createCalls)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.Equal(t, "client:openai-client-exception-123", billingRepo.lastCmd.RequestID)
+	require.Equal(t, "client:openai-client-exception-123", billingRepo.lastCmd.RequestPayloadHash)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, billingRepo.lastCmd.RequestID, usageRepo.lastLog.RequestID)
 }
 
 func TestOpenAIGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(t *testing.T) {

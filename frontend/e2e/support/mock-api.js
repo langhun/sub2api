@@ -504,6 +504,7 @@ export async function mockCommonAppRoutes(page, options = {}) {
         items: [created, ...state.proxies.items],
         total: state.proxies.total + 1,
       }
+      state.allProxies = [created, ...state.allProxies]
       await route.fulfill(jsonResponse(apiSuccess(created)))
       return
     }
