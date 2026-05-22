@@ -223,19 +223,58 @@ jobs:
           HISTORY_ARTIFACT_NAME="${INPUT_HISTORY_ARTIFACT_NAME:-}"
           HISTORY_CSV_PATH_INPUT="${INPUT_HISTORY_CSV_PATH:-}"
           HISTORY_DIR="artifacts/perf-long-run/history"
+          INPUT_WARNING=''
+          EFFECTIVE_EVENT_NAME="${GITHUB_EVENT_NAME}"
+
+          if [ "$EFFECTIVE_EVENT_NAME" = "workflow_dispatch" ]; then
+            EFFECTIVE_EVENT_NAME='workflow_dispatch'
+          elif [ "$EFFECTIVE_EVENT_NAME" = "schedule" ]; then
+            EFFECTIVE_EVENT_NAME='schedule'
+          fi
 
           mkdir -p "$HISTORY_DIR"
+
+          case "$HISTORY_SOURCE" in
+            previous-run-artifact)
+              if [ -n "$HISTORY_RUN_ID" ] || [ -n "$HISTORY_ARTIFACT_NAME" ] || [ -n "$HISTORY_CSV_PATH_INPUT" ]; then
+                INPUT_WARNING='history_source=previous-run-artifact ignores history_run_id, history_artifact_name, and history_csv_path.'
+              fi
+              ;;
+            artifact)
+              if [ -n "$HISTORY_CSV_PATH_INPUT" ]; then
+                INPUT_WARNING='history_source=artifact ignores history_csv_path.'
+              fi
+              ;;
+            path)
+              if [ -n "$HISTORY_RUN_ID" ] || [ -n "$HISTORY_ARTIFACT_NAME" ]; then
+                INPUT_WARNING='history_source=path ignores history_run_id and history_artifact_name.'
+              fi
+              ;;
+            none)
+              if [ -n "$HISTORY_RUN_ID" ] || [ -n "$HISTORY_ARTIFACT_NAME" ] || [ -n "$HISTORY_CSV_PATH_INPUT" ]; then
+                INPUT_WARNING='history_source=none ignores all history_* inputs.'
+              fi
+              ;;
+          esac
 
           echo "history_dir=$HISTORY_DIR" >> "$GITHUB_OUTPUT"
           echo "source=$HISTORY_SOURCE" >> "$GITHUB_OUTPUT"
           echo "run_id=$HISTORY_RUN_ID" >> "$GITHUB_OUTPUT"
           echo "artifact_name=$HISTORY_ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
           echo "csv_path_input=$HISTORY_CSV_PATH_INPUT" >> "$GITHUB_OUTPUT"
+          echo "input_warning=$INPUT_WARNING" >> "$GITHUB_OUTPUT"
+          echo "effective_event_name=$EFFECTIVE_EVENT_NAME" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$INPUT_WARNING" ]; then
+            echo "::warning::$INPUT_WARNING"
+          fi
 
           {
             echo "### Perf long-run history config"
             echo
             echo "- Source: \`$HISTORY_SOURCE\`"
+            echo "- Current branch: \`${GITHUB_REF_NAME}\`"
+            echo "- Current event type: \`$EFFECTIVE_EVENT_NAME\`"
             if [ -n "$HISTORY_RUN_ID" ]; then
               echo "- Requested run id: \`$HISTORY_RUN_ID\`"
             fi
@@ -244,6 +283,9 @@ jobs:
             fi
             if [ -n "$HISTORY_CSV_PATH_INPUT" ]; then
               echo "- Requested CSV path: \`$HISTORY_CSV_PATH_INPUT\`"
+            fi
+            if [ -n "$INPUT_WARNING" ]; then
+              echo "- Input validation warning: $INPUT_WARNING"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -255,17 +297,25 @@ jobs:
           HISTORY_SOURCE: ${{ steps.history_config.outputs.source }}
           HISTORY_RUN_ID: ${{ steps.history_config.outputs.run_id }}
           HISTORY_ARTIFACT_NAME: ${{ steps.history_config.outputs.artifact_name }}
+          EFFECTIVE_EVENT_NAME: ${{ steps.history_config.outputs.effective_event_name }}
         run: |
           set -euo pipefail
 
           TARGET_RUN_ID="${HISTORY_RUN_ID:-}"
           TARGET_ARTIFACT_NAME="${HISTORY_ARTIFACT_NAME:-}"
+          TARGET_RUN_EVENT=''
+          TARGET_RUN_BRANCH=''
+          SELECTION_REASON=''
 
           if [ "$HISTORY_SOURCE" = "previous-run-artifact" ]; then
-            TARGET_RUN_ID="$(
-              gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/perf-long-run.yml/runs?status=completed&per_page=20" |
-                node -e "const fs = require('node:fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); const current = String(process.env.GITHUB_RUN_ID || ''); const run = (data.workflow_runs || []).find((item) => String(item.id) !== current && item.conclusion === 'success'); if (run) process.stdout.write(String(run.id));"
+            selection="$(
+              gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/perf-long-run.yml/runs?status=completed&per_page=50" |
+                node -e "const fs = require('node:fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); const current = String(process.env.GITHUB_RUN_ID || ''); const currentBranch = String(process.env.GITHUB_REF_NAME || ''); const currentEvent = String(process.env.EFFECTIVE_EVENT_NAME || ''); const runs = (data.workflow_runs || []).filter((item) => String(item.id) !== current && item.conclusion === 'success'); const sameBranchAndEvent = runs.find((item) => item.head_branch === currentBranch && item.event === currentEvent); const sameBranch = runs.find((item) => item.head_branch === currentBranch); const fallback = runs[0]; const selected = sameBranchAndEvent || sameBranch || fallback; if (!selected) process.exit(0); const reason = sameBranchAndEvent ? 'same_branch_and_event' : sameBranch ? 'same_branch_fallback' : 'latest_successful_fallback'; process.stdout.write([selected.id, selected.event || '', selected.head_branch || '', reason].join('|'));"
             )"
+
+            if [ -n "$selection" ]; then
+              IFS='|' read -r TARGET_RUN_ID TARGET_RUN_EVENT TARGET_RUN_BRANCH SELECTION_REASON <<< "$selection"
+            fi
           fi
 
           if [ -z "$TARGET_RUN_ID" ]; then
@@ -273,8 +323,22 @@ jobs:
             echo "run_id=" >> "$GITHUB_OUTPUT"
             echo "artifact_name=" >> "$GITHUB_OUTPUT"
             echo "reason=no_history_run" >> "$GITHUB_OUTPUT"
+            echo "run_branch=" >> "$GITHUB_OUTPUT"
+            echo "run_event=" >> "$GITHUB_OUTPUT"
+            echo "selection_reason=no_matching_successful_run" >> "$GITHUB_OUTPUT"
             echo "::warning::No history run available for source ${HISTORY_SOURCE}; continuing without history compare."
             exit 0
+          fi
+
+          if [ "$HISTORY_SOURCE" = "artifact" ]; then
+            metadata="$(
+              gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${TARGET_RUN_ID}" |
+                node -e "const fs = require('node:fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); process.stdout.write([(data.event || ''), (data.head_branch || '')].join('|'));"
+            )"
+            if [ -n "$metadata" ]; then
+              IFS='|' read -r TARGET_RUN_EVENT TARGET_RUN_BRANCH <<< "$metadata"
+            fi
+            SELECTION_REASON='manual_run_id'
           fi
 
           if [ -z "$TARGET_ARTIFACT_NAME" ]; then
@@ -289,6 +353,9 @@ jobs:
             echo "run_id=$TARGET_RUN_ID" >> "$GITHUB_OUTPUT"
             echo "artifact_name=" >> "$GITHUB_OUTPUT"
             echo "reason=no_history_artifact" >> "$GITHUB_OUTPUT"
+            echo "run_branch=$TARGET_RUN_BRANCH" >> "$GITHUB_OUTPUT"
+            echo "run_event=$TARGET_RUN_EVENT" >> "$GITHUB_OUTPUT"
+            echo "selection_reason=${SELECTION_REASON:-unknown}" >> "$GITHUB_OUTPUT"
             echo "::warning::No matching perf-long-run trend artifact found in run ${TARGET_RUN_ID}; continuing without history compare."
             exit 0
           fi
@@ -297,6 +364,9 @@ jobs:
           echo "run_id=$TARGET_RUN_ID" >> "$GITHUB_OUTPUT"
           echo "artifact_name=$TARGET_ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
           echo "reason=ok" >> "$GITHUB_OUTPUT"
+          echo "run_branch=$TARGET_RUN_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "run_event=$TARGET_RUN_EVENT" >> "$GITHUB_OUTPUT"
+          echo "selection_reason=${SELECTION_REASON:-manual_artifact_name}" >> "$GITHUB_OUTPUT"
 
       - name: Download history artifact
         if: ${{ steps.resolve.outputs.skip != 'true' && steps.history_artifact.outputs.available == 'true' }}
@@ -315,6 +385,7 @@ jobs:
           if ! gh run download "$TARGET_RUN_ID" -R "$GITHUB_REPOSITORY" -n "$TARGET_ARTIFACT_NAME" --dir "$DOWNLOAD_DIR"; then
             echo "csv_path=" >> "$GITHUB_OUTPUT"
             echo "kind=" >> "$GITHUB_OUTPUT"
+            echo "fallback_reason=download_failed" >> "$GITHUB_OUTPUT"
             echo "::warning::Failed to download history artifact ${TARGET_ARTIFACT_NAME} from run ${TARGET_RUN_ID}; continuing without history compare."
             exit 0
           fi
@@ -342,6 +413,11 @@ jobs:
 
           echo "csv_path=$HISTORY_CSV_FILE" >> "$GITHUB_OUTPUT"
           echo "kind=$HISTORY_KIND" >> "$GITHUB_OUTPUT"
+          if [ -n "$HISTORY_CSV_FILE" ]; then
+            echo "fallback_reason=download_ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "fallback_reason=csv_not_found_inside_artifact" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Resolve history CSV path
         if: ${{ steps.resolve.outputs.skip != 'true' && steps.history_config.outputs.source == 'path' }}
@@ -353,6 +429,7 @@ jobs:
 
           if [ -z "${HISTORY_CSV_PATH_INPUT:-}" ]; then
             echo "csv_path=" >> "$GITHUB_OUTPUT"
+            echo "fallback_reason=path_input_missing" >> "$GITHUB_OUTPUT"
             echo "::warning::history_source=path but no history_csv_path was provided; continuing without history compare."
             exit 0
           fi
@@ -360,11 +437,13 @@ jobs:
           CANDIDATE_PATH="$HISTORY_CSV_PATH_INPUT"
           if [ ! -f "$CANDIDATE_PATH" ]; then
             echo "csv_path=" >> "$GITHUB_OUTPUT"
+            echo "fallback_reason=path_not_found" >> "$GITHUB_OUTPUT"
             echo "::warning::History CSV path ${HISTORY_CSV_PATH_INPUT} does not exist; continuing without history compare."
             exit 0
           fi
 
           echo "csv_path=$CANDIDATE_PATH" >> "$GITHUB_OUTPUT"
+          echo "fallback_reason=path_ok" >> "$GITHUB_OUTPUT"
 
       - name: Finalize history input
         if: steps.resolve.outputs.skip != 'true'
@@ -373,37 +452,58 @@ jobs:
           HISTORY_SOURCE: ${{ steps.history_config.outputs.source }}
           ARTIFACT_CSV_PATH: ${{ steps.history_download.outputs.csv_path }}
           ARTIFACT_KIND: ${{ steps.history_download.outputs.kind }}
+          ARTIFACT_FALLBACK_REASON: ${{ steps.history_download.outputs.fallback_reason }}
+          HISTORY_RUN_ID: ${{ steps.history_artifact.outputs.run_id }}
+          HISTORY_RUN_BRANCH: ${{ steps.history_artifact.outputs.run_branch }}
+          HISTORY_RUN_EVENT: ${{ steps.history_artifact.outputs.run_event }}
+          HISTORY_SELECTION_REASON: ${{ steps.history_artifact.outputs.selection_reason }}
+          HISTORY_ARTIFACT_NAME: ${{ steps.history_artifact.outputs.artifact_name }}
+          HISTORY_ARTIFACT_REASON: ${{ steps.history_artifact.outputs.reason }}
           PATH_CSV_PATH: ${{ steps.history_path.outputs.csv_path }}
+          PATH_FALLBACK_REASON: ${{ steps.history_path.outputs.fallback_reason }}
         run: |
           set -euo pipefail
 
           HISTORY_CSV_PATH=''
           HISTORY_NOTE='History compare disabled.'
+          FALLBACK_REASON='disabled'
 
           case "$HISTORY_SOURCE" in
             previous-run-artifact|artifact)
               HISTORY_CSV_PATH="${ARTIFACT_CSV_PATH:-}"
               if [ -n "$HISTORY_CSV_PATH" ]; then
                 HISTORY_NOTE="History compare enabled via artifact (${ARTIFACT_KIND:-csv})."
+                FALLBACK_REASON='using_artifact_history'
               else
-                HISTORY_NOTE='History artifact unavailable; falling back to current-run-only trend outputs.'
+                if [ -n "${ARTIFACT_FALLBACK_REASON:-}" ] && [ "${ARTIFACT_FALLBACK_REASON}" != 'download_ok' ]; then
+                  FALLBACK_REASON="$ARTIFACT_FALLBACK_REASON"
+                elif [ -n "${HISTORY_ARTIFACT_REASON:-}" ] && [ "${HISTORY_ARTIFACT_REASON}" != 'ok' ]; then
+                  FALLBACK_REASON="$HISTORY_ARTIFACT_REASON"
+                else
+                  FALLBACK_REASON='artifact_unavailable'
+                fi
+                HISTORY_NOTE="History artifact unavailable; falling back to current-run-only trend outputs. Reason: ${FALLBACK_REASON}."
               fi
               ;;
             path)
               HISTORY_CSV_PATH="${PATH_CSV_PATH:-}"
               if [ -n "$HISTORY_CSV_PATH" ]; then
                 HISTORY_NOTE="History compare enabled via CSV path \`${HISTORY_CSV_PATH}\`."
+                FALLBACK_REASON='using_path_history'
               else
-                HISTORY_NOTE='History CSV path unavailable; falling back to current-run-only trend outputs.'
+                FALLBACK_REASON="${PATH_FALLBACK_REASON:-path_unavailable}"
+                HISTORY_NOTE="History CSV path unavailable; falling back to current-run-only trend outputs. Reason: ${FALLBACK_REASON}."
               fi
               ;;
             none)
               HISTORY_NOTE='History compare disabled by configuration.'
+              FALLBACK_REASON='disabled_by_input'
               ;;
           esac
 
           echo "HISTORY_CSV_PATH=$HISTORY_CSV_PATH" >> "$GITHUB_ENV"
           echo "csv_path=$HISTORY_CSV_PATH" >> "$GITHUB_OUTPUT"
+          echo "fallback_reason=$FALLBACK_REASON" >> "$GITHUB_OUTPUT"
           if [ -n "$HISTORY_CSV_PATH" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
@@ -413,6 +513,29 @@ jobs:
           {
             echo
             echo "- History resolution: $HISTORY_NOTE"
+            if [ "$HISTORY_SOURCE" = 'previous-run-artifact' ] || [ "$HISTORY_SOURCE" = 'artifact' ]; then
+              if [ -n "${HISTORY_RUN_ID:-}" ]; then
+                echo "- Selected history run: \`${HISTORY_RUN_ID}\`"
+              fi
+              if [ -n "${HISTORY_RUN_BRANCH:-}" ]; then
+                echo "- Selected history branch: \`${HISTORY_RUN_BRANCH}\`"
+              fi
+              if [ -n "${HISTORY_RUN_EVENT:-}" ]; then
+                echo "- Selected history event: \`${HISTORY_RUN_EVENT}\`"
+              fi
+              if [ -n "${HISTORY_SELECTION_REASON:-}" ]; then
+                echo "- Selection basis: \`${HISTORY_SELECTION_REASON}\`"
+              fi
+              if [ -n "${HISTORY_ARTIFACT_NAME:-}" ]; then
+                echo "- Selected history artifact: \`${HISTORY_ARTIFACT_NAME}\`"
+              fi
+            fi
+            if [ -n "$HISTORY_CSV_PATH" ]; then
+              echo "- Final history CSV path: \`${HISTORY_CSV_PATH}\`"
+            else
+              echo "- Final history CSV path: \`<none>\`"
+            fi
+            echo "- Final fallback reason: \`${FALLBACK_REASON}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run k6 long-run scenarios

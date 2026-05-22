@@ -755,6 +755,42 @@ func TestOpenAIGatewayServiceRecordUsage_BestEffortUsageLogUsesDetachedContextWh
 	require.Equal(t, "resp_best_effort_usage_repo_detached_ctx", usageRepo.lastLog.RequestID)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_DroppedBestEffortUsageLogDoesNotSyncFallback(t *testing.T) {
+	usageRepo := &openAIBestEffortUsageLogRepoStub{
+		bestEffortErr: MarkUsageLogCreateDropped(errors.New("usage log best-effort queue full")),
+	}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{},
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_best_effort_usage_log_dropped",
+			Usage: OpenAIUsage{
+				InputTokens:  10,
+				OutputTokens: 6,
+			},
+			Model:    "gpt-5.1",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 10054},
+		User:    &User{ID: 20054},
+		Account: &Account{ID: 30054},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, billingRepo.calls)
+	require.Equal(t, 1, usageRepo.bestEffortCalls)
+	require.Equal(t, 0, usageRepo.createCalls)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, "resp_best_effort_usage_log_dropped", usageRepo.lastLog.RequestID)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_BestEffortUsageLogFailureAfterBillingStillReturnsSuccess(t *testing.T) {
 	usage := OpenAIUsage{InputTokens: 9, OutputTokens: 5}
 	usageRepo := &openAIBestEffortUsageLogRepoStub{
@@ -787,6 +823,48 @@ func TestOpenAIGatewayServiceRecordUsage_BestEffortUsageLogFailureAfterBillingSt
 	require.InDelta(t, expectedOpenAICost(t, svc, "gpt-5.1", usage, 1.1).ActualCost, billingRepo.lastCmd.BalanceCost, 1e-12)
 	require.Equal(t, 0, userRepo.deductCalls)
 	require.Equal(t, 0, subRepo.incrementCalls)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_BestEffortSyncFallbackUsesDetachedContextWhenRequestCanceled(t *testing.T) {
+	usageRepo := &openAIBestEffortUsageLogRepoStub{
+		bestEffortErr: errors.New("usage log queue unavailable"),
+		createErr:     MarkUsageLogCreateNotPersisted(context.Canceled),
+	}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{},
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+
+	reqCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := svc.RecordUsage(reqCtx, &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_best_effort_usage_log_sync_fallback_detached_ctx",
+			Usage: OpenAIUsage{
+				InputTokens:  10,
+				OutputTokens: 6,
+			},
+			Model:    "gpt-5.1",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 10055},
+		User:    &User{ID: 20055},
+		Account: &Account{ID: 30055},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, billingRepo.calls)
+	require.NoError(t, billingRepo.lastCtxErr)
+	require.Equal(t, 1, usageRepo.bestEffortCalls)
+	require.Equal(t, 1, usageRepo.createCalls)
+	require.NoError(t, usageRepo.lastCtxErr)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, "resp_best_effort_usage_log_sync_fallback_detached_ctx", usageRepo.lastLog.RequestID)
 }
 
 func TestOpenAIGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(t *testing.T) {

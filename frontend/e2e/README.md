@@ -6,7 +6,11 @@
 
 - `auth.setup.js`: 通过真实登录页 + API mock 生成管理员 `storageState`
 - `admin-login.spec.js`: 验证登录后进入管理台
-- `admin-proxies.spec.js`: 验证代理页关键入口，并走一条创建代理成功流程
+- `admin-flow-smoke.spec.js`: 串联 dashboard -> settings(payment) -> accounts -> groups -> proxies，并验证 payment provider 状态在跨页返回后仍可见
+- `admin-groups.spec.js`: 验证分组页创建分组成功流程
+- `admin-groups-accounts-linkage.spec.js`: 验证分组创建后能在账户页分组筛选中出现、筛选生效、清空筛选后列表恢复
+- `admin-accounts.spec.js`: 验证账户页搜索、高级筛选展开与清空筛选
+- `admin-proxies.spec.js`: 验证代理页关键入口，并覆盖创建代理后立即可见、状态切换成功的回归流程
 - `admin-settings.spec.js`: 验证设置页加载、切换 tab、保存成功
 - `admin-settings-payment.spec.js`: 验证支付设置页启用支付、启用支付类型、创建服务商、列表展示与删除流程
 - `admin-settings-admin-api-key.spec.js`: 验证安全页管理员 API Key 的创建、刷新后脱敏展示、重新生成与删除流程

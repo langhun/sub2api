@@ -419,12 +419,23 @@ long-run 运行后会上传两类独立 artifact：
 1. 保持 `history_source=previous-run-artifact`
 2. 先至少成功跑过一次 `Perf Long Run`
 3. 从第二次开始，workflow 会自动尝试下载上一轮成功运行的 `perf-long-run-trend-*`
+4. 自动选择历史 run 时会优先按下面的顺序过滤：
+   - 同分支 + 同事件类型
+   - 同分支
+   - 最近一次成功运行
 4. 如果下载到：
    - 优先使用 `perf-trend-history.csv`
    - 否则回退使用 `perf-trend.csv`
 5. 如果上一轮 artifact 不存在、已过期或下载失败：
    - workflow 会写 warning
    - 但仍继续产出本轮 `perf-trend.md` / `perf-trend.csv`
+6. `GITHUB_STEP_SUMMARY` 会额外写出：
+   - 选中的 history run id
+   - 选中的 history branch
+   - 选中的 history event
+   - `Selection basis`
+   - 最终使用的 history CSV path
+   - 最终 fallback reason
 
 ##### 方案 2：手动指定历史 artifact
 
@@ -440,6 +451,9 @@ long-run 运行后会上传两类独立 artifact：
 5. 若 run id 或 artifact 找不到：
    - workflow 会安全降级
    - 不会因为缺历史而阻断整次压测
+6. 如果同时传了 `history_csv_path`：
+   - workflow 会提前给 warning
+   - 但仍按 `artifact` 模式继续
 
 ##### 方案 3：手动指定 CSV 路径
 
@@ -455,6 +469,9 @@ long-run 运行后会上传两类独立 artifact：
 4. 如果该路径不存在：
    - workflow 会写 warning
    - 然后自动回退到 current-only 模式
+5. 如果同时传了 `history_run_id` 或 `history_artifact_name`：
+   - workflow 会提前给 warning
+   - 但仍按 `path` 模式继续
 
 ##### 方案 4：显式关闭历史对比
 
@@ -463,6 +480,27 @@ long-run 运行后会上传两类独立 artifact：
 1. 手动运行 `Perf Long Run`
 2. 设置 `history_source=none`
 3. workflow 不会尝试下载或读取任何历史 CSV
+4. 如果此时仍填写其他 `history_*` 输入：
+   - workflow 会提前给 warning
+   - 但仍按禁用历史处理
+
+##### 输入校验与安全降级说明
+
+为了避免误配，workflow 会对以下组合提前给 warning，但不会直接失败：
+
+- `history_source=previous-run-artifact`
+  - 同时填写 `history_run_id`
+  - 同时填写 `history_artifact_name`
+  - 同时填写 `history_csv_path`
+- `history_source=artifact`
+  - 同时填写 `history_csv_path`
+- `history_source=path`
+  - 同时填写 `history_run_id`
+  - 同时填写 `history_artifact_name`
+- `history_source=none`
+  - 同时填写任意其他 `history_*`
+
+这类 warning 只用于提示“哪些输入会被忽略”，不会阻断当前 long-run。
 
 ##### 启用历史对比后会多出什么产物
 
@@ -480,6 +518,28 @@ long-run 运行后会上传两类独立 artifact：
 如果历史未启用或未获取成功，才回退使用：
 
 - `perf-trend.csv`
+
+##### summary 中会看到什么
+
+历史相关的 `GITHUB_STEP_SUMMARY` 现在会明确输出：
+
+- 当前 branch
+- 当前 event type
+- 选中的 history run id
+- 选中的 history branch
+- 选中的 history event
+- `Selection basis`
+- 选中的 history artifact 名称
+- 最终使用的 history CSV path
+- 最终 `fallback reason`
+
+这样即使历史不可用，也能快速看出：
+
+- 是没有同分支历史
+- 还是没有 matching artifact
+- 还是 artifact 下载失败
+- 还是路径输入不存在
+- 还是明确被 `none` 禁用
 
 #### 如何读取 longer-run 产物
 

@@ -508,6 +508,32 @@ export async function mockCommonAppRoutes(page, options = {}) {
       return
     }
 
+    if (matches(pathname, '/api/v1/admin/proxies') && method === 'PUT') {
+      const payload = request.postDataJSON() || {}
+      const id = Number(pathname.split('/').pop())
+      const current = state.proxies.items.find((proxy) => proxy.id === id)
+
+      if (!current) {
+        await route.fulfill(jsonResponse({ code: 404, message: 'proxy not found', data: null }, 404))
+        return
+      }
+
+      const updated = {
+        ...current,
+        ...payload,
+        updated_at: '2026-05-22T00:00:00Z',
+      }
+
+      state.proxies = {
+        ...state.proxies,
+        items: state.proxies.items.map((proxy) => (proxy.id === id ? updated : proxy)),
+      }
+      state.allProxies = state.allProxies.map((proxy) => (proxy.id === id ? updated : proxy))
+
+      await route.fulfill(jsonResponse(apiSuccess(updated)))
+      return
+    }
+
     if (pathname === '/api/v1/admin/proxies/mihomo' && method === 'GET') {
       await route.fulfill(jsonResponse(apiSuccess(state.mihomoStatus)))
       return
@@ -519,11 +545,6 @@ export async function mockCommonAppRoutes(page, options = {}) {
     }
 
     if (matches(pathname, '/api/v1/admin/proxies') && method === 'POST') {
-      await route.fulfill(jsonResponse(apiSuccess({ success: true })))
-      return
-    }
-
-    if (matches(pathname, '/api/v1/admin/proxies') && method === 'PUT') {
       await route.fulfill(jsonResponse(apiSuccess({ success: true })))
       return
     }
