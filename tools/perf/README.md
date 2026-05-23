@@ -247,6 +247,22 @@ k6 run tools/perf/k6/mixed.js
 - 将摘要结果归档为 artifact
 - 如果后续需要门禁，可在 CI 中比对 `error_rate`、`timeout_rate`、`p(95)` 的阈值
 
+### 本地 readiness 校验
+
+如果你刚改过 `.github/workflows/perf-nightly.yml` 或 `.github/workflows/perf-long-run.yml`，建议先在本地跑一次：
+
+```bash
+node tools/perf/verify-workflow-readiness.mjs
+```
+
+这个脚本不会执行 workflow，只会做只读校验，重点检查：
+
+- `history_source` / `history_run_id` / `history_artifact_name` / `history_csv_path` 输入是否还在
+- `fallback_reason` 是否仍通过 `GITHUB_OUTPUT` 向后续步骤暴露
+- `--history-csv "$HISTORY_CSV_PATH"` 是否仍传给趋势导出脚本
+- `perf-trend-latest.md` 是否仍会在存在时追加到 `GITHUB_STEP_SUMMARY`
+- raw / trend artifact 命名是否仍保持 `perf-nightly-*` / `perf-long-run-*` 约定
+
 ### GitHub Actions nightly
 
 仓库已提供 `.github/workflows/perf-nightly.yml`，默认能力如下：
