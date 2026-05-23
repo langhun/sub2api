@@ -276,13 +276,22 @@ jobs:
         if: ${{ steps.resolve.outputs.skip != 'true' && (steps.history_config.outputs.source == 'previous-run-artifact' || steps.history_config.outputs.source == 'artifact') }}
         id: history_artifact
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           HISTORY_SOURCE: ${{ steps.history_config.outputs.source }}
           HISTORY_RUN_ID: ${{ steps.history_config.outputs.run_id }}
           HISTORY_ARTIFACT_NAME: ${{ steps.history_config.outputs.artifact_name }}
           EFFECTIVE_EVENT_NAME: ${{ steps.history_config.outputs.effective_event_name }}
         run: |
           set -euo pipefail
+
+          github_api_get() {
+            local path="$1"
+            curl -fsSL \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com${path}"
+          }
 
           TARGET_RUN_ID="${HISTORY_RUN_ID:-}"
           TARGET_ARTIFACT_NAME="${HISTORY_ARTIFACT_NAME:-}"
@@ -292,7 +301,7 @@ jobs:
 
           if [ "$HISTORY_SOURCE" = "previous-run-artifact" ]; then
             selection="$(
-              gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/perf-nightly.yml/runs?status=completed&per_page=50" |
+              github_api_get "/repos/${GITHUB_REPOSITORY}/actions/workflows/perf-nightly.yml/runs?status=completed&per_page=50" |
                 node -e "const fs = require('node:fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); const current = String(process.env.GITHUB_RUN_ID || ''); const currentBranch = String(process.env.GITHUB_REF_NAME || ''); const currentEvent = String(process.env.EFFECTIVE_EVENT_NAME || ''); const runs = (data.workflow_runs || []).filter((item) => String(item.id) !== current && item.conclusion === 'success'); const sameBranchAndEvent = runs.find((item) => item.head_branch === currentBranch && item.event === currentEvent); const sameBranch = runs.find((item) => item.head_branch === currentBranch); const fallback = runs[0]; const selected = sameBranchAndEvent || sameBranch || fallback; if (!selected) process.exit(0); const reason = sameBranchAndEvent ? 'same_branch_and_event' : sameBranch ? 'same_branch_fallback' : 'latest_successful_fallback'; process.stdout.write([selected.id, selected.event || '', selected.head_branch || '', reason].join('|'));"
             )"
 
@@ -315,7 +324,7 @@ jobs:
 
           if [ "$HISTORY_SOURCE" = "artifact" ]; then
             metadata="$(
-              gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${TARGET_RUN_ID}" |
+              github_api_get "/repos/${GITHUB_REPOSITORY}/actions/runs/${TARGET_RUN_ID}" |
                 node -e "const fs = require('node:fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); process.stdout.write([(data.event || ''), (data.head_branch || '')].join('|'));"
             )"
             if [ -n "$metadata" ]; then
@@ -326,7 +335,7 @@ jobs:
 
           if [ -z "$TARGET_ARTIFACT_NAME" ]; then
             TARGET_ARTIFACT_NAME="$(
-              gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${TARGET_RUN_ID}/artifacts?per_page=100" |
+              github_api_get "/repos/${GITHUB_REPOSITORY}/actions/runs/${TARGET_RUN_ID}/artifacts?per_page=100" |
                 node -e "const fs = require('node:fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); const artifact = (data.artifacts || []).filter((item) => !item.expired && typeof item.name === 'string' && item.name.startsWith('perf-nightly-trend-')).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0]; if (artifact) process.stdout.write(artifact.name);"
             )"
           fi
@@ -355,23 +364,69 @@ jobs:
         if: ${{ steps.resolve.outputs.skip != 'true' && steps.history_artifact.outputs.available == 'true' }}
         id: history_download
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           TARGET_RUN_ID: ${{ steps.history_artifact.outputs.run_id }}
           TARGET_ARTIFACT_NAME: ${{ steps.history_artifact.outputs.artifact_name }}
           HISTORY_DIR: ${{ steps.history_config.outputs.history_dir }}
         run: |
           set -euo pipefail
 
+          github_api_get() {
+            local path="$1"
+            curl -fsSL \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com${path}"
+          }
+
           DOWNLOAD_DIR="${HISTORY_DIR}/download"
           mkdir -p "$DOWNLOAD_DIR"
+          ZIP_PATH="${HISTORY_DIR}/history-artifact.zip"
 
-          if ! gh run download "$TARGET_RUN_ID" -R "$GITHUB_REPOSITORY" -n "$TARGET_ARTIFACT_NAME" --dir "$DOWNLOAD_DIR"; then
+          if ! artifact_response="$(github_api_get "/repos/${GITHUB_REPOSITORY}/actions/runs/${TARGET_RUN_ID}/artifacts?per_page=100")"; then
             echo "csv_path=" >> "$GITHUB_OUTPUT"
             echo "kind=" >> "$GITHUB_OUTPUT"
             echo "fallback_reason=download_failed" >> "$GITHUB_OUTPUT"
             echo "::warning::Failed to download history artifact ${TARGET_ARTIFACT_NAME} from run ${TARGET_RUN_ID}; continuing without history compare."
             exit 0
           fi
+
+          ARCHIVE_DOWNLOAD_URL="$(
+            printf '%s' "$artifact_response" |
+              node -e "const fs = require('node:fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); const targetName = String(process.env.TARGET_ARTIFACT_NAME || ''); const artifact = (data.artifacts || []).find((item) => !item.expired && item.name === targetName); if (artifact?.archive_download_url) process.stdout.write(artifact.archive_download_url);"
+          )"
+
+          if [ -z "$ARCHIVE_DOWNLOAD_URL" ]; then
+            echo "csv_path=" >> "$GITHUB_OUTPUT"
+            echo "kind=" >> "$GITHUB_OUTPUT"
+            echo "fallback_reason=download_failed" >> "$GITHUB_OUTPUT"
+            echo "::warning::Failed to download history artifact ${TARGET_ARTIFACT_NAME} from run ${TARGET_RUN_ID}; continuing without history compare."
+            exit 0
+          fi
+
+          if ! curl -fsSL \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$ARCHIVE_DOWNLOAD_URL" \
+            -o "$ZIP_PATH"; then
+            echo "csv_path=" >> "$GITHUB_OUTPUT"
+            echo "kind=" >> "$GITHUB_OUTPUT"
+            echo "fallback_reason=download_failed" >> "$GITHUB_OUTPUT"
+            echo "::warning::Failed to download history artifact ${TARGET_ARTIFACT_NAME} from run ${TARGET_RUN_ID}; continuing without history compare."
+            exit 0
+          fi
+
+          if ! unzip -oq "$ZIP_PATH" -d "$DOWNLOAD_DIR"; then
+            echo "csv_path=" >> "$GITHUB_OUTPUT"
+            echo "kind=" >> "$GITHUB_OUTPUT"
+            echo "fallback_reason=download_failed" >> "$GITHUB_OUTPUT"
+            echo "::warning::Failed to download history artifact ${TARGET_ARTIFACT_NAME} from run ${TARGET_RUN_ID}; continuing without history compare."
+            exit 0
+          fi
+
+          rm -f "$ZIP_PATH"
 
           HISTORY_CSV_FILE=''
           HISTORY_KIND=''

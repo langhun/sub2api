@@ -33,6 +33,16 @@ function buildSharedRules(workflow) {
       { label: 'artifact auto-detect prefix', snippet: `.startsWith('${workflow.artifactPrefix}-trend-')` },
       { label: 'history artifact step', snippet: '- name: Resolve history artifact metadata' },
     ]),
+    buildRule('history artifact flow no longer depends on gh CLI', [
+      { label: 'REST API endpoint usage', snippet: 'https://api.github.com' },
+      { label: 'GitHub API version header', snippet: 'X-GitHub-Api-Version: 2022-11-28' },
+      { label: 'archive download url usage', snippet: 'archive_download_url' },
+      { label: 'zip extraction', snippet: 'unzip -oq' },
+    ]),
+    buildRule('history artifact flow does not contain legacy gh commands', [
+      { label: 'no gh api command', snippet: 'gh api', absent: true },
+      { label: 'no gh run download command', snippet: 'gh run download', absent: true },
+    ]),
     buildRule('history download step emits fallback_reason outputs for artifact failures and successes', [
       { label: 'download history step', snippet: '- name: Download history artifact' },
       { label: 'download failed fallback reason', snippet: 'echo "fallback_reason=download_failed" >> "$GITHUB_OUTPUT"' },
@@ -89,7 +99,13 @@ const workflows = [
 
 function evaluateRule(content, rule) {
   const missing = rule.fragments
-    .filter((fragment) => !content.includes(fragment.snippet))
+    .filter((fragment) => {
+      const contains = content.includes(fragment.snippet);
+      if (fragment.absent === true) {
+        return contains;
+      }
+      return !contains;
+    })
     .map((fragment) => fragment.label);
 
   return {

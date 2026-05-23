@@ -341,7 +341,7 @@ nightly 运行后会上传两类 artifact：
 
 #### nightly 历史对比
 
-`Perf Nightly` 现在也支持把历史 CSV 传给 `export-k6-trend.mjs --history-csv`，用于和上一轮或指定基线做连续对比。默认策略保持安全兼容：
+`Perf Nightly` 现在也支持把历史 CSV 传给 `export-k6-trend.mjs --history-csv`，用于和上一轮或指定基线做连续对比。若选择 `previous-run-artifact` 或 `artifact`，历史 artifact 的解析与下载由 workflow 在 GitHub Actions runner 内通过 GitHub REST API 自动完成；本地查看文档或手动触发 workflow 不要求预装 `gh` CLI。默认策略保持安全兼容：
 
 - `schedule` 触发时固定按 `history_source=previous-run-artifact`
 - 手动 `workflow_dispatch` 时可显式选择历史源
@@ -351,9 +351,9 @@ nightly 运行后会上传两类 artifact：
 
 - `previous-run-artifact`
   - 默认值
-  - 自动查找当前 workflow 最近一次成功运行的 `perf-nightly-trend-*` artifact
+  - 自动查找当前 workflow 最近一次成功运行的 `perf-nightly-trend-*` artifact（runner 内自动处理）
 - `artifact`
-  - 手动指定某个 nightly 历史 run 的 artifact
+  - 手动指定某个 nightly 历史 run 的 artifact（runner 内自动处理）
 - `path`
   - 使用工作区中已有的 CSV 路径
 - `none`
@@ -468,15 +468,15 @@ long-run 运行后会上传两类独立 artifact：
 
 #### 如何启用历史对比
 
-`Perf Long Run` 已支持把历史 CSV 输入接到 `export-k6-trend.mjs --history-csv`，用于跨运行对比与更连续的稳定性分析。默认策略是“尽量使用历史，但拿不到时安全降级为当前运行单独输出”。
+`Perf Long Run` 已支持把历史 CSV 输入接到 `export-k6-trend.mjs --history-csv`，用于跨运行对比与更连续的稳定性分析。若选择 `previous-run-artifact` 或 `artifact`，历史 artifact 的解析与下载由 workflow 在 GitHub Actions runner 内通过 GitHub REST API 自动完成；本地阅读文档或手动触发 workflow 不要求预装 `gh` CLI。默认策略是“尽量使用历史，但拿不到时安全降级为当前运行单独输出”。
 
 可选历史源有 4 种：
 
 - `previous-run-artifact`
   - 默认值
-  - 自动查找当前 workflow 最近一次成功运行的 `perf-long-run-trend-*` artifact
+  - 自动查找当前 workflow 最近一次成功运行的 `perf-long-run-trend-*` artifact（runner 内自动处理）
 - `artifact`
-  - 手动指定某个历史 workflow run 的 artifact
+  - 手动指定某个历史 workflow run 的 artifact（runner 内自动处理）
 - `path`
   - 使用仓库工作区中已有的 CSV 路径
 - `none`
