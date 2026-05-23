@@ -151,3 +151,36 @@ func TestCheckErrorPolicy_401_DBFallback_DBError_FirstHit(t *testing.T) {
 	result := svc.CheckErrorPolicy(context.Background(), account, http.StatusUnauthorized, []byte(`unauthorized`))
 	require.Equal(t, ErrorPolicyTempUnscheduled, result, "401 first hit with DB not found should temp-unschedule")
 }
+
+func TestCheckErrorPolicy_401_DBFallback_Previous429DoesNotEscalate(t *testing.T) {
+	// Scenario: cache account misses TempUnschedulableReason, and DB fallback only
+	// shows a previous 429 record. A current 401 should still be treated as the
+	// first 401 hit rather than escalating to permanent error.
+	repo := &dbFallbackRepoStub{
+		dbAccount: &Account{
+			ID:                      23,
+			TempUnschedulableReason: `{"status_code":429,"until_unix":1735689600}`,
+		},
+	}
+	svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
+
+	account := &Account{
+		ID:                      23,
+		Type:                    AccountTypeOAuth,
+		Platform:                PlatformGemini,
+		TempUnschedulableReason: "",
+		Credentials: map[string]any{
+			"temp_unschedulable_enabled": true,
+			"temp_unschedulable_rules": []any{
+				map[string]any{
+					"error_code":       float64(401),
+					"keywords":         []any{"unauthorized"},
+					"duration_minutes": float64(10),
+				},
+			},
+		},
+	}
+
+	result := svc.CheckErrorPolicy(context.Background(), account, http.StatusUnauthorized, []byte(`unauthorized`))
+	require.Equal(t, ErrorPolicyTempUnscheduled, result, "previous 429 from DB fallback should not escalate a current 401")
+}

@@ -3,8 +3,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +17,7 @@ import (
 type geminiTokenCacheStub struct {
 	deletedKeys []string
 	deleteErr   error
+	deleteErrs  map[string]error
 }
 
 func (s *geminiTokenCacheStub) GetAccessToken(ctx context.Context, cacheKey string) (string, error) {
@@ -26,6 +30,9 @@ func (s *geminiTokenCacheStub) SetAccessToken(ctx context.Context, cacheKey stri
 
 func (s *geminiTokenCacheStub) DeleteAccessToken(ctx context.Context, cacheKey string) error {
 	s.deletedKeys = append(s.deletedKeys, cacheKey)
+	if err, ok := s.deleteErrs[cacheKey]; ok {
+		return err
+	}
 	return s.deleteErr
 }
 
@@ -278,6 +285,76 @@ func TestCompositeTokenCacheInvalidator_DeleteError(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestCompositeTokenCacheInvalidator_DeleteErrorContinuesAndLogsAllKeys(t *testing.T) {
+	var logs bytes.Buffer
+	restoreDefaultLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	t.Cleanup(func() {
+		slog.SetDefault(restoreDefaultLogger)
+	})
+
+	cache := &geminiTokenCacheStub{
+		deleteErrs: map[string]error{
+			"gemini:project-x":   context.DeadlineExceeded,
+			"gemini:account:701": errors.New("redis connection reset"),
+		},
+	}
+	invalidator := NewCompositeTokenCacheInvalidator(cache)
+	account := &Account{
+		ID:       701,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"project_id": "project-x",
+		},
+	}
+
+	err := invalidator.InvalidateToken(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, []string{"gemini:project-x", "gemini:account:701"}, cache.deletedKeys)
+
+	logOutput := logs.String()
+	require.Equal(t, 2, strings.Count(logOutput, "level=WARN"))
+	require.Equal(t, 2, strings.Count(logOutput, "msg=token_cache_delete_failed"))
+	require.Contains(t, logOutput, "key=gemini:project-x")
+	require.Contains(t, logOutput, "key=gemini:account:701")
+	require.Contains(t, logOutput, "account_id=701")
+	require.Contains(t, logOutput, "context deadline exceeded")
+	require.Contains(t, logOutput, "redis connection reset")
+}
+
+func TestCompositeTokenCacheInvalidator_DeleteErrorDeduplicatesDuplicateKeys(t *testing.T) {
+	var logs bytes.Buffer
+	restoreDefaultLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	t.Cleanup(func() {
+		slog.SetDefault(restoreDefaultLogger)
+	})
+
+	cache := &geminiTokenCacheStub{
+		deleteErrs: map[string]error{
+			"gemini:account:702": errors.New("redis timeout"),
+		},
+	}
+	invalidator := NewCompositeTokenCacheInvalidator(cache)
+	account := &Account{
+		ID:          702,
+		Platform:    PlatformGemini,
+		Type:        AccountTypeOAuth,
+		Credentials: map[string]any{},
+	}
+
+	err := invalidator.InvalidateToken(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, []string{"gemini:account:702"}, cache.deletedKeys)
+
+	logOutput := logs.String()
+	require.Equal(t, 1, strings.Count(logOutput, "msg=token_cache_delete_failed"))
+	require.Contains(t, logOutput, "key=gemini:account:702")
+	require.Contains(t, logOutput, "account_id=702")
+	require.Contains(t, logOutput, "redis timeout")
 }
 
 func TestCompositeTokenCacheInvalidator_AllPlatformsIntegration(t *testing.T) {

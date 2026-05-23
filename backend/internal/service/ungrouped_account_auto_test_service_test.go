@@ -299,6 +299,71 @@ func TestUngroupedAccountAutoTestServiceApplyOpenAIAutoTestActions403SwitchesToP
 	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[0])
 }
 
+func TestUngroupedAccountAutoTestServiceApplyOpenAIAutoTestActions403Retest429ClearsStaleErrorAndKeepsRateLimitState(t *testing.T) {
+	repo := &ungroupedAutoTestAccountRepoStub{}
+	settingRepo := &settingRepoStubForPool{
+		values: map[string]string{
+			SettingKeyAutoFailoverProxyPool: "[11]",
+		},
+	}
+	settingSvc := NewSettingService(settingRepo, nil)
+	proxyRepo := &proxyRepoStubForPool{
+		proxies: map[int64]Proxy{
+			11: {ID: 11, Name: "pool", Protocol: "http", Host: "pool.example", Port: 8080, Status: StatusActive},
+		},
+	}
+	poolSvc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
+
+	rateLimitResp := newJSONResponse(http.StatusTooManyRequests, `{"error":{"type":"usage_limit_reached","message":"limit reached"}}`)
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{rateLimitResp}}
+	account := &Account{
+		ID:           4292,
+		Platform:     PlatformOpenAI,
+		Type:         AccountTypeOAuth,
+		Status:       StatusError,
+		ErrorMessage: "Authentication failed (401): stale",
+		Schedulable:  true,
+		Concurrency:  1,
+		Credentials:  map[string]any{"access_token": "test-token"},
+	}
+	accountTestRepo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				4292: account,
+			},
+		},
+	}
+	accountTestSvc := &AccountTestService{
+		accountRepo:  accountTestRepo,
+		httpUpstream: upstream,
+		proxyPool:    poolSvc,
+	}
+	svc := NewUngroupedAccountAutoTestService(repo, accountTestSvc, nil)
+	code := http.StatusForbidden
+	result := &ScheduledTestResult{
+		Status:         "failed",
+		HTTPStatusCode: &code,
+		ErrorMessage:   "Access forbidden (403)",
+	}
+
+	skipPersist := svc.applyOpenAIAutoTestActions(context.Background(), account, result)
+	require.False(t, skipPersist)
+	require.Equal(t, AccountProxyModePool, account.Extra["proxy_mode"])
+	require.Equal(t, AccountProxyModePool, repo.updatedExtraByID[4292]["proxy_mode"])
+	require.Equal(t, "failed", result.Status)
+	require.NotNil(t, result.HTTPStatusCode)
+	require.Equal(t, http.StatusTooManyRequests, *result.HTTPStatusCode)
+	require.Contains(t, result.ErrorMessage, "API returned 429")
+	require.Equal(t, int64(4292), accountTestRepo.rateLimitedID)
+	require.NotNil(t, accountTestRepo.rateLimitedAt)
+	require.Equal(t, int64(4292), accountTestRepo.clearedErrorID)
+	require.Equal(t, StatusActive, account.Status)
+	require.Empty(t, account.ErrorMessage)
+	require.NotNil(t, account.RateLimitResetAt)
+	require.Len(t, upstream.proxyURLs, 1)
+	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[0])
+}
+
 func TestRunTestBackgroundOpenAI429WithoutResetStillReturnsRateLimitState(t *testing.T) {
 	repo := &openAIAccountTestRepo{
 		mockAccountRepoForGemini: mockAccountRepoForGemini{
