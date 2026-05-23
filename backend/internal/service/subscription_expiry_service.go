@@ -18,6 +18,7 @@ type SubscriptionExpiryService struct {
 	interval                 time.Duration
 	stopCh                   chan struct{}
 	stopOnce                 sync.Once
+	startOnce                sync.Once
 	wg                       sync.WaitGroup
 }
 
@@ -37,22 +38,24 @@ func (s *SubscriptionExpiryService) Start() {
 	if s == nil || s.userSubRepo == nil || s.interval <= 0 {
 		return
 	}
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-		ticker := time.NewTicker(s.interval)
-		defer ticker.Stop()
+	s.startOnce.Do(func() {
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			ticker := time.NewTicker(s.interval)
+			defer ticker.Stop()
 
-		s.runOnce()
-		for {
-			select {
-			case <-ticker.C:
-				s.runOnce()
-			case <-s.stopCh:
-				return
+			s.runOnce()
+			for {
+				select {
+				case <-ticker.C:
+					s.runOnce()
+				case <-s.stopCh:
+					return
+				}
 			}
-		}
-	}()
+		}()
+	})
 }
 
 func (s *SubscriptionExpiryService) Stop() {

@@ -723,4 +723,49 @@ describe('admin ProxiesView pool state', () => {
     expect(showSuccess).toHaveBeenCalledWith('代理已停用')
     expect(listProxies).toHaveBeenCalledTimes(2)
   })
+
+  it('disables row-level actions while a more-menu async action is in flight', async () => {
+    let resolveUpdate: (() => void) | null = null
+    updateProxy.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveUpdate = resolve
+        })
+    )
+
+    const wrapper = mountProxiesView()
+    await flushPromises()
+
+    const moreButton = wrapper
+      .findAll('button')
+      .find((button) => button.attributes('title') === 'common.more')
+
+    expect(moreButton).toBeDefined()
+    await moreButton!.trigger('click')
+    await flushPromises()
+
+    const disableButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('停用代理')
+    ) as HTMLButtonElement | undefined
+
+    expect(disableButton).toBeDefined()
+
+    disableButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
+    expect(updateProxy).toHaveBeenCalledTimes(1)
+
+    expect(
+      Array.from(document.body.querySelectorAll('button')).some((button) =>
+        button.textContent?.includes('停用代理')
+      )
+    ).toBe(false)
+
+    disableButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+    expect(updateProxy).toHaveBeenCalledTimes(1)
+
+    resolveUpdate?.()
+    await flushPromises()
+  })
 })

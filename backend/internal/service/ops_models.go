@@ -71,6 +71,9 @@ type OpsErrorLogDetail struct {
 
 	ErrorBody string `json:"error_body"`
 	UserAgent string `json:"user_agent"`
+	// RequestHeaders is a legacy compatibility field used by ops retry context tests.
+	// Replay storage was removed from DB schema; this field is not guaranteed to be populated.
+	RequestHeaders string `json:"request_headers,omitempty"`
 
 	// Upstream context (optional)
 	UpstreamStatusCode   *int   `json:"upstream_status_code,omitempty"`

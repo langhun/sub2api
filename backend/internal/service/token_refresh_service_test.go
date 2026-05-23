@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -538,6 +539,34 @@ func TestTokenRefreshService_RefreshWithRetry_NoRefreshTokenDoesNotTempUnschedul
 	require.Equal(t, 0, repo.updateCalls)
 	require.Equal(t, 0, repo.setTempUnschedCalls, "missing refresh token should not mark the account temp unschedulable")
 	require.Equal(t, 1, repo.setErrorCalls, "missing refresh token should be treated as a non-retryable credential state")
+}
+
+func TestTokenRefreshService_StartIsIdempotent(t *testing.T) {
+	cfg := &config.Config{
+		TokenRefresh: config.TokenRefreshConfig{
+			Enabled:                  true,
+			CheckIntervalMinutes:     1,
+			RefreshBeforeExpiryHours: 1,
+			MaxRetries:               1,
+		},
+	}
+	service := NewTokenRefreshService(&mockAccountRepoForGemini{}, nil, nil, nil, nil, nil, nil, cfg, nil)
+
+	var runs atomic.Int32
+	service.processRefreshFn = func() {
+		runs.Add(1)
+	}
+
+	service.Start()
+	require.Eventually(t, func() bool {
+		return runs.Load() == 1
+	}, time.Second, 10*time.Millisecond)
+
+	service.Start()
+	time.Sleep(50 * time.Millisecond)
+	require.Equal(t, int32(1), runs.Load(), "second Start should not launch another refresh loop")
+
+	service.Stop()
 }
 
 // TestIsNonRetryableRefreshError 测试不可重试错误判断

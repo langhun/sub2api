@@ -1166,7 +1166,9 @@
           <button
             v-if="activeRowActionMenuRow"
             @click="handleToggleStatus(activeRowActionMenuRow); closeRowActionMenu()"
+            :disabled="loadingState.rowActionSubmitting"
             class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+            :class="{ 'cursor-not-allowed opacity-50': loadingState.rowActionSubmitting }"
           >
             <Icon
               :name="activeRowActionMenuRow.status === 'active' ? 'ban' : 'play'"
@@ -1178,7 +1180,9 @@
           <button
             v-if="activeRowActionMenuRow"
             @click="handleTogglePoolMembership(activeRowActionMenuRow); closeRowActionMenu()"
+            :disabled="loadingState.rowActionSubmitting"
             class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+            :class="{ 'cursor-not-allowed opacity-50': loadingState.rowActionSubmitting }"
           >
             <Icon :name="activeRowActionMenuRow.auto_failover_pool_enabled ? 'x' : 'plus'" size="sm" class="text-violet-500" />
             {{ activeRowActionMenuRow.auto_failover_pool_enabled ? t('admin.proxies.poolDisableAction') : t('admin.proxies.poolEnableAction') }}
@@ -1186,7 +1190,9 @@
           <button
             v-if="activeRowActionMenuRow"
             @click="handleClearCooldown([activeRowActionMenuRow.id]); closeRowActionMenu()"
+            :disabled="loadingState.rowActionSubmitting"
             class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+            :class="{ 'cursor-not-allowed opacity-50': loadingState.rowActionSubmitting }"
           >
             <Icon name="refresh" size="sm" class="text-amber-500" />
             {{ t('admin.proxies.clearCooldownAction') }}
@@ -1195,7 +1201,9 @@
           <button
             v-if="activeRowActionMenuRow"
             @click="handleDelete(activeRowActionMenuRow); closeRowActionMenu()"
+            :disabled="loadingState.rowActionSubmitting"
             class="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+            :class="{ 'cursor-not-allowed opacity-50': loadingState.rowActionSubmitting }"
           >
             <Icon name="trash" size="sm" />
             {{ t('common.delete') }}
@@ -1452,6 +1460,7 @@ const loadingState = reactive({
   loadingSubscriptions: false,
   submitting: false,
   submittingSubscription: false,
+  rowActionSubmitting: false,
   exportingData: false,
   accountsLoading: false,
   poolDialogLoading: false,
@@ -2429,7 +2438,9 @@ const handleBatchPoolMembership = async (enabled: boolean) => {
 }
 
 const handleTogglePoolMembership = async (proxy: Proxy) => {
+  if (loadingState.rowActionSubmitting) return
   const enabled = !proxy.auto_failover_pool_enabled
+  loadingState.rowActionSubmitting = true
   try {
     await adminAPI.proxies.updatePoolMembership([proxy.id], enabled)
     proxy.auto_failover_pool_enabled = enabled
@@ -2442,11 +2453,15 @@ const handleTogglePoolMembership = async (proxy: Proxy) => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.poolUpdateFailed'))
     console.error('Error toggling proxy pool membership:', error)
+  } finally {
+    loadingState.rowActionSubmitting = false
   }
 }
 
 const handleToggleStatus = async (proxy: Proxy) => {
+  if (loadingState.rowActionSubmitting) return
   const nextStatus: 'active' | 'inactive' = proxy.status === 'active' ? 'inactive' : 'active'
+  loadingState.rowActionSubmitting = true
   try {
     await adminAPI.proxies.update(proxy.id, { status: nextStatus })
     proxy.status = nextStatus
@@ -2461,11 +2476,15 @@ const handleToggleStatus = async (proxy: Proxy) => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.failedToToggle'))
     console.error('Error toggling proxy status:', error)
+  } finally {
+    loadingState.rowActionSubmitting = false
   }
 }
 
 const handleClearCooldown = async (ids: number[]) => {
   if (ids.length === 0) return
+  if (loadingState.rowActionSubmitting) return
+  loadingState.rowActionSubmitting = true
   try {
     await adminAPI.proxies.clearCooldown(ids)
     appStore.showSuccess(
@@ -2477,6 +2496,8 @@ const handleClearCooldown = async (ids: number[]) => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.cooldownClearFailed'))
     console.error('Error clearing proxy cooldown:', error)
+  } finally {
+    loadingState.rowActionSubmitting = false
   }
 }
 

@@ -196,8 +196,63 @@ export async function mockCommonAppRoutes(page, options = {}) {
       return
     }
 
+    if (pathname === '/api/v1/usage/dashboard/stats' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({
+        today_requests: 345,
+        total_requests: 6789,
+        today_tokens: 120000,
+        total_tokens: 780000,
+        today_cost: 18.3,
+        today_actual_cost: 16.9,
+        total_cost: 130.4,
+        total_actual_cost: 112.2,
+        average_response_time: 650,
+        api_keys_count: 12,
+        platform_breakdown: [],
+      })))
+      return
+    }
+
+    if (pathname === '/api/v1/usage/dashboard/trend' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({
+        trend: [
+          { timestamp: '2026-05-22 08:00', requests: 50, tokens: 12000, cost: 2.3, actual_cost: 2.0 },
+          { timestamp: '2026-05-22 09:00', requests: 75, tokens: 18000, cost: 3.1, actual_cost: 2.8 },
+        ],
+        start_date: '2026-05-21',
+        end_date: '2026-05-22',
+        granularity: 'day',
+      })))
+      return
+    }
+
+    if (pathname === '/api/v1/usage/dashboard/models' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({
+        models: [
+          { model_name: 'gpt-4o', request_count: 120, token_count: 200000, cost: 33.2, actual_cost: 30.1 },
+        ],
+      })))
+      return
+    }
+
+    if (pathname === '/api/v1/usage' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 100,
+        pages: 1,
+      })))
+      return
+    }
+
     if (pathname === '/api/v1/admin/settings' && method === 'GET') {
       await route.fulfill(jsonResponse(apiSuccess(state.settings)))
+      return
+    }
+
+    if (pathname === '/api/v1/admin/settings/email-templates' && method === 'GET') {
+      await route.fulfill(jsonResponse(apiSuccess([])))
       return
     }
 

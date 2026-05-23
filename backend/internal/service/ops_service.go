@@ -16,7 +16,8 @@ import (
 var ErrOpsDisabled = infraerrors.NotFound("OPS_DISABLED", "Ops monitoring is disabled")
 
 const (
-	opsMaxStoredErrorBodyBytes = 20 * 1024
+	opsMaxStoredErrorBodyBytes   = 20 * 1024
+	opsMaxStoredRequestBodyBytes = 20 * 1024
 )
 
 // OpsService provides ingestion and query APIs for the Ops monitoring module.
@@ -680,4 +681,48 @@ func sanitizeErrorBodyForStorage(raw string, maxBytes int) (sanitized string, tr
 		return truncateString(raw, maxBytes), true
 	}
 	return raw, false
+}
+
+// PrepareOpsRequestBodyForQueue sanitizes and trims queued request payload snapshots.
+// Returns:
+// - requestBodyJSON: sanitized JSON pointer, nil when payload is empty/invalid JSON
+// - truncated: whether payload was trimmed to fit size limit
+// - requestBodyBytes: original payload byte length pointer
+func PrepareOpsRequestBodyForQueue(raw []byte) (requestBodyJSON *string, truncated bool, requestBodyBytes *int) {
+	if len(raw) == 0 {
+		return nil, false, nil
+	}
+
+	size := len(raw)
+	requestBodyBytes = &size
+
+	sanitized, isTruncated, _ := sanitizeAndTrimJSONPayload(raw, opsMaxStoredRequestBodyBytes)
+	if sanitized == "" {
+		return nil, false, requestBodyBytes
+	}
+
+	if isTruncated {
+		sanitized = ensureRequestBodyTruncatedMarker(sanitized)
+	}
+
+	return &sanitized, isTruncated, requestBodyBytes
+}
+
+func ensureRequestBodyTruncatedMarker(sanitized string) string {
+	const markerKey = "request_body_truncated"
+	if strings.Contains(sanitized, markerKey) {
+		return sanitized
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(sanitized), &payload); err == nil {
+		payload[markerKey] = true
+		if out, marshalErr := json.Marshal(payload); marshalErr == nil {
+			if len(out) <= opsMaxStoredRequestBodyBytes {
+				return string(out)
+			}
+		}
+	}
+
+	return `{"request_body_truncated":true}`
 }

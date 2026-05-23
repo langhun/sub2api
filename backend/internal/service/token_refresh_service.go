@@ -27,6 +27,7 @@ type TokenRefreshService struct {
 	schedulerCache   SchedulerCache   // 用于同步更新调度器缓存，解决 token 刷新后缓存不一致问题
 	tempUnschedCache TempUnschedCache // 用于清除 Redis 中的临时不可调度缓存
 	refreshAPI       *OAuthRefreshAPI // 统一刷新 API
+	processRefreshFn func()
 
 	// OpenAI privacy: 刷新成功后检查并设置 training opt-out
 	privacyClientFactory PrivacyClientFactory
@@ -35,6 +36,7 @@ type TokenRefreshService struct {
 
 	stopCh   chan struct{}
 	stopOnce sync.Once
+	startOnce sync.Once
 	wg       sync.WaitGroup
 }
 
@@ -112,8 +114,10 @@ func (s *TokenRefreshService) Start() {
 		return
 	}
 
-	s.wg.Add(1)
-	go s.refreshLoop()
+	s.startOnce.Do(func() {
+		s.wg.Add(1)
+		go s.refreshLoop()
+	})
 
 	slog.Info("token_refresh.service_started",
 		"check_interval_minutes", s.cfg.CheckIntervalMinutes,
@@ -144,16 +148,24 @@ func (s *TokenRefreshService) refreshLoop() {
 	defer ticker.Stop()
 
 	// 启动时立即执行一次检查
-	s.processRefresh()
+	s.runProcessRefresh()
 
 	for {
 		select {
 		case <-ticker.C:
-			s.processRefresh()
+			s.runProcessRefresh()
 		case <-s.stopCh:
 			return
 		}
 	}
+}
+
+func (s *TokenRefreshService) runProcessRefresh() {
+	if s != nil && s.processRefreshFn != nil {
+		s.processRefreshFn()
+		return
+	}
+	s.processRefresh()
 }
 
 // processRefresh 执行一次刷新检查
@@ -313,7 +325,9 @@ func (s *TokenRefreshService) refreshWithRetry(ctx context.Context, account *Acc
 		if attempt < s.cfg.MaxRetries {
 			// 指数退避：2^(attempt-1) * baseSeconds
 			backoff := time.Duration(s.cfg.RetryBackoffSeconds) * time.Second * time.Duration(1<<(attempt-1))
-			time.Sleep(backoff)
+			if !s.waitRetryBackoff(backoff) {
+				return lastErr
+			}
 		}
 	}
 
@@ -354,6 +368,27 @@ func (s *TokenRefreshService) refreshWithRetry(ctx context.Context, account *Acc
 	}
 
 	return lastErr
+}
+
+func (s *TokenRefreshService) waitRetryBackoff(backoff time.Duration) bool {
+	if backoff <= 0 {
+		select {
+		case <-s.stopCh:
+			return false
+		default:
+			return true
+		}
+	}
+
+	timer := time.NewTimer(backoff)
+	defer timer.Stop()
+
+	select {
+	case <-timer.C:
+		return true
+	case <-s.stopCh:
+		return false
+	}
 }
 
 // postRefreshActions 刷新成功后的后续动作（清除错误状态、缓存失效、调度器同步等）

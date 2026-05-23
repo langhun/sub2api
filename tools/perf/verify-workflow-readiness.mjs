@@ -84,16 +84,52 @@ function buildSharedRules(workflow) {
   ];
 }
 
-const workflows = [
+function buildSecurityScanRules() {
+  return [
+    buildRule('security scan keeps the perf baseline smoke job', [
+      { label: 'perf baseline smoke job', snippet: '  perf-baseline-smoke:' },
+      { label: 'k6 setup action', snippet: 'uses: grafana/setup-k6-action@v1' },
+    ]),
+    buildRule('security scan smoke validates the three mock endpoints before k6', [
+      { label: 'mock health endpoint', snippet: "('http://127.0.0.1:18080/health'" },
+      { label: 'mock pricing endpoint', snippet: "('http://127.0.0.1:18080/api/v1/public/pricing'" },
+      { label: 'mock monitoring endpoint', snippet: "('http://127.0.0.1:18080/api/v1/monitoring/summary'" },
+      { label: 'mock ready failure message', snippet: 'mock perf server did not become ready' },
+    ]),
+    buildRule('security scan smoke executes both health and mixed k6 scenarios', [
+      { label: 'health summary export', snippet: 'k6 run --summary-export "$artifact_dir/health-summary.json" tools/perf/k6/health.js' },
+      { label: 'mixed summary export', snippet: 'k6 run --summary-export "$artifact_dir/mixed-summary.json" tools/perf/k6/mixed.js' },
+      { label: 'mixed non-blocking warning', snippet: '::warning::k6 mixed perf smoke failed but is non-blocking for security-scan.yml' },
+    ]),
+    buildRule('security scan smoke persists artifact metadata and uploads the smoke bundle', [
+      { label: 'metadata file creation', snippet: 'cat > "$artifact_dir/metadata.txt" <<EOF' },
+      { label: 'health exit code metadata', snippet: 'health_exit_code=$health_status' },
+      { label: 'mixed exit code metadata', snippet: 'mixed_exit_code=$mixed_status' },
+      { label: 'artifact upload step', snippet: '- name: Upload perf smoke artifacts' },
+      { label: 'artifact name', snippet: 'name: perf-smoke-artifacts' },
+    ]),
+  ];
+}
+
+const checks = [
   {
     label: 'Perf Nightly',
     file: '.github/workflows/perf-nightly.yml',
-    artifactPrefix: 'perf-nightly',
+    buildRules: () => buildSharedRules({
+      artifactPrefix: 'perf-nightly',
+    }),
   },
   {
     label: 'Perf Long Run',
     file: '.github/workflows/perf-long-run.yml',
-    artifactPrefix: 'perf-long-run',
+    buildRules: () => buildSharedRules({
+      artifactPrefix: 'perf-long-run',
+    }),
+  },
+  {
+    label: 'Security Scan Perf Smoke',
+    file: '.github/workflows/security-scan.yml',
+    buildRules: () => buildSecurityScanRules(),
   },
 ];
 
@@ -128,9 +164,9 @@ async function main() {
 
   process.stdout.write('Perf workflow readiness verification\n\n');
 
-  for (const workflow of workflows) {
+  for (const workflow of checks) {
     const { absolutePath, content } = await loadWorkflowContent(workflow.file);
-    const results = buildSharedRules(workflow).map((rule) => evaluateRule(content, rule));
+    const results = workflow.buildRules().map((rule) => evaluateRule(content, rule));
 
     process.stdout.write(`${workflow.label}\n`);
     process.stdout.write(`  File: ${path.relative(repoRoot, absolutePath)}\n`);

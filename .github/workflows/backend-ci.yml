@@ -28,6 +28,17 @@ jobs:
         working-directory: backend
         run: make test-integration
 
+  automation-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+      - name: Verify perf workflow readiness
+        run: node tools/perf/verify-workflow-readiness.mjs
+
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -48,6 +59,12 @@ jobs:
       - name: Frontend E2E spec list check
         working-directory: frontend
         run: pnpm e2e:list
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Frontend E2E smoke
+        working-directory: frontend
+        run: pnpm exec playwright test e2e/admin-ci-smoke.spec.js --project=chromium
       - name: Frontend typecheck and critical vitest
         run: make test-frontend
 
