@@ -2141,14 +2141,39 @@ func (h *AccountHandler) SetPrivacy(c *gin.Context) {
 	switch account.Platform {
 	case service.PlatformOpenAI:
 		mode = h.adminService.ForceOpenAIPrivacy(c.Request.Context(), account)
+		switch mode {
+		case service.PrivacyModeTrainingOff:
+			// success
+		case service.PrivacyModeCFBlocked:
+			response.Error(c, http.StatusBadGateway, "Cannot set privacy: upstream request blocked by Cloudflare")
+			return
+		case "":
+			response.BadRequest(c, "Cannot set privacy: missing access_token")
+			return
+		case service.PrivacyModeFailed:
+			response.Error(c, http.StatusBadGateway, "Cannot set privacy: upstream request failed")
+			return
+		default:
+			response.Error(c, http.StatusBadGateway, fmt.Sprintf("Cannot set privacy: unexpected privacy mode %q", mode))
+			return
+		}
 	case service.PlatformAntigravity:
 		mode = h.adminService.ForceAntigravityPrivacy(c.Request.Context(), account)
+		switch mode {
+		case service.AntigravityPrivacySet:
+			// success
+		case "":
+			response.BadRequest(c, "Cannot set privacy: missing access_token")
+			return
+		case service.AntigravityPrivacyFailed:
+			response.Error(c, http.StatusBadGateway, "Cannot set privacy: upstream request failed")
+			return
+		default:
+			response.Error(c, http.StatusBadGateway, fmt.Sprintf("Cannot set privacy: unexpected privacy mode %q", mode))
+			return
+		}
 	default:
 		response.BadRequest(c, "Only OpenAI and Antigravity OAuth accounts support privacy setting")
-		return
-	}
-	if mode == "" {
-		response.BadRequest(c, "Cannot set privacy: missing access_token")
 		return
 	}
 	// 从 DB 重新读取以确保返回最新状态

@@ -18,6 +18,9 @@ vi.mock('vue-i18n', async () => {
         if (key === 'admin.accounts.bulkActions.partialSuccess') {
           return `partial ${params?.success}/${params?.failed}`
         }
+        if (key === 'common.error') {
+          return 'common.error'
+        }
         return key
       }
     })
@@ -171,9 +174,30 @@ describe('useAccountBulkOperations', () => {
         }
       )
 
-      expect(showErrorSpy).toHaveBeenCalledWith('Operation failed')
+      expect(showErrorSpy).toHaveBeenCalledWith('Network error')
       expect(result).toBeNull()
       expect(bulkOps.operating.value).toBe(false)
+    })
+
+    it('should extract plain-object api error message when operation fails', async () => {
+      confirmSpy.mockReturnValue(true)
+      const operation = vi.fn().mockRejectedValue({
+        status: 400,
+        code: 400,
+        message: 'Cannot set privacy: missing access_token'
+      })
+      const showErrorSpy = vi.spyOn(appStore, 'showError')
+
+      const result = await bulkOps.handleBulkOperation(
+        operation,
+        {
+          confirmMessage: 'Are you sure?',
+          successMessage: 'Done'
+        }
+      )
+
+      expect(showErrorSpy).toHaveBeenCalledWith('Cannot set privacy: missing access_token')
+      expect(result).toBeNull()
     })
 
     it('should call onSuccess callback', async () => {

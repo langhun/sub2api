@@ -28,6 +28,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 /**
  * 批量操作结果
@@ -145,10 +146,11 @@ export function useAccountBulkOperations() {
       return result
     } catch (error: any) {
       console.error('Bulk operation failed:', error)
-      const message =
-        typeof options.errorMessage === 'function'
-          ? options.errorMessage({ success: 0, failed: 0 })
-          : options.errorMessage || String(error)
+      const fallback =
+        typeof options.errorMessage === 'string' && options.errorMessage.trim().length > 0
+          ? options.errorMessage
+          : t('common.error')
+      const message = extractApiErrorMessage(error, fallback)
       appStore.showError(message)
       callbacks?.onError?.(error)
       return null

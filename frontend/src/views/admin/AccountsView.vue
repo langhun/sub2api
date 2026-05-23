@@ -542,6 +542,7 @@ import {
   type AccountSchedulingStatusFilterValue
 } from '@/utils/accountStatus'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
+import { extractApiErrorMessage } from '@/utils/apiError'
 import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
 import { accountStatusNowMsKey } from '@/components/account/accountStatusClock'
 import {
@@ -2325,7 +2326,7 @@ const handleSetPrivacy = async (a: Account) => {
     appStore.showSuccess(t('common.success'))
   } catch (error: any) {
     console.error('Failed to set privacy:', error)
-    appStore.showError(error?.response?.data?.message || t('admin.accounts.privacyFailed'))
+    appStore.showError(extractApiErrorMessage(error, t('admin.accounts.privacyFailed')))
   }
 }
 const handleDelete = (a: Account) => { modalData.deletingAcc = a; modalState.showDeleteDialog = true }
