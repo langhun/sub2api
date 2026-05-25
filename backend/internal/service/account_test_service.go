@@ -194,6 +194,43 @@ func (s *AccountTestService) validateUpstreamBaseURL(raw string) (string, error)
 	return normalized, nil
 }
 
+// ValidateConfiguredUpstreamBaseURL checks whether a custom upstream base URL is
+// allowed under the current URL allowlist policy.
+func (s *AccountTestService) ValidateConfiguredUpstreamBaseURL(raw string) error {
+	_, err := s.validateUpstreamBaseURL(raw)
+	return err
+}
+
+// DescribeUpstreamBaseURLValidationError expands low-level validation errors
+// into actionable operator guidance when allowlist policy is enabled.
+func (s *AccountTestService) DescribeUpstreamBaseURLValidationError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	message := err.Error()
+	if s == nil || s.cfg == nil || !s.cfg.Security.URLAllowlist.Enabled {
+		return message
+	}
+
+	switch {
+	case message == "allowlist is not configured":
+		return "allowlist is not configured; set security.url_allowlist.upstream_hosts and restart the service"
+	case strings.HasPrefix(message, "host is not allowed: "):
+		host := strings.TrimSpace(strings.TrimPrefix(message, "host is not allowed: "))
+		if host == "" {
+			return message
+		}
+		return fmt.Sprintf("%s; add %s to security.url_allowlist.upstream_hosts and restart the service", message, host)
+	default:
+		return message
+	}
+}
+
+func (s *AccountTestService) sendInvalidBaseURLError(c *gin.Context, err error) error {
+	return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", s.DescribeUpstreamBaseURLValidationError(err)))
+}
+
 func (s *AccountTestService) tryEnableOpenAIProxyPoolForTest(ctx context.Context, account *Account) (bool, error) {
 	if s == nil || s.accountRepo == nil || s.proxyPool == nil || account == nil || account.Platform != PlatformOpenAI {
 		return false, nil
@@ -361,7 +398,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		}
 		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 		if err != nil {
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
+			return s.sendInvalidBaseURLError(c, err)
 		}
 		apiURL = strings.TrimSuffix(normalizedBaseURL, "/") + "/v1/messages?beta=true"
 	} else {
@@ -653,7 +690,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 		if err != nil {
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
+			return s.sendInvalidBaseURLError(c, err)
 		}
 		if !openai_compat.ShouldUseResponsesAPI(account.Extra) {
 			apiURL = buildOpenAIChatCompletionsURL(normalizedBaseURL)
@@ -782,7 +819,7 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 		}
 		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 		if err != nil {
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
+			return s.sendInvalidBaseURLError(c, err)
 		}
 		apiURL = appendOpenAIResponsesRequestPathSuffix(buildOpenAIResponsesURL(normalizedBaseURL), "/compact")
 	default:
@@ -947,6 +984,9 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	}
 
 	if err != nil {
+		if strings.Contains(err.Error(), "host is not allowed") || strings.Contains(err.Error(), "allowlist is not configured") {
+			return s.sendInvalidBaseURLError(c, err)
+		}
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to build request: %s", err.Error()))
 	}
 
@@ -1499,7 +1539,7 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 	}
 	normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 	if err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
+		return s.sendInvalidBaseURLError(c, err)
 	}
 	apiURL := buildOpenAIImagesURL(normalizedBaseURL, openAIImagesGenerationsEndpoint)
 

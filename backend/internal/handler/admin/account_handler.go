@@ -152,6 +152,32 @@ type BulkUpdateAccountsRequest struct {
 	ConfirmMixedChannelRisk *bool                     `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
 }
 
+func (h *AccountHandler) validateConfiguredBaseURL(c *gin.Context, credentials map[string]any) bool {
+	if h.accountTestService == nil || len(credentials) == 0 {
+		return true
+	}
+
+	raw, ok := credentials["base_url"]
+	if !ok {
+		return true
+	}
+
+	baseURL, ok := raw.(string)
+	if !ok || strings.TrimSpace(baseURL) == "" {
+		return true
+	}
+
+	if err := h.accountTestService.ValidateConfiguredUpstreamBaseURL(baseURL); err != nil {
+		response.BadRequest(c, fmt.Sprintf(
+			"Invalid base URL: %s",
+			h.accountTestService.DescribeUpstreamBaseURLValidationError(err),
+		))
+		return false
+	}
+
+	return true
+}
+
 type BulkUpdateAccountFilters struct {
 	Platform    string `json:"platform"`
 	Tier        string `json:"tier"`
@@ -540,6 +566,9 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	}
 	// base_rpm 输入校验：负值归零，超过 10000 截断
 	sanitizeExtraBaseRPM(req.Extra)
+	if !h.validateConfiguredBaseURL(c, req.Credentials) {
+		return
+	}
 
 	// 确定是否跳过混合渠道检查
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
@@ -624,6 +653,9 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	}
 	// base_rpm 输入校验：负值归零，超过 10000 截断
 	sanitizeExtraBaseRPM(req.Extra)
+	if !h.validateConfiguredBaseURL(c, req.Credentials) {
+		return
+	}
 
 	// 确定是否跳过混合渠道检查
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
@@ -2375,3 +2407,4 @@ func sanitizeExtraBaseRPM(extra map[string]any) {
 	}
 	extra["base_rpm"] = v
 }
+

@@ -443,6 +443,38 @@ data: {"choices":[{"delta":{"content":" there"},"finish_reason":"stop"}]}
 	require.Contains(t, recorder.Body.String(), "test_complete")
 }
 
+func TestAccountTestService_OpenAIAPIKeyAllowlistErrorMentionsConfigAction(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	svc := &AccountTestService{
+		cfg: &config.Config{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{
+					Enabled:       true,
+					UpstreamHosts: []string{"api.openai.com"},
+				},
+			},
+		},
+	}
+	account := &Account{
+		ID:          902,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://relay.example.com/v1",
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.Error(t, err)
+	require.Contains(t, recorder.Body.String(), "host is not allowed: relay.example.com")
+	require.Contains(t, recorder.Body.String(), "security.url_allowlist.upstream_hosts")
+	require.Contains(t, recorder.Body.String(), "relay.example.com")
+}
+
 func TestAccountTestService_OpenAIStreamEOFBeforeCompletedFails(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newTestContext()
