@@ -114,6 +114,7 @@ describe('SubscriptionSourceDialog', () => {
     expect(wrapper.get('[data-testid="base-dialog"]').attributes('data-title')).toBe('admin.proxies.subscriptions.createTitle')
     expect(wrapper.get('[data-testid="base-dialog"]').attributes('data-width')).toBe('normal')
     expect(wrapper.get('button.btn-primary').text()).toBe('common.create')
+    expect(wrapper.text()).toContain('admin.proxies.subscriptions.productHint')
 
     await wrapper.get('button[data-testid="dialog-close"]').trigger('click')
     await wrapper.get('button.btn-secondary').trigger('click')

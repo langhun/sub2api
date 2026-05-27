@@ -830,64 +830,160 @@
       @close="modalState.showMihomoModal = false"
     >
       <div class="space-y-6">
-        <div class="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4 dark:border-indigo-900/50 dark:from-indigo-950/30 dark:via-dark-800 dark:to-cyan-950/20">
-          <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+        <div class="rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-5 shadow-sm dark:border-indigo-900/50 dark:from-indigo-950/30 dark:via-dark-800 dark:to-cyan-950/20">
+          <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div class="space-y-3">
               <div class="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
                 <Icon name="server" size="md" class="text-indigo-500" />
                 {{ t('admin.proxies.mihomo.summary') }}
               </div>
-              <div class="mt-2 flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <p class="max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
+                {{ t('admin.proxies.mihomo.workspaceDescription') }}
+              </p>
+              <div class="flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
                 <span class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-dark-700">{{ t('admin.proxies.mihomo.summaryHint', { count: mihomoForm.listener_count || 0 }) }}</span>
+                <span class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-dark-700">{{ t('admin.proxies.mihomo.sourceCountHint', { count: enabledProxySubscriptionCount }) }}</span>
+                <span class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-dark-700">{{ t('admin.proxies.mihomo.sourceNodesHint', { count: enabledProxySubscriptionNodeCount }) }}</span>
                 <span class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-dark-700">{{ t('admin.proxies.mihomo.protocolLabel', { protocol: mihomoForm.protocol.toUpperCase() }) }}</span>
                 <span v-if="mihomoConfigPath" class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-dark-700">{{ mihomoConfigPath }}</span>
               </div>
             </div>
-            <button class="btn btn-secondary" type="button" :disabled="loadingState.mihomoLoading" @click="loadMihomo">
-              <Icon name="refresh" size="sm" class="mr-2" :class="loadingState.mihomoLoading ? 'animate-spin' : ''" />
-              {{ t('common.refresh') }}
-            </button>
+            <div class="flex flex-wrap items-center gap-2">
+              <button class="btn btn-secondary" type="button" :disabled="loadingState.loadingSubscriptions" @click="loadProxySubscriptions">
+                <Icon name="refresh" size="sm" class="mr-2" :class="loadingState.loadingSubscriptions ? 'animate-spin' : ''" />
+                {{ t('admin.proxies.mihomo.refreshSources') }}
+              </button>
+              <button class="btn btn-primary" type="button" @click="openCreateSubscriptionDialog">
+                <Icon name="plus" size="sm" class="mr-2" />
+                {{ t('admin.proxies.subscriptions.create') }}
+              </button>
+              <button class="btn btn-secondary" type="button" :disabled="loadingState.mihomoLoading" @click="loadMihomo">
+                <Icon name="refresh" size="sm" class="mr-2" :class="loadingState.mihomoLoading ? 'animate-spin' : ''" />
+                {{ t('common.refresh') }}
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,1fr)]">
-          <div class="space-y-4">
-            <div>
-                <div class="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/60 p-4 text-sm text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/20 dark:text-indigo-100">
-                {{ t('admin.proxies.mihomo.sourceHint') }}
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+            <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.overview.sources') }}</div>
+            <div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ enabledProxySubscriptionCount }}</div>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.overview.sourcesHint') }}</div>
+          </div>
+          <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+            <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.overview.listeners') }}</div>
+            <div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ mihomoForm.listener_count || 0 }}</div>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.overview.listenersHint', { start: mihomoForm.start_port }) }}</div>
+          </div>
+          <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+            <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.overview.nodes') }}</div>
+            <div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ enabledProxySubscriptionNodeCount }}</div>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.overview.nodesHint') }}</div>
+          </div>
+          <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+            <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.overview.materialized') }}</div>
+            <div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ proxySubscriptionMaterializedCount }}</div>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ proxySubscriptionErrorCount > 0
+                ? t('admin.proxies.mihomo.overview.errorsHint', { count: proxySubscriptionErrorCount })
+                : t('admin.proxies.mihomo.overview.materializedHint') }}
+            </div>
+          </div>
+        </div>
+
+        <div class="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.95fr)]">
+          <div class="space-y-5">
+            <div class="rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm dark:border-indigo-900/40 dark:bg-dark-800">
+              <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div class="text-base font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.workspaceTitle') }}</div>
+                  <div class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-300">{{ t('admin.proxies.mihomo.sourceHint') }}</div>
+                </div>
+                <div class="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/80 px-4 py-3 text-xs leading-6 text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/30 dark:text-indigo-200">
+                  <div>{{ t('admin.proxies.mihomo.workspaceStatus') }}</div>
+                  <div class="font-medium">{{ proxySubscriptionLatestRefreshText }}</div>
+                </div>
+              </div>
+              <div class="mt-4 grid gap-3 md:grid-cols-3">
+                <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-700/60">
+                  <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.flow.sourcesTitle') }}</div>
+                  <div class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.flow.sourcesDesc') }}</div>
+                </div>
+                <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-700/60">
+                  <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.flow.providersTitle') }}</div>
+                  <div class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.flow.providersDesc') }}</div>
+                </div>
+                <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-700/60">
+                  <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.flow.listenersTitle') }}</div>
+                  <div class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.proxies.mihomo.flow.listenersDesc') }}</div>
+                </div>
               </div>
             </div>
-            <div class="grid gap-4 md:grid-cols-2">
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.targetHost') }}</label>
-                <input v-model="mihomoForm.target_host" type="text" class="input" />
+
+            <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+              <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <div class="text-base font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.sourceSectionTitle') }}</div>
+                    <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+                      {{ t('admin.proxies.subscriptions.linkedBadge') }}
+                    </span>
+                  </div>
+                  <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.proxies.subscriptions.modalHint') }}</div>
+                </div>
+                <div class="rounded-2xl bg-gray-50 px-4 py-3 text-xs leading-6 text-gray-600 dark:bg-dark-700/60 dark:text-gray-300">
+                  <div>{{ t('admin.proxies.mihomo.sourceSectionStats', { total: dataState.proxySubscriptions.length, enabled: enabledProxySubscriptionCount }) }}</div>
+                  <div>{{ t('admin.proxies.mihomo.sourceSectionNodeStats', { count: enabledProxySubscriptionNodeCount, materialized: proxySubscriptionMaterializedCount }) }}</div>
+                </div>
               </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.controllerUrl') }}</label>
-                <input v-model="mihomoForm.controller_url" type="text" class="input" />
+              <div v-if="dataState.proxySubscriptions.length === 0" class="mb-4 rounded-2xl border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                {{ t('admin.proxies.mihomo.sourceSectionEmpty') }}
               </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.startPort') }}</label>
-                <input v-model.number="mihomoForm.start_port" type="number" min="1" max="65535" class="input" @input="normalizeMihomoPorts" />
-              </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.listenerCount') }}</label>
-                <input v-model.number="mihomoForm.listener_count" type="number" min="1" max="32" class="input" @input="normalizeMihomoPorts" />
-              </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
-                <Select v-model="mihomoForm.protocol" :options="protocolSelectOptions" />
-              </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.proxyNamePrefix') }}</label>
-                <input v-model="mihomoForm.proxy_name_prefix" type="text" class="input" />
-              </div>
+              <ProxySubscriptionsPanel
+                :loading="loadingState.loadingSubscriptions"
+                :items="dataState.proxySubscriptions"
+                @refresh="handleRefreshSubscription"
+                @edit="handleEditSubscription"
+                @view-nodes="handleViewSubscriptionNodes"
+                @delete="handleDeleteSubscription"
+              />
             </div>
           </div>
 
-          <div class="space-y-4">
-            <div class="rounded-2xl border border-gray-200 p-4 dark:border-dark-700">
-              <div class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.optimizeSettings') }}</div>
+          <div class="space-y-5">
+            <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+              <div class="mb-4 text-base font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.configSectionTitle') }}</div>
+              <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.mihomo.targetHost') }}</label>
+                  <input v-model="mihomoForm.target_host" type="text" class="input" />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.mihomo.controllerUrl') }}</label>
+                  <input v-model="mihomoForm.controller_url" type="text" class="input" />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.mihomo.startPort') }}</label>
+                  <input v-model.number="mihomoForm.start_port" type="number" min="1" max="65535" class="input" @input="normalizeMihomoPorts" />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.mihomo.listenerCount') }}</label>
+                  <input v-model.number="mihomoForm.listener_count" type="number" min="1" max="32" class="input" @input="normalizeMihomoPorts" />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
+                  <Select v-model="mihomoForm.protocol" :options="protocolSelectOptions" />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.proxies.mihomo.proxyNamePrefix') }}</label>
+                  <input v-model="mihomoForm.proxy_name_prefix" type="text" class="input" />
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+              <div class="mb-4 text-base font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.optimizeSectionTitle') }}</div>
               <div class="space-y-3">
                 <label class="flex items-center gap-2 cursor-pointer">
                   <input v-model="mihomoForm.auto_optimize" type="checkbox" class="checkbox" />
@@ -905,10 +1001,10 @@
               </div>
             </div>
 
-            <div class="rounded-2xl border border-gray-200 p-4 dark:border-dark-700">
-              <div class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.listenerPorts') }}</div>
+            <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+              <div class="mb-4 text-base font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.listenerSectionTitle') }}</div>
               <div class="max-h-[360px] space-y-3 overflow-auto pr-1">
-                <div v-for="listener in mihomoListenerRows" :key="listener.name" class="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-dark-700 dark:bg-dark-800/70">
+                <div v-for="listener in mihomoListenerRows" :key="listener.name" class="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-800/70">
                   <div class="mb-2 flex items-center justify-between gap-3">
                     <div class="font-mono text-xs text-gray-700 dark:text-gray-200">{{ listener.name }}</div>
                     <span class="badge badge-primary">{{ listener.port }}</span>
@@ -928,33 +1024,6 @@
               </datalist>
             </div>
           </div>
-        </div>
-
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-dark-700">
-          <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.subscriptions.title') }}</div>
-              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.subscriptions.modalHint') }}</div>
-            </div>
-            <div class="flex items-center gap-2">
-              <button class="btn btn-secondary" type="button" :disabled="loadingState.loadingSubscriptions" @click="loadProxySubscriptions">
-                <Icon name="refresh" size="sm" class="mr-2" :class="loadingState.loadingSubscriptions ? 'animate-spin' : ''" />
-                {{ t('common.refresh') }}
-              </button>
-              <button class="btn btn-primary" type="button" @click="openCreateSubscriptionDialog">
-                <Icon name="plus" size="sm" class="mr-2" />
-                {{ t('admin.proxies.subscriptions.create') }}
-              </button>
-            </div>
-          </div>
-          <ProxySubscriptionsPanel
-            :loading="loadingState.loadingSubscriptions"
-            :items="dataState.proxySubscriptions"
-            @refresh="handleRefreshSubscription"
-            @edit="handleEditSubscription"
-            @view-nodes="handleViewSubscriptionNodes"
-            @delete="handleDeleteSubscription"
-          />
         </div>
       </div>
       <template #footer>
@@ -1633,6 +1702,7 @@ const editForm = reactive({
 
 const mihomoConfigPath = ref('')
 const mihomoAvailableRegions = ref<string[]>([])
+const persistedMihomoSettings = ref<MihomoSettings | null>(null)
 const mihomoForm = reactive<MihomoSettings>({
   protocol: 'socks5h',
   target_host: '127.0.0.1',
@@ -1653,6 +1723,54 @@ const mihomoListenerRows = computed(() =>
     name: `${mihomoForm.proxy_name_prefix || 'mihomo'}-${String(index + 1).padStart(2, '0')}`
   }))
 )
+const enabledProxySubscriptionCount = computed(() =>
+  dataState.proxySubscriptions.filter((item) => item.enabled).length
+)
+const enabledProxySubscriptionNodeCount = computed(() =>
+  dataState.proxySubscriptions
+    .filter((item) => item.enabled)
+    .reduce((total, item) => total + (item.last_node_count || 0), 0)
+)
+const proxySubscriptionMaterializedCount = computed(() =>
+  dataState.proxySubscriptions
+    .filter((item) => item.enabled)
+    .reduce((total, item) => total + (item.last_materialized_proxy_count || 0), 0)
+)
+const proxySubscriptionErrorCount = computed(() =>
+  dataState.proxySubscriptions.filter((item) => String(item.last_error || '').trim() !== '').length
+)
+const proxySubscriptionLatestRefreshText = computed(() => {
+  const timestamps = dataState.proxySubscriptions
+    .map((item) => item.last_refreshed_at || item.last_success_at || '')
+    .filter((value) => value)
+    .sort()
+  if (timestamps.length === 0) {
+    return t('admin.proxies.mihomo.workspaceStatusEmpty')
+  }
+  return timestamps[timestamps.length - 1]
+})
+
+const extractErrorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.detail || error?.message || fallback
+
+const cloneMihomoSettings = (settings: MihomoSettings): MihomoSettings =>
+  JSON.parse(JSON.stringify(settings))
+
+const setPersistedMihomoSettings = (settings: MihomoSettings) => {
+  persistedMihomoSettings.value = cloneMihomoSettings(settings)
+}
+
+const ensurePersistedMihomoSettings = async () => {
+  if (persistedMihomoSettings.value) {
+    return cloneMihomoSettings(persistedMihomoSettings.value)
+  }
+  const status = await adminAPI.proxies.getMihomo()
+  applyMihomoSettings(status.settings)
+  mihomoConfigPath.value = status.config_path || ''
+  mihomoAvailableRegions.value = status.available_regions || []
+  setPersistedMihomoSettings(status.settings)
+  return cloneMihomoSettings(status.settings)
+}
 
 const normalizeMihomoListenerRegions = () => {
   const count = Math.max(1, Math.min(32, Number(mihomoForm.listener_count) || 1))
@@ -1684,6 +1802,7 @@ const loadMihomo = async () => {
     applyMihomoSettings(status.settings)
     mihomoConfigPath.value = status.config_path || ''
     mihomoAvailableRegions.value = status.available_regions || []
+    setPersistedMihomoSettings(status.settings)
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.mihomo.loadFailed'))
   } finally {
@@ -1702,6 +1821,7 @@ const saveMihomo = async () => {
   try {
     const settings = await adminAPI.proxies.updateMihomo(mihomoForm)
     applyMihomoSettings(settings)
+    setPersistedMihomoSettings(settings)
     appStore.showSuccess(t('admin.proxies.mihomo.saveSuccess'))
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.mihomo.saveFailed'))
@@ -1716,10 +1836,24 @@ const saveAndSyncMihomo = async () => {
   try {
     const result = await adminAPI.proxies.syncMihomo(mihomoForm)
     mihomoConfigPath.value = result.config_path || ''
+    setPersistedMihomoSettings(mihomoForm)
     await loadProxies()
     appStore.showSuccess(t('admin.proxies.mihomo.syncSuccess', { created: result.created, reused: result.reused }))
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.proxies.mihomo.syncFailed'))
+  } finally {
+    loadingState.mihomoSubmitting = false
+  }
+}
+
+const syncMihomoFromSubscriptions = async () => {
+  const settings = await ensurePersistedMihomoSettings()
+  loadingState.mihomoSubmitting = true
+  try {
+    const result = await adminAPI.proxies.syncMihomo(settings)
+    mihomoConfigPath.value = result.config_path || ''
+    await Promise.all([loadProxies(), loadMihomo()])
+    return result
   } finally {
     loadingState.mihomoSubmitting = false
   }
@@ -2554,14 +2688,22 @@ const handleExportData = async () => {
 const handleRefreshSubscription = async (id: number) => {
   try {
     const result = await adminAPI.proxySubscriptions.refresh(id)
-    appStore.showSuccess(t('admin.proxies.subscriptions.refreshSuccess', {
-      nodes: result.node_count,
-      proxies: result.materialized_proxy_count
-    }))
     await loadProxySubscriptions()
-    await loadProxies()
+    try {
+      const syncResult = await syncMihomoFromSubscriptions()
+      appStore.showSuccess(t('admin.proxies.subscriptions.refreshSyncSuccess', {
+        nodes: result.node_count,
+        proxies: result.materialized_proxy_count,
+        created: syncResult.created,
+        reused: syncResult.reused
+      }))
+    } catch (syncError: any) {
+      appStore.showWarning(t('admin.proxies.subscriptions.refreshSyncPartial', {
+        detail: extractErrorMessage(syncError, t('admin.proxies.mihomo.syncFailed'))
+      }))
+    }
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.refreshFailed'))
+    appStore.showError(extractErrorMessage(error, t('admin.proxies.subscriptions.refreshFailed')))
     console.error('Error refreshing proxy subscription:', error)
   }
 }
@@ -2582,10 +2724,20 @@ const handleViewSubscriptionNodes = async (id: number) => {
 const handleDeleteSubscription = async (id: number) => {
   try {
     await adminAPI.proxySubscriptions.delete(id)
-    appStore.showSuccess(t('admin.proxies.subscriptions.deleteSuccess'))
     await loadProxySubscriptions()
+    try {
+      const syncResult = await syncMihomoFromSubscriptions()
+      appStore.showSuccess(t('admin.proxies.subscriptions.deleteSyncSuccess', {
+        created: syncResult.created,
+        reused: syncResult.reused
+      }))
+    } catch (syncError: any) {
+      appStore.showWarning(t('admin.proxies.subscriptions.deleteSyncPartial', {
+        detail: extractErrorMessage(syncError, t('admin.proxies.mihomo.syncFailed'))
+      }))
+    }
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.proxies.subscriptions.deleteFailed'))
+    appStore.showError(extractErrorMessage(error, t('admin.proxies.subscriptions.deleteFailed')))
     console.error('Error deleting proxy subscription:', error)
   }
 }
@@ -2593,6 +2745,7 @@ const handleDeleteSubscription = async (id: number) => {
 const handleSubmitSubscription = async () => {
   loadingState.submittingSubscription = true
   try {
+    const editing = Boolean(currentItems.editingSubscription)
     if (currentItems.editingSubscription) {
       await adminAPI.proxySubscriptions.update(currentItems.editingSubscription.id, {
         name: subscriptionForm.name.trim(),
@@ -2603,7 +2756,6 @@ const handleSubmitSubscription = async () => {
         target_entry_count: subscriptionForm.target_entry_count,
         auto_add_to_pool: subscriptionForm.auto_add_to_pool
       })
-      appStore.showSuccess(t('admin.proxies.subscriptions.updateSuccess'))
     } else {
       await adminAPI.proxySubscriptions.create({
         name: subscriptionForm.name.trim(),
@@ -2614,14 +2766,34 @@ const handleSubmitSubscription = async () => {
         target_entry_count: subscriptionForm.target_entry_count,
         auto_add_to_pool: subscriptionForm.auto_add_to_pool
       })
-      appStore.showSuccess(t('admin.proxies.subscriptions.createSuccess'))
     }
     modalState.showCreateSubscriptionModal = false
     currentItems.editingSubscription = null
     await loadProxySubscriptions()
+    try {
+      const syncResult = await syncMihomoFromSubscriptions()
+      appStore.showSuccess(t(
+        editing
+          ? 'admin.proxies.subscriptions.updateSyncSuccess'
+          : 'admin.proxies.subscriptions.createSyncSuccess',
+        {
+          created: syncResult.created,
+          reused: syncResult.reused
+        }
+      ))
+    } catch (syncError: any) {
+      appStore.showWarning(t(
+        editing
+          ? 'admin.proxies.subscriptions.updateSyncPartial'
+          : 'admin.proxies.subscriptions.createSyncPartial',
+        {
+          detail: extractErrorMessage(syncError, t('admin.proxies.mihomo.syncFailed'))
+        }
+      ))
+    }
   } catch (error: any) {
     appStore.showError(
-      error.response?.data?.detail ||
+      extractErrorMessage(error, '') ||
       (currentItems.editingSubscription
         ? t('admin.proxies.subscriptions.updateFailed')
         : t('admin.proxies.subscriptions.createFailed'))
