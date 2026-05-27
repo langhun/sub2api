@@ -204,332 +204,622 @@
         <!-- Tab: Gateway -->
         <div v-show="activeTab === 'gateway'" class="space-y-6">
           <!-- Overload Cooldown (529) Settings -->
-          <SettingsCard
-            :title="t('admin.settings.overloadCooldown.title')"
-            :description="t('admin.settings.overloadCooldown.description')"
-            :loading="overloadCooldown.loading.value"
-            :saving="overloadCooldown.saving.value"
-            :show-save-button="true"
-            @save="overloadCooldown.save"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="font-medium text-gray-900 dark:text-white">
-                  {{ t("admin.settings.overloadCooldown.enabled") }}
-                </label>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.overloadCooldown.enabledHint") }}
-                </p>
-              </div>
-              <Toggle v-model="overloadCooldown.form.enabled" />
-            </div>
-
+          <div class="card">
             <div
-              v-if="overloadCooldown.form.enabled"
-              class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700"
+              class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
             >
-              <div>
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.overloadCooldown.cooldownMinutes") }}
-                </label>
-                <input
-                  v-model.number="overloadCooldown.form.cooldown_minutes"
-                  type="number"
-                  min="1"
-                  max="120"
-                  class="input w-32"
-                />
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.overloadCooldown.cooldownMinutesHint") }}
-                </p>
-              </div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t("admin.settings.overloadCooldown.title") }}
+              </h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.overloadCooldown.description") }}
+              </p>
             </div>
-          </SettingsCard>
-
-          <!-- Rate Limit Cooldown (429) Settings -->
-          <SettingsCard
-            :title="t('admin.settings.rateLimit429Cooldown.title')"
-            :description="t('admin.settings.rateLimit429Cooldown.description')"
-            :loading="rateLimit429Cooldown.loading.value"
-            :saving="rateLimit429Cooldown.saving.value"
-            :show-save-button="true"
-            @save="rateLimit429Cooldown.save"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="font-medium text-gray-900 dark:text-white">
-                  {{ t("admin.settings.rateLimit429Cooldown.enabled") }}
-                </label>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.rateLimit429Cooldown.enabledHint") }}
-                </p>
-              </div>
-              <Toggle v-model="rateLimit429Cooldown.form.enabled" />
-            </div>
-
-            <div
-              v-if="rateLimit429Cooldown.form.enabled"
-              class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700"
-            >
-              <div>
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.rateLimit429Cooldown.cooldownSeconds") }}
-                </label>
-                <input
-                  v-model.number="rateLimit429Cooldown.form.cooldown_seconds"
-                  type="number"
-                  min="1"
-                  max="7200"
-                  class="input w-32"
-                />
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.rateLimit429Cooldown.cooldownSecondsHint") }}
-                </p>
-              </div>
-            </div>
-          </SettingsCard>
-
-          <!-- Stream Timeout Settings -->
-          <SettingsCard
-            :title="t('admin.settings.streamTimeout.title')"
-            :description="t('admin.settings.streamTimeout.description')"
-            :loading="streamTimeout.loading.value"
-            :saving="streamTimeout.saving.value"
-            :show-save-button="true"
-            @save="streamTimeout.save"
-          >
-            <!-- Enable Stream Timeout -->
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="font-medium text-gray-900 dark:text-white">
-                  {{ t("admin.settings.streamTimeout.enabled") }}
-                </label>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.streamTimeout.enabledHint") }}
-                </p>
-              </div>
-              <Toggle v-model="streamTimeout.form.enabled" />
-            </div>
-
-            <!-- Settings - Only show when enabled -->
-            <div
-              v-if="streamTimeout.form.enabled"
-              class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700"
-            >
-              <!-- Action -->
-              <div>
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.streamTimeout.action") }}
-                </label>
-                <select
-                  v-model="streamTimeout.form.action"
-                  class="input w-64"
-                >
-                  <option value="temp_unsched">
-                    {{ t("admin.settings.streamTimeout.actionTempUnsched") }}
-                  </option>
-                  <option value="error">
-                    {{ t("admin.settings.streamTimeout.actionError") }}
-                  </option>
-                  <option value="none">
-                    {{ t("admin.settings.streamTimeout.actionNone") }}
-                  </option>
-                </select>
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.streamTimeout.actionHint") }}
-                </p>
-              </div>
-
-              <!-- Temp Unsched Minutes (only show when action is temp_unsched) -->
-              <div v-if="streamTimeout.form.action === 'temp_unsched'">
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.streamTimeout.tempUnschedMinutes") }}
-                </label>
-                <input
-                  v-model.number="streamTimeout.form.temp_unsched_minutes"
-                  type="number"
-                  min="1"
-                  max="60"
-                  class="input w-32"
-                />
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.streamTimeout.tempUnschedMinutesHint") }}
-                </p>
-              </div>
-
-              <!-- Threshold Count -->
-              <div>
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.streamTimeout.thresholdCount") }}
-                </label>
-                <input
-                  v-model.number="streamTimeout.form.threshold_count"
-                  type="number"
-                  min="1"
-                  max="10"
-                  class="input w-32"
-                />
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.streamTimeout.thresholdCountHint") }}
-                </p>
-              </div>
-
-              <!-- Threshold Window Minutes -->
-              <div>
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.streamTimeout.thresholdWindowMinutes") }}
-                </label>
-                <input
-                  v-model.number="streamTimeout.form.threshold_window_minutes"
-                  type="number"
-                  min="1"
-                  max="60"
-                  class="input w-32"
-                />
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.streamTimeout.thresholdWindowMinutesHint") }}
-                </p>
-              </div>
-            </div>
-          </SettingsCard>
-
-          <!-- Request Rectifier Settings -->
-          <SettingsCard
-            :title="t('admin.settings.rectifier.title')"
-            :description="t('admin.settings.rectifier.description')"
-            :loading="rectifier.loading.value"
-            :saving="rectifier.saving.value"
-            :show-save-button="true"
-            @save="rectifier.save"
-          >
-            <!-- Master Toggle -->
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="font-medium text-gray-900 dark:text-white">
-                  {{ t("admin.settings.rectifier.enabled") }}
-                </label>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.rectifier.enabledHint") }}
-                </p>
-              </div>
-              <Toggle v-model="rectifier.form.enabled" />
-            </div>
-
-            <!-- Sub-toggles (only show when master is enabled) -->
-            <div
-              v-if="rectifier.form.enabled"
-              class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700"
-            >
-              <!-- Thinking Signature Rectifier -->
-              <div class="flex items-center justify-between">
-                <div>
-                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t("admin.settings.rectifier.thinkingSignature") }}
-                  </label>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.rectifier.thinkingSignatureHint") }}
-                  </p>
-                </div>
-                <Toggle v-model="rectifier.form.thinking_signature_enabled" />
-              </div>
-
-              <!-- Thinking Budget Rectifier -->
-              <div class="flex items-center justify-between">
-                <div>
-                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t("admin.settings.rectifier.thinkingBudget") }}
-                  </label>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.rectifier.thinkingBudgetHint") }}
-                  </p>
-                </div>
-                <Toggle v-model="rectifier.form.thinking_budget_enabled" />
-              </div>
-
-              <!-- API Key Signature Rectifier -->
-              <div class="flex items-center justify-between">
-                <div>
-                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t("admin.settings.rectifier.apikeySignature") }}
-                  </label>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.rectifier.apikeySignatureHint") }}
-                  </p>
-                </div>
-                <Toggle v-model="rectifier.form.apikey_signature_enabled" />
-              </div>
-
-              <!-- Custom Patterns (only when apikey_signature_enabled) -->
+            <div class="space-y-5 p-6">
               <div
-                v-if="rectifier.form.apikey_signature_enabled"
-                class="ml-4 space-y-3 border-l-2 border-gray-200 pl-4 dark:border-dark-600"
+                v-if="overloadCooldownLoading"
+                class="flex items-center gap-2 text-gray-500"
               >
-                <div>
-                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t("admin.settings.rectifier.apikeyPatterns") }}
-                  </label>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.rectifier.apikeyPatternsHint") }}
-                  </p>
-                </div>
                 <div
-                  v-for="(_, index) in rectifier.form.apikey_signature_patterns"
-                  :key="index"
-                  class="flex items-center gap-2"
+                  class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-600"
+                ></div>
+                {{ t("common.loading") }}
+              </div>
+
+              <template v-else>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">{{
+                      t("admin.settings.overloadCooldown.enabled")
+                    }}</label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.overloadCooldown.enabledHint") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="overloadCooldownForm.enabled" />
+                </div>
+
+                <div
+                  v-if="overloadCooldownForm.enabled"
+                  class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700"
                 >
-                  <input
-                    v-model="rectifier.form.apikey_signature_patterns[index]"
-                    type="text"
-                    class="input input-sm flex-1"
-                    :placeholder="t('admin.settings.rectifier.apikeyPatternPlaceholder')"
-                  />
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.overloadCooldown.cooldownMinutes") }}
+                    </label>
+                    <input
+                      v-model.number="overloadCooldownForm.cooldown_minutes"
+                      type="number"
+                      min="1"
+                      max="120"
+                      class="input w-32"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{
+                        t("admin.settings.overloadCooldown.cooldownMinutesHint")
+                      }}
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  class="flex justify-end border-t border-gray-100 pt-4 dark:border-dark-700"
+                >
                   <button
                     type="button"
-                    @click="rectifier.form.apikey_signature_patterns.splice(index, 1)"
-                    class="btn btn-ghost btn-xs text-red-500 hover:text-red-700"
+                    @click="saveOverloadCooldownSettings"
+                    :disabled="overloadCooldownSaving"
+                    class="btn btn-primary btn-sm"
                   >
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      v-if="overloadCooldownSaving"
+                      class="mr-1 h-4 w-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
+                    {{
+                      overloadCooldownSaving
+                        ? t("common.saving")
+                        : t("common.save")
+                    }}
                   </button>
                 </div>
-                <button
-                  type="button"
-                  @click="rectifier.form.apikey_signature_patterns.push('')"
-                  class="btn btn-ghost btn-xs text-primary-600 dark:text-primary-400"
-                >
-                  + {{ t("admin.settings.rectifier.addPattern") }}
-                </button>
-              </div>
+              </template>
             </div>
-          </SettingsCard>
-          <!-- Beta Policy Settings -->
-          <SettingsCard
-            :title="t('admin.settings.betaPolicy.title')"
-            :description="t('admin.settings.betaPolicy.description')"
-            :loading="betaPolicy.loading.value"
-            :saving="betaPolicy.saving.value"
-            :show-save-button="true"
-            @save="betaPolicy.save"
-          >
-            <!-- Rule Cards -->
+          </div>
+
+          <!-- Rate Limit Cooldown (429) Settings -->
+          <div class="card">
             <div
-              v-for="rule in betaPolicy.form.rules"
-              :key="rule.beta_token"
-              v-memo="[rule.action, rule.scope, rule.error_message, rule.model_whitelist?.length]"
-              class="rounded-lg border border-gray-200 p-4 dark:border-dark-600"
+              class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+            >
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t("admin.settings.rateLimit429Cooldown.title") }}
+              </h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.rateLimit429Cooldown.description") }}
+              </p>
+            </div>
+            <div class="space-y-5 p-6">
+              <div
+                v-if="rateLimit429CooldownLoading"
+                class="flex items-center gap-2 text-gray-500"
+              >
+                <div
+                  class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-600"
+                ></div>
+                {{ t("common.loading") }}
+              </div>
+
+              <template v-else>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">{{
+                      t("admin.settings.rateLimit429Cooldown.enabled")
+                    }}</label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.rateLimit429Cooldown.enabledHint") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="rateLimit429CooldownForm.enabled" />
+                </div>
+
+                <div
+                  v-if="rateLimit429CooldownForm.enabled"
+                  class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700"
+                >
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{
+                        t(
+                          "admin.settings.rateLimit429Cooldown.cooldownSeconds",
+                        )
+                      }}
+                    </label>
+                    <input
+                      v-model.number="rateLimit429CooldownForm.cooldown_seconds"
+                      type="number"
+                      min="1"
+                      max="7200"
+                      class="input w-32"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{
+                        t(
+                          "admin.settings.rateLimit429Cooldown.cooldownSecondsHint",
+                        )
+                      }}
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  class="flex justify-end border-t border-gray-100 pt-4 dark:border-dark-700"
+                >
+                  <button
+                    type="button"
+                    @click="saveRateLimit429CooldownSettings"
+                    :disabled="rateLimit429CooldownSaving"
+                    class="btn btn-primary btn-sm"
+                  >
+                    <svg
+                      v-if="rateLimit429CooldownSaving"
+                      class="mr-1 h-4 w-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    {{
+                      rateLimit429CooldownSaving
+                        ? t("common.saving")
+                        : t("common.save")
+                    }}
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Stream Timeout Settings -->
+          <div class="card">
+            <div
+              class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+            >
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t("admin.settings.streamTimeout.title") }}
+              </h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.streamTimeout.description") }}
+              </p>
+            </div>
+            <div class="space-y-5 p-6">
+              <!-- Loading State -->
+              <div
+                v-if="streamTimeoutLoading"
+                class="flex items-center gap-2 text-gray-500"
+              >
+                <div
+                  class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-600"
+                ></div>
+                {{ t("common.loading") }}
+              </div>
+
+              <template v-else>
+                <!-- Enable Stream Timeout -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">{{
+                      t("admin.settings.streamTimeout.enabled")
+                    }}</label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.streamTimeout.enabledHint") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="streamTimeoutForm.enabled" />
+                </div>
+
+                <!-- Settings - Only show when enabled -->
+                <div
+                  v-if="streamTimeoutForm.enabled"
+                  class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700"
+                >
+                  <!-- Action -->
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.streamTimeout.action") }}
+                    </label>
+                    <select
+                      v-model="streamTimeoutForm.action"
+                      class="input w-64"
+                    >
+                      <option value="temp_unsched">
+                        {{
+                          t("admin.settings.streamTimeout.actionTempUnsched")
+                        }}
+                      </option>
+                      <option value="error">
+                        {{ t("admin.settings.streamTimeout.actionError") }}
+                      </option>
+                      <option value="none">
+                        {{ t("admin.settings.streamTimeout.actionNone") }}
+                      </option>
+                    </select>
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.streamTimeout.actionHint") }}
+                    </p>
+                  </div>
+
+                  <!-- Temp Unsched Minutes (only show when action is temp_unsched) -->
+                  <div v-if="streamTimeoutForm.action === 'temp_unsched'">
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.streamTimeout.tempUnschedMinutes") }}
+                    </label>
+                    <input
+                      v-model.number="streamTimeoutForm.temp_unsched_minutes"
+                      type="number"
+                      min="1"
+                      max="60"
+                      class="input w-32"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{
+                        t("admin.settings.streamTimeout.tempUnschedMinutesHint")
+                      }}
+                    </p>
+                  </div>
+
+                  <!-- Threshold Count -->
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{ t("admin.settings.streamTimeout.thresholdCount") }}
+                    </label>
+                    <input
+                      v-model.number="streamTimeoutForm.threshold_count"
+                      type="number"
+                      min="1"
+                      max="10"
+                      class="input w-32"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.streamTimeout.thresholdCountHint") }}
+                    </p>
+                  </div>
+
+                  <!-- Threshold Window Minutes -->
+                  <div>
+                    <label
+                      class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                    >
+                      {{
+                        t("admin.settings.streamTimeout.thresholdWindowMinutes")
+                      }}
+                    </label>
+                    <input
+                      v-model.number="
+                        streamTimeoutForm.threshold_window_minutes
+                      "
+                      type="number"
+                      min="1"
+                      max="60"
+                      class="input w-32"
+                    />
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      {{
+                        t(
+                          "admin.settings.streamTimeout.thresholdWindowMinutesHint",
+                        )
+                      }}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Save Button -->
+                <div
+                  class="flex justify-end border-t border-gray-100 pt-4 dark:border-dark-700"
+                >
+                  <button
+                    type="button"
+                    @click="saveStreamTimeoutSettings"
+                    :disabled="streamTimeoutSaving"
+                    class="btn btn-primary btn-sm"
+                  >
+                    <svg
+                      v-if="streamTimeoutSaving"
+                      class="mr-1 h-4 w-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    {{
+                      streamTimeoutSaving
+                        ? t("common.saving")
+                        : t("common.save")
+                    }}
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Request Rectifier Settings -->
+          <div class="card">
+            <div
+              class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+            >
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t("admin.settings.rectifier.title") }}
+              </h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.rectifier.description") }}
+              </p>
+            </div>
+            <div class="space-y-5 p-6">
+              <!-- Loading State -->
+              <div
+                v-if="rectifierLoading"
+                class="flex items-center gap-2 text-gray-500"
+              >
+                <div
+                  class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-600"
+                ></div>
+                {{ t("common.loading") }}
+              </div>
+
+              <template v-else>
+                <!-- Master Toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="font-medium text-gray-900 dark:text-white">{{
+                      t("admin.settings.rectifier.enabled")
+                    }}</label>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.rectifier.enabledHint") }}
+                    </p>
+                  </div>
+                  <Toggle v-model="rectifierForm.enabled" />
+                </div>
+
+                <!-- Sub-toggles (only show when master is enabled) -->
+                <div
+                  v-if="rectifierForm.enabled"
+                  class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700"
+                >
+                  <!-- Thinking Signature Rectifier -->
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <label
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >{{
+                          t("admin.settings.rectifier.thinkingSignature")
+                        }}</label
+                      >
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{
+                          t("admin.settings.rectifier.thinkingSignatureHint")
+                        }}
+                      </p>
+                    </div>
+                    <Toggle
+                      v-model="rectifierForm.thinking_signature_enabled"
+                    />
+                  </div>
+
+                  <!-- Thinking Budget Rectifier -->
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <label
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >{{
+                          t("admin.settings.rectifier.thinkingBudget")
+                        }}</label
+                      >
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.rectifier.thinkingBudgetHint") }}
+                      </p>
+                    </div>
+                    <Toggle v-model="rectifierForm.thinking_budget_enabled" />
+                  </div>
+
+                  <!-- API Key Signature Rectifier -->
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <label
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >{{
+                          t("admin.settings.rectifier.apikeySignature")
+                        }}</label
+                      >
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.rectifier.apikeySignatureHint") }}
+                      </p>
+                    </div>
+                    <Toggle v-model="rectifierForm.apikey_signature_enabled" />
+                  </div>
+
+                  <!-- Custom Patterns (only when apikey_signature_enabled) -->
+                  <div
+                    v-if="rectifierForm.apikey_signature_enabled"
+                    class="ml-4 space-y-3 border-l-2 border-gray-200 pl-4 dark:border-dark-600"
+                  >
+                    <div>
+                      <label
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >{{
+                          t("admin.settings.rectifier.apikeyPatterns")
+                        }}</label
+                      >
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.rectifier.apikeyPatternsHint") }}
+                      </p>
+                    </div>
+                    <div
+                      v-for="(
+                        _, index
+                      ) in rectifierForm.apikey_signature_patterns"
+                      :key="index"
+                      class="flex items-center gap-2"
+                    >
+                      <input
+                        v-model="rectifierForm.apikey_signature_patterns[index]"
+                        type="text"
+                        class="input input-sm flex-1"
+                        :placeholder="
+                          t('admin.settings.rectifier.apikeyPatternPlaceholder')
+                        "
+                      />
+                      <button
+                        type="button"
+                        @click="
+                          rectifierForm.apikey_signature_patterns.splice(
+                            index,
+                            1,
+                          )
+                        "
+                        class="btn btn-ghost btn-xs text-red-500 hover:text-red-700"
+                      >
+                        <svg
+                          class="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      @click="rectifierForm.apikey_signature_patterns.push('')"
+                      class="btn btn-ghost btn-xs text-primary-600 dark:text-primary-400"
+                    >
+                      + {{ t("admin.settings.rectifier.addPattern") }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Save Button -->
+                <div
+                  class="flex justify-end border-t border-gray-100 pt-4 dark:border-dark-700"
+                >
+                  <button
+                    type="button"
+                    @click="saveRectifierSettings"
+                    :disabled="rectifierSaving"
+                    class="btn btn-primary btn-sm"
+                  >
+                    <svg
+                      v-if="rectifierSaving"
+                      class="mr-1 h-4 w-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    {{
+                      rectifierSaving ? t("common.saving") : t("common.save")
+                    }}
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+          <!-- Beta Policy Settings -->
+          <div class="card">
+            <div
+              class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+            >
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t("admin.settings.betaPolicy.title") }}
+              </h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.betaPolicy.description") }}
+              </p>
+            </div>
+            <div class="space-y-5 p-6">
+              <!-- Loading State -->
+              <div
+                v-if="betaPolicyLoading"
+                class="flex items-center gap-2 text-gray-500"
+              >
+                <div
+                  class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-600"
+                ></div>
+                {{ t("common.loading") }}
+              </div>
+
+              <template v-else>
+                <!-- Rule Cards -->
+                <div
+                  v-for="rule in betaPolicyForm.rules"
+                  :key="rule.beta_token"
+                  class="rounded-lg border border-gray-200 p-4 dark:border-dark-600"
                 >
                   <div class="mb-3 flex items-center gap-2">
                     <span
@@ -741,7 +1031,44 @@
                   </div>
                 </div>
 
-          </SettingsCard>
+                <!-- Save Button -->
+                <div
+                  class="flex justify-end border-t border-gray-100 pt-4 dark:border-dark-700"
+                >
+                  <button
+                    type="button"
+                    @click="saveBetaPolicySettings"
+                    :disabled="betaPolicySaving"
+                    class="btn btn-primary btn-sm"
+                  >
+                    <svg
+                      v-if="betaPolicySaving"
+                      class="mr-1 h-4 w-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                      ></circle>
+                      <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    {{
+                      betaPolicySaving ? t("common.saving") : t("common.save")
+                    }}
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
           <!-- OpenAI Fast/Flex Policy Settings -->
           <div class="card">
             <div
@@ -767,7 +1094,6 @@
               <div
                 v-for="(rule, ruleIndex) in openaiFastPolicyForm.rules"
                 :key="ruleIndex"
-                v-memo="[rule.service_tier, rule.action, rule.scope, rule.model_whitelist?.length]"
                 class="rounded-lg border border-gray-200 p-4 dark:border-dark-600"
               >
                 <div class="mb-3 flex items-center justify-between">
@@ -1089,7 +1415,6 @@
                       :key="suffix"
                       class="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-xs font-mono text-gray-700 dark:bg-dark-600 dark:text-gray-200"
                     >
-                      <span class="text-gray-400 dark:text-gray-500">@</span>
                       <span>{{ suffix }}</span>
                       <button
                         type="button"
@@ -1110,10 +1435,6 @@
                     <div
                       class="flex min-w-[220px] flex-1 items-center gap-1 rounded border border-transparent px-2 py-1 focus-within:border-primary-300 dark:focus-within:border-primary-700"
                     >
-                      <span
-                        class="font-mono text-sm text-gray-400 dark:text-gray-500"
-                        >@</span
-                      >
                       <input
                         v-model="registrationEmailSuffixWhitelistDraft"
                         type="text"
@@ -1159,79 +1480,6 @@
                 <Toggle v-model="form.promo_code_enabled" />
               </div>
 
-              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
-                <label class="font-medium text-gray-900 dark:text-white">
-                  兑换码格式
-                </label>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  余额、并发数、订阅兑换码分别独立配置。每种格式都可以单独设置分组数、每组位数、字符类型、字母大小写、分隔符以及前后缀。
-                </p>
-                <div class="mt-4 space-y-4">
-                  <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-600">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">余额兑换码</h3>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">用于余额类兑换码、注册赠送、签到余额审计等。</p>
-                      </div>
-                      <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">
-                        {{ buildCodeFormatPreview(balanceCodeFormatEditor) }}
-                      </code>
-                    </div>
-                    <div class="mt-4 grid gap-3 lg:grid-cols-3">
-                      <input v-model="balanceCodeFormatEditor.prefix" type="text" class="input" placeholder="前缀，可留空" />
-                      <input v-model="balanceCodeFormatEditor.suffix" type="text" class="input" placeholder="后缀，可留空" />
-                      <Select v-model="balanceCodeFormatEditor.separator" :options="codeSeparatorOptions" />
-                      <input v-model.number="balanceCodeFormatEditor.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
-                      <input v-model.number="balanceCodeFormatEditor.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
-                      <Select v-model="balanceCodeFormatEditor.charset" :options="codeCharsetOptions" />
-                      <Select v-model="balanceCodeFormatEditor.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
-                    </div>
-                  </div>
-
-                  <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-600">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">并发兑换码</h3>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">用于并发数兑换码和管理员并发调整审计。</p>
-                      </div>
-                      <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">
-                        {{ buildCodeFormatPreview(concurrencyCodeFormatEditor) }}
-                      </code>
-                    </div>
-                    <div class="mt-4 grid gap-3 lg:grid-cols-3">
-                      <input v-model="concurrencyCodeFormatEditor.prefix" type="text" class="input" placeholder="前缀，可留空" />
-                      <input v-model="concurrencyCodeFormatEditor.suffix" type="text" class="input" placeholder="后缀，可留空" />
-                      <Select v-model="concurrencyCodeFormatEditor.separator" :options="codeSeparatorOptions" />
-                      <input v-model.number="concurrencyCodeFormatEditor.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
-                      <input v-model.number="concurrencyCodeFormatEditor.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
-                      <Select v-model="concurrencyCodeFormatEditor.charset" :options="codeCharsetOptions" />
-                      <Select v-model="concurrencyCodeFormatEditor.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
-                    </div>
-                  </div>
-
-                  <div class="rounded-xl border border-gray-200 p-4 dark:border-dark-600">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">订阅兑换码</h3>
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">用于订阅类兑换码，和余额/并发数格式完全独立。</p>
-                      </div>
-                      <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">
-                        {{ buildCodeFormatPreview(subscriptionCodeFormatEditor) }}
-                      </code>
-                    </div>
-                    <div class="mt-4 grid gap-3 lg:grid-cols-3">
-                      <input v-model="subscriptionCodeFormatEditor.prefix" type="text" class="input" placeholder="前缀，可留空" />
-                      <input v-model="subscriptionCodeFormatEditor.suffix" type="text" class="input" placeholder="后缀，可留空" />
-                      <Select v-model="subscriptionCodeFormatEditor.separator" :options="codeSeparatorOptions" />
-                      <input v-model.number="subscriptionCodeFormatEditor.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
-                      <input v-model.number="subscriptionCodeFormatEditor.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
-                      <Select v-model="subscriptionCodeFormatEditor.charset" :options="codeCharsetOptions" />
-                      <Select v-model="subscriptionCodeFormatEditor.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <!-- Invitation Code -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -1245,34 +1493,6 @@
                   </p>
                 </div>
                 <Toggle v-model="form.invitation_code_enabled" />
-              </div>
-              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
-                <label class="font-medium text-gray-900 dark:text-white">
-                  邀请码格式
-                </label>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  单独控制注册邀请码、手动新建邀请码、盲盒邀请码的格式规则。
-                </p>
-                <div class="mt-4 rounded-xl border border-gray-200 p-4 dark:border-dark-600">
-                  <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 class="text-sm font-semibold text-gray-900 dark:text-white">邀请码</h3>
-                      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">用于注册邀请码、手动新建邀请码、盲盒邀请码。</p>
-                    </div>
-                    <code class="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200">
-                      {{ buildCodeFormatPreview(invitationCodeFormatEditor) }}
-                    </code>
-                  </div>
-                  <div class="mt-4 grid gap-3 lg:grid-cols-3">
-                    <input v-model="invitationCodeFormatEditor.prefix" type="text" class="input" placeholder="前缀，可留空" />
-                    <input v-model="invitationCodeFormatEditor.suffix" type="text" class="input" placeholder="后缀，可留空" />
-                    <Select v-model="invitationCodeFormatEditor.separator" :options="codeSeparatorOptions" />
-                    <input v-model.number="invitationCodeFormatEditor.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
-                    <input v-model.number="invitationCodeFormatEditor.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
-                    <Select v-model="invitationCodeFormatEditor.charset" :options="codeCharsetOptions" />
-                    <Select v-model="invitationCodeFormatEditor.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
-                  </div>
-                </div>
               </div>
               <!-- Password Reset - Only show when email verification is enabled -->
               <div
@@ -1335,6 +1555,33 @@
                   v-model="form.totp_enabled"
                   :disabled="!form.totp_encryption_key_configured"
                 />
+              </div>
+            </div>
+          </div>
+
+          <!-- API Key IP ACL Settings -->
+          <div class="card">
+            <div
+              class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+            >
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t("admin.settings.apiKeyAcl.title") }}
+              </h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.apiKeyAcl.description") }}
+              </p>
+            </div>
+            <div class="space-y-5 p-6">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t("admin.settings.apiKeyAcl.trustForwardedIp") }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.apiKeyAcl.trustForwardedIpHint") }}
+                  </p>
+                </div>
+                <Toggle v-model="form.api_key_acl_trust_forwarded_ip" />
               </div>
             </div>
           </div>
@@ -2911,7 +3158,6 @@
                   <div
                     v-for="(item, index) in form.default_subscriptions"
                     :key="`default-sub-${index}`"
-                    v-memo="[item.group_id, item.validity_days]"
                     class="grid grid-cols-1 gap-3 rounded border border-gray-200 p-3 md:grid-cols-[1fr_160px_auto] dark:border-dark-600"
                   >
                     <div>
@@ -3016,6 +3262,71 @@
                   </div>
                 </div>
               </div>
+
+              <!-- ★ 新增：系统全局默认平台限额矩阵 -->
+              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div class="mb-3">
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t("admin.settings.defaults.defaultPlatformQuotas") }}
+                  </label>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.defaults.defaultPlatformQuotasHint") }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                    {{ t("admin.settings.defaults.platformQuotaNotice") }}
+                  </p>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-sm">
+                    <thead>
+                      <tr class="text-left text-xs text-gray-500 dark:text-gray-400">
+                        <th class="pb-2 pr-4 font-medium">{{ t("admin.settings.platformQuota.platform") }}</th>
+                        <th class="pb-2 pr-4 font-medium">{{ t("admin.settings.platformQuota.daily") }}</th>
+                        <th class="pb-2 pr-4 font-medium">{{ t("admin.settings.platformQuota.weekly") }}</th>
+                        <th class="pb-2 font-medium">{{ t("admin.settings.platformQuota.monthly") }}</th>
+                      </tr>
+                    </thead>
+                    <tbody class="space-y-2">
+                      <tr v-for="p in (['anthropic', 'openai', 'gemini', 'antigravity'] as const)" :key="p" class="align-top">
+                        <td class="pr-4 py-1">
+                          <span class="font-mono text-xs text-gray-700 dark:text-gray-300">{{ p }}</span>
+                        </td>
+                        <td class="pr-4 py-1">
+                          <input
+                            v-model.number="form.default_platform_quotas[p]!.daily"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            class="input h-8 w-28 text-sm"
+                            :placeholder="t('admin.settings.platformQuota.placeholder')"
+                          />
+                        </td>
+                        <td class="pr-4 py-1">
+                          <input
+                            v-model.number="form.default_platform_quotas[p]!.weekly"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            class="input h-8 w-28 text-sm"
+                            :placeholder="t('admin.settings.platformQuota.placeholder')"
+                          />
+                        </td>
+                        <td class="py-1">
+                          <input
+                            v-model.number="form.default_platform_quotas[p]!.monthly"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            class="input h-8 w-28 text-sm"
+                            :placeholder="t('admin.settings.platformQuota.placeholder')"
+                          />
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <!-- /全局平台限额矩阵 -->
             </div>
           </div>
 
@@ -3049,12 +3360,6 @@
                 <div
                   v-for="authSource in authSourceDefaultsMeta"
                   :key="authSource.source"
-                  v-memo="[
-                    authSourceDefaults[authSource.source].grant_on_signup,
-                    authSourceDefaults[authSource.source].balance,
-                    authSourceDefaults[authSource.source].concurrency,
-                    authSourceDefaults[authSource.source].subscriptions?.length
-                  ]"
                   class="rounded-xl border border-gray-200 p-4 dark:border-dark-700"
                 >
                   <div class="flex items-center justify-between gap-4">
@@ -3295,6 +3600,68 @@
                         </div>
                       </div>
                     </div>
+
+                    <!-- ★ 新增：auth source 平台限额覆盖区块 -->
+                    <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
+                      <div class="mb-3">
+                        <label class="font-medium text-gray-900 dark:text-white">
+                          {{ t("admin.settings.authSourceDefaults.platformQuotasOverride") }}
+                        </label>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          {{ t("admin.settings.authSourceDefaults.platformQuotasOverrideHint") }}
+                        </p>
+                      </div>
+                      <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                          <thead>
+                            <tr class="text-left text-xs text-gray-500 dark:text-gray-400">
+                              <th class="pb-2 pr-4 font-medium">{{ t("admin.settings.platformQuota.platform") }}</th>
+                              <th class="pb-2 pr-4 font-medium">{{ t("admin.settings.platformQuota.daily") }}</th>
+                              <th class="pb-2 pr-4 font-medium">{{ t("admin.settings.platformQuota.weekly") }}</th>
+                              <th class="pb-2 font-medium">{{ t("admin.settings.platformQuota.monthly") }}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="p in (['anthropic', 'openai', 'gemini', 'antigravity'] as const)" :key="`${authSource.source}-pq-${p}`" class="align-top">
+                              <td class="pr-4 py-1">
+                                <span class="font-mono text-xs text-gray-700 dark:text-gray-300">{{ p }}</span>
+                              </td>
+                              <td class="pr-4 py-1">
+                                <input
+                                  v-model.number="authSourceDefaults[authSource.source].platform_quotas[p]!.daily"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  class="input h-8 w-28 text-sm"
+                                  :placeholder="t('admin.settings.platformQuota.placeholder')"
+                                />
+                              </td>
+                              <td class="pr-4 py-1">
+                                <input
+                                  v-model.number="authSourceDefaults[authSource.source].platform_quotas[p]!.weekly"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  class="input h-8 w-28 text-sm"
+                                  :placeholder="t('admin.settings.platformQuota.placeholder')"
+                                />
+                              </td>
+                              <td class="py-1">
+                                <input
+                                  v-model.number="authSourceDefaults[authSource.source].platform_quotas[p]!.monthly"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  class="input h-8 w-28 text-sm"
+                                  :placeholder="t('admin.settings.platformQuota.placeholder')"
+                                />
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <!-- /auth source 平台限额覆盖区块 -->
                   </div>
                 </div>
               </div>
@@ -3638,7 +4005,6 @@
                 <div
                   v-for="(provider, pIdx) in webSearchConfig.providers"
                   :key="pIdx"
-                  v-memo="[provider.type, provider.quota_limit, provider.quota_used, expandedProviders[pIdx]]"
                   class="rounded-lg border border-gray-200 dark:border-dark-600"
                 >
                   <!-- Collapsible header -->
@@ -4361,63 +4727,6 @@
                 </p>
               </div>
 
-              <!-- 首页顶部入口 -->
-              <div class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700">
-                <div
-                  v-for="item in homeNavLinkToggles"
-                  :key="item.field"
-                  class="flex items-center justify-between gap-4"
-                >
-                  <div>
-                    <label class="font-medium text-gray-900 dark:text-white">{{
-                      t(item.labelKey)
-                    }}</label>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                      {{ t(item.hintKey) }}
-                    </p>
-                  </div>
-                  <Toggle v-model="form[item.field]" />
-                </div>
-              </div>
-
-              <!-- 排行榜页标签 -->
-              <div class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700">
-                <div>
-                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {{ t("admin.settings.site.leaderboardTabsTitle") }}
-                  </h3>
-                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.site.leaderboardTabsHint") }}
-                  </p>
-                </div>
-                <div
-                  v-for="item in leaderboardTabToggles"
-                  :key="item.field"
-                  class="flex items-center justify-between gap-4"
-                >
-                  <div>
-                    <label class="font-medium text-gray-900 dark:text-white">{{
-                      t(item.labelKey)
-                    }}</label>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                      {{ t(item.hintKey) }}
-                    </p>
-                  </div>
-                  <Toggle v-model="form[item.field]" />
-                </div>
-                <div class="flex items-center justify-between gap-4">
-                  <div>
-                    <label class="font-medium text-gray-900 dark:text-white">{{
-                      t("admin.settings.site.leaderboardIncludeAdminEnabled")
-                    }}</label>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.site.leaderboardIncludeAdminEnabledHint") }}
-                    </p>
-                  </div>
-                  <Toggle v-model="form.leaderboard_include_admin_enabled" />
-                </div>
-              </div>
-
               <!-- Hide CCS Import Button -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -4452,7 +4761,6 @@
               <div
                 v-for="(item, index) in form.custom_menu_items"
                 :key="item.id || index"
-                v-memo="[item.label, item.icon_svg, item.url, item.visibility, item.sort_order]"
                 class="rounded-lg border border-gray-200 p-4 dark:border-dark-600"
               >
                 <div class="mb-3 flex items-center justify-between">
@@ -4913,447 +5221,6 @@
                 </p>
               </div>
               <Toggle v-model="form.available_channels_enabled" />
-            </div>
-            </div>
-          </div>
-
-          <!-- Balance Transfer -->
-          <div class="card">
-            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                {{ t('admin.settings.features.transfer.title', '余额流转') }}
-              </h2>
-            </div>
-            <div class="space-y-5 p-6">
-              <div class="flex items-center justify-between">
-                <div>
-                  <label class="font-medium text-gray-900 dark:text-white">
-                    {{ t('admin.settings.features.transfer.enabled', '启用余额转账') }}
-                  </label>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ t('admin.settings.features.transfer.enabledHint', '允许用户之间进行余额转账') }}
-                  </p>
-                </div>
-                <Toggle v-model="form.transfer_enabled" />
-              </div>
-              <template v-if="form.transfer_enabled">
-                <div class="grid grid-cols-1 gap-6 border-t pt-4 md:grid-cols-2 dark:border-dark-700">
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t('admin.settings.features.transfer.feeRate', '手续费率 (%)') }}
-                    </label>
-                    <input v-model.number="form.transfer_fee_rate" type="number" step="0.001" min="0" class="input" placeholder="0.01" />
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t('admin.settings.features.transfer.feeRateHint', '每笔转账收取的手续费百分比') }}
-                    </p>
-                  </div>
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t('admin.settings.features.transfer.minAmount', '最小转账金额') }}
-                    </label>
-                    <input v-model.number="form.transfer_min_amount" type="number" step="0.01" min="0" class="input" placeholder="0.01" />
-                  </div>
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t('admin.settings.features.transfer.maxAmount', '最大转账金额') }}
-                    </label>
-                    <input v-model.number="form.transfer_max_amount" type="number" step="0.01" min="0" class="input" placeholder="1000.00" />
-                  </div>
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t('admin.settings.features.transfer.dailyLimit', '每日转账限额') }}
-                    </label>
-                    <input v-model.number="form.transfer_daily_limit" type="number" step="0.01" min="0" class="input" placeholder="1000.00" />
-                  </div>
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t('admin.settings.features.transfer.dailyCountLimit', '每日转账次数') }}
-                    </label>
-                    <input v-model.number="form.transfer_daily_count_limit" type="number" min="1" class="input" placeholder="50" />
-                  </div>
-                  <div class="flex items-center gap-3 pt-6">
-                    <Toggle v-model="form.transfer_vip_fee_exempt" />
-                    <div>
-                      <label class="font-medium text-gray-700 dark:text-gray-300">
-                        {{ t('admin.settings.features.transfer.vipFeeExempt', 'VIP免手续费') }}
-                      </label>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ t('admin.settings.features.transfer.vipFeeExemptHint', 'VIP用户转账免收手续费') }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </template>
-
-              <div class="flex items-center justify-between border-t pt-4 dark:border-dark-700">
-                <div>
-                  <label class="font-medium text-gray-900 dark:text-white">
-                    {{ t('admin.settings.features.transfer.redpacketEnabled', '启用红包功能') }}
-                  </label>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ t('admin.settings.features.transfer.redpacketEnabledHint', '允许用户创建和领取红包') }}
-                  </p>
-                </div>
-                <Toggle v-model="form.redpacket_enabled" />
-              </div>
-              <template v-if="form.redpacket_enabled">
-                <div class="grid grid-cols-1 gap-6 border-t pt-4 md:grid-cols-2 dark:border-dark-700">
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t('admin.settings.features.transfer.redpacketMaxCount', '红包最大份数') }}
-                    </label>
-                    <input v-model.number="form.redpacket_max_count" type="number" min="1" class="input" placeholder="100" />
-                  </div>
-                  <div>
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t('admin.settings.features.transfer.redpacketExpireHours', '过期时间(小时)') }}
-                    </label>
-                    <input v-model.number="form.redpacket_expire_hours" type="number" min="1" class="input" placeholder="24" />
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t('admin.settings.features.transfer.redpacketExpireHoursHint', '超时未领完的金额将退回发送方') }}
-                    </p>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-        <!-- Affiliate (邀请返利) feature card -->
-        <div class="card">
-          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.settings.features.affiliate.title') }}
-            </h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {{ t('admin.settings.features.affiliate.description') }}
-            </p>
-          </div>
-          <div class="space-y-5 p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('admin.settings.features.affiliate.enabled') }}
-                </label>
-                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t('admin.settings.features.affiliate.enabledHint') }}
-                </p>
-              </div>
-              <Toggle v-model="form.affiliate_enabled" />
-            </div>
-
-            <div v-if="form.affiliate_enabled" class="space-y-6">
-              <div>
-                <label class="input-label">
-                  返利码格式
-                </label>
-                <p class="mt-1 text-xs text-gray-400">
-                  控制用户邀请返利码、重置返利码后的新格式。
-                </p>
-                <div class="mt-3 grid gap-3 lg:grid-cols-3">
-                  <input v-model="form.affiliate_code_format.prefix" type="text" class="input" placeholder="前缀，例如 AFF" />
-                  <input v-model="form.affiliate_code_format.suffix" type="text" class="input" placeholder="后缀，可留空" />
-                  <Select v-model="form.affiliate_code_format.separator" :options="codeSeparatorOptions" />
-                  <input v-model.number="form.affiliate_code_format.group_count" type="number" min="1" max="16" class="input" placeholder="分几组" />
-                  <input v-model.number="form.affiliate_code_format.chars_per_group" type="number" min="1" max="16" class="input" placeholder="每组多少位" />
-                  <Select v-model="form.affiliate_code_format.charset" :options="codeCharsetOptions" />
-                  <Select v-model="form.affiliate_code_format.letter_case" :options="codeLetterCaseOptions" class="lg:col-span-3" />
-                </div>
-              </div>
-
-              <div>
-                <label class="input-label">
-                  {{ t('admin.settings.features.affiliate.rebateRate') }}
-                </label>
-                <div class="relative">
-                  <input
-                    v-model.number="form.affiliate_rebate_rate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    class="input pr-8"
-                    placeholder="20"
-                  />
-                  <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
-                </div>
-                <p class="mt-1 text-xs text-gray-400">
-                  {{ t('admin.settings.features.affiliate.rebateRateHint') }}
-                </p>
-              </div>
-
-              <!-- 专属用户管理 -->
-              <div class="border-t border-gray-100 pt-6 dark:border-dark-700">
-                <div class="mb-3 flex items-center justify-between">
-                  <div>
-                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                      {{ t('admin.settings.features.affiliate.customUsers.title') }}
-                    </h3>
-                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t('admin.settings.features.affiliate.customUsers.description') }}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    class="btn-primary btn-sm"
-                    @click="openAffiliateModal(null)"
-                  >
-                    + {{ t('admin.settings.features.affiliate.customUsers.addButton') }}
-                  </button>
-                </div>
-
-                <div class="mb-3 flex items-center gap-2">
-                  <input
-                    v-model="affiliateState.search"
-                    type="text"
-                    class="input flex-1"
-                    :placeholder="t('admin.settings.features.affiliate.customUsers.searchPlaceholder')"
-                    @input="onAffiliateSearchInput"
-                  />
-                  <button
-                    v-if="affiliateState.selected.length > 0"
-                    type="button"
-                    class="btn-secondary btn-sm"
-                    @click="openAffiliateBatchModal"
-                  >
-                    {{ t('admin.settings.features.affiliate.customUsers.batchButton', { count: affiliateState.selected.length }) }}
-                  </button>
-                </div>
-
-                <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-dark-700">
-                  <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-700">
-                    <thead class="bg-gray-50 dark:bg-dark-800">
-                      <tr>
-                        <th class="px-3 py-2 text-left">
-                          <input
-                            type="checkbox"
-                            :checked="affiliateState.entries.length > 0 && affiliateState.selected.length === affiliateState.entries.length"
-                            @change="toggleAffiliateSelectAll"
-                          />
-                        </th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.email') }}</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.username') }}</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.code') }}</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.rate') }}</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium uppercase text-gray-500">{{ t('admin.settings.features.affiliate.customUsers.col.actions') }}</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
-                      <tr v-if="affiliateState.loading">
-                        <td colspan="6" class="px-3 py-6 text-center text-sm text-gray-500">
-                          {{ t('common.loading') }}
-                        </td>
-                      </tr>
-                      <tr v-else-if="affiliateState.entries.length === 0">
-                        <td colspan="6" class="px-3 py-6 text-center text-sm text-gray-500">
-                          {{ t('admin.settings.features.affiliate.customUsers.empty') }}
-                        </td>
-                      </tr>
-                      <tr v-for="entry in affiliateState.entries" :key="entry.user_id">
-                        <td class="px-3 py-2">
-                          <input
-                            type="checkbox"
-                            :checked="affiliateState.selected.includes(entry.user_id)"
-                            @change="toggleAffiliateSelect(entry.user_id)"
-                          />
-                        </td>
-                        <td class="px-3 py-2 text-sm text-gray-900 dark:text-white">{{ entry.email }}</td>
-                        <td class="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">{{ entry.username }}</td>
-                        <td class="px-3 py-2 text-sm font-mono">
-                          {{ entry.aff_code }}
-                          <span
-                            v-if="entry.aff_code_custom"
-                            class="ml-1 inline-block rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
-                          >{{ t('admin.settings.features.affiliate.customUsers.customBadge') }}</span>
-                        </td>
-                        <td class="px-3 py-2 text-sm">
-                          <span v-if="entry.aff_rebate_rate_percent != null">{{ entry.aff_rebate_rate_percent }}%</span>
-                          <span v-else class="text-gray-400">{{ t('admin.settings.features.affiliate.customUsers.useGlobal') }}</span>
-                        </td>
-                        <td class="px-3 py-2 text-sm">
-                          <div class="flex items-center gap-2">
-                            <button class="text-primary-600 hover:underline" @click="openAffiliateModal(entry)">
-                              {{ t('common.edit') }}
-                            </button>
-                            <button
-                              v-if="entry.aff_code_custom"
-                              class="text-yellow-600 hover:underline"
-                              @click="askResetAffiliateUser(entry)"
-                            >
-                              {{ t('admin.settings.features.affiliate.customUsers.resetCode') }}
-                            </button>
-                            <button class="text-red-600 hover:underline" @click="askClearAffiliateUser(entry)">
-                              {{ t('common.delete') }}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div v-if="affiliateState.total > affiliateState.pageSize" class="mt-3 flex items-center justify-between text-sm">
-                  <span class="text-gray-500">
-                    {{ t('admin.settings.features.affiliate.customUsers.totalLabel', { total: affiliateState.total }) }}
-                  </span>
-                  <div class="flex items-center gap-2">
-                    <button
-                      class="btn-secondary btn-sm"
-                      :disabled="affiliateState.page <= 1"
-                      @click="changeAffiliatePage(affiliateState.page - 1)"
-                    >
-                      {{ t('pagination.previous') }}
-                    </button>
-                    <span class="text-gray-500">{{ affiliateState.page }} / {{ Math.max(1, Math.ceil(affiliateState.total / affiliateState.pageSize)) }}</span>
-                    <button
-                      class="btn-secondary btn-sm"
-                      :disabled="affiliateState.page >= Math.ceil(affiliateState.total / affiliateState.pageSize)"
-                      @click="changeAffiliatePage(affiliateState.page + 1)"
-                    >
-                      {{ t('pagination.next') }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Affiliate add/edit modal -->
-        <div
-          v-if="affiliateModal.open"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          @click.self="closeAffiliateModal"
-        >
-          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dark-900">
-            <h3 class="mb-4 text-lg font-semibold">
-              {{ affiliateModal.mode === 'add' ? t('admin.settings.features.affiliate.modal.addTitle') : t('admin.settings.features.affiliate.modal.editTitle') }}
-            </h3>
-            <div class="space-y-4">
-              <div v-if="affiliateModal.mode === 'add'">
-                <label class="input-label">{{ t('admin.settings.features.affiliate.modal.userLabel') }}</label>
-                <input
-                  v-model="affiliateModal.userQuery"
-                  type="text"
-                  class="input"
-                  :placeholder="t('admin.settings.features.affiliate.modal.userPlaceholder')"
-                  @input="onAffiliateUserSearchInput"
-                />
-                <div v-if="affiliateModal.userResults.length > 0" class="mt-1 max-h-40 overflow-y-auto rounded border border-gray-200 dark:border-dark-700">
-                  <button
-                    v-for="u in affiliateModal.userResults"
-                    :key="u.id"
-                    type="button"
-                    class="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-dark-800"
-                    :class="{ 'bg-primary-50 dark:bg-primary-900/20': affiliateModal.selectedUser?.id === u.id }"
-                    @click="affiliateModal.selectedUser = u"
-                  >
-                    {{ u.email }} <span class="text-xs text-gray-500">({{ u.username }})</span>
-                  </button>
-                </div>
-                <p v-if="affiliateModal.selectedUser" class="mt-1 text-xs text-gray-500">
-                  {{ t('admin.settings.features.affiliate.modal.selectedUser', { email: affiliateModal.selectedUser.email }) }}
-                </p>
-              </div>
-              <div v-else>
-                <label class="input-label">{{ t('admin.settings.features.affiliate.modal.userLabel') }}</label>
-                <input
-                  type="text"
-                  class="input"
-                  :value="affiliateModal.editingEntry ? affiliateModal.editingEntry.email : ''"
-                  disabled
-                />
-              </div>
-
-              <div>
-                <label class="input-label">{{ t('admin.settings.features.affiliate.modal.codeLabel') }}</label>
-                <input
-                  v-model="affiliateModal.code"
-                  type="text"
-                  class="input font-mono"
-                  :placeholder="t('admin.settings.features.affiliate.modal.codePlaceholder')"
-                  maxlength="32"
-                />
-                <p class="mt-1 text-xs text-gray-400">
-                  {{ t('admin.settings.features.affiliate.modal.codeHint') }}
-                </p>
-              </div>
-
-              <div>
-                <label class="input-label">{{ t('admin.settings.features.affiliate.modal.rateLabel') }}</label>
-                <div class="relative">
-                  <input
-                    v-model="affiliateModal.rate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    class="input pr-8"
-                    :placeholder="t('admin.settings.features.affiliate.modal.ratePlaceholder')"
-                  />
-                  <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
-                </div>
-                <p class="mt-1 text-xs text-gray-400">
-                  {{ t('admin.settings.features.affiliate.modal.rateHint') }}
-                </p>
-              </div>
-            </div>
-
-            <div class="mt-6 flex justify-end gap-2">
-              <button type="button" class="btn-secondary" @click="closeAffiliateModal">
-                {{ t('common.cancel') }}
-              </button>
-              <button
-                type="button"
-                class="btn-primary"
-                :disabled="affiliateModal.saving"
-                @click="submitAffiliateModal"
-              >
-                {{ affiliateModal.saving ? t('common.saving') : t('common.save') }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Affiliate batch rate modal -->
-        <div
-          v-if="affiliateBatchModal.open"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          @click.self="affiliateBatchModal.open = false"
-        >
-          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dark-900">
-            <h3 class="mb-4 text-lg font-semibold">
-              {{ t('admin.settings.features.affiliate.batchModal.title', { count: affiliateState.selected.length }) }}
-            </h3>
-            <p class="mb-4 text-sm text-gray-500">
-              {{ t('admin.settings.features.affiliate.batchModal.hint') }}
-            </p>
-            <div class="relative">
-              <input
-                v-model="affiliateBatchModal.rate"
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                class="input pr-8"
-                :placeholder="t('admin.settings.features.affiliate.batchModal.placeholder')"
-              />
-              <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">%</span>
-            </div>
-            <p class="mt-2 text-xs text-gray-400">
-              {{ t('admin.settings.features.affiliate.batchModal.clearHint') }}
-            </p>
-            <div class="mt-6 flex justify-end gap-2">
-              <button type="button" class="btn-secondary" @click="affiliateBatchModal.open = false">
-                {{ t('common.cancel') }}
-              </button>
-              <button
-                type="button"
-                class="btn-primary"
-                :disabled="affiliateBatchModal.saving"
-                @click="submitAffiliateBatchModal"
-              >
-                {{ affiliateBatchModal.saving ? t('common.saving') : t('common.save') }}
-              </button>
             </div>
           </div>
         </div>
@@ -6538,6 +6405,35 @@
             </div>
           </div>
 
+          <!-- 订阅到期提醒 -->
+          <div class="card">
+            <div
+              class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+            >
+              <h3 class="text-base font-medium text-gray-900 dark:text-white">
+                {{ t("admin.settings.subscriptionExpiryNotify.title") }}
+              </h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.subscriptionExpiryNotify.description") }}
+              </p>
+            </div>
+            <div class="px-6 py-6">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <label
+                    class="mb-0 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.subscriptionExpiryNotify.enabled") }}
+                  </label>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.subscriptionExpiryNotify.enabledHint") }}
+                  </p>
+                </div>
+                <Toggle v-model="form.subscription_expiry_notify_enabled" />
+              </div>
+            </div>
+          </div>
+
           <EmailTemplateEditor />
 
           <!-- Balance Low Notification -->
@@ -6678,108 +6574,8 @@
         </div>
         <!-- /Tab: Email -->
 
-        <!-- Tab: Check-in -->
-        <div v-show="activeTab === 'checkin'" class="space-y-6">
-
-        <!-- Checkin 签到设置 -->
-        <div class="card">
-          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.settings.checkin.title') }}
-            </h2>
-          </div>
-          <div class="space-y-5 p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="font-medium text-gray-900 dark:text-white">
-                  {{ t('admin.settings.checkin.enabled') }}
-                </label>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ t('admin.settings.checkin.enabledHint') }}
-                </p>
-              </div>
-              <Toggle v-model="form.checkin_enabled" />
-            </div>
-            <template v-if="form.checkin_enabled">
-              <div class="grid grid-cols-1 gap-6 md:grid-cols-2 border-t pt-4 dark:border-dark-700">
-                <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t('admin.settings.checkin.minBalance') }}
-                  </label>
-                  <input v-model.number="form.checkin_min_balance" type="number" step="0.01" min="0"
-                    class="input" placeholder="0.10" />
-                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('admin.settings.checkin.minBalanceHint') }}
-                  </p>
-                </div>
-                <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t('admin.settings.checkin.maxBalance') }}
-                  </label>
-                  <input v-model.number="form.checkin_max_balance" type="number" step="0.01" min="0"
-                    class="input" placeholder="1.00" />
-                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('admin.settings.checkin.maxBalanceHint') }}
-                  </p>
-                </div>
-              </div>
-            </template>
-
-            <div class="flex items-center justify-between border-t pt-4 dark:border-dark-700">
-              <div>
-                <label class="font-medium text-gray-900 dark:text-white">
-                  {{ t('admin.settings.checkin.luckEnabled') }}
-                </label>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ t('admin.settings.checkin.luckEnabledHint') }}
-                </p>
-              </div>
-              <Toggle v-model="form.checkin_luck_enabled" />
-            </div>
-            <template v-if="form.checkin_luck_enabled">
-              <div class="grid grid-cols-1 gap-6 md:grid-cols-2 border-t pt-4 dark:border-dark-700">
-                <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t('admin.settings.checkin.luckMinMultiplier') }}
-                  </label>
-                  <input v-model.number="form.checkin_luck_min_multiplier" type="number" step="0.01" min="0"
-                    class="input" placeholder="0.10" />
-                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('admin.settings.checkin.luckMinMultiplierHint') }}
-                  </p>
-                </div>
-                <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t('admin.settings.checkin.luckMaxMultiplier') }}
-                  </label>
-                  <input v-model.number="form.checkin_luck_max_multiplier" type="number" step="0.01" min="0"
-                    class="input" placeholder="3.00" />
-                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('admin.settings.checkin.luckMaxMultiplierHint') }}
-                  </p>
-                </div>
-              </div>
-            </template>
-
-            <div class="flex justify-end border-t pt-4 dark:border-dark-700">
-              <button type="button" @click="saveSettings" :disabled="saving" class="btn btn-primary btn-sm">
-                {{ saving ? t('common.saving') : t('common.save') }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Blind Box Settings + Prize Pool Management -->
-        <BlindboxPrizePoolCard
-          v-model:enabled="form.checkin_blindbox_enabled"
-          v-model:trigger-type="form.checkin_blindbox_trigger_type"
-          v-model:interval="form.checkin_blindbox_interval"
-        />
-
-        </div><!-- /Tab: Check-in -->
-
         <!-- Tab: Backup -->
-        <div v-if="backupTabVisited" v-show="activeTab === 'backup'">
+        <div v-show="activeTab === 'backup'">
           <BackupSettings />
         </div>
 
@@ -6855,12 +6651,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch, toRaw } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
 import {
   appendAuthSourceDefaultsToUpdateRequest,
   buildAuthSourceDefaultsState,
+  normalizePlatformQuotasMap,
+  sanitizePlatformQuotasMap,
   defaultWeChatConnectScopesForMode,
   deriveWeChatConnectStoredMode,
   normalizeDefaultSubscriptionSettings,
@@ -6869,10 +6667,10 @@ import {
 import type {
   AuthSourceDefaultsState,
   AuthSourceType,
-  CodeFormatSettings,
   SystemSettings,
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
+  DefaultPlatformQuotasMap,
   OpenAIFastPolicyRule,
   WeChatConnectMode,
   WebSearchEmulationConfig,
@@ -6895,12 +6693,9 @@ import PaymentProviderDialog from "@/components/payment/PaymentProviderDialog.vu
 import GroupBadge from "@/components/common/GroupBadge.vue";
 import GroupOptionItem from "@/components/common/GroupOptionItem.vue";
 import Toggle from "@/components/common/Toggle.vue";
-import SettingsCard from "@/components/admin/settings/SettingsCard.vue";
-import { useSettingsCard } from "@/composables/useSettingsCard";
 import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
-import BlindboxPrizePoolCard from "@/components/admin/BlindboxPrizePoolCard.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSimpleUser } from "@/api/admin/affiliates";
@@ -6943,7 +6738,6 @@ type SettingsTab =
   | "security"
   | "users"
   | "gateway"
-  | "checkin"
   | "payment"
   | "email"
   | "backup";
@@ -6951,13 +6745,12 @@ const activeTab = ref<SettingsTab>("general");
 const settingsTabs = [
   { key: "general" as SettingsTab, icon: "home" as const },
   { key: "agreement" as SettingsTab, icon: "document" as const },
-  { key: "security" as SettingsTab, icon: "shield" as const },
-  { key: "email" as SettingsTab, icon: "mail" as const },
-  { key: "users" as SettingsTab, icon: "user" as const },
   { key: "features" as SettingsTab, icon: "bolt" as const },
-  { key: "checkin" as SettingsTab, icon: "gift" as const },
-  { key: "payment" as SettingsTab, icon: "creditCard" as const },
+  { key: "security" as SettingsTab, icon: "shield" as const },
+  { key: "users" as SettingsTab, icon: "user" as const },
   { key: "gateway" as SettingsTab, icon: "server" as const },
+  { key: "payment" as SettingsTab, icon: "creditCard" as const },
+  { key: "email" as SettingsTab, icon: "mail" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
 ];
 
@@ -6972,9 +6765,6 @@ const settingsTabKeyboardActions = {
 
 function selectSettingsTab(tab: SettingsTab): void {
   activeTab.value = tab;
-  if (tab === "backup") {
-    backupTabVisited.value = true;
-  }
 }
 
 function focusSettingsTab(tab: SettingsTab): void {
@@ -7015,7 +6805,6 @@ function handleSettingsTabKeydown(event: KeyboardEvent, tab: SettingsTab): void 
 }
 
 const { copyToClipboard } = useClipboard();
-const backupTabVisited = ref(false);
 
 const loading = ref(true);
 const loadFailed = ref(false);
@@ -7027,18 +6816,6 @@ const testEmailAddress = ref("");
 const registrationEmailSuffixWhitelistTags = ref<string[]>([]);
 const registrationEmailSuffixWhitelistDraft = ref("");
 const tablePageSizeOptionsInput = ref("10, 20, 50, 100");
-const balanceCodeFormatEditor = reactive(
-  defaultCodeFormatEditor(),
-);
-const concurrencyCodeFormatEditor = reactive(
-  defaultCodeFormatEditor(),
-);
-const subscriptionCodeFormatEditor = reactive(
-  defaultCodeFormatEditor(),
-);
-const invitationCodeFormatEditor = reactive(
-  defaultCodeFormatEditor({ prefix: "DG", group_count: 1, chars_per_group: 6 }),
-);
 
 // Admin API Key 状态
 const adminApiKeyLoading = ref(true);
@@ -7048,58 +6825,58 @@ const adminApiKeyOperating = ref(false);
 const newAdminApiKey = ref("");
 const subscriptionGroups = ref<AdminGroup[]>([]);
 
-// Overload Cooldown (529) 状态 - 使用 useSettingsCard
-const overloadCooldown = useSettingsCard({
-  loadFn: () => adminAPI.settings.getOverloadCooldownSettings(),
-  saveFn: (data) => adminAPI.settings.updateOverloadCooldownSettings({
-    enabled: data.enabled,
-    cooldown_minutes: data.cooldown_minutes
-  }),
-  successMessage: t('admin.settings.overloadCooldown.saved'),
-  errorMessage: t('admin.settings.overloadCooldown.saveFailed')
-})
+// Overload Cooldown (529) 状态
+const overloadCooldownLoading = ref(true);
+const overloadCooldownSaving = ref(false);
+const overloadCooldownForm = reactive({
+  enabled: true,
+  cooldown_minutes: 10,
+});
 
-// Rate Limit Cooldown (429) 状态 - 使用 useSettingsCard
-const rateLimit429Cooldown = useSettingsCard({
-  loadFn: () => adminAPI.settings.getRateLimit429CooldownSettings(),
-  saveFn: (data) => adminAPI.settings.updateRateLimit429CooldownSettings(data),
-  successMessage: t('admin.settings.rateLimit429Cooldown.saved'),
-  errorMessage: t('admin.settings.rateLimit429Cooldown.saveFailed')
-})
+// Rate Limit Cooldown (429) 状态
+const rateLimit429CooldownLoading = ref(true);
+const rateLimit429CooldownSaving = ref(false);
+const rateLimit429CooldownForm = reactive({
+  enabled: true,
+  cooldown_seconds: 5,
+});
 
-// Stream Timeout 状态 - 使用 useSettingsCard
-const streamTimeout = useSettingsCard({
-  loadFn: () => adminAPI.settings.getStreamTimeoutSettings(),
-  saveFn: (data) => adminAPI.settings.updateStreamTimeoutSettings(data),
-  successMessage: t('admin.settings.streamTimeout.saved'),
-  errorMessage: t('admin.settings.streamTimeout.saveFailed')
-})
+// Stream Timeout 状态
+const streamTimeoutLoading = ref(true);
+const streamTimeoutSaving = ref(false);
+const streamTimeoutForm = reactive({
+  enabled: true,
+  action: "temp_unsched" as "temp_unsched" | "error" | "none",
+  temp_unsched_minutes: 5,
+  threshold_count: 3,
+  threshold_window_minutes: 10,
+});
 
-// Rectifier 状态 - 使用 useSettingsCard
-const rectifier = useSettingsCard({
-  loadFn: async () => {
-    const settings = await adminAPI.settings.getRectifierSettings()
-    // 确保 patterns 是数组（旧数据可能为 null）
-    if (!Array.isArray(settings.apikey_signature_patterns)) {
-      settings.apikey_signature_patterns = []
-    }
-    return settings
-  },
-  saveFn: (data) => adminAPI.settings.updateRectifierSettings(data),
-  successMessage: t('admin.settings.rectifier.saved'),
-  errorMessage: t('admin.settings.rectifier.saveFailed')
-})
+// Rectifier 状态
+const rectifierLoading = ref(true);
+const rectifierSaving = ref(false);
+const rectifierForm = reactive({
+  enabled: true,
+  thinking_signature_enabled: true,
+  thinking_budget_enabled: true,
+  apikey_signature_enabled: false,
+  apikey_signature_patterns: [] as string[],
+});
 
-// Beta Policy 状态 - 使用 useSettingsCard
-const betaPolicy = useSettingsCard({
-  loadFn: async () => {
-    const settings = await adminAPI.settings.getBetaPolicySettings()
-    return { rules: settings.rules }
-  },
-  saveFn: (data) => adminAPI.settings.updateBetaPolicySettings(data),
-  successMessage: t('admin.settings.betaPolicy.saved'),
-  errorMessage: t('admin.settings.betaPolicy.saveFailed')
-})
+// Beta Policy 状态
+const betaPolicyLoading = ref(true);
+const betaPolicySaving = ref(false);
+const betaPolicyForm = reactive({
+  rules: [] as Array<{
+    beta_token: string;
+    action: "pass" | "filter" | "block";
+    scope: "all" | "oauth" | "apikey" | "bedrock";
+    error_message?: string;
+    model_whitelist?: string[];
+    fallback_action?: "pass" | "filter" | "block";
+    fallback_error_message?: string;
+  }>,
+});
 
 // OpenAI Fast/Flex Policy 状态
 const openaiFastPolicyForm = reactive({
@@ -7112,67 +6889,6 @@ const openaiFastPolicyLoaded = ref(false);
 const tablePageSizeMin = 5;
 const tablePageSizeMax = 1000;
 const tablePageSizeDefault = 20;
-
-function defaultCodeFormatEditor(
-  overrides: Partial<CodeFormatEditor> = {},
-): CodeFormatEditor {
-  return {
-    prefix: "",
-    suffix: "",
-    separator: "-",
-    group_count: 4,
-    chars_per_group: 4,
-    charset: "mixed",
-    letter_case: "upper",
-    ...overrides,
-  };
-}
-
-function codeFormatToEditor(format?: Partial<CodeFormatSettings> | null): CodeFormatEditor {
-  const normalized = format ?? {};
-  const charsPerGroup = Math.max(
-    1,
-    Math.min(
-      16,
-      Math.floor(
-        Number(
-          normalized.chars_per_group ??
-            normalized.group_size ??
-            normalized.random_length ??
-            4,
-        ) || 4,
-      ),
-    ),
-  );
-  const derivedGroupCount = Math.max(
-    1,
-    Math.min(
-      16,
-      Math.floor(Number(normalized.random_length ?? charsPerGroup) / charsPerGroup) || 1,
-    ),
-  );
-  const groupCount = Math.max(
-    1,
-    Math.min(16, Math.floor(Number(normalized.group_count ?? derivedGroupCount) || derivedGroupCount)),
-  );
-  return defaultCodeFormatEditor({
-    prefix: String(normalized.prefix ?? ""),
-    suffix: String(normalized.suffix ?? ""),
-    separator:
-      normalized.separator === "-" || normalized.separator === "_"
-        ? normalized.separator
-        : "",
-    group_count: groupCount,
-    chars_per_group: charsPerGroup,
-    charset:
-      normalized.charset === "digits" ||
-      normalized.charset === "letters" ||
-      normalized.charset === "mixed"
-        ? normalized.charset
-        : "mixed",
-    letter_case: normalized.letter_case === "lower" ? "lower" : "upper",
-  });
-}
 
 function defaultLoginAgreementDocuments(): LoginAgreementDocument[] {
   return [
@@ -7249,75 +6965,16 @@ type SettingsForm = Omit<
   google_oauth_client_secret: string;
   force_email_on_third_party_signup: boolean;
   openai_advanced_scheduler_enabled: boolean;
+  // 系统全局平台限额 map；form 内始终归一化为全 4 平台对象（模板非空绑定依赖此不变量）
+  default_platform_quotas: DefaultPlatformQuotasMap;
 };
-
-type CodeFormatEditor = {
-  prefix: string;
-  suffix: string;
-  separator: string;
-  group_count: number;
-  chars_per_group: number;
-  charset: "digits" | "letters" | "mixed";
-  letter_case: "upper" | "lower";
-};
-
-const homeNavLinkToggles = [
-  {
-    field: "home_nav_leaderboard_enabled",
-    labelKey: "admin.settings.site.homeNavLeaderboardEnabled",
-    hintKey: "admin.settings.site.homeNavLeaderboardEnabledHint",
-  },
-  {
-    field: "home_nav_key_usage_enabled",
-    labelKey: "admin.settings.site.homeNavKeyUsageEnabled",
-    hintKey: "admin.settings.site.homeNavKeyUsageEnabledHint",
-  },
-  {
-    field: "home_nav_monitoring_enabled",
-    labelKey: "admin.settings.site.homeNavMonitoringEnabled",
-    hintKey: "admin.settings.site.homeNavMonitoringEnabledHint",
-  },
-  {
-    field: "home_nav_pricing_enabled",
-    labelKey: "admin.settings.site.homeNavPricingEnabled",
-    hintKey: "admin.settings.site.homeNavPricingEnabledHint",
-  },
-] as const;
-
-const leaderboardTabToggles = [
-  {
-    field: "leaderboard_balance_enabled",
-    labelKey: "admin.settings.site.leaderboardBalanceEnabled",
-    hintKey: "admin.settings.site.leaderboardBalanceEnabledHint",
-  },
-  {
-    field: "leaderboard_consumption_enabled",
-    labelKey: "admin.settings.site.leaderboardConsumptionEnabled",
-    hintKey: "admin.settings.site.leaderboardConsumptionEnabledHint",
-  },
-  {
-    field: "leaderboard_transfer_enabled",
-    labelKey: "admin.settings.site.leaderboardTransferEnabled",
-    hintKey: "admin.settings.site.leaderboardTransferEnabledHint",
-  },
-  {
-    field: "leaderboard_checkin_enabled",
-    labelKey: "admin.settings.site.leaderboardCheckinEnabled",
-    hintKey: "admin.settings.site.leaderboardCheckinEnabledHint",
-  },
-] as const;
 
 const form = reactive<SettingsForm>({
   registration_enabled: true,
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   promo_code_enabled: true,
-  redeem_code_format: { prefix: "", suffix: "", random_length: 16, separator: "-", group_size: 4, group_count: 4, chars_per_group: 4, charset: "mixed", letter_case: "upper" },
-  balance_code_format: { prefix: "", suffix: "", random_length: 16, separator: "-", group_size: 4, group_count: 4, chars_per_group: 4, charset: "mixed", letter_case: "upper" },
-  concurrency_code_format: { prefix: "", suffix: "", random_length: 16, separator: "-", group_size: 4, group_count: 4, chars_per_group: 4, charset: "mixed", letter_case: "upper" },
-  subscription_code_format: { prefix: "", suffix: "", random_length: 16, separator: "-", group_size: 4, group_count: 4, chars_per_group: 4, charset: "mixed", letter_case: "upper" },
   invitation_code_enabled: false,
-  invitation_code_format: { prefix: "DG", suffix: "", random_length: 6, separator: "-", group_size: 6, group_count: 1, chars_per_group: 6, charset: "mixed", letter_case: "upper" },
   password_reset_enabled: false,
   totp_enabled: false,
   totp_encryption_key_configured: false,
@@ -7326,21 +6983,12 @@ const form = reactive<SettingsForm>({
   login_agreement_updated_at: "2026-03-31",
   login_agreement_documents: defaultLoginAgreementDocuments(),
   default_balance: 0,
-  affiliate_code_format: { prefix: "", suffix: "", random_length: 12, separator: "", group_size: 12, group_count: 1, chars_per_group: 12, charset: "mixed", letter_case: "upper" },
+  default_platform_quotas: normalizePlatformQuotasMap() as DefaultPlatformQuotasMap,
   affiliate_rebate_rate: 20,
   affiliate_rebate_freeze_hours: 0,
   affiliate_rebate_duration_days: 0,
   affiliate_rebate_per_invitee_cap: 0,
   default_concurrency: 1,
-  checkin_enabled: false,
-  checkin_min_balance: 0.1,
-  checkin_max_balance: 1.0,
-  checkin_luck_enabled: false,
-  checkin_luck_min_multiplier: 0.1,
-  checkin_luck_max_multiplier: 3.0,
-  checkin_blindbox_enabled: false,
-  checkin_blindbox_trigger_type: "streak",
-  checkin_blindbox_interval: 7,
   default_subscriptions: [],
   force_email_on_third_party_signup: false,
   default_user_rpm_limit: 0,
@@ -7351,15 +6999,6 @@ const form = reactive<SettingsForm>({
   contact_info: "",
   doc_url: "",
   home_content: "",
-  home_nav_leaderboard_enabled: true,
-  home_nav_key_usage_enabled: true,
-  home_nav_monitoring_enabled: true,
-  home_nav_pricing_enabled: true,
-  leaderboard_balance_enabled: true,
-  leaderboard_consumption_enabled: true,
-  leaderboard_transfer_enabled: true,
-  leaderboard_checkin_enabled: true,
-  leaderboard_include_admin_enabled: false,
   backend_mode_enabled: false,
   hide_ccs_import_button: false,
   payment_enabled: false,
@@ -7413,6 +7052,7 @@ const form = reactive<SettingsForm>({
   turnstile_site_key: "",
   turnstile_secret_key: "",
   turnstile_secret_key_configured: false,
+  api_key_acl_trust_forwarded_ip: false,
   // LinuxDo Connect OAuth 登录
   linuxdo_connect_enabled: false,
   linuxdo_connect_client_id: "",
@@ -7522,10 +7162,11 @@ const form = reactive<SettingsForm>({
   rewrite_message_cache_control: false,
   antigravity_user_agent_version: "",
   openai_codex_user_agent: "",
-  // Balance & quota notification
+  // 余额、订阅到期与账号限额通知
   balance_low_notify_enabled: false,
   balance_low_notify_threshold: 0,
   balance_low_notify_recharge_url: "",
+  subscription_expiry_notify_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [] as NotifyEmailEntry[],
   // Channel Monitor feature switch
@@ -7533,79 +7174,60 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   // Available Channels feature switch
   available_channels_enabled: false,
-  // Transfer settings
-  transfer_enabled: false,
-  transfer_fee_rate: 0.01,
-  transfer_min_amount: 0.01,
-  transfer_max_amount: 1000,
-  transfer_daily_limit: 1000,
-  transfer_daily_count_limit: 50,
-  transfer_vip_fee_exempt: false,
-  redpacket_enabled: false,
-  redpacket_max_count: 100,
-  redpacket_expire_hours: 24,
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
 });
-const defaultSettingsFormState = structuredClone(toRaw(form));
 
 const authSourceDefaults = reactive<AuthSourceDefaultsState>(
   buildAuthSourceDefaultsState({}),
 );
 
-// 使用 shallowRef 缓存 authSourceDefaultsMeta 以避免重复的 t() 调用
-// 只在 locale 变化时重新计算
-const authSourceDefaultsMeta = computed(() => {
-  // 触发 locale 依赖
-  void locale.value;
-
-  return [
-    {
-      source: "email" as AuthSourceType,
-      title: t("admin.settings.authSourceDefaults.sources.email.title"),
-      description: t("admin.settings.authSourceDefaults.sources.email.description"),
-    },
-    {
-      source: "linuxdo" as AuthSourceType,
-      title: t("admin.settings.authSourceDefaults.sources.linuxdo.title"),
-      description: t("admin.settings.authSourceDefaults.sources.linuxdo.description"),
-    },
-    {
-      source: "oidc" as AuthSourceType,
-      title: t("admin.settings.authSourceDefaults.sources.oidc.title"),
-      description: t("admin.settings.authSourceDefaults.sources.oidc.description"),
-    },
-    {
-      source: "wechat" as AuthSourceType,
-      title: t("admin.settings.authSourceDefaults.sources.wechat.title"),
-      description: t("admin.settings.authSourceDefaults.sources.wechat.description"),
-    },
-    {
-      source: "github" as AuthSourceType,
-      title: "GitHub",
-      description: localText(
-        "通过 GitHub 已验证邮箱首次注册或首次绑定时应用。",
-        "Applied on first signup or first bind through a verified GitHub email.",
-      ),
-    },
-    {
-      source: "google" as AuthSourceType,
-      title: "Google",
-      description: localText(
-        "通过 Google 已验证邮箱首次注册或首次绑定时应用。",
-        "Applied on first signup or first bind through a verified Google email.",
-      ),
-    },
-    {
-      source: "dingtalk" as AuthSourceType,
-      title: "钉钉",
-      description: localText(
-        "通过钉钉首次注册或首次绑定时应用。",
-        "Applied on first signup or first bind through DingTalk.",
-      ),
-    },
-  ];
-});
+const authSourceDefaultsMeta = computed(() => [
+  {
+    source: "email" as AuthSourceType,
+    title: t("admin.settings.authSourceDefaults.sources.email.title"),
+    description: t("admin.settings.authSourceDefaults.sources.email.description"),
+  },
+  {
+    source: "linuxdo" as AuthSourceType,
+    title: t("admin.settings.authSourceDefaults.sources.linuxdo.title"),
+    description: t("admin.settings.authSourceDefaults.sources.linuxdo.description"),
+  },
+  {
+    source: "oidc" as AuthSourceType,
+    title: t("admin.settings.authSourceDefaults.sources.oidc.title"),
+    description: t("admin.settings.authSourceDefaults.sources.oidc.description"),
+  },
+  {
+    source: "wechat" as AuthSourceType,
+    title: t("admin.settings.authSourceDefaults.sources.wechat.title"),
+    description: t("admin.settings.authSourceDefaults.sources.wechat.description"),
+  },
+  {
+    source: "github" as AuthSourceType,
+    title: "GitHub",
+    description: localText(
+      "通过 GitHub 已验证邮箱首次注册或首次绑定时应用。",
+      "Applied on first signup or first bind through a verified GitHub email.",
+    ),
+  },
+  {
+    source: "google" as AuthSourceType,
+    title: "Google",
+    description: localText(
+      "通过 Google 已验证邮箱首次注册或首次绑定时应用。",
+      "Applied on first signup or first bind through a verified Google email.",
+    ),
+  },
+  {
+    source: "dingtalk" as AuthSourceType,
+    title: "钉钉",
+    description: localText(
+      "通过钉钉首次注册或首次绑定时应用。",
+      "Applied on first signup or first bind through DingTalk.",
+    ),
+  },
+]);
 
 // Proxies for web search emulation ProxySelector
 const webSearchProxies = ref<Proxy[]>([]);
@@ -8144,15 +7766,10 @@ function parseTablePageSizeOptionsInput(raw: string): number[] | null {
 }
 
 async function loadSettings() {
-  console.time('⏱️ Load Settings API');
   loading.value = true;
   loadFailed.value = false;
   try {
     const settings = await adminAPI.settings.getSettings();
-    console.timeEnd('⏱️ Load Settings API');
-    console.time('⏱️ Process Settings Data');
-
-    Object.assign(form, structuredClone(defaultSettingsFormState));
     settings.payment_load_balance_strategy =
       settings.payment_load_balance_strategy || "round-robin";
     // Only assign non-null values from backend (null means unconfigured, keep defaults)
@@ -8161,22 +7778,6 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
-    Object.assign(
-      balanceCodeFormatEditor,
-      codeFormatToEditor(settings.balance_code_format ?? settings.redeem_code_format),
-    );
-    Object.assign(
-      concurrencyCodeFormatEditor,
-      codeFormatToEditor(settings.concurrency_code_format ?? settings.redeem_code_format),
-    );
-    Object.assign(
-      subscriptionCodeFormatEditor,
-      codeFormatToEditor(settings.subscription_code_format ?? settings.redeem_code_format),
-    );
-    Object.assign(
-      invitationCodeFormatEditor,
-      codeFormatToEditor(settings.invitation_code_format),
-    );
     form.login_agreement_mode =
       settings.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
     form.login_agreement_updated_at =
@@ -8191,6 +7792,7 @@ async function loadSettings() {
           }))
         : defaultLoginAgreementDocuments();
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(settings));
+    form.default_platform_quotas = normalizePlatformQuotasMap(settings.default_platform_quotas);
     form.backend_mode_enabled = settings.backend_mode_enabled;
     form.default_subscriptions = normalizeDefaultSubscriptionSettings(
       settings.default_subscriptions,
@@ -8286,12 +7888,9 @@ async function loadSettings() {
       openaiFastPolicyLoaded.value = true;
     }
 
-    console.timeEnd('⏱️ Process Settings Data');
-
     // Load web search emulation config separately
     await loadWebSearchConfig();
   } catch (error: unknown) {
-    console.timeEnd('⏱️ Load Settings API');
     loadFailed.value = true;
     appStore.showError(
       extractApiErrorMessage(error, t("admin.settings.failedToLoad")),
@@ -8370,7 +7969,6 @@ function findDuplicateDefaultSubscription(
 }
 
 async function saveSettings() {
-  console.time('⏱️ Save Settings');
   saving.value = true;
   try {
     const normalizedTableDefaultPageSize = Math.floor(
@@ -8442,6 +8040,7 @@ async function saveSettings() {
     }
     form.login_agreement_mode =
       form.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
+    form.login_agreement_documents = normalizedLoginAgreementDocuments;
 
     const normalizedDefaultSubscriptions = normalizeDefaultSubscriptionSettings(
       form.default_subscriptions,
@@ -8513,24 +8112,18 @@ async function saveSettings() {
       registration_enabled: form.registration_enabled,
       email_verify_enabled: form.email_verify_enabled,
       registration_email_suffix_whitelist:
-        registrationEmailSuffixWhitelistTags.value.map(
-          (suffix) => `@${suffix}`,
+        registrationEmailSuffixWhitelistTags.value.map((suffix) =>
+          suffix.startsWith("*.") ? suffix : `@${suffix}`,
         ),
       promo_code_enabled: form.promo_code_enabled,
-      redeem_code_format: normalizeCodeFormatInput(balanceCodeFormatEditor),
-      balance_code_format: normalizeCodeFormatInput(balanceCodeFormatEditor),
-      concurrency_code_format: normalizeCodeFormatInput(concurrencyCodeFormatEditor),
-      subscription_code_format: normalizeCodeFormatInput(subscriptionCodeFormatEditor),
       invitation_code_enabled: form.invitation_code_enabled,
-      invitation_code_format: normalizeCodeFormatInput(invitationCodeFormatEditor),
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       login_agreement_enabled: form.login_agreement_enabled,
       login_agreement_mode: form.login_agreement_mode,
       login_agreement_updated_at: form.login_agreement_updated_at,
-      login_agreement_documents: normalizedLoginAgreementDocuments,
+      login_agreement_documents: form.login_agreement_documents,
       default_balance: form.default_balance,
-      affiliate_code_format: normalizeCodeFormatInput(form.affiliate_code_format),
       affiliate_rebate_rate: Math.min(
         100,
         Math.max(0, Number(form.affiliate_rebate_rate) || 0),
@@ -8549,15 +8142,6 @@ async function saveSettings() {
       contact_info: form.contact_info,
       doc_url: form.doc_url,
       home_content: form.home_content,
-      home_nav_leaderboard_enabled: form.home_nav_leaderboard_enabled,
-      home_nav_key_usage_enabled: form.home_nav_key_usage_enabled,
-      home_nav_monitoring_enabled: form.home_nav_monitoring_enabled,
-      home_nav_pricing_enabled: form.home_nav_pricing_enabled,
-      leaderboard_balance_enabled: form.leaderboard_balance_enabled,
-      leaderboard_consumption_enabled: form.leaderboard_consumption_enabled,
-      leaderboard_transfer_enabled: form.leaderboard_transfer_enabled,
-      leaderboard_checkin_enabled: form.leaderboard_checkin_enabled,
-      leaderboard_include_admin_enabled: form.leaderboard_include_admin_enabled,
       backend_mode_enabled: form.backend_mode_enabled,
       hide_ccs_import_button: form.hide_ccs_import_button,
       table_default_page_size: form.table_default_page_size,
@@ -8575,6 +8159,7 @@ async function saveSettings() {
       turnstile_enabled: form.turnstile_enabled,
       turnstile_site_key: form.turnstile_site_key,
       turnstile_secret_key: form.turnstile_secret_key || undefined,
+      api_key_acl_trust_forwarded_ip: form.api_key_acl_trust_forwarded_ip,
       linuxdo_connect_enabled: form.linuxdo_connect_enabled,
       linuxdo_connect_client_id: form.linuxdo_connect_client_id,
       linuxdo_connect_client_secret:
@@ -8711,43 +8296,24 @@ async function saveSettings() {
         form.payment_cancel_rate_limit_window_mode,
       payment_alipay_force_qrcode: form.payment_alipay_force_qrcode,
       openai_advanced_scheduler_enabled: form.openai_advanced_scheduler_enabled,
-      // Balance & quota notification
+      // 余额、订阅到期与账号限额通知
       balance_low_notify_enabled: form.balance_low_notify_enabled,
       balance_low_notify_threshold:
         Number(form.balance_low_notify_threshold) || 0,
       balance_low_notify_recharge_url: (form.balance_low_notify_recharge_url =
         form.balance_low_notify_recharge_url || currentOrigin),
+      subscription_expiry_notify_enabled:
+        form.subscription_expiry_notify_enabled,
       account_quota_notify_enabled: form.account_quota_notify_enabled,
       account_quota_notify_emails: (
         form.account_quota_notify_emails || []
       ).filter((e) => e.email.trim() !== ""),
-      // Checkin configuration
-      checkin_enabled: form.checkin_enabled,
-      checkin_min_balance: Number(form.checkin_min_balance) || 0,
-      checkin_max_balance: Number(form.checkin_max_balance) || 0,
-      checkin_luck_enabled: form.checkin_luck_enabled,
-      checkin_luck_min_multiplier: Number(form.checkin_luck_min_multiplier) || 0,
-      checkin_luck_max_multiplier: Number(form.checkin_luck_max_multiplier) || 0,
-      checkin_blindbox_enabled: form.checkin_blindbox_enabled,
-      checkin_blindbox_trigger_type: form.checkin_blindbox_trigger_type,
-      checkin_blindbox_interval: Number(form.checkin_blindbox_interval) || 0,
       // Channel Monitor feature switch
       channel_monitor_enabled: form.channel_monitor_enabled,
       channel_monitor_default_interval_seconds:
         Number(form.channel_monitor_default_interval_seconds) || 60,
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
-      // Transfer settings
-      transfer_enabled: form.transfer_enabled,
-      transfer_fee_rate: Number(form.transfer_fee_rate) || 0.01,
-      transfer_min_amount: Number(form.transfer_min_amount) || 0.01,
-      transfer_max_amount: Number(form.transfer_max_amount) || 1000,
-      transfer_daily_limit: Number(form.transfer_daily_limit) || 1000,
-      transfer_daily_count_limit: Number(form.transfer_daily_count_limit) || 50,
-      transfer_vip_fee_exempt: form.transfer_vip_fee_exempt,
-      redpacket_enabled: form.redpacket_enabled,
-      redpacket_max_count: Number(form.redpacket_max_count) || 100,
-      redpacket_expire_hours: Number(form.redpacket_expire_hours) || 24,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
     };
@@ -8780,22 +8346,18 @@ async function saveSettings() {
       };
     }
 
+    payload.default_platform_quotas = sanitizePlatformQuotasMap(form.default_platform_quotas);
     appendAuthSourceDefaultsToUpdateRequest(payload, authSourceDefaults);
 
     const updated = await adminAPI.settings.updateSettings(payload);
     for (const [key, value] of Object.entries(updated)) {
       if (key === "openai_fast_policy_settings") continue;
-      if (value === null) {
-        (form as Record<string, unknown>)[key] = structuredClone(
-          (defaultSettingsFormState as Record<string, unknown>)[key],
-        );
-        continue;
-      }
-      if (value !== undefined) {
+      if (value !== null && value !== undefined) {
         (form as Record<string, unknown>)[key] = value;
       }
     }
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(updated));
+    form.default_platform_quotas = normalizePlatformQuotasMap(updated.default_platform_quotas);
     registrationEmailSuffixWhitelistTags.value =
       normalizeRegistrationEmailSuffixDomains(
         updated.registration_email_suffix_whitelist,
@@ -8856,12 +8418,10 @@ async function saveSettings() {
     // Refresh cached settings so sidebar/header update immediately
     await appStore.fetchPublicSettings(true);
     await adminSettingsStore.fetch(true);
-    console.timeEnd('⏱️ Save Settings');
     if (wsOk) {
       appStore.showSuccess(t("admin.settings.settingsSaved"));
     }
   } catch (error: unknown) {
-    console.timeEnd('⏱️ Save Settings');
     appStore.showError(
       extractApiErrorMessage(error, t("admin.settings.failedToSave")),
     );
@@ -8990,27 +8550,166 @@ function copyNewKey() {
     });
 }
 
+// Overload Cooldown 方法
+async function loadOverloadCooldownSettings() {
+  overloadCooldownLoading.value = true;
+  try {
+    const settings = await adminAPI.settings.getOverloadCooldownSettings();
+    Object.assign(overloadCooldownForm, settings);
+  } catch (_error: unknown) {
+    // Silent fail - settings will use defaults
+  } finally {
+    overloadCooldownLoading.value = false;
+  }
+}
 
+async function saveOverloadCooldownSettings() {
+  overloadCooldownSaving.value = true;
+  try {
+    const updated = await adminAPI.settings.updateOverloadCooldownSettings({
+      enabled: overloadCooldownForm.enabled,
+      cooldown_minutes: overloadCooldownForm.cooldown_minutes,
+    });
+    Object.assign(overloadCooldownForm, updated);
+    appStore.showSuccess(t("admin.settings.overloadCooldown.saved"));
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(
+        error,
+        t("admin.settings.overloadCooldown.saveFailed"),
+      ),
+    );
+  } finally {
+    overloadCooldownSaving.value = false;
+  }
+}
 
-// 优化：缓存选项列表，只在locale变化时重新计算
-const betaPolicyActionOptions = computed(() => {
-  void locale.value; // 触发locale依赖
-  return [
-    { value: "pass", label: t("admin.settings.betaPolicy.actionPass") },
-    { value: "filter", label: t("admin.settings.betaPolicy.actionFilter") },
-    { value: "block", label: t("admin.settings.betaPolicy.actionBlock") },
-  ];
-});
+// Rate Limit Cooldown (429) 方法
+async function loadRateLimit429CooldownSettings() {
+  rateLimit429CooldownLoading.value = true;
+  try {
+    const settings = await adminAPI.settings.getRateLimit429CooldownSettings();
+    Object.assign(rateLimit429CooldownForm, settings);
+  } catch (_error: unknown) {
+    // Silent fail - settings will use defaults
+  } finally {
+    rateLimit429CooldownLoading.value = false;
+  }
+}
 
-const betaPolicyScopeOptions = computed(() => {
-  void locale.value; // 触发locale依赖
-  return [
-    { value: "all", label: t("admin.settings.betaPolicy.scopeAll") },
-    { value: "oauth", label: t("admin.settings.betaPolicy.scopeOAuth") },
-    { value: "apikey", label: t("admin.settings.betaPolicy.scopeAPIKey") },
-    { value: "bedrock", label: t("admin.settings.betaPolicy.scopeBedrock") },
-  ];
-});
+async function saveRateLimit429CooldownSettings() {
+  rateLimit429CooldownSaving.value = true;
+  try {
+    const updated = await adminAPI.settings.updateRateLimit429CooldownSettings({
+      enabled: rateLimit429CooldownForm.enabled,
+      cooldown_seconds: rateLimit429CooldownForm.cooldown_seconds,
+    });
+    Object.assign(rateLimit429CooldownForm, updated);
+    appStore.showSuccess(t("admin.settings.rateLimit429Cooldown.saved"));
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(
+        error,
+        t("admin.settings.rateLimit429Cooldown.saveFailed"),
+      ),
+    );
+  } finally {
+    rateLimit429CooldownSaving.value = false;
+  }
+}
+
+// Stream Timeout 方法
+async function loadStreamTimeoutSettings() {
+  streamTimeoutLoading.value = true;
+  try {
+    const settings = await adminAPI.settings.getStreamTimeoutSettings();
+    Object.assign(streamTimeoutForm, settings);
+  } catch (_error: unknown) {
+    // Silent fail - settings will use defaults
+  } finally {
+    streamTimeoutLoading.value = false;
+  }
+}
+
+async function saveStreamTimeoutSettings() {
+  streamTimeoutSaving.value = true;
+  try {
+    const updated = await adminAPI.settings.updateStreamTimeoutSettings({
+      enabled: streamTimeoutForm.enabled,
+      action: streamTimeoutForm.action,
+      temp_unsched_minutes: streamTimeoutForm.temp_unsched_minutes,
+      threshold_count: streamTimeoutForm.threshold_count,
+      threshold_window_minutes: streamTimeoutForm.threshold_window_minutes,
+    });
+    Object.assign(streamTimeoutForm, updated);
+    appStore.showSuccess(t("admin.settings.streamTimeout.saved"));
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(
+        error,
+        t("admin.settings.streamTimeout.saveFailed"),
+      ),
+    );
+  } finally {
+    streamTimeoutSaving.value = false;
+  }
+}
+
+// Rectifier 方法
+async function loadRectifierSettings() {
+  rectifierLoading.value = true;
+  try {
+    const settings = await adminAPI.settings.getRectifierSettings();
+    Object.assign(rectifierForm, settings);
+    // 确保 patterns 是数组（旧数据可能为 null）
+    if (!Array.isArray(rectifierForm.apikey_signature_patterns)) {
+      rectifierForm.apikey_signature_patterns = [];
+    }
+  } catch (_error: unknown) {
+    // Silent fail - settings will use defaults
+  } finally {
+    rectifierLoading.value = false;
+  }
+}
+
+async function saveRectifierSettings() {
+  rectifierSaving.value = true;
+  try {
+    const updated = await adminAPI.settings.updateRectifierSettings({
+      enabled: rectifierForm.enabled,
+      thinking_signature_enabled: rectifierForm.thinking_signature_enabled,
+      thinking_budget_enabled: rectifierForm.thinking_budget_enabled,
+      apikey_signature_enabled: rectifierForm.apikey_signature_enabled,
+      apikey_signature_patterns: rectifierForm.apikey_signature_patterns.filter(
+        (p) => p.trim() !== "",
+      ),
+    });
+    Object.assign(rectifierForm, updated);
+    if (!Array.isArray(rectifierForm.apikey_signature_patterns)) {
+      rectifierForm.apikey_signature_patterns = [];
+    }
+    appStore.showSuccess(t("admin.settings.rectifier.saved"));
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(error, t("admin.settings.rectifier.saveFailed")),
+    );
+  } finally {
+    rectifierSaving.value = false;
+  }
+}
+
+const betaPolicyActionOptions = computed(() => [
+  { value: "pass", label: t("admin.settings.betaPolicy.actionPass") },
+  { value: "filter", label: t("admin.settings.betaPolicy.actionFilter") },
+  { value: "block", label: t("admin.settings.betaPolicy.actionBlock") },
+]);
+
+const betaPolicyScopeOptions = computed(() => [
+  { value: "all", label: t("admin.settings.betaPolicy.scopeAll") },
+  { value: "oauth", label: t("admin.settings.betaPolicy.scopeOAuth") },
+  { value: "apikey", label: t("admin.settings.betaPolicy.scopeAPIKey") },
+  { value: "bedrock", label: t("admin.settings.betaPolicy.scopeBedrock") },
+]);
 
 // Beta Policy 方法
 const betaDisplayNames: Record<string, string> = {
@@ -9053,7 +8752,7 @@ function getBetaDisplayName(token: string): string {
 }
 
 function applyBetaPreset(
-  rule: (typeof betaPolicy.form.rules)[number],
+  rule: (typeof betaPolicyForm.rules)[number],
   preset: {
     action: "pass" | "filter" | "block";
     model_whitelist: string[];
@@ -9066,7 +8765,7 @@ function applyBetaPreset(
 }
 
 function addQuickPattern(
-  rule: (typeof betaPolicy.form.rules)[number],
+  rule: (typeof betaPolicyForm.rules)[number],
   pattern: string,
 ) {
   if (!rule.model_whitelist) rule.model_whitelist = [];
@@ -9075,42 +8774,44 @@ function addQuickPattern(
   }
 }
 
+async function loadBetaPolicySettings() {
+  betaPolicyLoading.value = true;
+  try {
+    const settings = await adminAPI.settings.getBetaPolicySettings();
+    betaPolicyForm.rules = settings.rules;
+  } catch (_error: unknown) {
+    // Silent fail - settings will use defaults
+  } finally {
+    betaPolicyLoading.value = false;
+  }
+}
+
 // ==================== OpenAI Fast/Flex Policy ====================
 
-// 优化：缓存选项列表
-const openaiFastPolicyTierOptions = computed(() => {
-  void locale.value;
-  return [
-    { value: "all", label: t("admin.settings.openaiFastPolicy.tierAll") },
-    {
-      value: "priority",
-      label: t("admin.settings.openaiFastPolicy.tierPriority"),
-    },
-    { value: "flex", label: t("admin.settings.openaiFastPolicy.tierFlex") },
-  ];
-});
+const openaiFastPolicyTierOptions = computed(() => [
+  { value: "all", label: t("admin.settings.openaiFastPolicy.tierAll") },
+  {
+    value: "priority",
+    label: t("admin.settings.openaiFastPolicy.tierPriority"),
+  },
+  { value: "flex", label: t("admin.settings.openaiFastPolicy.tierFlex") },
+]);
 
-const openaiFastPolicyActionOptions = computed(() => {
-  void locale.value;
-  return [
-    { value: "pass", label: t("admin.settings.openaiFastPolicy.actionPass") },
-    { value: "filter", label: t("admin.settings.openaiFastPolicy.actionFilter") },
-    { value: "block", label: t("admin.settings.openaiFastPolicy.actionBlock") },
-  ];
-});
+const openaiFastPolicyActionOptions = computed(() => [
+  { value: "pass", label: t("admin.settings.openaiFastPolicy.actionPass") },
+  { value: "filter", label: t("admin.settings.openaiFastPolicy.actionFilter") },
+  { value: "block", label: t("admin.settings.openaiFastPolicy.actionBlock") },
+]);
 
-const openaiFastPolicyScopeOptions = computed(() => {
-  void locale.value;
-  return [
-    { value: "all", label: t("admin.settings.openaiFastPolicy.scopeAll") },
-    { value: "oauth", label: t("admin.settings.openaiFastPolicy.scopeOAuth") },
-    { value: "apikey", label: t("admin.settings.openaiFastPolicy.scopeAPIKey") },
-    {
-      value: "bedrock",
-      label: t("admin.settings.openaiFastPolicy.scopeBedrock"),
-    },
-  ];
-});
+const openaiFastPolicyScopeOptions = computed(() => [
+  { value: "all", label: t("admin.settings.openaiFastPolicy.scopeAll") },
+  { value: "oauth", label: t("admin.settings.openaiFastPolicy.scopeOAuth") },
+  { value: "apikey", label: t("admin.settings.openaiFastPolicy.scopeAPIKey") },
+  {
+    value: "bedrock",
+    label: t("admin.settings.openaiFastPolicy.scopeBedrock"),
+  },
+]);
 
 function addOpenAIFastPolicyRule() {
   openaiFastPolicyForm.rules.push({
@@ -9140,19 +8841,51 @@ function removeOpenAIFastPolicyModelPattern(
   rule.model_whitelist?.splice(idx, 1);
 }
 
+async function saveBetaPolicySettings() {
+  betaPolicySaving.value = true;
+  try {
+    // Clean up empty patterns before saving
+    const cleanedRules = betaPolicyForm.rules.map((rule) => {
+      const whitelist = rule.model_whitelist?.filter((p) => p.trim() !== "");
+      const hasWhitelist = whitelist && whitelist.length > 0;
+      return {
+        beta_token: rule.beta_token,
+        action: rule.action,
+        scope: rule.scope,
+        error_message: rule.error_message,
+        model_whitelist: hasWhitelist ? whitelist : undefined,
+        fallback_action: hasWhitelist
+          ? rule.fallback_action || "pass"
+          : undefined,
+        fallback_error_message:
+          hasWhitelist && rule.fallback_action === "block"
+            ? rule.fallback_error_message
+            : undefined,
+      };
+    });
+    const updated = await adminAPI.settings.updateBetaPolicySettings({
+      rules: cleanedRules,
+    });
+    betaPolicyForm.rules = updated.rules;
+    appStore.showSuccess(t("admin.settings.betaPolicy.saved"));
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(error, t("admin.settings.betaPolicy.saveFailed")),
+    );
+  } finally {
+    betaPolicySaving.value = false;
+  }
+}
+
 // ==================== Provider Management ====================
 
-// 优化：缓存支付类型选项
-const allPaymentTypes = computed(() => {
-  void locale.value;
-  return [
-    { value: "easypay", label: t("payment.methods.easypay") },
-    { value: "alipay", label: t("payment.methods.alipay") },
-    { value: "wxpay", label: t("payment.methods.wxpay") },
-    { value: "stripe", label: t("payment.methods.stripe") },
-    { value: "airwallex", label: t("payment.methods.airwallex") },
-  ];
-});
+const allPaymentTypes = computed(() => [
+  { value: "easypay", label: t("payment.methods.easypay") },
+  { value: "alipay", label: t("payment.methods.alipay") },
+  { value: "wxpay", label: t("payment.methods.wxpay") },
+  { value: "stripe", label: t("payment.methods.stripe") },
+  { value: "airwallex", label: t("payment.methods.airwallex") },
+]);
 
 function isPaymentTypeEnabled(type: string): boolean {
   return form.payment_enabled_types.includes(type);
@@ -9203,61 +8936,49 @@ const providerDialogRef = ref<InstanceType<
   typeof PaymentProviderDialog
 > | null>(null);
 
-const providerKeyOptions = computed(() => {
-  void locale.value;
-  return [
-    { value: "easypay", label: t("admin.settings.payment.providerEasypay") },
-    { value: "alipay", label: t("admin.settings.payment.providerAlipay") },
-    { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
-    { value: "stripe", label: t("admin.settings.payment.providerStripe") },
-    { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
-  ];
-});
+const providerKeyOptions = computed(() => [
+  { value: "easypay", label: t("admin.settings.payment.providerEasypay") },
+  { value: "alipay", label: t("admin.settings.payment.providerAlipay") },
+  { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
+  { value: "stripe", label: t("admin.settings.payment.providerStripe") },
+  { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
+]);
 
 const enabledProviderKeyOptions = computed(() => {
   const enabled = form.payment_enabled_types;
   return providerKeyOptions.value.filter((opt) => enabled.includes(opt.value));
 });
 
-const loadBalanceOptions = computed(() => {
-  void locale.value;
-  return [
-    {
-      value: "round-robin",
-      label: t("admin.settings.payment.strategyRoundRobin"),
-    },
-    {
-      value: "least-amount",
-      label: t("admin.settings.payment.strategyLeastAmount"),
-    },
-  ];
-});
+const loadBalanceOptions = computed(() => [
+  {
+    value: "round-robin",
+    label: t("admin.settings.payment.strategyRoundRobin"),
+  },
+  {
+    value: "least-amount",
+    label: t("admin.settings.payment.strategyLeastAmount"),
+  },
+]);
 
-const cancelRateLimitUnitOptions = computed(() => {
-  void locale.value;
-  return [
-    {
-      value: "minute",
-      label: t("admin.settings.payment.cancelRateLimitUnitMinute"),
-    },
-    { value: "hour", label: t("admin.settings.payment.cancelRateLimitUnitHour") },
-    { value: "day", label: t("admin.settings.payment.cancelRateLimitUnitDay") },
-  ];
-});
+const cancelRateLimitUnitOptions = computed(() => [
+  {
+    value: "minute",
+    label: t("admin.settings.payment.cancelRateLimitUnitMinute"),
+  },
+  { value: "hour", label: t("admin.settings.payment.cancelRateLimitUnitHour") },
+  { value: "day", label: t("admin.settings.payment.cancelRateLimitUnitDay") },
+]);
 
-const cancelRateLimitModeOptions = computed(() => {
-  void locale.value;
-  return [
-    {
-      value: "rolling",
-      label: t("admin.settings.payment.cancelRateLimitWindowModeRolling"),
-    },
-    {
-      value: "fixed",
-      label: t("admin.settings.payment.cancelRateLimitWindowModeFixed"),
-    },
-  ];
-});
+const cancelRateLimitModeOptions = computed(() => [
+  {
+    value: "rolling",
+    label: t("admin.settings.payment.cancelRateLimitWindowModeRolling"),
+  },
+  {
+    value: "fixed",
+    label: t("admin.settings.payment.cancelRateLimitWindowModeFixed"),
+  },
+]);
 
 type ProviderEnablementCandidate = Pick<
   ProviderInstance,
@@ -9506,22 +9227,15 @@ async function handleDeleteProvider() {
 }
 
 onMounted(() => {
-  console.time('⏱️ Settings Initial Load');
-
-  // 并行加载所有数据以提升性能
-  Promise.all([
-    loadSettings(),
-    loadSubscriptionGroups(),
-    loadAdminApiKey(),
-    overloadCooldown.load(),
-    rateLimit429Cooldown.load(),
-    streamTimeout.load(),
-    rectifier.load(),
-    betaPolicy.load(),
-    loadProviders(),
-  ]).finally(() => {
-    console.timeEnd('⏱️ Settings Initial Load');
-  });
+  loadSettings();
+  loadSubscriptionGroups();
+  loadAdminApiKey();
+  loadOverloadCooldownSettings();
+  loadRateLimit429CooldownSettings();
+  loadStreamTimeoutSettings();
+  loadRectifierSettings();
+  loadBetaPolicySettings();
+  loadProviders();
 });
 
 // =========================
@@ -9664,69 +9378,6 @@ function parseRebateRate(raw: unknown): number | null | undefined {
   }
   return parsed;
 }
-
-function normalizeCodeFormatInput(raw: {
-  prefix?: string;
-  suffix?: string;
-  random_length?: number;
-  separator?: string;
-  group_size?: number;
-  group_count?: number;
-  chars_per_group?: number;
-  charset?: string;
-  letter_case?: string;
-}) {
-  const separator = raw.separator === "-" || raw.separator === "_" ? raw.separator : "";
-  const groupCount = Math.max(1, Math.min(16, Math.floor(Number(raw.group_count) || 1)));
-  const charsPerGroup = Math.max(
-    1,
-    Math.min(16, Math.floor(Number(raw.chars_per_group ?? raw.group_size) || 1)),
-  );
-  const randomLength = Math.max(1, Math.min(32, groupCount * charsPerGroup));
-  const groupSize = charsPerGroup;
-  return {
-    prefix: String(raw.prefix ?? "").trim(),
-    suffix: String(raw.suffix ?? "").trim(),
-    random_length: randomLength,
-    separator,
-    group_size: groupSize,
-    group_count: groupCount,
-    chars_per_group: charsPerGroup,
-    charset: raw.charset === "digits" || raw.charset === "letters" ? raw.charset : "mixed",
-    letter_case: raw.letter_case === "lower" ? "lower" : "upper",
-  };
-}
-
-function buildCodeFormatPreview(editor: CodeFormatEditor): string {
-  const groupCount = Math.max(1, Math.min(16, Math.floor(Number(editor.group_count) || 1)));
-  const charsPerGroup = Math.max(1, Math.min(16, Math.floor(Number(editor.chars_per_group) || 1)));
-  const sampleChar =
-    editor.charset === "digits" ? "8" : editor.letter_case === "lower" ? "x" : "X";
-  const groups = Array.from({ length: groupCount }, () => sampleChar.repeat(charsPerGroup));
-  const parts = [
-    editor.prefix.trim(),
-    ...groups,
-    editor.suffix.trim(),
-  ].filter((part) => part.length > 0);
-  return (editor.separator || "").length > 0 ? parts.join(editor.separator) : parts.join("");
-}
-
-const codeCharsetOptions = [
-  { value: "mixed", label: "字母+数字" },
-  { value: "digits", label: "纯数字" },
-  { value: "letters", label: "纯字母" },
-];
-
-const codeLetterCaseOptions = [
-  { value: "upper", label: "大写" },
-  { value: "lower", label: "小写" },
-];
-
-const codeSeparatorOptions = [
-  { value: "", label: "无分隔符" },
-  { value: "-", label: "-" },
-  { value: "_", label: "_" },
-];
 
 async function loadAffiliateUsers() {
   affiliateState.loading = true;
@@ -9898,17 +9549,6 @@ function askResetAffiliateUser(entry: AffiliateAdminEntry) {
   );
 }
 
-function askClearAffiliateUser(entry: AffiliateAdminEntry) {
-  openAffiliateConfirm(
-    t("admin.settings.features.affiliate.customUsers.clearTitle"),
-    t("admin.settings.features.affiliate.customUsers.clearMessage", {
-      email: entry.email || `#${entry.user_id}`,
-    }),
-    t("common.delete"),
-    () => affiliatesAPI.clearUserSettings(entry.user_id),
-  );
-}
-
 function openAffiliateBatchModal() {
   if (affiliateState.selected.length === 0) return;
   affiliateBatchModal.open = true;
@@ -10069,38 +9709,6 @@ watch(
 
 .settings-tab-label {
   @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap leading-none;
-}
-
-@media (min-width: 1024px) {
-  .settings-tabs-scroll {
-    overflow-x: visible;
-  }
-
-  .settings-tabs {
-    display: grid;
-    width: 100%;
-    min-width: 0;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0.375rem;
-  }
-
-  .settings-tab {
-    min-width: 0;
-    gap: 0.375rem;
-    padding: 0.625rem 0.75rem;
-    font-size: 14px;
-    line-height: 1.2;
-  }
-
-  .settings-tab-label {
-    overflow: visible;
-    text-overflow: clip;
-  }
-
-  .settings-tab-icon {
-    height: 1.125rem;
-    width: 1.125rem;
-  }
 }
 </style>
 

@@ -1,9 +1,11 @@
 package admin
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -65,11 +67,7 @@ type SettingHandler struct {
 }
 
 // NewSettingHandler 创建系统设置处理器
-func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService ...*service.UserAttributeService) *SettingHandler {
-	var attrService *service.UserAttributeService
-	if len(userAttributeService) > 0 {
-		attrService = userAttributeService[0]
-	}
+func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService *service.UserAttributeService) *SettingHandler {
 	return &SettingHandler{
 		settingService:       settingService,
 		emailService:         emailService,
@@ -77,7 +75,7 @@ func NewSettingHandler(settingService *service.SettingService, emailService *ser
 		opsService:           opsService,
 		paymentConfigService: paymentConfigService,
 		paymentService:       paymentService,
-		userAttributeService: attrService,
+		userAttributeService: userAttributeService,
 	}
 }
 
@@ -125,14 +123,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		EmailVerifyEnabled:                     settings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:       settings.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                       settings.PromoCodeEnabled,
-		RedeemCodeFormat:                       settings.RedeemCodeFormat,
-		BalanceCodeFormat:                      settings.BalanceCodeFormat,
-		ConcurrencyCodeFormat:                  settings.ConcurrencyCodeFormat,
-		SubscriptionCodeFormat:                 settings.SubscriptionCodeFormat,
 		PasswordResetEnabled:                   settings.PasswordResetEnabled,
 		FrontendURL:                            settings.FrontendURL,
 		InvitationCodeEnabled:                  settings.InvitationCodeEnabled,
-		InvitationCodeFormat:                   settings.InvitationCodeFormat,
 		TotpEnabled:                            settings.TotpEnabled,
 		TotpEncryptionKeyConfigured:            h.settingService.IsTotpEncryptionKeyConfigured(),
 		LoginAgreementEnabled:                  settings.LoginAgreementEnabled,
@@ -149,6 +142,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		TurnstileEnabled:                       settings.TurnstileEnabled,
 		TurnstileSiteKey:                       settings.TurnstileSiteKey,
 		TurnstileSecretKeyConfigured:           settings.TurnstileSecretKeyConfigured,
+		APIKeyACLTrustForwardedIP:              settings.APIKeyACLTrustForwardedIP,
 		LinuxDoConnectEnabled:                  settings.LinuxDoConnectEnabled,
 		LinuxDoConnectClientID:                 settings.LinuxDoConnectClientID,
 		LinuxDoConnectClientSecretConfigured:   settings.LinuxDoConnectClientSecretConfigured,
@@ -224,16 +218,6 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ContactInfo:                            settings.ContactInfo,
 		DocURL:                                 settings.DocURL,
 		HomeContent:                            settings.HomeContent,
-		HomeNavLinksEnabled:                    settings.HomeNavLinksEnabled,
-		HomeNavLeaderboardEnabled:              settings.HomeNavLeaderboardEnabled,
-		HomeNavKeyUsageEnabled:                 settings.HomeNavKeyUsageEnabled,
-		HomeNavMonitoringEnabled:               settings.HomeNavMonitoringEnabled,
-		HomeNavPricingEnabled:                  settings.HomeNavPricingEnabled,
-		LeaderboardBalanceEnabled:              settings.LeaderboardBalanceEnabled,
-		LeaderboardConsumptionEnabled:          settings.LeaderboardConsumptionEnabled,
-		LeaderboardTransferEnabled:             settings.LeaderboardTransferEnabled,
-		LeaderboardCheckinEnabled:              settings.LeaderboardCheckinEnabled,
-		LeaderboardIncludeAdmin:                settings.LeaderboardIncludeAdmin,
 		HideCcsImportButton:                    settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                settings.PurchaseSubscriptionURL,
@@ -243,7 +227,6 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		CustomEndpoints:                        dto.ParseCustomEndpoints(settings.CustomEndpoints),
 		DefaultConcurrency:                     settings.DefaultConcurrency,
 		DefaultBalance:                         settings.DefaultBalance,
-		AffiliateCodeFormat:                    settings.AffiliateCodeFormat,
 		RiskControlEnabled:                     settings.RiskControlEnabled,
 		AffiliateRebateRate:                    settings.AffiliateRebateRate,
 		AffiliateRebateFreezeHours:             settings.AffiliateRebateFreezeHours,
@@ -282,17 +265,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		BalanceLowNotifyEnabled:                settings.BalanceLowNotifyEnabled,
 		BalanceLowNotifyThreshold:              settings.BalanceLowNotifyThreshold,
 		BalanceLowNotifyRechargeURL:            settings.BalanceLowNotifyRechargeURL,
+		SubscriptionExpiryNotifyEnabled:        settings.SubscriptionExpiryNotifyEnabled,
 		AccountQuotaNotifyEnabled:              settings.AccountQuotaNotifyEnabled,
 		AccountQuotaNotifyEmails:               dto.NotifyEmailEntriesFromService(settings.AccountQuotaNotifyEmails),
-		CheckinEnabled:                         settings.CheckinEnabled,
-		CheckinMinBalance:                      settings.CheckinMinBalance,
-		CheckinMaxBalance:                      settings.CheckinMaxBalance,
-		CheckinLuckEnabled:                     settings.CheckinLuckEnabled,
-		CheckinLuckMinMultiplier:               settings.CheckinLuckMinMultiplier,
-		CheckinLuckMaxMultiplier:               settings.CheckinLuckMaxMultiplier,
-		CheckinBlindboxEnabled:                 settings.CheckinBlindboxEnabled,
-		CheckinBlindboxTriggerType:             settings.CheckinBlindboxTriggerType,
-		CheckinBlindboxInterval:                settings.CheckinBlindboxInterval,
 		PaymentEnabled:                         paymentCfg.Enabled,
 		PaymentMinAmount:                       paymentCfg.MinAmount,
 		PaymentMaxAmount:                       paymentCfg.MaxAmount,
@@ -320,17 +295,6 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
-		TransferEnabled:         settings.TransferEnabled,
-		TransferFeeRate:         settings.TransferFeeRate,
-		TransferMinAmount:       settings.TransferMinAmount,
-		TransferMaxAmount:       settings.TransferMaxAmount,
-		TransferDailyLimit:      settings.TransferDailyLimit,
-		TransferDailyCountLimit: settings.TransferDailyCountLimit,
-		TransferVIPFeeExempt:    settings.TransferVIPFeeExempt,
-		RedPacketEnabled:        settings.RedPacketEnabled,
-		RedPacketMaxCount:       settings.RedPacketMaxCount,
-		RedPacketExpireHours:    settings.RedPacketExpireHours,
-
 		AffiliateEnabled: settings.AffiliateEnabled,
 	}
 
@@ -339,6 +303,13 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		slog.Error("openai_fast_policy_settings_get_failed", "error", err)
 	} else if fastPolicy != nil {
 		payload.OpenAIFastPolicySettings = openaiFastPolicySettingsToDTO(fastPolicy)
+	}
+
+	// Default platform quotas（JSON map）
+	if platformQuotas, err := h.settingService.GetDefaultPlatformQuotas(c.Request.Context()); err != nil {
+		slog.Error("default_platform_quotas_get_failed", "error", err)
+	} else {
+		payload.DefaultPlatformQuotas = platformQuotas
 	}
 
 	response.Success(c, systemSettingsResponseData(payload, authSourceDefaults))
@@ -414,14 +385,9 @@ type UpdateSettingsRequest struct {
 	EmailVerifyEnabled               bool                         `json:"email_verify_enabled"`
 	RegistrationEmailSuffixWhitelist []string                     `json:"registration_email_suffix_whitelist"`
 	PromoCodeEnabled                 bool                         `json:"promo_code_enabled"`
-	RedeemCodeFormat                 *service.CodeFormatSettings  `json:"redeem_code_format"`
-	BalanceCodeFormat                *service.CodeFormatSettings  `json:"balance_code_format"`
-	ConcurrencyCodeFormat            *service.CodeFormatSettings  `json:"concurrency_code_format"`
-	SubscriptionCodeFormat           *service.CodeFormatSettings  `json:"subscription_code_format"`
 	PasswordResetEnabled             bool                         `json:"password_reset_enabled"`
 	FrontendURL                      string                       `json:"frontend_url"`
 	InvitationCodeEnabled            bool                         `json:"invitation_code_enabled"`
-	InvitationCodeFormat             *service.CodeFormatSettings  `json:"invitation_code_format"`
 	TotpEnabled                      bool                         `json:"totp_enabled"` // TOTP 双因素认证
 	LoginAgreementEnabled            bool                         `json:"login_agreement_enabled"`
 	LoginAgreementMode               string                       `json:"login_agreement_mode"`
@@ -441,6 +407,9 @@ type UpdateSettingsRequest struct {
 	TurnstileEnabled   bool   `json:"turnstile_enabled"`
 	TurnstileSiteKey   string `json:"turnstile_site_key"`
 	TurnstileSecretKey string `json:"turnstile_secret_key"`
+
+	// API Key IP 访问控制设置
+	APIKeyACLTrustForwardedIP *bool `json:"api_key_acl_trust_forwarded_ip"`
 
 	// LinuxDo Connect OAuth 登录
 	LinuxDoConnectEnabled      bool   `json:"linuxdo_connect_enabled"`
@@ -520,35 +489,24 @@ type UpdateSettingsRequest struct {
 	GoogleOAuthFrontendRedirectURL string `json:"google_oauth_frontend_redirect_url"`
 
 	// OEM设置
-	SiteName                      string                `json:"site_name"`
-	SiteLogo                      string                `json:"site_logo"`
-	SiteSubtitle                  string                `json:"site_subtitle"`
-	APIBaseURL                    string                `json:"api_base_url"`
-	ContactInfo                   string                `json:"contact_info"`
-	DocURL                        string                `json:"doc_url"`
-	HomeContent                   string                `json:"home_content"`
-	HomeNavLinksEnabled           *bool                 `json:"home_nav_links_enabled"`
-	HomeNavLeaderboardEnabled     *bool                 `json:"home_nav_leaderboard_enabled"`
-	HomeNavKeyUsageEnabled        *bool                 `json:"home_nav_key_usage_enabled"`
-	HomeNavMonitoringEnabled      *bool                 `json:"home_nav_monitoring_enabled"`
-	HomeNavPricingEnabled         *bool                 `json:"home_nav_pricing_enabled"`
-	LeaderboardBalanceEnabled     *bool                 `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled *bool                 `json:"leaderboard_consumption_enabled"`
-	LeaderboardTransferEnabled    *bool                 `json:"leaderboard_transfer_enabled"`
-	LeaderboardCheckinEnabled     *bool                 `json:"leaderboard_checkin_enabled"`
-	LeaderboardIncludeAdmin       *bool                 `json:"leaderboard_include_admin_enabled"`
-	HideCcsImportButton           bool                  `json:"hide_ccs_import_button"`
-	PurchaseSubscriptionEnabled   *bool                 `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL       *string               `json:"purchase_subscription_url"`
-	TableDefaultPageSize          int                   `json:"table_default_page_size"`
-	TablePageSizeOptions          []int                 `json:"table_page_size_options"`
-	CustomMenuItems               *[]dto.CustomMenuItem `json:"custom_menu_items"`
-	CustomEndpoints               *[]dto.CustomEndpoint `json:"custom_endpoints"`
+	SiteName                    string                `json:"site_name"`
+	SiteLogo                    string                `json:"site_logo"`
+	SiteSubtitle                string                `json:"site_subtitle"`
+	APIBaseURL                  string                `json:"api_base_url"`
+	ContactInfo                 string                `json:"contact_info"`
+	DocURL                      string                `json:"doc_url"`
+	HomeContent                 string                `json:"home_content"`
+	HideCcsImportButton         bool                  `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled *bool                 `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL     *string               `json:"purchase_subscription_url"`
+	TableDefaultPageSize        int                   `json:"table_default_page_size"`
+	TablePageSizeOptions        []int                 `json:"table_page_size_options"`
+	CustomMenuItems             *[]dto.CustomMenuItem `json:"custom_menu_items"`
+	CustomEndpoints             *[]dto.CustomEndpoint `json:"custom_endpoints"`
 
 	// 默认配置
 	DefaultConcurrency                        int                               `json:"default_concurrency"`
 	DefaultBalance                            float64                           `json:"default_balance"`
-	AffiliateCodeFormat                       *service.CodeFormatSettings       `json:"affiliate_code_format"`
 	AffiliateRebateRate                       *float64                          `json:"affiliate_rebate_rate"`
 	AffiliateRebateFreezeHours                *int                              `json:"affiliate_rebate_freeze_hours"`
 	AffiliateRebateDurationDays               *int                              `json:"affiliate_rebate_duration_days"`
@@ -636,12 +594,13 @@ type UpdateSettingsRequest struct {
 	// OpenAI account scheduling
 	OpenAIAdvancedSchedulerEnabled *bool `json:"openai_advanced_scheduler_enabled"`
 
-	// Balance low notification
-	BalanceLowNotifyEnabled     *bool                   `json:"balance_low_notify_enabled"`
-	BalanceLowNotifyThreshold   *float64                `json:"balance_low_notify_threshold"`
-	BalanceLowNotifyRechargeURL *string                 `json:"balance_low_notify_recharge_url"`
-	AccountQuotaNotifyEnabled   *bool                   `json:"account_quota_notify_enabled"`
-	AccountQuotaNotifyEmails    *[]dto.NotifyEmailEntry `json:"account_quota_notify_emails"`
+	// 余额不足提醒
+	BalanceLowNotifyEnabled         *bool                   `json:"balance_low_notify_enabled"`
+	BalanceLowNotifyThreshold       *float64                `json:"balance_low_notify_threshold"`
+	BalanceLowNotifyRechargeURL     *string                 `json:"balance_low_notify_recharge_url"`
+	SubscriptionExpiryNotifyEnabled *bool                   `json:"subscription_expiry_notify_enabled"`
+	AccountQuotaNotifyEnabled       *bool                   `json:"account_quota_notify_enabled"`
+	AccountQuotaNotifyEmails        *[]dto.NotifyEmailEntry `json:"account_quota_notify_emails"`
 
 	// Payment configuration (integrated into settings, full replace)
 	PaymentEnabled                   *bool    `json:"payment_enabled"`
@@ -666,23 +625,9 @@ type UpdateSettingsRequest struct {
 	PaymentCancelRateLimitWindow  *int    `json:"payment_cancel_rate_limit_window"`
 	PaymentCancelRateLimitUnit    *string `json:"payment_cancel_rate_limit_unit"`
 	PaymentCancelRateLimitMode    *string `json:"payment_cancel_rate_limit_window_mode"`
+
 	// Force Alipay mobile clients to use QR code payment instead of mobile redirect
 	PaymentAlipayForceQRCode *bool `json:"payment_alipay_force_qrcode"`
-
-	// Checkin 签到设置
-	CheckinEnabled    *bool    `json:"checkin_enabled"`
-	CheckinMinBalance *float64 `json:"checkin_min_balance"`
-	CheckinMaxBalance *float64 `json:"checkin_max_balance"`
-
-	// Checkin Luck 运气签到设置
-	CheckinLuckEnabled       *bool    `json:"checkin_luck_enabled"`
-	CheckinLuckMinMultiplier *float64 `json:"checkin_luck_min_multiplier"`
-	CheckinLuckMaxMultiplier *float64 `json:"checkin_luck_max_multiplier"`
-
-	// Checkin Blind Box 签到盲盒设置
-	CheckinBlindboxEnabled     *bool   `json:"checkin_blindbox_enabled"`
-	CheckinBlindboxTriggerType *string `json:"checkin_blindbox_trigger_type"`
-	CheckinBlindboxInterval    *int    `json:"checkin_blindbox_interval"`
 
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                *bool `json:"channel_monitor_enabled"`
@@ -690,18 +635,6 @@ type UpdateSettingsRequest struct {
 
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
-
-	// Balance Transfer 余额流转设置
-	TransferEnabled         *bool    `json:"transfer_enabled"`
-	TransferFeeRate         *float64 `json:"transfer_fee_rate"`
-	TransferMinAmount       *float64 `json:"transfer_min_amount"`
-	TransferMaxAmount       *float64 `json:"transfer_max_amount"`
-	TransferDailyLimit      *float64 `json:"transfer_daily_limit"`
-	TransferDailyCountLimit *int     `json:"transfer_daily_count_limit"`
-	TransferVIPFeeExempt    *bool    `json:"transfer_vip_fee_exempt"`
-	RedPacketEnabled        *bool    `json:"redpacket_enabled"`
-	RedPacketMaxCount       *int     `json:"redpacket_max_count"`
-	RedPacketExpireHours    *int     `json:"redpacket_expire_hours"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
@@ -711,6 +644,18 @@ type UpdateSettingsRequest struct {
 
 	// OpenAI fast/flex policy (optional, only updated when provided)
 	OpenAIFastPolicySettings *dto.OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
+
+	// 系统全局 platform quota 默认值（整体替换语义：nil = 不修改，non-nil = 整体覆盖）。
+	DefaultPlatformQuotas map[string]*service.DefaultPlatformQuotaSetting `json:"default_platform_quotas"`
+
+	// auth-source 层 platform quota 覆盖（override 语义：nil = 不修改，non-nil = 整体覆盖该 source 的 quota 配置）。
+	AuthSourceEmailPlatformQuotas    map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_email_platform_quotas"`
+	AuthSourceLinuxDoPlatformQuotas  map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_linuxdo_platform_quotas"`
+	AuthSourceOIDCPlatformQuotas     map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_oidc_platform_quotas"`
+	AuthSourceWeChatPlatformQuotas   map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_wechat_platform_quotas"`
+	AuthSourceGitHubPlatformQuotas   map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_github_platform_quotas"`
+	AuthSourceGooglePlatformQuotas   map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_google_platform_quotas"`
+	AuthSourceDingTalkPlatformQuotas map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_dingtalk_platform_quotas"`
 }
 
 // UpdateSettings 更新系统设置
@@ -797,6 +742,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	req.AuthSourceDefaultLinuxDoSubscriptions = normalizeOptionalDefaultSubscriptions(req.AuthSourceDefaultLinuxDoSubscriptions)
 	req.AuthSourceDefaultOIDCSubscriptions = normalizeOptionalDefaultSubscriptions(req.AuthSourceDefaultOIDCSubscriptions)
 	req.AuthSourceDefaultWeChatSubscriptions = normalizeOptionalDefaultSubscriptions(req.AuthSourceDefaultWeChatSubscriptions)
+	req.AuthSourceDefaultDingTalkSubscriptions = normalizeOptionalDefaultSubscriptions(req.AuthSourceDefaultDingTalkSubscriptions)
 
 	// SMTP 配置保护：如果请求中 smtp_host 为空但数据库中已有配置，则保留已有 SMTP 配置
 	// 防止前端加载设置失败时空表单覆盖已保存的 SMTP 配置
@@ -914,21 +860,16 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 
 	// DingTalk Connect 参数验证
-	req.DingTalkConnectCorpRestrictionPolicy = strings.TrimSpace(req.DingTalkConnectCorpRestrictionPolicy)
-	if req.DingTalkConnectCorpRestrictionPolicy == "whitelist" {
-		req.DingTalkConnectCorpRestrictionPolicy = "none"
-	}
+	// 防御性：任何写入路径上把已废弃的 corp_restriction_policy=whitelist 入参 coerce 为 none，
+	// 避免任何直连 admin API 的客户端把死值写回 DB（前端 UI 已无此选项）。
+	req.DingTalkConnectCorpRestrictionPolicy = service.CoerceDingTalkCorpPolicyForWrite(req.DingTalkConnectCorpRestrictionPolicy)
+
 	if req.DingTalkConnectEnabled {
 		req.DingTalkConnectClientID = strings.TrimSpace(req.DingTalkConnectClientID)
 		req.DingTalkConnectClientSecret = strings.TrimSpace(req.DingTalkConnectClientSecret)
 		req.DingTalkConnectRedirectURL = strings.TrimSpace(req.DingTalkConnectRedirectURL)
+		req.DingTalkConnectCorpRestrictionPolicy = strings.TrimSpace(req.DingTalkConnectCorpRestrictionPolicy)
 		req.DingTalkConnectInternalCorpID = strings.TrimSpace(req.DingTalkConnectInternalCorpID)
-		req.DingTalkConnectSyncCorpEmailAttrKey = strings.TrimSpace(req.DingTalkConnectSyncCorpEmailAttrKey)
-		req.DingTalkConnectSyncDisplayNameAttrKey = strings.TrimSpace(req.DingTalkConnectSyncDisplayNameAttrKey)
-		req.DingTalkConnectSyncDeptAttrKey = strings.TrimSpace(req.DingTalkConnectSyncDeptAttrKey)
-		req.DingTalkConnectSyncCorpEmailAttrName = strings.TrimSpace(req.DingTalkConnectSyncCorpEmailAttrName)
-		req.DingTalkConnectSyncDisplayNameAttrName = strings.TrimSpace(req.DingTalkConnectSyncDisplayNameAttrName)
-		req.DingTalkConnectSyncDeptAttrName = strings.TrimSpace(req.DingTalkConnectSyncDeptAttrName)
 
 		if req.DingTalkConnectClientID == "" {
 			response.BadRequest(c, "DingTalk Client ID is required when enabled")
@@ -942,6 +883,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			response.BadRequest(c, "DingTalk Redirect URL must be an absolute http(s) URL")
 			return
 		}
+
+		// 如果未提供 client_secret，则保留现有值（如有）。
 		if req.DingTalkConnectClientSecret == "" {
 			if previousSettings.DingTalkConnectClientSecret == "" {
 				response.BadRequest(c, "DingTalk Client Secret is required when enabled")
@@ -949,33 +892,62 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			req.DingTalkConnectClientSecret = previousSettings.DingTalkConnectClientSecret
 		}
-		if req.DingTalkConnectCorpRestrictionPolicy == "" {
-			req.DingTalkConnectCorpRestrictionPolicy = previousSettings.DingTalkConnectCorpRestrictionPolicy
+
+		// Corp 策略校验（V1/V4 fail-closed）
+		dingTalkCfg := config.DingTalkConnectConfig{
+			Enabled:               true,
+			DingTalkAppKind:       "internal_app", // 硬编码：settings 层仅支持 internal_app
+			AppType:               "internal",     // 对于 internal_only 策略的默认值
+			CorpRestrictionPolicy: req.DingTalkConnectCorpRestrictionPolicy,
+			InternalCorpID:        req.DingTalkConnectInternalCorpID,
 		}
-		if req.DingTalkConnectCorpRestrictionPolicy == "" {
-			req.DingTalkConnectCorpRestrictionPolicy = "none"
+		// 若未填 corp_restriction_policy，保留已有配置
+		if dingTalkCfg.CorpRestrictionPolicy == "" {
+			dingTalkCfg.CorpRestrictionPolicy = previousSettings.DingTalkConnectCorpRestrictionPolicy
 		}
-		if req.DingTalkConnectCorpRestrictionPolicy != "internal_only" {
+		// 对于 internal_only 策略，app_type 必须为 internal（V1 校验）
+		if dingTalkCfg.CorpRestrictionPolicy == "internal_only" {
+			dingTalkCfg.AppType = "internal"
+		} else {
+			dingTalkCfg.AppType = "public"
+		}
+		if err := config.ValidateDingTalkConfig(dingTalkCfg); err != nil {
+			response.ErrorWithDetails(c, http.StatusBadRequest, err.Error(), mapDingTalkValidateError(err), nil)
+			return
+		}
+
+		// bypass_registration 仅在 internal_only 模式下有意义；其它策略下强制为 false，
+		// 防止 admin 在切换 policy 时把 bypass 残留在 DB 中（前端 UI 也已隐藏该开关）。
+		if dingTalkCfg.CorpRestrictionPolicy != "internal_only" {
 			req.DingTalkConnectBypassRegistration = false
+			// 身份同步三开关同理：仅 internal_only 模式下有意义，其它策略强制 false。
 			req.DingTalkConnectSyncCorpEmail = false
 			req.DingTalkConnectSyncDisplayName = false
 			req.DingTalkConnectSyncDept = false
 		}
+		// 身份同步目标 attr key：trimSpace + 空值 fallback 到默认值
+		req.DingTalkConnectSyncCorpEmailAttrKey = strings.TrimSpace(req.DingTalkConnectSyncCorpEmailAttrKey)
 		if req.DingTalkConnectSyncCorpEmailAttrKey == "" {
 			req.DingTalkConnectSyncCorpEmailAttrKey = "dingtalk_email"
 		}
+		req.DingTalkConnectSyncDisplayNameAttrKey = strings.TrimSpace(req.DingTalkConnectSyncDisplayNameAttrKey)
 		if req.DingTalkConnectSyncDisplayNameAttrKey == "" {
 			req.DingTalkConnectSyncDisplayNameAttrKey = "dingtalk_name"
 		}
+		req.DingTalkConnectSyncDeptAttrKey = strings.TrimSpace(req.DingTalkConnectSyncDeptAttrKey)
 		if req.DingTalkConnectSyncDeptAttrKey == "" {
 			req.DingTalkConnectSyncDeptAttrKey = "dingtalk_department"
 		}
+		// 身份同步目标 attr 显示名称：trim + 空值 fallback 到默认中文名
+		req.DingTalkConnectSyncCorpEmailAttrName = strings.TrimSpace(req.DingTalkConnectSyncCorpEmailAttrName)
 		if req.DingTalkConnectSyncCorpEmailAttrName == "" {
 			req.DingTalkConnectSyncCorpEmailAttrName = "钉钉企业邮箱"
 		}
+		req.DingTalkConnectSyncDisplayNameAttrName = strings.TrimSpace(req.DingTalkConnectSyncDisplayNameAttrName)
 		if req.DingTalkConnectSyncDisplayNameAttrName == "" {
 			req.DingTalkConnectSyncDisplayNameAttrName = "钉钉姓名"
 		}
+		req.DingTalkConnectSyncDeptAttrName = strings.TrimSpace(req.DingTalkConnectSyncDeptAttrName)
 		if req.DingTalkConnectSyncDeptAttrName == "" {
 			req.DingTalkConnectSyncDeptAttrName = "钉钉部门"
 		}
@@ -1484,84 +1456,38 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
-	resolveHomeNavLink := func(requested *bool, fallback bool) bool {
-		if requested != nil {
-			return *requested
-		}
-		if req.HomeNavLinksEnabled != nil {
-			return *req.HomeNavLinksEnabled
-		}
-		return fallback
-	}
-	homeNavLeaderboardEnabled := resolveHomeNavLink(req.HomeNavLeaderboardEnabled, previousSettings.HomeNavLeaderboardEnabled)
-	homeNavKeyUsageEnabled := resolveHomeNavLink(req.HomeNavKeyUsageEnabled, previousSettings.HomeNavKeyUsageEnabled)
-	homeNavMonitoringEnabled := resolveHomeNavLink(req.HomeNavMonitoringEnabled, previousSettings.HomeNavMonitoringEnabled)
-	homeNavPricingEnabled := resolveHomeNavLink(req.HomeNavPricingEnabled, previousSettings.HomeNavPricingEnabled)
-	resolveOptionalBool := func(requested *bool, fallback bool) bool {
-		if requested != nil {
-			return *requested
-		}
-		return fallback
-	}
-	leaderboardBalanceEnabled := resolveOptionalBool(req.LeaderboardBalanceEnabled, previousSettings.LeaderboardBalanceEnabled)
-	leaderboardConsumptionEnabled := resolveOptionalBool(req.LeaderboardConsumptionEnabled, previousSettings.LeaderboardConsumptionEnabled)
-	leaderboardTransferEnabled := resolveOptionalBool(req.LeaderboardTransferEnabled, previousSettings.LeaderboardTransferEnabled)
-	leaderboardCheckinEnabled := resolveOptionalBool(req.LeaderboardCheckinEnabled, previousSettings.LeaderboardCheckinEnabled)
-	leaderboardIncludeAdmin := resolveOptionalBool(req.LeaderboardIncludeAdmin, previousSettings.LeaderboardIncludeAdmin)
-
 	settings := &service.SystemSettings{
+		// 系统全局 platform quota 默认值（整体替换语义）
+		DefaultPlatformQuotas: req.DefaultPlatformQuotas,
+
 		RegistrationEnabled:              req.RegistrationEnabled,
 		EmailVerifyEnabled:               req.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                 req.PromoCodeEnabled,
-		RedeemCodeFormat: func() service.CodeFormatSettings {
-			if req.RedeemCodeFormat != nil {
-				return *req.RedeemCodeFormat
+		PasswordResetEnabled:             req.PasswordResetEnabled,
+		FrontendURL:                      req.FrontendURL,
+		InvitationCodeEnabled:            req.InvitationCodeEnabled,
+		TotpEnabled:                      req.TotpEnabled,
+		LoginAgreementEnabled:            req.LoginAgreementEnabled,
+		LoginAgreementMode:               loginAgreementMode,
+		LoginAgreementUpdatedAt:          loginAgreementUpdatedAt,
+		LoginAgreementDocuments:          loginAgreementDocuments,
+		SMTPHost:                         req.SMTPHost,
+		SMTPPort:                         req.SMTPPort,
+		SMTPUsername:                     req.SMTPUsername,
+		SMTPPassword:                     req.SMTPPassword,
+		SMTPFrom:                         req.SMTPFrom,
+		SMTPFromName:                     req.SMTPFromName,
+		SMTPUseTLS:                       req.SMTPUseTLS,
+		TurnstileEnabled:                 req.TurnstileEnabled,
+		TurnstileSiteKey:                 req.TurnstileSiteKey,
+		TurnstileSecretKey:               req.TurnstileSecretKey,
+		APIKeyACLTrustForwardedIP: func() bool {
+			if req.APIKeyACLTrustForwardedIP != nil {
+				return *req.APIKeyACLTrustForwardedIP
 			}
-			return previousSettings.RedeemCodeFormat
+			return previousSettings.APIKeyACLTrustForwardedIP
 		}(),
-		BalanceCodeFormat: func() service.CodeFormatSettings {
-			if req.BalanceCodeFormat != nil {
-				return *req.BalanceCodeFormat
-			}
-			return previousSettings.BalanceCodeFormat
-		}(),
-		ConcurrencyCodeFormat: func() service.CodeFormatSettings {
-			if req.ConcurrencyCodeFormat != nil {
-				return *req.ConcurrencyCodeFormat
-			}
-			return previousSettings.ConcurrencyCodeFormat
-		}(),
-		SubscriptionCodeFormat: func() service.CodeFormatSettings {
-			if req.SubscriptionCodeFormat != nil {
-				return *req.SubscriptionCodeFormat
-			}
-			return previousSettings.SubscriptionCodeFormat
-		}(),
-		PasswordResetEnabled:  req.PasswordResetEnabled,
-		FrontendURL:           req.FrontendURL,
-		InvitationCodeEnabled: req.InvitationCodeEnabled,
-		InvitationCodeFormat: func() service.CodeFormatSettings {
-			if req.InvitationCodeFormat != nil {
-				return *req.InvitationCodeFormat
-			}
-			return previousSettings.InvitationCodeFormat
-		}(),
-		TotpEnabled:                            req.TotpEnabled,
-		LoginAgreementEnabled:                  req.LoginAgreementEnabled,
-		LoginAgreementMode:                     loginAgreementMode,
-		LoginAgreementUpdatedAt:                loginAgreementUpdatedAt,
-		LoginAgreementDocuments:                loginAgreementDocuments,
-		SMTPHost:                               req.SMTPHost,
-		SMTPPort:                               req.SMTPPort,
-		SMTPUsername:                           req.SMTPUsername,
-		SMTPPassword:                           req.SMTPPassword,
-		SMTPFrom:                               req.SMTPFrom,
-		SMTPFromName:                           req.SMTPFromName,
-		SMTPUseTLS:                             req.SMTPUseTLS,
-		TurnstileEnabled:                       req.TurnstileEnabled,
-		TurnstileSiteKey:                       req.TurnstileSiteKey,
-		TurnstileSecretKey:                     req.TurnstileSecretKey,
 		LinuxDoConnectEnabled:                  req.LinuxDoConnectEnabled,
 		LinuxDoConnectClientID:                 req.LinuxDoConnectClientID,
 		LinuxDoConnectClientSecret:             req.LinuxDoConnectClientSecret,
@@ -1637,16 +1563,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ContactInfo:                            req.ContactInfo,
 		DocURL:                                 req.DocURL,
 		HomeContent:                            req.HomeContent,
-		HomeNavLinksEnabled:                    homeNavLeaderboardEnabled && homeNavKeyUsageEnabled && homeNavMonitoringEnabled && homeNavPricingEnabled,
-		HomeNavLeaderboardEnabled:              homeNavLeaderboardEnabled,
-		HomeNavKeyUsageEnabled:                 homeNavKeyUsageEnabled,
-		HomeNavMonitoringEnabled:               homeNavMonitoringEnabled,
-		HomeNavPricingEnabled:                  homeNavPricingEnabled,
-		LeaderboardBalanceEnabled:              leaderboardBalanceEnabled,
-		LeaderboardConsumptionEnabled:          leaderboardConsumptionEnabled,
-		LeaderboardTransferEnabled:             leaderboardTransferEnabled,
-		LeaderboardCheckinEnabled:              leaderboardCheckinEnabled,
-		LeaderboardIncludeAdmin:                leaderboardIncludeAdmin,
 		HideCcsImportButton:                    req.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            purchaseEnabled,
 		PurchaseSubscriptionURL:                purchaseURL,
@@ -1656,29 +1572,23 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                        customEndpointsJSON,
 		DefaultConcurrency:                     req.DefaultConcurrency,
 		DefaultBalance:                         req.DefaultBalance,
-		AffiliateCodeFormat: func() service.CodeFormatSettings {
-			if req.AffiliateCodeFormat != nil {
-				return *req.AffiliateCodeFormat
-			}
-			return previousSettings.AffiliateCodeFormat
-		}(),
-		AffiliateRebateRate:          affiliateRebateRate,
-		AffiliateRebateFreezeHours:   affiliateRebateFreezeHours,
-		AffiliateRebateDurationDays:  affiliateRebateDurationDays,
-		AffiliateRebatePerInviteeCap: affiliateRebatePerInviteeCap,
-		DefaultUserRPMLimit:          req.DefaultUserRPMLimit,
-		DefaultSubscriptions:         defaultSubscriptions,
-		EnableModelFallback:          req.EnableModelFallback,
-		FallbackModelAnthropic:       req.FallbackModelAnthropic,
-		FallbackModelOpenAI:          req.FallbackModelOpenAI,
-		FallbackModelGemini:          req.FallbackModelGemini,
-		FallbackModelAntigravity:     req.FallbackModelAntigravity,
-		EnableIdentityPatch:          req.EnableIdentityPatch,
-		IdentityPatchPrompt:          req.IdentityPatchPrompt,
-		MinClaudeCodeVersion:         req.MinClaudeCodeVersion,
-		MaxClaudeCodeVersion:         req.MaxClaudeCodeVersion,
-		AllowUngroupedKeyScheduling:  req.AllowUngroupedKeyScheduling,
-		BackendModeEnabled:           req.BackendModeEnabled,
+		AffiliateRebateRate:                    affiliateRebateRate,
+		AffiliateRebateFreezeHours:             affiliateRebateFreezeHours,
+		AffiliateRebateDurationDays:            affiliateRebateDurationDays,
+		AffiliateRebatePerInviteeCap:           affiliateRebatePerInviteeCap,
+		DefaultUserRPMLimit:                    req.DefaultUserRPMLimit,
+		DefaultSubscriptions:                   defaultSubscriptions,
+		EnableModelFallback:                    req.EnableModelFallback,
+		FallbackModelAnthropic:                 req.FallbackModelAnthropic,
+		FallbackModelOpenAI:                    req.FallbackModelOpenAI,
+		FallbackModelGemini:                    req.FallbackModelGemini,
+		FallbackModelAntigravity:               req.FallbackModelAntigravity,
+		EnableIdentityPatch:                    req.EnableIdentityPatch,
+		IdentityPatchPrompt:                    req.IdentityPatchPrompt,
+		MinClaudeCodeVersion:                   req.MinClaudeCodeVersion,
+		MaxClaudeCodeVersion:                   req.MaxClaudeCodeVersion,
+		AllowUngroupedKeyScheduling:            req.AllowUngroupedKeyScheduling,
+		BackendModeEnabled:                     req.BackendModeEnabled,
 		OpsMonitoringEnabled: func() bool {
 			if req.OpsMonitoringEnabled != nil {
 				return *req.OpsMonitoringEnabled
@@ -1793,6 +1703,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.BalanceLowNotifyRechargeURL
 		}(),
+		SubscriptionExpiryNotifyEnabled: func() bool {
+			if req.SubscriptionExpiryNotifyEnabled != nil {
+				return *req.SubscriptionExpiryNotifyEnabled
+			}
+			return previousSettings.SubscriptionExpiryNotifyEnabled
+		}(),
 		AccountQuotaNotifyEnabled: func() bool {
 			if req.AccountQuotaNotifyEnabled != nil {
 				return *req.AccountQuotaNotifyEnabled
@@ -1804,60 +1720,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return dto.NotifyEmailEntriesToService(*req.AccountQuotaNotifyEmails)
 			}
 			return previousSettings.AccountQuotaNotifyEmails
-		}(),
-		CheckinEnabled: func() bool {
-			if req.CheckinEnabled != nil {
-				return *req.CheckinEnabled
-			}
-			return previousSettings.CheckinEnabled
-		}(),
-		CheckinMinBalance: func() float64 {
-			if req.CheckinMinBalance != nil {
-				return *req.CheckinMinBalance
-			}
-			return previousSettings.CheckinMinBalance
-		}(),
-		CheckinMaxBalance: func() float64 {
-			if req.CheckinMaxBalance != nil {
-				return *req.CheckinMaxBalance
-			}
-			return previousSettings.CheckinMaxBalance
-		}(),
-		CheckinLuckEnabled: func() bool {
-			if req.CheckinLuckEnabled != nil {
-				return *req.CheckinLuckEnabled
-			}
-			return previousSettings.CheckinLuckEnabled
-		}(),
-		CheckinLuckMinMultiplier: func() float64 {
-			if req.CheckinLuckMinMultiplier != nil {
-				return *req.CheckinLuckMinMultiplier
-			}
-			return previousSettings.CheckinLuckMinMultiplier
-		}(),
-		CheckinLuckMaxMultiplier: func() float64 {
-			if req.CheckinLuckMaxMultiplier != nil {
-				return *req.CheckinLuckMaxMultiplier
-			}
-			return previousSettings.CheckinLuckMaxMultiplier
-		}(),
-		CheckinBlindboxEnabled: func() bool {
-			if req.CheckinBlindboxEnabled != nil {
-				return *req.CheckinBlindboxEnabled
-			}
-			return previousSettings.CheckinBlindboxEnabled
-		}(),
-		CheckinBlindboxTriggerType: func() string {
-			if req.CheckinBlindboxTriggerType != nil {
-				return *req.CheckinBlindboxTriggerType
-			}
-			return previousSettings.CheckinBlindboxTriggerType
-		}(),
-		CheckinBlindboxInterval: func() int {
-			if req.CheckinBlindboxInterval != nil {
-				return *req.CheckinBlindboxInterval
-			}
-			return previousSettings.CheckinBlindboxInterval
 		}(),
 		ChannelMonitorEnabled: func() bool {
 			if req.ChannelMonitorEnabled != nil {
@@ -1877,67 +1739,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
-		TransferEnabled: func() bool {
-			if req.TransferEnabled != nil {
-				return *req.TransferEnabled
-			}
-			return previousSettings.TransferEnabled
-		}(),
-		TransferFeeRate: func() float64 {
-			if req.TransferFeeRate != nil && *req.TransferFeeRate >= 0 {
-				return *req.TransferFeeRate
-			}
-			return previousSettings.TransferFeeRate
-		}(),
-		TransferMinAmount: func() float64 {
-			if req.TransferMinAmount != nil && *req.TransferMinAmount >= 0 {
-				return *req.TransferMinAmount
-			}
-			return previousSettings.TransferMinAmount
-		}(),
-		TransferMaxAmount: func() float64 {
-			if req.TransferMaxAmount != nil && *req.TransferMaxAmount >= 0 {
-				return *req.TransferMaxAmount
-			}
-			return previousSettings.TransferMaxAmount
-		}(),
-		TransferDailyLimit: func() float64 {
-			if req.TransferDailyLimit != nil && *req.TransferDailyLimit >= 0 {
-				return *req.TransferDailyLimit
-			}
-			return previousSettings.TransferDailyLimit
-		}(),
-		TransferDailyCountLimit: func() int {
-			if req.TransferDailyCountLimit != nil && *req.TransferDailyCountLimit > 0 {
-				return *req.TransferDailyCountLimit
-			}
-			return previousSettings.TransferDailyCountLimit
-		}(),
-		TransferVIPFeeExempt: func() bool {
-			if req.TransferVIPFeeExempt != nil {
-				return *req.TransferVIPFeeExempt
-			}
-			return previousSettings.TransferVIPFeeExempt
-		}(),
-		RedPacketEnabled: func() bool {
-			if req.RedPacketEnabled != nil {
-				return *req.RedPacketEnabled
-			}
-			return previousSettings.RedPacketEnabled
-		}(),
-		RedPacketMaxCount: func() int {
-			if req.RedPacketMaxCount != nil && *req.RedPacketMaxCount > 0 {
-				return *req.RedPacketMaxCount
-			}
-			return previousSettings.RedPacketMaxCount
-		}(),
-		RedPacketExpireHours: func() int {
-			if req.RedPacketExpireHours != nil && *req.RedPacketExpireHours > 0 {
-				return *req.RedPacketExpireHours
-			}
-			return previousSettings.RedPacketExpireHours
-		}(),
-
 		AffiliateEnabled: func() bool {
 			if req.AffiliateEnabled != nil {
 				return *req.AffiliateEnabled
@@ -1952,6 +1753,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}(),
 	}
 
+	// req.AuthSourceXxxPlatformQuotas 为 nil 表示本次请求未包含该 source 的 quota 配置（保留 previousAuthSourceDefaults 中的值）；
+	// non-nil（含 empty map）表示整体覆盖：empty map = 清空该 source 的所有 quota 配置。
 	authSourceDefaults := &service.AuthSourceDefaultSettings{
 		Email: service.ProviderDefaultGrantSettings{
 			Balance:          float64ValueOrDefault(req.AuthSourceDefaultEmailBalance, previousAuthSourceDefaults.Email.Balance),
@@ -1959,6 +1762,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			Subscriptions:    defaultSubscriptionsValueOrDefault(req.AuthSourceDefaultEmailSubscriptions, previousAuthSourceDefaults.Email.Subscriptions),
 			GrantOnSignup:    boolValueOrDefault(req.AuthSourceDefaultEmailGrantOnSignup, previousAuthSourceDefaults.Email.GrantOnSignup),
 			GrantOnFirstBind: boolValueOrDefault(req.AuthSourceDefaultEmailGrantOnFirstBind, previousAuthSourceDefaults.Email.GrantOnFirstBind),
+			PlatformQuotas:   platformQuotasValueOrDefault(req.AuthSourceEmailPlatformQuotas, previousAuthSourceDefaults.Email.PlatformQuotas),
 		},
 		LinuxDo: service.ProviderDefaultGrantSettings{
 			Balance:          float64ValueOrDefault(req.AuthSourceDefaultLinuxDoBalance, previousAuthSourceDefaults.LinuxDo.Balance),
@@ -1966,6 +1770,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			Subscriptions:    defaultSubscriptionsValueOrDefault(req.AuthSourceDefaultLinuxDoSubscriptions, previousAuthSourceDefaults.LinuxDo.Subscriptions),
 			GrantOnSignup:    boolValueOrDefault(req.AuthSourceDefaultLinuxDoGrantOnSignup, previousAuthSourceDefaults.LinuxDo.GrantOnSignup),
 			GrantOnFirstBind: boolValueOrDefault(req.AuthSourceDefaultLinuxDoGrantOnFirstBind, previousAuthSourceDefaults.LinuxDo.GrantOnFirstBind),
+			PlatformQuotas:   platformQuotasValueOrDefault(req.AuthSourceLinuxDoPlatformQuotas, previousAuthSourceDefaults.LinuxDo.PlatformQuotas),
 		},
 		OIDC: service.ProviderDefaultGrantSettings{
 			Balance:          float64ValueOrDefault(req.AuthSourceDefaultOIDCBalance, previousAuthSourceDefaults.OIDC.Balance),
@@ -1973,6 +1778,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			Subscriptions:    defaultSubscriptionsValueOrDefault(req.AuthSourceDefaultOIDCSubscriptions, previousAuthSourceDefaults.OIDC.Subscriptions),
 			GrantOnSignup:    boolValueOrDefault(req.AuthSourceDefaultOIDCGrantOnSignup, previousAuthSourceDefaults.OIDC.GrantOnSignup),
 			GrantOnFirstBind: boolValueOrDefault(req.AuthSourceDefaultOIDCGrantOnFirstBind, previousAuthSourceDefaults.OIDC.GrantOnFirstBind),
+			PlatformQuotas:   platformQuotasValueOrDefault(req.AuthSourceOIDCPlatformQuotas, previousAuthSourceDefaults.OIDC.PlatformQuotas),
 		},
 		WeChat: service.ProviderDefaultGrantSettings{
 			Balance:          float64ValueOrDefault(req.AuthSourceDefaultWeChatBalance, previousAuthSourceDefaults.WeChat.Balance),
@@ -1980,6 +1786,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			Subscriptions:    defaultSubscriptionsValueOrDefault(req.AuthSourceDefaultWeChatSubscriptions, previousAuthSourceDefaults.WeChat.Subscriptions),
 			GrantOnSignup:    boolValueOrDefault(req.AuthSourceDefaultWeChatGrantOnSignup, previousAuthSourceDefaults.WeChat.GrantOnSignup),
 			GrantOnFirstBind: boolValueOrDefault(req.AuthSourceDefaultWeChatGrantOnFirstBind, previousAuthSourceDefaults.WeChat.GrantOnFirstBind),
+			PlatformQuotas:   platformQuotasValueOrDefault(req.AuthSourceWeChatPlatformQuotas, previousAuthSourceDefaults.WeChat.PlatformQuotas),
 		},
 		GitHub: service.ProviderDefaultGrantSettings{
 			Balance:          float64ValueOrDefault(req.AuthSourceDefaultGitHubBalance, previousAuthSourceDefaults.GitHub.Balance),
@@ -1987,6 +1794,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			Subscriptions:    defaultSubscriptionsValueOrDefault(req.AuthSourceDefaultGitHubSubscriptions, previousAuthSourceDefaults.GitHub.Subscriptions),
 			GrantOnSignup:    boolValueOrDefault(req.AuthSourceDefaultGitHubGrantOnSignup, previousAuthSourceDefaults.GitHub.GrantOnSignup),
 			GrantOnFirstBind: boolValueOrDefault(req.AuthSourceDefaultGitHubGrantOnFirstBind, previousAuthSourceDefaults.GitHub.GrantOnFirstBind),
+			PlatformQuotas:   platformQuotasValueOrDefault(req.AuthSourceGitHubPlatformQuotas, previousAuthSourceDefaults.GitHub.PlatformQuotas),
 		},
 		Google: service.ProviderDefaultGrantSettings{
 			Balance:          float64ValueOrDefault(req.AuthSourceDefaultGoogleBalance, previousAuthSourceDefaults.Google.Balance),
@@ -1994,6 +1802,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			Subscriptions:    defaultSubscriptionsValueOrDefault(req.AuthSourceDefaultGoogleSubscriptions, previousAuthSourceDefaults.Google.Subscriptions),
 			GrantOnSignup:    boolValueOrDefault(req.AuthSourceDefaultGoogleGrantOnSignup, previousAuthSourceDefaults.Google.GrantOnSignup),
 			GrantOnFirstBind: boolValueOrDefault(req.AuthSourceDefaultGoogleGrantOnFirstBind, previousAuthSourceDefaults.Google.GrantOnFirstBind),
+			PlatformQuotas:   platformQuotasValueOrDefault(req.AuthSourceGooglePlatformQuotas, previousAuthSourceDefaults.Google.PlatformQuotas),
 		},
 		DingTalk: service.ProviderDefaultGrantSettings{
 			Balance:          float64ValueOrDefault(req.AuthSourceDefaultDingTalkBalance, previousAuthSourceDefaults.DingTalk.Balance),
@@ -2001,6 +1810,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			Subscriptions:    defaultSubscriptionsValueOrDefault(req.AuthSourceDefaultDingTalkSubscriptions, previousAuthSourceDefaults.DingTalk.Subscriptions),
 			GrantOnSignup:    boolValueOrDefault(req.AuthSourceDefaultDingTalkGrantOnSignup, previousAuthSourceDefaults.DingTalk.GrantOnSignup),
 			GrantOnFirstBind: boolValueOrDefault(req.AuthSourceDefaultDingTalkGrantOnFirstBind, previousAuthSourceDefaults.DingTalk.GrantOnFirstBind),
+			PlatformQuotas:   platformQuotasValueOrDefault(req.AuthSourceDingTalkPlatformQuotas, previousAuthSourceDefaults.DingTalk.PlatformQuotas),
 		},
 		ForceEmailOnThirdPartySignup: boolValueOrDefault(req.ForceEmailOnThirdPartySignup, previousAuthSourceDefaults.ForceEmailOnThirdPartySignup),
 	}
@@ -2061,6 +1871,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.ensureDingTalkSyncAttributes(c.Request.Context(), updatedSettings)
 	updatedAuthSourceDefaults, err := h.settingService.GetAuthSourceDefaultSettings(c.Request.Context())
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -2088,14 +1899,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		EmailVerifyEnabled:                     updatedSettings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:       updatedSettings.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                       updatedSettings.PromoCodeEnabled,
-		RedeemCodeFormat:                       updatedSettings.RedeemCodeFormat,
-		BalanceCodeFormat:                      updatedSettings.BalanceCodeFormat,
-		ConcurrencyCodeFormat:                  updatedSettings.ConcurrencyCodeFormat,
-		SubscriptionCodeFormat:                 updatedSettings.SubscriptionCodeFormat,
 		PasswordResetEnabled:                   updatedSettings.PasswordResetEnabled,
 		FrontendURL:                            updatedSettings.FrontendURL,
 		InvitationCodeEnabled:                  updatedSettings.InvitationCodeEnabled,
-		InvitationCodeFormat:                   updatedSettings.InvitationCodeFormat,
 		TotpEnabled:                            updatedSettings.TotpEnabled,
 		TotpEncryptionKeyConfigured:            h.settingService.IsTotpEncryptionKeyConfigured(),
 		LoginAgreementEnabled:                  updatedSettings.LoginAgreementEnabled,
@@ -2112,10 +1918,27 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		TurnstileEnabled:                       updatedSettings.TurnstileEnabled,
 		TurnstileSiteKey:                       updatedSettings.TurnstileSiteKey,
 		TurnstileSecretKeyConfigured:           updatedSettings.TurnstileSecretKeyConfigured,
+		APIKeyACLTrustForwardedIP:              updatedSettings.APIKeyACLTrustForwardedIP,
 		LinuxDoConnectEnabled:                  updatedSettings.LinuxDoConnectEnabled,
 		LinuxDoConnectClientID:                 updatedSettings.LinuxDoConnectClientID,
 		LinuxDoConnectClientSecretConfigured:   updatedSettings.LinuxDoConnectClientSecretConfigured,
 		LinuxDoConnectRedirectURL:              updatedSettings.LinuxDoConnectRedirectURL,
+		DingTalkConnectEnabled:                 updatedSettings.DingTalkConnectEnabled,
+		DingTalkConnectClientID:                updatedSettings.DingTalkConnectClientID,
+		DingTalkConnectClientSecretConfigured:  updatedSettings.DingTalkConnectClientSecretConfigured,
+		DingTalkConnectRedirectURL:             updatedSettings.DingTalkConnectRedirectURL,
+		DingTalkConnectCorpRestrictionPolicy:   updatedSettings.DingTalkConnectCorpRestrictionPolicy,
+		DingTalkConnectInternalCorpID:          updatedSettings.DingTalkConnectInternalCorpID,
+		DingTalkConnectBypassRegistration:      updatedSettings.DingTalkConnectBypassRegistration,
+		DingTalkConnectSyncCorpEmail:           updatedSettings.DingTalkConnectSyncCorpEmail,
+		DingTalkConnectSyncDisplayName:         updatedSettings.DingTalkConnectSyncDisplayName,
+		DingTalkConnectSyncDept:                updatedSettings.DingTalkConnectSyncDept,
+		DingTalkConnectSyncCorpEmailAttrKey:    updatedSettings.DingTalkConnectSyncCorpEmailAttrKey,
+		DingTalkConnectSyncDisplayNameAttrKey:  updatedSettings.DingTalkConnectSyncDisplayNameAttrKey,
+		DingTalkConnectSyncDeptAttrKey:         updatedSettings.DingTalkConnectSyncDeptAttrKey,
+		DingTalkConnectSyncCorpEmailAttrName:   updatedSettings.DingTalkConnectSyncCorpEmailAttrName,
+		DingTalkConnectSyncDisplayNameAttrName: updatedSettings.DingTalkConnectSyncDisplayNameAttrName,
+		DingTalkConnectSyncDeptAttrName:        updatedSettings.DingTalkConnectSyncDeptAttrName,
 		WeChatConnectEnabled:                   updatedSettings.WeChatConnectEnabled,
 		WeChatConnectAppID:                     updatedSettings.WeChatConnectAppID,
 		WeChatConnectAppSecretConfigured:       updatedSettings.WeChatConnectAppSecretConfigured,
@@ -2171,16 +1994,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ContactInfo:                            updatedSettings.ContactInfo,
 		DocURL:                                 updatedSettings.DocURL,
 		HomeContent:                            updatedSettings.HomeContent,
-		HomeNavLinksEnabled:                    updatedSettings.HomeNavLinksEnabled,
-		HomeNavLeaderboardEnabled:              updatedSettings.HomeNavLeaderboardEnabled,
-		HomeNavKeyUsageEnabled:                 updatedSettings.HomeNavKeyUsageEnabled,
-		HomeNavMonitoringEnabled:               updatedSettings.HomeNavMonitoringEnabled,
-		HomeNavPricingEnabled:                  updatedSettings.HomeNavPricingEnabled,
-		LeaderboardBalanceEnabled:              updatedSettings.LeaderboardBalanceEnabled,
-		LeaderboardConsumptionEnabled:          updatedSettings.LeaderboardConsumptionEnabled,
-		LeaderboardTransferEnabled:             updatedSettings.LeaderboardTransferEnabled,
-		LeaderboardCheckinEnabled:              updatedSettings.LeaderboardCheckinEnabled,
-		LeaderboardIncludeAdmin:                updatedSettings.LeaderboardIncludeAdmin,
 		HideCcsImportButton:                    updatedSettings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            updatedSettings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                updatedSettings.PurchaseSubscriptionURL,
@@ -2190,7 +2003,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                        dto.ParseCustomEndpoints(updatedSettings.CustomEndpoints),
 		DefaultConcurrency:                     updatedSettings.DefaultConcurrency,
 		DefaultBalance:                         updatedSettings.DefaultBalance,
-		AffiliateCodeFormat:                    updatedSettings.AffiliateCodeFormat,
 		AffiliateRebateRate:                    updatedSettings.AffiliateRebateRate,
 		AffiliateRebateFreezeHours:             updatedSettings.AffiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:            updatedSettings.AffiliateRebateDurationDays,
@@ -2227,33 +2039,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		BalanceLowNotifyEnabled:                updatedSettings.BalanceLowNotifyEnabled,
 		BalanceLowNotifyThreshold:              updatedSettings.BalanceLowNotifyThreshold,
 		BalanceLowNotifyRechargeURL:            updatedSettings.BalanceLowNotifyRechargeURL,
+		SubscriptionExpiryNotifyEnabled:        updatedSettings.SubscriptionExpiryNotifyEnabled,
 		AccountQuotaNotifyEnabled:              updatedSettings.AccountQuotaNotifyEnabled,
 		AccountQuotaNotifyEmails:               dto.NotifyEmailEntriesFromService(updatedSettings.AccountQuotaNotifyEmails),
-		DingTalkConnectEnabled:                 updatedSettings.DingTalkConnectEnabled,
-		DingTalkConnectClientID:                updatedSettings.DingTalkConnectClientID,
-		DingTalkConnectClientSecretConfigured:  updatedSettings.DingTalkConnectClientSecretConfigured,
-		DingTalkConnectRedirectURL:             updatedSettings.DingTalkConnectRedirectURL,
-		DingTalkConnectCorpRestrictionPolicy:   updatedSettings.DingTalkConnectCorpRestrictionPolicy,
-		DingTalkConnectInternalCorpID:          updatedSettings.DingTalkConnectInternalCorpID,
-		DingTalkConnectBypassRegistration:      updatedSettings.DingTalkConnectBypassRegistration,
-		DingTalkConnectSyncCorpEmail:           updatedSettings.DingTalkConnectSyncCorpEmail,
-		DingTalkConnectSyncDisplayName:         updatedSettings.DingTalkConnectSyncDisplayName,
-		DingTalkConnectSyncDept:                updatedSettings.DingTalkConnectSyncDept,
-		DingTalkConnectSyncCorpEmailAttrKey:    updatedSettings.DingTalkConnectSyncCorpEmailAttrKey,
-		DingTalkConnectSyncDisplayNameAttrKey:  updatedSettings.DingTalkConnectSyncDisplayNameAttrKey,
-		DingTalkConnectSyncDeptAttrKey:         updatedSettings.DingTalkConnectSyncDeptAttrKey,
-		DingTalkConnectSyncCorpEmailAttrName:   updatedSettings.DingTalkConnectSyncCorpEmailAttrName,
-		DingTalkConnectSyncDisplayNameAttrName: updatedSettings.DingTalkConnectSyncDisplayNameAttrName,
-		DingTalkConnectSyncDeptAttrName:        updatedSettings.DingTalkConnectSyncDeptAttrName,
-		CheckinEnabled:                         updatedSettings.CheckinEnabled,
-		CheckinMinBalance:                      updatedSettings.CheckinMinBalance,
-		CheckinMaxBalance:                      updatedSettings.CheckinMaxBalance,
-		CheckinLuckEnabled:                     updatedSettings.CheckinLuckEnabled,
-		CheckinLuckMinMultiplier:               updatedSettings.CheckinLuckMinMultiplier,
-		CheckinLuckMaxMultiplier:               updatedSettings.CheckinLuckMaxMultiplier,
-		CheckinBlindboxEnabled:                 updatedSettings.CheckinBlindboxEnabled,
-		CheckinBlindboxTriggerType:             updatedSettings.CheckinBlindboxTriggerType,
-		CheckinBlindboxInterval:                updatedSettings.CheckinBlindboxInterval,
 		PaymentEnabled:                         updatedPaymentCfg.Enabled,
 		PaymentMinAmount:                       updatedPaymentCfg.MinAmount,
 		PaymentMaxAmount:                       updatedPaymentCfg.MaxAmount,
@@ -2290,10 +2078,29 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	} else if fastPolicy != nil {
 		payload.OpenAIFastPolicySettings = openaiFastPolicySettingsToDTO(fastPolicy)
 	}
+
+	// Default platform quotas（JSON map）—— 与 GetSettings 一致，避免保存后响应缺失该字段
+	if platformQuotas, err := h.settingService.GetDefaultPlatformQuotas(c.Request.Context()); err != nil {
+		slog.Error("default_platform_quotas_get_failed", "error", err)
+	} else {
+		payload.DefaultPlatformQuotas = platformQuotas
+	}
 	response.Success(c, systemSettingsResponseData(payload, updatedAuthSourceDefaults))
 }
 
 // hasPaymentFields returns true if any payment-related field was explicitly provided.
+// mapDingTalkValidateError maps ValidateDingTalkConfig errors to machine-readable reason codes.
+func mapDingTalkValidateError(err error) string {
+	switch {
+	case errors.Is(err, config.ErrDingTalkV1AppTypeMismatch):
+		return "dingtalk_apptype_mismatch"
+	case errors.Is(err, config.ErrDingTalkV4InvalidAppKind):
+		return "dingtalk_app_kind_invalid"
+	default:
+		return "dingtalk_corp_config_invalid"
+	}
+}
+
 func hasPaymentFields(req UpdateSettingsRequest) bool {
 	return req.PaymentEnabled != nil || req.PaymentMinAmount != nil ||
 		req.PaymentMaxAmount != nil || req.PaymentDailyLimit != nil ||
@@ -2396,6 +2203,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if req.TurnstileSecretKey != "" {
 		changed = append(changed, "turnstile_secret_key")
 	}
+	if before.APIKeyACLTrustForwardedIP != after.APIKeyACLTrustForwardedIP {
+		changed = append(changed, "api_key_acl_trust_forwarded_ip")
+	}
 	if before.LinuxDoConnectEnabled != after.LinuxDoConnectEnabled {
 		changed = append(changed, "linuxdo_connect_enabled")
 	}
@@ -2407,6 +2217,45 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.LinuxDoConnectRedirectURL != after.LinuxDoConnectRedirectURL {
 		changed = append(changed, "linuxdo_connect_redirect_url")
+	}
+	if before.DingTalkConnectEnabled != after.DingTalkConnectEnabled {
+		changed = append(changed, "dingtalk_connect_enabled")
+	}
+	if before.DingTalkConnectClientID != after.DingTalkConnectClientID {
+		changed = append(changed, "dingtalk_connect_client_id")
+	}
+	if req.DingTalkConnectClientSecret != "" {
+		changed = append(changed, "dingtalk_connect_client_secret")
+	}
+	if before.DingTalkConnectRedirectURL != after.DingTalkConnectRedirectURL {
+		changed = append(changed, "dingtalk_connect_redirect_url")
+	}
+	if before.DingTalkConnectCorpRestrictionPolicy != after.DingTalkConnectCorpRestrictionPolicy {
+		changed = append(changed, "dingtalk_connect_corp_restriction_policy")
+	}
+	if before.DingTalkConnectInternalCorpID != after.DingTalkConnectInternalCorpID {
+		changed = append(changed, "dingtalk_connect_internal_corp_id")
+	}
+	if before.DingTalkConnectBypassRegistration != after.DingTalkConnectBypassRegistration {
+		changed = append(changed, "dingtalk_connect_bypass_registration")
+	}
+	if before.DingTalkConnectSyncCorpEmail != after.DingTalkConnectSyncCorpEmail {
+		changed = append(changed, "dingtalk_connect_sync_corp_email")
+	}
+	if before.DingTalkConnectSyncDisplayName != after.DingTalkConnectSyncDisplayName {
+		changed = append(changed, "dingtalk_connect_sync_display_name")
+	}
+	if before.DingTalkConnectSyncDept != after.DingTalkConnectSyncDept {
+		changed = append(changed, "dingtalk_connect_sync_dept")
+	}
+	if before.DingTalkConnectSyncCorpEmailAttrKey != after.DingTalkConnectSyncCorpEmailAttrKey {
+		changed = append(changed, "dingtalk_connect_sync_corp_email_attr_key")
+	}
+	if before.DingTalkConnectSyncDisplayNameAttrKey != after.DingTalkConnectSyncDisplayNameAttrKey {
+		changed = append(changed, "dingtalk_connect_sync_display_name_attr_key")
+	}
+	if before.DingTalkConnectSyncDeptAttrKey != after.DingTalkConnectSyncDeptAttrKey {
+		changed = append(changed, "dingtalk_connect_sync_dept_attr_key")
 	}
 	if before.WeChatConnectEnabled != after.WeChatConnectEnabled {
 		changed = append(changed, "wechat_connect_enabled")
@@ -2543,33 +2392,6 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.HomeContent != after.HomeContent {
 		changed = append(changed, "home_content")
 	}
-	if before.HomeNavLeaderboardEnabled != after.HomeNavLeaderboardEnabled {
-		changed = append(changed, "home_nav_leaderboard_enabled")
-	}
-	if before.HomeNavKeyUsageEnabled != after.HomeNavKeyUsageEnabled {
-		changed = append(changed, "home_nav_key_usage_enabled")
-	}
-	if before.HomeNavMonitoringEnabled != after.HomeNavMonitoringEnabled {
-		changed = append(changed, "home_nav_monitoring_enabled")
-	}
-	if before.HomeNavPricingEnabled != after.HomeNavPricingEnabled {
-		changed = append(changed, "home_nav_pricing_enabled")
-	}
-	if before.LeaderboardBalanceEnabled != after.LeaderboardBalanceEnabled {
-		changed = append(changed, "leaderboard_balance_enabled")
-	}
-	if before.LeaderboardConsumptionEnabled != after.LeaderboardConsumptionEnabled {
-		changed = append(changed, "leaderboard_consumption_enabled")
-	}
-	if before.LeaderboardTransferEnabled != after.LeaderboardTransferEnabled {
-		changed = append(changed, "leaderboard_transfer_enabled")
-	}
-	if before.LeaderboardCheckinEnabled != after.LeaderboardCheckinEnabled {
-		changed = append(changed, "leaderboard_checkin_enabled")
-	}
-	if before.LeaderboardIncludeAdmin != after.LeaderboardIncludeAdmin {
-		changed = append(changed, "leaderboard_include_admin_enabled")
-	}
 	if before.HideCcsImportButton != after.HideCcsImportButton {
 		changed = append(changed, "hide_ccs_import_button")
 	}
@@ -2693,7 +2515,7 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.OpenAIAdvancedSchedulerEnabled != after.OpenAIAdvancedSchedulerEnabled {
 		changed = append(changed, "openai_advanced_scheduler_enabled")
 	}
-	// Balance & quota notification
+	// 余额、订阅到期与账号限额通知
 	if before.BalanceLowNotifyEnabled != after.BalanceLowNotifyEnabled {
 		changed = append(changed, "balance_low_notify_enabled")
 	}
@@ -2702,6 +2524,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.BalanceLowNotifyRechargeURL != after.BalanceLowNotifyRechargeURL {
 		changed = append(changed, "balance_low_notify_recharge_url")
+	}
+	if before.SubscriptionExpiryNotifyEnabled != after.SubscriptionExpiryNotifyEnabled {
+		changed = append(changed, "subscription_expiry_notify_enabled")
 	}
 	if before.AccountQuotaNotifyEnabled != after.AccountQuotaNotifyEnabled {
 		changed = append(changed, "account_quota_notify_enabled")
@@ -2723,6 +2548,10 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.RiskControlEnabled != after.RiskControlEnabled {
 		changed = append(changed, "risk_control_enabled")
+	}
+	// Default platform quotas（JSON map，整体比较）
+	if !equalPlatformQuotaSettings(before.DefaultPlatformQuotas, after.DefaultPlatformQuotas) {
+		changed = append(changed, service.SettingKeyDefaultPlatformQuotas)
 	}
 	changed = appendAuthSourceDefaultChanges(changed, beforeAuthSourceDefaults, afterAuthSourceDefaults)
 	return changed
@@ -2749,6 +2578,7 @@ func appendAuthSourceDefaultChanges(changed []string, before *service.AuthSource
 		{name: "wechat", before: before.WeChat, after: after.WeChat},
 		{name: "github", before: before.GitHub, after: after.GitHub},
 		{name: "google", before: before.Google, after: after.Google},
+		{name: "dingtalk", before: before.DingTalk, after: after.DingTalk},
 	}
 	for _, field := range fields {
 		if field.before.Balance != field.after.Balance {
@@ -2765,6 +2595,10 @@ func appendAuthSourceDefaultChanges(changed []string, before *service.AuthSource
 		}
 		if field.before.GrantOnFirstBind != field.after.GrantOnFirstBind {
 			changed = append(changed, "auth_source_default_"+field.name+"_grant_on_first_bind")
+		}
+		// Platform quotas diff：整体替换语义，发单个 JSON key。
+		if !equalPlatformQuotaSettings(field.before.PlatformQuotas, field.after.PlatformQuotas) {
+			changed = append(changed, service.SettingKeyAuthSourcePlatformQuotas(field.name))
 		}
 	}
 	if before.ForceEmailOnThirdPartySignup != after.ForceEmailOnThirdPartySignup {
@@ -2833,6 +2667,17 @@ func defaultSubscriptionsValueOrDefault(input *[]dto.DefaultSubscriptionSetting,
 	return result
 }
 
+// platformQuotasValueOrDefault 处理 auth-source platform quota 的 nil 语义：
+// nil = 请求未包含该字段（保留 fallback），non-nil（含 empty map）= 整体覆盖。
+// 注意：JSON null 与字段省略等价——两者均反序列化为 nil map，因此都保留旧值；
+// 若要清空某 source 的所有 quota 配置，须显式发空对象 {}。
+func platformQuotasValueOrDefault(value, fallback map[string]*service.DefaultPlatformQuotaSetting) map[string]*service.DefaultPlatformQuotaSetting {
+	if value == nil {
+		return fallback
+	}
+	return value
+}
+
 func systemSettingsResponseData(settings dto.SystemSettings, authSourceDefaults *service.AuthSourceDefaultSettings) map[string]any {
 	data := make(map[string]any)
 	raw, err := json.Marshal(settings)
@@ -2853,6 +2698,11 @@ func systemSettingsResponseData(settings dto.SystemSettings, authSourceDefaults 
 	data["auth_source_default_linuxdo_subscriptions"] = authSourceDefaults.LinuxDo.Subscriptions
 	data["auth_source_default_linuxdo_grant_on_signup"] = authSourceDefaults.LinuxDo.GrantOnSignup
 	data["auth_source_default_linuxdo_grant_on_first_bind"] = authSourceDefaults.LinuxDo.GrantOnFirstBind
+	data["auth_source_default_dingtalk_balance"] = authSourceDefaults.DingTalk.Balance
+	data["auth_source_default_dingtalk_concurrency"] = authSourceDefaults.DingTalk.Concurrency
+	data["auth_source_default_dingtalk_subscriptions"] = authSourceDefaults.DingTalk.Subscriptions
+	data["auth_source_default_dingtalk_grant_on_signup"] = authSourceDefaults.DingTalk.GrantOnSignup
+	data["auth_source_default_dingtalk_grant_on_first_bind"] = authSourceDefaults.DingTalk.GrantOnFirstBind
 	data["auth_source_default_oidc_balance"] = authSourceDefaults.OIDC.Balance
 	data["auth_source_default_oidc_concurrency"] = authSourceDefaults.OIDC.Concurrency
 	data["auth_source_default_oidc_subscriptions"] = authSourceDefaults.OIDC.Subscriptions
@@ -2873,11 +2723,13 @@ func systemSettingsResponseData(settings dto.SystemSettings, authSourceDefaults 
 	data["auth_source_default_google_subscriptions"] = authSourceDefaults.Google.Subscriptions
 	data["auth_source_default_google_grant_on_signup"] = authSourceDefaults.Google.GrantOnSignup
 	data["auth_source_default_google_grant_on_first_bind"] = authSourceDefaults.Google.GrantOnFirstBind
-	data["auth_source_default_dingtalk_balance"] = authSourceDefaults.DingTalk.Balance
-	data["auth_source_default_dingtalk_concurrency"] = authSourceDefaults.DingTalk.Concurrency
-	data["auth_source_default_dingtalk_subscriptions"] = authSourceDefaults.DingTalk.Subscriptions
-	data["auth_source_default_dingtalk_grant_on_signup"] = authSourceDefaults.DingTalk.GrantOnSignup
-	data["auth_source_default_dingtalk_grant_on_first_bind"] = authSourceDefaults.DingTalk.GrantOnFirstBind
+	data["auth_source_default_email_platform_quotas"] = authSourceDefaults.Email.PlatformQuotas
+	data["auth_source_default_linuxdo_platform_quotas"] = authSourceDefaults.LinuxDo.PlatformQuotas
+	data["auth_source_default_oidc_platform_quotas"] = authSourceDefaults.OIDC.PlatformQuotas
+	data["auth_source_default_wechat_platform_quotas"] = authSourceDefaults.WeChat.PlatformQuotas
+	data["auth_source_default_github_platform_quotas"] = authSourceDefaults.GitHub.PlatformQuotas
+	data["auth_source_default_google_platform_quotas"] = authSourceDefaults.Google.PlatformQuotas
+	data["auth_source_default_dingtalk_platform_quotas"] = authSourceDefaults.DingTalk.PlatformQuotas
 	data["force_email_on_third_party_signup"] = authSourceDefaults.ForceEmailOnThirdPartySignup
 
 	return data
@@ -3553,6 +3405,59 @@ func (h *SettingHandler) TestWebSearchEmulation(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// ensureDingTalkSyncAttributes 在保存 settings 后，按 admin 配置的 (attr key, attr name)
+// 兜底 upsert 对应 user attribute definition：不存在则创建；存在但 name 不同则更新 name
+// （type/options/required 不变）。仅 internal_only + 对应 sync 开关开启时执行。
+// 失败仅记录日志，不阻塞 settings 保存。
+func (h *SettingHandler) ensureDingTalkSyncAttributes(ctx context.Context, settings *service.SystemSettings) {
+	if h.userAttributeService == nil || settings == nil {
+		return
+	}
+	if settings.DingTalkConnectCorpRestrictionPolicy != "internal_only" {
+		return
+	}
+	if settings.DingTalkConnectSyncDisplayName {
+		h.ensureUserAttributeDefinition(ctx, settings.DingTalkConnectSyncDisplayNameAttrKey, settings.DingTalkConnectSyncDisplayNameAttrName, "钉钉 internal_only 登录时同步的钉钉姓名", service.AttributeTypeText)
+	}
+	if settings.DingTalkConnectSyncCorpEmail {
+		h.ensureUserAttributeDefinition(ctx, settings.DingTalkConnectSyncCorpEmailAttrKey, settings.DingTalkConnectSyncCorpEmailAttrName, "钉钉 internal_only 登录时同步的企业邮箱", service.AttributeTypeEmail)
+	}
+	if settings.DingTalkConnectSyncDept {
+		h.ensureUserAttributeDefinition(ctx, settings.DingTalkConnectSyncDeptAttrKey, settings.DingTalkConnectSyncDeptAttrName, "钉钉 internal_only 登录时同步的完整部门路径（如：公司/研发部）", service.AttributeTypeText)
+	}
+}
+
+func (h *SettingHandler) ensureUserAttributeDefinition(ctx context.Context, key, name, description string, attrType service.UserAttributeType) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return
+	}
+	existing, err := h.userAttributeService.GetDefinitionByKey(ctx, key)
+	if err == nil && existing != nil {
+		if strings.TrimSpace(name) != "" && existing.Name != name {
+			if _, err := h.userAttributeService.UpdateDefinition(ctx, existing.ID, service.UpdateAttributeDefinitionInput{
+				Name: &name,
+			}); err != nil {
+				slog.Warn("dingtalk: update user attribute definition name failed", "key", key, "err", err.Error())
+				return
+			}
+			slog.Info("dingtalk: updated user attribute definition name", "key", key, "name", name)
+		}
+		return
+	}
+	if _, err := h.userAttributeService.CreateDefinition(ctx, service.CreateAttributeDefinitionInput{
+		Key:         key,
+		Name:        name,
+		Description: description,
+		Type:        attrType,
+		Enabled:     true,
+	}); err != nil {
+		slog.Warn("dingtalk: ensure user attribute definition failed", "key", key, "err", err.Error())
+		return
+	}
+	slog.Info("dingtalk: created user attribute definition", "key", key, "name", name, "type", attrType)
+}
+
 // ListEmailTemplates returns all editable notification email templates.
 // GET /api/v1/admin/settings/email-templates
 func (h *SettingHandler) ListEmailTemplates(c *gin.Context) {
@@ -3657,6 +3562,8 @@ func emailTemplateEventOptionsToDTO(events []service.NotificationEmailEventInfo)
 			Value:       event.Event,
 			Label:       event.Label,
 			Description: event.Description,
+			Category:    event.Category,
+			Optional:    event.Optional,
 		})
 	}
 	return items
@@ -3708,4 +3615,49 @@ func emailTemplatePlaceholderUnion(events []service.NotificationEmailEventInfo) 
 		}
 	}
 	return placeholders
+}
+
+// equalNullableFloat compares two *float64 values treating nil as a distinct case.
+func equalNullableFloat(a, b *float64) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+// slotOf returns the *float64 for the given window from a DefaultPlatformQuotaSetting.
+func slotOf(s *service.DefaultPlatformQuotaSetting, win string) *float64 {
+	if s == nil {
+		return nil
+	}
+	switch win {
+	case "daily":
+		return s.DailyLimitUSD
+	case "weekly":
+		return s.WeeklyLimitUSD
+	case "monthly":
+		return s.MonthlyLimitUSD
+	}
+	return nil
+}
+
+// equalPlatformQuotaSettings reports whether two platform-quota maps are identical across all 12 slots.
+func equalPlatformQuotaSettings(before, after map[string]*service.DefaultPlatformQuotaSetting) bool {
+	for _, platform := range service.AllowedQuotaPlatforms {
+		b := before[platform]
+		a := after[platform]
+		if !equalNullableFloat(slotOf(b, "daily"), slotOf(a, "daily")) {
+			return false
+		}
+		if !equalNullableFloat(slotOf(b, "weekly"), slotOf(a, "weekly")) {
+			return false
+		}
+		if !equalNullableFloat(slotOf(b, "monthly"), slotOf(a, "monthly")) {
+			return false
+		}
+	}
+	return true
 }

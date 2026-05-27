@@ -24,16 +24,29 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+// CoerceDingTalkCorpPolicyForWrite 是 coerceDeprecatedDingTalkCorpPolicy 的导出版本，
+// 用于 admin handler 在写入路径上对客户端直传的入参做防御性 coerce（前端 UI 虽已无 whitelist 选项，
+// 但 API 可被直接调用）。
+func CoerceDingTalkCorpPolicyForWrite(policy string) string {
+	return coerceDeprecatedDingTalkCorpPolicy(policy)
+}
+
+// coerceDeprecatedDingTalkCorpPolicy 把已废弃的 corp_restriction_policy 值替换成安全的等价值。
+// 升级前残留在 DB 中的 "whitelist" 会导致 callback 链路在 default case 静默 fail-closed
+// （所有钉钉登录被拒）。这里统一退化为 "none" 让服务保持可用，并 warn 日志提醒 admin 重新保存设置。
+func coerceDeprecatedDingTalkCorpPolicy(policy string) string {
+	if policy == "whitelist" {
+		slog.Warn("dingtalk: corp_restriction_policy=whitelist is deprecated and unsupported, coercing to none",
+			"hint", "re-save DingTalk settings in admin UI to clear this warning")
+		return "none"
+	}
+	return policy
+}
+
 var (
-	ErrRegistrationDisabled                = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
-	ErrSettingNotFound                     = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
-	ErrOverloadCooldownSettingsCorrupt     = infraerrors.InternalServer("OVERLOAD_COOLDOWN_SETTINGS_CORRUPT", "overload cooldown settings are corrupted")
-	ErrRateLimit429CooldownSettingsCorrupt = infraerrors.InternalServer("RATE_LIMIT_429_COOLDOWN_SETTINGS_CORRUPT", "rate limit 429 cooldown settings are corrupted")
-	ErrStreamTimeoutSettingsCorrupt        = infraerrors.InternalServer("STREAM_TIMEOUT_SETTINGS_CORRUPT", "stream timeout settings are corrupted")
-	ErrRectifierSettingsCorrupt            = infraerrors.InternalServer("RECTIFIER_SETTINGS_CORRUPT", "rectifier settings are corrupted")
-	ErrBetaPolicySettingsCorrupt           = infraerrors.InternalServer("BETA_POLICY_SETTINGS_CORRUPT", "beta policy settings are corrupted")
-	ErrOpenAIFastPolicySettingsCorrupt     = infraerrors.InternalServer("OPENAI_FAST_POLICY_SETTINGS_CORRUPT", "openai fast policy settings are corrupted")
-	ErrDefaultSubGroupInvalid              = infraerrors.BadRequest(
+	ErrRegistrationDisabled   = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
+	ErrSettingNotFound        = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
+	ErrDefaultSubGroupInvalid = infraerrors.BadRequest(
 		"DEFAULT_SUBSCRIPTION_GROUP_INVALID",
 		"default subscription group must exist and be subscription type",
 	)
@@ -152,14 +165,20 @@ type SettingService struct {
 	openAICodexUASF           singleflight.Group
 }
 
+// DefaultPlatformQuotaSetting 单 platform 三档限额（nil = 沿用上层；0 = 显式禁用；>0 = 上限）
+type DefaultPlatformQuotaSetting struct {
+	DailyLimitUSD   *float64 `json:"daily"`
+	WeeklyLimitUSD  *float64 `json:"weekly"`
+	MonthlyLimitUSD *float64 `json:"monthly"`
+}
+
 type ProviderDefaultGrantSettings struct {
 	Balance          float64
 	Concurrency      int
 	Subscriptions    []DefaultSubscriptionSetting
 	GrantOnSignup    bool
 	GrantOnFirstBind bool
-	balanceSet       bool
-	concurrencySet   bool
+	PlatformQuotas   map[string]*DefaultPlatformQuotaSetting // key = platform name
 }
 
 type AuthSourceDefaultSettings struct {
@@ -174,62 +193,80 @@ type AuthSourceDefaultSettings struct {
 }
 
 type authSourceDefaultKeySet struct {
+	// source 是 auth source 标识（如 "email"、"github"），仅用于 parse 时
+	// slog.Warn 诊断输出，不再参与 key 拼接（platformQuotas 字段已存完整 key）。
+	source           string
 	balance          string
 	concurrency      string
 	subscriptions    string
 	grantOnSignup    string
 	grantOnFirstBind string
+	platformQuotas   string // SettingKeyAuthSourcePlatformQuotas(source)
 }
 
 var (
 	emailAuthSourceDefaultKeys = authSourceDefaultKeySet{
+		source:           "email",
 		balance:          SettingKeyAuthSourceDefaultEmailBalance,
 		concurrency:      SettingKeyAuthSourceDefaultEmailConcurrency,
 		subscriptions:    SettingKeyAuthSourceDefaultEmailSubscriptions,
 		grantOnSignup:    SettingKeyAuthSourceDefaultEmailGrantOnSignup,
 		grantOnFirstBind: SettingKeyAuthSourceDefaultEmailGrantOnFirstBind,
+		platformQuotas:   SettingKeyAuthSourcePlatformQuotas("email"),
 	}
 	linuxDoAuthSourceDefaultKeys = authSourceDefaultKeySet{
+		source:           "linuxdo",
 		balance:          SettingKeyAuthSourceDefaultLinuxDoBalance,
 		concurrency:      SettingKeyAuthSourceDefaultLinuxDoConcurrency,
 		subscriptions:    SettingKeyAuthSourceDefaultLinuxDoSubscriptions,
 		grantOnSignup:    SettingKeyAuthSourceDefaultLinuxDoGrantOnSignup,
 		grantOnFirstBind: SettingKeyAuthSourceDefaultLinuxDoGrantOnFirstBind,
+		platformQuotas:   SettingKeyAuthSourcePlatformQuotas("linuxdo"),
 	}
 	oidcAuthSourceDefaultKeys = authSourceDefaultKeySet{
+		source:           "oidc",
 		balance:          SettingKeyAuthSourceDefaultOIDCBalance,
 		concurrency:      SettingKeyAuthSourceDefaultOIDCConcurrency,
 		subscriptions:    SettingKeyAuthSourceDefaultOIDCSubscriptions,
 		grantOnSignup:    SettingKeyAuthSourceDefaultOIDCGrantOnSignup,
 		grantOnFirstBind: SettingKeyAuthSourceDefaultOIDCGrantOnFirstBind,
+		platformQuotas:   SettingKeyAuthSourcePlatformQuotas("oidc"),
 	}
 	weChatAuthSourceDefaultKeys = authSourceDefaultKeySet{
+		source:           "wechat",
 		balance:          SettingKeyAuthSourceDefaultWeChatBalance,
 		concurrency:      SettingKeyAuthSourceDefaultWeChatConcurrency,
 		subscriptions:    SettingKeyAuthSourceDefaultWeChatSubscriptions,
 		grantOnSignup:    SettingKeyAuthSourceDefaultWeChatGrantOnSignup,
 		grantOnFirstBind: SettingKeyAuthSourceDefaultWeChatGrantOnFirstBind,
+		platformQuotas:   SettingKeyAuthSourcePlatformQuotas("wechat"),
 	}
 	gitHubAuthSourceDefaultKeys = authSourceDefaultKeySet{
+		source:           "github",
 		balance:          SettingKeyAuthSourceDefaultGitHubBalance,
 		concurrency:      SettingKeyAuthSourceDefaultGitHubConcurrency,
 		subscriptions:    SettingKeyAuthSourceDefaultGitHubSubscriptions,
 		grantOnSignup:    SettingKeyAuthSourceDefaultGitHubGrantOnSignup,
 		grantOnFirstBind: SettingKeyAuthSourceDefaultGitHubGrantOnFirstBind,
+		platformQuotas:   SettingKeyAuthSourcePlatformQuotas("github"),
 	}
 	googleAuthSourceDefaultKeys = authSourceDefaultKeySet{
+		source:           "google",
 		balance:          SettingKeyAuthSourceDefaultGoogleBalance,
 		concurrency:      SettingKeyAuthSourceDefaultGoogleConcurrency,
 		subscriptions:    SettingKeyAuthSourceDefaultGoogleSubscriptions,
 		grantOnSignup:    SettingKeyAuthSourceDefaultGoogleGrantOnSignup,
 		grantOnFirstBind: SettingKeyAuthSourceDefaultGoogleGrantOnFirstBind,
+		platformQuotas:   SettingKeyAuthSourcePlatformQuotas("google"),
 	}
 	dingTalkAuthSourceDefaultKeys = authSourceDefaultKeySet{
+		source:           "dingtalk",
 		balance:          SettingKeyAuthSourceDefaultDingTalkBalance,
 		concurrency:      SettingKeyAuthSourceDefaultDingTalkConcurrency,
 		subscriptions:    SettingKeyAuthSourceDefaultDingTalkSubscriptions,
 		grantOnSignup:    SettingKeyAuthSourceDefaultDingTalkGrantOnSignup,
 		grantOnFirstBind: SettingKeyAuthSourceDefaultDingTalkGrantOnFirstBind,
+		platformQuotas:   SettingKeyAuthSourcePlatformQuotas("dingtalk"),
 	}
 )
 
@@ -586,6 +623,23 @@ func (s *SettingService) SetProxyRepository(repo ProxyRepository) {
 	s.proxyRepo = repo
 }
 
+func (s *SettingService) LoadAPIKeyACLTrustForwardedIPSetting(ctx context.Context) error {
+	if s == nil || s.cfg == nil || s.settingRepo == nil {
+		return nil
+	}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyAPIKeyACLTrustForwardedIP)
+	if err != nil {
+		if errors.Is(err, ErrSettingNotFound) {
+			s.cfg.SetTrustForwardedIPForAPIKeyACL(s.cfg.Security.TrustForwardedIPForAPIKeyACL)
+			return nil
+		}
+		return fmt.Errorf("get api key acl forwarded ip setting: %w", err)
+	}
+	enabled := value == "true"
+	s.cfg.SetTrustForwardedIPForAPIKeyACL(enabled)
+	return nil
+}
+
 // GetAllSettings 获取所有系统设置
 func (s *SettingService) GetAllSettings(ctx context.Context) (*SystemSettings, error) {
 	settings, err := s.settingRepo.GetAll(ctx)
@@ -622,6 +676,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyLoginAgreementDocuments,
 		SettingKeyTurnstileEnabled,
 		SettingKeyTurnstileSiteKey,
+		SettingKeyAPIKeyACLTrustForwardedIP,
 		SettingKeySiteName,
 		SettingKeySiteLogo,
 		SettingKeySiteSubtitle,
@@ -629,15 +684,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyContactInfo,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
-		SettingKeyHomeNavLinksEnabled,
-		SettingKeyHomeNavLeaderboardEnabled,
-		SettingKeyHomeNavKeyUsageEnabled,
-		SettingKeyHomeNavMonitoringEnabled,
-		SettingKeyHomeNavPricingEnabled,
-		SettingKeyLeaderboardBalanceEnabled,
-		SettingKeyLeaderboardConsumptionEnabled,
-		SettingKeyLeaderboardTransferEnabled,
-		SettingKeyLeaderboardCheckinEnabled,
 		SettingKeyHideCcsImportButton,
 		SettingKeyPurchaseSubscriptionEnabled,
 		SettingKeyPurchaseSubscriptionURL,
@@ -646,6 +692,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyCustomMenuItems,
 		SettingKeyCustomEndpoints,
 		SettingKeyLinuxDoConnectEnabled,
+		SettingKeyDingTalkConnectEnabled,
 		SettingKeyWeChatConnectEnabled,
 		SettingKeyWeChatConnectAppID,
 		SettingKeyWeChatConnectAppSecret,
@@ -679,8 +726,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
-		SettingKeyTransferEnabled,
-		SettingKeyRedPacketEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 	}
@@ -695,6 +740,12 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		linuxDoEnabled = raw == "true"
 	} else {
 		linuxDoEnabled = s.cfg != nil && s.cfg.LinuxDo.Enabled
+	}
+	dingTalkEnabled := false
+	if raw, ok := settings[SettingKeyDingTalkConnectEnabled]; ok {
+		dingTalkEnabled = raw == "true"
+	} else {
+		dingTalkEnabled = s.cfg != nil && s.cfg.DingTalk.Enabled
 	}
 	oidcEnabled := false
 	if raw, ok := settings[SettingKeyOIDCConnectEnabled]; ok {
@@ -723,14 +774,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		settings[SettingKeyTableDefaultPageSize],
 		settings[SettingKeyTablePageSizeOptions],
 	)
-	homeNavLeaderboardEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavLeaderboardEnabled)
-	homeNavKeyUsageEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavKeyUsageEnabled)
-	homeNavMonitoringEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavMonitoringEnabled)
-	homeNavPricingEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavPricingEnabled)
-	leaderboardBalanceEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardBalanceEnabled)
-	leaderboardConsumptionEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardConsumptionEnabled)
-	leaderboardTransferEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardTransferEnabled)
-	leaderboardCheckinEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardCheckinEnabled)
 	loginAgreementDocuments := parseLoginAgreementDocuments(settings[SettingKeyLoginAgreementDocuments])
 	loginAgreementUpdatedAt := strings.TrimSpace(settings[SettingKeyLoginAgreementUpdatedAt])
 	if loginAgreementUpdatedAt == "" {
@@ -748,13 +791,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ForceEmailOnThirdPartySignup:     settings[SettingKeyForceEmailOnThirdPartySignup] == "true",
 		RegistrationEmailSuffixWhitelist: registrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                 settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
-		RedeemCodeFormat:                 ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()),
-		BalanceCodeFormat:                ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
-		ConcurrencyCodeFormat:            ParseCodeFormatSettings(settings[SettingKeyConcurrencyCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
-		SubscriptionCodeFormat:           ParseCodeFormatSettings(settings[SettingKeySubscriptionCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		PasswordResetEnabled:             passwordResetEnabled,
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
-		InvitationCodeFormat:             ParseCodeFormatSettings(settings[SettingKeyInvitationCodeFormat], DefaultRegistrationInvitationCodeFormat()),
 		TotpEnabled:                      settings[SettingKeyTotpEnabled] == "true",
 		LoginAgreementEnabled:            settings[SettingKeyLoginAgreementEnabled] == "true" && len(loginAgreementDocuments) > 0,
 		LoginAgreementMode:               normalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]),
@@ -770,15 +808,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
-		HomeNavLinksEnabled:              homeNavLeaderboardEnabled && homeNavKeyUsageEnabled && homeNavMonitoringEnabled && homeNavPricingEnabled,
-		HomeNavLeaderboardEnabled:        homeNavLeaderboardEnabled,
-		HomeNavKeyUsageEnabled:           homeNavKeyUsageEnabled,
-		HomeNavMonitoringEnabled:         homeNavMonitoringEnabled,
-		HomeNavPricingEnabled:            homeNavPricingEnabled,
-		LeaderboardBalanceEnabled:        leaderboardBalanceEnabled,
-		LeaderboardConsumptionEnabled:    leaderboardConsumptionEnabled,
-		LeaderboardTransferEnabled:       leaderboardTransferEnabled,
-		LeaderboardCheckinEnabled:        leaderboardCheckinEnabled,
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
@@ -787,6 +816,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		CustomMenuItems:                  settings[SettingKeyCustomMenuItems],
 		CustomEndpoints:                  settings[SettingKeyCustomEndpoints],
 		LinuxDoOAuthEnabled:              linuxDoEnabled,
+		DingTalkOAuthEnabled:             dingTalkEnabled,
 		WeChatOAuthEnabled:               weChatEnabled,
 		WeChatOAuthOpenEnabled:           weChatOpenEnabled,
 		WeChatOAuthMPEnabled:             weChatMPEnabled,
@@ -806,12 +836,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
-		TransferEnabled:          settings[SettingKeyTransferEnabled] == "true",
-		RedPacketEnabled:         settings[SettingKeyRedPacketEnabled] == "true",
 
-		AffiliateEnabled:    settings[SettingKeyAffiliateEnabled] == "true",
-		RiskControlEnabled:  settings[SettingKeyRiskControlEnabled] == "true",
-		AffiliateCodeFormat: ParseCodeFormatSettings(settings[SettingKeyAffiliateCodeFormat], DefaultAffiliateCodeFormat()),
+		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
+
+		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 	}, nil
 }
 
@@ -1033,15 +1061,6 @@ type PublicSettingsInjectionPayload struct {
 	ContactInfo                      string                   `json:"contact_info"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
-	HomeNavLinksEnabled              bool                     `json:"home_nav_links_enabled"`
-	HomeNavLeaderboardEnabled        bool                     `json:"home_nav_leaderboard_enabled"`
-	HomeNavKeyUsageEnabled           bool                     `json:"home_nav_key_usage_enabled"`
-	HomeNavMonitoringEnabled         bool                     `json:"home_nav_monitoring_enabled"`
-	HomeNavPricingEnabled            bool                     `json:"home_nav_pricing_enabled"`
-	LeaderboardBalanceEnabled        bool                     `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled    bool                     `json:"leaderboard_consumption_enabled"`
-	LeaderboardTransferEnabled       bool                     `json:"leaderboard_transfer_enabled"`
-	LeaderboardCheckinEnabled        bool                     `json:"leaderboard_checkin_enabled"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string                   `json:"purchase_subscription_url"`
@@ -1049,8 +1068,8 @@ type PublicSettingsInjectionPayload struct {
 	TablePageSizeOptions             []int                    `json:"table_page_size_options"`
 	CustomMenuItems                  json.RawMessage          `json:"custom_menu_items"`
 	CustomEndpoints                  json.RawMessage          `json:"custom_endpoints"`
-	DingTalkOAuthEnabled             bool                     `json:"dingtalk_oauth_enabled"`
 	LinuxDoOAuthEnabled              bool                     `json:"linuxdo_oauth_enabled"`
+	DingTalkOAuthEnabled             bool                     `json:"dingtalk_oauth_enabled"`
 	WeChatOAuthEnabled               bool                     `json:"wechat_oauth_enabled"`
 	WeChatOAuthOpenEnabled           bool                     `json:"wechat_oauth_open_enabled"`
 	WeChatOAuthMPEnabled             bool                     `json:"wechat_oauth_mp_enabled"`
@@ -1073,8 +1092,6 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
-	TransferEnabled                      bool `json:"transfer_enabled"`
-	RedPacketEnabled                     bool `json:"redpacket_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 }
@@ -1109,15 +1126,6 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ContactInfo:                      settings.ContactInfo,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
-		HomeNavLinksEnabled:              settings.HomeNavLinksEnabled,
-		HomeNavLeaderboardEnabled:        settings.HomeNavLeaderboardEnabled,
-		HomeNavKeyUsageEnabled:           settings.HomeNavKeyUsageEnabled,
-		HomeNavMonitoringEnabled:         settings.HomeNavMonitoringEnabled,
-		HomeNavPricingEnabled:            settings.HomeNavPricingEnabled,
-		LeaderboardBalanceEnabled:        settings.LeaderboardBalanceEnabled,
-		LeaderboardConsumptionEnabled:    settings.LeaderboardConsumptionEnabled,
-		LeaderboardTransferEnabled:       settings.LeaderboardTransferEnabled,
-		LeaderboardCheckinEnabled:        settings.LeaderboardCheckinEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
@@ -1125,8 +1133,8 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		TablePageSizeOptions:             settings.TablePageSizeOptions,
 		CustomMenuItems:                  filterUserVisibleMenuItems(settings.CustomMenuItems),
 		CustomEndpoints:                  safeRawJSONArray(settings.CustomEndpoints),
-		DingTalkOAuthEnabled:             settings.DingTalkOAuthEnabled,
 		LinuxDoOAuthEnabled:              settings.LinuxDoOAuthEnabled,
+		DingTalkOAuthEnabled:             settings.DingTalkOAuthEnabled,
 		WeChatOAuthEnabled:               settings.WeChatOAuthEnabled,
 		WeChatOAuthOpenEnabled:           settings.WeChatOAuthOpenEnabled,
 		WeChatOAuthMPEnabled:             settings.WeChatOAuthMPEnabled,
@@ -1146,8 +1154,6 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
-		TransferEnabled:                      settings.TransferEnabled,
-		RedPacketEnabled:                     settings.RedPacketEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 	}, nil
@@ -1549,24 +1555,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if settings.WeChatConnectFrontendRedirectURL == "" {
 		settings.WeChatConnectFrontendRedirectURL = defaultWeChatConnectFrontend
 	}
-	if settings.RedeemCodeFormat.RandomLength <= 0 {
-		settings.RedeemCodeFormat = DefaultRedeemCodeFormat()
-	}
-	if settings.BalanceCodeFormat.RandomLength <= 0 {
-		settings.BalanceCodeFormat = settings.RedeemCodeFormat
-	}
-	if settings.ConcurrencyCodeFormat.RandomLength <= 0 {
-		settings.ConcurrencyCodeFormat = settings.RedeemCodeFormat
-	}
-	if settings.SubscriptionCodeFormat.RandomLength <= 0 {
-		settings.SubscriptionCodeFormat = settings.RedeemCodeFormat
-	}
-	if settings.InvitationCodeFormat.RandomLength <= 0 {
-		settings.InvitationCodeFormat = DefaultRegistrationInvitationCodeFormat()
-	}
-	if settings.AffiliateCodeFormat.RandomLength <= 0 {
-		settings.AffiliateCodeFormat = DefaultAffiliateCodeFormat()
-	}
 	settings.GitHubOAuthRedirectURL = strings.TrimSpace(settings.GitHubOAuthRedirectURL)
 	settings.GitHubOAuthFrontendRedirectURL = strings.TrimSpace(settings.GitHubOAuthFrontendRedirectURL)
 	if settings.GitHubOAuthFrontendRedirectURL == "" {
@@ -1589,34 +1577,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 	updates[SettingKeyRegistrationEmailSuffixWhitelist] = string(registrationEmailSuffixWhitelistJSON)
 	updates[SettingKeyPromoCodeEnabled] = strconv.FormatBool(settings.PromoCodeEnabled)
-	redeemCodeFormatJSON, err := MarshalCodeFormatSettings(settings.RedeemCodeFormat)
-	if err != nil {
-		return nil, fmt.Errorf("marshal redeem code format: %w", err)
-	}
-	updates[SettingKeyRedeemCodeFormat] = redeemCodeFormatJSON
-	balanceCodeFormatJSON, err := MarshalCodeFormatSettings(settings.BalanceCodeFormat)
-	if err != nil {
-		return nil, fmt.Errorf("marshal balance code format: %w", err)
-	}
-	updates[SettingKeyBalanceCodeFormat] = balanceCodeFormatJSON
-	concurrencyCodeFormatJSON, err := MarshalCodeFormatSettings(settings.ConcurrencyCodeFormat)
-	if err != nil {
-		return nil, fmt.Errorf("marshal concurrency code format: %w", err)
-	}
-	updates[SettingKeyConcurrencyCodeFormat] = concurrencyCodeFormatJSON
-	subscriptionCodeFormatJSON, err := MarshalCodeFormatSettings(settings.SubscriptionCodeFormat)
-	if err != nil {
-		return nil, fmt.Errorf("marshal subscription code format: %w", err)
-	}
-	updates[SettingKeySubscriptionCodeFormat] = subscriptionCodeFormatJSON
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
 	updates[SettingKeyFrontendURL] = settings.FrontendURL
 	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
-	invitationCodeFormatJSON, err := MarshalCodeFormatSettings(settings.InvitationCodeFormat)
-	if err != nil {
-		return nil, fmt.Errorf("marshal invitation code format: %w", err)
-	}
-	updates[SettingKeyInvitationCodeFormat] = invitationCodeFormatJSON
 	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
 	settings.LoginAgreementMode = normalizeLoginAgreementMode(settings.LoginAgreementMode)
 	settings.LoginAgreementUpdatedAt = strings.TrimSpace(settings.LoginAgreementUpdatedAt)
@@ -1649,6 +1612,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if settings.TurnstileSecretKey != "" {
 		updates[SettingKeyTurnstileSecretKey] = settings.TurnstileSecretKey
 	}
+	updates[SettingKeyAPIKeyACLTrustForwardedIP] = strconv.FormatBool(settings.APIKeyACLTrustForwardedIP)
 
 	// LinuxDo Connect OAuth 登录
 	updates[SettingKeyLinuxDoConnectEnabled] = strconv.FormatBool(settings.LinuxDoConnectEnabled)
@@ -1754,17 +1718,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyContactInfo] = settings.ContactInfo
 	updates[SettingKeyDocURL] = settings.DocURL
 	updates[SettingKeyHomeContent] = settings.HomeContent
-	homeNavLinksEnabled := settings.HomeNavLeaderboardEnabled && settings.HomeNavKeyUsageEnabled && settings.HomeNavMonitoringEnabled && settings.HomeNavPricingEnabled
-	updates[SettingKeyHomeNavLinksEnabled] = strconv.FormatBool(homeNavLinksEnabled)
-	updates[SettingKeyHomeNavLeaderboardEnabled] = strconv.FormatBool(settings.HomeNavLeaderboardEnabled)
-	updates[SettingKeyHomeNavKeyUsageEnabled] = strconv.FormatBool(settings.HomeNavKeyUsageEnabled)
-	updates[SettingKeyHomeNavMonitoringEnabled] = strconv.FormatBool(settings.HomeNavMonitoringEnabled)
-	updates[SettingKeyHomeNavPricingEnabled] = strconv.FormatBool(settings.HomeNavPricingEnabled)
-	updates[SettingKeyLeaderboardBalanceEnabled] = strconv.FormatBool(settings.LeaderboardBalanceEnabled)
-	updates[SettingKeyLeaderboardConsumptionEnabled] = strconv.FormatBool(settings.LeaderboardConsumptionEnabled)
-	updates[SettingKeyLeaderboardTransferEnabled] = strconv.FormatBool(settings.LeaderboardTransferEnabled)
-	updates[SettingKeyLeaderboardCheckinEnabled] = strconv.FormatBool(settings.LeaderboardCheckinEnabled)
-	updates[SettingKeyLeaderboardIncludeAdmin] = strconv.FormatBool(settings.LeaderboardIncludeAdmin)
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
@@ -1784,11 +1737,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// 默认配置
 	updates[SettingKeyDefaultConcurrency] = strconv.Itoa(settings.DefaultConcurrency)
 	updates[SettingKeyDefaultBalance] = strconv.FormatFloat(settings.DefaultBalance, 'f', 8, 64)
-	affiliateCodeFormatJSON, err := MarshalCodeFormatSettings(settings.AffiliateCodeFormat)
-	if err != nil {
-		return nil, fmt.Errorf("marshal affiliate code format: %w", err)
-	}
-	updates[SettingKeyAffiliateCodeFormat] = affiliateCodeFormatJSON
 	settings.AffiliateRebateRate = clampAffiliateRebateRate(settings.AffiliateRebateRate)
 	updates[SettingKeyAffiliateRebateRate] = strconv.FormatFloat(settings.AffiliateRebateRate, 'f', 8, 64)
 	if settings.AffiliateRebateFreezeHours < 0 {
@@ -1874,41 +1822,47 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingPaymentVisibleMethodWxpayEnabled] = strconv.FormatBool(settings.PaymentVisibleMethodWxpayEnabled)
 	updates[openAIAdvancedSchedulerSettingKey] = strconv.FormatBool(settings.OpenAIAdvancedSchedulerEnabled)
 
-	// Balance low notification
+	// 余额、订阅到期与账号限额通知
 	updates[SettingKeyBalanceLowNotifyEnabled] = strconv.FormatBool(settings.BalanceLowNotifyEnabled)
 	updates[SettingKeyBalanceLowNotifyThreshold] = strconv.FormatFloat(settings.BalanceLowNotifyThreshold, 'f', 8, 64)
 	updates[SettingKeyBalanceLowNotifyRechargeURL] = settings.BalanceLowNotifyRechargeURL
+	updates[SettingKeySubscriptionExpiryNotifyEnabled] = strconv.FormatBool(settings.SubscriptionExpiryNotifyEnabled)
 	updates[SettingKeyAccountQuotaNotifyEnabled] = strconv.FormatBool(settings.AccountQuotaNotifyEnabled)
 	updates[SettingKeyAccountQuotaNotifyEmails] = MarshalNotifyEmails(settings.AccountQuotaNotifyEmails)
 
-	// Checkin 签到设置
-	updates[SettingKeyCheckinEnabled] = strconv.FormatBool(settings.CheckinEnabled)
-	updates[SettingKeyCheckinMinBalance] = strconv.FormatFloat(settings.CheckinMinBalance, 'f', 8, 64)
-	updates[SettingKeyCheckinMaxBalance] = strconv.FormatFloat(settings.CheckinMaxBalance, 'f', 8, 64)
-
-	// Checkin Luck 运气签到设置
-	updates[SettingKeyCheckinLuckEnabled] = strconv.FormatBool(settings.CheckinLuckEnabled)
-	updates[SettingKeyCheckinLuckMinMultiplier] = strconv.FormatFloat(settings.CheckinLuckMinMultiplier, 'f', 8, 64)
-	updates[SettingKeyCheckinLuckMaxMultiplier] = strconv.FormatFloat(settings.CheckinLuckMaxMultiplier, 'f', 8, 64)
-
-	// Checkin Blind Box 签到盲盒设置
-	updates[SettingKeyCheckinBlindboxEnabled] = strconv.FormatBool(settings.CheckinBlindboxEnabled)
-	updates[SettingKeyCheckinBlindboxTriggerType] = settings.CheckinBlindboxTriggerType
-	updates[SettingKeyCheckinBlindboxInterval] = strconv.Itoa(settings.CheckinBlindboxInterval)
-
-	// Transfer settings
-	updates[SettingKeyTransferEnabled] = strconv.FormatBool(settings.TransferEnabled)
-	updates[SettingKeyTransferFeeRate] = strconv.FormatFloat(settings.TransferFeeRate, 'f', 6, 64)
-	updates[SettingKeyTransferMinAmount] = strconv.FormatFloat(settings.TransferMinAmount, 'f', 8, 64)
-	updates[SettingKeyTransferMaxAmount] = strconv.FormatFloat(settings.TransferMaxAmount, 'f', 8, 64)
-	updates[SettingKeyTransferDailyLimit] = strconv.FormatFloat(settings.TransferDailyLimit, 'f', 8, 64)
-	updates[SettingKeyTransferDailyCountLimit] = strconv.Itoa(settings.TransferDailyCountLimit)
-	updates[SettingKeyTransferVIPFeeExempt] = strconv.FormatBool(settings.TransferVIPFeeExempt)
-	updates[SettingKeyRedPacketEnabled] = strconv.FormatBool(settings.RedPacketEnabled)
-	updates[SettingKeyRedPacketMaxCount] = strconv.Itoa(settings.RedPacketMaxCount)
-	updates[SettingKeyRedPacketExpireHours] = strconv.Itoa(settings.RedPacketExpireHours)
+	// 系统全局 platform quota：整体替换语义（null/缺省 = 不限制）。
+	if settings.DefaultPlatformQuotas != nil {
+		if err := validateDefaultPlatformQuotaMap(settings.DefaultPlatformQuotas); err != nil {
+			return nil, err
+		}
+		blob, err := json.Marshal(settings.DefaultPlatformQuotas)
+		if err != nil {
+			return nil, fmt.Errorf("marshal default platform quotas: %w", err)
+		}
+		updates[SettingKeyDefaultPlatformQuotas] = string(blob)
+	}
 
 	return updates, nil
+}
+
+// validateDefaultPlatformQuotaMap 校验 platform quota map 的合法性：
+// 平台名须在 AllowedQuotaPlatforms 白名单内，每个非 nil 上限须 finite 且 >= 0。
+// 系统层和 auth-source 层共用此 helper。
+func validateDefaultPlatformQuotaMap(m map[string]*DefaultPlatformQuotaSetting) error {
+	for platform, pq := range m {
+		if !IsAllowedQuotaPlatform(platform) {
+			return infraerrors.BadRequest("INVALID_DEFAULT_PLATFORM_QUOTA", fmt.Sprintf("unknown platform %q", platform))
+		}
+		if pq == nil {
+			continue
+		}
+		for _, v := range []*float64{pq.DailyLimitUSD, pq.WeeklyLimitUSD, pq.MonthlyLimitUSD} {
+			if v != nil && (*v < 0 || math.IsNaN(*v) || math.IsInf(*v, 0)) {
+				return infraerrors.BadRequest("INVALID_DEFAULT_PLATFORM_QUOTA", "platform quota limit must be a finite non-negative number")
+			}
+		}
+	}
+	return nil
 }
 
 func (s *SettingService) buildAuthSourceDefaultUpdates(ctx context.Context, settings *AuthSourceDefaultSettings) (map[string]string, error) {
@@ -1923,19 +1877,41 @@ func (s *SettingService) buildAuthSourceDefaultUpdates(ctx context.Context, sett
 		settings.WeChat.Subscriptions,
 		settings.GitHub.Subscriptions,
 		settings.Google.Subscriptions,
+		settings.DingTalk.Subscriptions,
 	} {
 		if err := s.validateDefaultSubscriptionGroups(ctx, subscriptions); err != nil {
 			return nil, err
 		}
 	}
 
-	updates := make(map[string]string, 31)
+	// 校验各 auth source 的 platform quota map（改动 C：对等系统层校验）
+	for _, pgs := range []struct {
+		name string
+		pq   map[string]*DefaultPlatformQuotaSetting
+	}{
+		{"email", settings.Email.PlatformQuotas},
+		{"linuxdo", settings.LinuxDo.PlatformQuotas},
+		{"oidc", settings.OIDC.PlatformQuotas},
+		{"wechat", settings.WeChat.PlatformQuotas},
+		{"github", settings.GitHub.PlatformQuotas},
+		{"google", settings.Google.PlatformQuotas},
+		{"dingtalk", settings.DingTalk.PlatformQuotas},
+	} {
+		if pgs.pq != nil {
+			if err := validateDefaultPlatformQuotaMap(pgs.pq); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	updates := make(map[string]string, 36)
 	writeProviderDefaultGrantUpdates(updates, emailAuthSourceDefaultKeys, settings.Email)
 	writeProviderDefaultGrantUpdates(updates, linuxDoAuthSourceDefaultKeys, settings.LinuxDo)
 	writeProviderDefaultGrantUpdates(updates, oidcAuthSourceDefaultKeys, settings.OIDC)
 	writeProviderDefaultGrantUpdates(updates, weChatAuthSourceDefaultKeys, settings.WeChat)
 	writeProviderDefaultGrantUpdates(updates, gitHubAuthSourceDefaultKeys, settings.GitHub)
 	writeProviderDefaultGrantUpdates(updates, googleAuthSourceDefaultKeys, settings.Google)
+	writeProviderDefaultGrantUpdates(updates, dingTalkAuthSourceDefaultKeys, settings.DingTalk)
 	updates[SettingKeyForceEmailOnThirdPartySignup] = strconv.FormatBool(settings.ForceEmailOnThirdPartySignup)
 	return updates, nil
 }
@@ -1989,6 +1965,9 @@ func (s *SettingService) refreshCachedSettings(settings *SystemSettings) {
 		enabled:   settings.OpenAIAdvancedSchedulerEnabled,
 		expiresAt: time.Now().Add(openAIAdvancedSchedulerSettingCacheTTL).UnixNano(),
 	})
+	if s.cfg != nil {
+		s.cfg.SetTrustForwardedIPForAPIKeyACL(settings.APIKeyACLTrustForwardedIP)
+	}
 	if s.onUpdate != nil {
 		s.onUpdate() // Invalidate cache after settings update
 	}
@@ -2275,53 +2254,6 @@ func (s *SettingService) IsPromoCodeEnabled(ctx context.Context) bool {
 	return value != "false"
 }
 
-func (s *SettingService) GetRedeemCodeFormat(ctx context.Context) CodeFormatSettings {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyRedeemCodeFormat)
-	if err != nil {
-		return DefaultRedeemCodeFormat()
-	}
-	return ParseCodeFormatSettings(value, DefaultRedeemCodeFormat())
-}
-
-func (s *SettingService) GetBalanceCodeFormat(ctx context.Context) CodeFormatSettings {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyBalanceCodeFormat)
-	if err != nil {
-		return s.GetRedeemCodeFormat(ctx)
-	}
-	return ParseCodeFormatSettings(value, s.GetRedeemCodeFormat(ctx))
-}
-
-func (s *SettingService) GetConcurrencyCodeFormat(ctx context.Context) CodeFormatSettings {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyConcurrencyCodeFormat)
-	if err != nil {
-		return s.GetRedeemCodeFormat(ctx)
-	}
-	return ParseCodeFormatSettings(value, s.GetRedeemCodeFormat(ctx))
-}
-
-func (s *SettingService) GetSubscriptionCodeFormat(ctx context.Context) CodeFormatSettings {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeySubscriptionCodeFormat)
-	if err != nil {
-		return s.GetRedeemCodeFormat(ctx)
-	}
-	return ParseCodeFormatSettings(value, s.GetRedeemCodeFormat(ctx))
-}
-
-func (s *SettingService) GetCodeFormatForRedeemType(ctx context.Context, codeType string) CodeFormatSettings {
-	switch codeType {
-	case RedeemTypeInvitation:
-		return s.GetInvitationCodeFormat(ctx)
-	case RedeemTypeSubscription:
-		return s.GetSubscriptionCodeFormat(ctx)
-	case RedeemTypeConcurrency, AdjustmentTypeAdminConcurrency:
-		return s.GetConcurrencyCodeFormat(ctx)
-	case RedeemTypeBalance, AdjustmentTypeAdminBalance, AdjustmentTypeRegistration, AdjustmentTypeCheckin, AdjustmentTypeCheckinLuck, AdjustmentTypeCheckinBlindbox, RedeemTypeAffiliateBalance:
-		return s.GetBalanceCodeFormat(ctx)
-	default:
-		return s.GetBalanceCodeFormat(ctx)
-	}
-}
-
 // IsInvitationCodeEnabled 检查是否启用邀请码注册功能
 func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyInvitationCodeEnabled)
@@ -2329,14 +2261,6 @@ func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
 		return false // 默认关闭
 	}
 	return value == "true"
-}
-
-func (s *SettingService) GetInvitationCodeFormat(ctx context.Context) CodeFormatSettings {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyInvitationCodeFormat)
-	if err != nil {
-		return DefaultRegistrationInvitationCodeFormat()
-	}
-	return ParseCodeFormatSettings(value, DefaultRegistrationInvitationCodeFormat())
 }
 
 // GetCustomMenuItemsRaw returns the raw JSON string of custom_menu_items setting.
@@ -2355,14 +2279,6 @@ func (s *SettingService) IsAffiliateEnabled(ctx context.Context) bool {
 		return false // 默认关闭
 	}
 	return value == "true"
-}
-
-func (s *SettingService) GetAffiliateCodeFormat(ctx context.Context) CodeFormatSettings {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyAffiliateCodeFormat)
-	if err != nil {
-		return DefaultAffiliateCodeFormat()
-	}
-	return ParseCodeFormatSettings(value, DefaultAffiliateCodeFormat())
 }
 
 // GetAffiliateRebateRatePercent 读取并 clamp 全局返利比例。
@@ -2511,155 +2427,6 @@ func (s *SettingService) GetDefaultSubscriptions(ctx context.Context) []DefaultS
 	return parseDefaultSubscriptions(value)
 }
 
-// GetAutoFailoverProxyPoolIDs returns the dedicated global proxy pool used by
-// OpenAI/Antigravity automatic proxy failover.
-func (s *SettingService) GetAutoFailoverProxyPoolIDs(ctx context.Context) ([]int64, error) {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyAutoFailoverProxyPool)
-	if err != nil || strings.TrimSpace(value) == "" {
-		return []int64{}, nil
-	}
-
-	var rawIDs []int64
-	if err := json.Unmarshal([]byte(value), &rawIDs); err != nil {
-		return nil, fmt.Errorf("unmarshal auto failover proxy pool: %w", err)
-	}
-
-	return dedupePositiveInt64s(rawIDs), nil
-}
-
-// SetAutoFailoverProxyPoolIDs persists the dedicated global proxy pool used by
-// OpenAI/Antigravity automatic proxy failover.
-func (s *SettingService) SetAutoFailoverProxyPoolIDs(ctx context.Context, ids []int64) error {
-	normalized := dedupePositiveInt64s(ids)
-	sort.Slice(normalized, func(i, j int) bool { return normalized[i] < normalized[j] })
-	payload, err := json.Marshal(normalized)
-	if err != nil {
-		return fmt.Errorf("marshal auto failover proxy pool: %w", err)
-	}
-	return s.settingRepo.Set(ctx, SettingKeyAutoFailoverProxyPool, string(payload))
-}
-
-// SetAutoFailoverProxyEnabled adds or removes a proxy from the dedicated global
-// auto-failover pool.
-func (s *SettingService) SetAutoFailoverProxyEnabled(ctx context.Context, proxyID int64, enabled bool) error {
-	if proxyID <= 0 {
-		return fmt.Errorf("proxy id must be positive")
-	}
-
-	ids, err := s.GetAutoFailoverProxyPoolIDs(ctx)
-	if err != nil {
-		return err
-	}
-
-	seen := make(map[int64]struct{}, len(ids)+1)
-	next := make([]int64, 0, len(ids)+1)
-	for _, id := range ids {
-		if id <= 0 {
-			continue
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		if !enabled && id == proxyID {
-			continue
-		}
-		seen[id] = struct{}{}
-		next = append(next, id)
-	}
-	if enabled {
-		if _, ok := seen[proxyID]; !ok {
-			next = append(next, proxyID)
-		}
-	}
-
-	return s.SetAutoFailoverProxyPoolIDs(ctx, next)
-}
-
-// IsCheckinEnabled 获取签到功能是否启用
-func (s *SettingService) IsCheckinEnabled(ctx context.Context) bool {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyCheckinEnabled)
-	if err != nil {
-		return false
-	}
-	return value == "true"
-}
-
-// GetCheckinBalanceRange 获取签到奖励金额范围 (min, max)
-func (s *SettingService) GetCheckinBalanceRange(ctx context.Context) (float64, float64) {
-	minVal, maxVal := 0.1, 1.0
-	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinMinBalance, "0.1"), 64); err == nil && v >= 0 {
-		minVal = v
-	}
-	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinMaxBalance, "1.0"), 64); err == nil && v >= 0 {
-		maxVal = v
-	}
-	if minVal > maxVal {
-		minVal, maxVal = maxVal, minVal
-	}
-	return minVal, maxVal
-}
-
-// IsCheckinLuckEnabled 获取运气签到功能是否启用
-func (s *SettingService) IsCheckinLuckEnabled(ctx context.Context) bool {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyCheckinLuckEnabled)
-	if err != nil {
-		return false
-	}
-	return value == "true"
-}
-
-// GetCheckinLuckMultiplierRange 获取运气签到倍率范围 (min, max)
-func (s *SettingService) GetCheckinLuckMultiplierRange(ctx context.Context) (float64, float64) {
-	minVal, maxVal := 0.1, 3.0
-	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinLuckMinMultiplier, "0.1"), 64); err == nil && v >= 0 {
-		minVal = v
-	}
-	if v, err := strconv.ParseFloat(s.getStringWithDefault(ctx, SettingKeyCheckinLuckMaxMultiplier, "3.0"), 64); err == nil && v >= 0 {
-		maxVal = v
-	}
-	if minVal > maxVal {
-		minVal, maxVal = maxVal, minVal
-	}
-	return minVal, maxVal
-}
-
-func (s *SettingService) IsCheckinBlindboxEnabled(ctx context.Context) bool {
-	return s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxEnabled, "false") == "true"
-}
-
-func (s *SettingService) GetCheckinBlindboxTriggerType(ctx context.Context) string {
-	v := s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxTriggerType, "streak")
-	if v != "streak" && v != "total" {
-		return "streak"
-	}
-	return v
-}
-
-func (s *SettingService) IsLeaderboardIncludeAdminEnabled(ctx context.Context) bool {
-	value, err := s.settingRepo.GetValue(ctx, SettingKeyLeaderboardIncludeAdmin)
-	if err != nil {
-		return false
-	}
-	return value == "true"
-}
-
-func (s *SettingService) GetCheckinBlindboxInterval(ctx context.Context) int {
-	v := s.getStringWithDefault(ctx, SettingKeyCheckinBlindboxInterval, "7")
-	n, err := strconv.Atoi(v)
-	if err != nil || n <= 0 {
-		return 7
-	}
-	return n
-}
-
-func (s *SettingService) getStringWithDefault(ctx context.Context, key, fallback string) string {
-	value, err := s.settingRepo.GetValue(ctx, key)
-	if err != nil || value == "" {
-		return fallback
-	}
-	return value
-}
-
 func (s *SettingService) GetAuthSourceDefaultSettings(ctx context.Context) (*AuthSourceDefaultSettings, error) {
 	keys := []string{
 		SettingKeyAuthSourceDefaultEmailBalance,
@@ -2697,6 +2464,13 @@ func (s *SettingService) GetAuthSourceDefaultSettings(ctx context.Context) (*Aut
 		SettingKeyAuthSourceDefaultDingTalkSubscriptions,
 		SettingKeyAuthSourceDefaultDingTalkGrantOnSignup,
 		SettingKeyAuthSourceDefaultDingTalkGrantOnFirstBind,
+		SettingKeyAuthSourcePlatformQuotas("email"),
+		SettingKeyAuthSourcePlatformQuotas("linuxdo"),
+		SettingKeyAuthSourcePlatformQuotas("oidc"),
+		SettingKeyAuthSourcePlatformQuotas("wechat"),
+		SettingKeyAuthSourcePlatformQuotas("github"),
+		SettingKeyAuthSourcePlatformQuotas("google"),
+		SettingKeyAuthSourcePlatformQuotas("dingtalk"),
 		SettingKeyForceEmailOnThirdPartySignup,
 	}
 
@@ -2762,9 +2536,14 @@ func (s *SettingService) UpdateAuthSourceDefaultSettings(ctx context.Context, se
 
 // InitializeDefaultSettings 初始化默认设置
 func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
-	existing, err := s.settingRepo.GetAll(ctx)
-	if err != nil {
-		return fmt.Errorf("load existing settings: %w", err)
+	// 检查是否已有设置
+	_, err := s.settingRepo.GetValue(ctx, SettingKeyRegistrationEnabled)
+	if err == nil {
+		// 已有设置，不需要初始化
+		return nil
+	}
+	if !errors.Is(err, ErrSettingNotFound) {
+		return fmt.Errorf("check existing settings: %w", err)
 	}
 
 	oidcUsePKCEDefault := true
@@ -2784,127 +2563,117 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 	// 初始化默认设置
 	defaults := map[string]string{
-		SettingKeyRegistrationEnabled:                      "true",
-		SettingKeyEmailVerifyEnabled:                       "false",
-		SettingKeyRegistrationEmailSuffixWhitelist:         "[]",
-		SettingKeyPromoCodeEnabled:                         "true", // 默认启用优惠码功能
-		SettingKeyRedeemCodeFormat:                         mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
-		SettingKeyBalanceCodeFormat:                        mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
-		SettingKeyConcurrencyCodeFormat:                    mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
-		SettingKeySubscriptionCodeFormat:                   mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
-		SettingKeyInvitationCodeFormat:                     mustMarshalCodeFormatDefaults(DefaultRegistrationInvitationCodeFormat()),
-		SettingKeyLoginAgreementEnabled:                    "false",
-		SettingKeyLoginAgreementMode:                       defaultLoginAgreementMode,
-		SettingKeyLoginAgreementUpdatedAt:                  defaultLoginAgreementDate,
-		SettingKeyLoginAgreementDocuments:                  loginAgreementDocumentsJSON,
-		SettingKeySiteName:                                 "Sub2API",
-		SettingKeySiteLogo:                                 "",
-		SettingKeyHomeNavLinksEnabled:                      "true",
-		SettingKeyHomeNavLeaderboardEnabled:                "true",
-		SettingKeyHomeNavKeyUsageEnabled:                   "true",
-		SettingKeyHomeNavMonitoringEnabled:                 "true",
-		SettingKeyHomeNavPricingEnabled:                    "true",
-		SettingKeyLeaderboardBalanceEnabled:                "true",
-		SettingKeyLeaderboardConsumptionEnabled:            "true",
-		SettingKeyLeaderboardTransferEnabled:               "true",
-		SettingKeyLeaderboardCheckinEnabled:                "true",
-		SettingKeyLeaderboardIncludeAdmin:                  "false",
-		SettingKeyPurchaseSubscriptionEnabled:              "false",
-		SettingKeyPurchaseSubscriptionURL:                  "",
-		SettingKeyTableDefaultPageSize:                     "20",
-		SettingKeyTablePageSizeOptions:                     "[10,20,50,100]",
-		SettingKeyCustomMenuItems:                          "[]",
-		SettingKeyCustomEndpoints:                          "[]",
-		SettingKeyWeChatConnectEnabled:                     "false",
-		SettingKeyWeChatConnectAppID:                       "",
-		SettingKeyWeChatConnectAppSecret:                   "",
-		SettingKeyWeChatConnectOpenAppID:                   "",
-		SettingKeyWeChatConnectOpenAppSecret:               "",
-		SettingKeyWeChatConnectMPAppID:                     "",
-		SettingKeyWeChatConnectMPAppSecret:                 "",
-		SettingKeyWeChatConnectMobileAppID:                 "",
-		SettingKeyWeChatConnectMobileAppSecret:             "",
-		SettingKeyWeChatConnectOpenEnabled:                 "false",
-		SettingKeyWeChatConnectMPEnabled:                   "false",
-		SettingKeyWeChatConnectMobileEnabled:               "false",
-		SettingKeyWeChatConnectMode:                        "open",
-		SettingKeyWeChatConnectScopes:                      "snsapi_login",
-		SettingKeyWeChatConnectRedirectURL:                 "",
-		SettingKeyWeChatConnectFrontendRedirectURL:         defaultWeChatConnectFrontend,
-		SettingKeyGitHubOAuthEnabled:                       "false",
-		SettingKeyGitHubOAuthClientID:                      "",
-		SettingKeyGitHubOAuthClientSecret:                  "",
-		SettingKeyGitHubOAuthRedirectURL:                   "",
-		SettingKeyGitHubOAuthFrontendRedirectURL:           defaultGitHubOAuthFrontend,
-		SettingKeyGoogleOAuthEnabled:                       "false",
-		SettingKeyGoogleOAuthClientID:                      "",
-		SettingKeyGoogleOAuthClientSecret:                  "",
-		SettingKeyGoogleOAuthRedirectURL:                   "",
-		SettingKeyGoogleOAuthFrontendRedirectURL:           defaultGoogleOAuthFrontend,
-		SettingKeyOIDCConnectEnabled:                       "false",
-		SettingKeyOIDCConnectProviderName:                  "OIDC",
-		SettingKeyOIDCConnectClientID:                      "",
-		SettingKeyOIDCConnectClientSecret:                  "",
-		SettingKeyOIDCConnectIssuerURL:                     "",
-		SettingKeyOIDCConnectDiscoveryURL:                  "",
-		SettingKeyOIDCConnectAuthorizeURL:                  "",
-		SettingKeyOIDCConnectTokenURL:                      "",
-		SettingKeyOIDCConnectUserInfoURL:                   "",
-		SettingKeyOIDCConnectJWKSURL:                       "",
-		SettingKeyOIDCConnectScopes:                        "openid email profile",
-		SettingKeyOIDCConnectRedirectURL:                   "",
-		SettingKeyOIDCConnectFrontendRedirectURL:           "/auth/oidc/callback",
-		SettingKeyOIDCConnectTokenAuthMethod:               "client_secret_post",
-		SettingKeyOIDCConnectUsePKCE:                       strconv.FormatBool(oidcUsePKCEDefault),
-		SettingKeyOIDCConnectValidateIDToken:               strconv.FormatBool(oidcValidateIDTokenDefault),
-		SettingKeyOIDCConnectAllowedSigningAlgs:            "RS256,ES256,PS256",
-		SettingKeyOIDCConnectClockSkewSeconds:              "120",
-		SettingKeyOIDCConnectRequireEmailVerified:          "false",
-		SettingKeyOIDCConnectUserInfoEmailPath:             "",
-		SettingKeyOIDCConnectUserInfoIDPath:                "",
-		SettingKeyOIDCConnectUserInfoUsernamePath:          "",
-		SettingKeyDefaultConcurrency:                       strconv.Itoa(s.cfg.Default.UserConcurrency),
-		SettingKeyDefaultBalance:                           strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
-		SettingKeyAffiliateCodeFormat:                      mustMarshalCodeFormatDefaults(DefaultAffiliateCodeFormat()),
-		SettingKeyAffiliateRebateRate:                      strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
-		SettingKeyAffiliateRebateFreezeHours:               strconv.Itoa(AffiliateRebateFreezeHoursDefault),
-		SettingKeyAffiliateRebateDurationDays:              strconv.Itoa(AffiliateRebateDurationDaysDefault),
-		SettingKeyAffiliateRebatePerInviteeCap:             strconv.FormatFloat(AffiliateRebatePerInviteeCapDefault, 'f', 2, 64),
-		SettingKeyDefaultUserRPMLimit:                      "0",
-		SettingKeyDefaultSubscriptions:                     "[]",
-		SettingKeyAuthSourceDefaultEmailBalance:            "0",
-		SettingKeyAuthSourceDefaultEmailConcurrency:        "5",
-		SettingKeyAuthSourceDefaultEmailSubscriptions:      "[]",
-		SettingKeyAuthSourceDefaultEmailGrantOnSignup:      "false",
-		SettingKeyAuthSourceDefaultEmailGrantOnFirstBind:   "false",
-		SettingKeyAuthSourceDefaultLinuxDoBalance:          "0",
-		SettingKeyAuthSourceDefaultLinuxDoConcurrency:      "5",
-		SettingKeyAuthSourceDefaultLinuxDoSubscriptions:    "[]",
-		SettingKeyAuthSourceDefaultLinuxDoGrantOnSignup:    "false",
-		SettingKeyAuthSourceDefaultLinuxDoGrantOnFirstBind: "false",
-		SettingKeyAuthSourceDefaultOIDCBalance:             "0",
-		SettingKeyAuthSourceDefaultOIDCConcurrency:         "5",
-		SettingKeyAuthSourceDefaultOIDCSubscriptions:       "[]",
-		SettingKeyAuthSourceDefaultOIDCGrantOnSignup:       "false",
-		SettingKeyAuthSourceDefaultOIDCGrantOnFirstBind:    "false",
-		SettingKeyAuthSourceDefaultWeChatBalance:           "0",
-		SettingKeyAuthSourceDefaultWeChatConcurrency:       "5",
-		SettingKeyAuthSourceDefaultWeChatSubscriptions:     "[]",
-		SettingKeyAuthSourceDefaultWeChatGrantOnSignup:     "false",
-		SettingKeyAuthSourceDefaultWeChatGrantOnFirstBind:  "false",
-		SettingKeyAuthSourceDefaultGitHubBalance:           "0",
-		SettingKeyAuthSourceDefaultGitHubConcurrency:       "5",
-		SettingKeyAuthSourceDefaultGitHubSubscriptions:     "[]",
-		SettingKeyAuthSourceDefaultGitHubGrantOnSignup:     "false",
-		SettingKeyAuthSourceDefaultGitHubGrantOnFirstBind:  "false",
-		SettingKeyAuthSourceDefaultGoogleBalance:           "0",
-		SettingKeyAuthSourceDefaultGoogleConcurrency:       "5",
-		SettingKeyAuthSourceDefaultGoogleSubscriptions:     "[]",
-		SettingKeyAuthSourceDefaultGoogleGrantOnSignup:     "false",
-		SettingKeyAuthSourceDefaultGoogleGrantOnFirstBind:  "false",
-		SettingKeyForceEmailOnThirdPartySignup:             "false",
-		SettingKeySMTPPort:                                 "587",
-		SettingKeySMTPUseTLS:                               "false",
+		SettingKeyRegistrationEnabled:                       "true",
+		SettingKeyEmailVerifyEnabled:                        "false",
+		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
+		SettingKeyPromoCodeEnabled:                          "true", // 默认启用优惠码功能
+		SettingKeyLoginAgreementEnabled:                     "false",
+		SettingKeyLoginAgreementMode:                        defaultLoginAgreementMode,
+		SettingKeyLoginAgreementUpdatedAt:                   defaultLoginAgreementDate,
+		SettingKeyLoginAgreementDocuments:                   loginAgreementDocumentsJSON,
+		SettingKeyAPIKeyACLTrustForwardedIP:                 "false",
+		SettingKeySiteName:                                  "Sub2API",
+		SettingKeySiteLogo:                                  "",
+		SettingKeyPurchaseSubscriptionEnabled:               "false",
+		SettingKeyPurchaseSubscriptionURL:                   "",
+		SettingKeyTableDefaultPageSize:                      "20",
+		SettingKeyTablePageSizeOptions:                      "[10,20,50,100]",
+		SettingKeyCustomMenuItems:                           "[]",
+		SettingKeyCustomEndpoints:                           "[]",
+		SettingKeyWeChatConnectEnabled:                      "false",
+		SettingKeyWeChatConnectAppID:                        "",
+		SettingKeyWeChatConnectAppSecret:                    "",
+		SettingKeyWeChatConnectOpenAppID:                    "",
+		SettingKeyWeChatConnectOpenAppSecret:                "",
+		SettingKeyWeChatConnectMPAppID:                      "",
+		SettingKeyWeChatConnectMPAppSecret:                  "",
+		SettingKeyWeChatConnectMobileAppID:                  "",
+		SettingKeyWeChatConnectMobileAppSecret:              "",
+		SettingKeyWeChatConnectOpenEnabled:                  "false",
+		SettingKeyWeChatConnectMPEnabled:                    "false",
+		SettingKeyWeChatConnectMobileEnabled:                "false",
+		SettingKeyWeChatConnectMode:                         "open",
+		SettingKeyWeChatConnectScopes:                       "snsapi_login",
+		SettingKeyWeChatConnectRedirectURL:                  "",
+		SettingKeyWeChatConnectFrontendRedirectURL:          defaultWeChatConnectFrontend,
+		SettingKeyGitHubOAuthEnabled:                        "false",
+		SettingKeyGitHubOAuthClientID:                       "",
+		SettingKeyGitHubOAuthClientSecret:                   "",
+		SettingKeyGitHubOAuthRedirectURL:                    "",
+		SettingKeyGitHubOAuthFrontendRedirectURL:            defaultGitHubOAuthFrontend,
+		SettingKeyGoogleOAuthEnabled:                        "false",
+		SettingKeyGoogleOAuthClientID:                       "",
+		SettingKeyGoogleOAuthClientSecret:                   "",
+		SettingKeyGoogleOAuthRedirectURL:                    "",
+		SettingKeyGoogleOAuthFrontendRedirectURL:            defaultGoogleOAuthFrontend,
+		SettingKeyOIDCConnectEnabled:                        "false",
+		SettingKeyOIDCConnectProviderName:                   "OIDC",
+		SettingKeyOIDCConnectClientID:                       "",
+		SettingKeyOIDCConnectClientSecret:                   "",
+		SettingKeyOIDCConnectIssuerURL:                      "",
+		SettingKeyOIDCConnectDiscoveryURL:                   "",
+		SettingKeyOIDCConnectAuthorizeURL:                   "",
+		SettingKeyOIDCConnectTokenURL:                       "",
+		SettingKeyOIDCConnectUserInfoURL:                    "",
+		SettingKeyOIDCConnectJWKSURL:                        "",
+		SettingKeyOIDCConnectScopes:                         "openid email profile",
+		SettingKeyOIDCConnectRedirectURL:                    "",
+		SettingKeyOIDCConnectFrontendRedirectURL:            "/auth/oidc/callback",
+		SettingKeyOIDCConnectTokenAuthMethod:                "client_secret_post",
+		SettingKeyOIDCConnectUsePKCE:                        strconv.FormatBool(oidcUsePKCEDefault),
+		SettingKeyOIDCConnectValidateIDToken:                strconv.FormatBool(oidcValidateIDTokenDefault),
+		SettingKeyOIDCConnectAllowedSigningAlgs:             "RS256,ES256,PS256",
+		SettingKeyOIDCConnectClockSkewSeconds:               "120",
+		SettingKeyOIDCConnectRequireEmailVerified:           "false",
+		SettingKeyOIDCConnectUserInfoEmailPath:              "",
+		SettingKeyOIDCConnectUserInfoIDPath:                 "",
+		SettingKeyOIDCConnectUserInfoUsernamePath:           "",
+		SettingKeyDefaultConcurrency:                        strconv.Itoa(s.cfg.Default.UserConcurrency),
+		SettingKeyDefaultBalance:                            strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
+		SettingKeyAffiliateRebateRate:                       strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
+		SettingKeyAffiliateRebateFreezeHours:                strconv.Itoa(AffiliateRebateFreezeHoursDefault),
+		SettingKeyAffiliateRebateDurationDays:               strconv.Itoa(AffiliateRebateDurationDaysDefault),
+		SettingKeyAffiliateRebatePerInviteeCap:              strconv.FormatFloat(AffiliateRebatePerInviteeCapDefault, 'f', 2, 64),
+		SettingKeyDefaultUserRPMLimit:                       "0",
+		SettingKeyDefaultSubscriptions:                      "[]",
+		SettingKeyAuthSourceDefaultEmailBalance:             "0",
+		SettingKeyAuthSourceDefaultEmailConcurrency:         "5",
+		SettingKeyAuthSourceDefaultEmailSubscriptions:       "[]",
+		SettingKeyAuthSourceDefaultEmailGrantOnSignup:       "false",
+		SettingKeyAuthSourceDefaultEmailGrantOnFirstBind:    "false",
+		SettingKeyAuthSourceDefaultLinuxDoBalance:           "0",
+		SettingKeyAuthSourceDefaultLinuxDoConcurrency:       "5",
+		SettingKeyAuthSourceDefaultLinuxDoSubscriptions:     "[]",
+		SettingKeyAuthSourceDefaultLinuxDoGrantOnSignup:     "false",
+		SettingKeyAuthSourceDefaultLinuxDoGrantOnFirstBind:  "false",
+		SettingKeyAuthSourceDefaultOIDCBalance:              "0",
+		SettingKeyAuthSourceDefaultOIDCConcurrency:          "5",
+		SettingKeyAuthSourceDefaultOIDCSubscriptions:        "[]",
+		SettingKeyAuthSourceDefaultOIDCGrantOnSignup:        "false",
+		SettingKeyAuthSourceDefaultOIDCGrantOnFirstBind:     "false",
+		SettingKeyAuthSourceDefaultWeChatBalance:            "0",
+		SettingKeyAuthSourceDefaultWeChatConcurrency:        "5",
+		SettingKeyAuthSourceDefaultWeChatSubscriptions:      "[]",
+		SettingKeyAuthSourceDefaultWeChatGrantOnSignup:      "false",
+		SettingKeyAuthSourceDefaultWeChatGrantOnFirstBind:   "false",
+		SettingKeyAuthSourceDefaultGitHubBalance:            "0",
+		SettingKeyAuthSourceDefaultGitHubConcurrency:        "5",
+		SettingKeyAuthSourceDefaultGitHubSubscriptions:      "[]",
+		SettingKeyAuthSourceDefaultGitHubGrantOnSignup:      "false",
+		SettingKeyAuthSourceDefaultGitHubGrantOnFirstBind:   "false",
+		SettingKeyAuthSourceDefaultGoogleBalance:            "0",
+		SettingKeyAuthSourceDefaultGoogleConcurrency:        "5",
+		SettingKeyAuthSourceDefaultGoogleSubscriptions:      "[]",
+		SettingKeyAuthSourceDefaultGoogleGrantOnSignup:      "false",
+		SettingKeyAuthSourceDefaultGoogleGrantOnFirstBind:   "false",
+		SettingKeyAuthSourceDefaultDingTalkBalance:          "0",
+		SettingKeyAuthSourceDefaultDingTalkConcurrency:      "5",
+		SettingKeyAuthSourceDefaultDingTalkSubscriptions:    "[]",
+		SettingKeyAuthSourceDefaultDingTalkGrantOnSignup:    "false",
+		SettingKeyAuthSourceDefaultDingTalkGrantOnFirstBind: "false",
+		SettingKeyForceEmailOnThirdPartySignup:              "false",
+		SettingKeySMTPPort:                                  "587",
+		SettingKeySMTPUseTLS:                                "false",
 		// Model fallback defaults
 		SettingKeyEnableModelFallback:      "false",
 		SettingKeyFallbackModelAnthropic:   "claude-3-5-sonnet-20241022",
@@ -2949,77 +2718,33 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingPaymentVisibleMethodAlipayEnabled:     "false",
 		SettingPaymentVisibleMethodWxpayEnabled:      "false",
 		openAIAdvancedSchedulerSettingKey:            "false",
-
-		// Checkin 签到设置（默认关闭）
-		SettingKeyCheckinEnabled:    "false",
-		SettingKeyCheckinMinBalance: "0.10",
-		SettingKeyCheckinMaxBalance: "1.00",
-
-		// Checkin Luck 运气签到设置（默认关闭）
-		SettingKeyCheckinLuckEnabled:       "false",
-		SettingKeyCheckinLuckMinMultiplier: "0.10",
-		SettingKeyCheckinLuckMaxMultiplier: "3.00",
-
-		// Checkin Blind Box 签到盲盒设置（默认关闭）
-		SettingKeyCheckinBlindboxEnabled:     "false",
-		SettingKeyCheckinBlindboxTriggerType: "streak",
-		SettingKeyCheckinBlindboxInterval:    "7",
-
-		// Balance Transfer 余额流转设置（默认关闭）
-		SettingKeyTransferEnabled:         "false",
-		SettingKeyTransferFeeRate:         "0.010000",
-		SettingKeyTransferMinAmount:       "0.01000000",
-		SettingKeyTransferMaxAmount:       "1000.00000000",
-		SettingKeyTransferDailyLimit:      "1000.00000000",
-		SettingKeyTransferDailyCountLimit: "50",
-		SettingKeyTransferVIPFeeExempt:    "false",
-		SettingKeyRedPacketEnabled:        "false",
-		SettingKeyRedPacketMaxCount:       "100",
-		SettingKeyRedPacketExpireHours:    "24",
 	}
 
-	missing := make(map[string]string, len(defaults))
-	for key, value := range defaults {
-		if _, ok := existing[key]; !ok {
-			missing[key] = value
-		}
-	}
-	if len(missing) == 0 {
-		return nil
-	}
-	return s.settingRepo.SetMultiple(ctx, missing)
+	return s.settingRepo.SetMultiple(ctx, defaults)
 }
 
 // parseSettings 解析设置到结构体
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
-	homeNavLeaderboardEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavLeaderboardEnabled)
-	homeNavKeyUsageEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavKeyUsageEnabled)
-	homeNavMonitoringEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavMonitoringEnabled)
-	homeNavPricingEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavPricingEnabled)
-	leaderboardBalanceEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardBalanceEnabled)
-	leaderboardConsumptionEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardConsumptionEnabled)
-	leaderboardTransferEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardTransferEnabled)
-	leaderboardCheckinEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardCheckinEnabled)
-	leaderboardIncludeAdmin := settings[SettingKeyLeaderboardIncludeAdmin] == "true"
 	loginAgreementDocuments := parseLoginAgreementDocuments(settings[SettingKeyLoginAgreementDocuments])
 	loginAgreementUpdatedAt := strings.TrimSpace(settings[SettingKeyLoginAgreementUpdatedAt])
 	if loginAgreementUpdatedAt == "" {
 		loginAgreementUpdatedAt = defaultLoginAgreementDate
+	}
+	apiKeyACLTrustForwardedIP := false
+	if value, ok := settings[SettingKeyAPIKeyACLTrustForwardedIP]; ok {
+		apiKeyACLTrustForwardedIP = value == "true"
+	} else if s != nil && s.cfg != nil {
+		apiKeyACLTrustForwardedIP = s.cfg.Security.TrustForwardedIPForAPIKeyACL
 	}
 	result := &SystemSettings{
 		RegistrationEnabled:              settings[SettingKeyRegistrationEnabled] == "true",
 		EmailVerifyEnabled:               emailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist: ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]),
 		PromoCodeEnabled:                 settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
-		RedeemCodeFormat:                 ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()),
-		BalanceCodeFormat:                ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
-		ConcurrencyCodeFormat:            ParseCodeFormatSettings(settings[SettingKeyConcurrencyCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
-		SubscriptionCodeFormat:           ParseCodeFormatSettings(settings[SettingKeySubscriptionCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		PasswordResetEnabled:             emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                      settings[SettingKeyFrontendURL],
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
-		InvitationCodeFormat:             ParseCodeFormatSettings(settings[SettingKeyInvitationCodeFormat], DefaultRegistrationInvitationCodeFormat()),
 		TotpEnabled:                      settings[SettingKeyTotpEnabled] == "true",
 		LoginAgreementEnabled:            settings[SettingKeyLoginAgreementEnabled] == "true",
 		LoginAgreementMode:               normalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]),
@@ -3034,6 +2759,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		TurnstileEnabled:                 settings[SettingKeyTurnstileEnabled] == "true",
 		TurnstileSiteKey:                 settings[SettingKeyTurnstileSiteKey],
 		TurnstileSecretKeyConfigured:     settings[SettingKeyTurnstileSecretKey] != "",
+		APIKeyACLTrustForwardedIP:        apiKeyACLTrustForwardedIP,
 		SiteName:                         s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
 		SiteLogo:                         settings[SettingKeySiteLogo],
 		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
@@ -3041,24 +2767,12 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
-		HomeNavLinksEnabled:              homeNavLeaderboardEnabled && homeNavKeyUsageEnabled && homeNavMonitoringEnabled && homeNavPricingEnabled,
-		HomeNavLeaderboardEnabled:        homeNavLeaderboardEnabled,
-		HomeNavKeyUsageEnabled:           homeNavKeyUsageEnabled,
-		HomeNavMonitoringEnabled:         homeNavMonitoringEnabled,
-		HomeNavPricingEnabled:            homeNavPricingEnabled,
-		LeaderboardBalanceEnabled:        leaderboardBalanceEnabled,
-		LeaderboardConsumptionEnabled:    leaderboardConsumptionEnabled,
-		LeaderboardTransferEnabled:       leaderboardTransferEnabled,
-		LeaderboardCheckinEnabled:        leaderboardCheckinEnabled,
-		LeaderboardIncludeAdmin:          leaderboardIncludeAdmin,
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
 		CustomMenuItems:                  settings[SettingKeyCustomMenuItems],
 		CustomEndpoints:                  settings[SettingKeyCustomEndpoints],
 		BackendModeEnabled:               settings[SettingKeyBackendModeEnabled] == "true",
-		AffiliateEnabled:                 settings[SettingKeyAffiliateEnabled] == "true",
-		AffiliateCodeFormat:              ParseCodeFormatSettings(settings[SettingKeyAffiliateCodeFormat], DefaultAffiliateCodeFormat()),
 	}
 	result.TableDefaultPageSize, result.TablePageSizeOptions = parseTablePreferences(
 		settings[SettingKeyTableDefaultPageSize],
@@ -3159,39 +2873,49 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else {
 		result.DingTalkConnectEnabled = dingTalkBase.Enabled
 	}
+
 	if v, ok := settings[SettingKeyDingTalkConnectClientID]; ok && strings.TrimSpace(v) != "" {
 		result.DingTalkConnectClientID = strings.TrimSpace(v)
 	} else {
-		result.DingTalkConnectClientID = strings.TrimSpace(dingTalkBase.ClientID)
+		result.DingTalkConnectClientID = dingTalkBase.ClientID
 	}
+
 	if v, ok := settings[SettingKeyDingTalkConnectRedirectURL]; ok && strings.TrimSpace(v) != "" {
 		result.DingTalkConnectRedirectURL = strings.TrimSpace(v)
 	} else {
-		result.DingTalkConnectRedirectURL = strings.TrimSpace(dingTalkBase.RedirectURL)
+		result.DingTalkConnectRedirectURL = dingTalkBase.RedirectURL
 	}
+
 	result.DingTalkConnectClientSecret = strings.TrimSpace(settings[SettingKeyDingTalkConnectClientSecret])
 	if result.DingTalkConnectClientSecret == "" {
 		result.DingTalkConnectClientSecret = strings.TrimSpace(dingTalkBase.ClientSecret)
 	}
 	result.DingTalkConnectClientSecretConfigured = result.DingTalkConnectClientSecret != ""
+
 	if v, ok := settings[SettingKeyDingTalkConnectCorpRestrictionPolicy]; ok && strings.TrimSpace(v) != "" {
 		result.DingTalkConnectCorpRestrictionPolicy = strings.TrimSpace(v)
 	} else {
-		result.DingTalkConnectCorpRestrictionPolicy = strings.TrimSpace(dingTalkBase.CorpRestrictionPolicy)
+		result.DingTalkConnectCorpRestrictionPolicy = dingTalkBase.CorpRestrictionPolicy
 	}
-	if result.DingTalkConnectCorpRestrictionPolicy == "whitelist" {
-		result.DingTalkConnectCorpRestrictionPolicy = "none"
-	}
+	result.DingTalkConnectCorpRestrictionPolicy = coerceDeprecatedDingTalkCorpPolicy(result.DingTalkConnectCorpRestrictionPolicy)
+
 	if v, ok := settings[SettingKeyDingTalkConnectInternalCorpID]; ok && strings.TrimSpace(v) != "" {
 		result.DingTalkConnectInternalCorpID = strings.TrimSpace(v)
 	} else {
-		result.DingTalkConnectInternalCorpID = strings.TrimSpace(dingTalkBase.InternalCorpID)
+		result.DingTalkConnectInternalCorpID = dingTalkBase.InternalCorpID
 	}
+
 	if v, ok := settings[SettingKeyDingTalkConnectBypassRegistration]; ok && strings.TrimSpace(v) != "" {
 		result.DingTalkConnectBypassRegistration = strings.EqualFold(strings.TrimSpace(v), "true")
 	} else {
 		result.DingTalkConnectBypassRegistration = dingTalkBase.BypassRegistration
 	}
+	// bypass_registration 仅在 internal_only 模式下有意义；其它策略下强制 false，
+	// 以保证加载出的 effective config 永远是一致状态。
+	if result.DingTalkConnectCorpRestrictionPolicy != "internal_only" {
+		result.DingTalkConnectBypassRegistration = false
+	}
+
 	if v, ok := settings[SettingKeyDingTalkConnectSyncCorpEmail]; ok && strings.TrimSpace(v) != "" {
 		result.DingTalkConnectSyncCorpEmail = strings.EqualFold(strings.TrimSpace(v), "true")
 	} else {
@@ -3207,35 +2931,63 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else {
 		result.DingTalkConnectSyncDept = dingTalkBase.SyncDept
 	}
+	// 身份同步三开关仅在 internal_only 模式下有意义；其它策略强制 false。
 	if result.DingTalkConnectCorpRestrictionPolicy != "internal_only" {
-		result.DingTalkConnectBypassRegistration = false
 		result.DingTalkConnectSyncCorpEmail = false
 		result.DingTalkConnectSyncDisplayName = false
 		result.DingTalkConnectSyncDept = false
 	}
+
+	// 身份同步目标 attr key（DB 空 → fallback 默认值）
 	result.DingTalkConnectSyncCorpEmailAttrKey = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncCorpEmailAttrKey])
 	if result.DingTalkConnectSyncCorpEmailAttrKey == "" {
-		result.DingTalkConnectSyncCorpEmailAttrKey = "dingtalk_email"
+		if v := strings.TrimSpace(dingTalkBase.SyncCorpEmailAttrKey); v != "" {
+			result.DingTalkConnectSyncCorpEmailAttrKey = v
+		} else {
+			result.DingTalkConnectSyncCorpEmailAttrKey = "dingtalk_email"
+		}
 	}
 	result.DingTalkConnectSyncDisplayNameAttrKey = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDisplayNameAttrKey])
 	if result.DingTalkConnectSyncDisplayNameAttrKey == "" {
-		result.DingTalkConnectSyncDisplayNameAttrKey = "dingtalk_name"
+		if v := strings.TrimSpace(dingTalkBase.SyncDisplayNameAttrKey); v != "" {
+			result.DingTalkConnectSyncDisplayNameAttrKey = v
+		} else {
+			result.DingTalkConnectSyncDisplayNameAttrKey = "dingtalk_name"
+		}
 	}
 	result.DingTalkConnectSyncDeptAttrKey = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDeptAttrKey])
 	if result.DingTalkConnectSyncDeptAttrKey == "" {
-		result.DingTalkConnectSyncDeptAttrKey = "dingtalk_department"
+		if v := strings.TrimSpace(dingTalkBase.SyncDeptAttrKey); v != "" {
+			result.DingTalkConnectSyncDeptAttrKey = v
+		} else {
+			result.DingTalkConnectSyncDeptAttrKey = "dingtalk_department"
+		}
 	}
+
+	// 身份同步目标 attr 显示名称（DB 空 → fallback 默认中文）
 	result.DingTalkConnectSyncCorpEmailAttrName = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncCorpEmailAttrName])
 	if result.DingTalkConnectSyncCorpEmailAttrName == "" {
-		result.DingTalkConnectSyncCorpEmailAttrName = "钉钉企业邮箱"
+		if v := strings.TrimSpace(dingTalkBase.SyncCorpEmailAttrName); v != "" {
+			result.DingTalkConnectSyncCorpEmailAttrName = v
+		} else {
+			result.DingTalkConnectSyncCorpEmailAttrName = "钉钉企业邮箱"
+		}
 	}
 	result.DingTalkConnectSyncDisplayNameAttrName = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDisplayNameAttrName])
 	if result.DingTalkConnectSyncDisplayNameAttrName == "" {
-		result.DingTalkConnectSyncDisplayNameAttrName = "钉钉姓名"
+		if v := strings.TrimSpace(dingTalkBase.SyncDisplayNameAttrName); v != "" {
+			result.DingTalkConnectSyncDisplayNameAttrName = v
+		} else {
+			result.DingTalkConnectSyncDisplayNameAttrName = "钉钉姓名"
+		}
 	}
 	result.DingTalkConnectSyncDeptAttrName = strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDeptAttrName])
 	if result.DingTalkConnectSyncDeptAttrName == "" {
-		result.DingTalkConnectSyncDeptAttrName = "钉钉部门"
+		if v := strings.TrimSpace(dingTalkBase.SyncDeptAttrName); v != "" {
+			result.DingTalkConnectSyncDeptAttrName = v
+		} else {
+			result.DingTalkConnectSyncDeptAttrName = "钉钉部门"
+		}
 	}
 
 	// Generic OIDC 设置：
@@ -3495,14 +3247,15 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.PaymentVisibleMethodWxpayEnabled = settings[SettingPaymentVisibleMethodWxpayEnabled] == "true"
 	result.OpenAIAdvancedSchedulerEnabled = settings[openAIAdvancedSchedulerSettingKey] == "true"
 
-	// Balance low notification
+	// 余额、订阅到期与账号限额通知
 	result.BalanceLowNotifyEnabled = settings[SettingKeyBalanceLowNotifyEnabled] == "true"
 	if v, err := strconv.ParseFloat(settings[SettingKeyBalanceLowNotifyThreshold], 64); err == nil && v >= 0 {
 		result.BalanceLowNotifyThreshold = v
 	}
 	result.BalanceLowNotifyRechargeURL = settings[SettingKeyBalanceLowNotifyRechargeURL]
+	result.SubscriptionExpiryNotifyEnabled = !isFalseSettingValue(settings[SettingKeySubscriptionExpiryNotifyEnabled])
 
-	// Account quota notification
+	// 账号限额通知
 	result.AccountQuotaNotifyEnabled = settings[SettingKeyAccountQuotaNotifyEnabled] == "true"
 	if raw := strings.TrimSpace(settings[SettingKeyAccountQuotaNotifyEmails]); raw != "" {
 		result.AccountQuotaNotifyEmails = ParseNotifyEmails(raw)
@@ -3511,82 +3264,14 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.AccountQuotaNotifyEmails = []NotifyEmailEntry{}
 	}
 
-	// Checkin 签到设置
-	result.CheckinEnabled = settings[SettingKeyCheckinEnabled] == "true"
-	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinMinBalance], 64); err == nil && v >= 0 {
-		result.CheckinMinBalance = v
-	} else {
-		result.CheckinMinBalance = 0.1
-	}
-	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinMaxBalance], 64); err == nil && v >= 0 {
-		result.CheckinMaxBalance = v
-	} else {
-		result.CheckinMaxBalance = 1.0
-	}
-
-	// Checkin Luck 运气签到设置
-	result.CheckinLuckEnabled = settings[SettingKeyCheckinLuckEnabled] == "true"
-	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinLuckMinMultiplier], 64); err == nil && v >= 0 {
-		result.CheckinLuckMinMultiplier = v
-	} else {
-		result.CheckinLuckMinMultiplier = 0.1
-	}
-	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinLuckMaxMultiplier], 64); err == nil && v >= 0 {
-		result.CheckinLuckMaxMultiplier = v
-	} else {
-		result.CheckinLuckMaxMultiplier = 3.0
-	}
-
-	// Checkin Blind Box 签到盲盒设置
-	result.CheckinBlindboxEnabled = settings[SettingKeyCheckinBlindboxEnabled] == "true"
-	result.CheckinBlindboxTriggerType = settings[SettingKeyCheckinBlindboxTriggerType]
-	if result.CheckinBlindboxTriggerType != "streak" && result.CheckinBlindboxTriggerType != "total" {
-		result.CheckinBlindboxTriggerType = "streak"
-	}
-	if v, err := strconv.Atoi(settings[SettingKeyCheckinBlindboxInterval]); err == nil && v > 0 {
-		result.CheckinBlindboxInterval = v
-	} else {
-		result.CheckinBlindboxInterval = 7
-	}
-
-	// Balance Transfer 余额流转设置
-	result.TransferEnabled = settings[SettingKeyTransferEnabled] == "true"
-	if v, err := strconv.ParseFloat(settings[SettingKeyTransferFeeRate], 64); err == nil && v >= 0 {
-		result.TransferFeeRate = v
-	} else {
-		result.TransferFeeRate = 0.01
-	}
-	if v, err := strconv.ParseFloat(settings[SettingKeyTransferMinAmount], 64); err == nil && v >= 0 {
-		result.TransferMinAmount = v
-	} else {
-		result.TransferMinAmount = 0.01
-	}
-	if v, err := strconv.ParseFloat(settings[SettingKeyTransferMaxAmount], 64); err == nil && v >= 0 {
-		result.TransferMaxAmount = v
-	} else {
-		result.TransferMaxAmount = 1000
-	}
-	if v, err := strconv.ParseFloat(settings[SettingKeyTransferDailyLimit], 64); err == nil && v >= 0 {
-		result.TransferDailyLimit = v
-	} else {
-		result.TransferDailyLimit = 1000
-	}
-	if v, err := strconv.Atoi(settings[SettingKeyTransferDailyCountLimit]); err == nil && v > 0 {
-		result.TransferDailyCountLimit = v
-	} else {
-		result.TransferDailyCountLimit = 50
-	}
-	result.TransferVIPFeeExempt = settings[SettingKeyTransferVIPFeeExempt] == "true"
-	result.RedPacketEnabled = settings[SettingKeyRedPacketEnabled] == "true"
-	if v, err := strconv.Atoi(settings[SettingKeyRedPacketMaxCount]); err == nil && v > 0 {
-		result.RedPacketMaxCount = v
-	} else {
-		result.RedPacketMaxCount = 100
-	}
-	if v, err := strconv.Atoi(settings[SettingKeyRedPacketExpireHours]); err == nil && v > 0 {
-		result.RedPacketExpireHours = v
-	} else {
-		result.RedPacketExpireHours = 24
+	// 系统层默认 platform quota（修复 Bug B：parseSettings 不填充导致回显恒为 nil）
+	if raw := settings[SettingKeyDefaultPlatformQuotas]; raw != "" {
+		parsed := map[string]*DefaultPlatformQuotaSetting{}
+		if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+			slog.Warn("[Setting] parseSettings: unmarshal default_platform_quotas failed", "error", err)
+		} else {
+			result.DefaultPlatformQuotas = parsed
+		}
 	}
 
 	return result
@@ -3612,22 +3297,6 @@ func isFalseSettingValue(value string) bool {
 	default:
 		return false
 	}
-}
-
-func homeNavLinkEnabled(settings map[string]string, key string) bool {
-	if raw, ok := settings[key]; ok && strings.TrimSpace(raw) != "" {
-		return !isFalseSettingValue(raw)
-	}
-	// 新字段缺失时沿用旧版总开关，避免升级后已经隐藏的入口重新显示。
-	return !isFalseSettingValue(settings[SettingKeyHomeNavLinksEnabled])
-}
-
-func leaderboardTabEnabled(settings map[string]string, key string) bool {
-	if raw, ok := settings[key]; ok && strings.TrimSpace(raw) != "" {
-		return !isFalseSettingValue(raw)
-	}
-	// 排行榜 Tab 是新增独立开关，缺失时默认显示，避免升级后改变现有页面。
-	return true
 }
 
 func normalizeVisibleMethodSettingSource(method, source string, enabled bool) (string, error) {
@@ -3683,15 +3352,9 @@ func parseProviderDefaultGrantSettings(settings map[string]string, keys authSour
 
 	if v, err := strconv.ParseFloat(strings.TrimSpace(settings[keys.balance]), 64); err == nil {
 		result.Balance = v
-		if _, ok := settings[keys.balance]; ok {
-			result.balanceSet = true
-		}
 	}
 	if v, err := strconv.Atoi(strings.TrimSpace(settings[keys.concurrency])); err == nil {
 		result.Concurrency = v
-		if _, ok := settings[keys.concurrency]; ok {
-			result.concurrencySet = true
-		}
 	}
 	if items := parseDefaultSubscriptions(settings[keys.subscriptions]); items != nil {
 		result.Subscriptions = items
@@ -3701,6 +3364,15 @@ func parseProviderDefaultGrantSettings(settings map[string]string, keys authSour
 	}
 	if raw, ok := settings[keys.grantOnFirstBind]; ok {
 		result.GrantOnFirstBind = raw == "true"
+	}
+
+	if raw := settings[keys.platformQuotas]; raw != "" {
+		parsed := map[string]*DefaultPlatformQuotaSetting{}
+		if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+			slog.Warn("[Setting] parseProviderDefaultGrantSettings: unmarshal auth source platform quotas failed", "source", keys.source, "error", err)
+		} else {
+			result.PlatformQuotas = parsed
+		}
 	}
 
 	return result
@@ -3721,6 +3393,17 @@ func writeProviderDefaultGrantUpdates(updates map[string]string, keys authSource
 	updates[keys.subscriptions] = string(raw)
 	updates[keys.grantOnSignup] = strconv.FormatBool(settings.GrantOnSignup)
 	updates[keys.grantOnFirstBind] = strconv.FormatBool(settings.GrantOnFirstBind)
+
+	// auth source platform quota：整体替换语义。
+	// nil = 请求未携带该字段，跳过写入以保留既有配置（与系统层 buildSystemSettingsUpdates 的
+	// DefaultPlatformQuotas nil 守卫一致）；非 nil（含空 map）才整体替换。二者语义不可混同。
+	if keys.platformQuotas != "" && settings.PlatformQuotas != nil {
+		blob, err := json.Marshal(settings.PlatformQuotas)
+		if err != nil {
+			blob = []byte("{}")
+		}
+		updates[keys.platformQuotas] = string(blob)
+	}
 }
 
 func mergeProviderDefaultGrantSettings(globalDefaults ProviderDefaultGrantSettings, providerDefaults ProviderDefaultGrantSettings) ProviderDefaultGrantSettings {
@@ -3732,10 +3415,14 @@ func mergeProviderDefaultGrantSettings(globalDefaults ProviderDefaultGrantSettin
 		GrantOnFirstBind: providerDefaults.GrantOnFirstBind,
 	}
 
-	if providerDefaults.balanceSet {
+	// 注意：不能把 parse 默认值 (defaultAuthSourceBalance / defaultAuthSourceConcurrency)
+	// 当作"未配置"哨兵——admin 完全有权显式设成相同的值，那时仍应覆盖 globalDefaults。
+	// 旧实现的 `!= defaultAuthSourceConcurrency` 会把 admin 设的 5 与 fallback 5 混淆，
+	// 导致渠道发放退回到全局默认（如 1），表现为"管理员设 5、新用户实际拿 1"。
+	if providerDefaults.Balance >= 0 {
 		result.Balance = providerDefaults.Balance
 	}
-	if providerDefaults.concurrencySet {
+	if providerDefaults.Concurrency > 0 {
 		result.Concurrency = providerDefaults.Concurrency
 	}
 	if len(providerDefaults.Subscriptions) > 0 {
@@ -4021,6 +3708,157 @@ func (s *SettingService) GetLinuxDoConnectOAuthConfig(ctx context.Context) (conf
 	return effective, nil
 }
 
+// GetDingTalkConnectOAuthConfig 返回用于登录的"最终生效" DingTalk Connect 配置。
+//
+// 优先级：
+// - 若对应系统设置键存在，则覆盖 config.yaml/env 的值
+// - 否则回退到 config.yaml/env 的值
+func (s *SettingService) GetDingTalkConnectOAuthConfig(ctx context.Context) (config.DingTalkConnectConfig, error) {
+	if s == nil || s.cfg == nil {
+		return config.DingTalkConnectConfig{}, infraerrors.ServiceUnavailable("CONFIG_NOT_READY", "config not loaded")
+	}
+
+	effective := s.cfg.DingTalk
+
+	keys := []string{
+		SettingKeyDingTalkConnectEnabled,
+		SettingKeyDingTalkConnectClientID,
+		SettingKeyDingTalkConnectClientSecret,
+		SettingKeyDingTalkConnectRedirectURL,
+		SettingKeyDingTalkConnectCorpRestrictionPolicy,
+		SettingKeyDingTalkConnectInternalCorpID,
+		SettingKeyDingTalkConnectBypassRegistration,
+		SettingKeyDingTalkConnectSyncCorpEmail,
+		SettingKeyDingTalkConnectSyncDisplayName,
+		SettingKeyDingTalkConnectSyncDept,
+		SettingKeyDingTalkConnectSyncCorpEmailAttrKey,
+		SettingKeyDingTalkConnectSyncDisplayNameAttrKey,
+		SettingKeyDingTalkConnectSyncDeptAttrKey,
+	}
+	settings, err := s.settingRepo.GetMultiple(ctx, keys)
+	if err != nil {
+		return config.DingTalkConnectConfig{}, fmt.Errorf("get dingtalk connect settings: %w", err)
+	}
+
+	if raw, ok := settings[SettingKeyDingTalkConnectEnabled]; ok {
+		effective.Enabled = raw == "true"
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectClientID]; ok && strings.TrimSpace(v) != "" {
+		effective.ClientID = strings.TrimSpace(v)
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectClientSecret]; ok && strings.TrimSpace(v) != "" {
+		effective.ClientSecret = strings.TrimSpace(v)
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectRedirectURL]; ok && strings.TrimSpace(v) != "" {
+		effective.RedirectURL = strings.TrimSpace(v)
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectCorpRestrictionPolicy]; ok && strings.TrimSpace(v) != "" {
+		effective.CorpRestrictionPolicy = strings.TrimSpace(v)
+	}
+	effective.CorpRestrictionPolicy = coerceDeprecatedDingTalkCorpPolicy(effective.CorpRestrictionPolicy)
+	if v, ok := settings[SettingKeyDingTalkConnectInternalCorpID]; ok && strings.TrimSpace(v) != "" {
+		effective.InternalCorpID = strings.TrimSpace(v)
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectBypassRegistration]; ok && strings.TrimSpace(v) != "" {
+		effective.BypassRegistration = strings.EqualFold(strings.TrimSpace(v), "true")
+	}
+	// bypass_registration 仅在 internal_only 模式下有意义；其它策略下强制 false，
+	// 以保证 OAuth callback 看到的 effective config 永远是一致状态。
+	if effective.CorpRestrictionPolicy != "internal_only" {
+		effective.BypassRegistration = false
+	}
+
+	if v, ok := settings[SettingKeyDingTalkConnectSyncCorpEmail]; ok && strings.TrimSpace(v) != "" {
+		effective.SyncCorpEmail = strings.EqualFold(strings.TrimSpace(v), "true")
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectSyncDisplayName]; ok && strings.TrimSpace(v) != "" {
+		effective.SyncDisplayName = strings.EqualFold(strings.TrimSpace(v), "true")
+	}
+	if v, ok := settings[SettingKeyDingTalkConnectSyncDept]; ok && strings.TrimSpace(v) != "" {
+		effective.SyncDept = strings.EqualFold(strings.TrimSpace(v), "true")
+	}
+	// 身份同步三开关仅在 internal_only 模式下有意义；其它策略强制 false。
+	if effective.CorpRestrictionPolicy != "internal_only" {
+		effective.SyncCorpEmail = false
+		effective.SyncDisplayName = false
+		effective.SyncDept = false
+	}
+
+	// 身份同步目标 attr key（DB 空 → fallback 默认值）
+	if v := strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncCorpEmailAttrKey]); v != "" {
+		effective.SyncCorpEmailAttrKey = v
+	}
+	if effective.SyncCorpEmailAttrKey == "" {
+		effective.SyncCorpEmailAttrKey = "dingtalk_email"
+	}
+	if v := strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDisplayNameAttrKey]); v != "" {
+		effective.SyncDisplayNameAttrKey = v
+	}
+	if effective.SyncDisplayNameAttrKey == "" {
+		effective.SyncDisplayNameAttrKey = "dingtalk_name"
+	}
+	if v := strings.TrimSpace(settings[SettingKeyDingTalkConnectSyncDeptAttrKey]); v != "" {
+		effective.SyncDeptAttrKey = v
+	}
+	if effective.SyncDeptAttrKey == "" {
+		effective.SyncDeptAttrKey = "dingtalk_department"
+	}
+
+	if !effective.Enabled {
+		return config.DingTalkConnectConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "dingtalk oauth login is disabled")
+	}
+
+	// 基础健壮性校验（避免把用户重定向到一个必然失败或不安全的 OAuth 流程里）。
+	if strings.TrimSpace(effective.ClientID) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth client id not configured")
+	}
+	if strings.TrimSpace(effective.AuthorizeURL) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth authorize url not configured")
+	}
+	if strings.TrimSpace(effective.TokenURL) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth token url not configured")
+	}
+	if strings.TrimSpace(effective.UserInfoURL) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth userinfo url not configured")
+	}
+	if strings.TrimSpace(effective.RedirectURL) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth redirect url not configured")
+	}
+	if strings.TrimSpace(effective.FrontendRedirectURL) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth frontend redirect url not configured")
+	}
+
+	if err := config.ValidateAbsoluteHTTPURL(effective.AuthorizeURL); err != nil {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth authorize url invalid")
+	}
+	if err := config.ValidateAbsoluteHTTPURL(effective.TokenURL); err != nil {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth token url invalid")
+	}
+	if err := config.ValidateAbsoluteHTTPURL(effective.UserInfoURL); err != nil {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth userinfo url invalid")
+	}
+	if err := config.ValidateAbsoluteHTTPURL(effective.RedirectURL); err != nil {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth redirect url invalid")
+	}
+	if err := config.ValidateFrontendRedirectURL(effective.FrontendRedirectURL); err != nil {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth frontend redirect url invalid")
+	}
+	if strings.TrimSpace(effective.ClientSecret) == "" {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth client secret not configured")
+	}
+
+	// 镜像 admin handler 行为：internal_only policy 隐式要求 AppType=internal
+	if effective.CorpRestrictionPolicy == "internal_only" {
+		effective.AppType = "internal"
+	}
+
+	if err := config.ValidateDingTalkConfig(effective); err != nil {
+		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", err.Error())
+	}
+
+	return effective, nil
+}
+
 // GetWeChatConnectOAuthConfig 返回用于登录的最终生效 WeChat Connect 配置。
 //
 // WeChat Connect 已回归 DB 系统设置模型，不再回退到 config/env。
@@ -4065,7 +3903,7 @@ func (s *SettingService) GetOverloadCooldownSettings(ctx context.Context) (*Over
 
 	var settings OverloadCooldownSettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return nil, ErrOverloadCooldownSettingsCorrupt.WithCause(err)
+		return DefaultOverloadCooldownSettings(), nil
 	}
 
 	// 修正配置值范围
@@ -4116,7 +3954,7 @@ func (s *SettingService) GetRateLimit429CooldownSettings(ctx context.Context) (*
 
 	var settings RateLimit429CooldownSettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return nil, ErrRateLimit429CooldownSettingsCorrupt.WithCause(err)
+		return DefaultRateLimit429CooldownSettings(), nil
 	}
 
 	if settings.CooldownSeconds < 1 {
@@ -4427,60 +4265,6 @@ func oidcResolveProviderMetadata(ctx context.Context, discoveryURL string) (*oid
 	return metadata, nil
 }
 
-// GetDingTalkConnectOAuthConfig returns the effective DingTalk OAuth config used by login flows.
-// Settings stored in the database override config.yaml / env values when present.
-func (s *SettingService) GetDingTalkConnectOAuthConfig(ctx context.Context) (config.DingTalkConnectConfig, error) {
-	if s == nil || s.cfg == nil {
-		return config.DingTalkConnectConfig{}, infraerrors.ServiceUnavailable("CONFIG_NOT_READY", "config not loaded")
-	}
-
-	effective := s.cfg.DingTalk
-	settings, err := s.GetAllSettings(ctx)
-	if err != nil {
-		return config.DingTalkConnectConfig{}, fmt.Errorf("get dingtalk connect settings: %w", err)
-	}
-
-	effective.Enabled = settings.DingTalkConnectEnabled
-	effective.ClientID = strings.TrimSpace(settings.DingTalkConnectClientID)
-	effective.ClientSecret = strings.TrimSpace(settings.DingTalkConnectClientSecret)
-	effective.RedirectURL = strings.TrimSpace(settings.DingTalkConnectRedirectURL)
-	effective.CorpRestrictionPolicy = strings.TrimSpace(settings.DingTalkConnectCorpRestrictionPolicy)
-	if effective.CorpRestrictionPolicy == "whitelist" {
-		effective.CorpRestrictionPolicy = "none"
-	}
-	effective.InternalCorpID = strings.TrimSpace(settings.DingTalkConnectInternalCorpID)
-	effective.BypassRegistration = settings.DingTalkConnectBypassRegistration
-	effective.SyncCorpEmail = settings.DingTalkConnectSyncCorpEmail
-	effective.SyncDisplayName = settings.DingTalkConnectSyncDisplayName
-	effective.SyncDept = settings.DingTalkConnectSyncDept
-	effective.SyncCorpEmailAttrKey = strings.TrimSpace(settings.DingTalkConnectSyncCorpEmailAttrKey)
-	effective.SyncDisplayNameAttrKey = strings.TrimSpace(settings.DingTalkConnectSyncDisplayNameAttrKey)
-	effective.SyncDeptAttrKey = strings.TrimSpace(settings.DingTalkConnectSyncDeptAttrKey)
-	effective.SyncCorpEmailAttrName = strings.TrimSpace(settings.DingTalkConnectSyncCorpEmailAttrName)
-	effective.SyncDisplayNameAttrName = strings.TrimSpace(settings.DingTalkConnectSyncDisplayNameAttrName)
-	effective.SyncDeptAttrName = strings.TrimSpace(settings.DingTalkConnectSyncDeptAttrName)
-
-	if !effective.Enabled {
-		return config.DingTalkConnectConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "dingtalk oauth login is disabled")
-	}
-	if strings.TrimSpace(effective.ClientID) == "" {
-		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth client id not configured")
-	}
-	if strings.TrimSpace(effective.ClientSecret) == "" {
-		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth client secret not configured")
-	}
-	if strings.TrimSpace(effective.RedirectURL) == "" {
-		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth redirect url not configured")
-	}
-	if err := config.ValidateAbsoluteHTTPURL(effective.RedirectURL); err != nil {
-		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "dingtalk oauth redirect url invalid")
-	}
-	if err := config.ValidateDingTalkConfig(effective); err != nil {
-		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", err.Error())
-	}
-	return effective, nil
-}
-
 // GetStreamTimeoutSettings 获取流超时处理配置
 func (s *SettingService) GetStreamTimeoutSettings(ctx context.Context) (*StreamTimeoutSettings, error) {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyStreamTimeoutSettings)
@@ -4496,7 +4280,7 @@ func (s *SettingService) GetStreamTimeoutSettings(ctx context.Context) (*StreamT
 
 	var settings StreamTimeoutSettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return nil, ErrStreamTimeoutSettingsCorrupt.WithCause(err)
+		return DefaultStreamTimeoutSettings(), nil
 	}
 
 	// 验证并修正配置值
@@ -4611,7 +4395,7 @@ func (s *SettingService) GetRectifierSettings(ctx context.Context) (*RectifierSe
 
 	var settings RectifierSettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return nil, ErrRectifierSettingsCorrupt.WithCause(err)
+		return DefaultRectifierSettings(), nil
 	}
 
 	return &settings, nil
@@ -4664,7 +4448,7 @@ func (s *SettingService) GetBetaPolicySettings(ctx context.Context) (*BetaPolicy
 
 	var settings BetaPolicySettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		return nil, ErrBetaPolicySettingsCorrupt.WithCause(err)
+		return DefaultBetaPolicySettings(), nil
 	}
 
 	return &settings, nil
@@ -4730,10 +4514,13 @@ func (s *SettingService) GetOpenAIFastPolicySettings(ctx context.Context) (*Open
 
 	var settings OpenAIFastPolicySettings
 	if err := json.Unmarshal([]byte(value), &settings); err != nil {
-		slog.Warn("failed to unmarshal openai fast policy settings",
+		// JSON 损坏时静默 fallback 到默认配置会让策略意外失效（管理员配
+		// 置的 block/filter 规则被忽略）。记录 Warn 让运维能在出现异常
+		// 行为时定位到 settings 表里的脏数据。
+		slog.Warn("failed to unmarshal openai fast policy settings, falling back to defaults",
 			"error", err,
 			"key", SettingKeyOpenAIFastPolicySettings)
-		return nil, ErrOpenAIFastPolicySettingsCorrupt.WithCause(err)
+		return DefaultOpenAIFastPolicySettings(), nil
 	}
 
 	return &settings, nil
@@ -4820,4 +4607,64 @@ func (s *SettingService) SetStreamTimeoutSettings(ctx context.Context, settings 
 	}
 
 	return s.settingRepo.Set(ctx, SettingKeyStreamTimeoutSettings, string(data))
+}
+
+// GetDefaultPlatformQuotas 读取系统全局 platform quota JSON key，返回 4 platform x 3 window 的设置。
+// 永远返回包含全部 4 platform key 的 map（值可能为零值/nil 字段，表示"上层未配置 = 不限制"）。
+//
+// 使用单个 JSON key（default_platform_quotas），一次 DB roundtrip，消除旧 12-KV 格式的 N+1 问题。
+// 容错语义：取值失败或 unmarshal 失败 → 返回补齐 4 key 的空 map（fail-open，注册不被阻断）。
+func (s *SettingService) GetDefaultPlatformQuotas(ctx context.Context) (map[string]*DefaultPlatformQuotaSetting, error) {
+	out := map[string]*DefaultPlatformQuotaSetting{
+		"anthropic":   {},
+		"openai":      {},
+		"gemini":      {},
+		"antigravity": {},
+	}
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyDefaultPlatformQuotas)
+	if err != nil || raw == "" {
+		return out, nil // 无配置 = 全部不限制
+	}
+	parsed := map[string]*DefaultPlatformQuotaSetting{}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		slog.Warn("[Setting] unmarshal default_platform_quotas failed (fail-open)", "error", err)
+		return out, nil
+	}
+	for _, platform := range AllowedQuotaPlatforms {
+		if v := parsed[platform]; v != nil {
+			out[platform] = v
+		}
+	}
+	return out, nil // 补齐 4 platform key，保持与旧实现一致的下游契约
+}
+
+// GetAuthSourcePlatformQuotas 读取指定 auth source 的 platform quota 覆盖（仅返回有配置的平台，override 语义）。
+func (s *SettingService) GetAuthSourcePlatformQuotas(ctx context.Context, source string) map[string]*DefaultPlatformQuotaSetting {
+	out := map[string]*DefaultPlatformQuotaSetting{}
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyAuthSourcePlatformQuotas(source))
+	if err != nil || raw == "" {
+		return out // 无 override
+	}
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		slog.Warn("[Setting] unmarshal auth source platform quotas failed (fail-open)", "source", source, "error", err)
+		return map[string]*DefaultPlatformQuotaSetting{}
+	}
+	return out // 仅含已配置平台，保持 override 语义
+}
+
+// mergePlatformQuotaDefaults 按字段级 patch：src 中非 nil 字段覆盖 dst。
+// 区分 nil（"未配置"，保留 dst）vs &0.0（"显式禁用"，覆盖 dst 为 0）
+func mergePlatformQuotaDefaults(dst, src *DefaultPlatformQuotaSetting) {
+	if src == nil || dst == nil {
+		return
+	}
+	if src.DailyLimitUSD != nil {
+		dst.DailyLimitUSD = src.DailyLimitUSD
+	}
+	if src.WeeklyLimitUSD != nil {
+		dst.WeeklyLimitUSD = src.WeeklyLimitUSD
+	}
+	if src.MonthlyLimitUSD != nil {
+		dst.MonthlyLimitUSD = src.MonthlyLimitUSD
+	}
 }

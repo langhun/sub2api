@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -112,6 +112,25 @@ Sub2API 是一个 AI API 网关平台，用于分发和管理 AI 产品订阅的
 <td>感谢 PPToken.org 赞助本项目！ <a href="https://api.pptoken.org/register?promo=SUB2API">PPToken.org</a> 主打 GPT 系列模型 API 中转服务，支持 Codex、Claude Code、OpenAI 兼容客户端及 Gemini CLI 等工具接入。充值 1:1，1 元=1 美元额度；GPT 模型最低 0.16 倍倍率，综合成本约为官方价格的 0.22 折，最快首字 Token 约 1 秒，适合开发者低成本、高响应速度接入 GPT 模型能力。技术支持： 7×24 小时真人响应（不是机器人），群内@技术，10 分钟内有回复 。赞助商福利：前 200 名用户通过 <a href="https://api.pptoken.org/register?promo=SUB2API">[专属注册链接]</a> 注册，输入优惠码 `SUB2API`，可领取 Codex / Claude Code 免费试用额度，无门槛、不绑卡。
 </td>
 </tr>
+
+<tr>
+<td width="180"><a href="https://runapi.co/register?aff=fu2E"><img src="assets/partners/logos/runapi.png" alt="RunAPI" width="150"></a></td>
+<td>感谢 RunAPI 赞助本项目！ <a href="https://runapi.co/register?aff=fu2E">RunAPI</a> 是高效稳定的API OpenRouter平替平台，一个 API Key 即可访问 OpenAI、Claude、Gemini、DeepSeek、Grok 等 150+ 主流模型，低至 1 折，极其稳定，可以无缝兼容 Claude Code、OpenClaw 等工具。
+</td>
+</tr>
+
+<tr>
+<td width="180"><a href="https://unity2.ai/register?source=sub2api"><img src="assets/partners/logos/unity2.png" alt="unity2" width="150"></a></td>
+<td>感谢 Unity2 赞助本项目！ <a href="https://unity2.ai/register?source=sub2api">Unity2</a> 是面向个人开发者、团队、企业的高性能 AI 模型 API 中转平台，长期服务国内头部企业，日均承载超 300 亿 token 调用，支持 5000 RPM 级高并发。一个 API Key 即可适配 Claude Code、Codex、OpenAI 模型、IDE 插件和 Agent 工作流等场景。具备企业级稳定供应能力，在高并发、持续调用和团队集中采购场景下依然保持低延迟、高可用。同时支持余额计费、组合订阅、首充优惠、企业开票、专属 1v1 对接，适合个人高频使用和企业长期接入。现在注册 Unity2.ai 可领取 $2 余额，加入官方群再送 $10 余额，合计最高可领 $12 免费额度，适合先体验后长期使用。<a href="https://unity2.ai/register?source=sub2api">注册链接</a>
+</td>
+</tr>
+
+<tr>
+<td width="180"><a href="https://veilx.io/#/hello/SJRBRVDV"><img src="assets/partners/logos/veilx.png" alt="veilx" width="150"></a></td>
+<td>感谢 Veilx 赞助本项目！ <a href="https://veilx.io/#/hello/SJRBRVDV">Veilx</a> CDN 专为超大规模 API 请求场景打造，针对 AI 中转站业务与 AI API 调用链路进行了深度优化，轻松应对高并发、高频请求与大流量传输，为开发者与企业提供更快、更稳、更低延迟的加速体验。无论是 OpenAI、Claude、Gemini 等 AI 接口中转，还是聊天、绘图、Embedding、流式输出等复杂场景，Veilx 都能显著提升响应速度与连接稳定性，有效降低网络波动带来的超时与失败问题。同时，Veilx 提供中国三网优化回国极速线路，大幅提升中国大陆地区访问海外 AI 服务的速度与稳定性，特别适合全球 AI 中转平台、海外 AI SaaS、跨境业务与高并发 API 系统部署。专为 AI API 而生，让你的 AI 中转服务更快、更稳、更省心。<a href="https://veilx.io/#/hello/SJRBRVDV">购买地址</a>
+</td>
+</tr>
+
 </table>
 
 ## 生态项目
@@ -127,7 +146,7 @@ Sub2API 是一个 AI API 网关平台，用于分发和管理 AI 产品订阅的
 
 | 组件 | 技术 |
 |------|------|
-| 后端 | Go 1.26.3, Gin, Ent |
+| 后端 | Go 1.25.7, Gin, Ent |
 | 前端 | Vue 3.4+, Vite 5+, TailwindCSS |
 | 数据库 | PostgreSQL 15+ |
 | 缓存/队列 | Redis 7+ |
@@ -245,7 +264,7 @@ docker compose logs -f sub2api
 ```
 
 **脚本功能：**
-- 下载本地目录版 Compose 模板并保存为 `docker-compose.yml`，同时下载 `.env.example`
+- 下载 `docker-compose.local.yml`（本地保存为 `docker-compose.yml`）和 `.env.example`
 - 自动生成安全凭证（JWT_SECRET、TOTP_ENCRYPTION_KEY、POSTGRES_PASSWORD）
 - 创建 `.env` 文件并填充自动生成的密钥
 - 创建数据目录（使用本地目录，便于备份和迁移）
@@ -324,23 +343,19 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.local.yml** | 本地目录 | ✅ 简单（打包整个目录） | 生产环境、频繁备份 |
 | **docker-compose.yml** | 命名卷 | ⚠️ 需要 docker 命令 | 简单设置 |
 
-**推荐：** 使用本地目录版 Compose 以便更轻松地管理数据。部署脚本会把它保存为 `docker-compose.yml`，因此脚本安装后可直接使用 `docker compose ...` 命令。
+**推荐：** 使用 `docker-compose.local.yml`（脚本部署）以便更轻松地管理数据。
 
-#### 高流量用量日志
+#### 启用“数据管理”功能（datamanagementd）
 
-如果部署中的 `usage_logs` 数据量较大，升级前请阅读 [usage_logs 容量与升级说明](docs/USAGE_LOGS_CAPACITY.md)。该文档包含 `EXPLAIN (ANALYZE, BUFFERS)` 检查、在线热路径索引、原始日志保留、分区建议，以及内网 HTTP 目标的 URL 安全兼容配置。
+如需启用管理后台“数据管理”，需要额外部署宿主机数据管理进程 `datamanagementd`。
 
-#### “数据管理”功能（datamanagementd）已废弃
+关键点：
 
-当前仓库已移除 `datamanagementd` 源码，管理后台不再依赖独立宿主机数据管理进程。请不要按旧文档部署该守护进程。
+- 主进程固定探测：`/tmp/sub2api-datamanagement.sock`
+- 只有该 Socket 可连通时，数据管理功能才会开启
+- Docker 场景需将宿主机 Socket 挂载到容器同路径
 
-历史说明：
-
-- `deploy/DATAMANAGEMENTD_CN.md`、`deploy/install-datamanagementd.sh` 和 `deploy/sub2api-datamanagementd.service` 仅保留为废弃提示
-- 若已有旧版 `sub2api-datamanagementd` 服务，建议停用并删除对应 systemd 单元
-- 不需要再挂载 `/tmp/sub2api-datamanagement.sock`
-
-如需恢复数据管理能力，请先在新版代码中重新引入明确的服务端实现，再更新部署文档。
+详细部署步骤见：`deploy/DATAMANAGEMENTD_CN.md`
 
 #### 访问
 
@@ -348,24 +363,24 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 如果管理员密码是自动生成的，在日志中查找：
 ```bash
-docker compose logs sub2api | grep "admin password"
+docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
 ```
 
 #### 升级
 
 ```bash
 # 拉取最新镜像并重建容器
-docker compose pull
-docker compose up -d
+docker compose -f docker-compose.local.yml pull
+docker compose -f docker-compose.local.yml up -d
 ```
 
 #### 轻松迁移（本地目录版）
 
-使用本地目录版 Compose（手动为 `docker-compose.local.yml`，脚本生成后为 `docker-compose.yml`）时，可以轻松迁移到新服务器。下面命令按脚本生成的 `docker-compose.yml` 编写；手动使用本地目录文件时加上 `-f docker-compose.local.yml`。
+使用 `docker-compose.local.yml` 时，可以轻松迁移到新服务器：
 
 ```bash
 # 源服务器
-docker compose down
+docker compose -f docker-compose.local.yml down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
 
@@ -375,23 +390,23 @@ scp sub2api-complete.tar.gz user@new-server:/path/
 # 新服务器
 tar xzf sub2api-complete.tar.gz
 cd sub2api-deploy/
-docker compose up -d
+docker compose -f docker-compose.local.yml up -d
 ```
 
 #### 常用命令
 
 ```bash
 # 停止所有服务
-docker compose down
+docker compose -f docker-compose.local.yml down
 
 # 重启
-docker compose restart
+docker compose -f docker-compose.local.yml restart
 
 # 查看所有日志
-docker compose logs -f
+docker compose -f docker-compose.local.yml logs -f
 
 # 删除所有数据（谨慎！）
-docker compose down
+docker compose -f docker-compose.local.yml down
 rm -rf data/ postgres_data/ redis_data/
 ```
 
@@ -403,9 +418,8 @@ rm -rf data/ postgres_data/ redis_data/
 
 #### 前置条件
 
-- Go 1.26.3
-- Node.js 20+
-- pnpm 9.x
+- Go 1.21+
+- Node.js 18+
 - PostgreSQL 15+
 - Redis 7+
 
@@ -416,9 +430,8 @@ rm -rf data/ postgres_data/ redis_data/
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. 启用项目声明的包管理器
-corepack enable
-corepack prepare pnpm@9.15.9 --activate
+# 2. 安装 pnpm（如果还没有安装）
+npm install -g pnpm
 
 # 3. 编译前端
 cd frontend
@@ -501,8 +514,8 @@ gateway:
 
 - `cors.allowed_origins` 配置 CORS 白名单
 - `security.url_allowlist` 配置上游/价格数据/CRS 主机白名单
-- `security.url_allowlist.enabled` 可关闭主机白名单校验（慎用）
-- `security.url_allowlist.allow_insecure_http` 关闭主机白名单时允许 HTTP URL
+- `security.url_allowlist.enabled` 可关闭 URL 校验（慎用）
+- `security.url_allowlist.allow_insecure_http` 关闭校验时允许 HTTP URL
 - `security.url_allowlist.allow_private_hosts` 允许私有/本地 IP 地址
 - `security.response_headers.enabled` 可启用可配置响应头过滤（关闭时使用默认白名单）
 - `security.csp` 配置 Content-Security-Policy
@@ -520,16 +533,13 @@ gateway:
 
 **⚠️ 安全警告：HTTP URL 配置**
 
-当 `security.url_allowlist.enabled=false` 时，系统会关闭主机白名单，但仍会校验 URL 协议，并且**默认阻断私网/回环主机**。HTTP URL 依然会被拒绝。若要访问本地或内网 HTTP 目标，必须显式设置：
-
-升级兼容说明：旧部署如果有意使用内网 HTTP 上游，关闭主机白名单后仍必须同时设置 `allow_insecure_http=true` 和 `allow_private_hosts=true`；否则服务可以启动，但实际使用这些目标时会被拒绝。
+当 `security.url_allowlist.enabled=false` 时，系统默认执行最小 URL 校验，**拒绝 HTTP URL**，仅允许 HTTPS。要允许 HTTP URL（例如用于开发或内网测试），必须显式设置：
 
 ```yaml
 security:
   url_allowlist:
-    enabled: false                # 禁用主机白名单检查
+    enabled: false                # 禁用白名单检查
     allow_insecure_http: true     # 允许 HTTP URL（⚠️ 不安全）
-    allow_private_hosts: true     # 按需允许 localhost / 私网主机
 ```
 
 **或通过环境变量：**
@@ -537,7 +547,6 @@ security:
 ```bash
 SECURITY_URL_ALLOWLIST_ENABLED=false
 SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
-SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 ```
 
 **允许 HTTP 的风险：**
@@ -546,7 +555,7 @@ SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 - **不适合生产环境**
 
 **适用场景：**
-- ✅ 开发/测试环境的本地服务器（http://localhost，且需 `allow_private_hosts=true`）
+- ✅ 开发/测试环境的本地服务器（http://localhost）
 - ✅ 内网可信端点
 - ✅ 获取 HTTPS 前测试账号连通性
 - ❌ 生产环境（仅使用 HTTPS）

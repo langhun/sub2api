@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,11 +22,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/tidwall/gjson"
 )
 
 // sseDataPrefix matches SSE data lines with optional whitespace after colon.
@@ -38,8 +35,6 @@ const (
 	testClaudeAPIURL   = "https://api.anthropic.com/v1/messages?beta=true"
 	chatgptCodexAPIURL = "https://chatgpt.com/backend-api/codex/responses"
 )
-
-var openAIImageTestHeartbeatInterval = 15 * time.Second
 
 // TestEvent represents a SSE event for account testing
 type TestEvent struct {
@@ -69,109 +64,33 @@ func isOpenAIImageModel(model string) bool {
 // AccountTestService handles account testing operations
 type AccountTestService struct {
 	accountRepo               AccountRepository
-	groupRepo                 GroupRepository
 	geminiTokenProvider       *GeminiTokenProvider
 	claudeTokenProvider       *ClaudeTokenProvider
 	antigravityGatewayService *AntigravityGatewayService
 	httpUpstream              HTTPUpstream
 	cfg                       *config.Config
 	tlsFPProfileService       *TLSFingerprintProfileService
-	proxyPool                 *AutoFailoverProxyPoolService
 }
 
 // NewAccountTestService creates a new AccountTestService
 func NewAccountTestService(
 	accountRepo AccountRepository,
-	groupRepo GroupRepository,
 	geminiTokenProvider *GeminiTokenProvider,
 	claudeTokenProvider *ClaudeTokenProvider,
 	antigravityGatewayService *AntigravityGatewayService,
 	httpUpstream HTTPUpstream,
 	cfg *config.Config,
 	tlsFPProfileService *TLSFingerprintProfileService,
-	proxyPool *AutoFailoverProxyPoolService,
 ) *AccountTestService {
 	return &AccountTestService{
 		accountRepo:               accountRepo,
-		groupRepo:                 groupRepo,
 		geminiTokenProvider:       geminiTokenProvider,
 		claudeTokenProvider:       claudeTokenProvider,
 		antigravityGatewayService: antigravityGatewayService,
 		httpUpstream:              httpUpstream,
 		cfg:                       cfg,
 		tlsFPProfileService:       tlsFPProfileService,
-		proxyPool:                 proxyPool,
 	}
-}
-
-func (s *AccountTestService) HasAutoFailoverProxyPool() bool {
-	return s != nil && s.proxyPool != nil
-}
-
-func (s *AccountTestService) resolveTestProxyURL(ctx context.Context, account *Account) (string, error) {
-	if account == nil {
-		return "", nil
-	}
-
-	if s.proxyPool != nil && s.proxyPool.SupportsAccount(account) {
-		proxyURL, _, _, err := s.proxyPool.ResolveProxyURL(ctx, account)
-		if err != nil {
-			return "", err
-		}
-		if proxyURL != "" {
-			return proxyURL, nil
-		}
-		if account.UsesAutoFailoverProxyPool() {
-			return "", errors.New("no available proxy in auto failover proxy pool")
-		}
-	}
-
-	if account.ProxyID != nil && account.Proxy != nil {
-		return account.Proxy.URL(), nil
-	}
-
-	return "", nil
-}
-
-func (s *AccountTestService) doTestRequestWithTLS(
-	ctx context.Context,
-	account *Account,
-	req *http.Request,
-	profile *tlsfingerprint.Profile,
-) (*http.Response, error) {
-	return s.doTestRequest(ctx, account, req, func(clonedReq *http.Request, proxyURL string) (*http.Response, error) {
-		return s.httpUpstream.DoWithTLS(clonedReq, proxyURL, account.ID, account.Concurrency, profile)
-	})
-}
-
-func (s *AccountTestService) doTestRequest(
-	ctx context.Context,
-	account *Account,
-	req *http.Request,
-	do func(*http.Request, string) (*http.Response, error),
-) (*http.Response, error) {
-	if req == nil || do == nil {
-		return nil, errors.New("test request is not available")
-	}
-
-	if s.proxyPool != nil && s.proxyPool.SupportsAccount(account) {
-		candidates, err := s.proxyPool.BuildCandidates(ctx, account)
-		if err != nil {
-			return nil, err
-		}
-		if account != nil && account.UsesAutoFailoverProxyPool() && len(candidates) == 0 {
-			return nil, errors.New("no available proxy in auto failover proxy pool")
-		}
-		if len(candidates) > 0 {
-			return s.proxyPool.DoHTTPRequest(ctx, account, req, do)
-		}
-	}
-
-	proxyURL, err := s.resolveTestProxyURL(ctx, account)
-	if err != nil {
-		return nil, err
-	}
-	return do(req, proxyURL)
 }
 
 func (s *AccountTestService) validateUpstreamBaseURL(raw string) (string, error) {
@@ -179,9 +98,7 @@ func (s *AccountTestService) validateUpstreamBaseURL(raw string) (string, error)
 		return "", errors.New("config is not available")
 	}
 	if !s.cfg.Security.URLAllowlist.Enabled {
-		return urlvalidator.ValidateHTTPURL(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
-			AllowPrivate: s.cfg.Security.URLAllowlist.AllowPrivateHosts,
-		})
+		return urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
 	}
 	normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
 		AllowedHosts:     s.cfg.Security.URLAllowlist.UpstreamHosts,
@@ -229,39 +146,6 @@ func (s *AccountTestService) DescribeUpstreamBaseURLValidationError(err error) s
 
 func (s *AccountTestService) sendInvalidBaseURLError(c *gin.Context, err error) error {
 	return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", s.DescribeUpstreamBaseURLValidationError(err)))
-}
-
-func (s *AccountTestService) tryEnableOpenAIProxyPoolForTest(ctx context.Context, account *Account) (bool, error) {
-	if s == nil || s.accountRepo == nil || s.proxyPool == nil || account == nil || account.Platform != PlatformOpenAI {
-		return false, nil
-	}
-	if normalizeAccountProxyMode(account.GetExtraString("proxy_mode")) == AccountProxyModePool {
-		return false, nil
-	}
-
-	probe := *account
-	probe.Extra = copyAnyMap(account.Extra)
-	if probe.Extra == nil {
-		probe.Extra = map[string]any{}
-	}
-	probe.Extra["proxy_mode"] = AccountProxyModePool
-
-	candidates, err := s.proxyPool.BuildCandidates(ctx, &probe)
-	if err != nil {
-		return false, fmt.Errorf("build proxy pool candidates: %w", err)
-	}
-	if len(candidates) == 0 {
-		return false, nil
-	}
-
-	if account.Extra == nil {
-		account.Extra = map[string]any{}
-	}
-	account.Extra["proxy_mode"] = AccountProxyModePool
-	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{"proxy_mode": AccountProxyModePool}); err != nil {
-		return false, fmt.Errorf("persist proxy_mode=pool: %w", err)
-	}
-	return true, nil
 }
 
 // generateSessionString generates a Claude Code style session string.
@@ -445,7 +329,13 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		req.Header.Set("x-api-key", authToken)
 	}
 
-	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
+	// Get proxy URL
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -464,7 +354,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	}
 
 	// Process SSE stream
-	return s.processClaudeStream(c, account, resp.Body)
+	return s.processClaudeStream(c, resp.Body)
 }
 
 func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Context, ctx context.Context, account *Account, testModelID string) error {
@@ -512,7 +402,12 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -527,7 +422,7 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 		return s.sendErrorAndEnd(c, errMsg)
 	}
 
-	return s.processClaudeStream(c, account, resp.Body)
+	return s.processClaudeStream(c, resp.Body)
 }
 
 // testBedrockAccountConnection tests a Bedrock (SigV4 or API Key) account using non-streaming invoke
@@ -593,7 +488,12 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 		}
 	}
 
-	resp, err := s.doTestRequestWithTLS(ctx, account, req, nil)
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, nil)
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -602,7 +502,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
 	// Bedrock non-streaming response is standard Claude JSON, extract the text
@@ -624,13 +524,13 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 	}
 
 	s.sendEvent(c, TestEvent{Type: "content", Text: text})
-	return s.completeSuccessfulTest(c, account)
+	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+	return nil
 }
 
 // testOpenAIAccountConnection tests an OpenAI account's connection
 func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account *Account, modelID string, prompt string, mode string) error {
 	ctx := c.Request.Context()
-	_ = prompt
 	mode = normalizeAccountTestMode(mode)
 
 	// Default to openai.DefaultTestModel for OpenAI testing
@@ -664,7 +564,6 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	var apiURL string
 	var isOAuth bool
 	var chatgptAccountID string
-	var useCCChatCompletions bool
 
 	if account.IsOAuth() {
 		isOAuth = true
@@ -693,11 +592,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 			return s.sendInvalidBaseURLError(c, err)
 		}
 		if !openai_compat.ShouldUseResponsesAPI(account.Extra) {
-			apiURL = buildOpenAIChatCompletionsURL(normalizedBaseURL)
-			useCCChatCompletions = true
-		} else {
-			apiURL = buildOpenAIResponsesURL(normalizedBaseURL)
+			return s.testOpenAIChatCompletionsConnection(c, account, testModelID, prompt, normalizedBaseURL, authToken)
 		}
+		apiURL = buildOpenAIResponsesURL(normalizedBaseURL)
 	} else {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported account type: %s", account.Type))
 	}
@@ -709,10 +606,8 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.Flush()
 
+	// Create OpenAI Responses API payload
 	payload := createOpenAITestPayload(testModelID, isOAuth)
-	if useCCChatCompletions {
-		payload = createOpenAIChatCompletionsTestPayload(testModelID)
-	}
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event
@@ -722,13 +617,11 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create request")
 	}
+	req = req.WithContext(WithHTTPUpstreamProfile(req.Context(), HTTPUpstreamProfileOpenAI))
 
 	// Set common headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+authToken)
-	if useCCChatCompletions {
-		req.Header.Set("Accept", "text/event-stream")
-	}
 
 	// Set OAuth-specific headers for ChatGPT internal API
 	if isOAuth {
@@ -739,44 +632,27 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 	}
 
-	autoPoolSwitched := false
-	for {
-		resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
-		if err != nil {
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
-		}
+	// Get proxy URL
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
 
-		if isOAuth && s.accountRepo != nil {
-			if updates, err := extractOpenAICodexProbeUpdates(resp); err == nil && len(updates) > 0 {
-				_ = s.accountRepo.UpdateExtra(ctx, account.ID, updates)
-				mergeAccountExtra(account, updates)
-			}
-		}
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	if err != nil {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
+	}
+	defer func() { _ = resp.Body.Close() }()
 
-		if resp.StatusCode == http.StatusOK {
-			if useCCChatCompletions {
-				err = s.processOpenAIChatCompletionsStream(c, account, resp.Body)
-			} else {
-				err = s.processOpenAIStream(c, account, resp.Body)
-			}
-			_ = resp.Body.Close()
-			return err
+	if isOAuth && s.accountRepo != nil {
+		if updates, err := extractOpenAICodexProbeUpdates(resp); err == nil && len(updates) > 0 {
+			_ = s.accountRepo.UpdateExtra(ctx, account.ID, updates)
+			mergeAccountExtra(account, updates)
 		}
+	}
 
+	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-
-		if resp.StatusCode == http.StatusForbidden && !autoPoolSwitched {
-			switched, switchErr := s.tryEnableOpenAIProxyPoolForTest(ctx, account)
-			if switchErr != nil {
-				return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s; auto switch to proxy pool failed: %s", resp.StatusCode, string(body), switchErr.Error()))
-			}
-			if switched {
-				autoPoolSwitched = true
-				continue
-			}
-		}
-
 		if resp.StatusCode == http.StatusTooManyRequests {
 			s.reconcileOpenAI429State(ctx, account, resp.Header, body)
 		}
@@ -785,8 +661,71 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
-		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
+
+	// Process SSE stream
+	return s.processOpenAIStream(c, resp.Body)
+}
+
+// testOpenAIChatCompletionsConnection tests an OpenAI-compatible APIKey account
+// through the raw /v1/chat/completions endpoint.
+func (s *AccountTestService) testOpenAIChatCompletionsConnection(
+	c *gin.Context,
+	account *Account,
+	testModelID string,
+	prompt string,
+	normalizedBaseURL string,
+	authToken string,
+) error {
+	ctx := c.Request.Context()
+	apiURL := buildOpenAIChatCompletionsURL(normalizedBaseURL)
+
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	c.Writer.Flush()
+
+	payload := createOpenAIChatCompletionsTestPayload(testModelID, prompt)
+	payloadBytes, _ := json.Marshal(payload)
+
+	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
+	s.sendEvent(c, TestEvent{Type: "status", Text: "正在通过 /v1/chat/completions 测试连接"})
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return s.sendErrorAndEnd(c, "Failed to create Chat Completions request")
+	}
+	req = req.WithContext(WithHTTPUpstreamProfile(req.Context(), HTTPUpstreamProfileOpenAI))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Authorization", "Bearer "+authToken)
+
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	if err != nil {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Chat Completions API (/v1/chat/completions) request failed: %s", err.Error()))
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode == http.StatusTooManyRequests {
+			s.reconcileOpenAI429State(ctx, account, resp.Header, body)
+		}
+		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil {
+			errMsg := fmt.Sprintf("Chat Completions authentication failed (401): %s", string(body))
+			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
+		}
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Chat Completions API (/v1/chat/completions) returned %d: %s", resp.StatusCode, string(body)))
+	}
+
+	return s.processOpenAIChatCompletionsStream(c, resp.Body)
 }
 
 // testOpenAICompactConnection probes /responses/compact and persists the
@@ -839,6 +778,7 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create request")
 	}
+	req = req.WithContext(WithHTTPUpstreamProfile(req.Context(), HTTPUpstreamProfileOpenAI))
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
@@ -858,9 +798,9 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 		}
 	}
 
-	proxyURL, err := s.resolveTestProxyURL(ctx, account)
-	if err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to resolve proxy: %s", err.Error()))
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
 	}
 
 	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
@@ -896,11 +836,12 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
-		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
 	s.sendEvent(c, TestEvent{Type: "content", Text: "Compact probe succeeded"})
-	return s.completeSuccessfulTest(c, account)
+	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+	return nil
 }
 
 func (s *AccountTestService) reconcileOpenAI429State(ctx context.Context, account *Account, headers http.Header, body []byte) {
@@ -916,9 +857,9 @@ func (s *AccountTestService) reconcileOpenAI429State(ctx context.Context, accoun
 	} else if unixTs := parseOpenAIRateLimitResetTime(body); unixTs != nil {
 		t := time.Unix(*unixTs, 0)
 		resetAt = &t
-	} else {
-		fallback := time.Now().Add(time.Duration(clampRateLimit429CooldownSeconds(defaultRateLimit429CooldownSeconds)) * time.Second)
-		resetAt = &fallback
+	}
+	if resetAt == nil {
+		return
 	}
 
 	if err := s.accountRepo.SetRateLimited(ctx, account.ID, *resetAt); err != nil {
@@ -994,7 +935,12 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
 
 	// Get proxy and execute request
-	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -1006,7 +952,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	}
 
 	// Process SSE stream
-	return s.processGeminiStream(c, account, resp.Body)
+	return s.processGeminiStream(c, resp.Body)
 }
 
 // routeAntigravityTest 路由 Antigravity 账号的测试请求。
@@ -1057,7 +1003,8 @@ func (s *AccountTestService) testAntigravityAccountConnection(c *gin.Context, ac
 		s.sendEvent(c, TestEvent{Type: "content", Text: result.Text})
 	}
 
-	return s.completeSuccessfulTest(c, account)
+	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+	return nil
 }
 
 // buildGeminiAPIKeyRequest builds request for Gemini API Key accounts
@@ -1236,14 +1183,15 @@ func createGeminiTestPayload(modelID string, prompt string) []byte {
 }
 
 // processGeminiStream processes SSE stream from Gemini API
-func (s *AccountTestService) processGeminiStream(c *gin.Context, account *Account, body io.Reader) error {
+func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader) error {
 	reader := bufio.NewReader(body)
 
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
-				return s.completeSuccessfulTest(c, account)
+				s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+				return nil
 			}
 			return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", err.Error()))
 		}
@@ -1255,7 +1203,8 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, account *Accoun
 
 		jsonStr := strings.TrimPrefix(line, "data: ")
 		if jsonStr == "[DONE]" {
-			return s.completeSuccessfulTest(c, account)
+			s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+			return nil
 		}
 
 		var data map[string]any
@@ -1297,7 +1246,8 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, account *Accoun
 
 				// Check for completion after extracting content
 				if finishReason, ok := candidate["finishReason"].(string); ok && finishReason != "" {
-					return s.completeSuccessfulTest(c, account)
+					s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+					return nil
 				}
 			}
 		}
@@ -1342,15 +1292,18 @@ func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
 	return payload
 }
 
-// createOpenAIChatCompletionsTestPayload creates a minimal test payload for
-// OpenAI-compatible chat/completions upstreams (CC passthrough path).
-func createOpenAIChatCompletionsTestPayload(modelID string) map[string]any {
+func createOpenAIChatCompletionsTestPayload(modelID string, prompt string) map[string]any {
+	testPrompt := strings.TrimSpace(prompt)
+	if testPrompt == "" {
+		testPrompt = "hi"
+	}
+
 	return map[string]any{
 		"model": modelID,
 		"messages": []map[string]any{
 			{
 				"role":    "user",
-				"content": "hi",
+				"content": testPrompt,
 			},
 		},
 		"stream": true,
@@ -1358,14 +1311,15 @@ func createOpenAIChatCompletionsTestPayload(modelID string) map[string]any {
 }
 
 // processClaudeStream processes the SSE stream from Claude API
-func (s *AccountTestService) processClaudeStream(c *gin.Context, account *Account, body io.Reader) error {
+func (s *AccountTestService) processClaudeStream(c *gin.Context, body io.Reader) error {
 	reader := bufio.NewReader(body)
 
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
-				return s.completeSuccessfulTest(c, account)
+				s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+				return nil
 			}
 			return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", err.Error()))
 		}
@@ -1377,7 +1331,8 @@ func (s *AccountTestService) processClaudeStream(c *gin.Context, account *Accoun
 
 		jsonStr := sseDataPrefix.ReplaceAllString(line, "")
 		if jsonStr == "[DONE]" {
-			return s.completeSuccessfulTest(c, account)
+			s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+			return nil
 		}
 
 		var data map[string]any
@@ -1395,7 +1350,8 @@ func (s *AccountTestService) processClaudeStream(c *gin.Context, account *Accoun
 				}
 			}
 		case "message_stop":
-			return s.completeSuccessfulTest(c, account)
+			s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+			return nil
 		case "error":
 			errorMsg := "Unknown error"
 			if errData, ok := data["error"].(map[string]any); ok {
@@ -1408,14 +1364,95 @@ func (s *AccountTestService) processClaudeStream(c *gin.Context, account *Accoun
 	}
 }
 
-// processOpenAIStream processes the SSE stream from OpenAI Responses API
-func (s *AccountTestService) processOpenAIStream(c *gin.Context, account *Account, body io.Reader) error {
+// processOpenAIChatCompletionsStream processes SSE chunks from the
+// OpenAI-compatible Chat Completions API.
+func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, body io.Reader) error {
 	reader := bufio.NewReader(body)
+	seenJSON := false
+	seenFinish := false
 
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
+				if seenFinish {
+					s.sendEvent(c, TestEvent{Type: "status", Text: "已通过 /v1/chat/completions 验证"})
+					s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+					return nil
+				}
+				if seenJSON {
+					return s.sendErrorAndEnd(c, "Chat Completions stream from /v1/chat/completions ended before [DONE]")
+				}
+				return s.sendErrorAndEnd(c, "Invalid Chat Completions response from /v1/chat/completions: expected SSE JSON data")
+			}
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Chat Completions stream read error from /v1/chat/completions: %s", err.Error()))
+		}
+
+		line = strings.TrimSpace(line)
+		if line == "" || !sseDataPrefix.MatchString(line) {
+			continue
+		}
+
+		jsonStr := sseDataPrefix.ReplaceAllString(line, "")
+		if jsonStr == "[DONE]" {
+			s.sendEvent(c, TestEvent{Type: "status", Text: "已通过 /v1/chat/completions 验证"})
+			s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+			return nil
+		}
+
+		var data map[string]any
+		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+			return s.sendErrorAndEnd(c, "Invalid Chat Completions response from /v1/chat/completions: expected JSON data")
+		}
+		seenJSON = true
+
+		if errData, ok := data["error"].(map[string]any); ok {
+			errorMsg := "Chat Completions API (/v1/chat/completions) returned an error"
+			if msg, ok := errData["message"].(string); ok && msg != "" {
+				errorMsg = msg
+			}
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Chat Completions API (/v1/chat/completions) error: %s", errorMsg))
+		}
+
+		choices, ok := data["choices"].([]any)
+		if !ok {
+			continue
+		}
+		for _, choiceValue := range choices {
+			choice, ok := choiceValue.(map[string]any)
+			if !ok {
+				continue
+			}
+			if delta, ok := choice["delta"].(map[string]any); ok {
+				if text, ok := delta["content"].(string); ok && text != "" {
+					s.sendEvent(c, TestEvent{Type: "content", Text: text})
+				}
+			}
+			if message, ok := choice["message"].(map[string]any); ok {
+				if text, ok := message["content"].(string); ok && text != "" {
+					s.sendEvent(c, TestEvent{Type: "content", Text: text})
+				}
+			}
+			if finishReason, ok := choice["finish_reason"].(string); ok && finishReason != "" {
+				seenFinish = true
+			}
+		}
+	}
+}
+
+// processOpenAIStream processes the SSE stream from OpenAI Responses API
+func (s *AccountTestService) processOpenAIStream(c *gin.Context, body io.Reader) error {
+	reader := bufio.NewReader(body)
+	seenCompleted := false
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				if seenCompleted {
+					s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+					return nil
+				}
 				return s.sendErrorAndEnd(c, "Stream ended before response.completed")
 			}
 			return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", err.Error()))
@@ -1428,6 +1465,10 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, account *Accoun
 
 		jsonStr := sseDataPrefix.ReplaceAllString(line, "")
 		if jsonStr == "[DONE]" {
+			if seenCompleted {
+				s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+				return nil
+			}
 			return s.sendErrorAndEnd(c, "Stream ended before response.completed")
 		}
 
@@ -1445,7 +1486,8 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, account *Accoun
 				s.sendEvent(c, TestEvent{Type: "content", Text: delta})
 			}
 		case "response.completed", "response.done":
-			return s.completeSuccessfulTest(c, account)
+			s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+			return nil
 		case "response.failed":
 			errorMsg := "OpenAI response failed"
 			if responseData, ok := data["response"].(map[string]any); ok {
@@ -1464,64 +1506,6 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, account *Accoun
 				}
 			}
 			return s.sendErrorAndEnd(c, errorMsg)
-		}
-	}
-}
-
-// processOpenAIChatCompletionsStream processes SSE stream from OpenAI-compatible
-// chat/completions upstreams used by the CC passthrough test path.
-func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, account *Account, body io.Reader) error {
-	reader := bufio.NewReader(body)
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				return s.sendErrorAndEnd(c, "Stream ended before completion")
-			}
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", err.Error()))
-		}
-
-		line = strings.TrimSpace(line)
-		if line == "" || !sseDataPrefix.MatchString(line) {
-			continue
-		}
-
-		jsonStr := sseDataPrefix.ReplaceAllString(line, "")
-		if jsonStr == "[DONE]" {
-			return s.completeSuccessfulTest(c, account)
-		}
-
-		var data map[string]any
-		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
-			continue
-		}
-
-		if errData, ok := data["error"].(map[string]any); ok {
-			errorMsg := "Unknown error"
-			if msg, ok := errData["message"].(string); ok && strings.TrimSpace(msg) != "" {
-				errorMsg = strings.TrimSpace(msg)
-			}
-			return s.sendErrorAndEnd(c, errorMsg)
-		}
-
-		choices, ok := data["choices"].([]any)
-		if !ok {
-			continue
-		}
-		for _, choiceRaw := range choices {
-			choice, ok := choiceRaw.(map[string]any)
-			if !ok {
-				continue
-			}
-			if delta, ok := choice["delta"].(map[string]any); ok {
-				if text, ok := delta["content"].(string); ok && text != "" {
-					s.sendEvent(c, TestEvent{Type: "content", Text: text})
-				}
-			}
-			if finishReason, ok := choice["finish_reason"].(string); ok && finishReason != "" {
-				return s.completeSuccessfulTest(c, account)
-			}
 		}
 	}
 }
@@ -1564,10 +1548,16 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create request")
 	}
+	req = req.WithContext(WithHTTPUpstreamProfile(req.Context(), HTTPUpstreamProfileOpenAI))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+authToken)
 
-	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -1610,7 +1600,8 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 		}
 	}
 
-	return s.completeSuccessfulTest(c, account)
+	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+	return nil
 }
 
 // testOpenAIImageOAuth tests OpenAI image generation using an OAuth account via Codex /responses API.
@@ -1646,27 +1637,27 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create request")
 	}
+	req = req.WithContext(WithHTTPUpstreamProfile(req.Context(), HTTPUpstreamProfileOpenAI))
 	req.Host = "chatgpt.com"
 	req.Header.Set("Authorization", "Bearer "+authToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("OpenAI-Beta", "responses=experimental")
-	req.Header.Set("Originator", "codex_cli_rs")
-	req.Header.Set("Version", codexCLIVersion)
+	req.Header.Set("originator", "opencode")
 	if customUA := strings.TrimSpace(account.GetOpenAIUserAgent()); customUA != "" {
 		req.Header.Set("User-Agent", customUA)
-	}
-	if !openai.IsCodexCLIRequest(req.Header.Get("User-Agent")) {
+	} else {
 		req.Header.Set("User-Agent", codexCLIUserAgent)
 	}
-	probeSessionID := compactProbeSessionID(account.ID)
-	req.Header.Set("Session_ID", probeSessionID)
-	req.Header.Set("Conversation_ID", probeSessionID)
 	if chatgptAccountID := strings.TrimSpace(account.GetChatGPTAccountID()); chatgptAccountID != "" {
 		req.Header.Set("chatgpt-account-id", chatgptAccountID)
 	}
 
-	resp, err := s.doTestRequestWithTLS(ctx, account, req, s.tlsFPProfileService.ResolveTLSProfile(account))
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Responses API request failed: %s", err.Error()))
 	}
@@ -1684,43 +1675,20 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 		return s.sendErrorAndEnd(c, message)
 	}
 
-	return s.processOpenAIImageStream(c, account, resp.Body)
-}
-
-func (s *AccountTestService) processOpenAIImageStream(c *gin.Context, account *Account, body io.Reader) error {
-	reader := bufio.NewReader(body)
-	flusher, _ := c.Writer.(http.Flusher)
-	var (
-		sseData     openAISSEDataAccumulator
-		streamMeta  openAIResponsesImageResult
-		pending     []openAIResponsesImageResult
-		pendingSeen = make(map[string]struct{})
-		emitted     = make(map[string]struct{})
-		createdAt   int64
-		completed   bool
-	)
-	type streamReadResult struct {
-		line []byte
-		err  error
-	}
-	readCh := make(chan streamReadResult, 1)
-	go func() {
-		for {
-			line, err := reader.ReadBytes('\n')
-			readCh <- streamReadResult{line: append([]byte(nil), line...), err: err}
-			if err != nil {
-				close(readCh)
-				return
-			}
-		}
-	}()
-	var heartbeatTicker *time.Ticker
-	if flusher != nil && openAIImageTestHeartbeatInterval > 0 {
-		heartbeatTicker = time.NewTicker(openAIImageTestHeartbeatInterval)
-		defer heartbeatTicker.Stop()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to read image response: %s", err.Error()))
 	}
 
-	emitImage := func(item openAIResponsesImageResult) {
+	results, _, _, _, _, err := collectOpenAIImagesFromResponsesBody(body)
+	if err != nil {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to parse image response: %s", err.Error()))
+	}
+	if len(results) == 0 {
+		return s.sendErrorAndEnd(c, "No images returned from responses API")
+	}
+
+	for _, item := range results {
 		if item.RevisedPrompt != "" {
 			s.sendEvent(c, TestEvent{Type: "content", Text: item.RevisedPrompt})
 		}
@@ -1732,145 +1700,8 @@ func (s *AccountTestService) processOpenAIImageStream(c *gin.Context, account *A
 		})
 	}
 
-	processPayload := func(payload []byte) error {
-		if !gjson.ValidBytes(payload) {
-			return nil
-		}
-		if meta, eventCreatedAt, ok := extractOpenAIResponsesImageMetaFromLifecycleEvent(payload); ok {
-			mergeOpenAIResponsesImageMeta(&streamMeta, meta)
-			if eventCreatedAt > 0 {
-				createdAt = eventCreatedAt
-			}
-		}
-
-		switch gjson.GetBytes(payload, "type").String() {
-		case "response.output_item.done":
-			item, itemID, ok, err := extractOpenAIImageFromResponsesOutputItemDone(payload)
-			if err != nil {
-				return err
-			}
-			if !ok {
-				return nil
-			}
-			mergeOpenAIResponsesImageMeta(&item, streamMeta)
-			key := openAIResponsesImageResultKey(itemID, item)
-			if _, seen := emitted[key]; seen {
-				return nil
-			}
-			if _, seen := pendingSeen[key]; seen {
-				return nil
-			}
-			pendingSeen[key] = struct{}{}
-			pending = append(pending, item)
-			return nil
-		case "response.failed":
-			errorMsg := "OpenAI image response failed"
-			if responseData, ok := gjson.GetBytes(payload, "response.error.message").Value().(string); ok && strings.TrimSpace(responseData) != "" {
-				errorMsg = strings.TrimSpace(responseData)
-			}
-			return fmt.Errorf("%s", errorMsg)
-		case "error":
-			errorMsg := strings.TrimSpace(gjson.GetBytes(payload, "error.message").String())
-			if errorMsg == "" {
-				errorMsg = "Unknown error"
-			}
-			return fmt.Errorf("%s", errorMsg)
-		case "response.completed":
-			results, completedAt, _, firstMeta, err := extractOpenAIImagesFromResponsesCompleted(payload)
-			if err != nil {
-				return err
-			}
-			if completedAt > 0 {
-				createdAt = completedAt
-			}
-			mergeOpenAIResponsesImageMeta(&streamMeta, firstMeta)
-
-			finalResults := make([]openAIResponsesImageResult, 0, len(results)+len(pending))
-			finalSeen := make(map[string]struct{})
-			for _, item := range results {
-				mergeOpenAIResponsesImageMeta(&item, streamMeta)
-				appendOpenAIResponsesImageResultDedup(&finalResults, finalSeen, "", item)
-			}
-			for _, item := range pending {
-				mergeOpenAIResponsesImageMeta(&item, streamMeta)
-				appendOpenAIResponsesImageResultDedup(&finalResults, finalSeen, "", item)
-			}
-
-			if len(finalResults) == 0 {
-				return fmt.Errorf("no images returned from responses API")
-			}
-
-			for _, item := range finalResults {
-				key := openAIResponsesImageResultKey("", item)
-				if _, seen := emitted[key]; seen {
-					continue
-				}
-				emitted[key] = struct{}{}
-				emitImage(item)
-			}
-			completed = true
-			_ = createdAt
-			return nil
-		default:
-			return nil
-		}
-	}
-
-	for {
-		select {
-		case <-c.Request.Context().Done():
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", c.Request.Context().Err()))
-		case <-func() <-chan time.Time {
-			if heartbeatTicker != nil {
-				return heartbeatTicker.C
-			}
-			return nil
-		}():
-			if err := s.sendSSEComment(c, "keepalive"); err != nil {
-				return s.sendErrorAndEnd(c, fmt.Sprintf("Stream write error: %s", err.Error()))
-			}
-		case result, ok := <-readCh:
-			if !ok {
-				if completed {
-					return s.completeSuccessfulTest(c, account)
-				}
-				return s.sendErrorAndEnd(c, "Stream ended before response.completed")
-			}
-			line, err := result.line, result.err
-			if len(line) > 0 {
-				var completedPayloads [][]byte
-				sseData.AddLine(string(line), func(data []byte) {
-					completedPayloads = append(completedPayloads, append([]byte(nil), data...))
-				})
-				for _, payload := range completedPayloads {
-					if processErr := processPayload(payload); processErr != nil {
-						return s.sendErrorAndEnd(c, processErr.Error())
-					}
-				}
-				if completed {
-					return s.completeSuccessfulTest(c, account)
-				}
-			}
-			if err != nil {
-				if err == io.EOF {
-					var flushErr error
-					sseData.Flush(func(data []byte) {
-						if processErr := processPayload(data); processErr != nil && flushErr == nil {
-							flushErr = processErr
-						}
-					})
-					if flushErr != nil {
-						return s.sendErrorAndEnd(c, flushErr.Error())
-					}
-					if completed {
-						return s.completeSuccessfulTest(c, account)
-					}
-					return s.sendErrorAndEnd(c, "Stream ended before response.completed")
-				}
-				return s.sendErrorAndEnd(c, fmt.Sprintf("Stream read error: %s", err.Error()))
-			}
-		}
-	}
+	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+	return nil
 }
 
 func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
@@ -1882,74 +1713,10 @@ func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
 	c.Writer.Flush()
 }
 
-func (s *AccountTestService) sendSSEComment(c *gin.Context, comment string) error {
-	if _, err := fmt.Fprintf(c.Writer, ": %s\n\n", strings.TrimSpace(comment)); err != nil {
-		return err
-	}
-	c.Writer.Flush()
-	return nil
-}
-
-func (s *AccountTestService) completeSuccessfulTest(c *gin.Context, account *Account) error {
-	if err := s.bindPlatformDefaultGroupOnTestSuccess(c.Request.Context(), account); err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to bind default group: %s", err.Error()))
-	}
-	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
-	return nil
-}
-
-func (s *AccountTestService) bindPlatformDefaultGroupOnTestSuccess(ctx context.Context, account *Account) error {
-	if s == nil || s.accountRepo == nil || s.groupRepo == nil || account == nil || account.ID <= 0 {
-		return nil
-	}
-
-	latest, err := s.accountRepo.GetByID(ctx, account.ID)
-	if err != nil {
-		return fmt.Errorf("refresh account: %w", err)
-	}
-	if latest == nil || latest.Platform == "" || len(latest.GroupIDs) > 0 {
-		return nil
-	}
-
-	defaultGroupName := latest.Platform + "-default"
-	groups, err := s.groupRepo.ListActiveByPlatform(ctx, latest.Platform)
-	if err != nil {
-		return fmt.Errorf("list platform groups: %w", err)
-	}
-
-	var defaultGroupID int64
-	for _, group := range groups {
-		if group.Name == defaultGroupName {
-			defaultGroupID = group.ID
-			break
-		}
-	}
-	if defaultGroupID <= 0 {
-		return nil
-	}
-
-	if err := s.accountRepo.BindGroups(ctx, latest.ID, []int64{defaultGroupID}); err != nil {
-		return fmt.Errorf("bind account to %s: %w", defaultGroupName, err)
-	}
-
-	account.GroupIDs = []int64{defaultGroupID}
-	return nil
-}
-
 // sendErrorAndEnd sends an error event and ends the stream
 func (s *AccountTestService) sendErrorAndEnd(c *gin.Context, errorMsg string) error {
 	log.Printf("Account test error: %s", errorMsg)
 	s.sendEvent(c, TestEvent{Type: "error", Error: errorMsg})
-	return fmt.Errorf("%s", errorMsg)
-}
-
-func (s *AccountTestService) sendHTTPErrorAndEnd(c *gin.Context, statusCode int, errorMsg string) error {
-	log.Printf("Account test error: %s", errorMsg)
-	s.sendEvent(c, TestEvent{
-		Type:  "error",
-		Code:  strconv.Itoa(statusCode),
-		Error: errorMsg,
-	})
 	return fmt.Errorf("%s", errorMsg)
 }
 
@@ -1966,7 +1733,7 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 
 	finishedAt := time.Now()
 	body := w.Body.String()
-	responseText, errMsg, httpStatusCode := parseTestSSEOutput(body)
+	responseText, errMsg := parseTestSSEOutput(body)
 
 	status := "success"
 	if testErr != nil || errMsg != "" {
@@ -1977,18 +1744,17 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 	}
 
 	return &ScheduledTestResult{
-		Status:         status,
-		ResponseText:   responseText,
-		ErrorMessage:   errMsg,
-		HTTPStatusCode: httpStatusCode,
-		LatencyMs:      finishedAt.Sub(startedAt).Milliseconds(),
-		StartedAt:      startedAt,
-		FinishedAt:     finishedAt,
+		Status:       status,
+		ResponseText: responseText,
+		ErrorMessage: errMsg,
+		LatencyMs:    finishedAt.Sub(startedAt).Milliseconds(),
+		StartedAt:    startedAt,
+		FinishedAt:   finishedAt,
 	}, nil
 }
 
 // parseTestSSEOutput extracts response text and error message from captured SSE output.
-func parseTestSSEOutput(body string) (responseText, errMsg string, httpStatusCode *int) {
+func parseTestSSEOutput(body string) (responseText, errMsg string) {
 	var texts []string
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
@@ -2007,12 +1773,6 @@ func parseTestSSEOutput(body string) (responseText, errMsg string, httpStatusCod
 			}
 		case "error":
 			errMsg = event.Error
-			if event.Code != "" {
-				if parsed, err := strconv.Atoi(strings.TrimSpace(event.Code)); err == nil {
-					code := parsed
-					httpStatusCode = &code
-				}
-			}
 		}
 	}
 	responseText = strings.Join(texts, "")

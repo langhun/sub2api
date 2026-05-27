@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Go](https://img.shields.io/badge/Go-1.26.3-00ADD8.svg)](https://golang.org/)
+[![Go](https://img.shields.io/badge/Go-1.25.7-00ADD8.svg)](https://golang.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
@@ -103,14 +103,30 @@ Sub2API is an AI API gateway platform designed to distribute and manage API quot
 
 <tr>
 <td width="180"><a href="https://pateway.ai/?ch=1tsfr51"><img src="assets/partners/logos/pateway.png" alt="pateway" width="150"></a></td>
-<td>Thanks to PatewayAI for sponsoring this project! PatewayAI is a premium model API relay service provider built for heavy AI developers, focused on direct official connections. Offering the full Claude series and Codex series models, 100% sourced directly from official providers — no dilution, no substitution, open to verification. Billing is fully transparent with token-level invoices that can be audited line by line.
-Enterprise-grade high concurrency is also supported, with a dedicated management platform for enterprise clients. Enterprise customers can sign formal contracts and receive invoices. Visit the official website for more details and contact information.
-Register now via <a href="https://pateway.ai/?ch=1tsfr51">this link</a> to receive $3 in trial credits. User top-ups start as low as 60% off, and referring friends earns both parties rewards — referral bonuses up to $150.</td>
+<td>Thanks to PatewayAI for sponsoring this project! <a href="https://pateway.ai/?ch=1tsfr51">PatewayAI</a> is a premium API relay built for heavy AI developers, offering the full Claude and Codex series sourced 100% from official providers, with transparent token-level billing. Enterprise plans include high concurrency, dedicated management, contracts, and invoicing. Register now to get $3 in trial credits, top-ups from 60% off, and referral bonuses up to $150.</td>
 </tr>
 
 <tr>
 <td width="180"><a href="https://api.pptoken.org/register?promo=SUB2API"><img src="assets/partners/logos/pptoken.png" alt="pptoken" width="150"></a></td>
 <td>Thanks to PPToken.org for sponsoring this project! <a href="https://api.pptoken.org/register?promo=SUB2API">PPToken.org</a> specializes in GPT model API relay services, supporting Codex, Claude Code, OpenAI-compatible clients, and Gemini CLI integration. Top-ups are 1:1 (¥1 = $1 credit); GPT models start at 0.16x rate multiplier, with overall cost at roughly 2.2% of official pricing and first-token latency around 1 second — ideal for developers seeking low-cost, high-speed access to GPT model capabilities. Technical support: 24/7 real human responses (no bots), @tech in the group chat and get a reply within 10 minutes. Sponsor benefit: the first 200 users who register via the <a href="https://api.pptoken.org/register?promo=SUB2API">exclusive registration link</a> and enter promo code `SUB2API` can claim free Codex / Claude Code trial credits — no minimum spend, no card required.
+</td>
+</tr>
+
+<tr>
+<td width="180"><a href="https://runapi.co/register?aff=fu2E"><img src="assets/partners/logos/runapi.png" alt="RunAPI" width="150"></a></td>
+<td>Thanks to RunAPI for sponsoring this project! <a href="https://runapi.co/register?aff=fu2E">RunAPI</a> is an efficient and stable API platform and OpenRouter alternative. With one API Key, you can access 150+ popular models including OpenAI, Claude, Gemini, DeepSeek, and Grok, with pricing as low as 10% of the original rate. It is highly stable and seamlessly compatible with tools such as Claude Code and OpenClaw.
+</td>
+</tr>
+
+<tr>
+<td width="180"><a href="https://unity2.ai/register?source=sub2api"><img src="assets/partners/logos/unity2.png" alt="unity2" width="150"></a></td>
+<td>Thanks to Unity2 for sponsoring this project! <a href="https://unity2.ai/register?source=sub2api">Unity2</a> is a high-performance AI model API relay for individuals, teams, and enterprises, handling 30B+ tokens/day with 5000 RPM concurrency. One API Key works across Claude Code, Codex, OpenAI models, IDE plugins, and Agent workflows, with balance billing, bundled subscriptions, enterprise invoicing, and 1-on-1 support. <a href="https://unity2.ai/register?source=sub2api">Register</a> to claim $2 in balance, plus $10 more by joining the official group — up to $12 in free credit.
+</td>
+</tr>
+
+<tr>
+<td width="180"><a href="https://veilx.io/#/hello/SJRBRVDV"><img src="assets/partners/logos/veilx.png" alt="veilx" width="150"></a></td>
+<td>Thanks to Veilx for sponsoring this project! <a href="https://veilx.io/#/hello/SJRBRVDV">Veilx</a> CDN is purpose-built for large-scale AI API traffic, deeply optimized for relay services and call chains across OpenAI, Claude, Gemini, and scenarios like chat, image generation, embeddings, and streaming — delivering lower latency and higher stability under heavy concurrency. It also offers China three-network optimized return lines, making it ideal for global AI relay platforms, overseas AI SaaS, and cross-border high-concurrency deployments.
 </td>
 </tr>
 
@@ -129,7 +145,7 @@ Community projects that extend or integrate with Sub2API:
 
 | Component | Technology |
 |-----------|------------|
-| Backend | Go 1.26.3, Gin, Ent |
+| Backend | Go 1.25.7, Gin, Ent |
 | Frontend | Vue 3.4+, Vite 5+, TailwindCSS |
 | Database | PostgreSQL 15+ |
 | Cache/Queue | Redis 7+ |
@@ -247,7 +263,7 @@ docker compose logs -f sub2api
 ```
 
 **What the script does:**
-- Downloads the local-directory Compose template as `docker-compose.yml` and `.env.example`
+- Downloads `docker-compose.local.yml` (saved as `docker-compose.yml`) and `.env.example`
 - Generates secure credentials (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with auto-generated secrets
 - Creates data directories (uses local directories for easy backup/migration)
@@ -326,11 +342,7 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 | **docker-compose.local.yml** | Local directories | ✅ Easy (tar entire directory) | Production, frequent backups |
 | **docker-compose.yml** | Named volumes | ⚠️ Requires docker commands | Simple setup |
 
-**Recommendation:** Use the local-directory compose file for easier data management. The deployment script saves it as `docker-compose.yml`, so script-based installs can use plain `docker compose ...` commands.
-
-#### High-Traffic Usage Logs
-
-For deployments with large `usage_logs` tables, see [usage_logs capacity and upgrade notes](docs/USAGE_LOGS_CAPACITY.md) before upgrading. The guide covers `EXPLAIN (ANALYZE, BUFFERS)` checks, online hot-path indexes, raw-log retention, partitioning, and URL security compatibility flags for internal HTTP targets.
+**Recommendation:** Use `docker-compose.local.yml` (deployed by script) for easier data management.
 
 #### Access
 
@@ -338,24 +350,24 @@ Open `http://YOUR_SERVER_IP:8080` in your browser.
 
 If admin password was auto-generated, find it in logs:
 ```bash
-docker compose logs sub2api | grep "admin password"
+docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
 ```
 
 #### Upgrade
 
 ```bash
 # Pull latest image and recreate container
-docker compose pull
-docker compose up -d
+docker compose -f docker-compose.local.yml pull
+docker compose -f docker-compose.local.yml up -d
 ```
 
 #### Easy Migration (Local Directory Version)
 
-When using the local-directory compose file (`docker-compose.local.yml` manually, or script-generated `docker-compose.yml`), migrate to a new server easily. The commands below assume the script-generated `docker-compose.yml`; for a manual local file, add `-f docker-compose.local.yml`.
+When using `docker-compose.local.yml`, migrate to a new server easily:
 
 ```bash
 # On source server
-docker compose down
+docker compose -f docker-compose.local.yml down
 cd ..
 tar czf sub2api-complete.tar.gz sub2api-deploy/
 
@@ -365,23 +377,23 @@ scp sub2api-complete.tar.gz user@new-server:/path/
 # On new server
 tar xzf sub2api-complete.tar.gz
 cd sub2api-deploy/
-docker compose up -d
+docker compose -f docker-compose.local.yml up -d
 ```
 
 #### Useful Commands
 
 ```bash
 # Stop all services
-docker compose down
+docker compose -f docker-compose.local.yml down
 
 # Restart
-docker compose restart
+docker compose -f docker-compose.local.yml restart
 
 # View all logs
-docker compose logs -f
+docker compose -f docker-compose.local.yml logs -f
 
 # Remove all data (caution!)
-docker compose down
+docker compose -f docker-compose.local.yml down
 rm -rf data/ postgres_data/ redis_data/
 ```
 
@@ -393,9 +405,8 @@ Build and run from source code for development or customization.
 
 #### Prerequisites
 
-- Go 1.26.3
-- Node.js 20+
-- pnpm 9.x
+- Go 1.21+
+- Node.js 18+
 - PostgreSQL 15+
 - Redis 7+
 
@@ -406,9 +417,8 @@ Build and run from source code for development or customization.
 git clone https://github.com/Wei-Shaw/sub2api.git
 cd sub2api
 
-# 2. Enable the project package manager
-corepack enable
-corepack prepare pnpm@9.15.9 --activate
+# 2. Install pnpm (if not already installed)
+npm install -g pnpm
 
 # 3. Build frontend
 cd frontend
@@ -470,8 +480,8 @@ Additional security-related options are available in `config.yaml`:
 
 - `cors.allowed_origins` for CORS allowlist
 - `security.url_allowlist` for upstream/pricing/CRS host allowlists
-- `security.url_allowlist.enabled` to disable the hostname allowlist (use with caution)
-- `security.url_allowlist.allow_insecure_http` to allow HTTP URLs when the hostname allowlist is disabled
+- `security.url_allowlist.enabled` to disable URL validation (use with caution)
+- `security.url_allowlist.allow_insecure_http` to allow HTTP URLs when validation is disabled
 - `security.url_allowlist.allow_private_hosts` to allow private/local IP addresses
 - `security.response_headers.enabled` to enable configurable response header filtering (disabled uses default allowlist)
 - `security.csp` to control Content-Security-Policy headers
@@ -481,16 +491,13 @@ Additional security-related options are available in `config.yaml`:
 
 **⚠️ Security Warning: HTTP URL Configuration**
 
-When `security.url_allowlist.enabled=false`, the system disables the hostname allowlist, but it still validates URL scheme and **blocks private/loopback hosts by default**. HTTP URLs remain rejected unless you explicitly opt in. For local or internal HTTP targets, set:
-
-Upgrade compatibility: older deployments that intentionally used internal HTTP upstreams must set both `allow_insecure_http=true` and `allow_private_hosts=true` after disabling the hostname allowlist; otherwise startup succeeds, but those targets are rejected when used.
+When `security.url_allowlist.enabled=false`, the system performs minimal URL validation by default, **rejecting HTTP URLs** and only allowing HTTPS. To allow HTTP URLs (e.g., for development or internal testing), you must explicitly set:
 
 ```yaml
 security:
   url_allowlist:
-    enabled: false                # Disable hostname allowlist checks
+    enabled: false                # Disable allowlist checks
     allow_insecure_http: true     # Allow HTTP URLs (⚠️ INSECURE)
-    allow_private_hosts: true     # Allow localhost/private hosts when needed
 ```
 
 **Or via environment variable:**
@@ -498,7 +505,6 @@ security:
 ```bash
 SECURITY_URL_ALLOWLIST_ENABLED=false
 SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
-SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 ```
 
 **Risks of allowing HTTP:**
@@ -507,7 +513,7 @@ SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 - **NOT suitable for production** environments
 
 **When to use HTTP:**
-- ✅ Development/testing with local servers (http://localhost, plus `allow_private_hosts=true`)
+- ✅ Development/testing with local servers (http://localhost)
 - ✅ Internal networks with trusted endpoints
 - ✅ Testing account connectivity before obtaining HTTPS
 - ❌ Production environments (use HTTPS only)

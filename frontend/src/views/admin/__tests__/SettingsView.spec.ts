@@ -11,15 +11,11 @@ const {
   updateWebSearchEmulationConfig,
   getAdminApiKey,
   getOverloadCooldownSettings,
-  updateOverloadCooldownSettings,
   getRateLimit429CooldownSettings,
   updateRateLimit429CooldownSettings,
   getStreamTimeoutSettings,
-  updateStreamTimeoutSettings,
   getRectifierSettings,
-  updateRectifierSettings,
   getBetaPolicySettings,
-  updateBetaPolicySettings,
   getGroups,
   listProxies,
   getProviders,
@@ -37,15 +33,11 @@ const {
   updateWebSearchEmulationConfig: vi.fn(),
   getAdminApiKey: vi.fn(),
   getOverloadCooldownSettings: vi.fn(),
-  updateOverloadCooldownSettings: vi.fn(),
   getRateLimit429CooldownSettings: vi.fn(),
   updateRateLimit429CooldownSettings: vi.fn(),
   getStreamTimeoutSettings: vi.fn(),
-  updateStreamTimeoutSettings: vi.fn(),
   getRectifierSettings: vi.fn(),
-  updateRectifierSettings: vi.fn(),
   getBetaPolicySettings: vi.fn(),
-  updateBetaPolicySettings: vi.fn(),
   getGroups: vi.fn(),
   listProxies: vi.fn(),
   getProviders: vi.fn(),
@@ -69,15 +61,11 @@ vi.mock("@/api", () => ({
       updateWebSearchEmulationConfig,
       getAdminApiKey,
       getOverloadCooldownSettings,
-      updateOverloadCooldownSettings,
       getRateLimit429CooldownSettings,
       updateRateLimit429CooldownSettings,
       getStreamTimeoutSettings,
-      updateStreamTimeoutSettings,
       getRectifierSettings,
-      updateRectifierSettings,
       getBetaPolicySettings,
-      updateBetaPolicySettings,
     },
     groups: {
       getAll: getGroups,
@@ -95,16 +83,6 @@ vi.mock("@/api", () => ({
 }));
 
 vi.mock("@/stores", () => ({
-  useAppStore: () => ({
-    showError,
-    showSuccess,
-    showWarning: vi.fn(),
-    showInfo: vi.fn(),
-    fetchPublicSettings,
-  }),
-}));
-
-vi.mock("@/stores/app", () => ({
   useAppStore: () => ({
     showError,
     showSuccess,
@@ -185,24 +163,16 @@ vi.mock("vue-i18n", async () => {
     "admin.settings.openaiExperimentalScheduler.description": "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑，不代表上游 OpenAI 官方能力。",
     "admin.settings.site.uploadImage": "上传图片",
     "admin.settings.site.remove": "移除",
-    "admin.settings.site.homeNavLeaderboardEnabled": "显示排行榜入口",
-    "admin.settings.site.homeNavLeaderboardEnabledHint": "在公开首页顶部显示或隐藏排行榜入口。",
-    "admin.settings.site.homeNavKeyUsageEnabled": "显示用量查询入口",
-    "admin.settings.site.homeNavKeyUsageEnabledHint": "在公开首页顶部显示或隐藏用量查询入口。",
-    "admin.settings.site.homeNavMonitoringEnabled": "显示平台监控入口",
-    "admin.settings.site.homeNavMonitoringEnabledHint": "在公开首页顶部显示或隐藏平台监控入口。",
-    "admin.settings.site.homeNavPricingEnabled": "显示模型定价入口",
-    "admin.settings.site.homeNavPricingEnabledHint": "在公开首页顶部显示或隐藏模型定价入口。",
-    "admin.settings.site.leaderboardBalanceEnabled": "显示余额排行榜",
-    "admin.settings.site.leaderboardBalanceEnabledHint": "控制排行榜页面是否显示余额标签。",
-    "admin.settings.site.leaderboardConsumptionEnabled": "显示消费排行榜",
-    "admin.settings.site.leaderboardConsumptionEnabledHint": "控制排行榜页面是否显示消费标签。",
-    "admin.settings.site.leaderboardTransferEnabled": "显示转账排行榜",
-    "admin.settings.site.leaderboardTransferEnabledHint": "控制排行榜页面是否显示转账标签。",
-    "admin.settings.site.leaderboardCheckinEnabled": "显示签到排行榜",
-    "admin.settings.site.leaderboardCheckinEnabledHint": "控制排行榜页面是否显示签到标签。",
-    "admin.settings.site.leaderboardIncludeAdminEnabled": "排行榜包含管理员",
-    "admin.settings.site.leaderboardIncludeAdminEnabledHint": "控制公开排行榜和消费分布是否把管理员账号统计进去。关闭时管理员不会上榜。",
+    "admin.settings.platformQuota.platform": "平台",
+    "admin.settings.platformQuota.daily": "日限额 (USD)",
+    "admin.settings.platformQuota.weekly": "周限额 (USD)",
+    "admin.settings.platformQuota.monthly": "月限额 (USD, 30天滚动)",
+    "admin.settings.platformQuota.placeholder": "不限",
+    "admin.settings.defaults.defaultPlatformQuotas": "默认平台限额（注册时分配）",
+    "admin.settings.defaults.defaultPlatformQuotasHint": "新用户注册时自动写入平台限额记录；已有用户不受影响。留空 = 该平台该窗口不限制。",
+    "admin.settings.defaults.platformQuotaNotice": "月限额为 30 天滚动窗口，非自然月",
+    "admin.settings.authSourceDefaults.platformQuotasOverride": "平台限额覆盖",
+    "admin.settings.authSourceDefaults.platformQuotasOverrideHint": "留空的字段继承「系统默认平台限额」；填 0 表示禁止该窗口使用。",
   };
   return {
     ...actual,
@@ -324,77 +294,11 @@ const baseSettingsResponse = {
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   promo_code_enabled: true,
-  redeem_code_format: {
-    prefix: "",
-    suffix: "",
-    random_length: 16,
-    separator: "-",
-    group_size: 4,
-    group_count: 4,
-    chars_per_group: 4,
-    charset: "mixed",
-    letter_case: "upper",
-  },
-  balance_code_format: {
-    prefix: "BAL",
-    suffix: "",
-    random_length: 12,
-    separator: "-",
-    group_size: 4,
-    group_count: 3,
-    chars_per_group: 4,
-    charset: "mixed",
-    letter_case: "upper",
-  },
-  concurrency_code_format: {
-    prefix: "CC",
-    suffix: "",
-    random_length: 12,
-    separator: "-",
-    group_size: 4,
-    group_count: 3,
-    chars_per_group: 4,
-    charset: "digits",
-    letter_case: "upper",
-  },
-  subscription_code_format: {
-    prefix: "SUB",
-    suffix: "",
-    random_length: 9,
-    separator: "-",
-    group_size: 3,
-    group_count: 3,
-    chars_per_group: 3,
-    charset: "letters",
-    letter_case: "upper",
-  },
   invitation_code_enabled: false,
-  invitation_code_format: {
-    prefix: "DG",
-    suffix: "",
-    random_length: 6,
-    separator: "-",
-    group_size: 6,
-    group_count: 1,
-    chars_per_group: 6,
-    charset: "mixed",
-    letter_case: "upper",
-  },
   password_reset_enabled: false,
   totp_enabled: false,
   totp_encryption_key_configured: false,
   default_balance: 0,
-  affiliate_code_format: {
-    prefix: "AFF",
-    suffix: "",
-    random_length: 12,
-    separator: "",
-    group_size: 12,
-    group_count: 1,
-    chars_per_group: 12,
-    charset: "mixed",
-    letter_case: "upper",
-  },
   default_concurrency: 1,
   default_subscriptions: [],
   site_name: "Sub2API",
@@ -404,16 +308,6 @@ const baseSettingsResponse = {
   contact_info: "",
   doc_url: "",
   home_content: "",
-  home_nav_links_enabled: true,
-  home_nav_leaderboard_enabled: true,
-  home_nav_key_usage_enabled: true,
-  home_nav_monitoring_enabled: true,
-  home_nav_pricing_enabled: true,
-  leaderboard_balance_enabled: true,
-  leaderboard_consumption_enabled: true,
-  leaderboard_transfer_enabled: true,
-  leaderboard_checkin_enabled: true,
-  leaderboard_include_admin_enabled: false,
   hide_ccs_import_button: false,
   table_default_page_size: 20,
   table_page_size_options: [10, 20, 50, 100],
@@ -516,8 +410,16 @@ const baseSettingsResponse = {
   balance_low_notify_enabled: false,
   balance_low_notify_threshold: 0,
   balance_low_notify_recharge_url: "",
+  subscription_expiry_notify_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [],
+  // 平台限额嵌套字段（新后端契约）
+  default_platform_quotas: {
+    anthropic:   { daily: null, weekly: null, monthly: null },
+    openai:      { daily: null, weekly: 12.5, monthly: null },
+    gemini:      { daily: null, weekly: null, monthly: 200 },
+    antigravity: { daily: null, weekly: null, monthly: null },
+  },
 };
 
 function mountView() {
@@ -536,8 +438,6 @@ function mountView() {
         ProxySelector: true,
         ImageUpload: ImageUploadStub,
         BackupSettings: true,
-        BlindboxPrizePoolCard: true,
-        RouterLink: true,
       },
     },
   });
@@ -550,16 +450,6 @@ async function openPaymentTab(wrapper: ReturnType<typeof mountView>) {
 
   expect(paymentTabButton).toBeDefined();
   await paymentTabButton?.trigger("click");
-  await flushPromises();
-}
-
-async function openBackupTab(wrapper: ReturnType<typeof mountView>) {
-  const backupTabButton = wrapper
-    .findAll("button")
-    .find((node) => node.text().includes("admin.settings.tabs.backup"));
-
-  expect(backupTabButton).toBeDefined();
-  await backupTabButton?.trigger("click");
   await flushPromises();
 }
 
@@ -591,15 +481,11 @@ describe("admin SettingsView payment visible method controls", () => {
     updateWebSearchEmulationConfig.mockReset();
     getAdminApiKey.mockReset();
     getOverloadCooldownSettings.mockReset();
-    updateOverloadCooldownSettings.mockReset();
     getRateLimit429CooldownSettings.mockReset();
     updateRateLimit429CooldownSettings.mockReset();
     getStreamTimeoutSettings.mockReset();
-    updateStreamTimeoutSettings.mockReset();
     getRectifierSettings.mockReset();
-    updateRectifierSettings.mockReset();
     getBetaPolicySettings.mockReset();
-    updateBetaPolicySettings.mockReset();
     getGroups.mockReset();
     listProxies.mockReset();
     getProviders.mockReset();
@@ -633,7 +519,6 @@ describe("admin SettingsView payment visible method controls", () => {
       enabled: true,
       cooldown_minutes: 10,
     });
-    updateOverloadCooldownSettings.mockImplementation(async (payload) => payload);
     getRateLimit429CooldownSettings.mockResolvedValue({
       enabled: true,
       cooldown_seconds: 5,
@@ -646,7 +531,6 @@ describe("admin SettingsView payment visible method controls", () => {
       threshold_count: 3,
       threshold_window_minutes: 10,
     });
-    updateStreamTimeoutSettings.mockImplementation(async (payload) => payload);
     getRectifierSettings.mockResolvedValue({
       enabled: true,
       thinking_signature_enabled: true,
@@ -654,11 +538,9 @@ describe("admin SettingsView payment visible method controls", () => {
       apikey_signature_enabled: false,
       apikey_signature_patterns: [],
     });
-    updateRectifierSettings.mockImplementation(async (payload) => payload);
     getBetaPolicySettings.mockResolvedValue({
       rules: [],
     });
-    updateBetaPolicySettings.mockImplementation(async (payload) => payload);
     getGroups.mockResolvedValue([]);
     listProxies.mockResolvedValue({
       items: [],
@@ -720,102 +602,6 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_enabled");
   });
 
-  it("renders and submits split home nav link switches", async () => {
-    getSettings.mockResolvedValueOnce({
-      ...baseSettingsResponse,
-      home_nav_leaderboard_enabled: false,
-      home_nav_key_usage_enabled: true,
-      home_nav_monitoring_enabled: false,
-      home_nav_pricing_enabled: true,
-    });
-
-    const wrapper = mountView();
-
-    await flushPromises();
-
-    expect(wrapper.text()).toContain("显示排行榜入口");
-    expect(wrapper.text()).toContain("显示用量查询入口");
-    expect(wrapper.text()).toContain("显示平台监控入口");
-    expect(wrapper.text()).toContain("显示模型定价入口");
-
-    await wrapper.find("form").trigger("submit.prevent");
-    await flushPromises();
-
-    expect(updateSettings).toHaveBeenCalledTimes(1);
-    expect(updateSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        home_nav_leaderboard_enabled: false,
-        home_nav_key_usage_enabled: true,
-        home_nav_monitoring_enabled: false,
-        home_nav_pricing_enabled: true,
-      }),
-    );
-    expect(updateSettings.mock.calls[0]?.[0]).not.toHaveProperty(
-      "home_nav_links_enabled",
-    );
-  });
-
-  it("renders independent code format cards for balance, concurrency, subscription, and invitation", async () => {
-    const wrapper = mountView();
-
-    await flushPromises();
-
-    expect(wrapper.text()).toContain("余额兑换码");
-    expect(wrapper.text()).toContain("并发兑换码");
-    expect(wrapper.text()).toContain("订阅兑换码");
-    expect(wrapper.text()).toContain("邀请码");
-    expect(wrapper.text()).toContain("BAL-XXXX-XXXX-XXXX");
-    expect(wrapper.text()).toContain("CC-8888-8888-8888");
-    expect(wrapper.text()).toContain("SUB-XXX-XXX-XXX");
-  });
-
-  it("orders settings tabs by workflow and mounts backup content on demand", async () => {
-    const BackupSettingsStub = defineComponent({
-      template: '<div class="backup-settings-stub">backup settings</div>',
-    });
-
-    const wrapper = mount(SettingsView, {
-      global: {
-        stubs: {
-          AppLayout: AppLayoutStub,
-          Select: SelectStub,
-          Toggle: ToggleStub,
-          Icon: true,
-          ConfirmDialog: true,
-          PaymentProviderList: true,
-          PaymentProviderDialog: true,
-          GroupBadge: true,
-          GroupOptionItem: true,
-          ProxySelector: true,
-          ImageUpload: ImageUploadStub,
-          BackupSettings: BackupSettingsStub,
-          BlindboxPrizePoolCard: true,
-          RouterLink: true,
-        },
-      },
-    });
-
-    await flushPromises();
-
-    expect(wrapper.findAll(".settings-tab").map((node) => node.text())).toEqual([
-      "admin.settings.tabs.general",
-      "admin.settings.tabs.agreement",
-      "admin.settings.tabs.security",
-      "admin.settings.tabs.email",
-      "admin.settings.tabs.users",
-      "admin.settings.tabs.features",
-      "admin.settings.tabs.checkin",
-      "admin.settings.tabs.payment",
-      "admin.settings.tabs.gateway",
-      "admin.settings.tabs.backup",
-    ]);
-    expect(wrapper.find(".backup-settings-stub").exists()).toBe(false);
-
-    await openBackupTab(wrapper);
-
-    expect(wrapper.find(".backup-settings-stub").exists()).toBe(true);
-  });
-
   it("submits Anthropic cache TTL injection gateway setting", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
@@ -832,43 +618,6 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         enable_anthropic_cache_ttl_1h_injection: true,
-      }),
-    );
-  });
-
-  it("renders and submits leaderboard tab switches independently from home nav entry", async () => {
-    getSettings.mockResolvedValueOnce({
-      ...baseSettingsResponse,
-      home_nav_leaderboard_enabled: false,
-      leaderboard_balance_enabled: true,
-      leaderboard_consumption_enabled: false,
-      leaderboard_transfer_enabled: true,
-      leaderboard_checkin_enabled: false,
-      leaderboard_include_admin_enabled: true,
-    });
-
-    const wrapper = mountView();
-
-    await flushPromises();
-
-    expect(wrapper.text()).toContain("显示排行榜入口");
-    expect(wrapper.text()).toContain("显示余额排行榜");
-    expect(wrapper.text()).toContain("显示消费排行榜");
-    expect(wrapper.text()).toContain("显示转账排行榜");
-    expect(wrapper.text()).toContain("显示签到排行榜");
-    expect(wrapper.text()).toContain("排行榜包含管理员");
-    await wrapper.find("form").trigger("submit.prevent");
-    await flushPromises();
-
-    expect(updateSettings).toHaveBeenCalledTimes(1);
-    expect(updateSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        home_nav_leaderboard_enabled: false,
-        leaderboard_balance_enabled: true,
-        leaderboard_consumption_enabled: false,
-        leaderboard_transfer_enabled: true,
-        leaderboard_checkin_enabled: false,
-        leaderboard_include_admin_enabled: true,
       }),
     );
   });
@@ -963,8 +712,6 @@ describe("admin SettingsView payment visible method controls", () => {
           ProxySelector: true,
           ImageUpload: ImageUploadStub,
           BackupSettings: true,
-          BlindboxPrizePoolCard: true,
-          RouterLink: true,
         },
       },
     });
@@ -1006,98 +753,6 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(paymentHelpImageUpload).toBeDefined();
     expect(paymentHelpImageUpload?.attributes("data-upload-label")).toBe("上传图片");
     expect(paymentHelpImageUpload?.attributes("data-remove-label")).toBe("移除");
-  });
-
-  it("saves overload cooldown, stream timeout, rectifier, and beta policy cards through their dedicated APIs", async () => {
-    const wrapper = mountView();
-    await flushPromises();
-
-    const setupState = (wrapper.vm as any).$?.setupState ?? (wrapper.vm as any);
-
-    setupState.overloadCooldown.form.enabled = false;
-    setupState.overloadCooldown.form.cooldown_minutes = 25;
-    await setupState.overloadCooldown.save();
-    expect(updateOverloadCooldownSettings).toHaveBeenCalledWith({
-      enabled: false,
-      cooldown_minutes: 25,
-    });
-
-    setupState.streamTimeout.form.enabled = true;
-    setupState.streamTimeout.form.action = "error";
-    setupState.streamTimeout.form.threshold_count = 4;
-    setupState.streamTimeout.form.threshold_window_minutes = 20;
-    await setupState.streamTimeout.save();
-    expect(updateStreamTimeoutSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        enabled: true,
-        action: "error",
-        threshold_count: 4,
-        threshold_window_minutes: 20,
-      }),
-    );
-
-    setupState.rectifier.form.enabled = true;
-    setupState.rectifier.form.apikey_signature_patterns = ["sk-test"];
-    await setupState.rectifier.save();
-    expect(updateRectifierSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        enabled: true,
-        apikey_signature_patterns: ["sk-test"],
-      }),
-    );
-
-    setupState.betaPolicy.form.rules = [{ model: "gpt-4o-mini", beta: true }];
-    await setupState.betaPolicy.save();
-    expect(updateBetaPolicySettings).toHaveBeenCalledWith({
-      rules: [{ model: "gpt-4o-mini", beta: true }],
-    });
-  });
-
-  it("clears nullable fields on reload instead of keeping stale values", async () => {
-    getSettings
-      .mockResolvedValueOnce({
-        ...baseSettingsResponse,
-        doc_url: "https://old.example.com/docs",
-      })
-      .mockResolvedValueOnce({
-        ...baseSettingsResponse,
-        doc_url: null,
-      });
-
-    const wrapper = mountView();
-    await flushPromises();
-
-    const setupState = (wrapper.vm as any).$?.setupState ?? (wrapper.vm as any);
-    expect(setupState.form.doc_url).toBe("https://old.example.com/docs");
-
-    await setupState.loadSettings();
-    await flushPromises();
-
-    expect(setupState.form.doc_url).toBe("");
-
-    await setupState.saveSettings();
-    expect(updateSettings).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        doc_url: "",
-      }),
-    );
-  });
-
-  it("clears nullable fields after save when backend returns null", async () => {
-    updateSettings.mockResolvedValueOnce({
-      ...baseSettingsResponse,
-      doc_url: null,
-    });
-
-    const wrapper = mountView();
-    await flushPromises();
-
-    const setupState = (wrapper.vm as any).$?.setupState ?? (wrapper.vm as any);
-    setupState.form.doc_url = "https://stale.example.com/docs";
-
-    await setupState.saveSettings();
-
-    expect(setupState.form.doc_url).toBe("");
   });
 });
 
@@ -1344,5 +999,159 @@ describe("admin SettingsView wechat connect controls", () => {
         oidc_connect_validate_id_token: false,
       }),
     );
+  });
+});
+
+describe("admin SettingsView platform quota matrix", () => {
+  beforeEach(() => {
+    getSettings.mockReset();
+    updateSettings.mockReset();
+    getWebSearchEmulationConfig.mockReset();
+    updateWebSearchEmulationConfig.mockReset();
+    getAdminApiKey.mockReset();
+    getOverloadCooldownSettings.mockReset();
+    getRateLimit429CooldownSettings.mockReset();
+    updateRateLimit429CooldownSettings.mockReset();
+    getStreamTimeoutSettings.mockReset();
+    getRectifierSettings.mockReset();
+    getBetaPolicySettings.mockReset();
+    getGroups.mockReset();
+    listProxies.mockReset();
+    getProviders.mockReset();
+    updateProvider.mockReset();
+    createProvider.mockReset();
+    deleteProvider.mockReset();
+    fetchPublicSettings.mockReset();
+    adminSettingsFetch.mockReset();
+    showError.mockReset();
+    showSuccess.mockReset();
+    localeRef.value = "zh-CN";
+
+    getSettings.mockResolvedValue({ ...baseSettingsResponse });
+    updateSettings.mockImplementation(async (payload) => ({
+      ...baseSettingsResponse,
+      ...payload,
+    }));
+    getWebSearchEmulationConfig.mockResolvedValue({ enabled: false, providers: [] });
+    updateWebSearchEmulationConfig.mockResolvedValue({ enabled: false, providers: [] });
+    getAdminApiKey.mockResolvedValue({ exists: false, masked_key: "" });
+    getOverloadCooldownSettings.mockResolvedValue({});
+    getRateLimit429CooldownSettings.mockResolvedValue({});
+    updateRateLimit429CooldownSettings.mockResolvedValue({});
+    getStreamTimeoutSettings.mockResolvedValue({});
+    getRectifierSettings.mockResolvedValue({});
+    getBetaPolicySettings.mockResolvedValue({});
+    getGroups.mockResolvedValue([]);
+    listProxies.mockResolvedValue({ items: [] });
+    getProviders.mockResolvedValue({ data: [] });
+  });
+
+  it("从 baseSettings 加载默认平台配额数据并在 Users tab 渲染 4 平台行", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    await openUsersTab(wrapper);
+
+    expect(getSettings).toHaveBeenCalled();
+
+    const html = wrapper.html();
+    // 表格行的平台字段：font-mono 渲染纯英文 platform key
+    expect(html).toContain("anthropic");
+    expect(html).toContain("openai");
+    expect(html).toContain("gemini");
+    expect(html).toContain("antigravity");
+  });
+
+  it("保存时 updateSettings payload 应包含嵌套 default_platform_quotas 对象（含全 4 平台）", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+    await openUsersTab(wrapper);
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalled();
+    const lastCallArgs = updateSettings.mock.calls.at(-1);
+    expect(lastCallArgs).toBeDefined();
+    const payload = lastCallArgs![0] as Record<string, unknown>;
+
+    // 应携带嵌套对象，而非扁平字段
+    expect(payload).toHaveProperty("default_platform_quotas");
+    const quotas = payload["default_platform_quotas"] as Record<string, unknown>;
+    const platforms = ["anthropic", "openai", "gemini", "antigravity"];
+    for (const p of platforms) {
+      expect(quotas).toHaveProperty(p);
+      const pq = quotas[p] as Record<string, unknown>;
+      expect(pq).toHaveProperty("daily");
+      expect(pq).toHaveProperty("weekly");
+      expect(pq).toHaveProperty("monthly");
+    }
+
+    // 不应存在旧扁平字段
+    expect(payload).not.toHaveProperty("default_platform_quota_anthropic_daily");
+    expect(payload).not.toHaveProperty("default_platform_quota_openai_weekly");
+  });
+
+  it("加载后 form.default_platform_quotas 含全 4 平台，从嵌套 JSON 正确读取数值", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      default_platform_quotas: {
+        anthropic: { daily: 5, weekly: null, monthly: null },
+        openai:    { daily: null, weekly: 12.5, monthly: null },
+        // gemini / antigravity 缺失 → 应被归一化为全 null
+      },
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+    await openUsersTab(wrapper);
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    const payload = updateSettings.mock.calls.at(-1)![0] as Record<string, unknown>;
+    const quotas = payload["default_platform_quotas"] as Record<string, Record<string, unknown>>;
+
+    expect(quotas["anthropic"]?.["daily"]).toBe(5);
+    expect(quotas["openai"]?.["weekly"]).toBe(12.5);
+    // 缺失平台应补全为 null
+    expect(quotas["gemini"]).toEqual({ daily: null, weekly: null, monthly: null });
+    expect(quotas["antigravity"]).toEqual({ daily: null, weekly: null, monthly: null });
+  });
+
+  it("空输入（v-model.number 产出 \"\"）在提交时清洗为 null 而非空字符串", async () => {
+    // 模拟后端返回带有 anthropic daily 值的配额
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      default_platform_quotas: {
+        anthropic: { daily: 10, weekly: null, monthly: null },
+        openai:    { daily: null, weekly: null, monthly: null },
+        gemini:    { daily: null, weekly: null, monthly: null },
+        antigravity: { daily: null, weekly: null, monthly: null },
+      },
+    });
+
+    const wrapper = mountView();
+    await flushPromises();
+    await openUsersTab(wrapper);
+
+    // 找到 anthropic daily 输入框并清空（模拟用户删除值）
+    const inputs = wrapper.findAll('input[type="number"]');
+    const anthropicDailyInput = inputs.find((i) => {
+      const parent = i.element.closest("tr");
+      return parent?.textContent?.includes("anthropic");
+    });
+
+    if (anthropicDailyInput) {
+      // 设置为空字符串，模拟 v-model.number 在清空时产出 ""
+      await anthropicDailyInput.setValue("");
+    }
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    const payload = updateSettings.mock.calls.at(-1)![0] as Record<string, unknown>;
+    const quotas = payload["default_platform_quotas"] as Record<string, Record<string, unknown>>;
+    // 不管输入是什么，提交值应为 null（而非 "" 或 NaN）
+    expect(quotas["anthropic"]?.["daily"]).toBe(null);
   });
 });

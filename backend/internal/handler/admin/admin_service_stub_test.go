@@ -10,29 +10,26 @@ import (
 )
 
 type stubAdminService struct {
-	users                  []service.User
-	apiKeys                []service.APIKey
-	groups                 []service.Group
-	accounts               []service.Account
-	proxies                []service.Proxy
-	proxyCounts            []service.ProxyWithAccountCount
-	redeems                []service.RedeemCode
-	boundAuthIdentity      *service.AdminBindAuthIdentityInput
-	boundAuthIdentityFor   int64
-	createdAccounts        []*service.CreateAccountInput
-	createdProxies         []*service.CreateProxyInput
-	updatedProxyIDs        []int64
-	updatedProxies         []*service.UpdateProxyInput
-	testedProxyIDs         []int64
-	forceOpenAIPrivacyMode string
-	clearAccountPrivacyErr error
-	forcedPrivacyIDs       []int64
-	clearedPrivacyIDs      []int64
-	createAccountErr       error
-	updateAccountErr       error
-	bulkUpdateAccountErr   error
-	checkMixedErr          error
-	lastMixedCheck         struct {
+	users                []service.User
+	apiKeys              []service.APIKey
+	groups               []service.Group
+	accounts             []service.Account
+	proxies              []service.Proxy
+	proxyCounts          []service.ProxyWithAccountCount
+	redeems              []service.RedeemCode
+	boundAuthIdentity    *service.AdminBindAuthIdentityInput
+	boundAuthIdentityFor int64
+	createdAccounts      []*service.CreateAccountInput
+	createdProxies       []*service.CreateProxyInput
+	updatedProxyIDs      []int64
+	updatedProxies       []*service.UpdateProxyInput
+	testedProxyIDs       []int64
+	getUserErr           error
+	createAccountErr     error
+	updateAccountErr     error
+	bulkUpdateAccountErr error
+	checkMixedErr        error
+	lastMixedCheck       struct {
 		accountID int64
 		platform  string
 		groupIDs  []int64
@@ -44,7 +41,6 @@ type stubAdminService struct {
 		search      string
 		groupID     int64
 		privacyMode string
-		tier        string
 		sortBy      string
 		sortOrder   string
 		calls       int
@@ -58,35 +54,14 @@ type stubAdminService struct {
 		calls     int
 	}
 	lastListProxies struct {
-		protocol      string
-		status        string
-		runtimeStatus string
-		search        string
-		sortBy        string
-		sortOrder     string
-		calls         int
-		accountCalls  int
+		protocol  string
+		status    string
+		search    string
+		sortBy    string
+		sortOrder string
+		calls     int
 	}
-	lastGetGroupAPIKeyCalls    []groupAPIKeyCall
-	lastUnassignProxyIDs       []int64
-	lastPoolMembershipIDs      []int64
-	lastPoolMembershipEnabled  bool
-	lastClearCooldownIDs       []int64
-	lastListProxySubscriptions struct {
-		page     int
-		pageSize int
-		search   string
-		enabled  *bool
-		calls    int
-	}
-	lastCreateProxySubscriptionInput *service.CreateProxySubscriptionSourceInput
-	lastUpdateProxySubscriptionID    int64
-	lastUpdateProxySubscriptionInput *service.UpdateProxySubscriptionSourceInput
-	lastDeleteProxySubscriptionID    int64
-	lastRefreshProxySubscriptionID   int64
-	lastListProxySubscriptionNodesID int64
-	lastListSubscriptionProxiesID    int64
-	lastListRedeemCodes              struct {
+	lastListRedeemCodes struct {
 		codeType  string
 		status    string
 		search    string
@@ -94,15 +69,7 @@ type stubAdminService struct {
 		sortOrder string
 		calls     int
 	}
-	redeemStats    service.RedeemCodeStats
-	redeemStatsErr error
-	mu             sync.Mutex
-}
-
-type groupAPIKeyCall struct {
-	groupID  int64
-	page     int
-	pageSize int
+	mu sync.Mutex
 }
 
 func newStubAdminService() *stubAdminService {
@@ -167,13 +134,6 @@ func newStubAdminService() *stubAdminService {
 		proxies:     []service.Proxy{proxy},
 		proxyCounts: []service.ProxyWithAccountCount{{Proxy: proxy, AccountCount: 1}},
 		redeems:     []service.RedeemCode{redeem},
-		redeemStats: service.RedeemCodeStats{
-			TotalCodes:  1,
-			ActiveCodes: 1,
-			ByType: service.RedeemCodeStatsByType{
-				Balance: 1,
-			},
-		},
 	}
 }
 
@@ -188,6 +148,9 @@ func (s *stubAdminService) ListUsers(ctx context.Context, page, pageSize int, fi
 }
 
 func (s *stubAdminService) GetUser(ctx context.Context, id int64) (*service.User, error) {
+	if s.getUserErr != nil {
+		return nil, s.getUserErr
+	}
 	for i := range s.users {
 		if s.users[i].ID == id {
 			return &s.users[i], nil
@@ -317,34 +280,7 @@ func (s *stubAdminService) DeleteGroup(ctx context.Context, id int64) error {
 }
 
 func (s *stubAdminService) GetGroupAPIKeys(ctx context.Context, groupID int64, page, pageSize int) ([]service.APIKey, int64, error) {
-	s.lastGetGroupAPIKeyCalls = append(s.lastGetGroupAPIKeyCalls, groupAPIKeyCall{
-		groupID:  groupID,
-		page:     page,
-		pageSize: pageSize,
-	})
-
-	total := int64(len(s.apiKeys))
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 {
-		pageSize = 20
-	}
-	if pageSize > 1000 {
-		pageSize = 1000
-	}
-
-	start := (page - 1) * pageSize
-	if start >= len(s.apiKeys) {
-		return []service.APIKey{}, total, nil
-	}
-
-	end := start + pageSize
-	if end > len(s.apiKeys) {
-		end = len(s.apiKeys)
-	}
-
-	return s.apiKeys[start:end], total, nil
+	return s.apiKeys, int64(len(s.apiKeys)), nil
 }
 
 func (s *stubAdminService) GetGroupRateMultipliers(_ context.Context, _ int64) ([]service.UserGroupRateEntry, error) {
@@ -367,14 +303,13 @@ func (s *stubAdminService) BatchSetGroupRPMOverrides(_ context.Context, _ int64,
 	return nil
 }
 
-func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, tier string, sortBy, sortOrder string) ([]service.Account, int64, error) {
+func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode string, sortBy, sortOrder string) ([]service.Account, int64, error) {
 	s.lastListAccounts.platform = platform
 	s.lastListAccounts.accountType = accountType
 	s.lastListAccounts.status = status
 	s.lastListAccounts.search = search
 	s.lastListAccounts.groupID = groupID
 	s.lastListAccounts.privacyMode = privacyMode
-	s.lastListAccounts.tier = tier
 	s.lastListAccounts.sortBy = sortBy
 	s.lastListAccounts.sortOrder = sortOrder
 	s.lastListAccounts.calls++
@@ -387,25 +322,10 @@ func (s *stubAdminService) GetAccount(ctx context.Context, id int64) (*service.A
 }
 
 func (s *stubAdminService) GetAccountsByIDs(ctx context.Context, ids []int64) ([]*service.Account, error) {
-	if len(s.accounts) == 0 {
-		out := make([]*service.Account, 0, len(ids))
-		for _, id := range ids {
-			account := service.Account{ID: id, Name: "account", Status: service.StatusActive}
-			out = append(out, &account)
-		}
-		return out, nil
-	}
-
 	out := make([]*service.Account, 0, len(ids))
 	for _, id := range ids {
-		for i := range s.accounts {
-			if s.accounts[i].ID != id {
-				continue
-			}
-			account := s.accounts[i]
-			out = append(out, &account)
-			break
-		}
+		account := service.Account{ID: id, Name: "account", Status: service.StatusActive}
+		out = append(out, &account)
 	}
 	return out, nil
 }
@@ -427,6 +347,10 @@ func (s *stubAdminService) UpdateAccount(ctx context.Context, id int64, input *s
 	}
 	account := service.Account{ID: id, Name: input.Name, Status: service.StatusActive}
 	return &account, nil
+}
+
+func (s *stubAdminService) UpdateAccountExtra(ctx context.Context, id int64, updates map[string]any) error {
+	return nil
 }
 
 func (s *stubAdminService) DeleteAccount(ctx context.Context, id int64) error {
@@ -466,10 +390,6 @@ func (s *stubAdminService) CheckMixedChannelRisk(ctx context.Context, currentAcc
 	return s.checkMixedErr
 }
 
-func (s *stubAdminService) CheckDuplicateAccounts(ctx context.Context, input *service.AccountDuplicateCheckInput) (*service.AccountDuplicateCheckResult, error) {
-	return &service.AccountDuplicateCheckResult{}, nil
-}
-
 func (s *stubAdminService) ListProxies(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]service.Proxy, int64, error) {
 	s.lastListProxies.protocol = protocol
 	s.lastListProxies.status = status
@@ -498,14 +418,7 @@ func (s *stubAdminService) ListProxies(ctx context.Context, page, pageSize int, 
 	return filtered, int64(len(filtered)), nil
 }
 
-func (s *stubAdminService) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, runtimeStatus, search string, sortBy, sortOrder string) ([]service.ProxyWithAccountCount, int64, error) {
-	s.lastListProxies.protocol = protocol
-	s.lastListProxies.status = status
-	s.lastListProxies.runtimeStatus = runtimeStatus
-	s.lastListProxies.search = search
-	s.lastListProxies.sortBy = sortBy
-	s.lastListProxies.sortOrder = sortOrder
-	s.lastListProxies.accountCalls++
+func (s *stubAdminService) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]service.ProxyWithAccountCount, int64, error) {
 	return s.proxyCounts, int64(len(s.proxyCounts)), nil
 }
 
@@ -575,32 +488,8 @@ func (s *stubAdminService) GetProxyAccounts(ctx context.Context, proxyID int64) 
 	return []service.ProxyAccountSummary{{ID: 1, Name: "account"}}, nil
 }
 
-func (s *stubAdminService) AssignProxiesToAccounts(ctx context.Context, input *service.AssignProxiesToAccountsInput) (*service.ProxyAccountAssignmentResult, error) {
-	return &service.ProxyAccountAssignmentResult{DryRun: input != nil && input.DryRun}, nil
-}
-
-func (s *stubAdminService) UnassignProxiesFromAccounts(ctx context.Context, proxyIDs []int64) (*service.ProxyUnassignAccountsResult, error) {
-	s.lastUnassignProxyIDs = append([]int64(nil), proxyIDs...)
-	return &service.ProxyUnassignAccountsResult{
-		ProxyIDs:           append([]int64(nil), proxyIDs...),
-		MatchedAccounts:    int64(len(proxyIDs)),
-		UnassignedAccounts: int64(len(proxyIDs)),
-	}, nil
-}
-
 func (s *stubAdminService) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {
 	return false, nil
-}
-
-func (s *stubAdminService) SetAutoFailoverProxyPoolMembership(ctx context.Context, proxyIDs []int64, enabled bool) (int, error) {
-	s.lastPoolMembershipIDs = append([]int64(nil), proxyIDs...)
-	s.lastPoolMembershipEnabled = enabled
-	return len(proxyIDs), nil
-}
-
-func (s *stubAdminService) ClearProxyCooldownState(ctx context.Context, proxyIDs []int64) error {
-	s.lastClearCooldownIDs = append([]int64(nil), proxyIDs...)
-	return nil
 }
 
 func (s *stubAdminService) TestProxy(ctx context.Context, id int64) (*service.ProxyTestResult, error) {
@@ -630,71 +519,6 @@ func (s *stubAdminService) CheckProxyQuality(ctx context.Context, id int64) (*se
 	}, nil
 }
 
-func (s *stubAdminService) GetProxyStats(ctx context.Context, id int64) (*service.ProxyStatsResult, error) {
-	return &service.ProxyStatsResult{
-		TotalAccounts:  3,
-		ActiveAccounts: 2,
-		TotalRequests:  42,
-		SuccessRate:    97.5,
-		AverageLatency: 123,
-	}, nil
-}
-
-func (s *stubAdminService) ListProxySubscriptionSources(ctx context.Context, page, pageSize int, search string, enabled *bool) ([]service.ProxySubscriptionSource, int64, error) {
-	s.lastListProxySubscriptions.page = page
-	s.lastListProxySubscriptions.pageSize = pageSize
-	s.lastListProxySubscriptions.search = search
-	s.lastListProxySubscriptions.calls++
-	if enabled != nil {
-		value := *enabled
-		s.lastListProxySubscriptions.enabled = &value
-	} else {
-		s.lastListProxySubscriptions.enabled = nil
-	}
-	return []service.ProxySubscriptionSource{}, 0, nil
-}
-
-func (s *stubAdminService) GetProxySubscriptionSource(ctx context.Context, id int64) (*service.ProxySubscriptionSource, error) {
-	return &service.ProxySubscriptionSource{ID: id, Name: "source", URL: "https://example.com/sub"}, nil
-}
-
-func (s *stubAdminService) CreateProxySubscriptionSource(ctx context.Context, input *service.CreateProxySubscriptionSourceInput) (*service.ProxySubscriptionSource, error) {
-	copied := *input
-	s.lastCreateProxySubscriptionInput = &copied
-	return &service.ProxySubscriptionSource{ID: 1, Name: input.Name, URL: input.URL, SourceFormat: input.SourceFormat, Enabled: input.Enabled, RefreshIntervalHours: input.RefreshIntervalHours, AutoAddToPool: input.AutoAddToPool}, nil
-}
-
-func (s *stubAdminService) UpdateProxySubscriptionSource(ctx context.Context, id int64, input *service.UpdateProxySubscriptionSourceInput) (*service.ProxySubscriptionSource, error) {
-	s.lastUpdateProxySubscriptionID = id
-	copied := *input
-	s.lastUpdateProxySubscriptionInput = &copied
-	name := "source"
-	if input.Name != nil {
-		name = *input.Name
-	}
-	return &service.ProxySubscriptionSource{ID: id, Name: name}, nil
-}
-
-func (s *stubAdminService) DeleteProxySubscriptionSource(ctx context.Context, id int64) error {
-	s.lastDeleteProxySubscriptionID = id
-	return nil
-}
-
-func (s *stubAdminService) ListProxySubscriptionNodes(ctx context.Context, sourceID int64) ([]service.ProxySubscriptionNode, error) {
-	s.lastListProxySubscriptionNodesID = sourceID
-	return []service.ProxySubscriptionNode{}, nil
-}
-
-func (s *stubAdminService) ListMaterializedProxiesBySubscriptionSource(ctx context.Context, sourceID int64) ([]service.Proxy, error) {
-	s.lastListSubscriptionProxiesID = sourceID
-	return []service.Proxy{}, nil
-}
-
-func (s *stubAdminService) RefreshProxySubscriptionSource(ctx context.Context, id int64) (*service.ProxySubscriptionRefreshResult, error) {
-	s.lastRefreshProxySubscriptionID = id
-	return &service.ProxySubscriptionRefreshResult{SourceID: id, RefreshedAt: time.Now()}, nil
-}
-
 func (s *stubAdminService) ListRedeemCodes(ctx context.Context, page, pageSize int, codeType, status, search string, sortBy, sortOrder string) ([]service.RedeemCode, int64, error) {
 	s.lastListRedeemCodes.codeType = codeType
 	s.lastListRedeemCodes.status = status
@@ -708,14 +532,6 @@ func (s *stubAdminService) ListRedeemCodes(ctx context.Context, page, pageSize i
 func (s *stubAdminService) GetRedeemCode(ctx context.Context, id int64) (*service.RedeemCode, error) {
 	code := service.RedeemCode{ID: id, Code: "R-TEST", Status: service.StatusUnused}
 	return &code, nil
-}
-
-func (s *stubAdminService) GetRedeemCodeStats(ctx context.Context) (*service.RedeemCodeStats, error) {
-	if s.redeemStatsErr != nil {
-		return nil, s.redeemStatsErr
-	}
-	stats := s.redeemStats
-	return &stats, nil
 }
 
 func (s *stubAdminService) GenerateRedeemCodes(ctx context.Context, input *service.GenerateRedeemCodesInput) ([]service.RedeemCode, error) {
@@ -790,21 +606,11 @@ func (s *stubAdminService) EnsureAntigravityPrivacy(ctx context.Context, account
 }
 
 func (s *stubAdminService) ForceOpenAIPrivacy(ctx context.Context, account *service.Account) string {
-	s.mu.Lock()
-	s.forcedPrivacyIDs = append(s.forcedPrivacyIDs, account.ID)
-	s.mu.Unlock()
-	return s.forceOpenAIPrivacyMode
+	return ""
 }
 
 func (s *stubAdminService) ForceAntigravityPrivacy(ctx context.Context, account *service.Account) string {
 	return ""
-}
-
-func (s *stubAdminService) ClearAccountPrivacyMode(ctx context.Context, account *service.Account) error {
-	s.mu.Lock()
-	s.clearedPrivacyIDs = append(s.clearedPrivacyIDs, account.ID)
-	s.mu.Unlock()
-	return s.clearAccountPrivacyErr
 }
 
 func (s *stubAdminService) ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*service.ReplaceUserGroupResult, error) {

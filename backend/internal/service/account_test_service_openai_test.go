@@ -14,10 +14,10 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
-
-	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
+	"github.com/tidwall/gjson"
 )
 
 // --- shared test helpers ---
@@ -26,18 +26,15 @@ type queuedHTTPUpstream struct {
 	responses []*http.Response
 	requests  []*http.Request
 	tlsFlags  []bool
-	proxyURLs []string
 }
 
-func (u *queuedHTTPUpstream) Do(_ *http.Request, proxyURL string, _ int64, _ int) (*http.Response, error) {
-	u.proxyURLs = append(u.proxyURLs, proxyURL)
+func (u *queuedHTTPUpstream) Do(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
 	return nil, fmt.Errorf("unexpected Do call")
 }
 
-func (u *queuedHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, _ int64, _ int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+func (u *queuedHTTPUpstream) DoWithTLS(req *http.Request, _ string, _ int64, _ int, profile *tlsfingerprint.Profile) (*http.Response, error) {
 	u.requests = append(u.requests, req)
 	u.tlsFlags = append(u.tlsFlags, profile != nil)
-	u.proxyURLs = append(u.proxyURLs, proxyURL)
 	if len(u.responses) == 0 {
 		return nil, fmt.Errorf("no mocked response")
 	}
@@ -74,8 +71,6 @@ type openAIAccountTestRepo struct {
 	clearedErrorID     int64
 	setErrorID         int64
 	setErrorMsg        string
-	boundAccountID     int64
-	boundGroupIDs      []int64
 }
 
 func (r *openAIAccountTestRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
@@ -97,39 +92,13 @@ func (r *openAIAccountTestRepo) SetRateLimited(_ context.Context, id int64, rese
 
 func (r *openAIAccountTestRepo) ClearError(_ context.Context, id int64) error {
 	r.clearedErrorID = id
-	if account, ok := r.accountsByID[id]; ok {
-		account.Status = StatusActive
-		account.ErrorMessage = ""
-	}
 	return nil
 }
 
 func (r *openAIAccountTestRepo) SetError(_ context.Context, id int64, errorMsg string) error {
 	r.setErrorID = id
 	r.setErrorMsg = errorMsg
-	if account, ok := r.accountsByID[id]; ok {
-		account.Status = StatusError
-		account.ErrorMessage = errorMsg
-	}
 	return nil
-}
-
-func (r *openAIAccountTestRepo) BindGroups(_ context.Context, accountID int64, groupIDs []int64) error {
-	r.boundAccountID = accountID
-	r.boundGroupIDs = append([]int64(nil), groupIDs...)
-	if account, ok := r.accountsByID[accountID]; ok {
-		account.GroupIDs = append([]int64(nil), groupIDs...)
-	}
-	return nil
-}
-
-type accountTestGroupRepoStub struct {
-	GroupRepository
-	groupsByPlatform map[string][]Group
-}
-
-func (s *accountTestGroupRepoStub) ListActiveByPlatform(_ context.Context, platform string) ([]Group, error) {
-	return append([]Group(nil), s.groupsByPlatform[platform]...), nil
 }
 
 func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.T) {
@@ -160,319 +129,12 @@ func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
 	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, HTTPUpstreamProfileOpenAI, HTTPUpstreamProfileFromContext(upstream.requests[0].Context()))
 	require.NotEmpty(t, repo.updatedExtra)
 	require.Equal(t, 42.0, repo.updatedExtra["codex_5h_used_percent"])
 	require.Equal(t, 88.0, repo.updatedExtra["codex_7d_used_percent"])
 	require.Contains(t, recorder.Body.String(), "test_complete")
-}
-
-func TestAccountTestService_OpenAISuccessBindsPlatformDefaultGroupForUngroupedAccount(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
-	resp := newJSONResponse(http.StatusOK, "")
-	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
-
-`))
-
-	repo := &openAIAccountTestRepo{
-		mockAccountRepoForGemini: mockAccountRepoForGemini{
-			accountsByID: map[int64]*Account{
-				89: {
-					ID:          89,
-					Platform:    PlatformOpenAI,
-					Type:        AccountTypeOAuth,
-					Concurrency: 1,
-					Credentials: map[string]any{"access_token": "test-token"},
-				},
-			},
-		},
-	}
-	groupRepo := &accountTestGroupRepoStub{
-		groupsByPlatform: map[string][]Group{
-			PlatformOpenAI: {
-				{ID: 501, Name: "openai-default", Platform: PlatformOpenAI},
-			},
-		},
-	}
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
-	svc := &AccountTestService{accountRepo: repo, groupRepo: groupRepo, httpUpstream: upstream}
-
-	account := &Account{
-		ID:          89,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Concurrency: 1,
-		Credentials: map[string]any{"access_token": "test-token"},
-	}
-
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
-	require.NoError(t, err)
-	require.Equal(t, int64(89), repo.boundAccountID)
-	require.Equal(t, []int64{501}, repo.boundGroupIDs)
-	require.Equal(t, []int64{501}, account.GroupIDs)
-	require.Contains(t, recorder.Body.String(), "test_complete")
-}
-
-func TestAccountTestService_OpenAISuccessDoesNotOverrideExplicitGroups(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
-	resp := newJSONResponse(http.StatusOK, "")
-	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
-
-`))
-
-	repo := &openAIAccountTestRepo{
-		mockAccountRepoForGemini: mockAccountRepoForGemini{
-			accountsByID: map[int64]*Account{
-				90: {
-					ID:          90,
-					Platform:    PlatformOpenAI,
-					Type:        AccountTypeOAuth,
-					Concurrency: 1,
-					GroupIDs:    []int64{700},
-					Credentials: map[string]any{"access_token": "test-token"},
-				},
-			},
-		},
-	}
-	groupRepo := &accountTestGroupRepoStub{
-		groupsByPlatform: map[string][]Group{
-			PlatformOpenAI: {
-				{ID: 501, Name: "openai-default", Platform: PlatformOpenAI},
-			},
-		},
-	}
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
-	svc := &AccountTestService{accountRepo: repo, groupRepo: groupRepo, httpUpstream: upstream}
-
-	account := &Account{
-		ID:          90,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Concurrency: 1,
-		GroupIDs:    []int64{700},
-		Credentials: map[string]any{"access_token": "test-token"},
-	}
-
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
-	require.NoError(t, err)
-	require.Zero(t, repo.boundAccountID)
-	require.Nil(t, repo.boundGroupIDs)
-	require.Equal(t, []int64{700}, account.GroupIDs)
-	require.Contains(t, recorder.Body.String(), "test_complete")
-}
-
-func TestAccountTestService_OpenAIUsesAutoFailoverProxyPoolForTesting(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
-	resp := newJSONResponse(http.StatusOK, "")
-	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
-
-`))
-
-	settingRepo := &settingRepoStubForPool{
-		values: map[string]string{
-			SettingKeyAutoFailoverProxyPool: "[11]",
-		},
-	}
-	settingSvc := NewSettingService(settingRepo, nil)
-	proxyRepo := &proxyRepoStubForPool{
-		proxies: map[int64]Proxy{
-			11: {ID: 11, Name: "pool", Protocol: "http", Host: "pool.example", Port: 8080, Status: StatusActive},
-		},
-	}
-	poolSvc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
-	svc := &AccountTestService{
-		httpUpstream: upstream,
-		proxyPool:    poolSvc,
-	}
-	account := &Account{
-		ID:          91,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Concurrency: 1,
-		Credentials: map[string]any{"access_token": "test-token"},
-		Extra: map[string]any{
-			"proxy_mode": AccountProxyModePool,
-		},
-	}
-
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
-	require.NoError(t, err)
-	require.Len(t, upstream.proxyURLs, 1)
-	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[0])
-	require.Contains(t, recorder.Body.String(), "test_complete")
-}
-
-func TestAccountTestService_OpenAIExplicitPoolWithoutCandidateFailsClearly(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
-	settingRepo := &settingRepoStubForPool{
-		values: map[string]string{
-			SettingKeyAutoFailoverProxyPool: "[]",
-		},
-	}
-	settingSvc := NewSettingService(settingRepo, nil)
-	poolSvc := NewAutoFailoverProxyPoolService(&proxyRepoStubForPool{}, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
-	upstream := &queuedHTTPUpstream{}
-	svc := &AccountTestService{
-		httpUpstream: upstream,
-		proxyPool:    poolSvc,
-	}
-	account := &Account{
-		ID:          92,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Concurrency: 1,
-		Credentials: map[string]any{"access_token": "test-token"},
-		Extra: map[string]any{
-			"proxy_mode": AccountProxyModePool,
-		},
-	}
-
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
-	require.Error(t, err)
-	require.Empty(t, upstream.proxyURLs)
-	require.Contains(t, err.Error(), "no available proxy in auto failover proxy pool")
-	require.Contains(t, recorder.Body.String(), "no available proxy in auto failover proxy pool")
-}
-
-func TestAccountTestService_OpenAI403SwitchesToPoolAndRetries(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
-	settingRepo := &settingRepoStubForPool{
-		values: map[string]string{
-			SettingKeyAutoFailoverProxyPool: "[11]",
-		},
-	}
-	settingSvc := NewSettingService(settingRepo, nil)
-	proxyRepo := &proxyRepoStubForPool{
-		proxies: map[int64]Proxy{
-			11: {ID: 11, Name: "pool", Protocol: "http", Host: "pool.example", Port: 8080, Status: StatusActive},
-		},
-	}
-	poolSvc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
-
-	forbiddenResp := newJSONResponse(http.StatusForbidden, `{"error":"forbidden"}`)
-	successResp := newJSONResponse(http.StatusOK, "")
-	successResp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
-
-`))
-
-	account := &Account{
-		ID:          93,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Status:      StatusActive,
-		Concurrency: 1,
-		Credentials: map[string]any{"access_token": "test-token"},
-	}
-	repo := &openAIAccountTestRepo{
-		mockAccountRepoForGemini: mockAccountRepoForGemini{
-			accountsByID: map[int64]*Account{
-				93: account,
-			},
-		},
-	}
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{forbiddenResp, successResp}}
-	svc := &AccountTestService{
-		accountRepo:  repo,
-		httpUpstream: upstream,
-		proxyPool:    poolSvc,
-	}
-
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
-	require.NoError(t, err)
-	require.Equal(t, AccountProxyModePool, account.Extra["proxy_mode"])
-	require.Equal(t, AccountProxyModePool, repo.updatedExtra["proxy_mode"])
-	require.Len(t, upstream.proxyURLs, 2)
-	require.Equal(t, "", upstream.proxyURLs[0])
-	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[1])
-	require.Contains(t, recorder.Body.String(), "test_complete")
-}
-
-func TestAccountTestService_OpenAIAPIKeyUnsupportedResponsesUsesCCChatCompletionsPath(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
-	resp := newJSONResponse(http.StatusOK, "")
-	resp.Body = io.NopCloser(strings.NewReader(`data: {"choices":[{"delta":{"content":"hi"}}]}
-data: {"choices":[{"delta":{"content":" there"},"finish_reason":"stop"}]}
-
-`))
-
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
-	svc := &AccountTestService{
-		httpUpstream: upstream,
-		cfg: &config.Config{
-			Security: config.SecurityConfig{
-				URLAllowlist: config.URLAllowlistConfig{
-					Enabled: false,
-				},
-			},
-		},
-	}
-	account := &Account{
-		ID:          901,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeAPIKey,
-		Concurrency: 1,
-		Credentials: map[string]any{
-			"api_key":  "sk-test",
-			"base_url": "https://relay.example.com/v1",
-		},
-		Extra: map[string]any{
-			openai_compat.ExtraKeyResponsesSupported: false,
-		},
-	}
-
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
-	require.NoError(t, err)
-
-	require.Len(t, upstream.requests, 1)
-	require.Equal(t, "https://relay.example.com/v1/chat/completions", upstream.requests[0].URL.String())
-	require.Equal(t, "text/event-stream", upstream.requests[0].Header.Get("Accept"))
-	require.Contains(t, recorder.Body.String(), `"text":"hi"`)
-	require.Contains(t, recorder.Body.String(), `"text":" there"`)
-	require.Contains(t, recorder.Body.String(), "test_complete")
-}
-
-func TestAccountTestService_OpenAIAPIKeyAllowlistErrorMentionsConfigAction(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
-	svc := &AccountTestService{
-		cfg: &config.Config{
-			Security: config.SecurityConfig{
-				URLAllowlist: config.URLAllowlistConfig{
-					Enabled:       true,
-					UpstreamHosts: []string{"api.openai.com"},
-				},
-			},
-		},
-	}
-	account := &Account{
-		ID:          902,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeAPIKey,
-		Concurrency: 1,
-		Credentials: map[string]any{
-			"api_key":  "sk-test",
-			"base_url": "https://relay.example.com/v1",
-		},
-	}
-
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
-	require.Error(t, err)
-	require.Contains(t, recorder.Body.String(), "host is not allowed: relay.example.com")
-	require.Contains(t, recorder.Body.String(), "security.url_allowlist.upstream_hosts")
-	require.Contains(t, recorder.Body.String(), "relay.example.com")
 }
 
 func TestAccountTestService_OpenAIStreamEOFBeforeCompletedFails(t *testing.T) {
@@ -620,7 +282,7 @@ func TestAccountTestService_OpenAI429ActiveAccountDoesNotClearError(t *testing.T
 	require.NotNil(t, account.RateLimitResetAt)
 }
 
-func TestAccountTestService_OpenAI429WithoutResetSignalUsesFallbackCooldown(t *testing.T) {
+func TestAccountTestService_OpenAI429WithoutResetSignalDoesNotMutateRuntimeState(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, _ := newTestContext()
 
@@ -641,12 +303,12 @@ func TestAccountTestService_OpenAI429WithoutResetSignalUsesFallbackCooldown(t *t
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
 	require.Error(t, err)
-	require.Equal(t, account.ID, repo.rateLimitedID)
-	require.NotNil(t, repo.rateLimitedAt)
-	require.NotNil(t, account.RateLimitResetAt)
-	require.Equal(t, account.ID, repo.clearedErrorID)
-	require.Equal(t, StatusActive, account.Status)
-	require.Empty(t, account.ErrorMessage)
+	require.Zero(t, repo.rateLimitedID)
+	require.Nil(t, repo.rateLimitedAt)
+	require.Zero(t, repo.clearedErrorID)
+	require.Equal(t, StatusError, account.Status)
+	require.Equal(t, "stale 403", account.ErrorMessage)
+	require.Nil(t, account.RateLimitResetAt)
 }
 
 func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
@@ -655,6 +317,9 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 
 	resp := newJSONResponse(http.StatusUnauthorized, `{"error":"bad token"}`)
 
+	repo := &openAIAccountTestRepo{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 	account := &Account{
 		ID:          80,
 		Platform:    PlatformOpenAI,
@@ -663,15 +328,6 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 		Concurrency: 1,
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
-	repo := &openAIAccountTestRepo{
-		mockAccountRepoForGemini: mockAccountRepoForGemini{
-			accountsByID: map[int64]*Account{
-				80: account,
-			},
-		},
-	}
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
-	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
 	require.Error(t, err)
@@ -680,137 +336,147 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 	require.Zero(t, repo.rateLimitedID)
 	require.Zero(t, repo.clearedErrorID)
 	require.Nil(t, account.RateLimitResetAt)
-	require.Equal(t, StatusError, account.Status)
-	require.Contains(t, account.ErrorMessage, "Authentication failed (401)")
 }
 
-func TestAccountTestService_RunTestBackground_OpenAI401ReturnsFailedResult(t *testing.T) {
+func TestAccountTestService_OpenAIAPIKeyResponsesUnsupportedUsesChatCompletionsPath(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
 
-	repo := &openAIAccountTestRepo{
-		mockAccountRepoForGemini: mockAccountRepoForGemini{
-			accountsByID: map[int64]*Account{
-				80: {
-					ID:          80,
-					Platform:    PlatformOpenAI,
-					Type:        AccountTypeOAuth,
-					Status:      StatusActive,
-					Concurrency: 1,
-					Credentials: map[string]any{"access_token": "test-token"},
-				},
-			},
-		},
-	}
-	upstream := &queuedHTTPUpstream{
-		responses: []*http.Response{
-			newJSONResponse(http.StatusUnauthorized, `{"error":"bad token"}`),
-		},
-	}
+	upstreamBody := strings.Join([]string{
+		`data: {"id":"chatcmpl_test","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"pong"},"finish_reason":null}]}`,
+		"",
+		`data: {"id":"chatcmpl_test","object":"chat.completion.chunk","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`,
+		"",
+		"data: [DONE]",
+		"",
+	}, "\n")
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body:       io.NopCloser(strings.NewReader(upstreamBody)),
+	}}
 	svc := &AccountTestService{
-		accountRepo:  repo,
 		httpUpstream: upstream,
+		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
+	}
+	account := &Account{
+		ID:          91,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://compat-upstream.example/v1",
+		},
+		Extra: map[string]any{openai_compat.ExtraKeyResponsesSupported: false},
 	}
 
-	result, err := svc.RunTestBackground(context.Background(), 80, "gpt-5.4")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "hello", "")
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.Equal(t, "failed", result.Status)
-	require.Contains(t, result.ErrorMessage, "API returned 401")
-	require.Empty(t, result.ResponseText)
-	require.NotZero(t, result.StartedAt)
-	require.NotZero(t, result.FinishedAt)
-	require.GreaterOrEqual(t, result.LatencyMs, int64(0))
-	require.Equal(t, int64(80), repo.setErrorID)
-	require.Equal(t, StatusError, repo.accountsByID[80].Status)
-	require.Contains(t, repo.accountsByID[80].ErrorMessage, "Authentication failed (401)")
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, HTTPUpstreamProfileOpenAI, HTTPUpstreamProfileFromContext(upstream.lastReq.Context()))
+	require.Equal(t, "https://compat-upstream.example/v1/chat/completions", upstream.lastReq.URL.String())
+	require.Equal(t, "Bearer sk-test", upstream.lastReq.Header.Get("Authorization"))
+	require.Equal(t, "text/event-stream", upstream.lastReq.Header.Get("Accept"))
+	require.Equal(t, "gpt-5.4", gjson.GetBytes(upstream.lastBody, "model").String())
+	require.True(t, gjson.GetBytes(upstream.lastBody, "stream").Bool())
+	require.Equal(t, "hello", gjson.GetBytes(upstream.lastBody, "messages.0.content").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "input").Exists())
+	body := recorder.Body.String()
+	require.Contains(t, body, "pong")
+	require.Contains(t, body, "已通过 /v1/chat/completions 验证")
+	require.Contains(t, body, `"success":true`)
+	require.NotContains(t, body, "当前测试接口仅支持 Responses API 路径")
 }
 
-func TestAccountTestService_RunTestBackground_OpenAI429ReturnsFailedResult(t *testing.T) {
+func TestAccountTestService_OpenAIChatCompletionsPathReturns4xx(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
 
-	repo := &openAIAccountTestRepo{
-		mockAccountRepoForGemini: mockAccountRepoForGemini{
-			accountsByID: map[int64]*Account{
-				88: {
-					ID:          88,
-					Platform:    PlatformOpenAI,
-					Type:        AccountTypeOAuth,
-					Status:      StatusError,
-					Concurrency: 1,
-					Credentials: map[string]any{"access_token": "test-token"},
-				},
-			},
-		},
-	}
-	resp := newJSONResponse(http.StatusTooManyRequests, `{"error":{"type":"usage_limit_reached","message":"limit reached","resets_at":1777283883}}`)
-	resp.Header.Set("x-codex-primary-used-percent", "100")
-	resp.Header.Set("x-codex-primary-reset-after-seconds", "604800")
-	resp.Header.Set("x-codex-primary-window-minutes", "10080")
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	upstream := &httpUpstreamRecorder{resp: newJSONResponse(http.StatusBadRequest, `{"error":{"message":"bad request"}}`)}
 	svc := &AccountTestService{
-		accountRepo:  repo,
 		httpUpstream: upstream,
+		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
+	}
+	account := &Account{
+		ID:          92,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://compat-upstream.example",
+		},
+		Extra: map[string]any{openai_compat.ExtraKeyResponsesSupported: false},
 	}
 
-	result, err := svc.RunTestBackground(context.Background(), 88, "gpt-5.4")
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.Equal(t, "failed", result.Status)
-	require.Contains(t, result.ErrorMessage, "API returned 429")
-	require.Empty(t, result.ResponseText)
-	require.Equal(t, int64(88), repo.rateLimitedID)
-	require.NotNil(t, repo.rateLimitedAt)
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.Error(t, err)
+	require.Equal(t, "https://compat-upstream.example/v1/chat/completions", upstream.lastReq.URL.String())
+	require.Contains(t, err.Error(), "Chat Completions API (/v1/chat/completions) returned 400")
+	require.Contains(t, recorder.Body.String(), "/v1/chat/completions")
+	require.NotContains(t, recorder.Body.String(), `"success":true`)
 }
 
-func TestAccountTestService_RunTestBackground_OpenAI403SwitchesToPoolAndReturnsSuccess(t *testing.T) {
+func TestAccountTestService_OpenAIChatCompletionsPathTimeout(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
 
-	settingRepo := &settingRepoStubForPool{
-		values: map[string]string{
-			SettingKeyAutoFailoverProxyPool: "[11]",
-		},
+	upstream := &httpUpstreamRecorder{err: context.DeadlineExceeded}
+	svc := &AccountTestService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
 	}
-	settingSvc := NewSettingService(settingRepo, nil)
-	proxyRepo := &proxyRepoStubForPool{
-		proxies: map[int64]Proxy{
-			11: {ID: 11, Name: "pool", Protocol: "http", Host: "pool.example", Port: 8080, Status: StatusActive},
+	account := &Account{
+		ID:          93,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://compat-upstream.example",
 		},
+		Extra: map[string]any{openai_compat.ExtraKeyResponsesSupported: false},
 	}
-	poolSvc := NewAutoFailoverProxyPoolService(proxyRepo, nil, settingSvc, &proxyLatencyCacheStubForPool{}, nil)
 
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.Error(t, err)
+	require.Equal(t, "https://compat-upstream.example/v1/chat/completions", upstream.lastReq.URL.String())
+	require.Contains(t, err.Error(), "Chat Completions API (/v1/chat/completions) request failed")
+	require.Contains(t, err.Error(), context.DeadlineExceeded.Error())
+	require.Contains(t, recorder.Body.String(), "/v1/chat/completions")
+	require.NotContains(t, recorder.Body.String(), `"success":true`)
+}
+
+func TestAccountTestService_OpenAIChatCompletionsPathRejectsNonJSONStream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body:       io.NopCloser(strings.NewReader("data: not-json\n\n")),
+	}}
+	svc := &AccountTestService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
+	}
 	account := &Account{
 		ID:          94,
 		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Status:      StatusActive,
+		Type:        AccountTypeAPIKey,
 		Concurrency: 1,
-		Credentials: map[string]any{"access_token": "test-token"},
-	}
-	repo := &openAIAccountTestRepo{
-		mockAccountRepoForGemini: mockAccountRepoForGemini{
-			accountsByID: map[int64]*Account{
-				94: account,
-			},
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://compat-upstream.example",
 		},
-	}
-	forbiddenResp := newJSONResponse(http.StatusForbidden, `{"error":"forbidden"}`)
-	successResp := newJSONResponse(http.StatusOK, "")
-	successResp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
-
-`))
-	upstream := &queuedHTTPUpstream{responses: []*http.Response{forbiddenResp, successResp}}
-	svc := &AccountTestService{
-		accountRepo:  repo,
-		httpUpstream: upstream,
-		proxyPool:    poolSvc,
+		Extra: map[string]any{openai_compat.ExtraKeyResponsesSupported: false},
 	}
 
-	result, err := svc.RunTestBackground(context.Background(), 94, "gpt-5.4")
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.Equal(t, "success", result.Status)
-	require.Equal(t, AccountProxyModePool, repo.accountsByID[94].Extra["proxy_mode"])
-	require.Len(t, upstream.proxyURLs, 2)
-	require.Equal(t, "", upstream.proxyURLs[0])
-	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[1])
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	require.Error(t, err)
+	require.Equal(t, "https://compat-upstream.example/v1/chat/completions", upstream.lastReq.URL.String())
+	require.Contains(t, err.Error(), "Invalid Chat Completions response from /v1/chat/completions")
+	require.Contains(t, recorder.Body.String(), "/v1/chat/completions")
+	require.NotContains(t, recorder.Body.String(), `"success":true`)
 }
