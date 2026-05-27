@@ -151,3 +151,20 @@ export function extractApiErrorMessage(
   const str = String(err)
   return str === '[object Object]' ? fallback : str
 }
+
+/**
+ * Build a toast-safe error message for operations that already have a fixed
+ * title/prefix in the UI. If the extracted message is empty or repeats the
+ * fallback text, return only the fallback to avoid duplicated text like
+ * "同步上游模型失败：同步上游模型失败".
+ */
+export function buildPrefixedApiErrorMessage(
+  err: unknown,
+  fallback: string,
+): string {
+  const message = extractApiErrorMessage(err, fallback).trim()
+  if (!message || message === fallback) {
+    return fallback
+  }
+  return `${fallback}：${message}`
+}
