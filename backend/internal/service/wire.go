@@ -516,6 +516,7 @@ func ProvideOpenAIGatewayService(
 	channelService *ChannelService,
 	balanceNotifyService *BalanceNotifyService,
 	settingService *SettingService,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
 	proxyPool *AutoFailoverProxyPoolService,
 ) *OpenAIGatewayService {
 	svc := NewOpenAIGatewayService(
@@ -539,6 +540,7 @@ func ProvideOpenAIGatewayService(
 		channelService,
 		balanceNotifyService,
 		settingService,
+		userPlatformQuotaRepo,
 	)
 	svc.SetAutoFailoverProxyPool(proxyPool)
 	return svc

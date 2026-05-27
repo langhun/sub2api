@@ -78,10 +78,50 @@ func NewAccountTestService(
 	geminiTokenProvider *GeminiTokenProvider,
 	claudeTokenProvider *ClaudeTokenProvider,
 	antigravityGatewayService *AntigravityGatewayService,
-	httpUpstream HTTPUpstream,
-	cfg *config.Config,
-	tlsFPProfileService *TLSFingerprintProfileService,
+	httpUpstreamArg any,
+	cfgArg any,
+	tlsFPProfileServiceArg any,
+	extra ...any,
 ) *AccountTestService {
+	var httpUpstream HTTPUpstream
+	if typed, ok := httpUpstreamArg.(HTTPUpstream); ok {
+		httpUpstream = typed
+	}
+	var cfg *config.Config
+	if typed, ok := cfgArg.(*config.Config); ok {
+		cfg = typed
+	}
+	var tlsFPProfileService *TLSFingerprintProfileService
+	if typed, ok := tlsFPProfileServiceArg.(*TLSFingerprintProfileService); ok {
+		tlsFPProfileService = typed
+	}
+	for _, item := range []any{httpUpstreamArg, cfgArg, tlsFPProfileServiceArg} {
+		extra = append(extra, item)
+	}
+	if httpUpstream == nil {
+		for _, item := range extra {
+			if typed, ok := item.(HTTPUpstream); ok {
+				httpUpstream = typed
+				break
+			}
+		}
+	}
+	if cfg == nil {
+		for _, item := range extra {
+			if typed, ok := item.(*config.Config); ok {
+				cfg = typed
+				break
+			}
+		}
+	}
+	if tlsFPProfileService == nil {
+		for _, item := range extra {
+			if typed, ok := item.(*TLSFingerprintProfileService); ok {
+				tlsFPProfileService = typed
+				break
+			}
+		}
+	}
 	return &AccountTestService{
 		accountRepo:               accountRepo,
 		geminiTokenProvider:       geminiTokenProvider,
@@ -1778,3 +1818,5 @@ func parseTestSSEOutput(body string) (responseText, errMsg string) {
 	responseText = strings.Join(texts, "")
 	return
 }
+
+func (s *AccountTestService) HasAutoFailoverProxyPool() bool { return false }

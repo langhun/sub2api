@@ -57,6 +57,7 @@ type SystemSettings struct {
 	TurnstileEnabled             bool   `json:"turnstile_enabled"`
 	TurnstileSiteKey             string `json:"turnstile_site_key"`
 	TurnstileSecretKeyConfigured bool   `json:"turnstile_secret_key_configured"`
+	APIKeyACLTrustForwardedIP    bool   `json:"api_key_acl_trust_forwarded_ip"`
 
 	LinuxDoConnectEnabled                bool   `json:"linuxdo_connect_enabled"`
 	LinuxDoConnectClientID               string `json:"linuxdo_connect_client_id"`
@@ -240,11 +241,12 @@ type SystemSettings struct {
 	PaymentAlipayForceQRCode bool `json:"payment_alipay_force_qrcode"`
 
 	// Balance low notification
-	BalanceLowNotifyEnabled     bool               `json:"balance_low_notify_enabled"`
-	BalanceLowNotifyThreshold   float64            `json:"balance_low_notify_threshold"`
-	BalanceLowNotifyRechargeURL string             `json:"balance_low_notify_recharge_url"`
-	AccountQuotaNotifyEnabled   bool               `json:"account_quota_notify_enabled"`
-	AccountQuotaNotifyEmails    []NotifyEmailEntry `json:"account_quota_notify_emails"`
+	BalanceLowNotifyEnabled         bool               `json:"balance_low_notify_enabled"`
+	BalanceLowNotifyThreshold       float64            `json:"balance_low_notify_threshold"`
+	BalanceLowNotifyRechargeURL     string             `json:"balance_low_notify_recharge_url"`
+	AccountQuotaNotifyEnabled       bool               `json:"account_quota_notify_enabled"`
+	AccountQuotaNotifyEmails        []NotifyEmailEntry `json:"account_quota_notify_emails"`
+	SubscriptionExpiryNotifyEnabled bool               `json:"subscription_expiry_notify_enabled"`
 
 	// Checkin 签到设置
 	CheckinEnabled    bool    `json:"checkin_enabled"`
@@ -442,6 +444,8 @@ type EmailTemplateEventOption struct {
 	Value       string `json:"value"`
 	Label       string `json:"label,omitempty"`
 	Description string `json:"description,omitempty"`
+	Category    string `json:"category,omitempty"`
+	Optional    bool   `json:"optional,omitempty"`
 }
 
 // EmailTemplateSummary is shown in the admin email template list.

@@ -67,7 +67,11 @@ type SettingHandler struct {
 }
 
 // NewSettingHandler 创建系统设置处理器
-func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService *service.UserAttributeService) *SettingHandler {
+func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService ...*service.UserAttributeService) *SettingHandler {
+	var attrs *service.UserAttributeService
+	if len(userAttributeService) > 0 {
+		attrs = userAttributeService[0]
+	}
 	return &SettingHandler{
 		settingService:       settingService,
 		emailService:         emailService,
@@ -75,7 +79,7 @@ func NewSettingHandler(settingService *service.SettingService, emailService *ser
 		opsService:           opsService,
 		paymentConfigService: paymentConfigService,
 		paymentService:       paymentService,
-		userAttributeService: userAttributeService,
+		userAttributeService: attrs,
 	}
 }
 

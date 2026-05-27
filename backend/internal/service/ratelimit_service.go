@@ -1838,3 +1838,5 @@ func (s *RateLimitService) triggerStreamTimeoutError(ctx context.Context, accoun
 	slog.Warn("stream_timeout_account_error", "account_id", account.ID, "model", model)
 	return true
 }
+
+func (s *RateLimitService) SetAccountRuntimeBlocker(_ any) {}

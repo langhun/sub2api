@@ -462,3 +462,5 @@ func jitterLockWait(base time.Duration) time.Duration {
 	factor := minFactor + rand.Float64()*(maxFactor-minFactor)
 	return time.Duration(float64(base) * factor)
 }
+
+func (p *OpenAITokenProvider) SetAccountRuntimeBlocker(_ any) {}

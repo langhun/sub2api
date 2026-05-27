@@ -365,3 +365,7 @@ func (s *ConcurrencyService) GetAccountConcurrencyBatch(ctx context.Context, acc
 
 	return s.cache.GetAccountConcurrencyBatch(redisCtx, accountIDs)
 }
+
+func (s *ConcurrencyService) GetAccountsLoadBatchFresh(ctx context.Context, accounts []AccountWithConcurrency) (map[int64]*AccountLoadInfo, error) {
+	return s.GetAccountsLoadBatch(ctx, accounts)
+}

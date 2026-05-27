@@ -10,26 +10,32 @@ import (
 )
 
 type stubAdminService struct {
-	users                []service.User
-	apiKeys              []service.APIKey
-	groups               []service.Group
-	accounts             []service.Account
-	proxies              []service.Proxy
-	proxyCounts          []service.ProxyWithAccountCount
-	redeems              []service.RedeemCode
-	boundAuthIdentity    *service.AdminBindAuthIdentityInput
-	boundAuthIdentityFor int64
-	createdAccounts      []*service.CreateAccountInput
-	createdProxies       []*service.CreateProxyInput
-	updatedProxyIDs      []int64
-	updatedProxies       []*service.UpdateProxyInput
-	testedProxyIDs       []int64
-	getUserErr           error
-	createAccountErr     error
-	updateAccountErr     error
-	bulkUpdateAccountErr error
-	checkMixedErr        error
-	lastMixedCheck       struct {
+	users                            []service.User
+	apiKeys                          []service.APIKey
+	groups                           []service.Group
+	accounts                         []service.Account
+	proxies                          []service.Proxy
+	proxyCounts                      []service.ProxyWithAccountCount
+	redeems                          []service.RedeemCode
+	forceOpenAIPrivacyMode           string
+	clearedPrivacyIDs                []int64
+	lastGetGroupAPIKeyCalls          []groupAPIKeyCall
+	lastCreateProxySubscriptionInput *service.CreateProxySubscriptionSourceInput
+	lastUpdateProxySubscriptionID    int64
+	lastUpdateProxySubscriptionInput *service.UpdateProxySubscriptionSourceInput
+	boundAuthIdentity                *service.AdminBindAuthIdentityInput
+	boundAuthIdentityFor             int64
+	createdAccounts                  []*service.CreateAccountInput
+	createdProxies                   []*service.CreateProxyInput
+	updatedProxyIDs                  []int64
+	updatedProxies                   []*service.UpdateProxyInput
+	testedProxyIDs                   []int64
+	getUserErr                       error
+	createAccountErr                 error
+	updateAccountErr                 error
+	bulkUpdateAccountErr             error
+	checkMixedErr                    error
+	lastMixedCheck                   struct {
 		accountID int64
 		platform  string
 		groupIDs  []int64
@@ -41,11 +47,13 @@ type stubAdminService struct {
 		search      string
 		groupID     int64
 		privacyMode string
+		tier        string
 		sortBy      string
 		sortOrder   string
 		calls       int
 	}
-	lastListUsers struct {
+	forcedPrivacyIDs []int64
+	lastListUsers    struct {
 		page      int
 		pageSize  int
 		filters   service.UserListFilters
@@ -54,14 +62,24 @@ type stubAdminService struct {
 		calls     int
 	}
 	lastListProxies struct {
-		protocol  string
-		status    string
-		search    string
-		sortBy    string
-		sortOrder string
-		calls     int
+		protocol      string
+		status        string
+		runtimeStatus string
+		search        string
+		sortBy        string
+		sortOrder     string
+		calls         int
+		accountCalls  int
 	}
-	lastListRedeemCodes struct {
+	lastDeleteProxySubscriptionID    int64
+	lastListProxySubscriptionNodesID int64
+	lastListSubscriptionProxiesID    int64
+	lastPoolMembershipIDs            []int64
+	lastPoolMembershipEnabled        bool
+	lastClearCooldownIDs             []int64
+	redeemStats                      service.RedeemCodeStats
+	redeemStatsErr                   error
+	lastListRedeemCodes              struct {
 		codeType  string
 		status    string
 		search    string
@@ -70,6 +88,12 @@ type stubAdminService struct {
 		calls     int
 	}
 	mu sync.Mutex
+}
+
+type groupAPIKeyCall struct {
+	groupID  int64
+	page     int
+	pageSize int
 }
 
 func newStubAdminService() *stubAdminService {
@@ -280,6 +304,7 @@ func (s *stubAdminService) DeleteGroup(ctx context.Context, id int64) error {
 }
 
 func (s *stubAdminService) GetGroupAPIKeys(ctx context.Context, groupID int64, page, pageSize int) ([]service.APIKey, int64, error) {
+	s.lastGetGroupAPIKeyCalls = append(s.lastGetGroupAPIKeyCalls, groupAPIKeyCall{groupID: groupID, page: page, pageSize: pageSize})
 	return s.apiKeys, int64(len(s.apiKeys)), nil
 }
 
@@ -303,13 +328,14 @@ func (s *stubAdminService) BatchSetGroupRPMOverrides(_ context.Context, _ int64,
 	return nil
 }
 
-func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode string, sortBy, sortOrder string) ([]service.Account, int64, error) {
+func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode, tier string, sortBy, sortOrder string) ([]service.Account, int64, error) {
 	s.lastListAccounts.platform = platform
 	s.lastListAccounts.accountType = accountType
 	s.lastListAccounts.status = status
 	s.lastListAccounts.search = search
 	s.lastListAccounts.groupID = groupID
 	s.lastListAccounts.privacyMode = privacyMode
+	s.lastListAccounts.tier = tier
 	s.lastListAccounts.sortBy = sortBy
 	s.lastListAccounts.sortOrder = sortOrder
 	s.lastListAccounts.calls++
@@ -418,7 +444,14 @@ func (s *stubAdminService) ListProxies(ctx context.Context, page, pageSize int, 
 	return filtered, int64(len(filtered)), nil
 }
 
-func (s *stubAdminService) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, search string, sortBy, sortOrder string) ([]service.ProxyWithAccountCount, int64, error) {
+func (s *stubAdminService) ListProxiesWithAccountCount(ctx context.Context, page, pageSize int, protocol, status, runtimeStatus, search string, sortBy, sortOrder string) ([]service.ProxyWithAccountCount, int64, error) {
+	s.lastListProxies.protocol = protocol
+	s.lastListProxies.status = status
+	s.lastListProxies.runtimeStatus = runtimeStatus
+	s.lastListProxies.search = search
+	s.lastListProxies.sortBy = sortBy
+	s.lastListProxies.sortOrder = sortOrder
+	s.lastListProxies.accountCalls++
 	return s.proxyCounts, int64(len(s.proxyCounts)), nil
 }
 
@@ -606,7 +639,10 @@ func (s *stubAdminService) EnsureAntigravityPrivacy(ctx context.Context, account
 }
 
 func (s *stubAdminService) ForceOpenAIPrivacy(ctx context.Context, account *service.Account) string {
-	return ""
+	if account != nil {
+		s.forcedPrivacyIDs = append(s.forcedPrivacyIDs, account.ID)
+	}
+	return s.forceOpenAIPrivacyMode
 }
 
 func (s *stubAdminService) ForceAntigravityPrivacy(ctx context.Context, account *service.Account) string {
@@ -619,3 +655,73 @@ func (s *stubAdminService) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 
 // Ensure stub implements interface.
 var _ service.AdminService = (*stubAdminService)(nil)
+
+func (s *stubAdminService) AssignProxiesToAccounts(ctx context.Context, input *service.AssignProxiesToAccountsInput) (*service.ProxyAccountAssignmentResult, error) {
+	return &service.ProxyAccountAssignmentResult{}, nil
+}
+
+func (s *stubAdminService) CheckDuplicateAccounts(ctx context.Context, input *service.AccountDuplicateCheckInput) (*service.AccountDuplicateCheckResult, error) {
+	return &service.AccountDuplicateCheckResult{}, nil
+}
+
+func (s *stubAdminService) ClearAccountPrivacyMode(ctx context.Context, account *service.Account) error {
+	if account != nil {
+		s.clearedPrivacyIDs = append(s.clearedPrivacyIDs, account.ID)
+	}
+	return nil
+}
+
+func (s *stubAdminService) ClearProxyCooldownState(ctx context.Context, proxyIDs []int64) error {
+	s.lastClearCooldownIDs = append([]int64(nil), proxyIDs...)
+	return nil
+}
+
+func (s *stubAdminService) ListProxySubscriptionSources(ctx context.Context, page, pageSize int, search string, enabled *bool) ([]service.ProxySubscriptionSource, int64, error) {
+	return nil, 0, nil
+}
+func (s *stubAdminService) GetProxySubscriptionSource(ctx context.Context, id int64) (*service.ProxySubscriptionSource, error) {
+	return nil, nil
+}
+func (s *stubAdminService) CreateProxySubscriptionSource(ctx context.Context, input *service.CreateProxySubscriptionSourceInput) (*service.ProxySubscriptionSource, error) {
+	s.lastCreateProxySubscriptionInput = input
+	return &service.ProxySubscriptionSource{}, nil
+}
+func (s *stubAdminService) UpdateProxySubscriptionSource(ctx context.Context, id int64, input *service.UpdateProxySubscriptionSourceInput) (*service.ProxySubscriptionSource, error) {
+	s.lastUpdateProxySubscriptionID = id
+	s.lastUpdateProxySubscriptionInput = input
+	return &service.ProxySubscriptionSource{}, nil
+}
+func (s *stubAdminService) DeleteProxySubscriptionSource(ctx context.Context, id int64) error {
+	s.lastDeleteProxySubscriptionID = id
+	return nil
+}
+func (s *stubAdminService) ListProxySubscriptionNodes(ctx context.Context, sourceID int64) ([]service.ProxySubscriptionNode, error) {
+	s.lastListProxySubscriptionNodesID = sourceID
+	return nil, nil
+}
+func (s *stubAdminService) ListMaterializedProxiesBySubscriptionSource(ctx context.Context, sourceID int64) ([]service.Proxy, error) {
+	s.lastListSubscriptionProxiesID = sourceID
+	return nil, nil
+}
+func (s *stubAdminService) RefreshProxySubscriptionSource(ctx context.Context, id int64) (*service.ProxySubscriptionRefreshResult, error) {
+	return &service.ProxySubscriptionRefreshResult{}, nil
+}
+
+func (s *stubAdminService) GetProxyStats(ctx context.Context, id int64) (*service.ProxyStatsResult, error) {
+	return &service.ProxyStatsResult{}, nil
+}
+func (s *stubAdminService) UnassignProxiesFromAccounts(ctx context.Context, proxyIDs []int64) (*service.ProxyUnassignAccountsResult, error) {
+	return &service.ProxyUnassignAccountsResult{}, nil
+}
+func (s *stubAdminService) SetAutoFailoverProxyPoolMembership(ctx context.Context, proxyIDs []int64, enabled bool) (int, error) {
+	s.lastPoolMembershipIDs = append([]int64(nil), proxyIDs...)
+	s.lastPoolMembershipEnabled = enabled
+	return len(proxyIDs), nil
+}
+
+func (s *stubAdminService) GetRedeemCodeStats(ctx context.Context) (*service.RedeemCodeStats, error) {
+	if s.redeemStatsErr != nil {
+		return nil, s.redeemStatsErr
+	}
+	return &s.redeemStats, nil
+}

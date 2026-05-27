@@ -16,9 +16,14 @@ type SystemSettings struct {
 	EmailVerifyEnabled               bool
 	RegistrationEmailSuffixWhitelist []string
 	PromoCodeEnabled                 bool
+	RedeemCodeFormat                 CodeFormatSettings
+	BalanceCodeFormat                CodeFormatSettings
+	ConcurrencyCodeFormat            CodeFormatSettings
+	SubscriptionCodeFormat           CodeFormatSettings
 	PasswordResetEnabled             bool
 	FrontendURL                      string
 	InvitationCodeEnabled            bool
+	InvitationCodeFormat             CodeFormatSettings
 	TotpEnabled                      bool // TOTP 双因素认证
 	LoginAgreementEnabled            bool
 	LoginAgreementMode               string
@@ -127,25 +132,36 @@ type SystemSettings struct {
 	GoogleOAuthRedirectURL            string
 	GoogleOAuthFrontendRedirectURL    string
 
-	SiteName                    string
-	SiteLogo                    string
-	SiteSubtitle                string
-	APIBaseURL                  string
-	ContactInfo                 string
-	DocURL                      string
-	HomeContent                 string
-	HideCcsImportButton         bool
-	PurchaseSubscriptionEnabled bool
-	PurchaseSubscriptionURL     string
-	TableDefaultPageSize        int
-	TablePageSizeOptions        []int
-	CustomMenuItems             string // JSON array of custom menu items
-	CustomEndpoints             string // JSON array of custom endpoints
+	SiteName                      string
+	SiteLogo                      string
+	SiteSubtitle                  string
+	APIBaseURL                    string
+	ContactInfo                   string
+	DocURL                        string
+	HomeContent                   string
+	HomeNavLinksEnabled           bool
+	HomeNavLeaderboardEnabled     bool
+	HomeNavKeyUsageEnabled        bool
+	HomeNavMonitoringEnabled      bool
+	HomeNavPricingEnabled         bool
+	LeaderboardBalanceEnabled     bool
+	LeaderboardConsumptionEnabled bool
+	LeaderboardTransferEnabled    bool
+	LeaderboardCheckinEnabled     bool
+	LeaderboardIncludeAdmin       bool
+	HideCcsImportButton           bool
+	PurchaseSubscriptionEnabled   bool
+	PurchaseSubscriptionURL       string
+	TableDefaultPageSize          int
+	TablePageSizeOptions          []int
+	CustomMenuItems               string // JSON array of custom menu items
+	CustomEndpoints               string // JSON array of custom endpoints
 
 	DefaultConcurrency           int
 	DefaultBalance               float64
 	RiskControlEnabled           bool
 	AffiliateEnabled             bool
+	AffiliateCodeFormat          CodeFormatSettings
 	AffiliateRebateRate          float64
 	AffiliateRebateFreezeHours   int
 	AffiliateRebateDurationDays  int
@@ -205,28 +221,57 @@ type SystemSettings struct {
 	PaymentVisibleMethodAlipayEnabled bool
 	PaymentVisibleMethodWxpayEnabled  bool
 
-	// OpenAI 账号调度
+	// OpenAI account scheduling
 	OpenAIAdvancedSchedulerEnabled bool
 
-	// 余额不足提醒
+	// Balance low notification
 	BalanceLowNotifyEnabled     bool
 	BalanceLowNotifyThreshold   float64
 	BalanceLowNotifyRechargeURL string
 
-	// 订阅到期提醒
+	// Account quota notification
+	AccountQuotaNotifyEnabled       bool
+	AccountQuotaNotifyEmails        []NotifyEmailEntry
 	SubscriptionExpiryNotifyEnabled bool
+	DefaultPlatformQuotas           map[string]*DefaultPlatformQuotaSetting
 
-	// 账号限额通知
-	AccountQuotaNotifyEnabled bool
-	AccountQuotaNotifyEmails  []NotifyEmailEntry
+	// Checkin 签到设置
+	CheckinEnabled    bool
+	CheckinMinBalance float64
+	CheckinMaxBalance float64
 
-	// 系统全局默认平台配额（key = platform，nil/缺省 = 不限制）
-	DefaultPlatformQuotas map[string]*DefaultPlatformQuotaSetting `json:"default_platform_quotas"`
+	// Checkin Luck 运气签到设置
+	CheckinLuckEnabled       bool
+	CheckinLuckMinMultiplier float64
+	CheckinLuckMaxMultiplier float64
+
+	// Checkin Blind Box 签到盲盒设置
+	CheckinBlindboxEnabled     bool
+	CheckinBlindboxTriggerType string
+	CheckinBlindboxInterval    int
+
+	// Balance Transfer 余额流转设置
+	TransferEnabled         bool
+	TransferFeeRate         float64
+	TransferMinAmount       float64
+	TransferMaxAmount       float64
+	TransferDailyLimit      float64
+	TransferDailyCountLimit int
+	TransferVIPFeeExempt    bool
+	RedPacketEnabled        bool
+	RedPacketMaxCount       int
+	RedPacketExpireHours    int
 }
 
 type DefaultSubscriptionSetting struct {
 	GroupID      int64 `json:"group_id"`
 	ValidityDays int   `json:"validity_days"`
+}
+
+type DefaultPlatformQuotaSetting struct {
+	DailyLimitUSD   *float64 `json:"daily"`
+	WeeklyLimitUSD  *float64 `json:"weekly"`
+	MonthlyLimitUSD *float64 `json:"monthly"`
 }
 
 type PublicSettings struct {
@@ -235,8 +280,13 @@ type PublicSettings struct {
 	ForceEmailOnThirdPartySignup     bool
 	RegistrationEmailSuffixWhitelist []string
 	PromoCodeEnabled                 bool
+	RedeemCodeFormat                 CodeFormatSettings
+	BalanceCodeFormat                CodeFormatSettings
+	ConcurrencyCodeFormat            CodeFormatSettings
+	SubscriptionCodeFormat           CodeFormatSettings
 	PasswordResetEnabled             bool
 	InvitationCodeEnabled            bool
+	InvitationCodeFormat             CodeFormatSettings
 	TotpEnabled                      bool // TOTP 双因素认证
 	LoginAgreementEnabled            bool
 	LoginAgreementMode               string
@@ -252,6 +302,15 @@ type PublicSettings struct {
 	ContactInfo                      string
 	DocURL                           string
 	HomeContent                      string
+	HomeNavLinksEnabled              bool
+	HomeNavLeaderboardEnabled        bool
+	HomeNavKeyUsageEnabled           bool
+	HomeNavMonitoringEnabled         bool
+	HomeNavPricingEnabled            bool
+	LeaderboardBalanceEnabled        bool
+	LeaderboardConsumptionEnabled    bool
+	LeaderboardTransferEnabled       bool
+	LeaderboardCheckinEnabled        bool
 	HideCcsImportButton              bool
 
 	PurchaseSubscriptionEnabled bool
@@ -287,8 +346,13 @@ type PublicSettings struct {
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	// Balance transfer / red packet feature switches (user-facing entry visibility)
+	TransferEnabled  bool `json:"transfer_enabled"`
+	RedPacketEnabled bool `json:"redpacket_enabled"`
+
 	// Affiliate (邀请返利) feature toggle
-	AffiliateEnabled bool `json:"affiliate_enabled"`
+	AffiliateEnabled    bool               `json:"affiliate_enabled"`
+	AffiliateCodeFormat CodeFormatSettings `json:"affiliate_code_format"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`

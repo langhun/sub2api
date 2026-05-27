@@ -6640,3 +6640,31 @@ func normalizeOpenAIReasoningEffort(raw string) string {
 		return ""
 	}
 }
+
+func (s *OpenAIGatewayService) isOpenAIAccountRuntimeBlocked(account *Account) bool {
+	if s == nil || account == nil {
+		return false
+	}
+	value, ok := s.openaiAccountRuntimeBlockUntil.Load(account.ID)
+	if !ok {
+		return false
+	}
+	until, ok := value.(time.Time)
+	if !ok || until.IsZero() || time.Now().After(until) {
+		s.openaiAccountRuntimeBlockUntil.Delete(account.ID)
+		return false
+	}
+	return true
+}
+
+func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Context, account *Account, statusCode int, _ http.Header, _ []byte) bool {
+	if s == nil || account == nil {
+		return false
+	}
+	if statusCode == http.StatusTooManyRequests || statusCode == http.StatusForbidden || statusCode >= 500 {
+		s.openaiAccountRuntimeBlockUntil.Store(account.ID, time.Now().Add(30*time.Second))
+	}
+	return false
+}
+
+func (s *OpenAIGatewayService) SetAutoFailoverProxyPool(_ *AutoFailoverProxyPoolService) {}
