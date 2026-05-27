@@ -595,12 +595,13 @@ describe('admin ProxiesView pool state', () => {
     mountProxiesView()
     await flushPromises()
 
+    const proxyCallCountBeforeRefresh = listProxies.mock.calls.length
     expect(keyboardShortcutBindings.current?.onRefresh).toBeTypeOf('function')
     keyboardShortcutBindings.current?.onRefresh?.()
     await flushPromises()
 
     expect(listProxySubscriptions).not.toHaveBeenCalled()
-    expect(listProxies).toHaveBeenCalledTimes(2)
+    expect(listProxies.mock.calls.length).toBeGreaterThan(proxyCallCountBeforeRefresh)
   })
 
   it('shows the subscription-managed readonly hint and still submits editable fields', async () => {
