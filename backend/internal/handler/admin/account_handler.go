@@ -2231,6 +2231,11 @@ func (h *AccountHandler) SetPrivacy(c *gin.Context) {
 		response.BadRequest(c, "Only OAuth accounts support privacy setting")
 		return
 	}
+	account, err = h.prepareAccountForPrivacy(c.Request.Context(), account)
+	if err != nil {
+		writePrivacyPreparationError(c, err)
+		return
+	}
 	var mode string
 	switch account.Platform {
 	case service.PlatformOpenAI:

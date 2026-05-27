@@ -107,6 +107,55 @@ func TestBatchSetPrivacyTreatsKnownFailureModesAsFailed(t *testing.T) {
 	}
 }
 
+func TestBatchSetPrivacy_OpenAINearExpiry_RefreshesBeforeSettingPrivacy(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{
+		{
+			ID:       31,
+			Name:     "openai-oauth",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Status:   service.StatusActive,
+			Credentials: map[string]any{
+				"access_token":  "access-token-old",
+				"refresh_token": "refresh-token-1",
+				"expires_at":    time.Now().Add(2 * time.Minute).UTC().Format(time.RFC3339),
+			},
+		},
+	}
+	adminSvc.refreshedAccounts = map[int64]service.Account{
+		31: {
+			ID:       31,
+			Name:     "openai-oauth",
+			Platform: service.PlatformOpenAI,
+			Type:     service.AccountTypeOAuth,
+			Status:   service.StatusActive,
+			Credentials: map[string]any{
+				"access_token":  "access-token-new",
+				"refresh_token": "refresh-token-1",
+				"expires_at":    time.Now().Add(30 * time.Minute).UTC().Format(time.RFC3339),
+			},
+		},
+	}
+	adminSvc.forceOpenAIPrivacyMode = service.PrivacyModeTrainingOff
+
+	router := setupBatchPrivacyRouter(adminSvc)
+
+	body, err := json.Marshal(map[string]any{
+		"account_ids": []int64{31},
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/batch-set-privacy", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, []int64{31}, adminSvc.refreshedAccountIDs)
+	require.Equal(t, []int64{31}, adminSvc.forcedPrivacyIDs)
+}
+
 func TestBatchClearPrivacyCountsSuccessFailedAndSkipped(t *testing.T) {
 	adminSvc := newStubAdminService()
 	adminSvc.accounts = []service.Account{

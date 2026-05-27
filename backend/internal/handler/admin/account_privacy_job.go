@@ -173,6 +173,12 @@ func (h *AccountHandler) executeBatchSetPrivacyAccount(
 	ctx context.Context,
 	account *service.Account,
 ) batchPrivacyJobResult {
+	preparedAccount, err := h.prepareAccountForPrivacy(ctx, account)
+	if err != nil {
+		return failedBatchPrivacyAccount(account.ID, "failed to prepare privacy request: "+privacyPreparationErrorMessage(err))
+	}
+	account = preparedAccount
+
 	mode := h.adminService.ForceOpenAIPrivacy(ctx, account)
 	switch mode {
 	case service.PrivacyModeTrainingOff:

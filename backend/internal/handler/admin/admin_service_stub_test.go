@@ -28,6 +28,9 @@ type stubAdminService struct {
 	clearAccountPrivacyErr error
 	forcedPrivacyIDs       []int64
 	clearedPrivacyIDs      []int64
+	refreshedAccountIDs    []int64
+	refreshAccountErr      error
+	refreshedAccounts      map[int64]service.Account
 	createAccountErr       error
 	updateAccountErr       error
 	bulkUpdateAccountErr   error
@@ -449,6 +452,18 @@ func (s *stubAdminService) DeleteAccount(ctx context.Context, id int64) error {
 }
 
 func (s *stubAdminService) RefreshAccountCredentials(ctx context.Context, id int64) (*service.Account, error) {
+	s.mu.Lock()
+	s.refreshedAccountIDs = append(s.refreshedAccountIDs, id)
+	s.mu.Unlock()
+	if s.refreshAccountErr != nil {
+		return nil, s.refreshAccountErr
+	}
+	if s.refreshedAccounts != nil {
+		if account, ok := s.refreshedAccounts[id]; ok {
+			acc := account
+			return &acc, nil
+		}
+	}
 	account := service.Account{ID: id, Name: "account", Status: service.StatusActive}
 	return &account, nil
 }
