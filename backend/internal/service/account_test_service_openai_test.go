@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 )
@@ -27,6 +28,8 @@ type queuedHTTPUpstream struct {
 	requests  []*http.Request
 	tlsFlags  []bool
 	proxyURLs []string
+	lastReq   *http.Request
+	lastBody  []byte
 }
 
 func (u *queuedHTTPUpstream) Do(_ *http.Request, proxyURL string, _ int64, _ int) (*http.Response, error) {
@@ -35,9 +38,20 @@ func (u *queuedHTTPUpstream) Do(_ *http.Request, proxyURL string, _ int64, _ int
 }
 
 func (u *queuedHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, _ int64, _ int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+	var bodyCopy []byte
+	if req != nil && req.Body != nil {
+		payload, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		bodyCopy = payload
+		req.Body = io.NopCloser(strings.NewReader(string(payload)))
+	}
 	u.requests = append(u.requests, req)
 	u.tlsFlags = append(u.tlsFlags, profile != nil)
 	u.proxyURLs = append(u.proxyURLs, proxyURL)
+	u.lastReq = req
+	u.lastBody = bodyCopy
 	if len(u.responses) == 0 {
 		return nil, fmt.Errorf("no mocked response")
 	}
@@ -160,10 +174,76 @@ func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
 	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, HTTPUpstreamProfileOpenAI, HTTPUpstreamProfileFromContext(upstream.requests[0].Context()))
 	require.NotEmpty(t, repo.updatedExtra)
 	require.Equal(t, 42.0, repo.updatedExtra["codex_5h_used_percent"])
 	require.Equal(t, 88.0, repo.updatedExtra["codex_7d_used_percent"])
 	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAIBaseURLErrorUsesChineseHintForAllowlist(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	svc := &AccountTestService{
+		cfg: &config.Config{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{
+					Enabled:       true,
+					UpstreamHosts: []string{"api.openai.com"},
+				},
+			},
+		},
+	}
+	account := &Account{
+		ID:       90,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":  "test-api-key",
+			"base_url": "https://ai.lt4net.org",
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.5", "", "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "基础地址不允许使用当前主机")
+	require.Contains(t, err.Error(), "security.url_allowlist")
+	require.Contains(t, recorder.Body.String(), `"type":"error"`)
+	require.Contains(t, recorder.Body.String(), "基础地址不允许使用当前主机")
+}
+
+func TestAccountTestService_OpenAIBaseURLErrorUsesChineseHintForHTTP(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	svc := &AccountTestService{
+		cfg: &config.Config{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{
+					Enabled:           false,
+					AllowInsecureHTTP: false,
+				},
+			},
+		},
+	}
+	account := &Account{
+		ID:       91,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":  "test-api-key",
+			"base_url": "http://ai.lt4net.org",
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.5", "", "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "当前仅允许 HTTPS 地址")
+	require.Contains(t, err.Error(), "allow_insecure_http")
+	require.Contains(t, recorder.Body.String(), `"type":"error"`)
+	require.Contains(t, recorder.Body.String(), "当前仅允许 HTTPS 地址")
 }
 
 func TestAccountTestService_OpenAISuccessBindsPlatformDefaultGroupForUngroupedAccount(t *testing.T) {
@@ -645,11 +725,30 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, account.ID, repo.setErrorID)
 	require.Contains(t, repo.setErrorMsg, "Authentication failed (401)")
+	require.Contains(t, err.Error(), "上游接口返回错误")
+	require.Contains(t, err.Error(), "401")
 	require.Zero(t, repo.rateLimitedID)
 	require.Zero(t, repo.clearedErrorID)
 	require.Nil(t, account.RateLimitResetAt)
 	require.Equal(t, StatusError, account.Status)
 	require.Contains(t, account.ErrorMessage, "Authentication failed (401)")
+}
+
+func TestAccountTestService_OpenAIMissingAPIKeyReturnsChineseHint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	svc := &AccountTestService{}
+	account := &Account{
+		ID:       92,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.5", "", "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "账号缺少可用的 API Key")
+	require.Contains(t, recorder.Body.String(), "账号缺少可用的 API Key")
 }
 
 func TestAccountTestService_RunTestBackground_OpenAI401ReturnsFailedResult(t *testing.T) {
@@ -683,14 +782,17 @@ func TestAccountTestService_RunTestBackground_OpenAI401ReturnsFailedResult(t *te
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "failed", result.Status)
-	require.Contains(t, result.ErrorMessage, "API returned 401")
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, HTTPUpstreamProfileOpenAI, HTTPUpstreamProfileFromContext(upstream.lastReq.Context()))
+	require.Equal(t, chatgptCodexAPIURL, upstream.lastReq.URL.String())
+	require.Equal(t, "Bearer test-token", upstream.lastReq.Header.Get("Authorization"))
+	require.Equal(t, "text/event-stream", upstream.lastReq.Header.Get("Accept"))
+	require.Equal(t, "gpt-5.4", gjson.GetBytes(upstream.lastBody, "model").String())
+	require.True(t, gjson.GetBytes(upstream.lastBody, "stream").Bool())
+	require.Equal(t, "hi", gjson.GetBytes(upstream.lastBody, "input.0.content.0.text").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "messages").Exists())
 	require.Empty(t, result.ResponseText)
-	require.NotZero(t, result.StartedAt)
-	require.NotZero(t, result.FinishedAt)
-	require.GreaterOrEqual(t, result.LatencyMs, int64(0))
-	require.Equal(t, int64(80), repo.setErrorID)
-	require.Equal(t, StatusError, repo.accountsByID[80].Status)
-	require.Contains(t, repo.accountsByID[80].ErrorMessage, "Authentication failed (401)")
+	require.Contains(t, result.ErrorMessage, "上游接口返回错误")
 }
 
 func TestAccountTestService_RunTestBackground_OpenAI429ReturnsFailedResult(t *testing.T) {

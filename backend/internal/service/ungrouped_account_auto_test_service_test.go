@@ -110,7 +110,7 @@ func (s *ungroupedAutoTestAccountRepoStub) ListSchedulableUngroupedByPlatforms(c
 func (s *ungroupedAutoTestAccountRepoStub) SetRateLimited(context.Context, int64, time.Time) error {
 	return nil
 }
-func (s *ungroupedAutoTestAccountRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time) error {
+func (s *ungroupedAutoTestAccountRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time, ...string) error {
 	return nil
 }
 func (s *ungroupedAutoTestAccountRepoStub) SetOverloaded(context.Context, int64, time.Time) error {

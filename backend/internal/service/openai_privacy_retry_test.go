@@ -94,7 +94,7 @@ func (s *openAIPrivacyRetryAccountRepoStub) ListSchedulableUngroupedByPlatforms(
 func (s *openAIPrivacyRetryAccountRepoStub) SetRateLimited(context.Context, int64, time.Time) error {
 	return nil
 }
-func (s *openAIPrivacyRetryAccountRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time) error {
+func (s *openAIPrivacyRetryAccountRepoStub) SetModelRateLimit(context.Context, int64, string, time.Time, ...string) error {
 	return nil
 }
 func (s *openAIPrivacyRetryAccountRepoStub) SetOverloaded(context.Context, int64, time.Time) error {

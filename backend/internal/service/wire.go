@@ -516,6 +516,7 @@ func ProvideOpenAIGatewayService(
 	channelService *ChannelService,
 	balanceNotifyService *BalanceNotifyService,
 	settingService *SettingService,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
 	proxyPool *AutoFailoverProxyPoolService,
 ) *OpenAIGatewayService {
 	svc := NewOpenAIGatewayService(
@@ -539,6 +540,7 @@ func ProvideOpenAIGatewayService(
 		channelService,
 		balanceNotifyService,
 		settingService,
+		userPlatformQuotaRepo,
 	)
 	svc.SetAutoFailoverProxyPool(proxyPool)
 	return svc
@@ -575,6 +577,10 @@ func ProvideAntigravityQuotaFetcher(proxyRepo ProxyRepository, proxyPool *AutoFa
 	return fetcher
 }
 
+func ProvideMihomoAdminService(adminService AdminService) mihomoAdminService {
+	return adminService
+}
+
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
 func ProvideBillingCacheService(
 	cache BillingCache,
@@ -584,8 +590,9 @@ func ProvideBillingCacheService(
 	rpmCache UserRPMCache,
 	rateRepo UserGroupRateRepository,
 	cfg *config.Config,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
 ) *BillingCacheService {
-	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg)
+	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
 }
 
 // ProvideAPIKeyService wires APIKeyService and connects rate-limit cache invalidation.
@@ -645,6 +652,7 @@ var ProviderSet = wire.NewSet(
 	ProvideSettingService,
 	ProvideAutoFailoverProxyPoolService,
 	ProvideProxySubscriptionService,
+	ProvideMihomoAdminService,
 	NewMihomoService,
 	ProvideProxySubscriptionRefreshService,
 	ProvideProxySubscriptionRuntimeRehydrateService,

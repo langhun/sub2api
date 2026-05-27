@@ -140,7 +140,7 @@ func (s *accountCredentialRepoStub) SetRateLimited(ctx context.Context, id int64
 	panic("unexpected SetRateLimited call")
 }
 
-func (s *accountCredentialRepoStub) SetModelRateLimit(ctx context.Context, id int64, scope string, resetAt time.Time) error {
+func (s *accountCredentialRepoStub) SetModelRateLimit(ctx context.Context, id int64, scope string, resetAt time.Time, reason ...string) error {
 	panic("unexpected SetModelRateLimit call")
 }
 
@@ -315,4 +315,3 @@ func TestAccountService_TestCredentials_UnsupportedCases(t *testing.T) {
 		})
 	}
 }
-
