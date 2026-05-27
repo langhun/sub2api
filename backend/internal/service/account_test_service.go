@@ -194,6 +194,123 @@ func (s *AccountTestService) validateUpstreamBaseURL(raw string) (string, error)
 	return normalized, nil
 }
 
+func (s *AccountTestService) formatBaseURLError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	msg := err.Error()
+	switch {
+	case strings.HasPrefix(msg, "host is not allowed: "):
+		host := strings.TrimSpace(strings.TrimPrefix(msg, "host is not allowed: "))
+		return fmt.Sprintf("基础地址不允许使用当前主机：%s。请检查安全配置 `security.url_allowlist`：如果你想允许任意公网主机，可将 `enabled` 设为 false；如果你仍想启用白名单，请把该域名加入 `upstream_hosts`。", host)
+	case msg == "allowlist is not configured":
+		return "基础地址校验失败：当前已启用主机白名单，但 `security.url_allowlist.upstream_hosts` 为空。请补充允许的上游域名，或将 `security.url_allowlist.enabled` 设为 false。"
+	case strings.HasPrefix(msg, "invalid url scheme: "):
+		scheme := strings.TrimSpace(strings.TrimPrefix(msg, "invalid url scheme: "))
+		if strings.EqualFold(scheme, "http") {
+			return "基础地址校验失败：当前仅允许 HTTPS 地址。若你确认要放开 HTTP，请将 `security.url_allowlist.allow_insecure_http` 设为 true。"
+		}
+		return fmt.Sprintf("基础地址校验失败：URL 协议 `%s` 不受支持，请使用 http 或 https。", scheme)
+	case msg == "invalid host":
+		return "基础地址校验失败：主机名不能为空，请检查 base_url 是否填写完整。"
+	case msg == "url is required":
+		return "基础地址校验失败：base_url 不能为空。"
+	case strings.HasPrefix(msg, "invalid url: "):
+		return fmt.Sprintf("基础地址格式无效：%s。请填写完整的绝对地址，例如 `https://example.com`。", strings.TrimSpace(strings.TrimPrefix(msg, "invalid url: ")))
+	case strings.HasPrefix(msg, "invalid port: "):
+		return fmt.Sprintf("基础地址端口无效：%s。请检查 URL 中的端口号。", strings.TrimSpace(strings.TrimPrefix(msg, "invalid port: ")))
+	default:
+		return fmt.Sprintf("基础地址校验失败：%s", msg)
+	}
+}
+
+func (s *AccountTestService) formatTestErrorMessage(errorMsg string) string {
+	msg := strings.TrimSpace(errorMsg)
+	if msg == "" {
+		return msg
+	}
+
+	switch {
+	case strings.HasPrefix(msg, "基础地址"):
+		return msg
+	case msg == "Account not found":
+		return "未找到要测试的账号。"
+	case msg == "No access token available":
+		return "账号缺少可用的访问令牌，请先完成授权或检查 access_token。"
+	case msg == "No API key available":
+		return "账号缺少可用的 API Key，请先填写并保存 API Key。"
+	case strings.HasPrefix(msg, "Unsupported account type: "):
+		return "当前账号类型不支持此测试方式：" + strings.TrimSpace(strings.TrimPrefix(msg, "Unsupported account type: "))
+	case strings.HasPrefix(msg, "Unsupported Bedrock model: "):
+		return "当前 Bedrock 模型暂不支持测试：" + strings.TrimSpace(strings.TrimPrefix(msg, "Unsupported Bedrock model: "))
+	case msg == "Failed to create test payload":
+		return "创建测试请求体失败。"
+	case strings.HasPrefix(msg, "Failed to create request"):
+		return "创建测试请求失败。"
+	case strings.HasPrefix(msg, "Failed to create Chat Completions request"):
+		return "创建 Chat Completions 测试请求失败。"
+	case strings.HasPrefix(msg, "Failed to build request: "):
+		return "构建测试请求失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to build request: "))
+	case strings.HasPrefix(msg, "Failed to build image request: "):
+		return "构建图片测试请求失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to build image request: "))
+	case strings.HasPrefix(msg, "Failed to create Vertex request body: "):
+		return "构建 Vertex 请求体失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to create Vertex request body: "))
+	case strings.HasPrefix(msg, "Failed to build Vertex URL: "):
+		return "构建 Vertex 请求地址失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to build Vertex URL: "))
+	case msg == "Claude token provider not configured":
+		return "Claude Token 提供器未配置，无法测试该账号。"
+	case msg == "Antigravity gateway service not configured":
+		return "Antigravity 网关服务未配置，无法测试该账号。"
+	case strings.HasPrefix(msg, "Failed to get service account access token: "):
+		return "获取服务账号访问令牌失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to get service account access token: "))
+	case strings.HasPrefix(msg, "Failed to get access token: "):
+		return "获取访问令牌失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to get access token: "))
+	case strings.HasPrefix(msg, "Failed to create Bedrock signer: "):
+		return "创建 Bedrock 签名器失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to create Bedrock signer: "))
+	case strings.HasPrefix(msg, "Failed to sign request: "):
+		return "签名请求失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to sign request: "))
+	case strings.HasPrefix(msg, "Failed to resolve proxy: "):
+		return "解析代理失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to resolve proxy: "))
+	case strings.HasPrefix(msg, "Request failed: "):
+		return "请求失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Request failed: "))
+	case strings.HasPrefix(msg, "Responses API request failed: "):
+		return "Responses API 请求失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Responses API request failed: "))
+	case strings.HasPrefix(msg, "Chat Completions API (/v1/chat/completions) request failed: "):
+		return "Chat Completions API（/v1/chat/completions）请求失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Chat Completions API (/v1/chat/completions) request failed: "))
+	case strings.HasPrefix(msg, "Failed to read response: "):
+		return "读取上游响应失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to read response: "))
+	case strings.HasPrefix(msg, "Failed to parse response: "):
+		return "解析上游响应失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to parse response: "))
+	case strings.HasPrefix(msg, "Stream read error: "):
+		return "读取流式响应失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Stream read error: "))
+	case strings.HasPrefix(msg, "Stream write error: "):
+		return "写入流式响应失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Stream write error: "))
+	case msg == "Stream ended before response.completed":
+		return "流式响应在收到 `response.completed` 之前就结束了。"
+	case msg == "Stream ended before completion":
+		return "流式响应在完成前就中断了。"
+	case strings.HasPrefix(msg, "Authentication failed (401): "):
+		return "鉴权失败（401）：" + strings.TrimSpace(strings.TrimPrefix(msg, "Authentication failed (401): "))
+	case strings.HasPrefix(msg, "Chat Completions authentication failed (401): "):
+		return "Chat Completions 鉴权失败（401）：" + strings.TrimSpace(strings.TrimPrefix(msg, "Chat Completions authentication failed (401): "))
+	case strings.HasPrefix(msg, "API returned "):
+		return "上游接口返回错误：" + strings.TrimSpace(strings.TrimPrefix(msg, "API returned "))
+	case strings.HasPrefix(msg, "Chat Completions API (/v1/chat/completions) returned "):
+		return "Chat Completions API 返回错误：" + strings.TrimSpace(strings.TrimPrefix(msg, "Chat Completions API (/v1/chat/completions) returned "))
+	case msg == "No images returned from API":
+		return "上游接口没有返回图片结果。"
+	case strings.HasPrefix(msg, "Failed to bind default group: "):
+		return "绑定默认分组失败：" + strings.TrimSpace(strings.TrimPrefix(msg, "Failed to bind default group: "))
+	case msg == "OpenAI response failed":
+		return "OpenAI 响应失败。"
+	case msg == "Unknown error":
+		return "发生未知错误。"
+	default:
+		return msg
+	}
+}
+
 func (s *AccountTestService) tryEnableOpenAIProxyPoolForTest(ctx context.Context, account *Account) (bool, error) {
 	if s == nil || s.accountRepo == nil || s.proxyPool == nil || account == nil || account.Platform != PlatformOpenAI {
 		return false, nil
@@ -361,7 +478,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		}
 		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 		if err != nil {
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
+			return s.sendErrorAndEnd(c, s.formatBaseURLError(err))
 		}
 		apiURL = strings.TrimSuffix(normalizedBaseURL, "/") + "/v1/messages?beta=true"
 	} else {
@@ -653,7 +770,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 		if err != nil {
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
+			return s.sendErrorAndEnd(c, s.formatBaseURLError(err))
 		}
 		if !openai_compat.ShouldUseResponsesAPI(account.Extra) {
 			apiURL = buildOpenAIChatCompletionsURL(normalizedBaseURL)
@@ -843,7 +960,7 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 		}
 		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 		if err != nil {
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
+			return s.sendErrorAndEnd(c, s.formatBaseURLError(err))
 		}
 		apiURL = appendOpenAIResponsesRequestPathSuffix(buildOpenAIResponsesURL(normalizedBaseURL), "/compact")
 	default:
@@ -1009,7 +1126,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	}
 
 	if err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to build request: %s", err.Error()))
+		return s.sendErrorAndEnd(c, s.formatBaseURLError(err))
 	}
 
 	// Send test_start event
@@ -1561,7 +1678,7 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 	}
 	normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 	if err != nil {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
+		return s.sendErrorAndEnd(c, s.formatBaseURLError(err))
 	}
 	apiURL := buildOpenAIImagesURL(normalizedBaseURL, openAIImagesGenerationsEndpoint)
 
@@ -1962,12 +2079,14 @@ func (s *AccountTestService) bindPlatformDefaultGroupOnTestSuccess(ctx context.C
 
 // sendErrorAndEnd sends an error event and ends the stream
 func (s *AccountTestService) sendErrorAndEnd(c *gin.Context, errorMsg string) error {
+	errorMsg = s.formatTestErrorMessage(errorMsg)
 	log.Printf("Account test error: %s", errorMsg)
 	s.sendEvent(c, TestEvent{Type: "error", Error: errorMsg})
 	return fmt.Errorf("%s", errorMsg)
 }
 
 func (s *AccountTestService) sendHTTPErrorAndEnd(c *gin.Context, statusCode int, errorMsg string) error {
+	errorMsg = s.formatTestErrorMessage(errorMsg)
 	log.Printf("Account test error: %s", errorMsg)
 	s.sendEvent(c, TestEvent{
 		Type:  "error",

@@ -176,3 +176,38 @@ func TestAccountTestService_OpenAIImageOAuthPropagatesStreamErrorEvent(t *testin
 	require.Contains(t, rec.Body.String(), `"type":"error"`)
 	require.Contains(t, rec.Body.String(), `The usage limit has been reached`)
 }
+
+func TestAccountTestService_OpenAIImageAPIKeyNoImagesReturnsChineseHint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/1/test", nil)
+
+	upstream := &httpUpstreamRecorder{
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+			Body: io.NopCloser(strings.NewReader(`{"data":[]}`)),
+		},
+	}
+	svc := &AccountTestService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+	account := &Account{
+		ID:       59,
+		Name:     "openai-apikey-empty-image",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key": "test-api-key",
+		},
+	}
+
+	err := svc.testOpenAIImageAPIKey(c, context.Background(), account, "gpt-image-2", "draw a cat")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "上游接口没有返回图片结果")
+	require.Contains(t, rec.Body.String(), "上游接口没有返回图片结果")
+}

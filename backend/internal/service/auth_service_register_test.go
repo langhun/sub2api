@@ -514,6 +514,7 @@ func TestAuthService_Register_InvitationCodeRequiresNewFormat(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	_, _, err := authService.RegisterWithVerification(context.Background(), "user@test.com", "password", "", "", "invite123", "")

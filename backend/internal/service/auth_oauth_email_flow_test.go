@@ -344,6 +344,7 @@ func TestRegisterOAuthEmailAccountSkipsVerifyCodeWhenEmailVerificationDisabled(t
 			SettingKeyEmailVerifyEnabled:  "false",
 		},
 		&emailCacheStub{},
+		nil,
 	)
 
 	tokenPair, user, err := authService.RegisterOAuthEmailAccount(
@@ -416,6 +417,7 @@ func TestValidateOAuthRegistrationInvitationRejectsLegacyFormat(t *testing.T) {
 			SettingKeyInvitationCodeEnabled: "true",
 		},
 		&emailCacheStub{},
+		nil,
 	)
 
 	redeemCode, err := authService.validateOAuthRegistrationInvitation(context.Background(), "INVITE123")
