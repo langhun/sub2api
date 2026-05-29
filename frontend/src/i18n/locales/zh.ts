@@ -3277,6 +3277,12 @@ export default {
       "interceptWarmupRequestsDesc": "启用后，标题生成等预热请求将返回 mock 响应，不消耗上游 token",
       "autoPauseOnExpired": "过期自动暂停调度",
       "autoPauseOnExpiredDesc": "启用后，账号过期将自动暂停调度",
+      "autoPause5hThreshold": "5小时用量阈值（%）",
+      "autoPause7dThreshold": "7天用量阈值（%）",
+      "autoPauseThresholdHint": "留空或填 0 表示使用运维设置中的全局默认阈值；填写数值表示覆盖全局默认。达到阈值后仅在调度时跳过该账号，不会修改账号的可调度状态。",
+      "autoPause5hDisabled": "禁用 5小时自动暂停",
+      "autoPause7dDisabled": "禁用 7天自动暂停",
+      "autoPauseDisabledHint": "启用后，即使配置了全局默认阈值，该账号也不会被配额自动暂停。",
       "quotaControl": {
         "title": "配额控制",
         "hint": "配置费用窗口、会话限制、客户端亲和等调度控制。",
@@ -5958,6 +5964,11 @@ export default {
         "slowTailTTFTP95Threshold": "TTFT P95 阈值（毫秒）",
         "slowTailDurationP95Threshold": "Duration P95 阈值（毫秒，0 = 关闭）",
         "slowTailResponseLatencyP95Threshold": "回写 P95 阈值（毫秒，0 = 关闭）",
+        "openaiQuotaAutoPause": "OpenAI 账号配额自动暂停",
+        "openaiQuotaAutoPauseHint": "当 OpenAI 账号达到 5小时 / 7天用量阈值后，调度器会自动跳过该账号；窗口重置后自动恢复。账号级阈值优先于这里的全局默认值。",
+        "openaiQuotaAutoPauseDefault5h": "默认 5小时用量阈值（%）",
+        "openaiQuotaAutoPauseDefault7d": "默认 7天用量阈值（%）",
+        "openaiQuotaAutoPauseThresholdHint": "取值 0-100；留空或填 0 表示不启用全局默认阈值。",
         "errorFiltering": "错误过滤",
         "ignoreCountTokensErrors": "忽略 count_tokens 错误",
         "ignoreCountTokensErrorsHint": "启用后，count_tokens 请求的错误将不会写入错误日志。",
@@ -5995,7 +6006,8 @@ export default {
           "slaMinPercentRange": "SLA最低百分比必须在0-100之间",
           "ttftP99MaxRange": "TTFT P99最大值必须大于等于0",
           "requestErrorRateMaxRange": "请求错误率最大值必须在0-100之间",
-          "upstreamErrorRateMaxRange": "上游错误率最大值必须在0-100之间"
+          "upstreamErrorRateMaxRange": "上游错误率最大值必须在0-100之间",
+          "openaiQuotaAutoPauseRange": "OpenAI 配额自动暂停阈值必须在 0-100 之间"
         }
       },
       "concurrency": {
