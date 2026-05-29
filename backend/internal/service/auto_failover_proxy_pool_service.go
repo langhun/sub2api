@@ -120,6 +120,14 @@ func (s *AutoFailoverProxyPoolService) BuildCandidates(ctx context.Context, acco
 	if err != nil {
 		return nil, err
 	}
+	if currentProxy != nil && account.ProxyID != nil {
+		return []ProxyFailoverCandidate{{
+			ProxyID:  &currentProxy.ID,
+			Proxy:    cloneProxy(currentProxy),
+			ProxyURL: currentProxy.URL(),
+			Source:   "account_proxy",
+		}}, nil
+	}
 
 	poolEligible := currentPoolEnabled || account.UsesAutoFailoverProxyPool()
 	var poolProxies []*Proxy
@@ -137,20 +145,6 @@ func (s *AutoFailoverProxyPoolService) BuildCandidates(ctx context.Context, acco
 	}
 	latencies := s.loadProxyRuntimeInfo(ctx, runtimeTargets...)
 	candidates := make([]ProxyFailoverCandidate, 0, len(poolProxies)+1)
-
-	if currentProxy != nil {
-		currentCandidate := ProxyFailoverCandidate{
-			ProxyID:  &currentProxy.ID,
-			Proxy:    cloneProxy(currentProxy),
-			ProxyURL: currentProxy.URL(),
-			Source:   "account_proxy",
-		}
-		// 兼容历史账号：显式绑定了非池代理时仍优先尝试；显式绑定的是池代理时，
-		// 仅在其未处于冷却期时作为首选。
-		if !currentPoolEnabled || !isProxyCoolingDown(latencies[currentProxy.ID]) {
-			candidates = append(candidates, currentCandidate)
-		}
-	}
 
 	if poolEligible {
 		sortPoolProxyCandidates(poolProxies, latencies)

@@ -226,7 +226,7 @@ func TestBuildUngroupedAutoTestExtraUpdates(t *testing.T) {
 	require.Equal(t, started.Add(5*time.Second).Format(time.RFC3339), updates["auto_test_last_finished_at"])
 }
 
-func TestUngroupedAccountAutoTestServiceApplyOpenAIAutoTestActions401DeletesAccount(t *testing.T) {
+func TestUngroupedAccountAutoTestServiceApplyOpenAIAutoTestActions401KeepsAccount(t *testing.T) {
 	repo := &ungroupedAutoTestAccountRepoStub{}
 	svc := NewUngroupedAccountAutoTestService(repo, &AccountTestService{}, nil)
 	account := &Account{ID: 401, Platform: PlatformOpenAI}
@@ -238,8 +238,8 @@ func TestUngroupedAccountAutoTestServiceApplyOpenAIAutoTestActions401DeletesAcco
 	}
 
 	skipPersist := svc.applyOpenAIAutoTestActions(context.Background(), account, result)
-	require.True(t, skipPersist)
-	require.Equal(t, []int64{401}, repo.deletedIDs)
+	require.False(t, skipPersist)
+	require.Empty(t, repo.deletedIDs)
 }
 
 func TestUngroupedAccountAutoTestServiceApplyOpenAIAutoTestActions403SwitchesToPoolAndRetests(t *testing.T) {

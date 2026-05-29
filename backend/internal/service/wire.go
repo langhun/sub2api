@@ -163,16 +163,14 @@ func ProvideAccountExpiryService(accountRepo AccountRepository) *AccountExpirySe
 	return svc
 }
 
-// ProvideUngroupedAccountAutoTestService creates and starts the background
-// ungrouped-account auto-test worker.
+// ProvideUngroupedAccountAutoTestService keeps the historical dependency graph
+// stable while disabling the background ungrouped-account auto-test worker.
 func ProvideUngroupedAccountAutoTestService(
 	accountRepo AccountRepository,
 	accountTestSvc *AccountTestService,
 	cfg *config.Config,
 ) *UngroupedAccountAutoTestService {
-	svc := NewUngroupedAccountAutoTestService(accountRepo, accountTestSvc, cfg)
-	svc.Start()
-	return svc
+	return nil
 }
 
 // ProvideSubscriptionExpiryService creates and starts SubscriptionExpiryService.
