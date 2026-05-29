@@ -573,7 +573,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
-      title: 'Proxy Management',
+      title: 'IP Management',
       titleKey: 'admin.proxies.title',
       descriptionKey: 'admin.proxies.description'
     }

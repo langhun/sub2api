@@ -44,13 +44,12 @@ const baseProps = {
   selectedCount: 0,
   showColumnDropdown: false,
   showProxyToolsDropdown: false,
-  showProxyBatchDropdown: false,
   toggleableColumns: [{ key: 'auth', label: 'auth' }],
   isColumnVisible: () => true
 }
 
 describe('ProxiesToolbar', () => {
-  it('emits search updates and opens the unified Mihomo entry', async () => {
+  it('emits search updates without rendering a duplicate Mihomo entry', async () => {
     const wrapper = mount(ProxiesToolbar, {
       props: baseProps,
       global: {
@@ -61,13 +60,11 @@ describe('ProxiesToolbar', () => {
       }
     })
 
-    const mihomoButton = wrapper.get('[data-test="proxy-toolbar-mihomo"]')
-    await mihomoButton.trigger('click')
+    expect(wrapper.find('[data-test="proxy-toolbar-mihomo"]').exists()).toBe(false)
 
     const search = wrapper.get('input')
     await search.setValue('proxy-host')
 
-    expect(wrapper.emitted('open-mihomo')).toHaveLength(1)
     expect(wrapper.emitted('update:searchQuery')?.[0]).toEqual(['proxy-host'])
   })
 
@@ -97,12 +94,12 @@ describe('ProxiesToolbar', () => {
     expect(wrapper.emitted('reload-proxies')).toHaveLength(3)
   })
 
-  it('emits tools and batch actions from dropdown menus', async () => {
+  it('emits page tools from the tools dropdown', async () => {
     const wrapper = mount(ProxiesToolbar, {
       props: {
         ...baseProps,
         selectedCount: 2,
-        showProxyBatchDropdown: true,
+        showProxyToolsDropdown: true,
         showColumnDropdown: true
       },
       global: {
@@ -120,20 +117,14 @@ describe('ProxiesToolbar', () => {
     const textButtons = wrapper.findAll('button')
     const toolsImport = wrapper.get('[data-test="proxy-toolbar-import"]')
     const toolsPool = wrapper.get('[data-test="proxy-toolbar-pool"]')
-    const batchDelete = wrapper.get('[data-test="proxy-toolbar-batch-delete"]')
-    const batchAssign = wrapper.get('[data-test="proxy-toolbar-batch-assign"]')
 
     expect(textButtons.some((button) => button.text().includes('admin.proxies.dataExportSelected'))).toBe(true)
 
     await toolsImport.trigger('click')
     await toolsPool.trigger('click')
-    await batchAssign.trigger('click')
-    await batchDelete.trigger('click')
 
     expect(wrapper.emitted('toggle-column')?.[0]).toEqual(['auth'])
     expect(wrapper.emitted('open-import')).toHaveLength(1)
     expect(wrapper.emitted('open-pool')).toHaveLength(1)
-    expect(wrapper.emitted('batch-assign')).toHaveLength(1)
-    expect(wrapper.emitted('batch-delete')).toHaveLength(1)
   })
 })

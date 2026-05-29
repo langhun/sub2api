@@ -170,7 +170,8 @@ describe('AccountTestModal', () => {
     const [, request] = (global.fetch as any).mock.calls[0]
     expect(JSON.parse(request.body)).toEqual({
       model_id: 'gemini-3.1-flash-image',
-      prompt: 'draw a tiny orange cat astronaut'
+      prompt: 'draw a tiny orange cat astronaut',
+      mode: 'default'
     })
 
     const preview = wrapper.find('img[alt="test-image-1"]')
@@ -246,5 +247,62 @@ describe('AccountTestModal', () => {
     expect((wrapper.vm as any).outputLines.some((line: { text: string }) => line.text.includes('network error'))).toBe(false)
     expect((wrapper.vm as any).streamingContent).toBe('')
     expect((wrapper.vm as any).outputLines.some((line: { text: string }) => line.text === 'Calling Codex /responses image tool...')).toBe(true)
+  })
+
+  it('OpenAI OAuth 测试始终使用默认模式并随请求提交', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'gpt-5.4', display_name: 'GPT-5.4' }
+    ])
+
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"gpt-5.4"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    ) as any
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: true,
+        account: {
+          id: 99,
+          name: 'OpenAI OAuth Test',
+          platform: 'openai',
+          type: 'oauth',
+          status: 'active'
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: { template: '<div class="select-stub"></div>' },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect((wrapper.vm as any).selectedModelId).toBe('gpt-5.4')
+
+    const buttons = wrapper.findAll('button')
+    const startButton = buttons.find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model_id: 'gpt-5.4',
+      prompt: '',
+      mode: 'default'
+    })
   })
 })

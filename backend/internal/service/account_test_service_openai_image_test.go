@@ -57,8 +57,8 @@ func TestAccountTestService_OpenAIImageOAuthHandlesOutputItemDoneFallback(t *tes
 	require.Equal(t, "codex_cli_rs", upstream.lastReq.Header.Get("Originator"))
 	require.Equal(t, codexCLIVersion, upstream.lastReq.Header.Get("Version"))
 	require.Equal(t, codexCLIUserAgent, upstream.lastReq.Header.Get("User-Agent"))
-	require.Equal(t, "probe_compact_53", upstream.lastReq.Header.Get("Session_Id"))
-	require.Equal(t, "probe_compact_53", upstream.lastReq.Header.Get("Conversation_Id"))
+	require.NotEmpty(t, upstream.lastReq.Header.Get("Session_Id"))
+	require.Equal(t, upstream.lastReq.Header.Get("Session_Id"), upstream.lastReq.Header.Get("Conversation_Id"))
 	require.Equal(t, "token-123", strings.TrimPrefix(upstream.lastReq.Header.Get("Authorization"), "Bearer "))
 }
 

@@ -44,7 +44,7 @@
             class="flex items-start justify-between gap-4"
           >
             <span class="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
-              {{ column.label }}
+              {{ column.displayLabel }}
             </span>
             <div class="text-right text-sm text-gray-900 dark:text-gray-100">
               <slot :name="`cell-${column.key}`" :row="row" :value="row[column.key]" :expanded="actionsExpanded">
@@ -73,7 +73,7 @@
       <thead class="table-header bg-gray-50 dark:bg-dark-800">
         <tr>
           <th
-            v-for="(column, index) in columns"
+            v-for="(column, index) in renderedColumns"
             :key="column.key"
             scope="col"
             :class="[
@@ -92,7 +92,7 @@
               :sort-order="sortOrder"
             >
               <div class="flex items-center space-x-1">
-                <span>{{ column.label }}</span>
+                <span>{{ column.displayLabel }}</span>
                 <span v-if="column.sortable" class="text-gray-400 dark:text-dark-500">
                   <svg
                     v-if="sortKey === column.key"
@@ -121,7 +121,7 @@
       <tbody class="table-body divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
         <!-- Loading skeleton -->
         <tr v-if="loading" v-for="i in 5" :key="i">
-          <td v-for="column in columns" :key="column.key" :class="['whitespace-nowrap py-4', getAdaptivePaddingClass()]">
+          <td v-for="column in renderedColumns" :key="column.key" :class="['whitespace-nowrap py-4', getAdaptivePaddingClass()]">
             <div class="animate-pulse">
               <div class="h-4 w-3/4 rounded bg-gray-200 dark:bg-dark-700"></div>
             </div>
@@ -131,7 +131,7 @@
         <!-- Empty state -->
         <tr v-else-if="!data || data.length === 0">
           <td
-            :colspan="columns.length"
+            :colspan="renderedColumns.length"
             :class="['py-12 text-center text-gray-500 dark:text-dark-400', getAdaptivePaddingClass()]"
           >
             <slot name="empty">
@@ -152,7 +152,7 @@
         <!-- Data rows (virtual scroll) -->
         <template v-else>
           <tr v-if="virtualPaddingTop > 0" aria-hidden="true">
-            <td :colspan="columns.length"
+            <td :colspan="renderedColumns.length"
                 :style="{ height: virtualPaddingTop + 'px', padding: 0, border: 'none' }">
             </td>
           </tr>
@@ -165,7 +165,7 @@
             class="hover:bg-gray-50 dark:hover:bg-dark-800"
           >
             <td
-              v-for="(column, colIndex) in columns"
+              v-for="(column, colIndex) in renderedColumns"
               :key="column.key"
               :class="[
                 'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
@@ -185,7 +185,7 @@
             </td>
           </tr>
           <tr v-if="virtualPaddingBottom > 0" aria-hidden="true">
-            <td :colspan="columns.length"
+            <td :colspan="renderedColumns.length"
                 :style="{ height: virtualPaddingBottom + 'px', padding: 0, border: 'none' }">
             </td>
           </tr>
@@ -376,6 +376,30 @@ const sortKey = ref<string>('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const actionsExpanded = ref(false)
 
+const humanizeLabel = (value: string) =>
+  value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Za-z])([0-9])/g, '$1 $2')
+    .replace(/([0-9])([A-Za-z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+
+const resolveColumnLabel = (column: Column) => {
+  const rawLabel = typeof column.label === 'string' ? column.label.trim() : ''
+  if (!rawLabel) {
+    return column.key === 'select' ? '' : humanizeLabel(column.key)
+  }
+  if (rawLabel.includes('.') && !rawLabel.includes(' ')) {
+    return column.key === 'select' ? '' : humanizeLabel(column.key)
+  }
+  return rawLabel
+}
+
 watch(actionsColumnNeedsExpanding, (needsExpand) => {
   if (!props.expandableActions) {
     actionsExpanded.value = false
@@ -504,9 +528,16 @@ const resolveRowKey = (row: any, index: number) => {
   return key ?? index
 }
 
-const dataColumns = computed(() => props.columns.filter((column) => column.key !== 'actions'))
-const columnsSignature = computed(() =>
-  props.columns.map((column) => `${column.key}:${column.sortable ? '1' : '0'}`).join('|')
+const renderedColumns = computed(() =>
+  props.columns.map((column) => ({
+    ...column,
+    displayLabel: resolveColumnLabel(column),
+  }))
+)
+
+const dataColumns = computed(() => renderedColumns.value.filter((column) => column.key !== 'actions'))
+const layoutColumnsSignature = computed(() =>
+  renderedColumns.value.map((column) => `${column.key}:${column.sortable ? '1' : '0'}:${column.displayLabel}`).join('|')
 )
 
 watch(
@@ -523,7 +554,7 @@ watch(
 // 数据/列变化时重新检查滚动状态
 // 注意：不能监听 actionsExpanded，因为 checkActionsColumnWidth 会临时修改它，会导致无限循环
 watch(
-  [() => props.data.length, columnsSignature],
+  [() => props.data.length, layoutColumnsSignature],
   async () => {
     await nextTick()
     checkScrollable()
@@ -671,7 +702,7 @@ onMounted(() => {
 })
 
 watch(
-  columnsSignature,
+  layoutColumnsSignature,
   () => {
     // If current sort key is no longer sortable/visible, fall back to default/persisted.
     const normalized = normalizeSortKey(sortKey.value)

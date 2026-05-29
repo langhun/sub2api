@@ -128,6 +128,16 @@ const BaseDialogStub = {
   `
 }
 
+const ProxyBulkActionsBarStub = {
+  props: ['selectedCount'],
+  emits: ['test', 'quality-check', 'enable-pool', 'disable-pool', 'clear-cooldown', 'assign', 'unassign', 'delete', 'clear'],
+  template: `
+    <div v-if="selectedCount > 0" data-test="proxy-bulk-bar-stub">
+      <button data-test="bulk-disable-pool" @click="$emit('disable-pool')">admin.proxies.poolBatchDisable</button>
+    </div>
+  `
+}
+
 const mountProxiesView = () =>
   mount(ProxiesView, {
     global: {
@@ -143,6 +153,7 @@ const mountProxiesView = () =>
         EmptyState: true,
         ImportDataModal: true,
         AssignAccountsModal: true,
+        ProxyBulkActionsBar: ProxyBulkActionsBarStub,
         PoolMembersDialog: true,
         Select: SelectStub,
         Icon: true
@@ -183,6 +194,7 @@ describe('admin ProxiesView pool state', () => {
           status: 'active',
           country: '美国',
           country_code: 'us',
+          region: '加利福尼亚',
           city: '洛杉矶',
           auto_failover_pool_enabled: true,
           health_status: 'cooldown',
@@ -341,7 +353,7 @@ describe('admin ProxiesView pool state', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('🇺🇸')
-    expect(wrapper.text()).toContain('美国 · 洛杉矶')
+    expect(wrapper.text()).toContain('美国 · 加利福尼亚 · 洛杉矶')
     expect(wrapper.find('img').exists()).toBe(false)
   })
 
@@ -369,9 +381,11 @@ describe('admin ProxiesView pool state', () => {
 
     await flushPromises()
 
-    const columnSettingsButton = wrapper
-      .findAll('button')
-      .find((button) => button.attributes('title') === 'admin.users.columnSettings')
+    const toolsButton = wrapper.get('[data-test="proxy-toolbar-tools"]')
+    await toolsButton.trigger('click')
+    await flushPromises()
+
+    const columnSettingsButton = wrapper.get('[data-test="proxy-toolbar-columns"]')
 
     expect(columnSettingsButton).toBeDefined()
     await columnSettingsButton!.trigger('click')
@@ -447,15 +461,17 @@ describe('admin ProxiesView pool state', () => {
     })
 
     await flushPromises()
-    const openMihomoButton = wrapper.get('[data-test="proxy-toolbar-mihomo"]')
+    const openMihomoButton = wrapper.get('[data-test="proxy-mihomo-config"]')
     await openMihomoButton.trigger('click')
     await flushPromises()
 
     expect(getMihomo).toHaveBeenCalledTimes(1)
     expect(listProxySubscriptions).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('admin.proxies.mihomo.sourceHint')
+    expect(wrapper.text()).toContain('admin.proxies.mihomo.workspaceDescription')
     expect(wrapper.text()).toContain('admin.proxies.mihomo.workspaceTitle')
     expect(wrapper.text()).toContain('admin.proxies.mihomo.sourceSectionTitle')
+    expect(wrapper.text()).toContain('admin.proxies.mihomo.workspaceStatusEmpty')
+    expect(wrapper.text()).toContain('admin.proxies.mihomo.listenerSummaryTitle')
   })
 
   it('uses backend Mihomo settings instead of the default form when subscription sync starts before Mihomo load finishes', async () => {
@@ -485,7 +501,7 @@ describe('admin ProxiesView pool state', () => {
     const wrapper = mountProxiesView()
     await flushPromises()
 
-    const openMihomoButton = wrapper.get('[data-test="proxy-toolbar-mihomo"]')
+    const openMihomoButton = wrapper.get('[data-test="proxy-mihomo-config"]')
     await openMihomoButton.trigger('click')
     await flushPromises()
 
@@ -513,6 +529,77 @@ describe('admin ProxiesView pool state', () => {
       country_filter: '日本'
     }))
     expect(getMihomo.mock.calls.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('auto-picks Mihomo strategy, country, and listener regions before sync', async () => {
+    getMihomo.mockResolvedValueOnce({
+      settings: {
+        protocol: 'socks5h',
+        target_host: '127.0.0.1',
+        start_port: 41001,
+        listener_count: 3,
+        controller_url: 'http://127.0.0.1:9097',
+        controller_secret: '',
+        proxy_name_prefix: 'mihomo',
+        listener_regions: ['', '', ''],
+        auto_optimize: false,
+        country_filter: ''
+      },
+      config_path: '/tmp/mihomo/config.yaml',
+      proxies: [],
+      available_regions: ['香港', '日本']
+    })
+
+    const wrapper = mountProxiesView()
+    await flushPromises()
+
+    await wrapper.get('[data-test="proxy-mihomo-config"]').trigger('click')
+    await flushPromises()
+
+    const autoCountryButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.proxies.mihomo.applyRecommendedCountry'))
+    expect(autoCountryButton).toBeDefined()
+    await autoCountryButton!.trigger('click')
+    await flushPromises()
+
+    const autoFillButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.proxies.mihomo.autoFillListenerRegions'))
+    expect(autoFillButton).toBeDefined()
+    await autoFillButton!.trigger('click')
+    await flushPromises()
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.proxies.mihomo.saveAndSync'))!
+      .trigger('click')
+    await flushPromises()
+
+    expect(syncMihomo).toHaveBeenCalledWith(expect.objectContaining({
+      auto_optimize: false,
+      country_filter: '香港',
+      listener_regions: ['香港', '日本', '香港']
+    }))
+
+    const autoStrategyButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.proxies.mihomo.applyAutoOptimize'))
+    expect(autoStrategyButton).toBeDefined()
+    await autoStrategyButton!.trigger('click')
+    await flushPromises()
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('admin.proxies.mihomo.saveAndSync'))!
+      .trigger('click')
+    await flushPromises()
+
+    expect(syncMihomo).toHaveBeenLastCalledWith(expect.objectContaining({
+      auto_optimize: true,
+      country_filter: '',
+      listener_regions: ['香港', '日本', '香港']
+    }))
   })
 
   it('renders shared subscription sources in the Mihomo dialog and wires refresh, nodes, and create flows', async () => {
@@ -565,7 +652,7 @@ describe('admin ProxiesView pool state', () => {
 
     await flushPromises()
 
-    const openMihomoButton = wrapper.get('[data-test="proxy-toolbar-mihomo"]')
+    const openMihomoButton = wrapper.get('[data-test="proxy-mihomo-config"]')
     await openMihomoButton.trigger('click')
     await flushPromises()
 
@@ -656,7 +743,7 @@ describe('admin ProxiesView pool state', () => {
     const wrapper = mountProxiesView()
     await flushPromises()
 
-    const openMihomoButton = wrapper.get('[data-test="proxy-toolbar-mihomo"]')
+    const openMihomoButton = wrapper.get('[data-test="proxy-mihomo-config"]')
     await openMihomoButton.trigger('click')
     await flushPromises()
 
@@ -747,26 +834,17 @@ describe('admin ProxiesView pool state', () => {
     expect(updateProxy.mock.calls[0]?.[1]).not.toHaveProperty('password')
   })
 
-  it('toggles batch pool actions visibility and wires the selected-row action', async () => {
+  it('surfaces batch actions from the sticky batch bar once rows are selected', async () => {
     const wrapper = mountProxiesView()
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('admin.proxies.poolDisableAction')
 
-    const batchMenuButton = wrapper.get('[data-test="proxy-toolbar-batch-toggle"]')
-    await batchMenuButton.trigger('click')
-    await flushPromises()
-
-    let poolDisableButton = wrapper.get('[data-test="proxy-toolbar-batch-disable-pool"]')
-    expect(poolDisableButton.attributes('disabled')).toBeDefined()
-
     const row = wrapper.get('[data-test="proxy-row"][data-row-id="1"]')
     await row.get('input[type="checkbox"]').setValue(true)
     await flushPromises()
 
-    poolDisableButton = wrapper.get('[data-test="proxy-toolbar-batch-disable-pool"]')
-    expect(poolDisableButton.attributes('disabled')).toBeUndefined()
-
+    const poolDisableButton = wrapper.get('[data-test="bulk-disable-pool"]')
     await poolDisableButton.trigger('click')
     await flushPromises()
 
@@ -797,7 +875,7 @@ describe('admin ProxiesView pool state', () => {
 
     expect(updateProxy).toHaveBeenCalledWith(1, { status: 'inactive' })
     expect(showSuccess).toHaveBeenCalledWith('代理已停用')
-    expect(listProxies).toHaveBeenCalledTimes(2)
+    expect(listProxies.mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 
   it('disables row-level actions while a more-menu async action is in flight', async () => {

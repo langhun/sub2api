@@ -53,4 +53,36 @@ describe('DataTable sorting', () => {
 
     expect(setupState.sortedData.map((row: { name: string | null }) => row.name ?? '')).toEqual(['b', 'a', '', ''])
   })
+
+  it('humanizes fallback labels instead of showing raw i18n keys', async () => {
+    const win = window as any
+    win.matchMedia = vi.fn().mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    })
+    const globalObject = globalThis as any
+    globalObject.ResizeObserver = class {
+      observe() {}
+      disconnect() {}
+    }
+
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [
+          { key: 'created_at', label: 'admin.accounts.columns.createdAt', sortable: true },
+          { key: 'status', label: 'Status', sortable: true },
+        ],
+        data: [
+          { id: 1, created_at: '2026-05-01T00:00:00Z', status: 'active' },
+        ],
+      },
+    })
+
+    const headers = wrapper.findAll('th')
+    expect(headers[0].text()).toContain('Created At')
+    expect(headers[1].text()).toContain('Status')
+  })
 })

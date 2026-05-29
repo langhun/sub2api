@@ -551,7 +551,7 @@ func TestOpenAIGatewayService_SelectAccountForModelWithExclusions_ModelRateLimit
 		Status:      StatusActive,
 		Schedulable: true,
 		Concurrency: 1,
-		Priority:    5,
+		Priority:    0,
 	}
 	svc := &OpenAIGatewayService{
 		accountRepo: schedulerTestOpenAIAccountRepo{accounts: []Account{primary, secondary}},

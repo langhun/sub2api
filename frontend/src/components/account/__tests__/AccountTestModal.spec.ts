@@ -118,7 +118,7 @@ describe('AccountTestModal', () => {
     localStorage.clear()
   })
 
-  it('posts compact mode for OpenAI compact probe', async () => {
+  it('posts default mode for OpenAI account test', async () => {
     const wrapper = mount(AccountTestModal, {
       props: {
         show: true,
@@ -136,7 +136,6 @@ describe('AccountTestModal', () => {
 
     await flushPromises()
     ;(wrapper.vm as any).selectedModelId = 'gpt-5.4'
-    ;(wrapper.vm as any).testMode = 'compact'
     await (wrapper.vm as any).startTest()
     await flushPromises()
 
@@ -144,7 +143,7 @@ describe('AccountTestModal', () => {
     const [, options] = (global.fetch as any).mock.calls[0]
     expect(JSON.parse(options.body)).toMatchObject({
       model_id: 'gpt-5.4',
-      mode: 'compact'
+      mode: 'default'
     })
   })
 })
