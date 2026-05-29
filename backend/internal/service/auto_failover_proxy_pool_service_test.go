@@ -271,7 +271,7 @@ func TestAutoFailoverProxyPoolServiceBuildCandidatesUsesPoolWhenExplicitlySelect
 	}
 }
 
-func TestAutoFailoverProxyPoolServiceDoHTTPRequestFailsOverAndMutatesTransientAccount(t *testing.T) {
+func TestAutoFailoverProxyPoolServiceDoHTTPRequestKeepsBoundProxySticky(t *testing.T) {
 	settingRepo := &settingRepoStubForPool{
 		values: map[string]string{
 			SettingKeyAutoFailoverProxyPool: "[1,2]",
@@ -291,6 +291,9 @@ func TestAutoFailoverProxyPoolServiceDoHTTPRequestFailsOverAndMutatesTransientAc
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		ProxyID:  ptrInt64(1),
+		Extra: map[string]any{
+			"proxy_mode": AccountProxyModePool,
+		},
 	}
 	req, err := http.NewRequest(http.MethodPost, "https://example.com/v1/responses", bytes.NewReader([]byte(`{"hello":"world"}`)))
 	if err != nil {
@@ -308,36 +311,31 @@ func TestAutoFailoverProxyPoolServiceDoHTTPRequestFailsOverAndMutatesTransientAc
 			Body:       io.NopCloser(bytes.NewReader([]byte(`ok`))),
 		}, nil
 	})
-	if err != nil {
-		t.Fatalf("DoHTTPRequest() error = %v", err)
+	if err == nil {
+		t.Fatal("DoHTTPRequest() error = nil, want exhausted bound proxy error")
 	}
-	if resp == nil || resp.StatusCode != http.StatusOK {
-		t.Fatalf("DoHTTPRequest() response = %#v, want 200", resp)
+	if resp != nil {
+		t.Fatalf("DoHTTPRequest() response = %#v, want nil on bound proxy dial failure", resp)
 	}
-	if len(calls) != 2 {
-		t.Fatalf("proxy call count = %d, want 2", len(calls))
+	if len(calls) != 1 {
+		t.Fatalf("proxy call count = %d, want 1; calls = %#v", len(calls), calls)
 	}
-	if calls[0] == calls[1] {
-		t.Fatalf("expected failover to a different proxy, calls = %#v", calls)
+	if calls[0] != "http://bad.example:8080" {
+		t.Fatalf("proxy call = %q, want bound proxy", calls[0])
 	}
-	if account.ProxyID == nil || *account.ProxyID != 2 {
-		t.Fatalf("account.ProxyID = %v, want 2", account.ProxyID)
+	if account.ProxyID == nil || *account.ProxyID != 1 {
+		t.Fatalf("account.ProxyID = %v, want 1", account.ProxyID)
 	}
-	state, ok := account.Extra["proxy_failover_state"].(map[string]any)
-	if !ok {
-		t.Fatalf("proxy_failover_state missing from account.Extra: %#v", account.Extra)
-	}
-	if activeID, ok := state["active_proxy_id"].(int64); ok && activeID != 2 {
-		t.Fatalf("active_proxy_id = %d, want 2", activeID)
-	}
-	if activeID, ok := state["active_proxy_id"].(float64); ok && int64(activeID) != 2 {
-		t.Fatalf("active_proxy_id = %v, want 2", activeID)
+	if account.Extra != nil {
+		if _, ok := account.Extra["proxy_failover_state"]; ok {
+			t.Fatalf("proxy_failover_state = %#v, want no switch state", account.Extra["proxy_failover_state"])
+		}
 	}
 	if cache.data[1] == nil || cache.data[1].HealthStatus != "cooldown" {
 		t.Fatalf("proxy 1 runtime state = %#v, want cooldown", cache.data[1])
 	}
-	if cache.data[2] == nil || cache.data[2].HealthStatus != "healthy" {
-		t.Fatalf("proxy 2 runtime state = %#v, want healthy", cache.data[2])
+	if cache.data[2] != nil {
+		t.Fatalf("proxy 2 runtime state = %#v, want untouched", cache.data[2])
 	}
 }
 
@@ -363,7 +361,9 @@ func TestAutoFailoverProxyPoolServiceDoHTTPRequestCapsSingleRequestAttempts(t *t
 	account := &Account{
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
-		ProxyID:  ptrInt64(1),
+		Extra: map[string]any{
+			"proxy_mode": AccountProxyModePool,
+		},
 	}
 	req, err := http.NewRequest(http.MethodGet, "https://example.com/v1/responses", nil)
 	if err != nil {
@@ -378,17 +378,17 @@ func TestAutoFailoverProxyPoolServiceDoHTTPRequestCapsSingleRequestAttempts(t *t
 	if err == nil {
 		t.Fatal("DoHTTPRequest() error = nil, want exhausted failover error")
 	}
-	if len(calls) != 1+autoFailoverProxyMaxPoolAttempts {
-		t.Fatalf("proxy call count = %d, want %d; calls = %#v", len(calls), 1+autoFailoverProxyMaxPoolAttempts, calls)
+	if len(calls) != autoFailoverProxyMaxPoolAttempts {
+		t.Fatalf("proxy call count = %d, want %d; calls = %#v", len(calls), autoFailoverProxyMaxPoolAttempts, calls)
 	}
-	if !strings.Contains(err.Error(), "proxy failover exhausted after 4 attempts") {
+	if !strings.Contains(err.Error(), "proxy failover exhausted after 3 attempts") {
 		t.Fatalf("error = %v, want observable exhausted attempts", err)
 	}
-	if cache.data[4] == nil || cache.data[4].HealthStatus != "cooldown" {
-		t.Fatalf("proxy 4 runtime state = %#v, want cooldown", cache.data[4])
+	if cache.data[3] == nil || cache.data[3].HealthStatus != "cooldown" {
+		t.Fatalf("proxy 3 runtime state = %#v, want cooldown", cache.data[3])
 	}
-	if cache.data[5] != nil || cache.data[6] != nil {
-		t.Fatalf("proxies beyond cap were touched: p5=%#v p6=%#v", cache.data[5], cache.data[6])
+	if cache.data[4] != nil || cache.data[5] != nil || cache.data[6] != nil {
+		t.Fatalf("proxies beyond cap were touched: p4=%#v p5=%#v p6=%#v", cache.data[4], cache.data[5], cache.data[6])
 	}
 }
 
@@ -456,7 +456,9 @@ func TestAutoFailoverProxyPoolServiceRetriesProxyAttributed403(t *testing.T) {
 	account := &Account{
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
-		ProxyID:  ptrInt64(1),
+		Extra: map[string]any{
+			"proxy_mode": AccountProxyModePool,
+		},
 	}
 	req, err := http.NewRequest(http.MethodPost, "https://example.com/v1/responses", bytes.NewReader([]byte(`{"hello":"world"}`)))
 	if err != nil {
