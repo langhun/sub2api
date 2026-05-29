@@ -232,12 +232,7 @@ func (s *UngroupedAccountAutoTestService) applyOpenAIAutoTestActions(ctx context
 
 	switch statusCode {
 	case 401:
-		if err := s.accountRepo.Delete(ctx, account.ID); err != nil {
-			logger.LegacyPrintf("service.ungrouped_account_auto_test", "[UngroupedAutoTest] account=%d auto delete after 401 failed: %v", account.ID, err)
-			return false
-		}
-		logger.LegacyPrintf("service.ungrouped_account_auto_test", "[UngroupedAutoTest] account=%d deleted after 401", account.ID)
-		return true
+		logger.LegacyPrintf("service.ungrouped_account_auto_test", "[UngroupedAutoTest] account=%d kept after 401; auto-delete is disabled for background ungrouped tests", account.ID)
 	case 403:
 		if s.accountTestSvc == nil || !s.accountTestSvc.HasAutoFailoverProxyPool() {
 			return false
