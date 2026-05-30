@@ -17,19 +17,13 @@ import (
 
 // ProxyHandler handles admin proxy management
 type ProxyHandler struct {
-	adminService  service.AdminService
-	mihomoService *service.MihomoService
+	adminService service.AdminService
 }
 
 // NewProxyHandler creates a new admin proxy handler.
-func NewProxyHandler(adminService service.AdminService, mihomoService ...*service.MihomoService) *ProxyHandler {
-	var svc *service.MihomoService
-	if len(mihomoService) > 0 {
-		svc = mihomoService[0]
-	}
+func NewProxyHandler(adminService service.AdminService) *ProxyHandler {
 	return &ProxyHandler{
-		adminService:  adminService,
-		mihomoService: svc,
+		adminService: adminService,
 	}
 }
 

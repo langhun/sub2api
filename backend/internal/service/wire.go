@@ -615,10 +615,6 @@ func ProvideAntigravityQuotaFetcher(proxyRepo ProxyRepository, proxyPool *AutoFa
 	return fetcher
 }
 
-func ProvideMihomoAdminService(adminService AdminService) mihomoAdminService {
-	return adminService
-}
-
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
 func ProvideBillingCacheService(
 	cache BillingCache,
@@ -690,8 +686,6 @@ var ProviderSet = wire.NewSet(
 	ProvideSettingService,
 	ProvideAutoFailoverProxyPoolService,
 	ProvideProxySubscriptionService,
-	ProvideMihomoAdminService,
-	NewMihomoService,
 	ProvideProxySubscriptionRefreshService,
 	ProvideProxySubscriptionRuntimeRehydrateService,
 	NewDataManagementService,

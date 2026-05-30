@@ -1,4 +1,4 @@
-import { ADMIN_EMAIL, ADMIN_PASSWORD, buildAccounts, buildActiveSubscriptions, buildAdminApiKeyState, buildAdminApiKeyValue, buildAuthResponse, buildBatchTodayStats, buildCheckinStatus, buildDashboardSnapshot, buildGroupCapacitySummary, buildGroups, buildGroupUsageSummary, buildMihomoStatus, buildPaymentConfig, buildPaymentProviders, buildProxyList, buildProxySubscriptions, buildPublicSettings, buildSettings, buildSetupStatus, buildUserRanking, buildUserTrend, maskAdminApiKey } from './fixtures.js'
+import { ADMIN_EMAIL, ADMIN_PASSWORD, buildAccounts, buildActiveSubscriptions, buildAdminApiKeyState, buildAdminApiKeyValue, buildAuthResponse, buildBatchTodayStats, buildCheckinStatus, buildDashboardSnapshot, buildGroupCapacitySummary, buildGroups, buildGroupUsageSummary, buildPaymentConfig, buildPaymentProviders, buildProxyList, buildProxySubscriptions, buildPublicSettings, buildSettings, buildSetupStatus, buildUserRanking, buildUserTrend, maskAdminApiKey } from './fixtures.js'
 
 function jsonResponse(body, status = 200) {
   return {
@@ -54,7 +54,6 @@ export async function mockCommonAppRoutes(page, options = {}) {
     accounts: buildAccounts(),
     batchTodayStats: buildBatchTodayStats(),
     proxySubscriptions: buildProxySubscriptions(),
-    mihomoStatus: buildMihomoStatus(),
     activeSubscriptions: buildActiveSubscriptions(),
     checkinStatus: buildCheckinStatus(),
     adminApiKey: buildAdminApiKeyState(options.adminApiKey),
@@ -587,11 +586,6 @@ export async function mockCommonAppRoutes(page, options = {}) {
       state.allProxies = state.allProxies.map((proxy) => (proxy.id === id ? updated : proxy))
 
       await route.fulfill(jsonResponse(apiSuccess(updated)))
-      return
-    }
-
-    if (pathname === '/api/v1/admin/proxies/mihomo' && method === 'GET') {
-      await route.fulfill(jsonResponse(apiSuccess(state.mihomoStatus)))
       return
     }
 
