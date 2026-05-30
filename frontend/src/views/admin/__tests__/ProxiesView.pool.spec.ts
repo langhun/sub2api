@@ -9,13 +9,11 @@ const {
   updateProxy,
   updatePoolMembership,
   clearCooldown,
-  getMihomo,
   getAllGroups,
   listProxySubscriptions,
   refreshProxySubscription,
   listSubscriptionNodes,
   createProxySubscription,
-  syncMihomo,
   showError,
   showSuccess,
   showInfo,
@@ -25,13 +23,11 @@ const {
   updateProxy: vi.fn(),
   updatePoolMembership: vi.fn(),
   clearCooldown: vi.fn(),
-  getMihomo: vi.fn(),
   getAllGroups: vi.fn(),
   listProxySubscriptions: vi.fn(),
   refreshProxySubscription: vi.fn(),
   listSubscriptionNodes: vi.fn(),
   createProxySubscription: vi.fn(),
-  syncMihomo: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   showInfo: vi.fn(),
@@ -48,10 +44,7 @@ vi.mock('@/api/admin', () => ({
       list: listProxies,
       update: updateProxy,
       updatePoolMembership,
-      clearCooldown,
-      getMihomo,
-      updateMihomo: vi.fn(),
-      syncMihomo
+      clearCooldown
     },
     proxySubscriptions: {
       list: listProxySubscriptions,
@@ -168,13 +161,11 @@ describe('admin ProxiesView pool state', () => {
     updateProxy.mockReset()
     updatePoolMembership.mockReset()
     clearCooldown.mockReset()
-    getMihomo.mockReset()
     getAllGroups.mockReset()
     listProxySubscriptions.mockReset()
     refreshProxySubscription.mockReset()
     listSubscriptionNodes.mockReset()
     createProxySubscription.mockReset()
-    syncMihomo.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
     showInfo.mockReset()
@@ -208,23 +199,6 @@ describe('admin ProxiesView pool state', () => {
       page: 1,
       page_size: 20,
       pages: 1
-    })
-    getMihomo.mockResolvedValue({
-      settings: {
-        protocol: 'socks5h',
-        target_host: '127.0.0.1',
-        start_port: 41001,
-        listener_count: 2,
-        controller_url: 'http://127.0.0.1:9097',
-        controller_secret: '',
-        proxy_name_prefix: 'mihomo',
-        listener_regions: ['香港', ''],
-        auto_optimize: true,
-        country_filter: ''
-      },
-      config_path: '/tmp/mihomo/config.yaml',
-      proxies: [],
-      available_regions: ['香港', '日本']
     })
     getAllGroups.mockResolvedValue([])
     listProxySubscriptions.mockResolvedValue({
@@ -281,13 +255,6 @@ describe('admin ProxiesView pool state', () => {
       last_materialized_proxy_count: 0,
       created_at: '2026-05-19T10:00:00Z',
       updated_at: '2026-05-19T10:00:00Z'
-    })
-    syncMihomo.mockResolvedValue({
-      config_path: '/tmp/mihomo/config.yaml',
-      proxies: [],
-      created: 1,
-      reused: 1,
-      reloaded: true
     })
     updateProxy.mockResolvedValue(undefined)
     updatePoolMembership.mockResolvedValue(undefined)

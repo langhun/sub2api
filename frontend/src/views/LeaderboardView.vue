@@ -9,10 +9,7 @@
           <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('leaderboard.subtitle') }}</p>
         </div>
 
-        <div
-          v-if="tabs.length > 0"
-          class="card p-4"
-        >
+        <div v-if="tabs.length > 0" class="card p-4">
           <div class="flex flex-wrap items-center gap-4">
             <div class="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
               <button
@@ -59,11 +56,18 @@
             </div>
           </div>
 
-          <PublicConsumptionLeaderboardChart
-            v-if="activeTab === 'consumption' && !loading && consumptionSummary && consumptionChartItems.length > 0"
-            :chart-items="consumptionChartItems"
-            :summary="consumptionSummary"
+          <PublicLeaderboardChart
+            v-if="!loading && tabs.length > 0 && entries.length > 0"
+            :chart-items="activeChartItems"
+            :summary="activeSummary"
             :entries="entries"
+            :title="activeChartTitle"
+            :subtitle="activeChartSubtitle"
+            :value-label="activeValueLabel"
+            :metric-label="activeMetricLabel"
+            :hover-hint="activeHoverHint"
+            :value-type="activeValueType"
+            :subtitle-type="activeTab"
           />
 
           <div v-if="!loading && tabs.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
@@ -72,48 +76,6 @@
 
           <div v-else-if="!loading && entries.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
             {{ t('leaderboard.empty') }}
-          </div>
-
-          <div v-else-if="activeTab !== 'consumption'">
-            <div class="mb-4">
-              <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ activeTabLabel }}
-              </p>
-              <p v-if="showPeriodSelector" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-                {{ activePeriodLabel }}
-              </p>
-            </div>
-
-            <div class="max-h-[24rem] overflow-y-auto">
-              <div class="space-y-2 pr-1">
-                <div
-                  v-for="entry in entries"
-                  :key="entry.rank"
-                  class="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-gray-50 dark:hover:bg-dark-800/50"
-                >
-                  <div
-                    :class="rankClass(entry.rank)"
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-                  >
-                    <span v-if="entry.rank <= 3">{{ ['🥇', '🥈', '🥉'][entry.rank - 1] }}</span>
-                    <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ entry.username }}</p>
-                    <p v-if="getSubtitle(entry)" class="mt-1 truncate text-xs text-gray-400 dark:text-dark-500">{{ getSubtitle(entry) }}</p>
-                  </div>
-                  <div class="shrink-0 text-right">
-                    <template v-if="activeTab === 'checkin'">
-                      <span class="text-sm font-bold text-amber-600 dark:text-amber-400">{{ entry.value }}</span>
-                      <span class="text-xs text-amber-500/70 dark:text-amber-400/50"> {{ t('leaderboard.streakDays', { days: '' }).trim() }}</span>
-                    </template>
-                    <template v-else>
-                      <span class="text-sm font-bold text-gray-900 dark:text-white">${{ entry.value.toFixed(2) }}</span>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -129,10 +91,11 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
 import PublicPageFooter from '@/components/common/PublicPageFooter.vue'
-import PublicConsumptionLeaderboardChart from '@/components/leaderboard/PublicConsumptionLeaderboardChart.vue'
+import PublicLeaderboardChart from '@/components/leaderboard/PublicLeaderboardChart.vue'
 import {
   leaderboardAPI,
   type LeaderboardChartItem,
+  type LeaderboardData,
   type LeaderboardEntry,
   type LeaderboardSummary,
 } from '@/api/leaderboard'
@@ -184,7 +147,6 @@ const allTabs = computed(() => [
 const tabs = computed(() => allTabs.value.filter((tab) => leaderboardTabVisibility.value[tab.key] !== false))
 const visibleTabKeys = computed(() => tabs.value.map((tab) => tab.key).join(','))
 const showPeriodSelector = computed(() => tabs.value.length > 0 && activeTab.value === 'consumption')
-const activeTabLabel = computed(() => tabs.value.find((tab) => tab.key === activeTab.value)?.label ?? '')
 
 const periods = computed(() => [
   { key: 'daily' as PeriodKey, label: t('leaderboard.periods.daily') },
@@ -192,44 +154,72 @@ const periods = computed(() => [
   { key: 'monthly' as PeriodKey, label: t('leaderboard.periods.monthly') },
 ])
 
-const activePeriodLabel = computed(() => periods.value.find((period) => period.key === activePeriod.value)?.label ?? '')
-
 const defaultPublicLeaderboardPageSize = 20
 
-function rankClass(rank: number): string {
-  if (rank === 1) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-  if (rank === 2) return 'bg-slate-200 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200'
-  if (rank === 3) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-  return 'bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-dark-300'
-}
-
-function getSubtitle(entry: LeaderboardEntry): string {
-  if (activeTab.value === 'balance') {
-    if (entry.extra_int) return t('leaderboard.balanceSubtitle', { count: entry.extra_int })
-  } else if (activeTab.value === 'consumption') {
-    if (entry.extra_int) return t('leaderboard.consumptionSubtitle', { count: entry.extra_int })
-  } else if (activeTab.value === 'checkin') {
-    if (entry.extra_int || entry.extra_date) {
-      return t('leaderboard.checkinSubtitle', { total: entry.extra_int || 0, date: entry.extra_date || '', reward: entry.extra_float?.toFixed(2) || '0.00' })
-    }
+const activeChartItems = computed<LeaderboardChartItem[]>(() => {
+  if (activeTab.value === 'consumption' && consumptionChartItems.value.length > 0) {
+    return consumptionChartItems.value
   }
-  return ''
-}
+  return entries.value.map((entry) => ({
+    username: entry.username,
+    value: entry.value,
+  }))
+})
+
+const activeSummary = computed<LeaderboardSummary>(() => {
+  if (activeTab.value === 'consumption' && consumptionSummary.value) {
+    return consumptionSummary.value
+  }
+  return {
+    total_value: entries.value.reduce((sum, entry) => sum + entry.value, 0),
+    total_users: entries.value.length,
+  }
+})
+
+const activeChartTitle = computed(() => {
+  if (activeTab.value === 'balance') return t('leaderboard.balanceChartTitle')
+  if (activeTab.value === 'checkin') return t('leaderboard.checkinChartTitle')
+  return t('leaderboard.consumptionChartTitle')
+})
+
+const activeChartSubtitle = computed(() => {
+  if (activeTab.value === 'balance') return t('leaderboard.balanceChartSubtitle')
+  if (activeTab.value === 'checkin') return t('leaderboard.checkinChartSubtitle')
+  return t('leaderboard.consumptionChartSubtitle')
+})
+
+const activeValueLabel = computed(() => {
+  if (activeTab.value === 'checkin') return t('leaderboard.streak')
+  return t('leaderboard.amount')
+})
+
+const activeMetricLabel = computed(() => {
+  if (activeTab.value === 'balance') return t('leaderboard.checkins')
+  if (activeTab.value === 'checkin') return t('leaderboard.totalCheckins')
+  return t('leaderboard.requests')
+})
+
+const activeHoverHint = computed(() => {
+  if (activeTab.value === 'checkin') return t('leaderboard.checkinHoverHint')
+  return t('leaderboard.hoverHint')
+})
+
+const activeValueType = computed(() => activeTab.value === 'checkin' ? 'number' : 'currency')
 
 async function fetchData() {
   const currentFetch = ++fetchSequence
   loading.value = true
   try {
-    let res
+    let res: LeaderboardData
     switch (activeTab.value) {
       case 'balance':
-        res = await leaderboardAPI.getBalanceLeaderboard(1, defaultPublicLeaderboardPageSize)
+        res = await fetchPagedLeaderboardData((pageSize) => leaderboardAPI.getBalanceLeaderboard(1, pageSize))
         break
       case 'consumption':
         res = await fetchConsumptionLeaderboardData(activePeriod.value)
         break
       case 'checkin':
-        res = await leaderboardAPI.getCheckinLeaderboard(1, defaultPublicLeaderboardPageSize)
+        res = await fetchPagedLeaderboardData((pageSize) => leaderboardAPI.getCheckinLeaderboard(1, pageSize))
         break
     }
     if (currentFetch === fetchSequence) {
@@ -257,7 +247,7 @@ async function fetchData() {
 }
 
 async function fetchConsumptionLeaderboardData(period: PeriodKey) {
-  const firstPage = await leaderboardAPI.getConsumptionLeaderboard(period, 1, defaultPublicLeaderboardPageSize)
+  const firstPage = await fetchPagedLeaderboardData((pageSize) => leaderboardAPI.getConsumptionLeaderboard(period, 1, pageSize))
   const currentPageSize = firstPage.page_size || defaultPublicLeaderboardPageSize
   const totalUsers = Math.max(
     firstPage.summary?.total_users ?? 0,
@@ -267,6 +257,18 @@ async function fetchConsumptionLeaderboardData(period: PeriodKey) {
 
   if (totalUsers > currentPageSize) {
     return leaderboardAPI.getConsumptionLeaderboard(period, 1, totalUsers)
+  }
+
+  return firstPage
+}
+
+async function fetchPagedLeaderboardData(fetchPage: (pageSize: number) => Promise<LeaderboardData>) {
+  const firstPage = await fetchPage(defaultPublicLeaderboardPageSize)
+  const currentPageSize = firstPage.page_size || defaultPublicLeaderboardPageSize
+  const totalItems = firstPage.total || 0
+
+  if (totalItems > currentPageSize) {
+    return fetchPage(totalItems)
   }
 
   return firstPage

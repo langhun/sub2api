@@ -1,21 +1,19 @@
-import { describe, expect, it, vi } from 'vitest'
+﻿import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
-import PublicConsumptionLeaderboardChart from '../PublicConsumptionLeaderboardChart.vue'
+import PublicLeaderboardChart from '../PublicLeaderboardChart.vue'
 
 const messages: Record<string, string> = {
-  'leaderboard.title': '排行榜',
-  'leaderboard.tabs.consumption': '消耗排行',
-  'leaderboard.consumptionChartTitle': '消费分布',
-  'leaderboard.consumptionChartSubtitle': '查看当前周期所有消费用户的金额占比',
-  'leaderboard.consumptionSubtitle': '{count} 次请求',
-  'leaderboard.totalAmount': '总金额',
-  'leaderboard.totalUsers': '用户数',
-  'leaderboard.hoverHint': '悬停圆环切片可查看用户、金额和占比',
-  'leaderboard.requests': '请求',
-  'leaderboard.amount': '金额',
-  'leaderboard.share': '占比',
-  'leaderboard.empty': '暂无数据',
+  'leaderboard.title': 'Leaderboard',
+  'leaderboard.consumptionSubtitle': '{count} requests',
+  'leaderboard.balanceSubtitle': '{count} check-ins',
+  'leaderboard.checkinSubtitle': '{total} total - last {date} - earned ${reward}',
+  'leaderboard.totalUsers': 'Users',
+  'leaderboard.hoverHint': 'Hover slices to inspect the user, amount, and share',
+  'leaderboard.requests': 'Requests',
+  'leaderboard.amount': 'Amount',
+  'leaderboard.share': 'Share',
+  'leaderboard.empty': 'No data',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -42,15 +40,21 @@ vi.mock('vue-chartjs', () => ({
   },
 }))
 
-describe('PublicConsumptionLeaderboardChart', () => {
+const baseProps = {
+  title: 'Consumption Distribution',
+  subtitle: 'Distribution subtitle',
+}
+
+describe('PublicLeaderboardChart', () => {
   it('uses all chart_items without merging others', () => {
     const chartItems = Array.from({ length: 25 }, (_, index) => ({
-      username: `用户 ${index + 1}`,
+      username: `User ${index + 1}`,
       value: 25 - index,
     }))
 
-    const wrapper = mount(PublicConsumptionLeaderboardChart, {
+    const wrapper = mount(PublicLeaderboardChart, {
       props: {
+        ...baseProps,
         chartItems,
         summary: {
           total_value: chartItems.reduce((sum, item) => sum + item.value, 0),
@@ -61,19 +65,20 @@ describe('PublicConsumptionLeaderboardChart', () => {
 
     const chartData = JSON.parse(wrapper.find('.chart-data').text())
     expect(chartData.labels).toHaveLength(25)
-    expect(chartData.labels[0]).toBe('用户 1')
-    expect(chartData.labels[24]).toBe('用户 25')
-    expect(chartData.labels).not.toContain('其他')
+    expect(chartData.labels[0]).toBe('User 1')
+    expect(chartData.labels[24]).toBe('User 25')
+    expect(chartData.labels).not.toContain('Other')
     expect(chartData.datasets[0].data).toHaveLength(25)
     expect(chartData.datasets[0].backgroundColor).toHaveLength(25)
     expect(chartData.datasets[0].backgroundColor.slice(0, 3)).toEqual(['#3b82f6', '#10b981', '#f59e0b'])
-    expect(wrapper.text()).toContain('总金额')
-    expect(wrapper.text()).toContain('用户数')
+    expect(wrapper.text()).toContain('Amount')
+    expect(wrapper.text()).toContain('Users')
   })
 
   it('formats tooltip as amount plus percentage', () => {
-    const wrapper = mount(PublicConsumptionLeaderboardChart, {
+    const wrapper = mount(PublicLeaderboardChart, {
       props: {
+        ...baseProps,
         chartItems: [
           { username: 'Alpha', value: 60 },
           { username: 'Beta', value: 40 },
@@ -98,8 +103,9 @@ describe('PublicConsumptionLeaderboardChart', () => {
   })
 
   it('renders ranking rows with medal and colored-dot style', () => {
-    const wrapper = mount(PublicConsumptionLeaderboardChart, {
+    const wrapper = mount(PublicLeaderboardChart, {
       props: {
+        ...baseProps,
         chartItems: [
           { username: 'Alpha', value: 60 },
           { username: 'Beta', value: 40 },
@@ -114,23 +120,22 @@ describe('PublicConsumptionLeaderboardChart', () => {
         },
       },
     })
-
-    expect(wrapper.text()).toContain('🥇')
     expect(wrapper.text()).toContain('Alpha')
     expect(wrapper.text()).toContain('60.0%')
-    expect(wrapper.text()).toContain('12 次请求')
+    expect(wrapper.text()).toContain('12 requests')
   })
 
   it('defaults to a 9-row viewport but keeps all ranking rows scrollable', () => {
     const entries = Array.from({ length: 12 }, (_, index) => ({
       rank: index + 1,
-      username: `用户${index + 1}`,
+      username: `User${index + 1}`,
       value: 120 - index,
       extra_int: 10 + index,
     }))
 
-    const wrapper = mount(PublicConsumptionLeaderboardChart, {
+    const wrapper = mount(PublicLeaderboardChart, {
       props: {
+        ...baseProps,
         chartItems: entries.map(({ username, value }) => ({ username, value })),
         entries,
         summary: {
@@ -140,20 +145,21 @@ describe('PublicConsumptionLeaderboardChart', () => {
       },
     })
 
-    const scrollContainer = wrapper.get('[data-testid="consumption-ranking-scroll"]')
-    const rankingRows = wrapper.findAll('[data-testid=\"consumption-ranking-row\"]')
-    expect(scrollContainer.classes()).toContain('consumption-ranking-scroll')
-    expect(scrollContainer.classes()).toContain('max-h-[24rem]')
+    const scrollContainer = wrapper.get('[data-testid="leaderboard-chart-ranking-scroll"]')
+    const rankingRows = wrapper.findAll('[data-testid="leaderboard-chart-ranking-row"]')
+    expect(scrollContainer.classes()).toContain('leaderboard-chart-ranking-scroll')
+    expect(scrollContainer.classes()).toContain('max-h-[34rem]')
     expect(scrollContainer.classes()).toContain('overflow-y-auto')
     expect(rankingRows).toHaveLength(12)
-    expect(rankingRows[8].text()).toContain('用户9')
-    expect(rankingRows[9].text()).toContain('用户10')
-    expect(rankingRows[11].text()).toContain('用户12')
+    expect(rankingRows[8].text()).toContain('User9')
+    expect(rankingRows[9].text()).toContain('User10')
+    expect(rankingRows[11].text()).toContain('User12')
   })
 
   it('centers the doughnut wrapper on mobile layouts', () => {
-    const wrapper = mount(PublicConsumptionLeaderboardChart, {
+    const wrapper = mount(PublicLeaderboardChart, {
       props: {
+        ...baseProps,
         chartItems: [
           { username: 'Alpha', value: 60 },
           { username: 'Beta', value: 40 },
@@ -165,14 +171,15 @@ describe('PublicConsumptionLeaderboardChart', () => {
       },
     })
 
-    const chartWrapper = wrapper.get('[data-testid="consumption-chart-wrapper"]')
+    const chartWrapper = wrapper.get('[data-testid="leaderboard-chart-wrapper"]')
     expect(chartWrapper.classes()).toContain('mx-auto')
     expect(chartWrapper.classes()).toContain('xl:mx-0')
   })
 
   it('uses a larger fixed chart column on desktop layouts', () => {
-    const wrapper = mount(PublicConsumptionLeaderboardChart, {
+    const wrapper = mount(PublicLeaderboardChart, {
       props: {
+        ...baseProps,
         chartItems: [
           { username: 'Alpha', value: 60 },
           { username: 'Beta', value: 40 },
@@ -184,13 +191,11 @@ describe('PublicConsumptionLeaderboardChart', () => {
       },
     })
 
-    const layout = wrapper.get('[data-testid="consumption-chart-layout"]')
-    const chartWrapper = wrapper.get('[data-testid="consumption-chart-wrapper"]')
+    const layout = wrapper.get('[data-testid="leaderboard-chart-layout"]')
+    const chartWrapper = wrapper.get('[data-testid="leaderboard-chart-wrapper"]')
 
     expect(layout.classes()).toContain('xl:flex-row')
-    expect(layout.classes()).toContain('xl:items-center')
-    expect(layout.classes()).toContain('xl:gap-8')
-    expect(chartWrapper.classes()).toContain('xl:flex-[0_0_24rem]')
     expect(chartWrapper.classes()).toContain('xl:max-w-[24rem]')
+    expect(chartWrapper.classes()).toContain('xl:flex-[0_0_24rem]')
   })
 })

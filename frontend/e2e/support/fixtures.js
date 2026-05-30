@@ -45,7 +45,6 @@ export function buildAuthResponse(overrides = {}) {
     refresh_token: 'playwright-refresh-token',
     expires_in: 7200,
     token_type: 'Bearer',
-    user,
     ...overrides,
     user,
   }
@@ -450,25 +449,6 @@ export function buildPaymentConfig(overrides = {}) {
 
 export function buildPaymentProviders() {
   return []
-}
-
-export function buildMihomoStatus() {
-  return {
-    config_path: '/tmp/mihomo/config.yaml',
-    available_regions: ['HK', 'SG'],
-    settings: {
-      protocol: 'socks5h',
-      target_host: '127.0.0.1',
-      start_port: 41001,
-      listener_count: 4,
-      controller_url: 'http://127.0.0.1:9097',
-      controller_secret: '',
-      proxy_name_prefix: 'mihomo',
-      listener_regions: ['', '', '', ''],
-      auto_optimize: false,
-      country_filter: '',
-    },
-  }
 }
 
 export function buildCheckinStatus() {

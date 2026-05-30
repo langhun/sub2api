@@ -493,9 +493,6 @@ const (
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
 
-	// Mihomo
-	SettingKeyMihomoSettings = "project_mihomo_settings" // JSON 配置，沿用旧 key 以兼容已有数据
-
 	// Proxy Auto Failover Pool
 	SettingKeyAutoFailoverProxyPool = "auto_failover_proxy_pool" // JSON 数组，保存参与自动切换池的代理 ID 列表
 

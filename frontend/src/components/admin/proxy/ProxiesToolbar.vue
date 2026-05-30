@@ -21,6 +21,16 @@
         <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
       </button>
 
+      <button
+        type="button"
+        class="btn btn-secondary gap-2 border-indigo-200 bg-indigo-50 px-3 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900/60 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-900/30"
+        data-test="proxy-toolbar-subscriptions"
+        @click="$emit('open-subscriptions')"
+      >
+        <Icon name="server" size="sm" />
+        <span>{{ t('admin.proxies.subscriptions.manage') }}</span>
+      </button>
+
       <button class="btn btn-secondary gap-2 px-3" data-test="proxy-toolbar-pool" @click="$emit('open-pool')">
         <Icon name="shield" size="sm" />
         <span>{{ t('admin.proxies.poolMembersAction') }}</span>
@@ -153,6 +163,7 @@ const emit = defineEmits<{
   (e: 'open-import'): void
   (e: 'open-export'): void
   (e: 'open-pool'): void
+  (e: 'open-subscriptions'): void
   (e: 'create-proxy'): void
 }>()
 

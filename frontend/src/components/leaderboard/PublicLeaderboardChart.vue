@@ -3,19 +3,19 @@
     <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
       <div>
         <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
-          {{ t('leaderboard.consumptionChartTitle') }}
+          {{ title }}
         </h2>
         <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-          {{ t('leaderboard.consumptionChartSubtitle') }}
+          {{ subtitle }}
         </p>
       </div>
       <div class="grid grid-cols-2 gap-2 sm:min-w-[220px]">
         <div class="rounded-xl bg-gray-50 px-3 py-2 dark:bg-dark-800/80">
           <div class="text-[11px] text-gray-500 dark:text-dark-400">
-            {{ t('leaderboard.totalAmount') }}
+            {{ valueLabel }}
           </div>
           <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-            ${{ formatCurrency(totalValue) }}
+            {{ formatValue(totalValue) }}
           </div>
         </div>
         <div class="rounded-xl bg-gray-50 px-3 py-2 dark:bg-dark-800/80">
@@ -31,31 +31,31 @@
 
     <div
       v-if="displayEntries.length > 0 && chartData"
-      data-testid="consumption-chart-layout"
+      data-testid="leaderboard-chart-layout"
       class="flex flex-col gap-6 xl:flex-row xl:items-center xl:gap-8"
     >
       <div
-        data-testid="consumption-chart-wrapper"
+        data-testid="leaderboard-chart-wrapper"
         class="mx-auto w-full max-w-[16rem] xl:mx-0 xl:max-w-[24rem] xl:flex-[0_0_24rem]"
       >
         <div class="mx-auto h-56 w-56 sm:h-60 sm:w-60 xl:h-64 xl:w-64">
           <Doughnut :data="chartData" :options="doughnutOptions" />
         </div>
         <p class="mt-3 text-center text-xs text-gray-400 dark:text-dark-500">
-          {{ t('leaderboard.hoverHint') }}
+          {{ hoverHint }}
         </p>
       </div>
 
       <div
-        data-testid="consumption-ranking-scroll"
-        class="consumption-ranking-scroll min-w-0 max-h-[24rem] flex-1 overflow-y-auto pr-1"
+        data-testid="leaderboard-chart-ranking-scroll"
+        class="leaderboard-chart-ranking-scroll min-w-0 max-h-[34rem] flex-1 overflow-y-auto pr-1"
       >
         <table class="w-full text-xs">
           <thead>
             <tr class="text-gray-500 dark:text-gray-400">
               <th class="pb-2 text-left">{{ t('leaderboard.title') }}</th>
-              <th class="pb-2 text-right">{{ t('leaderboard.requests') }}</th>
-              <th class="pb-2 text-right">{{ t('leaderboard.amount') }}</th>
+              <th class="pb-2 text-right">{{ metricLabel }}</th>
+              <th class="pb-2 text-right">{{ valueLabel }}</th>
               <th class="pb-2 text-right">{{ t('leaderboard.share') }}</th>
             </tr>
           </thead>
@@ -63,7 +63,7 @@
             <tr
               v-for="entry in displayEntries"
               :key="`${entry.rank}-${entry.username}`"
-              data-testid="consumption-ranking-row"
+              data-testid="leaderboard-chart-ranking-row"
               class="border-t border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-dark-700/40"
             >
               <td class="py-2">
@@ -89,19 +89,19 @@
                       </span>
                     </div>
                     <div
-                      v-if="entry.extra_int"
+                      v-if="formatSubtitle(entry)"
                       class="mt-1 text-[11px] text-gray-400 dark:text-dark-500"
                     >
-                      {{ t('leaderboard.consumptionSubtitle', { count: entry.extra_int }) }}
+                      {{ formatSubtitle(entry) }}
                     </div>
                   </div>
                 </div>
               </td>
               <td class="py-2 text-right text-gray-600 dark:text-gray-400">
-                {{ formatRequestCount(entry.extra_int) }}
+                {{ formatMetric(entry) }}
               </td>
               <td class="py-2 text-right text-green-600 dark:text-green-400">
-                ${{ formatCurrency(entry.value) }}
+                {{ formatValue(entry.value) }}
               </td>
               <td class="py-2 text-right text-gray-400 dark:text-gray-500">
                 {{ formatShare(entry.value) }}
@@ -132,18 +132,36 @@ import { createConsumptionLeaderboardPalette } from './consumptionChartPalette'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
+type ValueType = 'currency' | 'number'
+type SubtitleType = 'balance' | 'consumption' | 'checkin'
+
 const props = withDefaults(defineProps<{
   chartItems: LeaderboardChartItem[]
+  title: string
+  subtitle: string
   summary?: LeaderboardSummary | null
   entries?: LeaderboardEntry[]
+  valueLabel?: string
+  metricLabel?: string
+  hoverHint?: string
+  valueType?: ValueType
+  subtitleType?: SubtitleType
 }>(), {
   summary: null,
   entries: () => [],
+  valueLabel: undefined,
+  metricLabel: undefined,
+  hoverHint: undefined,
+  valueType: 'currency',
+  subtitleType: 'consumption',
 })
 
 const { t } = useI18n()
-const medals = ['🥇', '🥈', '🥉']
+const medals = ['??', '??', '??']
 
+const valueLabel = computed(() => props.valueLabel ?? t('leaderboard.amount'))
+const metricLabel = computed(() => props.metricLabel ?? t('leaderboard.requests'))
+const hoverHint = computed(() => props.hoverHint ?? t('leaderboard.hoverHint'))
 const chartColors = computed(() => createConsumptionLeaderboardPalette(props.chartItems.length))
 
 const totalValue = computed(() => {
@@ -202,7 +220,7 @@ const doughnutOptions = computed(() => ({
           const value = context.raw as number
           const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
           const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
-          return `${context.label}: $${formatCurrency(value)} (${percentage}%)`
+          return `${context.label}: ${formatValue(value)} (${percentage}%)`
         },
       },
     },
@@ -228,8 +246,32 @@ function formatShare(value: number): string {
   return `${((value / total) * 100).toFixed(1)}%`
 }
 
-function formatRequestCount(count?: number): string {
-  return typeof count === 'number' && count > 0 ? count.toLocaleString() : '-'
+function formatMetric(entry: LeaderboardEntry): string {
+  return typeof entry.extra_int === 'number' && entry.extra_int > 0 ? entry.extra_int.toLocaleString() : '-'
+}
+
+function formatSubtitle(entry: LeaderboardEntry): string {
+  if (props.subtitleType === 'balance' && entry.extra_int) {
+    return t('leaderboard.balanceSubtitle', { count: entry.extra_int })
+  }
+  if (props.subtitleType === 'checkin' && (entry.extra_int || entry.extra_date)) {
+    return t('leaderboard.checkinSubtitle', {
+      total: entry.extra_int || 0,
+      date: entry.extra_date || '',
+      reward: entry.extra_float?.toFixed(2) || '0.00',
+    })
+  }
+  if (props.subtitleType === 'consumption' && entry.extra_int) {
+    return t('leaderboard.consumptionSubtitle', { count: entry.extra_int })
+  }
+  return ''
+}
+
+function formatValue(value: number): string {
+  if (props.valueType === 'number') {
+    return value.toLocaleString()
+  }
+  return `$${formatCurrency(value)}`
 }
 
 function formatCurrency(value: number): string {
@@ -247,38 +289,38 @@ function formatCurrency(value: number): string {
 </script>
 
 <style scoped>
-.consumption-ranking-scroll {
+.leaderboard-chart-ranking-scroll {
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.6) transparent;
 }
 
-.consumption-ranking-scroll::-webkit-scrollbar {
+.leaderboard-chart-ranking-scroll::-webkit-scrollbar {
   width: 10px;
 }
 
-.consumption-ranking-scroll::-webkit-scrollbar-track {
+.leaderboard-chart-ranking-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.consumption-ranking-scroll::-webkit-scrollbar-thumb {
+.leaderboard-chart-ranking-scroll::-webkit-scrollbar-thumb {
   border-radius: 9999px;
   background: rgba(156, 163, 175, 0.55);
 }
 
-.consumption-ranking-scroll::-webkit-scrollbar-thumb:hover {
+.leaderboard-chart-ranking-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.8);
 }
 
-:global(.dark) .consumption-ranking-scroll {
+:global(.dark) .leaderboard-chart-ranking-scroll {
   scrollbar-color: rgba(75, 85, 99, 0.8) transparent;
 }
 
-:global(.dark) .consumption-ranking-scroll::-webkit-scrollbar-thumb {
+:global(.dark) .leaderboard-chart-ranking-scroll::-webkit-scrollbar-thumb {
   background: rgba(75, 85, 99, 0.75);
 }
 
-:global(.dark) .consumption-ranking-scroll::-webkit-scrollbar-thumb:hover {
+:global(.dark) .leaderboard-chart-ranking-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.85);
 }
 </style>

@@ -49,7 +49,7 @@ const baseProps = {
 }
 
 describe('ProxiesToolbar', () => {
-  it('emits search updates without rendering a duplicate Mihomo entry', async () => {
+  it('emits search updates and opens subscription sources without legacy Mihomo entry', async () => {
     const wrapper = mount(ProxiesToolbar, {
       props: baseProps,
       global: {
@@ -61,11 +61,14 @@ describe('ProxiesToolbar', () => {
     })
 
     expect(wrapper.find('[data-test="proxy-toolbar-mihomo"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="proxy-toolbar-subscriptions"]').exists()).toBe(true)
 
     const search = wrapper.get('input')
     await search.setValue('proxy-host')
+    await wrapper.get('[data-test="proxy-toolbar-subscriptions"]').trigger('click')
 
     expect(wrapper.emitted('update:searchQuery')?.[0]).toEqual(['proxy-host'])
+    expect(wrapper.emitted('open-subscriptions')).toHaveLength(1)
   })
 
   it('emits filter updates and reload for proxy filters', async () => {
