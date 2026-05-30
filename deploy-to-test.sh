@@ -1,88 +1,81 @@
-#!/bin/bash
-# Sub2API 生产部署脚本
-# 服务器: 45.136.13.37:5522
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+VERSION=${VERSION:-$(tr -d '\r\n' < backend/cmd/server/VERSION)}
+PACKAGE=${PACKAGE:-sub2api-${VERSION}-linux-amd64.tar.zst}
+REMOTE_HOST=${REMOTE_HOST:?Set REMOTE_HOST to the target server host}
+REMOTE_PORT=${REMOTE_PORT:-22}
+REMOTE_USER=${REMOTE_USER:-root}
+REMOTE="${REMOTE_USER}@${REMOTE_HOST}"
+UPLOAD_DIR=${UPLOAD_DIR:-dist/upload}
+PACKAGE_PATH="${UPLOAD_DIR}/${PACKAGE}"
+BINARY_PATH="${UPLOAD_DIR}/sub2api-linux-amd64"
 
-VERSION="v1.0.0"
-PACKAGE="sub2api-${VERSION}-linux-amd64.tar.gz"
-HASH="308a19e9c6ddb39971a377d16ae6e5f50e10947e3c54735abf41147389b54604"
-
-echo "🚀 Sub2API 生产部署流程"
-echo "========================"
-echo "Version: $VERSION"
-echo "Package: $PACKAGE"
-echo "Hash: $HASH"
-echo ""
-
-# 1. 上传到服务器
-echo "📤 步骤 1: 上传文件到服务器..."
-scp -P 5522 dist/upload/$PACKAGE root@45.136.13.37:/tmp/
-
-# 2. 在服务器上解压并验证
-echo "📦 步骤 2: 解压并验证..."
-ssh -p 5522 root@45.136.13.37 << 'ENDSSH'
-cd /tmp
-tar -xzf sub2api-v1.0.0-linux-amd64.tar.gz
-echo "✅ 解压完成"
-
-# 验证 hash
-ACTUAL_HASH=$(sha256sum sub2api-linux-amd64 | awk '{print $1}')
-echo "Hash: $ACTUAL_HASH"
-
-# 检查版本
-chmod +x sub2api-linux-amd64
-./sub2api-linux-amd64 -version || echo "版本检查完成"
-ENDSSH
-
-# 3. 部署到测试环境 (18808)
-echo "🧪 步骤 3: 部署到测试环境 (18808)..."
-ssh -p 5522 root@45.136.13.37 << 'ENDSSH'
-# 停止测试服务
-systemctl stop sub2api-test.service || true
-
-# 备份旧版本
-if [ -f /opt/sub2api-test/sub2api ]; then
-    cp /opt/sub2api-test/sub2api /opt/sub2api-test/sub2api.backup
+if [ ! -f "$PACKAGE_PATH" ]; then
+  echo "Missing package: $PACKAGE_PATH" >&2
+  exit 1
 fi
 
-# 复制新版本
+if [ ! -f "$BINARY_PATH" ]; then
+  echo "Missing binary: $BINARY_PATH" >&2
+  exit 1
+fi
+
+LOCAL_HASH=$(sha256sum "$BINARY_PATH" | awk '{print $1}')
+
+echo "Deploying Sub2API candidate to isolated test instance"
+echo "Version: $VERSION"
+echo "Package: $PACKAGE_PATH"
+echo "Local binary SHA256: $LOCAL_HASH"
+echo "Remote: $REMOTE port $REMOTE_PORT"
+
+echo "Uploading package..."
+scp -P "$REMOTE_PORT" "$PACKAGE_PATH" "$REMOTE:/tmp/"
+
+echo "Extracting and verifying remote candidate..."
+ssh -p "$REMOTE_PORT" "$REMOTE" "PACKAGE='$PACKAGE' LOCAL_HASH='$LOCAL_HASH' bash -s" <<'ENDSSH'
+set -euo pipefail
+cd /tmp
+rm -f sub2api-linux-amd64 VERSION config.example.yaml
+case "$PACKAGE" in
+  *.tar.zst) tar --zstd -xf "$PACKAGE" ;;
+  *.tar.gz|*.tgz) tar -xzf "$PACKAGE" ;;
+  *) echo "Unsupported package format: $PACKAGE" >&2; exit 1 ;;
+esac
+chmod +x sub2api-linux-amd64
+REMOTE_HASH=$(sha256sum sub2api-linux-amd64 | awk '{print $1}')
+echo "Remote candidate SHA256: $REMOTE_HASH"
+test "$REMOTE_HASH" = "$LOCAL_HASH"
+./sub2api-linux-amd64 -version
+ENDSSH
+
+echo "Refreshing sub2api-test.service on port 18808..."
+ssh -p "$REMOTE_PORT" "$REMOTE" <<'ENDSSH'
+set -euo pipefail
+systemctl stop sub2api-test.service || true
+if [ -f /opt/sub2api-test/sub2api ]; then
+  cp /opt/sub2api-test/sub2api /opt/sub2api-test/sub2api.backup
+fi
 cp /tmp/sub2api-linux-amd64 /opt/sub2api-test/sub2api
 chmod +x /opt/sub2api-test/sub2api
-
-# 启动测试服务
 systemctl start sub2api-test.service
 sleep 3
-
-# 检查状态
 systemctl is-active sub2api-test.service
 ENDSSH
 
-# 4. 验证测试环境
-echo "✅ 步骤 4: 验证测试环境 (18808)..."
-ssh -p 5522 root@45.136.13.37 << 'ENDSSH'
-echo "检查服务状态..."
-systemctl status sub2api-test.service --no-pager | head -10
-
-echo ""
-echo "检查健康状态..."
-curl -s http://127.0.0.1:18808/health || echo "健康检查失败"
-
-echo ""
-echo "检查 setup 状态..."
-curl -s http://127.0.0.1:18808/setup/status || echo "setup 检查失败"
-
-echo ""
-echo "检查 API..."
-curl -s http://127.0.0.1:18808/api/v1/public/pricing | head -c 100 || echo "API 检查失败"
-
-echo ""
-echo "查看最近日志..."
-journalctl -u sub2api-test.service -n 20 --no-pager
+echo "Verifying test instance..."
+ssh -p "$REMOTE_PORT" "$REMOTE" <<'ENDSSH'
+set -euo pipefail
+systemctl status sub2api-test.service --no-pager | head -20
+TEST_HASH=$(sha256sum /opt/sub2api-test/sub2api | awk '{print $1}')
+echo "Test binary SHA256: $TEST_HASH"
+/opt/sub2api-test/sub2api -version
+curl -fsS http://127.0.0.1:18808/health
+curl -fsS http://127.0.0.1:18808/setup/status | grep -q '"needs_setup":false'
+curl -fsS http://127.0.0.1:18808/api/v1/public/pricing >/dev/null
+curl -fsS http://127.0.0.1:18808/api/v1/monitoring/summary >/dev/null
+journalctl -u sub2api-test.service -n 50 --no-pager
 ENDSSH
 
-echo ""
-echo "✅ 测试环境部署完成！"
-echo ""
-echo "请手动验证测试环境后，运行以下命令推广到生产："
-echo "  ./deploy-to-production.sh"
+echo "Test instance validation complete. Promote with:"
+echo "  REMOTE_HOST=$REMOTE_HOST REMOTE_PORT=$REMOTE_PORT REMOTE_USER=$REMOTE_USER ./deploy-to-production.sh"

@@ -1,44 +1,53 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-VERSION=$(cat VERSION)
+VERSION_FILE="backend/cmd/server/VERSION"
+UPLOAD_DIR="dist/upload"
+BINARY_NAME="sub2api-linux-amd64"
+
+if [ ! -f "$VERSION_FILE" ]; then
+  echo "Missing version file: $VERSION_FILE" >&2
+  exit 1
+fi
+
+VERSION=$(tr -d '\r\n' < "$VERSION_FILE")
 COMMIT=$(git rev-parse --short HEAD)
 DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date +"%Y-%m-%dT%H:%M:%SZ")
 BUILD_TYPE="production"
+PACKAGE_BASENAME="sub2api-${VERSION}-linux-amd64"
 
-echo "📦 Version: $VERSION | Commit: $COMMIT"
+echo "Version: $VERSION | Commit: $COMMIT"
 
-# 清理并创建目录
-rm -rf dist/upload
-mkdir -p dist/upload
+rm -rf "$UPLOAD_DIR"
+mkdir -p "$UPLOAD_DIR"
 
-# 构建后端
-echo "🔨 构建后端 (Linux amd64)..."
-cd backend
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+echo "Building backend for linux/amd64 without embedded frontend refresh..."
+(
+  cd backend
+  GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
     -tags embed \
     -ldflags "-s -w -X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE' -X 'main.BuildType=$BUILD_TYPE'" \
-    -o ../dist/upload/sub2api-linux-amd64 \
+    -trimpath \
+    -o "../$UPLOAD_DIR/$BINARY_NAME" \
     ./cmd/server
-cd ..
+)
 
-# 复制 VERSION
-cp VERSION dist/upload/
+cp "$VERSION_FILE" "$UPLOAD_DIR/VERSION"
 
-# 创建压缩包
-echo "📦 创建 tar.zst..."
-cd dist/upload
-tar -cf - sub2api-linux-amd64 VERSION | zstd -19 -o sub2api-${VERSION}-linux-amd64.tar.zst
+(
+  cd "$UPLOAD_DIR"
+  if command -v zstd >/dev/null 2>&1; then
+    PACKAGE="${PACKAGE_BASENAME}.tar.zst"
+    tar -cf - "$BINARY_NAME" VERSION | zstd -19 -o "$PACKAGE"
+  else
+    PACKAGE="${PACKAGE_BASENAME}.tar.gz"
+    tar -czf "$PACKAGE" "$BINARY_NAME" VERSION
+  fi
+  sha256sum "$BINARY_NAME" > "$BINARY_NAME.sha256"
+  sha256sum "$PACKAGE" > "$PACKAGE.sha256"
+)
 
-# 计算 hash
-sha256sum sub2api-linux-amd64 > sub2api-linux-amd64.sha256
-sha256sum sub2api-${VERSION}-linux-amd64.tar.zst > sub2api-${VERSION}-linux-amd64.tar.zst.sha256
-
-echo ""
-echo "✅ 构建完成！"
-echo ""
-ls -lh
-echo ""
+echo "Build complete. Artifacts:"
+ls -lh "$UPLOAD_DIR"
 echo "SHA256:"
-cat *.sha256
-
+cat "$UPLOAD_DIR"/*.sha256
