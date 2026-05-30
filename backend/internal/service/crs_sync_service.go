@@ -198,29 +198,17 @@ func (s *CRSSyncService) fetchCRSExport(ctx context.Context, baseURL, username, 
 		return nil, errors.New("config is not available")
 	}
 	normalizedURL := strings.TrimSpace(baseURL)
-	if s.cfg.Security.URLAllowlist.Enabled {
-		normalized, err := normalizeBaseURL(normalizedURL, s.cfg.Security.URLAllowlist.CRSHosts, s.cfg.Security.URLAllowlist.AllowPrivateHosts)
-		if err != nil {
-			return nil, err
-		}
-		normalizedURL = normalized
-	} else {
-		normalized, err := urlvalidator.ValidateHTTPURL(normalizedURL, s.cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
-			AllowPrivate: s.cfg.Security.URLAllowlist.AllowPrivateHosts,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("invalid base_url: %w", err)
-		}
-		normalizedURL = normalized
+	normalized, err := urlvalidator.ValidateHTTPURL(normalizedURL, true, urlvalidator.ValidationOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("invalid base_url: %w", err)
 	}
+	normalizedURL = normalized
 	if strings.TrimSpace(username) == "" || strings.TrimSpace(password) == "" {
 		return nil, errors.New("username and password are required")
 	}
 
 	client, err := httpclient.GetClient(httpclient.Options{
-		Timeout:            20 * time.Second,
-		ValidateResolvedIP: s.cfg.Security.URLAllowlist.Enabled,
-		AllowPrivateHosts:  s.cfg.Security.URLAllowlist.AllowPrivateHosts,
+		Timeout: 20 * time.Second,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create http client failed: %w", err)
@@ -1122,13 +1110,9 @@ func mapCRSStatus(isActive bool, status string) string {
 }
 
 func normalizeBaseURL(raw string, allowlist []string, allowPrivate bool) (string, error) {
-	// 当 allowlist 为空时，不强制要求白名单（只进行基本的 URL 和 SSRF 验证）
-	requireAllowlist := len(allowlist) > 0
-	normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
-		AllowedHosts:     allowlist,
-		RequireAllowlist: requireAllowlist,
-		AllowPrivate:     allowPrivate,
-	})
+	_ = allowlist
+	_ = allowPrivate
+	normalized, err := urlvalidator.ValidateHTTPURL(raw, true, urlvalidator.ValidationOptions{})
 	if err != nil {
 		return "", fmt.Errorf("invalid base_url: %w", err)
 	}

@@ -517,10 +517,7 @@ gateway:
 `config.yaml` 还支持以下安全相关配置：
 
 - `cors.allowed_origins` 配置 CORS 白名单
-- `security.url_allowlist` 配置上游/价格数据/CRS 主机白名单
-- `security.url_allowlist.enabled` 可关闭主机白名单校验（慎用）
-- `security.url_allowlist.allow_insecure_http` 关闭主机白名单时允许 HTTP URL
-- `security.url_allowlist.allow_private_hosts` 允许私有/本地 IP 地址
+- 上游/价格数据/CRS URL 仅做基础格式和协议校验
 - `security.response_headers.enabled` 可启用可配置响应头过滤（关闭时使用默认白名单）
 - `security.csp` 配置 Content-Security-Policy
 - `billing.circuit_breaker` 计费异常时 fail-closed
@@ -535,35 +532,13 @@ gateway:
 - `/auth/register`、`/auth/login`、`/auth/login/2fa`、`/auth/send-verify-code` 已提供服务端兜底限流（Redis 故障时 fail-close）。
 - 推荐将 WAF/CDN 作为第一层防护，服务端限流与响应读取上限作为第二层兜底；两层同时保留，避免旁路流量与误配置风险。
 
-**⚠️ 安全警告：HTTP URL 配置**
-
-当 `security.url_allowlist.enabled=false` 时，系统会关闭主机白名单，但仍会校验 URL 协议，并且**默认阻断私网/回环主机**。HTTP URL 依然会被拒绝。若要访问本地或内网 HTTP 目标，必须显式设置：
-
-升级兼容说明：旧部署如果有意使用内网 HTTP 上游，关闭主机白名单后仍必须同时设置 `allow_insecure_http=true` 和 `allow_private_hosts=true`；否则服务可以启动，但实际使用这些目标时会被拒绝。
-
-```yaml
-security:
-  url_allowlist:
-    enabled: false                # 禁用主机白名单检查
-    allow_insecure_http: true     # 允许 HTTP URL（⚠️ 不安全）
-    allow_private_hosts: true     # 按需允许 localhost / 私网主机
-```
-
-**或通过环境变量：**
-
-```bash
-SECURITY_URL_ALLOWLIST_ENABLED=false
-SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
-SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
-```
-
 **允许 HTTP 的风险：**
 - API 密钥和数据以**明文传输**（可被截获）
 - 易受**中间人攻击 (MITM)**
 - **不适合生产环境**
 
 **适用场景：**
-- ✅ 开发/测试环境的本地服务器（http://localhost，且需 `allow_private_hosts=true`）
+- ✅ 开发/测试环境的本地服务器（http://localhost）
 - ✅ 内网可信端点
 - ✅ 获取 HTTPS 前测试账号连通性
 - ❌ 生产环境（仅使用 HTTPS）

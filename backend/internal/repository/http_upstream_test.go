@@ -26,11 +26,7 @@ type HTTPUpstreamSuite struct {
 // 创建空配置，各测试用例可按需覆盖
 func (s *HTTPUpstreamSuite) SetupTest() {
 	s.cfg = &config.Config{
-		Security: config.SecurityConfig{
-			URLAllowlist: config.URLAllowlistConfig{
-				AllowPrivateHosts: true,
-			},
-		},
+		Security: config.SecurityConfig{},
 	}
 }
 

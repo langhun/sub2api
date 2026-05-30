@@ -485,37 +485,12 @@ default:
 `config.yaml` では追加のセキュリティ関連オプションも利用できます:
 
 - `cors.allowed_origins` - CORS 許可リスト
-- `security.url_allowlist` - 上流/価格/CRS ホストの許可リスト
-- `security.url_allowlist.enabled` - ホスト名 allowlist の無効化（注意して使用）
-- `security.url_allowlist.allow_insecure_http` - ホスト名 allowlist 無効時に HTTP URL を許可
-- `security.url_allowlist.allow_private_hosts` - プライベート/ローカル IP アドレスを許可
+- 上流/価格/CRS URL は基本的な構文と scheme のみ検証します
 - `security.response_headers.enabled` - 設定可能なレスポンスヘッダーフィルタリングを有効化（無効時はデフォルトの許可リストを使用）
 - `security.csp` - Content-Security-Policy ヘッダーの制御
 - `billing.circuit_breaker` - 課金エラー時にフェイルクローズ
 - `server.trusted_proxies` - X-Forwarded-For パースの有効化
 - `turnstile.required` - リリースモードでの Turnstile 必須化
-
-**⚠️ セキュリティ警告: HTTP URL 設定**
-
-`security.url_allowlist.enabled=false` の場合、システムはホスト名 allowlist を無効化しますが、URL スキームの検証は継続し、**プライベート/ループバックホストもデフォルトで拒否**します。ローカルや内部 HTTP ターゲットを使うには、以下を明示的に設定してください:
-
-アップグレード互換性: 旧デプロイで内部 HTTP upstream を意図的に使っていた場合、ホスト名 allowlist を無効化しても `allow_insecure_http=true` と `allow_private_hosts=true` の両方を設定する必要があります。設定しない場合、サービスは起動しても対象 URL の使用時に拒否されます。
-
-```yaml
-security:
-  url_allowlist:
-    enabled: false                # ホスト名 allowlist チェックを無効化
-    allow_insecure_http: true     # HTTP URL を許可（⚠️ セキュリティリスクあり）
-    allow_private_hosts: true     # localhost / private host を必要時のみ許可
-```
-
-**または環境変数で設定:**
-
-```bash
-SECURITY_URL_ALLOWLIST_ENABLED=false
-SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
-SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
-```
 
 **HTTP を許可するリスク:**
 - API キーとデータが**平文**で送信される（傍受の危険性）
@@ -523,7 +498,7 @@ SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 - **本番環境には不適切**
 
 **HTTP を使用すべき場面:**
-- ✅ ローカルサーバーでの開発・テスト（http://localhost、かつ `allow_private_hosts=true`）
+- ✅ ローカルサーバーでの開発・テスト（http://localhost）
 - ✅ 信頼できるエンドポイントを持つ内部ネットワーク
 - ✅ HTTPS 取得前のアカウント接続テスト
 - ❌ 本番環境（HTTPS のみを使用）

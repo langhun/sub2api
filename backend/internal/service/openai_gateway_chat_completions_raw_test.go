@@ -535,12 +535,7 @@ func TestBufferRawChatCompletions_RejectsOversizedResponse(t *testing.T) {
 
 func rawChatCompletionsTestConfig() *config.Config {
 	return &config.Config{
-		Security: config.SecurityConfig{
-			URLAllowlist: config.URLAllowlistConfig{
-				Enabled:           false,
-				AllowInsecureHTTP: true,
-			},
-		},
+		Security: config.SecurityConfig{},
 	}
 }
 

@@ -697,11 +697,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_BuildRequestRejectsInvalidBas
 
 	svc := &GatewayService{
 		cfg: &config.Config{
-			Security: config.SecurityConfig{
-				URLAllowlist: config.URLAllowlistConfig{
-					Enabled: false,
-				},
-			},
+			Security: config.SecurityConfig{},
 		},
 	}
 	account := &Account{
@@ -980,9 +976,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_UpstreamRequest
 	}
 	svc := &GatewayService{
 		cfg: &config.Config{
-			Security: config.SecurityConfig{
-				URLAllowlist: config.URLAllowlistConfig{Enabled: false},
-			},
+			Security: config.SecurityConfig{},
 		},
 		httpUpstream: upstream,
 	}
@@ -1010,9 +1004,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_EmptyResponseBo
 	}
 	svc := &GatewayService{
 		cfg: &config.Config{
-			Security: config.SecurityConfig{
-				URLAllowlist: config.URLAllowlistConfig{Enabled: false},
-			},
+			Security: config.SecurityConfig{},
 		},
 		httpUpstream: upstream,
 	}

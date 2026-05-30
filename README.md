@@ -484,37 +484,12 @@ default:
 Additional security-related options are available in `config.yaml`:
 
 - `cors.allowed_origins` for CORS allowlist
-- `security.url_allowlist` for upstream/pricing/CRS host allowlists
-- `security.url_allowlist.enabled` to disable the hostname allowlist (use with caution)
-- `security.url_allowlist.allow_insecure_http` to allow HTTP URLs when the hostname allowlist is disabled
-- `security.url_allowlist.allow_private_hosts` to allow private/local IP addresses
+- Upstream/pricing/CRS URLs now only use basic syntax and scheme validation
 - `security.response_headers.enabled` to enable configurable response header filtering (disabled uses default allowlist)
 - `security.csp` to control Content-Security-Policy headers
 - `billing.circuit_breaker` to fail closed on billing errors
 - `server.trusted_proxies` to enable X-Forwarded-For parsing
 - `turnstile.required` to require Turnstile in release mode
-
-**⚠️ Security Warning: HTTP URL Configuration**
-
-When `security.url_allowlist.enabled=false`, the system disables the hostname allowlist, but it still validates URL scheme and **blocks private/loopback hosts by default**. HTTP URLs remain rejected unless you explicitly opt in. For local or internal HTTP targets, set:
-
-Upgrade compatibility: older deployments that intentionally used internal HTTP upstreams must set both `allow_insecure_http=true` and `allow_private_hosts=true` after disabling the hostname allowlist; otherwise startup succeeds, but those targets are rejected when used.
-
-```yaml
-security:
-  url_allowlist:
-    enabled: false                # Disable hostname allowlist checks
-    allow_insecure_http: true     # Allow HTTP URLs (⚠️ INSECURE)
-    allow_private_hosts: true     # Allow localhost/private hosts when needed
-```
-
-**Or via environment variable:**
-
-```bash
-SECURITY_URL_ALLOWLIST_ENABLED=false
-SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
-SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
-```
 
 **Risks of allowing HTTP:**
 - API keys and data transmitted in **plaintext** (vulnerable to interception)
@@ -522,7 +497,7 @@ SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
 - **NOT suitable for production** environments
 
 **When to use HTTP:**
-- ✅ Development/testing with local servers (http://localhost, plus `allow_private_hosts=true`)
+- ✅ Development/testing with local servers (http://localhost)
 - ✅ Internal networks with trusted endpoints
 - ✅ Testing account connectivity before obtaining HTTPS
 - ❌ Production environments (use HTTPS only)

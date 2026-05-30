@@ -146,24 +146,4 @@ Do not partition only because the table is large. Partition when it shortens ret
 
 ## URL security defaults during upgrades
 
-Current secure defaults keep hostname allowlist checks enabled and reject insecure or private targets unless explicitly opted in. When `security.url_allowlist.enabled=false`, the hostname allowlist is disabled, but HTTP URLs and private/loopback hosts are still blocked unless both relevant flags are set.
-
-If an older deployment intentionally uses local or internal HTTP upstreams, set the compatibility flags before upgrading:
-
-```yaml
-security:
-  url_allowlist:
-    enabled: false
-    allow_insecure_http: true
-    allow_private_hosts: true
-```
-
-Equivalent environment variables:
-
-```bash
-SECURITY_URL_ALLOWLIST_ENABLED=false
-SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
-SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
-```
-
-Use this only for trusted internal networks. For production internet-facing deployments, prefer HTTPS upstreams and a narrow hostname allowlist.
+URL allowlist enforcement has been removed. Upstream and pricing URLs now use only basic syntax and scheme validation.

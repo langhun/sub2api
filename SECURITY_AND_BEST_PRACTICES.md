@@ -140,27 +140,16 @@ if err := s.emailService.VerifyCode(ctx, email, verifyCode); err != nil {
 2. 失败后锁定账户或延长等待时间
 3. 记录异常尝试行为
 
-#### 1.2.4 URL 白名单可被禁用
-**位置**: `backend/internal/config/config.go:1453-1458`
+#### 1.2.4 URL 白名单功能已移除
+**位置**: `backend/internal/config/config.go`
 
-**问题描述**:
-```go
-if !cfg.Security.URLAllowlist.Enabled {
-    slog.Warn("security.url_allowlist.enabled=false; hostname allowlist disabled...")
-}
-```
+**说明**:
+URL 主机白名单相关运行时校验已从代码中移除，URL 仅保留基础格式与协议校验。
 
-允许完全禁用 URL 白名单,即使有警告。
-
-**风险**:
-- SSRF 攻击
-- 访问内网资源
-- 数据泄露
-
-**建议**:
-1. 在生产环境强制启用 URL 白名单
-2. 提供更细粒度的控制选项
-3. 添加运行时监控和告警
+**影响**:
+- 旧的白名单配置项仅保留兼容性解析
+- 上游/价格/CRS URL 不再受主机白名单约束
+- 相关文档和环境变量示例已同步废弃
 
 ---
 

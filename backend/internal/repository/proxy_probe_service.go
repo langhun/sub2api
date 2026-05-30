@@ -18,13 +18,9 @@ import (
 
 func NewProxyExitInfoProber(cfg *config.Config) service.ProxyExitInfoProber {
 	insecure := false
-	allowPrivate := false
-	validateResolvedIP := true
 	maxResponseBytes := defaultProxyProbeResponseMaxBytes
 	if cfg != nil {
 		insecure = cfg.Security.ProxyProbe.InsecureSkipVerify
-		allowPrivate = cfg.Security.URLAllowlist.AllowPrivateHosts
-		validateResolvedIP = cfg.Security.URLAllowlist.Enabled
 		if cfg.Gateway.ProxyProbeResponseReadMaxBytes > 0 {
 			maxResponseBytes = cfg.Gateway.ProxyProbeResponseReadMaxBytes
 		}
@@ -34,8 +30,6 @@ func NewProxyExitInfoProber(cfg *config.Config) service.ProxyExitInfoProber {
 	}
 	return &proxyProbeService{
 		insecureSkipVerify: insecure,
-		allowPrivateHosts:  allowPrivate,
-		validateResolvedIP: validateResolvedIP,
 		maxResponseBytes:   maxResponseBytes,
 		serverPublicIP:     strings.TrimSpace(os.Getenv("SUB2API_SERVER_PUBLIC_IP")),
 	}
@@ -60,8 +54,6 @@ var probeURLs = []proxyProbeURL{
 
 type proxyProbeService struct {
 	insecureSkipVerify bool
-	allowPrivateHosts  bool
-	validateResolvedIP bool
 	maxResponseBytes   int64
 	serverPublicIP     string
 }
@@ -71,8 +63,6 @@ func (s *proxyProbeService) ProbeProxy(ctx context.Context, proxyURL string) (*s
 		ProxyURL:           proxyURL,
 		Timeout:            defaultProxyProbeTimeout,
 		InsecureSkipVerify: s.insecureSkipVerify,
-		ValidateResolvedIP: s.validateResolvedIP,
-		AllowPrivateHosts:  s.allowPrivateHosts,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to create proxy client: %w", err)

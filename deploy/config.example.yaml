@@ -83,41 +83,6 @@ cors:
 # 安全配置
 # =============================================================================
 security:
-  url_allowlist:
-    # Enable URL allowlist validation.
-    # Production recommendation: set this to true and explicitly maintain every
-    # upstream / proxy / relay host your live accounts use in upstream_hosts.
-    # If left false, startup will warn that hostname allowlist validation is disabled.
-    # 启用 URL 白名单验证。
-    # 生产环境建议设为 true，并把所有线上账号实际使用的上游 / 代理 / 中转主机显式加入
-    # upstream_hosts。若保持 false，启动时会告警提示主机白名单校验未启用。
-    enabled: false
-    # Allowed upstream hosts for API proxying.
-    # Add any custom OpenAI-compatible / relay domains used by live accounts here.
-    # 允许代理的上游 API 主机列表。
-    # 如线上账号使用了自定义 OpenAI-compatible / 中转域名，请一并加到这里。
-    upstream_hosts:
-      - "api.openai.com"
-      - "api.anthropic.com"
-      - "api.kimi.com"
-      - "open.bigmodel.cn"
-      - "api.minimaxi.com"
-      - "generativelanguage.googleapis.com"
-      - "cloudcode-pa.googleapis.com"
-      - "*.openai.azure.com"
-    # Allowed hosts for pricing data download
-    # 允许下载定价数据的主机列表
-    pricing_hosts:
-      - "raw.githubusercontent.com"
-    # Allowed hosts for CRS sync (required when using CRS sync)
-    # 允许 CRS 同步的主机列表（使用 CRS 同步功能时必须配置）
-    crs_hosts: []
-    # Allow localhost/private IPs for upstream/pricing/CRS (use only in trusted networks)
-    # 允许本地/私有 IP 地址用于上游/定价/CRS（仅在可信网络中使用）
-    allow_private_hosts: false
-    # Allow http:// URLs when allowlist is disabled (default: false, require https)
-    # 白名单禁用时是否允许 http:// URL（默认: false，要求 https）
-    allow_insecure_http: false
   response_headers:
     # Enable configurable response header filtering (default: true)
     # 启用可配置的响应头过滤（默认启用，过滤上游敏感响应头）

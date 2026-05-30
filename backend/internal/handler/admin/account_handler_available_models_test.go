@@ -63,7 +63,7 @@ func setupSyncUpstreamModelsRouter(adminSvc service.AdminService, upstream servi
 		nil,
 		nil,
 		upstream,
-		&config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
+		&config.Config{Security: config.SecurityConfig{}},
 		nil,
 		nil,
 	)

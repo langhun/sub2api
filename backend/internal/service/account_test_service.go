@@ -178,20 +178,7 @@ func (s *AccountTestService) validateUpstreamBaseURL(raw string) (string, error)
 	if s.cfg == nil {
 		return "", errors.New("config is not available")
 	}
-	if !s.cfg.Security.URLAllowlist.Enabled {
-		return urlvalidator.ValidateHTTPURL(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP, urlvalidator.ValidationOptions{
-			AllowPrivate: s.cfg.Security.URLAllowlist.AllowPrivateHosts,
-		})
-	}
-	normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{
-		AllowedHosts:     s.cfg.Security.URLAllowlist.UpstreamHosts,
-		RequireAllowlist: true,
-		AllowPrivate:     s.cfg.Security.URLAllowlist.AllowPrivateHosts,
-	})
-	if err != nil {
-		return "", err
-	}
-	return normalized, nil
+	return urlvalidator.ValidateHTTPURL(raw, true, urlvalidator.ValidationOptions{})
 }
 
 func (s *AccountTestService) formatBaseURLError(err error) string {
@@ -201,16 +188,8 @@ func (s *AccountTestService) formatBaseURLError(err error) string {
 
 	msg := err.Error()
 	switch {
-	case strings.HasPrefix(msg, "host is not allowed: "):
-		host := strings.TrimSpace(strings.TrimPrefix(msg, "host is not allowed: "))
-		return fmt.Sprintf("基础地址不允许使用当前主机：%s。请检查安全配置 `security.url_allowlist`：如果你想允许任意公网主机，可将 `enabled` 设为 false；如果你仍想启用白名单，请把该域名加入 `upstream_hosts`。", host)
-	case msg == "allowlist is not configured":
-		return "基础地址校验失败：当前已启用主机白名单，但 `security.url_allowlist.upstream_hosts` 为空。请补充允许的上游域名，或将 `security.url_allowlist.enabled` 设为 false。"
 	case strings.HasPrefix(msg, "invalid url scheme: "):
 		scheme := strings.TrimSpace(strings.TrimPrefix(msg, "invalid url scheme: "))
-		if strings.EqualFold(scheme, "http") {
-			return "基础地址校验失败：当前仅允许 HTTPS 地址。若你确认要放开 HTTP，请将 `security.url_allowlist.allow_insecure_http` 设为 true。"
-		}
 		return fmt.Sprintf("基础地址校验失败：URL 协议 `%s` 不受支持，请使用 http 或 https。", scheme)
 	case msg == "invalid host":
 		return "基础地址校验失败：主机名不能为空，请检查 base_url 是否填写完整。"

@@ -193,13 +193,7 @@ WHERE schemaname = 'public'
 ORDER BY indexname;
 ```
 
-If your deployment uses local or internal HTTP upstream URLs, the secure defaults still require explicit opt-in after disabling the hostname allowlist:
-
-```bash
-SECURITY_URL_ALLOWLIST_ENABLED=false
-SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=true
-SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=true
-```
+URL allowlist environment variables have been removed. Upstream and pricing URLs now use only basic syntax and scheme validation.
 
 **Verify `users.allowed_groups` → `user_allowed_groups` backfill**
 

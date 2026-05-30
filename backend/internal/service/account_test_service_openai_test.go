@@ -182,68 +182,24 @@ func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.
 	require.Contains(t, recorder.Body.String(), "test_complete")
 }
 
-func TestAccountTestService_OpenAIBaseURLErrorUsesChineseHintForAllowlist(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
+func TestAccountTestService_OpenAIBaseURLAllowsNonAllowlistedHost(t *testing.T) {
 	svc := &AccountTestService{
-		cfg: &config.Config{
-			Security: config.SecurityConfig{
-				URLAllowlist: config.URLAllowlistConfig{
-					Enabled:       true,
-					UpstreamHosts: []string{"api.openai.com"},
-				},
-			},
-		},
-	}
-	account := &Account{
-		ID:       90,
-		Platform: PlatformOpenAI,
-		Type:     AccountTypeAPIKey,
-		Credentials: map[string]any{
-			"api_key":  "test-api-key",
-			"base_url": "https://ai.lt4net.org",
-		},
+		cfg: &config.Config{Security: config.SecurityConfig{}},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.5", "", "")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "基础地址不允许使用当前主机")
-	require.Contains(t, err.Error(), "security.url_allowlist")
-	require.Contains(t, recorder.Body.String(), `"type":"error"`)
-	require.Contains(t, recorder.Body.String(), "基础地址不允许使用当前主机")
+	normalized, err := svc.validateUpstreamBaseURL("https://ai.lt4net.org")
+	require.NoError(t, err)
+	require.Equal(t, "https://ai.lt4net.org", normalized)
 }
 
-func TestAccountTestService_OpenAIBaseURLErrorUsesChineseHintForHTTP(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctx, recorder := newTestContext()
-
+func TestAccountTestService_OpenAIBaseURLAllowsHTTP(t *testing.T) {
 	svc := &AccountTestService{
-		cfg: &config.Config{
-			Security: config.SecurityConfig{
-				URLAllowlist: config.URLAllowlistConfig{
-					Enabled:           false,
-					AllowInsecureHTTP: false,
-				},
-			},
-		},
-	}
-	account := &Account{
-		ID:       91,
-		Platform: PlatformOpenAI,
-		Type:     AccountTypeAPIKey,
-		Credentials: map[string]any{
-			"api_key":  "test-api-key",
-			"base_url": "http://ai.lt4net.org",
-		},
+		cfg: &config.Config{Security: config.SecurityConfig{}},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.5", "", "")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "当前仅允许 HTTPS 地址")
-	require.Contains(t, err.Error(), "allow_insecure_http")
-	require.Contains(t, recorder.Body.String(), `"type":"error"`)
-	require.Contains(t, recorder.Body.String(), "当前仅允许 HTTPS 地址")
+	normalized, err := svc.validateUpstreamBaseURL("http://ai.lt4net.org")
+	require.NoError(t, err)
+	require.Equal(t, "http://ai.lt4net.org", normalized)
 }
 
 func TestAccountTestService_OpenAISuccessBindsPlatformDefaultGroupForUngroupedAccount(t *testing.T) {
@@ -490,13 +446,7 @@ data: {"choices":[{"delta":{"content":" there"},"finish_reason":"stop"}]}
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{
 		httpUpstream: upstream,
-		cfg: &config.Config{
-			Security: config.SecurityConfig{
-				URLAllowlist: config.URLAllowlistConfig{
-					Enabled: false,
-				},
-			},
-		},
+		cfg:          &config.Config{Security: config.SecurityConfig{}},
 	}
 	account := &Account{
 		ID:          901,

@@ -11,55 +11,39 @@ import (
 	"time"
 )
 
-type ValidationOptions struct {
-	AllowedHosts     []string
-	RequireAllowlist bool
-	AllowPrivate     bool
-}
+// ValidationOptions is kept for callers that already pass an options value.
+// URL allowlist enforcement has been removed, so it intentionally has no fields.
+type ValidationOptions struct{}
 
-// ValidateHTTPURL validates an outbound HTTP/HTTPS URL.
+// ValidateHTTPURL validates and normalizes an outbound HTTP/HTTPS URL.
 //
-// It provides a single validation entry point that supports:
-// - scheme 校验（https 或可选允许 http）
-// - 可选 allowlist（支持 *.example.com 通配）
-// - allow_private_hosts 策略（阻断 localhost/私网字面量 IP）
-//
-// 注意：DNS Rebinding 防护（解析后 IP 校验）应在实际发起请求时执行，避免 TOCTOU。
+// The legacy allowlist/private-host options are intentionally ignored. Upstream
+// URL allowlist enforcement has been removed, so callers only get syntax and
+// scheme normalization here.
 func ValidateHTTPURL(raw string, allowInsecureHTTP bool, opts ValidationOptions) (string, error) {
-	baseURL, err := parseAndValidateBaseURL(raw, allowInsecureHTTP)
+	baseURL, err := parseAndValidateBaseURL(raw)
 	if err != nil {
 		return "", err
 	}
-
-	host := strings.ToLower(baseURL.host)
-	if !opts.AllowPrivate && isBlockedHost(host) {
-		return "", fmt.Errorf("host is not allowed: %s", host)
-	}
-
-	allowlist := normalizeAllowlist(opts.AllowedHosts)
-	if opts.RequireAllowlist && len(allowlist) == 0 {
-		return "", errors.New("allowlist is not configured")
-	}
-	if len(allowlist) > 0 && !isAllowedHost(host, allowlist) {
-		return "", fmt.Errorf("host is not allowed: %s", host)
-	}
-
+	_ = allowInsecureHTTP
+	_ = opts
 	baseURL.parsed.Path = strings.TrimRight(baseURL.parsed.Path, "/")
 	baseURL.parsed.RawPath = ""
 	return strings.TrimRight(baseURL.parsed.String(), "/"), nil
 }
 
 func ValidateURLFormat(raw string, allowInsecureHTTP bool) (string, error) {
-	// 最小格式校验：仅保证 URL 可解析且 scheme 合规，不做白名单/私网/SSRF 校验
-	baseURL, err := parseAndValidateBaseURL(raw, allowInsecureHTTP)
+	// 最小格式校验：仅保证 URL 可解析且 scheme 合规。
+	baseURL, err := parseAndValidateBaseURL(raw)
 	if err != nil {
 		return "", err
 	}
+	_ = allowInsecureHTTP
 	return strings.TrimRight(baseURL.trimmed, "/"), nil
 }
 
 func ValidateHTTPSURL(raw string, opts ValidationOptions) (string, error) {
-	return ValidateHTTPURL(raw, false, opts)
+	return ValidateHTTPURL(raw, true, opts)
 }
 
 // ValidateResolvedIP 验证 DNS 解析后的 IP 地址是否安全
@@ -88,7 +72,7 @@ type parsedURL struct {
 	host    string
 }
 
-func parseAndValidateBaseURL(raw string, allowInsecureHTTP bool) (*parsedURL, error) {
+func parseAndValidateBaseURL(raw string) (*parsedURL, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return nil, errors.New("url is required")
@@ -100,7 +84,7 @@ func parseAndValidateBaseURL(raw string, allowInsecureHTTP bool) (*parsedURL, er
 	}
 
 	scheme := strings.ToLower(parsed.Scheme)
-	if scheme != "https" && (!allowInsecureHTTP || scheme != "http") {
+	if scheme != "https" && scheme != "http" {
 		return nil, fmt.Errorf("invalid url scheme: %s", parsed.Scheme)
 	}
 
@@ -121,53 +105,4 @@ func parseAndValidateBaseURL(raw string, allowInsecureHTTP bool) (*parsedURL, er
 		parsed:  parsed,
 		host:    host,
 	}, nil
-}
-
-func normalizeAllowlist(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	normalized := make([]string, 0, len(values))
-	for _, v := range values {
-		entry := strings.ToLower(strings.TrimSpace(v))
-		if entry == "" {
-			continue
-		}
-		if host, _, err := net.SplitHostPort(entry); err == nil {
-			entry = host
-		}
-		normalized = append(normalized, entry)
-	}
-	return normalized
-}
-
-func isAllowedHost(host string, allowlist []string) bool {
-	for _, entry := range allowlist {
-		if entry == "" {
-			continue
-		}
-		if strings.HasPrefix(entry, "*.") {
-			suffix := strings.TrimPrefix(entry, "*.")
-			if host == suffix || strings.HasSuffix(host, "."+suffix) {
-				return true
-			}
-			continue
-		}
-		if host == entry {
-			return true
-		}
-	}
-	return false
-}
-
-func isBlockedHost(host string) bool {
-	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
-		return true
-	}
-	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
-			return true
-		}
-	}
-	return false
 }

@@ -23,9 +23,7 @@ type ProxyProbeServiceSuite struct {
 func (s *ProxyProbeServiceSuite) SetupTest() {
 	s.ctx = context.Background()
 	s.originalProbeURLs = append([]proxyProbeURL(nil), probeURLs...)
-	s.prober = &proxyProbeService{
-		allowPrivateHosts: true,
-	}
+	s.prober = &proxyProbeService{}
 }
 
 func (s *ProxyProbeServiceSuite) TearDownTest() {
