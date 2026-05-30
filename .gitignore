@@ -2,9 +2,9 @@ docs/claude-relay-service/
 .codex
 
 # ===================
-# Go 鍚庣
+# Go 后端
 # ===================
-# 浜岃繘鍒舵枃浠?
+# 二进制文件
 *.exe
 *.exe~
 *.dll
@@ -16,21 +16,21 @@ backend/sub2api
 backend/sub2api-*
 backend/main
 
-# Go 娴嬭瘯浜岃繘鍒?
+# Go 测试二进制
 *.test
 
-# 娴嬭瘯瑕嗙洊鐜?
+# 测试覆盖率
 *.out
 coverage.html
 
-# 渚濊禆锛堜娇鐢?go mod锛?
+# 依赖（使用 go mod）
 vendor/
 
-# Go 缂栬瘧缂撳瓨
+# Go 编译缓存
 backend/.gocache/
 
 # ===================
-# Node.js / Vue 鍓嶇
+# Node.js / Vue 前端
 # ===================
 node_modules/
 frontend/node_modules/
@@ -40,14 +40,14 @@ frontend/dist/
 vite.config.d.ts
 vite.config.js.timestamp-*
 
-# 鏃ュ織
+# 日志
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
 # ===================
-# 鐜閰嶇疆
+# 环境配置
 # ===================
 .env
 .env.local
@@ -57,7 +57,7 @@ pnpm-debug.log*
 docker-compose.override.yml
 
 # ===================
-# IDE / 缂栬緫鍣?
+# IDE / 编辑器
 # ===================
 .idea/
 .vscode/
@@ -69,14 +69,14 @@ docker-compose.override.yml
 .classpath
 
 # ===================
-# 鎿嶄綔绯荤粺
+# 操作系统
 # ===================
 .DS_Store
 Thumbs.db
 Desktop.ini
 
 # ===================
-# 涓存椂鏂囦欢
+# 临时文件
 # ===================
 tmp/
 temp/
@@ -89,13 +89,13 @@ temp/
 .serena/
 
 # ===================
-# 鏋勫缓浜х墿
+# 构建产物
 # ===================
 dist/
 build/
 release/
 
-# 鍚庣宓屽叆鐨勫墠绔瀯寤轰骇鐗?
+# 后端嵌入的前端构建产物
 # Keep a placeholder file so `//go:embed all:dist` always has a match in CI/lint,
 # while still ignoring generated frontend build outputs.
 backend/internal/web/dist/
@@ -103,18 +103,18 @@ backend/internal/web/dist/
 backend/internal/web/dist/*
 !backend/internal/web/dist/.keep
 
-# 鍚庣杩愯鏃剁紦瀛樻暟鎹?
+# 后端运行时缓存数据
 backend/data/
 
 # ===================
-# 鏈湴閰嶇疆鏂囦欢锛堝寘鍚晱鎰熶俊鎭級
+# 本地配置文件（包含敏感信息）
 # ===================
 backend/config.yaml
 deploy/config.yaml
 backend/.installed
 
 # ===================
-# 鍏朵粬
+# 其他
 # ===================
 tests
 CLAUDE.md
@@ -132,7 +132,6 @@ docs/*
 !docs/PAYMENT.md
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
-!docs/PRODUCTION_RUNBOOK.md
 .serena/
 .codex/
 frontend/coverage/
