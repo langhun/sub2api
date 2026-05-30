@@ -7,8 +7,8 @@ import (
 	"github.com/google/wire"
 )
 
-func ProvideAdminProxyHandler(adminService service.AdminService, mihomoService *service.MihomoService) *admin.ProxyHandler {
-	return admin.NewProxyHandler(adminService, mihomoService)
+func ProvideAdminProxyHandler(adminService service.AdminService) *admin.ProxyHandler {
+	return admin.NewProxyHandler(adminService)
 }
 
 func ProvideDashboardHandler(

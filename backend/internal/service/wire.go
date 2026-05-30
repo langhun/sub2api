@@ -112,6 +112,31 @@ func ProvideOpenAITokenProvider(
 	return p
 }
 
+// ProvideAccountTestService creates AccountTestService and wires optional OpenAI
+// token refresh support so admin tests use the same OAuth token path as gateway requests.
+func ProvideAccountTestService(
+	accountRepo AccountRepository,
+	geminiTokenProvider *GeminiTokenProvider,
+	claudeTokenProvider *ClaudeTokenProvider,
+	antigravityGatewayService *AntigravityGatewayService,
+	httpUpstream HTTPUpstream,
+	cfg *config.Config,
+	tlsFPProfileService *TLSFingerprintProfileService,
+	openAITokenProvider *OpenAITokenProvider,
+) *AccountTestService {
+	svc := NewAccountTestService(
+		accountRepo,
+		geminiTokenProvider,
+		claudeTokenProvider,
+		antigravityGatewayService,
+		httpUpstream,
+		cfg,
+		tlsFPProfileService,
+	)
+	svc.SetOpenAITokenProvider(openAITokenProvider)
+	return svc
+}
+
 // ProvideGeminiTokenProvider creates GeminiTokenProvider with OAuthRefreshAPI injection
 func ProvideGeminiTokenProvider(
 	accountRepo AccountRepository,
@@ -642,11 +667,10 @@ var ProviderSet = wire.NewSet(
 	ProvideAntigravityGatewayService,
 	ProvideRateLimitService,
 	NewAccountUsageService,
-	NewAccountTestService,
+	ProvideAccountTestService,
 	ProvideSettingService,
 	ProvideAutoFailoverProxyPoolService,
 	ProvideProxySubscriptionService,
-	NewMihomoService,
 	ProvideProxySubscriptionRefreshService,
 	ProvideProxySubscriptionRuntimeRehydrateService,
 	NewDataManagementService,

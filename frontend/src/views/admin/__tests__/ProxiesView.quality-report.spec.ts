@@ -159,7 +159,6 @@ const ProxiesToolbarStub = {
     'batchQualityChecking',
     'selectedCount',
     'showColumnDropdown',
-    'showProxyToolsDropdown',
     'showProxyBatchDropdown',
     'toggleableColumns',
     'isColumnVisible'

@@ -13,7 +13,6 @@
           :batch-quality-checking="testingState.batchQualityChecking"
           :selected-count="selectedCount"
           :show-column-dropdown="dropdownState.showColumnDropdown"
-          :show-proxy-tools-dropdown="dropdownState.showProxyToolsDropdown"
           :show-proxy-batch-dropdown="dropdownState.showProxyBatchDropdown"
           :toggleable-columns="toggleableColumns"
           :is-column-visible="isColumnVisible"
@@ -21,13 +20,12 @@
           @update:filters="updateToolbarFilters"
           @reload-proxies="loadProxies"
           @toggle-column-dropdown="dropdownState.showColumnDropdown = !dropdownState.showColumnDropdown"
-          @toggle-tools-dropdown="dropdownState.showProxyToolsDropdown = !dropdownState.showProxyToolsDropdown; dropdownState.showProxyBatchDropdown = false"
-          @toggle-batch-dropdown="dropdownState.showProxyBatchDropdown = !dropdownState.showProxyBatchDropdown; dropdownState.showProxyToolsDropdown = false"
+          @toggle-batch-dropdown="dropdownState.showProxyBatchDropdown = !dropdownState.showProxyBatchDropdown"
           @toggle-column="toggleColumn"
-          @open-import="modalState.showImportData = true; dropdownState.showProxyToolsDropdown = false; dropdownState.showProxyBatchDropdown = false"
-          @open-export="modalState.showExportDataDialog = true; dropdownState.showProxyToolsDropdown = false; dropdownState.showProxyBatchDropdown = false"
-          @open-pool="openPoolDialog(); dropdownState.showProxyToolsDropdown = false"
-          @open-mihomo="openMihomoDialog"
+          @open-import="modalState.showImportData = true; dropdownState.showProxyBatchDropdown = false"
+          @open-export="modalState.showExportDataDialog = true; dropdownState.showProxyBatchDropdown = false"
+          @open-pool="openPoolDialog()"
+          @open-subscriptions="openSubscriptionSourcesDialog"
           @batch-test="handleBatchTest(); dropdownState.showProxyBatchDropdown = false"
           @batch-quality-check="handleBatchQualityCheck(); dropdownState.showProxyBatchDropdown = false"
           @batch-enable-pool="handleBatchPoolMembership(true); dropdownState.showProxyBatchDropdown = false"
@@ -148,7 +146,7 @@
               <div class="flex flex-col text-xs">
                 <span v-if="row.username" class="text-gray-700 dark:text-gray-200">{{ row.username }}</span>
                 <span v-if="row.password" class="font-mono text-gray-500 dark:text-gray-400">
-                  {{ passwordState.visiblePasswordIds.has(row.id) ? row.password : '••••••' }}
+                  {{ passwordState.visiblePasswordIds.has(row.id) ? row.password : '******' }}
                 </span>
               </div>
               <button
@@ -824,143 +822,40 @@
     />
 
     <BaseDialog
-      :show="modalState.showMihomoModal"
-      :title="t('admin.proxies.mihomo.title')"
+      :show="modalState.showSubscriptionSourcesModal"
+      :title="t('admin.proxies.subscriptions.manageTitle')"
       width="wide"
-      @close="modalState.showMihomoModal = false"
+      @close="modalState.showSubscriptionSourcesModal = false"
     >
-      <div class="space-y-6">
-        <div class="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4 dark:border-indigo-900/50 dark:from-indigo-950/30 dark:via-dark-800 dark:to-cyan-950/20">
-          <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div class="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
-                <Icon name="server" size="md" class="text-indigo-500" />
-                {{ t('admin.proxies.mihomo.summary') }}
-              </div>
-              <div class="mt-2 flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
-                <span class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-dark-700">{{ t('admin.proxies.mihomo.summaryHint', { count: mihomoForm.listener_count || 0 }) }}</span>
-                <span class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-dark-700">{{ t('admin.proxies.mihomo.protocolLabel', { protocol: mihomoForm.protocol.toUpperCase() }) }}</span>
-                <span v-if="mihomoConfigPath" class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-dark-700">{{ mihomoConfigPath }}</span>
-              </div>
-            </div>
-            <button class="btn btn-secondary" type="button" :disabled="loadingState.mihomoLoading" @click="loadMihomo">
-              <Icon name="refresh" size="sm" class="mr-2" :class="loadingState.mihomoLoading ? 'animate-spin' : ''" />
+      <div class="space-y-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.subscriptions.title') }}</div>
+            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.subscriptions.manageHint') }}</div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button class="btn btn-secondary" type="button" :disabled="loadingState.loadingSubscriptions" @click="loadProxySubscriptions">
+              <Icon name="refresh" size="sm" class="mr-2" :class="loadingState.loadingSubscriptions ? 'animate-spin' : ''" />
               {{ t('common.refresh') }}
+            </button>
+            <button class="btn btn-primary" type="button" @click="openCreateSubscriptionDialog">
+              <Icon name="plus" size="sm" class="mr-2" />
+              {{ t('admin.proxies.subscriptions.create') }}
             </button>
           </div>
         </div>
 
-        <div class="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,1fr)]">
-          <div class="space-y-4">
-            <div>
-                <div class="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/60 p-4 text-sm text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/20 dark:text-indigo-100">
-                {{ t('admin.proxies.mihomo.sourceHint') }}
-              </div>
-            </div>
-            <div class="grid gap-4 md:grid-cols-2">
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.targetHost') }}</label>
-                <input v-model="mihomoForm.target_host" type="text" class="input" />
-              </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.controllerUrl') }}</label>
-                <input v-model="mihomoForm.controller_url" type="text" class="input" />
-              </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.startPort') }}</label>
-                <input v-model.number="mihomoForm.start_port" type="number" min="1" max="65535" class="input" @input="normalizeMihomoPorts" />
-              </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.listenerCount') }}</label>
-                <input v-model.number="mihomoForm.listener_count" type="number" min="1" max="32" class="input" @input="normalizeMihomoPorts" />
-              </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
-                <Select v-model="mihomoForm.protocol" :options="protocolSelectOptions" />
-              </div>
-              <div>
-                <label class="input-label">{{ t('admin.proxies.mihomo.proxyNamePrefix') }}</label>
-                <input v-model="mihomoForm.proxy_name_prefix" type="text" class="input" />
-              </div>
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <div class="rounded-2xl border border-gray-200 p-4 dark:border-dark-700">
-              <div class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.optimizeSettings') }}</div>
-              <div class="space-y-3">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input v-model="mihomoForm.auto_optimize" type="checkbox" class="checkbox" />
-                  <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('admin.proxies.mihomo.enableAutoOptimize') }}</span>
-                </label>
-                <div v-if="!mihomoForm.auto_optimize">
-                  <label class="input-label">{{ t('admin.proxies.mihomo.selectCountry') }}</label>
-                  <input
-                    v-model="mihomoForm.country_filter"
-                    type="text"
-                    class="input"
-                    :placeholder="t('admin.proxies.mihomo.countryPlaceholder')"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-200 p-4 dark:border-dark-700">
-              <div class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.mihomo.listenerPorts') }}</div>
-              <div class="max-h-[360px] space-y-3 overflow-auto pr-1">
-                <div v-for="listener in mihomoListenerRows" :key="listener.name" class="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-dark-700 dark:bg-dark-800/70">
-                  <div class="mb-2 flex items-center justify-between gap-3">
-                    <div class="font-mono text-xs text-gray-700 dark:text-gray-200">{{ listener.name }}</div>
-                    <span class="badge badge-primary">{{ listener.port }}</span>
-                  </div>
-                  <label class="input-label">{{ t('admin.proxies.mihomo.listenerRegion', { port: listener.port }) }}</label>
-                  <input
-                    v-model="mihomoForm.listener_regions[listener.index]"
-                    type="text"
-                    class="input"
-                    :list="mihomoAvailableRegions.length ? 'mihomo-regions' : undefined"
-                    :placeholder="t('admin.proxies.mihomo.regionPlaceholder')"
-                  />
-                </div>
-              </div>
-              <datalist id="mihomo-regions">
-                <option v-for="region in mihomoAvailableRegions" :key="region" :value="region" />
-              </datalist>
-            </div>
-          </div>
-        </div>
-
-        <div class="rounded-2xl border border-gray-200 p-4 dark:border-dark-700">
-          <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.subscriptions.title') }}</div>
-              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.subscriptions.modalHint') }}</div>
-            </div>
-            <div class="flex items-center gap-2">
-              <button class="btn btn-secondary" type="button" :disabled="loadingState.loadingSubscriptions" @click="loadProxySubscriptions">
-                <Icon name="refresh" size="sm" class="mr-2" :class="loadingState.loadingSubscriptions ? 'animate-spin' : ''" />
-                {{ t('common.refresh') }}
-              </button>
-              <button class="btn btn-primary" type="button" @click="openCreateSubscriptionDialog">
-                <Icon name="plus" size="sm" class="mr-2" />
-                {{ t('admin.proxies.subscriptions.create') }}
-              </button>
-            </div>
-          </div>
-          <ProxySubscriptionsPanel
-            :loading="loadingState.loadingSubscriptions"
-            :items="dataState.proxySubscriptions"
-            @refresh="handleRefreshSubscription"
-            @edit="handleEditSubscription"
-            @view-nodes="handleViewSubscriptionNodes"
-            @delete="handleDeleteSubscription"
-          />
-        </div>
+        <ProxySubscriptionsPanel
+          :loading="loadingState.loadingSubscriptions"
+          :items="dataState.proxySubscriptions"
+          @refresh="handleRefreshSubscription"
+          @edit="handleEditSubscription"
+          @view-nodes="handleViewSubscriptionNodes"
+          @delete="handleDeleteSubscription"
+        />
       </div>
       <template #footer>
-        <button @click="modalState.showMihomoModal = false" class="btn btn-secondary">{{ t('common.cancel') }}</button>
-        <button @click="saveMihomo" :disabled="loadingState.mihomoSubmitting" class="btn btn-secondary">{{ t('admin.proxies.mihomo.save') }}</button>
-        <button @click="saveAndSyncMihomo" :disabled="loadingState.mihomoSubmitting" class="btn btn-primary">{{ t('admin.proxies.mihomo.saveAndSync') }}</button>
+        <button @click="modalState.showSubscriptionSourcesModal = false" class="btn btn-secondary">{{ t('common.close') }}</button>
       </template>
     </BaseDialog>
 
@@ -1263,8 +1158,7 @@ import type {
   ProxyQualityCheckItem,
   ProxyQualityCheckResult,
   ProxySubscriptionSource,
-  ProxySubscriptionNode,
-  MihomoSettings
+  ProxySubscriptionNode
 } from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -1430,7 +1324,7 @@ const modalState = reactive({
   showExportDataDialog: false,
   showAccountsModal: false,
   showPoolDialog: false,
-  showMihomoModal: false,
+  showSubscriptionSourcesModal: false,
   showCreateSubscriptionModal: false,
   showSubscriptionNodesModal: false,
   showQualityReportDialog: false
@@ -1439,7 +1333,6 @@ const modalState = reactive({
 // UI state - Dropdowns and menus
 const dropdownState = reactive({
   showColumnDropdown: false,
-  showProxyToolsDropdown: false,
   showProxyBatchDropdown: false,
   activeRowActionMenuId: null as number | null,
   rowActionMenuPosition: null as { top: number; left: number } | null,
@@ -1464,9 +1357,7 @@ const loadingState = reactive({
   exportingData: false,
   accountsLoading: false,
   poolDialogLoading: false,
-  subscriptionNodesLoading: false,
-  mihomoLoading: false,
-  mihomoSubmitting: false
+  subscriptionNodesLoading: false
 })
 
 // Testing state
@@ -1631,98 +1522,9 @@ const editForm = reactive({
   auto_failover_pool_enabled: false
 })
 
-const mihomoConfigPath = ref('')
-const mihomoAvailableRegions = ref<string[]>([])
-const mihomoForm = reactive<MihomoSettings>({
-  protocol: 'socks5h',
-  target_host: '127.0.0.1',
-  start_port: 41001,
-  listener_count: 4,
-  controller_url: 'http://127.0.0.1:9097',
-  controller_secret: '',
-  proxy_name_prefix: 'mihomo',
-  listener_regions: ['', '', '', ''],
-  auto_optimize: false,
-  country_filter: ''
-})
-
-const mihomoListenerRows = computed(() =>
-  Array.from({ length: Math.max(0, mihomoForm.listener_count || 0) }, (_, index) => ({
-    index,
-    port: mihomoForm.start_port + index,
-    name: `${mihomoForm.proxy_name_prefix || 'mihomo'}-${String(index + 1).padStart(2, '0')}`
-  }))
-)
-
-const normalizeMihomoListenerRegions = () => {
-  const count = Math.max(1, Math.min(32, Number(mihomoForm.listener_count) || 1))
-  mihomoForm.listener_count = count
-  mihomoForm.listener_regions = Array.from(
-    { length: count },
-    (_, index) => mihomoForm.listener_regions?.[index]?.trim() || ''
-  )
-}
-
-const normalizeMihomoPorts = () => {
-  const count = Math.max(1, Math.min(32, Number(mihomoForm.listener_count) || 1))
-  mihomoForm.listener_count = count
-  const maxStartPort = Math.max(1, 65535 - count + 1)
-  const startPort = Number(mihomoForm.start_port) || 41001
-  mihomoForm.start_port = Math.max(1, Math.min(maxStartPort, startPort))
-  normalizeMihomoListenerRegions()
-}
-
-const applyMihomoSettings = (settings: MihomoSettings) => {
-  Object.assign(mihomoForm, settings)
-  normalizeMihomoPorts()
-}
-
-const loadMihomo = async () => {
-  loadingState.mihomoLoading = true
-  try {
-    const status = await adminAPI.proxies.getMihomo()
-    applyMihomoSettings(status.settings)
-    mihomoConfigPath.value = status.config_path || ''
-    mihomoAvailableRegions.value = status.available_regions || []
-  } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.proxies.mihomo.loadFailed'))
-  } finally {
-    loadingState.mihomoLoading = false
-  }
-}
-
-const openMihomoDialog = async () => {
-  modalState.showMihomoModal = true
-  await Promise.all([loadMihomo(), loadProxySubscriptions()])
-}
-
-const saveMihomo = async () => {
-  normalizeMihomoPorts()
-  loadingState.mihomoSubmitting = true
-  try {
-    const settings = await adminAPI.proxies.updateMihomo(mihomoForm)
-    applyMihomoSettings(settings)
-    appStore.showSuccess(t('admin.proxies.mihomo.saveSuccess'))
-  } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.proxies.mihomo.saveFailed'))
-  } finally {
-    loadingState.mihomoSubmitting = false
-  }
-}
-
-const saveAndSyncMihomo = async () => {
-  normalizeMihomoPorts()
-  loadingState.mihomoSubmitting = true
-  try {
-    const result = await adminAPI.proxies.syncMihomo(mihomoForm)
-    mihomoConfigPath.value = result.config_path || ''
-    await loadProxies()
-    appStore.showSuccess(t('admin.proxies.mihomo.syncSuccess', { created: result.created, reused: result.reused }))
-  } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.proxies.mihomo.syncFailed'))
-  } finally {
-    loadingState.mihomoSubmitting = false
-  }
+const openSubscriptionSourcesDialog = async () => {
+  modalState.showSubscriptionSourcesModal = true
+  await loadProxySubscriptions()
 }
 
 let abortController: AbortController | null = null
@@ -2744,7 +2546,7 @@ const closeAccountsModal = () => {
   dataState.proxyAccounts = []
 }
 
-// ── Proxy URL copy ──
+// 閳光偓閳光偓 Proxy URL copy 閳光偓閳光偓
 function buildAuthPart(row: any): string {
   const user = row.username ? encodeURIComponent(row.username) : ''
   const pass = row.password ? encodeURIComponent(row.password) : ''
@@ -2788,7 +2590,6 @@ function copyFormat(value: string) {
 
 function toggleRowActionMenu(id: number, event: MouseEvent) {
   dropdownState.showColumnDropdown = false
-  dropdownState.showProxyToolsDropdown = false
   dropdownState.showProxyBatchDropdown = false
   if (dropdownState.activeRowActionMenuId === id) {
     closeRowActionMenu()
@@ -2813,12 +2614,11 @@ function closeRowActionMenu() {
 function closeFloatingMenus() {
   dropdownState.copyMenuProxyId = null
   dropdownState.showColumnDropdown = false
-  dropdownState.showProxyToolsDropdown = false
   dropdownState.showProxyBatchDropdown = false
   closeRowActionMenu()
 }
 
-// 键盘快捷键
+// 闁款喚娲忚箛顐ｅ祹闁?
 const isAnyModalOpen = computed(() => {
   return (
     modalState.showCreateModal ||
@@ -2832,7 +2632,7 @@ const isAnyModalOpen = computed(() => {
     modalState.showQualityReportDialog ||
     modalState.showAccountsModal ||
     modalState.showPoolDialog ||
-    modalState.showMihomoModal ||
+    modalState.showSubscriptionSourcesModal ||
     modalState.showCreateSubscriptionModal ||
     modalState.showSubscriptionNodesModal
   )

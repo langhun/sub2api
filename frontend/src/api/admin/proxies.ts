@@ -8,9 +8,6 @@ import type {
   Proxy,
   ProxyAccountSummary,
   ProxyQualityCheckResult,
-  MihomoSettings,
-  MihomoStatus,
-  MihomoSyncResult,
   AssignProxyAccountsRequest,
   ProxyAccountAssignmentResult,
   ProxyUnassignAccountsResult,
@@ -300,21 +297,6 @@ export async function importData(payload: {
   return data
 }
 
-export async function getMihomo(): Promise<MihomoStatus> {
-  const { data } = await apiClient.get<MihomoStatus>('/admin/proxies/mihomo')
-  return data
-}
-
-export async function updateMihomo(payload: MihomoSettings): Promise<MihomoSettings> {
-  const { data } = await apiClient.put<MihomoSettings>('/admin/proxies/mihomo', payload)
-  return data
-}
-
-export async function syncMihomo(payload: MihomoSettings): Promise<MihomoSyncResult> {
-  const { data } = await apiClient.post<MihomoSyncResult>('/admin/proxies/mihomo/sync', payload)
-  return data
-}
-
 export const proxiesAPI = {
   list,
   getAll,
@@ -335,10 +317,7 @@ export const proxiesAPI = {
   batchCreate,
   batchDelete,
   exportData,
-  importData,
-  getMihomo,
-  updateMihomo,
-  syncMihomo
+  importData
 }
 
 export default proxiesAPI

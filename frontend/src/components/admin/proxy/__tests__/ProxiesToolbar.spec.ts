@@ -43,14 +43,13 @@ const baseProps = {
   batchQualityChecking: false,
   selectedCount: 0,
   showColumnDropdown: false,
-  showProxyToolsDropdown: false,
   showProxyBatchDropdown: false,
   toggleableColumns: [{ key: 'auth', label: 'auth' }],
   isColumnVisible: () => true
 }
 
 describe('ProxiesToolbar', () => {
-  it('emits search updates and opens the unified Mihomo entry', async () => {
+  it('emits search updates and opens the subscription source entry', async () => {
     const wrapper = mount(ProxiesToolbar, {
       props: baseProps,
       global: {
@@ -61,13 +60,13 @@ describe('ProxiesToolbar', () => {
       }
     })
 
-    const mihomoButton = wrapper.get('[data-test="proxy-toolbar-mihomo"]')
-    await mihomoButton.trigger('click')
+    const subscriptionsButton = wrapper.get('[data-test="proxy-toolbar-subscriptions"]')
+    await subscriptionsButton.trigger('click')
 
     const search = wrapper.get('input')
     await search.setValue('proxy-host')
 
-    expect(wrapper.emitted('open-mihomo')).toHaveLength(1)
+    expect(wrapper.emitted('open-subscriptions')).toHaveLength(1)
     expect(wrapper.emitted('update:searchQuery')?.[0]).toEqual(['proxy-host'])
   })
 

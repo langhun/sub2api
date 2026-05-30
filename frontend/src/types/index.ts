@@ -839,41 +839,6 @@ export interface ProxyQualityCheckResult {
   items: ProxyQualityCheckItem[]
 }
 
-export interface MihomoSettings {
-  protocol: ProxyProtocol
-  target_host: string
-  start_port: number
-  listener_count: number
-  controller_url: string
-  controller_secret: string
-  proxy_name_prefix: string
-  listener_regions: string[]
-  auto_optimize: boolean
-  country_filter: string
-}
-
-export interface MihomoProxy {
-  name: string
-  protocol: ProxyProtocol
-  host: string
-  port: number
-}
-
-export interface MihomoStatus {
-  settings: MihomoSettings
-  config_path: string
-  proxies: MihomoProxy[]
-  available_regions: string[]
-}
-
-export interface MihomoSyncResult {
-  config_path: string
-  proxies: MihomoProxy[]
-  created: number
-  reused: number
-  reloaded: boolean
-}
-
 export interface AssignProxyAccountsRequest {
   proxy_ids: number[]
   dry_run: boolean

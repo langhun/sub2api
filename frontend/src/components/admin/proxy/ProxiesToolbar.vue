@@ -21,9 +21,9 @@
         <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
       </button>
 
-      <button type="button" class="btn btn-secondary gap-2 border-indigo-200 bg-indigo-50 px-3 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900/60 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-900/30" data-test="proxy-toolbar-mihomo" @click="$emit('open-mihomo')">
+      <button type="button" class="btn btn-secondary gap-2 border-indigo-200 bg-indigo-50 px-3 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900/60 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-900/30" data-test="proxy-toolbar-subscriptions" @click="$emit('open-subscriptions')">
         <Icon name="server" size="sm" />
-        <span>{{ t('admin.proxies.mihomo.manage') }}</span>
+        <span>{{ t('admin.proxies.subscriptions.manage') }}</span>
       </button>
 
       <div class="relative" @click.stop>
@@ -133,7 +133,6 @@ const props = defineProps<{
   batchQualityChecking: boolean
   selectedCount: number
   showColumnDropdown: boolean
-  showProxyToolsDropdown: boolean
   showProxyBatchDropdown: boolean
   toggleableColumns: Column[]
   isColumnVisible: (key: string) => boolean
@@ -144,13 +143,12 @@ const emit = defineEmits<{
   (e: 'update:filters', filters: { protocol: string; status: string; runtime_status: string }): void
   (e: 'reload-proxies'): void
   (e: 'toggle-column-dropdown'): void
-  (e: 'toggle-tools-dropdown'): void
   (e: 'toggle-batch-dropdown'): void
   (e: 'toggle-column', key: string): void
   (e: 'open-import'): void
   (e: 'open-export'): void
   (e: 'open-pool'): void
-  (e: 'open-mihomo'): void
+  (e: 'open-subscriptions'): void
   (e: 'batch-test'): void
   (e: 'batch-quality-check'): void
   (e: 'batch-enable-pool'): void
