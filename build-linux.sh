@@ -1,80 +1,76 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "🚀 开始构建 Sub2API Linux amd64 版本..."
+echo "Building Sub2API Linux amd64 production binary..."
 
-# 读取版本信息
-VERSION=$(cat VERSION)
+VERSION_FILE="backend/cmd/server/VERSION"
+CONFIG_EXAMPLE="deploy/config.example.yaml"
+UPLOAD_DIR="dist/upload"
+BINARY_NAME="sub2api-linux-amd64"
+
+if [ ! -f "$VERSION_FILE" ]; then
+  echo "Missing version file: $VERSION_FILE" >&2
+  exit 1
+fi
+
+if [ ! -f "$CONFIG_EXAMPLE" ]; then
+  echo "Missing config example: $CONFIG_EXAMPLE" >&2
+  exit 1
+fi
+
+VERSION=$(tr -d '\r\n' < "$VERSION_FILE")
 COMMIT=$(git rev-parse --short HEAD)
 DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 BUILD_TYPE="production"
+PACKAGE_BASENAME="sub2api-${VERSION}-linux-amd64"
 
-echo "📦 版本信息:"
-echo "  Version: $VERSION"
-echo "  Commit: $COMMIT"
-echo "  Date: $DATE"
-echo "  BuildType: $BUILD_TYPE"
+echo "Version: $VERSION"
+echo "Commit: $COMMIT"
+echo "Date: $DATE"
+echo "BuildType: $BUILD_TYPE"
 
-# 清理旧的构建产物
-echo "🧹 清理旧的构建产物..."
-rm -rf dist/upload
-mkdir -p dist/upload
+echo "Cleaning old upload artifacts..."
+rm -rf "$UPLOAD_DIR"
+mkdir -p "$UPLOAD_DIR"
 
-# 等待前端构建完成
-echo "⏳ 等待前端构建完成..."
-while [ ! -d "frontend/dist" ]; do
-    sleep 2
-done
-echo "✅ 前端构建完成"
+echo "Building frontend into backend/internal/web/dist..."
+if command -v pnpm >/dev/null 2>&1; then
+  pnpm --dir frontend run build
+else
+  corepack pnpm --dir frontend run build
+fi
 
-# 复制前端构建产物到后端
-echo "📋 复制前端构建产物..."
-rm -rf backend/internal/web/dist
-cp -r frontend/dist backend/internal/web/
-
-# 构建后端 (Linux amd64)
-echo "🔨 构建后端 (Linux amd64)..."
-cd backend
-
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+echo "Building backend for linux/amd64..."
+(
+  cd backend
+  GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
     -tags embed \
-    -ldflags "-s -w \
-        -X 'main.Version=$VERSION' \
-        -X 'main.Commit=$COMMIT' \
-        -X 'main.Date=$DATE' \
-        -X 'main.BuildType=$BUILD_TYPE'" \
-    -o ../dist/upload/sub2api-linux-amd64 \
+    -ldflags "-s -w -X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE' -X 'main.BuildType=$BUILD_TYPE'" \
+    -trimpath \
+    -o "../$UPLOAD_DIR/$BINARY_NAME" \
     ./cmd/server
+)
 
-cd ..
+echo "Copying release metadata and example config..."
+cp "$VERSION_FILE" "$UPLOAD_DIR/VERSION"
+cp "$CONFIG_EXAMPLE" "$UPLOAD_DIR/config.example.yaml"
 
-# 复制配置文件和 VERSION
-echo "📄 复制配置文件..."
-cp VERSION dist/upload/
-cp config.example.yaml dist/upload/
+echo "Creating release package..."
+(
+  cd "$UPLOAD_DIR"
+  if command -v zstd >/dev/null 2>&1; then
+    PACKAGE="${PACKAGE_BASENAME}.tar.zst"
+    tar -cf - "$BINARY_NAME" VERSION config.example.yaml | zstd -19 -o "$PACKAGE"
+  else
+    PACKAGE="${PACKAGE_BASENAME}.tar.gz"
+    tar -czf "$PACKAGE" "$BINARY_NAME" VERSION config.example.yaml
+  fi
+  sha256sum "$BINARY_NAME" > "$BINARY_NAME.sha256"
+  sha256sum "$PACKAGE" > "$PACKAGE.sha256"
+)
 
-# 创建 tar.zst 压缩包
-echo "📦 创建 tar.zst 压缩包..."
-cd dist/upload
-tar -cf - sub2api-linux-amd64 VERSION config.example.yaml | zstd -19 -o sub2api-${VERSION}-linux-amd64.tar.zst
-cd ../..
-
-# 计算 hash
-echo "🔐 计算文件 hash..."
-cd dist/upload
-sha256sum sub2api-linux-amd64 > sub2api-linux-amd64.sha256
-sha256sum sub2api-${VERSION}-linux-amd64.tar.zst > sub2api-${VERSION}-linux-amd64.tar.zst.sha256
-cd ../..
-
-# 显示构建结果
-echo ""
-echo "✅ 构建完成！"
-echo ""
-echo "📦 构建产物:"
-ls -lh dist/upload/
-echo ""
-echo "🔐 SHA256:"
-cat dist/upload/sub2api-linux-amd64.sha256
-cat dist/upload/sub2api-${VERSION}-linux-amd64.tar.zst.sha256
-echo ""
-echo "📤 上传文件: dist/upload/sub2api-${VERSION}-linux-amd64.tar.zst"
+echo "Build complete. Artifacts:"
+ls -lh "$UPLOAD_DIR"
+echo "SHA256:"
+cat "$UPLOAD_DIR/$BINARY_NAME.sha256"
+cat "$UPLOAD_DIR/${PACKAGE_BASENAME}".*.sha256
