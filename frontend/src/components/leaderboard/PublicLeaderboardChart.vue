@@ -70,9 +70,12 @@
                 <div class="flex min-w-0 items-center gap-3">
                   <div
                     :class="rankClass(entry.rank)"
+                    data-testid="leaderboard-rank-badge"
                     class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
                   >
-                    <span v-if="entry.rank <= 3">{{ medals[entry.rank - 1] }}</span>
+                    <span v-if="entry.rank === 1">&#129351;</span>
+                    <span v-else-if="entry.rank === 2">&#129352;</span>
+                    <span v-else-if="entry.rank === 3">&#129353;</span>
                     <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
                   </div>
                   <div class="min-w-0">
@@ -157,7 +160,6 @@ const props = withDefaults(defineProps<{
 })
 
 const { t } = useI18n()
-const medals = ['??', '??', '??']
 
 const valueLabel = computed(() => props.valueLabel ?? t('leaderboard.amount'))
 const metricLabel = computed(() => props.metricLabel ?? t('leaderboard.requests'))

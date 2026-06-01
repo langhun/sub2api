@@ -252,7 +252,7 @@ func TestScheduledTestRunnerService_RunOnePlanSavesResultAndUpdatesNextRun(t *te
 	require.NotNil(t, resultRepo.created)
 	require.Equal(t, int64(66), resultRepo.created.PlanID)
 	require.Equal(t, "failed", resultRepo.created.Status)
-	require.Contains(t, resultRepo.created.ErrorMessage, "API returned 401")
+	require.Contains(t, resultRepo.created.ErrorMessage, "上游接口返回错误")
 	require.NotNil(t, resultRepo.created.HTTPStatusCode)
 	require.Equal(t, http.StatusUnauthorized, *resultRepo.created.HTTPStatusCode)
 	require.Equal(t, int64(66), planRepo.lastUpdateID)

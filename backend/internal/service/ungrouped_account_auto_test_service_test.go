@@ -353,7 +353,7 @@ func TestUngroupedAccountAutoTestServiceApplyOpenAIAutoTestActions403Retest429Cl
 	require.Equal(t, "failed", result.Status)
 	require.NotNil(t, result.HTTPStatusCode)
 	require.Equal(t, http.StatusTooManyRequests, *result.HTTPStatusCode)
-	require.Contains(t, result.ErrorMessage, "API returned 429")
+	require.Contains(t, result.ErrorMessage, "上游接口返回错误")
 	require.Equal(t, int64(4292), accountTestRepo.rateLimitedID)
 	require.NotNil(t, accountTestRepo.rateLimitedAt)
 	require.Equal(t, int64(4292), accountTestRepo.clearedErrorID)

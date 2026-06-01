@@ -242,7 +242,7 @@ func TestHandleUpstreamError_PoolModeCustomErrorCodesOverride(t *testing.T) {
 		require.Equal(t, 0, repo.tempCalls)
 	})
 
-	t.Run("pool_mode_with_custom_error_codes_uses_local_error_policy", func(t *testing.T) {
+	t.Run("pool_mode_with_custom_error_codes_skips_apikey_permanent_error", func(t *testing.T) {
 		repo := &errorPolicyRepoStub{}
 		svc := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
 		account := &Account{
@@ -259,7 +259,7 @@ func TestHandleUpstreamError_PoolModeCustomErrorCodesOverride(t *testing.T) {
 		shouldDisable := svc.HandleUpstreamError(context.Background(), account, 401, http.Header{}, []byte("unauthorized"))
 
 		require.True(t, shouldDisable)
-		require.Equal(t, 1, repo.setErrCalls)
+		require.Equal(t, 0, repo.setErrCalls)
 		require.Equal(t, 0, repo.tempCalls)
 	})
 }

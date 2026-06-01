@@ -196,6 +196,25 @@ func TestApplyInternal500Penalty(t *testing.T) {
 	})
 }
 
+func TestApplyInternal500Penalty_APIKeySkipsPermanentError(t *testing.T) {
+	repo := &internal500AccountRepoStub{}
+	svc := &AntigravityGatewayService{accountRepo: repo}
+	account := &Account{ID: 33, Name: "apikey-33", Type: AccountTypeAPIKey}
+
+	before := time.Now()
+	svc.applyInternal500Penalty(context.Background(), "[test]", account, 3)
+	after := time.Now()
+
+	require.Empty(t, repo.setErrorCalls)
+	require.Len(t, repo.tempUnschedCalls, 1)
+
+	call := repo.tempUnschedCalls[0]
+	require.Equal(t, int64(33), call.accountID)
+	require.Contains(t, call.reason, "INTERNAL 500 consecutive failures: 3")
+	require.True(t, call.until.After(before.Add(internal500PenaltyTier2Duration).Add(-time.Second)))
+	require.True(t, call.until.Before(after.Add(internal500PenaltyTier2Duration).Add(time.Second)))
+}
+
 // =============================================================================
 // TestHandleInternal500RetryExhausted
 // =============================================================================

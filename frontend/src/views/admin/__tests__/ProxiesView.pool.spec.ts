@@ -147,7 +147,7 @@ const mountProxiesView = () =>
         ImportDataModal: true,
         AssignAccountsModal: true,
         ProxyBulkActionsBar: ProxyBulkActionsBarStub,
-        PoolMembersDialog: true,
+        PoolMembersDialog,
         Select: SelectStub,
         Icon: true
       }
@@ -405,71 +405,50 @@ describe('admin ProxiesView pool state', () => {
     expect(placeholders).toContain('admin.proxies.allRuntimeStatus')
   })
 
-  it('opens the Mihomo dialog and loads shared subscription sources', async () => {
-    const wrapper = mount(ProxiesView, {
-      global: {
-        stubs: {
-          AppLayout: { template: '<div><slot /></div>' },
-          TablePageLayout: {
-            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
-          },
-          DataTable: DataTableStub,
-          Pagination: { template: '<div data-test="pagination-stub"></div>' },
-          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
-          ConfirmDialog: true,
-          EmptyState: true,
-          ImportDataModal: true,
-          AssignAccountsModal: true,
-          PoolMembersDialog: true,
-          Select: SelectStub,
-          Icon: true
+  it('opens the subscription sources dialog and loads shared sources', async () => {
+    listProxySubscriptions.mockResolvedValueOnce({
+      items: [
+        {
+          id: 1,
+          name: 'sub-a',
+          url: 'https://example.com/sub',
+          source_format: 'auto',
+          enabled: true,
+          refresh_interval_hours: 6,
+          target_entry_count: 1,
+          auto_add_to_pool: true,
+          last_refreshed_at: null,
+          last_success_at: null,
+          last_error: '',
+          last_node_count: 3,
+          last_materialized_proxy_count: 2,
+          created_at: '2026-05-19T10:00:00Z',
+          updated_at: '2026-05-19T10:00:00Z'
         }
-      }
+      ],
+      total: 1,
+      page: 1,
+      page_size: 100,
+      pages: 1
     })
-
-    await flushPromises()
-    const openMihomoButton = wrapper.get('[data-test="proxy-mihomo-config"]')
-    await openMihomoButton.trigger('click')
-    await flushPromises()
-
-    expect(getMihomo).toHaveBeenCalledTimes(1)
-    expect(listProxySubscriptions).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('admin.proxies.mihomo.workspaceDescription')
-    expect(wrapper.text()).toContain('admin.proxies.mihomo.workspaceTitle')
-    expect(wrapper.text()).toContain('admin.proxies.mihomo.sourceSectionTitle')
-    expect(wrapper.text()).toContain('admin.proxies.mihomo.workspaceStatusEmpty')
-    expect(wrapper.text()).toContain('admin.proxies.mihomo.listenerSummaryTitle')
-  })
-
-  it('uses backend Mihomo settings instead of the default form when subscription sync starts before Mihomo load finishes', async () => {
-    const pendingMihomoLoad = new Promise(() => {})
-    const loadedStatus = {
-      settings: {
-        protocol: 'http',
-        target_host: 'mihomo-sub2api',
-        start_port: 52001,
-        listener_count: 6,
-        controller_url: 'http://mihomo-sub2api:9097',
-        controller_secret: 'secret-token',
-        proxy_name_prefix: 'workspace',
-        listener_regions: ['香港', '日本', '', '', '', ''],
-        auto_optimize: false,
-        country_filter: '日本'
-      },
-      config_path: '/tmp/mihomo/runtime.yaml',
-      proxies: [],
-      available_regions: ['香港', '日本']
-    }
-    getMihomo.mockReset()
-    getMihomo
-      .mockImplementationOnce(() => pendingMihomoLoad)
-      .mockResolvedValue(loadedStatus)
 
     const wrapper = mountProxiesView()
     await flushPromises()
 
-    const openMihomoButton = wrapper.get('[data-test="proxy-mihomo-config"]')
-    await openMihomoButton.trigger('click')
+    await wrapper.get('[data-test="proxy-toolbar-subscriptions"]').trigger('click')
+    await flushPromises()
+
+    expect(listProxySubscriptions).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('admin.proxies.subscriptions.manage')
+    expect(wrapper.text()).toContain('sub-a')
+    expect(wrapper.text()).toContain('https://example.com/sub')
+  })
+
+  it('creates a proxy subscription from the subscription dialog', async () => {
+    const wrapper = mountProxiesView()
+    await flushPromises()
+
+    await wrapper.get('[data-test="proxy-toolbar-subscriptions"]').trigger('click')
     await flushPromises()
 
     const createButton = wrapper.findAll('button').find((button) => button.text().includes('admin.proxies.subscriptions.create'))
@@ -477,98 +456,18 @@ describe('admin ProxiesView pool state', () => {
     await createButton!.trigger('click')
     await flushPromises()
 
-    const textInputs = wrapper.findAll('input[type="text"], input[type="url"]')
+    const textInputs = wrapper.find('form#create-subscription-form').findAll('input[type="text"], input[type="url"]')
     await textInputs[0].setValue('race-source')
     await textInputs[1].setValue('https://example.com/race')
     await wrapper.find('form#create-subscription-form').trigger('submit')
     await flushPromises()
 
-    expect(createProxySubscription).toHaveBeenCalled()
-    expect(syncMihomo).toHaveBeenCalledTimes(1)
-    expect(syncMihomo.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
-      protocol: 'http',
-      target_host: 'mihomo-sub2api',
-      start_port: 52001,
-      listener_count: 6,
-      controller_url: 'http://mihomo-sub2api:9097',
-      controller_secret: 'secret-token',
-      proxy_name_prefix: 'workspace',
-      country_filter: '日本'
+    expect(createProxySubscription).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'race-source',
+      url: 'https://example.com/race'
     }))
-    expect(getMihomo.mock.calls.length).toBeGreaterThanOrEqual(2)
+    expect(listProxySubscriptions).toHaveBeenCalledTimes(2)
   })
-
-  it('auto-picks Mihomo strategy, country, and listener regions before sync', async () => {
-    getMihomo.mockResolvedValueOnce({
-      settings: {
-        protocol: 'socks5h',
-        target_host: '127.0.0.1',
-        start_port: 41001,
-        listener_count: 3,
-        controller_url: 'http://127.0.0.1:9097',
-        controller_secret: '',
-        proxy_name_prefix: 'mihomo',
-        listener_regions: ['', '', ''],
-        auto_optimize: false,
-        country_filter: ''
-      },
-      config_path: '/tmp/mihomo/config.yaml',
-      proxies: [],
-      available_regions: ['香港', '日本']
-    })
-
-    const wrapper = mountProxiesView()
-    await flushPromises()
-
-    await wrapper.get('[data-test="proxy-mihomo-config"]').trigger('click')
-    await flushPromises()
-
-    const autoCountryButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('admin.proxies.mihomo.applyRecommendedCountry'))
-    expect(autoCountryButton).toBeDefined()
-    await autoCountryButton!.trigger('click')
-    await flushPromises()
-
-    const autoFillButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('admin.proxies.mihomo.autoFillListenerRegions'))
-    expect(autoFillButton).toBeDefined()
-    await autoFillButton!.trigger('click')
-    await flushPromises()
-
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('admin.proxies.mihomo.saveAndSync'))!
-      .trigger('click')
-    await flushPromises()
-
-    expect(syncMihomo).toHaveBeenCalledWith(expect.objectContaining({
-      auto_optimize: false,
-      country_filter: '香港',
-      listener_regions: ['香港', '日本', '香港']
-    }))
-
-    const autoStrategyButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('admin.proxies.mihomo.applyAutoOptimize'))
-    expect(autoStrategyButton).toBeDefined()
-    await autoStrategyButton!.trigger('click')
-    await flushPromises()
-
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('admin.proxies.mihomo.saveAndSync'))!
-      .trigger('click')
-    await flushPromises()
-
-    expect(syncMihomo).toHaveBeenLastCalledWith(expect.objectContaining({
-      auto_optimize: true,
-      country_filter: '',
-      listener_regions: ['香港', '日本', '香港']
-    }))
-  })
-
   it('renders shared subscription sources in the Mihomo dialog and wires refresh, nodes, and create flows', async () => {
     listProxySubscriptions.mockResolvedValueOnce({
       items: [
@@ -610,7 +509,7 @@ describe('admin ProxiesView pool state', () => {
           EmptyState: true,
           ImportDataModal: true,
           AssignAccountsModal: true,
-          PoolMembersDialog: true,
+          PoolMembersDialog,
           Select: SelectStub,
           Icon: true
         }
@@ -619,7 +518,7 @@ describe('admin ProxiesView pool state', () => {
 
     await flushPromises()
 
-    const openMihomoButton = wrapper.get('[data-test="proxy-mihomo-config"]')
+    const openMihomoButton = wrapper.get('[data-test="proxy-toolbar-subscriptions"]')
     await openMihomoButton.trigger('click')
     await flushPromises()
 
@@ -638,20 +537,18 @@ describe('admin ProxiesView pool state', () => {
     await refreshButton!.trigger('click')
     await flushPromises()
     expect(refreshProxySubscription).toHaveBeenCalledWith(1)
-    expect(syncMihomo).toHaveBeenCalledTimes(1)
 
     const createButton = wrapper.findAll('button').find((button) => button.text().includes('admin.proxies.subscriptions.create'))
     expect(createButton).toBeDefined()
     await createButton!.trigger('click')
     await flushPromises()
 
-    const textInputs = wrapper.findAll('input[type="text"], input[type="url"]')
+    const textInputs = wrapper.find('form#create-subscription-form').findAll('input[type="text"], input[type="url"]')
     await textInputs[0].setValue('sub-new')
     await textInputs[1].setValue('https://example.com/new')
     await wrapper.find('form#create-subscription-form').trigger('submit')
     await flushPromises()
     expect(createProxySubscription).toHaveBeenCalled()
-    expect(syncMihomo).toHaveBeenCalledTimes(2)
   })
 
   it('loads every subscription page when the Mihomo dialog is opened', async () => {
@@ -710,7 +607,7 @@ describe('admin ProxiesView pool state', () => {
     const wrapper = mountProxiesView()
     await flushPromises()
 
-    const openMihomoButton = wrapper.get('[data-test="proxy-mihomo-config"]')
+    const openMihomoButton = wrapper.get('[data-test="proxy-toolbar-subscriptions"]')
     await openMihomoButton.trigger('click')
     await flushPromises()
 

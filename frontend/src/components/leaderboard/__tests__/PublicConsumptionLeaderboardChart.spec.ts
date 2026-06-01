@@ -120,6 +120,10 @@ describe('PublicLeaderboardChart', () => {
         },
       },
     })
+    const rankBadges = wrapper.findAll('[data-testid="leaderboard-rank-badge"]')
+    expect(rankBadges[0].text()).not.toBe('??')
+    expect(rankBadges[1].text()).not.toBe('??')
+    expect(wrapper.text()).not.toContain('??')
     expect(wrapper.text()).toContain('Alpha')
     expect(wrapper.text()).toContain('60.0%')
     expect(wrapper.text()).toContain('12 requests')

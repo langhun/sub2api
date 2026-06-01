@@ -148,6 +148,7 @@ const BaseDialogStub = defineComponent({
   },
   template: '<div v-if="show"><slot /><slot name="footer" /></div>',
 })
+const ModelWhitelistSelectorStub = { template: '<div />' }
 function findButtonByText(wrapper: VueWrapper, text: string): DOMWrapper<HTMLButtonElement> {
   const button = wrapper.findAll<HTMLButtonElement>('button').find((item) => item.text().includes(text))
   if (!button) {

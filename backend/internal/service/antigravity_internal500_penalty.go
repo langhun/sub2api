@@ -38,6 +38,26 @@ func (s *AntigravityGatewayService) applyInternal500Penalty(
 	switch {
 	case count >= int64(internal500PenaltyTier3Threshold):
 		reason := fmt.Sprintf("INTERNAL 500 consecutive failures: %d rounds", count)
+		if account != nil && account.Type == AccountTypeAPIKey {
+			until := time.Now().Add(internal500PenaltyTier2Duration)
+			structuredReason := BuildTempUnschedReason(&TempUnschedState{
+				UntilUnix:       until.Unix(),
+				TriggeredAtUnix: time.Now().Unix(),
+				StatusCode:      http.StatusInternalServerError,
+				ReasonCode:      TempUnschedReasonCodeAntigravityInternal500Penalty,
+				MatchedKeyword:  "internal_500",
+				RuleIndex:       -1,
+				ErrorMessage:    reason,
+			}, reason)
+			if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, structuredReason); err != nil {
+				slog.Error("internal500_apikey_temp_unsched_failed", "account_id", account.ID, "error", err)
+				return
+			}
+			slog.Warn("internal500_apikey_permanent_disable_skipped",
+				"account_id", account.ID, "account_name", account.Name,
+				"duration", internal500PenaltyTier2Duration, "consecutive_count", count)
+			return
+		}
 		if err := s.accountRepo.SetError(ctx, account.ID, reason); err != nil {
 			slog.Error("internal500_set_error_failed", "account_id", account.ID, "error", err)
 			return

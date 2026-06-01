@@ -820,10 +820,7 @@
       @close="modalState.showSubscriptionSourcesModal = false"
     >
       <div class="space-y-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p class="text-sm leading-6 text-gray-500 dark:text-gray-400">
-            {{ t('admin.proxies.subscriptions.manageHint') }}
-          </p>
+        <div class="flex justify-end">
           <button class="btn btn-primary shrink-0" type="button" @click="openCreateSubscriptionDialog">
             <Icon name="plus" size="sm" class="mr-2" />
             {{ t('admin.proxies.subscriptions.create') }}

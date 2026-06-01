@@ -156,7 +156,7 @@ func TestRateLimitService_HandleUpstreamError_OAuth401InvalidatorError(t *testin
 	require.Len(t, invalidator.accounts, 1)
 }
 
-func TestRateLimitService_HandleUpstreamError_NonOAuth401(t *testing.T) {
+func TestRateLimitService_HandleUpstreamError_APIKey401SkipsPermanentError(t *testing.T) {
 	repo := &rateLimitAccountRepoStub{}
 	invalidator := &tokenCacheInvalidatorRecorder{}
 	service := NewRateLimitService(repo, nil, &config.Config{}, nil, nil)
@@ -170,7 +170,8 @@ func TestRateLimitService_HandleUpstreamError_NonOAuth401(t *testing.T) {
 	shouldDisable := service.HandleUpstreamError(context.Background(), account, 401, http.Header{}, []byte("unauthorized"))
 
 	require.True(t, shouldDisable)
-	require.Equal(t, 1, repo.setErrorCalls)
+	require.Equal(t, 0, repo.setErrorCalls)
+	require.Equal(t, 0, repo.tempCalls)
 	require.Empty(t, invalidator.accounts)
 }
 

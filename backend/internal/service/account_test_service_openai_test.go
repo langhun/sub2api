@@ -172,7 +172,7 @@ func TestAccountTestService_OpenAISuccessPersistsSnapshotFromHeaders(t *testing.
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.NoError(t, err)
 	require.Len(t, upstream.requests, 1)
 	require.Equal(t, HTTPUpstreamProfileOpenAI, HTTPUpstreamProfileFromContext(upstream.requests[0].Context()))
@@ -242,7 +242,7 @@ func TestAccountTestService_OpenAISuccessBindsPlatformDefaultGroupForUngroupedAc
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.NoError(t, err)
 	require.Equal(t, int64(89), repo.boundAccountID)
 	require.Equal(t, []int64{501}, repo.boundGroupIDs)
@@ -292,7 +292,7 @@ func TestAccountTestService_OpenAISuccessDoesNotOverrideExplicitGroups(t *testin
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.NoError(t, err)
 	require.Zero(t, repo.boundAccountID)
 	require.Nil(t, repo.boundGroupIDs)
@@ -337,7 +337,7 @@ func TestAccountTestService_OpenAIUsesAutoFailoverProxyPoolForTesting(t *testing
 		},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.NoError(t, err)
 	require.Len(t, upstream.proxyURLs, 1)
 	require.Equal(t, "http://pool.example:8080", upstream.proxyURLs[0])
@@ -371,7 +371,7 @@ func TestAccountTestService_OpenAIExplicitPoolWithoutCandidateFailsClearly(t *te
 		},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.Error(t, err)
 	require.Empty(t, upstream.proxyURLs)
 	require.Contains(t, err.Error(), "no available proxy in auto failover proxy pool")
@@ -423,7 +423,7 @@ func TestAccountTestService_OpenAI403SwitchesToPoolAndRetries(t *testing.T) {
 		proxyPool:    poolSvc,
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.NoError(t, err)
 	require.Equal(t, AccountProxyModePool, account.Extra["proxy_mode"])
 	require.Equal(t, AccountProxyModePool, repo.updatedExtra["proxy_mode"])
@@ -462,7 +462,7 @@ data: {"choices":[{"delta":{"content":" there"},"finish_reason":"stop"}]}
 		},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.NoError(t, err)
 
 	require.Len(t, upstream.requests, 1)
@@ -492,7 +492,7 @@ func TestAccountTestService_OpenAIStreamEOFBeforeCompletedFails(t *testing.T) {
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.Error(t, err)
 	require.Contains(t, recorder.Body.String(), "response.completed")
 	require.NotContains(t, recorder.Body.String(), `"success":true`)
@@ -522,7 +522,7 @@ func TestAccountTestService_OpenAI429PersistsSnapshotAndRateLimitState(t *testin
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.Error(t, err)
 	require.NotEmpty(t, repo.updatedExtra)
 	require.Equal(t, 100.0, repo.updatedExtra["codex_5h_used_percent"])
@@ -553,7 +553,7 @@ func TestAccountTestService_OpenAI429BodyOnlyPersistsRateLimitAndClearsStaleErro
 		Credentials:  map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.Error(t, err)
 	require.Equal(t, account.ID, repo.rateLimitedID)
 	require.NotNil(t, repo.rateLimitedAt)
@@ -582,7 +582,7 @@ func TestAccountTestService_OpenAI429SyncsObservedPlanType(t *testing.T) {
 		Credentials: map[string]any{"access_token": "test-token", "plan_type": "plus"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.Error(t, err)
 	require.Equal(t, []int64{account.ID}, repo.bulkUpdatedIDs)
 	require.Equal(t, "free", repo.bulkUpdatedPayload.Credentials["plan_type"])
@@ -609,7 +609,7 @@ func TestAccountTestService_OpenAI429ActiveAccountDoesNotClearError(t *testing.T
 		Credentials: map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.Error(t, err)
 	require.Equal(t, account.ID, repo.rateLimitedID)
 	require.NotNil(t, repo.rateLimitedAt)
@@ -637,7 +637,7 @@ func TestAccountTestService_OpenAI429WithoutResetSignalUsesFallbackCooldown(t *t
 		Credentials:  map[string]any{"access_token": "test-token"},
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.Error(t, err)
 	require.Equal(t, account.ID, repo.rateLimitedID)
 	require.NotNil(t, repo.rateLimitedAt)
@@ -671,7 +671,7 @@ func TestAccountTestService_OpenAI401SetsPermanentErrorOnly(t *testing.T) {
 	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
 	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "")
 	require.Error(t, err)
 	require.Equal(t, account.ID, repo.setErrorID)
 	require.Contains(t, repo.setErrorMsg, "Authentication failed (401)")
@@ -695,7 +695,7 @@ func TestAccountTestService_OpenAIMissingAPIKeyReturnsChineseHint(t *testing.T) 
 		Type:     AccountTypeAPIKey,
 	}
 
-	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.5", "", "")
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.5", "")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "账号缺少可用的 API Key")
 	require.Contains(t, recorder.Body.String(), "账号缺少可用的 API Key")
@@ -776,7 +776,7 @@ func TestAccountTestService_RunTestBackground_OpenAI429ReturnsFailedResult(t *te
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "failed", result.Status)
-	require.Contains(t, result.ErrorMessage, "API returned 429")
+	require.Contains(t, result.ErrorMessage, "上游接口返回错误")
 	require.Empty(t, result.ResponseText)
 	require.Equal(t, int64(88), repo.rateLimitedID)
 	require.NotNil(t, repo.rateLimitedAt)

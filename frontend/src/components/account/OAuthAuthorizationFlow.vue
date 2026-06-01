@@ -476,7 +476,7 @@
                     <button
                       type="button"
                       class="btn btn-secondary p-2"
-                      title="Copy URL"
+                      :title="t('admin.accounts.oauthFlow.session.copySessionUrl')"
                       @click="handleCopyUrl"
                     >
                       <svg
