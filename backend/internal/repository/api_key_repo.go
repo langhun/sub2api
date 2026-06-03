@@ -696,12 +696,14 @@ func userBankAccountEntityToView(account *dbent.UserBankAccount) *service.BankAc
 		return nil
 	}
 	return &service.BankAccountView{
-		AccountID:    account.ID,
-		Balance:      account.Balance,
-		FrozenAmount: account.FrozenAmount,
-		CreditLimit:  account.CreditLimit,
-		TotalDebt:    account.TotalDebt,
-		Status:       account.Status,
+		AccountID:     account.ID,
+		Balance:       account.Balance,
+		FrozenAmount:  account.FrozenAmount,
+		CreditLimit:   account.CreditLimit,
+		DebtPrincipal: account.DebtPrincipal,
+		DebtInterest:  account.DebtInterest,
+		TotalDebt:     account.TotalDebt,
+		Status:        account.Status,
 	}
 }
 

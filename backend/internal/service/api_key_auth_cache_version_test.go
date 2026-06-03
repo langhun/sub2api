@@ -59,12 +59,14 @@ func TestAPIKeyService_RoundTripsBankAccountAuthSnapshot(t *testing.T) {
 			Role:        RoleUser,
 			Concurrency: 3,
 			BankAccount: &BankAccountView{
-				AccountID:    8,
-				Balance:      decimal.RequireFromString("1.234567890123456789"),
-				FrozenAmount: decimal.RequireFromString("0.500000000000000000"),
-				CreditLimit:  decimal.RequireFromString("5.000000000000000000"),
-				TotalDebt:    decimal.RequireFromString("1.000000000000000000"),
-				Status:       BankAccountStatusActive,
+				AccountID:     8,
+				Balance:       decimal.RequireFromString("1.234567890123456789"),
+				FrozenAmount:  decimal.RequireFromString("0.500000000000000000"),
+				CreditLimit:   decimal.RequireFromString("5.000000000000000000"),
+				DebtPrincipal: decimal.RequireFromString("0.750000000000000000"),
+				DebtInterest:  decimal.RequireFromString("0.250000000000000000"),
+				TotalDebt:     decimal.RequireFromString("1.000000000000000000"),
+				Status:        BankAccountStatusActive,
 			},
 		},
 	}
@@ -76,6 +78,9 @@ func TestAPIKeyService_RoundTripsBankAccountAuthSnapshot(t *testing.T) {
 	if snapshot.User.BankAccount.Balance != "1.234567890123456789" {
 		t.Fatalf("unexpected bank balance snapshot: %s", snapshot.User.BankAccount.Balance)
 	}
+	if snapshot.User.BankAccount.DebtPrincipal != "0.75" {
+		t.Fatalf("unexpected bank debt principal snapshot: %s", snapshot.User.BankAccount.DebtPrincipal)
+	}
 
 	apiKey, ok, err := svc.applyAuthCacheEntry("k-bank", &APIKeyAuthCacheEntry{Snapshot: snapshot})
 	if err != nil || !ok {
@@ -86,5 +91,8 @@ func TestAPIKeyService_RoundTripsBankAccountAuthSnapshot(t *testing.T) {
 	}
 	if !apiKey.User.BankAccount.AvailableCapacity().Equal(decimal.RequireFromString("5.234567890123456789")) {
 		t.Fatalf("unexpected available capacity: %s", apiKey.User.BankAccount.AvailableCapacity())
+	}
+	if !apiKey.User.BankAccount.DebtInterest.Equal(decimal.RequireFromString("0.250000000000000000")) {
+		t.Fatalf("unexpected debt interest: %s", apiKey.User.BankAccount.DebtInterest)
 	}
 }

@@ -34,6 +34,8 @@ type APIKeyAuthBankAccountSnapshot struct {
 	Balance       string `json:"balance"`
 	FrozenAmount  string `json:"frozen_amount"`
 	CreditLimit   string `json:"credit_limit"`
+	DebtPrincipal string `json:"debt_principal"`
+	DebtInterest  string `json:"debt_interest"`
 	TotalDebt     string `json:"total_debt"`
 	Status        string `json:"status"`
 	LegacyMissing bool   `json:"legacy_missing,omitempty"`

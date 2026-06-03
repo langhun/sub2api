@@ -33,6 +33,7 @@ func findBankTransaction(ctx context.Context, client *dbent.Client, req Transfer
 		UserID:      log.UserID,
 		AccountID:   log.AccountID,
 		Type:        log.TxType,
+		Module:      log.BusinessModule,
 		Amount:      log.Amount,
 		Balance:     log.BalanceAfter,
 		Frozen:      log.FrozenAfter,
@@ -45,6 +46,9 @@ func findBankTransaction(ctx context.Context, client *dbent.Client, req Transfer
 // bankTransactionMatchesRequest 防止同一个幂等键被不同金额或类型复用。
 func bankTransactionMatchesRequest(log *dbent.TransactionLog, req TransferFundsRequest) bool {
 	if log.UserID != req.UserID || log.TxType != req.Type {
+		return false
+	}
+	if log.BusinessModule != req.BusinessModule {
 		return false
 	}
 	if !log.Amount.Abs().Equal(req.Amount) || log.Description != req.Description {
@@ -83,7 +87,7 @@ func lockBankAccountForUpdate(ctx context.Context, client *dbent.Client, userID 
 // queryLockedBankAccount 使用 SELECT FOR UPDATE 获取悲观锁，事务提交前其他扣费会等待。
 func queryLockedBankAccount(ctx context.Context, client *dbent.Client, userID int64) (bankAccountSnapshot, error) {
 	rows, err := client.QueryContext(ctx, `
-SELECT id, user_id, balance, frozen_amount, credit_limit, total_debt, version, status
+SELECT id, user_id, balance, frozen_amount, credit_limit, debt_principal, debt_interest, total_debt, version, status
 FROM users_bank_account
 WHERE user_id = $1
 FOR UPDATE
@@ -100,7 +104,8 @@ FOR UPDATE
 	}
 	var account bankAccountSnapshot
 	if err := rows.Scan(&account.ID, &account.UserID, &account.Balance, &account.FrozenAmount,
-		&account.CreditLimit, &account.TotalDebt, &account.Version, &account.Status); err != nil {
+		&account.CreditLimit, &account.DebtPrincipal, &account.DebtInterest,
+		&account.TotalDebt, &account.Version, &account.Status); err != nil {
 		return bankAccountSnapshot{}, fmt.Errorf("scan locked bank account: %w", err)
 	}
 	return account, rows.Err()
@@ -126,6 +131,8 @@ func updateBankAccount(ctx context.Context, client *dbent.Client, account bankAc
 	_, err := client.UserBankAccount.UpdateOneID(account.ID).
 		SetBalance(mutation.balanceAfter).
 		SetFrozenAmount(mutation.frozenAfter).
+		SetDebtPrincipal(mutation.debtPrincipalAfter).
+		SetDebtInterest(mutation.debtInterestAfter).
 		SetTotalDebt(mutation.debtAfter).
 		AddVersion(1).
 		SetUpdatedAt(time.Now()).
@@ -136,18 +143,19 @@ func updateBankAccount(ctx context.Context, client *dbent.Client, account bankAc
 	return nil
 }
 
-// createBankTransaction 在账户更新后追加不可变流水，作为后续审计的唯一来源。
+// createBankTransaction 在账户快照更新前先写入不可变流水，保证没有流水就不会变更余额。
 func createBankTransaction(
 	ctx context.Context,
 	client *dbent.Client,
 	req TransferFundsRequest,
 	account bankAccountSnapshot,
 	mutation bankMutation,
-) (*TransferFundsResult, error) {
+) (*dbent.TransactionLog, error) {
 	create := client.TransactionLog.Create().
 		SetUserID(req.UserID).
 		SetAccountID(account.ID).
 		SetTxType(req.Type).
+		SetBusinessModule(req.BusinessModule).
 		SetAmount(mutation.signedAmount).
 		SetBalanceBefore(account.Balance).
 		SetBalanceAfter(mutation.balanceAfter).
@@ -175,15 +183,27 @@ func createBankTransaction(
 	if err != nil {
 		return nil, fmt.Errorf("create bank transaction log: %w", err)
 	}
+	return log, nil
+}
+
+func bankTransferResultFromMutation(
+	req TransferFundsRequest,
+	account bankAccountSnapshot,
+	mutation bankMutation,
+	log *dbent.TransactionLog,
+) *TransferFundsResult {
 	return &TransferFundsResult{
-		TxID:        log.TxID,
-		UserID:      req.UserID,
-		AccountID:   account.ID,
-		Type:        req.Type,
-		Amount:      mutation.signedAmount,
-		Balance:     mutation.balanceAfter,
-		Frozen:      mutation.frozenAfter,
-		TotalDebt:   mutation.debtAfter,
-		CreditLimit: account.CreditLimit,
-	}, nil
+		TxID:          log.TxID,
+		UserID:        req.UserID,
+		AccountID:     account.ID,
+		Type:          req.Type,
+		Module:        req.BusinessModule,
+		Amount:        mutation.signedAmount,
+		Balance:       mutation.balanceAfter,
+		Frozen:        mutation.frozenAfter,
+		DebtPrincipal: mutation.debtPrincipalAfter,
+		DebtInterest:  mutation.debtInterestAfter,
+		TotalDebt:     mutation.debtAfter,
+		CreditLimit:   account.CreditLimit,
+	}
 }

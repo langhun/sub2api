@@ -26,9 +26,21 @@ func TestCalculateBankMutation_ConsumeUsesRemainingCredit(t *testing.T) {
 
 	require.NoError(t, err)
 	requireBankDecimal(t, "-7", got.signedAmount)
-	requireBankDecimal(t, "0", got.balanceAfter)
+	requireBankDecimal(t, "-4", got.balanceAfter)
 	requireBankDecimal(t, "0", got.frozenAfter)
 	requireBankDecimal(t, "8", got.debtAfter)
+	requireBankDecimal(t, "8", got.debtPrincipalAfter)
+}
+
+func TestCalculateBankMutation_DepositRepaysOverdraftPrincipal(t *testing.T) {
+	account := bankTestAccount("-4", "0", "10", "4")
+	got, err := calculateBankMutation(account, bankDec("6"), BankTxTypeDeposit)
+
+	require.NoError(t, err)
+	requireBankDecimal(t, "6", got.signedAmount)
+	requireBankDecimal(t, "2", got.balanceAfter)
+	requireBankDecimal(t, "0", got.debtPrincipalAfter)
+	requireBankDecimal(t, "0", got.debtAfter)
 }
 
 func TestCalculateBankMutation_ConsumeRejectsInsufficientFunds(t *testing.T) {
@@ -67,6 +79,7 @@ func TestCalculateBankMutation_LoanBorrowAndRepay(t *testing.T) {
 	requireBankDecimal(t, "5", borrowed.debtAfter)
 
 	account.Balance = borrowed.balanceAfter
+	account.DebtPrincipal = borrowed.debtPrincipalAfter
 	account.TotalDebt = borrowed.debtAfter
 	repaid, err := calculateBankMutation(account, bankDec("3"), BankTxTypeLoanRepay)
 
@@ -74,6 +87,18 @@ func TestCalculateBankMutation_LoanBorrowAndRepay(t *testing.T) {
 	requireBankDecimal(t, "-3", repaid.signedAmount)
 	requireBankDecimal(t, "3", repaid.balanceAfter)
 	requireBankDecimal(t, "2", repaid.debtAfter)
+}
+
+func TestCalculateBankMutation_LoanInterestIncreasesDebtOnly(t *testing.T) {
+	account := bankTestAccount("2", "0", "10", "1")
+	got, err := calculateBankMutation(account, bankDec("0.5"), BankTxTypeLoanInterest)
+
+	require.NoError(t, err)
+	requireBankDecimal(t, "-0.5", got.signedAmount)
+	requireBankDecimal(t, "2", got.balanceAfter)
+	requireBankDecimal(t, "1", got.debtPrincipalAfter)
+	requireBankDecimal(t, "0.5", got.debtInterestAfter)
+	requireBankDecimal(t, "1.5", got.debtAfter)
 }
 
 func TestCalculateBankMutation_LoanBorrowRejectsCreditLimitExceeded(t *testing.T) {
@@ -159,11 +184,12 @@ func TestBankTransactionMatchesRequestAcceptsSameSignedPayload(t *testing.T) {
 
 func bankTestAccount(balance, frozen, creditLimit, debt string) bankAccountSnapshot {
 	return bankAccountSnapshot{
-		Balance:      bankDec(balance),
-		FrozenAmount: bankDec(frozen),
-		CreditLimit:  bankDec(creditLimit),
-		TotalDebt:    bankDec(debt),
-		Status:       BankAccountStatusActive,
+		Balance:       bankDec(balance),
+		FrozenAmount:  bankDec(frozen),
+		CreditLimit:   bankDec(creditLimit),
+		DebtPrincipal: bankDec(debt),
+		TotalDebt:     bankDec(debt),
+		Status:        BankAccountStatusActive,
 	}
 }
 

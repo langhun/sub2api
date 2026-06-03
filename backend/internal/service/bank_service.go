@@ -136,10 +136,17 @@ func (s *BankService) transferFundsInTx(
 	if err != nil {
 		return nil, err
 	}
+	log, err := createBankTransaction(ctx, client, req, account, mutation)
+	if err != nil {
+		return nil, err
+	}
+	if err := createBankLedgerEntries(ctx, client, req, account, mutation, log); err != nil {
+		return nil, err
+	}
 	if err := updateBankAccount(ctx, client, account, mutation); err != nil {
 		return nil, err
 	}
-	return createBankTransaction(ctx, client, req, account, mutation)
+	return bankTransferResultFromMutation(req, account, mutation, log), nil
 }
 
 // isRetryableBankTxErr 识别 PostgreSQL 可重试的序列化失败和死锁错误。

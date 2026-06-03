@@ -15,7 +15,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const apiKeyAuthSnapshotVersion = 12 // v12: reload snapshots for bank account capacity precheck
+const apiKeyAuthSnapshotVersion = 13 // v13: reload bank debt principal/interest snapshots
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -365,6 +365,8 @@ func bankAccountViewToAuthSnapshot(view *BankAccountView) *APIKeyAuthBankAccount
 		Balance:       view.Balance.String(),
 		FrozenAmount:  view.FrozenAmount.String(),
 		CreditLimit:   view.CreditLimit.String(),
+		DebtPrincipal: view.DebtPrincipal.String(),
+		DebtInterest:  view.DebtInterest.String(),
 		TotalDebt:     view.TotalDebt.String(),
 		Status:        view.Status,
 		LegacyMissing: view.LegacyMissing,
@@ -380,6 +382,8 @@ func authSnapshotToBankAccountView(snapshot *APIKeyAuthBankAccountSnapshot) *Ban
 		Balance:       decimalFromAuthSnapshot(snapshot.Balance),
 		FrozenAmount:  decimalFromAuthSnapshot(snapshot.FrozenAmount),
 		CreditLimit:   decimalFromAuthSnapshot(snapshot.CreditLimit),
+		DebtPrincipal: decimalFromAuthSnapshot(snapshot.DebtPrincipal),
+		DebtInterest:  decimalFromAuthSnapshot(snapshot.DebtInterest),
 		TotalDebt:     decimalFromAuthSnapshot(snapshot.TotalDebt),
 		Status:        snapshot.Status,
 		LegacyMissing: snapshot.LegacyMissing,

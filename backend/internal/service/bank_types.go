@@ -11,14 +11,30 @@ import (
 
 // 银行流水类型与 migration 中 transactions_log.tx_type 约束保持一致。
 const (
-	BankTxTypeConsume    = "CONSUME"
-	BankTxTypeDeposit    = "DEPOSIT"
-	BankTxTypeLoanBorrow = "LOAN_BORROW"
-	BankTxTypeLoanRepay  = "LOAN_REPAY"
-	BankTxTypeLendInvest = "LEND_INVEST"
-	BankTxTypeLendProfit = "LEND_PROFIT"
-	BankTxTypeFreeze     = "FREEZE"
-	BankTxTypeUnfreeze   = "UNFREEZE"
+	BankTxTypeConsume      = "CONSUME"
+	BankTxTypeDeposit      = "DEPOSIT"
+	BankTxTypeWithdraw     = "WITHDRAW"
+	BankTxTypeTransferOut  = "TRANSFER_OUT"
+	BankTxTypeTransferIn   = "TRANSFER_IN"
+	BankTxTypeSlotBet      = "SLOT_BET"
+	BankTxTypeSlotWin      = "SLOT_WIN"
+	BankTxTypeLoanBorrow   = "LOAN_BORROW"
+	BankTxTypeLoanRepay    = "LOAN_REPAY"
+	BankTxTypeLoanInterest = "LOAN_INTEREST"
+	BankTxTypeLendInvest   = "LEND_INVEST"
+	BankTxTypeLendProfit   = "LEND_PROFIT"
+	BankTxTypeReward       = "REWARD"
+	BankTxTypeRefund       = "REFUND"
+	BankTxTypeFreeze       = "FREEZE"
+	BankTxTypeUnfreeze     = "UNFREEZE"
+
+	BankBusinessModuleAPIGateway   = "API_GATEWAY"
+	BankBusinessModulePayment      = "PAYMENT"
+	BankBusinessModuleTransfer     = "TRANSFER"
+	BankBusinessModuleGame         = "GAME"
+	BankBusinessModuleLending      = "LENDING"
+	BankBusinessModuleSystem       = "SYSTEM"
+	BankBusinessModuleFinancialHub = "FINANCIAL_HUB"
 
 	BankAccountStatusActive = "ACTIVE"
 	BankAccountStatusFrozen = "FROZEN"
@@ -48,6 +64,7 @@ type TransferFundsRequest struct {
 	UserID           int64
 	Amount           decimal.Decimal
 	Type             string
+	BusinessModule   string
 	Description      string
 	IdempotencyScope string
 	IdempotencyKey   string
@@ -59,16 +76,19 @@ type TransferFundsRequest struct {
 
 // TransferFundsResult 返回本次账本写入后的账户快照。
 type TransferFundsResult struct {
-	TxID        uuid.UUID
-	UserID      int64
-	AccountID   int64
-	Type        string
-	Amount      decimal.Decimal
-	Balance     decimal.Decimal
-	Frozen      decimal.Decimal
-	TotalDebt   decimal.Decimal
-	CreditLimit decimal.Decimal
-	Replayed    bool
+	TxID          uuid.UUID
+	UserID        int64
+	AccountID     int64
+	Type          string
+	Module        string
+	Amount        decimal.Decimal
+	Balance       decimal.Decimal
+	Frozen        decimal.Decimal
+	DebtPrincipal decimal.Decimal
+	DebtInterest  decimal.Decimal
+	TotalDebt     decimal.Decimal
+	CreditLimit   decimal.Decimal
+	Replayed      bool
 }
 
 // BankAccountView 是认证和风控层读取的银行账户快照，不承担资金写入职责。
@@ -77,6 +97,8 @@ type BankAccountView struct {
 	Balance       decimal.Decimal
 	FrozenAmount  decimal.Decimal
 	CreditLimit   decimal.Decimal
+	DebtPrincipal decimal.Decimal
+	DebtInterest  decimal.Decimal
 	TotalDebt     decimal.Decimal
 	Status        string
 	LegacyMissing bool
@@ -87,11 +109,15 @@ func (v *BankAccountView) AvailableCapacity() decimal.Decimal {
 	if v == nil {
 		return decimal.Zero
 	}
-	creditAvailable := v.CreditLimit.Sub(v.TotalDebt)
+	cashAvailable := v.Balance
+	if cashAvailable.IsNegative() {
+		cashAvailable = decimal.Zero
+	}
+	creditAvailable := v.CreditLimit.Sub(effectiveBankDebt(v.DebtPrincipal, v.DebtInterest, v.TotalDebt))
 	if creditAvailable.IsNegative() {
 		creditAvailable = decimal.Zero
 	}
-	return v.Balance.Add(creditAvailable)
+	return cashAvailable.Add(creditAvailable)
 }
 
 // CanConsume 判断账户是否允许继续进入 API 扣费链路。
@@ -107,22 +133,35 @@ func (v *BankAccountView) CanConsume(minimum decimal.Decimal) bool {
 
 // bankAccountSnapshot 是行级锁拿到的账户状态，只在事务内流转。
 type bankAccountSnapshot struct {
-	ID           int64
-	UserID       int64
-	Balance      decimal.Decimal
-	FrozenAmount decimal.Decimal
-	CreditLimit  decimal.Decimal
-	TotalDebt    decimal.Decimal
-	Version      int64
-	Status       string
+	ID            int64
+	UserID        int64
+	Balance       decimal.Decimal
+	FrozenAmount  decimal.Decimal
+	CreditLimit   decimal.Decimal
+	DebtPrincipal decimal.Decimal
+	DebtInterest  decimal.Decimal
+	TotalDebt     decimal.Decimal
+	Version       int64
+	Status        string
 }
 
 // bankMutation 描述一次资金操作后的新快照，避免在计算阶段写数据库。
 type bankMutation struct {
-	signedAmount decimal.Decimal
-	balanceAfter decimal.Decimal
-	frozenAfter  decimal.Decimal
-	debtAfter    decimal.Decimal
+	signedAmount       decimal.Decimal
+	balanceAfter       decimal.Decimal
+	frozenAfter        decimal.Decimal
+	debtPrincipalAfter decimal.Decimal
+	debtInterestAfter  decimal.Decimal
+	debtAfter          decimal.Decimal
+}
+
+// effectiveBankDebt 优先使用本金+利息作为真实负债，同时兼容只写入 total_debt 的旧快照。
+func effectiveBankDebt(principal, interest, total decimal.Decimal) decimal.Decimal {
+	combined := principal.Add(interest)
+	if !combined.IsZero() || total.IsZero() {
+		return combined
+	}
+	return total
 }
 
 // normalizeTransferFundsRequest 在入库前统一金额精度、流水类型和幂等参数。
@@ -134,6 +173,7 @@ func normalizeTransferFundsRequest(req TransferFundsRequest) (TransferFundsReque
 	if !isSupportedBankTxType(req.Type) {
 		return req, ErrBankInvalidType
 	}
+	req.BusinessModule = normalizeBankBusinessModule(req.BusinessModule, req.Type)
 	amount := req.Amount.RoundBank(18)
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return req, ErrBankInvalidAmount
@@ -173,8 +213,47 @@ func normalizeBankIdempotencyScope(scope string, userID int64) (string, error) {
 // isSupportedBankTxType 白名单化流水类型，防止任意字符串进入财务日志。
 func isSupportedBankTxType(txType string) bool {
 	switch txType {
-	case BankTxTypeConsume, BankTxTypeDeposit, BankTxTypeLoanBorrow, BankTxTypeLoanRepay,
-		BankTxTypeLendInvest, BankTxTypeLendProfit, BankTxTypeFreeze, BankTxTypeUnfreeze:
+	case BankTxTypeConsume, BankTxTypeDeposit, BankTxTypeWithdraw, BankTxTypeTransferOut,
+		BankTxTypeTransferIn, BankTxTypeSlotBet, BankTxTypeSlotWin, BankTxTypeLoanBorrow,
+		BankTxTypeLoanRepay, BankTxTypeLoanInterest, BankTxTypeLendInvest, BankTxTypeLendProfit,
+		BankTxTypeReward, BankTxTypeRefund, BankTxTypeFreeze, BankTxTypeUnfreeze:
+		return true
+	default:
+		return false
+	}
+}
+
+// normalizeBankBusinessModule 将业务入口归一到统一模块名，便于账单大厅和总账审计筛选。
+func normalizeBankBusinessModule(module string, txType string) string {
+	module = strings.ToUpper(strings.TrimSpace(module))
+	if isSupportedBankBusinessModule(module) {
+		return module
+	}
+	switch txType {
+	case BankTxTypeConsume:
+		return BankBusinessModuleAPIGateway
+	case BankTxTypeDeposit, BankTxTypeWithdraw, BankTxTypeRefund:
+		return BankBusinessModulePayment
+	case BankTxTypeTransferOut, BankTxTypeTransferIn:
+		return BankBusinessModuleTransfer
+	case BankTxTypeSlotBet, BankTxTypeSlotWin:
+		return BankBusinessModuleGame
+	case BankTxTypeLoanBorrow, BankTxTypeLoanRepay, BankTxTypeLoanInterest,
+		BankTxTypeLendInvest, BankTxTypeLendProfit:
+		return BankBusinessModuleLending
+	case BankTxTypeReward:
+		return BankBusinessModuleSystem
+	default:
+		return BankBusinessModuleFinancialHub
+	}
+}
+
+// isSupportedBankBusinessModule 白名单化业务模块，避免任意字符串污染财务审计维度。
+func isSupportedBankBusinessModule(module string) bool {
+	switch module {
+	case BankBusinessModuleAPIGateway, BankBusinessModulePayment, BankBusinessModuleTransfer,
+		BankBusinessModuleGame, BankBusinessModuleLending, BankBusinessModuleSystem,
+		BankBusinessModuleFinancialHub:
 		return true
 	default:
 		return false

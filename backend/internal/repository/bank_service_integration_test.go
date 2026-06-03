@@ -42,10 +42,13 @@ func TestBankServiceTransferFunds_IdempotentConsumeWithCredit(t *testing.T) {
 
 	require.False(t, first.Replayed)
 	require.True(t, replay.Replayed)
-	require.True(t, decimal.Zero.Equal(first.Balance))
+	require.True(t, decimal.NewFromInt(-4).Equal(first.Balance))
 	require.True(t, decimal.NewFromInt(4).Equal(first.TotalDebt))
+	require.True(t, decimal.NewFromInt(4).Equal(first.DebtPrincipal))
 	require.Equal(t, first.TxID, replay.TxID)
 	requireBankLogCount(t, user.ID, 1)
+	requireBankLedgerEntryCount(t, first.TxID.String(), 2)
+	requireBankLedgerBalanced(t, first.TxID.String())
 }
 
 func TestBankServiceTransferFunds_ConcurrentConsumeNeverOverdrafts(t *testing.T) {
@@ -94,6 +97,7 @@ func TestBankServiceTransferFunds_ConcurrentConsumeNeverOverdrafts(t *testing.T)
 	require.Equal(t, 10, insufficientCount)
 	requireBankAccountSnapshot(t, user.ID, "0", "0")
 	requireBankLogCount(t, user.ID, 10)
+	requireBankLedgerEntryCountForUser(t, user.ID, 20)
 }
 
 func mustCreateBankServiceUser(t *testing.T, label string, balance float64) *service.User {
@@ -131,4 +135,44 @@ WHERE user_id = $1
 `, userID).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, want, count)
+}
+
+func requireBankLedgerEntryCount(t *testing.T, txID string, want int) {
+	t.Helper()
+	var count int
+	err := integrationDB.QueryRowContext(context.Background(), `
+SELECT COUNT(*)
+FROM ledger_entries
+WHERE tx_id = $1
+`, txID).Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, want, count)
+}
+
+func requireBankLedgerEntryCountForUser(t *testing.T, userID int64, want int) {
+	t.Helper()
+	var count int
+	err := integrationDB.QueryRowContext(context.Background(), `
+SELECT COUNT(*)
+FROM ledger_entries
+WHERE transaction_log_id IN (
+    SELECT id
+    FROM transactions_log
+    WHERE user_id = $1
+)
+`, userID).Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, want, count)
+}
+
+func requireBankLedgerBalanced(t *testing.T, txID string) {
+	t.Helper()
+	var balanced bool
+	err := integrationDB.QueryRowContext(context.Background(), `
+SELECT balanced
+FROM ledger_transaction_balances
+WHERE tx_id = $1
+`, txID).Scan(&balanced)
+	require.NoError(t, err)
+	require.True(t, balanced)
 }
