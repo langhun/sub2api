@@ -160,6 +160,21 @@ func (s *UserRepoSuite) TestUpdate() {
 	s.Require().Equal("updated", updated.Username)
 }
 
+func (s *UserRepoSuite) TestUpdateDoesNotRewriteLegacyBalance() {
+	user := s.mustCreateUser(&service.User{Email: "update-balance-ignored@test.com", Username: "original", Balance: 12})
+
+	got, err := s.repo.GetByID(s.ctx, user.ID)
+	s.Require().NoError(err)
+	got.Username = "updated"
+	got.Balance = 99
+	s.Require().NoError(s.repo.Update(s.ctx, got), "Update")
+
+	updated, err := s.repo.GetByID(s.ctx, user.ID)
+	s.Require().NoError(err, "GetByID after update")
+	s.Require().Equal("updated", updated.Username)
+	s.Require().Equal(12.0, updated.Balance)
+}
+
 func (s *UserRepoSuite) TestUpdateIgnoresNoRowsFromConflictingEmailIdentityUpsert() {
 	user := s.mustCreateUser(&service.User{Email: "update-existing-identity@test.com", Username: "original"})
 
