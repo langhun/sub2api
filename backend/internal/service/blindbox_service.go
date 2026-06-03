@@ -12,6 +12,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -273,24 +274,42 @@ func (s *BlindBoxService) Draw(ctx context.Context, userID int64, streakDays int
 		rewardValue = math.Round(rewardValue*100) / 100
 	}
 
-	rewardDetail, err := s.applyReward(ctx, userID, selected, rewardValue)
+	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("apply reward: %w", err)
+		return nil, fmt.Errorf("begin blindbox transaction: %w", err)
 	}
+	defer func() { _ = tx.Rollback() }()
 
-	_, err = s.entClient.CheckinBlindboxRecord.Create().
+	txCtx := dbent.NewTxContext(ctx, tx)
+	record, err := tx.Client().CheckinBlindboxRecord.Create().
 		SetUserID(userID).
 		SetPrizeItemID(selected.ID).
 		SetPrizeName(selected.Name).
 		SetRarity(selected.Rarity).
 		SetRewardType(selected.RewardType).
 		SetRewardValue(rewardValue).
-		SetRewardDetail(rewardDetail).
 		SetStreakDays(streakDays).
-		Save(ctx)
+		Save(txCtx)
 	if err != nil {
 		return nil, fmt.Errorf("save blindbox record: %w", err)
 	}
+
+	rewardDetail, err := s.applyReward(txCtx, tx.Client(), userID, selected, rewardValue, record.ID)
+	if err != nil {
+		return nil, fmt.Errorf("apply reward: %w", err)
+	}
+	if rewardDetail != "" {
+		if err := tx.Client().CheckinBlindboxRecord.UpdateOneID(record.ID).
+			SetRewardDetail(rewardDetail).
+			Exec(txCtx); err != nil {
+			return nil, fmt.Errorf("update blindbox reward detail: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit blindbox transaction: %w", err)
+	}
+
+	s.invalidateBalanceCache(userID)
 
 	return &BlindboxResult{
 		PrizeName:        selected.Name,
@@ -302,17 +321,37 @@ func (s *BlindBoxService) Draw(ctx context.Context, userID int64, streakDays int
 	}, nil
 }
 
-func (s *BlindBoxService) applyReward(ctx context.Context, userID int64, item *dbent.CheckinPrizeItem, value float64) (string, error) {
+func (s *BlindBoxService) applyReward(ctx context.Context, client *dbent.Client, userID int64, item *dbent.CheckinPrizeItem, value float64, recordID int64) (string, error) {
 	switch item.RewardType {
 	case BlindboxRewardBalance:
 		if value > 0 {
-			if err := s.userRepo.UpdateBalance(ctx, userID, value); err != nil {
-				return "", fmt.Errorf("update balance: %w", err)
+			amount := decimal.NewFromFloat(value).RoundBank(18)
+			if !amount.IsZero() {
+				_, err := NewBankService(s.entClient).ApplyTransferInTx(ctx, client, TransferFundsRequest{
+					UserID:           userID,
+					Amount:           amount,
+					Type:             BankTxTypeReward,
+					BusinessModule:   BankBusinessModuleSystem,
+					Description:      fmt.Sprintf("签到盲盒奖励：%s", item.Name),
+					IdempotencyScope: "checkin_blindbox:reward",
+					IdempotencyKey:   fmt.Sprintf("blindbox:%d", recordID),
+					ReferenceType:    "checkin_blindbox_record",
+					ReferenceID:      fmt.Sprintf("%d", recordID),
+					Metadata: map[string]any{
+						"prize_item_id": item.ID,
+						"prize_name":    item.Name,
+						"rarity":        item.Rarity,
+						"reward_type":   item.RewardType,
+					},
+				})
+				if err != nil {
+					return "", fmt.Errorf("apply bank reward: %w", err)
+				}
 			}
 			s.createAuditRecord(ctx, userID, value, item)
 		}
 	case BlindboxRewardConcurrency:
-		_, err := s.entClient.User.UpdateOneID(userID).
+		_, err := client.User.UpdateOneID(userID).
 			AddConcurrency(int(value)).
 			Save(ctx)
 		if err != nil {
@@ -351,15 +390,12 @@ func (s *BlindBoxService) applyReward(ctx context.Context, userID int64, item *d
 			return "", fmt.Errorf("create invitation redeem code: %w", createErr)
 		}
 		s.createAuditRecord(ctx, userID, 0, item)
-		if s.billingCache != nil {
-			go func() {
-				cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				_ = s.billingCache.InvalidateUserBalance(cacheCtx, userID)
-			}()
-		}
 		return code, nil
 	}
+	return "", nil
+}
+
+func (s *BlindBoxService) invalidateBalanceCache(userID int64) {
 	if s.billingCache != nil {
 		go func() {
 			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -367,7 +403,6 @@ func (s *BlindBoxService) applyReward(ctx context.Context, userID int64, item *d
 			_ = s.billingCache.InvalidateUserBalance(cacheCtx, userID)
 		}()
 	}
-	return "", nil
 }
 
 func (s *BlindBoxService) createAuditRecord(ctx context.Context, userID int64, value float64, item *dbent.CheckinPrizeItem) {
