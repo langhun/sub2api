@@ -618,6 +618,7 @@ func ProvideAntigravityQuotaFetcher(proxyRepo ProxyRepository, proxyPool *AutoFa
 // ProvideBillingCacheService wires BillingCacheService with its RPM dependencies.
 func ProvideBillingCacheService(
 	cache BillingCache,
+	entClient *dbent.Client,
 	userRepo UserRepository,
 	subRepo UserSubscriptionRepository,
 	apiKeyRepo APIKeyRepository,
@@ -626,7 +627,9 @@ func ProvideBillingCacheService(
 	cfg *config.Config,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
 ) *BillingCacheService {
-	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
+	svc := NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
+	svc.SetBankAccountLoader(NewBankService(entClient))
+	return svc
 }
 
 // ProvideAPIKeyService wires APIKeyService and connects rate-limit cache invalidation.

@@ -97,6 +97,10 @@ type apiKeyRateLimitLoader interface {
 	GetRateLimitData(ctx context.Context, keyID int64) (*APIKeyRateLimitData, error)
 }
 
+type bankAccountViewLoader interface {
+	GetAccountView(ctx context.Context, userID int64) (*BankAccountView, error)
+}
+
 // BillingCacheService 计费缓存服务
 // 负责余额和订阅数据的缓存管理，提供高性能的计费资格检查
 type BillingCacheService struct {
@@ -109,6 +113,7 @@ type BillingCacheService struct {
 	cfg                   *config.Config
 	circuitBreaker        *billingCircuitBreaker
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	bankAccountLoader     bankAccountViewLoader
 
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
@@ -148,6 +153,14 @@ func NewBillingCacheService(
 	svc.circuitBreaker = newBillingCircuitBreaker(cfg.Billing.CircuitBreaker)
 	svc.startCacheWriteWorkers()
 	return svc
+}
+
+// SetBankAccountLoader 注入银行账户快照加载器，用于认证缓存缺失银行信息时补齐权威账户视图。
+func (s *BillingCacheService) SetBankAccountLoader(loader bankAccountViewLoader) {
+	if s == nil {
+		return
+	}
+	s.bankAccountLoader = loader
 }
 
 // Stop 关闭缓存写入工作池
@@ -835,15 +848,21 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, user 
 	if user == nil || user.ID <= 0 {
 		return ErrBillingServiceUnavailable.WithCause(ErrBankInvalidUser)
 	}
-	if user.BankAccount == nil {
-		err := ErrBankAccountNotFound
-		if s.circuitBreaker != nil {
-			s.circuitBreaker.OnFailure(err)
+	account := user.BankAccount
+	if account == nil {
+		var err error
+		account, err = s.loadBankAccountForEligibility(ctx, user.ID)
+		if err != nil {
+			if s.circuitBreaker != nil {
+				s.circuitBreaker.OnFailure(err)
+			}
+			logger.LegacyPrintf("service.billing_cache", "ALERT: billing bank account missing for user %d: %v", user.ID, err)
+			return ErrBillingServiceUnavailable.WithCause(err)
 		}
-		logger.LegacyPrintf("service.billing_cache", "ALERT: billing bank account missing for user %d", user.ID)
-		return ErrBillingServiceUnavailable.WithCause(err)
+		user.BankAccount = account
+		user.Balance = account.Balance.InexactFloat64()
 	}
-	if !user.BankAccount.CanConsume(decimal.Zero) {
+	if !account.CanConsume(decimal.Zero) {
 		if s.circuitBreaker != nil {
 			s.circuitBreaker.OnSuccess()
 		}
@@ -853,6 +872,13 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, user 
 		s.circuitBreaker.OnSuccess()
 	}
 	return nil
+}
+
+func (s *BillingCacheService) loadBankAccountForEligibility(ctx context.Context, userID int64) (*BankAccountView, error) {
+	if s == nil || s.bankAccountLoader == nil {
+		return nil, ErrBankAccountNotFound
+	}
+	return s.bankAccountLoader.GetAccountView(ctx, userID)
 }
 
 // checkSubscriptionEligibility 检查订阅模式资格

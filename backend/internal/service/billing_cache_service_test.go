@@ -97,6 +97,17 @@ func (b *billingCacheWorkerStub) BatchGetUserPlatformQuotaCache(ctx context.Cont
 	return nil, nil
 }
 
+type billingBankAccountLoaderStub struct {
+	view  *BankAccountView
+	err   error
+	calls int
+}
+
+func (s *billingBankAccountLoaderStub) GetAccountView(ctx context.Context, userID int64) (*BankAccountView, error) {
+	s.calls++
+	return s.view, s.err
+}
+
 func TestBillingCacheServiceQueueHighLoad(t *testing.T) {
 	cache := &billingCacheWorkerStub{}
 	svc := NewBillingCacheService(cache, nil, nil, nil, nil, nil, &config.Config{}, nil)
@@ -156,4 +167,25 @@ func TestBillingCacheServiceCheckBillingEligibilityUsesBankAccount(t *testing.T)
 		},
 	}, nil, nil, nil, "openai")
 	require.NoError(t, err)
+}
+
+func TestBillingCacheServiceCheckBillingEligibilityLoadsMissingBankAccount(t *testing.T) {
+	loader := &billingBankAccountLoaderStub{
+		view: &BankAccountView{
+			Balance:     decimal.Zero,
+			CreditLimit: decimal.NewFromInt(10),
+			Status:      BankAccountStatusActive,
+		},
+	}
+	svc := NewBillingCacheService(nil, nil, nil, nil, nil, nil, &config.Config{}, nil)
+	svc.SetBankAccountLoader(loader)
+	t.Cleanup(svc.Stop)
+
+	user := &User{ID: 42, Balance: 100}
+	err := svc.CheckBillingEligibility(context.Background(), user, nil, nil, nil, "openai")
+
+	require.NoError(t, err)
+	require.Equal(t, 1, loader.calls)
+	require.NotNil(t, user.BankAccount)
+	require.Equal(t, 0.0, user.Balance)
 }
