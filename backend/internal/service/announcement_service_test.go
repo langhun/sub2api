@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
 type announcementRepoStub struct {
-	item *Announcement
+	item   *Announcement
+	active []Announcement
 }
 
 func (s *announcementRepoStub) Create(_ context.Context, a *Announcement) error {
@@ -38,7 +40,32 @@ func (*announcementRepoStub) List(context.Context, pagination.PaginationParams, 
 	return nil, nil, nil
 }
 
-func (*announcementRepoStub) ListActive(context.Context, time.Time) ([]Announcement, error) {
+func (s *announcementRepoStub) ListActive(context.Context, time.Time) ([]Announcement, error) {
+	return s.active, nil
+}
+
+type announcementUserRepoStub struct {
+	UserRepository
+	user *User
+}
+
+func (s *announcementUserRepoStub) GetByID(context.Context, int64) (*User, error) {
+	return s.user, nil
+}
+
+type announcementReadRepoStub struct {
+	AnnouncementReadRepository
+}
+
+func (*announcementReadRepoStub) GetReadMapByUser(context.Context, int64, []int64) (map[int64]time.Time, error) {
+	return map[int64]time.Time{}, nil
+}
+
+type announcementUserSubRepoStub struct {
+	UserSubscriptionRepository
+}
+
+func (*announcementUserSubRepoStub) ListActiveByUserID(context.Context, int64) ([]UserSubscription, error) {
 	return nil, nil
 }
 
@@ -78,4 +105,47 @@ func TestAnnouncementServiceUpdateRejectsEqualStartEndTimes(t *testing.T) {
 		EndsAt:   &endsAt,
 	})
 	require.ErrorIs(t, err, ErrAnnouncementInvalidSchedule)
+}
+
+func TestAnnouncementServiceListForUserUsesBankBalanceForTargeting(t *testing.T) {
+	repo := &announcementRepoStub{
+		active: []Announcement{
+			{
+				ID:         1,
+				Title:      "balance targeted",
+				Content:    "content",
+				Status:     AnnouncementStatusActive,
+				NotifyMode: AnnouncementNotifyModePopup,
+				Targeting: AnnouncementTargeting{
+					AnyOf: []AnnouncementConditionGroup{
+						{
+							AllOf: []AnnouncementCondition{
+								{
+									Type:     AnnouncementConditionTypeBalance,
+									Operator: AnnouncementOperatorGTE,
+									Value:    50,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	userRepo := &announcementUserRepoStub{
+		user: &User{
+			ID:      1,
+			Balance: 100,
+			BankAccount: &BankAccountView{
+				Balance: decimal.Zero,
+				Status:  BankAccountStatusActive,
+			},
+		},
+	}
+	svc := NewAnnouncementService(repo, &announcementReadRepoStub{}, userRepo, &announcementUserSubRepoStub{})
+
+	items, err := svc.ListForUser(context.Background(), 1, false)
+
+	require.NoError(t, err)
+	require.Empty(t, items)
 }

@@ -116,7 +116,10 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id int64) (*service.User, error) {
-	m, err := r.client.User.Query().Where(dbuser.IDEQ(id)).Only(ctx)
+	m, err := r.client.User.Query().
+		Where(dbuser.IDEQ(id)).
+		WithBankAccount().
+		Only(ctx)
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrUserNotFound, nil)
 	}
@@ -135,6 +138,7 @@ func (r *userRepository) GetByID(ctx context.Context, id int64) (*service.User, 
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*service.User, error) {
 	matches, err := r.client.User.Query().
 		Where(userEmailLookupPredicate(email)).
+		WithBankAccount().
 		Order(dbent.Asc(dbuser.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -449,6 +453,7 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 	}
 
 	usersQuery := q.
+		WithBankAccount().
 		Offset(params.Offset()).
 		Limit(params.Limit())
 	for _, order := range userListOrder(params) {

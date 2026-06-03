@@ -243,7 +243,7 @@ func (s *AnnouncementService) ListForUser(ctx context.Context, userID int64, unr
 		if !a.IsActiveAt(now) {
 			continue
 		}
-		if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+		if !a.Targeting.Matches(announcementTargetBalance(user), activeGroupIDs) {
 			continue
 		}
 		visible = append(visible, a)
@@ -315,7 +315,7 @@ func (s *AnnouncementService) MarkRead(ctx context.Context, userID, announcement
 		activeGroupIDs[activeSubs[i].GroupID] = struct{}{}
 	}
 
-	if !a.Targeting.Matches(user.Balance, activeGroupIDs) {
+	if !a.Targeting.Matches(announcementTargetBalance(user), activeGroupIDs) {
 		return ErrAnnouncementNotFound
 	}
 
@@ -378,13 +378,23 @@ func (s *AnnouncementService) ListUserReadStatus(
 			UserID:   u.ID,
 			Email:    u.Email,
 			Username: u.Username,
-			Balance:  u.Balance,
-			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(u.Balance, activeGroupIDs),
+			Balance:  announcementTargetBalance(&u),
+			Eligible: domain.AnnouncementTargeting(ann.Targeting).Matches(announcementTargetBalance(&u), activeGroupIDs),
 			ReadAt:   ptr,
 		})
 	}
 
 	return out, page, nil
+}
+
+func announcementTargetBalance(user *User) float64 {
+	if user == nil {
+		return 0
+	}
+	if user.BankAccount != nil {
+		return user.BankAccount.Balance.InexactFloat64()
+	}
+	return 0
 }
 
 func isValidAnnouncementStatus(status string) bool {
