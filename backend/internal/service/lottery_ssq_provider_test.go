@@ -57,7 +57,7 @@ func TestSSQProviderGetCurrentIssue(t *testing.T) {
 			"state": 0,
 			"message": "ok",
 			"result": [{
-				"code": "2026065",
+				"code": "2099001",
 				"detailsLink": "/c/2099/06/09/demo.shtml",
 				"date": "2099-06-09(Tue)",
 				"red": "01,02,03,04,05,06",
@@ -71,7 +71,7 @@ func TestSSQProviderGetCurrentIssue(t *testing.T) {
 	issue, err := provider.GetCurrentIssue(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, LotteryTypeSSQ, issue.LotteryType)
-	require.Equal(t, "2026065", issue.IssueNo)
+	require.Equal(t, "2099002", issue.IssueNo)
 	require.Equal(t, lotteryIssueStatusPending, issue.Status)
 	require.Equal(t, ssqProviderName, issue.Source)
 	require.Equal(t, lotteryOpenHour, issue.OpenTime.Hour())

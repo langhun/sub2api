@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -76,13 +77,18 @@ func (p *SSQProvider) GetCurrentIssue(ctx context.Context) (*Issue, error) {
 	if err != nil {
 		return nil, err
 	}
-	openTime, err := parseSSQOpenTime(notice.Date)
+	latestOpenTime, err := parseSSQOpenTime(notice.Date)
+	if err != nil {
+		return nil, err
+	}
+	openTime := nextSSQDrawTime(latestOpenTime)
+	currentIssueNo, err := nextSSQIssueNo(notice.Code, openTime)
 	if err != nil {
 		return nil, err
 	}
 	return &Issue{
 		LotteryType: LotteryTypeSSQ,
-		IssueNo:     strings.TrimSpace(notice.Code),
+		IssueNo:     currentIssueNo,
 		OpenTime:    openTime,
 		Status:      ssqIssueStatus(openTime, timezone.Now()),
 		Source:      p.Name(),
@@ -189,4 +195,47 @@ func ssqIssueStatus(openTime, now time.Time) string {
 		return lotteryIssueStatusPending
 	}
 	return lotteryIssueStatusOpened
+}
+
+func nextSSQIssueNo(latestIssue string, nextOpenTime time.Time) (string, error) {
+	latestIssue = strings.TrimSpace(latestIssue)
+	if len(latestIssue) < 5 {
+		return "", ErrLotteryDataInvalid
+	}
+	issueYear, err := strconv.Atoi(latestIssue[:4])
+	if err != nil {
+		return "", ErrLotteryDataInvalid.WithCause(err)
+	}
+	if issueYear != nextOpenTime.In(timezone.Location()).Year() {
+		return fmt.Sprintf("%d001", nextOpenTime.In(timezone.Location()).Year()), nil
+	}
+	value, err := strconv.Atoi(latestIssue)
+	if err != nil {
+		return "", ErrLotteryDataInvalid.WithCause(err)
+	}
+	return fmt.Sprintf("%0*d", len(latestIssue), value+1), nil
+}
+
+func nextSSQDrawTime(after time.Time) time.Time {
+	loc := timezone.Location()
+	candidate := after.In(loc)
+	candidate = time.Date(candidate.Year(), candidate.Month(), candidate.Day(), lotteryOpenHour, lotteryOpenMinute, 0, 0, loc)
+	if !candidate.After(after.In(loc)) {
+		candidate = candidate.AddDate(0, 0, 1)
+		candidate = time.Date(candidate.Year(), candidate.Month(), candidate.Day(), lotteryOpenHour, lotteryOpenMinute, 0, 0, loc)
+	}
+	for !isSSQDrawWeekday(candidate.Weekday()) {
+		candidate = candidate.AddDate(0, 0, 1)
+		candidate = time.Date(candidate.Year(), candidate.Month(), candidate.Day(), lotteryOpenHour, lotteryOpenMinute, 0, 0, loc)
+	}
+	return candidate
+}
+
+func isSSQDrawWeekday(day time.Weekday) bool {
+	switch day {
+	case time.Tuesday, time.Thursday, time.Sunday:
+		return true
+	default:
+		return false
+	}
 }

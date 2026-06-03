@@ -4,27 +4,23 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"net/http"
 	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/shopspring/decimal"
-)
-
-var (
-	ErrLotteryBettingNotReady = infraerrors.New(http.StatusNotImplemented, "LOTTERY_BETTING_NOT_READY", "lottery betting flow will be implemented in the next phase")
-	ErrLotteryOrdersNotReady  = infraerrors.New(http.StatusNotImplemented, "LOTTERY_ORDERS_NOT_READY", "lottery order query will be implemented in the next phase")
 )
 
 type LotteryJackpotStore interface {
 	Deposit(ctx context.Context, lotteryType string, amount decimal.Decimal) error
 	Withdraw(ctx context.Context, lotteryType string, amount decimal.Decimal) error
 	GetBalance(ctx context.Context, lotteryType string) (decimal.Decimal, error)
+	depositInTx(ctx context.Context, client lotterySQLClient, lotteryType string, amount decimal.Decimal) error
 }
 
 type LotteryBetInput struct {
+	UserID         int64    `json:"user_id"`
 	LotteryType    string   `json:"lottery_type"`
 	IssueNo        string   `json:"issue_no"`
 	RedBalls       []string `json:"red_balls"`
@@ -40,14 +36,13 @@ type LotteryBetResult struct {
 	OrderIDs    []int64         `json:"order_ids"`
 	Cost        decimal.Decimal `json:"cost"`
 	Status      string          `json:"status"`
+	Replayed    bool            `json:"replayed"`
 }
 
 type LotteryOrderQuery struct {
 	UserID      int64  `json:"user_id"`
 	LotteryType string `json:"lottery_type"`
 	IssueNo     string `json:"issue_no"`
-	Page        int    `json:"page"`
-	PageSize    int    `json:"page_size"`
 }
 
 type LotteryOrderView struct {
@@ -106,28 +101,34 @@ func DefaultLotteryProviders() (map[string]LotteryProvider, error) {
 }
 
 func (s *LotteryService) CreateBet(ctx context.Context, input LotteryBetInput) (*LotteryBetResult, error) {
-	_ = ctx
-	_ = input
-	return nil, ErrLotteryBettingNotReady
+	return s.createBet(ctx, input)
 }
 
 func (s *LotteryService) GetCurrentIssue(ctx context.Context, lotteryType string) (*Issue, error) {
+	if strings.TrimSpace(lotteryType) == "" {
+		lotteryType = LotteryTypeSSQ
+	}
 	provider, err := s.providerByType(lotteryType)
 	if err != nil {
 		return nil, err
 	}
-	return provider.GetCurrentIssue(ctx)
+	issue, err := provider.GetCurrentIssue(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return decorateLotteryIssue(issue, timezone.Now()), nil
 }
 
 func (s *LotteryService) GetMyOrders(ctx context.Context, query LotteryOrderQuery) ([]LotteryOrderView, error) {
-	_ = ctx
-	_ = query
-	return nil, ErrLotteryOrdersNotReady
+	return s.getMyOrders(ctx, query)
 }
 
 func (s *LotteryService) GetJackpot(ctx context.Context, lotteryType string) (*LotteryJackpotView, error) {
 	if s == nil || s.jackpotService == nil {
 		return nil, ErrLotteryJackpotUnavailable
+	}
+	if strings.TrimSpace(lotteryType) == "" {
+		lotteryType = LotteryTypeSSQ
 	}
 	normalizedType, err := normalizeLotteryType(lotteryType)
 	if err != nil {

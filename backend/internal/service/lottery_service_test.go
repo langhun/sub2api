@@ -7,6 +7,7 @@ import (
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
@@ -64,14 +65,26 @@ func (s *lotteryJackpotStoreStub) GetBalance(ctx context.Context, lotteryType st
 	return s.balance, nil
 }
 
+func (s *lotteryJackpotStoreStub) depositInTx(ctx context.Context, client lotterySQLClient, lotteryType string, amount decimal.Decimal) error {
+	_ = ctx
+	_ = client
+	_ = lotteryType
+	if s.err != nil {
+		return s.err
+	}
+	s.balance = s.balance.Add(amount)
+	return nil
+}
+
 func TestLotteryServiceGetCurrentIssueUsesProvider(t *testing.T) {
-	now := time.Date(2026, 6, 9, lotteryOpenHour, lotteryOpenMinute, 0, 0, time.UTC)
+	require.NoError(t, timezone.Init("UTC"))
+	now := time.Date(2099, 6, 9, lotteryOpenHour, lotteryOpenMinute, 0, 0, time.UTC)
 	svc := NewLotteryService(nil, nil, nil, nil, nil, map[string]LotteryProvider{
 		LotteryTypeSSQ: &lotteryProviderStub{
 			name: "fucai",
 			currentIssue: &Issue{
 				LotteryType: LotteryTypeSSQ,
-				IssueNo:     "2026065",
+				IssueNo:     "2099001",
 				OpenTime:    now,
 				Status:      lotteryIssueStatusPending,
 				Source:      "fucai",
@@ -81,9 +94,11 @@ func TestLotteryServiceGetCurrentIssueUsesProvider(t *testing.T) {
 
 	issue, err := svc.GetCurrentIssue(context.Background(), "SSQ")
 	require.NoError(t, err)
-	require.Equal(t, "2026065", issue.IssueNo)
+	require.Equal(t, "2099001", issue.IssueNo)
 	require.Equal(t, LotteryTypeSSQ, issue.LotteryType)
 	require.Equal(t, "fucai", issue.Source)
+	require.Equal(t, now.Add(-lotteryCutoffLead), issue.CutoffTime)
+	require.False(t, issue.IsClosed)
 }
 
 func TestLotteryServiceGetCurrentIssueRejectsUnknownProvider(t *testing.T) {
@@ -115,14 +130,24 @@ func TestLotteryServiceGetJackpotReturnsNotFound(t *testing.T) {
 	require.True(t, errors.Is(err, ErrLotteryJackpotNotFound))
 }
 
-func TestLotteryServiceSkeletonMethodsStayDeferred(t *testing.T) {
-	svc := NewLotteryService(nil, nil, nil, nil, nil, nil)
+func TestLotteryServiceCreateBetRejectsInvalidPayload(t *testing.T) {
+	svc := NewLotteryService(nil, nil, nil, nil, &lotteryJackpotStoreStub{}, map[string]LotteryProvider{
+		LotteryTypeSSQ: &lotteryProviderStub{name: "fucai"},
+	})
 
-	_, err := svc.CreateBet(context.Background(), LotteryBetInput{})
+	_, err := svc.CreateBet(context.Background(), LotteryBetInput{
+		UserID:   1,
+		RedBalls: []string{"01", "02"},
+		BlueBall: "03",
+	})
 	require.Error(t, err)
-	require.Equal(t, "LOTTERY_BETTING_NOT_READY", infraerrors.Reason(err))
+	require.Equal(t, "LOTTERY_NUMBERS_INVALID", infraerrors.Reason(err))
+}
 
-	_, err = svc.GetMyOrders(context.Background(), LotteryOrderQuery{})
+func TestLotteryServiceGetMyOrdersRejectsInvalidQuery(t *testing.T) {
+	svc := NewLotteryService(nil, nil, nil, nil, &lotteryJackpotStoreStub{}, nil)
+
+	_, err := svc.GetMyOrders(context.Background(), LotteryOrderQuery{})
 	require.Error(t, err)
-	require.Equal(t, "LOTTERY_ORDERS_NOT_READY", infraerrors.Reason(err))
+	require.Equal(t, "LOTTERY_ORDER_QUERY_INVALID", infraerrors.Reason(err))
 }

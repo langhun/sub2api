@@ -22,6 +22,7 @@ const (
 
 	lotteryOpenHour   = 21
 	lotteryOpenMinute = 15
+	lotteryCutoffLead = 10 * time.Minute
 )
 
 var (
@@ -30,12 +31,21 @@ var (
 	ErrLotteryProviderUnavailable = infraerrors.ServiceUnavailable("LOTTERY_PROVIDER_UNAVAILABLE", "lottery provider unavailable")
 	ErrLotteryJackpotUnavailable  = infraerrors.InternalServer("LOTTERY_JACKPOT_UNAVAILABLE", "lottery jackpot service is unavailable")
 	ErrLotteryDataInvalid         = infraerrors.InternalServer("LOTTERY_DATA_INVALID", "lottery provider returned invalid data")
+	ErrLotteryIssueClosed         = infraerrors.Forbidden("LOTTERY_ISSUE_CLOSED", "lottery betting is closed for this issue")
+	ErrLotteryIssueMismatch       = infraerrors.BadRequest("LOTTERY_ISSUE_MISMATCH", "lottery issue does not match current issue")
+	ErrLotteryBetLimitExceeded    = infraerrors.BadRequest("LOTTERY_BET_LIMIT_EXCEEDED", "lottery bet limit exceeded for this issue")
+	ErrLotteryBetCountInvalid     = infraerrors.BadRequest("LOTTERY_BET_COUNT_INVALID", "lottery MVP currently supports one bet per request")
+	ErrLotteryOrderQueryInvalid   = infraerrors.BadRequest("LOTTERY_ORDER_QUERY_INVALID", "lottery order query is invalid")
+	ErrLotteryOrderReplayMissing  = infraerrors.InternalServer("LOTTERY_ORDER_REPLAY_MISSING", "lottery order replay state is inconsistent")
+	ErrLotteryNumbersInvalid      = infraerrors.BadRequest("LOTTERY_NUMBERS_INVALID", "lottery numbers are invalid")
 )
 
 type Issue struct {
 	LotteryType string    `json:"lottery_type"`
 	IssueNo     string    `json:"issue_no"`
 	OpenTime    time.Time `json:"open_time"`
+	CutoffTime  time.Time `json:"cutoff_time"`
+	IsClosed    bool      `json:"is_closed"`
 	Status      string    `json:"status"`
 	Source      string    `json:"source"`
 }
@@ -130,4 +140,21 @@ func lotteryDrawTimeFromDate(drawDate time.Time) time.Time {
 	loc := timezone.Location()
 	localDate := drawDate.In(loc)
 	return time.Date(localDate.Year(), localDate.Month(), localDate.Day(), lotteryOpenHour, lotteryOpenMinute, 0, 0, loc)
+}
+
+func decorateLotteryIssue(issue *Issue, now time.Time) *Issue {
+	if issue == nil {
+		return nil
+	}
+	copied := *issue
+	copied.OpenTime = copied.OpenTime.In(timezone.Location())
+	copied.CutoffTime = copied.OpenTime.Add(-lotteryCutoffLead)
+	copied.IsClosed = !now.Before(copied.CutoffTime)
+	switch {
+	case now.Before(copied.OpenTime):
+		copied.Status = lotteryIssueStatusPending
+	default:
+		copied.Status = lotteryIssueStatusOpened
+	}
+	return &copied
 }
