@@ -11,6 +11,7 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -381,13 +382,9 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	// 执行兑换逻辑（兑换码已被锁定，此时可安全操作）
 	switch redeemCode.Type {
 	case RedeemTypeBalance:
-		amount := redeemCode.Value
 		// 负数为退款扣减，余额最低为 0
-		if amount < 0 && user.Balance+amount < 0 {
-			amount = -user.Balance
-		}
-		if err := s.userRepo.UpdateBalance(txCtx, userID, amount); err != nil {
-			return nil, fmt.Errorf("update user balance: %w", err)
+		if err := s.applyBalanceRedeemInTx(txCtx, tx.Client(), userID, redeemCode); err != nil {
+			return nil, fmt.Errorf("apply balance redeem: %w", err)
 		}
 
 	case RedeemTypeConcurrency:
@@ -447,6 +444,54 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	}
 
 	return redeemCode, nil
+}
+
+func (s *RedeemService) applyBalanceRedeemInTx(ctx context.Context, client *dbent.Client, userID int64, redeemCode *RedeemCode) error {
+	if redeemCode == nil || redeemCode.Value == 0 {
+		return nil
+	}
+
+	amount := decimal.NewFromFloat(redeemCode.Value).RoundBank(18)
+	if amount.IsZero() {
+		return nil
+	}
+
+	txType := BankTxTypeReward
+	description := fmt.Sprintf("兑换码 %s 余额奖励", redeemCode.Code)
+	appliedAmount := amount
+	if amount.IsNegative() {
+		txType = BankTxTypeWithdraw
+		description = fmt.Sprintf("兑换码 %s 余额扣回", redeemCode.Code)
+
+		// 在同一事务内锁定银行账户，并按现金余额夹取扣款额，避免负数兑换码占用信用额度。
+		account, err := lockBankAccountForUpdate(ctx, client, userID)
+		if err != nil {
+			return err
+		}
+		appliedAmount = minBankDecimal(amount.Abs(), positiveBankBalance(&BankAccountView{Balance: account.Balance})).RoundBank(18)
+		if appliedAmount.IsZero() {
+			return nil
+		}
+	}
+
+	_, err := NewBankService(s.entClient).ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           userID,
+		Amount:           appliedAmount,
+		Type:             txType,
+		BusinessModule:   BankBusinessModuleSystem,
+		Description:      description,
+		IdempotencyScope: fmt.Sprintf("redeem:user:%d", userID),
+		IdempotencyKey:   fmt.Sprintf("redeem:%d:user:%d", redeemCode.ID, userID),
+		ReferenceType:    "redeem_code",
+		ReferenceID:      fmt.Sprintf("%d", redeemCode.ID),
+		Metadata: map[string]any{
+			"applied_amount": appliedAmount.String(),
+			"original_value": redeemCode.Value,
+			"redeem_code":    redeemCode.Code,
+			"redeem_type":    redeemCode.Type,
+		},
+	})
+	return err
 }
 
 // invalidateRedeemCaches 失效兑换相关的缓存
