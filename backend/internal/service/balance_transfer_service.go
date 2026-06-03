@@ -482,15 +482,12 @@ func (s *BalanceTransferService) CreateRedPacket(ctx context.Context, senderID i
 	}
 	var rp *RedPacketRecord
 	if err := s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
-		senderBalance, err := s.lockUserBalance(txCtx, senderID)
+		senderBalance, err := s.lockBankCashBalance(txCtx, senderID)
 		if err != nil {
 			return fmt.Errorf("lock sender balance: %w", err)
 		}
 		if senderBalance < grossAmount {
 			return ErrTransferInsufficient
-		}
-		if err := s.userRepo.DeductBalance(txCtx, senderID, grossAmount); err != nil {
-			return fmt.Errorf("deduct sender balance: %w", err)
 		}
 		rp = &RedPacketRecord{
 			SenderID:        senderID,
@@ -507,7 +504,13 @@ func (s *BalanceTransferService) CreateRedPacket(ctx context.Context, senderID i
 			ExpireAt:        time.Now().Add(time.Duration(expireHours) * time.Hour),
 			CreatedAt:       time.Now(),
 		}
-		return s.redPacketRepo.Create(txCtx, rp)
+		if err := s.redPacketRepo.Create(txCtx, rp); err != nil {
+			return err
+		}
+		if err := s.applyCreateRedPacketBankEntriesInTx(txCtx, senderID, rp); err != nil {
+			return fmt.Errorf("apply red packet create bank entries: %w", err)
+		}
+		return nil
 	}); err != nil {
 		return nil, err
 	}
@@ -570,9 +573,6 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 		if err := s.redPacketRepo.DecrementClaim(txCtx, freshRp.ID, amount); err != nil {
 			return ErrRedPacketExhausted
 		}
-		if err := s.userRepo.UpdateBalance(txCtx, userID, amount); err != nil {
-			return fmt.Errorf("credit balance: %w", err)
-		}
 		claimRecord = &RedPacketClaimRecord{
 			RedPacketID: freshRp.ID,
 			UserID:      userID,
@@ -593,6 +593,9 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 		}
 		if err := s.transferRepo.Create(txCtx, transferRecord); err != nil {
 			return fmt.Errorf("create transfer record: %w", err)
+		}
+		if err := s.applyClaimRedPacketBankEntryInTx(txCtx, userID, freshRp, transferRecord); err != nil {
+			return fmt.Errorf("apply red packet claim bank entry: %w", err)
 		}
 		claimRecord.TransferID = &transferRecord.ID
 		if err := s.redPacketRepo.CreateClaim(txCtx, claimRecord); err != nil {
@@ -668,10 +671,142 @@ func (s *BalanceTransferService) expireRedPacket(ctx context.Context, rp *RedPac
 			return err
 		}
 		if remaining > 0 {
-			return s.userRepo.UpdateBalance(txCtx, rp.SenderID, remaining)
+			return s.applyExpireRedPacketRefundBankEntryInTx(txCtx, rp, remaining)
 		}
 		return nil
 	})
+}
+
+func (s *BalanceTransferService) applyCreateRedPacketBankEntriesInTx(ctx context.Context, senderID int64, rp *RedPacketRecord) error {
+	if rp == nil || rp.ID <= 0 {
+		return infraerrors.InternalServer("REDPACKET_RECORD_MISSING", "red packet record is missing")
+	}
+	client, err := bankClientFromTxContext(ctx)
+	if err != nil {
+		return err
+	}
+	bank := NewBankService(nil)
+	referenceID := fmt.Sprintf("%d", rp.ID)
+	amount := decimal.NewFromFloat(rp.TotalAmount).RoundBank(18)
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ErrTransferAmountInvalid
+	}
+	if _, err := bank.ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           senderID,
+		Amount:           amount,
+		Type:             BankTxTypeTransferOut,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("创建红包 %d", rp.ID),
+		IdempotencyScope: "balance_redpacket",
+		IdempotencyKey:   fmt.Sprintf("balance-redpacket:%d:create:amount", rp.ID),
+		ReferenceType:    "balance_redpacket",
+		ReferenceID:      referenceID,
+		Metadata: map[string]any{
+			"redpacket_id":   rp.ID,
+			"redpacket_type": rp.RedPacketType,
+			"sender_id":      senderID,
+		},
+	}); err != nil {
+		return fmt.Errorf("debit red packet amount: %w", err)
+	}
+	if rp.Fee <= 0 {
+		return nil
+	}
+	fee := decimal.NewFromFloat(rp.Fee).RoundBank(18)
+	if fee.LessThanOrEqual(decimal.Zero) {
+		return nil
+	}
+	if _, err := bank.ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           senderID,
+		Amount:           fee,
+		Type:             BankTxTypeWithdraw,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("红包手续费 %d", rp.ID),
+		IdempotencyScope: "balance_redpacket",
+		IdempotencyKey:   fmt.Sprintf("balance-redpacket:%d:create:fee", rp.ID),
+		ReferenceType:    "balance_redpacket",
+		ReferenceID:      referenceID,
+		Metadata: map[string]any{
+			"fee_rate":       rp.FeeRate,
+			"redpacket_id":   rp.ID,
+			"redpacket_type": rp.RedPacketType,
+			"sender_id":      senderID,
+		},
+	}); err != nil {
+		return fmt.Errorf("debit red packet fee: %w", err)
+	}
+	return nil
+}
+
+func (s *BalanceTransferService) applyClaimRedPacketBankEntryInTx(ctx context.Context, userID int64, rp *RedPacketRecord, record *BalanceTransferRecord) error {
+	if rp == nil || rp.ID <= 0 || record == nil || record.ID <= 0 {
+		return infraerrors.InternalServer("REDPACKET_CLAIM_RECORD_MISSING", "red packet claim record is missing")
+	}
+	client, err := bankClientFromTxContext(ctx)
+	if err != nil {
+		return err
+	}
+	amount := decimal.NewFromFloat(record.Amount).RoundBank(18)
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ErrTransferAmountInvalid
+	}
+	_, err = NewBankService(nil).ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           userID,
+		Amount:           amount,
+		Type:             BankTxTypeTransferIn,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("领取红包 %d", rp.ID),
+		IdempotencyScope: "balance_redpacket",
+		IdempotencyKey:   fmt.Sprintf("balance-redpacket:%d:claim:%d", rp.ID, record.ID),
+		ReferenceType:    "balance_redpacket",
+		ReferenceID:      fmt.Sprintf("%d", rp.ID),
+		Metadata: map[string]any{
+			"claimant_id":   userID,
+			"redpacket_id":  rp.ID,
+			"sender_id":     rp.SenderID,
+			"transfer_id":   record.ID,
+			"transfer_type": record.TransferType,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("credit red packet claim: %w", err)
+	}
+	return nil
+}
+
+func (s *BalanceTransferService) applyExpireRedPacketRefundBankEntryInTx(ctx context.Context, rp *RedPacketRecord, remaining float64) error {
+	if rp == nil || rp.ID <= 0 {
+		return infraerrors.InternalServer("REDPACKET_RECORD_MISSING", "red packet record is missing")
+	}
+	client, err := bankClientFromTxContext(ctx)
+	if err != nil {
+		return err
+	}
+	amount := decimal.NewFromFloat(remaining).RoundBank(18)
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return nil
+	}
+	_, err = NewBankService(nil).ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           rp.SenderID,
+		Amount:           amount,
+		Type:             BankTxTypeRefund,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("红包过期退回 %d", rp.ID),
+		IdempotencyScope: "balance_redpacket",
+		IdempotencyKey:   fmt.Sprintf("balance-redpacket:%d:expire:refund", rp.ID),
+		ReferenceType:    "balance_redpacket",
+		ReferenceID:      fmt.Sprintf("%d", rp.ID),
+		Metadata: map[string]any{
+			"redpacket_id":     rp.ID,
+			"redpacket_type":   rp.RedPacketType,
+			"remaining_amount": amount.String(),
+			"sender_id":        rp.SenderID,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("refund expired red packet remaining: %w", err)
+	}
+	return nil
 }
 
 func (s *BalanceTransferService) calculateClaimAmount(rp *RedPacketRecord) float64 {

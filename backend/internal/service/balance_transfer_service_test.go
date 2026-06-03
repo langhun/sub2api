@@ -210,6 +210,7 @@ type redPacketRepoStub struct {
 	claims          map[int64][]*RedPacketClaimRecord
 	activeExpired   []*RedPacketRecord
 	created         bool
+	claimCreated    bool
 	returnRemaining map[int64]float64
 	returnErr       error
 }
@@ -225,7 +226,13 @@ func (s *redPacketRepoStub) Create(_ context.Context, rp *RedPacketRecord) error
 	return nil
 }
 
-func (s *redPacketRepoStub) GetByCode(context.Context, string) (*RedPacketRecord, error) {
+func (s *redPacketRepoStub) GetByCode(_ context.Context, code string) (*RedPacketRecord, error) {
+	for _, rp := range s.redPackets {
+		if rp.Code == code {
+			cloned := *rp
+			return &cloned, nil
+		}
+	}
 	return nil, ErrRedPacketNotFound
 }
 
@@ -244,7 +251,10 @@ func (s *redPacketRepoStub) MarkExhausted(context.Context, int64) error { return
 
 func (s *redPacketRepoStub) MarkExpired(context.Context, int64) error { return nil }
 
-func (s *redPacketRepoStub) CreateClaim(context.Context, *RedPacketClaimRecord) error { return nil }
+func (s *redPacketRepoStub) CreateClaim(context.Context, *RedPacketClaimRecord) error {
+	s.claimCreated = true
+	return nil
+}
 
 func (s *redPacketRepoStub) HasClaimed(context.Context, int64, int64) (bool, error) {
 	return false, nil
@@ -526,6 +536,62 @@ func TestCreateRedPacket_RechecksSenderBalanceInsideTx(t *testing.T) {
 	require.Empty(t, userRepo.deductCalls)
 }
 
+func TestCreateRedPacket_SuccessRequiresBankTransactionContext(t *testing.T) {
+	repo := &transferRepoStub{
+		lockedBalances: map[int64]float64{1: 100},
+	}
+	redPacketRepo := &redPacketRepoStub{}
+	userRepo := &transferUserRepoStub{
+		users: map[int64]*User{
+			1: {ID: 1, Balance: 100},
+		},
+	}
+	svc := newRedPacketTestService(t, repo, redPacketRepo, userRepo, nil)
+
+	record, err := svc.CreateRedPacket(context.Background(), 1, 30, 2, "equal", nil)
+	require.Nil(t, record)
+	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
+	require.Equal(t, 1, repo.runInTxCalls)
+	require.True(t, redPacketRepo.created)
+	require.Empty(t, userRepo.deductCalls)
+	require.Empty(t, userRepo.updateCalls)
+}
+
+func TestClaimRedPacket_SuccessRequiresBankTransactionContext(t *testing.T) {
+	repo := &transferRepoStub{}
+	redPacketRepo := &redPacketRepoStub{
+		redPackets: map[int64]*RedPacketRecord{
+			7: {
+				ID:              7,
+				SenderID:        1,
+				TotalAmount:     10,
+				TotalCount:      2,
+				RemainingAmount: 10,
+				RemainingCount:  2,
+				RedPacketType:   "equal",
+				Code:            "rp-code",
+				Status:          "active",
+				ExpireAt:        time.Now().Add(time.Hour),
+			},
+		},
+	}
+	userRepo := &transferUserRepoStub{
+		users: map[int64]*User{
+			2: {ID: 2, Balance: 0},
+		},
+	}
+	svc := newRedPacketTestService(t, repo, redPacketRepo, userRepo, nil)
+
+	claim, err := svc.ClaimRedPacket(context.Background(), 2, "rp-code")
+	require.Nil(t, claim)
+	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
+	require.Equal(t, 1, repo.runInTxCalls)
+	require.True(t, repo.createCalled)
+	require.False(t, redPacketRepo.claimCreated)
+	require.Empty(t, userRepo.updateCalls)
+	require.Empty(t, userRepo.deductCalls)
+}
+
 func TestGetRedPacketDetail_OnlySenderCanViewSensitiveDetail(t *testing.T) {
 	repo := &transferRepoStub{}
 	redPacketRepo := &redPacketRepoStub{
@@ -578,9 +644,10 @@ func TestExpireRedPackets_ReturnsRemainingOnceAndPropagatesErrors(t *testing.T) 
 	svc := newRedPacketTestService(t, repo, redPacketRepo, userRepo, nil)
 
 	err := svc.ExpireRedPackets(context.Background())
-	require.NoError(t, err)
+	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
 	require.Equal(t, 2, repo.runInTxCalls)
-	require.Equal(t, []transferBalanceMutation{{userID: 1, amount: 5}}, userRepo.updateCalls)
+	require.Empty(t, userRepo.updateCalls)
+	require.Empty(t, userRepo.deductCalls)
 
 	repo = &transferRepoStub{}
 	sentinelErr := errors.New("return failed")
