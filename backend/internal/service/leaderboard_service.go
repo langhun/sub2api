@@ -8,8 +8,6 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/predicate"
-	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/lib/pq"
 )
@@ -56,52 +54,72 @@ func NewLeaderboardService(entClient *dbent.Client, db *sql.DB) *LeaderboardServ
 func (s *LeaderboardService) GetBalanceLeaderboard(ctx context.Context, page, pageSize int, includeAdmin bool) (*LeaderboardResult, error) {
 	offset := (page - 1) * pageSize
 
-	filters := []predicate.User{
-		dbuser.DeletedAtIsNil(),
-		dbuser.StatusEQ(StatusActive),
-		dbuser.BalanceGT(0),
-	}
+	roleFilter := ""
 	if !includeAdmin {
-		filters = append(filters, dbuser.RoleNEQ("admin"))
+		roleFilter = " AND u.role != 'admin'"
 	}
 
-	total, err := s.entClient.User.Query().
-		Where(filters...).
-		Count(ctx)
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM users_bank_account uba
+		INNER JOIN users u ON u.id = uba.user_id AND u.deleted_at IS NULL
+		WHERE u.status = 'active' AND uba.balance > 0%s
+	`, roleFilter)
+	var total int64
+	if err := s.db.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count balance leaderboard: %w", err)
+	}
+
+	dataQuery := fmt.Sprintf(`
+		SELECT u.id, u.username, u.email, uba.balance
+		FROM users_bank_account uba
+		INNER JOIN users u ON u.id = uba.user_id AND u.deleted_at IS NULL
+		WHERE u.status = 'active' AND uba.balance > 0%s
+		ORDER BY uba.balance DESC, u.id ASC
+		LIMIT $1 OFFSET $2
+	`, roleFilter)
+	rows, err := s.db.QueryContext(ctx, dataQuery, pageSize, offset)
 	if err != nil {
-		return nil, fmt.Errorf("count users: %w", err)
+		return nil, fmt.Errorf("query balance leaderboard: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	type balanceLeaderboardRow struct {
+		userID   int64
+		username string
+		email    string
+		balance  float64
+	}
+	rowsData := make([]balanceLeaderboardRow, 0, pageSize)
+	userIDs := make([]int64, 0, pageSize)
+	for rows.Next() {
+		var row balanceLeaderboardRow
+		if err := rows.Scan(&row.userID, &row.username, &row.email, &row.balance); err != nil {
+			return nil, fmt.Errorf("scan balance leaderboard row: %w", err)
+		}
+		rowsData = append(rowsData, row)
+		userIDs = append(userIDs, row.userID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate balance leaderboard rows: %w", err)
 	}
 
-	users, err := s.entClient.User.Query().
-		Where(filters...).
-		Order(dbent.Desc(dbuser.FieldBalance)).
-		Offset(offset).
-		Limit(pageSize).
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("query users: %w", err)
-	}
-
-	userIDs := make([]int64, 0, len(users))
-	for _, u := range users {
-		userIDs = append(userIDs, u.ID)
-	}
 	checkinCounts, err := s.getCheckinCounts(ctx, userIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	entries := make([]LeaderboardEntry, 0, len(users))
-	for i, u := range users {
+	entries := make([]LeaderboardEntry, 0, len(rowsData))
+	for i, row := range rowsData {
 		entries = append(entries, LeaderboardEntry{
 			Rank:     offset + i + 1,
-			Username: maskUsername(u.Username, u.Email),
-			Value:    math.Round(u.Balance*100) / 100,
-			ExtraInt: checkinCounts[u.ID],
+			Username: maskUsername(row.username, row.email),
+			Value:    math.Round(row.balance*100) / 100,
+			ExtraInt: checkinCounts[row.userID],
 		})
 	}
 
-	return &LeaderboardResult{Entries: entries, Total: int64(total)}, nil
+	return &LeaderboardResult{Entries: entries, Total: total}, nil
 }
 
 func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, period string, page, pageSize int, includeAdmin bool) (*LeaderboardResult, error) {

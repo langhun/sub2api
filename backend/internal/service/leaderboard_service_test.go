@@ -21,6 +21,69 @@ func (a exactTimeArg) Match(v driver.Value) bool {
 	return ok && actual.Equal(a.expected)
 }
 
+func TestLeaderboardService_GetBalanceLeaderboard_UsesBankAccountBalance(t *testing.T) {
+	countQuery := regexp.QuoteMeta(`
+		SELECT COUNT(*)
+		FROM users_bank_account uba
+		INNER JOIN users u ON u.id = uba.user_id AND u.deleted_at IS NULL
+		WHERE u.status = 'active' AND uba.balance > 0 AND u.role != 'admin'
+	`)
+
+	dataQuery := regexp.QuoteMeta(`
+		SELECT u.id, u.username, u.email, uba.balance
+		FROM users_bank_account uba
+		INNER JOIN users u ON u.id = uba.user_id AND u.deleted_at IS NULL
+		WHERE u.status = 'active' AND uba.balance > 0 AND u.role != 'admin'
+		ORDER BY uba.balance DESC, u.id ASC
+		LIMIT $1 OFFSET $2
+	`)
+
+	checkinQuery := regexp.QuoteMeta(`
+		SELECT user_id, COUNT(*)
+		FROM checkins
+		WHERE user_id = ANY($1)
+		GROUP BY user_id
+	`)
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectQuery(countQuery).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+
+	mock.ExpectQuery(dataQuery).
+		WithArgs(2, 0).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id", "username", "email", "balance"}).
+				AddRow(7, "BankRich", "rich@example.com", 88.888).
+				AddRow(9, "", "plain@example.com", 12.3),
+		)
+
+	mock.ExpectQuery(checkinQuery).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"user_id", "count"}).
+				AddRow(7, 5).
+				AddRow(9, 2),
+		)
+
+	svc := &LeaderboardService{db: db}
+	result, err := svc.GetBalanceLeaderboard(context.Background(), 1, 2, false)
+	require.NoError(t, err)
+
+	require.Equal(t, int64(2), result.Total)
+	require.Len(t, result.Entries, 2)
+	require.Equal(t, 1, result.Entries[0].Rank)
+	require.Equal(t, "BankRich", result.Entries[0].Username)
+	require.Equal(t, 88.89, result.Entries[0].Value)
+	require.Equal(t, 5, result.Entries[0].ExtraInt)
+	require.Equal(t, "pla***", result.Entries[1].Username)
+	require.Equal(t, 12.3, result.Entries[1].Value)
+	require.Equal(t, 2, result.Entries[1].ExtraInt)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestLeaderboardService_GetConsumptionLeaderboard_ReturnsSummaryAndChartItems(t *testing.T) {
 	require.NoError(t, timezone.Init("Asia/Shanghai"))
 
