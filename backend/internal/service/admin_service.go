@@ -17,9 +17,9 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
-	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
@@ -28,6 +28,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/util/httputil"
 	"github.com/lib/pq"
+	"github.com/shopspring/decimal"
 )
 
 // AdminService interface defines admin management operations
@@ -38,7 +39,7 @@ type AdminService interface {
 	CreateUser(ctx context.Context, input *CreateUserInput) (*User, error)
 	UpdateUser(ctx context.Context, id int64, input *UpdateUserInput) (*User, error)
 	DeleteUser(ctx context.Context, id int64) error
-	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error)
+	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string, idempotencyKey string) (*User, error)
 	BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error)
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
@@ -609,6 +610,7 @@ type adminServiceImpl struct {
 	userSubRepo                 UserSubscriptionRepository
 	privacyClientFactory        PrivacyClientFactory
 	proxySubscriptionService    *ProxySubscriptionService
+	bankService                 adminBalanceAdjuster
 }
 
 type userGroupRateBatchReader interface {
@@ -669,6 +671,7 @@ func NewAdminService(
 		userSubRepo:                 userSubRepo,
 		privacyClientFactory:        privacyClientFactory,
 		proxySubscriptionService:    proxySubscriptionService,
+		bankService:                 NewBankService(entClient),
 	}
 }
 
@@ -950,36 +953,34 @@ func (s *adminServiceImpl) BatchUpdateConcurrency(ctx context.Context, userIDs [
 	return affected, nil
 }
 
-func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error) {
+func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string, idempotencyKey string) (*User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	oldBalance := user.Balance
-
-	switch operation {
-	case "set":
-		user.Balance = balance
-	case "add":
-		user.Balance += balance
-	case "subtract":
-		user.Balance -= balance
-	}
-
-	if user.Balance < 0 {
-		return nil, fmt.Errorf("balance cannot be negative, current balance: %.2f, requested operation would result in: %.2f", oldBalance, user.Balance)
-	}
-
-	if err := s.userRepo.Update(ctx, user); err != nil {
+	bank := s.bankBalanceAdjuster()
+	result, err := bank.ApplyAdminBalanceAdjustment(ctx, AdminBalanceAdjustmentRequest{
+		UserID:         userID,
+		Operation:      operation,
+		Amount:         decimal.NewFromFloat(balance),
+		Description:    adminBalanceAdjustmentDescription(operation, notes),
+		IdempotencyKey: idempotencyKey,
+		Metadata: map[string]any{
+			"notes": notes,
+		},
+	})
+	if err != nil {
 		return nil, err
 	}
-	balanceDiff := user.Balance - oldBalance
-	if s.authCacheInvalidator != nil && balanceDiff != 0 {
+
+	user.Balance = result.Balance.InexactFloat64()
+	balanceDiff := result.Amount.InexactFloat64()
+	if s.authCacheInvalidator != nil && !result.Amount.IsZero() {
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
 	}
 
-	if s.billingCacheService != nil {
+	if s.billingCacheService != nil && !result.Amount.IsZero() {
 		go func() {
 			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -989,7 +990,7 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 		}()
 	}
 
-	if balanceDiff != 0 {
+	if !result.Amount.IsZero() {
 		format := DefaultRedeemCodeFormat()
 		if s.settingService != nil {
 			format = s.settingService.GetCodeFormatForRedeemType(ctx, AdjustmentTypeAdminBalance)
@@ -1017,6 +1018,30 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 	}
 
 	return user, nil
+}
+
+func (s *adminServiceImpl) bankBalanceAdjuster() adminBalanceAdjuster {
+	if s.bankService != nil {
+		return s.bankService
+	}
+	return NewBankService(s.entClient)
+}
+
+func adminBalanceAdjustmentDescription(operation string, notes string) string {
+	operation = strings.ToLower(strings.TrimSpace(operation))
+	label := map[string]string{
+		"set":      "设置",
+		"add":      "增加",
+		"subtract": "扣减",
+	}[operation]
+	if label == "" {
+		label = operation
+	}
+	notes = strings.TrimSpace(notes)
+	if notes == "" {
+		return fmt.Sprintf("后台手动%s余额", label)
+	}
+	return fmt.Sprintf("后台手动%s余额：%s", label, notes)
 }
 
 func (s *adminServiceImpl) GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error) {

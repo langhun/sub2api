@@ -6,6 +6,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,21 +64,56 @@ func (s *authCacheInvalidatorStub) InvalidateAuthCacheByGroupID(ctx context.Cont
 	s.groupIDs = append(s.groupIDs, groupID)
 }
 
+type adminBalanceAdjusterStub struct {
+	req    AdminBalanceAdjustmentRequest
+	result *TransferFundsResult
+	err    error
+}
+
+func (s *adminBalanceAdjusterStub) ApplyAdminBalanceAdjustment(ctx context.Context, req AdminBalanceAdjustmentRequest) (*TransferFundsResult, error) {
+	s.req = req
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.result != nil {
+		return s.result, nil
+	}
+	return &TransferFundsResult{
+		TxID:    uuid.New(),
+		UserID:  req.UserID,
+		Amount:  req.Amount,
+		Balance: req.Amount,
+	}, nil
+}
+
 func TestAdminService_UpdateUserBalance_InvalidatesAuthCache(t *testing.T) {
 	baseRepo := &userRepoStub{user: &User{ID: 7, Balance: 10}}
 	repo := &balanceUserRepoStub{userRepoStub: baseRepo}
 	redeemRepo := &balanceRedeemRepoStub{redeemRepoStub: &redeemRepoStub{}}
 	invalidator := &authCacheInvalidatorStub{}
+	bank := &adminBalanceAdjusterStub{result: &TransferFundsResult{
+		TxID:    uuid.New(),
+		UserID:  7,
+		Amount:  decimal.NewFromInt(5),
+		Balance: decimal.NewFromInt(15),
+	}}
 	svc := &adminServiceImpl{
 		userRepo:             repo,
 		redeemCodeRepo:       redeemRepo,
 		authCacheInvalidator: invalidator,
+		bankService:          bank,
 	}
 
-	_, err := svc.UpdateUserBalance(context.Background(), 7, 5, "add", "")
+	user, err := svc.UpdateUserBalance(context.Background(), 7, 5, "add", "", "idem-add")
 	require.NoError(t, err)
+	require.Equal(t, 15.0, user.Balance)
+	require.Equal(t, int64(7), bank.req.UserID)
+	require.Equal(t, "add", bank.req.Operation)
+	require.Equal(t, "idem-add", bank.req.IdempotencyKey)
+	require.True(t, decimal.NewFromInt(5).Equal(bank.req.Amount))
 	require.Equal(t, []int64{7}, invalidator.userIDs)
 	require.Len(t, redeemRepo.created, 1)
+	require.Empty(t, repo.updated)
 }
 
 func TestAdminService_UpdateUserBalance_NoChangeNoInvalidate(t *testing.T) {
@@ -84,14 +121,22 @@ func TestAdminService_UpdateUserBalance_NoChangeNoInvalidate(t *testing.T) {
 	repo := &balanceUserRepoStub{userRepoStub: baseRepo}
 	redeemRepo := &balanceRedeemRepoStub{redeemRepoStub: &redeemRepoStub{}}
 	invalidator := &authCacheInvalidatorStub{}
+	bank := &adminBalanceAdjusterStub{result: &TransferFundsResult{
+		UserID:  7,
+		Amount:  decimal.Zero,
+		Balance: decimal.NewFromInt(10),
+	}}
 	svc := &adminServiceImpl{
 		userRepo:             repo,
 		redeemCodeRepo:       redeemRepo,
 		authCacheInvalidator: invalidator,
+		bankService:          bank,
 	}
 
-	_, err := svc.UpdateUserBalance(context.Background(), 7, 10, "set", "")
+	user, err := svc.UpdateUserBalance(context.Background(), 7, 10, "set", "", "idem-set")
 	require.NoError(t, err)
+	require.Equal(t, 10.0, user.Balance)
 	require.Empty(t, invalidator.userIDs)
 	require.Empty(t, redeemRepo.created)
+	require.Empty(t, repo.updated)
 }
