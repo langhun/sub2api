@@ -67,3 +67,20 @@ func TestAdminService_UpdateUser_NoInvalidateWhenRPMLimitUnchanged(t *testing.T)
 	require.NoError(t, err)
 	require.Empty(t, invalidator.userIDs, "只改 username 不应触发认证缓存失效")
 }
+
+func TestAdminService_UpdateUser_RejectsLegacyBalanceField(t *testing.T) {
+	base := &userRepoStub{user: &User{ID: 42, Email: "u@example.com", RPMLimit: 10}}
+	repo := &rpmUserRepoStub{userRepoStub: base}
+	svc := &adminServiceImpl{
+		userRepo:       repo,
+		redeemCodeRepo: &redeemRepoStub{},
+	}
+
+	balance := 12.5
+	updated, err := svc.UpdateUser(context.Background(), 42, &UpdateUserInput{
+		Balance: &balance,
+	})
+	require.Nil(t, updated)
+	require.ErrorIs(t, err, ErrAdminUserBalanceFieldFrozen)
+	require.Nil(t, repo.lastUpdated, "冻结字段不应继续写用户资料")
+}

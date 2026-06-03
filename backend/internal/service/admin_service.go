@@ -209,6 +209,11 @@ type AdminBoundAuthIdentityChannel struct {
 	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
+var ErrAdminUserBalanceFieldFrozen = infraerrors.BadRequest(
+	"ADMIN_USER_BALANCE_FIELD_FROZEN",
+	"user balance cannot be updated through profile edit; use the financial adjustment endpoint",
+)
+
 type CreateGroupInput struct {
 	Name             string
 	Description      string
@@ -837,6 +842,9 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if input.Notes != nil {
 		user.Notes = *input.Notes
 	}
+	if input.Balance != nil {
+		return nil, ErrAdminUserBalanceFieldFrozen
+	}
 
 	if input.Status != "" {
 		user.Status = input.Status
@@ -974,7 +982,7 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 		return nil, err
 	}
 
-	user.Balance = result.Balance.InexactFloat64()
+	applyLegacyBalanceProjectionFromTransferResult(user, result)
 	balanceDiff := result.Amount.InexactFloat64()
 	if s.authCacheInvalidator != nil && !result.Amount.IsZero() {
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)

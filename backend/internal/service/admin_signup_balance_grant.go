@@ -16,7 +16,7 @@ func (s *adminServiceImpl) createUserWithInitialBalance(ctx context.Context, use
 		if err := s.userRepo.Create(ctx, user); err != nil {
 			return err
 		}
-		user.Balance = amount
+		setLegacyBalanceProjection(user, amount)
 		return nil
 	}
 	tx, err := s.entClient.Tx(ctx)
@@ -29,11 +29,11 @@ func (s *adminServiceImpl) createUserWithInitialBalance(ctx context.Context, use
 	if err := s.userRepo.Create(txCtx, user); err != nil {
 		return err
 	}
-	user.Balance = 0
+	setLegacyBalanceProjection(user, 0)
 	if result, err := applyAdminCreateUserBalanceInTx(txCtx, tx.Client(), user.ID, amount); err != nil {
 		return err
 	} else if result != nil {
-		user.Balance = result.Balance.InexactFloat64()
+		applyLegacyBalanceProjectionFromTransferResult(user, result)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit admin create user transaction: %w", err)

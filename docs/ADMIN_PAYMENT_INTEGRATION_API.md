@@ -73,10 +73,11 @@ curl -s "${BASE}/api/v1/admin/users/123" \
   -H "x-api-key: ${KEY}"
 ```
 
-### 3) 余额调整（已有接口）
+### 3) 账本调账（已有接口）
 `POST /api/v1/admin/users/:id/balance`
 
 用途：人工补偿 / 扣减，支持 `set` / `add` / `subtract`。
+说明：该接口通过 Financial Hub / 银行账本落账，不是直接修改 `users.balance`。
 
 请求体示例（扣减）：
 ```json

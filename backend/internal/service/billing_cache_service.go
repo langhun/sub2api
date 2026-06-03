@@ -859,8 +859,7 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, user 
 			logger.LegacyPrintf("service.billing_cache", "ALERT: billing bank account missing for user %d: %v", user.ID, err)
 			return ErrBillingServiceUnavailable.WithCause(err)
 		}
-		user.BankAccount = account
-		user.Balance = account.Balance.InexactFloat64()
+		applyBankAccountProjectionToUser(user, account)
 	}
 	if !account.CanConsume(decimal.Zero) {
 		if s.circuitBreaker != nil {
