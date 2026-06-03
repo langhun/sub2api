@@ -740,6 +740,7 @@ var ProviderSet = wire.NewSet(
 	ProvidePaymentOrderExpiryService,
 	ProvideBalanceNotifyService,
 	NewCheckinService,
+	NewGameService,
 	NewLeaderboardService,
 	NewBlindBoxService,
 	NewMonitoringService,

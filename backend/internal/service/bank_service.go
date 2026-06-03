@@ -55,6 +55,41 @@ func (s *BankService) TransferFunds(ctx context.Context, req TransferFundsReques
 	})
 }
 
+// TransferFundsBatch 在同一个数据库事务中写入多笔独立流水，适用于一局游戏内先扣下注再发奖金。
+func (s *BankService) TransferFundsBatch(ctx context.Context, requests []TransferFundsRequest) ([]*TransferFundsResult, error) {
+	if s == nil || s.client == nil {
+		return nil, ErrBankClientUnavailable
+	}
+	if len(requests) == 0 {
+		return []*TransferFundsResult{}, nil
+	}
+	normalized := make([]TransferFundsRequest, 0, len(requests))
+	for _, req := range requests {
+		item, err := normalizeTransferFundsRequest(req)
+		if err != nil {
+			return nil, err
+		}
+		normalized = append(normalized, item)
+	}
+
+	var batch []*TransferFundsResult
+	_, err := s.runSerializableBankTx(ctx, func(txClient *dbent.Client) (*TransferFundsResult, error) {
+		batch = make([]*TransferFundsResult, 0, len(normalized))
+		for _, req := range normalized {
+			result, err := s.transferFundsInTx(ctx, txClient, req)
+			if err != nil {
+				return nil, err
+			}
+			batch = append(batch, result)
+		}
+		return batch[len(batch)-1], nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return batch, nil
+}
+
 // ApplyTransferInTx 复用调用方已有事务执行账本操作，保证外层业务幂等记录与资金流水原子提交。
 func (s *BankService) ApplyTransferInTx(ctx context.Context, client *dbent.Client, req TransferFundsRequest) (*TransferFundsResult, error) {
 	if client == nil {

@@ -50,6 +50,13 @@ func TestCalculateBankMutation_ConsumeRejectsInsufficientFunds(t *testing.T) {
 	require.ErrorIs(t, err, ErrBankInsufficientFunds)
 }
 
+func TestCalculateBankMutation_SlotBetRejectsCreditUsage(t *testing.T) {
+	account := bankTestAccount("3", "0", "10", "0")
+	_, err := calculateBankMutation(account, bankDec("5"), BankTxTypeSlotBet)
+
+	require.ErrorIs(t, err, ErrBankInsufficientFunds)
+}
+
 func TestCalculateBankMutation_FreezeAndUnfreeze(t *testing.T) {
 	account := bankTestAccount("6", "1", "0", "0")
 	frozen, err := calculateBankMutation(account, bankDec("4"), BankTxTypeFreeze)

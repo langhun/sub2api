@@ -138,6 +138,7 @@ func ProvideHandlers(
 	leaderboardHandler *LeaderboardHandler,
 	availableChannelHandler *AvailableChannelHandler,
 	transferHandler *BalanceTransferHandler,
+	gameHandler *GameHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -161,6 +162,7 @@ func ProvideHandlers(
 		Leaderboard:      leaderboardHandler,
 		AvailableChannel: availableChannelHandler,
 		Transfer:         transferHandler,
+		Game:             gameHandler,
 	}
 }
 
@@ -185,6 +187,7 @@ var ProviderSet = wire.NewSet(
 	NewLeaderboardHandler,
 	NewAvailableChannelHandler,
 	NewBalanceTransferHandler,
+	NewGameHandler,
 
 	// Admin handlers
 	ProvideDashboardHandler,

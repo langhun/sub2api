@@ -116,6 +116,12 @@ func RegisterUserRoutes(
 		}
 
 		// 用户订阅
+		games := authenticated.Group("/games")
+		{
+			games.GET("/hall", h.Game.GetHallStatus)
+			games.POST("/play", h.Game.Play)
+		}
+
 		subscriptions := authenticated.Group("/subscriptions")
 		{
 			subscriptions.GET("", h.Subscription.List)

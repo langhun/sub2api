@@ -100,6 +100,89 @@ func TestBankServiceTransferFunds_ConcurrentConsumeNeverOverdrafts(t *testing.T)
 	requireBankLedgerEntryCountForUser(t, user.ID, 20)
 }
 
+func TestBankServiceTransferFundsBatch_WritesSlotBetAndWinAtomically(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	user := mustCreateBankServiceUser(t, "slot-batch", 10)
+	_, err := client.UserBankAccount.Create().
+		SetUserID(user.ID).
+		SetBalance(decimal.NewFromInt(10)).
+		SetStatus(service.BankAccountStatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	bank := service.NewBankService(client)
+	results, err := bank.TransferFundsBatch(ctx, []service.TransferFundsRequest{
+		{
+			UserID:           user.ID,
+			Amount:           decimal.NewFromInt(2),
+			Type:             service.BankTxTypeSlotBet,
+			BusinessModule:   service.BankBusinessModuleGame,
+			Description:      "slot bet",
+			IdempotencyScope: "test-slot-batch-bet",
+			IdempotencyKey:   "test-slot-batch-key-bet",
+			ReferenceType:    "game_round",
+			ReferenceID:      "round-1",
+		},
+		{
+			UserID:           user.ID,
+			Amount:           decimal.NewFromInt(5),
+			Type:             service.BankTxTypeSlotWin,
+			BusinessModule:   service.BankBusinessModuleGame,
+			Description:      "slot win",
+			IdempotencyScope: "test-slot-batch-win",
+			IdempotencyKey:   "test-slot-batch-key-win",
+			ReferenceType:    "game_round",
+			ReferenceID:      "round-1",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+
+	require.False(t, results[0].Replayed)
+	require.False(t, results[1].Replayed)
+	require.True(t, decimal.NewFromInt(8).Equal(results[0].Balance), "bet balance = %s", results[0].Balance.String())
+	require.True(t, decimal.NewFromInt(13).Equal(results[1].Balance), "win balance = %s", results[1].Balance.String())
+	requireBankAccountSnapshot(t, user.ID, "13", "0")
+	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeSlotBet, 1)
+	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeSlotWin, 1)
+	requireBankLedgerEntryCount(t, results[0].TxID.String(), 2)
+	requireBankLedgerEntryCount(t, results[1].TxID.String(), 2)
+	requireBankLedgerBalanced(t, results[0].TxID.String())
+	requireBankLedgerBalanced(t, results[1].TxID.String())
+}
+
+func TestBankServiceTransferFundsBatch_SlotBetCannotUseCredit(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	user := mustCreateBankServiceUser(t, "slot-cash-only", 3)
+	_, err := client.UserBankAccount.Create().
+		SetUserID(user.ID).
+		SetBalance(decimal.NewFromInt(3)).
+		SetCreditLimit(decimal.NewFromInt(10)).
+		SetStatus(service.BankAccountStatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	bank := service.NewBankService(client)
+	_, err = bank.TransferFundsBatch(ctx, []service.TransferFundsRequest{
+		{
+			UserID:           user.ID,
+			Amount:           decimal.NewFromInt(5),
+			Type:             service.BankTxTypeSlotBet,
+			BusinessModule:   service.BankBusinessModuleGame,
+			Description:      "slot bet",
+			IdempotencyScope: "test-slot-credit-blocked",
+			IdempotencyKey:   "test-slot-credit-blocked-key",
+			ReferenceType:    "game_round",
+			ReferenceID:      "round-credit-blocked",
+		},
+	})
+	require.ErrorIs(t, err, service.ErrBankInsufficientFunds)
+	requireBankAccountSnapshot(t, user.ID, "3", "0")
+	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeSlotBet, 0)
+}
+
 func mustCreateBankServiceUser(t *testing.T, label string, balance float64) *service.User {
 	t.Helper()
 	user := mustCreateUser(t, testEntClient(t), &service.User{
@@ -133,6 +216,18 @@ SELECT COUNT(*)
 FROM transactions_log
 WHERE user_id = $1
 `, userID).Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, want, count)
+}
+
+func requireBankTransactionCountByType(t *testing.T, userID int64, txType string, want int) {
+	t.Helper()
+	var count int
+	err := integrationDB.QueryRowContext(context.Background(), `
+SELECT COUNT(*)
+FROM transactions_log
+WHERE user_id = $1 AND tx_type = $2
+`, userID, txType).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, want, count)
 }

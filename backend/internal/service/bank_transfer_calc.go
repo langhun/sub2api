@@ -18,8 +18,10 @@ func calculateBankMutation(account bankAccountSnapshot, amount decimal.Decimal, 
 		return creditBalance(account, amount), nil
 	case BankTxTypeLoanBorrow:
 		return borrowAgainstCredit(account, amount)
-	case BankTxTypeConsume, BankTxTypeWithdraw, BankTxTypeTransferOut, BankTxTypeSlotBet:
+	case BankTxTypeConsume, BankTxTypeWithdraw, BankTxTypeTransferOut:
 		return debitWithCredit(account, amount)
+	case BankTxTypeSlotBet:
+		return debitCashOnly(account, amount)
 	case BankTxTypeLoanRepay:
 		return repayDebt(account, amount)
 	case BankTxTypeLoanInterest:
@@ -76,6 +78,21 @@ func debitWithCredit(account bankAccountSnapshot, amount decimal.Decimal) (bankM
 		frozenAfter:    account.FrozenAmount,
 		principalAfter: principalAfter,
 		interestAfter:  interestAfter,
+	}), nil
+}
+
+// debitCashOnly 处理不能使用授信的扣款场景，例如游戏下注。
+func debitCashOnly(account bankAccountSnapshot, amount decimal.Decimal) (bankMutation, error) {
+	if account.Balance.LessThan(amount) {
+		return bankMutation{}, ErrBankInsufficientFunds
+	}
+	principal, interest, _ := bankDebtParts(account)
+	return newBankMutation(bankMutationState{
+		signedAmount:   amount.Neg(),
+		balanceAfter:   account.Balance.Sub(amount),
+		frozenAfter:    account.FrozenAmount,
+		principalAfter: principal,
+		interestAfter:  interest,
 	}), nil
 }
 
