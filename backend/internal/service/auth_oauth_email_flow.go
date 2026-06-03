@@ -293,7 +293,7 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	if result, err := s.applySignupBalanceGrant(ctx, user.ID, signupSource, grantPlan.Balance); err != nil {
 		return err
 	} else if result != nil {
-		applyLegacyBalanceProjectionFromTransferResult(user, result)
+		UpdateUserBalanceProjectionFromTransferResult(user, result)
 	}
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）

@@ -97,8 +97,6 @@ type UserRepository interface {
 	GetLatestUsedAtByUserID(ctx context.Context, userID int64) (*time.Time, error)
 	UpdateUserLastActiveAt(ctx context.Context, userID int64, activeAt time.Time) error
 
-	UpdateBalance(ctx context.Context, id int64, amount float64) error
-	DeductBalance(ctx context.Context, id int64, amount float64) error
 	UpdateConcurrency(ctx context.Context, id int64, amount int) error
 	BatchSetConcurrency(ctx context.Context, userIDs []int64, value int) (int, error)
 	BatchAddConcurrency(ctx context.Context, userIDs []int64, delta int) (int, error)
@@ -1056,11 +1054,6 @@ func (s *UserService) List(ctx context.Context, params pagination.PaginationPara
 		return nil, nil, fmt.Errorf("list users: %w", err)
 	}
 	return users, pagination, nil
-}
-
-// UpdateBalance 更新用户余额（管理员功能）
-func (s *UserService) UpdateBalance(ctx context.Context, userID int64, amount float64) error {
-	return ErrLegacyBalanceMutationDisabled
 }
 
 // UpdateConcurrency 更新用户并发数（管理员功能）

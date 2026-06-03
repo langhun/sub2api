@@ -355,74 +355,6 @@ func (s *UserRepoSuite) TestListWithFilters_CombinedFilters() {
 	s.Require().Equal(target.ID, users[0].ID, "ListWithFilters result mismatch")
 }
 
-// --- Balance operations ---
-
-func (s *UserRepoSuite) TestUpdateBalance() {
-	user := s.mustCreateUser(&service.User{Email: "bal@test.com", Balance: 10})
-
-	err := s.repo.UpdateBalance(s.ctx, user.ID, 2.5)
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-
-	got, err := s.repo.GetByID(s.ctx, user.ID)
-	s.Require().NoError(err)
-	s.Require().InDelta(10.0, got.Balance, 1e-6)
-}
-
-func (s *UserRepoSuite) TestUpdateBalance_Negative() {
-	user := s.mustCreateUser(&service.User{Email: "balneg@test.com", Balance: 10})
-
-	err := s.repo.UpdateBalance(s.ctx, user.ID, -3)
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-
-	got, err := s.repo.GetByID(s.ctx, user.ID)
-	s.Require().NoError(err)
-	s.Require().InDelta(10.0, got.Balance, 1e-6)
-}
-
-func (s *UserRepoSuite) TestDeductBalance() {
-	user := s.mustCreateUser(&service.User{Email: "deduct@test.com", Balance: 10})
-
-	err := s.repo.DeductBalance(s.ctx, user.ID, 5)
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-
-	got, err := s.repo.GetByID(s.ctx, user.ID)
-	s.Require().NoError(err)
-	s.Require().InDelta(10.0, got.Balance, 1e-6)
-}
-
-func (s *UserRepoSuite) TestDeductBalance_InsufficientFunds() {
-	user := s.mustCreateUser(&service.User{Email: "insuf@test.com", Balance: 5})
-
-	err := s.repo.DeductBalance(s.ctx, user.ID, 999)
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-
-	got, err := s.repo.GetByID(s.ctx, user.ID)
-	s.Require().NoError(err)
-	s.Require().InDelta(5.0, got.Balance, 1e-6)
-}
-
-func (s *UserRepoSuite) TestDeductBalance_ExactAmount() {
-	user := s.mustCreateUser(&service.User{Email: "exact@test.com", Balance: 10})
-
-	err := s.repo.DeductBalance(s.ctx, user.ID, 10)
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-
-	got, err := s.repo.GetByID(s.ctx, user.ID)
-	s.Require().NoError(err)
-	s.Require().InDelta(10.0, got.Balance, 1e-6)
-}
-
-func (s *UserRepoSuite) TestDeductBalance_AllowsOverdraft() {
-	user := s.mustCreateUser(&service.User{Email: "overdraft@test.com", Balance: 5.0})
-
-	err := s.repo.DeductBalance(s.ctx, user.ID, 10.0)
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-
-	got, err := s.repo.GetByID(s.ctx, user.ID)
-	s.Require().NoError(err)
-	s.Require().InDelta(5.0, got.Balance, 1e-6)
-}
-
 // --- Concurrency ---
 
 func (s *UserRepoSuite) TestUpdateConcurrency() {
@@ -584,28 +516,10 @@ func (s *UserRepoSuite) TestCRUD_And_Filters_And_AtomicUpdates() {
 	s.Require().NoError(err, "GetByID after update")
 	s.Require().Equal("Alice2", got2.Username, "Update did not persist")
 
-	err = s.repo.UpdateBalance(s.ctx, user1.ID, 2.5)
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-	got3, err := s.repo.GetByID(s.ctx, user1.ID)
-	s.Require().NoError(err, "GetByID after UpdateBalance")
-	s.Require().InDelta(10.0, got3.Balance, 1e-6)
-
-	err = s.repo.DeductBalance(s.ctx, user1.ID, 5)
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-	got4, err := s.repo.GetByID(s.ctx, user1.ID)
-	s.Require().NoError(err, "GetByID after DeductBalance")
-	s.Require().InDelta(10.0, got4.Balance, 1e-6)
-
-	err = s.repo.DeductBalance(s.ctx, user1.ID, 999)
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-	gotOverdraft, err := s.repo.GetByID(s.ctx, user1.ID)
-	s.Require().NoError(err, "GetByID after overdraft")
-	s.Require().InDelta(10.0, gotOverdraft.Balance, 1e-6)
-
 	s.Require().NoError(s.repo.UpdateConcurrency(s.ctx, user1.ID, 3), "UpdateConcurrency")
-	got5, err := s.repo.GetByID(s.ctx, user1.ID)
+	got3, err := s.repo.GetByID(s.ctx, user1.ID)
 	s.Require().NoError(err, "GetByID after UpdateConcurrency")
-	s.Require().Equal(user1.Concurrency+3, got5.Concurrency)
+	s.Require().Equal(user1.Concurrency+3, got3.Concurrency)
 
 	params := pagination.PaginationParams{Page: 1, PageSize: 10}
 	users, page, err := s.repo.ListWithFilters(s.ctx, params, service.UserListFilters{Status: service.StatusActive, Role: service.RoleAdmin, Search: "b@"})
@@ -615,22 +529,8 @@ func (s *UserRepoSuite) TestCRUD_And_Filters_And_AtomicUpdates() {
 	s.Require().Equal(user2.ID, users[0].ID, "ListWithFilters result mismatch")
 }
 
-// --- UpdateBalance/UpdateConcurrency 影响行数校验测试 ---
-
-func (s *UserRepoSuite) TestUpdateBalance_NotFound() {
-	err := s.repo.UpdateBalance(s.ctx, 999999, 10.0)
-	s.Require().Error(err, "expected error for non-existent user")
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
-}
-
 func (s *UserRepoSuite) TestUpdateConcurrency_NotFound() {
 	err := s.repo.UpdateConcurrency(s.ctx, 999999, 5)
 	s.Require().Error(err, "expected error for non-existent user")
 	s.Require().ErrorIs(err, service.ErrUserNotFound)
-}
-
-func (s *UserRepoSuite) TestDeductBalance_NotFound() {
-	err := s.repo.DeductBalance(s.ctx, 999999, 5)
-	s.Require().Error(err, "expected error for non-existent user")
-	s.Require().ErrorIs(err, service.ErrLegacyBalanceMutationDisabled)
 }

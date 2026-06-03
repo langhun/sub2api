@@ -65,6 +65,7 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	Transfer         *BalanceTransferHandler
 	Game             *GameHandler
+	BankCenter       *BankCenterHandler
 }
 
 // BuildInfo contains build-time information

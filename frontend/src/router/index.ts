@@ -248,6 +248,22 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/finance',
+    name: 'FinanceCenter',
+    component: () => import('@/views/user/FinanceCenterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Finance Center',
+      titleKey: 'bank.title',
+      descriptionKey: 'bank.description'
+    }
+  },
+  {
+    path: '/bank',
+    redirect: '/finance',
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),
@@ -942,6 +958,8 @@ router.beforeEach(async (to, _from, next) => {
       '/admin/subscriptions',
       '/admin/redeem',
       '/subscriptions',
+      '/finance',
+      '/bank',
       '/redeem'
     ]
 

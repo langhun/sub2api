@@ -196,3 +196,165 @@ func TestApplyAdminBalanceAdjustmentMapsAmount(t *testing.T) {
 		t.Fatalf("unexpected adjustment request: %+v", stub.adjustReq)
 	}
 }
+
+func TestConvenienceTransferMethodsMapRequestType(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		wantType   string
+		invokeFunc func(context.Context, *serviceClient, TransferRequest) (*TransferResult, error)
+	}{
+		{
+			name:     "deposit",
+			wantType: service.BankTxTypeDeposit,
+			invokeFunc: func(ctx context.Context, client *serviceClient, req TransferRequest) (*TransferResult, error) {
+				return client.Deposit(ctx, req)
+			},
+		},
+		{
+			name:     "deduct",
+			wantType: service.BankTxTypeWithdraw,
+			invokeFunc: func(ctx context.Context, client *serviceClient, req TransferRequest) (*TransferResult, error) {
+				return client.Deduct(ctx, req)
+			},
+		},
+		{
+			name:     "freeze",
+			wantType: service.BankTxTypeFreeze,
+			invokeFunc: func(ctx context.Context, client *serviceClient, req TransferRequest) (*TransferResult, error) {
+				return client.Freeze(ctx, req)
+			},
+		},
+		{
+			name:     "unfreeze",
+			wantType: service.BankTxTypeUnfreeze,
+			invokeFunc: func(ctx context.Context, client *serviceClient, req TransferRequest) (*TransferResult, error) {
+				return client.Unfreeze(ctx, req)
+			},
+		},
+		{
+			name:     "reward",
+			wantType: service.BankTxTypeReward,
+			invokeFunc: func(ctx context.Context, client *serviceClient, req TransferRequest) (*TransferResult, error) {
+				return client.Reward(ctx, req)
+			},
+		},
+		{
+			name:     "loan",
+			wantType: service.BankTxTypeLoanBorrow,
+			invokeFunc: func(ctx context.Context, client *serviceClient, req TransferRequest) (*TransferResult, error) {
+				return client.Loan(ctx, req)
+			},
+		},
+		{
+			name:     "repayment",
+			wantType: service.BankTxTypeLoanRepay,
+			invokeFunc: func(ctx context.Context, client *serviceClient, req TransferRequest) (*TransferResult, error) {
+				return client.Repayment(ctx, req)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			stub := &bankServiceStub{
+				transferResp: &service.TransferFundsResult{
+					TxID:          uuid.New(),
+					UserID:        12,
+					AccountID:     34,
+					Type:          tc.wantType,
+					Module:        service.BankBusinessModuleFinancialHub,
+					Amount:        decimal.RequireFromString("3.5"),
+					Balance:       decimal.RequireFromString("20"),
+					Frozen:        decimal.RequireFromString("1"),
+					DebtPrincipal: decimal.Zero,
+					DebtInterest:  decimal.Zero,
+					TotalDebt:     decimal.Zero,
+					CreditLimit:   decimal.RequireFromString("100"),
+				},
+			}
+
+			client := &serviceClient{bank: stub}
+			req := TransferRequest{
+				UserID:           12,
+				Amount:           "3.5",
+				Type:             service.BankTxTypeConsume,
+				BusinessModule:   service.BankBusinessModuleFinancialHub,
+				Description:      "convenience call",
+				IdempotencyScope: "scope-1",
+				IdempotencyKey:   "idem-1",
+				ReferenceType:    "test_ref",
+				ReferenceID:      "test-1",
+				RequestID:        "request-1",
+				Metadata:         map[string]string{"channel": tc.name},
+			}
+
+			got, err := tc.invokeFunc(context.Background(), client, req)
+			if err != nil {
+				t.Fatalf("%s returned error: %v", tc.name, err)
+			}
+			if got == nil {
+				t.Fatalf("%s returned nil result", tc.name)
+			}
+			if stub.transferReq.Type != tc.wantType {
+				t.Fatalf("%s mapped wrong type: got=%s want=%s", tc.name, stub.transferReq.Type, tc.wantType)
+			}
+			if stub.transferReq.UserID != req.UserID || stub.transferReq.Amount.String() != req.Amount {
+				t.Fatalf("%s changed core request fields unexpectedly: %+v", tc.name, stub.transferReq)
+			}
+			if stub.transferReq.BusinessModule != req.BusinessModule || stub.transferReq.IdempotencyKey != req.IdempotencyKey {
+				t.Fatalf("%s failed to preserve request fields: %+v", tc.name, stub.transferReq)
+			}
+			if stub.transferReq.Metadata["channel"] != tc.name {
+				t.Fatalf("%s failed to preserve metadata: %+v", tc.name, stub.transferReq.Metadata)
+			}
+		})
+	}
+}
+
+func TestAdjustDelegatesToAdminBalanceAdjustment(t *testing.T) {
+	t.Parallel()
+
+	stub := &bankServiceStub{
+		adjustResp: &service.TransferFundsResult{
+			TxID:        uuid.New(),
+			UserID:      88,
+			AccountID:   99,
+			Type:        service.BankTxTypeDeposit,
+			Module:      service.BankBusinessModuleSystem,
+			Amount:      decimal.RequireFromString("15"),
+			Balance:     decimal.RequireFromString("115"),
+			Frozen:      decimal.Zero,
+			TotalDebt:   decimal.Zero,
+			CreditLimit: decimal.RequireFromString("20"),
+		},
+	}
+
+	client := &serviceClient{bank: stub}
+	req := AdminBalanceAdjustmentRequest{
+		UserID:         88,
+		Operation:      "set",
+		Amount:         "15",
+		Description:    "adjust alias",
+		IdempotencyKey: "adjust-1",
+		Metadata:       map[string]string{"source": "alias"},
+	}
+
+	got, err := client.Adjust(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Adjust returned error: %v", err)
+	}
+	if got == nil {
+		t.Fatalf("Adjust returned nil result")
+	}
+	if stub.adjustReq.UserID != req.UserID || stub.adjustReq.Operation != req.Operation {
+		t.Fatalf("unexpected adjustment request: %+v", stub.adjustReq)
+	}
+	if stub.adjustReq.Amount.String() != req.Amount || stub.adjustReq.Metadata["source"] != "alias" {
+		t.Fatalf("Adjust failed to map request fields: %+v", stub.adjustReq)
+	}
+}

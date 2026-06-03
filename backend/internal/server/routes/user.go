@@ -91,6 +91,13 @@ func RegisterUserRoutes(
 			usage.POST("/dashboard/api-keys-usage", h.Usage.DashboardAPIKeysUsage)
 		}
 
+		// 金融中心只读入口
+		bank := authenticated.Group("/bank")
+		{
+			bank.GET("/account", h.BankCenter.GetAccount)
+			bank.GET("/transactions", h.BankCenter.ListTransactions)
+		}
+
 		// 公告（用户可见）
 		announcements := authenticated.Group("/announcements")
 		{

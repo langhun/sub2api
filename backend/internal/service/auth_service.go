@@ -716,7 +716,7 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					if result, err := s.applySignupBalanceGrantInTx(txCtx, tx.Client(), newUser.ID, signupSource, grantPlan.Balance); err != nil {
 						return nil, nil, ErrServiceUnavailable
 					} else if result != nil {
-						newUser.Balance = result.Balance.InexactFloat64()
+						UpdateUserBalanceProjectionFromTransferResult(newUser, result)
 					}
 					if err := s.redeemRepo.Use(txCtx, invitationRedeemCode.ID, newUser.ID); err != nil {
 						return nil, nil, ErrInvitationCodeInvalid

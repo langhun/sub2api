@@ -28,7 +28,15 @@ type Client interface {
 	ListAuditLogs(ctx context.Context, filter AuditLogListFilter) ([]AuditLogRecord, int64, error)
 	ListReconciliationIssues(ctx context.Context, filter ReconciliationIssueListFilter) ([]ReconciliationIssueRecord, int64, error)
 	Transfer(ctx context.Context, req TransferRequest) (*TransferResult, error)
+	Deposit(ctx context.Context, req TransferRequest) (*TransferResult, error)
+	Deduct(ctx context.Context, req TransferRequest) (*TransferResult, error)
+	Freeze(ctx context.Context, req TransferRequest) (*TransferResult, error)
+	Unfreeze(ctx context.Context, req TransferRequest) (*TransferResult, error)
+	Reward(ctx context.Context, req TransferRequest) (*TransferResult, error)
+	Loan(ctx context.Context, req TransferRequest) (*TransferResult, error)
+	Repayment(ctx context.Context, req TransferRequest) (*TransferResult, error)
 	TransferBatch(ctx context.Context, reqs []TransferRequest) ([]*TransferResult, error)
+	Adjust(ctx context.Context, req AdminBalanceAdjustmentRequest) (*TransferResult, error)
 	ApplyAdminBalanceAdjustment(ctx context.Context, req AdminBalanceAdjustmentRequest) (*TransferResult, error)
 	CreateLoanContract(ctx context.Context, req LoanContractRequest) (*LoanContractRecord, error)
 	CreateReversal(ctx context.Context, req ReversalRequest) (*ReversalRecord, error)
@@ -329,6 +337,34 @@ func (c *serviceClient) Transfer(ctx context.Context, req TransferRequest) (*Tra
 	return fromServiceTransferResult(result), nil
 }
 
+func (c *serviceClient) Deposit(ctx context.Context, req TransferRequest) (*TransferResult, error) {
+	return c.transferWithType(ctx, req, service.BankTxTypeDeposit)
+}
+
+func (c *serviceClient) Deduct(ctx context.Context, req TransferRequest) (*TransferResult, error) {
+	return c.transferWithType(ctx, req, service.BankTxTypeWithdraw)
+}
+
+func (c *serviceClient) Freeze(ctx context.Context, req TransferRequest) (*TransferResult, error) {
+	return c.transferWithType(ctx, req, service.BankTxTypeFreeze)
+}
+
+func (c *serviceClient) Unfreeze(ctx context.Context, req TransferRequest) (*TransferResult, error) {
+	return c.transferWithType(ctx, req, service.BankTxTypeUnfreeze)
+}
+
+func (c *serviceClient) Reward(ctx context.Context, req TransferRequest) (*TransferResult, error) {
+	return c.transferWithType(ctx, req, service.BankTxTypeReward)
+}
+
+func (c *serviceClient) Loan(ctx context.Context, req TransferRequest) (*TransferResult, error) {
+	return c.transferWithType(ctx, req, service.BankTxTypeLoanBorrow)
+}
+
+func (c *serviceClient) Repayment(ctx context.Context, req TransferRequest) (*TransferResult, error) {
+	return c.transferWithType(ctx, req, service.BankTxTypeLoanRepay)
+}
+
 func (c *serviceClient) TransferBatch(ctx context.Context, reqs []TransferRequest) ([]*TransferResult, error) {
 	serviceReqs := make([]service.TransferFundsRequest, 0, len(reqs))
 	for _, req := range reqs {
@@ -349,6 +385,10 @@ func (c *serviceClient) TransferBatch(ctx context.Context, reqs []TransferReques
 		out = append(out, fromServiceTransferResult(result))
 	}
 	return out, nil
+}
+
+func (c *serviceClient) Adjust(ctx context.Context, req AdminBalanceAdjustmentRequest) (*TransferResult, error) {
+	return c.ApplyAdminBalanceAdjustment(ctx, req)
 }
 
 func (c *serviceClient) ApplyAdminBalanceAdjustment(ctx context.Context, req AdminBalanceAdjustmentRequest) (*TransferResult, error) {
@@ -404,6 +444,11 @@ func toServiceTransferRequest(req TransferRequest) (service.TransferFundsRequest
 		RequestID:        req.RequestID,
 		Metadata:         metadataToAny(req.Metadata),
 	}, nil
+}
+
+func (c *serviceClient) transferWithType(ctx context.Context, req TransferRequest, txType string) (*TransferResult, error) {
+	req.Type = txType
+	return c.Transfer(ctx, req)
 }
 
 func fromServiceTransferResult(result *service.TransferFundsResult) *TransferResult {

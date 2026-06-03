@@ -346,39 +346,6 @@ func (m *mockBillingCache) BatchGetUserPlatformQuotaCache(context.Context, []Use
 
 // --- 测试 ---
 
-func TestUpdateBalance_Disabled(t *testing.T) {
-	repo := &mockUserRepo{}
-	cache := &mockBillingCache{}
-	svc := NewUserService(repo, nil, nil, cache)
-
-	err := svc.UpdateBalance(context.Background(), 42, 100.0)
-	require.ErrorIs(t, err, ErrLegacyBalanceMutationDisabled)
-	require.Zero(t, repo.updateBalanceCalls)
-	require.Zero(t, cache.invalidateCallCount.Load())
-}
-
-func TestUpdateBalance_DisabledDoesNotInvalidateAuthCache(t *testing.T) {
-	repo := &mockUserRepo{}
-	auth := &mockAuthCacheInvalidator{}
-	cache := &mockBillingCache{}
-	svc := NewUserService(repo, nil, auth, cache)
-
-	err := svc.UpdateBalance(context.Background(), 77, 300.0)
-	require.ErrorIs(t, err, ErrLegacyBalanceMutationDisabled)
-	require.Zero(t, repo.updateBalanceCalls)
-	require.Empty(t, auth.invalidatedUserIDs)
-	require.Zero(t, cache.invalidateCallCount.Load())
-}
-
-func TestUpdateBalance_DisabledWithNilBillingCache(t *testing.T) {
-	repo := &mockUserRepo{}
-	svc := NewUserService(repo, nil, nil, nil)
-
-	err := svc.UpdateBalance(context.Background(), 1, 50.0)
-	require.ErrorIs(t, err, ErrLegacyBalanceMutationDisabled)
-	require.Zero(t, repo.updateBalanceCalls)
-}
-
 func TestGetProfileIdentitySummaries_AllowsUnbindWhenAnotherLoginMethodRemains(t *testing.T) {
 	repo := &mockUserRepo{
 		getByIDUser: &User{

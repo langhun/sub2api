@@ -22,7 +22,7 @@ func (s *AuthService) createUserWithSignupBalanceGrant(ctx context.Context, user
 		if err := s.userRepo.Create(ctx, user); err != nil {
 			return err
 		}
-		setLegacyBalanceProjection(user, balance)
+		UpdateUserBalanceProjection(user, balance)
 		return nil
 	}
 	tx, err := s.entClient.Tx(ctx)
@@ -35,11 +35,11 @@ func (s *AuthService) createUserWithSignupBalanceGrant(ctx context.Context, user
 	if err := s.userRepo.Create(txCtx, user); err != nil {
 		return err
 	}
-	setLegacyBalanceProjection(user, 0)
+	UpdateUserBalanceProjection(user, 0)
 	if result, err := s.applySignupBalanceGrantInTx(txCtx, tx.Client(), user.ID, signupSource, balance); err != nil {
 		return err
 	} else if result != nil {
-		applyLegacyBalanceProjectionFromTransferResult(user, result)
+		UpdateUserBalanceProjectionFromTransferResult(user, result)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit signup balance grant transaction: %w", err)

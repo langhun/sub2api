@@ -221,14 +221,6 @@ func (r *contentModerationTestUserRepo) UpdateUserLastActiveAt(ctx context.Conte
 	panic("unexpected UpdateUserLastActiveAt call")
 }
 
-func (r *contentModerationTestUserRepo) UpdateBalance(ctx context.Context, id int64, amount float64) error {
-	panic("unexpected UpdateBalance call")
-}
-
-func (r *contentModerationTestUserRepo) DeductBalance(ctx context.Context, id int64, amount float64) error {
-	panic("unexpected DeductBalance call")
-}
-
 func (r *contentModerationTestUserRepo) UpdateConcurrency(ctx context.Context, id int64, amount int) error {
 	panic("unexpected UpdateConcurrency call")
 }

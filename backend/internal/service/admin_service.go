@@ -982,7 +982,7 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 		return nil, err
 	}
 
-	applyLegacyBalanceProjectionFromTransferResult(user, result)
+	UpdateUserBalanceProjectionFromTransferResult(user, result)
 	balanceDiff := result.Amount.InexactFloat64()
 	if s.authCacheInvalidator != nil && !result.Amount.IsZero() {
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)

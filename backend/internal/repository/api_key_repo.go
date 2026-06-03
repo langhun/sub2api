@@ -686,8 +686,7 @@ func userEntityToService(u *dbent.User) *service.User {
 		out.BalanceNotifyExtraEmails = service.ParseNotifyEmails(u.BalanceNotifyExtraEmails)
 	}
 	if u.Edges.BankAccount != nil {
-		out.BankAccount = userBankAccountEntityToView(u.Edges.BankAccount)
-		out.Balance = out.BankAccount.Balance.InexactFloat64()
+		service.UpdateUserBalanceProjectionFromBankAccount(out, userBankAccountEntityToView(u.Edges.BankAccount))
 	}
 	return out
 }

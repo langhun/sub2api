@@ -120,14 +120,6 @@ func (s *userRepoStub) UpdateUserLastActiveAt(ctx context.Context, userID int64,
 	panic("unexpected UpdateUserLastActiveAt call")
 }
 
-func (s *userRepoStub) UpdateBalance(ctx context.Context, id int64, amount float64) error {
-	panic("unexpected UpdateBalance call")
-}
-
-func (s *userRepoStub) DeductBalance(ctx context.Context, id int64, amount float64) error {
-	panic("unexpected DeductBalance call")
-}
-
 func (s *userRepoStub) UpdateConcurrency(ctx context.Context, id int64, amount int) error {
 	panic("unexpected UpdateConcurrency call")
 }

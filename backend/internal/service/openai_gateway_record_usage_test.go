@@ -93,17 +93,8 @@ func TestOpenAIGatewayServiceRecordUsage_RejectsNilInput(t *testing.T) {
 type openAIRecordUsageUserRepoStub struct {
 	UserRepository
 
+	// 保留该计数器，用于断言网关计费链路不会回退到旧的直接扣余额路径。
 	deductCalls int
-	deductErr   error
-	lastAmount  float64
-	lastCtxErr  error
-}
-
-func (s *openAIRecordUsageUserRepoStub) DeductBalance(ctx context.Context, id int64, amount float64) error {
-	s.deductCalls++
-	s.lastAmount = amount
-	s.lastCtxErr = ctx.Err()
-	return s.deductErr
 }
 
 type openAIRecordUsageSubRepoStub struct {
