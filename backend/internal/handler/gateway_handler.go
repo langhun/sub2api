@@ -1401,19 +1401,21 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 	}
 
 	// 余额模式
-	latestUser, err := h.userService.GetByID(ctx, subject.UserID)
-	if err != nil {
-		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to get user info")
+	if apiKey.User == nil || apiKey.User.BankAccount == nil {
+		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to get bank account info")
 		return
 	}
+	bankAccount := apiKey.User.BankAccount
+	balance := bankAccount.Balance.InexactFloat64()
+	remaining := bankAccount.AvailableCapacity().InexactFloat64()
 
 	resp := gin.H{
 		"mode":      "unrestricted",
 		"isValid":   true,
 		"planName":  "钱包余额",
-		"remaining": latestUser.Balance,
+		"remaining": remaining,
 		"unit":      "USD",
-		"balance":   latestUser.Balance,
+		"balance":   balance,
 	}
 	if usageData != nil {
 		resp["usage"] = usageData
