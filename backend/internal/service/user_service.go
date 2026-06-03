@@ -29,13 +29,17 @@ import (
 )
 
 var (
-	ErrUserNotFound             = infraerrors.NotFound("USER_NOT_FOUND", "user not found")
-	ErrPasswordIncorrect        = infraerrors.BadRequest("PASSWORD_INCORRECT", "current password is incorrect")
-	ErrInsufficientPerms        = infraerrors.Forbidden("INSUFFICIENT_PERMISSIONS", "insufficient permissions")
-	ErrNotifyCodeUserRateLimit  = infraerrors.TooManyRequests("NOTIFY_CODE_USER_RATE_LIMIT", "too many verification codes requested, please try again later")
-	ErrAvatarInvalid            = infraerrors.BadRequest("AVATAR_INVALID", "avatar must be a valid image data URL or http(s) URL")
-	ErrAvatarTooLarge           = infraerrors.BadRequest("AVATAR_TOO_LARGE", "avatar image must be 100KB or smaller")
-	ErrAvatarNotImage           = infraerrors.BadRequest("AVATAR_NOT_IMAGE", "avatar content must be an image")
+	ErrUserNotFound                  = infraerrors.NotFound("USER_NOT_FOUND", "user not found")
+	ErrPasswordIncorrect             = infraerrors.BadRequest("PASSWORD_INCORRECT", "current password is incorrect")
+	ErrInsufficientPerms             = infraerrors.Forbidden("INSUFFICIENT_PERMISSIONS", "insufficient permissions")
+	ErrNotifyCodeUserRateLimit       = infraerrors.TooManyRequests("NOTIFY_CODE_USER_RATE_LIMIT", "too many verification codes requested, please try again later")
+	ErrAvatarInvalid                 = infraerrors.BadRequest("AVATAR_INVALID", "avatar must be a valid image data URL or http(s) URL")
+	ErrAvatarTooLarge                = infraerrors.BadRequest("AVATAR_TOO_LARGE", "avatar image must be 100KB or smaller")
+	ErrAvatarNotImage                = infraerrors.BadRequest("AVATAR_NOT_IMAGE", "avatar content must be an image")
+	ErrLegacyBalanceMutationDisabled = infraerrors.BadRequest(
+		"LEGACY_BALANCE_MUTATION_DISABLED",
+		"legacy user balance mutation is disabled; use bank service",
+	)
 	ErrIdentityProviderInvalid  = infraerrors.BadRequest("IDENTITY_PROVIDER_INVALID", "identity provider is invalid")
 	ErrIdentityRedirectInvalid  = infraerrors.BadRequest("IDENTITY_REDIRECT_INVALID", "identity redirect path is invalid")
 	ErrIdentityUnbindLastMethod = infraerrors.Conflict(
@@ -1056,27 +1060,7 @@ func (s *UserService) List(ctx context.Context, params pagination.PaginationPara
 
 // UpdateBalance 更新用户余额（管理员功能）
 func (s *UserService) UpdateBalance(ctx context.Context, userID int64, amount float64) error {
-	if err := s.userRepo.UpdateBalance(ctx, userID, amount); err != nil {
-		return fmt.Errorf("update balance: %w", err)
-	}
-	if s.authCacheInvalidator != nil {
-		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
-	}
-	if s.billingCache != nil {
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					slog.Error("panic in balance cache invalidation", "user_id", userID, "recover", r)
-				}
-			}()
-			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := s.billingCache.InvalidateUserBalance(cacheCtx, userID); err != nil {
-				slog.Error("invalidate user balance cache failed", "user_id", userID, "error", err)
-			}
-		}()
-	}
-	return nil
+	return ErrLegacyBalanceMutationDisabled
 }
 
 // UpdateConcurrency 更新用户并发数（管理员功能）
