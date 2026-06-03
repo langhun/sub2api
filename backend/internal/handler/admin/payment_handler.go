@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"strconv"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -157,22 +158,24 @@ func (h *PaymentHandler) ProcessRefund(c *gin.Context) {
 		return
 	}
 
-	plan, earlyResult, err := h.paymentService.PrepareRefund(c.Request.Context(), orderID, req.Amount, req.Reason, req.Force, req.DeductBalance)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
+	idempotencyPayload := struct {
+		OrderID int64                     `json:"order_id"`
+		Body    AdminProcessRefundRequest `json:"body"`
+	}{
+		OrderID: orderID,
+		Body:    req,
 	}
-	if earlyResult != nil {
-		response.Success(c, earlyResult)
-		return
-	}
-
-	result, err := h.paymentService.ExecuteRefund(c.Request.Context(), plan)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, result)
+	executeAdminIdempotentJSON(c, "admin.payment.orders.refund", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		operationID := c.GetHeader("Idempotency-Key")
+		plan, earlyResult, err := h.paymentService.PrepareRefund(ctx, orderID, req.Amount, req.Reason, req.Force, req.DeductBalance, operationID)
+		if err != nil {
+			return nil, err
+		}
+		if earlyResult != nil {
+			return earlyResult, nil
+		}
+		return h.paymentService.ExecuteRefund(ctx, plan)
+	})
 }
 
 // --- Subscription Plans ---

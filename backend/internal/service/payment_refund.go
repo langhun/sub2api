@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/shopspring/decimal"
 )
 
 // --- Refund Flow ---
@@ -198,7 +199,7 @@ func (s *PaymentService) validateRefundRequest(ctx context.Context, oid, uid int
 	return o, nil
 }
 
-func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float64, reason string, force, deduct bool) (*RefundPlan, *RefundResult, error) {
+func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float64, reason string, force, deduct bool, operationID string) (*RefundPlan, *RefundResult, error) {
 	o, err := s.entClient.PaymentOrder.Get(ctx, oid)
 	if err != nil {
 		return nil, nil, infraerrors.NotFound("NOT_FOUND", "order not found")
@@ -238,7 +239,7 @@ func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float
 	if rr == "" {
 		rr = fmt.Sprintf("refund order:%d", o.ID)
 	}
-	p := &RefundPlan{OrderID: oid, Order: o, RefundAmount: amt, GatewayAmount: ga, Reason: rr, Force: force, DeductBalance: deduct, DeductionType: payment.DeductionTypeNone}
+	p := &RefundPlan{OrderID: oid, Order: o, OperationID: strings.TrimSpace(operationID), RefundAmount: amt, GatewayAmount: ga, Reason: rr, Force: force, DeductBalance: deduct, DeductionType: payment.DeductionTypeNone}
 	if deduct {
 		if er := s.prepDeduct(ctx, o, p, force); er != nil {
 			return nil, er, nil
@@ -285,7 +286,7 @@ func (s *PaymentService) ExecuteRefund(ctx context.Context, p *RefundPlan) (*Ref
 		// Skip balance deduction on retry if previous attempt already deducted
 		// but failed to roll back (REFUND_ROLLBACK_FAILED in audit log).
 		if !s.hasAuditLog(ctx, p.OrderID, "REFUND_ROLLBACK_FAILED") {
-			if err := s.userRepo.DeductBalance(ctx, p.Order.UserID, p.BalanceToDeduct); err != nil {
+			if err := s.applyRefundBalanceTransfer(ctx, p, p.BalanceToDeduct, BankTxTypeWithdraw, "deduct"); err != nil {
 				s.restoreStatus(ctx, p)
 				return nil, fmt.Errorf("deduction: %w", err)
 			}
@@ -412,7 +413,7 @@ func (s *PaymentService) markRefundOk(ctx context.Context, p *RefundPlan) (*Refu
 
 func (s *PaymentService) RollbackRefund(ctx context.Context, p *RefundPlan, gErr error) bool {
 	if p.DeductionType == payment.DeductionTypeBalance && p.BalanceToDeduct > 0 {
-		if err := s.userRepo.UpdateBalance(ctx, p.Order.UserID, p.BalanceToDeduct); err != nil {
+		if err := s.applyRefundBalanceTransfer(ctx, p, p.BalanceToDeduct, BankTxTypeRefund, "rollback"); err != nil {
 			slog.Error("[CRITICAL] rollback failed", "orderID", p.OrderID, "amount", p.BalanceToDeduct, "error", err)
 			s.writeAuditLog(ctx, p.OrderID, "REFUND_ROLLBACK_FAILED", "admin", map[string]any{"gatewayError": psErrMsg(gErr), "rollbackError": psErrMsg(err), "balanceDeducted": p.BalanceToDeduct})
 			return false
@@ -426,6 +427,47 @@ func (s *PaymentService) RollbackRefund(ctx context.Context, p *RefundPlan, gErr
 		}
 	}
 	return true
+}
+
+func (s *PaymentService) applyRefundBalanceTransfer(ctx context.Context, p *RefundPlan, amount float64, txType string, phase string) error {
+	if s == nil || p == nil || p.Order == nil {
+		return infraerrors.InternalServer("REFUND_PLAN_INVALID", "refund plan is invalid")
+	}
+	operationID := strings.TrimSpace(p.OperationID)
+	if operationID == "" {
+		return ErrBankIdempotencyKeyRequired
+	}
+	bankAmount := decimal.NewFromFloat(amount).RoundBank(18)
+	if bankAmount.LessThanOrEqual(decimal.Zero) {
+		return ErrBankInvalidAmount
+	}
+	_, err := NewBankService(s.entClient).TransferFunds(ctx, TransferFundsRequest{
+		UserID:           p.Order.UserID,
+		Amount:           bankAmount,
+		Type:             txType,
+		BusinessModule:   BankBusinessModulePayment,
+		Description:      refundBalanceTransferDescription(p, phase),
+		IdempotencyScope: "payment_refund_balance",
+		IdempotencyKey:   fmt.Sprintf("payment-refund:%d:%s:%s", p.OrderID, operationID, phase),
+		ReferenceType:    "payment_refund",
+		ReferenceID:      fmt.Sprintf("%d:%s", p.OrderID, phase),
+		RequestID:        operationID,
+		Metadata: map[string]any{
+			"order_id":      p.OrderID,
+			"refund_amount": decimal.NewFromFloat(p.RefundAmount).RoundBank(18).String(),
+			"phase":         phase,
+			"reason":        p.Reason,
+		},
+	})
+	return err
+}
+
+func refundBalanceTransferDescription(p *RefundPlan, phase string) string {
+	action := "退款扣回余额"
+	if phase == "rollback" {
+		action = "退款失败回滚余额"
+	}
+	return fmt.Sprintf("%s：订单 %d", action, p.OrderID)
 }
 
 func (s *PaymentService) restoreStatus(ctx context.Context, p *RefundPlan) {

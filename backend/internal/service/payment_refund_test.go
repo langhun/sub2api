@@ -111,7 +111,7 @@ func TestPrepareRefundRejectsLegacyGuessedProviderInstance(t *testing.T) {
 		entClient: client,
 	}
 
-	plan, result, err := svc.PrepareRefund(ctx, order.ID, 0, "", false, false)
+	plan, result, err := svc.PrepareRefund(ctx, order.ID, 0, "", false, false, "refund-test")
 	require.Nil(t, plan)
 	require.Nil(t, result)
 	require.Error(t, err)
