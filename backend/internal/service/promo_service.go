@@ -11,6 +11,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -123,9 +124,9 @@ func (s *PromoService) ApplyPromoCode(ctx context.Context, userID int64, code st
 		return ErrPromoCodeAlreadyUsed
 	}
 
-	// 增加用户余额
-	if err := s.userRepo.UpdateBalance(txCtx, userID, promoCode.BonusAmount); err != nil {
-		return fmt.Errorf("update user balance: %w", err)
+	// 优惠码余额奖励必须通过银行账本，禁止直接修改 users.balance。
+	if err := s.applyPromoBonusInTx(txCtx, tx.Client(), userID, promoCode); err != nil {
+		return fmt.Errorf("apply promo bonus: %w", err)
 	}
 
 	// 创建使用记录
@@ -160,6 +161,41 @@ func (s *PromoService) ApplyPromoCode(ctx context.Context, userID int64, code st
 	}
 
 	return nil
+}
+
+func (s *PromoService) applyPromoBonusInTx(ctx context.Context, client *dbent.Client, userID int64, promoCode *PromoCode) error {
+	if promoCode == nil || promoCode.BonusAmount == 0 {
+		return nil
+	}
+
+	amount := decimal.NewFromFloat(promoCode.BonusAmount).RoundBank(18)
+	if amount.IsZero() {
+		return nil
+	}
+
+	txType := BankTxTypeReward
+	description := fmt.Sprintf("优惠码 %s 奖励", promoCode.Code)
+	if amount.IsNegative() {
+		txType = BankTxTypeWithdraw
+		amount = amount.Abs()
+		description = fmt.Sprintf("优惠码 %s 扣减", promoCode.Code)
+	}
+
+	_, err := NewBankService(s.entClient).ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           userID,
+		Amount:           amount,
+		Type:             txType,
+		BusinessModule:   BankBusinessModuleSystem,
+		Description:      description,
+		IdempotencyScope: "promo_code:apply",
+		IdempotencyKey:   fmt.Sprintf("promo:%d:user:%d", promoCode.ID, userID),
+		ReferenceType:    "promo_code",
+		ReferenceID:      fmt.Sprintf("%d", promoCode.ID),
+		Metadata: map[string]any{
+			"promo_code": promoCode.Code,
+		},
+	})
+	return err
 }
 
 func (s *PromoService) invalidatePromoCaches(ctx context.Context, userID int64, bonusAmount float64) {
