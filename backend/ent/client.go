@@ -36,6 +36,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/loancontract"
 	"github.com/Wei-Shaw/sub2api/ent/modelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
@@ -51,12 +52,14 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
+	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/userbankaccount"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 
@@ -110,6 +113,8 @@ type Client struct {
 	IdempotencyRecord *IdempotencyRecordClient
 	// IdentityAdoptionDecision is the client for interacting with the IdentityAdoptionDecision builders.
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
+	// LoanContract is the client for interacting with the LoanContract builders.
+	LoanContract *LoanContractClient
 	// ModelPricing is the client for interacting with the ModelPricing builders.
 	ModelPricing *ModelPricingClient
 	// PaymentAuditLog is the client for interacting with the PaymentAuditLog builders.
@@ -140,6 +145,8 @@ type Client struct {
 	SubscriptionPlan *SubscriptionPlanClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
 	TLSFingerprintProfile *TLSFingerprintProfileClient
+	// TransactionLog is the client for interacting with the TransactionLog builders.
+	TransactionLog *TransactionLogClient
 	// UsageCleanupTask is the client for interacting with the UsageCleanupTask builders.
 	UsageCleanupTask *UsageCleanupTaskClient
 	// UsageLog is the client for interacting with the UsageLog builders.
@@ -152,6 +159,8 @@ type Client struct {
 	UserAttributeDefinition *UserAttributeDefinitionClient
 	// UserAttributeValue is the client for interacting with the UserAttributeValue builders.
 	UserAttributeValue *UserAttributeValueClient
+	// UserBankAccount is the client for interacting with the UserBankAccount builders.
+	UserBankAccount *UserBankAccountClient
 	// UserPlatformQuota is the client for interacting with the UserPlatformQuota builders.
 	UserPlatformQuota *UserPlatformQuotaClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
@@ -188,6 +197,7 @@ func (c *Client) init() {
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
 	c.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(c.config)
+	c.LoanContract = NewLoanContractClient(c.config)
 	c.ModelPricing = NewModelPricingClient(c.config)
 	c.PaymentAuditLog = NewPaymentAuditLogClient(c.config)
 	c.PaymentOrder = NewPaymentOrderClient(c.config)
@@ -203,12 +213,14 @@ func (c *Client) init() {
 	c.Setting = NewSettingClient(c.config)
 	c.SubscriptionPlan = NewSubscriptionPlanClient(c.config)
 	c.TLSFingerprintProfile = NewTLSFingerprintProfileClient(c.config)
+	c.TransactionLog = NewTransactionLogClient(c.config)
 	c.UsageCleanupTask = NewUsageCleanupTaskClient(c.config)
 	c.UsageLog = NewUsageLogClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserAllowedGroup = NewUserAllowedGroupClient(c.config)
 	c.UserAttributeDefinition = NewUserAttributeDefinitionClient(c.config)
 	c.UserAttributeValue = NewUserAttributeValueClient(c.config)
+	c.UserBankAccount = NewUserBankAccountClient(c.config)
 	c.UserPlatformQuota = NewUserPlatformQuotaClient(c.config)
 	c.UserSubscription = NewUserSubscriptionClient(c.config)
 }
@@ -324,6 +336,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
+		LoanContract:                  NewLoanContractClient(cfg),
 		ModelPricing:                  NewModelPricingClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
@@ -339,12 +352,14 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
+		TransactionLog:                NewTransactionLogClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
 		User:                          NewUserClient(cfg),
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
+		UserBankAccount:               NewUserBankAccountClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
 	}, nil
@@ -387,6 +402,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
+		LoanContract:                  NewLoanContractClient(cfg),
 		ModelPricing:                  NewModelPricingClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
@@ -402,12 +418,14 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
+		TransactionLog:                NewTransactionLogClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
 		User:                          NewUserClient(cfg),
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
+		UserBankAccount:               NewUserBankAccountClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
 	}, nil
@@ -445,13 +463,13 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
 		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.ModelPricing, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.ProxySubscriptionNode, c.ProxySubscriptionSource, c.RedeemCode,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
-		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
-		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.IdentityAdoptionDecision, c.LoanContract, c.ModelPricing, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
+		c.PromoCodeUsage, c.Proxy, c.ProxySubscriptionNode, c.ProxySubscriptionSource,
+		c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
+		c.TLSFingerprintProfile, c.TransactionLog, c.UsageCleanupTask, c.UsageLog,
+		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.UserBankAccount, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -467,13 +485,13 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
 		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.ModelPricing, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.ProxySubscriptionNode, c.ProxySubscriptionSource, c.RedeemCode,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
-		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
-		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
-		c.UserSubscription,
+		c.IdentityAdoptionDecision, c.LoanContract, c.ModelPricing, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
+		c.PromoCodeUsage, c.Proxy, c.ProxySubscriptionNode, c.ProxySubscriptionSource,
+		c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
+		c.TLSFingerprintProfile, c.TransactionLog, c.UsageCleanupTask, c.UsageLog,
+		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.UserBankAccount, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -524,6 +542,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.IdempotencyRecord.mutate(ctx, m)
 	case *IdentityAdoptionDecisionMutation:
 		return c.IdentityAdoptionDecision.mutate(ctx, m)
+	case *LoanContractMutation:
+		return c.LoanContract.mutate(ctx, m)
 	case *ModelPricingMutation:
 		return c.ModelPricing.mutate(ctx, m)
 	case *PaymentAuditLogMutation:
@@ -554,6 +574,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SubscriptionPlan.mutate(ctx, m)
 	case *TLSFingerprintProfileMutation:
 		return c.TLSFingerprintProfile.mutate(ctx, m)
+	case *TransactionLogMutation:
+		return c.TransactionLog.mutate(ctx, m)
 	case *UsageCleanupTaskMutation:
 		return c.UsageCleanupTask.mutate(ctx, m)
 	case *UsageLogMutation:
@@ -566,6 +588,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserAttributeDefinition.mutate(ctx, m)
 	case *UserAttributeValueMutation:
 		return c.UserAttributeValue.mutate(ctx, m)
+	case *UserBankAccountMutation:
+		return c.UserBankAccount.mutate(ctx, m)
 	case *UserPlatformQuotaMutation:
 		return c.UserPlatformQuota.mutate(ctx, m)
 	case *UserSubscriptionMutation:
@@ -3981,6 +4005,171 @@ func (c *IdentityAdoptionDecisionClient) mutate(ctx context.Context, m *Identity
 	}
 }
 
+// LoanContractClient is a client for the LoanContract schema.
+type LoanContractClient struct {
+	config
+}
+
+// NewLoanContractClient returns a client for the LoanContract from the given config.
+func NewLoanContractClient(c config) *LoanContractClient {
+	return &LoanContractClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `loancontract.Hooks(f(g(h())))`.
+func (c *LoanContractClient) Use(hooks ...Hook) {
+	c.hooks.LoanContract = append(c.hooks.LoanContract, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `loancontract.Intercept(f(g(h())))`.
+func (c *LoanContractClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LoanContract = append(c.inters.LoanContract, interceptors...)
+}
+
+// Create returns a builder for creating a LoanContract entity.
+func (c *LoanContractClient) Create() *LoanContractCreate {
+	mutation := newLoanContractMutation(c.config, OpCreate)
+	return &LoanContractCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LoanContract entities.
+func (c *LoanContractClient) CreateBulk(builders ...*LoanContractCreate) *LoanContractCreateBulk {
+	return &LoanContractCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LoanContractClient) MapCreateBulk(slice any, setFunc func(*LoanContractCreate, int)) *LoanContractCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LoanContractCreateBulk{err: fmt.Errorf("calling to LoanContractClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LoanContractCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LoanContractCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LoanContract.
+func (c *LoanContractClient) Update() *LoanContractUpdate {
+	mutation := newLoanContractMutation(c.config, OpUpdate)
+	return &LoanContractUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LoanContractClient) UpdateOne(_m *LoanContract) *LoanContractUpdateOne {
+	mutation := newLoanContractMutation(c.config, OpUpdateOne, withLoanContract(_m))
+	return &LoanContractUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LoanContractClient) UpdateOneID(id int64) *LoanContractUpdateOne {
+	mutation := newLoanContractMutation(c.config, OpUpdateOne, withLoanContractID(id))
+	return &LoanContractUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LoanContract.
+func (c *LoanContractClient) Delete() *LoanContractDelete {
+	mutation := newLoanContractMutation(c.config, OpDelete)
+	return &LoanContractDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LoanContractClient) DeleteOne(_m *LoanContract) *LoanContractDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LoanContractClient) DeleteOneID(id int64) *LoanContractDeleteOne {
+	builder := c.Delete().Where(loancontract.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LoanContractDeleteOne{builder}
+}
+
+// Query returns a query builder for LoanContract.
+func (c *LoanContractClient) Query() *LoanContractQuery {
+	return &LoanContractQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLoanContract},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LoanContract entity by its id.
+func (c *LoanContractClient) Get(ctx context.Context, id int64) (*LoanContract, error) {
+	return c.Query().Where(loancontract.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LoanContractClient) GetX(ctx context.Context, id int64) *LoanContract {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryBorrower queries the borrower edge of a LoanContract.
+func (c *LoanContractClient) QueryBorrower(_m *LoanContract) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(loancontract.Table, loancontract.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, loancontract.BorrowerTable, loancontract.BorrowerColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLender queries the lender edge of a LoanContract.
+func (c *LoanContractClient) QueryLender(_m *LoanContract) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(loancontract.Table, loancontract.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, loancontract.LenderTable, loancontract.LenderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *LoanContractClient) Hooks() []Hook {
+	return c.hooks.LoanContract
+}
+
+// Interceptors returns the client interceptors.
+func (c *LoanContractClient) Interceptors() []Interceptor {
+	return c.inters.LoanContract
+}
+
+func (c *LoanContractClient) mutate(ctx context.Context, m *LoanContractMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LoanContractCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LoanContractUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LoanContractUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LoanContractDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LoanContract mutation op: %q", m.Op())
+	}
+}
+
 // ModelPricingClient is a client for the ModelPricing schema.
 type ModelPricingClient struct {
 	config
@@ -6158,6 +6347,171 @@ func (c *TLSFingerprintProfileClient) mutate(ctx context.Context, m *TLSFingerpr
 	}
 }
 
+// TransactionLogClient is a client for the TransactionLog schema.
+type TransactionLogClient struct {
+	config
+}
+
+// NewTransactionLogClient returns a client for the TransactionLog from the given config.
+func NewTransactionLogClient(c config) *TransactionLogClient {
+	return &TransactionLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `transactionlog.Hooks(f(g(h())))`.
+func (c *TransactionLogClient) Use(hooks ...Hook) {
+	c.hooks.TransactionLog = append(c.hooks.TransactionLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `transactionlog.Intercept(f(g(h())))`.
+func (c *TransactionLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TransactionLog = append(c.inters.TransactionLog, interceptors...)
+}
+
+// Create returns a builder for creating a TransactionLog entity.
+func (c *TransactionLogClient) Create() *TransactionLogCreate {
+	mutation := newTransactionLogMutation(c.config, OpCreate)
+	return &TransactionLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TransactionLog entities.
+func (c *TransactionLogClient) CreateBulk(builders ...*TransactionLogCreate) *TransactionLogCreateBulk {
+	return &TransactionLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TransactionLogClient) MapCreateBulk(slice any, setFunc func(*TransactionLogCreate, int)) *TransactionLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TransactionLogCreateBulk{err: fmt.Errorf("calling to TransactionLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TransactionLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TransactionLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TransactionLog.
+func (c *TransactionLogClient) Update() *TransactionLogUpdate {
+	mutation := newTransactionLogMutation(c.config, OpUpdate)
+	return &TransactionLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TransactionLogClient) UpdateOne(_m *TransactionLog) *TransactionLogUpdateOne {
+	mutation := newTransactionLogMutation(c.config, OpUpdateOne, withTransactionLog(_m))
+	return &TransactionLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TransactionLogClient) UpdateOneID(id int64) *TransactionLogUpdateOne {
+	mutation := newTransactionLogMutation(c.config, OpUpdateOne, withTransactionLogID(id))
+	return &TransactionLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TransactionLog.
+func (c *TransactionLogClient) Delete() *TransactionLogDelete {
+	mutation := newTransactionLogMutation(c.config, OpDelete)
+	return &TransactionLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TransactionLogClient) DeleteOne(_m *TransactionLog) *TransactionLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TransactionLogClient) DeleteOneID(id int64) *TransactionLogDeleteOne {
+	builder := c.Delete().Where(transactionlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TransactionLogDeleteOne{builder}
+}
+
+// Query returns a query builder for TransactionLog.
+func (c *TransactionLogClient) Query() *TransactionLogQuery {
+	return &TransactionLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTransactionLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TransactionLog entity by its id.
+func (c *TransactionLogClient) Get(ctx context.Context, id int64) (*TransactionLog, error) {
+	return c.Query().Where(transactionlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TransactionLogClient) GetX(ctx context.Context, id int64) *TransactionLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a TransactionLog.
+func (c *TransactionLogClient) QueryUser(_m *TransactionLog) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(transactionlog.Table, transactionlog.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, transactionlog.UserTable, transactionlog.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAccount queries the account edge of a TransactionLog.
+func (c *TransactionLogClient) QueryAccount(_m *TransactionLog) *UserBankAccountQuery {
+	query := (&UserBankAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(transactionlog.Table, transactionlog.FieldID, id),
+			sqlgraph.To(userbankaccount.Table, userbankaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, transactionlog.AccountTable, transactionlog.AccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TransactionLogClient) Hooks() []Hook {
+	return c.hooks.TransactionLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *TransactionLogClient) Interceptors() []Interceptor {
+	return c.inters.TransactionLog
+}
+
+func (c *TransactionLogClient) mutate(ctx context.Context, m *TransactionLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TransactionLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TransactionLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TransactionLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TransactionLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TransactionLog mutation op: %q", m.Op())
+	}
+}
+
 // UsageCleanupTaskClient is a client for the UsageCleanupTask schema.
 type UsageCleanupTaskClient struct {
 	config
@@ -6852,6 +7206,70 @@ func (c *UserClient) QueryPaymentOrders(_m *User) *PaymentOrderQuery {
 	return query
 }
 
+// QueryBankAccount queries the bank_account edge of a User.
+func (c *UserClient) QueryBankAccount(_m *User) *UserBankAccountQuery {
+	query := (&UserBankAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(userbankaccount.Table, userbankaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.BankAccountTable, user.BankAccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryTransactionLogs queries the transaction_logs edge of a User.
+func (c *UserClient) QueryTransactionLogs(_m *User) *TransactionLogQuery {
+	query := (&TransactionLogClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(transactionlog.Table, transactionlog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.TransactionLogsTable, user.TransactionLogsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryBorrowedLoanContracts queries the borrowed_loan_contracts edge of a User.
+func (c *UserClient) QueryBorrowedLoanContracts(_m *User) *LoanContractQuery {
+	query := (&LoanContractClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(loancontract.Table, loancontract.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.BorrowedLoanContractsTable, user.BorrowedLoanContractsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryFundedLoanContracts queries the funded_loan_contracts edge of a User.
+func (c *UserClient) QueryFundedLoanContracts(_m *User) *LoanContractQuery {
+	query := (&LoanContractClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(loancontract.Table, loancontract.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.FundedLoanContractsTable, user.FundedLoanContractsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryAuthIdentities queries the auth_identities edge of a User.
 func (c *UserClient) QueryAuthIdentities(_m *User) *AuthIdentityQuery {
 	query := (&AuthIdentityClient{config: c.config}).Query()
@@ -7375,6 +7793,171 @@ func (c *UserAttributeValueClient) mutate(ctx context.Context, m *UserAttributeV
 	}
 }
 
+// UserBankAccountClient is a client for the UserBankAccount schema.
+type UserBankAccountClient struct {
+	config
+}
+
+// NewUserBankAccountClient returns a client for the UserBankAccount from the given config.
+func NewUserBankAccountClient(c config) *UserBankAccountClient {
+	return &UserBankAccountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `userbankaccount.Hooks(f(g(h())))`.
+func (c *UserBankAccountClient) Use(hooks ...Hook) {
+	c.hooks.UserBankAccount = append(c.hooks.UserBankAccount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `userbankaccount.Intercept(f(g(h())))`.
+func (c *UserBankAccountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserBankAccount = append(c.inters.UserBankAccount, interceptors...)
+}
+
+// Create returns a builder for creating a UserBankAccount entity.
+func (c *UserBankAccountClient) Create() *UserBankAccountCreate {
+	mutation := newUserBankAccountMutation(c.config, OpCreate)
+	return &UserBankAccountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserBankAccount entities.
+func (c *UserBankAccountClient) CreateBulk(builders ...*UserBankAccountCreate) *UserBankAccountCreateBulk {
+	return &UserBankAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserBankAccountClient) MapCreateBulk(slice any, setFunc func(*UserBankAccountCreate, int)) *UserBankAccountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserBankAccountCreateBulk{err: fmt.Errorf("calling to UserBankAccountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserBankAccountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserBankAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserBankAccount.
+func (c *UserBankAccountClient) Update() *UserBankAccountUpdate {
+	mutation := newUserBankAccountMutation(c.config, OpUpdate)
+	return &UserBankAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserBankAccountClient) UpdateOne(_m *UserBankAccount) *UserBankAccountUpdateOne {
+	mutation := newUserBankAccountMutation(c.config, OpUpdateOne, withUserBankAccount(_m))
+	return &UserBankAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserBankAccountClient) UpdateOneID(id int64) *UserBankAccountUpdateOne {
+	mutation := newUserBankAccountMutation(c.config, OpUpdateOne, withUserBankAccountID(id))
+	return &UserBankAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserBankAccount.
+func (c *UserBankAccountClient) Delete() *UserBankAccountDelete {
+	mutation := newUserBankAccountMutation(c.config, OpDelete)
+	return &UserBankAccountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserBankAccountClient) DeleteOne(_m *UserBankAccount) *UserBankAccountDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserBankAccountClient) DeleteOneID(id int64) *UserBankAccountDeleteOne {
+	builder := c.Delete().Where(userbankaccount.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserBankAccountDeleteOne{builder}
+}
+
+// Query returns a query builder for UserBankAccount.
+func (c *UserBankAccountClient) Query() *UserBankAccountQuery {
+	return &UserBankAccountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserBankAccount},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserBankAccount entity by its id.
+func (c *UserBankAccountClient) Get(ctx context.Context, id int64) (*UserBankAccount, error) {
+	return c.Query().Where(userbankaccount.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserBankAccountClient) GetX(ctx context.Context, id int64) *UserBankAccount {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a UserBankAccount.
+func (c *UserBankAccountClient) QueryUser(_m *UserBankAccount) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userbankaccount.Table, userbankaccount.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, userbankaccount.UserTable, userbankaccount.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryTransactions queries the transactions edge of a UserBankAccount.
+func (c *UserBankAccountClient) QueryTransactions(_m *UserBankAccount) *TransactionLogQuery {
+	query := (&TransactionLogClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userbankaccount.Table, userbankaccount.FieldID, id),
+			sqlgraph.To(transactionlog.Table, transactionlog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, userbankaccount.TransactionsTable, userbankaccount.TransactionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserBankAccountClient) Hooks() []Hook {
+	return c.hooks.UserBankAccount
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserBankAccountClient) Interceptors() []Interceptor {
+	return c.inters.UserBankAccount
+}
+
+func (c *UserBankAccountClient) mutate(ctx context.Context, m *UserBankAccountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserBankAccountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserBankAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserBankAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserBankAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserBankAccount mutation op: %q", m.Op())
+	}
+}
+
 // UserPlatformQuotaClient is a client for the UserPlatformQuota schema.
 type UserPlatformQuotaClient struct {
 	config
@@ -7733,11 +8316,12 @@ type (
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
 		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, ModelPricing, PaymentAuditLog, PaymentOrder,
-		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
-		ProxySubscriptionNode, ProxySubscriptionSource, RedeemCode, SecuritySecret,
-		Setting, SubscriptionPlan, TLSFingerprintProfile, UsageCleanupTask, UsageLog,
-		User, UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		IdentityAdoptionDecision, LoanContract, ModelPricing, PaymentAuditLog,
+		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
+		PromoCodeUsage, Proxy, ProxySubscriptionNode, ProxySubscriptionSource,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		TransactionLog, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		UserAttributeDefinition, UserAttributeValue, UserBankAccount,
 		UserPlatformQuota, UserSubscription []ent.Hook
 	}
 	inters struct {
@@ -7746,11 +8330,12 @@ type (
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
 		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, ModelPricing, PaymentAuditLog, PaymentOrder,
-		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
-		ProxySubscriptionNode, ProxySubscriptionSource, RedeemCode, SecuritySecret,
-		Setting, SubscriptionPlan, TLSFingerprintProfile, UsageCleanupTask, UsageLog,
-		User, UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		IdentityAdoptionDecision, LoanContract, ModelPricing, PaymentAuditLog,
+		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
+		PromoCodeUsage, Proxy, ProxySubscriptionNode, ProxySubscriptionSource,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		TransactionLog, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		UserAttributeDefinition, UserAttributeValue, UserBankAccount,
 		UserPlatformQuota, UserSubscription []ent.Interceptor
 	}
 )

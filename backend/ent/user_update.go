@@ -19,14 +19,17 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/loancontract"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/userbankaccount"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
@@ -640,6 +643,70 @@ func (_u *UserUpdate) AddPaymentOrders(v ...*PaymentOrder) *UserUpdate {
 	return _u.AddPaymentOrderIDs(ids...)
 }
 
+// SetBankAccountID sets the "bank_account" edge to the UserBankAccount entity by ID.
+func (_u *UserUpdate) SetBankAccountID(id int64) *UserUpdate {
+	_u.mutation.SetBankAccountID(id)
+	return _u
+}
+
+// SetNillableBankAccountID sets the "bank_account" edge to the UserBankAccount entity by ID if the given value is not nil.
+func (_u *UserUpdate) SetNillableBankAccountID(id *int64) *UserUpdate {
+	if id != nil {
+		_u = _u.SetBankAccountID(*id)
+	}
+	return _u
+}
+
+// SetBankAccount sets the "bank_account" edge to the UserBankAccount entity.
+func (_u *UserUpdate) SetBankAccount(v *UserBankAccount) *UserUpdate {
+	return _u.SetBankAccountID(v.ID)
+}
+
+// AddTransactionLogIDs adds the "transaction_logs" edge to the TransactionLog entity by IDs.
+func (_u *UserUpdate) AddTransactionLogIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddTransactionLogIDs(ids...)
+	return _u
+}
+
+// AddTransactionLogs adds the "transaction_logs" edges to the TransactionLog entity.
+func (_u *UserUpdate) AddTransactionLogs(v ...*TransactionLog) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTransactionLogIDs(ids...)
+}
+
+// AddBorrowedLoanContractIDs adds the "borrowed_loan_contracts" edge to the LoanContract entity by IDs.
+func (_u *UserUpdate) AddBorrowedLoanContractIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddBorrowedLoanContractIDs(ids...)
+	return _u
+}
+
+// AddBorrowedLoanContracts adds the "borrowed_loan_contracts" edges to the LoanContract entity.
+func (_u *UserUpdate) AddBorrowedLoanContracts(v ...*LoanContract) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddBorrowedLoanContractIDs(ids...)
+}
+
+// AddFundedLoanContractIDs adds the "funded_loan_contracts" edge to the LoanContract entity by IDs.
+func (_u *UserUpdate) AddFundedLoanContractIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddFundedLoanContractIDs(ids...)
+	return _u
+}
+
+// AddFundedLoanContracts adds the "funded_loan_contracts" edges to the LoanContract entity.
+func (_u *UserUpdate) AddFundedLoanContracts(v ...*LoanContract) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddFundedLoanContractIDs(ids...)
+}
+
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by IDs.
 func (_u *UserUpdate) AddAuthIdentityIDs(ids ...int64) *UserUpdate {
 	_u.mutation.AddAuthIdentityIDs(ids...)
@@ -1003,6 +1070,75 @@ func (_u *UserUpdate) RemovePaymentOrders(v ...*PaymentOrder) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePaymentOrderIDs(ids...)
+}
+
+// ClearBankAccount clears the "bank_account" edge to the UserBankAccount entity.
+func (_u *UserUpdate) ClearBankAccount() *UserUpdate {
+	_u.mutation.ClearBankAccount()
+	return _u
+}
+
+// ClearTransactionLogs clears all "transaction_logs" edges to the TransactionLog entity.
+func (_u *UserUpdate) ClearTransactionLogs() *UserUpdate {
+	_u.mutation.ClearTransactionLogs()
+	return _u
+}
+
+// RemoveTransactionLogIDs removes the "transaction_logs" edge to TransactionLog entities by IDs.
+func (_u *UserUpdate) RemoveTransactionLogIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveTransactionLogIDs(ids...)
+	return _u
+}
+
+// RemoveTransactionLogs removes "transaction_logs" edges to TransactionLog entities.
+func (_u *UserUpdate) RemoveTransactionLogs(v ...*TransactionLog) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTransactionLogIDs(ids...)
+}
+
+// ClearBorrowedLoanContracts clears all "borrowed_loan_contracts" edges to the LoanContract entity.
+func (_u *UserUpdate) ClearBorrowedLoanContracts() *UserUpdate {
+	_u.mutation.ClearBorrowedLoanContracts()
+	return _u
+}
+
+// RemoveBorrowedLoanContractIDs removes the "borrowed_loan_contracts" edge to LoanContract entities by IDs.
+func (_u *UserUpdate) RemoveBorrowedLoanContractIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveBorrowedLoanContractIDs(ids...)
+	return _u
+}
+
+// RemoveBorrowedLoanContracts removes "borrowed_loan_contracts" edges to LoanContract entities.
+func (_u *UserUpdate) RemoveBorrowedLoanContracts(v ...*LoanContract) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveBorrowedLoanContractIDs(ids...)
+}
+
+// ClearFundedLoanContracts clears all "funded_loan_contracts" edges to the LoanContract entity.
+func (_u *UserUpdate) ClearFundedLoanContracts() *UserUpdate {
+	_u.mutation.ClearFundedLoanContracts()
+	return _u
+}
+
+// RemoveFundedLoanContractIDs removes the "funded_loan_contracts" edge to LoanContract entities by IDs.
+func (_u *UserUpdate) RemoveFundedLoanContractIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveFundedLoanContractIDs(ids...)
+	return _u
+}
+
+// RemoveFundedLoanContracts removes "funded_loan_contracts" edges to LoanContract entities.
+func (_u *UserUpdate) RemoveFundedLoanContracts(v ...*LoanContract) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveFundedLoanContractIDs(ids...)
 }
 
 // ClearAuthIdentities clears all "auth_identities" edges to the AuthIdentity entity.
@@ -1943,6 +2079,170 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.BankAccountCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.BankAccountTable,
+			Columns: []string{user.BankAccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userbankaccount.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BankAccountIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.BankAccountTable,
+			Columns: []string{user.BankAccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userbankaccount.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TransactionLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TransactionLogsTable,
+			Columns: []string{user.TransactionLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTransactionLogsIDs(); len(nodes) > 0 && !_u.mutation.TransactionLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TransactionLogsTable,
+			Columns: []string{user.TransactionLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TransactionLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TransactionLogsTable,
+			Columns: []string{user.TransactionLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BorrowedLoanContractsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.BorrowedLoanContractsTable,
+			Columns: []string{user.BorrowedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedBorrowedLoanContractsIDs(); len(nodes) > 0 && !_u.mutation.BorrowedLoanContractsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.BorrowedLoanContractsTable,
+			Columns: []string{user.BorrowedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BorrowedLoanContractsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.BorrowedLoanContractsTable,
+			Columns: []string{user.BorrowedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.FundedLoanContractsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.FundedLoanContractsTable,
+			Columns: []string{user.FundedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedFundedLoanContractsIDs(); len(nodes) > 0 && !_u.mutation.FundedLoanContractsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.FundedLoanContractsTable,
+			Columns: []string{user.FundedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.FundedLoanContractsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.FundedLoanContractsTable,
+			Columns: []string{user.FundedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.AuthIdentitiesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -2694,6 +2994,70 @@ func (_u *UserUpdateOne) AddPaymentOrders(v ...*PaymentOrder) *UserUpdateOne {
 	return _u.AddPaymentOrderIDs(ids...)
 }
 
+// SetBankAccountID sets the "bank_account" edge to the UserBankAccount entity by ID.
+func (_u *UserUpdateOne) SetBankAccountID(id int64) *UserUpdateOne {
+	_u.mutation.SetBankAccountID(id)
+	return _u
+}
+
+// SetNillableBankAccountID sets the "bank_account" edge to the UserBankAccount entity by ID if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableBankAccountID(id *int64) *UserUpdateOne {
+	if id != nil {
+		_u = _u.SetBankAccountID(*id)
+	}
+	return _u
+}
+
+// SetBankAccount sets the "bank_account" edge to the UserBankAccount entity.
+func (_u *UserUpdateOne) SetBankAccount(v *UserBankAccount) *UserUpdateOne {
+	return _u.SetBankAccountID(v.ID)
+}
+
+// AddTransactionLogIDs adds the "transaction_logs" edge to the TransactionLog entity by IDs.
+func (_u *UserUpdateOne) AddTransactionLogIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddTransactionLogIDs(ids...)
+	return _u
+}
+
+// AddTransactionLogs adds the "transaction_logs" edges to the TransactionLog entity.
+func (_u *UserUpdateOne) AddTransactionLogs(v ...*TransactionLog) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTransactionLogIDs(ids...)
+}
+
+// AddBorrowedLoanContractIDs adds the "borrowed_loan_contracts" edge to the LoanContract entity by IDs.
+func (_u *UserUpdateOne) AddBorrowedLoanContractIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddBorrowedLoanContractIDs(ids...)
+	return _u
+}
+
+// AddBorrowedLoanContracts adds the "borrowed_loan_contracts" edges to the LoanContract entity.
+func (_u *UserUpdateOne) AddBorrowedLoanContracts(v ...*LoanContract) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddBorrowedLoanContractIDs(ids...)
+}
+
+// AddFundedLoanContractIDs adds the "funded_loan_contracts" edge to the LoanContract entity by IDs.
+func (_u *UserUpdateOne) AddFundedLoanContractIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddFundedLoanContractIDs(ids...)
+	return _u
+}
+
+// AddFundedLoanContracts adds the "funded_loan_contracts" edges to the LoanContract entity.
+func (_u *UserUpdateOne) AddFundedLoanContracts(v ...*LoanContract) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddFundedLoanContractIDs(ids...)
+}
+
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by IDs.
 func (_u *UserUpdateOne) AddAuthIdentityIDs(ids ...int64) *UserUpdateOne {
 	_u.mutation.AddAuthIdentityIDs(ids...)
@@ -3057,6 +3421,75 @@ func (_u *UserUpdateOne) RemovePaymentOrders(v ...*PaymentOrder) *UserUpdateOne 
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePaymentOrderIDs(ids...)
+}
+
+// ClearBankAccount clears the "bank_account" edge to the UserBankAccount entity.
+func (_u *UserUpdateOne) ClearBankAccount() *UserUpdateOne {
+	_u.mutation.ClearBankAccount()
+	return _u
+}
+
+// ClearTransactionLogs clears all "transaction_logs" edges to the TransactionLog entity.
+func (_u *UserUpdateOne) ClearTransactionLogs() *UserUpdateOne {
+	_u.mutation.ClearTransactionLogs()
+	return _u
+}
+
+// RemoveTransactionLogIDs removes the "transaction_logs" edge to TransactionLog entities by IDs.
+func (_u *UserUpdateOne) RemoveTransactionLogIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveTransactionLogIDs(ids...)
+	return _u
+}
+
+// RemoveTransactionLogs removes "transaction_logs" edges to TransactionLog entities.
+func (_u *UserUpdateOne) RemoveTransactionLogs(v ...*TransactionLog) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTransactionLogIDs(ids...)
+}
+
+// ClearBorrowedLoanContracts clears all "borrowed_loan_contracts" edges to the LoanContract entity.
+func (_u *UserUpdateOne) ClearBorrowedLoanContracts() *UserUpdateOne {
+	_u.mutation.ClearBorrowedLoanContracts()
+	return _u
+}
+
+// RemoveBorrowedLoanContractIDs removes the "borrowed_loan_contracts" edge to LoanContract entities by IDs.
+func (_u *UserUpdateOne) RemoveBorrowedLoanContractIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveBorrowedLoanContractIDs(ids...)
+	return _u
+}
+
+// RemoveBorrowedLoanContracts removes "borrowed_loan_contracts" edges to LoanContract entities.
+func (_u *UserUpdateOne) RemoveBorrowedLoanContracts(v ...*LoanContract) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveBorrowedLoanContractIDs(ids...)
+}
+
+// ClearFundedLoanContracts clears all "funded_loan_contracts" edges to the LoanContract entity.
+func (_u *UserUpdateOne) ClearFundedLoanContracts() *UserUpdateOne {
+	_u.mutation.ClearFundedLoanContracts()
+	return _u
+}
+
+// RemoveFundedLoanContractIDs removes the "funded_loan_contracts" edge to LoanContract entities by IDs.
+func (_u *UserUpdateOne) RemoveFundedLoanContractIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveFundedLoanContractIDs(ids...)
+	return _u
+}
+
+// RemoveFundedLoanContracts removes "funded_loan_contracts" edges to LoanContract entities.
+func (_u *UserUpdateOne) RemoveFundedLoanContracts(v ...*LoanContract) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveFundedLoanContractIDs(ids...)
 }
 
 // ClearAuthIdentities clears all "auth_identities" edges to the AuthIdentity entity.
@@ -4020,6 +4453,170 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(paymentorder.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BankAccountCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.BankAccountTable,
+			Columns: []string{user.BankAccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userbankaccount.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BankAccountIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.BankAccountTable,
+			Columns: []string{user.BankAccountColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userbankaccount.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TransactionLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TransactionLogsTable,
+			Columns: []string{user.TransactionLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTransactionLogsIDs(); len(nodes) > 0 && !_u.mutation.TransactionLogsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TransactionLogsTable,
+			Columns: []string{user.TransactionLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TransactionLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TransactionLogsTable,
+			Columns: []string{user.TransactionLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.BorrowedLoanContractsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.BorrowedLoanContractsTable,
+			Columns: []string{user.BorrowedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedBorrowedLoanContractsIDs(); len(nodes) > 0 && !_u.mutation.BorrowedLoanContractsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.BorrowedLoanContractsTable,
+			Columns: []string{user.BorrowedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.BorrowedLoanContractsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.BorrowedLoanContractsTable,
+			Columns: []string{user.BorrowedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.FundedLoanContractsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.FundedLoanContractsTable,
+			Columns: []string{user.FundedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedFundedLoanContractsIDs(); len(nodes) > 0 && !_u.mutation.FundedLoanContractsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.FundedLoanContractsTable,
+			Columns: []string{user.FundedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.FundedLoanContractsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.FundedLoanContractsTable,
+			Columns: []string{user.FundedLoanContractsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

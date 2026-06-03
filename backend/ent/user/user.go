@@ -91,6 +91,14 @@ const (
 	EdgePromoCodeUsages = "promo_code_usages"
 	// EdgePaymentOrders holds the string denoting the payment_orders edge name in mutations.
 	EdgePaymentOrders = "payment_orders"
+	// EdgeBankAccount holds the string denoting the bank_account edge name in mutations.
+	EdgeBankAccount = "bank_account"
+	// EdgeTransactionLogs holds the string denoting the transaction_logs edge name in mutations.
+	EdgeTransactionLogs = "transaction_logs"
+	// EdgeBorrowedLoanContracts holds the string denoting the borrowed_loan_contracts edge name in mutations.
+	EdgeBorrowedLoanContracts = "borrowed_loan_contracts"
+	// EdgeFundedLoanContracts holds the string denoting the funded_loan_contracts edge name in mutations.
+	EdgeFundedLoanContracts = "funded_loan_contracts"
 	// EdgeAuthIdentities holds the string denoting the auth_identities edge name in mutations.
 	EdgeAuthIdentities = "auth_identities"
 	// EdgePendingAuthSessions holds the string denoting the pending_auth_sessions edge name in mutations.
@@ -204,6 +212,34 @@ const (
 	PaymentOrdersInverseTable = "payment_orders"
 	// PaymentOrdersColumn is the table column denoting the payment_orders relation/edge.
 	PaymentOrdersColumn = "user_id"
+	// BankAccountTable is the table that holds the bank_account relation/edge.
+	BankAccountTable = "users_bank_account"
+	// BankAccountInverseTable is the table name for the UserBankAccount entity.
+	// It exists in this package in order to avoid circular dependency with the "userbankaccount" package.
+	BankAccountInverseTable = "users_bank_account"
+	// BankAccountColumn is the table column denoting the bank_account relation/edge.
+	BankAccountColumn = "user_id"
+	// TransactionLogsTable is the table that holds the transaction_logs relation/edge.
+	TransactionLogsTable = "transactions_log"
+	// TransactionLogsInverseTable is the table name for the TransactionLog entity.
+	// It exists in this package in order to avoid circular dependency with the "transactionlog" package.
+	TransactionLogsInverseTable = "transactions_log"
+	// TransactionLogsColumn is the table column denoting the transaction_logs relation/edge.
+	TransactionLogsColumn = "user_id"
+	// BorrowedLoanContractsTable is the table that holds the borrowed_loan_contracts relation/edge.
+	BorrowedLoanContractsTable = "loans_contract"
+	// BorrowedLoanContractsInverseTable is the table name for the LoanContract entity.
+	// It exists in this package in order to avoid circular dependency with the "loancontract" package.
+	BorrowedLoanContractsInverseTable = "loans_contract"
+	// BorrowedLoanContractsColumn is the table column denoting the borrowed_loan_contracts relation/edge.
+	BorrowedLoanContractsColumn = "borrower_id"
+	// FundedLoanContractsTable is the table that holds the funded_loan_contracts relation/edge.
+	FundedLoanContractsTable = "loans_contract"
+	// FundedLoanContractsInverseTable is the table name for the LoanContract entity.
+	// It exists in this package in order to avoid circular dependency with the "loancontract" package.
+	FundedLoanContractsInverseTable = "loans_contract"
+	// FundedLoanContractsColumn is the table column denoting the funded_loan_contracts relation/edge.
+	FundedLoanContractsColumn = "lender_id"
 	// AuthIdentitiesTable is the table that holds the auth_identities relation/edge.
 	AuthIdentitiesTable = "auth_identities"
 	// AuthIdentitiesInverseTable is the table name for the AuthIdentity entity.
@@ -665,6 +701,55 @@ func ByPaymentOrders(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByBankAccountField orders the results by bank_account field.
+func ByBankAccountField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBankAccountStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByTransactionLogsCount orders the results by transaction_logs count.
+func ByTransactionLogsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTransactionLogsStep(), opts...)
+	}
+}
+
+// ByTransactionLogs orders the results by transaction_logs terms.
+func ByTransactionLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTransactionLogsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByBorrowedLoanContractsCount orders the results by borrowed_loan_contracts count.
+func ByBorrowedLoanContractsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newBorrowedLoanContractsStep(), opts...)
+	}
+}
+
+// ByBorrowedLoanContracts orders the results by borrowed_loan_contracts terms.
+func ByBorrowedLoanContracts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newBorrowedLoanContractsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByFundedLoanContractsCount orders the results by funded_loan_contracts count.
+func ByFundedLoanContractsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newFundedLoanContractsStep(), opts...)
+	}
+}
+
+// ByFundedLoanContracts orders the results by funded_loan_contracts terms.
+func ByFundedLoanContracts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newFundedLoanContractsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByAuthIdentitiesCount orders the results by auth_identities count.
 func ByAuthIdentitiesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -823,6 +908,34 @@ func newPaymentOrdersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PaymentOrdersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, PaymentOrdersTable, PaymentOrdersColumn),
+	)
+}
+func newBankAccountStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BankAccountInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, BankAccountTable, BankAccountColumn),
+	)
+}
+func newTransactionLogsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TransactionLogsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TransactionLogsTable, TransactionLogsColumn),
+	)
+}
+func newBorrowedLoanContractsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(BorrowedLoanContractsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, BorrowedLoanContractsTable, BorrowedLoanContractsColumn),
+	)
+}
+func newFundedLoanContractsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(FundedLoanContractsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, FundedLoanContractsTable, FundedLoanContractsColumn),
 	)
 }
 func newAuthIdentitiesStep() *sqlgraph.Step {

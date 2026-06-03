@@ -1071,6 +1071,75 @@ var (
 			},
 		},
 	}
+	// LoansContractColumns holds the columns for the "loans_contract" table.
+	LoansContractColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "loan_id", Type: field.TypeUUID},
+		{Name: "lender_type", Type: field.TypeString, Size: 16},
+		{Name: "principal", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "interest_rate", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(18,12)"}},
+		{Name: "accrued_interest", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "repaid_principal", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "repaid_interest", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "ACTIVE"},
+		{Name: "due_date", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "borrower_id", Type: field.TypeInt64},
+		{Name: "lender_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// LoansContractTable holds the schema information for the "loans_contract" table.
+	LoansContractTable = &schema.Table{
+		Name:       "loans_contract",
+		Columns:    LoansContractColumns,
+		PrimaryKey: []*schema.Column{LoansContractColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "loans_contract_users_borrowed_loan_contracts",
+				Columns:    []*schema.Column{LoansContractColumns[12]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "loans_contract_users_funded_loan_contracts",
+				Columns:    []*schema.Column{LoansContractColumns[13]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "loancontract_loan_id",
+				Unique:  true,
+				Columns: []*schema.Column{LoansContractColumns[3]},
+			},
+			{
+				Name:    "loancontract_borrower_id",
+				Unique:  false,
+				Columns: []*schema.Column{LoansContractColumns[12]},
+			},
+			{
+				Name:    "loancontract_lender_type_lender_id",
+				Unique:  false,
+				Columns: []*schema.Column{LoansContractColumns[4], LoansContractColumns[13]},
+			},
+			{
+				Name:    "loancontract_status",
+				Unique:  false,
+				Columns: []*schema.Column{LoansContractColumns[10]},
+			},
+			{
+				Name:    "loancontract_due_date",
+				Unique:  false,
+				Columns: []*schema.Column{LoansContractColumns[11]},
+			},
+			{
+				Name:    "loancontract_status_due_date",
+				Unique:  false,
+				Columns: []*schema.Column{LoansContractColumns[10], LoansContractColumns[11]},
+			},
+		},
+	}
 	// ModelPricingsColumns holds the columns for the "model_pricings" table.
 	ModelPricingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1685,6 +1754,91 @@ var (
 		Columns:    TLSFingerprintProfilesColumns,
 		PrimaryKey: []*schema.Column{TLSFingerprintProfilesColumns[0]},
 	}
+	// TransactionsLogColumns holds the columns for the "transactions_log" table.
+	TransactionsLogColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "tx_id", Type: field.TypeUUID},
+		{Name: "tx_type", Type: field.TypeString, Size: 32},
+		{Name: "amount", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "balance_before", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "balance_after", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "frozen_before", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "frozen_after", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "credit_limit_snapshot", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "debt_snapshot", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "description", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "reference_type", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "reference_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "request_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "idempotency_scope", Type: field.TypeString, Size: 128},
+		{Name: "idempotency_key_hash", Type: field.TypeString, Size: 64},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "account_id", Type: field.TypeInt64},
+	}
+	// TransactionsLogTable holds the schema information for the "transactions_log" table.
+	TransactionsLogTable = &schema.Table{
+		Name:       "transactions_log",
+		Columns:    TransactionsLogColumns,
+		PrimaryKey: []*schema.Column{TransactionsLogColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "transactions_log_users_transaction_logs",
+				Columns:    []*schema.Column{TransactionsLogColumns[18]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "transactions_log_users_bank_account_transactions",
+				Columns:    []*schema.Column{TransactionsLogColumns[19]},
+				RefColumns: []*schema.Column{UsersBankAccountColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "transactionlog_tx_id",
+				Unique:  true,
+				Columns: []*schema.Column{TransactionsLogColumns[1]},
+			},
+			{
+				Name:    "transactionlog_idempotency_scope_idempotency_key_hash",
+				Unique:  true,
+				Columns: []*schema.Column{TransactionsLogColumns[14], TransactionsLogColumns[15]},
+			},
+			{
+				Name:    "transactionlog_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{TransactionsLogColumns[18]},
+			},
+			{
+				Name:    "transactionlog_account_id",
+				Unique:  false,
+				Columns: []*schema.Column{TransactionsLogColumns[19]},
+			},
+			{
+				Name:    "transactionlog_tx_type",
+				Unique:  false,
+				Columns: []*schema.Column{TransactionsLogColumns[2]},
+			},
+			{
+				Name:    "transactionlog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{TransactionsLogColumns[17]},
+			},
+			{
+				Name:    "transactionlog_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{TransactionsLogColumns[18], TransactionsLogColumns[17]},
+			},
+			{
+				Name:    "transactionlog_reference_type_reference_id",
+				Unique:  false,
+				Columns: []*schema.Column{TransactionsLogColumns[11], TransactionsLogColumns[12]},
+			},
+		},
+	}
 	// UsageCleanupTasksColumns holds the columns for the "usage_cleanup_tasks" table.
 	UsageCleanupTasksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2045,6 +2199,45 @@ var (
 			},
 		},
 	}
+	// UsersBankAccountColumns holds the columns for the "users_bank_account" table.
+	UsersBankAccountColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "balance", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "frozen_amount", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "credit_limit", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "total_debt", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "version", Type: field.TypeInt64, Default: 1},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "ACTIVE"},
+		{Name: "user_id", Type: field.TypeInt64, Unique: true},
+	}
+	// UsersBankAccountTable holds the schema information for the "users_bank_account" table.
+	UsersBankAccountTable = &schema.Table{
+		Name:       "users_bank_account",
+		Columns:    UsersBankAccountColumns,
+		PrimaryKey: []*schema.Column{UsersBankAccountColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "users_bank_account_users_bank_account",
+				Columns:    []*schema.Column{UsersBankAccountColumns[9]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "userbankaccount_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{UsersBankAccountColumns[9]},
+			},
+			{
+				Name:    "userbankaccount_status",
+				Unique:  false,
+				Columns: []*schema.Column{UsersBankAccountColumns[8]},
+			},
+		},
+	}
 	// UserPlatformQuotasColumns holds the columns for the "user_platform_quotas" table.
 	UserPlatformQuotasColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2204,6 +2397,7 @@ var (
 		GroupsTable,
 		IdempotencyRecordsTable,
 		IdentityAdoptionDecisionsTable,
+		LoansContractTable,
 		ModelPricingsTable,
 		PaymentAuditLogsTable,
 		PaymentOrdersTable,
@@ -2219,12 +2413,14 @@ var (
 		SettingsTable,
 		SubscriptionPlansTable,
 		TLSFingerprintProfilesTable,
+		TransactionsLogTable,
 		UsageCleanupTasksTable,
 		UsageLogsTable,
 		UsersTable,
 		UserAllowedGroupsTable,
 		UserAttributeDefinitionsTable,
 		UserAttributeValuesTable,
+		UsersBankAccountTable,
 		UserPlatformQuotasTable,
 		UserSubscriptionsTable,
 	}
@@ -2315,6 +2511,11 @@ func init() {
 	IdentityAdoptionDecisionsTable.Annotation = &entsql.Annotation{
 		Table: "identity_adoption_decisions",
 	}
+	LoansContractTable.ForeignKeys[0].RefTable = UsersTable
+	LoansContractTable.ForeignKeys[1].RefTable = UsersTable
+	LoansContractTable.Annotation = &entsql.Annotation{
+		Table: "loans_contract",
+	}
 	ModelPricingsTable.Annotation = &entsql.Annotation{
 		Table: "model_pricings",
 	}
@@ -2367,6 +2568,11 @@ func init() {
 	TLSFingerprintProfilesTable.Annotation = &entsql.Annotation{
 		Table: "tls_fingerprint_profiles",
 	}
+	TransactionsLogTable.ForeignKeys[0].RefTable = UsersTable
+	TransactionsLogTable.ForeignKeys[1].RefTable = UsersBankAccountTable
+	TransactionsLogTable.Annotation = &entsql.Annotation{
+		Table: "transactions_log",
+	}
 	UsageCleanupTasksTable.Annotation = &entsql.Annotation{
 		Table: "usage_cleanup_tasks",
 	}
@@ -2393,6 +2599,10 @@ func init() {
 	UserAttributeValuesTable.ForeignKeys[1].RefTable = UserAttributeDefinitionsTable
 	UserAttributeValuesTable.Annotation = &entsql.Annotation{
 		Table: "user_attribute_values",
+	}
+	UsersBankAccountTable.ForeignKeys[0].RefTable = UsersTable
+	UsersBankAccountTable.Annotation = &entsql.Annotation{
+		Table: "users_bank_account",
 	}
 	UserPlatformQuotasTable.ForeignKeys[0].RefTable = UsersTable
 	UserPlatformQuotasTable.Annotation = &entsql.Annotation{

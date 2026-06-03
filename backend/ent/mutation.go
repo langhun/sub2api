@@ -33,6 +33,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/loancontract"
 	"github.com/Wei-Shaw/sub2api/ent/modelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
@@ -49,15 +50,19 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
+	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/userbankaccount"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -90,6 +95,7 @@ const (
 	TypeGroup                         = "Group"
 	TypeIdempotencyRecord             = "IdempotencyRecord"
 	TypeIdentityAdoptionDecision      = "IdentityAdoptionDecision"
+	TypeLoanContract                  = "LoanContract"
 	TypeModelPricing                  = "ModelPricing"
 	TypePaymentAuditLog               = "PaymentAuditLog"
 	TypePaymentOrder                  = "PaymentOrder"
@@ -105,12 +111,14 @@ const (
 	TypeSetting                       = "Setting"
 	TypeSubscriptionPlan              = "SubscriptionPlan"
 	TypeTLSFingerprintProfile         = "TLSFingerprintProfile"
+	TypeTransactionLog                = "TransactionLog"
 	TypeUsageCleanupTask              = "UsageCleanupTask"
 	TypeUsageLog                      = "UsageLog"
 	TypeUser                          = "User"
 	TypeUserAllowedGroup              = "UserAllowedGroup"
 	TypeUserAttributeDefinition       = "UserAttributeDefinition"
 	TypeUserAttributeValue            = "UserAttributeValue"
+	TypeUserBankAccount               = "UserBankAccount"
 	TypeUserPlatformQuota             = "UserPlatformQuota"
 	TypeUserSubscription              = "UserSubscription"
 )
@@ -26513,6 +26521,1105 @@ func (m *IdentityAdoptionDecisionMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown IdentityAdoptionDecision edge %s", name)
 }
 
+// LoanContractMutation represents an operation that mutates the LoanContract nodes in the graph.
+type LoanContractMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int64
+	created_at       *time.Time
+	updated_at       *time.Time
+	loan_id          *uuid.UUID
+	lender_type      *string
+	principal        *decimal.Decimal
+	interest_rate    *decimal.Decimal
+	accrued_interest *decimal.Decimal
+	repaid_principal *decimal.Decimal
+	repaid_interest  *decimal.Decimal
+	status           *string
+	due_date         *time.Time
+	clearedFields    map[string]struct{}
+	borrower         *int64
+	clearedborrower  bool
+	lender           *int64
+	clearedlender    bool
+	done             bool
+	oldValue         func(context.Context) (*LoanContract, error)
+	predicates       []predicate.LoanContract
+}
+
+var _ ent.Mutation = (*LoanContractMutation)(nil)
+
+// loancontractOption allows management of the mutation configuration using functional options.
+type loancontractOption func(*LoanContractMutation)
+
+// newLoanContractMutation creates new mutation for the LoanContract entity.
+func newLoanContractMutation(c config, op Op, opts ...loancontractOption) *LoanContractMutation {
+	m := &LoanContractMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLoanContract,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLoanContractID sets the ID field of the mutation.
+func withLoanContractID(id int64) loancontractOption {
+	return func(m *LoanContractMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LoanContract
+		)
+		m.oldValue = func(ctx context.Context) (*LoanContract, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LoanContract.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLoanContract sets the old LoanContract of the mutation.
+func withLoanContract(node *LoanContract) loancontractOption {
+	return func(m *LoanContractMutation) {
+		m.oldValue = func(context.Context) (*LoanContract, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LoanContractMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LoanContractMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LoanContractMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LoanContractMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LoanContract.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LoanContractMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LoanContractMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LoanContractMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LoanContractMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LoanContractMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LoanContractMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetLoanID sets the "loan_id" field.
+func (m *LoanContractMutation) SetLoanID(u uuid.UUID) {
+	m.loan_id = &u
+}
+
+// LoanID returns the value of the "loan_id" field in the mutation.
+func (m *LoanContractMutation) LoanID() (r uuid.UUID, exists bool) {
+	v := m.loan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLoanID returns the old "loan_id" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldLoanID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLoanID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLoanID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLoanID: %w", err)
+	}
+	return oldValue.LoanID, nil
+}
+
+// ResetLoanID resets all changes to the "loan_id" field.
+func (m *LoanContractMutation) ResetLoanID() {
+	m.loan_id = nil
+}
+
+// SetBorrowerID sets the "borrower_id" field.
+func (m *LoanContractMutation) SetBorrowerID(i int64) {
+	m.borrower = &i
+}
+
+// BorrowerID returns the value of the "borrower_id" field in the mutation.
+func (m *LoanContractMutation) BorrowerID() (r int64, exists bool) {
+	v := m.borrower
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBorrowerID returns the old "borrower_id" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldBorrowerID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBorrowerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBorrowerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBorrowerID: %w", err)
+	}
+	return oldValue.BorrowerID, nil
+}
+
+// ResetBorrowerID resets all changes to the "borrower_id" field.
+func (m *LoanContractMutation) ResetBorrowerID() {
+	m.borrower = nil
+}
+
+// SetLenderType sets the "lender_type" field.
+func (m *LoanContractMutation) SetLenderType(s string) {
+	m.lender_type = &s
+}
+
+// LenderType returns the value of the "lender_type" field in the mutation.
+func (m *LoanContractMutation) LenderType() (r string, exists bool) {
+	v := m.lender_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLenderType returns the old "lender_type" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldLenderType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLenderType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLenderType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLenderType: %w", err)
+	}
+	return oldValue.LenderType, nil
+}
+
+// ResetLenderType resets all changes to the "lender_type" field.
+func (m *LoanContractMutation) ResetLenderType() {
+	m.lender_type = nil
+}
+
+// SetLenderID sets the "lender_id" field.
+func (m *LoanContractMutation) SetLenderID(i int64) {
+	m.lender = &i
+}
+
+// LenderID returns the value of the "lender_id" field in the mutation.
+func (m *LoanContractMutation) LenderID() (r int64, exists bool) {
+	v := m.lender
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLenderID returns the old "lender_id" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldLenderID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLenderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLenderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLenderID: %w", err)
+	}
+	return oldValue.LenderID, nil
+}
+
+// ClearLenderID clears the value of the "lender_id" field.
+func (m *LoanContractMutation) ClearLenderID() {
+	m.lender = nil
+	m.clearedFields[loancontract.FieldLenderID] = struct{}{}
+}
+
+// LenderIDCleared returns if the "lender_id" field was cleared in this mutation.
+func (m *LoanContractMutation) LenderIDCleared() bool {
+	_, ok := m.clearedFields[loancontract.FieldLenderID]
+	return ok
+}
+
+// ResetLenderID resets all changes to the "lender_id" field.
+func (m *LoanContractMutation) ResetLenderID() {
+	m.lender = nil
+	delete(m.clearedFields, loancontract.FieldLenderID)
+}
+
+// SetPrincipal sets the "principal" field.
+func (m *LoanContractMutation) SetPrincipal(d decimal.Decimal) {
+	m.principal = &d
+}
+
+// Principal returns the value of the "principal" field in the mutation.
+func (m *LoanContractMutation) Principal() (r decimal.Decimal, exists bool) {
+	v := m.principal
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrincipal returns the old "principal" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldPrincipal(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrincipal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrincipal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrincipal: %w", err)
+	}
+	return oldValue.Principal, nil
+}
+
+// ResetPrincipal resets all changes to the "principal" field.
+func (m *LoanContractMutation) ResetPrincipal() {
+	m.principal = nil
+}
+
+// SetInterestRate sets the "interest_rate" field.
+func (m *LoanContractMutation) SetInterestRate(d decimal.Decimal) {
+	m.interest_rate = &d
+}
+
+// InterestRate returns the value of the "interest_rate" field in the mutation.
+func (m *LoanContractMutation) InterestRate() (r decimal.Decimal, exists bool) {
+	v := m.interest_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInterestRate returns the old "interest_rate" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldInterestRate(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInterestRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInterestRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInterestRate: %w", err)
+	}
+	return oldValue.InterestRate, nil
+}
+
+// ResetInterestRate resets all changes to the "interest_rate" field.
+func (m *LoanContractMutation) ResetInterestRate() {
+	m.interest_rate = nil
+}
+
+// SetAccruedInterest sets the "accrued_interest" field.
+func (m *LoanContractMutation) SetAccruedInterest(d decimal.Decimal) {
+	m.accrued_interest = &d
+}
+
+// AccruedInterest returns the value of the "accrued_interest" field in the mutation.
+func (m *LoanContractMutation) AccruedInterest() (r decimal.Decimal, exists bool) {
+	v := m.accrued_interest
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccruedInterest returns the old "accrued_interest" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldAccruedInterest(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccruedInterest is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccruedInterest requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccruedInterest: %w", err)
+	}
+	return oldValue.AccruedInterest, nil
+}
+
+// ResetAccruedInterest resets all changes to the "accrued_interest" field.
+func (m *LoanContractMutation) ResetAccruedInterest() {
+	m.accrued_interest = nil
+}
+
+// SetRepaidPrincipal sets the "repaid_principal" field.
+func (m *LoanContractMutation) SetRepaidPrincipal(d decimal.Decimal) {
+	m.repaid_principal = &d
+}
+
+// RepaidPrincipal returns the value of the "repaid_principal" field in the mutation.
+func (m *LoanContractMutation) RepaidPrincipal() (r decimal.Decimal, exists bool) {
+	v := m.repaid_principal
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRepaidPrincipal returns the old "repaid_principal" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldRepaidPrincipal(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRepaidPrincipal is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRepaidPrincipal requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRepaidPrincipal: %w", err)
+	}
+	return oldValue.RepaidPrincipal, nil
+}
+
+// ResetRepaidPrincipal resets all changes to the "repaid_principal" field.
+func (m *LoanContractMutation) ResetRepaidPrincipal() {
+	m.repaid_principal = nil
+}
+
+// SetRepaidInterest sets the "repaid_interest" field.
+func (m *LoanContractMutation) SetRepaidInterest(d decimal.Decimal) {
+	m.repaid_interest = &d
+}
+
+// RepaidInterest returns the value of the "repaid_interest" field in the mutation.
+func (m *LoanContractMutation) RepaidInterest() (r decimal.Decimal, exists bool) {
+	v := m.repaid_interest
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRepaidInterest returns the old "repaid_interest" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldRepaidInterest(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRepaidInterest is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRepaidInterest requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRepaidInterest: %w", err)
+	}
+	return oldValue.RepaidInterest, nil
+}
+
+// ResetRepaidInterest resets all changes to the "repaid_interest" field.
+func (m *LoanContractMutation) ResetRepaidInterest() {
+	m.repaid_interest = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *LoanContractMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *LoanContractMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *LoanContractMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetDueDate sets the "due_date" field.
+func (m *LoanContractMutation) SetDueDate(t time.Time) {
+	m.due_date = &t
+}
+
+// DueDate returns the value of the "due_date" field in the mutation.
+func (m *LoanContractMutation) DueDate() (r time.Time, exists bool) {
+	v := m.due_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDueDate returns the old "due_date" field's value of the LoanContract entity.
+// If the LoanContract object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LoanContractMutation) OldDueDate(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDueDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDueDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDueDate: %w", err)
+	}
+	return oldValue.DueDate, nil
+}
+
+// ResetDueDate resets all changes to the "due_date" field.
+func (m *LoanContractMutation) ResetDueDate() {
+	m.due_date = nil
+}
+
+// ClearBorrower clears the "borrower" edge to the User entity.
+func (m *LoanContractMutation) ClearBorrower() {
+	m.clearedborrower = true
+	m.clearedFields[loancontract.FieldBorrowerID] = struct{}{}
+}
+
+// BorrowerCleared reports if the "borrower" edge to the User entity was cleared.
+func (m *LoanContractMutation) BorrowerCleared() bool {
+	return m.clearedborrower
+}
+
+// BorrowerIDs returns the "borrower" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// BorrowerID instead. It exists only for internal usage by the builders.
+func (m *LoanContractMutation) BorrowerIDs() (ids []int64) {
+	if id := m.borrower; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetBorrower resets all changes to the "borrower" edge.
+func (m *LoanContractMutation) ResetBorrower() {
+	m.borrower = nil
+	m.clearedborrower = false
+}
+
+// ClearLender clears the "lender" edge to the User entity.
+func (m *LoanContractMutation) ClearLender() {
+	m.clearedlender = true
+	m.clearedFields[loancontract.FieldLenderID] = struct{}{}
+}
+
+// LenderCleared reports if the "lender" edge to the User entity was cleared.
+func (m *LoanContractMutation) LenderCleared() bool {
+	return m.LenderIDCleared() || m.clearedlender
+}
+
+// LenderIDs returns the "lender" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// LenderID instead. It exists only for internal usage by the builders.
+func (m *LoanContractMutation) LenderIDs() (ids []int64) {
+	if id := m.lender; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetLender resets all changes to the "lender" edge.
+func (m *LoanContractMutation) ResetLender() {
+	m.lender = nil
+	m.clearedlender = false
+}
+
+// Where appends a list predicates to the LoanContractMutation builder.
+func (m *LoanContractMutation) Where(ps ...predicate.LoanContract) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LoanContractMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LoanContractMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LoanContract, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LoanContractMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LoanContractMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LoanContract).
+func (m *LoanContractMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LoanContractMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, loancontract.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, loancontract.FieldUpdatedAt)
+	}
+	if m.loan_id != nil {
+		fields = append(fields, loancontract.FieldLoanID)
+	}
+	if m.borrower != nil {
+		fields = append(fields, loancontract.FieldBorrowerID)
+	}
+	if m.lender_type != nil {
+		fields = append(fields, loancontract.FieldLenderType)
+	}
+	if m.lender != nil {
+		fields = append(fields, loancontract.FieldLenderID)
+	}
+	if m.principal != nil {
+		fields = append(fields, loancontract.FieldPrincipal)
+	}
+	if m.interest_rate != nil {
+		fields = append(fields, loancontract.FieldInterestRate)
+	}
+	if m.accrued_interest != nil {
+		fields = append(fields, loancontract.FieldAccruedInterest)
+	}
+	if m.repaid_principal != nil {
+		fields = append(fields, loancontract.FieldRepaidPrincipal)
+	}
+	if m.repaid_interest != nil {
+		fields = append(fields, loancontract.FieldRepaidInterest)
+	}
+	if m.status != nil {
+		fields = append(fields, loancontract.FieldStatus)
+	}
+	if m.due_date != nil {
+		fields = append(fields, loancontract.FieldDueDate)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LoanContractMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case loancontract.FieldCreatedAt:
+		return m.CreatedAt()
+	case loancontract.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case loancontract.FieldLoanID:
+		return m.LoanID()
+	case loancontract.FieldBorrowerID:
+		return m.BorrowerID()
+	case loancontract.FieldLenderType:
+		return m.LenderType()
+	case loancontract.FieldLenderID:
+		return m.LenderID()
+	case loancontract.FieldPrincipal:
+		return m.Principal()
+	case loancontract.FieldInterestRate:
+		return m.InterestRate()
+	case loancontract.FieldAccruedInterest:
+		return m.AccruedInterest()
+	case loancontract.FieldRepaidPrincipal:
+		return m.RepaidPrincipal()
+	case loancontract.FieldRepaidInterest:
+		return m.RepaidInterest()
+	case loancontract.FieldStatus:
+		return m.Status()
+	case loancontract.FieldDueDate:
+		return m.DueDate()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LoanContractMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case loancontract.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case loancontract.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case loancontract.FieldLoanID:
+		return m.OldLoanID(ctx)
+	case loancontract.FieldBorrowerID:
+		return m.OldBorrowerID(ctx)
+	case loancontract.FieldLenderType:
+		return m.OldLenderType(ctx)
+	case loancontract.FieldLenderID:
+		return m.OldLenderID(ctx)
+	case loancontract.FieldPrincipal:
+		return m.OldPrincipal(ctx)
+	case loancontract.FieldInterestRate:
+		return m.OldInterestRate(ctx)
+	case loancontract.FieldAccruedInterest:
+		return m.OldAccruedInterest(ctx)
+	case loancontract.FieldRepaidPrincipal:
+		return m.OldRepaidPrincipal(ctx)
+	case loancontract.FieldRepaidInterest:
+		return m.OldRepaidInterest(ctx)
+	case loancontract.FieldStatus:
+		return m.OldStatus(ctx)
+	case loancontract.FieldDueDate:
+		return m.OldDueDate(ctx)
+	}
+	return nil, fmt.Errorf("unknown LoanContract field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LoanContractMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case loancontract.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case loancontract.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case loancontract.FieldLoanID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLoanID(v)
+		return nil
+	case loancontract.FieldBorrowerID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBorrowerID(v)
+		return nil
+	case loancontract.FieldLenderType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLenderType(v)
+		return nil
+	case loancontract.FieldLenderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLenderID(v)
+		return nil
+	case loancontract.FieldPrincipal:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrincipal(v)
+		return nil
+	case loancontract.FieldInterestRate:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInterestRate(v)
+		return nil
+	case loancontract.FieldAccruedInterest:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccruedInterest(v)
+		return nil
+	case loancontract.FieldRepaidPrincipal:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRepaidPrincipal(v)
+		return nil
+	case loancontract.FieldRepaidInterest:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRepaidInterest(v)
+		return nil
+	case loancontract.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case loancontract.FieldDueDate:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDueDate(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LoanContract field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LoanContractMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LoanContractMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LoanContractMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown LoanContract numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LoanContractMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(loancontract.FieldLenderID) {
+		fields = append(fields, loancontract.FieldLenderID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LoanContractMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LoanContractMutation) ClearField(name string) error {
+	switch name {
+	case loancontract.FieldLenderID:
+		m.ClearLenderID()
+		return nil
+	}
+	return fmt.Errorf("unknown LoanContract nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LoanContractMutation) ResetField(name string) error {
+	switch name {
+	case loancontract.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case loancontract.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case loancontract.FieldLoanID:
+		m.ResetLoanID()
+		return nil
+	case loancontract.FieldBorrowerID:
+		m.ResetBorrowerID()
+		return nil
+	case loancontract.FieldLenderType:
+		m.ResetLenderType()
+		return nil
+	case loancontract.FieldLenderID:
+		m.ResetLenderID()
+		return nil
+	case loancontract.FieldPrincipal:
+		m.ResetPrincipal()
+		return nil
+	case loancontract.FieldInterestRate:
+		m.ResetInterestRate()
+		return nil
+	case loancontract.FieldAccruedInterest:
+		m.ResetAccruedInterest()
+		return nil
+	case loancontract.FieldRepaidPrincipal:
+		m.ResetRepaidPrincipal()
+		return nil
+	case loancontract.FieldRepaidInterest:
+		m.ResetRepaidInterest()
+		return nil
+	case loancontract.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case loancontract.FieldDueDate:
+		m.ResetDueDate()
+		return nil
+	}
+	return fmt.Errorf("unknown LoanContract field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LoanContractMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.borrower != nil {
+		edges = append(edges, loancontract.EdgeBorrower)
+	}
+	if m.lender != nil {
+		edges = append(edges, loancontract.EdgeLender)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LoanContractMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case loancontract.EdgeBorrower:
+		if id := m.borrower; id != nil {
+			return []ent.Value{*id}
+		}
+	case loancontract.EdgeLender:
+		if id := m.lender; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LoanContractMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LoanContractMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LoanContractMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedborrower {
+		edges = append(edges, loancontract.EdgeBorrower)
+	}
+	if m.clearedlender {
+		edges = append(edges, loancontract.EdgeLender)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LoanContractMutation) EdgeCleared(name string) bool {
+	switch name {
+	case loancontract.EdgeBorrower:
+		return m.clearedborrower
+	case loancontract.EdgeLender:
+		return m.clearedlender
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LoanContractMutation) ClearEdge(name string) error {
+	switch name {
+	case loancontract.EdgeBorrower:
+		m.ClearBorrower()
+		return nil
+	case loancontract.EdgeLender:
+		m.ClearLender()
+		return nil
+	}
+	return fmt.Errorf("unknown LoanContract unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LoanContractMutation) ResetEdge(name string) error {
+	switch name {
+	case loancontract.EdgeBorrower:
+		m.ResetBorrower()
+		return nil
+	case loancontract.EdgeLender:
+		m.ResetLender()
+		return nil
+	}
+	return fmt.Errorf("unknown LoanContract edge %s", name)
+}
+
 // ModelPricingMutation represents an operation that mutates the ModelPricing nodes in the graph.
 type ModelPricingMutation struct {
 	config
@@ -45112,6 +46219,1486 @@ func (m *TLSFingerprintProfileMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown TLSFingerprintProfile edge %s", name)
 }
 
+// TransactionLogMutation represents an operation that mutates the TransactionLog nodes in the graph.
+type TransactionLogMutation struct {
+	config
+	op                    Op
+	typ                   string
+	id                    *int64
+	tx_id                 *uuid.UUID
+	tx_type               *string
+	amount                *decimal.Decimal
+	balance_before        *decimal.Decimal
+	balance_after         *decimal.Decimal
+	frozen_before         *decimal.Decimal
+	frozen_after          *decimal.Decimal
+	credit_limit_snapshot *decimal.Decimal
+	debt_snapshot         *decimal.Decimal
+	description           *string
+	reference_type        *string
+	reference_id          *string
+	request_id            *string
+	idempotency_scope     *string
+	idempotency_key_hash  *string
+	metadata              *map[string]interface{}
+	created_at            *time.Time
+	clearedFields         map[string]struct{}
+	user                  *int64
+	cleareduser           bool
+	account               *int64
+	clearedaccount        bool
+	done                  bool
+	oldValue              func(context.Context) (*TransactionLog, error)
+	predicates            []predicate.TransactionLog
+}
+
+var _ ent.Mutation = (*TransactionLogMutation)(nil)
+
+// transactionlogOption allows management of the mutation configuration using functional options.
+type transactionlogOption func(*TransactionLogMutation)
+
+// newTransactionLogMutation creates new mutation for the TransactionLog entity.
+func newTransactionLogMutation(c config, op Op, opts ...transactionlogOption) *TransactionLogMutation {
+	m := &TransactionLogMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeTransactionLog,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withTransactionLogID sets the ID field of the mutation.
+func withTransactionLogID(id int64) transactionlogOption {
+	return func(m *TransactionLogMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *TransactionLog
+		)
+		m.oldValue = func(ctx context.Context) (*TransactionLog, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().TransactionLog.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withTransactionLog sets the old TransactionLog of the mutation.
+func withTransactionLog(node *TransactionLog) transactionlogOption {
+	return func(m *TransactionLogMutation) {
+		m.oldValue = func(context.Context) (*TransactionLog, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m TransactionLogMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m TransactionLogMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *TransactionLogMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *TransactionLogMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().TransactionLog.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetTxID sets the "tx_id" field.
+func (m *TransactionLogMutation) SetTxID(u uuid.UUID) {
+	m.tx_id = &u
+}
+
+// TxID returns the value of the "tx_id" field in the mutation.
+func (m *TransactionLogMutation) TxID() (r uuid.UUID, exists bool) {
+	v := m.tx_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTxID returns the old "tx_id" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldTxID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTxID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTxID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTxID: %w", err)
+	}
+	return oldValue.TxID, nil
+}
+
+// ResetTxID resets all changes to the "tx_id" field.
+func (m *TransactionLogMutation) ResetTxID() {
+	m.tx_id = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *TransactionLogMutation) SetUserID(i int64) {
+	m.user = &i
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *TransactionLogMutation) UserID() (r int64, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *TransactionLogMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *TransactionLogMutation) SetAccountID(i int64) {
+	m.account = &i
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *TransactionLogMutation) AccountID() (r int64, exists bool) {
+	v := m.account
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldAccountID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *TransactionLogMutation) ResetAccountID() {
+	m.account = nil
+}
+
+// SetTxType sets the "tx_type" field.
+func (m *TransactionLogMutation) SetTxType(s string) {
+	m.tx_type = &s
+}
+
+// TxType returns the value of the "tx_type" field in the mutation.
+func (m *TransactionLogMutation) TxType() (r string, exists bool) {
+	v := m.tx_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTxType returns the old "tx_type" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldTxType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTxType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTxType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTxType: %w", err)
+	}
+	return oldValue.TxType, nil
+}
+
+// ResetTxType resets all changes to the "tx_type" field.
+func (m *TransactionLogMutation) ResetTxType() {
+	m.tx_type = nil
+}
+
+// SetAmount sets the "amount" field.
+func (m *TransactionLogMutation) SetAmount(d decimal.Decimal) {
+	m.amount = &d
+}
+
+// Amount returns the value of the "amount" field in the mutation.
+func (m *TransactionLogMutation) Amount() (r decimal.Decimal, exists bool) {
+	v := m.amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmount returns the old "amount" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldAmount(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmount: %w", err)
+	}
+	return oldValue.Amount, nil
+}
+
+// ResetAmount resets all changes to the "amount" field.
+func (m *TransactionLogMutation) ResetAmount() {
+	m.amount = nil
+}
+
+// SetBalanceBefore sets the "balance_before" field.
+func (m *TransactionLogMutation) SetBalanceBefore(d decimal.Decimal) {
+	m.balance_before = &d
+}
+
+// BalanceBefore returns the value of the "balance_before" field in the mutation.
+func (m *TransactionLogMutation) BalanceBefore() (r decimal.Decimal, exists bool) {
+	v := m.balance_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceBefore returns the old "balance_before" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldBalanceBefore(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceBefore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceBefore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceBefore: %w", err)
+	}
+	return oldValue.BalanceBefore, nil
+}
+
+// ResetBalanceBefore resets all changes to the "balance_before" field.
+func (m *TransactionLogMutation) ResetBalanceBefore() {
+	m.balance_before = nil
+}
+
+// SetBalanceAfter sets the "balance_after" field.
+func (m *TransactionLogMutation) SetBalanceAfter(d decimal.Decimal) {
+	m.balance_after = &d
+}
+
+// BalanceAfter returns the value of the "balance_after" field in the mutation.
+func (m *TransactionLogMutation) BalanceAfter() (r decimal.Decimal, exists bool) {
+	v := m.balance_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceAfter returns the old "balance_after" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldBalanceAfter(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceAfter: %w", err)
+	}
+	return oldValue.BalanceAfter, nil
+}
+
+// ResetBalanceAfter resets all changes to the "balance_after" field.
+func (m *TransactionLogMutation) ResetBalanceAfter() {
+	m.balance_after = nil
+}
+
+// SetFrozenBefore sets the "frozen_before" field.
+func (m *TransactionLogMutation) SetFrozenBefore(d decimal.Decimal) {
+	m.frozen_before = &d
+}
+
+// FrozenBefore returns the value of the "frozen_before" field in the mutation.
+func (m *TransactionLogMutation) FrozenBefore() (r decimal.Decimal, exists bool) {
+	v := m.frozen_before
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenBefore returns the old "frozen_before" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldFrozenBefore(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenBefore is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenBefore requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenBefore: %w", err)
+	}
+	return oldValue.FrozenBefore, nil
+}
+
+// ResetFrozenBefore resets all changes to the "frozen_before" field.
+func (m *TransactionLogMutation) ResetFrozenBefore() {
+	m.frozen_before = nil
+}
+
+// SetFrozenAfter sets the "frozen_after" field.
+func (m *TransactionLogMutation) SetFrozenAfter(d decimal.Decimal) {
+	m.frozen_after = &d
+}
+
+// FrozenAfter returns the value of the "frozen_after" field in the mutation.
+func (m *TransactionLogMutation) FrozenAfter() (r decimal.Decimal, exists bool) {
+	v := m.frozen_after
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenAfter returns the old "frozen_after" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldFrozenAfter(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenAfter is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenAfter requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenAfter: %w", err)
+	}
+	return oldValue.FrozenAfter, nil
+}
+
+// ResetFrozenAfter resets all changes to the "frozen_after" field.
+func (m *TransactionLogMutation) ResetFrozenAfter() {
+	m.frozen_after = nil
+}
+
+// SetCreditLimitSnapshot sets the "credit_limit_snapshot" field.
+func (m *TransactionLogMutation) SetCreditLimitSnapshot(d decimal.Decimal) {
+	m.credit_limit_snapshot = &d
+}
+
+// CreditLimitSnapshot returns the value of the "credit_limit_snapshot" field in the mutation.
+func (m *TransactionLogMutation) CreditLimitSnapshot() (r decimal.Decimal, exists bool) {
+	v := m.credit_limit_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreditLimitSnapshot returns the old "credit_limit_snapshot" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldCreditLimitSnapshot(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreditLimitSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreditLimitSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreditLimitSnapshot: %w", err)
+	}
+	return oldValue.CreditLimitSnapshot, nil
+}
+
+// ResetCreditLimitSnapshot resets all changes to the "credit_limit_snapshot" field.
+func (m *TransactionLogMutation) ResetCreditLimitSnapshot() {
+	m.credit_limit_snapshot = nil
+}
+
+// SetDebtSnapshot sets the "debt_snapshot" field.
+func (m *TransactionLogMutation) SetDebtSnapshot(d decimal.Decimal) {
+	m.debt_snapshot = &d
+}
+
+// DebtSnapshot returns the value of the "debt_snapshot" field in the mutation.
+func (m *TransactionLogMutation) DebtSnapshot() (r decimal.Decimal, exists bool) {
+	v := m.debt_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDebtSnapshot returns the old "debt_snapshot" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldDebtSnapshot(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDebtSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDebtSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDebtSnapshot: %w", err)
+	}
+	return oldValue.DebtSnapshot, nil
+}
+
+// ResetDebtSnapshot resets all changes to the "debt_snapshot" field.
+func (m *TransactionLogMutation) ResetDebtSnapshot() {
+	m.debt_snapshot = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *TransactionLogMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *TransactionLogMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *TransactionLogMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetReferenceType sets the "reference_type" field.
+func (m *TransactionLogMutation) SetReferenceType(s string) {
+	m.reference_type = &s
+}
+
+// ReferenceType returns the value of the "reference_type" field in the mutation.
+func (m *TransactionLogMutation) ReferenceType() (r string, exists bool) {
+	v := m.reference_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReferenceType returns the old "reference_type" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldReferenceType(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReferenceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReferenceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReferenceType: %w", err)
+	}
+	return oldValue.ReferenceType, nil
+}
+
+// ClearReferenceType clears the value of the "reference_type" field.
+func (m *TransactionLogMutation) ClearReferenceType() {
+	m.reference_type = nil
+	m.clearedFields[transactionlog.FieldReferenceType] = struct{}{}
+}
+
+// ReferenceTypeCleared returns if the "reference_type" field was cleared in this mutation.
+func (m *TransactionLogMutation) ReferenceTypeCleared() bool {
+	_, ok := m.clearedFields[transactionlog.FieldReferenceType]
+	return ok
+}
+
+// ResetReferenceType resets all changes to the "reference_type" field.
+func (m *TransactionLogMutation) ResetReferenceType() {
+	m.reference_type = nil
+	delete(m.clearedFields, transactionlog.FieldReferenceType)
+}
+
+// SetReferenceID sets the "reference_id" field.
+func (m *TransactionLogMutation) SetReferenceID(s string) {
+	m.reference_id = &s
+}
+
+// ReferenceID returns the value of the "reference_id" field in the mutation.
+func (m *TransactionLogMutation) ReferenceID() (r string, exists bool) {
+	v := m.reference_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReferenceID returns the old "reference_id" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldReferenceID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReferenceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReferenceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReferenceID: %w", err)
+	}
+	return oldValue.ReferenceID, nil
+}
+
+// ClearReferenceID clears the value of the "reference_id" field.
+func (m *TransactionLogMutation) ClearReferenceID() {
+	m.reference_id = nil
+	m.clearedFields[transactionlog.FieldReferenceID] = struct{}{}
+}
+
+// ReferenceIDCleared returns if the "reference_id" field was cleared in this mutation.
+func (m *TransactionLogMutation) ReferenceIDCleared() bool {
+	_, ok := m.clearedFields[transactionlog.FieldReferenceID]
+	return ok
+}
+
+// ResetReferenceID resets all changes to the "reference_id" field.
+func (m *TransactionLogMutation) ResetReferenceID() {
+	m.reference_id = nil
+	delete(m.clearedFields, transactionlog.FieldReferenceID)
+}
+
+// SetRequestID sets the "request_id" field.
+func (m *TransactionLogMutation) SetRequestID(s string) {
+	m.request_id = &s
+}
+
+// RequestID returns the value of the "request_id" field in the mutation.
+func (m *TransactionLogMutation) RequestID() (r string, exists bool) {
+	v := m.request_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestID returns the old "request_id" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldRequestID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestID: %w", err)
+	}
+	return oldValue.RequestID, nil
+}
+
+// ClearRequestID clears the value of the "request_id" field.
+func (m *TransactionLogMutation) ClearRequestID() {
+	m.request_id = nil
+	m.clearedFields[transactionlog.FieldRequestID] = struct{}{}
+}
+
+// RequestIDCleared returns if the "request_id" field was cleared in this mutation.
+func (m *TransactionLogMutation) RequestIDCleared() bool {
+	_, ok := m.clearedFields[transactionlog.FieldRequestID]
+	return ok
+}
+
+// ResetRequestID resets all changes to the "request_id" field.
+func (m *TransactionLogMutation) ResetRequestID() {
+	m.request_id = nil
+	delete(m.clearedFields, transactionlog.FieldRequestID)
+}
+
+// SetIdempotencyScope sets the "idempotency_scope" field.
+func (m *TransactionLogMutation) SetIdempotencyScope(s string) {
+	m.idempotency_scope = &s
+}
+
+// IdempotencyScope returns the value of the "idempotency_scope" field in the mutation.
+func (m *TransactionLogMutation) IdempotencyScope() (r string, exists bool) {
+	v := m.idempotency_scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdempotencyScope returns the old "idempotency_scope" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldIdempotencyScope(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdempotencyScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdempotencyScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdempotencyScope: %w", err)
+	}
+	return oldValue.IdempotencyScope, nil
+}
+
+// ResetIdempotencyScope resets all changes to the "idempotency_scope" field.
+func (m *TransactionLogMutation) ResetIdempotencyScope() {
+	m.idempotency_scope = nil
+}
+
+// SetIdempotencyKeyHash sets the "idempotency_key_hash" field.
+func (m *TransactionLogMutation) SetIdempotencyKeyHash(s string) {
+	m.idempotency_key_hash = &s
+}
+
+// IdempotencyKeyHash returns the value of the "idempotency_key_hash" field in the mutation.
+func (m *TransactionLogMutation) IdempotencyKeyHash() (r string, exists bool) {
+	v := m.idempotency_key_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdempotencyKeyHash returns the old "idempotency_key_hash" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldIdempotencyKeyHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdempotencyKeyHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdempotencyKeyHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdempotencyKeyHash: %w", err)
+	}
+	return oldValue.IdempotencyKeyHash, nil
+}
+
+// ResetIdempotencyKeyHash resets all changes to the "idempotency_key_hash" field.
+func (m *TransactionLogMutation) ResetIdempotencyKeyHash() {
+	m.idempotency_key_hash = nil
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *TransactionLogMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *TransactionLogMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ClearMetadata clears the value of the "metadata" field.
+func (m *TransactionLogMutation) ClearMetadata() {
+	m.metadata = nil
+	m.clearedFields[transactionlog.FieldMetadata] = struct{}{}
+}
+
+// MetadataCleared returns if the "metadata" field was cleared in this mutation.
+func (m *TransactionLogMutation) MetadataCleared() bool {
+	_, ok := m.clearedFields[transactionlog.FieldMetadata]
+	return ok
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *TransactionLogMutation) ResetMetadata() {
+	m.metadata = nil
+	delete(m.clearedFields, transactionlog.FieldMetadata)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *TransactionLogMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *TransactionLogMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the TransactionLog entity.
+// If the TransactionLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TransactionLogMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *TransactionLogMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *TransactionLogMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[transactionlog.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *TransactionLogMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *TransactionLogMutation) UserIDs() (ids []int64) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *TransactionLogMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// ClearAccount clears the "account" edge to the UserBankAccount entity.
+func (m *TransactionLogMutation) ClearAccount() {
+	m.clearedaccount = true
+	m.clearedFields[transactionlog.FieldAccountID] = struct{}{}
+}
+
+// AccountCleared reports if the "account" edge to the UserBankAccount entity was cleared.
+func (m *TransactionLogMutation) AccountCleared() bool {
+	return m.clearedaccount
+}
+
+// AccountIDs returns the "account" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AccountID instead. It exists only for internal usage by the builders.
+func (m *TransactionLogMutation) AccountIDs() (ids []int64) {
+	if id := m.account; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAccount resets all changes to the "account" edge.
+func (m *TransactionLogMutation) ResetAccount() {
+	m.account = nil
+	m.clearedaccount = false
+}
+
+// Where appends a list predicates to the TransactionLogMutation builder.
+func (m *TransactionLogMutation) Where(ps ...predicate.TransactionLog) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the TransactionLogMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *TransactionLogMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.TransactionLog, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *TransactionLogMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *TransactionLogMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (TransactionLog).
+func (m *TransactionLogMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *TransactionLogMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.tx_id != nil {
+		fields = append(fields, transactionlog.FieldTxID)
+	}
+	if m.user != nil {
+		fields = append(fields, transactionlog.FieldUserID)
+	}
+	if m.account != nil {
+		fields = append(fields, transactionlog.FieldAccountID)
+	}
+	if m.tx_type != nil {
+		fields = append(fields, transactionlog.FieldTxType)
+	}
+	if m.amount != nil {
+		fields = append(fields, transactionlog.FieldAmount)
+	}
+	if m.balance_before != nil {
+		fields = append(fields, transactionlog.FieldBalanceBefore)
+	}
+	if m.balance_after != nil {
+		fields = append(fields, transactionlog.FieldBalanceAfter)
+	}
+	if m.frozen_before != nil {
+		fields = append(fields, transactionlog.FieldFrozenBefore)
+	}
+	if m.frozen_after != nil {
+		fields = append(fields, transactionlog.FieldFrozenAfter)
+	}
+	if m.credit_limit_snapshot != nil {
+		fields = append(fields, transactionlog.FieldCreditLimitSnapshot)
+	}
+	if m.debt_snapshot != nil {
+		fields = append(fields, transactionlog.FieldDebtSnapshot)
+	}
+	if m.description != nil {
+		fields = append(fields, transactionlog.FieldDescription)
+	}
+	if m.reference_type != nil {
+		fields = append(fields, transactionlog.FieldReferenceType)
+	}
+	if m.reference_id != nil {
+		fields = append(fields, transactionlog.FieldReferenceID)
+	}
+	if m.request_id != nil {
+		fields = append(fields, transactionlog.FieldRequestID)
+	}
+	if m.idempotency_scope != nil {
+		fields = append(fields, transactionlog.FieldIdempotencyScope)
+	}
+	if m.idempotency_key_hash != nil {
+		fields = append(fields, transactionlog.FieldIdempotencyKeyHash)
+	}
+	if m.metadata != nil {
+		fields = append(fields, transactionlog.FieldMetadata)
+	}
+	if m.created_at != nil {
+		fields = append(fields, transactionlog.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *TransactionLogMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case transactionlog.FieldTxID:
+		return m.TxID()
+	case transactionlog.FieldUserID:
+		return m.UserID()
+	case transactionlog.FieldAccountID:
+		return m.AccountID()
+	case transactionlog.FieldTxType:
+		return m.TxType()
+	case transactionlog.FieldAmount:
+		return m.Amount()
+	case transactionlog.FieldBalanceBefore:
+		return m.BalanceBefore()
+	case transactionlog.FieldBalanceAfter:
+		return m.BalanceAfter()
+	case transactionlog.FieldFrozenBefore:
+		return m.FrozenBefore()
+	case transactionlog.FieldFrozenAfter:
+		return m.FrozenAfter()
+	case transactionlog.FieldCreditLimitSnapshot:
+		return m.CreditLimitSnapshot()
+	case transactionlog.FieldDebtSnapshot:
+		return m.DebtSnapshot()
+	case transactionlog.FieldDescription:
+		return m.Description()
+	case transactionlog.FieldReferenceType:
+		return m.ReferenceType()
+	case transactionlog.FieldReferenceID:
+		return m.ReferenceID()
+	case transactionlog.FieldRequestID:
+		return m.RequestID()
+	case transactionlog.FieldIdempotencyScope:
+		return m.IdempotencyScope()
+	case transactionlog.FieldIdempotencyKeyHash:
+		return m.IdempotencyKeyHash()
+	case transactionlog.FieldMetadata:
+		return m.Metadata()
+	case transactionlog.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *TransactionLogMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case transactionlog.FieldTxID:
+		return m.OldTxID(ctx)
+	case transactionlog.FieldUserID:
+		return m.OldUserID(ctx)
+	case transactionlog.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case transactionlog.FieldTxType:
+		return m.OldTxType(ctx)
+	case transactionlog.FieldAmount:
+		return m.OldAmount(ctx)
+	case transactionlog.FieldBalanceBefore:
+		return m.OldBalanceBefore(ctx)
+	case transactionlog.FieldBalanceAfter:
+		return m.OldBalanceAfter(ctx)
+	case transactionlog.FieldFrozenBefore:
+		return m.OldFrozenBefore(ctx)
+	case transactionlog.FieldFrozenAfter:
+		return m.OldFrozenAfter(ctx)
+	case transactionlog.FieldCreditLimitSnapshot:
+		return m.OldCreditLimitSnapshot(ctx)
+	case transactionlog.FieldDebtSnapshot:
+		return m.OldDebtSnapshot(ctx)
+	case transactionlog.FieldDescription:
+		return m.OldDescription(ctx)
+	case transactionlog.FieldReferenceType:
+		return m.OldReferenceType(ctx)
+	case transactionlog.FieldReferenceID:
+		return m.OldReferenceID(ctx)
+	case transactionlog.FieldRequestID:
+		return m.OldRequestID(ctx)
+	case transactionlog.FieldIdempotencyScope:
+		return m.OldIdempotencyScope(ctx)
+	case transactionlog.FieldIdempotencyKeyHash:
+		return m.OldIdempotencyKeyHash(ctx)
+	case transactionlog.FieldMetadata:
+		return m.OldMetadata(ctx)
+	case transactionlog.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown TransactionLog field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TransactionLogMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case transactionlog.FieldTxID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTxID(v)
+		return nil
+	case transactionlog.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case transactionlog.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case transactionlog.FieldTxType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTxType(v)
+		return nil
+	case transactionlog.FieldAmount:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmount(v)
+		return nil
+	case transactionlog.FieldBalanceBefore:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceBefore(v)
+		return nil
+	case transactionlog.FieldBalanceAfter:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceAfter(v)
+		return nil
+	case transactionlog.FieldFrozenBefore:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenBefore(v)
+		return nil
+	case transactionlog.FieldFrozenAfter:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenAfter(v)
+		return nil
+	case transactionlog.FieldCreditLimitSnapshot:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreditLimitSnapshot(v)
+		return nil
+	case transactionlog.FieldDebtSnapshot:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDebtSnapshot(v)
+		return nil
+	case transactionlog.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case transactionlog.FieldReferenceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReferenceType(v)
+		return nil
+	case transactionlog.FieldReferenceID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReferenceID(v)
+		return nil
+	case transactionlog.FieldRequestID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestID(v)
+		return nil
+	case transactionlog.FieldIdempotencyScope:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdempotencyScope(v)
+		return nil
+	case transactionlog.FieldIdempotencyKeyHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdempotencyKeyHash(v)
+		return nil
+	case transactionlog.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	case transactionlog.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown TransactionLog field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *TransactionLogMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *TransactionLogMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *TransactionLogMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown TransactionLog numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *TransactionLogMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(transactionlog.FieldReferenceType) {
+		fields = append(fields, transactionlog.FieldReferenceType)
+	}
+	if m.FieldCleared(transactionlog.FieldReferenceID) {
+		fields = append(fields, transactionlog.FieldReferenceID)
+	}
+	if m.FieldCleared(transactionlog.FieldRequestID) {
+		fields = append(fields, transactionlog.FieldRequestID)
+	}
+	if m.FieldCleared(transactionlog.FieldMetadata) {
+		fields = append(fields, transactionlog.FieldMetadata)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *TransactionLogMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *TransactionLogMutation) ClearField(name string) error {
+	switch name {
+	case transactionlog.FieldReferenceType:
+		m.ClearReferenceType()
+		return nil
+	case transactionlog.FieldReferenceID:
+		m.ClearReferenceID()
+		return nil
+	case transactionlog.FieldRequestID:
+		m.ClearRequestID()
+		return nil
+	case transactionlog.FieldMetadata:
+		m.ClearMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown TransactionLog nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *TransactionLogMutation) ResetField(name string) error {
+	switch name {
+	case transactionlog.FieldTxID:
+		m.ResetTxID()
+		return nil
+	case transactionlog.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case transactionlog.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case transactionlog.FieldTxType:
+		m.ResetTxType()
+		return nil
+	case transactionlog.FieldAmount:
+		m.ResetAmount()
+		return nil
+	case transactionlog.FieldBalanceBefore:
+		m.ResetBalanceBefore()
+		return nil
+	case transactionlog.FieldBalanceAfter:
+		m.ResetBalanceAfter()
+		return nil
+	case transactionlog.FieldFrozenBefore:
+		m.ResetFrozenBefore()
+		return nil
+	case transactionlog.FieldFrozenAfter:
+		m.ResetFrozenAfter()
+		return nil
+	case transactionlog.FieldCreditLimitSnapshot:
+		m.ResetCreditLimitSnapshot()
+		return nil
+	case transactionlog.FieldDebtSnapshot:
+		m.ResetDebtSnapshot()
+		return nil
+	case transactionlog.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case transactionlog.FieldReferenceType:
+		m.ResetReferenceType()
+		return nil
+	case transactionlog.FieldReferenceID:
+		m.ResetReferenceID()
+		return nil
+	case transactionlog.FieldRequestID:
+		m.ResetRequestID()
+		return nil
+	case transactionlog.FieldIdempotencyScope:
+		m.ResetIdempotencyScope()
+		return nil
+	case transactionlog.FieldIdempotencyKeyHash:
+		m.ResetIdempotencyKeyHash()
+		return nil
+	case transactionlog.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	case transactionlog.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown TransactionLog field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *TransactionLogMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.user != nil {
+		edges = append(edges, transactionlog.EdgeUser)
+	}
+	if m.account != nil {
+		edges = append(edges, transactionlog.EdgeAccount)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *TransactionLogMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case transactionlog.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case transactionlog.EdgeAccount:
+		if id := m.account; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *TransactionLogMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *TransactionLogMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *TransactionLogMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.cleareduser {
+		edges = append(edges, transactionlog.EdgeUser)
+	}
+	if m.clearedaccount {
+		edges = append(edges, transactionlog.EdgeAccount)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *TransactionLogMutation) EdgeCleared(name string) bool {
+	switch name {
+	case transactionlog.EdgeUser:
+		return m.cleareduser
+	case transactionlog.EdgeAccount:
+		return m.clearedaccount
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *TransactionLogMutation) ClearEdge(name string) error {
+	switch name {
+	case transactionlog.EdgeUser:
+		m.ClearUser()
+		return nil
+	case transactionlog.EdgeAccount:
+		m.ClearAccount()
+		return nil
+	}
+	return fmt.Errorf("unknown TransactionLog unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *TransactionLogMutation) ResetEdge(name string) error {
+	switch name {
+	case transactionlog.EdgeUser:
+		m.ResetUser()
+		return nil
+	case transactionlog.EdgeAccount:
+		m.ResetAccount()
+		return nil
+	}
+	return fmt.Errorf("unknown TransactionLog edge %s", name)
+}
+
 // UsageCleanupTaskMutation represents an operation that mutates the UsageCleanupTask nodes in the graph.
 type UsageCleanupTaskMutation struct {
 	config
@@ -51120,6 +53707,17 @@ type UserMutation struct {
 	payment_orders                  map[int64]struct{}
 	removedpayment_orders           map[int64]struct{}
 	clearedpayment_orders           bool
+	bank_account                    *int64
+	clearedbank_account             bool
+	transaction_logs                map[int64]struct{}
+	removedtransaction_logs         map[int64]struct{}
+	clearedtransaction_logs         bool
+	borrowed_loan_contracts         map[int64]struct{}
+	removedborrowed_loan_contracts  map[int64]struct{}
+	clearedborrowed_loan_contracts  bool
+	funded_loan_contracts           map[int64]struct{}
+	removedfunded_loan_contracts    map[int64]struct{}
+	clearedfunded_loan_contracts    bool
 	auth_identities                 map[int64]struct{}
 	removedauth_identities          map[int64]struct{}
 	clearedauth_identities          bool
@@ -53049,6 +55647,207 @@ func (m *UserMutation) ResetPaymentOrders() {
 	m.removedpayment_orders = nil
 }
 
+// SetBankAccountID sets the "bank_account" edge to the UserBankAccount entity by id.
+func (m *UserMutation) SetBankAccountID(id int64) {
+	m.bank_account = &id
+}
+
+// ClearBankAccount clears the "bank_account" edge to the UserBankAccount entity.
+func (m *UserMutation) ClearBankAccount() {
+	m.clearedbank_account = true
+}
+
+// BankAccountCleared reports if the "bank_account" edge to the UserBankAccount entity was cleared.
+func (m *UserMutation) BankAccountCleared() bool {
+	return m.clearedbank_account
+}
+
+// BankAccountID returns the "bank_account" edge ID in the mutation.
+func (m *UserMutation) BankAccountID() (id int64, exists bool) {
+	if m.bank_account != nil {
+		return *m.bank_account, true
+	}
+	return
+}
+
+// BankAccountIDs returns the "bank_account" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// BankAccountID instead. It exists only for internal usage by the builders.
+func (m *UserMutation) BankAccountIDs() (ids []int64) {
+	if id := m.bank_account; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetBankAccount resets all changes to the "bank_account" edge.
+func (m *UserMutation) ResetBankAccount() {
+	m.bank_account = nil
+	m.clearedbank_account = false
+}
+
+// AddTransactionLogIDs adds the "transaction_logs" edge to the TransactionLog entity by ids.
+func (m *UserMutation) AddTransactionLogIDs(ids ...int64) {
+	if m.transaction_logs == nil {
+		m.transaction_logs = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.transaction_logs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTransactionLogs clears the "transaction_logs" edge to the TransactionLog entity.
+func (m *UserMutation) ClearTransactionLogs() {
+	m.clearedtransaction_logs = true
+}
+
+// TransactionLogsCleared reports if the "transaction_logs" edge to the TransactionLog entity was cleared.
+func (m *UserMutation) TransactionLogsCleared() bool {
+	return m.clearedtransaction_logs
+}
+
+// RemoveTransactionLogIDs removes the "transaction_logs" edge to the TransactionLog entity by IDs.
+func (m *UserMutation) RemoveTransactionLogIDs(ids ...int64) {
+	if m.removedtransaction_logs == nil {
+		m.removedtransaction_logs = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.transaction_logs, ids[i])
+		m.removedtransaction_logs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTransactionLogs returns the removed IDs of the "transaction_logs" edge to the TransactionLog entity.
+func (m *UserMutation) RemovedTransactionLogsIDs() (ids []int64) {
+	for id := range m.removedtransaction_logs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TransactionLogsIDs returns the "transaction_logs" edge IDs in the mutation.
+func (m *UserMutation) TransactionLogsIDs() (ids []int64) {
+	for id := range m.transaction_logs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTransactionLogs resets all changes to the "transaction_logs" edge.
+func (m *UserMutation) ResetTransactionLogs() {
+	m.transaction_logs = nil
+	m.clearedtransaction_logs = false
+	m.removedtransaction_logs = nil
+}
+
+// AddBorrowedLoanContractIDs adds the "borrowed_loan_contracts" edge to the LoanContract entity by ids.
+func (m *UserMutation) AddBorrowedLoanContractIDs(ids ...int64) {
+	if m.borrowed_loan_contracts == nil {
+		m.borrowed_loan_contracts = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.borrowed_loan_contracts[ids[i]] = struct{}{}
+	}
+}
+
+// ClearBorrowedLoanContracts clears the "borrowed_loan_contracts" edge to the LoanContract entity.
+func (m *UserMutation) ClearBorrowedLoanContracts() {
+	m.clearedborrowed_loan_contracts = true
+}
+
+// BorrowedLoanContractsCleared reports if the "borrowed_loan_contracts" edge to the LoanContract entity was cleared.
+func (m *UserMutation) BorrowedLoanContractsCleared() bool {
+	return m.clearedborrowed_loan_contracts
+}
+
+// RemoveBorrowedLoanContractIDs removes the "borrowed_loan_contracts" edge to the LoanContract entity by IDs.
+func (m *UserMutation) RemoveBorrowedLoanContractIDs(ids ...int64) {
+	if m.removedborrowed_loan_contracts == nil {
+		m.removedborrowed_loan_contracts = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.borrowed_loan_contracts, ids[i])
+		m.removedborrowed_loan_contracts[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedBorrowedLoanContracts returns the removed IDs of the "borrowed_loan_contracts" edge to the LoanContract entity.
+func (m *UserMutation) RemovedBorrowedLoanContractsIDs() (ids []int64) {
+	for id := range m.removedborrowed_loan_contracts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// BorrowedLoanContractsIDs returns the "borrowed_loan_contracts" edge IDs in the mutation.
+func (m *UserMutation) BorrowedLoanContractsIDs() (ids []int64) {
+	for id := range m.borrowed_loan_contracts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetBorrowedLoanContracts resets all changes to the "borrowed_loan_contracts" edge.
+func (m *UserMutation) ResetBorrowedLoanContracts() {
+	m.borrowed_loan_contracts = nil
+	m.clearedborrowed_loan_contracts = false
+	m.removedborrowed_loan_contracts = nil
+}
+
+// AddFundedLoanContractIDs adds the "funded_loan_contracts" edge to the LoanContract entity by ids.
+func (m *UserMutation) AddFundedLoanContractIDs(ids ...int64) {
+	if m.funded_loan_contracts == nil {
+		m.funded_loan_contracts = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.funded_loan_contracts[ids[i]] = struct{}{}
+	}
+}
+
+// ClearFundedLoanContracts clears the "funded_loan_contracts" edge to the LoanContract entity.
+func (m *UserMutation) ClearFundedLoanContracts() {
+	m.clearedfunded_loan_contracts = true
+}
+
+// FundedLoanContractsCleared reports if the "funded_loan_contracts" edge to the LoanContract entity was cleared.
+func (m *UserMutation) FundedLoanContractsCleared() bool {
+	return m.clearedfunded_loan_contracts
+}
+
+// RemoveFundedLoanContractIDs removes the "funded_loan_contracts" edge to the LoanContract entity by IDs.
+func (m *UserMutation) RemoveFundedLoanContractIDs(ids ...int64) {
+	if m.removedfunded_loan_contracts == nil {
+		m.removedfunded_loan_contracts = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.funded_loan_contracts, ids[i])
+		m.removedfunded_loan_contracts[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedFundedLoanContracts returns the removed IDs of the "funded_loan_contracts" edge to the LoanContract entity.
+func (m *UserMutation) RemovedFundedLoanContractsIDs() (ids []int64) {
+	for id := range m.removedfunded_loan_contracts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// FundedLoanContractsIDs returns the "funded_loan_contracts" edge IDs in the mutation.
+func (m *UserMutation) FundedLoanContractsIDs() (ids []int64) {
+	for id := range m.funded_loan_contracts {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetFundedLoanContracts resets all changes to the "funded_loan_contracts" edge.
+func (m *UserMutation) ResetFundedLoanContracts() {
+	m.funded_loan_contracts = nil
+	m.clearedfunded_loan_contracts = false
+	m.removedfunded_loan_contracts = nil
+}
+
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by ids.
 func (m *UserMutation) AddAuthIdentityIDs(ids ...int64) {
 	if m.auth_identities == nil {
@@ -53820,7 +56619,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 18)
+	edges := make([]string, 0, 22)
 	if m.api_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -53865,6 +56664,18 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.payment_orders != nil {
 		edges = append(edges, user.EdgePaymentOrders)
+	}
+	if m.bank_account != nil {
+		edges = append(edges, user.EdgeBankAccount)
+	}
+	if m.transaction_logs != nil {
+		edges = append(edges, user.EdgeTransactionLogs)
+	}
+	if m.borrowed_loan_contracts != nil {
+		edges = append(edges, user.EdgeBorrowedLoanContracts)
+	}
+	if m.funded_loan_contracts != nil {
+		edges = append(edges, user.EdgeFundedLoanContracts)
 	}
 	if m.auth_identities != nil {
 		edges = append(edges, user.EdgeAuthIdentities)
@@ -53972,6 +56783,28 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeBankAccount:
+		if id := m.bank_account; id != nil {
+			return []ent.Value{*id}
+		}
+	case user.EdgeTransactionLogs:
+		ids := make([]ent.Value, 0, len(m.transaction_logs))
+		for id := range m.transaction_logs {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeBorrowedLoanContracts:
+		ids := make([]ent.Value, 0, len(m.borrowed_loan_contracts))
+		for id := range m.borrowed_loan_contracts {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeFundedLoanContracts:
+		ids := make([]ent.Value, 0, len(m.funded_loan_contracts))
+		for id := range m.funded_loan_contracts {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeAuthIdentities:
 		ids := make([]ent.Value, 0, len(m.auth_identities))
 		for id := range m.auth_identities {
@@ -53996,7 +56829,7 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 18)
+	edges := make([]string, 0, 22)
 	if m.removedapi_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -54041,6 +56874,15 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedpayment_orders != nil {
 		edges = append(edges, user.EdgePaymentOrders)
+	}
+	if m.removedtransaction_logs != nil {
+		edges = append(edges, user.EdgeTransactionLogs)
+	}
+	if m.removedborrowed_loan_contracts != nil {
+		edges = append(edges, user.EdgeBorrowedLoanContracts)
+	}
+	if m.removedfunded_loan_contracts != nil {
+		edges = append(edges, user.EdgeFundedLoanContracts)
 	}
 	if m.removedauth_identities != nil {
 		edges = append(edges, user.EdgeAuthIdentities)
@@ -54148,6 +56990,24 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeTransactionLogs:
+		ids := make([]ent.Value, 0, len(m.removedtransaction_logs))
+		for id := range m.removedtransaction_logs {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeBorrowedLoanContracts:
+		ids := make([]ent.Value, 0, len(m.removedborrowed_loan_contracts))
+		for id := range m.removedborrowed_loan_contracts {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeFundedLoanContracts:
+		ids := make([]ent.Value, 0, len(m.removedfunded_loan_contracts))
+		for id := range m.removedfunded_loan_contracts {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeAuthIdentities:
 		ids := make([]ent.Value, 0, len(m.removedauth_identities))
 		for id := range m.removedauth_identities {
@@ -54172,7 +57032,7 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 18)
+	edges := make([]string, 0, 22)
 	if m.clearedapi_keys {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -54217,6 +57077,18 @@ func (m *UserMutation) ClearedEdges() []string {
 	}
 	if m.clearedpayment_orders {
 		edges = append(edges, user.EdgePaymentOrders)
+	}
+	if m.clearedbank_account {
+		edges = append(edges, user.EdgeBankAccount)
+	}
+	if m.clearedtransaction_logs {
+		edges = append(edges, user.EdgeTransactionLogs)
+	}
+	if m.clearedborrowed_loan_contracts {
+		edges = append(edges, user.EdgeBorrowedLoanContracts)
+	}
+	if m.clearedfunded_loan_contracts {
+		edges = append(edges, user.EdgeFundedLoanContracts)
 	}
 	if m.clearedauth_identities {
 		edges = append(edges, user.EdgeAuthIdentities)
@@ -54264,6 +57136,14 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedpromo_code_usages
 	case user.EdgePaymentOrders:
 		return m.clearedpayment_orders
+	case user.EdgeBankAccount:
+		return m.clearedbank_account
+	case user.EdgeTransactionLogs:
+		return m.clearedtransaction_logs
+	case user.EdgeBorrowedLoanContracts:
+		return m.clearedborrowed_loan_contracts
+	case user.EdgeFundedLoanContracts:
+		return m.clearedfunded_loan_contracts
 	case user.EdgeAuthIdentities:
 		return m.clearedauth_identities
 	case user.EdgePendingAuthSessions:
@@ -54278,6 +57158,9 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 // if that edge is not defined in the schema.
 func (m *UserMutation) ClearEdge(name string) error {
 	switch name {
+	case user.EdgeBankAccount:
+		m.ClearBankAccount()
+		return nil
 	}
 	return fmt.Errorf("unknown User unique edge %s", name)
 }
@@ -54330,6 +57213,18 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgePaymentOrders:
 		m.ResetPaymentOrders()
+		return nil
+	case user.EdgeBankAccount:
+		m.ResetBankAccount()
+		return nil
+	case user.EdgeTransactionLogs:
+		m.ResetTransactionLogs()
+		return nil
+	case user.EdgeBorrowedLoanContracts:
+		m.ResetBorrowedLoanContracts()
+		return nil
+	case user.EdgeFundedLoanContracts:
+		m.ResetFundedLoanContracts()
 		return nil
 	case user.EdgeAuthIdentities:
 		m.ResetAuthIdentities()
@@ -56558,6 +59453,939 @@ func (m *UserAttributeValueMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown UserAttributeValue edge %s", name)
+}
+
+// UserBankAccountMutation represents an operation that mutates the UserBankAccount nodes in the graph.
+type UserBankAccountMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int64
+	created_at          *time.Time
+	updated_at          *time.Time
+	balance             *decimal.Decimal
+	frozen_amount       *decimal.Decimal
+	credit_limit        *decimal.Decimal
+	total_debt          *decimal.Decimal
+	version             *int64
+	addversion          *int64
+	status              *string
+	clearedFields       map[string]struct{}
+	user                *int64
+	cleareduser         bool
+	transactions        map[int64]struct{}
+	removedtransactions map[int64]struct{}
+	clearedtransactions bool
+	done                bool
+	oldValue            func(context.Context) (*UserBankAccount, error)
+	predicates          []predicate.UserBankAccount
+}
+
+var _ ent.Mutation = (*UserBankAccountMutation)(nil)
+
+// userbankaccountOption allows management of the mutation configuration using functional options.
+type userbankaccountOption func(*UserBankAccountMutation)
+
+// newUserBankAccountMutation creates new mutation for the UserBankAccount entity.
+func newUserBankAccountMutation(c config, op Op, opts ...userbankaccountOption) *UserBankAccountMutation {
+	m := &UserBankAccountMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserBankAccount,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserBankAccountID sets the ID field of the mutation.
+func withUserBankAccountID(id int64) userbankaccountOption {
+	return func(m *UserBankAccountMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserBankAccount
+		)
+		m.oldValue = func(ctx context.Context) (*UserBankAccount, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserBankAccount.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserBankAccount sets the old UserBankAccount of the mutation.
+func withUserBankAccount(node *UserBankAccount) userbankaccountOption {
+	return func(m *UserBankAccountMutation) {
+		m.oldValue = func(context.Context) (*UserBankAccount, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserBankAccountMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserBankAccountMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserBankAccountMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserBankAccountMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserBankAccount.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserBankAccountMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserBankAccountMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserBankAccount entity.
+// If the UserBankAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBankAccountMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserBankAccountMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UserBankAccountMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UserBankAccountMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UserBankAccount entity.
+// If the UserBankAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBankAccountMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UserBankAccountMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UserBankAccountMutation) SetUserID(i int64) {
+	m.user = &i
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UserBankAccountMutation) UserID() (r int64, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the UserBankAccount entity.
+// If the UserBankAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBankAccountMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UserBankAccountMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetBalance sets the "balance" field.
+func (m *UserBankAccountMutation) SetBalance(d decimal.Decimal) {
+	m.balance = &d
+}
+
+// Balance returns the value of the "balance" field in the mutation.
+func (m *UserBankAccountMutation) Balance() (r decimal.Decimal, exists bool) {
+	v := m.balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalance returns the old "balance" field's value of the UserBankAccount entity.
+// If the UserBankAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBankAccountMutation) OldBalance(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalance: %w", err)
+	}
+	return oldValue.Balance, nil
+}
+
+// ResetBalance resets all changes to the "balance" field.
+func (m *UserBankAccountMutation) ResetBalance() {
+	m.balance = nil
+}
+
+// SetFrozenAmount sets the "frozen_amount" field.
+func (m *UserBankAccountMutation) SetFrozenAmount(d decimal.Decimal) {
+	m.frozen_amount = &d
+}
+
+// FrozenAmount returns the value of the "frozen_amount" field in the mutation.
+func (m *UserBankAccountMutation) FrozenAmount() (r decimal.Decimal, exists bool) {
+	v := m.frozen_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenAmount returns the old "frozen_amount" field's value of the UserBankAccount entity.
+// If the UserBankAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBankAccountMutation) OldFrozenAmount(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenAmount: %w", err)
+	}
+	return oldValue.FrozenAmount, nil
+}
+
+// ResetFrozenAmount resets all changes to the "frozen_amount" field.
+func (m *UserBankAccountMutation) ResetFrozenAmount() {
+	m.frozen_amount = nil
+}
+
+// SetCreditLimit sets the "credit_limit" field.
+func (m *UserBankAccountMutation) SetCreditLimit(d decimal.Decimal) {
+	m.credit_limit = &d
+}
+
+// CreditLimit returns the value of the "credit_limit" field in the mutation.
+func (m *UserBankAccountMutation) CreditLimit() (r decimal.Decimal, exists bool) {
+	v := m.credit_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreditLimit returns the old "credit_limit" field's value of the UserBankAccount entity.
+// If the UserBankAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBankAccountMutation) OldCreditLimit(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreditLimit is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreditLimit requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreditLimit: %w", err)
+	}
+	return oldValue.CreditLimit, nil
+}
+
+// ResetCreditLimit resets all changes to the "credit_limit" field.
+func (m *UserBankAccountMutation) ResetCreditLimit() {
+	m.credit_limit = nil
+}
+
+// SetTotalDebt sets the "total_debt" field.
+func (m *UserBankAccountMutation) SetTotalDebt(d decimal.Decimal) {
+	m.total_debt = &d
+}
+
+// TotalDebt returns the value of the "total_debt" field in the mutation.
+func (m *UserBankAccountMutation) TotalDebt() (r decimal.Decimal, exists bool) {
+	v := m.total_debt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalDebt returns the old "total_debt" field's value of the UserBankAccount entity.
+// If the UserBankAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBankAccountMutation) OldTotalDebt(ctx context.Context) (v decimal.Decimal, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalDebt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalDebt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalDebt: %w", err)
+	}
+	return oldValue.TotalDebt, nil
+}
+
+// ResetTotalDebt resets all changes to the "total_debt" field.
+func (m *UserBankAccountMutation) ResetTotalDebt() {
+	m.total_debt = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *UserBankAccountMutation) SetVersion(i int64) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *UserBankAccountMutation) Version() (r int64, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the UserBankAccount entity.
+// If the UserBankAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBankAccountMutation) OldVersion(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *UserBankAccountMutation) AddVersion(i int64) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *UserBankAccountMutation) AddedVersion() (r int64, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *UserBankAccountMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *UserBankAccountMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *UserBankAccountMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the UserBankAccount entity.
+// If the UserBankAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserBankAccountMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *UserBankAccountMutation) ResetStatus() {
+	m.status = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *UserBankAccountMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[userbankaccount.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *UserBankAccountMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *UserBankAccountMutation) UserIDs() (ids []int64) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *UserBankAccountMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// AddTransactionIDs adds the "transactions" edge to the TransactionLog entity by ids.
+func (m *UserBankAccountMutation) AddTransactionIDs(ids ...int64) {
+	if m.transactions == nil {
+		m.transactions = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.transactions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTransactions clears the "transactions" edge to the TransactionLog entity.
+func (m *UserBankAccountMutation) ClearTransactions() {
+	m.clearedtransactions = true
+}
+
+// TransactionsCleared reports if the "transactions" edge to the TransactionLog entity was cleared.
+func (m *UserBankAccountMutation) TransactionsCleared() bool {
+	return m.clearedtransactions
+}
+
+// RemoveTransactionIDs removes the "transactions" edge to the TransactionLog entity by IDs.
+func (m *UserBankAccountMutation) RemoveTransactionIDs(ids ...int64) {
+	if m.removedtransactions == nil {
+		m.removedtransactions = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.transactions, ids[i])
+		m.removedtransactions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTransactions returns the removed IDs of the "transactions" edge to the TransactionLog entity.
+func (m *UserBankAccountMutation) RemovedTransactionsIDs() (ids []int64) {
+	for id := range m.removedtransactions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TransactionsIDs returns the "transactions" edge IDs in the mutation.
+func (m *UserBankAccountMutation) TransactionsIDs() (ids []int64) {
+	for id := range m.transactions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTransactions resets all changes to the "transactions" edge.
+func (m *UserBankAccountMutation) ResetTransactions() {
+	m.transactions = nil
+	m.clearedtransactions = false
+	m.removedtransactions = nil
+}
+
+// Where appends a list predicates to the UserBankAccountMutation builder.
+func (m *UserBankAccountMutation) Where(ps ...predicate.UserBankAccount) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserBankAccountMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserBankAccountMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserBankAccount, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserBankAccountMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserBankAccountMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserBankAccount).
+func (m *UserBankAccountMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserBankAccountMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.created_at != nil {
+		fields = append(fields, userbankaccount.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, userbankaccount.FieldUpdatedAt)
+	}
+	if m.user != nil {
+		fields = append(fields, userbankaccount.FieldUserID)
+	}
+	if m.balance != nil {
+		fields = append(fields, userbankaccount.FieldBalance)
+	}
+	if m.frozen_amount != nil {
+		fields = append(fields, userbankaccount.FieldFrozenAmount)
+	}
+	if m.credit_limit != nil {
+		fields = append(fields, userbankaccount.FieldCreditLimit)
+	}
+	if m.total_debt != nil {
+		fields = append(fields, userbankaccount.FieldTotalDebt)
+	}
+	if m.version != nil {
+		fields = append(fields, userbankaccount.FieldVersion)
+	}
+	if m.status != nil {
+		fields = append(fields, userbankaccount.FieldStatus)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserBankAccountMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case userbankaccount.FieldCreatedAt:
+		return m.CreatedAt()
+	case userbankaccount.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case userbankaccount.FieldUserID:
+		return m.UserID()
+	case userbankaccount.FieldBalance:
+		return m.Balance()
+	case userbankaccount.FieldFrozenAmount:
+		return m.FrozenAmount()
+	case userbankaccount.FieldCreditLimit:
+		return m.CreditLimit()
+	case userbankaccount.FieldTotalDebt:
+		return m.TotalDebt()
+	case userbankaccount.FieldVersion:
+		return m.Version()
+	case userbankaccount.FieldStatus:
+		return m.Status()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserBankAccountMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case userbankaccount.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case userbankaccount.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case userbankaccount.FieldUserID:
+		return m.OldUserID(ctx)
+	case userbankaccount.FieldBalance:
+		return m.OldBalance(ctx)
+	case userbankaccount.FieldFrozenAmount:
+		return m.OldFrozenAmount(ctx)
+	case userbankaccount.FieldCreditLimit:
+		return m.OldCreditLimit(ctx)
+	case userbankaccount.FieldTotalDebt:
+		return m.OldTotalDebt(ctx)
+	case userbankaccount.FieldVersion:
+		return m.OldVersion(ctx)
+	case userbankaccount.FieldStatus:
+		return m.OldStatus(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserBankAccount field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserBankAccountMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case userbankaccount.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case userbankaccount.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case userbankaccount.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case userbankaccount.FieldBalance:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalance(v)
+		return nil
+	case userbankaccount.FieldFrozenAmount:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenAmount(v)
+		return nil
+	case userbankaccount.FieldCreditLimit:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreditLimit(v)
+		return nil
+	case userbankaccount.FieldTotalDebt:
+		v, ok := value.(decimal.Decimal)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalDebt(v)
+		return nil
+	case userbankaccount.FieldVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case userbankaccount.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserBankAccount field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserBankAccountMutation) AddedFields() []string {
+	var fields []string
+	if m.addversion != nil {
+		fields = append(fields, userbankaccount.FieldVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserBankAccountMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case userbankaccount.FieldVersion:
+		return m.AddedVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserBankAccountMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case userbankaccount.FieldVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserBankAccount numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserBankAccountMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserBankAccountMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserBankAccountMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown UserBankAccount nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserBankAccountMutation) ResetField(name string) error {
+	switch name {
+	case userbankaccount.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case userbankaccount.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case userbankaccount.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case userbankaccount.FieldBalance:
+		m.ResetBalance()
+		return nil
+	case userbankaccount.FieldFrozenAmount:
+		m.ResetFrozenAmount()
+		return nil
+	case userbankaccount.FieldCreditLimit:
+		m.ResetCreditLimit()
+		return nil
+	case userbankaccount.FieldTotalDebt:
+		m.ResetTotalDebt()
+		return nil
+	case userbankaccount.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case userbankaccount.FieldStatus:
+		m.ResetStatus()
+		return nil
+	}
+	return fmt.Errorf("unknown UserBankAccount field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserBankAccountMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.user != nil {
+		edges = append(edges, userbankaccount.EdgeUser)
+	}
+	if m.transactions != nil {
+		edges = append(edges, userbankaccount.EdgeTransactions)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserBankAccountMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case userbankaccount.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	case userbankaccount.EdgeTransactions:
+		ids := make([]ent.Value, 0, len(m.transactions))
+		for id := range m.transactions {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserBankAccountMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedtransactions != nil {
+		edges = append(edges, userbankaccount.EdgeTransactions)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserBankAccountMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case userbankaccount.EdgeTransactions:
+		ids := make([]ent.Value, 0, len(m.removedtransactions))
+		for id := range m.removedtransactions {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserBankAccountMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.cleareduser {
+		edges = append(edges, userbankaccount.EdgeUser)
+	}
+	if m.clearedtransactions {
+		edges = append(edges, userbankaccount.EdgeTransactions)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserBankAccountMutation) EdgeCleared(name string) bool {
+	switch name {
+	case userbankaccount.EdgeUser:
+		return m.cleareduser
+	case userbankaccount.EdgeTransactions:
+		return m.clearedtransactions
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserBankAccountMutation) ClearEdge(name string) error {
+	switch name {
+	case userbankaccount.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown UserBankAccount unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserBankAccountMutation) ResetEdge(name string) error {
+	switch name {
+	case userbankaccount.EdgeUser:
+		m.ResetUser()
+		return nil
+	case userbankaccount.EdgeTransactions:
+		m.ResetTransactions()
+		return nil
+	}
+	return fmt.Errorf("unknown UserBankAccount edge %s", name)
 }
 
 // UserPlatformQuotaMutation represents an operation that mutates the UserPlatformQuota nodes in the graph.

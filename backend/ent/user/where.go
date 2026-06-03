@@ -1685,6 +1685,98 @@ func HasPaymentOrdersWith(preds ...predicate.PaymentOrder) predicate.User {
 	})
 }
 
+// HasBankAccount applies the HasEdge predicate on the "bank_account" edge.
+func HasBankAccount() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, BankAccountTable, BankAccountColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasBankAccountWith applies the HasEdge predicate on the "bank_account" edge with a given conditions (other predicates).
+func HasBankAccountWith(preds ...predicate.UserBankAccount) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newBankAccountStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasTransactionLogs applies the HasEdge predicate on the "transaction_logs" edge.
+func HasTransactionLogs() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, TransactionLogsTable, TransactionLogsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTransactionLogsWith applies the HasEdge predicate on the "transaction_logs" edge with a given conditions (other predicates).
+func HasTransactionLogsWith(preds ...predicate.TransactionLog) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newTransactionLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasBorrowedLoanContracts applies the HasEdge predicate on the "borrowed_loan_contracts" edge.
+func HasBorrowedLoanContracts() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, BorrowedLoanContractsTable, BorrowedLoanContractsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasBorrowedLoanContractsWith applies the HasEdge predicate on the "borrowed_loan_contracts" edge with a given conditions (other predicates).
+func HasBorrowedLoanContractsWith(preds ...predicate.LoanContract) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newBorrowedLoanContractsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasFundedLoanContracts applies the HasEdge predicate on the "funded_loan_contracts" edge.
+func HasFundedLoanContracts() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, FundedLoanContractsTable, FundedLoanContractsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasFundedLoanContractsWith applies the HasEdge predicate on the "funded_loan_contracts" edge with a given conditions (other predicates).
+func HasFundedLoanContractsWith(preds ...predicate.LoanContract) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newFundedLoanContractsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasAuthIdentities applies the HasEdge predicate on the "auth_identities" edge.
 func HasAuthIdentities() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

@@ -21,15 +21,18 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/loancontract"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/userbankaccount"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
@@ -56,6 +59,10 @@ type UserQuery struct {
 	withAttributeValues        *UserAttributeValueQuery
 	withPromoCodeUsages        *PromoCodeUsageQuery
 	withPaymentOrders          *PaymentOrderQuery
+	withBankAccount            *UserBankAccountQuery
+	withTransactionLogs        *TransactionLogQuery
+	withBorrowedLoanContracts  *LoanContractQuery
+	withFundedLoanContracts    *LoanContractQuery
 	withAuthIdentities         *AuthIdentityQuery
 	withPendingAuthSessions    *PendingAuthSessionQuery
 	withPlatformQuotas         *UserPlatformQuotaQuery
@@ -427,6 +434,94 @@ func (_q *UserQuery) QueryPaymentOrders() *PaymentOrderQuery {
 	return query
 }
 
+// QueryBankAccount chains the current query on the "bank_account" edge.
+func (_q *UserQuery) QueryBankAccount() *UserBankAccountQuery {
+	query := (&UserBankAccountClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(userbankaccount.Table, userbankaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.BankAccountTable, user.BankAccountColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryTransactionLogs chains the current query on the "transaction_logs" edge.
+func (_q *UserQuery) QueryTransactionLogs() *TransactionLogQuery {
+	query := (&TransactionLogClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(transactionlog.Table, transactionlog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.TransactionLogsTable, user.TransactionLogsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryBorrowedLoanContracts chains the current query on the "borrowed_loan_contracts" edge.
+func (_q *UserQuery) QueryBorrowedLoanContracts() *LoanContractQuery {
+	query := (&LoanContractClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(loancontract.Table, loancontract.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.BorrowedLoanContractsTable, user.BorrowedLoanContractsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryFundedLoanContracts chains the current query on the "funded_loan_contracts" edge.
+func (_q *UserQuery) QueryFundedLoanContracts() *LoanContractQuery {
+	query := (&LoanContractClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(loancontract.Table, loancontract.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.FundedLoanContractsTable, user.FundedLoanContractsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryAuthIdentities chains the current query on the "auth_identities" edge.
 func (_q *UserQuery) QueryAuthIdentities() *AuthIdentityQuery {
 	query := (&AuthIdentityClient{config: _q.config}).Query()
@@ -722,6 +817,10 @@ func (_q *UserQuery) Clone() *UserQuery {
 		withAttributeValues:        _q.withAttributeValues.Clone(),
 		withPromoCodeUsages:        _q.withPromoCodeUsages.Clone(),
 		withPaymentOrders:          _q.withPaymentOrders.Clone(),
+		withBankAccount:            _q.withBankAccount.Clone(),
+		withTransactionLogs:        _q.withTransactionLogs.Clone(),
+		withBorrowedLoanContracts:  _q.withBorrowedLoanContracts.Clone(),
+		withFundedLoanContracts:    _q.withFundedLoanContracts.Clone(),
 		withAuthIdentities:         _q.withAuthIdentities.Clone(),
 		withPendingAuthSessions:    _q.withPendingAuthSessions.Clone(),
 		withPlatformQuotas:         _q.withPlatformQuotas.Clone(),
@@ -897,6 +996,50 @@ func (_q *UserQuery) WithPaymentOrders(opts ...func(*PaymentOrderQuery)) *UserQu
 	return _q
 }
 
+// WithBankAccount tells the query-builder to eager-load the nodes that are connected to
+// the "bank_account" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithBankAccount(opts ...func(*UserBankAccountQuery)) *UserQuery {
+	query := (&UserBankAccountClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withBankAccount = query
+	return _q
+}
+
+// WithTransactionLogs tells the query-builder to eager-load the nodes that are connected to
+// the "transaction_logs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithTransactionLogs(opts ...func(*TransactionLogQuery)) *UserQuery {
+	query := (&TransactionLogClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTransactionLogs = query
+	return _q
+}
+
+// WithBorrowedLoanContracts tells the query-builder to eager-load the nodes that are connected to
+// the "borrowed_loan_contracts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithBorrowedLoanContracts(opts ...func(*LoanContractQuery)) *UserQuery {
+	query := (&LoanContractClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withBorrowedLoanContracts = query
+	return _q
+}
+
+// WithFundedLoanContracts tells the query-builder to eager-load the nodes that are connected to
+// the "funded_loan_contracts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithFundedLoanContracts(opts ...func(*LoanContractQuery)) *UserQuery {
+	query := (&LoanContractClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withFundedLoanContracts = query
+	return _q
+}
+
 // WithAuthIdentities tells the query-builder to eager-load the nodes that are connected to
 // the "auth_identities" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *UserQuery) WithAuthIdentities(opts ...func(*AuthIdentityQuery)) *UserQuery {
@@ -1019,7 +1162,7 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [19]bool{
+		loadedTypes = [23]bool{
 			_q.withAPIKeys != nil,
 			_q.withRedeemCodes != nil,
 			_q.withRedpackets != nil,
@@ -1035,6 +1178,10 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			_q.withAttributeValues != nil,
 			_q.withPromoCodeUsages != nil,
 			_q.withPaymentOrders != nil,
+			_q.withBankAccount != nil,
+			_q.withTransactionLogs != nil,
+			_q.withBorrowedLoanContracts != nil,
+			_q.withFundedLoanContracts != nil,
 			_q.withAuthIdentities != nil,
 			_q.withPendingAuthSessions != nil,
 			_q.withPlatformQuotas != nil,
@@ -1168,6 +1315,35 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadPaymentOrders(ctx, query, nodes,
 			func(n *User) { n.Edges.PaymentOrders = []*PaymentOrder{} },
 			func(n *User, e *PaymentOrder) { n.Edges.PaymentOrders = append(n.Edges.PaymentOrders, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withBankAccount; query != nil {
+		if err := _q.loadBankAccount(ctx, query, nodes, nil,
+			func(n *User, e *UserBankAccount) { n.Edges.BankAccount = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withTransactionLogs; query != nil {
+		if err := _q.loadTransactionLogs(ctx, query, nodes,
+			func(n *User) { n.Edges.TransactionLogs = []*TransactionLog{} },
+			func(n *User, e *TransactionLog) { n.Edges.TransactionLogs = append(n.Edges.TransactionLogs, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withBorrowedLoanContracts; query != nil {
+		if err := _q.loadBorrowedLoanContracts(ctx, query, nodes,
+			func(n *User) { n.Edges.BorrowedLoanContracts = []*LoanContract{} },
+			func(n *User, e *LoanContract) {
+				n.Edges.BorrowedLoanContracts = append(n.Edges.BorrowedLoanContracts, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withFundedLoanContracts; query != nil {
+		if err := _q.loadFundedLoanContracts(ctx, query, nodes,
+			func(n *User) { n.Edges.FundedLoanContracts = []*LoanContract{} },
+			func(n *User, e *LoanContract) { n.Edges.FundedLoanContracts = append(n.Edges.FundedLoanContracts, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1686,6 +1862,126 @@ func (_q *UserQuery) loadPaymentOrders(ctx context.Context, query *PaymentOrderQ
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadBankAccount(ctx context.Context, query *UserBankAccountQuery, nodes []*User, init func(*User), assign func(*User, *UserBankAccount)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(userbankaccount.FieldUserID)
+	}
+	query.Where(predicate.UserBankAccount(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.BankAccountColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadTransactionLogs(ctx context.Context, query *TransactionLogQuery, nodes []*User, init func(*User), assign func(*User, *TransactionLog)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(transactionlog.FieldUserID)
+	}
+	query.Where(predicate.TransactionLog(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.TransactionLogsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadBorrowedLoanContracts(ctx context.Context, query *LoanContractQuery, nodes []*User, init func(*User), assign func(*User, *LoanContract)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(loancontract.FieldBorrowerID)
+	}
+	query.Where(predicate.LoanContract(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.BorrowedLoanContractsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.BorrowerID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "borrower_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadFundedLoanContracts(ctx context.Context, query *LoanContractQuery, nodes []*User, init func(*User), assign func(*User, *LoanContract)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(loancontract.FieldLenderID)
+	}
+	query.Where(predicate.LoanContract(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.FundedLoanContractsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.LenderID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "lender_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "lender_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

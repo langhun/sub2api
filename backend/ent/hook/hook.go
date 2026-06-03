@@ -261,6 +261,18 @@ func (f IdentityAdoptionDecisionFunc) Mutate(ctx context.Context, m ent.Mutation
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdentityAdoptionDecisionMutation", m)
 }
 
+// The LoanContractFunc type is an adapter to allow the use of ordinary
+// function as LoanContract mutator.
+type LoanContractFunc func(context.Context, *ent.LoanContractMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LoanContractFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LoanContractMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoanContractMutation", m)
+}
+
 // The ModelPricingFunc type is an adapter to allow the use of ordinary
 // function as ModelPricing mutator.
 type ModelPricingFunc func(context.Context, *ent.ModelPricingMutation) (ent.Value, error)
@@ -441,6 +453,18 @@ func (f TLSFingerprintProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TLSFingerprintProfileMutation", m)
 }
 
+// The TransactionLogFunc type is an adapter to allow the use of ordinary
+// function as TransactionLog mutator.
+type TransactionLogFunc func(context.Context, *ent.TransactionLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TransactionLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TransactionLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TransactionLogMutation", m)
+}
+
 // The UsageCleanupTaskFunc type is an adapter to allow the use of ordinary
 // function as UsageCleanupTask mutator.
 type UsageCleanupTaskFunc func(context.Context, *ent.UsageCleanupTaskMutation) (ent.Value, error)
@@ -511,6 +535,18 @@ func (f UserAttributeValueFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAttributeValueMutation", m)
+}
+
+// The UserBankAccountFunc type is an adapter to allow the use of ordinary
+// function as UserBankAccount mutator.
+type UserBankAccountFunc func(context.Context, *ent.UserBankAccountMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserBankAccountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserBankAccountMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserBankAccountMutation", m)
 }
 
 // The UserPlatformQuotaFunc type is an adapter to allow the use of ordinary
