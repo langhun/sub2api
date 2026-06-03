@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationissue"
 	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
 	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
@@ -226,6 +227,21 @@ func (_u *LedgerAccountUpdate) AddEntries(v ...*LedgerEntry) *LedgerAccountUpdat
 	return _u.AddEntryIDs(ids...)
 }
 
+// AddReconciliationIssueIDs adds the "reconciliation_issues" edge to the FinancialReconciliationIssue entity by IDs.
+func (_u *LedgerAccountUpdate) AddReconciliationIssueIDs(ids ...int64) *LedgerAccountUpdate {
+	_u.mutation.AddReconciliationIssueIDs(ids...)
+	return _u
+}
+
+// AddReconciliationIssues adds the "reconciliation_issues" edges to the FinancialReconciliationIssue entity.
+func (_u *LedgerAccountUpdate) AddReconciliationIssues(v ...*FinancialReconciliationIssue) *LedgerAccountUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReconciliationIssueIDs(ids...)
+}
+
 // Mutation returns the LedgerAccountMutation object of the builder.
 func (_u *LedgerAccountUpdate) Mutation() *LedgerAccountMutation {
 	return _u.mutation
@@ -262,6 +278,27 @@ func (_u *LedgerAccountUpdate) RemoveEntries(v ...*LedgerEntry) *LedgerAccountUp
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveEntryIDs(ids...)
+}
+
+// ClearReconciliationIssues clears all "reconciliation_issues" edges to the FinancialReconciliationIssue entity.
+func (_u *LedgerAccountUpdate) ClearReconciliationIssues() *LedgerAccountUpdate {
+	_u.mutation.ClearReconciliationIssues()
+	return _u
+}
+
+// RemoveReconciliationIssueIDs removes the "reconciliation_issues" edge to FinancialReconciliationIssue entities by IDs.
+func (_u *LedgerAccountUpdate) RemoveReconciliationIssueIDs(ids ...int64) *LedgerAccountUpdate {
+	_u.mutation.RemoveReconciliationIssueIDs(ids...)
+	return _u
+}
+
+// RemoveReconciliationIssues removes "reconciliation_issues" edges to FinancialReconciliationIssue entities.
+func (_u *LedgerAccountUpdate) RemoveReconciliationIssues(v ...*FinancialReconciliationIssue) *LedgerAccountUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReconciliationIssueIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -485,6 +522,51 @@ func (_u *LedgerAccountUpdate) sqlSave(ctx context.Context) (_node int, err erro
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ReconciliationIssuesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   ledgeraccount.ReconciliationIssuesTable,
+			Columns: []string{ledgeraccount.ReconciliationIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialreconciliationissue.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReconciliationIssuesIDs(); len(nodes) > 0 && !_u.mutation.ReconciliationIssuesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   ledgeraccount.ReconciliationIssuesTable,
+			Columns: []string{ledgeraccount.ReconciliationIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialreconciliationissue.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReconciliationIssuesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   ledgeraccount.ReconciliationIssuesTable,
+			Columns: []string{ledgeraccount.ReconciliationIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialreconciliationissue.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{ledgeraccount.Label}
@@ -700,6 +782,21 @@ func (_u *LedgerAccountUpdateOne) AddEntries(v ...*LedgerEntry) *LedgerAccountUp
 	return _u.AddEntryIDs(ids...)
 }
 
+// AddReconciliationIssueIDs adds the "reconciliation_issues" edge to the FinancialReconciliationIssue entity by IDs.
+func (_u *LedgerAccountUpdateOne) AddReconciliationIssueIDs(ids ...int64) *LedgerAccountUpdateOne {
+	_u.mutation.AddReconciliationIssueIDs(ids...)
+	return _u
+}
+
+// AddReconciliationIssues adds the "reconciliation_issues" edges to the FinancialReconciliationIssue entity.
+func (_u *LedgerAccountUpdateOne) AddReconciliationIssues(v ...*FinancialReconciliationIssue) *LedgerAccountUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReconciliationIssueIDs(ids...)
+}
+
 // Mutation returns the LedgerAccountMutation object of the builder.
 func (_u *LedgerAccountUpdateOne) Mutation() *LedgerAccountMutation {
 	return _u.mutation
@@ -736,6 +833,27 @@ func (_u *LedgerAccountUpdateOne) RemoveEntries(v ...*LedgerEntry) *LedgerAccoun
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveEntryIDs(ids...)
+}
+
+// ClearReconciliationIssues clears all "reconciliation_issues" edges to the FinancialReconciliationIssue entity.
+func (_u *LedgerAccountUpdateOne) ClearReconciliationIssues() *LedgerAccountUpdateOne {
+	_u.mutation.ClearReconciliationIssues()
+	return _u
+}
+
+// RemoveReconciliationIssueIDs removes the "reconciliation_issues" edge to FinancialReconciliationIssue entities by IDs.
+func (_u *LedgerAccountUpdateOne) RemoveReconciliationIssueIDs(ids ...int64) *LedgerAccountUpdateOne {
+	_u.mutation.RemoveReconciliationIssueIDs(ids...)
+	return _u
+}
+
+// RemoveReconciliationIssues removes "reconciliation_issues" edges to FinancialReconciliationIssue entities.
+func (_u *LedgerAccountUpdateOne) RemoveReconciliationIssues(v ...*FinancialReconciliationIssue) *LedgerAccountUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReconciliationIssueIDs(ids...)
 }
 
 // Where appends a list predicates to the LedgerAccountUpdate builder.
@@ -982,6 +1100,51 @@ func (_u *LedgerAccountUpdateOne) sqlSave(ctx context.Context) (_node *LedgerAcc
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReconciliationIssuesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   ledgeraccount.ReconciliationIssuesTable,
+			Columns: []string{ledgeraccount.ReconciliationIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialreconciliationissue.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReconciliationIssuesIDs(); len(nodes) > 0 && !_u.mutation.ReconciliationIssuesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   ledgeraccount.ReconciliationIssuesTable,
+			Columns: []string{ledgeraccount.ReconciliationIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialreconciliationissue.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReconciliationIssuesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   ledgeraccount.ReconciliationIssuesTable,
+			Columns: []string{ledgeraccount.ReconciliationIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialreconciliationissue.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

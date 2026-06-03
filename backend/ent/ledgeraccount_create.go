@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationissue"
 	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
 	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/user"
@@ -190,6 +191,21 @@ func (_c *LedgerAccountCreate) AddEntries(v ...*LedgerEntry) *LedgerAccountCreat
 		ids[i] = v[i].ID
 	}
 	return _c.AddEntryIDs(ids...)
+}
+
+// AddReconciliationIssueIDs adds the "reconciliation_issues" edge to the FinancialReconciliationIssue entity by IDs.
+func (_c *LedgerAccountCreate) AddReconciliationIssueIDs(ids ...int64) *LedgerAccountCreate {
+	_c.mutation.AddReconciliationIssueIDs(ids...)
+	return _c
+}
+
+// AddReconciliationIssues adds the "reconciliation_issues" edges to the FinancialReconciliationIssue entity.
+func (_c *LedgerAccountCreate) AddReconciliationIssues(v ...*FinancialReconciliationIssue) *LedgerAccountCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddReconciliationIssueIDs(ids...)
 }
 
 // Mutation returns the LedgerAccountMutation object of the builder.
@@ -423,6 +439,22 @@ func (_c *LedgerAccountCreate) createSpec() (*LedgerAccount, *sqlgraph.CreateSpe
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ReconciliationIssuesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   ledgeraccount.ReconciliationIssuesTable,
+			Columns: []string{ledgeraccount.ReconciliationIssuesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialreconciliationissue.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

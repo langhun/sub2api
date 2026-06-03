@@ -26,6 +26,10 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
+	"github.com/Wei-Shaw/sub2api/ent/financialauditlog"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationissue"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationrun"
+	"github.com/Wei-Shaw/sub2api/ent/financialreversal"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
@@ -600,6 +604,114 @@ func (f TraverseErrorPassthroughRule) Traverse(ctx context.Context, q ent.Query)
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.ErrorPassthroughRuleQuery", q)
+}
+
+// The FinancialAuditLogFunc type is an adapter to allow the use of ordinary function as a Querier.
+type FinancialAuditLogFunc func(context.Context, *ent.FinancialAuditLogQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f FinancialAuditLogFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.FinancialAuditLogQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.FinancialAuditLogQuery", q)
+}
+
+// The TraverseFinancialAuditLog type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseFinancialAuditLog func(context.Context, *ent.FinancialAuditLogQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseFinancialAuditLog) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseFinancialAuditLog) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.FinancialAuditLogQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.FinancialAuditLogQuery", q)
+}
+
+// The FinancialReconciliationIssueFunc type is an adapter to allow the use of ordinary function as a Querier.
+type FinancialReconciliationIssueFunc func(context.Context, *ent.FinancialReconciliationIssueQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f FinancialReconciliationIssueFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.FinancialReconciliationIssueQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.FinancialReconciliationIssueQuery", q)
+}
+
+// The TraverseFinancialReconciliationIssue type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseFinancialReconciliationIssue func(context.Context, *ent.FinancialReconciliationIssueQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseFinancialReconciliationIssue) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseFinancialReconciliationIssue) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.FinancialReconciliationIssueQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.FinancialReconciliationIssueQuery", q)
+}
+
+// The FinancialReconciliationRunFunc type is an adapter to allow the use of ordinary function as a Querier.
+type FinancialReconciliationRunFunc func(context.Context, *ent.FinancialReconciliationRunQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f FinancialReconciliationRunFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.FinancialReconciliationRunQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.FinancialReconciliationRunQuery", q)
+}
+
+// The TraverseFinancialReconciliationRun type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseFinancialReconciliationRun func(context.Context, *ent.FinancialReconciliationRunQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseFinancialReconciliationRun) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseFinancialReconciliationRun) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.FinancialReconciliationRunQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.FinancialReconciliationRunQuery", q)
+}
+
+// The FinancialReversalFunc type is an adapter to allow the use of ordinary function as a Querier.
+type FinancialReversalFunc func(context.Context, *ent.FinancialReversalQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f FinancialReversalFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.FinancialReversalQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.FinancialReversalQuery", q)
+}
+
+// The TraverseFinancialReversal type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseFinancialReversal func(context.Context, *ent.FinancialReversalQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseFinancialReversal) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseFinancialReversal) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.FinancialReversalQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.FinancialReversalQuery", q)
 }
 
 // The GroupFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1478,6 +1590,14 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.CheckinPrizeItemQuery, predicate.CheckinPrizeItem, checkinprizeitem.OrderOption]{typ: ent.TypeCheckinPrizeItem, tq: q}, nil
 	case *ent.ErrorPassthroughRuleQuery:
 		return &query[*ent.ErrorPassthroughRuleQuery, predicate.ErrorPassthroughRule, errorpassthroughrule.OrderOption]{typ: ent.TypeErrorPassthroughRule, tq: q}, nil
+	case *ent.FinancialAuditLogQuery:
+		return &query[*ent.FinancialAuditLogQuery, predicate.FinancialAuditLog, financialauditlog.OrderOption]{typ: ent.TypeFinancialAuditLog, tq: q}, nil
+	case *ent.FinancialReconciliationIssueQuery:
+		return &query[*ent.FinancialReconciliationIssueQuery, predicate.FinancialReconciliationIssue, financialreconciliationissue.OrderOption]{typ: ent.TypeFinancialReconciliationIssue, tq: q}, nil
+	case *ent.FinancialReconciliationRunQuery:
+		return &query[*ent.FinancialReconciliationRunQuery, predicate.FinancialReconciliationRun, financialreconciliationrun.OrderOption]{typ: ent.TypeFinancialReconciliationRun, tq: q}, nil
+	case *ent.FinancialReversalQuery:
+		return &query[*ent.FinancialReversalQuery, predicate.FinancialReversal, financialreversal.OrderOption]{typ: ent.TypeFinancialReversal, tq: q}, nil
 	case *ent.GroupQuery:
 		return &query[*ent.GroupQuery, predicate.Group, group.OrderOption]{typ: ent.TypeGroup, tq: q}, nil
 	case *ent.IdempotencyRecordQuery:

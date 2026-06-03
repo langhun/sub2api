@@ -71,6 +71,7 @@ func (LedgerAccount) Edges() []ent.Edge {
 			Field("user_bank_account_id").
 			Unique(),
 		edge.To("entries", LedgerEntry.Type),
+		edge.To("reconciliation_issues", FinancialReconciliationIssue.Type),
 	}
 }
 

@@ -103,6 +103,12 @@ const (
 	EdgeBorrowedLoanContracts = "borrowed_loan_contracts"
 	// EdgeFundedLoanContracts holds the string denoting the funded_loan_contracts edge name in mutations.
 	EdgeFundedLoanContracts = "funded_loan_contracts"
+	// EdgeFinancialAuditLogs holds the string denoting the financial_audit_logs edge name in mutations.
+	EdgeFinancialAuditLogs = "financial_audit_logs"
+	// EdgeRequestedFinancialReversals holds the string denoting the requested_financial_reversals edge name in mutations.
+	EdgeRequestedFinancialReversals = "requested_financial_reversals"
+	// EdgeApprovedFinancialReversals holds the string denoting the approved_financial_reversals edge name in mutations.
+	EdgeApprovedFinancialReversals = "approved_financial_reversals"
 	// EdgeAuthIdentities holds the string denoting the auth_identities edge name in mutations.
 	EdgeAuthIdentities = "auth_identities"
 	// EdgePendingAuthSessions holds the string denoting the pending_auth_sessions edge name in mutations.
@@ -258,6 +264,27 @@ const (
 	FundedLoanContractsInverseTable = "loans_contract"
 	// FundedLoanContractsColumn is the table column denoting the funded_loan_contracts relation/edge.
 	FundedLoanContractsColumn = "lender_id"
+	// FinancialAuditLogsTable is the table that holds the financial_audit_logs relation/edge.
+	FinancialAuditLogsTable = "financial_audit_logs"
+	// FinancialAuditLogsInverseTable is the table name for the FinancialAuditLog entity.
+	// It exists in this package in order to avoid circular dependency with the "financialauditlog" package.
+	FinancialAuditLogsInverseTable = "financial_audit_logs"
+	// FinancialAuditLogsColumn is the table column denoting the financial_audit_logs relation/edge.
+	FinancialAuditLogsColumn = "actor_user_id"
+	// RequestedFinancialReversalsTable is the table that holds the requested_financial_reversals relation/edge.
+	RequestedFinancialReversalsTable = "financial_reversals"
+	// RequestedFinancialReversalsInverseTable is the table name for the FinancialReversal entity.
+	// It exists in this package in order to avoid circular dependency with the "financialreversal" package.
+	RequestedFinancialReversalsInverseTable = "financial_reversals"
+	// RequestedFinancialReversalsColumn is the table column denoting the requested_financial_reversals relation/edge.
+	RequestedFinancialReversalsColumn = "requested_by_user_id"
+	// ApprovedFinancialReversalsTable is the table that holds the approved_financial_reversals relation/edge.
+	ApprovedFinancialReversalsTable = "financial_reversals"
+	// ApprovedFinancialReversalsInverseTable is the table name for the FinancialReversal entity.
+	// It exists in this package in order to avoid circular dependency with the "financialreversal" package.
+	ApprovedFinancialReversalsInverseTable = "financial_reversals"
+	// ApprovedFinancialReversalsColumn is the table column denoting the approved_financial_reversals relation/edge.
+	ApprovedFinancialReversalsColumn = "approved_by_user_id"
 	// AuthIdentitiesTable is the table that holds the auth_identities relation/edge.
 	AuthIdentitiesTable = "auth_identities"
 	// AuthIdentitiesInverseTable is the table name for the AuthIdentity entity.
@@ -796,6 +823,48 @@ func ByFundedLoanContracts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOpti
 	}
 }
 
+// ByFinancialAuditLogsCount orders the results by financial_audit_logs count.
+func ByFinancialAuditLogsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newFinancialAuditLogsStep(), opts...)
+	}
+}
+
+// ByFinancialAuditLogs orders the results by financial_audit_logs terms.
+func ByFinancialAuditLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newFinancialAuditLogsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByRequestedFinancialReversalsCount orders the results by requested_financial_reversals count.
+func ByRequestedFinancialReversalsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRequestedFinancialReversalsStep(), opts...)
+	}
+}
+
+// ByRequestedFinancialReversals orders the results by requested_financial_reversals terms.
+func ByRequestedFinancialReversals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRequestedFinancialReversalsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByApprovedFinancialReversalsCount orders the results by approved_financial_reversals count.
+func ByApprovedFinancialReversalsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newApprovedFinancialReversalsStep(), opts...)
+	}
+}
+
+// ByApprovedFinancialReversals orders the results by approved_financial_reversals terms.
+func ByApprovedFinancialReversals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newApprovedFinancialReversalsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByAuthIdentitiesCount orders the results by auth_identities count.
 func ByAuthIdentitiesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -996,6 +1065,27 @@ func newFundedLoanContractsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(FundedLoanContractsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, FundedLoanContractsTable, FundedLoanContractsColumn),
+	)
+}
+func newFinancialAuditLogsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(FinancialAuditLogsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, FinancialAuditLogsTable, FinancialAuditLogsColumn),
+	)
+}
+func newRequestedFinancialReversalsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RequestedFinancialReversalsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RequestedFinancialReversalsTable, RequestedFinancialReversalsColumn),
+	)
+}
+func newApprovedFinancialReversalsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ApprovedFinancialReversalsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ApprovedFinancialReversalsTable, ApprovedFinancialReversalsColumn),
 	)
 }
 func newAuthIdentitiesStep() *sqlgraph.Step {

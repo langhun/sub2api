@@ -23,6 +23,10 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
+	"github.com/Wei-Shaw/sub2api/ent/financialauditlog"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationissue"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationrun"
+	"github.com/Wei-Shaw/sub2api/ent/financialreversal"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
@@ -903,6 +907,112 @@ func init() {
 	errorpassthroughruleDescSkipMonitoring := errorpassthroughruleFields[11].Descriptor()
 	// errorpassthroughrule.DefaultSkipMonitoring holds the default value on creation for the skip_monitoring field.
 	errorpassthroughrule.DefaultSkipMonitoring = errorpassthroughruleDescSkipMonitoring.Default.(bool)
+	financialauditlogFields := schema.FinancialAuditLog{}.Fields()
+	_ = financialauditlogFields
+	// financialauditlogDescAuditID is the schema descriptor for audit_id field.
+	financialauditlogDescAuditID := financialauditlogFields[0].Descriptor()
+	// financialauditlog.DefaultAuditID holds the default value on creation for the audit_id field.
+	financialauditlog.DefaultAuditID = financialauditlogDescAuditID.Default.(func() uuid.UUID)
+	// financialauditlogDescAction is the schema descriptor for action field.
+	financialauditlogDescAction := financialauditlogFields[1].Descriptor()
+	// financialauditlog.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	financialauditlog.ActionValidator = financialauditlogDescAction.Validators[0].(func(string) error)
+	// financialauditlogDescActorType is the schema descriptor for actor_type field.
+	financialauditlogDescActorType := financialauditlogFields[2].Descriptor()
+	// financialauditlog.DefaultActorType holds the default value on creation for the actor_type field.
+	financialauditlog.DefaultActorType = financialauditlogDescActorType.Default.(string)
+	// financialauditlog.ActorTypeValidator is a validator for the "actor_type" field. It is called by the builders before save.
+	financialauditlog.ActorTypeValidator = financialauditlogDescActorType.Validators[0].(func(string) error)
+	// financialauditlogDescRequestID is the schema descriptor for request_id field.
+	financialauditlogDescRequestID := financialauditlogFields[4].Descriptor()
+	// financialauditlog.RequestIDValidator is a validator for the "request_id" field. It is called by the builders before save.
+	financialauditlog.RequestIDValidator = financialauditlogDescRequestID.Validators[0].(func(string) error)
+	// financialauditlogDescTargetType is the schema descriptor for target_type field.
+	financialauditlogDescTargetType := financialauditlogFields[7].Descriptor()
+	// financialauditlog.TargetTypeValidator is a validator for the "target_type" field. It is called by the builders before save.
+	financialauditlog.TargetTypeValidator = financialauditlogDescTargetType.Validators[0].(func(string) error)
+	// financialauditlogDescTargetID is the schema descriptor for target_id field.
+	financialauditlogDescTargetID := financialauditlogFields[8].Descriptor()
+	// financialauditlog.TargetIDValidator is a validator for the "target_id" field. It is called by the builders before save.
+	financialauditlog.TargetIDValidator = financialauditlogDescTargetID.Validators[0].(func(string) error)
+	// financialauditlogDescCreatedAt is the schema descriptor for created_at field.
+	financialauditlogDescCreatedAt := financialauditlogFields[10].Descriptor()
+	// financialauditlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	financialauditlog.DefaultCreatedAt = financialauditlogDescCreatedAt.Default.(func() time.Time)
+	financialreconciliationissueFields := schema.FinancialReconciliationIssue{}.Fields()
+	_ = financialreconciliationissueFields
+	// financialreconciliationissueDescIssueID is the schema descriptor for issue_id field.
+	financialreconciliationissueDescIssueID := financialreconciliationissueFields[0].Descriptor()
+	// financialreconciliationissue.DefaultIssueID holds the default value on creation for the issue_id field.
+	financialreconciliationissue.DefaultIssueID = financialreconciliationissueDescIssueID.Default.(func() uuid.UUID)
+	// financialreconciliationissueDescIssueType is the schema descriptor for issue_type field.
+	financialreconciliationissueDescIssueType := financialreconciliationissueFields[2].Descriptor()
+	// financialreconciliationissue.IssueTypeValidator is a validator for the "issue_type" field. It is called by the builders before save.
+	financialreconciliationissue.IssueTypeValidator = financialreconciliationissueDescIssueType.Validators[0].(func(string) error)
+	// financialreconciliationissueDescExpectedAmount is the schema descriptor for expected_amount field.
+	financialreconciliationissueDescExpectedAmount := financialreconciliationissueFields[5].Descriptor()
+	// financialreconciliationissue.DefaultExpectedAmount holds the default value on creation for the expected_amount field.
+	financialreconciliationissue.DefaultExpectedAmount = financialreconciliationissueDescExpectedAmount.Default.(decimal.Decimal)
+	// financialreconciliationissueDescActualAmount is the schema descriptor for actual_amount field.
+	financialreconciliationissueDescActualAmount := financialreconciliationissueFields[6].Descriptor()
+	// financialreconciliationissue.DefaultActualAmount holds the default value on creation for the actual_amount field.
+	financialreconciliationissue.DefaultActualAmount = financialreconciliationissueDescActualAmount.Default.(decimal.Decimal)
+	// financialreconciliationissueDescDetail is the schema descriptor for detail field.
+	financialreconciliationissueDescDetail := financialreconciliationissueFields[7].Descriptor()
+	// financialreconciliationissue.DefaultDetail holds the default value on creation for the detail field.
+	financialreconciliationissue.DefaultDetail = financialreconciliationissueDescDetail.Default.(string)
+	// financialreconciliationissueDescCreatedAt is the schema descriptor for created_at field.
+	financialreconciliationissueDescCreatedAt := financialreconciliationissueFields[9].Descriptor()
+	// financialreconciliationissue.DefaultCreatedAt holds the default value on creation for the created_at field.
+	financialreconciliationissue.DefaultCreatedAt = financialreconciliationissueDescCreatedAt.Default.(func() time.Time)
+	financialreconciliationrunFields := schema.FinancialReconciliationRun{}.Fields()
+	_ = financialreconciliationrunFields
+	// financialreconciliationrunDescRunID is the schema descriptor for run_id field.
+	financialreconciliationrunDescRunID := financialreconciliationrunFields[0].Descriptor()
+	// financialreconciliationrun.DefaultRunID holds the default value on creation for the run_id field.
+	financialreconciliationrun.DefaultRunID = financialreconciliationrunDescRunID.Default.(func() uuid.UUID)
+	// financialreconciliationrunDescStatus is the schema descriptor for status field.
+	financialreconciliationrunDescStatus := financialreconciliationrunFields[2].Descriptor()
+	// financialreconciliationrun.DefaultStatus holds the default value on creation for the status field.
+	financialreconciliationrun.DefaultStatus = financialreconciliationrunDescStatus.Default.(string)
+	// financialreconciliationrun.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	financialreconciliationrun.StatusValidator = financialreconciliationrunDescStatus.Validators[0].(func(string) error)
+	// financialreconciliationrunDescCheckedTransactions is the schema descriptor for checked_transactions field.
+	financialreconciliationrunDescCheckedTransactions := financialreconciliationrunFields[3].Descriptor()
+	// financialreconciliationrun.DefaultCheckedTransactions holds the default value on creation for the checked_transactions field.
+	financialreconciliationrun.DefaultCheckedTransactions = financialreconciliationrunDescCheckedTransactions.Default.(int64)
+	// financialreconciliationrunDescCheckedLedgerEntries is the schema descriptor for checked_ledger_entries field.
+	financialreconciliationrunDescCheckedLedgerEntries := financialreconciliationrunFields[4].Descriptor()
+	// financialreconciliationrun.DefaultCheckedLedgerEntries holds the default value on creation for the checked_ledger_entries field.
+	financialreconciliationrun.DefaultCheckedLedgerEntries = financialreconciliationrunDescCheckedLedgerEntries.Default.(int64)
+	// financialreconciliationrunDescMismatchCount is the schema descriptor for mismatch_count field.
+	financialreconciliationrunDescMismatchCount := financialreconciliationrunFields[5].Descriptor()
+	// financialreconciliationrun.DefaultMismatchCount holds the default value on creation for the mismatch_count field.
+	financialreconciliationrun.DefaultMismatchCount = financialreconciliationrunDescMismatchCount.Default.(int64)
+	// financialreconciliationrunDescCreatedAt is the schema descriptor for created_at field.
+	financialreconciliationrunDescCreatedAt := financialreconciliationrunFields[9].Descriptor()
+	// financialreconciliationrun.DefaultCreatedAt holds the default value on creation for the created_at field.
+	financialreconciliationrun.DefaultCreatedAt = financialreconciliationrunDescCreatedAt.Default.(func() time.Time)
+	financialreversalFields := schema.FinancialReversal{}.Fields()
+	_ = financialreversalFields
+	// financialreversalDescReversalID is the schema descriptor for reversal_id field.
+	financialreversalDescReversalID := financialreversalFields[0].Descriptor()
+	// financialreversal.DefaultReversalID holds the default value on creation for the reversal_id field.
+	financialreversal.DefaultReversalID = financialreversalDescReversalID.Default.(func() uuid.UUID)
+	// financialreversalDescRequestID is the schema descriptor for request_id field.
+	financialreversalDescRequestID := financialreversalFields[5].Descriptor()
+	// financialreversal.RequestIDValidator is a validator for the "request_id" field. It is called by the builders before save.
+	financialreversal.RequestIDValidator = financialreversalDescRequestID.Validators[0].(func(string) error)
+	// financialreversalDescStatus is the schema descriptor for status field.
+	financialreversalDescStatus := financialreversalFields[7].Descriptor()
+	// financialreversal.DefaultStatus holds the default value on creation for the status field.
+	financialreversal.DefaultStatus = financialreversalDescStatus.Default.(string)
+	// financialreversal.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	financialreversal.StatusValidator = financialreversalDescStatus.Validators[0].(func(string) error)
+	// financialreversalDescCreatedAt is the schema descriptor for created_at field.
+	financialreversalDescCreatedAt := financialreversalFields[9].Descriptor()
+	// financialreversal.DefaultCreatedAt holds the default value on creation for the created_at field.
+	financialreversal.DefaultCreatedAt = financialreversalDescCreatedAt.Default.(func() time.Time)
 	groupMixin := schema.Group{}.Mixin()
 	groupMixinHooks1 := groupMixin[1].Hooks()
 	group.Hooks[0] = groupMixinHooks1[0]

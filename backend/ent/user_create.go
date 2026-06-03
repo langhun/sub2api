@@ -18,6 +18,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/financialauditlog"
+	"github.com/Wei-Shaw/sub2api/ent/financialreversal"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
 	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
@@ -666,6 +668,51 @@ func (_c *UserCreate) AddFundedLoanContracts(v ...*LoanContract) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddFundedLoanContractIDs(ids...)
+}
+
+// AddFinancialAuditLogIDs adds the "financial_audit_logs" edge to the FinancialAuditLog entity by IDs.
+func (_c *UserCreate) AddFinancialAuditLogIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddFinancialAuditLogIDs(ids...)
+	return _c
+}
+
+// AddFinancialAuditLogs adds the "financial_audit_logs" edges to the FinancialAuditLog entity.
+func (_c *UserCreate) AddFinancialAuditLogs(v ...*FinancialAuditLog) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddFinancialAuditLogIDs(ids...)
+}
+
+// AddRequestedFinancialReversalIDs adds the "requested_financial_reversals" edge to the FinancialReversal entity by IDs.
+func (_c *UserCreate) AddRequestedFinancialReversalIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddRequestedFinancialReversalIDs(ids...)
+	return _c
+}
+
+// AddRequestedFinancialReversals adds the "requested_financial_reversals" edges to the FinancialReversal entity.
+func (_c *UserCreate) AddRequestedFinancialReversals(v ...*FinancialReversal) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddRequestedFinancialReversalIDs(ids...)
+}
+
+// AddApprovedFinancialReversalIDs adds the "approved_financial_reversals" edge to the FinancialReversal entity by IDs.
+func (_c *UserCreate) AddApprovedFinancialReversalIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddApprovedFinancialReversalIDs(ids...)
+	return _c
+}
+
+// AddApprovedFinancialReversals adds the "approved_financial_reversals" edges to the FinancialReversal entity.
+func (_c *UserCreate) AddApprovedFinancialReversals(v ...*FinancialReversal) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddApprovedFinancialReversalIDs(ids...)
 }
 
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by IDs.
@@ -1354,6 +1401,54 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(loancontract.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.FinancialAuditLogsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.FinancialAuditLogsTable,
+			Columns: []string{user.FinancialAuditLogsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialauditlog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.RequestedFinancialReversalsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RequestedFinancialReversalsTable,
+			Columns: []string{user.RequestedFinancialReversalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialreversal.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ApprovedFinancialReversalsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ApprovedFinancialReversalsTable,
+			Columns: []string{user.ApprovedFinancialReversalsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(financialreversal.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

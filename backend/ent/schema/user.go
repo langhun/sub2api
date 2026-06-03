@@ -140,6 +140,9 @@ func (User) Edges() []ent.Edge {
 		edge.To("ledger_entries", LedgerEntry.Type),
 		edge.To("borrowed_loan_contracts", LoanContract.Type),
 		edge.To("funded_loan_contracts", LoanContract.Type),
+		edge.To("financial_audit_logs", FinancialAuditLog.Type),
+		edge.To("requested_financial_reversals", FinancialReversal.Type),
+		edge.To("approved_financial_reversals", FinancialReversal.Type),
 		edge.To("auth_identities", AuthIdentity.Type).
 			Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.To("pending_auth_sessions", PendingAuthSession.Type),

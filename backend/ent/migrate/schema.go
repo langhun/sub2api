@@ -913,6 +913,222 @@ var (
 			},
 		},
 	}
+	// FinancialAuditLogsColumns holds the columns for the "financial_audit_logs" table.
+	FinancialAuditLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "audit_id", Type: field.TypeUUID},
+		{Name: "action", Type: field.TypeString, Size: 64},
+		{Name: "actor_type", Type: field.TypeString, Size: 16, Default: "SYSTEM"},
+		{Name: "request_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "tx_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "reversal_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "target_type", Type: field.TypeString, Size: 64},
+		{Name: "target_id", Type: field.TypeString, Size: 128},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "actor_user_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// FinancialAuditLogsTable holds the schema information for the "financial_audit_logs" table.
+	FinancialAuditLogsTable = &schema.Table{
+		Name:       "financial_audit_logs",
+		Columns:    FinancialAuditLogsColumns,
+		PrimaryKey: []*schema.Column{FinancialAuditLogsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "financial_audit_logs_users_financial_audit_logs",
+				Columns:    []*schema.Column{FinancialAuditLogsColumns[11]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "financialauditlog_audit_id",
+				Unique:  true,
+				Columns: []*schema.Column{FinancialAuditLogsColumns[1]},
+			},
+			{
+				Name:    "financialauditlog_action",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialAuditLogsColumns[2]},
+			},
+			{
+				Name:    "financialauditlog_tx_id",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialAuditLogsColumns[5]},
+			},
+			{
+				Name:    "financialauditlog_target_type_target_id",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialAuditLogsColumns[7], FinancialAuditLogsColumns[8]},
+			},
+			{
+				Name:    "financialauditlog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialAuditLogsColumns[10]},
+			},
+		},
+	}
+	// FinancialReconciliationIssuesColumns holds the columns for the "financial_reconciliation_issues" table.
+	FinancialReconciliationIssuesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "issue_id", Type: field.TypeUUID},
+		{Name: "issue_type", Type: field.TypeString, Size: 32},
+		{Name: "tx_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "expected_amount", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "actual_amount", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "detail", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "reconciliation_id", Type: field.TypeInt64},
+		{Name: "ledger_account_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// FinancialReconciliationIssuesTable holds the schema information for the "financial_reconciliation_issues" table.
+	FinancialReconciliationIssuesTable = &schema.Table{
+		Name:       "financial_reconciliation_issues",
+		Columns:    FinancialReconciliationIssuesColumns,
+		PrimaryKey: []*schema.Column{FinancialReconciliationIssuesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "financial_reconciliation_issues_financial_reconciliation_runs_issues",
+				Columns:    []*schema.Column{FinancialReconciliationIssuesColumns[9]},
+				RefColumns: []*schema.Column{FinancialReconciliationRunsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "financial_reconciliation_issues_ledger_accounts_reconciliation_issues",
+				Columns:    []*schema.Column{FinancialReconciliationIssuesColumns[10]},
+				RefColumns: []*schema.Column{LedgerAccountsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "financialreconciliationissue_issue_id",
+				Unique:  true,
+				Columns: []*schema.Column{FinancialReconciliationIssuesColumns[1]},
+			},
+			{
+				Name:    "financialreconciliationissue_reconciliation_id",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialReconciliationIssuesColumns[9]},
+			},
+			{
+				Name:    "financialreconciliationissue_issue_type",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialReconciliationIssuesColumns[2]},
+			},
+			{
+				Name:    "financialreconciliationissue_tx_id",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialReconciliationIssuesColumns[3]},
+			},
+		},
+	}
+	// FinancialReconciliationRunsColumns holds the columns for the "financial_reconciliation_runs" table.
+	FinancialReconciliationRunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "run_id", Type: field.TypeUUID},
+		{Name: "run_date", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "date"}},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "PENDING"},
+		{Name: "checked_transactions", Type: field.TypeInt64, Default: 0},
+		{Name: "checked_ledger_entries", Type: field.TypeInt64, Default: 0},
+		{Name: "mismatch_count", Type: field.TypeInt64, Default: 0},
+		{Name: "summary", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// FinancialReconciliationRunsTable holds the schema information for the "financial_reconciliation_runs" table.
+	FinancialReconciliationRunsTable = &schema.Table{
+		Name:       "financial_reconciliation_runs",
+		Columns:    FinancialReconciliationRunsColumns,
+		PrimaryKey: []*schema.Column{FinancialReconciliationRunsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "financialreconciliationrun_run_id",
+				Unique:  true,
+				Columns: []*schema.Column{FinancialReconciliationRunsColumns[1]},
+			},
+			{
+				Name:    "financialreconciliationrun_run_date",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialReconciliationRunsColumns[2]},
+			},
+			{
+				Name:    "financialreconciliationrun_status",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialReconciliationRunsColumns[3]},
+			},
+			{
+				Name:    "financialreconciliationrun_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialReconciliationRunsColumns[10]},
+			},
+		},
+	}
+	// FinancialReversalsColumns holds the columns for the "financial_reversals" table.
+	FinancialReversalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "reversal_id", Type: field.TypeUUID},
+		{Name: "original_tx_id", Type: field.TypeUUID},
+		{Name: "reversal_tx_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "request_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "reason", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "PENDING"},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "applied_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "requested_by_user_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "approved_by_user_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// FinancialReversalsTable holds the schema information for the "financial_reversals" table.
+	FinancialReversalsTable = &schema.Table{
+		Name:       "financial_reversals",
+		Columns:    FinancialReversalsColumns,
+		PrimaryKey: []*schema.Column{FinancialReversalsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "financial_reversals_users_requested_financial_reversals",
+				Columns:    []*schema.Column{FinancialReversalsColumns[10]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "financial_reversals_users_approved_financial_reversals",
+				Columns:    []*schema.Column{FinancialReversalsColumns[11]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "financialreversal_reversal_id",
+				Unique:  true,
+				Columns: []*schema.Column{FinancialReversalsColumns[1]},
+			},
+			{
+				Name:    "financialreversal_original_tx_id",
+				Unique:  true,
+				Columns: []*schema.Column{FinancialReversalsColumns[2]},
+			},
+			{
+				Name:    "financialreversal_reversal_tx_id",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialReversalsColumns[3]},
+			},
+			{
+				Name:    "financialreversal_status",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialReversalsColumns[6]},
+			},
+			{
+				Name:    "financialreversal_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{FinancialReversalsColumns[8]},
+			},
+		},
+	}
 	// GroupsColumns holds the columns for the "groups" table.
 	GroupsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2556,6 +2772,10 @@ var (
 		CheckinBlindboxRecordsTable,
 		CheckinPrizeItemsTable,
 		ErrorPassthroughRulesTable,
+		FinancialAuditLogsTable,
+		FinancialReconciliationIssuesTable,
+		FinancialReconciliationRunsTable,
+		FinancialReversalsTable,
 		GroupsTable,
 		IdempotencyRecordsTable,
 		IdentityAdoptionDecisionsTable,
@@ -2663,6 +2883,23 @@ func init() {
 	}
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",
+	}
+	FinancialAuditLogsTable.ForeignKeys[0].RefTable = UsersTable
+	FinancialAuditLogsTable.Annotation = &entsql.Annotation{
+		Table: "financial_audit_logs",
+	}
+	FinancialReconciliationIssuesTable.ForeignKeys[0].RefTable = FinancialReconciliationRunsTable
+	FinancialReconciliationIssuesTable.ForeignKeys[1].RefTable = LedgerAccountsTable
+	FinancialReconciliationIssuesTable.Annotation = &entsql.Annotation{
+		Table: "financial_reconciliation_issues",
+	}
+	FinancialReconciliationRunsTable.Annotation = &entsql.Annotation{
+		Table: "financial_reconciliation_runs",
+	}
+	FinancialReversalsTable.ForeignKeys[0].RefTable = UsersTable
+	FinancialReversalsTable.ForeignKeys[1].RefTable = UsersTable
+	FinancialReversalsTable.Annotation = &entsql.Annotation{
+		Table: "financial_reversals",
 	}
 	GroupsTable.Annotation = &entsql.Annotation{
 		Table: "groups",

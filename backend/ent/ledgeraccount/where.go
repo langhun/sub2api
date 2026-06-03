@@ -784,6 +784,29 @@ func HasEntriesWith(preds ...predicate.LedgerEntry) predicate.LedgerAccount {
 	})
 }
 
+// HasReconciliationIssues applies the HasEdge predicate on the "reconciliation_issues" edge.
+func HasReconciliationIssues() predicate.LedgerAccount {
+	return predicate.LedgerAccount(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ReconciliationIssuesTable, ReconciliationIssuesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasReconciliationIssuesWith applies the HasEdge predicate on the "reconciliation_issues" edge with a given conditions (other predicates).
+func HasReconciliationIssuesWith(preds ...predicate.FinancialReconciliationIssue) predicate.LedgerAccount {
+	return predicate.LedgerAccount(func(s *sql.Selector) {
+		step := newReconciliationIssuesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.LedgerAccount) predicate.LedgerAccount {
 	return predicate.LedgerAccount(sql.AndPredicates(predicates...))

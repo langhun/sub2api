@@ -30,6 +30,10 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
+	"github.com/Wei-Shaw/sub2api/ent/financialauditlog"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationissue"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationrun"
+	"github.com/Wei-Shaw/sub2api/ent/financialreversal"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
@@ -139,6 +143,10 @@ func checkColumn(t, c string) error {
 			checkinblindboxrecord.Table:         checkinblindboxrecord.ValidColumn,
 			checkinprizeitem.Table:              checkinprizeitem.ValidColumn,
 			errorpassthroughrule.Table:          errorpassthroughrule.ValidColumn,
+			financialauditlog.Table:             financialauditlog.ValidColumn,
+			financialreconciliationissue.Table:  financialreconciliationissue.ValidColumn,
+			financialreconciliationrun.Table:    financialreconciliationrun.ValidColumn,
+			financialreversal.Table:             financialreversal.ValidColumn,
 			group.Table:                         group.ValidColumn,
 			idempotencyrecord.Table:             idempotencyrecord.ValidColumn,
 			identityadoptiondecision.Table:      identityadoptiondecision.ValidColumn,

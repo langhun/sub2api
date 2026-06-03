@@ -225,6 +225,54 @@ func (f ErrorPassthroughRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ErrorPassthroughRuleMutation", m)
 }
 
+// The FinancialAuditLogFunc type is an adapter to allow the use of ordinary
+// function as FinancialAuditLog mutator.
+type FinancialAuditLogFunc func(context.Context, *ent.FinancialAuditLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FinancialAuditLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FinancialAuditLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FinancialAuditLogMutation", m)
+}
+
+// The FinancialReconciliationIssueFunc type is an adapter to allow the use of ordinary
+// function as FinancialReconciliationIssue mutator.
+type FinancialReconciliationIssueFunc func(context.Context, *ent.FinancialReconciliationIssueMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FinancialReconciliationIssueFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FinancialReconciliationIssueMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FinancialReconciliationIssueMutation", m)
+}
+
+// The FinancialReconciliationRunFunc type is an adapter to allow the use of ordinary
+// function as FinancialReconciliationRun mutator.
+type FinancialReconciliationRunFunc func(context.Context, *ent.FinancialReconciliationRunMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FinancialReconciliationRunFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FinancialReconciliationRunMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FinancialReconciliationRunMutation", m)
+}
+
+// The FinancialReversalFunc type is an adapter to allow the use of ordinary
+// function as FinancialReversal mutator.
+type FinancialReversalFunc func(context.Context, *ent.FinancialReversalMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FinancialReversalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FinancialReversalMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FinancialReversalMutation", m)
+}
+
 // The GroupFunc type is an adapter to allow the use of ordinary
 // function as Group mutator.
 type GroupFunc func(context.Context, *ent.GroupMutation) (ent.Value, error)

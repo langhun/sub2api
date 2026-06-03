@@ -58,9 +58,11 @@ type LedgerAccountEdges struct {
 	BankAccount *UserBankAccount `json:"bank_account,omitempty"`
 	// Entries holds the value of the entries edge.
 	Entries []*LedgerEntry `json:"entries,omitempty"`
+	// ReconciliationIssues holds the value of the reconciliation_issues edge.
+	ReconciliationIssues []*FinancialReconciliationIssue `json:"reconciliation_issues,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 }
 
 // OwnerUserOrErr returns the OwnerUser value or an error if the edge
@@ -92,6 +94,15 @@ func (e LedgerAccountEdges) EntriesOrErr() ([]*LedgerEntry, error) {
 		return e.Entries, nil
 	}
 	return nil, &NotLoadedError{edge: "entries"}
+}
+
+// ReconciliationIssuesOrErr returns the ReconciliationIssues value or an error if the edge
+// was not loaded in eager-loading.
+func (e LedgerAccountEdges) ReconciliationIssuesOrErr() ([]*FinancialReconciliationIssue, error) {
+	if e.loadedTypes[3] {
+		return e.ReconciliationIssues, nil
+	}
+	return nil, &NotLoadedError{edge: "reconciliation_issues"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -230,6 +241,11 @@ func (_m *LedgerAccount) QueryBankAccount() *UserBankAccountQuery {
 // QueryEntries queries the "entries" edge of the LedgerAccount entity.
 func (_m *LedgerAccount) QueryEntries() *LedgerEntryQuery {
 	return NewLedgerAccountClient(_m.config).QueryEntries(_m)
+}
+
+// QueryReconciliationIssues queries the "reconciliation_issues" edge of the LedgerAccount entity.
+func (_m *LedgerAccount) QueryReconciliationIssues() *FinancialReconciliationIssueQuery {
+	return NewLedgerAccountClient(_m.config).QueryReconciliationIssues(_m)
 }
 
 // Update returns a builder for updating this LedgerAccount.

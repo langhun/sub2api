@@ -20,6 +20,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/financialauditlog"
+	"github.com/Wei-Shaw/sub2api/ent/financialreversal"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
 	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
@@ -42,36 +44,39 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx                        *QueryContext
-	order                      []user.OrderOption
-	inters                     []Interceptor
-	predicates                 []predicate.User
-	withAPIKeys                *APIKeyQuery
-	withRedeemCodes            *RedeemCodeQuery
-	withRedpackets             *BalanceRedPacketQuery
-	withSentTransfers          *BalanceTransferQuery
-	withReceivedTransfers      *BalanceTransferQuery
-	withSubscriptions          *UserSubscriptionQuery
-	withAssignedSubscriptions  *UserSubscriptionQuery
-	withAnnouncementReads      *AnnouncementReadQuery
-	withAllowedGroups          *GroupQuery
-	withCheckins               *CheckinQuery
-	withCheckinBlindboxRecords *CheckinBlindboxRecordQuery
-	withUsageLogs              *UsageLogQuery
-	withAttributeValues        *UserAttributeValueQuery
-	withPromoCodeUsages        *PromoCodeUsageQuery
-	withPaymentOrders          *PaymentOrderQuery
-	withBankAccount            *UserBankAccountQuery
-	withTransactionLogs        *TransactionLogQuery
-	withLedgerAccounts         *LedgerAccountQuery
-	withLedgerEntries          *LedgerEntryQuery
-	withBorrowedLoanContracts  *LoanContractQuery
-	withFundedLoanContracts    *LoanContractQuery
-	withAuthIdentities         *AuthIdentityQuery
-	withPendingAuthSessions    *PendingAuthSessionQuery
-	withPlatformQuotas         *UserPlatformQuotaQuery
-	withUserAllowedGroups      *UserAllowedGroupQuery
-	modifiers                  []func(*sql.Selector)
+	ctx                             *QueryContext
+	order                           []user.OrderOption
+	inters                          []Interceptor
+	predicates                      []predicate.User
+	withAPIKeys                     *APIKeyQuery
+	withRedeemCodes                 *RedeemCodeQuery
+	withRedpackets                  *BalanceRedPacketQuery
+	withSentTransfers               *BalanceTransferQuery
+	withReceivedTransfers           *BalanceTransferQuery
+	withSubscriptions               *UserSubscriptionQuery
+	withAssignedSubscriptions       *UserSubscriptionQuery
+	withAnnouncementReads           *AnnouncementReadQuery
+	withAllowedGroups               *GroupQuery
+	withCheckins                    *CheckinQuery
+	withCheckinBlindboxRecords      *CheckinBlindboxRecordQuery
+	withUsageLogs                   *UsageLogQuery
+	withAttributeValues             *UserAttributeValueQuery
+	withPromoCodeUsages             *PromoCodeUsageQuery
+	withPaymentOrders               *PaymentOrderQuery
+	withBankAccount                 *UserBankAccountQuery
+	withTransactionLogs             *TransactionLogQuery
+	withLedgerAccounts              *LedgerAccountQuery
+	withLedgerEntries               *LedgerEntryQuery
+	withBorrowedLoanContracts       *LoanContractQuery
+	withFundedLoanContracts         *LoanContractQuery
+	withFinancialAuditLogs          *FinancialAuditLogQuery
+	withRequestedFinancialReversals *FinancialReversalQuery
+	withApprovedFinancialReversals  *FinancialReversalQuery
+	withAuthIdentities              *AuthIdentityQuery
+	withPendingAuthSessions         *PendingAuthSessionQuery
+	withPlatformQuotas              *UserPlatformQuotaQuery
+	withUserAllowedGroups           *UserAllowedGroupQuery
+	modifiers                       []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -570,6 +575,72 @@ func (_q *UserQuery) QueryFundedLoanContracts() *LoanContractQuery {
 	return query
 }
 
+// QueryFinancialAuditLogs chains the current query on the "financial_audit_logs" edge.
+func (_q *UserQuery) QueryFinancialAuditLogs() *FinancialAuditLogQuery {
+	query := (&FinancialAuditLogClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(financialauditlog.Table, financialauditlog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.FinancialAuditLogsTable, user.FinancialAuditLogsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryRequestedFinancialReversals chains the current query on the "requested_financial_reversals" edge.
+func (_q *UserQuery) QueryRequestedFinancialReversals() *FinancialReversalQuery {
+	query := (&FinancialReversalClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(financialreversal.Table, financialreversal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.RequestedFinancialReversalsTable, user.RequestedFinancialReversalsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryApprovedFinancialReversals chains the current query on the "approved_financial_reversals" edge.
+func (_q *UserQuery) QueryApprovedFinancialReversals() *FinancialReversalQuery {
+	query := (&FinancialReversalClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(financialreversal.Table, financialreversal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ApprovedFinancialReversalsTable, user.ApprovedFinancialReversalsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryAuthIdentities chains the current query on the "auth_identities" edge.
 func (_q *UserQuery) QueryAuthIdentities() *AuthIdentityQuery {
 	query := (&AuthIdentityClient{config: _q.config}).Query()
@@ -845,36 +916,39 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:                     _q.config,
-		ctx:                        _q.ctx.Clone(),
-		order:                      append([]user.OrderOption{}, _q.order...),
-		inters:                     append([]Interceptor{}, _q.inters...),
-		predicates:                 append([]predicate.User{}, _q.predicates...),
-		withAPIKeys:                _q.withAPIKeys.Clone(),
-		withRedeemCodes:            _q.withRedeemCodes.Clone(),
-		withRedpackets:             _q.withRedpackets.Clone(),
-		withSentTransfers:          _q.withSentTransfers.Clone(),
-		withReceivedTransfers:      _q.withReceivedTransfers.Clone(),
-		withSubscriptions:          _q.withSubscriptions.Clone(),
-		withAssignedSubscriptions:  _q.withAssignedSubscriptions.Clone(),
-		withAnnouncementReads:      _q.withAnnouncementReads.Clone(),
-		withAllowedGroups:          _q.withAllowedGroups.Clone(),
-		withCheckins:               _q.withCheckins.Clone(),
-		withCheckinBlindboxRecords: _q.withCheckinBlindboxRecords.Clone(),
-		withUsageLogs:              _q.withUsageLogs.Clone(),
-		withAttributeValues:        _q.withAttributeValues.Clone(),
-		withPromoCodeUsages:        _q.withPromoCodeUsages.Clone(),
-		withPaymentOrders:          _q.withPaymentOrders.Clone(),
-		withBankAccount:            _q.withBankAccount.Clone(),
-		withTransactionLogs:        _q.withTransactionLogs.Clone(),
-		withLedgerAccounts:         _q.withLedgerAccounts.Clone(),
-		withLedgerEntries:          _q.withLedgerEntries.Clone(),
-		withBorrowedLoanContracts:  _q.withBorrowedLoanContracts.Clone(),
-		withFundedLoanContracts:    _q.withFundedLoanContracts.Clone(),
-		withAuthIdentities:         _q.withAuthIdentities.Clone(),
-		withPendingAuthSessions:    _q.withPendingAuthSessions.Clone(),
-		withPlatformQuotas:         _q.withPlatformQuotas.Clone(),
-		withUserAllowedGroups:      _q.withUserAllowedGroups.Clone(),
+		config:                          _q.config,
+		ctx:                             _q.ctx.Clone(),
+		order:                           append([]user.OrderOption{}, _q.order...),
+		inters:                          append([]Interceptor{}, _q.inters...),
+		predicates:                      append([]predicate.User{}, _q.predicates...),
+		withAPIKeys:                     _q.withAPIKeys.Clone(),
+		withRedeemCodes:                 _q.withRedeemCodes.Clone(),
+		withRedpackets:                  _q.withRedpackets.Clone(),
+		withSentTransfers:               _q.withSentTransfers.Clone(),
+		withReceivedTransfers:           _q.withReceivedTransfers.Clone(),
+		withSubscriptions:               _q.withSubscriptions.Clone(),
+		withAssignedSubscriptions:       _q.withAssignedSubscriptions.Clone(),
+		withAnnouncementReads:           _q.withAnnouncementReads.Clone(),
+		withAllowedGroups:               _q.withAllowedGroups.Clone(),
+		withCheckins:                    _q.withCheckins.Clone(),
+		withCheckinBlindboxRecords:      _q.withCheckinBlindboxRecords.Clone(),
+		withUsageLogs:                   _q.withUsageLogs.Clone(),
+		withAttributeValues:             _q.withAttributeValues.Clone(),
+		withPromoCodeUsages:             _q.withPromoCodeUsages.Clone(),
+		withPaymentOrders:               _q.withPaymentOrders.Clone(),
+		withBankAccount:                 _q.withBankAccount.Clone(),
+		withTransactionLogs:             _q.withTransactionLogs.Clone(),
+		withLedgerAccounts:              _q.withLedgerAccounts.Clone(),
+		withLedgerEntries:               _q.withLedgerEntries.Clone(),
+		withBorrowedLoanContracts:       _q.withBorrowedLoanContracts.Clone(),
+		withFundedLoanContracts:         _q.withFundedLoanContracts.Clone(),
+		withFinancialAuditLogs:          _q.withFinancialAuditLogs.Clone(),
+		withRequestedFinancialReversals: _q.withRequestedFinancialReversals.Clone(),
+		withApprovedFinancialReversals:  _q.withApprovedFinancialReversals.Clone(),
+		withAuthIdentities:              _q.withAuthIdentities.Clone(),
+		withPendingAuthSessions:         _q.withPendingAuthSessions.Clone(),
+		withPlatformQuotas:              _q.withPlatformQuotas.Clone(),
+		withUserAllowedGroups:           _q.withUserAllowedGroups.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -1112,6 +1186,39 @@ func (_q *UserQuery) WithFundedLoanContracts(opts ...func(*LoanContractQuery)) *
 	return _q
 }
 
+// WithFinancialAuditLogs tells the query-builder to eager-load the nodes that are connected to
+// the "financial_audit_logs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithFinancialAuditLogs(opts ...func(*FinancialAuditLogQuery)) *UserQuery {
+	query := (&FinancialAuditLogClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withFinancialAuditLogs = query
+	return _q
+}
+
+// WithRequestedFinancialReversals tells the query-builder to eager-load the nodes that are connected to
+// the "requested_financial_reversals" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithRequestedFinancialReversals(opts ...func(*FinancialReversalQuery)) *UserQuery {
+	query := (&FinancialReversalClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withRequestedFinancialReversals = query
+	return _q
+}
+
+// WithApprovedFinancialReversals tells the query-builder to eager-load the nodes that are connected to
+// the "approved_financial_reversals" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithApprovedFinancialReversals(opts ...func(*FinancialReversalQuery)) *UserQuery {
+	query := (&FinancialReversalClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withApprovedFinancialReversals = query
+	return _q
+}
+
 // WithAuthIdentities tells the query-builder to eager-load the nodes that are connected to
 // the "auth_identities" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *UserQuery) WithAuthIdentities(opts ...func(*AuthIdentityQuery)) *UserQuery {
@@ -1234,7 +1341,7 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [25]bool{
+		loadedTypes = [28]bool{
 			_q.withAPIKeys != nil,
 			_q.withRedeemCodes != nil,
 			_q.withRedpackets != nil,
@@ -1256,6 +1363,9 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			_q.withLedgerEntries != nil,
 			_q.withBorrowedLoanContracts != nil,
 			_q.withFundedLoanContracts != nil,
+			_q.withFinancialAuditLogs != nil,
+			_q.withRequestedFinancialReversals != nil,
+			_q.withApprovedFinancialReversals != nil,
 			_q.withAuthIdentities != nil,
 			_q.withPendingAuthSessions != nil,
 			_q.withPlatformQuotas != nil,
@@ -1432,6 +1542,33 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadFundedLoanContracts(ctx, query, nodes,
 			func(n *User) { n.Edges.FundedLoanContracts = []*LoanContract{} },
 			func(n *User, e *LoanContract) { n.Edges.FundedLoanContracts = append(n.Edges.FundedLoanContracts, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withFinancialAuditLogs; query != nil {
+		if err := _q.loadFinancialAuditLogs(ctx, query, nodes,
+			func(n *User) { n.Edges.FinancialAuditLogs = []*FinancialAuditLog{} },
+			func(n *User, e *FinancialAuditLog) {
+				n.Edges.FinancialAuditLogs = append(n.Edges.FinancialAuditLogs, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withRequestedFinancialReversals; query != nil {
+		if err := _q.loadRequestedFinancialReversals(ctx, query, nodes,
+			func(n *User) { n.Edges.RequestedFinancialReversals = []*FinancialReversal{} },
+			func(n *User, e *FinancialReversal) {
+				n.Edges.RequestedFinancialReversals = append(n.Edges.RequestedFinancialReversals, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withApprovedFinancialReversals; query != nil {
+		if err := _q.loadApprovedFinancialReversals(ctx, query, nodes,
+			func(n *User) { n.Edges.ApprovedFinancialReversals = []*FinancialReversal{} },
+			func(n *User, e *FinancialReversal) {
+				n.Edges.ApprovedFinancialReversals = append(n.Edges.ApprovedFinancialReversals, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -2136,6 +2273,105 @@ func (_q *UserQuery) loadFundedLoanContracts(ctx context.Context, query *LoanCon
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "lender_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadFinancialAuditLogs(ctx context.Context, query *FinancialAuditLogQuery, nodes []*User, init func(*User), assign func(*User, *FinancialAuditLog)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(financialauditlog.FieldActorUserID)
+	}
+	query.Where(predicate.FinancialAuditLog(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.FinancialAuditLogsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ActorUserID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "actor_user_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "actor_user_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadRequestedFinancialReversals(ctx context.Context, query *FinancialReversalQuery, nodes []*User, init func(*User), assign func(*User, *FinancialReversal)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(financialreversal.FieldRequestedByUserID)
+	}
+	query.Where(predicate.FinancialReversal(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.RequestedFinancialReversalsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.RequestedByUserID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "requested_by_user_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "requested_by_user_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadApprovedFinancialReversals(ctx context.Context, query *FinancialReversalQuery, nodes []*User, init func(*User), assign func(*User, *FinancialReversal)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(financialreversal.FieldApprovedByUserID)
+	}
+	query.Where(predicate.FinancialReversal(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.ApprovedFinancialReversalsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ApprovedByUserID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "approved_by_user_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "approved_by_user_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

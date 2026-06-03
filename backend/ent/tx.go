@@ -50,6 +50,14 @@ type Tx struct {
 	CheckinPrizeItem *CheckinPrizeItemClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
+	// FinancialAuditLog is the client for interacting with the FinancialAuditLog builders.
+	FinancialAuditLog *FinancialAuditLogClient
+	// FinancialReconciliationIssue is the client for interacting with the FinancialReconciliationIssue builders.
+	FinancialReconciliationIssue *FinancialReconciliationIssueClient
+	// FinancialReconciliationRun is the client for interacting with the FinancialReconciliationRun builders.
+	FinancialReconciliationRun *FinancialReconciliationRunClient
+	// FinancialReversal is the client for interacting with the FinancialReversal builders.
+	FinancialReversal *FinancialReversalClient
 	// Group is the client for interacting with the Group builders.
 	Group *GroupClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
@@ -261,6 +269,10 @@ func (tx *Tx) init() {
 	tx.CheckinBlindboxRecord = NewCheckinBlindboxRecordClient(tx.config)
 	tx.CheckinPrizeItem = NewCheckinPrizeItemClient(tx.config)
 	tx.ErrorPassthroughRule = NewErrorPassthroughRuleClient(tx.config)
+	tx.FinancialAuditLog = NewFinancialAuditLogClient(tx.config)
+	tx.FinancialReconciliationIssue = NewFinancialReconciliationIssueClient(tx.config)
+	tx.FinancialReconciliationRun = NewFinancialReconciliationRunClient(tx.config)
+	tx.FinancialReversal = NewFinancialReversalClient(tx.config)
 	tx.Group = NewGroupClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
 	tx.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(tx.config)

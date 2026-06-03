@@ -114,6 +114,12 @@ type UserEdges struct {
 	BorrowedLoanContracts []*LoanContract `json:"borrowed_loan_contracts,omitempty"`
 	// FundedLoanContracts holds the value of the funded_loan_contracts edge.
 	FundedLoanContracts []*LoanContract `json:"funded_loan_contracts,omitempty"`
+	// FinancialAuditLogs holds the value of the financial_audit_logs edge.
+	FinancialAuditLogs []*FinancialAuditLog `json:"financial_audit_logs,omitempty"`
+	// RequestedFinancialReversals holds the value of the requested_financial_reversals edge.
+	RequestedFinancialReversals []*FinancialReversal `json:"requested_financial_reversals,omitempty"`
+	// ApprovedFinancialReversals holds the value of the approved_financial_reversals edge.
+	ApprovedFinancialReversals []*FinancialReversal `json:"approved_financial_reversals,omitempty"`
 	// AuthIdentities holds the value of the auth_identities edge.
 	AuthIdentities []*AuthIdentity `json:"auth_identities,omitempty"`
 	// PendingAuthSessions holds the value of the pending_auth_sessions edge.
@@ -124,7 +130,7 @@ type UserEdges struct {
 	UserAllowedGroups []*UserAllowedGroup `json:"user_allowed_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [25]bool
+	loadedTypes [28]bool
 }
 
 // APIKeysOrErr returns the APIKeys value or an error if the edge
@@ -318,10 +324,37 @@ func (e UserEdges) FundedLoanContractsOrErr() ([]*LoanContract, error) {
 	return nil, &NotLoadedError{edge: "funded_loan_contracts"}
 }
 
+// FinancialAuditLogsOrErr returns the FinancialAuditLogs value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) FinancialAuditLogsOrErr() ([]*FinancialAuditLog, error) {
+	if e.loadedTypes[21] {
+		return e.FinancialAuditLogs, nil
+	}
+	return nil, &NotLoadedError{edge: "financial_audit_logs"}
+}
+
+// RequestedFinancialReversalsOrErr returns the RequestedFinancialReversals value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) RequestedFinancialReversalsOrErr() ([]*FinancialReversal, error) {
+	if e.loadedTypes[22] {
+		return e.RequestedFinancialReversals, nil
+	}
+	return nil, &NotLoadedError{edge: "requested_financial_reversals"}
+}
+
+// ApprovedFinancialReversalsOrErr returns the ApprovedFinancialReversals value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ApprovedFinancialReversalsOrErr() ([]*FinancialReversal, error) {
+	if e.loadedTypes[23] {
+		return e.ApprovedFinancialReversals, nil
+	}
+	return nil, &NotLoadedError{edge: "approved_financial_reversals"}
+}
+
 // AuthIdentitiesOrErr returns the AuthIdentities value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) AuthIdentitiesOrErr() ([]*AuthIdentity, error) {
-	if e.loadedTypes[21] {
+	if e.loadedTypes[24] {
 		return e.AuthIdentities, nil
 	}
 	return nil, &NotLoadedError{edge: "auth_identities"}
@@ -330,7 +363,7 @@ func (e UserEdges) AuthIdentitiesOrErr() ([]*AuthIdentity, error) {
 // PendingAuthSessionsOrErr returns the PendingAuthSessions value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PendingAuthSessionsOrErr() ([]*PendingAuthSession, error) {
-	if e.loadedTypes[22] {
+	if e.loadedTypes[25] {
 		return e.PendingAuthSessions, nil
 	}
 	return nil, &NotLoadedError{edge: "pending_auth_sessions"}
@@ -339,7 +372,7 @@ func (e UserEdges) PendingAuthSessionsOrErr() ([]*PendingAuthSession, error) {
 // PlatformQuotasOrErr returns the PlatformQuotas value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PlatformQuotasOrErr() ([]*UserPlatformQuota, error) {
-	if e.loadedTypes[23] {
+	if e.loadedTypes[26] {
 		return e.PlatformQuotas, nil
 	}
 	return nil, &NotLoadedError{edge: "platform_quotas"}
@@ -348,7 +381,7 @@ func (e UserEdges) PlatformQuotasOrErr() ([]*UserPlatformQuota, error) {
 // UserAllowedGroupsOrErr returns the UserAllowedGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) UserAllowedGroupsOrErr() ([]*UserAllowedGroup, error) {
-	if e.loadedTypes[24] {
+	if e.loadedTypes[27] {
 		return e.UserAllowedGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "user_allowed_groups"}
@@ -650,6 +683,21 @@ func (_m *User) QueryBorrowedLoanContracts() *LoanContractQuery {
 // QueryFundedLoanContracts queries the "funded_loan_contracts" edge of the User entity.
 func (_m *User) QueryFundedLoanContracts() *LoanContractQuery {
 	return NewUserClient(_m.config).QueryFundedLoanContracts(_m)
+}
+
+// QueryFinancialAuditLogs queries the "financial_audit_logs" edge of the User entity.
+func (_m *User) QueryFinancialAuditLogs() *FinancialAuditLogQuery {
+	return NewUserClient(_m.config).QueryFinancialAuditLogs(_m)
+}
+
+// QueryRequestedFinancialReversals queries the "requested_financial_reversals" edge of the User entity.
+func (_m *User) QueryRequestedFinancialReversals() *FinancialReversalQuery {
+	return NewUserClient(_m.config).QueryRequestedFinancialReversals(_m)
+}
+
+// QueryApprovedFinancialReversals queries the "approved_financial_reversals" edge of the User entity.
+func (_m *User) QueryApprovedFinancialReversals() *FinancialReversalQuery {
+	return NewUserClient(_m.config).QueryApprovedFinancialReversals(_m)
 }
 
 // QueryAuthIdentities queries the "auth_identities" edge of the User entity.

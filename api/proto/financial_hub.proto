@@ -1,0 +1,343 @@
+syntax = "proto3";
+
+package sub2api.financialhub.v1;
+
+option go_package = "github.com/Wei-Shaw/sub2api/api/proto/financialhub/v1;financialhubv1";
+
+import "google/protobuf/timestamp.proto";
+
+enum TransactionType {
+  TRANSACTION_TYPE_UNSPECIFIED = 0;
+  TRANSACTION_TYPE_CONSUME = 1;
+  TRANSACTION_TYPE_DEPOSIT = 2;
+  TRANSACTION_TYPE_WITHDRAW = 3;
+  TRANSACTION_TYPE_TRANSFER_OUT = 4;
+  TRANSACTION_TYPE_TRANSFER_IN = 5;
+  TRANSACTION_TYPE_SLOT_BET = 6;
+  TRANSACTION_TYPE_SLOT_WIN = 7;
+  TRANSACTION_TYPE_LOAN_BORROW = 8;
+  TRANSACTION_TYPE_LOAN_REPAY = 9;
+  TRANSACTION_TYPE_LOAN_INTEREST = 10;
+  TRANSACTION_TYPE_LEND_INVEST = 11;
+  TRANSACTION_TYPE_LEND_PROFIT = 12;
+  TRANSACTION_TYPE_REWARD = 13;
+  TRANSACTION_TYPE_REFUND = 14;
+  TRANSACTION_TYPE_FREEZE = 15;
+  TRANSACTION_TYPE_UNFREEZE = 16;
+}
+
+enum BusinessModule {
+  BUSINESS_MODULE_UNSPECIFIED = 0;
+  BUSINESS_MODULE_FINANCIAL_HUB = 1;
+  BUSINESS_MODULE_API_GATEWAY = 2;
+  BUSINESS_MODULE_PAYMENT = 3;
+  BUSINESS_MODULE_TRANSFER = 4;
+  BUSINESS_MODULE_GAME = 5;
+  BUSINESS_MODULE_LENDING = 6;
+  BUSINESS_MODULE_SYSTEM = 7;
+}
+
+enum BankAccountStatus {
+  BANK_ACCOUNT_STATUS_UNSPECIFIED = 0;
+  BANK_ACCOUNT_STATUS_ACTIVE = 1;
+  BANK_ACCOUNT_STATUS_FROZEN = 2;
+  BANK_ACCOUNT_STATUS_CLOSED = 3;
+}
+
+enum LoanLenderType {
+  LOAN_LENDER_TYPE_UNSPECIFIED = 0;
+  LOAN_LENDER_TYPE_PLATFORM = 1;
+  LOAN_LENDER_TYPE_USER = 2;
+}
+
+enum LoanStatus {
+  LOAN_STATUS_UNSPECIFIED = 0;
+  LOAN_STATUS_ACTIVE = 1;
+  LOAN_STATUS_REPAID = 2;
+  LOAN_STATUS_DEFAULTED = 3;
+  LOAN_STATUS_CANCELLED = 4;
+}
+
+enum AuditActorType {
+  AUDIT_ACTOR_TYPE_UNSPECIFIED = 0;
+  AUDIT_ACTOR_TYPE_SYSTEM = 1;
+  AUDIT_ACTOR_TYPE_USER = 2;
+  AUDIT_ACTOR_TYPE_ADMIN = 3;
+  AUDIT_ACTOR_TYPE_JOB = 4;
+}
+
+enum ReconciliationStatus {
+  RECONCILIATION_STATUS_UNSPECIFIED = 0;
+  RECONCILIATION_STATUS_PENDING = 1;
+  RECONCILIATION_STATUS_RUNNING = 2;
+  RECONCILIATION_STATUS_COMPLETED = 3;
+  RECONCILIATION_STATUS_FAILED = 4;
+}
+
+enum ReconciliationIssueType {
+  RECONCILIATION_ISSUE_TYPE_UNSPECIFIED = 0;
+  RECONCILIATION_ISSUE_TYPE_LEDGER_IMBALANCE = 1;
+  RECONCILIATION_ISSUE_TYPE_SNAPSHOT_DRIFT = 2;
+  RECONCILIATION_ISSUE_TYPE_MISSING_LEDGER_ENTRY = 3;
+  RECONCILIATION_ISSUE_TYPE_MISSING_TRANSACTION = 4;
+  RECONCILIATION_ISSUE_TYPE_DEBT_MISMATCH = 5;
+}
+
+enum ReversalStatus {
+  REVERSAL_STATUS_UNSPECIFIED = 0;
+  REVERSAL_STATUS_PENDING = 1;
+  REVERSAL_STATUS_APPLIED = 2;
+  REVERSAL_STATUS_REJECTED = 3;
+  REVERSAL_STATUS_FAILED = 4;
+}
+
+message BankAccountSnapshot {
+  int64 account_id = 1;
+  int64 user_id = 2;
+  string balance = 3;
+  string frozen_amount = 4;
+  string credit_limit = 5;
+  string debt_principal = 6;
+  string debt_interest = 7;
+  string total_debt = 8;
+  string available_capacity = 9;
+  int64 version = 10;
+  BankAccountStatus status = 11;
+  bool legacy_missing = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+message TransactionRecord {
+  int64 id = 1;
+  string tx_id = 2;
+  int64 user_id = 3;
+  int64 account_id = 4;
+  TransactionType tx_type = 5;
+  BusinessModule business_module = 6;
+  string amount = 7;
+  string balance_before = 8;
+  string balance_after = 9;
+  string frozen_before = 10;
+  string frozen_after = 11;
+  string credit_limit_snapshot = 12;
+  string debt_snapshot = 13;
+  string description = 14;
+  string reference_type = 15;
+  string reference_id = 16;
+  string request_id = 17;
+  map<string, string> metadata = 18;
+  google.protobuf.Timestamp created_at = 19;
+}
+
+message TransferFundsRequest {
+  int64 user_id = 1;
+  string amount = 2;
+  TransactionType tx_type = 3;
+  BusinessModule business_module = 4;
+  string description = 5;
+  string idempotency_scope = 6;
+  string idempotency_key = 7;
+  string reference_type = 8;
+  string reference_id = 9;
+  string request_id = 10;
+  map<string, string> metadata = 11;
+}
+
+message TransferFundsResult {
+  string tx_id = 1;
+  int64 user_id = 2;
+  int64 account_id = 3;
+  TransactionType tx_type = 4;
+  BusinessModule business_module = 5;
+  string amount = 6;
+  string balance = 7;
+  string frozen = 8;
+  string debt_principal = 9;
+  string debt_interest = 10;
+  string total_debt = 11;
+  string credit_limit = 12;
+  bool replayed = 13;
+}
+
+message BatchTransferFundsRequest {
+  repeated TransferFundsRequest items = 1;
+}
+
+message BatchTransferFundsResponse {
+  repeated TransferFundsResult items = 1;
+}
+
+message AdminBalanceAdjustmentRequest {
+  int64 user_id = 1;
+  string operation = 2;
+  string amount = 3;
+  string description = 4;
+  string idempotency_key = 5;
+  map<string, string> metadata = 6;
+}
+
+message LoanContractRecord {
+  int64 id = 1;
+  string loan_id = 2;
+  int64 borrower_id = 3;
+  LoanLenderType lender_type = 4;
+  int64 lender_id = 5;
+  string principal = 6;
+  string interest_rate = 7;
+  string accrued_interest = 8;
+  string repaid_principal = 9;
+  string repaid_interest = 10;
+  LoanStatus status = 11;
+  google.protobuf.Timestamp due_date = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message CreateLoanContractRequest {
+  int64 borrower_id = 1;
+  LoanLenderType lender_type = 2;
+  int64 lender_id = 3;
+  string principal = 4;
+  string interest_rate = 5;
+  google.protobuf.Timestamp due_date = 6;
+  string request_id = 7;
+  map<string, string> metadata = 8;
+}
+
+message AuditLogRecord {
+  int64 id = 1;
+  string audit_id = 2;
+  string action = 3;
+  AuditActorType actor_type = 4;
+  int64 actor_user_id = 5;
+  string request_id = 6;
+  string tx_id = 7;
+  string reversal_id = 8;
+  string target_type = 9;
+  string target_id = 10;
+  map<string, string> metadata = 11;
+  google.protobuf.Timestamp created_at = 12;
+}
+
+message ReconciliationRunRecord {
+  int64 id = 1;
+  string run_id = 2;
+  string run_date = 3;
+  ReconciliationStatus status = 4;
+  int64 checked_transactions = 5;
+  int64 checked_ledger_entries = 6;
+  int64 mismatch_count = 7;
+  map<string, string> summary = 8;
+  google.protobuf.Timestamp started_at = 9;
+  google.protobuf.Timestamp finished_at = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message ReconciliationIssueRecord {
+  int64 id = 1;
+  string issue_id = 2;
+  string run_id = 3;
+  ReconciliationIssueType issue_type = 4;
+  string tx_id = 5;
+  int64 ledger_account_id = 6;
+  string expected_amount = 7;
+  string actual_amount = 8;
+  string detail = 9;
+  map<string, string> metadata = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message ReversalRecord {
+  int64 id = 1;
+  string reversal_id = 2;
+  string original_tx_id = 3;
+  string reversal_tx_id = 4;
+  int64 requested_by_user_id = 5;
+  int64 approved_by_user_id = 6;
+  string request_id = 7;
+  string reason = 8;
+  ReversalStatus status = 9;
+  map<string, string> metadata = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp applied_at = 12;
+}
+
+message GetAccountRequest {
+  int64 user_id = 1;
+}
+
+message ListTransactionsRequest {
+  int64 user_id = 1;
+  TransactionType tx_type = 2;
+  BusinessModule business_module = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message ListTransactionsResponse {
+  repeated TransactionRecord items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message CreateReversalRequest {
+  string original_tx_id = 1;
+  int64 requested_by_user_id = 2;
+  int64 approved_by_user_id = 3;
+  string reason = 4;
+  string request_id = 5;
+  map<string, string> metadata = 6;
+}
+
+message StartReconciliationRequest {
+  string run_date = 1;
+  string request_id = 2;
+  map<string, string> metadata = 3;
+}
+
+message GetReconciliationRunRequest {
+  string run_id = 1;
+}
+
+message ListAuditLogsRequest {
+  string tx_id = 1;
+  string target_type = 2;
+  string target_id = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message ListAuditLogsResponse {
+  repeated AuditLogRecord items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListReconciliationIssuesRequest {
+  string run_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ListReconciliationIssuesResponse {
+  repeated ReconciliationIssueRecord items = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+service FinancialHubService {
+  rpc GetAccount(GetAccountRequest) returns (BankAccountSnapshot);
+  rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
+  rpc TransferFunds(TransferFundsRequest) returns (TransferFundsResult);
+  rpc TransferFundsBatch(BatchTransferFundsRequest) returns (BatchTransferFundsResponse);
+  rpc ApplyAdminBalanceAdjustment(AdminBalanceAdjustmentRequest) returns (TransferFundsResult);
+  rpc CreateLoanContract(CreateLoanContractRequest) returns (LoanContractRecord);
+  rpc CreateReversal(CreateReversalRequest) returns (ReversalRecord);
+  rpc StartReconciliation(StartReconciliationRequest) returns (ReconciliationRunRecord);
+  rpc GetReconciliationRun(GetReconciliationRunRequest) returns (ReconciliationRunRecord);
+  rpc ListReconciliationIssues(ListReconciliationIssuesRequest) returns (ListReconciliationIssuesResponse);
+  rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsResponse);
+}

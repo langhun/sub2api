@@ -33,6 +33,10 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
+	"github.com/Wei-Shaw/sub2api/ent/financialauditlog"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationissue"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationrun"
+	"github.com/Wei-Shaw/sub2api/ent/financialreversal"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
@@ -109,6 +113,14 @@ type Client struct {
 	CheckinPrizeItem *CheckinPrizeItemClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
+	// FinancialAuditLog is the client for interacting with the FinancialAuditLog builders.
+	FinancialAuditLog *FinancialAuditLogClient
+	// FinancialReconciliationIssue is the client for interacting with the FinancialReconciliationIssue builders.
+	FinancialReconciliationIssue *FinancialReconciliationIssueClient
+	// FinancialReconciliationRun is the client for interacting with the FinancialReconciliationRun builders.
+	FinancialReconciliationRun *FinancialReconciliationRunClient
+	// FinancialReversal is the client for interacting with the FinancialReversal builders.
+	FinancialReversal *FinancialReversalClient
 	// Group is the client for interacting with the Group builders.
 	Group *GroupClient
 	// IdempotencyRecord is the client for interacting with the IdempotencyRecord builders.
@@ -200,6 +212,10 @@ func (c *Client) init() {
 	c.CheckinBlindboxRecord = NewCheckinBlindboxRecordClient(c.config)
 	c.CheckinPrizeItem = NewCheckinPrizeItemClient(c.config)
 	c.ErrorPassthroughRule = NewErrorPassthroughRuleClient(c.config)
+	c.FinancialAuditLog = NewFinancialAuditLogClient(c.config)
+	c.FinancialReconciliationIssue = NewFinancialReconciliationIssueClient(c.config)
+	c.FinancialReconciliationRun = NewFinancialReconciliationRunClient(c.config)
+	c.FinancialReversal = NewFinancialReversalClient(c.config)
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
 	c.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(c.config)
@@ -341,6 +357,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		CheckinBlindboxRecord:         NewCheckinBlindboxRecordClient(cfg),
 		CheckinPrizeItem:              NewCheckinPrizeItemClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
+		FinancialAuditLog:             NewFinancialAuditLogClient(cfg),
+		FinancialReconciliationIssue:  NewFinancialReconciliationIssueClient(cfg),
+		FinancialReconciliationRun:    NewFinancialReconciliationRunClient(cfg),
+		FinancialReversal:             NewFinancialReversalClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
@@ -409,6 +429,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		CheckinBlindboxRecord:         NewCheckinBlindboxRecordClient(cfg),
 		CheckinPrizeItem:              NewCheckinPrizeItemClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
+		FinancialAuditLog:             NewFinancialAuditLogClient(cfg),
+		FinancialReconciliationIssue:  NewFinancialReconciliationIssueClient(cfg),
+		FinancialReconciliationRun:    NewFinancialReconciliationRunClient(cfg),
+		FinancialReversal:             NewFinancialReversalClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
@@ -474,9 +498,11 @@ func (c *Client) Use(hooks ...Hook) {
 		c.BalanceRedPacketClaim, c.BalanceTransfer, c.ChannelMonitor,
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
-		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.LedgerAccount, c.LedgerEntry, c.LoanContract,
-		c.ModelPricing, c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.FinancialAuditLog,
+		c.FinancialReconciliationIssue, c.FinancialReconciliationRun,
+		c.FinancialReversal, c.Group, c.IdempotencyRecord, c.IdentityAdoptionDecision,
+		c.LedgerAccount, c.LedgerEntry, c.LoanContract, c.ModelPricing,
+		c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
 		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy,
 		c.ProxySubscriptionNode, c.ProxySubscriptionSource, c.RedeemCode,
 		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
@@ -497,9 +523,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.BalanceRedPacketClaim, c.BalanceTransfer, c.ChannelMonitor,
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
-		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.LedgerAccount, c.LedgerEntry, c.LoanContract,
-		c.ModelPricing, c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.FinancialAuditLog,
+		c.FinancialReconciliationIssue, c.FinancialReconciliationRun,
+		c.FinancialReversal, c.Group, c.IdempotencyRecord, c.IdentityAdoptionDecision,
+		c.LedgerAccount, c.LedgerEntry, c.LoanContract, c.ModelPricing,
+		c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
 		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy,
 		c.ProxySubscriptionNode, c.ProxySubscriptionSource, c.RedeemCode,
 		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
@@ -550,6 +578,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CheckinPrizeItem.mutate(ctx, m)
 	case *ErrorPassthroughRuleMutation:
 		return c.ErrorPassthroughRule.mutate(ctx, m)
+	case *FinancialAuditLogMutation:
+		return c.FinancialAuditLog.mutate(ctx, m)
+	case *FinancialReconciliationIssueMutation:
+		return c.FinancialReconciliationIssue.mutate(ctx, m)
+	case *FinancialReconciliationRunMutation:
+		return c.FinancialReconciliationRun.mutate(ctx, m)
+	case *FinancialReversalMutation:
+		return c.FinancialReversal.mutate(ctx, m)
 	case *GroupMutation:
 		return c.Group.mutate(ctx, m)
 	case *IdempotencyRecordMutation:
@@ -3462,6 +3498,634 @@ func (c *ErrorPassthroughRuleClient) mutate(ctx context.Context, m *ErrorPassthr
 	}
 }
 
+// FinancialAuditLogClient is a client for the FinancialAuditLog schema.
+type FinancialAuditLogClient struct {
+	config
+}
+
+// NewFinancialAuditLogClient returns a client for the FinancialAuditLog from the given config.
+func NewFinancialAuditLogClient(c config) *FinancialAuditLogClient {
+	return &FinancialAuditLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `financialauditlog.Hooks(f(g(h())))`.
+func (c *FinancialAuditLogClient) Use(hooks ...Hook) {
+	c.hooks.FinancialAuditLog = append(c.hooks.FinancialAuditLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `financialauditlog.Intercept(f(g(h())))`.
+func (c *FinancialAuditLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.FinancialAuditLog = append(c.inters.FinancialAuditLog, interceptors...)
+}
+
+// Create returns a builder for creating a FinancialAuditLog entity.
+func (c *FinancialAuditLogClient) Create() *FinancialAuditLogCreate {
+	mutation := newFinancialAuditLogMutation(c.config, OpCreate)
+	return &FinancialAuditLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of FinancialAuditLog entities.
+func (c *FinancialAuditLogClient) CreateBulk(builders ...*FinancialAuditLogCreate) *FinancialAuditLogCreateBulk {
+	return &FinancialAuditLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *FinancialAuditLogClient) MapCreateBulk(slice any, setFunc func(*FinancialAuditLogCreate, int)) *FinancialAuditLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &FinancialAuditLogCreateBulk{err: fmt.Errorf("calling to FinancialAuditLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*FinancialAuditLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &FinancialAuditLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for FinancialAuditLog.
+func (c *FinancialAuditLogClient) Update() *FinancialAuditLogUpdate {
+	mutation := newFinancialAuditLogMutation(c.config, OpUpdate)
+	return &FinancialAuditLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *FinancialAuditLogClient) UpdateOne(_m *FinancialAuditLog) *FinancialAuditLogUpdateOne {
+	mutation := newFinancialAuditLogMutation(c.config, OpUpdateOne, withFinancialAuditLog(_m))
+	return &FinancialAuditLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *FinancialAuditLogClient) UpdateOneID(id int64) *FinancialAuditLogUpdateOne {
+	mutation := newFinancialAuditLogMutation(c.config, OpUpdateOne, withFinancialAuditLogID(id))
+	return &FinancialAuditLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for FinancialAuditLog.
+func (c *FinancialAuditLogClient) Delete() *FinancialAuditLogDelete {
+	mutation := newFinancialAuditLogMutation(c.config, OpDelete)
+	return &FinancialAuditLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *FinancialAuditLogClient) DeleteOne(_m *FinancialAuditLog) *FinancialAuditLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *FinancialAuditLogClient) DeleteOneID(id int64) *FinancialAuditLogDeleteOne {
+	builder := c.Delete().Where(financialauditlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &FinancialAuditLogDeleteOne{builder}
+}
+
+// Query returns a query builder for FinancialAuditLog.
+func (c *FinancialAuditLogClient) Query() *FinancialAuditLogQuery {
+	return &FinancialAuditLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeFinancialAuditLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a FinancialAuditLog entity by its id.
+func (c *FinancialAuditLogClient) Get(ctx context.Context, id int64) (*FinancialAuditLog, error) {
+	return c.Query().Where(financialauditlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *FinancialAuditLogClient) GetX(ctx context.Context, id int64) *FinancialAuditLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryActorUser queries the actor_user edge of a FinancialAuditLog.
+func (c *FinancialAuditLogClient) QueryActorUser(_m *FinancialAuditLog) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(financialauditlog.Table, financialauditlog.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, financialauditlog.ActorUserTable, financialauditlog.ActorUserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *FinancialAuditLogClient) Hooks() []Hook {
+	return c.hooks.FinancialAuditLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *FinancialAuditLogClient) Interceptors() []Interceptor {
+	return c.inters.FinancialAuditLog
+}
+
+func (c *FinancialAuditLogClient) mutate(ctx context.Context, m *FinancialAuditLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&FinancialAuditLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&FinancialAuditLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&FinancialAuditLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&FinancialAuditLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown FinancialAuditLog mutation op: %q", m.Op())
+	}
+}
+
+// FinancialReconciliationIssueClient is a client for the FinancialReconciliationIssue schema.
+type FinancialReconciliationIssueClient struct {
+	config
+}
+
+// NewFinancialReconciliationIssueClient returns a client for the FinancialReconciliationIssue from the given config.
+func NewFinancialReconciliationIssueClient(c config) *FinancialReconciliationIssueClient {
+	return &FinancialReconciliationIssueClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `financialreconciliationissue.Hooks(f(g(h())))`.
+func (c *FinancialReconciliationIssueClient) Use(hooks ...Hook) {
+	c.hooks.FinancialReconciliationIssue = append(c.hooks.FinancialReconciliationIssue, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `financialreconciliationissue.Intercept(f(g(h())))`.
+func (c *FinancialReconciliationIssueClient) Intercept(interceptors ...Interceptor) {
+	c.inters.FinancialReconciliationIssue = append(c.inters.FinancialReconciliationIssue, interceptors...)
+}
+
+// Create returns a builder for creating a FinancialReconciliationIssue entity.
+func (c *FinancialReconciliationIssueClient) Create() *FinancialReconciliationIssueCreate {
+	mutation := newFinancialReconciliationIssueMutation(c.config, OpCreate)
+	return &FinancialReconciliationIssueCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of FinancialReconciliationIssue entities.
+func (c *FinancialReconciliationIssueClient) CreateBulk(builders ...*FinancialReconciliationIssueCreate) *FinancialReconciliationIssueCreateBulk {
+	return &FinancialReconciliationIssueCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *FinancialReconciliationIssueClient) MapCreateBulk(slice any, setFunc func(*FinancialReconciliationIssueCreate, int)) *FinancialReconciliationIssueCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &FinancialReconciliationIssueCreateBulk{err: fmt.Errorf("calling to FinancialReconciliationIssueClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*FinancialReconciliationIssueCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &FinancialReconciliationIssueCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for FinancialReconciliationIssue.
+func (c *FinancialReconciliationIssueClient) Update() *FinancialReconciliationIssueUpdate {
+	mutation := newFinancialReconciliationIssueMutation(c.config, OpUpdate)
+	return &FinancialReconciliationIssueUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *FinancialReconciliationIssueClient) UpdateOne(_m *FinancialReconciliationIssue) *FinancialReconciliationIssueUpdateOne {
+	mutation := newFinancialReconciliationIssueMutation(c.config, OpUpdateOne, withFinancialReconciliationIssue(_m))
+	return &FinancialReconciliationIssueUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *FinancialReconciliationIssueClient) UpdateOneID(id int64) *FinancialReconciliationIssueUpdateOne {
+	mutation := newFinancialReconciliationIssueMutation(c.config, OpUpdateOne, withFinancialReconciliationIssueID(id))
+	return &FinancialReconciliationIssueUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for FinancialReconciliationIssue.
+func (c *FinancialReconciliationIssueClient) Delete() *FinancialReconciliationIssueDelete {
+	mutation := newFinancialReconciliationIssueMutation(c.config, OpDelete)
+	return &FinancialReconciliationIssueDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *FinancialReconciliationIssueClient) DeleteOne(_m *FinancialReconciliationIssue) *FinancialReconciliationIssueDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *FinancialReconciliationIssueClient) DeleteOneID(id int64) *FinancialReconciliationIssueDeleteOne {
+	builder := c.Delete().Where(financialreconciliationissue.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &FinancialReconciliationIssueDeleteOne{builder}
+}
+
+// Query returns a query builder for FinancialReconciliationIssue.
+func (c *FinancialReconciliationIssueClient) Query() *FinancialReconciliationIssueQuery {
+	return &FinancialReconciliationIssueQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeFinancialReconciliationIssue},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a FinancialReconciliationIssue entity by its id.
+func (c *FinancialReconciliationIssueClient) Get(ctx context.Context, id int64) (*FinancialReconciliationIssue, error) {
+	return c.Query().Where(financialreconciliationissue.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *FinancialReconciliationIssueClient) GetX(ctx context.Context, id int64) *FinancialReconciliationIssue {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryReconciliationRun queries the reconciliation_run edge of a FinancialReconciliationIssue.
+func (c *FinancialReconciliationIssueClient) QueryReconciliationRun(_m *FinancialReconciliationIssue) *FinancialReconciliationRunQuery {
+	query := (&FinancialReconciliationRunClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(financialreconciliationissue.Table, financialreconciliationissue.FieldID, id),
+			sqlgraph.To(financialreconciliationrun.Table, financialreconciliationrun.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, financialreconciliationissue.ReconciliationRunTable, financialreconciliationissue.ReconciliationRunColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLedgerAccount queries the ledger_account edge of a FinancialReconciliationIssue.
+func (c *FinancialReconciliationIssueClient) QueryLedgerAccount(_m *FinancialReconciliationIssue) *LedgerAccountQuery {
+	query := (&LedgerAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(financialreconciliationissue.Table, financialreconciliationissue.FieldID, id),
+			sqlgraph.To(ledgeraccount.Table, ledgeraccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, financialreconciliationissue.LedgerAccountTable, financialreconciliationissue.LedgerAccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *FinancialReconciliationIssueClient) Hooks() []Hook {
+	return c.hooks.FinancialReconciliationIssue
+}
+
+// Interceptors returns the client interceptors.
+func (c *FinancialReconciliationIssueClient) Interceptors() []Interceptor {
+	return c.inters.FinancialReconciliationIssue
+}
+
+func (c *FinancialReconciliationIssueClient) mutate(ctx context.Context, m *FinancialReconciliationIssueMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&FinancialReconciliationIssueCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&FinancialReconciliationIssueUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&FinancialReconciliationIssueUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&FinancialReconciliationIssueDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown FinancialReconciliationIssue mutation op: %q", m.Op())
+	}
+}
+
+// FinancialReconciliationRunClient is a client for the FinancialReconciliationRun schema.
+type FinancialReconciliationRunClient struct {
+	config
+}
+
+// NewFinancialReconciliationRunClient returns a client for the FinancialReconciliationRun from the given config.
+func NewFinancialReconciliationRunClient(c config) *FinancialReconciliationRunClient {
+	return &FinancialReconciliationRunClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `financialreconciliationrun.Hooks(f(g(h())))`.
+func (c *FinancialReconciliationRunClient) Use(hooks ...Hook) {
+	c.hooks.FinancialReconciliationRun = append(c.hooks.FinancialReconciliationRun, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `financialreconciliationrun.Intercept(f(g(h())))`.
+func (c *FinancialReconciliationRunClient) Intercept(interceptors ...Interceptor) {
+	c.inters.FinancialReconciliationRun = append(c.inters.FinancialReconciliationRun, interceptors...)
+}
+
+// Create returns a builder for creating a FinancialReconciliationRun entity.
+func (c *FinancialReconciliationRunClient) Create() *FinancialReconciliationRunCreate {
+	mutation := newFinancialReconciliationRunMutation(c.config, OpCreate)
+	return &FinancialReconciliationRunCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of FinancialReconciliationRun entities.
+func (c *FinancialReconciliationRunClient) CreateBulk(builders ...*FinancialReconciliationRunCreate) *FinancialReconciliationRunCreateBulk {
+	return &FinancialReconciliationRunCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *FinancialReconciliationRunClient) MapCreateBulk(slice any, setFunc func(*FinancialReconciliationRunCreate, int)) *FinancialReconciliationRunCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &FinancialReconciliationRunCreateBulk{err: fmt.Errorf("calling to FinancialReconciliationRunClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*FinancialReconciliationRunCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &FinancialReconciliationRunCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for FinancialReconciliationRun.
+func (c *FinancialReconciliationRunClient) Update() *FinancialReconciliationRunUpdate {
+	mutation := newFinancialReconciliationRunMutation(c.config, OpUpdate)
+	return &FinancialReconciliationRunUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *FinancialReconciliationRunClient) UpdateOne(_m *FinancialReconciliationRun) *FinancialReconciliationRunUpdateOne {
+	mutation := newFinancialReconciliationRunMutation(c.config, OpUpdateOne, withFinancialReconciliationRun(_m))
+	return &FinancialReconciliationRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *FinancialReconciliationRunClient) UpdateOneID(id int64) *FinancialReconciliationRunUpdateOne {
+	mutation := newFinancialReconciliationRunMutation(c.config, OpUpdateOne, withFinancialReconciliationRunID(id))
+	return &FinancialReconciliationRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for FinancialReconciliationRun.
+func (c *FinancialReconciliationRunClient) Delete() *FinancialReconciliationRunDelete {
+	mutation := newFinancialReconciliationRunMutation(c.config, OpDelete)
+	return &FinancialReconciliationRunDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *FinancialReconciliationRunClient) DeleteOne(_m *FinancialReconciliationRun) *FinancialReconciliationRunDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *FinancialReconciliationRunClient) DeleteOneID(id int64) *FinancialReconciliationRunDeleteOne {
+	builder := c.Delete().Where(financialreconciliationrun.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &FinancialReconciliationRunDeleteOne{builder}
+}
+
+// Query returns a query builder for FinancialReconciliationRun.
+func (c *FinancialReconciliationRunClient) Query() *FinancialReconciliationRunQuery {
+	return &FinancialReconciliationRunQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeFinancialReconciliationRun},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a FinancialReconciliationRun entity by its id.
+func (c *FinancialReconciliationRunClient) Get(ctx context.Context, id int64) (*FinancialReconciliationRun, error) {
+	return c.Query().Where(financialreconciliationrun.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *FinancialReconciliationRunClient) GetX(ctx context.Context, id int64) *FinancialReconciliationRun {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryIssues queries the issues edge of a FinancialReconciliationRun.
+func (c *FinancialReconciliationRunClient) QueryIssues(_m *FinancialReconciliationRun) *FinancialReconciliationIssueQuery {
+	query := (&FinancialReconciliationIssueClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(financialreconciliationrun.Table, financialreconciliationrun.FieldID, id),
+			sqlgraph.To(financialreconciliationissue.Table, financialreconciliationissue.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, financialreconciliationrun.IssuesTable, financialreconciliationrun.IssuesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *FinancialReconciliationRunClient) Hooks() []Hook {
+	return c.hooks.FinancialReconciliationRun
+}
+
+// Interceptors returns the client interceptors.
+func (c *FinancialReconciliationRunClient) Interceptors() []Interceptor {
+	return c.inters.FinancialReconciliationRun
+}
+
+func (c *FinancialReconciliationRunClient) mutate(ctx context.Context, m *FinancialReconciliationRunMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&FinancialReconciliationRunCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&FinancialReconciliationRunUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&FinancialReconciliationRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&FinancialReconciliationRunDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown FinancialReconciliationRun mutation op: %q", m.Op())
+	}
+}
+
+// FinancialReversalClient is a client for the FinancialReversal schema.
+type FinancialReversalClient struct {
+	config
+}
+
+// NewFinancialReversalClient returns a client for the FinancialReversal from the given config.
+func NewFinancialReversalClient(c config) *FinancialReversalClient {
+	return &FinancialReversalClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `financialreversal.Hooks(f(g(h())))`.
+func (c *FinancialReversalClient) Use(hooks ...Hook) {
+	c.hooks.FinancialReversal = append(c.hooks.FinancialReversal, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `financialreversal.Intercept(f(g(h())))`.
+func (c *FinancialReversalClient) Intercept(interceptors ...Interceptor) {
+	c.inters.FinancialReversal = append(c.inters.FinancialReversal, interceptors...)
+}
+
+// Create returns a builder for creating a FinancialReversal entity.
+func (c *FinancialReversalClient) Create() *FinancialReversalCreate {
+	mutation := newFinancialReversalMutation(c.config, OpCreate)
+	return &FinancialReversalCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of FinancialReversal entities.
+func (c *FinancialReversalClient) CreateBulk(builders ...*FinancialReversalCreate) *FinancialReversalCreateBulk {
+	return &FinancialReversalCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *FinancialReversalClient) MapCreateBulk(slice any, setFunc func(*FinancialReversalCreate, int)) *FinancialReversalCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &FinancialReversalCreateBulk{err: fmt.Errorf("calling to FinancialReversalClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*FinancialReversalCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &FinancialReversalCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for FinancialReversal.
+func (c *FinancialReversalClient) Update() *FinancialReversalUpdate {
+	mutation := newFinancialReversalMutation(c.config, OpUpdate)
+	return &FinancialReversalUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *FinancialReversalClient) UpdateOne(_m *FinancialReversal) *FinancialReversalUpdateOne {
+	mutation := newFinancialReversalMutation(c.config, OpUpdateOne, withFinancialReversal(_m))
+	return &FinancialReversalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *FinancialReversalClient) UpdateOneID(id int64) *FinancialReversalUpdateOne {
+	mutation := newFinancialReversalMutation(c.config, OpUpdateOne, withFinancialReversalID(id))
+	return &FinancialReversalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for FinancialReversal.
+func (c *FinancialReversalClient) Delete() *FinancialReversalDelete {
+	mutation := newFinancialReversalMutation(c.config, OpDelete)
+	return &FinancialReversalDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *FinancialReversalClient) DeleteOne(_m *FinancialReversal) *FinancialReversalDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *FinancialReversalClient) DeleteOneID(id int64) *FinancialReversalDeleteOne {
+	builder := c.Delete().Where(financialreversal.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &FinancialReversalDeleteOne{builder}
+}
+
+// Query returns a query builder for FinancialReversal.
+func (c *FinancialReversalClient) Query() *FinancialReversalQuery {
+	return &FinancialReversalQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeFinancialReversal},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a FinancialReversal entity by its id.
+func (c *FinancialReversalClient) Get(ctx context.Context, id int64) (*FinancialReversal, error) {
+	return c.Query().Where(financialreversal.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *FinancialReversalClient) GetX(ctx context.Context, id int64) *FinancialReversal {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryRequestedByUser queries the requested_by_user edge of a FinancialReversal.
+func (c *FinancialReversalClient) QueryRequestedByUser(_m *FinancialReversal) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(financialreversal.Table, financialreversal.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, financialreversal.RequestedByUserTable, financialreversal.RequestedByUserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryApprovedByUser queries the approved_by_user edge of a FinancialReversal.
+func (c *FinancialReversalClient) QueryApprovedByUser(_m *FinancialReversal) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(financialreversal.Table, financialreversal.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, financialreversal.ApprovedByUserTable, financialreversal.ApprovedByUserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *FinancialReversalClient) Hooks() []Hook {
+	return c.hooks.FinancialReversal
+}
+
+// Interceptors returns the client interceptors.
+func (c *FinancialReversalClient) Interceptors() []Interceptor {
+	return c.inters.FinancialReversal
+}
+
+func (c *FinancialReversalClient) mutate(ctx context.Context, m *FinancialReversalMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&FinancialReversalCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&FinancialReversalUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&FinancialReversalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&FinancialReversalDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown FinancialReversal mutation op: %q", m.Op())
+	}
+}
+
 // GroupClient is a client for the Group schema.
 type GroupClient struct {
 	config
@@ -4172,6 +4836,22 @@ func (c *LedgerAccountClient) QueryEntries(_m *LedgerAccount) *LedgerEntryQuery 
 			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, id),
 			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, ledgeraccount.EntriesTable, ledgeraccount.EntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryReconciliationIssues queries the reconciliation_issues edge of a LedgerAccount.
+func (c *LedgerAccountClient) QueryReconciliationIssues(_m *LedgerAccount) *FinancialReconciliationIssueQuery {
+	query := (&FinancialReconciliationIssueClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, id),
+			sqlgraph.To(financialreconciliationissue.Table, financialreconciliationissue.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ledgeraccount.ReconciliationIssuesTable, ledgeraccount.ReconciliationIssuesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -7698,6 +8378,54 @@ func (c *UserClient) QueryFundedLoanContracts(_m *User) *LoanContractQuery {
 	return query
 }
 
+// QueryFinancialAuditLogs queries the financial_audit_logs edge of a User.
+func (c *UserClient) QueryFinancialAuditLogs(_m *User) *FinancialAuditLogQuery {
+	query := (&FinancialAuditLogClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(financialauditlog.Table, financialauditlog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.FinancialAuditLogsTable, user.FinancialAuditLogsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRequestedFinancialReversals queries the requested_financial_reversals edge of a User.
+func (c *UserClient) QueryRequestedFinancialReversals(_m *User) *FinancialReversalQuery {
+	query := (&FinancialReversalClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(financialreversal.Table, financialreversal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.RequestedFinancialReversalsTable, user.RequestedFinancialReversalsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryApprovedFinancialReversals queries the approved_financial_reversals edge of a User.
+func (c *UserClient) QueryApprovedFinancialReversals(_m *User) *FinancialReversalQuery {
+	query := (&FinancialReversalClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(financialreversal.Table, financialreversal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ApprovedFinancialReversalsTable, user.ApprovedFinancialReversalsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryAuthIdentities queries the auth_identities edge of a User.
 func (c *UserClient) QueryAuthIdentities(_m *User) *AuthIdentityQuery {
 	query := (&AuthIdentityClient{config: c.config}).Query()
@@ -8759,28 +9487,32 @@ type (
 		AuthIdentityChannel, BalanceRedPacket, BalanceRedPacketClaim, BalanceTransfer,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
-		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, LedgerAccount, LedgerEntry, LoanContract,
-		ModelPricing, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
-		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, ProxySubscriptionNode,
-		ProxySubscriptionSource, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, TransactionLog, UsageCleanupTask, UsageLog, User,
-		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue, UserBankAccount,
-		UserPlatformQuota, UserSubscription []ent.Hook
+		CheckinPrizeItem, ErrorPassthroughRule, FinancialAuditLog,
+		FinancialReconciliationIssue, FinancialReconciliationRun, FinancialReversal,
+		Group, IdempotencyRecord, IdentityAdoptionDecision, LedgerAccount, LedgerEntry,
+		LoanContract, ModelPricing, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
+		ProxySubscriptionNode, ProxySubscriptionSource, RedeemCode, SecuritySecret,
+		Setting, SubscriptionPlan, TLSFingerprintProfile, TransactionLog,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserBankAccount, UserPlatformQuota,
+		UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
 		AuthIdentityChannel, BalanceRedPacket, BalanceRedPacketClaim, BalanceTransfer,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
-		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, LedgerAccount, LedgerEntry, LoanContract,
-		ModelPricing, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
-		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, ProxySubscriptionNode,
-		ProxySubscriptionSource, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, TransactionLog, UsageCleanupTask, UsageLog, User,
-		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue, UserBankAccount,
-		UserPlatformQuota, UserSubscription []ent.Interceptor
+		CheckinPrizeItem, ErrorPassthroughRule, FinancialAuditLog,
+		FinancialReconciliationIssue, FinancialReconciliationRun, FinancialReversal,
+		Group, IdempotencyRecord, IdentityAdoptionDecision, LedgerAccount, LedgerEntry,
+		LoanContract, ModelPricing, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
+		ProxySubscriptionNode, ProxySubscriptionSource, RedeemCode, SecuritySecret,
+		Setting, SubscriptionPlan, TLSFingerprintProfile, TransactionLog,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserBankAccount, UserPlatformQuota,
+		UserSubscription []ent.Interceptor
 	}
 )
 

@@ -60,6 +60,18 @@ type CheckinPrizeItem func(*sql.Selector)
 // ErrorPassthroughRule is the predicate function for errorpassthroughrule builders.
 type ErrorPassthroughRule func(*sql.Selector)
 
+// FinancialAuditLog is the predicate function for financialauditlog builders.
+type FinancialAuditLog func(*sql.Selector)
+
+// FinancialReconciliationIssue is the predicate function for financialreconciliationissue builders.
+type FinancialReconciliationIssue func(*sql.Selector)
+
+// FinancialReconciliationRun is the predicate function for financialreconciliationrun builders.
+type FinancialReconciliationRun func(*sql.Selector)
+
+// FinancialReversal is the predicate function for financialreversal builders.
+type FinancialReversal func(*sql.Selector)
+
 // Group is the predicate function for group builders.
 type Group func(*sql.Selector)
 

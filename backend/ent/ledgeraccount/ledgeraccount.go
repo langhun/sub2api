@@ -44,6 +44,8 @@ const (
 	EdgeBankAccount = "bank_account"
 	// EdgeEntries holds the string denoting the entries edge name in mutations.
 	EdgeEntries = "entries"
+	// EdgeReconciliationIssues holds the string denoting the reconciliation_issues edge name in mutations.
+	EdgeReconciliationIssues = "reconciliation_issues"
 	// Table holds the table name of the ledgeraccount in the database.
 	Table = "ledger_accounts"
 	// OwnerUserTable is the table that holds the owner_user relation/edge.
@@ -67,6 +69,13 @@ const (
 	EntriesInverseTable = "ledger_entries"
 	// EntriesColumn is the table column denoting the entries relation/edge.
 	EntriesColumn = "ledger_account_id"
+	// ReconciliationIssuesTable is the table that holds the reconciliation_issues relation/edge.
+	ReconciliationIssuesTable = "financial_reconciliation_issues"
+	// ReconciliationIssuesInverseTable is the table name for the FinancialReconciliationIssue entity.
+	// It exists in this package in order to avoid circular dependency with the "financialreconciliationissue" package.
+	ReconciliationIssuesInverseTable = "financial_reconciliation_issues"
+	// ReconciliationIssuesColumn is the table column denoting the reconciliation_issues relation/edge.
+	ReconciliationIssuesColumn = "ledger_account_id"
 )
 
 // Columns holds all SQL columns for ledgeraccount fields.
@@ -215,6 +224,20 @@ func ByEntries(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newEntriesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByReconciliationIssuesCount orders the results by reconciliation_issues count.
+func ByReconciliationIssuesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newReconciliationIssuesStep(), opts...)
+	}
+}
+
+// ByReconciliationIssues orders the results by reconciliation_issues terms.
+func ByReconciliationIssues(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newReconciliationIssuesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newOwnerUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -234,5 +257,12 @@ func newEntriesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(EntriesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, EntriesTable, EntriesColumn),
+	)
+}
+func newReconciliationIssuesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ReconciliationIssuesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ReconciliationIssuesTable, ReconciliationIssuesColumn),
 	)
 }

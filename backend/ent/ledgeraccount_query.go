@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/financialreconciliationissue"
 	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
 	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
@@ -23,14 +24,15 @@ import (
 // LedgerAccountQuery is the builder for querying LedgerAccount entities.
 type LedgerAccountQuery struct {
 	config
-	ctx             *QueryContext
-	order           []ledgeraccount.OrderOption
-	inters          []Interceptor
-	predicates      []predicate.LedgerAccount
-	withOwnerUser   *UserQuery
-	withBankAccount *UserBankAccountQuery
-	withEntries     *LedgerEntryQuery
-	modifiers       []func(*sql.Selector)
+	ctx                      *QueryContext
+	order                    []ledgeraccount.OrderOption
+	inters                   []Interceptor
+	predicates               []predicate.LedgerAccount
+	withOwnerUser            *UserQuery
+	withBankAccount          *UserBankAccountQuery
+	withEntries              *LedgerEntryQuery
+	withReconciliationIssues *FinancialReconciliationIssueQuery
+	modifiers                []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -126,6 +128,28 @@ func (_q *LedgerAccountQuery) QueryEntries() *LedgerEntryQuery {
 			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, selector),
 			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, ledgeraccount.EntriesTable, ledgeraccount.EntriesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryReconciliationIssues chains the current query on the "reconciliation_issues" edge.
+func (_q *LedgerAccountQuery) QueryReconciliationIssues() *FinancialReconciliationIssueQuery {
+	query := (&FinancialReconciliationIssueClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, selector),
+			sqlgraph.To(financialreconciliationissue.Table, financialreconciliationissue.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ledgeraccount.ReconciliationIssuesTable, ledgeraccount.ReconciliationIssuesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -320,14 +344,15 @@ func (_q *LedgerAccountQuery) Clone() *LedgerAccountQuery {
 		return nil
 	}
 	return &LedgerAccountQuery{
-		config:          _q.config,
-		ctx:             _q.ctx.Clone(),
-		order:           append([]ledgeraccount.OrderOption{}, _q.order...),
-		inters:          append([]Interceptor{}, _q.inters...),
-		predicates:      append([]predicate.LedgerAccount{}, _q.predicates...),
-		withOwnerUser:   _q.withOwnerUser.Clone(),
-		withBankAccount: _q.withBankAccount.Clone(),
-		withEntries:     _q.withEntries.Clone(),
+		config:                   _q.config,
+		ctx:                      _q.ctx.Clone(),
+		order:                    append([]ledgeraccount.OrderOption{}, _q.order...),
+		inters:                   append([]Interceptor{}, _q.inters...),
+		predicates:               append([]predicate.LedgerAccount{}, _q.predicates...),
+		withOwnerUser:            _q.withOwnerUser.Clone(),
+		withBankAccount:          _q.withBankAccount.Clone(),
+		withEntries:              _q.withEntries.Clone(),
+		withReconciliationIssues: _q.withReconciliationIssues.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -364,6 +389,17 @@ func (_q *LedgerAccountQuery) WithEntries(opts ...func(*LedgerEntryQuery)) *Ledg
 		opt(query)
 	}
 	_q.withEntries = query
+	return _q
+}
+
+// WithReconciliationIssues tells the query-builder to eager-load the nodes that are connected to
+// the "reconciliation_issues" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *LedgerAccountQuery) WithReconciliationIssues(opts ...func(*FinancialReconciliationIssueQuery)) *LedgerAccountQuery {
+	query := (&FinancialReconciliationIssueClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withReconciliationIssues = query
 	return _q
 }
 
@@ -445,10 +481,11 @@ func (_q *LedgerAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 	var (
 		nodes       = []*LedgerAccount{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withOwnerUser != nil,
 			_q.withBankAccount != nil,
 			_q.withEntries != nil,
+			_q.withReconciliationIssues != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -488,6 +525,15 @@ func (_q *LedgerAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([
 		if err := _q.loadEntries(ctx, query, nodes,
 			func(n *LedgerAccount) { n.Edges.Entries = []*LedgerEntry{} },
 			func(n *LedgerAccount, e *LedgerEntry) { n.Edges.Entries = append(n.Edges.Entries, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withReconciliationIssues; query != nil {
+		if err := _q.loadReconciliationIssues(ctx, query, nodes,
+			func(n *LedgerAccount) { n.Edges.ReconciliationIssues = []*FinancialReconciliationIssue{} },
+			func(n *LedgerAccount, e *FinancialReconciliationIssue) {
+				n.Edges.ReconciliationIssues = append(n.Edges.ReconciliationIssues, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -583,6 +629,39 @@ func (_q *LedgerAccountQuery) loadEntries(ctx context.Context, query *LedgerEntr
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "ledger_account_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *LedgerAccountQuery) loadReconciliationIssues(ctx context.Context, query *FinancialReconciliationIssueQuery, nodes []*LedgerAccount, init func(*LedgerAccount), assign func(*LedgerAccount, *FinancialReconciliationIssue)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*LedgerAccount)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(financialreconciliationissue.FieldLedgerAccountID)
+	}
+	query.Where(predicate.FinancialReconciliationIssue(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(ledgeraccount.ReconciliationIssuesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.LedgerAccountID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "ledger_account_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "ledger_account_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
