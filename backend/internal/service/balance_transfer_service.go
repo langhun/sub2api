@@ -368,9 +368,6 @@ func (s *BalanceTransferService) BatchDistribute(ctx context.Context, adminID in
 			if _, err := s.userRepo.GetByID(txCtx, t.UserID); err != nil {
 				continue
 			}
-			if err := s.userRepo.UpdateBalance(txCtx, t.UserID, t.Amount); err != nil {
-				return fmt.Errorf("update balance for user %d: %w", t.UserID, err)
-			}
 			record := &BalanceTransferRecord{
 				SenderID:     adminID,
 				ReceiverID:   t.UserID,
@@ -386,6 +383,9 @@ func (s *BalanceTransferService) BatchDistribute(ctx context.Context, adminID in
 			if err := s.transferRepo.Create(txCtx, record); err != nil {
 				return fmt.Errorf("create transfer record for user %d: %w", t.UserID, err)
 			}
+			if err := s.applyBatchDistributeBankEntryInTx(txCtx, adminID, record); err != nil {
+				return fmt.Errorf("apply batch distribute bank entry for user %d: %w", t.UserID, err)
+			}
 			records = append(records, record)
 		}
 		return nil
@@ -394,6 +394,43 @@ func (s *BalanceTransferService) BatchDistribute(ctx context.Context, adminID in
 		return nil, err
 	}
 	return records, nil
+}
+
+// applyBatchDistributeBankEntryInTx 将后台批量发放写入银行账本，必须复用外层事务。
+func (s *BalanceTransferService) applyBatchDistributeBankEntryInTx(ctx context.Context, adminID int64, record *BalanceTransferRecord) error {
+	if record == nil || record.ID <= 0 {
+		return infraerrors.InternalServer("TRANSFER_RECORD_MISSING", "transfer record is missing")
+	}
+	client, err := bankClientFromTxContext(ctx)
+	if err != nil {
+		return err
+	}
+	amount := decimal.NewFromFloat(record.Amount).RoundBank(18)
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ErrTransferAmountInvalid
+	}
+
+	_, err = NewBankService(nil).ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           record.ReceiverID,
+		Amount:           amount,
+		Type:             BankTxTypeReward,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("批量余额发放 %d", record.ID),
+		IdempotencyScope: "balance_transfer",
+		IdempotencyKey:   fmt.Sprintf("balance-transfer:%d:batch:reward", record.ID),
+		ReferenceType:    "balance_transfer",
+		ReferenceID:      fmt.Sprintf("%d", record.ID),
+		Metadata: map[string]any{
+			"admin_id":      adminID,
+			"receiver_id":   record.ReceiverID,
+			"transfer_id":   record.ID,
+			"transfer_type": record.TransferType,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("credit batch distributed bank balance: %w", err)
+	}
+	return nil
 }
 
 func (s *BalanceTransferService) GetFeeStats(ctx context.Context, startTime, endTime time.Time) ([]*DailyFeeStat, error) {

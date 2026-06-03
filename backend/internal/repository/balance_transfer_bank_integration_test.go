@@ -52,6 +52,40 @@ func TestBalanceTransferServiceTransfer_WritesBankLedger(t *testing.T) {
 	requireBalanceTransferBankTransaction(t, receiver.ID, service.BankTxTypeTransferIn, "5", record.ID, 2)
 }
 
+func TestBalanceTransferServiceBatchDistribute_WritesBankLedger(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	admin := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("batch-bank-admin-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Role:         service.RoleAdmin,
+		Balance:      0,
+	})
+	receiver := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("batch-bank-receiver-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      1,
+	})
+	transferSvc := service.NewBalanceTransferService(
+		NewBalanceTransferRepository(client, integrationDB),
+		NewBalanceRedPacketRepository(client, integrationDB),
+		NewUserRepository(client, integrationDB),
+		service.NewSettingService(NewSettingRepository(client), nil),
+	)
+
+	records, err := transferSvc.BatchDistribute(ctx, admin.ID, []service.BatchDistributeTarget{
+		{UserID: receiver.ID, Amount: 3.5},
+	}, nil)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	require.Equal(t, "batch", records[0].TransferType)
+	require.Equal(t, "completed", records[0].Status)
+
+	requireBalanceTransferLegacyBalance(t, receiver.ID, "1")
+	requireBankAccountSnapshot(t, receiver.ID, "4.5", "0")
+	requireBalanceTransferBankTransaction(t, receiver.ID, service.BankTxTypeReward, "3.5", records[0].ID, 2)
+}
+
 func setTransferBankSettings(t *testing.T, client *dbent.Client) {
 	t.Helper()
 	repo := NewSettingRepository(client)

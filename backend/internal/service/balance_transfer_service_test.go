@@ -485,6 +485,27 @@ func TestTransfer_SuccessRequiresBankTransactionContext(t *testing.T) {
 	require.Empty(t, userRepo.updateCalls)
 }
 
+func TestBatchDistribute_SuccessRequiresBankTransactionContext(t *testing.T) {
+	repo := &transferRepoStub{}
+	userRepo := &transferUserRepoStub{
+		users: map[int64]*User{
+			2: {ID: 2, Balance: 0},
+		},
+	}
+	svc := newTransferTestService(t, repo, userRepo, nil)
+
+	records, err := svc.BatchDistribute(context.Background(), 1, []BatchDistributeTarget{
+		{UserID: 2, Amount: 10},
+	}, nil)
+
+	require.Nil(t, records)
+	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
+	require.Equal(t, 1, repo.runInTxCalls)
+	require.True(t, repo.createCalled)
+	require.Empty(t, userRepo.updateCalls)
+	require.Empty(t, userRepo.deductCalls)
+}
+
 func TestCreateRedPacket_RechecksSenderBalanceInsideTx(t *testing.T) {
 	repo := &transferRepoStub{
 		lockedBalances: map[int64]float64{1: 20},
