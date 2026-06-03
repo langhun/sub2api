@@ -155,6 +155,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				user.FieldLastActiveAt,
 				user.FieldRpmLimit,
 			)
+			q.WithBankAccount()
 		}).
 		WithGroup(func(q *dbent.GroupQuery) {
 			q.Select(
@@ -684,7 +685,24 @@ func userEntityToService(u *dbent.User) *service.User {
 	if u.BalanceNotifyExtraEmails != "" && u.BalanceNotifyExtraEmails != "[]" {
 		out.BalanceNotifyExtraEmails = service.ParseNotifyEmails(u.BalanceNotifyExtraEmails)
 	}
+	if u.Edges.BankAccount != nil {
+		out.BankAccount = userBankAccountEntityToView(u.Edges.BankAccount)
+	}
 	return out
+}
+
+func userBankAccountEntityToView(account *dbent.UserBankAccount) *service.BankAccountView {
+	if account == nil {
+		return nil
+	}
+	return &service.BankAccountView{
+		AccountID:    account.ID,
+		Balance:      account.Balance,
+		FrozenAmount: account.FrozenAmount,
+		CreditLimit:  account.CreditLimit,
+		TotalDebt:    account.TotalDebt,
+		Status:       account.Status,
+	}
 }
 
 func groupEntityToService(g *dbent.Group) *service.Group {

@@ -11,6 +11,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 )
 
 // NewAPIKeyAuthMiddleware 创建 API Key 认证中间件
@@ -199,7 +200,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 				}
 			} else {
 				// 非订阅模式 或 订阅模式但 subscriptionService 未注入：回退到余额检查
-				if apiKey.User.Balance <= 0 {
+				if !userHasBillingCapacity(apiKey.User) {
 					AbortWithError(c, 403, "INSUFFICIENT_BALANCE", "Insufficient account balance")
 					return
 				}
@@ -277,4 +278,16 @@ func validateAPIKeyGroupAvailable(apiKey *service.APIKey) (string, string, bool)
 		return "GROUP_DISABLED", "API Key 所属分组已停用", false
 	}
 	return "", "", true
+}
+
+func userHasBillingCapacity(user *service.User) bool {
+	if user == nil {
+		return false
+	}
+	if user.BankAccount != nil {
+		// 银行账户已初始化时，API 入口只按账本账户判断容量与冻结状态。
+		return user.BankAccount.CanConsume(decimal.Zero)
+	}
+	// 阶段 3 兼容旧用户：银行账户尚未初始化时暂按历史余额字段预检。
+	return user.Balance > 0
 }

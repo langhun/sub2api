@@ -37,6 +37,18 @@ func (s *BankService) TransferFunds(ctx context.Context, req TransferFundsReques
 	})
 }
 
+// ApplyTransferInTx 复用调用方已有事务执行账本操作，保证外层业务幂等记录与资金流水原子提交。
+func (s *BankService) ApplyTransferInTx(ctx context.Context, client *dbent.Client, req TransferFundsRequest) (*TransferFundsResult, error) {
+	if client == nil {
+		return nil, ErrBankClientUnavailable
+	}
+	normalized, err := normalizeTransferFundsRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	return s.transferFundsInTx(ctx, client, normalized)
+}
+
 // transferFunds 保留 PRD 指定的核心函数形态；正式业务应优先调用带显式幂等键的 TransferFunds。
 func (s *BankService) transferFunds(
 	ctx context.Context,
@@ -114,7 +126,7 @@ func (s *BankService) transferFundsInTx(
 	if err != nil {
 		return nil, err
 	}
-	if account.Status != bankAccountStatusActive {
+	if account.Status != BankAccountStatusActive {
 		return nil, ErrBankAccountNotActive
 	}
 	if existing, err := findBankTransaction(ctx, client, req); err != nil || existing != nil {

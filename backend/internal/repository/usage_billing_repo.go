@@ -2,29 +2,34 @@ package repository
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/shopspring/decimal"
 )
 
 type usageBillingRepository struct {
-	db *sql.DB
+	client *dbent.Client
+	db     *sql.DB
 }
 
-func NewUsageBillingRepository(_ *dbent.Client, sqlDB *sql.DB) service.UsageBillingRepository {
-	return &usageBillingRepository{db: sqlDB}
+func NewUsageBillingRepository(client *dbent.Client, sqlDB *sql.DB) service.UsageBillingRepository {
+	return &usageBillingRepository{client: client, db: sqlDB}
 }
 
 func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (_ *service.UsageBillingApplyResult, err error) {
 	if cmd == nil {
 		return &service.UsageBillingApplyResult{}, nil
 	}
-	if r == nil || r.db == nil {
-		return nil, errors.New("usage billing repository db is nil")
+	if r == nil || r.client == nil {
+		return nil, errors.New("usage billing repository client is nil")
 	}
 
 	cmd.Normalize()
@@ -32,17 +37,19 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 		return nil, service.ErrUsageBillingRequestIDRequired
 	}
 
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.client.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+	committed := false
 	defer func() {
-		if tx != nil {
+		if !committed {
 			_ = tx.Rollback()
 		}
 	}()
 
-	applied, err := r.claimUsageBillingKey(ctx, tx, cmd)
+	txClient := tx.Client()
+	applied, err := r.claimUsageBillingKey(ctx, txClient, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -51,32 +58,31 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 	}
 
 	result := &service.UsageBillingApplyResult{Applied: true}
-	if err := r.applyUsageBillingEffects(ctx, tx, cmd, result); err != nil {
+	if err := r.applyUsageBillingEffects(ctx, txClient, cmd, result); err != nil {
 		return nil, err
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	tx = nil
+	committed = true
 	return result, nil
 }
 
-func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand) (bool, error) {
-	var id int64
-	err := tx.QueryRowContext(ctx, `
+func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, exec sqlExecutor, cmd *service.UsageBillingCommand) (bool, error) {
+	_, err := queryUsageBillingInt64(ctx, exec, `
 		INSERT INTO usage_billing_dedup (request_id, api_key_id, request_fingerprint)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id
-	`, cmd.RequestID, cmd.APIKeyID, cmd.RequestFingerprint).Scan(&id)
+	`, cmd.RequestID, cmd.APIKeyID, cmd.RequestFingerprint)
 	if errors.Is(err, sql.ErrNoRows) {
-		var existingFingerprint string
-		if err := tx.QueryRowContext(ctx, `
+		existingFingerprint, err := queryUsageBillingString(ctx, exec, `
 			SELECT request_fingerprint
 			FROM usage_billing_dedup
 			WHERE request_id = $1 AND api_key_id = $2
-		`, cmd.RequestID, cmd.APIKeyID).Scan(&existingFingerprint); err != nil {
+		`, cmd.RequestID, cmd.APIKeyID)
+		if err != nil {
 			return false, err
 		}
 		if strings.TrimSpace(existingFingerprint) != strings.TrimSpace(cmd.RequestFingerprint) {
@@ -87,12 +93,11 @@ func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *s
 	if err != nil {
 		return false, err
 	}
-	var archivedFingerprint string
-	err = tx.QueryRowContext(ctx, `
+	archivedFingerprint, err := queryUsageBillingString(ctx, exec, `
 		SELECT request_fingerprint
 		FROM usage_billing_dedup_archive
 		WHERE request_id = $1 AND api_key_id = $2
-	`, cmd.RequestID, cmd.APIKeyID).Scan(&archivedFingerprint)
+	`, cmd.RequestID, cmd.APIKeyID)
 	if err == nil {
 		if strings.TrimSpace(archivedFingerprint) != strings.TrimSpace(cmd.RequestFingerprint) {
 			return false, service.ErrUsageBillingRequestConflict
@@ -105,15 +110,15 @@ func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *s
 	return true, nil
 }
 
-func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
+func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, exec sqlExecutor, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
 	if cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil {
-		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
+		if err := incrementUsageBillingSubscription(ctx, exec, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
 			return err
 		}
 	}
 
 	if cmd.BalanceCost > 0 {
-		newBalance, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost)
+		newBalance, err := r.consumeUsageBillingBalance(ctx, exec, cmd)
 		if err != nil {
 			return err
 		}
@@ -121,7 +126,7 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	if cmd.APIKeyQuotaCost > 0 {
-		exhausted, err := incrementUsageBillingAPIKeyQuota(ctx, tx, cmd.APIKeyID, cmd.APIKeyQuotaCost)
+		exhausted, err := incrementUsageBillingAPIKeyQuota(ctx, exec, cmd.APIKeyID, cmd.APIKeyQuotaCost)
 		if err != nil {
 			return err
 		}
@@ -129,13 +134,13 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	if cmd.APIKeyRateLimitCost > 0 {
-		if err := incrementUsageBillingAPIKeyRateLimit(ctx, tx, cmd.APIKeyID, cmd.APIKeyRateLimitCost); err != nil {
+		if err := incrementUsageBillingAPIKeyRateLimit(ctx, exec, cmd.APIKeyID, cmd.APIKeyRateLimitCost); err != nil {
 			return err
 		}
 	}
 
 	if cmd.AccountQuotaCost > 0 && (strings.EqualFold(cmd.AccountType, service.AccountTypeAPIKey) || strings.EqualFold(cmd.AccountType, service.AccountTypeBedrock)) {
-		quotaState, err := incrementUsageBillingAccountQuota(ctx, tx, cmd.AccountID, cmd.AccountQuotaCost)
+		quotaState, err := incrementUsageBillingAccountQuota(ctx, exec, cmd.AccountID, cmd.AccountQuotaCost)
 		if err != nil {
 			return err
 		}
@@ -145,7 +150,92 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	return nil
 }
 
-func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscriptionID int64, costUSD float64) error {
+func (r *usageBillingRepository) consumeUsageBillingBalance(ctx context.Context, exec sqlExecutor, cmd *service.UsageBillingCommand) (float64, error) {
+	txClient, ok := exec.(*dbent.Client)
+	if !ok {
+		return 0, errors.New("usage billing bank ledger requires ent transaction client")
+	}
+	bank := service.NewBankService(r.client)
+	amount := decimal.NewFromFloat(cmd.BalanceCost).RoundBank(18)
+	transfer, err := bank.ApplyTransferInTx(ctx, txClient, service.TransferFundsRequest{
+		UserID:           cmd.UserID,
+		Amount:           amount,
+		Type:             service.BankTxTypeConsume,
+		Description:      "API usage billing",
+		IdempotencyScope: fmt.Sprintf("usage-billing:user:%d", cmd.UserID),
+		IdempotencyKey:   usageBillingBankIdempotencyKey(cmd),
+		ReferenceType:    "usage_billing",
+		ReferenceID:      usageBillingBoundedString(cmd.RequestID, 128),
+		RequestID:        usageBillingBoundedString(cmd.RequestID, 128),
+		Metadata: map[string]any{
+			"api_key_id":          cmd.APIKeyID,
+			"account_id":          cmd.AccountID,
+			"account_type":        strings.TrimSpace(cmd.AccountType),
+			"model":               strings.TrimSpace(cmd.Model),
+			"billing_type":        cmd.BillingType,
+			"request_fingerprint": strings.TrimSpace(cmd.RequestFingerprint),
+		},
+	})
+	if err != nil {
+		return 0, err
+	}
+	return transfer.Balance.InexactFloat64(), nil
+}
+
+func usageBillingBankIdempotencyKey(cmd *service.UsageBillingCommand) string {
+	raw := fmt.Sprintf("%s|%d|%s", strings.TrimSpace(cmd.RequestID), cmd.APIKeyID, strings.TrimSpace(cmd.RequestFingerprint))
+	sum := sha256.Sum256([]byte(raw))
+	return "usage:" + hex.EncodeToString(sum[:])
+}
+
+func usageBillingBoundedString(raw string, maxLen int) string {
+	value := strings.TrimSpace(raw)
+	if maxLen <= 0 || len(value) <= maxLen {
+		return value
+	}
+	sum := sha256.Sum256([]byte(value))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func queryUsageBillingInt64(ctx context.Context, exec sqlExecutor, query string, args ...any) (int64, error) {
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if rowsErr := rows.Err(); rowsErr != nil {
+			return 0, rowsErr
+		}
+		return 0, sql.ErrNoRows
+	}
+	var value int64
+	if err := rows.Scan(&value); err != nil {
+		return 0, err
+	}
+	return value, rows.Err()
+}
+
+func queryUsageBillingString(ctx context.Context, exec sqlExecutor, query string, args ...any) (string, error) {
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if rowsErr := rows.Err(); rowsErr != nil {
+			return "", rowsErr
+		}
+		return "", sql.ErrNoRows
+	}
+	var value string
+	if err := rows.Scan(&value); err != nil {
+		return "", err
+	}
+	return value, rows.Err()
+}
+
+func incrementUsageBillingSubscription(ctx context.Context, exec sqlExecutor, subscriptionID int64, costUSD float64) error {
 	const updateSQL = `
 		UPDATE user_subscriptions us
 		SET
@@ -159,7 +249,7 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 			AND us.group_id = g.id
 			AND g.deleted_at IS NULL
 	`
-	res, err := tx.ExecContext(ctx, updateSQL, costUSD, subscriptionID)
+	res, err := exec.ExecContext(ctx, updateSQL, costUSD, subscriptionID)
 	if err != nil {
 		return err
 	}
@@ -173,27 +263,8 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 	return service.ErrSubscriptionNotFound
 }
 
-func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64) (float64, error) {
-	var newBalance float64
-	err := tx.QueryRowContext(ctx, `
-		UPDATE users
-		SET balance = balance - $1,
-			updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL
-		RETURNING balance
-	`, amount, userID).Scan(&newBalance)
-	if errors.Is(err, sql.ErrNoRows) {
-		return 0, service.ErrUserNotFound
-	}
-	if err != nil {
-		return 0, err
-	}
-	return newBalance, nil
-}
-
-func incrementUsageBillingAPIKeyQuota(ctx context.Context, tx *sql.Tx, apiKeyID int64, amount float64) (bool, error) {
-	var exhausted bool
-	err := tx.QueryRowContext(ctx, `
+func incrementUsageBillingAPIKeyQuota(ctx context.Context, exec sqlExecutor, apiKeyID int64, amount float64) (bool, error) {
+	rows, err := exec.QueryContext(ctx, `
 		UPDATE api_keys
 		SET quota_used = quota_used + $1,
 			status = CASE
@@ -203,22 +274,34 @@ func incrementUsageBillingAPIKeyQuota(ctx context.Context, tx *sql.Tx, apiKeyID 
 					AND quota_used + $1 >= quota
 				THEN $4
 				ELSE status
-			END,
+		END,
 			updated_at = NOW()
 		WHERE id = $2 AND deleted_at IS NULL
 		RETURNING quota > 0 AND quota_used >= quota AND quota_used - $1 < quota
-	`, amount, apiKeyID, service.StatusAPIKeyActive, service.StatusAPIKeyQuotaExhausted).Scan(&exhausted)
+	`, amount, apiKeyID, service.StatusAPIKeyActive, service.StatusAPIKeyQuotaExhausted)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if rowsErr := rows.Err(); rowsErr != nil {
+			return false, rowsErr
+		}
+		return false, service.ErrAPIKeyNotFound
+	}
+	var exhausted bool
+	err = rows.Scan(&exhausted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, service.ErrAPIKeyNotFound
 	}
 	if err != nil {
 		return false, err
 	}
-	return exhausted, nil
+	return exhausted, rows.Err()
 }
 
-func incrementUsageBillingAPIKeyRateLimit(ctx context.Context, tx *sql.Tx, apiKeyID int64, cost float64) error {
-	res, err := tx.ExecContext(ctx, `
+func incrementUsageBillingAPIKeyRateLimit(ctx context.Context, exec sqlExecutor, apiKeyID int64, cost float64) error {
+	res, err := exec.ExecContext(ctx, `
 		UPDATE api_keys SET
 			usage_5h = CASE WHEN window_5h_start IS NOT NULL AND window_5h_start + INTERVAL '5 hours' <= NOW() THEN $1 ELSE usage_5h + $1 END,
 			usage_1d = CASE WHEN window_1d_start IS NOT NULL AND window_1d_start + INTERVAL '24 hours' <= NOW() THEN $1 ELSE usage_1d + $1 END,
@@ -242,8 +325,8 @@ func incrementUsageBillingAPIKeyRateLimit(ctx context.Context, tx *sql.Tx, apiKe
 	return nil
 }
 
-func incrementUsageBillingAccountQuota(ctx context.Context, tx *sql.Tx, accountID int64, amount float64) (*service.AccountQuotaState, error) {
-	rows, err := tx.QueryContext(ctx,
+func incrementUsageBillingAccountQuota(ctx context.Context, exec sqlExecutor, accountID int64, amount float64) (*service.AccountQuotaState, error) {
+	rows, err := exec.QueryContext(ctx,
 		`UPDATE accounts SET extra = (
 			COALESCE(extra, '{}'::jsonb)
 			|| jsonb_build_object('quota_used', COALESCE((extra->>'quota_used')::numeric, 0) + $1)
@@ -328,7 +411,7 @@ func incrementUsageBillingAccountQuota(ctx context.Context, tx *sql.Tx, accountI
 	crossedDaily := state.DailyLimit > 0 && state.DailyUsed >= state.DailyLimit && (state.DailyUsed-amount) < state.DailyLimit
 	crossedWeekly := state.WeeklyLimit > 0 && state.WeeklyUsed >= state.WeeklyLimit && (state.WeeklyUsed-amount) < state.WeeklyLimit
 	if crossedTotal || crossedDaily || crossedWeekly {
-		if err := enqueueSchedulerOutbox(ctx, tx, service.SchedulerOutboxEventAccountChanged, &accountID, nil, nil); err != nil {
+		if err := enqueueSchedulerOutbox(ctx, exec, service.SchedulerOutboxEventAccountChanged, &accountID, nil, nil); err != nil {
 			logger.LegacyPrintf("repository.usage_billing", "[SchedulerOutbox] enqueue quota exceeded failed: account=%d err=%v", accountID, err)
 			return nil, err
 		}

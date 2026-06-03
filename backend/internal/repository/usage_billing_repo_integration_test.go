@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -61,7 +62,9 @@ func TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling(t *testing.T) {
 
 	var balance float64
 	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
-	require.InDelta(t, 98.75, balance, 0.000001)
+	require.InDelta(t, 100, balance, 0.000001)
+	requireUsageBillingBankAccount(t, user.ID, "98.75", "0")
+	requireUsageBillingConsumeLog(t, user.ID, "1.25", 1)
 
 	var quotaUsed float64
 	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT quota_used FROM api_keys WHERE id = $1", apiKey.ID).Scan(&quotaUsed))
@@ -363,5 +366,32 @@ func TestUsageBillingRepositoryApply_DeduplicatesAgainstArchivedKey(t *testing.T
 
 	var balance float64
 	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
-	require.InDelta(t, 98.75, balance, 0.000001)
+	require.InDelta(t, 100, balance, 0.000001)
+	requireUsageBillingBankAccount(t, user.ID, "98.75", "0")
+	requireUsageBillingConsumeLog(t, user.ID, "1.25", 1)
+}
+
+func requireUsageBillingBankAccount(t *testing.T, userID int64, wantBalance, wantDebt string) {
+	t.Helper()
+	var balance, debt decimal.Decimal
+	require.NoError(t, integrationDB.QueryRowContext(context.Background(), `
+SELECT balance, total_debt
+FROM users_bank_account
+WHERE user_id = $1
+`, userID).Scan(&balance, &debt))
+	require.True(t, decimal.RequireFromString(wantBalance).Equal(balance), "bank balance = %s", balance.String())
+	require.True(t, decimal.RequireFromString(wantDebt).Equal(debt), "bank debt = %s", debt.String())
+}
+
+func requireUsageBillingConsumeLog(t *testing.T, userID int64, wantAbsAmount string, wantCount int) {
+	t.Helper()
+	var count int
+	var amount decimal.Decimal
+	require.NoError(t, integrationDB.QueryRowContext(context.Background(), `
+SELECT COUNT(*), COALESCE(ABS(SUM(amount)), 0)
+FROM transactions_log
+WHERE user_id = $1 AND tx_type = $2
+`, userID, service.BankTxTypeConsume).Scan(&count, &amount))
+	require.Equal(t, wantCount, count)
+	require.True(t, decimal.RequireFromString(wantAbsAmount).Equal(amount), "consume amount = %s", amount.String())
 }

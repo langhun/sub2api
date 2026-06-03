@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -663,6 +664,95 @@ func TestAPIKeyAuthTouchesLastUsedInStandardMode(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, 1, touchCalls)
+}
+
+func TestAPIKeyAuthUsesBankAccountCapacityInStandardMode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		account    *service.BankAccountView
+		wantStatus int
+		wantCode   string
+	}{
+		{
+			name: "credit capacity allows request",
+			account: &service.BankAccountView{
+				AccountID:   11,
+				Balance:     decimal.Zero,
+				CreditLimit: decimal.NewFromInt(5),
+				TotalDebt:   decimal.NewFromInt(1),
+				Status:      service.BankAccountStatusActive,
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "credit exhausted rejects request",
+			account: &service.BankAccountView{
+				AccountID:   12,
+				Balance:     decimal.Zero,
+				CreditLimit: decimal.NewFromInt(1),
+				TotalDebt:   decimal.NewFromInt(1),
+				Status:      service.BankAccountStatusActive,
+			},
+			wantStatus: http.StatusForbidden,
+			wantCode:   "INSUFFICIENT_BALANCE",
+		},
+		{
+			name: "frozen bank account rejects request",
+			account: &service.BankAccountView{
+				AccountID:   13,
+				Balance:     decimal.NewFromInt(10),
+				CreditLimit: decimal.Zero,
+				TotalDebt:   decimal.Zero,
+				Status:      service.BankAccountStatusFrozen,
+			},
+			wantStatus: http.StatusForbidden,
+			wantCode:   "INSUFFICIENT_BALANCE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := &service.User{
+				ID:          7,
+				Role:        service.RoleUser,
+				Status:      service.StatusActive,
+				Balance:     0,
+				Concurrency: 3,
+				BankAccount: tt.account,
+			}
+			apiKey := &service.APIKey{
+				ID:     100,
+				UserID: user.ID,
+				Key:    "bank-capacity-key",
+				Status: service.StatusActive,
+				User:   user,
+			}
+			apiKeyRepo := &stubApiKeyRepo{
+				getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+					if key != apiKey.Key {
+						return nil, service.ErrAPIKeyNotFound
+					}
+					clone := *apiKey
+					return &clone, nil
+				},
+			}
+			cfg := &config.Config{RunMode: config.RunModeStandard}
+			apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg)
+			router := newAuthTestRouter(apiKeyService, nil, cfg)
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/t", nil)
+			req.Header.Set("x-api-key", apiKey.Key)
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantCode != "" {
+				require.Contains(t, w.Body.String(), tt.wantCode)
+			}
+		})
+	}
 }
 
 func newAuthTestRouter(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) *gin.Engine {

@@ -167,6 +167,48 @@ func TestGatewayServiceRecordUsage_BillingFingerprintFallsBackToContextRequestID
 	require.Equal(t, "local:req-local-123", billingRepo.lastCmd.RequestPayloadHash)
 }
 
+func TestShouldInvalidateAuthCacheAfterBilling(t *testing.T) {
+	newBalance := 9.5
+
+	tests := []struct {
+		name string
+		p    *postUsageBillingParams
+		res  *UsageBillingApplyResult
+		want bool
+	}{
+		{
+			name: "bank balance billing invalidates snapshot",
+			p:    &postUsageBillingParams{},
+			res:  &UsageBillingApplyResult{NewBalance: &newBalance},
+			want: true,
+		},
+		{
+			name: "subscription billing keeps snapshot",
+			p:    &postUsageBillingParams{IsSubscriptionBill: true},
+			res:  &UsageBillingApplyResult{NewBalance: &newBalance},
+			want: false,
+		},
+		{
+			name: "quota exhausted invalidates snapshot",
+			p:    &postUsageBillingParams{IsSubscriptionBill: true},
+			res:  &UsageBillingApplyResult{APIKeyQuotaExhausted: true},
+			want: true,
+		},
+		{
+			name: "nil result skips invalidation",
+			p:    &postUsageBillingParams{},
+			res:  nil,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, shouldInvalidateAuthCacheAfterBilling(tt.p, tt.res))
+		})
+	}
+}
+
 func TestGatewayServiceRecordUsage_PreservesRequestedAndUpstreamModels(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})

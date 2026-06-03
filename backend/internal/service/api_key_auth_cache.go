@@ -28,13 +28,25 @@ type APIKeyAuthSnapshot struct {
 	RateLimit7d float64 `json:"rate_limit_7d"`
 }
 
+// APIKeyAuthBankAccountSnapshot 使用字符串保存银行金额，避免认证缓存丢失 decimal 精度。
+type APIKeyAuthBankAccountSnapshot struct {
+	AccountID     int64  `json:"account_id"`
+	Balance       string `json:"balance"`
+	FrozenAmount  string `json:"frozen_amount"`
+	CreditLimit   string `json:"credit_limit"`
+	TotalDebt     string `json:"total_debt"`
+	Status        string `json:"status"`
+	LegacyMissing bool   `json:"legacy_missing,omitempty"`
+}
+
 // APIKeyAuthUserSnapshot 用户快照
 type APIKeyAuthUserSnapshot struct {
-	ID          int64   `json:"id"`
-	Status      string  `json:"status"`
-	Role        string  `json:"role"`
-	Balance     float64 `json:"balance"`
-	Concurrency int     `json:"concurrency"`
+	ID          int64                          `json:"id"`
+	Status      string                         `json:"status"`
+	Role        string                         `json:"role"`
+	Balance     float64                        `json:"balance"`
+	Concurrency int                            `json:"concurrency"`
+	BankAccount *APIKeyAuthBankAccountSnapshot `json:"bank_account,omitempty"`
 
 	// Balance notification fields (required for CheckBalanceAfterDeduction)
 	Email                      string             `json:"email"`

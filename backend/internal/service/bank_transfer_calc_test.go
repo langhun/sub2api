@@ -163,7 +163,7 @@ func bankTestAccount(balance, frozen, creditLimit, debt string) bankAccountSnaps
 		FrozenAmount: bankDec(frozen),
 		CreditLimit:  bankDec(creditLimit),
 		TotalDebt:    bankDec(debt),
-		Status:       bankAccountStatusActive,
+		Status:       BankAccountStatusActive,
 	}
 }
 

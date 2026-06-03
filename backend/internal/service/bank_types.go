@@ -20,7 +20,11 @@ const (
 	BankTxTypeFreeze     = "FREEZE"
 	BankTxTypeUnfreeze   = "UNFREEZE"
 
-	bankAccountStatusActive = "ACTIVE"
+	BankAccountStatusActive = "ACTIVE"
+	BankAccountStatusFrozen = "FROZEN"
+	BankAccountStatusClosed = "CLOSED"
+
+	bankMinimumConsumeProbe = "0.000000000000000001"
 	bankTxMaxRetries        = 3
 )
 
@@ -65,6 +69,40 @@ type TransferFundsResult struct {
 	TotalDebt   decimal.Decimal
 	CreditLimit decimal.Decimal
 	Replayed    bool
+}
+
+// BankAccountView 是认证和风控层读取的银行账户快照，不承担资金写入职责。
+type BankAccountView struct {
+	AccountID     int64
+	Balance       decimal.Decimal
+	FrozenAmount  decimal.Decimal
+	CreditLimit   decimal.Decimal
+	TotalDebt     decimal.Decimal
+	Status        string
+	LegacyMissing bool
+}
+
+// AvailableCapacity 返回可用于 API 消费的容量：可用余额 + 未占用信用额度。
+func (v *BankAccountView) AvailableCapacity() decimal.Decimal {
+	if v == nil {
+		return decimal.Zero
+	}
+	creditAvailable := v.CreditLimit.Sub(v.TotalDebt)
+	if creditAvailable.IsNegative() {
+		creditAvailable = decimal.Zero
+	}
+	return v.Balance.Add(creditAvailable)
+}
+
+// CanConsume 判断账户是否允许继续进入 API 扣费链路。
+func (v *BankAccountView) CanConsume(minimum decimal.Decimal) bool {
+	if v == nil || v.Status != BankAccountStatusActive {
+		return false
+	}
+	if minimum.LessThanOrEqual(decimal.Zero) {
+		minimum = decimal.RequireFromString(bankMinimumConsumeProbe)
+	}
+	return v.AvailableCapacity().GreaterThanOrEqual(minimum)
 }
 
 // bankAccountSnapshot 是行级锁拿到的账户状态，只在事务内流转。

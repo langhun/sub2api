@@ -8414,7 +8414,7 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		return false, nil
 	}
 
-	if result.APIKeyQuotaExhausted {
+	if shouldInvalidateAuthCacheAfterBilling(p, result) {
 		if invalidator, ok := p.APIKeyService.(apiKeyAuthCacheInvalidator); ok && p.APIKey != nil && p.APIKey.Key != "" {
 			invalidator.InvalidateAuthCacheByKey(billingCtx, p.APIKey.Key)
 		}
@@ -8422,6 +8422,17 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 
 	finalizePostUsageBilling(billingCtx, p, deps, result)
 	return true, nil
+}
+
+func shouldInvalidateAuthCacheAfterBilling(p *postUsageBillingParams, result *UsageBillingApplyResult) bool {
+	if result == nil {
+		return false
+	}
+	if result.APIKeyQuotaExhausted {
+		return true
+	}
+	// 银行账户余额已进入认证快照，非订阅扣费成功后必须失效缓存，避免入口预检读取旧容量。
+	return result.NewBalance != nil && p != nil && !p.IsSubscriptionBill
 }
 
 func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps, result *UsageBillingApplyResult) {

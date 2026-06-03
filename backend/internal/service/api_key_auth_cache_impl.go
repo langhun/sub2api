@@ -12,9 +12,10 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/dgraph-io/ristretto"
+	"github.com/shopspring/decimal"
 )
 
-const apiKeyAuthSnapshotVersion = 11 // v11: reload snapshots for custom models_list_config
+const apiKeyAuthSnapshotVersion = 12 // v12: reload snapshots for bank account capacity precheck
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -236,6 +237,9 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			RPMLimit:                   apiKey.User.RPMLimit,
 		},
 	}
+	if apiKey.User.BankAccount != nil {
+		snapshot.User.BankAccount = bankAccountViewToAuthSnapshot(apiKey.User.BankAccount)
+	}
 
 	// 填充 (user, group) RPM override —— snapshot 构建时查一次 DB，后续请求零 DB 往返。
 	if apiKey.GroupID != nil && *apiKey.GroupID > 0 && s.userGroupRateRepo != nil {
@@ -313,6 +317,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			TotalRecharged:             snapshot.User.TotalRecharged,
 			RPMLimit:                   snapshot.User.RPMLimit,
 			UserGroupRPMOverride:       snapshot.User.UserGroupRPMOverride,
+			BankAccount:                authSnapshotToBankAccountView(snapshot.User.BankAccount),
 		},
 	}
 	if snapshot.Group != nil {
@@ -349,4 +354,42 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 	}
 	s.compileAPIKeyIPRules(apiKey)
 	return apiKey
+}
+
+func bankAccountViewToAuthSnapshot(view *BankAccountView) *APIKeyAuthBankAccountSnapshot {
+	if view == nil {
+		return nil
+	}
+	return &APIKeyAuthBankAccountSnapshot{
+		AccountID:     view.AccountID,
+		Balance:       view.Balance.String(),
+		FrozenAmount:  view.FrozenAmount.String(),
+		CreditLimit:   view.CreditLimit.String(),
+		TotalDebt:     view.TotalDebt.String(),
+		Status:        view.Status,
+		LegacyMissing: view.LegacyMissing,
+	}
+}
+
+func authSnapshotToBankAccountView(snapshot *APIKeyAuthBankAccountSnapshot) *BankAccountView {
+	if snapshot == nil {
+		return nil
+	}
+	return &BankAccountView{
+		AccountID:     snapshot.AccountID,
+		Balance:       decimalFromAuthSnapshot(snapshot.Balance),
+		FrozenAmount:  decimalFromAuthSnapshot(snapshot.FrozenAmount),
+		CreditLimit:   decimalFromAuthSnapshot(snapshot.CreditLimit),
+		TotalDebt:     decimalFromAuthSnapshot(snapshot.TotalDebt),
+		Status:        snapshot.Status,
+		LegacyMissing: snapshot.LegacyMissing,
+	}
+}
+
+func decimalFromAuthSnapshot(raw string) decimal.Decimal {
+	value, err := decimal.NewFromString(raw)
+	if err != nil {
+		return decimal.Zero
+	}
+	return value
 }
