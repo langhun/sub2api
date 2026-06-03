@@ -13,8 +13,10 @@ import (
 	"time"
 	"unicode/utf8"
 
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -124,7 +126,7 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 	grossAmount := amount + fee
 	var record *BalanceTransferRecord
 	if err := s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
-		senderBalance, err := s.lockUserBalance(txCtx, senderID)
+		senderBalance, err := s.lockBankCashBalance(txCtx, senderID)
 		if err != nil {
 			return fmt.Errorf("lock sender balance: %w", err)
 		}
@@ -141,12 +143,6 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 		if senderBalance < grossAmount {
 			return ErrTransferInsufficient
 		}
-		if err := s.userRepo.DeductBalance(txCtx, senderID, grossAmount); err != nil {
-			return fmt.Errorf("deduct sender balance: %w", err)
-		}
-		if err := s.userRepo.UpdateBalance(txCtx, receiverID, amount); err != nil {
-			return fmt.Errorf("credit receiver balance: %w", err)
-		}
 		record = &BalanceTransferRecord{
 			SenderID:     senderID,
 			ReceiverID:   receiverID,
@@ -159,11 +155,102 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 			Memo:         memo,
 			CreatedAt:    time.Now(),
 		}
-		return s.transferRepo.Create(txCtx, record)
+		if err := s.transferRepo.Create(txCtx, record); err != nil {
+			return err
+		}
+		return s.applyDirectTransferBankEntriesInTx(txCtx, senderID, receiverID, record)
 	}); err != nil {
 		return nil, err
 	}
 	return record, nil
+}
+
+func (s *BalanceTransferService) applyDirectTransferBankEntriesInTx(
+	ctx context.Context,
+	senderID int64,
+	receiverID int64,
+	record *BalanceTransferRecord,
+) error {
+	if record == nil || record.ID <= 0 {
+		return infraerrors.InternalServer("TRANSFER_RECORD_MISSING", "transfer record is missing")
+	}
+	client, err := bankClientFromTxContext(ctx)
+	if err != nil {
+		return err
+	}
+	amount := decimal.NewFromFloat(record.Amount).RoundBank(18)
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ErrTransferAmountInvalid
+	}
+
+	bank := NewBankService(nil)
+	referenceID := fmt.Sprintf("%d", record.ID)
+	if _, err := bank.ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           senderID,
+		Amount:           amount,
+		Type:             BankTxTypeTransferOut,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("余额转账给用户 %d", receiverID),
+		IdempotencyScope: "balance_transfer",
+		IdempotencyKey:   fmt.Sprintf("balance-transfer:%d:sender:amount", record.ID),
+		ReferenceType:    "balance_transfer",
+		ReferenceID:      referenceID,
+		Metadata: map[string]any{
+			"receiver_id":   receiverID,
+			"sender_id":     senderID,
+			"transfer_id":   record.ID,
+			"transfer_type": record.TransferType,
+		},
+	}); err != nil {
+		return fmt.Errorf("debit sender bank balance: %w", err)
+	}
+
+	if record.Fee > 0 {
+		fee := decimal.NewFromFloat(record.Fee).RoundBank(18)
+		if fee.GreaterThan(decimal.Zero) {
+			if _, err := bank.ApplyTransferInTx(ctx, client, TransferFundsRequest{
+				UserID:           senderID,
+				Amount:           fee,
+				Type:             BankTxTypeWithdraw,
+				BusinessModule:   BankBusinessModuleTransfer,
+				Description:      fmt.Sprintf("余额转账手续费 %d", record.ID),
+				IdempotencyScope: "balance_transfer",
+				IdempotencyKey:   fmt.Sprintf("balance-transfer:%d:sender:fee", record.ID),
+				ReferenceType:    "balance_transfer",
+				ReferenceID:      referenceID,
+				Metadata: map[string]any{
+					"fee_rate":      record.FeeRate,
+					"receiver_id":   receiverID,
+					"sender_id":     senderID,
+					"transfer_id":   record.ID,
+					"transfer_type": record.TransferType,
+				},
+			}); err != nil {
+				return fmt.Errorf("debit sender transfer fee: %w", err)
+			}
+		}
+	}
+
+	if _, err := bank.ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           receiverID,
+		Amount:           amount,
+		Type:             BankTxTypeTransferIn,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("收到用户 %d 的余额转账", senderID),
+		IdempotencyScope: "balance_transfer",
+		IdempotencyKey:   fmt.Sprintf("balance-transfer:%d:receiver:amount", record.ID),
+		ReferenceType:    "balance_transfer",
+		ReferenceID:      referenceID,
+		Metadata: map[string]any{
+			"receiver_id":   receiverID,
+			"sender_id":     senderID,
+			"transfer_id":   record.ID,
+			"transfer_type": record.TransferType,
+		},
+	}); err != nil {
+		return fmt.Errorf("credit receiver bank balance: %w", err)
+	}
+	return nil
 }
 
 func (s *BalanceTransferService) ValidateTransfer(ctx context.Context, senderID, receiverID int64, amount float64) (fee float64, feeRate float64, err error) {
@@ -710,4 +797,27 @@ func (s *BalanceTransferService) lockUserBalance(ctx context.Context, userID int
 		return 0, err
 	}
 	return user.Balance, nil
+}
+
+func (s *BalanceTransferService) lockBankCashBalance(ctx context.Context, userID int64) (float64, error) {
+	client, err := bankClientFromTxContext(ctx)
+	if err != nil {
+		return s.lockUserBalance(ctx, userID)
+	}
+	account, err := lockBankAccountForUpdate(ctx, client, userID)
+	if err != nil {
+		return 0, err
+	}
+	if account.Balance.IsNegative() {
+		return 0, nil
+	}
+	return account.Balance.InexactFloat64(), nil
+}
+
+func bankClientFromTxContext(ctx context.Context) (*dbent.Client, error) {
+	tx := dbent.TxFromContext(ctx)
+	if tx == nil {
+		return nil, infraerrors.InternalServer("BANK_TRANSACTION_REQUIRED", "bank operation requires an active transaction")
+	}
+	return tx.Client(), nil
 }

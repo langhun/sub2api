@@ -464,6 +464,27 @@ func TestTransfer_RechecksSenderBalanceInsideTx(t *testing.T) {
 	require.Empty(t, userRepo.updateCalls)
 }
 
+func TestTransfer_SuccessRequiresBankTransactionContext(t *testing.T) {
+	repo := &transferRepoStub{
+		lockedBalances: map[int64]float64{1: 50},
+	}
+	userRepo := &transferUserRepoStub{
+		users: map[int64]*User{
+			1: {ID: 1, Balance: 50},
+			2: {ID: 2, Balance: 0},
+		},
+	}
+	svc := newTransferTestService(t, repo, userRepo, nil)
+
+	record, err := svc.Transfer(context.Background(), 1, 2, 10, nil)
+	require.Nil(t, record)
+	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
+	require.Equal(t, 1, repo.runInTxCalls)
+	require.True(t, repo.createCalled)
+	require.Empty(t, userRepo.deductCalls)
+	require.Empty(t, userRepo.updateCalls)
+}
+
 func TestCreateRedPacket_RechecksSenderBalanceInsideTx(t *testing.T) {
 	repo := &transferRepoStub{
 		lockedBalances: map[int64]float64{1: 20},
