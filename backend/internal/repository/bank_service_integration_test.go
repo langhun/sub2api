@@ -183,6 +183,99 @@ func TestBankServiceTransferFundsBatch_SlotBetCannotUseCredit(t *testing.T) {
 	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeSlotBet, 0)
 }
 
+func TestBankServiceTransferFundsBatch_WritesLotteryBetAndWinAtomically(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	user := mustCreateBankServiceUser(t, "lottery-batch", 100)
+	_, err := client.UserBankAccount.Create().
+		SetUserID(user.ID).
+		SetBalance(decimal.NewFromInt(100)).
+		SetStatus(service.BankAccountStatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	bank := service.NewBankService(client)
+	results, err := bank.TransferFundsBatch(ctx, []service.TransferFundsRequest{
+		{
+			UserID:           user.ID,
+			Amount:           decimal.NewFromInt(100),
+			Type:             service.BankTxTypeLotteryBet,
+			BusinessModule:   service.BankBusinessModuleGame,
+			Description:      "lottery bet",
+			IdempotencyScope: "test-lottery-batch-bet",
+			IdempotencyKey:   "test-lottery-batch-key-bet",
+			ReferenceType:    "lottery_order",
+			ReferenceID:      "order-1",
+			Metadata: map[string]any{
+				"jackpot_amount":  "70",
+				"burn_amount":     "20",
+				"platform_amount": "10",
+			},
+		},
+		{
+			UserID:           user.ID,
+			Amount:           decimal.NewFromInt(50),
+			Type:             service.BankTxTypeLotteryWin,
+			BusinessModule:   service.BankBusinessModuleGame,
+			Description:      "lottery win",
+			IdempotencyScope: "test-lottery-batch-win",
+			IdempotencyKey:   "test-lottery-batch-key-win",
+			ReferenceType:    "lottery_reward",
+			ReferenceID:      "reward-1",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+
+	require.False(t, results[0].Replayed)
+	require.False(t, results[1].Replayed)
+	require.True(t, decimal.NewFromInt(0).Equal(results[0].Balance), "bet balance = %s", results[0].Balance.String())
+	require.True(t, decimal.NewFromInt(50).Equal(results[1].Balance), "win balance = %s", results[1].Balance.String())
+	requireBankAccountSnapshot(t, user.ID, "50", "0")
+	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeLotteryBet, 1)
+	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeLotteryWin, 1)
+	requireBankLedgerEntryCount(t, results[0].TxID.String(), 4)
+	requireBankLedgerEntryCount(t, results[1].TxID.String(), 2)
+	requireBankLedgerBalanced(t, results[0].TxID.String())
+	requireBankLedgerBalanced(t, results[1].TxID.String())
+}
+
+func TestBankServiceTransferFundsBatch_LotteryBetCannotUseCredit(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	user := mustCreateBankServiceUser(t, "lottery-cash-only", 3)
+	_, err := client.UserBankAccount.Create().
+		SetUserID(user.ID).
+		SetBalance(decimal.NewFromInt(3)).
+		SetCreditLimit(decimal.NewFromInt(10)).
+		SetStatus(service.BankAccountStatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	bank := service.NewBankService(client)
+	_, err = bank.TransferFundsBatch(ctx, []service.TransferFundsRequest{
+		{
+			UserID:           user.ID,
+			Amount:           decimal.NewFromInt(5),
+			Type:             service.BankTxTypeLotteryBet,
+			BusinessModule:   service.BankBusinessModuleGame,
+			Description:      "lottery bet",
+			IdempotencyScope: "test-lottery-credit-blocked",
+			IdempotencyKey:   "test-lottery-credit-blocked-key",
+			ReferenceType:    "lottery_order",
+			ReferenceID:      "order-credit-blocked",
+			Metadata: map[string]any{
+				"jackpot_amount":  "3.5",
+				"burn_amount":     "1",
+				"platform_amount": "0.5",
+			},
+		},
+	})
+	require.ErrorIs(t, err, service.ErrBankInsufficientFunds)
+	requireBankAccountSnapshot(t, user.ID, "3", "0")
+	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeLotteryBet, 0)
+}
+
 func mustCreateBankServiceUser(t *testing.T, label string, balance float64) *service.User {
 	t.Helper()
 	user := mustCreateUser(t, testEntClient(t), &service.User{

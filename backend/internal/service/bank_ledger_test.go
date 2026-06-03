@@ -18,6 +18,7 @@ func TestBuildBankLedgerPostings_AllSupportedTypesAreBalanced(t *testing.T) {
 		BankTxTypeTransferIn,
 		BankTxTypeSlotBet,
 		BankTxTypeSlotWin,
+		BankTxTypeLotteryWin,
 		BankTxTypeLoanBorrow,
 		BankTxTypeLoanRepay,
 		BankTxTypeLoanInterest,
@@ -103,6 +104,59 @@ func TestBuildBankLedgerPostings_TransferFeeRefundDebitsRefundExpense(t *testing
 	require.NoError(t, err)
 	require.Len(t, postings, 2)
 	require.Equal(t, "PLATFORM:EXPENSE:REFUND", postings[0].account.code)
+	require.Equal(t, bankLedgerSideDebit, postings[0].side)
+	require.Equal(t, "USER:42:BALANCE", postings[1].account.code)
+	require.Equal(t, bankLedgerSideCredit, postings[1].side)
+	requireBankLedgerBalanced(t, postings)
+}
+
+func TestBuildBankLedgerPostings_LotteryBetSplitsJackpotBurnAndRevenue(t *testing.T) {
+	account := bankTestAccount("10", "0", "20", "0")
+	account.ID = 99
+	account.UserID = 42
+
+	postings, err := buildBankLedgerPostings(
+		TransferFundsRequest{
+			UserID:         account.UserID,
+			Type:           BankTxTypeLotteryBet,
+			BusinessModule: BankBusinessModuleGame,
+			Metadata: map[string]any{
+				"jackpot_amount":  "70",
+				"burn_amount":     "20",
+				"platform_amount": "10",
+			},
+		},
+		account,
+		bankMutation{signedAmount: bankDec("-100")},
+	)
+
+	require.NoError(t, err)
+	require.Len(t, postings, 4)
+	require.Equal(t, "USER:42:BALANCE", postings[0].account.code)
+	require.Equal(t, bankLedgerSideDebit, postings[0].side)
+	require.Equal(t, "PLATFORM:LIABILITY:LOTTERY_JACKPOT", postings[1].account.code)
+	require.Equal(t, bankLedgerSideCredit, postings[1].side)
+	require.Equal(t, "PLATFORM:EQUITY:LOTTERY_BURN", postings[2].account.code)
+	require.Equal(t, bankLedgerSideCredit, postings[2].side)
+	require.Equal(t, "PLATFORM:REVENUE:LOTTERY", postings[3].account.code)
+	require.Equal(t, bankLedgerSideCredit, postings[3].side)
+	requireBankLedgerBalanced(t, postings)
+}
+
+func TestBuildBankLedgerPostings_LotteryWinDebitsJackpot(t *testing.T) {
+	account := bankTestAccount("10", "0", "20", "0")
+	account.ID = 99
+	account.UserID = 42
+
+	postings, err := buildBankLedgerPostings(
+		TransferFundsRequest{UserID: account.UserID, Type: BankTxTypeLotteryWin, BusinessModule: BankBusinessModuleGame},
+		account,
+		bankMutation{signedAmount: bankDec("50")},
+	)
+
+	require.NoError(t, err)
+	require.Len(t, postings, 2)
+	require.Equal(t, "PLATFORM:LIABILITY:LOTTERY_JACKPOT", postings[0].account.code)
 	require.Equal(t, bankLedgerSideDebit, postings[0].side)
 	require.Equal(t, "USER:42:BALANCE", postings[1].account.code)
 	require.Equal(t, bankLedgerSideCredit, postings[1].side)

@@ -13,14 +13,14 @@ type bankMutationState struct {
 // calculateBankMutation 根据交易类型计算账户新快照，数据库写入统一在事务层完成。
 func calculateBankMutation(account bankAccountSnapshot, amount decimal.Decimal, txType string) (bankMutation, error) {
 	switch txType {
-	case BankTxTypeDeposit, BankTxTypeTransferIn, BankTxTypeSlotWin,
+	case BankTxTypeDeposit, BankTxTypeTransferIn, BankTxTypeSlotWin, BankTxTypeLotteryWin,
 		BankTxTypeLendProfit, BankTxTypeReward, BankTxTypeRefund:
 		return creditBalance(account, amount), nil
 	case BankTxTypeLoanBorrow:
 		return borrowAgainstCredit(account, amount)
 	case BankTxTypeConsume, BankTxTypeWithdraw, BankTxTypeTransferOut:
 		return debitWithCredit(account, amount)
-	case BankTxTypeSlotBet:
+	case BankTxTypeSlotBet, BankTxTypeLotteryBet:
 		return debitCashOnly(account, amount)
 	case BankTxTypeLoanRepay:
 		return repayDebt(account, amount)

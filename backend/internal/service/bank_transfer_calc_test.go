@@ -57,6 +57,23 @@ func TestCalculateBankMutation_SlotBetRejectsCreditUsage(t *testing.T) {
 	require.ErrorIs(t, err, ErrBankInsufficientFunds)
 }
 
+func TestCalculateBankMutation_LotteryBetRejectsCreditUsage(t *testing.T) {
+	account := bankTestAccount("3", "0", "10", "0")
+	_, err := calculateBankMutation(account, bankDec("5"), BankTxTypeLotteryBet)
+
+	require.ErrorIs(t, err, ErrBankInsufficientFunds)
+}
+
+func TestCalculateBankMutation_LotteryWinCreditsBalance(t *testing.T) {
+	account := bankTestAccount("3", "0", "10", "0")
+	got, err := calculateBankMutation(account, bankDec("5"), BankTxTypeLotteryWin)
+
+	require.NoError(t, err)
+	requireBankDecimal(t, "5", got.signedAmount)
+	requireBankDecimal(t, "8", got.balanceAfter)
+	requireBankDecimal(t, "0", got.frozenAfter)
+}
+
 func TestCalculateBankMutation_FreezeAndUnfreeze(t *testing.T) {
 	account := bankTestAccount("6", "1", "0", "0")
 	frozen, err := calculateBankMutation(account, bankDec("4"), BankTxTypeFreeze)

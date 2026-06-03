@@ -18,6 +18,8 @@ const (
 	BankTxTypeTransferIn   = "TRANSFER_IN"
 	BankTxTypeSlotBet      = "SLOT_BET"
 	BankTxTypeSlotWin      = "SLOT_WIN"
+	BankTxTypeLotteryBet   = "LOTTERY_BET"
+	BankTxTypeLotteryWin   = "LOTTERY_WIN"
 	BankTxTypeLoanBorrow   = "LOAN_BORROW"
 	BankTxTypeLoanRepay    = "LOAN_REPAY"
 	BankTxTypeLoanInterest = "LOAN_INTEREST"
@@ -214,7 +216,8 @@ func normalizeBankIdempotencyScope(scope string, userID int64) (string, error) {
 func isSupportedBankTxType(txType string) bool {
 	switch txType {
 	case BankTxTypeConsume, BankTxTypeDeposit, BankTxTypeWithdraw, BankTxTypeTransferOut,
-		BankTxTypeTransferIn, BankTxTypeSlotBet, BankTxTypeSlotWin, BankTxTypeLoanBorrow,
+		BankTxTypeTransferIn, BankTxTypeSlotBet, BankTxTypeSlotWin, BankTxTypeLotteryBet,
+		BankTxTypeLotteryWin, BankTxTypeLoanBorrow,
 		BankTxTypeLoanRepay, BankTxTypeLoanInterest, BankTxTypeLendInvest, BankTxTypeLendProfit,
 		BankTxTypeReward, BankTxTypeRefund, BankTxTypeFreeze, BankTxTypeUnfreeze:
 		return true
@@ -236,7 +239,7 @@ func normalizeBankBusinessModule(module string, txType string) string {
 		return BankBusinessModulePayment
 	case BankTxTypeTransferOut, BankTxTypeTransferIn:
 		return BankBusinessModuleTransfer
-	case BankTxTypeSlotBet, BankTxTypeSlotWin:
+	case BankTxTypeSlotBet, BankTxTypeSlotWin, BankTxTypeLotteryBet, BankTxTypeLotteryWin:
 		return BankBusinessModuleGame
 	case BankTxTypeLoanBorrow, BankTxTypeLoanRepay, BankTxTypeLoanInterest,
 		BankTxTypeLendInvest, BankTxTypeLendProfit:

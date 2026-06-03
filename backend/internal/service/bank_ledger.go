@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/shopspring/decimal"
@@ -18,6 +19,7 @@ const (
 
 	bankLedgerTypeAsset     = "ASSET"
 	bankLedgerTypeLiability = "LIABILITY"
+	bankLedgerTypeEquity    = "EQUITY"
 	bankLedgerTypeRevenue   = "REVENUE"
 	bankLedgerTypeExpense   = "EXPENSE"
 )
@@ -113,6 +115,10 @@ func buildBankLedgerPostings(
 		return bankDebitCredit(available, bankPlatformGameRevenue(), amount, account.UserID), nil
 	case BankTxTypeSlotWin:
 		return bankDebitCredit(bankPlatformGameExpense(), available, amount, account.UserID), nil
+	case BankTxTypeLotteryBet:
+		return bankLotteryBetPostings(req, available, amount, account.UserID)
+	case BankTxTypeLotteryWin:
+		return bankDebitCredit(bankPlatformLotteryJackpot(), available, amount, account.UserID), nil
 	case BankTxTypeLoanBorrow:
 		return bankDebitCredit(bankPlatformLoanReceivable(), available, amount, account.UserID), nil
 	case BankTxTypeLoanRepay:
@@ -136,6 +142,84 @@ func buildBankLedgerPostings(
 		return bankDebitCredit(frozen, available, amount, account.UserID), nil
 	default:
 		return nil, ErrBankInvalidType
+	}
+}
+
+func bankLotteryBetPostings(
+	req TransferFundsRequest,
+	available bankLedgerAccountSpec,
+	amount decimal.Decimal,
+	userID int64,
+) ([]bankLedgerPosting, error) {
+	jackpotAmount, err := bankMetadataDecimal(req.Metadata, "jackpot_amount")
+	if err != nil {
+		return nil, err
+	}
+	burnAmount, err := bankMetadataDecimal(req.Metadata, "burn_amount")
+	if err != nil {
+		return nil, err
+	}
+	platformAmount, err := bankMetadataDecimal(req.Metadata, "platform_amount")
+	if err != nil {
+		return nil, err
+	}
+
+	if jackpotAmount.IsZero() && burnAmount.IsZero() && platformAmount.IsZero() {
+		return bankDebitCredit(available, bankPlatformLotteryRevenue(), amount, userID), nil
+	}
+
+	if jackpotAmount.IsNegative() || burnAmount.IsNegative() || platformAmount.IsNegative() {
+		return nil, ErrBankInvalidAmount
+	}
+
+	totalAllocated := jackpotAmount.Add(burnAmount).Add(platformAmount)
+	if !totalAllocated.Equal(amount) {
+		return nil, ErrBankInvalidAmount
+	}
+
+	postings := []bankLedgerPosting{
+		bankLedgerPostingFor(available, bankLedgerSideDebit, amount, userID),
+	}
+	if jackpotAmount.GreaterThan(decimal.Zero) {
+		postings = append(postings, bankLedgerPostingFor(bankPlatformLotteryJackpot(), bankLedgerSideCredit, jackpotAmount, userID))
+	}
+	if burnAmount.GreaterThan(decimal.Zero) {
+		postings = append(postings, bankLedgerPostingFor(bankPlatformLotteryBurn(), bankLedgerSideCredit, burnAmount, userID))
+	}
+	if platformAmount.GreaterThan(decimal.Zero) {
+		postings = append(postings, bankLedgerPostingFor(bankPlatformLotteryRevenue(), bankLedgerSideCredit, platformAmount, userID))
+	}
+	return postings, nil
+}
+
+func bankMetadataDecimal(metadata map[string]any, key string) (decimal.Decimal, error) {
+	if len(metadata) == 0 {
+		return decimal.Zero, nil
+	}
+	raw, ok := metadata[key]
+	if !ok || raw == nil {
+		return decimal.Zero, nil
+	}
+	switch value := raw.(type) {
+	case string:
+		if strings.TrimSpace(value) == "" {
+			return decimal.Zero, nil
+		}
+		parsed, err := decimal.NewFromString(strings.TrimSpace(value))
+		if err != nil {
+			return decimal.Zero, ErrBankInvalidAmount.WithCause(err)
+		}
+		return parsed.RoundBank(18), nil
+	case decimal.Decimal:
+		return value.RoundBank(18), nil
+	case float64:
+		return decimal.NewFromFloat(value).RoundBank(18), nil
+	case int:
+		return decimal.NewFromInt(int64(value)), nil
+	case int64:
+		return decimal.NewFromInt(value), nil
+	default:
+		return decimal.Zero, ErrBankInvalidAmount
 	}
 }
 
@@ -285,6 +369,18 @@ func bankPlatformInterestRevenue() bankLedgerAccountSpec {
 
 func bankPlatformGameExpense() bankLedgerAccountSpec {
 	return bankPlatformLedgerAccount("PLATFORM:EXPENSE:GAME_PAYOUT", "Platform Game Payout Expense", bankLedgerTypeExpense, bankLedgerSideDebit)
+}
+
+func bankPlatformLotteryJackpot() bankLedgerAccountSpec {
+	return bankPlatformLedgerAccount("PLATFORM:LIABILITY:LOTTERY_JACKPOT", "Platform Lottery Jackpot", bankLedgerTypeLiability, bankLedgerSideCredit)
+}
+
+func bankPlatformLotteryRevenue() bankLedgerAccountSpec {
+	return bankPlatformLedgerAccount("PLATFORM:REVENUE:LOTTERY", "Platform Lottery Revenue", bankLedgerTypeRevenue, bankLedgerSideCredit)
+}
+
+func bankPlatformLotteryBurn() bankLedgerAccountSpec {
+	return bankPlatformLedgerAccount("PLATFORM:EQUITY:LOTTERY_BURN", "Platform Lottery Burn Reserve", bankLedgerTypeEquity, bankLedgerSideCredit)
 }
 
 func bankPlatformLendingProfitExpense() bankLedgerAccountSpec {
