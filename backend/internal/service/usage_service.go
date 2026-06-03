@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -72,6 +75,13 @@ func NewUsageService(usageRepo UsageLogRepository, userRepo UserRepository, entC
 
 // Create 创建使用日志
 func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*UsageLog, error) {
+	if s == nil {
+		return nil, fmt.Errorf("usage service is nil")
+	}
+	if s.entClient == nil {
+		return s.createUsageLogWithoutBankTransaction(ctx, req)
+	}
+
 	// 使用数据库事务保证「使用日志插入」与「扣费」的原子性，避免重复扣费或漏扣风险。
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
@@ -84,14 +94,66 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 		txCtx = dbent.NewTxContext(ctx, tx)
 	}
 
-	// 验证用户存在
-	_, err = s.userRepo.GetByID(txCtx, req.UserID)
-	if err != nil {
+	if err := s.ensureUsageUserExists(txCtx, req.UserID); err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 
 	// 创建使用日志
-	usageLog := &UsageLog{
+	usageLog := buildUsageLogFromCreateRequest(req)
+
+	inserted, err := s.usageRepo.Create(txCtx, usageLog)
+	if err != nil {
+		return nil, fmt.Errorf("create usage log: %w", err)
+	}
+
+	// API 使用扣费必须走银行账本，不能直接修改 users.balance。
+	balanceUpdated := false
+	if inserted && req.ActualCost > 0 {
+		txClient := s.entClient
+		if tx != nil {
+			txClient = tx.Client()
+		}
+		if err := s.applyUsageBankConsume(txCtx, txClient, req, usageLog); err != nil {
+			return nil, fmt.Errorf("apply usage bank consume: %w", err)
+		}
+		balanceUpdated = true
+	}
+
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit transaction: %w", err)
+		}
+	}
+
+	s.invalidateUsageCaches(ctx, req.UserID, balanceUpdated)
+
+	return usageLog, nil
+}
+
+func (s *UsageService) createUsageLogWithoutBankTransaction(ctx context.Context, req CreateUsageLogRequest) (*UsageLog, error) {
+	if req.ActualCost > 0 {
+		return nil, ErrBankClientUnavailable
+	}
+	if err := s.ensureUsageUserExists(ctx, req.UserID); err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
+	}
+	usageLog := buildUsageLogFromCreateRequest(req)
+	if _, err := s.usageRepo.Create(ctx, usageLog); err != nil {
+		return nil, fmt.Errorf("create usage log: %w", err)
+	}
+	return usageLog, nil
+}
+
+func (s *UsageService) ensureUsageUserExists(ctx context.Context, userID int64) error {
+	if s.userRepo == nil {
+		return nil
+	}
+	_, err := s.userRepo.GetByID(ctx, userID)
+	return err
+}
+
+func buildUsageLogFromCreateRequest(req CreateUsageLogRequest) *UsageLog {
+	return &UsageLog{
 		UserID:                req.UserID,
 		APIKeyID:              req.APIKeyID,
 		AccountID:             req.AccountID,
@@ -113,30 +175,46 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 		Stream:                req.Stream,
 		DurationMs:            req.DurationMs,
 	}
+}
 
-	inserted, err := s.usageRepo.Create(txCtx, usageLog)
-	if err != nil {
-		return nil, fmt.Errorf("create usage log: %w", err)
+func (s *UsageService) applyUsageBankConsume(ctx context.Context, client *dbent.Client, req CreateUsageLogRequest, usageLog *UsageLog) error {
+	amount := decimal.NewFromFloat(req.ActualCost).RoundBank(18)
+	_, err := NewBankService(s.entClient).ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           req.UserID,
+		Amount:           amount,
+		Type:             BankTxTypeConsume,
+		BusinessModule:   BankBusinessModuleAPIGateway,
+		Description:      "API usage log billing",
+		IdempotencyScope: fmt.Sprintf("usage-log:user:%d", req.UserID),
+		IdempotencyKey:   usageLogBankIdempotencyKey(req, usageLog),
+		ReferenceType:    "usage_log",
+		ReferenceID:      strconv.FormatInt(usageLog.ID, 10),
+		RequestID:        boundedUsageLogRequestID(req.RequestID),
+		Metadata: map[string]any{
+			"usage_log_id": usageLog.ID,
+			"api_key_id":   req.APIKeyID,
+			"account_id":   req.AccountID,
+			"model":        strings.TrimSpace(req.Model),
+			"total_cost":   req.TotalCost,
+			"actual_cost":  req.ActualCost,
+		},
+	})
+	return err
+}
+
+func usageLogBankIdempotencyKey(req CreateUsageLogRequest, usageLog *UsageLog) string {
+	if usageLog != nil && usageLog.ID > 0 {
+		return "usage-log:" + strconv.FormatInt(usageLog.ID, 10)
 	}
+	return fmt.Sprintf("usage-log:%d:%d:%s", req.UserID, req.APIKeyID, strings.TrimSpace(req.RequestID))
+}
 
-	// 扣除用户余额
-	balanceUpdated := false
-	if inserted && req.ActualCost > 0 {
-		if err := s.userRepo.UpdateBalance(txCtx, req.UserID, -req.ActualCost); err != nil {
-			return nil, fmt.Errorf("update user balance: %w", err)
-		}
-		balanceUpdated = true
+func boundedUsageLogRequestID(requestID string) string {
+	requestID = strings.TrimSpace(requestID)
+	if len(requestID) <= 128 {
+		return requestID
 	}
-
-	if tx != nil {
-		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("commit transaction: %w", err)
-		}
-	}
-
-	s.invalidateUsageCaches(ctx, req.UserID, balanceUpdated)
-
-	return usageLog, nil
+	return requestID[:128]
 }
 
 func (s *UsageService) invalidateUsageCaches(ctx context.Context, userID int64, balanceUpdated bool) {
