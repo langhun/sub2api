@@ -87,7 +87,6 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetNotes(userIn.Notes).
 		SetPasswordHash(userIn.PasswordHash).
 		SetRole(userIn.Role).
-		SetBalance(userIn.Balance).
 		SetConcurrency(userIn.Concurrency).
 		SetStatus(userIn.Status).
 		SetSignupSource(userSignupSourceOrDefault(userIn.SignupSource)).
@@ -1023,7 +1022,7 @@ func userSignupSourceOrDefault(signupSource string) string {
 	switch strings.TrimSpace(strings.ToLower(signupSource)) {
 	case "", "email":
 		return "email"
-	case "linuxdo", "wechat", "oidc", "dingtalk":
+	case "linuxdo", "wechat", "oidc", "github", "google", "dingtalk":
 		return strings.TrimSpace(strings.ToLower(signupSource))
 	default:
 		return "email"

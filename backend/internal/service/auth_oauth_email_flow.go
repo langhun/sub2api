@@ -167,7 +167,7 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 		SignupSource: signupSource,
 	}
 
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.createUserWithSignupBalanceGrant(ctx, user, signupSource, grantPlan.Balance); err != nil {
 		if errors.Is(err, ErrEmailExists) {
 			return nil, nil, ErrEmailExists
 		}
@@ -249,7 +249,7 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 		SignupSource: signupSource,
 	}
 
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.createUserWithSignupBalanceGrant(ctx, user, signupSource, grantPlan.Balance); err != nil {
 		if errors.Is(err, ErrEmailExists) {
 			return nil, nil, ErrEmailExists
 		}
@@ -290,6 +290,11 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 
 	s.updateOAuthSignupSource(ctx, user.ID, signupSource)
 	grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
+	if result, err := s.applySignupBalanceGrant(ctx, user.ID, signupSource, grantPlan.Balance); err != nil {
+		return err
+	} else if result != nil {
+		user.Balance = result.Balance.InexactFloat64()
+	}
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)

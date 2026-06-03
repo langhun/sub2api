@@ -113,6 +113,17 @@ func (s *UserRepoSuite) TestCreate() {
 	s.Require().Equal("create@test.com", got.Email)
 }
 
+func (s *UserRepoSuite) TestCreateDoesNotWriteLegacyBalance() {
+	user := s.mustCreateUser(&service.User{
+		Email:   "create-legacy-balance-ignored@test.com",
+		Balance: 12.5,
+	})
+
+	got, err := s.repo.GetByID(s.ctx, user.ID)
+	s.Require().NoError(err, "GetByID")
+	s.Require().Equal(0.0, got.Balance)
+}
+
 func (s *UserRepoSuite) TestGetByID_NotFound() {
 	_, err := s.repo.GetByID(s.ctx, 999999)
 	s.Require().Error(err, "expected error for non-existent ID")
@@ -172,7 +183,7 @@ func (s *UserRepoSuite) TestUpdateDoesNotRewriteLegacyBalance() {
 	updated, err := s.repo.GetByID(s.ctx, user.ID)
 	s.Require().NoError(err, "GetByID after update")
 	s.Require().Equal("updated", updated.Username)
-	s.Require().Equal(12.0, updated.Balance)
+	s.Require().Equal(0.0, updated.Balance)
 }
 
 func (s *UserRepoSuite) TestUpdateIgnoresNoRowsFromConflictingEmailIdentityUpsert() {

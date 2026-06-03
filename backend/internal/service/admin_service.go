@@ -773,7 +773,7 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 	if err := user.SetPassword(input.Password); err != nil {
 		return nil, err
 	}
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.createUserWithInitialBalance(ctx, user, input.Balance); err != nil {
 		return nil, err
 	}
 	s.assignDefaultSubscriptions(ctx, user.ID)
