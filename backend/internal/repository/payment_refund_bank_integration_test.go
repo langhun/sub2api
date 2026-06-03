@@ -20,7 +20,7 @@ func TestPaymentRefundDeductBalance_WritesBankLedger(t *testing.T) {
 	client := testEntClient(t)
 	user := mustCreateUser(t, client, &service.User{
 		Email:   fmt.Sprintf("refund-bank-%d@example.com", time.Now().UnixNano()),
-		Balance: 20,
+		Balance: 0,
 	})
 	_, err := client.UserBankAccount.Create().
 		SetUserID(user.ID).
@@ -74,7 +74,7 @@ func TestPaymentRefundDeductBalance_WritesBankLedger(t *testing.T) {
 	require.True(t, result.Success)
 	require.Equal(t, 8.0, result.BalanceDeducted)
 
-	requireLegacyUserBalance(t, user.ID, 20)
+	requireLegacyUserBalance(t, user.ID, 0)
 	requireBankAccountSnapshot(t, user.ID, "12", "0")
 	txID := requirePaymentRefundBankTransaction(t, user.ID, service.BankTxTypeWithdraw, "-8", "refund-bank-deduct", "deduct", 1)
 	requireBankLedgerEntryCount(t, txID, 2)

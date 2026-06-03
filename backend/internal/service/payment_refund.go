@@ -153,11 +153,11 @@ func (s *PaymentService) RequestRefund(ctx context.Context, oid, uid int64, reas
 	if err != nil {
 		return err
 	}
-	u, err := s.userRepo.GetByID(ctx, o.UserID)
+	balance, err := s.getRefundBankPositiveBalance(ctx, o.UserID)
 	if err != nil {
-		return fmt.Errorf("get user: %w", err)
+		return fmt.Errorf("get bank account: %w", err)
 	}
-	if u.Balance < o.Amount {
+	if balance < o.Amount {
 		return infraerrors.BadRequest("BALANCE_NOT_ENOUGH", "refund amount exceeds balance")
 	}
 	nr := strings.TrimSpace(reason)
@@ -197,6 +197,17 @@ func (s *PaymentService) validateRefundRequest(ctx context.Context, oid, uid int
 		return nil, infraerrors.Forbidden("USER_REFUND_DISABLED", "user refund is not enabled for this provider")
 	}
 	return o, nil
+}
+
+func (s *PaymentService) getRefundBankPositiveBalance(ctx context.Context, userID int64) (float64, error) {
+	account, err := NewBankService(s.entClient).GetAccountView(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	if account.Status != BankAccountStatusActive {
+		return 0, ErrBankAccountNotActive
+	}
+	return positiveBankBalance(account).InexactFloat64(), nil
 }
 
 func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float64, reason string, force, deduct bool, operationID string) (*RefundPlan, *RefundResult, error) {
@@ -262,15 +273,15 @@ func (s *PaymentService) prepDeduct(ctx context.Context, o *dbent.PaymentOrder, 
 		}
 		return nil
 	}
-	u, err := s.userRepo.GetByID(ctx, o.UserID)
+	balance, err := s.getRefundBankPositiveBalance(ctx, o.UserID)
 	if err != nil {
 		if !force {
-			return &RefundResult{Success: false, Warning: "cannot fetch user balance, use force", RequireForce: true}
+			return &RefundResult{Success: false, Warning: "cannot fetch bank balance, use force", RequireForce: true}
 		}
 		return nil
 	}
 	p.DeductionType = payment.DeductionTypeBalance
-	p.BalanceToDeduct = math.Min(p.RefundAmount, u.Balance)
+	p.BalanceToDeduct = math.Min(p.RefundAmount, balance)
 	return nil
 }
 
