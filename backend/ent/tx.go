@@ -56,6 +56,10 @@ type Tx struct {
 	IdempotencyRecord *IdempotencyRecordClient
 	// IdentityAdoptionDecision is the client for interacting with the IdentityAdoptionDecision builders.
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
+	// LedgerAccount is the client for interacting with the LedgerAccount builders.
+	LedgerAccount *LedgerAccountClient
+	// LedgerEntry is the client for interacting with the LedgerEntry builders.
+	LedgerEntry *LedgerEntryClient
 	// LoanContract is the client for interacting with the LoanContract builders.
 	LoanContract *LoanContractClient
 	// ModelPricing is the client for interacting with the ModelPricing builders.
@@ -260,6 +264,8 @@ func (tx *Tx) init() {
 	tx.Group = NewGroupClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
 	tx.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(tx.config)
+	tx.LedgerAccount = NewLedgerAccountClient(tx.config)
+	tx.LedgerEntry = NewLedgerEntryClient(tx.config)
 	tx.LoanContract = NewLoanContractClient(tx.config)
 	tx.ModelPricing = NewModelPricingClient(tx.config)
 	tx.PaymentAuditLog = NewPaymentAuditLogClient(tx.config)

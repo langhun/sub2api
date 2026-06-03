@@ -33,6 +33,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
+	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/loancontract"
 	"github.com/Wei-Shaw/sub2api/ent/modelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
@@ -140,6 +142,8 @@ func checkColumn(t, c string) error {
 			group.Table:                         group.ValidColumn,
 			idempotencyrecord.Table:             idempotencyrecord.ValidColumn,
 			identityadoptiondecision.Table:      identityadoptiondecision.ValidColumn,
+			ledgeraccount.Table:                 ledgeraccount.ValidColumn,
+			ledgerentry.Table:                   ledgerentry.ValidColumn,
 			loancontract.Table:                  loancontract.ValidColumn,
 			modelpricing.Table:                  modelpricing.ValidColumn,
 			paymentauditlog.Table:               paymentauditlog.ValidColumn,

@@ -261,6 +261,30 @@ func (f IdentityAdoptionDecisionFunc) Mutate(ctx context.Context, m ent.Mutation
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdentityAdoptionDecisionMutation", m)
 }
 
+// The LedgerAccountFunc type is an adapter to allow the use of ordinary
+// function as LedgerAccount mutator.
+type LedgerAccountFunc func(context.Context, *ent.LedgerAccountMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerAccountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LedgerAccountMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LedgerAccountMutation", m)
+}
+
+// The LedgerEntryFunc type is an adapter to allow the use of ordinary
+// function as LedgerEntry mutator.
+type LedgerEntryFunc func(context.Context, *ent.LedgerEntryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerEntryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LedgerEntryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LedgerEntryMutation", m)
+}
+
 // The LoanContractFunc type is an adapter to allow the use of ordinary
 // function as LoanContract mutator.
 type LoanContractFunc func(context.Context, *ent.LoanContractMutation) (ent.Value, error)

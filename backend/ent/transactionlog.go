@@ -30,6 +30,8 @@ type TransactionLog struct {
 	AccountID int64 `json:"account_id,omitempty"`
 	// TxType holds the value of the "tx_type" field.
 	TxType string `json:"tx_type,omitempty"`
+	// BusinessModule holds the value of the "business_module" field.
+	BusinessModule string `json:"business_module,omitempty"`
 	// Amount holds the value of the "amount" field.
 	Amount decimal.Decimal `json:"amount,omitempty"`
 	// BalanceBefore holds the value of the "balance_before" field.
@@ -72,9 +74,11 @@ type TransactionLogEdges struct {
 	User *User `json:"user,omitempty"`
 	// Account holds the value of the account edge.
 	Account *UserBankAccount `json:"account,omitempty"`
+	// LedgerEntries holds the value of the ledger_entries edge.
+	LedgerEntries []*LedgerEntry `json:"ledger_entries,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -99,6 +103,15 @@ func (e TransactionLogEdges) AccountOrErr() (*UserBankAccount, error) {
 	return nil, &NotLoadedError{edge: "account"}
 }
 
+// LedgerEntriesOrErr returns the LedgerEntries value or an error if the edge
+// was not loaded in eager-loading.
+func (e TransactionLogEdges) LedgerEntriesOrErr() ([]*LedgerEntry, error) {
+	if e.loadedTypes[2] {
+		return e.LedgerEntries, nil
+	}
+	return nil, &NotLoadedError{edge: "ledger_entries"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*TransactionLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -110,7 +123,7 @@ func (*TransactionLog) scanValues(columns []string) ([]any, error) {
 			values[i] = new(decimal.Decimal)
 		case transactionlog.FieldID, transactionlog.FieldUserID, transactionlog.FieldAccountID:
 			values[i] = new(sql.NullInt64)
-		case transactionlog.FieldTxType, transactionlog.FieldDescription, transactionlog.FieldReferenceType, transactionlog.FieldReferenceID, transactionlog.FieldRequestID, transactionlog.FieldIdempotencyScope, transactionlog.FieldIdempotencyKeyHash:
+		case transactionlog.FieldTxType, transactionlog.FieldBusinessModule, transactionlog.FieldDescription, transactionlog.FieldReferenceType, transactionlog.FieldReferenceID, transactionlog.FieldRequestID, transactionlog.FieldIdempotencyScope, transactionlog.FieldIdempotencyKeyHash:
 			values[i] = new(sql.NullString)
 		case transactionlog.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -160,6 +173,12 @@ func (_m *TransactionLog) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field tx_type", values[i])
 			} else if value.Valid {
 				_m.TxType = value.String
+			}
+		case transactionlog.FieldBusinessModule:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field business_module", values[i])
+			} else if value.Valid {
+				_m.BusinessModule = value.String
 			}
 		case transactionlog.FieldAmount:
 			if value, ok := values[i].(*decimal.Decimal); !ok {
@@ -279,6 +298,11 @@ func (_m *TransactionLog) QueryAccount() *UserBankAccountQuery {
 	return NewTransactionLogClient(_m.config).QueryAccount(_m)
 }
 
+// QueryLedgerEntries queries the "ledger_entries" edge of the TransactionLog entity.
+func (_m *TransactionLog) QueryLedgerEntries() *LedgerEntryQuery {
+	return NewTransactionLogClient(_m.config).QueryLedgerEntries(_m)
+}
+
 // Update returns a builder for updating this TransactionLog.
 // Note that you need to call TransactionLog.Unwrap() before calling this method if this TransactionLog
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -313,6 +337,9 @@ func (_m *TransactionLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("tx_type=")
 	builder.WriteString(_m.TxType)
+	builder.WriteString(", ")
+	builder.WriteString("business_module=")
+	builder.WriteString(_m.BusinessModule)
 	builder.WriteString(", ")
 	builder.WriteString("amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Amount))

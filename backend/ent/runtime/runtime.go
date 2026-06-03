@@ -26,6 +26,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
+	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/loancontract"
 	"github.com/Wei-Shaw/sub2api/ent/modelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
@@ -1092,6 +1094,89 @@ func init() {
 	identityadoptiondecisionDescDecidedAt := identityadoptiondecisionFields[4].Descriptor()
 	// identityadoptiondecision.DefaultDecidedAt holds the default value on creation for the decided_at field.
 	identityadoptiondecision.DefaultDecidedAt = identityadoptiondecisionDescDecidedAt.Default.(func() time.Time)
+	ledgeraccountMixin := schema.LedgerAccount{}.Mixin()
+	ledgeraccountMixinFields0 := ledgeraccountMixin[0].Fields()
+	_ = ledgeraccountMixinFields0
+	ledgeraccountFields := schema.LedgerAccount{}.Fields()
+	_ = ledgeraccountFields
+	// ledgeraccountDescCreatedAt is the schema descriptor for created_at field.
+	ledgeraccountDescCreatedAt := ledgeraccountMixinFields0[0].Descriptor()
+	// ledgeraccount.DefaultCreatedAt holds the default value on creation for the created_at field.
+	ledgeraccount.DefaultCreatedAt = ledgeraccountDescCreatedAt.Default.(func() time.Time)
+	// ledgeraccountDescUpdatedAt is the schema descriptor for updated_at field.
+	ledgeraccountDescUpdatedAt := ledgeraccountMixinFields0[1].Descriptor()
+	// ledgeraccount.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	ledgeraccount.DefaultUpdatedAt = ledgeraccountDescUpdatedAt.Default.(func() time.Time)
+	// ledgeraccount.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	ledgeraccount.UpdateDefaultUpdatedAt = ledgeraccountDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// ledgeraccountDescAccountCode is the schema descriptor for account_code field.
+	ledgeraccountDescAccountCode := ledgeraccountFields[0].Descriptor()
+	// ledgeraccount.AccountCodeValidator is a validator for the "account_code" field. It is called by the builders before save.
+	ledgeraccount.AccountCodeValidator = ledgeraccountDescAccountCode.Validators[0].(func(string) error)
+	// ledgeraccountDescAccountName is the schema descriptor for account_name field.
+	ledgeraccountDescAccountName := ledgeraccountFields[1].Descriptor()
+	// ledgeraccount.AccountNameValidator is a validator for the "account_name" field. It is called by the builders before save.
+	ledgeraccount.AccountNameValidator = ledgeraccountDescAccountName.Validators[0].(func(string) error)
+	// ledgeraccountDescAccountType is the schema descriptor for account_type field.
+	ledgeraccountDescAccountType := ledgeraccountFields[2].Descriptor()
+	// ledgeraccount.AccountTypeValidator is a validator for the "account_type" field. It is called by the builders before save.
+	ledgeraccount.AccountTypeValidator = ledgeraccountDescAccountType.Validators[0].(func(string) error)
+	// ledgeraccountDescNormalBalance is the schema descriptor for normal_balance field.
+	ledgeraccountDescNormalBalance := ledgeraccountFields[3].Descriptor()
+	// ledgeraccount.NormalBalanceValidator is a validator for the "normal_balance" field. It is called by the builders before save.
+	ledgeraccount.NormalBalanceValidator = ledgeraccountDescNormalBalance.Validators[0].(func(string) error)
+	// ledgeraccountDescOwnerType is the schema descriptor for owner_type field.
+	ledgeraccountDescOwnerType := ledgeraccountFields[4].Descriptor()
+	// ledgeraccount.DefaultOwnerType holds the default value on creation for the owner_type field.
+	ledgeraccount.DefaultOwnerType = ledgeraccountDescOwnerType.Default.(string)
+	// ledgeraccount.OwnerTypeValidator is a validator for the "owner_type" field. It is called by the builders before save.
+	ledgeraccount.OwnerTypeValidator = ledgeraccountDescOwnerType.Validators[0].(func(string) error)
+	// ledgeraccountDescCurrency is the schema descriptor for currency field.
+	ledgeraccountDescCurrency := ledgeraccountFields[7].Descriptor()
+	// ledgeraccount.DefaultCurrency holds the default value on creation for the currency field.
+	ledgeraccount.DefaultCurrency = ledgeraccountDescCurrency.Default.(string)
+	// ledgeraccount.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	ledgeraccount.CurrencyValidator = ledgeraccountDescCurrency.Validators[0].(func(string) error)
+	// ledgeraccountDescStatus is the schema descriptor for status field.
+	ledgeraccountDescStatus := ledgeraccountFields[8].Descriptor()
+	// ledgeraccount.DefaultStatus holds the default value on creation for the status field.
+	ledgeraccount.DefaultStatus = ledgeraccountDescStatus.Default.(string)
+	// ledgeraccount.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	ledgeraccount.StatusValidator = ledgeraccountDescStatus.Validators[0].(func(string) error)
+	ledgerentryFields := schema.LedgerEntry{}.Fields()
+	_ = ledgerentryFields
+	// ledgerentryDescEntryID is the schema descriptor for entry_id field.
+	ledgerentryDescEntryID := ledgerentryFields[0].Descriptor()
+	// ledgerentry.DefaultEntryID holds the default value on creation for the entry_id field.
+	ledgerentry.DefaultEntryID = ledgerentryDescEntryID.Default.(func() uuid.UUID)
+	// ledgerentryDescEntrySide is the schema descriptor for entry_side field.
+	ledgerentryDescEntrySide := ledgerentryFields[5].Descriptor()
+	// ledgerentry.EntrySideValidator is a validator for the "entry_side" field. It is called by the builders before save.
+	ledgerentry.EntrySideValidator = ledgerentryDescEntrySide.Validators[0].(func(string) error)
+	// ledgerentryDescBusinessModule is the schema descriptor for business_module field.
+	ledgerentryDescBusinessModule := ledgerentryFields[7].Descriptor()
+	// ledgerentry.BusinessModuleValidator is a validator for the "business_module" field. It is called by the builders before save.
+	ledgerentry.BusinessModuleValidator = ledgerentryDescBusinessModule.Validators[0].(func(string) error)
+	// ledgerentryDescTxType is the schema descriptor for tx_type field.
+	ledgerentryDescTxType := ledgerentryFields[8].Descriptor()
+	// ledgerentry.TxTypeValidator is a validator for the "tx_type" field. It is called by the builders before save.
+	ledgerentry.TxTypeValidator = ledgerentryDescTxType.Validators[0].(func(string) error)
+	// ledgerentryDescReferenceType is the schema descriptor for reference_type field.
+	ledgerentryDescReferenceType := ledgerentryFields[9].Descriptor()
+	// ledgerentry.ReferenceTypeValidator is a validator for the "reference_type" field. It is called by the builders before save.
+	ledgerentry.ReferenceTypeValidator = ledgerentryDescReferenceType.Validators[0].(func(string) error)
+	// ledgerentryDescReferenceID is the schema descriptor for reference_id field.
+	ledgerentryDescReferenceID := ledgerentryFields[10].Descriptor()
+	// ledgerentry.ReferenceIDValidator is a validator for the "reference_id" field. It is called by the builders before save.
+	ledgerentry.ReferenceIDValidator = ledgerentryDescReferenceID.Validators[0].(func(string) error)
+	// ledgerentryDescDescription is the schema descriptor for description field.
+	ledgerentryDescDescription := ledgerentryFields[11].Descriptor()
+	// ledgerentry.DefaultDescription holds the default value on creation for the description field.
+	ledgerentry.DefaultDescription = ledgerentryDescDescription.Default.(string)
+	// ledgerentryDescCreatedAt is the schema descriptor for created_at field.
+	ledgerentryDescCreatedAt := ledgerentryFields[13].Descriptor()
+	// ledgerentry.DefaultCreatedAt holds the default value on creation for the created_at field.
+	ledgerentry.DefaultCreatedAt = ledgerentryDescCreatedAt.Default.(func() time.Time)
 	loancontractMixin := schema.LoanContract{}.Mixin()
 	loancontractMixinFields0 := loancontractMixin[0].Fields()
 	_ = loancontractMixinFields0
@@ -2063,40 +2148,46 @@ func init() {
 	transactionlogDescTxType := transactionlogFields[3].Descriptor()
 	// transactionlog.TxTypeValidator is a validator for the "tx_type" field. It is called by the builders before save.
 	transactionlog.TxTypeValidator = transactionlogDescTxType.Validators[0].(func(string) error)
+	// transactionlogDescBusinessModule is the schema descriptor for business_module field.
+	transactionlogDescBusinessModule := transactionlogFields[4].Descriptor()
+	// transactionlog.DefaultBusinessModule holds the default value on creation for the business_module field.
+	transactionlog.DefaultBusinessModule = transactionlogDescBusinessModule.Default.(string)
+	// transactionlog.BusinessModuleValidator is a validator for the "business_module" field. It is called by the builders before save.
+	transactionlog.BusinessModuleValidator = transactionlogDescBusinessModule.Validators[0].(func(string) error)
 	// transactionlogDescCreditLimitSnapshot is the schema descriptor for credit_limit_snapshot field.
-	transactionlogDescCreditLimitSnapshot := transactionlogFields[9].Descriptor()
+	transactionlogDescCreditLimitSnapshot := transactionlogFields[10].Descriptor()
 	// transactionlog.DefaultCreditLimitSnapshot holds the default value on creation for the credit_limit_snapshot field.
 	transactionlog.DefaultCreditLimitSnapshot = transactionlogDescCreditLimitSnapshot.Default.(decimal.Decimal)
 	// transactionlogDescDebtSnapshot is the schema descriptor for debt_snapshot field.
-	transactionlogDescDebtSnapshot := transactionlogFields[10].Descriptor()
+	transactionlogDescDebtSnapshot := transactionlogFields[11].Descriptor()
 	// transactionlog.DefaultDebtSnapshot holds the default value on creation for the debt_snapshot field.
 	transactionlog.DefaultDebtSnapshot = transactionlogDescDebtSnapshot.Default.(decimal.Decimal)
 	// transactionlogDescDescription is the schema descriptor for description field.
-	transactionlogDescDescription := transactionlogFields[11].Descriptor()
+	transactionlogDescDescription := transactionlogFields[12].Descriptor()
 	// transactionlog.DefaultDescription holds the default value on creation for the description field.
 	transactionlog.DefaultDescription = transactionlogDescDescription.Default.(string)
 	// transactionlogDescReferenceType is the schema descriptor for reference_type field.
-	transactionlogDescReferenceType := transactionlogFields[12].Descriptor()
+	transactionlogDescReferenceType := transactionlogFields[13].Descriptor()
 	// transactionlog.ReferenceTypeValidator is a validator for the "reference_type" field. It is called by the builders before save.
 	transactionlog.ReferenceTypeValidator = transactionlogDescReferenceType.Validators[0].(func(string) error)
 	// transactionlogDescReferenceID is the schema descriptor for reference_id field.
-	transactionlogDescReferenceID := transactionlogFields[13].Descriptor()
+	transactionlogDescReferenceID := transactionlogFields[14].Descriptor()
 	// transactionlog.ReferenceIDValidator is a validator for the "reference_id" field. It is called by the builders before save.
 	transactionlog.ReferenceIDValidator = transactionlogDescReferenceID.Validators[0].(func(string) error)
 	// transactionlogDescRequestID is the schema descriptor for request_id field.
-	transactionlogDescRequestID := transactionlogFields[14].Descriptor()
+	transactionlogDescRequestID := transactionlogFields[15].Descriptor()
 	// transactionlog.RequestIDValidator is a validator for the "request_id" field. It is called by the builders before save.
 	transactionlog.RequestIDValidator = transactionlogDescRequestID.Validators[0].(func(string) error)
 	// transactionlogDescIdempotencyScope is the schema descriptor for idempotency_scope field.
-	transactionlogDescIdempotencyScope := transactionlogFields[15].Descriptor()
+	transactionlogDescIdempotencyScope := transactionlogFields[16].Descriptor()
 	// transactionlog.IdempotencyScopeValidator is a validator for the "idempotency_scope" field. It is called by the builders before save.
 	transactionlog.IdempotencyScopeValidator = transactionlogDescIdempotencyScope.Validators[0].(func(string) error)
 	// transactionlogDescIdempotencyKeyHash is the schema descriptor for idempotency_key_hash field.
-	transactionlogDescIdempotencyKeyHash := transactionlogFields[16].Descriptor()
+	transactionlogDescIdempotencyKeyHash := transactionlogFields[17].Descriptor()
 	// transactionlog.IdempotencyKeyHashValidator is a validator for the "idempotency_key_hash" field. It is called by the builders before save.
 	transactionlog.IdempotencyKeyHashValidator = transactionlogDescIdempotencyKeyHash.Validators[0].(func(string) error)
 	// transactionlogDescCreatedAt is the schema descriptor for created_at field.
-	transactionlogDescCreatedAt := transactionlogFields[18].Descriptor()
+	transactionlogDescCreatedAt := transactionlogFields[19].Descriptor()
 	// transactionlog.DefaultCreatedAt holds the default value on creation for the created_at field.
 	transactionlog.DefaultCreatedAt = transactionlogDescCreatedAt.Default.(func() time.Time)
 	usagecleanuptaskMixin := schema.UsageCleanupTask{}.Mixin()
@@ -2592,16 +2683,24 @@ func init() {
 	userbankaccountDescCreditLimit := userbankaccountFields[3].Descriptor()
 	// userbankaccount.DefaultCreditLimit holds the default value on creation for the credit_limit field.
 	userbankaccount.DefaultCreditLimit = userbankaccountDescCreditLimit.Default.(decimal.Decimal)
+	// userbankaccountDescDebtPrincipal is the schema descriptor for debt_principal field.
+	userbankaccountDescDebtPrincipal := userbankaccountFields[4].Descriptor()
+	// userbankaccount.DefaultDebtPrincipal holds the default value on creation for the debt_principal field.
+	userbankaccount.DefaultDebtPrincipal = userbankaccountDescDebtPrincipal.Default.(decimal.Decimal)
+	// userbankaccountDescDebtInterest is the schema descriptor for debt_interest field.
+	userbankaccountDescDebtInterest := userbankaccountFields[5].Descriptor()
+	// userbankaccount.DefaultDebtInterest holds the default value on creation for the debt_interest field.
+	userbankaccount.DefaultDebtInterest = userbankaccountDescDebtInterest.Default.(decimal.Decimal)
 	// userbankaccountDescTotalDebt is the schema descriptor for total_debt field.
-	userbankaccountDescTotalDebt := userbankaccountFields[4].Descriptor()
+	userbankaccountDescTotalDebt := userbankaccountFields[6].Descriptor()
 	// userbankaccount.DefaultTotalDebt holds the default value on creation for the total_debt field.
 	userbankaccount.DefaultTotalDebt = userbankaccountDescTotalDebt.Default.(decimal.Decimal)
 	// userbankaccountDescVersion is the schema descriptor for version field.
-	userbankaccountDescVersion := userbankaccountFields[5].Descriptor()
+	userbankaccountDescVersion := userbankaccountFields[7].Descriptor()
 	// userbankaccount.DefaultVersion holds the default value on creation for the version field.
 	userbankaccount.DefaultVersion = userbankaccountDescVersion.Default.(int64)
 	// userbankaccountDescStatus is the schema descriptor for status field.
-	userbankaccountDescStatus := userbankaccountFields[6].Descriptor()
+	userbankaccountDescStatus := userbankaccountFields[8].Descriptor()
 	// userbankaccount.DefaultStatus holds the default value on creation for the status field.
 	userbankaccount.DefaultStatus = userbankaccountDescStatus.Default.(string)
 	// userbankaccount.StatusValidator is a validator for the "status" field. It is called by the builders before save.

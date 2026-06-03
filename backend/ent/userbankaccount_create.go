@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
 	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userbankaccount"
@@ -101,6 +102,34 @@ func (_c *UserBankAccountCreate) SetNillableCreditLimit(v *decimal.Decimal) *Use
 	return _c
 }
 
+// SetDebtPrincipal sets the "debt_principal" field.
+func (_c *UserBankAccountCreate) SetDebtPrincipal(v decimal.Decimal) *UserBankAccountCreate {
+	_c.mutation.SetDebtPrincipal(v)
+	return _c
+}
+
+// SetNillableDebtPrincipal sets the "debt_principal" field if the given value is not nil.
+func (_c *UserBankAccountCreate) SetNillableDebtPrincipal(v *decimal.Decimal) *UserBankAccountCreate {
+	if v != nil {
+		_c.SetDebtPrincipal(*v)
+	}
+	return _c
+}
+
+// SetDebtInterest sets the "debt_interest" field.
+func (_c *UserBankAccountCreate) SetDebtInterest(v decimal.Decimal) *UserBankAccountCreate {
+	_c.mutation.SetDebtInterest(v)
+	return _c
+}
+
+// SetNillableDebtInterest sets the "debt_interest" field if the given value is not nil.
+func (_c *UserBankAccountCreate) SetNillableDebtInterest(v *decimal.Decimal) *UserBankAccountCreate {
+	if v != nil {
+		_c.SetDebtInterest(*v)
+	}
+	return _c
+}
+
 // SetTotalDebt sets the "total_debt" field.
 func (_c *UserBankAccountCreate) SetTotalDebt(v decimal.Decimal) *UserBankAccountCreate {
 	_c.mutation.SetTotalDebt(v)
@@ -163,6 +192,21 @@ func (_c *UserBankAccountCreate) AddTransactions(v ...*TransactionLog) *UserBank
 	return _c.AddTransactionIDs(ids...)
 }
 
+// AddLedgerAccountIDs adds the "ledger_accounts" edge to the LedgerAccount entity by IDs.
+func (_c *UserBankAccountCreate) AddLedgerAccountIDs(ids ...int64) *UserBankAccountCreate {
+	_c.mutation.AddLedgerAccountIDs(ids...)
+	return _c
+}
+
+// AddLedgerAccounts adds the "ledger_accounts" edges to the LedgerAccount entity.
+func (_c *UserBankAccountCreate) AddLedgerAccounts(v ...*LedgerAccount) *UserBankAccountCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddLedgerAccountIDs(ids...)
+}
+
 // Mutation returns the UserBankAccountMutation object of the builder.
 func (_c *UserBankAccountCreate) Mutation() *UserBankAccountMutation {
 	return _c.mutation
@@ -218,6 +262,14 @@ func (_c *UserBankAccountCreate) defaults() {
 		v := userbankaccount.DefaultCreditLimit
 		_c.mutation.SetCreditLimit(v)
 	}
+	if _, ok := _c.mutation.DebtPrincipal(); !ok {
+		v := userbankaccount.DefaultDebtPrincipal
+		_c.mutation.SetDebtPrincipal(v)
+	}
+	if _, ok := _c.mutation.DebtInterest(); !ok {
+		v := userbankaccount.DefaultDebtInterest
+		_c.mutation.SetDebtInterest(v)
+	}
 	if _, ok := _c.mutation.TotalDebt(); !ok {
 		v := userbankaccount.DefaultTotalDebt
 		_c.mutation.SetTotalDebt(v)
@@ -251,6 +303,12 @@ func (_c *UserBankAccountCreate) check() error {
 	}
 	if _, ok := _c.mutation.CreditLimit(); !ok {
 		return &ValidationError{Name: "credit_limit", err: errors.New(`ent: missing required field "UserBankAccount.credit_limit"`)}
+	}
+	if _, ok := _c.mutation.DebtPrincipal(); !ok {
+		return &ValidationError{Name: "debt_principal", err: errors.New(`ent: missing required field "UserBankAccount.debt_principal"`)}
+	}
+	if _, ok := _c.mutation.DebtInterest(); !ok {
+		return &ValidationError{Name: "debt_interest", err: errors.New(`ent: missing required field "UserBankAccount.debt_interest"`)}
 	}
 	if _, ok := _c.mutation.TotalDebt(); !ok {
 		return &ValidationError{Name: "total_debt", err: errors.New(`ent: missing required field "UserBankAccount.total_debt"`)}
@@ -316,6 +374,14 @@ func (_c *UserBankAccountCreate) createSpec() (*UserBankAccount, *sqlgraph.Creat
 		_spec.SetField(userbankaccount.FieldCreditLimit, field.TypeOther, value)
 		_node.CreditLimit = value
 	}
+	if value, ok := _c.mutation.DebtPrincipal(); ok {
+		_spec.SetField(userbankaccount.FieldDebtPrincipal, field.TypeOther, value)
+		_node.DebtPrincipal = value
+	}
+	if value, ok := _c.mutation.DebtInterest(); ok {
+		_spec.SetField(userbankaccount.FieldDebtInterest, field.TypeOther, value)
+		_node.DebtInterest = value
+	}
 	if value, ok := _c.mutation.TotalDebt(); ok {
 		_spec.SetField(userbankaccount.FieldTotalDebt, field.TypeOther, value)
 		_node.TotalDebt = value
@@ -354,6 +420,22 @@ func (_c *UserBankAccountCreate) createSpec() (*UserBankAccount, *sqlgraph.Creat
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.LedgerAccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   userbankaccount.LedgerAccountsTable,
+			Columns: []string{userbankaccount.LedgerAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgeraccount.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -470,6 +552,30 @@ func (u *UserBankAccountUpsert) SetCreditLimit(v decimal.Decimal) *UserBankAccou
 // UpdateCreditLimit sets the "credit_limit" field to the value that was provided on create.
 func (u *UserBankAccountUpsert) UpdateCreditLimit() *UserBankAccountUpsert {
 	u.SetExcluded(userbankaccount.FieldCreditLimit)
+	return u
+}
+
+// SetDebtPrincipal sets the "debt_principal" field.
+func (u *UserBankAccountUpsert) SetDebtPrincipal(v decimal.Decimal) *UserBankAccountUpsert {
+	u.Set(userbankaccount.FieldDebtPrincipal, v)
+	return u
+}
+
+// UpdateDebtPrincipal sets the "debt_principal" field to the value that was provided on create.
+func (u *UserBankAccountUpsert) UpdateDebtPrincipal() *UserBankAccountUpsert {
+	u.SetExcluded(userbankaccount.FieldDebtPrincipal)
+	return u
+}
+
+// SetDebtInterest sets the "debt_interest" field.
+func (u *UserBankAccountUpsert) SetDebtInterest(v decimal.Decimal) *UserBankAccountUpsert {
+	u.Set(userbankaccount.FieldDebtInterest, v)
+	return u
+}
+
+// UpdateDebtInterest sets the "debt_interest" field to the value that was provided on create.
+func (u *UserBankAccountUpsert) UpdateDebtInterest() *UserBankAccountUpsert {
+	u.SetExcluded(userbankaccount.FieldDebtInterest)
 	return u
 }
 
@@ -627,6 +733,34 @@ func (u *UserBankAccountUpsertOne) SetCreditLimit(v decimal.Decimal) *UserBankAc
 func (u *UserBankAccountUpsertOne) UpdateCreditLimit() *UserBankAccountUpsertOne {
 	return u.Update(func(s *UserBankAccountUpsert) {
 		s.UpdateCreditLimit()
+	})
+}
+
+// SetDebtPrincipal sets the "debt_principal" field.
+func (u *UserBankAccountUpsertOne) SetDebtPrincipal(v decimal.Decimal) *UserBankAccountUpsertOne {
+	return u.Update(func(s *UserBankAccountUpsert) {
+		s.SetDebtPrincipal(v)
+	})
+}
+
+// UpdateDebtPrincipal sets the "debt_principal" field to the value that was provided on create.
+func (u *UserBankAccountUpsertOne) UpdateDebtPrincipal() *UserBankAccountUpsertOne {
+	return u.Update(func(s *UserBankAccountUpsert) {
+		s.UpdateDebtPrincipal()
+	})
+}
+
+// SetDebtInterest sets the "debt_interest" field.
+func (u *UserBankAccountUpsertOne) SetDebtInterest(v decimal.Decimal) *UserBankAccountUpsertOne {
+	return u.Update(func(s *UserBankAccountUpsert) {
+		s.SetDebtInterest(v)
+	})
+}
+
+// UpdateDebtInterest sets the "debt_interest" field to the value that was provided on create.
+func (u *UserBankAccountUpsertOne) UpdateDebtInterest() *UserBankAccountUpsertOne {
+	return u.Update(func(s *UserBankAccountUpsert) {
+		s.UpdateDebtInterest()
 	})
 }
 
@@ -957,6 +1091,34 @@ func (u *UserBankAccountUpsertBulk) SetCreditLimit(v decimal.Decimal) *UserBankA
 func (u *UserBankAccountUpsertBulk) UpdateCreditLimit() *UserBankAccountUpsertBulk {
 	return u.Update(func(s *UserBankAccountUpsert) {
 		s.UpdateCreditLimit()
+	})
+}
+
+// SetDebtPrincipal sets the "debt_principal" field.
+func (u *UserBankAccountUpsertBulk) SetDebtPrincipal(v decimal.Decimal) *UserBankAccountUpsertBulk {
+	return u.Update(func(s *UserBankAccountUpsert) {
+		s.SetDebtPrincipal(v)
+	})
+}
+
+// UpdateDebtPrincipal sets the "debt_principal" field to the value that was provided on create.
+func (u *UserBankAccountUpsertBulk) UpdateDebtPrincipal() *UserBankAccountUpsertBulk {
+	return u.Update(func(s *UserBankAccountUpsert) {
+		s.UpdateDebtPrincipal()
+	})
+}
+
+// SetDebtInterest sets the "debt_interest" field.
+func (u *UserBankAccountUpsertBulk) SetDebtInterest(v decimal.Decimal) *UserBankAccountUpsertBulk {
+	return u.Update(func(s *UserBankAccountUpsert) {
+		s.SetDebtInterest(v)
+	})
+}
+
+// UpdateDebtInterest sets the "debt_interest" field to the value that was provided on create.
+func (u *UserBankAccountUpsertBulk) UpdateDebtInterest() *UserBankAccountUpsertBulk {
+	return u.Update(func(s *UserBankAccountUpsert) {
+		s.UpdateDebtInterest()
 	})
 }
 

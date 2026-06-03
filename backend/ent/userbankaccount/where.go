@@ -86,6 +86,16 @@ func CreditLimit(v decimal.Decimal) predicate.UserBankAccount {
 	return predicate.UserBankAccount(sql.FieldEQ(FieldCreditLimit, v))
 }
 
+// DebtPrincipal applies equality check predicate on the "debt_principal" field. It's identical to DebtPrincipalEQ.
+func DebtPrincipal(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldEQ(FieldDebtPrincipal, v))
+}
+
+// DebtInterest applies equality check predicate on the "debt_interest" field. It's identical to DebtInterestEQ.
+func DebtInterest(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldEQ(FieldDebtInterest, v))
+}
+
 // TotalDebt applies equality check predicate on the "total_debt" field. It's identical to TotalDebtEQ.
 func TotalDebt(v decimal.Decimal) predicate.UserBankAccount {
 	return predicate.UserBankAccount(sql.FieldEQ(FieldTotalDebt, v))
@@ -321,6 +331,86 @@ func CreditLimitLTE(v decimal.Decimal) predicate.UserBankAccount {
 	return predicate.UserBankAccount(sql.FieldLTE(FieldCreditLimit, v))
 }
 
+// DebtPrincipalEQ applies the EQ predicate on the "debt_principal" field.
+func DebtPrincipalEQ(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldEQ(FieldDebtPrincipal, v))
+}
+
+// DebtPrincipalNEQ applies the NEQ predicate on the "debt_principal" field.
+func DebtPrincipalNEQ(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldNEQ(FieldDebtPrincipal, v))
+}
+
+// DebtPrincipalIn applies the In predicate on the "debt_principal" field.
+func DebtPrincipalIn(vs ...decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldIn(FieldDebtPrincipal, vs...))
+}
+
+// DebtPrincipalNotIn applies the NotIn predicate on the "debt_principal" field.
+func DebtPrincipalNotIn(vs ...decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldNotIn(FieldDebtPrincipal, vs...))
+}
+
+// DebtPrincipalGT applies the GT predicate on the "debt_principal" field.
+func DebtPrincipalGT(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldGT(FieldDebtPrincipal, v))
+}
+
+// DebtPrincipalGTE applies the GTE predicate on the "debt_principal" field.
+func DebtPrincipalGTE(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldGTE(FieldDebtPrincipal, v))
+}
+
+// DebtPrincipalLT applies the LT predicate on the "debt_principal" field.
+func DebtPrincipalLT(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldLT(FieldDebtPrincipal, v))
+}
+
+// DebtPrincipalLTE applies the LTE predicate on the "debt_principal" field.
+func DebtPrincipalLTE(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldLTE(FieldDebtPrincipal, v))
+}
+
+// DebtInterestEQ applies the EQ predicate on the "debt_interest" field.
+func DebtInterestEQ(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldEQ(FieldDebtInterest, v))
+}
+
+// DebtInterestNEQ applies the NEQ predicate on the "debt_interest" field.
+func DebtInterestNEQ(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldNEQ(FieldDebtInterest, v))
+}
+
+// DebtInterestIn applies the In predicate on the "debt_interest" field.
+func DebtInterestIn(vs ...decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldIn(FieldDebtInterest, vs...))
+}
+
+// DebtInterestNotIn applies the NotIn predicate on the "debt_interest" field.
+func DebtInterestNotIn(vs ...decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldNotIn(FieldDebtInterest, vs...))
+}
+
+// DebtInterestGT applies the GT predicate on the "debt_interest" field.
+func DebtInterestGT(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldGT(FieldDebtInterest, v))
+}
+
+// DebtInterestGTE applies the GTE predicate on the "debt_interest" field.
+func DebtInterestGTE(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldGTE(FieldDebtInterest, v))
+}
+
+// DebtInterestLT applies the LT predicate on the "debt_interest" field.
+func DebtInterestLT(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldLT(FieldDebtInterest, v))
+}
+
+// DebtInterestLTE applies the LTE predicate on the "debt_interest" field.
+func DebtInterestLTE(v decimal.Decimal) predicate.UserBankAccount {
+	return predicate.UserBankAccount(sql.FieldLTE(FieldDebtInterest, v))
+}
+
 // TotalDebtEQ applies the EQ predicate on the "total_debt" field.
 func TotalDebtEQ(v decimal.Decimal) predicate.UserBankAccount {
 	return predicate.UserBankAccount(sql.FieldEQ(FieldTotalDebt, v))
@@ -504,6 +594,29 @@ func HasTransactions() predicate.UserBankAccount {
 func HasTransactionsWith(preds ...predicate.TransactionLog) predicate.UserBankAccount {
 	return predicate.UserBankAccount(func(s *sql.Selector) {
 		step := newTransactionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasLedgerAccounts applies the HasEdge predicate on the "ledger_accounts" edge.
+func HasLedgerAccounts() predicate.UserBankAccount {
+	return predicate.UserBankAccount(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, LedgerAccountsTable, LedgerAccountsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasLedgerAccountsWith applies the HasEdge predicate on the "ledger_accounts" edge with a given conditions (other predicates).
+func HasLedgerAccountsWith(preds ...predicate.LedgerAccount) predicate.UserBankAccount {
+	return predicate.UserBankAccount(func(s *sql.Selector) {
+		step := newLedgerAccountsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

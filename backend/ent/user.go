@@ -106,6 +106,10 @@ type UserEdges struct {
 	BankAccount *UserBankAccount `json:"bank_account,omitempty"`
 	// TransactionLogs holds the value of the transaction_logs edge.
 	TransactionLogs []*TransactionLog `json:"transaction_logs,omitempty"`
+	// LedgerAccounts holds the value of the ledger_accounts edge.
+	LedgerAccounts []*LedgerAccount `json:"ledger_accounts,omitempty"`
+	// LedgerEntries holds the value of the ledger_entries edge.
+	LedgerEntries []*LedgerEntry `json:"ledger_entries,omitempty"`
 	// BorrowedLoanContracts holds the value of the borrowed_loan_contracts edge.
 	BorrowedLoanContracts []*LoanContract `json:"borrowed_loan_contracts,omitempty"`
 	// FundedLoanContracts holds the value of the funded_loan_contracts edge.
@@ -120,7 +124,7 @@ type UserEdges struct {
 	UserAllowedGroups []*UserAllowedGroup `json:"user_allowed_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [23]bool
+	loadedTypes [25]bool
 }
 
 // APIKeysOrErr returns the APIKeys value or an error if the edge
@@ -278,10 +282,28 @@ func (e UserEdges) TransactionLogsOrErr() ([]*TransactionLog, error) {
 	return nil, &NotLoadedError{edge: "transaction_logs"}
 }
 
+// LedgerAccountsOrErr returns the LedgerAccounts value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) LedgerAccountsOrErr() ([]*LedgerAccount, error) {
+	if e.loadedTypes[17] {
+		return e.LedgerAccounts, nil
+	}
+	return nil, &NotLoadedError{edge: "ledger_accounts"}
+}
+
+// LedgerEntriesOrErr returns the LedgerEntries value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) LedgerEntriesOrErr() ([]*LedgerEntry, error) {
+	if e.loadedTypes[18] {
+		return e.LedgerEntries, nil
+	}
+	return nil, &NotLoadedError{edge: "ledger_entries"}
+}
+
 // BorrowedLoanContractsOrErr returns the BorrowedLoanContracts value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) BorrowedLoanContractsOrErr() ([]*LoanContract, error) {
-	if e.loadedTypes[17] {
+	if e.loadedTypes[19] {
 		return e.BorrowedLoanContracts, nil
 	}
 	return nil, &NotLoadedError{edge: "borrowed_loan_contracts"}
@@ -290,7 +312,7 @@ func (e UserEdges) BorrowedLoanContractsOrErr() ([]*LoanContract, error) {
 // FundedLoanContractsOrErr returns the FundedLoanContracts value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) FundedLoanContractsOrErr() ([]*LoanContract, error) {
-	if e.loadedTypes[18] {
+	if e.loadedTypes[20] {
 		return e.FundedLoanContracts, nil
 	}
 	return nil, &NotLoadedError{edge: "funded_loan_contracts"}
@@ -299,7 +321,7 @@ func (e UserEdges) FundedLoanContractsOrErr() ([]*LoanContract, error) {
 // AuthIdentitiesOrErr returns the AuthIdentities value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) AuthIdentitiesOrErr() ([]*AuthIdentity, error) {
-	if e.loadedTypes[19] {
+	if e.loadedTypes[21] {
 		return e.AuthIdentities, nil
 	}
 	return nil, &NotLoadedError{edge: "auth_identities"}
@@ -308,7 +330,7 @@ func (e UserEdges) AuthIdentitiesOrErr() ([]*AuthIdentity, error) {
 // PendingAuthSessionsOrErr returns the PendingAuthSessions value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PendingAuthSessionsOrErr() ([]*PendingAuthSession, error) {
-	if e.loadedTypes[20] {
+	if e.loadedTypes[22] {
 		return e.PendingAuthSessions, nil
 	}
 	return nil, &NotLoadedError{edge: "pending_auth_sessions"}
@@ -317,7 +339,7 @@ func (e UserEdges) PendingAuthSessionsOrErr() ([]*PendingAuthSession, error) {
 // PlatformQuotasOrErr returns the PlatformQuotas value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PlatformQuotasOrErr() ([]*UserPlatformQuota, error) {
-	if e.loadedTypes[21] {
+	if e.loadedTypes[23] {
 		return e.PlatformQuotas, nil
 	}
 	return nil, &NotLoadedError{edge: "platform_quotas"}
@@ -326,7 +348,7 @@ func (e UserEdges) PlatformQuotasOrErr() ([]*UserPlatformQuota, error) {
 // UserAllowedGroupsOrErr returns the UserAllowedGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) UserAllowedGroupsOrErr() ([]*UserAllowedGroup, error) {
-	if e.loadedTypes[22] {
+	if e.loadedTypes[24] {
 		return e.UserAllowedGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "user_allowed_groups"}
@@ -608,6 +630,16 @@ func (_m *User) QueryBankAccount() *UserBankAccountQuery {
 // QueryTransactionLogs queries the "transaction_logs" edge of the User entity.
 func (_m *User) QueryTransactionLogs() *TransactionLogQuery {
 	return NewUserClient(_m.config).QueryTransactionLogs(_m)
+}
+
+// QueryLedgerAccounts queries the "ledger_accounts" edge of the User entity.
+func (_m *User) QueryLedgerAccounts() *LedgerAccountQuery {
+	return NewUserClient(_m.config).QueryLedgerAccounts(_m)
+}
+
+// QueryLedgerEntries queries the "ledger_entries" edge of the User entity.
+func (_m *User) QueryLedgerEntries() *LedgerEntryQuery {
+	return NewUserClient(_m.config).QueryLedgerEntries(_m)
 }
 
 // QueryBorrowedLoanContracts queries the "borrowed_loan_contracts" edge of the User entity.

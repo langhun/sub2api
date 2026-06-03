@@ -1071,6 +1071,155 @@ var (
 			},
 		},
 	}
+	// LedgerAccountsColumns holds the columns for the "ledger_accounts" table.
+	LedgerAccountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "account_code", Type: field.TypeString, Size: 128},
+		{Name: "account_name", Type: field.TypeString, Size: 128},
+		{Name: "account_type", Type: field.TypeString, Size: 16},
+		{Name: "normal_balance", Type: field.TypeString, Size: 8},
+		{Name: "owner_type", Type: field.TypeString, Size: 16, Default: "PLATFORM"},
+		{Name: "currency", Type: field.TypeString, Size: 16, Default: "USD"},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "ACTIVE"},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "owner_user_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "user_bank_account_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// LedgerAccountsTable holds the schema information for the "ledger_accounts" table.
+	LedgerAccountsTable = &schema.Table{
+		Name:       "ledger_accounts",
+		Columns:    LedgerAccountsColumns,
+		PrimaryKey: []*schema.Column{LedgerAccountsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "ledger_accounts_users_ledger_accounts",
+				Columns:    []*schema.Column{LedgerAccountsColumns[11]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "ledger_accounts_users_bank_account_ledger_accounts",
+				Columns:    []*schema.Column{LedgerAccountsColumns[12]},
+				RefColumns: []*schema.Column{UsersBankAccountColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ledgeraccount_account_code",
+				Unique:  true,
+				Columns: []*schema.Column{LedgerAccountsColumns[3]},
+			},
+			{
+				Name:    "ledgeraccount_owner_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerAccountsColumns[11]},
+			},
+			{
+				Name:    "ledgeraccount_user_bank_account_id",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerAccountsColumns[12]},
+			},
+			{
+				Name:    "ledgeraccount_account_type",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerAccountsColumns[5]},
+			},
+			{
+				Name:    "ledgeraccount_status",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerAccountsColumns[9]},
+			},
+		},
+	}
+	// LedgerEntriesColumns holds the columns for the "ledger_entries" table.
+	LedgerEntriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "entry_id", Type: field.TypeUUID},
+		{Name: "tx_id", Type: field.TypeUUID},
+		{Name: "entry_side", Type: field.TypeString, Size: 8},
+		{Name: "amount", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "business_module", Type: field.TypeString, Size: 32},
+		{Name: "tx_type", Type: field.TypeString, Size: 32},
+		{Name: "reference_type", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "reference_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "description", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "ledger_account_id", Type: field.TypeInt64},
+		{Name: "transaction_log_id", Type: field.TypeInt64},
+		{Name: "user_id", Type: field.TypeInt64, Nullable: true},
+	}
+	// LedgerEntriesTable holds the schema information for the "ledger_entries" table.
+	LedgerEntriesTable = &schema.Table{
+		Name:       "ledger_entries",
+		Columns:    LedgerEntriesColumns,
+		PrimaryKey: []*schema.Column{LedgerEntriesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "ledger_entries_ledger_accounts_entries",
+				Columns:    []*schema.Column{LedgerEntriesColumns[12]},
+				RefColumns: []*schema.Column{LedgerAccountsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "ledger_entries_transactions_log_ledger_entries",
+				Columns:    []*schema.Column{LedgerEntriesColumns[13]},
+				RefColumns: []*schema.Column{TransactionsLogColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "ledger_entries_users_ledger_entries",
+				Columns:    []*schema.Column{LedgerEntriesColumns[14]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ledgerentry_entry_id",
+				Unique:  true,
+				Columns: []*schema.Column{LedgerEntriesColumns[1]},
+			},
+			{
+				Name:    "ledgerentry_transaction_log_id",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[13]},
+			},
+			{
+				Name:    "ledgerentry_tx_id",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[2]},
+			},
+			{
+				Name:    "ledgerentry_ledger_account_id",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[12]},
+			},
+			{
+				Name:    "ledgerentry_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[14]},
+			},
+			{
+				Name:    "ledgerentry_business_module_tx_type",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[5], LedgerEntriesColumns[6]},
+			},
+			{
+				Name:    "ledgerentry_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[11]},
+			},
+			{
+				Name:    "ledgerentry_reference_type_reference_id",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEntriesColumns[7], LedgerEntriesColumns[8]},
+			},
+		},
+	}
 	// LoansContractColumns holds the columns for the "loans_contract" table.
 	LoansContractColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1759,6 +1908,7 @@ var (
 		{Name: "id", Type: field.TypeInt64, Increment: true},
 		{Name: "tx_id", Type: field.TypeUUID},
 		{Name: "tx_type", Type: field.TypeString, Size: 32},
+		{Name: "business_module", Type: field.TypeString, Size: 32, Default: "FINANCIAL_HUB"},
 		{Name: "amount", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
 		{Name: "balance_before", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
 		{Name: "balance_after", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
@@ -1785,13 +1935,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "transactions_log_users_transaction_logs",
-				Columns:    []*schema.Column{TransactionsLogColumns[18]},
+				Columns:    []*schema.Column{TransactionsLogColumns[19]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "transactions_log_users_bank_account_transactions",
-				Columns:    []*schema.Column{TransactionsLogColumns[19]},
+				Columns:    []*schema.Column{TransactionsLogColumns[20]},
 				RefColumns: []*schema.Column{UsersBankAccountColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1805,17 +1955,17 @@ var (
 			{
 				Name:    "transactionlog_idempotency_scope_idempotency_key_hash",
 				Unique:  true,
-				Columns: []*schema.Column{TransactionsLogColumns[14], TransactionsLogColumns[15]},
+				Columns: []*schema.Column{TransactionsLogColumns[15], TransactionsLogColumns[16]},
 			},
 			{
 				Name:    "transactionlog_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{TransactionsLogColumns[18]},
+				Columns: []*schema.Column{TransactionsLogColumns[19]},
 			},
 			{
 				Name:    "transactionlog_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{TransactionsLogColumns[19]},
+				Columns: []*schema.Column{TransactionsLogColumns[20]},
 			},
 			{
 				Name:    "transactionlog_tx_type",
@@ -1823,19 +1973,29 @@ var (
 				Columns: []*schema.Column{TransactionsLogColumns[2]},
 			},
 			{
+				Name:    "transactionlog_business_module",
+				Unique:  false,
+				Columns: []*schema.Column{TransactionsLogColumns[3]},
+			},
+			{
+				Name:    "transactionlog_business_module_tx_type",
+				Unique:  false,
+				Columns: []*schema.Column{TransactionsLogColumns[3], TransactionsLogColumns[2]},
+			},
+			{
 				Name:    "transactionlog_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{TransactionsLogColumns[17]},
+				Columns: []*schema.Column{TransactionsLogColumns[18]},
 			},
 			{
 				Name:    "transactionlog_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{TransactionsLogColumns[18], TransactionsLogColumns[17]},
+				Columns: []*schema.Column{TransactionsLogColumns[19], TransactionsLogColumns[18]},
 			},
 			{
 				Name:    "transactionlog_reference_type_reference_id",
 				Unique:  false,
-				Columns: []*schema.Column{TransactionsLogColumns[11], TransactionsLogColumns[12]},
+				Columns: []*schema.Column{TransactionsLogColumns[12], TransactionsLogColumns[13]},
 			},
 		},
 	}
@@ -2207,6 +2367,8 @@ var (
 		{Name: "balance", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
 		{Name: "frozen_amount", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
 		{Name: "credit_limit", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "debt_principal", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
+		{Name: "debt_interest", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
 		{Name: "total_debt", Type: field.TypeOther, SchemaType: map[string]string{"postgres": "numeric(38,18)"}},
 		{Name: "version", Type: field.TypeInt64, Default: 1},
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "ACTIVE"},
@@ -2220,7 +2382,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "users_bank_account_users_bank_account",
-				Columns:    []*schema.Column{UsersBankAccountColumns[9]},
+				Columns:    []*schema.Column{UsersBankAccountColumns[11]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -2229,12 +2391,12 @@ var (
 			{
 				Name:    "userbankaccount_user_id",
 				Unique:  true,
-				Columns: []*schema.Column{UsersBankAccountColumns[9]},
+				Columns: []*schema.Column{UsersBankAccountColumns[11]},
 			},
 			{
 				Name:    "userbankaccount_status",
 				Unique:  false,
-				Columns: []*schema.Column{UsersBankAccountColumns[8]},
+				Columns: []*schema.Column{UsersBankAccountColumns[10]},
 			},
 		},
 	}
@@ -2397,6 +2559,8 @@ var (
 		GroupsTable,
 		IdempotencyRecordsTable,
 		IdentityAdoptionDecisionsTable,
+		LedgerAccountsTable,
+		LedgerEntriesTable,
 		LoansContractTable,
 		ModelPricingsTable,
 		PaymentAuditLogsTable,
@@ -2510,6 +2674,17 @@ func init() {
 	IdentityAdoptionDecisionsTable.ForeignKeys[1].RefTable = PendingAuthSessionsTable
 	IdentityAdoptionDecisionsTable.Annotation = &entsql.Annotation{
 		Table: "identity_adoption_decisions",
+	}
+	LedgerAccountsTable.ForeignKeys[0].RefTable = UsersTable
+	LedgerAccountsTable.ForeignKeys[1].RefTable = UsersBankAccountTable
+	LedgerAccountsTable.Annotation = &entsql.Annotation{
+		Table: "ledger_accounts",
+	}
+	LedgerEntriesTable.ForeignKeys[0].RefTable = LedgerAccountsTable
+	LedgerEntriesTable.ForeignKeys[1].RefTable = TransactionsLogTable
+	LedgerEntriesTable.ForeignKeys[2].RefTable = UsersTable
+	LedgerEntriesTable.Annotation = &entsql.Annotation{
+		Table: "ledger_entries",
 	}
 	LoansContractTable.ForeignKeys[0].RefTable = UsersTable
 	LoansContractTable.ForeignKeys[1].RefTable = UsersTable

@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userbankaccount"
@@ -55,6 +56,20 @@ func (_c *TransactionLogCreate) SetAccountID(v int64) *TransactionLogCreate {
 // SetTxType sets the "tx_type" field.
 func (_c *TransactionLogCreate) SetTxType(v string) *TransactionLogCreate {
 	_c.mutation.SetTxType(v)
+	return _c
+}
+
+// SetBusinessModule sets the "business_module" field.
+func (_c *TransactionLogCreate) SetBusinessModule(v string) *TransactionLogCreate {
+	_c.mutation.SetBusinessModule(v)
+	return _c
+}
+
+// SetNillableBusinessModule sets the "business_module" field if the given value is not nil.
+func (_c *TransactionLogCreate) SetNillableBusinessModule(v *string) *TransactionLogCreate {
+	if v != nil {
+		_c.SetBusinessModule(*v)
+	}
 	return _c
 }
 
@@ -214,6 +229,21 @@ func (_c *TransactionLogCreate) SetAccount(v *UserBankAccount) *TransactionLogCr
 	return _c.SetAccountID(v.ID)
 }
 
+// AddLedgerEntryIDs adds the "ledger_entries" edge to the LedgerEntry entity by IDs.
+func (_c *TransactionLogCreate) AddLedgerEntryIDs(ids ...int64) *TransactionLogCreate {
+	_c.mutation.AddLedgerEntryIDs(ids...)
+	return _c
+}
+
+// AddLedgerEntries adds the "ledger_entries" edges to the LedgerEntry entity.
+func (_c *TransactionLogCreate) AddLedgerEntries(v ...*LedgerEntry) *TransactionLogCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddLedgerEntryIDs(ids...)
+}
+
 // Mutation returns the TransactionLogMutation object of the builder.
 func (_c *TransactionLogCreate) Mutation() *TransactionLogMutation {
 	return _c.mutation
@@ -253,6 +283,10 @@ func (_c *TransactionLogCreate) defaults() {
 		v := transactionlog.DefaultTxID()
 		_c.mutation.SetTxID(v)
 	}
+	if _, ok := _c.mutation.BusinessModule(); !ok {
+		v := transactionlog.DefaultBusinessModule
+		_c.mutation.SetBusinessModule(v)
+	}
 	if _, ok := _c.mutation.CreditLimitSnapshot(); !ok {
 		v := transactionlog.DefaultCreditLimitSnapshot
 		_c.mutation.SetCreditLimitSnapshot(v)
@@ -288,6 +322,14 @@ func (_c *TransactionLogCreate) check() error {
 	if v, ok := _c.mutation.TxType(); ok {
 		if err := transactionlog.TxTypeValidator(v); err != nil {
 			return &ValidationError{Name: "tx_type", err: fmt.Errorf(`ent: validator failed for field "TransactionLog.tx_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.BusinessModule(); !ok {
+		return &ValidationError{Name: "business_module", err: errors.New(`ent: missing required field "TransactionLog.business_module"`)}
+	}
+	if v, ok := _c.mutation.BusinessModule(); ok {
+		if err := transactionlog.BusinessModuleValidator(v); err != nil {
+			return &ValidationError{Name: "business_module", err: fmt.Errorf(`ent: validator failed for field "TransactionLog.business_module": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Amount(); !ok {
@@ -389,6 +431,10 @@ func (_c *TransactionLogCreate) createSpec() (*TransactionLog, *sqlgraph.CreateS
 		_spec.SetField(transactionlog.FieldTxType, field.TypeString, value)
 		_node.TxType = value
 	}
+	if value, ok := _c.mutation.BusinessModule(); ok {
+		_spec.SetField(transactionlog.FieldBusinessModule, field.TypeString, value)
+		_node.BusinessModule = value
+	}
 	if value, ok := _c.mutation.Amount(); ok {
 		_spec.SetField(transactionlog.FieldAmount, field.TypeOther, value)
 		_node.Amount = value
@@ -483,6 +529,22 @@ func (_c *TransactionLogCreate) createSpec() (*TransactionLog, *sqlgraph.CreateS
 		_node.AccountID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.LedgerEntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactionlog.LedgerEntriesTable,
+			Columns: []string{transactionlog.LedgerEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -575,6 +637,9 @@ func (u *TransactionLogUpsertOne) UpdateNewValues() *TransactionLogUpsertOne {
 		}
 		if _, exists := u.create.mutation.TxType(); exists {
 			s.SetIgnore(transactionlog.FieldTxType)
+		}
+		if _, exists := u.create.mutation.BusinessModule(); exists {
+			s.SetIgnore(transactionlog.FieldBusinessModule)
 		}
 		if _, exists := u.create.mutation.Amount(); exists {
 			s.SetIgnore(transactionlog.FieldAmount)
@@ -861,6 +926,9 @@ func (u *TransactionLogUpsertBulk) UpdateNewValues() *TransactionLogUpsertBulk {
 			}
 			if _, exists := b.mutation.TxType(); exists {
 				s.SetIgnore(transactionlog.FieldTxType)
+			}
+			if _, exists := b.mutation.BusinessModule(); exists {
+				s.SetIgnore(transactionlog.FieldBusinessModule)
 			}
 			if _, exists := b.mutation.Amount(); exists {
 				s.SetIgnore(transactionlog.FieldAmount)

@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
@@ -67,6 +68,21 @@ func (_u *TransactionLogUpdate) SetAccount(v *UserBankAccount) *TransactionLogUp
 	return _u.SetAccountID(v.ID)
 }
 
+// AddLedgerEntryIDs adds the "ledger_entries" edge to the LedgerEntry entity by IDs.
+func (_u *TransactionLogUpdate) AddLedgerEntryIDs(ids ...int64) *TransactionLogUpdate {
+	_u.mutation.AddLedgerEntryIDs(ids...)
+	return _u
+}
+
+// AddLedgerEntries adds the "ledger_entries" edges to the LedgerEntry entity.
+func (_u *TransactionLogUpdate) AddLedgerEntries(v ...*LedgerEntry) *TransactionLogUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLedgerEntryIDs(ids...)
+}
+
 // Mutation returns the TransactionLogMutation object of the builder.
 func (_u *TransactionLogUpdate) Mutation() *TransactionLogMutation {
 	return _u.mutation
@@ -82,6 +98,27 @@ func (_u *TransactionLogUpdate) ClearUser() *TransactionLogUpdate {
 func (_u *TransactionLogUpdate) ClearAccount() *TransactionLogUpdate {
 	_u.mutation.ClearAccount()
 	return _u
+}
+
+// ClearLedgerEntries clears all "ledger_entries" edges to the LedgerEntry entity.
+func (_u *TransactionLogUpdate) ClearLedgerEntries() *TransactionLogUpdate {
+	_u.mutation.ClearLedgerEntries()
+	return _u
+}
+
+// RemoveLedgerEntryIDs removes the "ledger_entries" edge to LedgerEntry entities by IDs.
+func (_u *TransactionLogUpdate) RemoveLedgerEntryIDs(ids ...int64) *TransactionLogUpdate {
+	_u.mutation.RemoveLedgerEntryIDs(ids...)
+	return _u
+}
+
+// RemoveLedgerEntries removes "ledger_entries" edges to LedgerEntry entities.
+func (_u *TransactionLogUpdate) RemoveLedgerEntries(v ...*LedgerEntry) *TransactionLogUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLedgerEntryIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -204,6 +241,51 @@ func (_u *TransactionLogUpdate) sqlSave(ctx context.Context) (_node int, err err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.LedgerEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactionlog.LedgerEntriesTable,
+			Columns: []string{transactionlog.LedgerEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLedgerEntriesIDs(); len(nodes) > 0 && !_u.mutation.LedgerEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactionlog.LedgerEntriesTable,
+			Columns: []string{transactionlog.LedgerEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LedgerEntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactionlog.LedgerEntriesTable,
+			Columns: []string{transactionlog.LedgerEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{transactionlog.Label}
@@ -262,6 +344,21 @@ func (_u *TransactionLogUpdateOne) SetAccount(v *UserBankAccount) *TransactionLo
 	return _u.SetAccountID(v.ID)
 }
 
+// AddLedgerEntryIDs adds the "ledger_entries" edge to the LedgerEntry entity by IDs.
+func (_u *TransactionLogUpdateOne) AddLedgerEntryIDs(ids ...int64) *TransactionLogUpdateOne {
+	_u.mutation.AddLedgerEntryIDs(ids...)
+	return _u
+}
+
+// AddLedgerEntries adds the "ledger_entries" edges to the LedgerEntry entity.
+func (_u *TransactionLogUpdateOne) AddLedgerEntries(v ...*LedgerEntry) *TransactionLogUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLedgerEntryIDs(ids...)
+}
+
 // Mutation returns the TransactionLogMutation object of the builder.
 func (_u *TransactionLogUpdateOne) Mutation() *TransactionLogMutation {
 	return _u.mutation
@@ -277,6 +374,27 @@ func (_u *TransactionLogUpdateOne) ClearUser() *TransactionLogUpdateOne {
 func (_u *TransactionLogUpdateOne) ClearAccount() *TransactionLogUpdateOne {
 	_u.mutation.ClearAccount()
 	return _u
+}
+
+// ClearLedgerEntries clears all "ledger_entries" edges to the LedgerEntry entity.
+func (_u *TransactionLogUpdateOne) ClearLedgerEntries() *TransactionLogUpdateOne {
+	_u.mutation.ClearLedgerEntries()
+	return _u
+}
+
+// RemoveLedgerEntryIDs removes the "ledger_entries" edge to LedgerEntry entities by IDs.
+func (_u *TransactionLogUpdateOne) RemoveLedgerEntryIDs(ids ...int64) *TransactionLogUpdateOne {
+	_u.mutation.RemoveLedgerEntryIDs(ids...)
+	return _u
+}
+
+// RemoveLedgerEntries removes "ledger_entries" edges to LedgerEntry entities.
+func (_u *TransactionLogUpdateOne) RemoveLedgerEntries(v ...*LedgerEntry) *TransactionLogUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLedgerEntryIDs(ids...)
 }
 
 // Where appends a list predicates to the TransactionLogUpdate builder.
@@ -422,6 +540,51 @@ func (_u *TransactionLogUpdateOne) sqlSave(ctx context.Context) (_node *Transact
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userbankaccount.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LedgerEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactionlog.LedgerEntriesTable,
+			Columns: []string{transactionlog.LedgerEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLedgerEntriesIDs(); len(nodes) > 0 && !_u.mutation.LedgerEntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactionlog.LedgerEntriesTable,
+			Columns: []string{transactionlog.LedgerEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LedgerEntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   transactionlog.LedgerEntriesTable,
+			Columns: []string{transactionlog.LedgerEntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

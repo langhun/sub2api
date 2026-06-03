@@ -77,6 +77,11 @@ func TxType(v string) predicate.TransactionLog {
 	return predicate.TransactionLog(sql.FieldEQ(FieldTxType, v))
 }
 
+// BusinessModule applies equality check predicate on the "business_module" field. It's identical to BusinessModuleEQ.
+func BusinessModule(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldEQ(FieldBusinessModule, v))
+}
+
 // Amount applies equality check predicate on the "amount" field. It's identical to AmountEQ.
 func Amount(v decimal.Decimal) predicate.TransactionLog {
 	return predicate.TransactionLog(sql.FieldEQ(FieldAmount, v))
@@ -290,6 +295,71 @@ func TxTypeEqualFold(v string) predicate.TransactionLog {
 // TxTypeContainsFold applies the ContainsFold predicate on the "tx_type" field.
 func TxTypeContainsFold(v string) predicate.TransactionLog {
 	return predicate.TransactionLog(sql.FieldContainsFold(FieldTxType, v))
+}
+
+// BusinessModuleEQ applies the EQ predicate on the "business_module" field.
+func BusinessModuleEQ(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldEQ(FieldBusinessModule, v))
+}
+
+// BusinessModuleNEQ applies the NEQ predicate on the "business_module" field.
+func BusinessModuleNEQ(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldNEQ(FieldBusinessModule, v))
+}
+
+// BusinessModuleIn applies the In predicate on the "business_module" field.
+func BusinessModuleIn(vs ...string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldIn(FieldBusinessModule, vs...))
+}
+
+// BusinessModuleNotIn applies the NotIn predicate on the "business_module" field.
+func BusinessModuleNotIn(vs ...string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldNotIn(FieldBusinessModule, vs...))
+}
+
+// BusinessModuleGT applies the GT predicate on the "business_module" field.
+func BusinessModuleGT(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldGT(FieldBusinessModule, v))
+}
+
+// BusinessModuleGTE applies the GTE predicate on the "business_module" field.
+func BusinessModuleGTE(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldGTE(FieldBusinessModule, v))
+}
+
+// BusinessModuleLT applies the LT predicate on the "business_module" field.
+func BusinessModuleLT(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldLT(FieldBusinessModule, v))
+}
+
+// BusinessModuleLTE applies the LTE predicate on the "business_module" field.
+func BusinessModuleLTE(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldLTE(FieldBusinessModule, v))
+}
+
+// BusinessModuleContains applies the Contains predicate on the "business_module" field.
+func BusinessModuleContains(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldContains(FieldBusinessModule, v))
+}
+
+// BusinessModuleHasPrefix applies the HasPrefix predicate on the "business_module" field.
+func BusinessModuleHasPrefix(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldHasPrefix(FieldBusinessModule, v))
+}
+
+// BusinessModuleHasSuffix applies the HasSuffix predicate on the "business_module" field.
+func BusinessModuleHasSuffix(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldHasSuffix(FieldBusinessModule, v))
+}
+
+// BusinessModuleEqualFold applies the EqualFold predicate on the "business_module" field.
+func BusinessModuleEqualFold(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldEqualFold(FieldBusinessModule, v))
+}
+
+// BusinessModuleContainsFold applies the ContainsFold predicate on the "business_module" field.
+func BusinessModuleContainsFold(v string) predicate.TransactionLog {
+	return predicate.TransactionLog(sql.FieldContainsFold(FieldBusinessModule, v))
 }
 
 // AmountEQ applies the EQ predicate on the "amount" field.
@@ -1080,6 +1150,29 @@ func HasAccount() predicate.TransactionLog {
 func HasAccountWith(preds ...predicate.UserBankAccount) predicate.TransactionLog {
 	return predicate.TransactionLog(func(s *sql.Selector) {
 		step := newAccountStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasLedgerEntries applies the HasEdge predicate on the "ledger_entries" edge.
+func HasLedgerEntries() predicate.TransactionLog {
+	return predicate.TransactionLog(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, LedgerEntriesTable, LedgerEntriesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasLedgerEntriesWith applies the HasEdge predicate on the "ledger_entries" edge with a given conditions (other predicates).
+func HasLedgerEntriesWith(preds ...predicate.LedgerEntry) predicate.TransactionLog {
+	return predicate.TransactionLog(func(s *sql.Selector) {
+		step := newLedgerEntriesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

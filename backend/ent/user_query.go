@@ -21,6 +21,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
+	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/loancontract"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
@@ -61,6 +63,8 @@ type UserQuery struct {
 	withPaymentOrders          *PaymentOrderQuery
 	withBankAccount            *UserBankAccountQuery
 	withTransactionLogs        *TransactionLogQuery
+	withLedgerAccounts         *LedgerAccountQuery
+	withLedgerEntries          *LedgerEntryQuery
 	withBorrowedLoanContracts  *LoanContractQuery
 	withFundedLoanContracts    *LoanContractQuery
 	withAuthIdentities         *AuthIdentityQuery
@@ -478,6 +482,50 @@ func (_q *UserQuery) QueryTransactionLogs() *TransactionLogQuery {
 	return query
 }
 
+// QueryLedgerAccounts chains the current query on the "ledger_accounts" edge.
+func (_q *UserQuery) QueryLedgerAccounts() *LedgerAccountQuery {
+	query := (&LedgerAccountClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(ledgeraccount.Table, ledgeraccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.LedgerAccountsTable, user.LedgerAccountsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryLedgerEntries chains the current query on the "ledger_entries" edge.
+func (_q *UserQuery) QueryLedgerEntries() *LedgerEntryQuery {
+	query := (&LedgerEntryClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.LedgerEntriesTable, user.LedgerEntriesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryBorrowedLoanContracts chains the current query on the "borrowed_loan_contracts" edge.
 func (_q *UserQuery) QueryBorrowedLoanContracts() *LoanContractQuery {
 	query := (&LoanContractClient{config: _q.config}).Query()
@@ -819,6 +867,8 @@ func (_q *UserQuery) Clone() *UserQuery {
 		withPaymentOrders:          _q.withPaymentOrders.Clone(),
 		withBankAccount:            _q.withBankAccount.Clone(),
 		withTransactionLogs:        _q.withTransactionLogs.Clone(),
+		withLedgerAccounts:         _q.withLedgerAccounts.Clone(),
+		withLedgerEntries:          _q.withLedgerEntries.Clone(),
 		withBorrowedLoanContracts:  _q.withBorrowedLoanContracts.Clone(),
 		withFundedLoanContracts:    _q.withFundedLoanContracts.Clone(),
 		withAuthIdentities:         _q.withAuthIdentities.Clone(),
@@ -1018,6 +1068,28 @@ func (_q *UserQuery) WithTransactionLogs(opts ...func(*TransactionLogQuery)) *Us
 	return _q
 }
 
+// WithLedgerAccounts tells the query-builder to eager-load the nodes that are connected to
+// the "ledger_accounts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithLedgerAccounts(opts ...func(*LedgerAccountQuery)) *UserQuery {
+	query := (&LedgerAccountClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withLedgerAccounts = query
+	return _q
+}
+
+// WithLedgerEntries tells the query-builder to eager-load the nodes that are connected to
+// the "ledger_entries" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithLedgerEntries(opts ...func(*LedgerEntryQuery)) *UserQuery {
+	query := (&LedgerEntryClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withLedgerEntries = query
+	return _q
+}
+
 // WithBorrowedLoanContracts tells the query-builder to eager-load the nodes that are connected to
 // the "borrowed_loan_contracts" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *UserQuery) WithBorrowedLoanContracts(opts ...func(*LoanContractQuery)) *UserQuery {
@@ -1162,7 +1234,7 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [23]bool{
+		loadedTypes = [25]bool{
 			_q.withAPIKeys != nil,
 			_q.withRedeemCodes != nil,
 			_q.withRedpackets != nil,
@@ -1180,6 +1252,8 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			_q.withPaymentOrders != nil,
 			_q.withBankAccount != nil,
 			_q.withTransactionLogs != nil,
+			_q.withLedgerAccounts != nil,
+			_q.withLedgerEntries != nil,
 			_q.withBorrowedLoanContracts != nil,
 			_q.withFundedLoanContracts != nil,
 			_q.withAuthIdentities != nil,
@@ -1328,6 +1402,20 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadTransactionLogs(ctx, query, nodes,
 			func(n *User) { n.Edges.TransactionLogs = []*TransactionLog{} },
 			func(n *User, e *TransactionLog) { n.Edges.TransactionLogs = append(n.Edges.TransactionLogs, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withLedgerAccounts; query != nil {
+		if err := _q.loadLedgerAccounts(ctx, query, nodes,
+			func(n *User) { n.Edges.LedgerAccounts = []*LedgerAccount{} },
+			func(n *User, e *LedgerAccount) { n.Edges.LedgerAccounts = append(n.Edges.LedgerAccounts, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withLedgerEntries; query != nil {
+		if err := _q.loadLedgerEntries(ctx, query, nodes,
+			func(n *User) { n.Edges.LedgerEntries = []*LedgerEntry{} },
+			func(n *User, e *LedgerEntry) { n.Edges.LedgerEntries = append(n.Edges.LedgerEntries, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1919,6 +2007,72 @@ func (_q *UserQuery) loadTransactionLogs(ctx context.Context, query *Transaction
 		node, ok := nodeids[fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadLedgerAccounts(ctx context.Context, query *LedgerAccountQuery, nodes []*User, init func(*User), assign func(*User, *LedgerAccount)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(ledgeraccount.FieldOwnerUserID)
+	}
+	query.Where(predicate.LedgerAccount(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.LedgerAccountsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.OwnerUserID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "owner_user_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "owner_user_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadLedgerEntries(ctx context.Context, query *LedgerEntryQuery, nodes []*User, init func(*User), assign func(*User, *LedgerEntry)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(ledgerentry.FieldUserID)
+	}
+	query.Where(predicate.LedgerEntry(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.LedgerEntriesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

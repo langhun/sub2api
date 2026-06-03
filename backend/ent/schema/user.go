@@ -136,6 +136,8 @@ func (User) Edges() []ent.Edge {
 		edge.To("bank_account", UserBankAccount.Type).
 			Unique(),
 		edge.To("transaction_logs", TransactionLog.Type),
+		edge.To("ledger_accounts", LedgerAccount.Type),
+		edge.To("ledger_entries", LedgerEntry.Type),
 		edge.To("borrowed_loan_contracts", LoanContract.Type),
 		edge.To("funded_loan_contracts", LoanContract.Type),
 		edge.To("auth_identities", AuthIdentity.Type).

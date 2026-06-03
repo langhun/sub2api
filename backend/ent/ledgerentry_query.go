@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -13,62 +12,106 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
 	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
-	"github.com/Wei-Shaw/sub2api/ent/userbankaccount"
 )
 
-// TransactionLogQuery is the builder for querying TransactionLog entities.
-type TransactionLogQuery struct {
+// LedgerEntryQuery is the builder for querying LedgerEntry entities.
+type LedgerEntryQuery struct {
 	config
 	ctx               *QueryContext
-	order             []transactionlog.OrderOption
+	order             []ledgerentry.OrderOption
 	inters            []Interceptor
-	predicates        []predicate.TransactionLog
+	predicates        []predicate.LedgerEntry
+	withTransaction   *TransactionLogQuery
+	withLedgerAccount *LedgerAccountQuery
 	withUser          *UserQuery
-	withAccount       *UserBankAccountQuery
-	withLedgerEntries *LedgerEntryQuery
 	modifiers         []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the TransactionLogQuery builder.
-func (_q *TransactionLogQuery) Where(ps ...predicate.TransactionLog) *TransactionLogQuery {
+// Where adds a new predicate for the LedgerEntryQuery builder.
+func (_q *LedgerEntryQuery) Where(ps ...predicate.LedgerEntry) *LedgerEntryQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *TransactionLogQuery) Limit(limit int) *TransactionLogQuery {
+func (_q *LedgerEntryQuery) Limit(limit int) *LedgerEntryQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *TransactionLogQuery) Offset(offset int) *TransactionLogQuery {
+func (_q *LedgerEntryQuery) Offset(offset int) *LedgerEntryQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *TransactionLogQuery) Unique(unique bool) *TransactionLogQuery {
+func (_q *LedgerEntryQuery) Unique(unique bool) *LedgerEntryQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *TransactionLogQuery) Order(o ...transactionlog.OrderOption) *TransactionLogQuery {
+func (_q *LedgerEntryQuery) Order(o ...ledgerentry.OrderOption) *LedgerEntryQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
+// QueryTransaction chains the current query on the "transaction" edge.
+func (_q *LedgerEntryQuery) QueryTransaction() *TransactionLogQuery {
+	query := (&TransactionLogClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, selector),
+			sqlgraph.To(transactionlog.Table, transactionlog.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.TransactionTable, ledgerentry.TransactionColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryLedgerAccount chains the current query on the "ledger_account" edge.
+func (_q *LedgerEntryQuery) QueryLedgerAccount() *LedgerAccountQuery {
+	query := (&LedgerAccountClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, selector),
+			sqlgraph.To(ledgeraccount.Table, ledgeraccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.LedgerAccountTable, ledgerentry.LedgerAccountColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryUser chains the current query on the "user" edge.
-func (_q *TransactionLogQuery) QueryUser() *UserQuery {
+func (_q *LedgerEntryQuery) QueryUser() *UserQuery {
 	query := (&UserClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -79,9 +122,9 @@ func (_q *TransactionLogQuery) QueryUser() *UserQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(transactionlog.Table, transactionlog.FieldID, selector),
+			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, transactionlog.UserTable, transactionlog.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.UserTable, ledgerentry.UserColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -89,65 +132,21 @@ func (_q *TransactionLogQuery) QueryUser() *UserQuery {
 	return query
 }
 
-// QueryAccount chains the current query on the "account" edge.
-func (_q *TransactionLogQuery) QueryAccount() *UserBankAccountQuery {
-	query := (&UserBankAccountClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(transactionlog.Table, transactionlog.FieldID, selector),
-			sqlgraph.To(userbankaccount.Table, userbankaccount.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, transactionlog.AccountTable, transactionlog.AccountColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// QueryLedgerEntries chains the current query on the "ledger_entries" edge.
-func (_q *TransactionLogQuery) QueryLedgerEntries() *LedgerEntryQuery {
-	query := (&LedgerEntryClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(transactionlog.Table, transactionlog.FieldID, selector),
-			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, transactionlog.LedgerEntriesTable, transactionlog.LedgerEntriesColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// First returns the first TransactionLog entity from the query.
-// Returns a *NotFoundError when no TransactionLog was found.
-func (_q *TransactionLogQuery) First(ctx context.Context) (*TransactionLog, error) {
+// First returns the first LedgerEntry entity from the query.
+// Returns a *NotFoundError when no LedgerEntry was found.
+func (_q *LedgerEntryQuery) First(ctx context.Context) (*LedgerEntry, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{transactionlog.Label}
+		return nil, &NotFoundError{ledgerentry.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *TransactionLogQuery) FirstX(ctx context.Context) *TransactionLog {
+func (_q *LedgerEntryQuery) FirstX(ctx context.Context) *LedgerEntry {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -155,22 +154,22 @@ func (_q *TransactionLogQuery) FirstX(ctx context.Context) *TransactionLog {
 	return node
 }
 
-// FirstID returns the first TransactionLog ID from the query.
-// Returns a *NotFoundError when no TransactionLog ID was found.
-func (_q *TransactionLogQuery) FirstID(ctx context.Context) (id int64, err error) {
+// FirstID returns the first LedgerEntry ID from the query.
+// Returns a *NotFoundError when no LedgerEntry ID was found.
+func (_q *LedgerEntryQuery) FirstID(ctx context.Context) (id int64, err error) {
 	var ids []int64
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{transactionlog.Label}
+		err = &NotFoundError{ledgerentry.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *TransactionLogQuery) FirstIDX(ctx context.Context) int64 {
+func (_q *LedgerEntryQuery) FirstIDX(ctx context.Context) int64 {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -178,10 +177,10 @@ func (_q *TransactionLogQuery) FirstIDX(ctx context.Context) int64 {
 	return id
 }
 
-// Only returns a single TransactionLog entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one TransactionLog entity is found.
-// Returns a *NotFoundError when no TransactionLog entities are found.
-func (_q *TransactionLogQuery) Only(ctx context.Context) (*TransactionLog, error) {
+// Only returns a single LedgerEntry entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one LedgerEntry entity is found.
+// Returns a *NotFoundError when no LedgerEntry entities are found.
+func (_q *LedgerEntryQuery) Only(ctx context.Context) (*LedgerEntry, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -190,14 +189,14 @@ func (_q *TransactionLogQuery) Only(ctx context.Context) (*TransactionLog, error
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{transactionlog.Label}
+		return nil, &NotFoundError{ledgerentry.Label}
 	default:
-		return nil, &NotSingularError{transactionlog.Label}
+		return nil, &NotSingularError{ledgerentry.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *TransactionLogQuery) OnlyX(ctx context.Context) *TransactionLog {
+func (_q *LedgerEntryQuery) OnlyX(ctx context.Context) *LedgerEntry {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -205,10 +204,10 @@ func (_q *TransactionLogQuery) OnlyX(ctx context.Context) *TransactionLog {
 	return node
 }
 
-// OnlyID is like Only, but returns the only TransactionLog ID in the query.
-// Returns a *NotSingularError when more than one TransactionLog ID is found.
+// OnlyID is like Only, but returns the only LedgerEntry ID in the query.
+// Returns a *NotSingularError when more than one LedgerEntry ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *TransactionLogQuery) OnlyID(ctx context.Context) (id int64, err error) {
+func (_q *LedgerEntryQuery) OnlyID(ctx context.Context) (id int64, err error) {
 	var ids []int64
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -217,15 +216,15 @@ func (_q *TransactionLogQuery) OnlyID(ctx context.Context) (id int64, err error)
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{transactionlog.Label}
+		err = &NotFoundError{ledgerentry.Label}
 	default:
-		err = &NotSingularError{transactionlog.Label}
+		err = &NotSingularError{ledgerentry.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *TransactionLogQuery) OnlyIDX(ctx context.Context) int64 {
+func (_q *LedgerEntryQuery) OnlyIDX(ctx context.Context) int64 {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -233,18 +232,18 @@ func (_q *TransactionLogQuery) OnlyIDX(ctx context.Context) int64 {
 	return id
 }
 
-// All executes the query and returns a list of TransactionLogs.
-func (_q *TransactionLogQuery) All(ctx context.Context) ([]*TransactionLog, error) {
+// All executes the query and returns a list of LedgerEntries.
+func (_q *LedgerEntryQuery) All(ctx context.Context) ([]*LedgerEntry, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*TransactionLog, *TransactionLogQuery]()
-	return withInterceptors[[]*TransactionLog](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*LedgerEntry, *LedgerEntryQuery]()
+	return withInterceptors[[]*LedgerEntry](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *TransactionLogQuery) AllX(ctx context.Context) []*TransactionLog {
+func (_q *LedgerEntryQuery) AllX(ctx context.Context) []*LedgerEntry {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -252,20 +251,20 @@ func (_q *TransactionLogQuery) AllX(ctx context.Context) []*TransactionLog {
 	return nodes
 }
 
-// IDs executes the query and returns a list of TransactionLog IDs.
-func (_q *TransactionLogQuery) IDs(ctx context.Context) (ids []int64, err error) {
+// IDs executes the query and returns a list of LedgerEntry IDs.
+func (_q *LedgerEntryQuery) IDs(ctx context.Context) (ids []int64, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(transactionlog.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(ledgerentry.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *TransactionLogQuery) IDsX(ctx context.Context) []int64 {
+func (_q *LedgerEntryQuery) IDsX(ctx context.Context) []int64 {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -274,16 +273,16 @@ func (_q *TransactionLogQuery) IDsX(ctx context.Context) []int64 {
 }
 
 // Count returns the count of the given query.
-func (_q *TransactionLogQuery) Count(ctx context.Context) (int, error) {
+func (_q *LedgerEntryQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*TransactionLogQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*LedgerEntryQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *TransactionLogQuery) CountX(ctx context.Context) int {
+func (_q *LedgerEntryQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -292,7 +291,7 @@ func (_q *TransactionLogQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *TransactionLogQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *LedgerEntryQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -305,7 +304,7 @@ func (_q *TransactionLogQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *TransactionLogQuery) ExistX(ctx context.Context) bool {
+func (_q *LedgerEntryQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -313,57 +312,57 @@ func (_q *TransactionLogQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the TransactionLogQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the LedgerEntryQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *TransactionLogQuery) Clone() *TransactionLogQuery {
+func (_q *LedgerEntryQuery) Clone() *LedgerEntryQuery {
 	if _q == nil {
 		return nil
 	}
-	return &TransactionLogQuery{
+	return &LedgerEntryQuery{
 		config:            _q.config,
 		ctx:               _q.ctx.Clone(),
-		order:             append([]transactionlog.OrderOption{}, _q.order...),
+		order:             append([]ledgerentry.OrderOption{}, _q.order...),
 		inters:            append([]Interceptor{}, _q.inters...),
-		predicates:        append([]predicate.TransactionLog{}, _q.predicates...),
+		predicates:        append([]predicate.LedgerEntry{}, _q.predicates...),
+		withTransaction:   _q.withTransaction.Clone(),
+		withLedgerAccount: _q.withLedgerAccount.Clone(),
 		withUser:          _q.withUser.Clone(),
-		withAccount:       _q.withAccount.Clone(),
-		withLedgerEntries: _q.withLedgerEntries.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
+// WithTransaction tells the query-builder to eager-load the nodes that are connected to
+// the "transaction" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *LedgerEntryQuery) WithTransaction(opts ...func(*TransactionLogQuery)) *LedgerEntryQuery {
+	query := (&TransactionLogClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTransaction = query
+	return _q
+}
+
+// WithLedgerAccount tells the query-builder to eager-load the nodes that are connected to
+// the "ledger_account" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *LedgerEntryQuery) WithLedgerAccount(opts ...func(*LedgerAccountQuery)) *LedgerEntryQuery {
+	query := (&LedgerAccountClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withLedgerAccount = query
+	return _q
+}
+
 // WithUser tells the query-builder to eager-load the nodes that are connected to
 // the "user" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TransactionLogQuery) WithUser(opts ...func(*UserQuery)) *TransactionLogQuery {
+func (_q *LedgerEntryQuery) WithUser(opts ...func(*UserQuery)) *LedgerEntryQuery {
 	query := (&UserClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
 	_q.withUser = query
-	return _q
-}
-
-// WithAccount tells the query-builder to eager-load the nodes that are connected to
-// the "account" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TransactionLogQuery) WithAccount(opts ...func(*UserBankAccountQuery)) *TransactionLogQuery {
-	query := (&UserBankAccountClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withAccount = query
-	return _q
-}
-
-// WithLedgerEntries tells the query-builder to eager-load the nodes that are connected to
-// the "ledger_entries" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *TransactionLogQuery) WithLedgerEntries(opts ...func(*LedgerEntryQuery)) *TransactionLogQuery {
-	query := (&LedgerEntryClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withLedgerEntries = query
 	return _q
 }
 
@@ -373,19 +372,19 @@ func (_q *TransactionLogQuery) WithLedgerEntries(opts ...func(*LedgerEntryQuery)
 // Example:
 //
 //	var v []struct {
-//		TxID uuid.UUID `json:"tx_id,omitempty"`
+//		EntryID uuid.UUID `json:"entry_id,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.TransactionLog.Query().
-//		GroupBy(transactionlog.FieldTxID).
+//	client.LedgerEntry.Query().
+//		GroupBy(ledgerentry.FieldEntryID).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *TransactionLogQuery) GroupBy(field string, fields ...string) *TransactionLogGroupBy {
+func (_q *LedgerEntryQuery) GroupBy(field string, fields ...string) *LedgerEntryGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &TransactionLogGroupBy{build: _q}
+	grbuild := &LedgerEntryGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = transactionlog.Label
+	grbuild.label = ledgerentry.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -396,26 +395,26 @@ func (_q *TransactionLogQuery) GroupBy(field string, fields ...string) *Transact
 // Example:
 //
 //	var v []struct {
-//		TxID uuid.UUID `json:"tx_id,omitempty"`
+//		EntryID uuid.UUID `json:"entry_id,omitempty"`
 //	}
 //
-//	client.TransactionLog.Query().
-//		Select(transactionlog.FieldTxID).
+//	client.LedgerEntry.Query().
+//		Select(ledgerentry.FieldEntryID).
 //		Scan(ctx, &v)
-func (_q *TransactionLogQuery) Select(fields ...string) *TransactionLogSelect {
+func (_q *LedgerEntryQuery) Select(fields ...string) *LedgerEntrySelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &TransactionLogSelect{TransactionLogQuery: _q}
-	sbuild.label = transactionlog.Label
+	sbuild := &LedgerEntrySelect{LedgerEntryQuery: _q}
+	sbuild.label = ledgerentry.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a TransactionLogSelect configured with the given aggregations.
-func (_q *TransactionLogQuery) Aggregate(fns ...AggregateFunc) *TransactionLogSelect {
+// Aggregate returns a LedgerEntrySelect configured with the given aggregations.
+func (_q *LedgerEntryQuery) Aggregate(fns ...AggregateFunc) *LedgerEntrySelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *TransactionLogQuery) prepareQuery(ctx context.Context) error {
+func (_q *LedgerEntryQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -427,7 +426,7 @@ func (_q *TransactionLogQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !transactionlog.ValidColumn(f) {
+		if !ledgerentry.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -441,21 +440,21 @@ func (_q *TransactionLogQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *TransactionLogQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*TransactionLog, error) {
+func (_q *LedgerEntryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*LedgerEntry, error) {
 	var (
-		nodes       = []*TransactionLog{}
+		nodes       = []*LedgerEntry{}
 		_spec       = _q.querySpec()
 		loadedTypes = [3]bool{
+			_q.withTransaction != nil,
+			_q.withLedgerAccount != nil,
 			_q.withUser != nil,
-			_q.withAccount != nil,
-			_q.withLedgerEntries != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*TransactionLog).scanValues(nil, columns)
+		return (*LedgerEntry).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &TransactionLog{config: _q.config}
+		node := &LedgerEntry{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -472,33 +471,93 @@ func (_q *TransactionLogQuery) sqlAll(ctx context.Context, hooks ...queryHook) (
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withTransaction; query != nil {
+		if err := _q.loadTransaction(ctx, query, nodes, nil,
+			func(n *LedgerEntry, e *TransactionLog) { n.Edges.Transaction = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withLedgerAccount; query != nil {
+		if err := _q.loadLedgerAccount(ctx, query, nodes, nil,
+			func(n *LedgerEntry, e *LedgerAccount) { n.Edges.LedgerAccount = e }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withUser; query != nil {
 		if err := _q.loadUser(ctx, query, nodes, nil,
-			func(n *TransactionLog, e *User) { n.Edges.User = e }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withAccount; query != nil {
-		if err := _q.loadAccount(ctx, query, nodes, nil,
-			func(n *TransactionLog, e *UserBankAccount) { n.Edges.Account = e }); err != nil {
-			return nil, err
-		}
-	}
-	if query := _q.withLedgerEntries; query != nil {
-		if err := _q.loadLedgerEntries(ctx, query, nodes,
-			func(n *TransactionLog) { n.Edges.LedgerEntries = []*LedgerEntry{} },
-			func(n *TransactionLog, e *LedgerEntry) { n.Edges.LedgerEntries = append(n.Edges.LedgerEntries, e) }); err != nil {
+			func(n *LedgerEntry, e *User) { n.Edges.User = e }); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
 }
 
-func (_q *TransactionLogQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*TransactionLog, init func(*TransactionLog), assign func(*TransactionLog, *User)) error {
+func (_q *LedgerEntryQuery) loadTransaction(ctx context.Context, query *TransactionLogQuery, nodes []*LedgerEntry, init func(*LedgerEntry), assign func(*LedgerEntry, *TransactionLog)) error {
 	ids := make([]int64, 0, len(nodes))
-	nodeids := make(map[int64][]*TransactionLog)
+	nodeids := make(map[int64][]*LedgerEntry)
 	for i := range nodes {
-		fk := nodes[i].UserID
+		fk := nodes[i].TransactionLogID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(transactionlog.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "transaction_log_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *LedgerEntryQuery) loadLedgerAccount(ctx context.Context, query *LedgerAccountQuery, nodes []*LedgerEntry, init func(*LedgerEntry), assign func(*LedgerEntry, *LedgerAccount)) error {
+	ids := make([]int64, 0, len(nodes))
+	nodeids := make(map[int64][]*LedgerEntry)
+	for i := range nodes {
+		fk := nodes[i].LedgerAccountID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(ledgeraccount.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "ledger_account_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *LedgerEntryQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*LedgerEntry, init func(*LedgerEntry), assign func(*LedgerEntry, *User)) error {
+	ids := make([]int64, 0, len(nodes))
+	nodeids := make(map[int64][]*LedgerEntry)
+	for i := range nodes {
+		if nodes[i].UserID == nil {
+			continue
+		}
+		fk := *nodes[i].UserID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -523,67 +582,8 @@ func (_q *TransactionLogQuery) loadUser(ctx context.Context, query *UserQuery, n
 	}
 	return nil
 }
-func (_q *TransactionLogQuery) loadAccount(ctx context.Context, query *UserBankAccountQuery, nodes []*TransactionLog, init func(*TransactionLog), assign func(*TransactionLog, *UserBankAccount)) error {
-	ids := make([]int64, 0, len(nodes))
-	nodeids := make(map[int64][]*TransactionLog)
-	for i := range nodes {
-		fk := nodes[i].AccountID
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
-	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(userbankaccount.IDIn(ids...))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
-		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "account_id" returned %v`, n.ID)
-		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
-	}
-	return nil
-}
-func (_q *TransactionLogQuery) loadLedgerEntries(ctx context.Context, query *LedgerEntryQuery, nodes []*TransactionLog, init func(*TransactionLog), assign func(*TransactionLog, *LedgerEntry)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int64]*TransactionLog)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(ledgerentry.FieldTransactionLogID)
-	}
-	query.Where(predicate.LedgerEntry(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(transactionlog.LedgerEntriesColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.TransactionLogID
-		node, ok := nodeids[fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "transaction_log_id" returned %v for node %v`, fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
 
-func (_q *TransactionLogQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *LedgerEntryQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
@@ -595,8 +595,8 @@ func (_q *TransactionLogQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *TransactionLogQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(transactionlog.Table, transactionlog.Columns, sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64))
+func (_q *LedgerEntryQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(ledgerentry.Table, ledgerentry.Columns, sqlgraph.NewFieldSpec(ledgerentry.FieldID, field.TypeInt64))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -605,17 +605,20 @@ func (_q *TransactionLogQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, transactionlog.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, ledgerentry.FieldID)
 		for i := range fields {
-			if fields[i] != transactionlog.FieldID {
+			if fields[i] != ledgerentry.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
-		if _q.withUser != nil {
-			_spec.Node.AddColumnOnce(transactionlog.FieldUserID)
+		if _q.withTransaction != nil {
+			_spec.Node.AddColumnOnce(ledgerentry.FieldTransactionLogID)
 		}
-		if _q.withAccount != nil {
-			_spec.Node.AddColumnOnce(transactionlog.FieldAccountID)
+		if _q.withLedgerAccount != nil {
+			_spec.Node.AddColumnOnce(ledgerentry.FieldLedgerAccountID)
+		}
+		if _q.withUser != nil {
+			_spec.Node.AddColumnOnce(ledgerentry.FieldUserID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -641,12 +644,12 @@ func (_q *TransactionLogQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *TransactionLogQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *LedgerEntryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(transactionlog.Table)
+	t1 := builder.Table(ledgerentry.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = transactionlog.Columns
+		columns = ledgerentry.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -679,7 +682,7 @@ func (_q *TransactionLogQuery) sqlQuery(ctx context.Context) *sql.Selector {
 // ForUpdate locks the selected rows against concurrent updates, and prevent them from being
 // updated, deleted or "selected ... for update" by other sessions, until the transaction is
 // either committed or rolled-back.
-func (_q *TransactionLogQuery) ForUpdate(opts ...sql.LockOption) *TransactionLogQuery {
+func (_q *LedgerEntryQuery) ForUpdate(opts ...sql.LockOption) *LedgerEntryQuery {
 	if _q.driver.Dialect() == dialect.Postgres {
 		_q.Unique(false)
 	}
@@ -692,7 +695,7 @@ func (_q *TransactionLogQuery) ForUpdate(opts ...sql.LockOption) *TransactionLog
 // ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
 // on any rows that are read. Other sessions can read the rows, but cannot modify them
 // until your transaction commits.
-func (_q *TransactionLogQuery) ForShare(opts ...sql.LockOption) *TransactionLogQuery {
+func (_q *LedgerEntryQuery) ForShare(opts ...sql.LockOption) *LedgerEntryQuery {
 	if _q.driver.Dialect() == dialect.Postgres {
 		_q.Unique(false)
 	}
@@ -702,28 +705,28 @@ func (_q *TransactionLogQuery) ForShare(opts ...sql.LockOption) *TransactionLogQ
 	return _q
 }
 
-// TransactionLogGroupBy is the group-by builder for TransactionLog entities.
-type TransactionLogGroupBy struct {
+// LedgerEntryGroupBy is the group-by builder for LedgerEntry entities.
+type LedgerEntryGroupBy struct {
 	selector
-	build *TransactionLogQuery
+	build *LedgerEntryQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *TransactionLogGroupBy) Aggregate(fns ...AggregateFunc) *TransactionLogGroupBy {
+func (_g *LedgerEntryGroupBy) Aggregate(fns ...AggregateFunc) *LedgerEntryGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *TransactionLogGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *LedgerEntryGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TransactionLogQuery, *TransactionLogGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*LedgerEntryQuery, *LedgerEntryGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *TransactionLogGroupBy) sqlScan(ctx context.Context, root *TransactionLogQuery, v any) error {
+func (_g *LedgerEntryGroupBy) sqlScan(ctx context.Context, root *LedgerEntryQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -750,28 +753,28 @@ func (_g *TransactionLogGroupBy) sqlScan(ctx context.Context, root *TransactionL
 	return sql.ScanSlice(rows, v)
 }
 
-// TransactionLogSelect is the builder for selecting fields of TransactionLog entities.
-type TransactionLogSelect struct {
-	*TransactionLogQuery
+// LedgerEntrySelect is the builder for selecting fields of LedgerEntry entities.
+type LedgerEntrySelect struct {
+	*LedgerEntryQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *TransactionLogSelect) Aggregate(fns ...AggregateFunc) *TransactionLogSelect {
+func (_s *LedgerEntrySelect) Aggregate(fns ...AggregateFunc) *LedgerEntrySelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *TransactionLogSelect) Scan(ctx context.Context, v any) error {
+func (_s *LedgerEntrySelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*TransactionLogQuery, *TransactionLogSelect](ctx, _s.TransactionLogQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*LedgerEntryQuery, *LedgerEntrySelect](ctx, _s.LedgerEntryQuery, _s, _s.inters, v)
 }
 
-func (_s *TransactionLogSelect) sqlScan(ctx context.Context, root *TransactionLogQuery, v any) error {
+func (_s *LedgerEntrySelect) sqlScan(ctx context.Context, root *LedgerEntryQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

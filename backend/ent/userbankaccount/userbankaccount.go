@@ -27,6 +27,10 @@ const (
 	FieldFrozenAmount = "frozen_amount"
 	// FieldCreditLimit holds the string denoting the credit_limit field in the database.
 	FieldCreditLimit = "credit_limit"
+	// FieldDebtPrincipal holds the string denoting the debt_principal field in the database.
+	FieldDebtPrincipal = "debt_principal"
+	// FieldDebtInterest holds the string denoting the debt_interest field in the database.
+	FieldDebtInterest = "debt_interest"
 	// FieldTotalDebt holds the string denoting the total_debt field in the database.
 	FieldTotalDebt = "total_debt"
 	// FieldVersion holds the string denoting the version field in the database.
@@ -37,6 +41,8 @@ const (
 	EdgeUser = "user"
 	// EdgeTransactions holds the string denoting the transactions edge name in mutations.
 	EdgeTransactions = "transactions"
+	// EdgeLedgerAccounts holds the string denoting the ledger_accounts edge name in mutations.
+	EdgeLedgerAccounts = "ledger_accounts"
 	// Table holds the table name of the userbankaccount in the database.
 	Table = "users_bank_account"
 	// UserTable is the table that holds the user relation/edge.
@@ -53,6 +59,13 @@ const (
 	TransactionsInverseTable = "transactions_log"
 	// TransactionsColumn is the table column denoting the transactions relation/edge.
 	TransactionsColumn = "account_id"
+	// LedgerAccountsTable is the table that holds the ledger_accounts relation/edge.
+	LedgerAccountsTable = "ledger_accounts"
+	// LedgerAccountsInverseTable is the table name for the LedgerAccount entity.
+	// It exists in this package in order to avoid circular dependency with the "ledgeraccount" package.
+	LedgerAccountsInverseTable = "ledger_accounts"
+	// LedgerAccountsColumn is the table column denoting the ledger_accounts relation/edge.
+	LedgerAccountsColumn = "user_bank_account_id"
 )
 
 // Columns holds all SQL columns for userbankaccount fields.
@@ -64,6 +77,8 @@ var Columns = []string{
 	FieldBalance,
 	FieldFrozenAmount,
 	FieldCreditLimit,
+	FieldDebtPrincipal,
+	FieldDebtInterest,
 	FieldTotalDebt,
 	FieldVersion,
 	FieldStatus,
@@ -92,6 +107,10 @@ var (
 	DefaultFrozenAmount decimal.Decimal
 	// DefaultCreditLimit holds the default value on creation for the "credit_limit" field.
 	DefaultCreditLimit decimal.Decimal
+	// DefaultDebtPrincipal holds the default value on creation for the "debt_principal" field.
+	DefaultDebtPrincipal decimal.Decimal
+	// DefaultDebtInterest holds the default value on creation for the "debt_interest" field.
+	DefaultDebtInterest decimal.Decimal
 	// DefaultTotalDebt holds the default value on creation for the "total_debt" field.
 	DefaultTotalDebt decimal.Decimal
 	// DefaultVersion holds the default value on creation for the "version" field.
@@ -140,6 +159,16 @@ func ByCreditLimit(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreditLimit, opts...).ToFunc()
 }
 
+// ByDebtPrincipal orders the results by the debt_principal field.
+func ByDebtPrincipal(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDebtPrincipal, opts...).ToFunc()
+}
+
+// ByDebtInterest orders the results by the debt_interest field.
+func ByDebtInterest(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDebtInterest, opts...).ToFunc()
+}
+
 // ByTotalDebt orders the results by the total_debt field.
 func ByTotalDebt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTotalDebt, opts...).ToFunc()
@@ -175,6 +204,20 @@ func ByTransactions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newTransactionsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByLedgerAccountsCount orders the results by ledger_accounts count.
+func ByLedgerAccountsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLedgerAccountsStep(), opts...)
+	}
+}
+
+// ByLedgerAccounts orders the results by ledger_accounts terms.
+func ByLedgerAccounts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLedgerAccountsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -187,5 +230,12 @@ func newTransactionsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(TransactionsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, TransactionsTable, TransactionsColumn),
+	)
+}
+func newLedgerAccountsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LedgerAccountsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LedgerAccountsTable, LedgerAccountsColumn),
 	)
 }

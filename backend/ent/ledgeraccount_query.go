@@ -14,61 +14,61 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
+	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
-	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userbankaccount"
 )
 
-// UserBankAccountQuery is the builder for querying UserBankAccount entities.
-type UserBankAccountQuery struct {
+// LedgerAccountQuery is the builder for querying LedgerAccount entities.
+type LedgerAccountQuery struct {
 	config
-	ctx                *QueryContext
-	order              []userbankaccount.OrderOption
-	inters             []Interceptor
-	predicates         []predicate.UserBankAccount
-	withUser           *UserQuery
-	withTransactions   *TransactionLogQuery
-	withLedgerAccounts *LedgerAccountQuery
-	modifiers          []func(*sql.Selector)
+	ctx             *QueryContext
+	order           []ledgeraccount.OrderOption
+	inters          []Interceptor
+	predicates      []predicate.LedgerAccount
+	withOwnerUser   *UserQuery
+	withBankAccount *UserBankAccountQuery
+	withEntries     *LedgerEntryQuery
+	modifiers       []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the UserBankAccountQuery builder.
-func (_q *UserBankAccountQuery) Where(ps ...predicate.UserBankAccount) *UserBankAccountQuery {
+// Where adds a new predicate for the LedgerAccountQuery builder.
+func (_q *LedgerAccountQuery) Where(ps ...predicate.LedgerAccount) *LedgerAccountQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *UserBankAccountQuery) Limit(limit int) *UserBankAccountQuery {
+func (_q *LedgerAccountQuery) Limit(limit int) *LedgerAccountQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *UserBankAccountQuery) Offset(offset int) *UserBankAccountQuery {
+func (_q *LedgerAccountQuery) Offset(offset int) *LedgerAccountQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *UserBankAccountQuery) Unique(unique bool) *UserBankAccountQuery {
+func (_q *LedgerAccountQuery) Unique(unique bool) *LedgerAccountQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *UserBankAccountQuery) Order(o ...userbankaccount.OrderOption) *UserBankAccountQuery {
+func (_q *LedgerAccountQuery) Order(o ...ledgeraccount.OrderOption) *LedgerAccountQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryUser chains the current query on the "user" edge.
-func (_q *UserBankAccountQuery) QueryUser() *UserQuery {
+// QueryOwnerUser chains the current query on the "owner_user" edge.
+func (_q *LedgerAccountQuery) QueryOwnerUser() *UserQuery {
 	query := (&UserClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
@@ -79,9 +79,9 @@ func (_q *UserBankAccountQuery) QueryUser() *UserQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(userbankaccount.Table, userbankaccount.FieldID, selector),
+			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, userbankaccount.UserTable, userbankaccount.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgeraccount.OwnerUserTable, ledgeraccount.OwnerUserColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -89,9 +89,9 @@ func (_q *UserBankAccountQuery) QueryUser() *UserQuery {
 	return query
 }
 
-// QueryTransactions chains the current query on the "transactions" edge.
-func (_q *UserBankAccountQuery) QueryTransactions() *TransactionLogQuery {
-	query := (&TransactionLogClient{config: _q.config}).Query()
+// QueryBankAccount chains the current query on the "bank_account" edge.
+func (_q *LedgerAccountQuery) QueryBankAccount() *UserBankAccountQuery {
+	query := (&UserBankAccountClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -101,9 +101,9 @@ func (_q *UserBankAccountQuery) QueryTransactions() *TransactionLogQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(userbankaccount.Table, userbankaccount.FieldID, selector),
-			sqlgraph.To(transactionlog.Table, transactionlog.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, userbankaccount.TransactionsTable, userbankaccount.TransactionsColumn),
+			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, selector),
+			sqlgraph.To(userbankaccount.Table, userbankaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgeraccount.BankAccountTable, ledgeraccount.BankAccountColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -111,9 +111,9 @@ func (_q *UserBankAccountQuery) QueryTransactions() *TransactionLogQuery {
 	return query
 }
 
-// QueryLedgerAccounts chains the current query on the "ledger_accounts" edge.
-func (_q *UserBankAccountQuery) QueryLedgerAccounts() *LedgerAccountQuery {
-	query := (&LedgerAccountClient{config: _q.config}).Query()
+// QueryEntries chains the current query on the "entries" edge.
+func (_q *LedgerAccountQuery) QueryEntries() *LedgerEntryQuery {
+	query := (&LedgerEntryClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -123,9 +123,9 @@ func (_q *UserBankAccountQuery) QueryLedgerAccounts() *LedgerAccountQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(userbankaccount.Table, userbankaccount.FieldID, selector),
-			sqlgraph.To(ledgeraccount.Table, ledgeraccount.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, userbankaccount.LedgerAccountsTable, userbankaccount.LedgerAccountsColumn),
+			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, selector),
+			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ledgeraccount.EntriesTable, ledgeraccount.EntriesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -133,21 +133,21 @@ func (_q *UserBankAccountQuery) QueryLedgerAccounts() *LedgerAccountQuery {
 	return query
 }
 
-// First returns the first UserBankAccount entity from the query.
-// Returns a *NotFoundError when no UserBankAccount was found.
-func (_q *UserBankAccountQuery) First(ctx context.Context) (*UserBankAccount, error) {
+// First returns the first LedgerAccount entity from the query.
+// Returns a *NotFoundError when no LedgerAccount was found.
+func (_q *LedgerAccountQuery) First(ctx context.Context) (*LedgerAccount, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{userbankaccount.Label}
+		return nil, &NotFoundError{ledgeraccount.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *UserBankAccountQuery) FirstX(ctx context.Context) *UserBankAccount {
+func (_q *LedgerAccountQuery) FirstX(ctx context.Context) *LedgerAccount {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -155,22 +155,22 @@ func (_q *UserBankAccountQuery) FirstX(ctx context.Context) *UserBankAccount {
 	return node
 }
 
-// FirstID returns the first UserBankAccount ID from the query.
-// Returns a *NotFoundError when no UserBankAccount ID was found.
-func (_q *UserBankAccountQuery) FirstID(ctx context.Context) (id int64, err error) {
+// FirstID returns the first LedgerAccount ID from the query.
+// Returns a *NotFoundError when no LedgerAccount ID was found.
+func (_q *LedgerAccountQuery) FirstID(ctx context.Context) (id int64, err error) {
 	var ids []int64
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{userbankaccount.Label}
+		err = &NotFoundError{ledgeraccount.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *UserBankAccountQuery) FirstIDX(ctx context.Context) int64 {
+func (_q *LedgerAccountQuery) FirstIDX(ctx context.Context) int64 {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -178,10 +178,10 @@ func (_q *UserBankAccountQuery) FirstIDX(ctx context.Context) int64 {
 	return id
 }
 
-// Only returns a single UserBankAccount entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one UserBankAccount entity is found.
-// Returns a *NotFoundError when no UserBankAccount entities are found.
-func (_q *UserBankAccountQuery) Only(ctx context.Context) (*UserBankAccount, error) {
+// Only returns a single LedgerAccount entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one LedgerAccount entity is found.
+// Returns a *NotFoundError when no LedgerAccount entities are found.
+func (_q *LedgerAccountQuery) Only(ctx context.Context) (*LedgerAccount, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -190,14 +190,14 @@ func (_q *UserBankAccountQuery) Only(ctx context.Context) (*UserBankAccount, err
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{userbankaccount.Label}
+		return nil, &NotFoundError{ledgeraccount.Label}
 	default:
-		return nil, &NotSingularError{userbankaccount.Label}
+		return nil, &NotSingularError{ledgeraccount.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *UserBankAccountQuery) OnlyX(ctx context.Context) *UserBankAccount {
+func (_q *LedgerAccountQuery) OnlyX(ctx context.Context) *LedgerAccount {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -205,10 +205,10 @@ func (_q *UserBankAccountQuery) OnlyX(ctx context.Context) *UserBankAccount {
 	return node
 }
 
-// OnlyID is like Only, but returns the only UserBankAccount ID in the query.
-// Returns a *NotSingularError when more than one UserBankAccount ID is found.
+// OnlyID is like Only, but returns the only LedgerAccount ID in the query.
+// Returns a *NotSingularError when more than one LedgerAccount ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *UserBankAccountQuery) OnlyID(ctx context.Context) (id int64, err error) {
+func (_q *LedgerAccountQuery) OnlyID(ctx context.Context) (id int64, err error) {
 	var ids []int64
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -217,15 +217,15 @@ func (_q *UserBankAccountQuery) OnlyID(ctx context.Context) (id int64, err error
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{userbankaccount.Label}
+		err = &NotFoundError{ledgeraccount.Label}
 	default:
-		err = &NotSingularError{userbankaccount.Label}
+		err = &NotSingularError{ledgeraccount.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *UserBankAccountQuery) OnlyIDX(ctx context.Context) int64 {
+func (_q *LedgerAccountQuery) OnlyIDX(ctx context.Context) int64 {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -233,18 +233,18 @@ func (_q *UserBankAccountQuery) OnlyIDX(ctx context.Context) int64 {
 	return id
 }
 
-// All executes the query and returns a list of UserBankAccounts.
-func (_q *UserBankAccountQuery) All(ctx context.Context) ([]*UserBankAccount, error) {
+// All executes the query and returns a list of LedgerAccounts.
+func (_q *LedgerAccountQuery) All(ctx context.Context) ([]*LedgerAccount, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*UserBankAccount, *UserBankAccountQuery]()
-	return withInterceptors[[]*UserBankAccount](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*LedgerAccount, *LedgerAccountQuery]()
+	return withInterceptors[[]*LedgerAccount](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *UserBankAccountQuery) AllX(ctx context.Context) []*UserBankAccount {
+func (_q *LedgerAccountQuery) AllX(ctx context.Context) []*LedgerAccount {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -252,20 +252,20 @@ func (_q *UserBankAccountQuery) AllX(ctx context.Context) []*UserBankAccount {
 	return nodes
 }
 
-// IDs executes the query and returns a list of UserBankAccount IDs.
-func (_q *UserBankAccountQuery) IDs(ctx context.Context) (ids []int64, err error) {
+// IDs executes the query and returns a list of LedgerAccount IDs.
+func (_q *LedgerAccountQuery) IDs(ctx context.Context) (ids []int64, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(userbankaccount.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(ledgeraccount.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *UserBankAccountQuery) IDsX(ctx context.Context) []int64 {
+func (_q *LedgerAccountQuery) IDsX(ctx context.Context) []int64 {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -274,16 +274,16 @@ func (_q *UserBankAccountQuery) IDsX(ctx context.Context) []int64 {
 }
 
 // Count returns the count of the given query.
-func (_q *UserBankAccountQuery) Count(ctx context.Context) (int, error) {
+func (_q *LedgerAccountQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*UserBankAccountQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*LedgerAccountQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *UserBankAccountQuery) CountX(ctx context.Context) int {
+func (_q *LedgerAccountQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -292,7 +292,7 @@ func (_q *UserBankAccountQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *UserBankAccountQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *LedgerAccountQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -305,7 +305,7 @@ func (_q *UserBankAccountQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *UserBankAccountQuery) ExistX(ctx context.Context) bool {
+func (_q *LedgerAccountQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -313,57 +313,57 @@ func (_q *UserBankAccountQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the UserBankAccountQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the LedgerAccountQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *UserBankAccountQuery) Clone() *UserBankAccountQuery {
+func (_q *LedgerAccountQuery) Clone() *LedgerAccountQuery {
 	if _q == nil {
 		return nil
 	}
-	return &UserBankAccountQuery{
-		config:             _q.config,
-		ctx:                _q.ctx.Clone(),
-		order:              append([]userbankaccount.OrderOption{}, _q.order...),
-		inters:             append([]Interceptor{}, _q.inters...),
-		predicates:         append([]predicate.UserBankAccount{}, _q.predicates...),
-		withUser:           _q.withUser.Clone(),
-		withTransactions:   _q.withTransactions.Clone(),
-		withLedgerAccounts: _q.withLedgerAccounts.Clone(),
+	return &LedgerAccountQuery{
+		config:          _q.config,
+		ctx:             _q.ctx.Clone(),
+		order:           append([]ledgeraccount.OrderOption{}, _q.order...),
+		inters:          append([]Interceptor{}, _q.inters...),
+		predicates:      append([]predicate.LedgerAccount{}, _q.predicates...),
+		withOwnerUser:   _q.withOwnerUser.Clone(),
+		withBankAccount: _q.withBankAccount.Clone(),
+		withEntries:     _q.withEntries.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
 }
 
-// WithUser tells the query-builder to eager-load the nodes that are connected to
-// the "user" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserBankAccountQuery) WithUser(opts ...func(*UserQuery)) *UserBankAccountQuery {
+// WithOwnerUser tells the query-builder to eager-load the nodes that are connected to
+// the "owner_user" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *LedgerAccountQuery) WithOwnerUser(opts ...func(*UserQuery)) *LedgerAccountQuery {
 	query := (&UserClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withUser = query
+	_q.withOwnerUser = query
 	return _q
 }
 
-// WithTransactions tells the query-builder to eager-load the nodes that are connected to
-// the "transactions" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserBankAccountQuery) WithTransactions(opts ...func(*TransactionLogQuery)) *UserBankAccountQuery {
-	query := (&TransactionLogClient{config: _q.config}).Query()
+// WithBankAccount tells the query-builder to eager-load the nodes that are connected to
+// the "bank_account" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *LedgerAccountQuery) WithBankAccount(opts ...func(*UserBankAccountQuery)) *LedgerAccountQuery {
+	query := (&UserBankAccountClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withTransactions = query
+	_q.withBankAccount = query
 	return _q
 }
 
-// WithLedgerAccounts tells the query-builder to eager-load the nodes that are connected to
-// the "ledger_accounts" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *UserBankAccountQuery) WithLedgerAccounts(opts ...func(*LedgerAccountQuery)) *UserBankAccountQuery {
-	query := (&LedgerAccountClient{config: _q.config}).Query()
+// WithEntries tells the query-builder to eager-load the nodes that are connected to
+// the "entries" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *LedgerAccountQuery) WithEntries(opts ...func(*LedgerEntryQuery)) *LedgerAccountQuery {
+	query := (&LedgerEntryClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withLedgerAccounts = query
+	_q.withEntries = query
 	return _q
 }
 
@@ -377,15 +377,15 @@ func (_q *UserBankAccountQuery) WithLedgerAccounts(opts ...func(*LedgerAccountQu
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.UserBankAccount.Query().
-//		GroupBy(userbankaccount.FieldCreatedAt).
+//	client.LedgerAccount.Query().
+//		GroupBy(ledgeraccount.FieldCreatedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *UserBankAccountQuery) GroupBy(field string, fields ...string) *UserBankAccountGroupBy {
+func (_q *LedgerAccountQuery) GroupBy(field string, fields ...string) *LedgerAccountGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &UserBankAccountGroupBy{build: _q}
+	grbuild := &LedgerAccountGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = userbankaccount.Label
+	grbuild.label = ledgeraccount.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -399,23 +399,23 @@ func (_q *UserBankAccountQuery) GroupBy(field string, fields ...string) *UserBan
 //		CreatedAt time.Time `json:"created_at,omitempty"`
 //	}
 //
-//	client.UserBankAccount.Query().
-//		Select(userbankaccount.FieldCreatedAt).
+//	client.LedgerAccount.Query().
+//		Select(ledgeraccount.FieldCreatedAt).
 //		Scan(ctx, &v)
-func (_q *UserBankAccountQuery) Select(fields ...string) *UserBankAccountSelect {
+func (_q *LedgerAccountQuery) Select(fields ...string) *LedgerAccountSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &UserBankAccountSelect{UserBankAccountQuery: _q}
-	sbuild.label = userbankaccount.Label
+	sbuild := &LedgerAccountSelect{LedgerAccountQuery: _q}
+	sbuild.label = ledgeraccount.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a UserBankAccountSelect configured with the given aggregations.
-func (_q *UserBankAccountQuery) Aggregate(fns ...AggregateFunc) *UserBankAccountSelect {
+// Aggregate returns a LedgerAccountSelect configured with the given aggregations.
+func (_q *LedgerAccountQuery) Aggregate(fns ...AggregateFunc) *LedgerAccountSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *UserBankAccountQuery) prepareQuery(ctx context.Context) error {
+func (_q *LedgerAccountQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -427,7 +427,7 @@ func (_q *UserBankAccountQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !userbankaccount.ValidColumn(f) {
+		if !ledgeraccount.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -441,21 +441,21 @@ func (_q *UserBankAccountQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *UserBankAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*UserBankAccount, error) {
+func (_q *LedgerAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*LedgerAccount, error) {
 	var (
-		nodes       = []*UserBankAccount{}
+		nodes       = []*LedgerAccount{}
 		_spec       = _q.querySpec()
 		loadedTypes = [3]bool{
-			_q.withUser != nil,
-			_q.withTransactions != nil,
-			_q.withLedgerAccounts != nil,
+			_q.withOwnerUser != nil,
+			_q.withBankAccount != nil,
+			_q.withEntries != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*UserBankAccount).scanValues(nil, columns)
+		return (*LedgerAccount).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &UserBankAccount{config: _q.config}
+		node := &LedgerAccount{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -472,34 +472,36 @@ func (_q *UserBankAccountQuery) sqlAll(ctx context.Context, hooks ...queryHook) 
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withUser; query != nil {
-		if err := _q.loadUser(ctx, query, nodes, nil,
-			func(n *UserBankAccount, e *User) { n.Edges.User = e }); err != nil {
+	if query := _q.withOwnerUser; query != nil {
+		if err := _q.loadOwnerUser(ctx, query, nodes, nil,
+			func(n *LedgerAccount, e *User) { n.Edges.OwnerUser = e }); err != nil {
 			return nil, err
 		}
 	}
-	if query := _q.withTransactions; query != nil {
-		if err := _q.loadTransactions(ctx, query, nodes,
-			func(n *UserBankAccount) { n.Edges.Transactions = []*TransactionLog{} },
-			func(n *UserBankAccount, e *TransactionLog) { n.Edges.Transactions = append(n.Edges.Transactions, e) }); err != nil {
+	if query := _q.withBankAccount; query != nil {
+		if err := _q.loadBankAccount(ctx, query, nodes, nil,
+			func(n *LedgerAccount, e *UserBankAccount) { n.Edges.BankAccount = e }); err != nil {
 			return nil, err
 		}
 	}
-	if query := _q.withLedgerAccounts; query != nil {
-		if err := _q.loadLedgerAccounts(ctx, query, nodes,
-			func(n *UserBankAccount) { n.Edges.LedgerAccounts = []*LedgerAccount{} },
-			func(n *UserBankAccount, e *LedgerAccount) { n.Edges.LedgerAccounts = append(n.Edges.LedgerAccounts, e) }); err != nil {
+	if query := _q.withEntries; query != nil {
+		if err := _q.loadEntries(ctx, query, nodes,
+			func(n *LedgerAccount) { n.Edges.Entries = []*LedgerEntry{} },
+			func(n *LedgerAccount, e *LedgerEntry) { n.Edges.Entries = append(n.Edges.Entries, e) }); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
 }
 
-func (_q *UserBankAccountQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*UserBankAccount, init func(*UserBankAccount), assign func(*UserBankAccount, *User)) error {
+func (_q *LedgerAccountQuery) loadOwnerUser(ctx context.Context, query *UserQuery, nodes []*LedgerAccount, init func(*LedgerAccount), assign func(*LedgerAccount, *User)) error {
 	ids := make([]int64, 0, len(nodes))
-	nodeids := make(map[int64][]*UserBankAccount)
+	nodeids := make(map[int64][]*LedgerAccount)
 	for i := range nodes {
-		fk := nodes[i].UserID
+		if nodes[i].OwnerUserID == nil {
+			continue
+		}
+		fk := *nodes[i].OwnerUserID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -516,7 +518,7 @@ func (_q *UserBankAccountQuery) loadUser(ctx context.Context, query *UserQuery, 
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "user_id" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "owner_user_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -524,39 +526,41 @@ func (_q *UserBankAccountQuery) loadUser(ctx context.Context, query *UserQuery, 
 	}
 	return nil
 }
-func (_q *UserBankAccountQuery) loadTransactions(ctx context.Context, query *TransactionLogQuery, nodes []*UserBankAccount, init func(*UserBankAccount), assign func(*UserBankAccount, *TransactionLog)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int64]*UserBankAccount)
+func (_q *LedgerAccountQuery) loadBankAccount(ctx context.Context, query *UserBankAccountQuery, nodes []*LedgerAccount, init func(*LedgerAccount), assign func(*LedgerAccount, *UserBankAccount)) error {
+	ids := make([]int64, 0, len(nodes))
+	nodeids := make(map[int64][]*LedgerAccount)
 	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
+		if nodes[i].UserBankAccountID == nil {
+			continue
 		}
+		fk := *nodes[i].UserBankAccountID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(transactionlog.FieldAccountID)
+	if len(ids) == 0 {
+		return nil
 	}
-	query.Where(predicate.TransactionLog(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(userbankaccount.TransactionsColumn), fks...))
-	}))
+	query.Where(userbankaccount.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.AccountID
-		node, ok := nodeids[fk]
+		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "account_id" returned %v for node %v`, fk, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "user_bank_account_id" returned %v`, n.ID)
 		}
-		assign(node, n)
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
 	}
 	return nil
 }
-func (_q *UserBankAccountQuery) loadLedgerAccounts(ctx context.Context, query *LedgerAccountQuery, nodes []*UserBankAccount, init func(*UserBankAccount), assign func(*UserBankAccount, *LedgerAccount)) error {
+func (_q *LedgerAccountQuery) loadEntries(ctx context.Context, query *LedgerEntryQuery, nodes []*LedgerAccount, init func(*LedgerAccount), assign func(*LedgerAccount, *LedgerEntry)) error {
 	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int64]*UserBankAccount)
+	nodeids := make(map[int64]*LedgerAccount)
 	for i := range nodes {
 		fks = append(fks, nodes[i].ID)
 		nodeids[nodes[i].ID] = nodes[i]
@@ -565,30 +569,27 @@ func (_q *UserBankAccountQuery) loadLedgerAccounts(ctx context.Context, query *L
 		}
 	}
 	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(ledgeraccount.FieldUserBankAccountID)
+		query.ctx.AppendFieldOnce(ledgerentry.FieldLedgerAccountID)
 	}
-	query.Where(predicate.LedgerAccount(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(userbankaccount.LedgerAccountsColumn), fks...))
+	query.Where(predicate.LedgerEntry(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(ledgeraccount.EntriesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.UserBankAccountID
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "user_bank_account_id" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		fk := n.LedgerAccountID
+		node, ok := nodeids[fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "user_bank_account_id" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "ledger_account_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}
 	return nil
 }
 
-func (_q *UserBankAccountQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *LedgerAccountQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
@@ -600,8 +601,8 @@ func (_q *UserBankAccountQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *UserBankAccountQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(userbankaccount.Table, userbankaccount.Columns, sqlgraph.NewFieldSpec(userbankaccount.FieldID, field.TypeInt64))
+func (_q *LedgerAccountQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(ledgeraccount.Table, ledgeraccount.Columns, sqlgraph.NewFieldSpec(ledgeraccount.FieldID, field.TypeInt64))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -610,14 +611,17 @@ func (_q *UserBankAccountQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, userbankaccount.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, ledgeraccount.FieldID)
 		for i := range fields {
-			if fields[i] != userbankaccount.FieldID {
+			if fields[i] != ledgeraccount.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
-		if _q.withUser != nil {
-			_spec.Node.AddColumnOnce(userbankaccount.FieldUserID)
+		if _q.withOwnerUser != nil {
+			_spec.Node.AddColumnOnce(ledgeraccount.FieldOwnerUserID)
+		}
+		if _q.withBankAccount != nil {
+			_spec.Node.AddColumnOnce(ledgeraccount.FieldUserBankAccountID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -643,12 +647,12 @@ func (_q *UserBankAccountQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *UserBankAccountQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *LedgerAccountQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(userbankaccount.Table)
+	t1 := builder.Table(ledgeraccount.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = userbankaccount.Columns
+		columns = ledgeraccount.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -681,7 +685,7 @@ func (_q *UserBankAccountQuery) sqlQuery(ctx context.Context) *sql.Selector {
 // ForUpdate locks the selected rows against concurrent updates, and prevent them from being
 // updated, deleted or "selected ... for update" by other sessions, until the transaction is
 // either committed or rolled-back.
-func (_q *UserBankAccountQuery) ForUpdate(opts ...sql.LockOption) *UserBankAccountQuery {
+func (_q *LedgerAccountQuery) ForUpdate(opts ...sql.LockOption) *LedgerAccountQuery {
 	if _q.driver.Dialect() == dialect.Postgres {
 		_q.Unique(false)
 	}
@@ -694,7 +698,7 @@ func (_q *UserBankAccountQuery) ForUpdate(opts ...sql.LockOption) *UserBankAccou
 // ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
 // on any rows that are read. Other sessions can read the rows, but cannot modify them
 // until your transaction commits.
-func (_q *UserBankAccountQuery) ForShare(opts ...sql.LockOption) *UserBankAccountQuery {
+func (_q *LedgerAccountQuery) ForShare(opts ...sql.LockOption) *LedgerAccountQuery {
 	if _q.driver.Dialect() == dialect.Postgres {
 		_q.Unique(false)
 	}
@@ -704,28 +708,28 @@ func (_q *UserBankAccountQuery) ForShare(opts ...sql.LockOption) *UserBankAccoun
 	return _q
 }
 
-// UserBankAccountGroupBy is the group-by builder for UserBankAccount entities.
-type UserBankAccountGroupBy struct {
+// LedgerAccountGroupBy is the group-by builder for LedgerAccount entities.
+type LedgerAccountGroupBy struct {
 	selector
-	build *UserBankAccountQuery
+	build *LedgerAccountQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *UserBankAccountGroupBy) Aggregate(fns ...AggregateFunc) *UserBankAccountGroupBy {
+func (_g *LedgerAccountGroupBy) Aggregate(fns ...AggregateFunc) *LedgerAccountGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *UserBankAccountGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *LedgerAccountGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*UserBankAccountQuery, *UserBankAccountGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*LedgerAccountQuery, *LedgerAccountGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *UserBankAccountGroupBy) sqlScan(ctx context.Context, root *UserBankAccountQuery, v any) error {
+func (_g *LedgerAccountGroupBy) sqlScan(ctx context.Context, root *LedgerAccountQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -752,28 +756,28 @@ func (_g *UserBankAccountGroupBy) sqlScan(ctx context.Context, root *UserBankAcc
 	return sql.ScanSlice(rows, v)
 }
 
-// UserBankAccountSelect is the builder for selecting fields of UserBankAccount entities.
-type UserBankAccountSelect struct {
-	*UserBankAccountQuery
+// LedgerAccountSelect is the builder for selecting fields of LedgerAccount entities.
+type LedgerAccountSelect struct {
+	*LedgerAccountQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *UserBankAccountSelect) Aggregate(fns ...AggregateFunc) *UserBankAccountSelect {
+func (_s *LedgerAccountSelect) Aggregate(fns ...AggregateFunc) *LedgerAccountSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *UserBankAccountSelect) Scan(ctx context.Context, v any) error {
+func (_s *LedgerAccountSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*UserBankAccountQuery, *UserBankAccountSelect](ctx, _s.UserBankAccountQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*LedgerAccountQuery, *LedgerAccountSelect](ctx, _s.LedgerAccountQuery, _s, _s.inters, v)
 }
 
-func (_s *UserBankAccountSelect) sqlScan(ctx context.Context, root *UserBankAccountQuery, v any) error {
+func (_s *LedgerAccountSelect) sqlScan(ctx context.Context, root *LedgerAccountQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {

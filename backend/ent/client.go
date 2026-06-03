@@ -36,6 +36,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
+	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/loancontract"
 	"github.com/Wei-Shaw/sub2api/ent/modelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
@@ -113,6 +115,10 @@ type Client struct {
 	IdempotencyRecord *IdempotencyRecordClient
 	// IdentityAdoptionDecision is the client for interacting with the IdentityAdoptionDecision builders.
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
+	// LedgerAccount is the client for interacting with the LedgerAccount builders.
+	LedgerAccount *LedgerAccountClient
+	// LedgerEntry is the client for interacting with the LedgerEntry builders.
+	LedgerEntry *LedgerEntryClient
 	// LoanContract is the client for interacting with the LoanContract builders.
 	LoanContract *LoanContractClient
 	// ModelPricing is the client for interacting with the ModelPricing builders.
@@ -197,6 +203,8 @@ func (c *Client) init() {
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
 	c.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(c.config)
+	c.LedgerAccount = NewLedgerAccountClient(c.config)
+	c.LedgerEntry = NewLedgerEntryClient(c.config)
 	c.LoanContract = NewLoanContractClient(c.config)
 	c.ModelPricing = NewModelPricingClient(c.config)
 	c.PaymentAuditLog = NewPaymentAuditLogClient(c.config)
@@ -336,6 +344,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
+		LedgerAccount:                 NewLedgerAccountClient(cfg),
+		LedgerEntry:                   NewLedgerEntryClient(cfg),
 		LoanContract:                  NewLoanContractClient(cfg),
 		ModelPricing:                  NewModelPricingClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
@@ -402,6 +412,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
+		LedgerAccount:                 NewLedgerAccountClient(cfg),
+		LedgerEntry:                   NewLedgerEntryClient(cfg),
 		LoanContract:                  NewLoanContractClient(cfg),
 		ModelPricing:                  NewModelPricingClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
@@ -463,13 +475,14 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
 		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.LoanContract, c.ModelPricing, c.PaymentAuditLog,
-		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
-		c.PromoCodeUsage, c.Proxy, c.ProxySubscriptionNode, c.ProxySubscriptionSource,
-		c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.TransactionLog, c.UsageCleanupTask, c.UsageLog,
-		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserBankAccount, c.UserPlatformQuota, c.UserSubscription,
+		c.IdentityAdoptionDecision, c.LedgerAccount, c.LedgerEntry, c.LoanContract,
+		c.ModelPricing, c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy,
+		c.ProxySubscriptionNode, c.ProxySubscriptionSource, c.RedeemCode,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
+		c.TransactionLog, c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserBankAccount,
+		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -485,13 +498,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
 		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
 		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.LoanContract, c.ModelPricing, c.PaymentAuditLog,
-		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
-		c.PromoCodeUsage, c.Proxy, c.ProxySubscriptionNode, c.ProxySubscriptionSource,
-		c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.TransactionLog, c.UsageCleanupTask, c.UsageLog,
-		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserBankAccount, c.UserPlatformQuota, c.UserSubscription,
+		c.IdentityAdoptionDecision, c.LedgerAccount, c.LedgerEntry, c.LoanContract,
+		c.ModelPricing, c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy,
+		c.ProxySubscriptionNode, c.ProxySubscriptionSource, c.RedeemCode,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
+		c.TransactionLog, c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserBankAccount,
+		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -542,6 +556,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.IdempotencyRecord.mutate(ctx, m)
 	case *IdentityAdoptionDecisionMutation:
 		return c.IdentityAdoptionDecision.mutate(ctx, m)
+	case *LedgerAccountMutation:
+		return c.LedgerAccount.mutate(ctx, m)
+	case *LedgerEntryMutation:
+		return c.LedgerEntry.mutate(ctx, m)
 	case *LoanContractMutation:
 		return c.LoanContract.mutate(ctx, m)
 	case *ModelPricingMutation:
@@ -4005,6 +4023,368 @@ func (c *IdentityAdoptionDecisionClient) mutate(ctx context.Context, m *Identity
 	}
 }
 
+// LedgerAccountClient is a client for the LedgerAccount schema.
+type LedgerAccountClient struct {
+	config
+}
+
+// NewLedgerAccountClient returns a client for the LedgerAccount from the given config.
+func NewLedgerAccountClient(c config) *LedgerAccountClient {
+	return &LedgerAccountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgeraccount.Hooks(f(g(h())))`.
+func (c *LedgerAccountClient) Use(hooks ...Hook) {
+	c.hooks.LedgerAccount = append(c.hooks.LedgerAccount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgeraccount.Intercept(f(g(h())))`.
+func (c *LedgerAccountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerAccount = append(c.inters.LedgerAccount, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerAccount entity.
+func (c *LedgerAccountClient) Create() *LedgerAccountCreate {
+	mutation := newLedgerAccountMutation(c.config, OpCreate)
+	return &LedgerAccountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerAccount entities.
+func (c *LedgerAccountClient) CreateBulk(builders ...*LedgerAccountCreate) *LedgerAccountCreateBulk {
+	return &LedgerAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerAccountClient) MapCreateBulk(slice any, setFunc func(*LedgerAccountCreate, int)) *LedgerAccountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerAccountCreateBulk{err: fmt.Errorf("calling to LedgerAccountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerAccountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerAccount.
+func (c *LedgerAccountClient) Update() *LedgerAccountUpdate {
+	mutation := newLedgerAccountMutation(c.config, OpUpdate)
+	return &LedgerAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerAccountClient) UpdateOne(_m *LedgerAccount) *LedgerAccountUpdateOne {
+	mutation := newLedgerAccountMutation(c.config, OpUpdateOne, withLedgerAccount(_m))
+	return &LedgerAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerAccountClient) UpdateOneID(id int64) *LedgerAccountUpdateOne {
+	mutation := newLedgerAccountMutation(c.config, OpUpdateOne, withLedgerAccountID(id))
+	return &LedgerAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerAccount.
+func (c *LedgerAccountClient) Delete() *LedgerAccountDelete {
+	mutation := newLedgerAccountMutation(c.config, OpDelete)
+	return &LedgerAccountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerAccountClient) DeleteOne(_m *LedgerAccount) *LedgerAccountDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerAccountClient) DeleteOneID(id int64) *LedgerAccountDeleteOne {
+	builder := c.Delete().Where(ledgeraccount.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerAccountDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerAccount.
+func (c *LedgerAccountClient) Query() *LedgerAccountQuery {
+	return &LedgerAccountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerAccount},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerAccount entity by its id.
+func (c *LedgerAccountClient) Get(ctx context.Context, id int64) (*LedgerAccount, error) {
+	return c.Query().Where(ledgeraccount.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerAccountClient) GetX(ctx context.Context, id int64) *LedgerAccount {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOwnerUser queries the owner_user edge of a LedgerAccount.
+func (c *LedgerAccountClient) QueryOwnerUser(_m *LedgerAccount) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgeraccount.OwnerUserTable, ledgeraccount.OwnerUserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryBankAccount queries the bank_account edge of a LedgerAccount.
+func (c *LedgerAccountClient) QueryBankAccount(_m *LedgerAccount) *UserBankAccountQuery {
+	query := (&UserBankAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, id),
+			sqlgraph.To(userbankaccount.Table, userbankaccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgeraccount.BankAccountTable, ledgeraccount.BankAccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryEntries queries the entries edge of a LedgerAccount.
+func (c *LedgerAccountClient) QueryEntries(_m *LedgerAccount) *LedgerEntryQuery {
+	query := (&LedgerEntryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgeraccount.Table, ledgeraccount.FieldID, id),
+			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ledgeraccount.EntriesTable, ledgeraccount.EntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerAccountClient) Hooks() []Hook {
+	return c.hooks.LedgerAccount
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerAccountClient) Interceptors() []Interceptor {
+	return c.inters.LedgerAccount
+}
+
+func (c *LedgerAccountClient) mutate(ctx context.Context, m *LedgerAccountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerAccountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LedgerAccount mutation op: %q", m.Op())
+	}
+}
+
+// LedgerEntryClient is a client for the LedgerEntry schema.
+type LedgerEntryClient struct {
+	config
+}
+
+// NewLedgerEntryClient returns a client for the LedgerEntry from the given config.
+func NewLedgerEntryClient(c config) *LedgerEntryClient {
+	return &LedgerEntryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgerentry.Hooks(f(g(h())))`.
+func (c *LedgerEntryClient) Use(hooks ...Hook) {
+	c.hooks.LedgerEntry = append(c.hooks.LedgerEntry, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgerentry.Intercept(f(g(h())))`.
+func (c *LedgerEntryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerEntry = append(c.inters.LedgerEntry, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerEntry entity.
+func (c *LedgerEntryClient) Create() *LedgerEntryCreate {
+	mutation := newLedgerEntryMutation(c.config, OpCreate)
+	return &LedgerEntryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerEntry entities.
+func (c *LedgerEntryClient) CreateBulk(builders ...*LedgerEntryCreate) *LedgerEntryCreateBulk {
+	return &LedgerEntryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerEntryClient) MapCreateBulk(slice any, setFunc func(*LedgerEntryCreate, int)) *LedgerEntryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerEntryCreateBulk{err: fmt.Errorf("calling to LedgerEntryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerEntryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerEntryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerEntry.
+func (c *LedgerEntryClient) Update() *LedgerEntryUpdate {
+	mutation := newLedgerEntryMutation(c.config, OpUpdate)
+	return &LedgerEntryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerEntryClient) UpdateOne(_m *LedgerEntry) *LedgerEntryUpdateOne {
+	mutation := newLedgerEntryMutation(c.config, OpUpdateOne, withLedgerEntry(_m))
+	return &LedgerEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerEntryClient) UpdateOneID(id int64) *LedgerEntryUpdateOne {
+	mutation := newLedgerEntryMutation(c.config, OpUpdateOne, withLedgerEntryID(id))
+	return &LedgerEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerEntry.
+func (c *LedgerEntryClient) Delete() *LedgerEntryDelete {
+	mutation := newLedgerEntryMutation(c.config, OpDelete)
+	return &LedgerEntryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerEntryClient) DeleteOne(_m *LedgerEntry) *LedgerEntryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerEntryClient) DeleteOneID(id int64) *LedgerEntryDeleteOne {
+	builder := c.Delete().Where(ledgerentry.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerEntryDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerEntry.
+func (c *LedgerEntryClient) Query() *LedgerEntryQuery {
+	return &LedgerEntryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerEntry},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerEntry entity by its id.
+func (c *LedgerEntryClient) Get(ctx context.Context, id int64) (*LedgerEntry, error) {
+	return c.Query().Where(ledgerentry.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerEntryClient) GetX(ctx context.Context, id int64) *LedgerEntry {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTransaction queries the transaction edge of a LedgerEntry.
+func (c *LedgerEntryClient) QueryTransaction(_m *LedgerEntry) *TransactionLogQuery {
+	query := (&TransactionLogClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, id),
+			sqlgraph.To(transactionlog.Table, transactionlog.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.TransactionTable, ledgerentry.TransactionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLedgerAccount queries the ledger_account edge of a LedgerEntry.
+func (c *LedgerEntryClient) QueryLedgerAccount(_m *LedgerEntry) *LedgerAccountQuery {
+	query := (&LedgerAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, id),
+			sqlgraph.To(ledgeraccount.Table, ledgeraccount.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.LedgerAccountTable, ledgerentry.LedgerAccountColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUser queries the user edge of a LedgerEntry.
+func (c *LedgerEntryClient) QueryUser(_m *LedgerEntry) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ledgerentry.Table, ledgerentry.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ledgerentry.UserTable, ledgerentry.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerEntryClient) Hooks() []Hook {
+	return c.hooks.LedgerEntry
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerEntryClient) Interceptors() []Interceptor {
+	return c.inters.LedgerEntry
+}
+
+func (c *LedgerEntryClient) mutate(ctx context.Context, m *LedgerEntryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerEntryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerEntryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerEntryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerEntryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LedgerEntry mutation op: %q", m.Op())
+	}
+}
+
 // LoanContractClient is a client for the LoanContract schema.
 type LoanContractClient struct {
 	config
@@ -6487,6 +6867,22 @@ func (c *TransactionLogClient) QueryAccount(_m *TransactionLog) *UserBankAccount
 	return query
 }
 
+// QueryLedgerEntries queries the ledger_entries edge of a TransactionLog.
+func (c *TransactionLogClient) QueryLedgerEntries(_m *TransactionLog) *LedgerEntryQuery {
+	query := (&LedgerEntryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(transactionlog.Table, transactionlog.FieldID, id),
+			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, transactionlog.LedgerEntriesTable, transactionlog.LedgerEntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *TransactionLogClient) Hooks() []Hook {
 	return c.hooks.TransactionLog
@@ -7238,6 +7634,38 @@ func (c *UserClient) QueryTransactionLogs(_m *User) *TransactionLogQuery {
 	return query
 }
 
+// QueryLedgerAccounts queries the ledger_accounts edge of a User.
+func (c *UserClient) QueryLedgerAccounts(_m *User) *LedgerAccountQuery {
+	query := (&LedgerAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(ledgeraccount.Table, ledgeraccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.LedgerAccountsTable, user.LedgerAccountsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLedgerEntries queries the ledger_entries edge of a User.
+func (c *UserClient) QueryLedgerEntries(_m *User) *LedgerEntryQuery {
+	query := (&LedgerEntryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(ledgerentry.Table, ledgerentry.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.LedgerEntriesTable, user.LedgerEntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryBorrowedLoanContracts queries the borrowed_loan_contracts edge of a User.
 func (c *UserClient) QueryBorrowedLoanContracts(_m *User) *LoanContractQuery {
 	query := (&LoanContractClient{config: c.config}).Query()
@@ -7933,6 +8361,22 @@ func (c *UserBankAccountClient) QueryTransactions(_m *UserBankAccount) *Transact
 	return query
 }
 
+// QueryLedgerAccounts queries the ledger_accounts edge of a UserBankAccount.
+func (c *UserBankAccountClient) QueryLedgerAccounts(_m *UserBankAccount) *LedgerAccountQuery {
+	query := (&LedgerAccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userbankaccount.Table, userbankaccount.FieldID, id),
+			sqlgraph.To(ledgeraccount.Table, ledgeraccount.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, userbankaccount.LedgerAccountsTable, userbankaccount.LedgerAccountsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserBankAccountClient) Hooks() []Hook {
 	return c.hooks.UserBankAccount
@@ -8316,12 +8760,12 @@ type (
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
 		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, LoanContract, ModelPricing, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, ProxySubscriptionNode, ProxySubscriptionSource,
-		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
-		TransactionLog, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserBankAccount,
+		IdentityAdoptionDecision, LedgerAccount, LedgerEntry, LoanContract,
+		ModelPricing, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
+		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, ProxySubscriptionNode,
+		ProxySubscriptionSource, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
+		TLSFingerprintProfile, TransactionLog, UsageCleanupTask, UsageLog, User,
+		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue, UserBankAccount,
 		UserPlatformQuota, UserSubscription []ent.Hook
 	}
 	inters struct {
@@ -8330,12 +8774,12 @@ type (
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
 		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, LoanContract, ModelPricing, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, ProxySubscriptionNode, ProxySubscriptionSource,
-		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
-		TransactionLog, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserBankAccount,
+		IdentityAdoptionDecision, LedgerAccount, LedgerEntry, LoanContract,
+		ModelPricing, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
+		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, ProxySubscriptionNode,
+		ProxySubscriptionSource, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
+		TLSFingerprintProfile, TransactionLog, UsageCleanupTask, UsageLog, User,
+		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue, UserBankAccount,
 		UserPlatformQuota, UserSubscription []ent.Interceptor
 	}
 )

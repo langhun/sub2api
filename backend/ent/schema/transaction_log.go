@@ -36,6 +36,10 @@ func (TransactionLog) Fields() []ent.Field {
 		field.String("tx_type").
 			MaxLen(32).
 			Immutable(),
+		field.String("business_module").
+			MaxLen(32).
+			Default("FINANCIAL_HUB").
+			Immutable(),
 		field.Other("amount", decimal.Decimal{}).
 			SchemaType(map[string]string{dialect.Postgres: "numeric(38,18)"}).
 			Immutable(),
@@ -107,6 +111,7 @@ func (TransactionLog) Edges() []ent.Edge {
 			Field("account_id").
 			Unique().
 			Required(),
+		edge.To("ledger_entries", LedgerEntry.Type),
 	}
 }
 
@@ -119,6 +124,8 @@ func (TransactionLog) Indexes() []ent.Index {
 		index.Fields("user_id"),
 		index.Fields("account_id"),
 		index.Fields("tx_type"),
+		index.Fields("business_module"),
+		index.Fields("business_module", "tx_type"),
 		index.Fields("created_at"),
 		index.Fields("user_id", "created_at"),
 		index.Fields("reference_type", "reference_id"),

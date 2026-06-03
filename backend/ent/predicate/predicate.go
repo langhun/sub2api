@@ -69,6 +69,12 @@ type IdempotencyRecord func(*sql.Selector)
 // IdentityAdoptionDecision is the predicate function for identityadoptiondecision builders.
 type IdentityAdoptionDecision func(*sql.Selector)
 
+// LedgerAccount is the predicate function for ledgeraccount builders.
+type LedgerAccount func(*sql.Selector)
+
+// LedgerEntry is the predicate function for ledgerentry builders.
+type LedgerEntry func(*sql.Selector)
+
 // LoanContract is the predicate function for loancontract builders.
 type LoanContract func(*sql.Selector)
 

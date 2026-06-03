@@ -29,6 +29,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
+	"github.com/Wei-Shaw/sub2api/ent/ledgerentry"
 	"github.com/Wei-Shaw/sub2api/ent/loancontract"
 	"github.com/Wei-Shaw/sub2api/ent/modelpricing"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
@@ -679,6 +681,60 @@ func (f TraverseIdentityAdoptionDecision) Traverse(ctx context.Context, q ent.Qu
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.IdentityAdoptionDecisionQuery", q)
+}
+
+// The LedgerAccountFunc type is an adapter to allow the use of ordinary function as a Querier.
+type LedgerAccountFunc func(context.Context, *ent.LedgerAccountQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f LedgerAccountFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.LedgerAccountQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.LedgerAccountQuery", q)
+}
+
+// The TraverseLedgerAccount type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseLedgerAccount func(context.Context, *ent.LedgerAccountQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseLedgerAccount) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseLedgerAccount) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.LedgerAccountQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.LedgerAccountQuery", q)
+}
+
+// The LedgerEntryFunc type is an adapter to allow the use of ordinary function as a Querier.
+type LedgerEntryFunc func(context.Context, *ent.LedgerEntryQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f LedgerEntryFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.LedgerEntryQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.LedgerEntryQuery", q)
+}
+
+// The TraverseLedgerEntry type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseLedgerEntry func(context.Context, *ent.LedgerEntryQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseLedgerEntry) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseLedgerEntry) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.LedgerEntryQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.LedgerEntryQuery", q)
 }
 
 // The LoanContractFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1428,6 +1484,10 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.IdempotencyRecordQuery, predicate.IdempotencyRecord, idempotencyrecord.OrderOption]{typ: ent.TypeIdempotencyRecord, tq: q}, nil
 	case *ent.IdentityAdoptionDecisionQuery:
 		return &query[*ent.IdentityAdoptionDecisionQuery, predicate.IdentityAdoptionDecision, identityadoptiondecision.OrderOption]{typ: ent.TypeIdentityAdoptionDecision, tq: q}, nil
+	case *ent.LedgerAccountQuery:
+		return &query[*ent.LedgerAccountQuery, predicate.LedgerAccount, ledgeraccount.OrderOption]{typ: ent.TypeLedgerAccount, tq: q}, nil
+	case *ent.LedgerEntryQuery:
+		return &query[*ent.LedgerEntryQuery, predicate.LedgerEntry, ledgerentry.OrderOption]{typ: ent.TypeLedgerEntry, tq: q}, nil
 	case *ent.LoanContractQuery:
 		return &query[*ent.LoanContractQuery, predicate.LoanContract, loancontract.OrderOption]{typ: ent.TypeLoanContract, tq: q}, nil
 	case *ent.ModelPricingQuery:

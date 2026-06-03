@@ -24,6 +24,8 @@ const (
 	FieldAccountID = "account_id"
 	// FieldTxType holds the string denoting the tx_type field in the database.
 	FieldTxType = "tx_type"
+	// FieldBusinessModule holds the string denoting the business_module field in the database.
+	FieldBusinessModule = "business_module"
 	// FieldAmount holds the string denoting the amount field in the database.
 	FieldAmount = "amount"
 	// FieldBalanceBefore holds the string denoting the balance_before field in the database.
@@ -58,6 +60,8 @@ const (
 	EdgeUser = "user"
 	// EdgeAccount holds the string denoting the account edge name in mutations.
 	EdgeAccount = "account"
+	// EdgeLedgerEntries holds the string denoting the ledger_entries edge name in mutations.
+	EdgeLedgerEntries = "ledger_entries"
 	// Table holds the table name of the transactionlog in the database.
 	Table = "transactions_log"
 	// UserTable is the table that holds the user relation/edge.
@@ -74,6 +78,13 @@ const (
 	AccountInverseTable = "users_bank_account"
 	// AccountColumn is the table column denoting the account relation/edge.
 	AccountColumn = "account_id"
+	// LedgerEntriesTable is the table that holds the ledger_entries relation/edge.
+	LedgerEntriesTable = "ledger_entries"
+	// LedgerEntriesInverseTable is the table name for the LedgerEntry entity.
+	// It exists in this package in order to avoid circular dependency with the "ledgerentry" package.
+	LedgerEntriesInverseTable = "ledger_entries"
+	// LedgerEntriesColumn is the table column denoting the ledger_entries relation/edge.
+	LedgerEntriesColumn = "transaction_log_id"
 )
 
 // Columns holds all SQL columns for transactionlog fields.
@@ -83,6 +94,7 @@ var Columns = []string{
 	FieldUserID,
 	FieldAccountID,
 	FieldTxType,
+	FieldBusinessModule,
 	FieldAmount,
 	FieldBalanceBefore,
 	FieldBalanceAfter,
@@ -115,6 +127,10 @@ var (
 	DefaultTxID func() uuid.UUID
 	// TxTypeValidator is a validator for the "tx_type" field. It is called by the builders before save.
 	TxTypeValidator func(string) error
+	// DefaultBusinessModule holds the default value on creation for the "business_module" field.
+	DefaultBusinessModule string
+	// BusinessModuleValidator is a validator for the "business_module" field. It is called by the builders before save.
+	BusinessModuleValidator func(string) error
 	// DefaultCreditLimitSnapshot holds the default value on creation for the "credit_limit_snapshot" field.
 	DefaultCreditLimitSnapshot decimal.Decimal
 	// DefaultDebtSnapshot holds the default value on creation for the "debt_snapshot" field.
@@ -161,6 +177,11 @@ func ByAccountID(opts ...sql.OrderTermOption) OrderOption {
 // ByTxType orders the results by the tx_type field.
 func ByTxType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTxType, opts...).ToFunc()
+}
+
+// ByBusinessModule orders the results by the business_module field.
+func ByBusinessModule(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBusinessModule, opts...).ToFunc()
 }
 
 // ByAmount orders the results by the amount field.
@@ -246,6 +267,20 @@ func ByAccountField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAccountStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByLedgerEntriesCount orders the results by ledger_entries count.
+func ByLedgerEntriesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLedgerEntriesStep(), opts...)
+	}
+}
+
+// ByLedgerEntries orders the results by ledger_entries terms.
+func ByLedgerEntries(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLedgerEntriesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -258,5 +293,12 @@ func newAccountStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AccountInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, AccountTable, AccountColumn),
+	)
+}
+func newLedgerEntriesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LedgerEntriesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LedgerEntriesTable, LedgerEntriesColumn),
 	)
 }

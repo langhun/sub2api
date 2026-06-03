@@ -95,6 +95,10 @@ const (
 	EdgeBankAccount = "bank_account"
 	// EdgeTransactionLogs holds the string denoting the transaction_logs edge name in mutations.
 	EdgeTransactionLogs = "transaction_logs"
+	// EdgeLedgerAccounts holds the string denoting the ledger_accounts edge name in mutations.
+	EdgeLedgerAccounts = "ledger_accounts"
+	// EdgeLedgerEntries holds the string denoting the ledger_entries edge name in mutations.
+	EdgeLedgerEntries = "ledger_entries"
 	// EdgeBorrowedLoanContracts holds the string denoting the borrowed_loan_contracts edge name in mutations.
 	EdgeBorrowedLoanContracts = "borrowed_loan_contracts"
 	// EdgeFundedLoanContracts holds the string denoting the funded_loan_contracts edge name in mutations.
@@ -226,6 +230,20 @@ const (
 	TransactionLogsInverseTable = "transactions_log"
 	// TransactionLogsColumn is the table column denoting the transaction_logs relation/edge.
 	TransactionLogsColumn = "user_id"
+	// LedgerAccountsTable is the table that holds the ledger_accounts relation/edge.
+	LedgerAccountsTable = "ledger_accounts"
+	// LedgerAccountsInverseTable is the table name for the LedgerAccount entity.
+	// It exists in this package in order to avoid circular dependency with the "ledgeraccount" package.
+	LedgerAccountsInverseTable = "ledger_accounts"
+	// LedgerAccountsColumn is the table column denoting the ledger_accounts relation/edge.
+	LedgerAccountsColumn = "owner_user_id"
+	// LedgerEntriesTable is the table that holds the ledger_entries relation/edge.
+	LedgerEntriesTable = "ledger_entries"
+	// LedgerEntriesInverseTable is the table name for the LedgerEntry entity.
+	// It exists in this package in order to avoid circular dependency with the "ledgerentry" package.
+	LedgerEntriesInverseTable = "ledger_entries"
+	// LedgerEntriesColumn is the table column denoting the ledger_entries relation/edge.
+	LedgerEntriesColumn = "user_id"
 	// BorrowedLoanContractsTable is the table that holds the borrowed_loan_contracts relation/edge.
 	BorrowedLoanContractsTable = "loans_contract"
 	// BorrowedLoanContractsInverseTable is the table name for the LoanContract entity.
@@ -722,6 +740,34 @@ func ByTransactionLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByLedgerAccountsCount orders the results by ledger_accounts count.
+func ByLedgerAccountsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLedgerAccountsStep(), opts...)
+	}
+}
+
+// ByLedgerAccounts orders the results by ledger_accounts terms.
+func ByLedgerAccounts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLedgerAccountsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByLedgerEntriesCount orders the results by ledger_entries count.
+func ByLedgerEntriesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLedgerEntriesStep(), opts...)
+	}
+}
+
+// ByLedgerEntries orders the results by ledger_entries terms.
+func ByLedgerEntries(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLedgerEntriesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByBorrowedLoanContractsCount orders the results by borrowed_loan_contracts count.
 func ByBorrowedLoanContractsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -922,6 +968,20 @@ func newTransactionLogsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(TransactionLogsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, TransactionLogsTable, TransactionLogsColumn),
+	)
+}
+func newLedgerAccountsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LedgerAccountsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LedgerAccountsTable, LedgerAccountsColumn),
+	)
+}
+func newLedgerEntriesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LedgerEntriesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, LedgerEntriesTable, LedgerEntriesColumn),
 	)
 }
 func newBorrowedLoanContractsStep() *sqlgraph.Step {

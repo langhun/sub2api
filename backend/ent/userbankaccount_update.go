@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/ledgeraccount"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/transactionlog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
@@ -93,6 +94,34 @@ func (_u *UserBankAccountUpdate) SetNillableCreditLimit(v *decimal.Decimal) *Use
 	return _u
 }
 
+// SetDebtPrincipal sets the "debt_principal" field.
+func (_u *UserBankAccountUpdate) SetDebtPrincipal(v decimal.Decimal) *UserBankAccountUpdate {
+	_u.mutation.SetDebtPrincipal(v)
+	return _u
+}
+
+// SetNillableDebtPrincipal sets the "debt_principal" field if the given value is not nil.
+func (_u *UserBankAccountUpdate) SetNillableDebtPrincipal(v *decimal.Decimal) *UserBankAccountUpdate {
+	if v != nil {
+		_u.SetDebtPrincipal(*v)
+	}
+	return _u
+}
+
+// SetDebtInterest sets the "debt_interest" field.
+func (_u *UserBankAccountUpdate) SetDebtInterest(v decimal.Decimal) *UserBankAccountUpdate {
+	_u.mutation.SetDebtInterest(v)
+	return _u
+}
+
+// SetNillableDebtInterest sets the "debt_interest" field if the given value is not nil.
+func (_u *UserBankAccountUpdate) SetNillableDebtInterest(v *decimal.Decimal) *UserBankAccountUpdate {
+	if v != nil {
+		_u.SetDebtInterest(*v)
+	}
+	return _u
+}
+
 // SetTotalDebt sets the "total_debt" field.
 func (_u *UserBankAccountUpdate) SetTotalDebt(v decimal.Decimal) *UserBankAccountUpdate {
 	_u.mutation.SetTotalDebt(v)
@@ -162,6 +191,21 @@ func (_u *UserBankAccountUpdate) AddTransactions(v ...*TransactionLog) *UserBank
 	return _u.AddTransactionIDs(ids...)
 }
 
+// AddLedgerAccountIDs adds the "ledger_accounts" edge to the LedgerAccount entity by IDs.
+func (_u *UserBankAccountUpdate) AddLedgerAccountIDs(ids ...int64) *UserBankAccountUpdate {
+	_u.mutation.AddLedgerAccountIDs(ids...)
+	return _u
+}
+
+// AddLedgerAccounts adds the "ledger_accounts" edges to the LedgerAccount entity.
+func (_u *UserBankAccountUpdate) AddLedgerAccounts(v ...*LedgerAccount) *UserBankAccountUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLedgerAccountIDs(ids...)
+}
+
 // Mutation returns the UserBankAccountMutation object of the builder.
 func (_u *UserBankAccountUpdate) Mutation() *UserBankAccountMutation {
 	return _u.mutation
@@ -192,6 +236,27 @@ func (_u *UserBankAccountUpdate) RemoveTransactions(v ...*TransactionLog) *UserB
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTransactionIDs(ids...)
+}
+
+// ClearLedgerAccounts clears all "ledger_accounts" edges to the LedgerAccount entity.
+func (_u *UserBankAccountUpdate) ClearLedgerAccounts() *UserBankAccountUpdate {
+	_u.mutation.ClearLedgerAccounts()
+	return _u
+}
+
+// RemoveLedgerAccountIDs removes the "ledger_accounts" edge to LedgerAccount entities by IDs.
+func (_u *UserBankAccountUpdate) RemoveLedgerAccountIDs(ids ...int64) *UserBankAccountUpdate {
+	_u.mutation.RemoveLedgerAccountIDs(ids...)
+	return _u
+}
+
+// RemoveLedgerAccounts removes "ledger_accounts" edges to LedgerAccount entities.
+func (_u *UserBankAccountUpdate) RemoveLedgerAccounts(v ...*LedgerAccount) *UserBankAccountUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLedgerAccountIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -266,6 +331,12 @@ func (_u *UserBankAccountUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.CreditLimit(); ok {
 		_spec.SetField(userbankaccount.FieldCreditLimit, field.TypeOther, value)
+	}
+	if value, ok := _u.mutation.DebtPrincipal(); ok {
+		_spec.SetField(userbankaccount.FieldDebtPrincipal, field.TypeOther, value)
+	}
+	if value, ok := _u.mutation.DebtInterest(); ok {
+		_spec.SetField(userbankaccount.FieldDebtInterest, field.TypeOther, value)
 	}
 	if value, ok := _u.mutation.TotalDebt(); ok {
 		_spec.SetField(userbankaccount.FieldTotalDebt, field.TypeOther, value)
@@ -346,6 +417,51 @@ func (_u *UserBankAccountUpdate) sqlSave(ctx context.Context) (_node int, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LedgerAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   userbankaccount.LedgerAccountsTable,
+			Columns: []string{userbankaccount.LedgerAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgeraccount.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLedgerAccountsIDs(); len(nodes) > 0 && !_u.mutation.LedgerAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   userbankaccount.LedgerAccountsTable,
+			Columns: []string{userbankaccount.LedgerAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgeraccount.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LedgerAccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   userbankaccount.LedgerAccountsTable,
+			Columns: []string{userbankaccount.LedgerAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgeraccount.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -435,6 +551,34 @@ func (_u *UserBankAccountUpdateOne) SetNillableCreditLimit(v *decimal.Decimal) *
 	return _u
 }
 
+// SetDebtPrincipal sets the "debt_principal" field.
+func (_u *UserBankAccountUpdateOne) SetDebtPrincipal(v decimal.Decimal) *UserBankAccountUpdateOne {
+	_u.mutation.SetDebtPrincipal(v)
+	return _u
+}
+
+// SetNillableDebtPrincipal sets the "debt_principal" field if the given value is not nil.
+func (_u *UserBankAccountUpdateOne) SetNillableDebtPrincipal(v *decimal.Decimal) *UserBankAccountUpdateOne {
+	if v != nil {
+		_u.SetDebtPrincipal(*v)
+	}
+	return _u
+}
+
+// SetDebtInterest sets the "debt_interest" field.
+func (_u *UserBankAccountUpdateOne) SetDebtInterest(v decimal.Decimal) *UserBankAccountUpdateOne {
+	_u.mutation.SetDebtInterest(v)
+	return _u
+}
+
+// SetNillableDebtInterest sets the "debt_interest" field if the given value is not nil.
+func (_u *UserBankAccountUpdateOne) SetNillableDebtInterest(v *decimal.Decimal) *UserBankAccountUpdateOne {
+	if v != nil {
+		_u.SetDebtInterest(*v)
+	}
+	return _u
+}
+
 // SetTotalDebt sets the "total_debt" field.
 func (_u *UserBankAccountUpdateOne) SetTotalDebt(v decimal.Decimal) *UserBankAccountUpdateOne {
 	_u.mutation.SetTotalDebt(v)
@@ -504,6 +648,21 @@ func (_u *UserBankAccountUpdateOne) AddTransactions(v ...*TransactionLog) *UserB
 	return _u.AddTransactionIDs(ids...)
 }
 
+// AddLedgerAccountIDs adds the "ledger_accounts" edge to the LedgerAccount entity by IDs.
+func (_u *UserBankAccountUpdateOne) AddLedgerAccountIDs(ids ...int64) *UserBankAccountUpdateOne {
+	_u.mutation.AddLedgerAccountIDs(ids...)
+	return _u
+}
+
+// AddLedgerAccounts adds the "ledger_accounts" edges to the LedgerAccount entity.
+func (_u *UserBankAccountUpdateOne) AddLedgerAccounts(v ...*LedgerAccount) *UserBankAccountUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLedgerAccountIDs(ids...)
+}
+
 // Mutation returns the UserBankAccountMutation object of the builder.
 func (_u *UserBankAccountUpdateOne) Mutation() *UserBankAccountMutation {
 	return _u.mutation
@@ -534,6 +693,27 @@ func (_u *UserBankAccountUpdateOne) RemoveTransactions(v ...*TransactionLog) *Us
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTransactionIDs(ids...)
+}
+
+// ClearLedgerAccounts clears all "ledger_accounts" edges to the LedgerAccount entity.
+func (_u *UserBankAccountUpdateOne) ClearLedgerAccounts() *UserBankAccountUpdateOne {
+	_u.mutation.ClearLedgerAccounts()
+	return _u
+}
+
+// RemoveLedgerAccountIDs removes the "ledger_accounts" edge to LedgerAccount entities by IDs.
+func (_u *UserBankAccountUpdateOne) RemoveLedgerAccountIDs(ids ...int64) *UserBankAccountUpdateOne {
+	_u.mutation.RemoveLedgerAccountIDs(ids...)
+	return _u
+}
+
+// RemoveLedgerAccounts removes "ledger_accounts" edges to LedgerAccount entities.
+func (_u *UserBankAccountUpdateOne) RemoveLedgerAccounts(v ...*LedgerAccount) *UserBankAccountUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLedgerAccountIDs(ids...)
 }
 
 // Where appends a list predicates to the UserBankAccountUpdate builder.
@@ -639,6 +819,12 @@ func (_u *UserBankAccountUpdateOne) sqlSave(ctx context.Context) (_node *UserBan
 	if value, ok := _u.mutation.CreditLimit(); ok {
 		_spec.SetField(userbankaccount.FieldCreditLimit, field.TypeOther, value)
 	}
+	if value, ok := _u.mutation.DebtPrincipal(); ok {
+		_spec.SetField(userbankaccount.FieldDebtPrincipal, field.TypeOther, value)
+	}
+	if value, ok := _u.mutation.DebtInterest(); ok {
+		_spec.SetField(userbankaccount.FieldDebtInterest, field.TypeOther, value)
+	}
 	if value, ok := _u.mutation.TotalDebt(); ok {
 		_spec.SetField(userbankaccount.FieldTotalDebt, field.TypeOther, value)
 	}
@@ -718,6 +904,51 @@ func (_u *UserBankAccountUpdateOne) sqlSave(ctx context.Context) (_node *UserBan
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(transactionlog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LedgerAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   userbankaccount.LedgerAccountsTable,
+			Columns: []string{userbankaccount.LedgerAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgeraccount.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLedgerAccountsIDs(); len(nodes) > 0 && !_u.mutation.LedgerAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   userbankaccount.LedgerAccountsTable,
+			Columns: []string{userbankaccount.LedgerAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgeraccount.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LedgerAccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   userbankaccount.LedgerAccountsTable,
+			Columns: []string{userbankaccount.LedgerAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(ledgeraccount.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

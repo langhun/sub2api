@@ -31,6 +31,10 @@ type UserBankAccount struct {
 	FrozenAmount decimal.Decimal `json:"frozen_amount,omitempty"`
 	// CreditLimit holds the value of the "credit_limit" field.
 	CreditLimit decimal.Decimal `json:"credit_limit,omitempty"`
+	// DebtPrincipal holds the value of the "debt_principal" field.
+	DebtPrincipal decimal.Decimal `json:"debt_principal,omitempty"`
+	// DebtInterest holds the value of the "debt_interest" field.
+	DebtInterest decimal.Decimal `json:"debt_interest,omitempty"`
 	// TotalDebt holds the value of the "total_debt" field.
 	TotalDebt decimal.Decimal `json:"total_debt,omitempty"`
 	// Version holds the value of the "version" field.
@@ -49,9 +53,11 @@ type UserBankAccountEdges struct {
 	User *User `json:"user,omitempty"`
 	// Transactions holds the value of the transactions edge.
 	Transactions []*TransactionLog `json:"transactions,omitempty"`
+	// LedgerAccounts holds the value of the ledger_accounts edge.
+	LedgerAccounts []*LedgerAccount `json:"ledger_accounts,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -74,12 +80,21 @@ func (e UserBankAccountEdges) TransactionsOrErr() ([]*TransactionLog, error) {
 	return nil, &NotLoadedError{edge: "transactions"}
 }
 
+// LedgerAccountsOrErr returns the LedgerAccounts value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserBankAccountEdges) LedgerAccountsOrErr() ([]*LedgerAccount, error) {
+	if e.loadedTypes[2] {
+		return e.LedgerAccounts, nil
+	}
+	return nil, &NotLoadedError{edge: "ledger_accounts"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*UserBankAccount) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case userbankaccount.FieldBalance, userbankaccount.FieldFrozenAmount, userbankaccount.FieldCreditLimit, userbankaccount.FieldTotalDebt:
+		case userbankaccount.FieldBalance, userbankaccount.FieldFrozenAmount, userbankaccount.FieldCreditLimit, userbankaccount.FieldDebtPrincipal, userbankaccount.FieldDebtInterest, userbankaccount.FieldTotalDebt:
 			values[i] = new(decimal.Decimal)
 		case userbankaccount.FieldID, userbankaccount.FieldUserID, userbankaccount.FieldVersion:
 			values[i] = new(sql.NullInt64)
@@ -144,6 +159,18 @@ func (_m *UserBankAccount) assignValues(columns []string, values []any) error {
 			} else if value != nil {
 				_m.CreditLimit = *value
 			}
+		case userbankaccount.FieldDebtPrincipal:
+			if value, ok := values[i].(*decimal.Decimal); !ok {
+				return fmt.Errorf("unexpected type %T for field debt_principal", values[i])
+			} else if value != nil {
+				_m.DebtPrincipal = *value
+			}
+		case userbankaccount.FieldDebtInterest:
+			if value, ok := values[i].(*decimal.Decimal); !ok {
+				return fmt.Errorf("unexpected type %T for field debt_interest", values[i])
+			} else if value != nil {
+				_m.DebtInterest = *value
+			}
 		case userbankaccount.FieldTotalDebt:
 			if value, ok := values[i].(*decimal.Decimal); !ok {
 				return fmt.Errorf("unexpected type %T for field total_debt", values[i])
@@ -183,6 +210,11 @@ func (_m *UserBankAccount) QueryUser() *UserQuery {
 // QueryTransactions queries the "transactions" edge of the UserBankAccount entity.
 func (_m *UserBankAccount) QueryTransactions() *TransactionLogQuery {
 	return NewUserBankAccountClient(_m.config).QueryTransactions(_m)
+}
+
+// QueryLedgerAccounts queries the "ledger_accounts" edge of the UserBankAccount entity.
+func (_m *UserBankAccount) QueryLedgerAccounts() *LedgerAccountQuery {
+	return NewUserBankAccountClient(_m.config).QueryLedgerAccounts(_m)
 }
 
 // Update returns a builder for updating this UserBankAccount.
@@ -225,6 +257,12 @@ func (_m *UserBankAccount) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("credit_limit=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CreditLimit))
+	builder.WriteString(", ")
+	builder.WriteString("debt_principal=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DebtPrincipal))
+	builder.WriteString(", ")
+	builder.WriteString("debt_interest=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DebtInterest))
 	builder.WriteString(", ")
 	builder.WriteString("total_debt=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TotalDebt))

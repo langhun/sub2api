@@ -42,6 +42,12 @@ func (UserBankAccount) Fields() []ent.Field {
 		field.Other("credit_limit", decimal.Decimal{}).
 			SchemaType(map[string]string{dialect.Postgres: "numeric(38,18)"}).
 			Default(decimal.Zero),
+		field.Other("debt_principal", decimal.Decimal{}).
+			SchemaType(map[string]string{dialect.Postgres: "numeric(38,18)"}).
+			Default(decimal.Zero),
+		field.Other("debt_interest", decimal.Decimal{}).
+			SchemaType(map[string]string{dialect.Postgres: "numeric(38,18)"}).
+			Default(decimal.Zero),
 		field.Other("total_debt", decimal.Decimal{}).
 			SchemaType(map[string]string{dialect.Postgres: "numeric(38,18)"}).
 			Default(decimal.Zero),
@@ -61,6 +67,7 @@ func (UserBankAccount) Edges() []ent.Edge {
 			Unique().
 			Required(),
 		edge.To("transactions", TransactionLog.Type),
+		edge.To("ledger_accounts", LedgerAccount.Type),
 	}
 }
 
