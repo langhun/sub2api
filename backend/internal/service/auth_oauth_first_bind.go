@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/shopspring/decimal"
 
 	entsql "entgo.io/ent/dialect/sql"
 )
@@ -78,7 +79,7 @@ ON CONFLICT (user_id, provider_type, grant_reason) DO NOTHING`,
 	}
 
 	if providerDefaults.Balance != 0 {
-		if err := client.User.UpdateOneID(userID).AddBalance(providerDefaults.Balance).Exec(ctx); err != nil {
+		if err := s.applyProviderDefaultBalanceGrantInTx(ctx, client, userID, providerType, providerDefaults.Balance); err != nil {
 			return fmt.Errorf("apply first bind balance default: %w", err)
 		}
 	}
@@ -100,5 +101,32 @@ ON CONFLICT (user_id, provider_type, grant_reason) DO NOTHING`,
 		}
 	}
 
+	return nil
+}
+
+func (s *AuthService) applyProviderDefaultBalanceGrantInTx(ctx context.Context, client *dbent.Client, userID int64, providerType string, amount float64) error {
+	bankAmount := decimal.NewFromFloat(amount).RoundBank(18)
+	if bankAmount.LessThanOrEqual(decimal.Zero) {
+		return ErrBankInvalidAmount
+	}
+	_, err := NewBankService(s.entClient).ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           userID,
+		Amount:           bankAmount,
+		Type:             BankTxTypeReward,
+		BusinessModule:   BankBusinessModuleSystem,
+		Description:      fmt.Sprintf("首次绑定 %s 奖励余额", strings.TrimSpace(providerType)),
+		IdempotencyScope: "user_provider_default_grant",
+		IdempotencyKey:   fmt.Sprintf("user-provider-default-grant:%d:%s:first-bind:balance", userID, strings.TrimSpace(providerType)),
+		ReferenceType:    "user_provider_default_grant",
+		ReferenceID:      fmt.Sprintf("%d:%s:first_bind", userID, strings.TrimSpace(providerType)),
+		Metadata: map[string]any{
+			"grant_reason":  "first_bind",
+			"provider_type": strings.TrimSpace(providerType),
+			"user_id":       userID,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("credit first bind reward through bank ledger: %w", err)
+	}
 	return nil
 }

@@ -139,8 +139,20 @@ WHERE user_id = $1
 // ensureBankAccount 仅在旧用户缺少银行账户时读取 users.balance 初始化，不做任何余额扣改。
 func ensureBankAccount(ctx context.Context, client *dbent.Client, userID int64) error {
 	_, err := client.ExecContext(ctx, `
-INSERT INTO users_bank_account (user_id, balance, created_at, updated_at)
-SELECT id, COALESCE(balance, 0), NOW(), NOW()
+INSERT INTO users_bank_account (
+    user_id,
+    balance,
+    frozen_amount,
+    credit_limit,
+    debt_principal,
+    debt_interest,
+    total_debt,
+    version,
+    status,
+    created_at,
+    updated_at
+)
+SELECT id, COALESCE(balance, 0), 0, 0, 0, 0, 0, 1, 'ACTIVE', NOW(), NOW()
 FROM users
 WHERE id = $1 AND deleted_at IS NULL
 ON CONFLICT (user_id) DO NOTHING
