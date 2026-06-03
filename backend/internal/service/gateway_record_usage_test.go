@@ -15,6 +15,15 @@ import (
 )
 
 func newGatewayRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo UserRepository, subRepo UserSubscriptionRepository) *GatewayService {
+	return newGatewayRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		&openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}},
+		userRepo,
+		subRepo,
+	)
+}
+
+func newGatewayRecordUsageServiceWithoutBillingRepoForTest(usageRepo UsageLogRepository, userRepo UserRepository, subRepo UserSubscriptionRepository) *GatewayService {
 	cfg := &config.Config{}
 	cfg.Default.RateMultiplier = 1.1
 	return NewGatewayService(
@@ -49,7 +58,7 @@ func newGatewayRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo 
 }
 
 func newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo UsageLogRepository, billingRepo UsageBillingRepository, userRepo UserRepository, subRepo UserSubscriptionRepository) *GatewayService {
-	svc := newGatewayRecordUsageServiceForTest(usageRepo, userRepo, subRepo)
+	svc := newGatewayRecordUsageServiceWithoutBillingRepoForTest(usageRepo, userRepo, subRepo)
 	svc.usageBillingRepo = billingRepo
 	return svc
 }
@@ -110,10 +119,35 @@ func TestGatewayServiceRecordUsage_BillingUsesDetachedContext(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, 1, usageRepo.calls)
-	require.Equal(t, 1, userRepo.deductCalls)
-	require.NoError(t, userRepo.lastCtxErr)
-	require.Equal(t, 1, quotaSvc.quotaCalls)
-	require.NoError(t, quotaSvc.lastQuotaCtxErr)
+	require.Equal(t, 0, userRepo.deductCalls)
+	require.Equal(t, 0, quotaSvc.quotaCalls)
+}
+
+func TestGatewayServiceRecordUsage_RequiresBillingRepo(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newGatewayRecordUsageServiceWithoutBillingRepoForTest(usageRepo, userRepo, subRepo)
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_missing_billing_repo",
+			Usage: ClaudeUsage{
+				InputTokens:  10,
+				OutputTokens: 6,
+			},
+			Model:    "claude-sonnet-4",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 501, Quota: 100},
+		User:    &User{ID: 601},
+		Account: &Account{ID: 701},
+	})
+
+	require.ErrorIs(t, err, ErrUsageBillingRepositoryRequired)
+	require.Equal(t, 0, usageRepo.calls)
+	require.Equal(t, 0, userRepo.deductCalls)
+	require.Equal(t, 0, subRepo.incrementCalls)
 }
 
 func TestGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(t *testing.T) {
@@ -343,8 +377,8 @@ func TestGatewayServiceRecordUsage_UsageLogWriteErrorDoesNotSkipBilling(t *testi
 
 	require.NoError(t, err)
 	require.Equal(t, 1, usageRepo.calls)
-	require.Equal(t, 1, userRepo.deductCalls)
-	require.Equal(t, 1, quotaSvc.quotaCalls)
+	require.Equal(t, 0, userRepo.deductCalls)
+	require.Equal(t, 0, quotaSvc.quotaCalls)
 }
 
 func TestGatewayServiceRecordUsageWithLongContext_BillingUsesDetachedContext(t *testing.T) {
@@ -380,10 +414,8 @@ func TestGatewayServiceRecordUsageWithLongContext_BillingUsesDetachedContext(t *
 
 	require.NoError(t, err)
 	require.Equal(t, 1, usageRepo.calls)
-	require.Equal(t, 1, userRepo.deductCalls)
-	require.NoError(t, userRepo.lastCtxErr)
-	require.Equal(t, 1, quotaSvc.quotaCalls)
-	require.NoError(t, quotaSvc.lastQuotaCtxErr)
+	require.Equal(t, 0, userRepo.deductCalls)
+	require.Equal(t, 0, quotaSvc.quotaCalls)
 }
 
 func TestGatewayServiceRecordUsage_UsesFallbackRequestIDForUsageLog(t *testing.T) {

@@ -11,6 +11,8 @@ import (
 
 var ErrUsageBillingRequestIDRequired = errors.New("usage billing request_id is required")
 var ErrUsageBillingRequestConflict = errors.New("usage billing request fingerprint conflict")
+var ErrUsageBillingRepositoryRequired = errors.New("usage billing repository is required")
+var ErrUsageBillingCommandInvalid = errors.New("usage billing command is invalid")
 
 // UsageBillingCommand describes one billable request that must be applied at most once.
 type UsageBillingCommand struct {
