@@ -70,7 +70,12 @@ func TestBuildBankLedgerPostings_TransferRefundDebitsClearing(t *testing.T) {
 	account.UserID = 42
 
 	postings, err := buildBankLedgerPostings(
-		TransferFundsRequest{UserID: account.UserID, Type: BankTxTypeRefund, BusinessModule: BankBusinessModuleTransfer},
+		TransferFundsRequest{
+			UserID:         account.UserID,
+			Type:           BankTxTypeRefund,
+			BusinessModule: BankBusinessModuleTransfer,
+			Metadata:       map[string]any{"refund_source": "transfer_clearing"},
+		},
 		account,
 		bankMutation{signedAmount: bankDec("2")},
 	)
@@ -78,6 +83,26 @@ func TestBuildBankLedgerPostings_TransferRefundDebitsClearing(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, postings, 2)
 	require.Equal(t, "PLATFORM:CLEARING:TRANSFER", postings[0].account.code)
+	require.Equal(t, bankLedgerSideDebit, postings[0].side)
+	require.Equal(t, "USER:42:BALANCE", postings[1].account.code)
+	require.Equal(t, bankLedgerSideCredit, postings[1].side)
+	requireBankLedgerBalanced(t, postings)
+}
+
+func TestBuildBankLedgerPostings_TransferFeeRefundDebitsRefundExpense(t *testing.T) {
+	account := bankTestAccount("10", "0", "20", "0")
+	account.ID = 99
+	account.UserID = 42
+
+	postings, err := buildBankLedgerPostings(
+		TransferFundsRequest{UserID: account.UserID, Type: BankTxTypeRefund, BusinessModule: BankBusinessModuleTransfer},
+		account,
+		bankMutation{signedAmount: bankDec("2")},
+	)
+
+	require.NoError(t, err)
+	require.Len(t, postings, 2)
+	require.Equal(t, "PLATFORM:EXPENSE:REFUND", postings[0].account.code)
 	require.Equal(t, bankLedgerSideDebit, postings[0].side)
 	require.Equal(t, "USER:42:BALANCE", postings[1].account.code)
 	require.Equal(t, bankLedgerSideCredit, postings[1].side)

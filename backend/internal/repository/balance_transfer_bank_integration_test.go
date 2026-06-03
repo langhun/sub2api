@@ -52,6 +52,49 @@ func TestBalanceTransferServiceTransfer_WritesBankLedger(t *testing.T) {
 	requireBalanceTransferBankTransaction(t, receiver.ID, service.BankTxTypeTransferIn, "5", record.ID, 2)
 }
 
+func TestBalanceTransferServiceRevokeTransfer_WritesBankLedger(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	admin := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("revoke-bank-admin-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Role:         service.RoleAdmin,
+		Balance:      0,
+	})
+	sender := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("revoke-bank-sender-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      20,
+	})
+	receiver := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("revoke-bank-receiver-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      1,
+	})
+	setTransferBankSettings(t, client)
+	transferSvc := service.NewBalanceTransferService(
+		NewBalanceTransferRepository(client, integrationDB),
+		NewBalanceRedPacketRepository(client, integrationDB),
+		NewUserRepository(client, integrationDB),
+		service.NewSettingService(NewSettingRepository(client), nil),
+	)
+
+	record, err := transferSvc.Transfer(ctx, sender.ID, receiver.ID, 5, nil)
+	require.NoError(t, err)
+	require.NoError(t, transferSvc.FreezeTransfer(ctx, admin.ID, record.ID))
+	require.NoError(t, transferSvc.RevokeTransfer(ctx, admin.ID, record.ID, "manual revoke"))
+
+	requireBalanceTransferLegacyBalance(t, sender.ID, "20")
+	requireBalanceTransferLegacyBalance(t, receiver.ID, "1")
+	requireBankAccountSnapshot(t, sender.ID, "20", "0")
+	requireBankAccountSnapshot(t, receiver.ID, "1", "0")
+
+	requireBalanceTransferBankTransaction(t, receiver.ID, service.BankTxTypeTransferOut, "-5", record.ID, 2)
+	requireBalanceTransferBankTransaction(t, sender.ID, service.BankTxTypeTransferIn, "5", record.ID, 2)
+	requireBalanceTransferBankTransaction(t, sender.ID, service.BankTxTypeRefund, "0.5", record.ID, 2)
+	requireTransferClearingBalanced(t, record.ID, "10", "10")
+}
+
 func TestBalanceTransferServiceBatchDistribute_WritesBankLedger(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
@@ -224,6 +267,22 @@ WHERE la.account_code = 'PLATFORM:CLEARING:TRANSFER'
   AND le.reference_type = 'balance_redpacket'
   AND le.reference_id = $1
 `, fmt.Sprintf("%d", redPacketID)).Scan(&debit, &credit))
+	require.True(t, decimal.RequireFromString(wantDebit).Equal(debit), "debit = %s", debit.String())
+	require.True(t, decimal.RequireFromString(wantCredit).Equal(credit), "credit = %s", credit.String())
+}
+
+func requireTransferClearingBalanced(t *testing.T, transferID int64, wantDebit, wantCredit string) {
+	t.Helper()
+	var debit, credit decimal.Decimal
+	require.NoError(t, integrationDB.QueryRowContext(context.Background(), `
+SELECT COALESCE(SUM(CASE WHEN le.entry_side = 'DEBIT' THEN le.amount ELSE 0 END), 0),
+       COALESCE(SUM(CASE WHEN le.entry_side = 'CREDIT' THEN le.amount ELSE 0 END), 0)
+FROM ledger_entries le
+JOIN ledger_accounts la ON la.id = le.ledger_account_id
+WHERE la.account_code = 'PLATFORM:CLEARING:TRANSFER'
+  AND le.reference_type = 'balance_transfer'
+  AND le.reference_id = $1
+`, fmt.Sprintf("%d", transferID)).Scan(&debit, &credit))
 	require.True(t, decimal.RequireFromString(wantDebit).Equal(debit), "debit = %s", debit.String())
 	require.True(t, decimal.RequireFromString(wantCredit).Equal(credit), "credit = %s", credit.String())
 }

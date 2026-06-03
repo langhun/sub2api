@@ -127,7 +127,9 @@ func buildBankLedgerPostings(
 		return bankDebitCredit(bankPlatformRewardExpense(), available, amount, account.UserID), nil
 	case BankTxTypeRefund:
 		if req.BusinessModule == BankBusinessModuleTransfer {
-			return bankDebitCredit(bankPlatformTransferClearing(), available, amount, account.UserID), nil
+			if req.Metadata != nil && req.Metadata["refund_source"] == "transfer_clearing" {
+				return bankDebitCredit(bankPlatformTransferClearing(), available, amount, account.UserID), nil
+			}
 		}
 		return bankDebitCredit(bankPlatformRefundExpense(), available, amount, account.UserID), nil
 	case BankTxTypeUnfreeze:

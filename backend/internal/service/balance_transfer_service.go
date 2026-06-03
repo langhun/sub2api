@@ -348,14 +348,91 @@ func (s *BalanceTransferService) RevokeTransfer(ctx context.Context, adminID, tr
 		if record.Status == "revoked" {
 			return ErrTransferAlreadyRevoked
 		}
-		if err := s.userRepo.DeductBalance(txCtx, record.ReceiverID, record.Amount); err != nil {
-			return fmt.Errorf("deduct receiver balance: %w", err)
-		}
-		if err := s.userRepo.UpdateBalance(txCtx, record.SenderID, record.GrossAmount); err != nil {
-			return fmt.Errorf("return sender balance: %w", err)
+		if err := s.applyRevokeTransferBankEntriesInTx(txCtx, record, adminID); err != nil {
+			return fmt.Errorf("apply revoke transfer bank entries: %w", err)
 		}
 		return s.transferRepo.UpdateStatus(txCtx, transferID, "revoked", record.FrozenAt, &adminID, &reason)
 	})
+}
+
+func (s *BalanceTransferService) applyRevokeTransferBankEntriesInTx(ctx context.Context, record *BalanceTransferRecord, adminID int64) error {
+	if record == nil || record.ID <= 0 {
+		return infraerrors.InternalServer("TRANSFER_RECORD_MISSING", "transfer record is missing")
+	}
+	client, err := bankClientFromTxContext(ctx)
+	if err != nil {
+		return err
+	}
+	amount := decimal.NewFromFloat(record.Amount).RoundBank(18)
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ErrTransferAmountInvalid
+	}
+	bank := NewBankService(nil)
+	referenceID := fmt.Sprintf("%d", record.ID)
+	baseMetadata := map[string]any{
+		"admin_id":      adminID,
+		"receiver_id":   record.ReceiverID,
+		"sender_id":     record.SenderID,
+		"transfer_id":   record.ID,
+		"transfer_type": record.TransferType,
+	}
+	if _, err := bank.ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           record.ReceiverID,
+		Amount:           amount,
+		Type:             BankTxTypeTransferOut,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("撤销转账扣回 %d", record.ID),
+		IdempotencyScope: "balance_transfer",
+		IdempotencyKey:   fmt.Sprintf("balance-transfer:%d:revoke:receiver:amount", record.ID),
+		ReferenceType:    "balance_transfer",
+		ReferenceID:      referenceID,
+		Metadata:         baseMetadata,
+	}); err != nil {
+		return fmt.Errorf("debit revoked receiver bank balance: %w", err)
+	}
+	if _, err := bank.ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           record.SenderID,
+		Amount:           amount,
+		Type:             BankTxTypeTransferIn,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("撤销转账返还 %d", record.ID),
+		IdempotencyScope: "balance_transfer",
+		IdempotencyKey:   fmt.Sprintf("balance-transfer:%d:revoke:sender:amount", record.ID),
+		ReferenceType:    "balance_transfer",
+		ReferenceID:      referenceID,
+		Metadata:         baseMetadata,
+	}); err != nil {
+		return fmt.Errorf("return revoked sender bank balance: %w", err)
+	}
+	if record.Fee <= 0 {
+		return nil
+	}
+	fee := decimal.NewFromFloat(record.Fee).RoundBank(18)
+	if fee.LessThanOrEqual(decimal.Zero) {
+		return nil
+	}
+	if _, err := bank.ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           record.SenderID,
+		Amount:           fee,
+		Type:             BankTxTypeRefund,
+		BusinessModule:   BankBusinessModuleTransfer,
+		Description:      fmt.Sprintf("撤销转账退手续费 %d", record.ID),
+		IdempotencyScope: "balance_transfer",
+		IdempotencyKey:   fmt.Sprintf("balance-transfer:%d:revoke:sender:fee", record.ID),
+		ReferenceType:    "balance_transfer",
+		ReferenceID:      referenceID,
+		Metadata: map[string]any{
+			"admin_id":      adminID,
+			"fee_rate":      record.FeeRate,
+			"receiver_id":   record.ReceiverID,
+			"sender_id":     record.SenderID,
+			"transfer_id":   record.ID,
+			"transfer_type": record.TransferType,
+		},
+	}); err != nil {
+		return fmt.Errorf("refund revoked transfer fee: %w", err)
+	}
+	return nil
 }
 
 func (s *BalanceTransferService) BatchDistribute(ctx context.Context, adminID int64, targets []BatchDistributeTarget, memo *string) ([]*BalanceTransferRecord, error) {

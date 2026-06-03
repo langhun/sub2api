@@ -755,3 +755,34 @@ func TestRevokeTransfer_RechecksLockedStatusBeforeRefund(t *testing.T) {
 	require.Empty(t, userRepo.deductCalls)
 	require.Empty(t, userRepo.updateCalls)
 }
+
+func TestRevokeTransfer_SuccessRequiresBankTransactionContext(t *testing.T) {
+	repo := &transferRepoStub{
+		transferForUpdate: &BalanceTransferRecord{
+			ID:           7,
+			SenderID:     1,
+			ReceiverID:   2,
+			Amount:       25,
+			Fee:          2.5,
+			FeeRate:      0.1,
+			GrossAmount:  27.5,
+			TransferType: "direct",
+			Status:       "completed",
+			CreatedAt:    time.Now(),
+		},
+	}
+	userRepo := &transferUserRepoStub{
+		users: map[int64]*User{
+			1: {ID: 1, Balance: 10},
+			2: {ID: 2, Balance: 100},
+		},
+	}
+	svc := newTransferTestService(t, repo, userRepo, nil)
+
+	err := svc.RevokeTransfer(context.Background(), 99, 7, "manual revoke")
+	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
+	require.Equal(t, 1, repo.runInTxCalls)
+	require.False(t, repo.updateStatusCalled)
+	require.Empty(t, userRepo.deductCalls)
+	require.Empty(t, userRepo.updateCalls)
+}
