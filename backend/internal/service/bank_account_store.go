@@ -111,6 +111,31 @@ FOR UPDATE
 	return account, rows.Err()
 }
 
+func queryBankAccountView(ctx context.Context, client *dbent.Client, userID int64) (*BankAccountView, error) {
+	rows, err := client.QueryContext(ctx, `
+SELECT id, balance, frozen_amount, credit_limit, debt_principal, debt_interest, total_debt, status
+FROM users_bank_account
+WHERE user_id = $1
+`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("query bank account view: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if rowsErr := rows.Err(); rowsErr != nil {
+			return nil, fmt.Errorf("scan bank account view: %w", rowsErr)
+		}
+		return nil, sql.ErrNoRows
+	}
+	view := &BankAccountView{}
+	if err := rows.Scan(&view.AccountID, &view.Balance, &view.FrozenAmount,
+		&view.CreditLimit, &view.DebtPrincipal, &view.DebtInterest,
+		&view.TotalDebt, &view.Status); err != nil {
+		return nil, fmt.Errorf("scan bank account view: %w", err)
+	}
+	return view, rows.Err()
+}
+
 // ensureBankAccount 仅在旧用户缺少银行账户时读取 users.balance 初始化，不做任何余额扣改。
 func ensureBankAccount(ctx context.Context, client *dbent.Client, userID int64) error {
 	_, err := client.ExecContext(ctx, `

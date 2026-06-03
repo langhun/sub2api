@@ -12,6 +12,7 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -53,6 +54,15 @@ type CheckinStatus struct {
 	MinMultiplier       float64  `json:"min_multiplier"`
 	MaxMultiplier       float64  `json:"max_multiplier"`
 	Balance             float64  `json:"balance"`
+}
+
+type checkinRewardCommand struct {
+	userID       int64
+	rewardAmount float64
+	checkinID    int64
+	checkinType  string
+	betAmount    float64
+	multiplier   float64
 }
 
 type CheckinService struct {
@@ -137,7 +147,7 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 
 	txCtx := dbent.NewTxContext(ctx, tx)
 
-	_, err = tx.Client().Checkin.
+	checkinRecord, err := tx.Client().Checkin.
 		Create().
 		SetUserID(userID).
 		SetCheckinDate(today).
@@ -149,8 +159,13 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 		return nil, fmt.Errorf("create checkin record: %w", err)
 	}
 
-	if err := s.userRepo.UpdateBalance(txCtx, userID, rewardAmount); err != nil {
-		return nil, fmt.Errorf("update user balance: %w", err)
+	if err := s.applyCheckinRewardInTx(txCtx, tx.Client(), checkinRewardCommand{
+		userID:       userID,
+		rewardAmount: rewardAmount,
+		checkinID:    checkinRecord.ID,
+		checkinType:  CheckinTypeNormal,
+	}); err != nil {
+		return nil, fmt.Errorf("apply checkin reward: %w", err)
 	}
 
 	s.createAuditRecord(txCtx, userID, rewardAmount, AdjustmentTypeCheckin, 0, 0)
@@ -193,11 +208,17 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 		return nil, ErrCheckinNotAllowed
 	}
 
-	if betAmount <= 0 || betAmount > user.Balance {
+	bankAccount, err := NewBankService(s.entClient).GetAccountView(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get bank account: %w", err)
+	}
+	cashBalance := positiveBankBalance(bankAccount)
+	bet := decimal.NewFromFloat(betAmount).RoundBank(18)
+	if bet.LessThanOrEqual(decimal.Zero) || bet.GreaterThan(cashBalance) {
 		return nil, ErrInvalidBetAmount
 	}
 
-	if user.Balance <= 0 {
+	if cashBalance.LessThanOrEqual(decimal.Zero) {
 		return nil, ErrInvalidBetAmount
 	}
 
@@ -242,7 +263,7 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 
 	txCtx := dbent.NewTxContext(ctx, tx)
 
-	_, err = tx.Client().Checkin.
+	checkinRecord, err := tx.Client().Checkin.
 		Create().
 		SetUserID(userID).
 		SetCheckinDate(today).
@@ -256,10 +277,15 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 		return nil, fmt.Errorf("create checkin record: %w", err)
 	}
 
-	if rewardAmount != 0 {
-		if err := s.userRepo.UpdateBalance(txCtx, userID, rewardAmount); err != nil {
-			return nil, fmt.Errorf("update user balance: %w", err)
-		}
+	if err := s.applyCheckinRewardInTx(txCtx, tx.Client(), checkinRewardCommand{
+		userID:       userID,
+		rewardAmount: rewardAmount,
+		checkinID:    checkinRecord.ID,
+		checkinType:  CheckinTypeLuck,
+		betAmount:    betAmount,
+		multiplier:   multiplier,
+	}); err != nil {
+		return nil, fmt.Errorf("apply luck checkin reward: %w", err)
 	}
 
 	s.createAuditRecord(txCtx, userID, rewardAmount, AdjustmentTypeCheckinLuck, multiplier, betAmount)
@@ -291,6 +317,53 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	return result, nil
 }
 
+func (s *CheckinService) applyCheckinRewardInTx(ctx context.Context, client *dbent.Client, cmd checkinRewardCommand) error {
+	amount := decimal.NewFromFloat(cmd.rewardAmount).RoundBank(18)
+	if amount.IsZero() {
+		return nil
+	}
+
+	txType := BankTxTypeReward
+	description := "每日签到奖励"
+	if cmd.checkinType == CheckinTypeLuck {
+		description = "幸运签到奖励"
+	}
+	if amount.IsNegative() {
+		txType = BankTxTypeWithdraw
+		amount = amount.Abs()
+		description = "签到扣减"
+		if cmd.checkinType == CheckinTypeLuck {
+			description = "幸运签到扣减"
+		}
+	}
+
+	_, err := NewBankService(s.entClient).ApplyTransferInTx(ctx, client, TransferFundsRequest{
+		UserID:           cmd.userID,
+		Amount:           amount,
+		Type:             txType,
+		BusinessModule:   BankBusinessModuleSystem,
+		Description:      description,
+		IdempotencyScope: "checkin:reward",
+		IdempotencyKey:   fmt.Sprintf("checkin:%d:%d:%s", cmd.userID, cmd.checkinID, cmd.checkinType),
+		ReferenceType:    "checkin",
+		ReferenceID:      fmt.Sprintf("%d", cmd.checkinID),
+		Metadata: map[string]any{
+			"bet_amount":    cmd.betAmount,
+			"checkin_type":  cmd.checkinType,
+			"multiplier":    cmd.multiplier,
+			"reward_amount": cmd.rewardAmount,
+		},
+	})
+	return err
+}
+
+func positiveBankBalance(account *BankAccountView) decimal.Decimal {
+	if account == nil || account.Balance.IsNegative() {
+		return decimal.Zero
+	}
+	return account.Balance
+}
+
 func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinStatus, error) {
 	normalEnabled := s.settingService.IsCheckinEnabled(ctx)
 	luckEnabled := s.settingService.IsCheckinLuckEnabled(ctx)
@@ -299,10 +372,14 @@ func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinS
 
 	anyEnabled := normalEnabled || luckEnabled
 
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
+	if _, err := s.userRepo.GetByID(ctx, userID); err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
+	bankAccount, err := NewBankService(s.entClient).GetAccountView(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get bank account: %w", err)
+	}
+	bankBalance := bankAccount.Balance.InexactFloat64()
 
 	if !anyEnabled {
 		return &CheckinStatus{
@@ -314,7 +391,7 @@ func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinS
 			MaxReward:       maxReward,
 			MinMultiplier:   minMultiplier,
 			MaxMultiplier:   maxMultiplier,
-			Balance:         user.Balance,
+			Balance:         bankBalance,
 		}, nil
 	}
 
@@ -342,7 +419,7 @@ func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinS
 		MaxReward:           maxReward,
 		MinMultiplier:       minMultiplier,
 		MaxMultiplier:       maxMultiplier,
-		Balance:             user.Balance,
+		Balance:             bankBalance,
 	}
 
 	if todayCheckin != nil {

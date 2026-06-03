@@ -23,6 +23,24 @@ func NewBankService(client *dbent.Client) *BankService {
 	return &BankService{client: client}
 }
 
+// GetAccountView 读取银行账户快照；旧用户首次读取时会从 users.balance 初始化银行账户。
+func (s *BankService) GetAccountView(ctx context.Context, userID int64) (*BankAccountView, error) {
+	if s == nil || s.client == nil {
+		return nil, ErrBankClientUnavailable
+	}
+	if userID <= 0 {
+		return nil, ErrBankInvalidUser
+	}
+	if err := ensureBankAccount(ctx, s.client, userID); err != nil {
+		return nil, err
+	}
+	view, err := queryBankAccountView(ctx, s.client, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrBankAccountNotFound
+	}
+	return view, err
+}
+
 // TransferFunds 在一个 Serializable 事务中完成账户更新与流水写入。
 func (s *BankService) TransferFunds(ctx context.Context, req TransferFundsRequest) (*TransferFundsResult, error) {
 	if s == nil || s.client == nil {
