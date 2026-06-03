@@ -154,14 +154,12 @@ func TestBillingCacheServiceGetUserBalance_Singleflight(t *testing.T) {
 	close(balCh)
 
 	for err := range errCh {
-		require.NoError(t, err)
+		require.ErrorIs(t, err, ErrLegacyBalanceMutationDisabled)
 	}
 	for bal := range balCh {
-		require.Equal(t, 12.34, bal)
+		require.Zero(t, bal)
 	}
 
-	require.Equal(t, int64(1), userRepo.calls.Load(), "并发穿透应被 singleflight 合并")
-	require.Eventually(t, func() bool {
-		return cache.setBalanceCalls.Load() >= 1
-	}, time.Second, 10*time.Millisecond)
+	require.Zero(t, userRepo.calls.Load(), "balance cache must not load users.balance")
+	require.Zero(t, cache.setBalanceCalls.Load(), "legacy balance must not be cached")
 }

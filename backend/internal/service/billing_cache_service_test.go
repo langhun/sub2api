@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -129,4 +130,30 @@ func TestBillingCacheServiceEnqueueAfterStopReturnsFalse(t *testing.T) {
 		amount: 1,
 	})
 	require.False(t, enqueued)
+}
+
+func TestBillingCacheServiceCheckBillingEligibilityUsesBankAccount(t *testing.T) {
+	svc := NewBillingCacheService(nil, nil, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+
+	err := svc.CheckBillingEligibility(context.Background(), &User{
+		ID:      1,
+		Balance: 100,
+		BankAccount: &BankAccountView{
+			Balance: decimal.Zero,
+			Status:  BankAccountStatusActive,
+		},
+	}, nil, nil, nil, "openai")
+	require.ErrorIs(t, err, ErrInsufficientBalance)
+
+	err = svc.CheckBillingEligibility(context.Background(), &User{
+		ID:      1,
+		Balance: 0,
+		BankAccount: &BankAccountView{
+			Balance:     decimal.Zero,
+			CreditLimit: decimal.NewFromInt(10),
+			Status:      BankAccountStatusActive,
+		},
+	}, nil, nil, nil, "openai")
+	require.NoError(t, err)
 }

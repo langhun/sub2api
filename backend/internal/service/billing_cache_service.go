@@ -12,6 +12,7 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/shopspring/decimal"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -344,12 +345,8 @@ func (s *BillingCacheService) GetUserBalance(ctx context.Context, userID int64) 
 }
 
 // getUserBalanceFromDB 从数据库获取用户余额
-func (s *BillingCacheService) getUserBalanceFromDB(ctx context.Context, userID int64) (float64, error) {
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return 0, fmt.Errorf("get user balance: %w", err)
-	}
-	return user.Balance, nil
+func (s *BillingCacheService) getUserBalanceFromDB(_ context.Context, _ int64) (float64, error) {
+	return 0, ErrLegacyBalanceMutationDisabled
 }
 
 // setBalanceCache 设置余额缓存
@@ -722,7 +719,7 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 			return err
 		}
 	} else {
-		if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {
+		if err := s.checkBalanceEligibility(ctx, user); err != nil {
 			return err
 		}
 	}
@@ -834,23 +831,27 @@ func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *G
 }
 
 // checkBalanceEligibility 检查余额模式资格
-func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userID int64) error {
-	balance, err := s.GetUserBalance(ctx, userID)
-	if err != nil {
+func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, user *User) error {
+	if user == nil || user.ID <= 0 {
+		return ErrBillingServiceUnavailable.WithCause(ErrBankInvalidUser)
+	}
+	if user.BankAccount == nil {
+		err := ErrBankAccountNotFound
 		if s.circuitBreaker != nil {
 			s.circuitBreaker.OnFailure(err)
 		}
-		logger.LegacyPrintf("service.billing_cache", "ALERT: billing balance check failed for user %d: %v", userID, err)
+		logger.LegacyPrintf("service.billing_cache", "ALERT: billing bank account missing for user %d", user.ID)
 		return ErrBillingServiceUnavailable.WithCause(err)
+	}
+	if !user.BankAccount.CanConsume(decimal.Zero) {
+		if s.circuitBreaker != nil {
+			s.circuitBreaker.OnSuccess()
+		}
+		return ErrInsufficientBalance
 	}
 	if s.circuitBreaker != nil {
 		s.circuitBreaker.OnSuccess()
 	}
-
-	if balance <= 0 {
-		return ErrInsufficientBalance
-	}
-
 	return nil
 }
 

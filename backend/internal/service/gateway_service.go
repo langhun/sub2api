@@ -8380,7 +8380,9 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, p.Cost.ActualCost)
 		}
 	} else if p.Cost.ActualCost > 0 && p.User != nil {
-		deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
+		if err := deps.billingCacheService.InvalidateUserBalance(ctx, p.User.ID); err != nil {
+			logger.LegacyPrintf("service.gateway", "Warning: invalidate bank balance cache failed for user %d: %v", p.User.ID, err)
+		}
 	}
 
 	if p.Cost.ActualCost > 0 && p.APIKey != nil && p.APIKey.HasRateLimits() {
@@ -8466,8 +8468,13 @@ func resolveOldBalance(p *postUsageBillingParams, result *UsageBillingApplyResul
 	if result != nil && result.NewBalance != nil {
 		return *result.NewBalance + p.Cost.ActualCost
 	}
-	// Legacy fallback: snapshot balance from request context
-	return p.User.Balance
+	if p != nil && p.User != nil && p.User.BankAccount != nil {
+		return p.User.BankAccount.Balance.InexactFloat64()
+	}
+	if p == nil || p.User == nil {
+		return 0
+	}
+	return 0
 }
 
 // notifyAccountQuota sends account quota threshold notification after increment.
