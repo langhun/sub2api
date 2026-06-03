@@ -710,6 +710,12 @@ func TestAPIKeyAuthUsesBankAccountCapacityInStandardMode(t *testing.T) {
 			wantStatus: http.StatusForbidden,
 			wantCode:   "INSUFFICIENT_BALANCE",
 		},
+		{
+			name:       "missing bank account ignores legacy balance",
+			account:    nil,
+			wantStatus: http.StatusForbidden,
+			wantCode:   "INSUFFICIENT_BALANCE",
+		},
 	}
 
 	for _, tt := range tests {
@@ -718,7 +724,7 @@ func TestAPIKeyAuthUsesBankAccountCapacityInStandardMode(t *testing.T) {
 				ID:          7,
 				Role:        service.RoleUser,
 				Status:      service.StatusActive,
-				Balance:     0,
+				Balance:     10,
 				Concurrency: 3,
 				BankAccount: tt.account,
 			}

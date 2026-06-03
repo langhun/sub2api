@@ -284,10 +284,6 @@ func userHasBillingCapacity(user *service.User) bool {
 	if user == nil {
 		return false
 	}
-	if user.BankAccount != nil {
-		// 银行账户已初始化时，API 入口只按账本账户判断容量与冻结状态。
-		return user.BankAccount.CanConsume(decimal.Zero)
-	}
-	// 阶段 3 兼容旧用户：银行账户尚未初始化时暂按历史余额字段预检。
-	return user.Balance > 0
+	// API 入口只按账本账户判断容量与冻结状态；旧 users.balance 不再作为准入依据。
+	return user.BankAccount != nil && user.BankAccount.CanConsume(decimal.Zero)
 }
