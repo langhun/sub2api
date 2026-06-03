@@ -20,13 +20,37 @@ func TestBalanceTransferServiceTransfer_WritesBankLedger(t *testing.T) {
 	sender := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("transfer-bank-sender-%d@example.com", time.Now().UnixNano()),
 		PasswordHash: "hash",
-		Balance:      20,
+		Balance:      0,
 	})
 	receiver := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("transfer-bank-receiver-%d@example.com", time.Now().UnixNano()),
 		PasswordHash: "hash",
-		Balance:      1,
+		Balance:      0,
 	})
+	_, err := service.NewBankService(client).TransferFunds(ctx, service.TransferFundsRequest{
+		UserID:           sender.ID,
+		Amount:           decimal.RequireFromString("20"),
+		Type:             service.BankTxTypeDeposit,
+		BusinessModule:   service.BankBusinessModuleSystem,
+		Description:      "seed transfer bank balance",
+		IdempotencyScope: "balance_transfer_test",
+		IdempotencyKey:   fmt.Sprintf("transfer-bank-seed:%d", sender.ID),
+		ReferenceType:    "balance_transfer_test",
+		ReferenceID:      fmt.Sprintf("%d", sender.ID),
+	})
+	require.NoError(t, err)
+	_, err = service.NewBankService(client).TransferFunds(ctx, service.TransferFundsRequest{
+		UserID:           receiver.ID,
+		Amount:           decimal.RequireFromString("1"),
+		Type:             service.BankTxTypeDeposit,
+		BusinessModule:   service.BankBusinessModuleSystem,
+		Description:      "seed receiver bank balance",
+		IdempotencyScope: "balance_transfer_test",
+		IdempotencyKey:   fmt.Sprintf("transfer-bank-seed:%d", receiver.ID),
+		ReferenceType:    "balance_transfer_test",
+		ReferenceID:      fmt.Sprintf("%d", receiver.ID),
+	})
+	require.NoError(t, err)
 	setTransferBankSettings(t, client)
 	transferSvc := service.NewBalanceTransferService(
 		NewBalanceTransferRepository(client, integrationDB),
@@ -42,8 +66,8 @@ func TestBalanceTransferServiceTransfer_WritesBankLedger(t *testing.T) {
 	require.InDelta(t, 0.5, record.Fee, 0.000001)
 	require.InDelta(t, 5.5, record.GrossAmount, 0.000001)
 
-	requireBalanceTransferLegacyBalance(t, sender.ID, "20")
-	requireBalanceTransferLegacyBalance(t, receiver.ID, "1")
+	requireBalanceTransferLegacyBalance(t, sender.ID, "0")
+	requireBalanceTransferLegacyBalance(t, receiver.ID, "0")
 	requireBankAccountSnapshot(t, sender.ID, "14.5", "0")
 	requireBankAccountSnapshot(t, receiver.ID, "6", "0")
 

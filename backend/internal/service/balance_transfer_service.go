@@ -55,7 +55,6 @@ type BalanceTransferService struct {
 
 type balanceTransferTxGuard interface {
 	GetByIDForUpdate(ctx context.Context, id int64) (*BalanceTransferRecord, error)
-	LockUserBalance(ctx context.Context, userID int64) (float64, error)
 }
 
 type balanceTransferUserSearchRepository interface {
@@ -126,7 +125,7 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 	grossAmount := amount + fee
 	var record *BalanceTransferRecord
 	if err := s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
-		senderBalance, err := s.lockBankCashBalance(txCtx, senderID)
+		senderBalance, err := s.lockBankAvailableCapacity(txCtx, senderID)
 		if err != nil {
 			return fmt.Errorf("lock sender balance: %w", err)
 		}
@@ -559,7 +558,7 @@ func (s *BalanceTransferService) CreateRedPacket(ctx context.Context, senderID i
 	}
 	var rp *RedPacketRecord
 	if err := s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
-		senderBalance, err := s.lockBankCashBalance(txCtx, senderID)
+		senderBalance, err := s.lockBankAvailableCapacity(txCtx, senderID)
 		if err != nil {
 			return fmt.Errorf("lock sender balance: %w", err)
 		}
@@ -1037,30 +1036,30 @@ func (s *BalanceTransferService) getTransferForUpdate(ctx context.Context, trans
 	return s.transferRepo.GetByID(ctx, transferID)
 }
 
-func (s *BalanceTransferService) lockUserBalance(ctx context.Context, userID int64) (float64, error) {
-	if repo, ok := s.transferRepo.(balanceTransferTxGuard); ok {
-		return repo.LockUserBalance(ctx, userID)
-	}
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return 0, err
-	}
-	return user.Balance, nil
-}
-
-func (s *BalanceTransferService) lockBankCashBalance(ctx context.Context, userID int64) (float64, error) {
+func (s *BalanceTransferService) lockBankAvailableCapacity(ctx context.Context, userID int64) (float64, error) {
 	client, err := bankClientFromTxContext(ctx)
 	if err != nil {
-		return s.lockUserBalance(ctx, userID)
+		return 0, err
 	}
 	account, err := lockBankAccountForUpdate(ctx, client, userID)
 	if err != nil {
 		return 0, err
 	}
-	if account.Balance.IsNegative() {
+	if account.Status != BankAccountStatusActive {
+		return 0, ErrBankAccountNotActive
+	}
+	available := (&BankAccountView{
+		Balance:       account.Balance,
+		CreditLimit:   account.CreditLimit,
+		DebtPrincipal: account.DebtPrincipal,
+		DebtInterest:  account.DebtInterest,
+		TotalDebt:     account.TotalDebt,
+		Status:        account.Status,
+	}).AvailableCapacity()
+	if available.IsNegative() {
 		return 0, nil
 	}
-	return account.Balance.InexactFloat64(), nil
+	return available.InexactFloat64(), nil
 }
 
 func bankClientFromTxContext(ctx context.Context) (*dbent.Client, error) {

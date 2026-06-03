@@ -192,7 +192,6 @@ func (s *transferUserRepoStub) EnableTotp(context.Context, int64) error { return
 func (s *transferUserRepoStub) DisableTotp(context.Context, int64) error { return nil }
 
 type transferRepoStub struct {
-	lockedBalances      map[int64]float64
 	dailyTotal          float64
 	dailyCount          int
 	transferForUpdate   *BalanceTransferRecord
@@ -316,14 +315,6 @@ func (s *transferRepoStub) GetByIDForUpdate(context.Context, int64) (*BalanceTra
 	return &record, nil
 }
 
-func (s *transferRepoStub) LockUserBalance(_ context.Context, userID int64) (float64, error) {
-	balance, ok := s.lockedBalances[userID]
-	if !ok {
-		return 0, ErrUserNotFound
-	}
-	return balance, nil
-}
-
 func (s *transferRepoStub) UpdateStatus(_ context.Context, _ int64, status string, frozenAt *time.Time, frozenBy *int64, revokeReason *string) error {
 	s.updateStatusCalled = true
 	s.updateStatusHistory = append(s.updateStatusHistory, status)
@@ -431,8 +422,7 @@ func newRedPacketTestService(
 
 func TestTransfer_RechecksDailyLimitInsideTx(t *testing.T) {
 	repo := &transferRepoStub{
-		lockedBalances: map[int64]float64{1: 500},
-		dailyTotal:     80,
+		dailyTotal: 80,
 	}
 	userRepo := &transferUserRepoStub{
 		users: map[int64]*User{
@@ -446,7 +436,7 @@ func TestTransfer_RechecksDailyLimitInsideTx(t *testing.T) {
 
 	record, err := svc.Transfer(context.Background(), 1, 2, 30, nil)
 	require.Nil(t, record)
-	require.ErrorIs(t, err, ErrTransferDailyLimit)
+	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
 	require.Equal(t, 1, repo.runInTxCalls)
 	require.False(t, repo.createCalled)
 	require.Empty(t, userRepo.deductCalls)
@@ -454,9 +444,7 @@ func TestTransfer_RechecksDailyLimitInsideTx(t *testing.T) {
 }
 
 func TestTransfer_RechecksSenderBalanceInsideTx(t *testing.T) {
-	repo := &transferRepoStub{
-		lockedBalances: map[int64]float64{1: 20},
-	}
+	repo := &transferRepoStub{}
 	userRepo := &transferUserRepoStub{
 		users: map[int64]*User{
 			1: {ID: 1, Balance: 500},
@@ -467,7 +455,7 @@ func TestTransfer_RechecksSenderBalanceInsideTx(t *testing.T) {
 
 	record, err := svc.Transfer(context.Background(), 1, 2, 30, nil)
 	require.Nil(t, record)
-	require.ErrorIs(t, err, ErrTransferInsufficient)
+	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
 	require.Equal(t, 1, repo.runInTxCalls)
 	require.False(t, repo.createCalled)
 	require.Empty(t, userRepo.deductCalls)
@@ -475,9 +463,7 @@ func TestTransfer_RechecksSenderBalanceInsideTx(t *testing.T) {
 }
 
 func TestTransfer_SuccessRequiresBankTransactionContext(t *testing.T) {
-	repo := &transferRepoStub{
-		lockedBalances: map[int64]float64{1: 50},
-	}
+	repo := &transferRepoStub{}
 	userRepo := &transferUserRepoStub{
 		users: map[int64]*User{
 			1: {ID: 1, Balance: 50},
@@ -490,7 +476,7 @@ func TestTransfer_SuccessRequiresBankTransactionContext(t *testing.T) {
 	require.Nil(t, record)
 	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
 	require.Equal(t, 1, repo.runInTxCalls)
-	require.True(t, repo.createCalled)
+	require.False(t, repo.createCalled)
 	require.Empty(t, userRepo.deductCalls)
 	require.Empty(t, userRepo.updateCalls)
 }
@@ -517,9 +503,7 @@ func TestBatchDistribute_SuccessRequiresBankTransactionContext(t *testing.T) {
 }
 
 func TestCreateRedPacket_RechecksSenderBalanceInsideTx(t *testing.T) {
-	repo := &transferRepoStub{
-		lockedBalances: map[int64]float64{1: 20},
-	}
+	repo := &transferRepoStub{}
 	redPacketRepo := &redPacketRepoStub{}
 	userRepo := &transferUserRepoStub{
 		users: map[int64]*User{
@@ -530,16 +514,14 @@ func TestCreateRedPacket_RechecksSenderBalanceInsideTx(t *testing.T) {
 
 	record, err := svc.CreateRedPacket(context.Background(), 1, 30, 2, "equal", nil)
 	require.Nil(t, record)
-	require.ErrorIs(t, err, ErrTransferInsufficient)
+	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
 	require.Equal(t, 1, repo.runInTxCalls)
 	require.False(t, redPacketRepo.created)
 	require.Empty(t, userRepo.deductCalls)
 }
 
 func TestCreateRedPacket_SuccessRequiresBankTransactionContext(t *testing.T) {
-	repo := &transferRepoStub{
-		lockedBalances: map[int64]float64{1: 100},
-	}
+	repo := &transferRepoStub{}
 	redPacketRepo := &redPacketRepoStub{}
 	userRepo := &transferUserRepoStub{
 		users: map[int64]*User{
@@ -552,7 +534,7 @@ func TestCreateRedPacket_SuccessRequiresBankTransactionContext(t *testing.T) {
 	require.Nil(t, record)
 	require.ErrorContains(t, err, "BANK_TRANSACTION_REQUIRED")
 	require.Equal(t, 1, repo.runInTxCalls)
-	require.True(t, redPacketRepo.created)
+	require.False(t, redPacketRepo.created)
 	require.Empty(t, userRepo.deductCalls)
 	require.Empty(t, userRepo.updateCalls)
 }

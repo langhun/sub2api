@@ -130,32 +130,6 @@ FOR UPDATE
 	return &record, rows.Err()
 }
 
-func (r *balanceTransferRepo) LockUserBalance(ctx context.Context, userID int64) (float64, error) {
-	client := clientFromContext(ctx, r.client)
-	rows, err := client.QueryContext(
-		ctx,
-		"SELECT balance FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE",
-		userID,
-	)
-	if err != nil {
-		return 0, fmt.Errorf("lock user %d balance: %w", userID, err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
-			return 0, fmt.Errorf("lock user %d balance: %w", userID, err)
-		}
-		return 0, service.ErrUserNotFound
-	}
-
-	var balance float64
-	if err := rows.Scan(&balance); err != nil {
-		return 0, fmt.Errorf("scan user %d balance: %w", userID, err)
-	}
-	return balance, rows.Err()
-}
-
 func (r *balanceTransferRepo) UpdateStatus(ctx context.Context, id int64, status string, frozenAt *time.Time, frozenBy *int64, revokeReason *string) error {
 	client := clientFromContext(ctx, r.client)
 	builder := client.BalanceTransfer.UpdateOneID(id).
