@@ -687,6 +687,7 @@ func userEntityToService(u *dbent.User) *service.User {
 	}
 	if u.Edges.BankAccount != nil {
 		out.BankAccount = userBankAccountEntityToView(u.Edges.BankAccount)
+		out.Balance = out.BankAccount.Balance.InexactFloat64()
 	}
 	return out
 }
