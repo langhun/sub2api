@@ -9,9 +9,9 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -286,29 +286,13 @@ FROM cleared`, userID)
 			return service.ErrAffiliateQuotaEmpty
 		}
 
-		affected, err := txClient.User.Update().
-			Where(user.IDEQ(userID)).
-			AddBalance(transferred).
-			AddTotalRecharged(transferred).
-			Save(txCtx)
-		if err != nil {
-			return fmt.Errorf("credit user balance by affiliate quota: %w", err)
-		}
-		if affected == 0 {
-			return service.ErrUserNotFound
-		}
-
-		newBalance, err = queryUserBalance(txCtx, txClient, userID)
-		if err != nil {
-			return err
-		}
-
 		snapshot, err := queryAffiliateTransferSnapshot(txCtx, txClient, userID)
 		if err != nil {
 			return err
 		}
 
-		if _, err = txClient.ExecContext(txCtx, `
+		var affiliateLedgerID int64
+		rows, err = txClient.QueryContext(txCtx, `
 INSERT INTO user_affiliate_ledger (
     user_id,
     action,
@@ -321,15 +305,60 @@ INSERT INTO user_affiliate_ledger (
     created_at,
     updated_at
 )
-VALUES ($1, 'transfer', $2, NULL, $3, $4, $5, $6, NOW(), NOW())`,
+VALUES ($1, 'transfer', $2, NULL, NULL, $3, $4, $5, NOW(), NOW())
+RETURNING id`,
 			userID,
 			transferred,
-			snapshot.BalanceAfter,
 			snapshot.AvailableQuotaAfter,
 			snapshot.FrozenQuotaAfter,
 			snapshot.HistoryQuotaAfter,
-		); err != nil {
+		)
+		if err != nil {
 			return fmt.Errorf("insert affiliate transfer ledger: %w", err)
+		}
+		if !rows.Next() {
+			_ = rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			return sql.ErrNoRows
+		}
+		if err := rows.Scan(&affiliateLedgerID); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+
+		amount := decimal.NewFromFloat(transferred).RoundBank(18)
+		result, err := service.NewBankService(nil).ApplyTransferInTx(txCtx, txClient, service.TransferFundsRequest{
+			UserID:           userID,
+			Amount:           amount,
+			Type:             service.BankTxTypeReward,
+			BusinessModule:   service.BankBusinessModuleSystem,
+			Description:      "邀请返利转入余额",
+			IdempotencyScope: "affiliate_transfer",
+			IdempotencyKey:   fmt.Sprintf("affiliate-transfer:%d:reward", affiliateLedgerID),
+			ReferenceType:    "affiliate_transfer",
+			ReferenceID:      fmt.Sprintf("%d", affiliateLedgerID),
+			Metadata: map[string]any{
+				"affiliate_ledger_id": affiliateLedgerID,
+				"amount":              amount.String(),
+				"user_id":             userID,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("credit affiliate quota through bank ledger: %w", err)
+		}
+		newBalance = result.Balance.InexactFloat64()
+
+		if _, err = txClient.ExecContext(txCtx, `
+UPDATE user_affiliate_ledger
+SET balance_after = $1,
+    updated_at = NOW()
+WHERE id = $2`, newBalance, affiliateLedgerID); err != nil {
+			return fmt.Errorf("update affiliate transfer ledger balance snapshot: %w", err)
 		}
 
 		return nil
@@ -888,30 +917,7 @@ LIMIT 1`, strings.TrimSpace(code))
 	return &out, nil
 }
 
-func queryUserBalance(ctx context.Context, client affiliateQueryExecer, userID int64) (float64, error) {
-	rows, err := client.QueryContext(ctx,
-		"SELECT balance::double precision FROM users WHERE id = $1 LIMIT 1",
-		userID,
-	)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = rows.Close() }()
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
-			return 0, err
-		}
-		return 0, service.ErrUserNotFound
-	}
-	var balance float64
-	if err := rows.Scan(&balance); err != nil {
-		return 0, err
-	}
-	return balance, nil
-}
-
 type affiliateTransferSnapshot struct {
-	BalanceAfter        float64
 	AvailableQuotaAfter float64
 	FrozenQuotaAfter    float64
 	HistoryQuotaAfter   float64
@@ -919,13 +925,11 @@ type affiliateTransferSnapshot struct {
 
 func queryAffiliateTransferSnapshot(ctx context.Context, client affiliateQueryExecer, userID int64) (*affiliateTransferSnapshot, error) {
 	rows, err := client.QueryContext(ctx, `
-SELECT u.balance::double precision,
-       ua.aff_quota::double precision,
+SELECT ua.aff_quota::double precision,
        ua.aff_frozen_quota::double precision,
        ua.aff_history_quota::double precision
-FROM users u
-JOIN user_affiliates ua ON ua.user_id = u.id
-WHERE u.id = $1
+FROM user_affiliates ua
+WHERE ua.user_id = $1
 LIMIT 1`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query affiliate transfer snapshot: %w", err)
@@ -941,7 +945,6 @@ LIMIT 1`, userID)
 
 	var snapshot affiliateTransferSnapshot
 	if err := rows.Scan(
-		&snapshot.BalanceAfter,
 		&snapshot.AvailableQuotaAfter,
 		&snapshot.FrozenQuotaAfter,
 		&snapshot.HistoryQuotaAfter,

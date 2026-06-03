@@ -10,6 +10,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,6 +35,32 @@ func querySingleInt(t *testing.T, ctx context.Context, client *dbent.Client, que
 
 	require.True(t, rows.Next(), "expected one row")
 	var value int
+	require.NoError(t, rows.Scan(&value))
+	require.NoError(t, rows.Err())
+	return value
+}
+
+func querySingleBool(t *testing.T, ctx context.Context, client *dbent.Client, query string, args ...any) bool {
+	t.Helper()
+	rows, err := client.QueryContext(ctx, query, args...)
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+
+	require.True(t, rows.Next(), "expected one row")
+	var value bool
+	require.NoError(t, rows.Scan(&value))
+	require.NoError(t, rows.Err())
+	return value
+}
+
+func querySingleDecimal(t *testing.T, ctx context.Context, client *dbent.Client, query string, args ...any) decimal.Decimal {
+	t.Helper()
+	rows, err := client.QueryContext(ctx, query, args...)
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+
+	require.True(t, rows.Next(), "expected one row")
+	var value decimal.Decimal
 	require.NoError(t, rows.Scan(&value))
 	require.NoError(t, rows.Err())
 	return value
@@ -73,14 +100,19 @@ VALUES ($1, $2, $3, $3, NOW(), NOW())`, u.ID, affCode, 12.34)
 
 	persistedBalance := querySingleFloat(t, txCtx, client,
 		"SELECT balance::double precision FROM users WHERE id = $1", u.ID)
-	require.InDelta(t, 17.84, persistedBalance, 1e-9)
+	require.InDelta(t, 5.5, persistedBalance, 1e-9)
+
+	bankBalance := querySingleDecimal(t, txCtx, client,
+		"SELECT balance FROM users_bank_account WHERE user_id = $1", u.ID)
+	require.True(t, decimal.RequireFromString("17.84").Equal(bankBalance), "bank balance = %s", bankBalance.String())
 
 	ledgerCount := querySingleInt(t, txCtx, client,
 		"SELECT COUNT(*) FROM user_affiliate_ledger WHERE user_id = $1 AND action = 'transfer'", u.ID)
 	require.Equal(t, 1, ledgerCount)
 
 	rows, err := client.QueryContext(txCtx, `
-SELECT amount::double precision,
+SELECT id,
+       amount::double precision,
        balance_after::double precision,
        aff_quota_after::double precision,
        aff_frozen_quota_after::double precision,
@@ -91,13 +123,43 @@ LIMIT 1`, u.ID)
 	require.NoError(t, err)
 	defer func() { _ = rows.Close() }()
 	require.True(t, rows.Next(), "expected transfer ledger")
+	var affiliateLedgerID int64
 	var amount, balanceAfter, quotaAfter, frozenAfter, historyAfter float64
-	require.NoError(t, rows.Scan(&amount, &balanceAfter, &quotaAfter, &frozenAfter, &historyAfter))
+	require.NoError(t, rows.Scan(&affiliateLedgerID, &amount, &balanceAfter, &quotaAfter, &frozenAfter, &historyAfter))
 	require.InDelta(t, 12.34, amount, 1e-9)
 	require.InDelta(t, 17.84, balanceAfter, 1e-9)
 	require.InDelta(t, 0.0, quotaAfter, 1e-9)
 	require.InDelta(t, 0.0, frozenAfter, 1e-9)
 	require.InDelta(t, 12.34, historyAfter, 1e-9)
+
+	var txID, module, referenceType, referenceID string
+	var bankAmount decimal.Decimal
+	txRows, err := client.QueryContext(txCtx, `
+SELECT tx_id::text,
+       amount,
+       business_module,
+       reference_type,
+       reference_id
+FROM transactions_log
+WHERE user_id = $1
+  AND tx_type = $2
+  AND reference_type = 'affiliate_transfer'
+LIMIT 1`, u.ID, service.BankTxTypeReward)
+	require.NoError(t, err)
+	defer func() { _ = txRows.Close() }()
+	require.True(t, txRows.Next(), "expected bank transaction")
+	require.NoError(t, txRows.Scan(&txID, &bankAmount, &module, &referenceType, &referenceID))
+	require.True(t, decimal.RequireFromString("12.34").Equal(bankAmount), "bank amount = %s", bankAmount.String())
+	require.Equal(t, service.BankBusinessModuleSystem, module)
+	require.Equal(t, "affiliate_transfer", referenceType)
+	require.Equal(t, fmt.Sprintf("%d", affiliateLedgerID), referenceID)
+
+	bankLedgerEntries := querySingleInt(t, txCtx, client,
+		"SELECT COUNT(*) FROM ledger_entries WHERE tx_id::text = $1", txID)
+	require.Equal(t, 2, bankLedgerEntries)
+	balanced := querySingleBool(t, txCtx, client,
+		"SELECT balanced FROM ledger_transaction_balances WHERE tx_id::text = $1", txID)
+	require.True(t, balanced)
 }
 
 // TestAffiliateRepository_AccrueQuota_ReusesOuterTransaction guards the
