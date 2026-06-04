@@ -2,10 +2,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import GameHallView from '../GameHallView.vue'
 
-const { createBet, getCurrent, getOrders, showError, showSuccess } = vi.hoisted(() => ({
+const { createBet, getCurrent, getOrders, getResults, showError, showSuccess } = vi.hoisted(() => ({
   createBet: vi.fn(),
   getCurrent: vi.fn(),
   getOrders: vi.fn(),
+  getResults: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }))
@@ -15,6 +16,7 @@ vi.mock('@/api/lottery', () => ({
     createBet,
     getCurrent,
     getOrders,
+    getResults,
   },
 }))
 
@@ -58,7 +60,40 @@ const order = {
   status: 'pending',
   reward: '0',
   prize_level: '',
+  red_hits: 0,
+  blue_hit: false,
   created_at: '2026-06-04T12:00:00Z',
+}
+
+const winOrder = {
+  ...order,
+  order_id: 8,
+  status: 'win',
+  reward: '5',
+  prize_level: 'sixth',
+  red_hits: 2,
+  blue_hit: true,
+}
+
+const loseOrder = {
+  ...order,
+  order_id: 9,
+  status: 'lose',
+  reward: '0',
+  prize_level: '',
+  red_hits: 1,
+  blue_hit: false,
+}
+
+const recentResult = {
+  lottery_type: 'ssq',
+  issue_no: '2026062',
+  red_balls: ['02', '04', '07', '14', '28', '29'],
+  blue_ball: '09',
+  opened_at: '2026-06-02T13:15:00Z',
+  source: 'fucai',
+  source_ref: 'https://example.test/result/2026062',
+  created_at: '2026-06-02T13:30:00Z',
 }
 
 function mountPage() {
@@ -83,11 +118,13 @@ describe('GameHallView lottery page', () => {
     createBet.mockReset()
     getCurrent.mockReset()
     getOrders.mockReset()
+    getResults.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
 
     getCurrent.mockResolvedValue(openCurrent)
     getOrders.mockResolvedValue([order])
+    getResults.mockResolvedValue([recentResult])
     createBet.mockResolvedValue({
       order_id: 8,
       issue_no: '2026060',
@@ -110,7 +147,29 @@ describe('GameHallView lottery page', () => {
     expect(wrapper.findAll('.red-ball')).toHaveLength(33)
     expect(wrapper.findAll('.blue-ball')).toHaveLength(16)
     expect(wrapper.text()).toContain('第 2026060 期')
+    expect(wrapper.text()).toContain('待开奖')
+    expect(wrapper.text()).toContain('命中：0 红')
+    expect(wrapper.text()).toContain('最近开奖')
+    expect(wrapper.text()).toContain('第 2026062 期')
+    expect(wrapper.text()).toContain('02')
+    expect(wrapper.text()).toContain('来源：fucai')
     expect(getOrders).toHaveBeenCalledWith('2026060')
+    expect(getResults).toHaveBeenCalledWith(100)
+  })
+
+  it('renders win and lose order settlement states', async () => {
+    getOrders.mockResolvedValue([winOrder, loseOrder, order])
+
+    const wrapper = mountPage()
+    await settlePage()
+
+    expect(wrapper.text()).toContain('已中奖')
+    expect(wrapper.text()).toContain('未中奖')
+    expect(wrapper.text()).toContain('待开奖')
+    expect(wrapper.text()).toContain('奖级：六等奖')
+    expect(wrapper.text()).toContain('奖励：5 DG')
+    expect(wrapper.text()).toContain('命中：2 红 + 蓝')
+    expect(wrapper.text()).toContain('命中：1 红')
   })
 
   it('limits red balls, keeps one blue ball, and prevents duplicate submit while pending', async () => {
@@ -159,6 +218,7 @@ describe('GameHallView lottery page', () => {
     expect(showSuccess).toHaveBeenCalledWith('投注成功，已刷新投注记录')
     expect(getCurrent).toHaveBeenCalledTimes(2)
     expect(getOrders).toHaveBeenCalledTimes(2)
+    expect(getResults).toHaveBeenCalledTimes(2)
     expect(wrapper.findAll('.red-ball.selected')).toHaveLength(0)
     expect(wrapper.findAll('.blue-ball.selected')).toHaveLength(0)
   })
@@ -192,5 +252,23 @@ describe('GameHallView lottery page', () => {
     expect(wrapper.text()).toContain('本期已截止投注，请等待下一期。')
     expect(showError).toHaveBeenCalledWith('本期已截止投注，请等待下一期。')
     expect(wrapper.get('[data-testid="submit-bet"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('keeps betting available when result loading fails', async () => {
+    getResults.mockRejectedValue(new Error('result api failed'))
+
+    const wrapper = mountPage()
+    await settlePage()
+
+    expect(wrapper.text()).toContain('result api failed')
+    expect(wrapper.text()).toContain('可投注')
+
+    for (const ball of [1, 2, 3, 4, 5, 6]) {
+      await wrapper.get(`[data-testid="red-ball-${ball}"]`).trigger('click')
+    }
+    await wrapper.get('[data-testid="blue-ball-9"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="submit-bet"]').attributes('disabled')).toBeUndefined()
+    expect(showError).not.toHaveBeenCalled()
   })
 })

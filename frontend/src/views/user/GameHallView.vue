@@ -6,7 +6,7 @@
           <p class="text-sm font-medium text-[var(--muted-foreground)]">娱乐大厅</p>
           <h1 class="text-2xl font-semibold text-[var(--foreground)]">双色球</h1>
         </div>
-        <button class="btn btn-secondary" type="button" :disabled="loadingCurrent || ordersLoading" @click="refreshAll">
+        <button class="btn btn-secondary" type="button" :disabled="loadingCurrent || ordersLoading || resultsLoading" @click="refreshAll">
           刷新
         </button>
       </header>
@@ -116,7 +116,7 @@
             <article v-for="order in orders" v-else :key="order.order_id" class="order-row">
               <div class="flex items-center justify-between gap-3">
                 <strong class="text-sm text-[var(--foreground)]">第 {{ order.issue_no }} 期</strong>
-                <span class="rounded-md bg-[var(--muted)] px-2 py-1 text-xs text-[var(--muted-foreground)]">{{ order.status }}</span>
+                <span class="status-pill" :class="orderStatusClass(order.status)">{{ orderStatusText(order.status) }}</span>
               </div>
               <div class="mt-2 flex flex-wrap gap-1.5">
                 <span v-for="ball in order.red_balls" :key="`${order.order_id}-r-${ball}`" class="mini-ball mini-red">{{ ball }}</span>
@@ -124,20 +124,49 @@
               </div>
               <div class="mt-2 grid gap-1 text-xs text-[var(--muted-foreground)]">
                 <span>金额：{{ formatMoney(order.cost) }}</span>
-                <span>奖励：{{ formatMoney(order.reward) }}</span>
+                <span>命中：{{ formatHitSummary(order) }}</span>
+                <span v-if="order.prize_level">奖级：{{ prizeLevelText(order.prize_level) }}</span>
+                <span v-if="order.status === 'win'" class="font-semibold text-emerald-600 dark:text-emerald-300">奖励：{{ formatMoney(order.reward) }}</span>
+                <span v-else>奖励：{{ formatMoney(order.reward) }}</span>
                 <span>{{ formatDateTime(order.created_at) }}</span>
               </div>
             </article>
           </div>
         </aside>
       </main>
+
+      <section class="lottery-panel">
+        <div class="flex flex-col gap-2 border-b border-[var(--border)] pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-[var(--foreground)]">最近开奖</h2>
+            <p class="text-sm text-[var(--muted-foreground)]">同步官方双色球开奖后自动更新。</p>
+          </div>
+          <span v-if="resultsError" class="text-sm text-[var(--destructive)]">{{ resultsError }}</span>
+        </div>
+
+        <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div v-if="resultsLoading" class="order-empty md:col-span-2 xl:col-span-3">加载中</div>
+          <div v-else-if="results.length === 0" class="order-empty md:col-span-2 xl:col-span-3">暂无开奖记录</div>
+          <article v-for="result in results" v-else :key="result.issue_no" class="result-row">
+            <div class="flex items-start justify-between gap-3">
+              <strong class="text-sm text-[var(--foreground)]">第 {{ result.issue_no }} 期</strong>
+              <span class="text-xs text-[var(--muted-foreground)]">{{ formatDateTime(result.opened_at) }}</span>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-1.5">
+              <span v-for="ball in result.red_balls" :key="`${result.issue_no}-r-${ball}`" class="mini-ball mini-red">{{ ball }}</span>
+              <span class="mini-ball mini-blue">{{ result.blue_ball }}</span>
+            </div>
+            <div class="mt-2 text-xs text-[var(--muted-foreground)]">来源：{{ result.source || '官方同步' }}</div>
+          </article>
+        </div>
+      </section>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { lotteryAPI, type LotteryCurrent, type LotteryOrder } from '@/api/lottery'
+import { lotteryAPI, type LotteryCurrent, type LotteryOrder, type LotteryResult } from '@/api/lottery'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useAppStore } from '@/stores'
 import { formatDateTime, formatDualDisplayAmount } from '@/utils/format'
@@ -148,12 +177,15 @@ const blueBallOptions = range(1, 16)
 
 const current = ref<LotteryCurrent | null>(null)
 const orders = ref<LotteryOrder[]>([])
+const results = ref<LotteryResult[]>([])
 const selectedRedBalls = ref<number[]>([])
 const selectedBlueBall = ref<number | null>(null)
 const loadingCurrent = ref(false)
 const ordersLoading = ref(false)
+const resultsLoading = ref(false)
 const submitting = ref(false)
 const currentError = ref('')
+const resultsError = ref('')
 
 const selectedRedSet = computed(() => new Set(selectedRedBalls.value))
 const nothingSelected = computed(() => selectedRedBalls.value.length === 0 && selectedBlueBall.value === null)
@@ -183,7 +215,7 @@ onMounted(() => {
 
 async function refreshAll() {
   await loadCurrent()
-  await loadOrders()
+  await Promise.all([loadOrders(), loadResults()])
 }
 
 async function loadCurrent() {
@@ -209,6 +241,19 @@ async function loadOrders() {
     appStore.showError(readableError(error))
   } finally {
     ordersLoading.value = false
+  }
+}
+
+async function loadResults() {
+  resultsLoading.value = true
+  resultsError.value = ''
+  try {
+    results.value = await lotteryAPI.getResults(100)
+  } catch (error) {
+    results.value = []
+    resultsError.value = readableError(error)
+  } finally {
+    resultsLoading.value = false
   }
 }
 
@@ -273,6 +318,35 @@ function formatMoney(value: string | number | null | undefined) {
 function formatMoneyTitle(value: string | number | null | undefined) {
   const amount = Number(value ?? 0)
   return `${formatDualDisplayAmount(Number.isFinite(amount) ? amount : 0).full} DG`
+}
+
+function orderStatusText(status: string) {
+  if (status === 'win') return '已中奖'
+  if (status === 'lose') return '未中奖'
+  return '待开奖'
+}
+
+function orderStatusClass(status: string) {
+  if (status === 'win') return 'status-win'
+  if (status === 'lose') return 'status-lose'
+  return 'status-pending'
+}
+
+function prizeLevelText(level: string) {
+  const map: Record<string, string> = {
+    first: '一等奖',
+    second: '二等奖',
+    third: '三等奖',
+    fourth: '四等奖',
+    fifth: '五等奖',
+    sixth: '六等奖',
+  }
+  return map[level] || level
+}
+
+function formatHitSummary(order: LotteryOrder) {
+  const redHits = Number.isFinite(order.red_hits) ? order.red_hits : 0
+  return `${redHits} 红${order.blue_hit ? ' + 蓝' : ''}`
 }
 
 function readableError(error: unknown) {
@@ -358,10 +432,38 @@ function readableError(error: unknown) {
   color: white;
 }
 
-.order-row {
+.order-row,
+.result-row {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.875rem;
+}
+
+.status-pill {
+  flex-shrink: 0;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-pending {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.status-win {
+  background: rgb(16 185 129 / 0.14);
+  color: rgb(4 120 87);
+}
+
+.status-lose {
+  background: rgb(148 163 184 / 0.16);
+  color: var(--muted-foreground);
+}
+
+.dark .status-win {
+  color: rgb(110 231 183);
 }
 
 .order-empty {

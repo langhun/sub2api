@@ -34,6 +34,19 @@ export interface LotteryOrder {
   status: string
   reward: string
   prize_level: string
+  red_hits: number
+  blue_hit: boolean
+  created_at: string
+}
+
+export interface LotteryResult {
+  issue_no: string
+  lottery_type: string
+  red_balls: string[]
+  blue_ball: string
+  opened_at: string
+  source: string
+  source_ref: string
   created_at: string
 }
 
@@ -66,6 +79,18 @@ export const lotteryAPI = {
     const { data } = await apiClient.get<LotteryOrder[]>('/lottery/orders', {
       params: issueNo ? { issue_no: issueNo } : undefined,
     })
+    return data
+  },
+
+  async getResults(limit?: number): Promise<LotteryResult[]> {
+    const { data } = await apiClient.get<LotteryResult[]>('/lottery/results', {
+      params: limit ? { limit } : undefined,
+    })
+    return data
+  },
+
+  async getResult(issueNo: string): Promise<LotteryResult> {
+    const { data } = await apiClient.get<LotteryResult>(`/lottery/results/${issueNo}`)
     return data
   },
 }

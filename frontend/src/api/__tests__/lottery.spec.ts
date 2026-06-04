@@ -78,6 +78,8 @@ describe('lottery api', () => {
         status: 'pending',
         reward: '0',
         prize_level: '',
+        red_hits: 0,
+        blue_hit: false,
         created_at: '2026-06-04T12:00:00Z',
       },
     ]
@@ -92,5 +94,48 @@ describe('lottery api', () => {
     expect(get).toHaveBeenLastCalledWith('/lottery/orders', {
       params: undefined,
     })
+  })
+
+  it('loads recent lottery results with optional limit', async () => {
+    const results = [
+      {
+        lottery_type: 'ssq',
+        issue_no: '2026062',
+        red_balls: ['02', '04', '07', '14', '28', '29'],
+        blue_ball: '09',
+        opened_at: '2026-06-02T13:15:00Z',
+        source: 'fucai',
+        source_ref: 'https://example.test/result/2026062',
+        created_at: '2026-06-02T13:30:00Z',
+      },
+    ]
+    get.mockResolvedValue({ data: results })
+
+    await expect(lotteryAPI.getResults(20)).resolves.toEqual(results)
+    expect(get).toHaveBeenCalledWith('/lottery/results', {
+      params: { limit: 20 },
+    })
+
+    await lotteryAPI.getResults()
+    expect(get).toHaveBeenLastCalledWith('/lottery/results', {
+      params: undefined,
+    })
+  })
+
+  it('loads one lottery result by issue number', async () => {
+    const result = {
+      lottery_type: 'ssq',
+      issue_no: '2026062',
+      red_balls: ['02', '04', '07', '14', '28', '29'],
+      blue_ball: '09',
+      opened_at: '2026-06-02T13:15:00Z',
+      source: 'fucai',
+      source_ref: 'https://example.test/result/2026062',
+      created_at: '2026-06-02T13:30:00Z',
+    }
+    get.mockResolvedValue({ data: result })
+
+    await expect(lotteryAPI.getResult('2026062')).resolves.toEqual(result)
+    expect(get).toHaveBeenCalledWith('/lottery/results/2026062')
   })
 })
