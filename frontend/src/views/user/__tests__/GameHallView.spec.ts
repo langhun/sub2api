@@ -2,11 +2,13 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import GameHallView from '../GameHallView.vue'
 
-const { createBet, getCurrent, getOrders, getResults, showError, showSuccess } = vi.hoisted(() => ({
+const { createBet, getCurrent, getHall, getOrders, getResults, playGame, showError, showSuccess } = vi.hoisted(() => ({
   createBet: vi.fn(),
   getCurrent: vi.fn(),
+  getHall: vi.fn(),
   getOrders: vi.fn(),
   getResults: vi.fn(),
+  playGame: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }))
@@ -17,6 +19,13 @@ vi.mock('@/api/lottery', () => ({
     getCurrent,
     getOrders,
     getResults,
+  },
+}))
+
+vi.mock('@/api/games', () => ({
+  gamesAPI: {
+    getHall,
+    play: playGame,
   },
 }))
 
@@ -96,6 +105,33 @@ const recentResult = {
   created_at: '2026-06-02T13:30:00Z',
 }
 
+const gameHall = {
+  balance: 888,
+  games: [
+    {
+      type: 'slots',
+      name: 'Slots',
+      description: 'Three reels with instant settlement.',
+      min_bet: 0.01,
+      max_bet: 100000000,
+      multipliers: [0, 1.2, 3, 5, 8, 12, 18, 30, 50],
+    },
+  ],
+}
+
+const slotsResult = {
+  game_type: 'slots',
+  bet_amount: 25,
+  payout_amount: 75,
+  net_amount: 50,
+  multiplier: 3,
+  balance_before: 888,
+  balance_after: 938,
+  outcome: 'win',
+  symbols: ['cherry', 'cherry', 'cherry'],
+  message: 'Win: payout is 3x',
+}
+
 function mountPage() {
   return mount(GameHallView, {
     global: {
@@ -117,14 +153,18 @@ describe('GameHallView lottery page', () => {
   beforeEach(() => {
     createBet.mockReset()
     getCurrent.mockReset()
+    getHall.mockReset()
     getOrders.mockReset()
     getResults.mockReset()
+    playGame.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
 
     getCurrent.mockResolvedValue(openCurrent)
+    getHall.mockResolvedValue(gameHall)
     getOrders.mockResolvedValue([order])
     getResults.mockResolvedValue([recentResult])
+    playGame.mockResolvedValue(slotsResult)
     createBet.mockResolvedValue({
       order_id: 8,
       issue_no: '2026060',
@@ -140,7 +180,9 @@ describe('GameHallView lottery page', () => {
     await settlePage()
 
     expect(wrapper.text()).toContain('双色球')
+    expect(wrapper.text()).toContain('老虎机')
     expect(wrapper.text()).toContain('2026060')
+    expect(wrapper.text()).toContain('888 DG')
     expect(wrapper.text()).toContain('时间:2026-06-04T13:05:00Z')
     expect(wrapper.text()).toContain('10000070 DG')
     expect(wrapper.text()).toContain('可投注')
@@ -153,8 +195,29 @@ describe('GameHallView lottery page', () => {
     expect(wrapper.text()).toContain('第 2026062 期')
     expect(wrapper.text()).toContain('02')
     expect(wrapper.text()).toContain('来源：fucai')
+    expect(getHall).toHaveBeenCalledTimes(1)
     expect(getOrders).toHaveBeenCalledWith('2026060')
     expect(getResults).toHaveBeenCalledWith(100)
+  })
+
+  it('loads slots status and plays a slot round', async () => {
+    const wrapper = mountPage()
+    await settlePage()
+
+    expect(wrapper.get('[data-testid="slots-panel"]').text()).toContain('老虎机')
+    expect(wrapper.get('[data-testid="slots-panel"]').text()).toContain('娱乐余额')
+    expect(wrapper.get('[data-testid="slots-panel"]').text()).toContain('888 DG')
+
+    await wrapper.get('[data-testid="slot-bet-amount"]').setValue('25')
+    await wrapper.get('[data-testid="play-slots"]').trigger('click')
+    await settlePage()
+
+    expect(playGame).toHaveBeenCalledWith('slots', 25)
+    expect(showSuccess).toHaveBeenCalledWith('Win: payout is 3x')
+    expect(wrapper.get('[data-testid="slots-result"]').text()).toContain('已中奖')
+    expect(wrapper.get('[data-testid="slots-result"]').text()).toContain('返奖：75 DG')
+    expect(wrapper.get('[data-testid="slot-symbol-0"]').text()).toContain('樱桃')
+    expect(getHall).toHaveBeenCalledTimes(2)
   })
 
   it('renders win and lose order settlement states', async () => {

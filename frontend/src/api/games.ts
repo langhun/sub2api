@@ -30,6 +30,14 @@ export interface GamePlayResult {
   message: string
 }
 
+function buildGameIdempotencyKey(gameType: GameType, betAmount: number): string {
+  const randomPart =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `game:${gameType}:${betAmount}:${randomPart}`
+}
+
 export const gamesAPI = {
   async getHall(): Promise<GameHallStatus> {
     const { data } = await apiClient.get<GameHallStatus>('/games/hall')
@@ -40,6 +48,10 @@ export const gamesAPI = {
     const { data } = await apiClient.post<GamePlayResult>('/games/play', {
       game_type: gameType,
       bet_amount: betAmount,
+    }, {
+      headers: {
+        'Idempotency-Key': buildGameIdempotencyKey(gameType, betAmount),
+      },
     })
     return data
   },

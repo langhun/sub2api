@@ -4,9 +4,9 @@
       <header class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p class="text-sm font-medium text-[var(--muted-foreground)]">娱乐大厅</p>
-          <h1 class="text-2xl font-semibold text-[var(--foreground)]">双色球</h1>
+          <h1 class="text-2xl font-semibold text-[var(--foreground)]">老虎机与双色球</h1>
         </div>
-        <button class="btn btn-secondary" type="button" :disabled="loadingCurrent || ordersLoading || resultsLoading" @click="refreshAll">
+        <button class="btn btn-secondary" type="button" :disabled="loadingCurrent || ordersLoading || resultsLoading || gameHallLoading || gamePlaying" @click="refreshAll">
           刷新
         </button>
       </header>
@@ -35,6 +35,79 @@
       <p v-if="currentError" class="rounded-md border border-[var(--destructive)]/30 bg-[var(--destructive)]/10 px-4 py-3 text-sm text-[var(--destructive)]">
         {{ currentError }}
       </p>
+      <p v-if="gameHallError" class="rounded-md border border-[var(--destructive)]/30 bg-[var(--destructive)]/10 px-4 py-3 text-sm text-[var(--destructive)]">
+        {{ gameHallError }}
+      </p>
+
+      <section class="lottery-panel" data-testid="slots-panel">
+        <div class="flex flex-col gap-3 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-[var(--foreground)]">老虎机</h2>
+            <p class="text-sm text-[var(--muted-foreground)]">
+              三轴即时结算，最高 {{ slotMaxMultiplier }} 倍返奖。
+            </p>
+          </div>
+          <div class="summary-cell compact-summary">
+            <span>娱乐余额</span>
+            <strong>{{ gameHallLoading ? '加载中' : formatMoney(gameHall?.balance) }}</strong>
+          </div>
+        </div>
+
+        <div class="grid gap-4 pt-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div class="space-y-4">
+            <div class="slot-machine" aria-live="polite">
+              <span
+                v-for="(symbol, index) in slotSymbols"
+                :key="`${symbol}-${index}`"
+                class="slot-symbol"
+                :data-testid="`slot-symbol-${index}`"
+              >
+                {{ slotSymbolText(symbol) }}
+              </span>
+            </div>
+            <div v-if="slotResult" class="game-result" data-testid="slots-result">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="status-pill" :class="gameOutcomeClass(slotResult.outcome)">{{ gameOutcomeText(slotResult.outcome) }}</span>
+                <strong>{{ slotResult.message }}</strong>
+              </div>
+              <div class="mt-2 grid gap-1 text-sm text-[var(--muted-foreground)] sm:grid-cols-3">
+                <span>投注：{{ formatMoney(slotResult.bet_amount) }}</span>
+                <span>返奖：{{ formatMoney(slotResult.payout_amount) }}</span>
+                <span>余额：{{ formatMoney(slotResult.balance_after) }}</span>
+              </div>
+            </div>
+            <div v-else class="text-sm text-[var(--muted-foreground)]">
+              选择投注金额后拉杆，结果会即时写入金融账本。
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <label class="block text-sm font-medium text-[var(--foreground)]" for="slot-bet-amount">投注金额</label>
+            <input
+              id="slot-bet-amount"
+              v-model.number="slotBetAmount"
+              class="input"
+              data-testid="slot-bet-amount"
+              type="number"
+              inputmode="decimal"
+              :min="slotGame?.min_bet ?? 0.01"
+              :max="slotGame?.max_bet ?? 100000000"
+              step="0.01"
+              :disabled="gamePlaying"
+            >
+            <p class="min-h-5 text-sm text-[var(--muted-foreground)]">{{ slotBetHint }}</p>
+            <button
+              class="btn btn-primary w-full"
+              type="button"
+              data-testid="play-slots"
+              :disabled="!canPlaySlots"
+              @click="playSlots"
+            >
+              {{ gamePlaying ? '结算中' : '拉杆' }}
+            </button>
+          </div>
+        </div>
+      </section>
 
       <main class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <section class="lottery-panel">
@@ -166,6 +239,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { gamesAPI, type GameHallStatus, type GameInfo, type GamePlayResult, type GameOutcome } from '@/api/games'
 import { lotteryAPI, type LotteryCurrent, type LotteryOrder, type LotteryResult } from '@/api/lottery'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useAppStore } from '@/stores'
@@ -178,17 +252,45 @@ const blueBallOptions = range(1, 16)
 const current = ref<LotteryCurrent | null>(null)
 const orders = ref<LotteryOrder[]>([])
 const results = ref<LotteryResult[]>([])
+const gameHall = ref<GameHallStatus | null>(null)
+const slotResult = ref<GamePlayResult | null>(null)
 const selectedRedBalls = ref<number[]>([])
 const selectedBlueBall = ref<number | null>(null)
+const slotBetAmount = ref(100)
+const gameHallLoading = ref(false)
+const gamePlaying = ref(false)
 const loadingCurrent = ref(false)
 const ordersLoading = ref(false)
 const resultsLoading = ref(false)
 const submitting = ref(false)
 const currentError = ref('')
 const resultsError = ref('')
+const gameHallError = ref('')
 
 const selectedRedSet = computed(() => new Set(selectedRedBalls.value))
 const nothingSelected = computed(() => selectedRedBalls.value.length === 0 && selectedBlueBall.value === null)
+const slotGame = computed(() => gameHall.value?.games.find((game) => game.type === 'slots') ?? null)
+const slotMaxMultiplier = computed(() => Math.max(...(slotGame.value?.multipliers ?? [0])))
+const slotSymbols = computed(() => slotResult.value?.symbols?.length ? slotResult.value.symbols : ['?', '?', '?'])
+const canPlaySlots = computed(() => {
+  const bet = Number(slotBetAmount.value)
+  const game = slotGame.value
+  if (!game) return false
+  return !gamePlaying.value &&
+    Number.isFinite(bet) &&
+    bet >= game.min_bet &&
+    bet <= game.max_bet
+})
+const slotBetHint = computed(() => {
+  if (gameHallLoading.value) return '正在加载娱乐大厅。'
+  const game = slotGame.value
+  if (!game) return '老虎机暂未开放。'
+  const bet = Number(slotBetAmount.value)
+  if (!Number.isFinite(bet)) return '请输入有效投注金额。'
+  if (bet < game.min_bet) return `最低投注 ${formatMoney(game.min_bet)}。`
+  if (bet > game.max_bet) return `最高投注 ${formatMoney(game.max_bet)}。`
+  return `可用赔率：${formatMultipliers(game)}`
+})
 const currentStatusText = computed(() => {
   if (loadingCurrent.value) return '加载中'
   if (!current.value) return '未加载'
@@ -214,8 +316,22 @@ onMounted(() => {
 })
 
 async function refreshAll() {
-  await loadCurrent()
+  await Promise.all([loadGameHall(), loadCurrent()])
   await Promise.all([loadOrders(), loadResults()])
+}
+
+async function loadGameHall() {
+  gameHallLoading.value = true
+  gameHallError.value = ''
+  try {
+    gameHall.value = await gamesAPI.getHall()
+  } catch (error) {
+    gameHall.value = null
+    gameHallError.value = readableError(error)
+    appStore.showError(gameHallError.value)
+  } finally {
+    gameHallLoading.value = false
+  }
 }
 
 async function loadCurrent() {
@@ -298,6 +414,20 @@ async function submitBet() {
   }
 }
 
+async function playSlots() {
+  if (!canPlaySlots.value) return
+  gamePlaying.value = true
+  try {
+    slotResult.value = await gamesAPI.play('slots', Number(slotBetAmount.value))
+    appStore.showSuccess(slotResult.value.message || '老虎机已结算')
+    await loadGameHall()
+  } catch (error) {
+    appStore.showError(readableError(error))
+  } finally {
+    gamePlaying.value = false
+  }
+}
+
 function range(start: number, end: number) {
   return Array.from({ length: end - start + 1 }, (_, index) => start + index)
 }
@@ -320,6 +450,14 @@ function formatMoneyTitle(value: string | number | null | undefined) {
   return `${formatDualDisplayAmount(Number.isFinite(amount) ? amount : 0).full} DG`
 }
 
+function formatMultipliers(game: GameInfo) {
+  return game.multipliers.map((value) => `${formatGameMultiplier(value)}x`).join(' / ')
+}
+
+function formatGameMultiplier(value: number) {
+  return String(value).replace(/\.0+$/, '')
+}
+
 function orderStatusText(status: string) {
   if (status === 'win') return '已中奖'
   if (status === 'lose') return '未中奖'
@@ -330,6 +468,33 @@ function orderStatusClass(status: string) {
   if (status === 'win') return 'status-win'
   if (status === 'lose') return 'status-lose'
   return 'status-pending'
+}
+
+function gameOutcomeText(outcome: GameOutcome) {
+  if (outcome === 'win') return '已中奖'
+  if (outcome === 'draw') return '保本'
+  return '未中奖'
+}
+
+function gameOutcomeClass(outcome: GameOutcome) {
+  if (outcome === 'win') return 'status-win'
+  if (outcome === 'draw') return 'status-pending'
+  return 'status-lose'
+}
+
+function slotSymbolText(symbol: string) {
+  const map: Record<string, string> = {
+    cherry: '樱桃',
+    lemon: '柠檬',
+    orange: '橙子',
+    grape: '葡萄',
+    bell: '铃铛',
+    star: '星星',
+    diamond: '钻石',
+    '7': '7',
+    '?': '?',
+  }
+  return map[symbol] || symbol
 }
 
 function prizeLevelText(level: string) {
@@ -377,6 +542,11 @@ function readableError(error: unknown) {
   padding: 1rem;
 }
 
+.compact-summary {
+  min-height: 4rem;
+  min-width: min(100%, 14rem);
+}
+
 .summary-cell span {
   display: block;
   font-size: 0.875rem;
@@ -393,6 +563,30 @@ function readableError(error: unknown) {
 
 .lottery-panel {
   padding: 1.25rem;
+}
+
+.slot-machine {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(4.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.slot-symbol {
+  display: flex;
+  min-height: 5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.game-result {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.875rem;
 }
 
 .ball-grid {
