@@ -1,0 +1,132 @@
+name: Build Artifacts
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Override build version. Defaults to backend/cmd/server/VERSION.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-artifacts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-amd64:
+    name: Linux amd64 embedded build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      - name: Verify Go version
+        run: go version | grep -q 'go1.26.3'
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zstd
+
+      - name: Resolve build metadata
+        id: meta
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${INPUT_VERSION:-}" ]; then
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="$(tr -d '\r\n' < backend/cmd/server/VERSION)"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Build embedded Linux amd64 binary
+        working-directory: backend
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          BUILD_DATE: ${{ steps.meta.outputs.date }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ../dist/upload
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+            -tags=embed \
+            -ldflags="-s -w -X main.Version=${VERSION} -X main.Commit=${GITHUB_SHA} -X main.Date=${BUILD_DATE} -X main.BuildType=github-actions" \
+            -trimpath \
+            -o ../dist/upload/sub2api-linux-amd64 \
+            ./cmd/server
+
+          chmod +x ../dist/upload/sub2api-linux-amd64
+
+      - name: Package upload artifact
+        run: |
+          set -euo pipefail
+
+          package_dir="dist/upload/package/sub2api-linux-amd64"
+          mkdir -p "$package_dir"
+
+          cp dist/upload/sub2api-linux-amd64 "$package_dir/sub2api"
+          cp deploy/config.example.yaml "$package_dir/config.example.yaml"
+          printf '%s\n' "${{ steps.meta.outputs.version }}" > "$package_dir/VERSION"
+
+          tar --zstd -C dist/upload/package -cf dist/upload/sub2api-linux-amd64.tar.zst sub2api-linux-amd64
+
+          sha256sum \
+            dist/upload/sub2api-linux-amd64 \
+            dist/upload/sub2api-linux-amd64.tar.zst \
+            > dist/upload/SHA256SUMS
+
+          file dist/upload/sub2api-linux-amd64
+          cat dist/upload/SHA256SUMS
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sub2api-linux-amd64-${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_sha }}
+          path: |
+            dist/upload/sub2api-linux-amd64
+            dist/upload/sub2api-linux-amd64.tar.zst
+            dist/upload/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
