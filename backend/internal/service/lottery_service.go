@@ -17,6 +17,11 @@ type LotteryJackpotStore interface {
 	Withdraw(ctx context.Context, lotteryType string, amount decimal.Decimal) error
 	GetBalance(ctx context.Context, lotteryType string) (decimal.Decimal, error)
 	depositInTx(ctx context.Context, client lotterySQLClient, lotteryType string, amount decimal.Decimal) error
+	withdrawInTx(ctx context.Context, client lotterySQLClient, lotteryType string, amount decimal.Decimal) error
+}
+
+type lotteryBankApplier interface {
+	ApplyTransferInTx(ctx context.Context, client *dbent.Client, req TransferFundsRequest) (*TransferFundsResult, error)
 }
 
 type LotteryBetInput struct {
@@ -54,6 +59,8 @@ type LotteryOrderView struct {
 	Cost        decimal.Decimal `json:"cost"`
 	Reward      decimal.Decimal `json:"reward"`
 	PrizeLevel  string          `json:"prize_level"`
+	RedHits     int             `json:"red_hits"`
+	BlueHit     bool            `json:"blue_hit"`
 	Status      string          `json:"status"`
 	CreatedAt   time.Time       `json:"created_at"`
 }
@@ -77,6 +84,16 @@ type LotterySyncResult struct {
 	Replayed    bool              `json:"replayed"`
 }
 
+type LotterySettlementResult struct {
+	LotteryType string          `json:"lottery_type"`
+	IssueNo     string          `json:"issue_no"`
+	TotalOrders int             `json:"total_orders"`
+	WinOrders   int             `json:"win_orders"`
+	LoseOrders  int             `json:"lose_orders"`
+	RewardTotal decimal.Decimal `json:"reward_total"`
+	Replayed    bool            `json:"replayed"`
+}
+
 type LotteryJackpotView struct {
 	LotteryType string          `json:"lottery_type"`
 	Balance     decimal.Decimal `json:"balance"`
@@ -89,6 +106,7 @@ type LotteryService struct {
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	jackpotService       LotteryJackpotStore
 	providers            map[string]LotteryProvider
+	bankApplier          lotteryBankApplier
 }
 
 func NewLotteryService(
@@ -106,6 +124,7 @@ func NewLotteryService(
 		authCacheInvalidator: authCacheInvalidator,
 		jackpotService:       jackpotService,
 		providers:            copyLotteryProviders(providers),
+		bankApplier:          NewBankService(entClient),
 	}
 }
 
@@ -168,6 +187,10 @@ func (s *LotteryService) GetJackpot(ctx context.Context, lotteryType string) (*L
 
 func (s *LotteryService) SyncLatestResult(ctx context.Context, lotteryType string) (*LotterySyncResult, error) {
 	return s.syncLatestResult(ctx, lotteryType)
+}
+
+func (s *LotteryService) SettleIssue(ctx context.Context, lotteryType, issueNo string) (*LotterySettlementResult, error) {
+	return s.settleIssue(ctx, lotteryType, issueNo)
 }
 
 func (s *LotteryService) providerByType(lotteryType string) (LotteryProvider, error) {

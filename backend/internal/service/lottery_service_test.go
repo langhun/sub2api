@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -46,8 +47,10 @@ func (s *lotteryProviderStub) GetLatestResult(ctx context.Context) (*Result, err
 }
 
 type lotteryJackpotStoreStub struct {
-	balance decimal.Decimal
-	err     error
+	balance   decimal.Decimal
+	withdrawn decimal.Decimal
+	deposited decimal.Decimal
+	err       error
 }
 
 func (s *lotteryJackpotStoreStub) Deposit(ctx context.Context, lotteryType string, amount decimal.Decimal) error {
@@ -80,8 +83,45 @@ func (s *lotteryJackpotStoreStub) depositInTx(ctx context.Context, client lotter
 	if s.err != nil {
 		return s.err
 	}
+	s.deposited = s.deposited.Add(amount)
 	s.balance = s.balance.Add(amount)
 	return nil
+}
+
+func (s *lotteryJackpotStoreStub) withdrawInTx(ctx context.Context, client lotterySQLClient, lotteryType string, amount decimal.Decimal) error {
+	_ = ctx
+	_ = client
+	_ = lotteryType
+	if s.err != nil {
+		return s.err
+	}
+	if s.balance.LessThan(amount) {
+		return ErrLotteryJackpotInsufficient
+	}
+	s.withdrawn = s.withdrawn.Add(amount)
+	s.balance = s.balance.Sub(amount)
+	return nil
+}
+
+type lotteryBankApplierStub struct {
+	requests []TransferFundsRequest
+	err      error
+}
+
+func (s *lotteryBankApplierStub) ApplyTransferInTx(ctx context.Context, client *dbent.Client, req TransferFundsRequest) (*TransferFundsResult, error) {
+	_ = ctx
+	_ = client
+	if s.err != nil {
+		return nil, s.err
+	}
+	s.requests = append(s.requests, req)
+	return &TransferFundsResult{
+		UserID:   req.UserID,
+		Type:     req.Type,
+		Module:   req.BusinessModule,
+		Amount:   req.Amount,
+		Replayed: false,
+	}, nil
 }
 
 func newLotterySQLMockClient(t *testing.T) (*dbent.Client, sqlmock.Sqlmock, func()) {
@@ -193,6 +233,76 @@ func expectInsertLotteryResult(mock sqlmock.Sqlmock, result *Result, id int64, c
 func expectMarkLotteryIssueOpened(mock sqlmock.Sqlmock, result *Result) {
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO lottery_issue")).
 		WithArgs(result.LotteryType, result.IssueNo, result.OpenedAt, lotteryIssueStatusOpened).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+}
+
+func lotteryTestResultView() LotteryResultView {
+	openedAt := time.Date(2026, 6, 2, lotteryOpenHour, lotteryOpenMinute, 0, 0, time.UTC)
+	return LotteryResultView{
+		ID:          201,
+		LotteryType: LotteryTypeSSQ,
+		IssueNo:     "2026062",
+		RedBalls:    []string{"02", "04", "07", "14", "28", "29"},
+		BlueBall:    "09",
+		OpenedAt:    openedAt,
+		Source:      "fucai",
+		SourceRef:   "https://www.cwl.gov.cn/c/2026/06/02/656270.shtml",
+		CreatedAt:   openedAt.Add(30 * time.Minute),
+	}
+}
+
+func expectLotteryIssueStatus(mock sqlmock.Sqlmock, lotteryType, issueNo, status string) {
+	mock.ExpectQuery(regexp.QuoteMeta("FROM lottery_issue")).
+		WithArgs(lotteryType, issueNo).
+		WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow(status))
+}
+
+func expectPendingSettlementOrders(mock sqlmock.Sqlmock, lotteryType, issueNo string, orders []lotterySettlementOrder) {
+	rows := sqlmock.NewRows([]string{
+		"id", "lottery_type", "issue_no", "user_id", "red_balls", "blue_ball", "cost",
+	})
+	for _, order := range orders {
+		rows.AddRow(
+			order.ID,
+			order.LotteryType,
+			order.IssueNo,
+			order.UserID,
+			strings.Join(order.RedBalls, ","),
+			order.BlueBall,
+			order.Cost,
+		)
+	}
+	mock.ExpectQuery(regexp.QuoteMeta("FROM lottery_order")).
+		WithArgs(lotteryType, issueNo, lotteryOrderStatusPending).
+		WillReturnRows(rows)
+}
+
+func expectUpdateLotterySettlementOrder(mock sqlmock.Sqlmock, order lotterySettlementOrder, prize lotteryPrize) {
+	status := lotteryOrderStatusLose
+	if prize.reward.GreaterThan(decimal.Zero) {
+		status = lotteryOrderStatusWin
+	}
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE lottery_order")).
+		WithArgs(order.ID, prize.reward, prize.level, prize.redHits, prize.blueHit, status, lotteryOrderStatusPending).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+}
+
+func expectLotteryRewardLog(mock sqlmock.Sqlmock, order lotterySettlementOrder, prize lotteryPrize) {
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO lottery_reward_log")).
+		WithArgs(
+			order.LotteryType,
+			order.UserID,
+			order.IssueNo,
+			order.ID,
+			prize.reward,
+			fmt.Sprintf("lottery %s prize for issue %s", prize.level, order.IssueNo),
+		).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+}
+
+func expectLotteryIssueSettled(mock sqlmock.Sqlmock, lotteryType, issueNo string) {
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE lottery_issue")).
+		WithArgs(lotteryType, issueNo, lotteryIssueStatusSettled).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 }
 
@@ -379,4 +489,139 @@ func TestLotteryServiceSyncLatestResultRequiresStorage(t *testing.T) {
 	_, err := svc.SyncLatestResult(context.Background(), "ssq")
 	require.Error(t, err)
 	require.Equal(t, "LOTTERY_STORAGE_UNAVAILABLE", infraerrors.Reason(err))
+}
+
+func TestLotteryServiceSettleIssueSettlesWinAndLoseOrders(t *testing.T) {
+	client, mock, cleanup := newLotterySQLMockClient(t)
+	t.Cleanup(cleanup)
+
+	drawResult := lotteryTestResultView()
+	winningOrder := lotterySettlementOrder{
+		ID:          501,
+		LotteryType: LotteryTypeSSQ,
+		IssueNo:     "2026062",
+		UserID:      42,
+		RedBalls:    []string{"01", "03", "05", "08", "10", "12"},
+		BlueBall:    "09",
+		Cost:        lotterySingleBetCost,
+	}
+	losingOrder := lotterySettlementOrder{
+		ID:          502,
+		LotteryType: LotteryTypeSSQ,
+		IssueNo:     "2026062",
+		UserID:      42,
+		RedBalls:    []string{"01", "03", "05", "08", "10", "12"},
+		BlueBall:    "16",
+		Cost:        lotterySingleBetCost,
+	}
+	winningPrize := calculateSSQPrize(winningOrder, drawResult)
+	losingPrize := calculateSSQPrize(losingOrder, drawResult)
+	require.Equal(t, lotteryPrizeLevelSixth, winningPrize.level)
+	require.True(t, lotteryPrizeSixth.Equal(winningPrize.reward))
+	require.True(t, losingPrize.reward.IsZero())
+
+	jackpot := &lotteryJackpotStoreStub{balance: decimal.NewFromInt(1000)}
+	bank := &lotteryBankApplierStub{}
+	svc := NewLotteryService(client, nil, nil, nil, jackpot, nil)
+	svc.bankApplier = bank
+
+	expectLotterySyncTxBegin(mock)
+	expectExistingLotteryResult(mock, drawResult)
+	expectLotteryIssueStatus(mock, LotteryTypeSSQ, "2026062", lotteryIssueStatusOpened)
+	expectPendingSettlementOrders(mock, LotteryTypeSSQ, "2026062", []lotterySettlementOrder{winningOrder, losingOrder})
+	expectUpdateLotterySettlementOrder(mock, winningOrder, winningPrize)
+	expectLotteryRewardLog(mock, winningOrder, winningPrize)
+	expectUpdateLotterySettlementOrder(mock, losingOrder, losingPrize)
+	expectLotteryIssueSettled(mock, LotteryTypeSSQ, "2026062")
+	mock.ExpectCommit()
+
+	got, err := svc.SettleIssue(context.Background(), "ssq", "2026062")
+	require.NoError(t, err)
+	require.False(t, got.Replayed)
+	require.Equal(t, 2, got.TotalOrders)
+	require.Equal(t, 1, got.WinOrders)
+	require.Equal(t, 1, got.LoseOrders)
+	require.True(t, lotteryPrizeSixth.Equal(got.RewardTotal))
+	require.True(t, lotteryPrizeSixth.Equal(jackpot.withdrawn))
+	require.True(t, decimal.NewFromInt(995).Equal(jackpot.balance))
+	require.Len(t, bank.requests, 1)
+	require.Equal(t, BankTxTypeLotteryWin, bank.requests[0].Type)
+	require.Equal(t, BankBusinessModuleGame, bank.requests[0].BusinessModule)
+	require.Equal(t, "lottery:win:2026062:501", bank.requests[0].IdempotencyKey)
+	require.Equal(t, "lottery_order", bank.requests[0].ReferenceType)
+	require.Equal(t, "501", bank.requests[0].ReferenceID)
+	require.True(t, lotteryPrizeSixth.Equal(bank.requests[0].Amount))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestLotteryServiceSettleIssueIsIdempotentWhenAlreadySettled(t *testing.T) {
+	client, mock, cleanup := newLotterySQLMockClient(t)
+	t.Cleanup(cleanup)
+
+	drawResult := lotteryTestResultView()
+	jackpot := &lotteryJackpotStoreStub{balance: decimal.NewFromInt(1000)}
+	bank := &lotteryBankApplierStub{}
+	svc := NewLotteryService(client, nil, nil, nil, jackpot, nil)
+	svc.bankApplier = bank
+
+	expectLotterySyncTxBegin(mock)
+	expectExistingLotteryResult(mock, drawResult)
+	expectLotteryIssueStatus(mock, LotteryTypeSSQ, "2026062", lotteryIssueStatusSettled)
+	mock.ExpectCommit()
+
+	got, err := svc.SettleIssue(context.Background(), "ssq", "2026062")
+	require.NoError(t, err)
+	require.True(t, got.Replayed)
+	require.Equal(t, 0, got.TotalOrders)
+	require.True(t, jackpot.withdrawn.IsZero())
+	require.Empty(t, bank.requests)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestLotteryServiceSettleIssueRequiresResult(t *testing.T) {
+	client, mock, cleanup := newLotterySQLMockClient(t)
+	t.Cleanup(cleanup)
+
+	svc := NewLotteryService(client, nil, nil, nil, &lotteryJackpotStoreStub{balance: decimal.NewFromInt(1000)}, nil)
+
+	expectLotterySyncTxBegin(mock)
+	expectNoExistingLotteryResult(mock, LotteryTypeSSQ, "2026062")
+	mock.ExpectRollback()
+
+	_, err := svc.SettleIssue(context.Background(), "ssq", "2026062")
+	require.Error(t, err)
+	require.Equal(t, "LOTTERY_RESULT_NOT_FOUND", infraerrors.Reason(err))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestLotteryServiceSettleIssueRollsBackWhenJackpotInsufficient(t *testing.T) {
+	client, mock, cleanup := newLotterySQLMockClient(t)
+	t.Cleanup(cleanup)
+
+	drawResult := lotteryTestResultView()
+	winningOrder := lotterySettlementOrder{
+		ID:          503,
+		LotteryType: LotteryTypeSSQ,
+		IssueNo:     "2026062",
+		UserID:      43,
+		RedBalls:    []string{"01", "03", "05", "08", "10", "12"},
+		BlueBall:    "09",
+		Cost:        lotterySingleBetCost,
+	}
+	jackpot := &lotteryJackpotStoreStub{balance: decimal.NewFromInt(4)}
+	bank := &lotteryBankApplierStub{}
+	svc := NewLotteryService(client, nil, nil, nil, jackpot, nil)
+	svc.bankApplier = bank
+
+	expectLotterySyncTxBegin(mock)
+	expectExistingLotteryResult(mock, drawResult)
+	expectLotteryIssueStatus(mock, LotteryTypeSSQ, "2026062", lotteryIssueStatusOpened)
+	expectPendingSettlementOrders(mock, LotteryTypeSSQ, "2026062", []lotterySettlementOrder{winningOrder})
+	mock.ExpectRollback()
+
+	_, err := svc.SettleIssue(context.Background(), "ssq", "2026062")
+	require.ErrorIs(t, err, ErrLotteryJackpotInsufficient)
+	require.True(t, jackpot.withdrawn.IsZero())
+	require.Empty(t, bank.requests)
+	require.NoError(t, mock.ExpectationsWereMet())
 }

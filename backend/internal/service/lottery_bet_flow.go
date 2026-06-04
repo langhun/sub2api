@@ -41,6 +41,8 @@ type lotteryOrderRecord struct {
 	Cost        decimal.Decimal
 	Reward      decimal.Decimal
 	PrizeLevel  string
+	RedHits     int
+	BlueHit     bool
 	Status      string
 	CreatedAt   sql.NullTime
 }

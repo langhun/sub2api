@@ -31,6 +31,7 @@ var (
 	ErrLotteryProviderUnavailable = infraerrors.ServiceUnavailable("LOTTERY_PROVIDER_UNAVAILABLE", "lottery provider unavailable")
 	ErrLotteryJackpotUnavailable  = infraerrors.InternalServer("LOTTERY_JACKPOT_UNAVAILABLE", "lottery jackpot service is unavailable")
 	ErrLotteryDataInvalid         = infraerrors.InternalServer("LOTTERY_DATA_INVALID", "lottery provider returned invalid data")
+	ErrLotteryIssueInvalid        = infraerrors.BadRequest("LOTTERY_ISSUE_INVALID", "lottery issue is invalid")
 	ErrLotteryIssueClosed         = infraerrors.Forbidden("LOTTERY_ISSUE_CLOSED", "lottery betting is closed for this issue")
 	ErrLotteryIssueMismatch       = infraerrors.BadRequest("LOTTERY_ISSUE_MISMATCH", "lottery issue does not match current issue")
 	ErrLotteryBetLimitExceeded    = infraerrors.BadRequest("LOTTERY_BET_LIMIT_EXCEEDED", "lottery bet limit exceeded for this issue")

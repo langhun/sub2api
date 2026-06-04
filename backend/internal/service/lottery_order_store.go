@@ -130,7 +130,7 @@ WHERE user_id = $1
 
 func findLotteryOrderByNumbers(ctx context.Context, client *dbent.Client, payload lotteryBetPayload) (*lotteryOrderRecord, error) {
 	rows, err := client.QueryContext(ctx, `
-SELECT id, lottery_type, issue_no, red_balls, blue_ball, cost, reward, prize_level, status, created_at
+SELECT id, lottery_type, issue_no, red_balls, blue_ball, cost, reward, prize_level, red_hits, blue_hit, status, created_at
 FROM lottery_order
 WHERE user_id = $1
   AND lottery_type = $2
@@ -196,7 +196,7 @@ RETURNING id
 
 func listLotteryOrders(ctx context.Context, client *dbent.Client, query LotteryOrderQuery) ([]LotteryOrderView, error) {
 	sqlText := `
-SELECT id, lottery_type, issue_no, red_balls, blue_ball, cost, reward, prize_level, status, created_at
+SELECT id, lottery_type, issue_no, red_balls, blue_ball, cost, reward, prize_level, red_hits, blue_hit, status, created_at
 FROM lottery_order
 WHERE user_id = $1
 `
@@ -234,6 +234,8 @@ WHERE user_id = $1
 			Cost:        record.Cost,
 			Reward:      record.Reward,
 			PrizeLevel:  record.PrizeLevel,
+			RedHits:     record.RedHits,
+			BlueHit:     record.BlueHit,
 			Status:      record.Status,
 		}
 		if record.CreatedAt.Valid {
@@ -256,6 +258,8 @@ func scanLotteryOrderRecord(scanner interface{ Scan(dest ...any) error }) (*lott
 		&record.Cost,
 		&record.Reward,
 		&record.PrizeLevel,
+		&record.RedHits,
+		&record.BlueHit,
 		&record.Status,
 		&record.CreatedAt,
 	); err != nil {
