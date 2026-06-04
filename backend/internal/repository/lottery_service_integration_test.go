@@ -14,8 +14,9 @@ import (
 )
 
 type fixedLotteryProvider struct {
-	name  string
-	issue *service.Issue
+	name   string
+	issue  *service.Issue
+	result *service.Result
 }
 
 func (p *fixedLotteryProvider) Name() string { return p.name }
@@ -27,7 +28,7 @@ func (p *fixedLotteryProvider) GetCurrentIssue(ctx context.Context) (*service.Is
 
 func (p *fixedLotteryProvider) GetLatestResult(ctx context.Context) (*service.Result, error) {
 	_ = ctx
-	return nil, nil
+	return p.result, nil
 }
 
 func TestLotteryServiceCreateBetCompletesMVPFlow(t *testing.T) {
@@ -289,6 +290,109 @@ func TestLotteryServiceSettleIssuePaysWinnersAndIsIdempotent(t *testing.T) {
 	requireLotteryRewardLogCount(t, user.ID, service.LotteryTypeSSQ, issue.IssueNo, 1)
 }
 
+func TestLotteryServiceFullCycleSyncSettleAndQuery(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	user := mustCreateBankServiceUser(t, "lottery-full-cycle", 1000)
+	issue := lotteryTestIssue(30 * time.Minute)
+	resetLotteryJackpotBalance(t, issue.LotteryType, "10000000")
+
+	providerResult := &service.Result{
+		LotteryType:   service.LotteryTypeSSQ,
+		IssueNo:       issue.IssueNo,
+		RedBalls:      []string{"29", "02", "14", "07", "28", "04"},
+		BlueBall:      "09",
+		OpenedAt:      time.Now().UTC(),
+		Source:        "integration",
+		SourcePayload: []byte(`{"fixture":"full-cycle"}`),
+	}
+	svc := service.NewLotteryService(
+		client,
+		nil,
+		nil,
+		nil,
+		service.NewJackpotService(client),
+		map[string]service.LotteryProvider{service.LotteryTypeSSQ: &fixedLotteryProvider{
+			name:   "fixed",
+			issue:  issue,
+			result: providerResult,
+		}},
+	)
+
+	bet, err := svc.CreateBet(ctx, service.LotteryBetInput{
+		UserID:      user.ID,
+		LotteryType: service.LotteryTypeSSQ,
+		IssueNo:     issue.IssueNo,
+		RedBalls:    []string{"01", "03", "05", "08", "10", "12"},
+		BlueBall:    "09",
+		RequestID:   "lottery-full-cycle-bet",
+	})
+	require.NoError(t, err)
+	require.False(t, bet.Replayed)
+	require.Len(t, bet.OrderIDs, 1)
+	requireLotteryOrderRecord(t, bet.OrderIDs[0], "01,03,05,08,10,12", "09", "100", "pending")
+
+	synced, err := svc.SyncLatestResult(ctx, service.LotteryTypeSSQ)
+	require.NoError(t, err)
+	require.False(t, synced.Replayed)
+	require.Equal(t, issue.IssueNo, synced.IssueNo)
+	require.Equal(t, []string{"02", "04", "07", "14", "28", "29"}, synced.Result.RedBalls)
+	require.Equal(t, "09", synced.Result.BlueBall)
+	requireLotteryIssueStatus(t, service.LotteryTypeSSQ, issue.IssueNo, "opened")
+
+	replayedSync, err := svc.SyncLatestResult(ctx, service.LotteryTypeSSQ)
+	require.NoError(t, err)
+	require.True(t, replayedSync.Replayed)
+	require.Equal(t, synced.Result.ID, replayedSync.Result.ID)
+
+	results, err := svc.GetResults(ctx, service.LotteryResultQuery{LotteryType: service.LotteryTypeSSQ, Limit: 10})
+	require.NoError(t, err)
+	require.NotEmpty(t, results)
+	require.Equal(t, issue.IssueNo, results[0].IssueNo)
+	singleResult, err := svc.GetResult(ctx, service.LotteryTypeSSQ, issue.IssueNo)
+	require.NoError(t, err)
+	require.Equal(t, synced.Result.ID, singleResult.ID)
+
+	settled, err := svc.SettleOpenedIssues(ctx, service.LotteryTypeSSQ, 20)
+	require.NoError(t, err)
+	require.Equal(t, 1, settled.TotalIssues)
+	require.Len(t, settled.SettledIssues, 1)
+	require.Empty(t, settled.FailedIssues)
+	require.Equal(t, issue.IssueNo, settled.SettledIssues[0].IssueNo)
+	require.Equal(t, 1, settled.SettledIssues[0].TotalOrders)
+	require.Equal(t, 1, settled.SettledIssues[0].WinOrders)
+	require.True(t, decimal.RequireFromString("5").Equal(settled.SettledIssues[0].RewardTotal))
+
+	orders, err := svc.GetMyOrders(ctx, service.LotteryOrderQuery{
+		UserID:      user.ID,
+		LotteryType: service.LotteryTypeSSQ,
+		IssueNo:     issue.IssueNo,
+	})
+	require.NoError(t, err)
+	require.Len(t, orders, 1)
+	require.Equal(t, "win", orders[0].Status)
+	require.Equal(t, "sixth", orders[0].PrizeLevel)
+	require.True(t, decimal.RequireFromString("5").Equal(orders[0].Reward))
+	require.Equal(t, 0, orders[0].RedHits)
+	require.True(t, orders[0].BlueHit)
+
+	requireBankAccountSnapshot(t, user.ID, "905", "0")
+	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeLotteryBet, 1)
+	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeLotteryWin, 1)
+	requireLotteryJackpotBalance(t, service.LotteryTypeSSQ, "10000065")
+	requireLotteryRewardLogCount(t, user.ID, service.LotteryTypeSSQ, issue.IssueNo, 1)
+	requireLotteryIssueStatus(t, service.LotteryTypeSSQ, issue.IssueNo, "settled")
+
+	replayedSettle, err := svc.SettleOpenedIssues(ctx, service.LotteryTypeSSQ, 20)
+	require.NoError(t, err)
+	require.Equal(t, 0, replayedSettle.TotalIssues)
+	require.Empty(t, replayedSettle.SettledIssues)
+	requireBankAccountSnapshot(t, user.ID, "905", "0")
+	requireBankTransactionCountByType(t, user.ID, service.BankTxTypeLotteryWin, 1)
+	requireLotteryJackpotBalance(t, service.LotteryTypeSSQ, "10000065")
+	requireLotteryRewardLogCount(t, user.ID, service.LotteryTypeSSQ, issue.IssueNo, 1)
+}
+
 func lotteryTestIssue(offset time.Duration) *service.Issue {
 	now := time.Now().UTC()
 	return &service.Issue{
@@ -391,6 +495,19 @@ WHERE user_id = $1
 `, userID, lotteryType, issueNo).Scan(&count)
 	require.NoError(t, err)
 	require.Equal(t, want, count)
+}
+
+func requireLotteryIssueStatus(t *testing.T, lotteryType, issueNo, want string) {
+	t.Helper()
+	var status string
+	err := integrationDB.QueryRowContext(context.Background(), `
+SELECT status
+FROM lottery_issue
+WHERE lottery_type = $1
+  AND issue_no = $2
+`, lotteryType, issueNo).Scan(&status)
+	require.NoError(t, err)
+	require.Equal(t, want, status)
 }
 
 func requireLotteryOrderSettlement(t *testing.T, orderID int64, wantStatus, wantPrizeLevel, wantReward string, wantRedHits int, wantBlueHit bool) {
