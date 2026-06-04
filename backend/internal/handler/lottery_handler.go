@@ -20,6 +20,8 @@ type lotteryService interface {
 	GetCurrentIssue(ctx context.Context, lotteryType string) (*service.Issue, error)
 	GetMyOrders(ctx context.Context, query service.LotteryOrderQuery) ([]service.LotteryOrderView, error)
 	GetJackpot(ctx context.Context, lotteryType string) (*service.LotteryJackpotView, error)
+	GetResults(ctx context.Context, query service.LotteryResultQuery) ([]service.LotteryResultView, error)
+	GetResult(ctx context.Context, lotteryType, issueNo string) (*service.LotteryResultView, error)
 }
 
 type LotteryHandler struct {
@@ -64,6 +66,19 @@ type lotteryOrderResponse struct {
 	Status      string    `json:"status"`
 	Reward      string    `json:"reward"`
 	PrizeLevel  string    `json:"prize_level"`
+	RedHits     int       `json:"red_hits"`
+	BlueHit     bool      `json:"blue_hit"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type lotteryResultResponse struct {
+	IssueNo     string    `json:"issue_no"`
+	LotteryType string    `json:"lottery_type"`
+	RedBalls    []string  `json:"red_balls"`
+	BlueBall    string    `json:"blue_ball"`
+	OpenedAt    time.Time `json:"opened_at"`
+	Source      string    `json:"source"`
+	SourceRef   string    `json:"source_ref"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -155,6 +170,53 @@ func (h *LotteryHandler) GetOrders(c *gin.Context) {
 	response.Success(c, out)
 }
 
+func (h *LotteryHandler) GetResults(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	limit := 0
+	if raw := c.Query("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			response.BadRequest(c, "Invalid limit")
+			return
+		}
+		limit = parsed
+	}
+	results, err := h.lotteryService.GetResults(c.Request.Context(), service.LotteryResultQuery{
+		LotteryType: defaultLotteryType,
+		Limit:       limit,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	out := make([]lotteryResultResponse, 0, len(results))
+	for _, result := range results {
+		out = append(out, lotteryResultResponseFromView(result))
+	}
+	response.Success(c, out)
+}
+
+func (h *LotteryHandler) GetResult(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	result, err := h.lotteryService.GetResult(c.Request.Context(), defaultLotteryType, c.Param("issue_no"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, lotteryResultResponseFromView(*result))
+}
+
 func lotteryBetResponseFromResult(result *service.LotteryBetResult, now time.Time) lotteryBetResponse {
 	if result == nil {
 		return lotteryBetResponse{CreatedAt: now}
@@ -184,7 +246,22 @@ func lotteryOrderResponseFromView(order service.LotteryOrderView) lotteryOrderRe
 		Status:      order.Status,
 		Reward:      decimalStringFromDecimal(order.Reward),
 		PrizeLevel:  order.PrizeLevel,
+		RedHits:     order.RedHits,
+		BlueHit:     order.BlueHit,
 		CreatedAt:   order.CreatedAt,
+	}
+}
+
+func lotteryResultResponseFromView(result service.LotteryResultView) lotteryResultResponse {
+	return lotteryResultResponse{
+		IssueNo:     result.IssueNo,
+		LotteryType: result.LotteryType,
+		RedBalls:    result.RedBalls,
+		BlueBall:    result.BlueBall,
+		OpenedAt:    result.OpenedAt,
+		Source:      result.Source,
+		SourceRef:   result.SourceRef,
+		CreatedAt:   result.CreatedAt,
 	}
 }
 

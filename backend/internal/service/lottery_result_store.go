@@ -78,6 +78,39 @@ LIMIT 1
 	return &view, rows.Err()
 }
 
+func listLotteryResults(ctx context.Context, client *dbent.Client, query LotteryResultQuery) ([]LotteryResultView, error) {
+	sqlText := `
+SELECT id, lottery_type, issue_no, red_balls, blue_ball, opened_at, source, source_ref, created_at
+FROM lottery_result
+WHERE lottery_type = $1
+`
+	args := []any{query.LotteryType}
+	if query.IssueNo != "" {
+		sqlText += " AND issue_no = $2"
+		args = append(args, query.IssueNo)
+		sqlText += " ORDER BY opened_at DESC NULLS LAST, created_at DESC, id DESC LIMIT $3"
+		args = append(args, query.Limit)
+	} else {
+		sqlText += " ORDER BY opened_at DESC NULLS LAST, created_at DESC, id DESC LIMIT $2"
+		args = append(args, query.Limit)
+	}
+
+	rows, err := client.QueryContext(ctx, sqlText, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list lottery results: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	views := make([]LotteryResultView, 0)
+	for rows.Next() {
+		view, err := scanLotteryResultView(rows)
+		if err != nil {
+			return nil, err
+		}
+		views = append(views, view)
+	}
+	return views, rows.Err()
+}
+
 func markLotteryIssueOpenedInTx(ctx context.Context, client *dbent.Client, result *Result) error {
 	openTime := lotteryResultOpenTime(result)
 	if _, err := client.ExecContext(ctx, `

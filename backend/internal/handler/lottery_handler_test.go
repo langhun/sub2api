@@ -21,9 +21,13 @@ type lotteryHandlerServiceStub struct {
 	jackpot      *service.LotteryJackpotView
 	betResult    *service.LotteryBetResult
 	orders       []service.LotteryOrderView
+	results      []service.LotteryResultView
+	result       *service.LotteryResultView
 
 	createInput service.LotteryBetInput
 	orderQuery  service.LotteryOrderQuery
+	resultQuery service.LotteryResultQuery
+	resultIssue string
 }
 
 func (s *lotteryHandlerServiceStub) CreateBet(_ context.Context, input service.LotteryBetInput) (*service.LotteryBetResult, error) {
@@ -42,6 +46,17 @@ func (s *lotteryHandlerServiceStub) GetMyOrders(_ context.Context, query service
 
 func (s *lotteryHandlerServiceStub) GetJackpot(_ context.Context, lotteryType string) (*service.LotteryJackpotView, error) {
 	return s.jackpot, nil
+}
+
+func (s *lotteryHandlerServiceStub) GetResults(_ context.Context, query service.LotteryResultQuery) ([]service.LotteryResultView, error) {
+	s.resultQuery = query
+	return s.results, nil
+}
+
+func (s *lotteryHandlerServiceStub) GetResult(_ context.Context, lotteryType, issueNo string) (*service.LotteryResultView, error) {
+	s.resultQuery = service.LotteryResultQuery{LotteryType: lotteryType, IssueNo: issueNo}
+	s.resultIssue = issueNo
+	return s.result, nil
 }
 
 func TestLotteryHandlerGetCurrentSuccess(t *testing.T) {
@@ -157,8 +172,11 @@ func TestLotteryHandlerGetOrdersSuccess(t *testing.T) {
 				RedBalls:    []string{"01", "08", "12", "18", "25", "33"},
 				BlueBall:    "09",
 				Cost:        decimal.NewFromInt(100),
-				Reward:      decimal.Zero,
-				Status:      "pending",
+				Reward:      decimal.NewFromInt(5),
+				PrizeLevel:  "sixth",
+				RedHits:     0,
+				BlueHit:     true,
+				Status:      "win",
 				CreatedAt:   createdAt,
 			},
 		},
@@ -184,6 +202,9 @@ func TestLotteryHandlerGetOrdersSuccess(t *testing.T) {
 			Cost        string   `json:"cost"`
 			Status      string   `json:"status"`
 			Reward      string   `json:"reward"`
+			PrizeLevel  string   `json:"prize_level"`
+			RedHits     int      `json:"red_hits"`
+			BlueHit     bool     `json:"blue_hit"`
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
@@ -192,7 +213,96 @@ func TestLotteryHandlerGetOrdersSuccess(t *testing.T) {
 	require.Equal(t, []string{"01", "08", "12", "18", "25", "33"}, body.Data[0].RedBalls)
 	require.Equal(t, "09", body.Data[0].BlueBall)
 	require.Equal(t, "100", body.Data[0].Cost)
-	require.Equal(t, "pending", body.Data[0].Status)
+	require.Equal(t, "win", body.Data[0].Status)
+	require.Equal(t, "5", body.Data[0].Reward)
+	require.Equal(t, "sixth", body.Data[0].PrizeLevel)
+	require.Equal(t, 0, body.Data[0].RedHits)
+	require.True(t, body.Data[0].BlueHit)
+}
+
+func TestLotteryHandlerGetResultsSuccess(t *testing.T) {
+	service.SetDefaultIdempotencyCoordinator(nil)
+	gin.SetMode(gin.TestMode)
+	openedAt := time.Date(2026, 6, 2, 21, 15, 0, 0, time.UTC)
+	stub := &lotteryHandlerServiceStub{
+		results: []service.LotteryResultView{
+			{
+				LotteryType: service.LotteryTypeSSQ,
+				IssueNo:     "2026062",
+				RedBalls:    []string{"02", "04", "07", "14", "28", "29"},
+				BlueBall:    "09",
+				OpenedAt:    openedAt,
+				Source:      "fucai",
+				SourceRef:   "https://www.cwl.gov.cn/c/2026/06/02/656270.shtml",
+				CreatedAt:   openedAt.Add(15 * time.Minute),
+			},
+		},
+	}
+	h := &LotteryHandler{lotteryService: stub}
+	w, c := lotteryHandlerTestContext(http.MethodGet, "/api/v1/lottery/results?limit=20", "", 42)
+
+	h.GetResults(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, service.LotteryTypeSSQ, stub.resultQuery.LotteryType)
+	require.Equal(t, 20, stub.resultQuery.Limit)
+
+	var body struct {
+		Code int `json:"code"`
+		Data []struct {
+			IssueNo     string   `json:"issue_no"`
+			LotteryType string   `json:"lottery_type"`
+			RedBalls    []string `json:"red_balls"`
+			BlueBall    string   `json:"blue_ball"`
+			Source      string   `json:"source"`
+			SourceRef   string   `json:"source_ref"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Len(t, body.Data, 1)
+	require.Equal(t, "2026062", body.Data[0].IssueNo)
+	require.Equal(t, []string{"02", "04", "07", "14", "28", "29"}, body.Data[0].RedBalls)
+	require.Equal(t, "09", body.Data[0].BlueBall)
+	require.Equal(t, "fucai", body.Data[0].Source)
+	require.Equal(t, "https://www.cwl.gov.cn/c/2026/06/02/656270.shtml", body.Data[0].SourceRef)
+}
+
+func TestLotteryHandlerGetResultSuccess(t *testing.T) {
+	service.SetDefaultIdempotencyCoordinator(nil)
+	gin.SetMode(gin.TestMode)
+	openedAt := time.Date(2026, 6, 2, 21, 15, 0, 0, time.UTC)
+	stub := &lotteryHandlerServiceStub{
+		result: &service.LotteryResultView{
+			LotteryType: service.LotteryTypeSSQ,
+			IssueNo:     "2026062",
+			RedBalls:    []string{"02", "04", "07", "14", "28", "29"},
+			BlueBall:    "09",
+			OpenedAt:    openedAt,
+			Source:      "fucai",
+			CreatedAt:   openedAt.Add(15 * time.Minute),
+		},
+	}
+	h := &LotteryHandler{lotteryService: stub}
+	w, c := lotteryHandlerTestContext(http.MethodGet, "/api/v1/lottery/results/2026062", "", 42)
+	c.Params = gin.Params{{Key: "issue_no", Value: "2026062"}}
+
+	h.GetResult(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "2026062", stub.resultIssue)
+
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			IssueNo  string   `json:"issue_no"`
+			RedBalls []string `json:"red_balls"`
+			BlueBall string   `json:"blue_ball"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Equal(t, "2026062", body.Data.IssueNo)
+	require.Equal(t, []string{"02", "04", "07", "14", "28", "29"}, body.Data.RedBalls)
+	require.Equal(t, "09", body.Data.BlueBall)
 }
 
 func TestLotteryHandlerUnauthorized(t *testing.T) {

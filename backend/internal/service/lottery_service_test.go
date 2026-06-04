@@ -203,6 +203,28 @@ func expectExistingLotteryResult(mock sqlmock.Sqlmock, view LotteryResultView) {
 		))
 }
 
+func expectLotteryResultList(mock sqlmock.Sqlmock, args []driver.Value, views []LotteryResultView) {
+	rows := sqlmock.NewRows([]string{
+		"id", "lottery_type", "issue_no", "red_balls", "blue_ball", "opened_at", "source", "source_ref", "created_at",
+	})
+	for _, view := range views {
+		rows.AddRow(
+			view.ID,
+			view.LotteryType,
+			view.IssueNo,
+			strings.Join(view.RedBalls, ","),
+			view.BlueBall,
+			view.OpenedAt,
+			view.Source,
+			view.SourceRef,
+			view.CreatedAt,
+		)
+	}
+	mock.ExpectQuery(regexp.QuoteMeta("FROM lottery_result")).
+		WithArgs(args...).
+		WillReturnRows(rows)
+}
+
 func expectInsertLotteryResult(mock sqlmock.Sqlmock, result *Result, id int64, createdAt time.Time) {
 	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO lottery_result")).
 		WithArgs(
@@ -489,6 +511,54 @@ func TestLotteryServiceSyncLatestResultRequiresStorage(t *testing.T) {
 	_, err := svc.SyncLatestResult(context.Background(), "ssq")
 	require.Error(t, err)
 	require.Equal(t, "LOTTERY_STORAGE_UNAVAILABLE", infraerrors.Reason(err))
+}
+
+func TestLotteryServiceGetResultsDefaultsAndCapsLimit(t *testing.T) {
+	client, mock, cleanup := newLotterySQLMockClient(t)
+	t.Cleanup(cleanup)
+
+	view := lotteryTestResultView()
+	svc := NewLotteryService(client, nil, nil, nil, &lotteryJackpotStoreStub{}, nil)
+
+	expectLotteryResultList(mock, []driver.Value{LotteryTypeSSQ, int64(100)}, []LotteryResultView{view})
+	got, err := svc.GetResults(context.Background(), LotteryResultQuery{})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "2026062", got[0].IssueNo)
+
+	expectLotteryResultList(mock, []driver.Value{LotteryTypeSSQ, int64(100)}, []LotteryResultView{view})
+	got, err = svc.GetResults(context.Background(), LotteryResultQuery{LotteryType: "SSQ", Limit: 500})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestLotteryServiceGetResultReturnsSingleIssue(t *testing.T) {
+	client, mock, cleanup := newLotterySQLMockClient(t)
+	t.Cleanup(cleanup)
+
+	view := lotteryTestResultView()
+	svc := NewLotteryService(client, nil, nil, nil, &lotteryJackpotStoreStub{}, nil)
+
+	expectLotteryResultList(mock, []driver.Value{LotteryTypeSSQ, "2026062", int64(1)}, []LotteryResultView{view})
+	got, err := svc.GetResult(context.Background(), "ssq", "2026062")
+	require.NoError(t, err)
+	require.Equal(t, "2026062", got.IssueNo)
+	require.Equal(t, []string{"02", "04", "07", "14", "28", "29"}, got.RedBalls)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestLotteryServiceGetResultReturnsNotFound(t *testing.T) {
+	client, mock, cleanup := newLotterySQLMockClient(t)
+	t.Cleanup(cleanup)
+
+	svc := NewLotteryService(client, nil, nil, nil, &lotteryJackpotStoreStub{}, nil)
+
+	expectLotteryResultList(mock, []driver.Value{LotteryTypeSSQ, "2026062", int64(1)}, nil)
+	_, err := svc.GetResult(context.Background(), "ssq", "2026062")
+	require.Error(t, err)
+	require.Equal(t, "LOTTERY_RESULT_NOT_FOUND", infraerrors.Reason(err))
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestLotteryServiceSettleIssueSettlesWinAndLoseOrders(t *testing.T) {

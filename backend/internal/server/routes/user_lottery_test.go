@@ -37,6 +37,8 @@ func TestRegisterUserRoutesRegistersLotteryRoutes(t *testing.T) {
 		{method: http.MethodGet, path: "/api/v1/lottery/current"},
 		{method: http.MethodPost, path: "/api/v1/lottery/bet", body: `{"red_balls":[1,8,12,18,25,33],"blue_ball":9}`},
 		{method: http.MethodGet, path: "/api/v1/lottery/orders"},
+		{method: http.MethodGet, path: "/api/v1/lottery/results"},
+		{method: http.MethodGet, path: "/api/v1/lottery/results/2026062"},
 	}
 
 	for _, tt := range tests {

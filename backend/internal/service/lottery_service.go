@@ -50,6 +50,12 @@ type LotteryOrderQuery struct {
 	IssueNo     string `json:"issue_no"`
 }
 
+type LotteryResultQuery struct {
+	LotteryType string `json:"lottery_type"`
+	IssueNo     string `json:"issue_no"`
+	Limit       int    `json:"limit"`
+}
+
 type LotteryOrderView struct {
 	ID          int64           `json:"id"`
 	LotteryType string          `json:"lottery_type"`
@@ -187,6 +193,14 @@ func (s *LotteryService) GetJackpot(ctx context.Context, lotteryType string) (*L
 
 func (s *LotteryService) SyncLatestResult(ctx context.Context, lotteryType string) (*LotterySyncResult, error) {
 	return s.syncLatestResult(ctx, lotteryType)
+}
+
+func (s *LotteryService) GetResults(ctx context.Context, query LotteryResultQuery) ([]LotteryResultView, error) {
+	return s.getResults(ctx, query)
+}
+
+func (s *LotteryService) GetResult(ctx context.Context, lotteryType, issueNo string) (*LotteryResultView, error) {
+	return s.getResult(ctx, lotteryType, issueNo)
 }
 
 func (s *LotteryService) SettleIssue(ctx context.Context, lotteryType, issueNo string) (*LotterySettlementResult, error) {
