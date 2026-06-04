@@ -385,6 +385,13 @@ func ProvideScheduledTestRunnerService(
 	return svc
 }
 
+// ProvideLotteryJobService creates and starts LotteryJobService.
+func ProvideLotteryJobService(lotteryService *LotteryService, cfg *config.Config) *LotteryJobService {
+	svc := NewLotteryJobService(lotteryService, cfg)
+	svc.Start()
+	return svc
+}
+
 // ProvideOpsScheduledReportService creates and starts OpsScheduledReportService.
 func ProvideOpsScheduledReportService(
 	opsService *OpsService,
@@ -749,6 +756,7 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(LotteryJackpotStore), new(*JackpotService)),
 	DefaultLotteryProviders,
 	NewLotteryService,
+	ProvideLotteryJobService,
 	NewLeaderboardService,
 	NewBlindBoxService,
 	NewMonitoringService,

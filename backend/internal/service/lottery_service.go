@@ -100,6 +100,20 @@ type LotterySettlementResult struct {
 	Replayed    bool            `json:"replayed"`
 }
 
+type LotteryOpenedSettlementResult struct {
+	LotteryType   string                    `json:"lottery_type"`
+	TotalIssues   int                       `json:"total_issues"`
+	SettledIssues []LotterySettlementResult `json:"settled_issues"`
+	FailedIssues  []string                  `json:"failed_issues"`
+}
+
+type LotteryJobRunResult struct {
+	LotteryType       string                         `json:"lottery_type"`
+	SyncedIssueNo     string                         `json:"synced_issue_no"`
+	SyncReplayed      bool                           `json:"sync_replayed"`
+	SettlementSummary *LotteryOpenedSettlementResult `json:"settlement_summary"`
+}
+
 type LotteryJackpotView struct {
 	LotteryType string          `json:"lottery_type"`
 	Balance     decimal.Decimal `json:"balance"`
@@ -205,6 +219,10 @@ func (s *LotteryService) GetResult(ctx context.Context, lotteryType, issueNo str
 
 func (s *LotteryService) SettleIssue(ctx context.Context, lotteryType, issueNo string) (*LotterySettlementResult, error) {
 	return s.settleIssue(ctx, lotteryType, issueNo)
+}
+
+func (s *LotteryService) SettleOpenedIssues(ctx context.Context, lotteryType string, limit int) (*LotteryOpenedSettlementResult, error) {
+	return s.settleOpenedIssues(ctx, lotteryType, limit)
 }
 
 func (s *LotteryService) providerByType(lotteryType string) (LotteryProvider, error) {
