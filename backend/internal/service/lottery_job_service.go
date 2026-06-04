@@ -110,7 +110,7 @@ func (s *LotteryJobService) RunOnce(ctx context.Context) (*LotteryJobRunResult, 
 	synced, err := s.runner.SyncLatestResult(runCtx, LotteryTypeSSQ)
 	if err != nil {
 		if errors.Is(err, ErrLotteryProviderUnavailable) {
-			logger.LegacyPrintf("service.lottery_job", "[LotteryJob] sync latest result skipped (provider unavailable): %v", err)
+			logger.LegacyPrintf("service.lottery_job", "[LotteryJob] warning: sync latest result skipped because provider is temporarily unavailable")
 		} else {
 			joined = errors.Join(joined, fmt.Errorf("sync latest lottery result: %w", err))
 			logger.LegacyPrintf("service.lottery_job", "[LotteryJob] sync latest result failed: %v", err)
