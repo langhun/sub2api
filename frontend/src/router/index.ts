@@ -361,6 +361,30 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/games/slots',
+    name: 'SlotsGame',
+    component: () => import('@/views/user/SlotsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Slots',
+      titleKey: 'nav.gameHall',
+      requiresGameHall: true,
+    }
+  },
+  {
+    path: '/games/ssq',
+    name: 'SSQLottery',
+    component: () => import('@/views/user/SSQLotteryView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Double Color Ball',
+      titleKey: 'nav.gameHall',
+      requiresGameHall: true,
+    }
+  },
+  {
     path: '/transfer',
     name: 'Transfer',
     component: () => import('@/views/user/TransferView.vue'),

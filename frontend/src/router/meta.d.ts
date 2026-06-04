@@ -50,6 +50,24 @@ declare module 'vue-router' {
     requiresPayment?: boolean
 
     /**
+     * Whether this route requires the transfer feature to be enabled
+     * @default false
+     */
+    requiresTransfer?: boolean
+
+    /**
+     * Whether this route requires the red-packet feature to be enabled
+     * @default false
+     */
+    requiresRedPacket?: boolean
+
+    /**
+     * Whether this route requires the game hall feature to be enabled
+     * @default false
+     */
+    requiresGameHall?: boolean
+
+    /**
      * 是否要求风控中心功能开关已启用
      * @default false
      */

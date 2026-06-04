@@ -1,443 +1,87 @@
 <template>
   <AppLayout>
-    <div class="lottery-page mx-auto max-w-7xl space-y-5">
+    <div class="game-hall mx-auto max-w-6xl space-y-5">
       <header class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p class="text-sm font-medium text-[var(--muted-foreground)]">娱乐大厅</p>
-          <h1 class="text-2xl font-semibold text-[var(--foreground)]">老虎机与双色球</h1>
+          <p class="text-sm font-medium text-[var(--muted-foreground)]">游戏中心</p>
+          <h1 class="text-2xl font-semibold text-[var(--foreground)]">娱乐大厅</h1>
         </div>
-        <button class="btn btn-secondary" type="button" :disabled="loadingCurrent || ordersLoading || resultsLoading || gameHallLoading || gamePlaying" @click="refreshAll">
-          刷新
+        <button class="btn btn-secondary" type="button" :disabled="loading" @click="loadHall">
+          {{ loading ? '刷新中' : '刷新余额' }}
         </button>
       </header>
 
-      <section class="grid gap-3 md:grid-cols-4">
-        <div class="summary-cell">
-          <span>当前期号</span>
-          <strong>{{ current?.issue_no || '-' }}</strong>
-        </div>
-        <div class="summary-cell">
-          <span>截止时间</span>
-          <strong>{{ formatDateTime(current?.cutoff_time) || '-' }}</strong>
-        </div>
-        <div class="summary-cell">
-          <span>当前奖池</span>
-          <strong :title="formatMoneyTitle(current?.jackpot_balance)">{{ formatMoney(current?.jackpot_balance) }}</strong>
-        </div>
-        <div class="summary-cell">
-          <span>投注状态</span>
-          <strong :class="current?.is_closed ? 'text-[var(--destructive)]' : 'text-emerald-600 dark:text-emerald-300'">
-            {{ currentStatusText }}
-          </strong>
-        </div>
+      <section class="hall-summary">
+        <span>娱乐余额</span>
+        <strong>{{ loading ? '加载中' : formatMoney(gameHall?.balance) }}</strong>
       </section>
 
-      <p v-if="currentError" class="rounded-md border border-[var(--destructive)]/30 bg-[var(--destructive)]/10 px-4 py-3 text-sm text-[var(--destructive)]">
-        {{ currentError }}
-      </p>
-      <p v-if="gameHallError" class="rounded-md border border-[var(--destructive)]/30 bg-[var(--destructive)]/10 px-4 py-3 text-sm text-[var(--destructive)]">
-        {{ gameHallError }}
+      <p v-if="error" class="rounded-md border border-[var(--destructive)]/30 bg-[var(--destructive)]/10 px-4 py-3 text-sm text-[var(--destructive)]">
+        {{ error }}
       </p>
 
-      <section class="lottery-panel" data-testid="slots-panel">
-        <div class="flex flex-col gap-3 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 class="text-lg font-semibold text-[var(--foreground)]">老虎机</h2>
-            <p class="text-sm text-[var(--muted-foreground)]">
-              三轴即时结算，最高 {{ slotMaxMultiplier }} 倍返奖。
-            </p>
-          </div>
-          <div class="summary-cell compact-summary">
-            <span>娱乐余额</span>
-            <strong>{{ gameHallLoading ? '加载中' : formatMoney(gameHall?.balance) }}</strong>
-          </div>
-        </div>
+      <main class="grid gap-4 md:grid-cols-2">
+        <RouterLink class="game-card" data-testid="slots-entry" to="/games/slots">
+          <span class="game-mark" aria-hidden="true">7</span>
+          <span class="game-content">
+            <span class="game-title">老虎机</span>
+            <span class="game-desc">三轴滚动，拉杆后独立结算。</span>
+            <span class="game-meta">{{ slotMetaText }}</span>
+          </span>
+          <span class="game-action" aria-hidden="true">进入</span>
+        </RouterLink>
 
-        <div class="grid gap-4 pt-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <div class="space-y-4">
-            <div class="slot-machine" aria-live="polite">
-              <span
-                v-for="(symbol, index) in slotSymbols"
-                :key="`${symbol}-${index}`"
-                class="slot-symbol"
-                :data-testid="`slot-symbol-${index}`"
-              >
-                {{ slotSymbolText(symbol) }}
-              </span>
-            </div>
-            <div v-if="slotResult" class="game-result" data-testid="slots-result">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="status-pill" :class="gameOutcomeClass(slotResult.outcome)">{{ gameOutcomeText(slotResult.outcome) }}</span>
-                <strong>{{ slotResult.message }}</strong>
-              </div>
-              <div class="mt-2 grid gap-1 text-sm text-[var(--muted-foreground)] sm:grid-cols-3">
-                <span>投注：{{ formatMoney(slotResult.bet_amount) }}</span>
-                <span>返奖：{{ formatMoney(slotResult.payout_amount) }}</span>
-                <span>余额：{{ formatMoney(slotResult.balance_after) }}</span>
-              </div>
-            </div>
-            <div v-else class="text-sm text-[var(--muted-foreground)]">
-              选择投注金额后拉杆，结果会即时写入金融账本。
-            </div>
-          </div>
-
-          <div class="space-y-3">
-            <label class="block text-sm font-medium text-[var(--foreground)]" for="slot-bet-amount">投注金额</label>
-            <input
-              id="slot-bet-amount"
-              v-model.number="slotBetAmount"
-              class="input"
-              data-testid="slot-bet-amount"
-              type="number"
-              inputmode="decimal"
-              :min="slotGame?.min_bet ?? 0.01"
-              :max="slotGame?.max_bet ?? 100000000"
-              step="0.01"
-              :disabled="gamePlaying"
-            >
-            <p class="min-h-5 text-sm text-[var(--muted-foreground)]">{{ slotBetHint }}</p>
-            <button
-              class="btn btn-primary w-full"
-              type="button"
-              data-testid="play-slots"
-              :disabled="!canPlaySlots"
-              @click="playSlots"
-            >
-              {{ gamePlaying ? '结算中' : '拉杆' }}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <main class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <section class="lottery-panel">
-          <div class="flex flex-col gap-2 border-b border-[var(--border)] pb-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 class="text-lg font-semibold text-[var(--foreground)]">选号区</h2>
-              <p class="text-sm text-[var(--muted-foreground)]">单注 100 DG，选择 6 个红球和 1 个蓝球。</p>
-            </div>
-            <div class="text-sm text-[var(--muted-foreground)]">已选 {{ selectedRedBalls.length }}/6 + {{ selectedBlueBall ? 1 : 0 }}/1</div>
-          </div>
-
-          <div class="space-y-5 pt-4">
-            <div>
-              <div class="mb-3 flex items-center justify-between gap-3">
-                <h3 class="text-sm font-semibold text-[var(--foreground)]">红球</h3>
-                <span class="text-xs text-[var(--muted-foreground)]">01-33</span>
-              </div>
-              <div class="ball-grid red-grid" data-testid="red-ball-grid">
-                <button
-                  v-for="ball in redBallOptions"
-                  :key="ball"
-                  type="button"
-                  class="ball-button red-ball"
-                  :class="{ selected: selectedRedSet.has(ball) }"
-                  :aria-pressed="selectedRedSet.has(ball)"
-                  :aria-label="`红球 ${padBall(ball)}`"
-                  :disabled="submitting"
-                  :data-testid="`red-ball-${ball}`"
-                  @click="toggleRedBall(ball)"
-                >
-                  {{ padBall(ball) }}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <div class="mb-3 flex items-center justify-between gap-3">
-                <h3 class="text-sm font-semibold text-[var(--foreground)]">蓝球</h3>
-                <span class="text-xs text-[var(--muted-foreground)]">01-16</span>
-              </div>
-              <div class="ball-grid blue-grid" data-testid="blue-ball-grid">
-                <button
-                  v-for="ball in blueBallOptions"
-                  :key="ball"
-                  type="button"
-                  class="ball-button blue-ball"
-                  :class="{ selected: selectedBlueBall === ball }"
-                  :aria-pressed="selectedBlueBall === ball"
-                  :aria-label="`蓝球 ${padBall(ball)}`"
-                  :disabled="submitting"
-                  :data-testid="`blue-ball-${ball}`"
-                  @click="selectBlueBall(ball)"
-                >
-                  {{ padBall(ball) }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-5 flex flex-col gap-3 border-t border-[var(--border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-h-5 text-sm text-[var(--muted-foreground)]">{{ submitHint }}</div>
-            <div class="grid grid-cols-3 gap-2 sm:flex sm:justify-end">
-              <button class="btn btn-secondary" type="button" :disabled="submitting" @click="randomPick">机选一注</button>
-              <button class="btn btn-secondary" type="button" :disabled="submitting || nothingSelected" @click="clearSelection">清空</button>
-              <button class="btn btn-primary" type="button" :disabled="!canSubmit" data-testid="submit-bet" @click="submitBet">
-                {{ submitting ? '提交中' : '立即投注' }}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <aside class="lottery-panel">
-          <h2 class="text-lg font-semibold text-[var(--foreground)]">我的投注</h2>
-          <p class="mt-1 text-sm text-[var(--muted-foreground)]">显示当前期号的最近投注记录。</p>
-
-          <div class="mt-4 space-y-3">
-            <div v-if="ordersLoading" class="order-empty">加载中</div>
-            <div v-else-if="orders.length === 0" class="order-empty">暂无投注记录</div>
-            <article v-for="order in orders" v-else :key="order.order_id" class="order-row">
-              <div class="flex items-center justify-between gap-3">
-                <strong class="text-sm text-[var(--foreground)]">第 {{ order.issue_no }} 期</strong>
-                <span class="status-pill" :class="orderStatusClass(order.status)">{{ orderStatusText(order.status) }}</span>
-              </div>
-              <div class="mt-2 flex flex-wrap gap-1.5">
-                <span v-for="ball in order.red_balls" :key="`${order.order_id}-r-${ball}`" class="mini-ball mini-red">{{ ball }}</span>
-                <span class="mini-ball mini-blue">{{ order.blue_ball }}</span>
-              </div>
-              <div class="mt-2 grid gap-1 text-xs text-[var(--muted-foreground)]">
-                <span>金额：{{ formatMoney(order.cost) }}</span>
-                <span>命中：{{ formatHitSummary(order) }}</span>
-                <span v-if="order.prize_level">奖级：{{ prizeLevelText(order.prize_level) }}</span>
-                <span v-if="order.status === 'win'" class="font-semibold text-emerald-600 dark:text-emerald-300">奖励：{{ formatMoney(order.reward) }}</span>
-                <span v-else>奖励：{{ formatMoney(order.reward) }}</span>
-                <span>{{ formatDateTime(order.created_at) }}</span>
-              </div>
-            </article>
-          </div>
-        </aside>
+        <RouterLink class="game-card" data-testid="ssq-entry" to="/games/ssq">
+          <span class="game-mark ball-mark" aria-hidden="true">双</span>
+          <span class="game-content">
+            <span class="game-title">双色球</span>
+            <span class="game-desc">选择 6 个红球和 1 个蓝球。</span>
+            <span class="game-meta">独立选号页</span>
+          </span>
+          <span class="game-action" aria-hidden="true">进入</span>
+        </RouterLink>
       </main>
-
-      <section class="lottery-panel">
-        <div class="flex flex-col gap-2 border-b border-[var(--border)] pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="text-lg font-semibold text-[var(--foreground)]">最近开奖</h2>
-            <p class="text-sm text-[var(--muted-foreground)]">同步官方双色球开奖后自动更新。</p>
-          </div>
-          <span v-if="resultsError" class="text-sm text-[var(--destructive)]">{{ resultsError }}</span>
-        </div>
-
-        <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <div v-if="resultsLoading" class="order-empty md:col-span-2 xl:col-span-3">加载中</div>
-          <div v-else-if="results.length === 0" class="order-empty md:col-span-2 xl:col-span-3">暂无开奖记录</div>
-          <article v-for="result in results" v-else :key="result.issue_no" class="result-row">
-            <div class="flex items-start justify-between gap-3">
-              <strong class="text-sm text-[var(--foreground)]">第 {{ result.issue_no }} 期</strong>
-              <span class="text-xs text-[var(--muted-foreground)]">{{ formatDateTime(result.opened_at) }}</span>
-            </div>
-            <div class="mt-3 flex flex-wrap gap-1.5">
-              <span v-for="ball in result.red_balls" :key="`${result.issue_no}-r-${ball}`" class="mini-ball mini-red">{{ ball }}</span>
-              <span class="mini-ball mini-blue">{{ result.blue_ball }}</span>
-            </div>
-            <div class="mt-2 text-xs text-[var(--muted-foreground)]">来源：{{ result.source || '官方同步' }}</div>
-          </article>
-        </div>
-      </section>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { gamesAPI, type GameHallStatus, type GameInfo, type GamePlayResult, type GameOutcome } from '@/api/games'
-import { lotteryAPI, type LotteryCurrent, type LotteryOrder, type LotteryResult } from '@/api/lottery'
+import { gamesAPI, type GameHallStatus } from '@/api/games'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useAppStore } from '@/stores'
-import { formatDateTime, formatDualDisplayAmount } from '@/utils/format'
+import { formatDualDisplayAmount } from '@/utils/format'
 
 const appStore = useAppStore()
-const redBallOptions = range(1, 33)
-const blueBallOptions = range(1, 16)
 
-const current = ref<LotteryCurrent | null>(null)
-const orders = ref<LotteryOrder[]>([])
-const results = ref<LotteryResult[]>([])
 const gameHall = ref<GameHallStatus | null>(null)
-const slotResult = ref<GamePlayResult | null>(null)
-const selectedRedBalls = ref<number[]>([])
-const selectedBlueBall = ref<number | null>(null)
-const slotBetAmount = ref(100)
-const gameHallLoading = ref(false)
-const gamePlaying = ref(false)
-const loadingCurrent = ref(false)
-const ordersLoading = ref(false)
-const resultsLoading = ref(false)
-const submitting = ref(false)
-const currentError = ref('')
-const resultsError = ref('')
-const gameHallError = ref('')
+const loading = ref(false)
+const error = ref('')
 
-const selectedRedSet = computed(() => new Set(selectedRedBalls.value))
-const nothingSelected = computed(() => selectedRedBalls.value.length === 0 && selectedBlueBall.value === null)
 const slotGame = computed(() => gameHall.value?.games.find((game) => game.type === 'slots') ?? null)
-const slotMaxMultiplier = computed(() => Math.max(...(slotGame.value?.multipliers ?? [0])))
-const slotSymbols = computed(() => slotResult.value?.symbols?.length ? slotResult.value.symbols : ['?', '?', '?'])
-const canPlaySlots = computed(() => {
-  const bet = Number(slotBetAmount.value)
-  const game = slotGame.value
-  if (!game) return false
-  return !gamePlaying.value &&
-    Number.isFinite(bet) &&
-    bet >= game.min_bet &&
-    bet <= game.max_bet
-})
-const slotBetHint = computed(() => {
-  if (gameHallLoading.value) return '正在加载娱乐大厅。'
-  const game = slotGame.value
-  if (!game) return '老虎机暂未开放。'
-  const bet = Number(slotBetAmount.value)
-  if (!Number.isFinite(bet)) return '请输入有效投注金额。'
-  if (bet < game.min_bet) return `最低投注 ${formatMoney(game.min_bet)}。`
-  if (bet > game.max_bet) return `最高投注 ${formatMoney(game.max_bet)}。`
-  return `可用赔率：${formatMultipliers(game)}`
-})
-const currentStatusText = computed(() => {
-  if (loadingCurrent.value) return '加载中'
-  if (!current.value) return '未加载'
-  return current.value.is_closed ? '已截止' : '可投注'
-})
-const canSubmit = computed(() =>
-  Boolean(current.value) &&
-  !current.value?.is_closed &&
-  selectedRedBalls.value.length === 6 &&
-  selectedBlueBall.value !== null &&
-  !submitting.value
-)
-const submitHint = computed(() => {
-  if (!current.value) return '请先等待当前期号加载完成。'
-  if (current.value.is_closed) return '本期已截止投注。'
-  if (selectedRedBalls.value.length < 6) return `还需要选择 ${6 - selectedRedBalls.value.length} 个红球。`
-  if (selectedBlueBall.value === null) return '请选择 1 个蓝球。'
-  return '号码已就绪，可以投注。'
+const slotMetaText = computed(() => {
+  if (loading.value) return '正在读取状态'
+  if (slotGame.value) return `单次 ${formatMoney(slotGame.value.min_bet)} - ${formatMoney(slotGame.value.max_bet)}`
+  if (error.value) return '入口可用，状态稍后刷新'
+  return '等待状态加载'
 })
 
 onMounted(() => {
-  void refreshAll()
+  void loadHall()
 })
 
-async function refreshAll() {
-  await Promise.all([loadGameHall(), loadCurrent()])
-  await Promise.all([loadOrders(), loadResults()])
-}
-
-async function loadGameHall() {
-  gameHallLoading.value = true
-  gameHallError.value = ''
+async function loadHall() {
+  loading.value = true
+  error.value = ''
   try {
     gameHall.value = await gamesAPI.getHall()
-  } catch (error) {
+  } catch (value) {
     gameHall.value = null
-    gameHallError.value = readableError(error)
-    appStore.showError(gameHallError.value)
+    error.value = readableError(value)
+    appStore.showError(error.value)
   } finally {
-    gameHallLoading.value = false
+    loading.value = false
   }
-}
-
-async function loadCurrent() {
-  loadingCurrent.value = true
-  currentError.value = ''
-  try {
-    current.value = await lotteryAPI.getCurrent()
-  } catch (error) {
-    current.value = null
-    currentError.value = readableError(error)
-    appStore.showError(currentError.value)
-  } finally {
-    loadingCurrent.value = false
-  }
-}
-
-async function loadOrders() {
-  ordersLoading.value = true
-  try {
-    orders.value = await lotteryAPI.getOrders(current.value?.issue_no)
-  } catch (error) {
-    orders.value = []
-    appStore.showError(readableError(error))
-  } finally {
-    ordersLoading.value = false
-  }
-}
-
-async function loadResults() {
-  resultsLoading.value = true
-  resultsError.value = ''
-  try {
-    results.value = await lotteryAPI.getResults(100)
-  } catch (error) {
-    results.value = []
-    resultsError.value = readableError(error)
-  } finally {
-    resultsLoading.value = false
-  }
-}
-
-function toggleRedBall(ball: number) {
-  if (selectedRedSet.value.has(ball)) {
-    selectedRedBalls.value = selectedRedBalls.value.filter((item) => item !== ball)
-    return
-  }
-  if (selectedRedBalls.value.length >= 6) return
-  selectedRedBalls.value = [...selectedRedBalls.value, ball].sort((a, b) => a - b)
-}
-
-function selectBlueBall(ball: number) {
-  selectedBlueBall.value = selectedBlueBall.value === ball ? null : ball
-}
-
-function randomPick() {
-  selectedRedBalls.value = shuffle(redBallOptions).slice(0, 6).sort((a, b) => a - b)
-  selectedBlueBall.value = blueBallOptions[Math.floor(Math.random() * blueBallOptions.length)]
-}
-
-function clearSelection() {
-  selectedRedBalls.value = []
-  selectedBlueBall.value = null
-}
-
-async function submitBet() {
-  if (!canSubmit.value || selectedBlueBall.value === null || !current.value) return
-  submitting.value = true
-  try {
-    await lotteryAPI.createBet({
-      red_balls: selectedRedBalls.value,
-      blue_ball: selectedBlueBall.value,
-    }, current.value.issue_no)
-    appStore.showSuccess('投注成功，已刷新投注记录')
-    clearSelection()
-    await refreshAll()
-  } catch (error) {
-    appStore.showError(readableError(error))
-  } finally {
-    submitting.value = false
-  }
-}
-
-async function playSlots() {
-  if (!canPlaySlots.value) return
-  gamePlaying.value = true
-  try {
-    slotResult.value = await gamesAPI.play('slots', Number(slotBetAmount.value))
-    appStore.showSuccess(slotResult.value.message || '老虎机已结算')
-    await loadGameHall()
-  } catch (error) {
-    appStore.showError(readableError(error))
-  } finally {
-    gamePlaying.value = false
-  }
-}
-
-function range(start: number, end: number) {
-  return Array.from({ length: end - start + 1 }, (_, index) => start + index)
-}
-
-function shuffle(values: number[]) {
-  return [...values].sort(() => Math.random() - 0.5)
-}
-
-function padBall(value: number | string) {
-  return String(value).padStart(2, '0')
 }
 
 function formatMoney(value: string | number | null | undefined) {
@@ -445,247 +89,116 @@ function formatMoney(value: string | number | null | undefined) {
   return `${formatDualDisplayAmount(Number.isFinite(amount) ? amount : 0).display} DG`
 }
 
-function formatMoneyTitle(value: string | number | null | undefined) {
-  const amount = Number(value ?? 0)
-  return `${formatDualDisplayAmount(Number.isFinite(amount) ? amount : 0).full} DG`
-}
-
-function formatMultipliers(game: GameInfo) {
-  return game.multipliers.map((value) => `${formatGameMultiplier(value)}x`).join(' / ')
-}
-
-function formatGameMultiplier(value: number) {
-  return String(value).replace(/\.0+$/, '')
-}
-
-function orderStatusText(status: string) {
-  if (status === 'win') return '已中奖'
-  if (status === 'lose') return '未中奖'
-  return '待开奖'
-}
-
-function orderStatusClass(status: string) {
-  if (status === 'win') return 'status-win'
-  if (status === 'lose') return 'status-lose'
-  return 'status-pending'
-}
-
-function gameOutcomeText(outcome: GameOutcome) {
-  if (outcome === 'win') return '已中奖'
-  if (outcome === 'draw') return '保本'
-  return '未中奖'
-}
-
-function gameOutcomeClass(outcome: GameOutcome) {
-  if (outcome === 'win') return 'status-win'
-  if (outcome === 'draw') return 'status-pending'
-  return 'status-lose'
-}
-
-function slotSymbolText(symbol: string) {
-  const map: Record<string, string> = {
-    cherry: '樱桃',
-    lemon: '柠檬',
-    orange: '橙子',
-    grape: '葡萄',
-    bell: '铃铛',
-    star: '星星',
-    diamond: '钻石',
-    '7': '7',
-    '?': '?',
-  }
-  return map[symbol] || symbol
-}
-
-function prizeLevelText(level: string) {
-  const map: Record<string, string> = {
-    first: '一等奖',
-    second: '二等奖',
-    third: '三等奖',
-    fourth: '四等奖',
-    fifth: '五等奖',
-    sixth: '六等奖',
-  }
-  return map[level] || level
-}
-
-function formatHitSummary(order: LotteryOrder) {
-  const redHits = Number.isFinite(order.red_hits) ? order.red_hits : 0
-  return `${redHits} 红${order.blue_hit ? ' + 蓝' : ''}`
-}
-
-function readableError(error: unknown) {
-  const value = error as { message?: string; reason?: string; metadata?: Record<string, string> }
-  if (value?.reason === 'LOTTERY_ISSUE_CLOSED') return '本期已截止投注，请等待下一期。'
-  if (value?.reason === 'LOTTERY_NUMBERS_INVALID') return '号码格式不正确，请检查红球和蓝球。'
-  if (value?.reason === 'LOTTERY_BET_LIMIT_EXCEEDED') return '本期投注数量已达到上限。'
-  if (value?.reason === 'BANK_INSUFFICIENT_BALANCE') return 'DG 币余额不足，无法投注。'
-  return value?.message || '请求失败，请稍后重试。'
+function readableError(value: unknown) {
+  return (value as { message?: string })?.message || '娱乐大厅状态加载失败，请稍后重试。'
 }
 </script>
 
 <style scoped>
-.lottery-page {
+.game-hall {
   padding-bottom: 2rem;
 }
 
-.summary-cell,
-.lottery-panel {
+.hall-summary,
+.game-card {
   border: 1px solid var(--border);
-  background: var(--card);
   border-radius: 8px;
+  background: var(--card);
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
 }
 
-.summary-cell {
+.hall-summary {
   min-height: 5.25rem;
   padding: 1rem;
 }
 
-.compact-summary {
-  min-height: 4rem;
-  min-width: min(100%, 14rem);
-}
-
-.summary-cell span {
+.hall-summary span {
   display: block;
   font-size: 0.875rem;
   color: var(--muted-foreground);
 }
 
-.summary-cell strong {
+.hall-summary strong {
   display: block;
   margin-top: 0.5rem;
   overflow-wrap: anywhere;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   color: var(--foreground);
 }
 
-.lottery-panel {
+.game-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  min-height: 9rem;
   padding: 1.25rem;
-}
-
-.slot-machine {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(4.5rem, 1fr));
-  gap: 0.75rem;
-}
-
-.slot-symbol {
-  display: flex;
-  min-height: 5rem;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--muted);
   color: var(--foreground);
-  font-weight: 700;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.game-result {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.875rem;
+.game-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 10px 24px rgb(15 23 42 / 0.1);
+  transform: translateY(-1px);
 }
 
-.ball-grid {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.red-grid {
-  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
-}
-
-.blue-grid {
-  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
-}
-
-.ball-button {
-  aspect-ratio: 1;
-  min-width: 2.75rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--background);
-  color: var(--foreground);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-
-.red-ball.selected {
-  border-color: rgb(220 38 38);
-  background: rgb(220 38 38);
-  color: white;
-}
-
-.blue-ball.selected {
-  border-color: rgb(37 99 235);
-  background: rgb(37 99 235);
-  color: white;
-}
-
-.order-row,
-.result-row {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.875rem;
-}
-
-.status-pill {
-  flex-shrink: 0;
-  border-radius: 6px;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.status-pending {
-  background: var(--muted);
-  color: var(--muted-foreground);
-}
-
-.status-win {
-  background: rgb(16 185 129 / 0.14);
-  color: rgb(4 120 87);
-}
-
-.status-lose {
-  background: rgb(148 163 184 / 0.16);
-  color: var(--muted-foreground);
-}
-
-.dark .status-win {
-  color: rgb(110 231 183);
-}
-
-.order-empty {
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  padding: 2rem 1rem;
-  text-align: center;
-  color: var(--muted-foreground);
-}
-
-.mini-ball {
+.game-mark {
   display: inline-flex;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 3.25rem;
+  height: 3.25rem;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  color: white;
-  font-size: 0.75rem;
+  border-radius: 8px;
+  background: rgb(239 68 68 / 0.12);
+  color: rgb(185 28 28);
+  font-size: 1.75rem;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+
+.ball-mark {
+  background: rgb(37 99 235 / 0.12);
+  color: rgb(29 78 216);
+  font-size: 1.25rem;
+}
+
+.game-content {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.game-title {
+  font-size: 1.125rem;
   font-weight: 700;
 }
 
-.mini-red {
-  background: rgb(220 38 38);
+.game-desc,
+.game-meta {
+  overflow-wrap: anywhere;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
 }
 
-.mini-blue {
-  background: rgb(37 99 235);
+.game-action {
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .game-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .game-action {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
 }
 </style>
