@@ -38,6 +38,9 @@ var (
 	ErrLotteryOrderQueryInvalid   = infraerrors.BadRequest("LOTTERY_ORDER_QUERY_INVALID", "lottery order query is invalid")
 	ErrLotteryOrderReplayMissing  = infraerrors.InternalServer("LOTTERY_ORDER_REPLAY_MISSING", "lottery order replay state is inconsistent")
 	ErrLotteryNumbersInvalid      = infraerrors.BadRequest("LOTTERY_NUMBERS_INVALID", "lottery numbers are invalid")
+	ErrLotteryStorageUnavailable  = infraerrors.InternalServer("LOTTERY_STORAGE_UNAVAILABLE", "lottery storage is unavailable")
+	ErrLotteryResultConflict      = infraerrors.Conflict("LOTTERY_RESULT_CONFLICT", "lottery result conflicts with existing result")
+	ErrLotteryResultNotFound      = infraerrors.NotFound("LOTTERY_RESULT_NOT_FOUND", "lottery result not found")
 )
 
 type Issue struct {

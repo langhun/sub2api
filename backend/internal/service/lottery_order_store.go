@@ -15,14 +15,27 @@ func runSerializableLotteryTx(
 	client *dbent.Client,
 	fn func(*dbent.Client) (*LotteryBetResult, error),
 ) (result *LotteryBetResult, err error) {
+	err = runSerializableLotteryOperationTx(ctx, client, func(txClient *dbent.Client) error {
+		var fnErr error
+		result, fnErr = fn(txClient)
+		return fnErr
+	})
+	return result, err
+}
+
+func runSerializableLotteryOperationTx(
+	ctx context.Context,
+	client *dbent.Client,
+	fn func(*dbent.Client) error,
+) (err error) {
 	if client == nil {
-		return nil, ErrLotteryJackpotUnavailable
+		return ErrLotteryStorageUnavailable
 	}
 	var lastErr error
 	for attempt := 0; attempt < bankTxMaxRetries; attempt++ {
 		tx, beginErr := client.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 		if beginErr != nil {
-			return nil, fmt.Errorf("begin lottery transaction: %w", beginErr)
+			return fmt.Errorf("begin lottery transaction: %w", beginErr)
 		}
 		committed := false
 		func() {
@@ -36,7 +49,7 @@ func runSerializableLotteryTx(
 					_ = tx.Rollback()
 				}
 			}()
-			result, err = fn(tx.Client())
+			err = fn(tx.Client())
 			if err != nil {
 				return
 			}
@@ -47,15 +60,15 @@ func runSerializableLotteryTx(
 			committed = true
 		}()
 		if err == nil {
-			return result, nil
+			return nil
 		}
 		if isRetryableBankTxErr(err) {
 			lastErr = err
 			continue
 		}
-		return nil, err
+		return err
 	}
-	return nil, lastErr
+	return lastErr
 }
 
 func lockLotteryIssueScope(ctx context.Context, client *dbent.Client, lotteryType, issueNo string, userID int64) error {

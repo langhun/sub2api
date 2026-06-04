@@ -58,6 +58,25 @@ type LotteryOrderView struct {
 	CreatedAt   time.Time       `json:"created_at"`
 }
 
+type LotteryResultView struct {
+	ID          int64     `json:"id"`
+	LotteryType string    `json:"lottery_type"`
+	IssueNo     string    `json:"issue_no"`
+	RedBalls    []string  `json:"red_balls"`
+	BlueBall    string    `json:"blue_ball"`
+	OpenedAt    time.Time `json:"opened_at"`
+	Source      string    `json:"source"`
+	SourceRef   string    `json:"source_ref"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type LotterySyncResult struct {
+	LotteryType string            `json:"lottery_type"`
+	IssueNo     string            `json:"issue_no"`
+	Result      LotteryResultView `json:"result"`
+	Replayed    bool              `json:"replayed"`
+}
+
 type LotteryJackpotView struct {
 	LotteryType string          `json:"lottery_type"`
 	Balance     decimal.Decimal `json:"balance"`
@@ -145,6 +164,10 @@ func (s *LotteryService) GetJackpot(ctx context.Context, lotteryType string) (*L
 		LotteryType: normalizedType,
 		Balance:     balance,
 	}, nil
+}
+
+func (s *LotteryService) SyncLatestResult(ctx context.Context, lotteryType string) (*LotterySyncResult, error) {
+	return s.syncLatestResult(ctx, lotteryType)
 }
 
 func (s *LotteryService) providerByType(lotteryType string) (LotteryProvider, error) {
