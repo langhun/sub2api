@@ -179,4 +179,13 @@ func TestIsMigrationChecksumCompatible(t *testing.T) {
 		)
 		require.False(t, ok)
 	})
+
+	t.Run("145 bank foundation historical checksum is compatible", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"145_bank_foundation.sql",
+			"57cc2dfd4053ab33086446cfe4675b2588ef8903c4778d171f5d8c94e5b16c44",
+			"e1690ba12613a99c7186eb175c4764ad7fd18176f2f80fe6b74cc5cb767394bb",
+		)
+		require.True(t, ok)
+	})
 }
