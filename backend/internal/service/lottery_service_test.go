@@ -353,6 +353,53 @@ func TestLotteryServiceGetCurrentIssueUsesProvider(t *testing.T) {
 	require.False(t, issue.IsClosed)
 }
 
+func TestLotteryServiceGetCurrentIssueFallsBackToLatestResultWhenProviderUnavailable(t *testing.T) {
+	require.NoError(t, timezone.Init("Asia/Shanghai"))
+	client, mock, cleanup := newLotterySQLMockClient(t)
+	t.Cleanup(cleanup)
+
+	openedAt := time.Date(2099, 6, 2, lotteryOpenHour, lotteryOpenMinute, 0, 0, timezone.Location())
+	latest := LotteryResultView{
+		ID:          301,
+		LotteryType: LotteryTypeSSQ,
+		IssueNo:     "2099001",
+		RedBalls:    []string{"01", "02", "03", "04", "05", "06"},
+		BlueBall:    "07",
+		OpenedAt:    openedAt,
+		Source:      "fucai",
+		CreatedAt:   openedAt.Add(30 * time.Minute),
+	}
+	svc := NewLotteryService(client, nil, nil, nil, nil, map[string]LotteryProvider{
+		LotteryTypeSSQ: &lotteryProviderStub{
+			name: "fucai",
+			err:  ErrLotteryProviderUnavailable.WithMetadata(map[string]string{"status_code": "403"}),
+		},
+	})
+
+	expectLotteryResultList(mock, []driver.Value{LotteryTypeSSQ, int64(1)}, []LotteryResultView{latest})
+	issue, err := svc.GetCurrentIssue(context.Background(), "ssq")
+	require.NoError(t, err)
+	require.Equal(t, LotteryTypeSSQ, issue.LotteryType)
+	require.Equal(t, "2099002", issue.IssueNo)
+	require.Equal(t, "fucai-cache", issue.Source)
+	require.True(t, issue.OpenTime.After(openedAt))
+	require.False(t, issue.IsClosed)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCurrentSSQIssueFromLatestResultAdvancesAcrossMissedDraws(t *testing.T) {
+	require.NoError(t, timezone.Init("Asia/Shanghai"))
+
+	latest := lotteryTestResultView()
+	now := time.Date(2026, 6, 8, 12, 0, 0, 0, timezone.Location())
+
+	issue, err := currentSSQIssueFromLatestResult(latest, "fucai", now)
+	require.NoError(t, err)
+	require.Equal(t, "2026065", issue.IssueNo)
+	require.Equal(t, "fucai-cache", issue.Source)
+	require.Equal(t, time.Date(2026, 6, 9, lotteryOpenHour, lotteryOpenMinute, 0, 0, timezone.Location()), issue.OpenTime)
+}
+
 func TestLotteryServiceGetCurrentIssueRejectsUnknownProvider(t *testing.T) {
 	svc := NewLotteryService(nil, nil, nil, nil, nil, nil)
 

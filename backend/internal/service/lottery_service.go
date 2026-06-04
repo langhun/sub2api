@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/shopspring/decimal"
 )
@@ -166,15 +168,28 @@ func (s *LotteryService) GetCurrentIssue(ctx context.Context, lotteryType string
 	if strings.TrimSpace(lotteryType) == "" {
 		lotteryType = LotteryTypeSSQ
 	}
-	provider, err := s.providerByType(lotteryType)
+	normalizedType, err := normalizeLotteryType(lotteryType)
 	if err != nil {
 		return nil, err
 	}
+	provider, err := s.providerByType(normalizedType)
+	if err != nil {
+		return nil, err
+	}
+	now := timezone.Now()
 	issue, err := provider.GetCurrentIssue(ctx)
 	if err != nil {
+		if errors.Is(err, ErrLotteryProviderUnavailable) {
+			fallback, fallbackErr := s.currentIssueFromLatestResult(ctx, normalizedType, provider.Name(), now)
+			if fallbackErr == nil {
+				logger.LegacyPrintf("service.lottery", "[Lottery] current issue provider unavailable, using local fallback: lottery_type=%s issue=%s", normalizedType, fallback.IssueNo)
+				return decorateLotteryIssue(fallback, now), nil
+			}
+			logger.LegacyPrintf("service.lottery", "[Lottery] current issue local fallback unavailable: lottery_type=%s provider_err=%v fallback_err=%v", normalizedType, err, fallbackErr)
+		}
 		return nil, err
 	}
-	return decorateLotteryIssue(issue, timezone.Now()), nil
+	return decorateLotteryIssue(issue, now), nil
 }
 
 func (s *LotteryService) GetMyOrders(ctx context.Context, query LotteryOrderQuery) ([]LotteryOrderView, error) {
@@ -223,6 +238,57 @@ func (s *LotteryService) SettleIssue(ctx context.Context, lotteryType, issueNo s
 
 func (s *LotteryService) SettleOpenedIssues(ctx context.Context, lotteryType string, limit int) (*LotteryOpenedSettlementResult, error) {
 	return s.settleOpenedIssues(ctx, lotteryType, limit)
+}
+
+func (s *LotteryService) currentIssueFromLatestResult(ctx context.Context, lotteryType, source string, now time.Time) (*Issue, error) {
+	if lotteryType != LotteryTypeSSQ {
+		return nil, ErrLotteryProviderUnavailable
+	}
+	results, err := s.getResults(ctx, LotteryResultQuery{
+		LotteryType: lotteryType,
+		Limit:       1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		return nil, ErrLotteryResultNotFound.WithMetadata(map[string]string{"lottery_type": lotteryType})
+	}
+	return currentSSQIssueFromLatestResult(results[0], source, now)
+}
+
+func currentSSQIssueFromLatestResult(result LotteryResultView, source string, now time.Time) (*Issue, error) {
+	if result.OpenedAt.IsZero() {
+		return nil, ErrLotteryDataInvalid
+	}
+	issueNo := result.IssueNo
+	openTime := nextSSQDrawTime(result.OpenedAt)
+	for i := 0; i < 128; i++ {
+		currentIssueNo, err := nextSSQIssueNo(issueNo, openTime)
+		if err != nil {
+			return nil, err
+		}
+		if now.Before(openTime) {
+			return &Issue{
+				LotteryType: LotteryTypeSSQ,
+				IssueNo:     currentIssueNo,
+				OpenTime:    openTime,
+				Status:      ssqIssueStatus(openTime, now),
+				Source:      fallbackLotteryIssueSource(source),
+			}, nil
+		}
+		issueNo = currentIssueNo
+		openTime = nextSSQDrawTime(openTime)
+	}
+	return nil, ErrLotteryDataInvalid.WithCause(fmt.Errorf("current issue fallback exceeded draw advance limit"))
+}
+
+func fallbackLotteryIssueSource(source string) string {
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return "local-cache"
+	}
+	return source + "-cache"
 }
 
 func (s *LotteryService) providerByType(lotteryType string) (LotteryProvider, error) {

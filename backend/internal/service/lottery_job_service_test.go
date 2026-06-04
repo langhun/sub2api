@@ -115,6 +115,24 @@ func TestLotteryJobServiceRunOnceSettlesWhenSyncFails(t *testing.T) {
 	require.Equal(t, 1, settleCalls)
 }
 
+func TestLotteryJobServiceRunOnceTreatsProviderUnavailableAsTransient(t *testing.T) {
+	settlement := &LotteryOpenedSettlementResult{LotteryType: LotteryTypeSSQ}
+	runner := &lotteryJobRunnerStub{
+		syncErr:      ErrLotteryProviderUnavailable,
+		settleResult: settlement,
+	}
+	svc := newLotteryJobService(runner, nil, "")
+
+	got, err := svc.RunOnce(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Same(t, settlement, got.SettlementSummary)
+
+	syncCalls, settleCalls, _, _, _ := runner.stats()
+	require.Equal(t, 1, syncCalls)
+	require.Equal(t, 1, settleCalls)
+}
+
 func TestLotteryJobServiceRunOnceSkipsOverlappingRun(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})
