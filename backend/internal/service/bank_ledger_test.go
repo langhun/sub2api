@@ -20,7 +20,6 @@ func TestBuildBankLedgerPostings_AllSupportedTypesAreBalanced(t *testing.T) {
 		BankTxTypeSlotWin,
 		BankTxTypeLotteryWin,
 		BankTxTypeLoanBorrow,
-		BankTxTypeLoanRepay,
 		BankTxTypeLoanInterest,
 		BankTxTypeLendInvest,
 		BankTxTypeLendProfit,
@@ -43,6 +42,37 @@ func TestBuildBankLedgerPostings_AllSupportedTypesAreBalanced(t *testing.T) {
 			requireBankLedgerBalanced(t, postings)
 		})
 	}
+}
+
+func TestBuildBankLedgerPostings_LoanRepaySplitsInterestAndPrincipal(t *testing.T) {
+	account := bankTestAccount("10", "0", "20", "5")
+	account.ID = 99
+	account.UserID = 42
+	account.DebtPrincipal = bankDec("5")
+	account.DebtInterest = bankDec("2")
+	account.TotalDebt = bankDec("7")
+
+	mutation, err := calculateBankMutation(account, bankDec("3"), BankTxTypeLoanRepay)
+	require.NoError(t, err)
+
+	postings, err := buildBankLedgerPostings(
+		TransferFundsRequest{UserID: account.UserID, Type: BankTxTypeLoanRepay, BusinessModule: BankBusinessModuleLending},
+		account,
+		mutation,
+	)
+
+	require.NoError(t, err)
+	require.Len(t, postings, 3)
+	require.Equal(t, "USER:42:BALANCE", postings[0].account.code)
+	require.Equal(t, bankLedgerSideDebit, postings[0].side)
+	requireBankDecimal(t, "3", postings[0].amount)
+	require.Equal(t, "PLATFORM:RECEIVABLE:LOAN_INTEREST", postings[1].account.code)
+	require.Equal(t, bankLedgerSideCredit, postings[1].side)
+	requireBankDecimal(t, "2", postings[1].amount)
+	require.Equal(t, "PLATFORM:RECEIVABLE:LOAN_PRINCIPAL", postings[2].account.code)
+	require.Equal(t, bankLedgerSideCredit, postings[2].side)
+	requireBankDecimal(t, "1", postings[2].amount)
+	requireBankLedgerBalanced(t, postings)
 }
 
 func TestBuildBankLedgerPostings_ConsumeDebitsUserAndCreditsRevenue(t *testing.T) {

@@ -30,3 +30,15 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
   })
 })
+
+describe('AppSidebar game hall entry', () => {
+  it('keeps entertainment hall visible in simple mode when the feature flag is enabled', () => {
+    const gameHallItem = componentSource.match(/\{ path: '\/games'[\s\S]*?\}/)?.[0]
+
+    expect(gameHallItem).toBeTruthy()
+    expect(gameHallItem).toContain('featureFlag: flagGameHall')
+    expect(gameHallItem).not.toContain('hideInSimpleMode')
+    expect(componentSource).toContain('if (flagGameHall())')
+    expect(componentSource).toContain("filtered.push({ path: '/games'")
+  })
+})

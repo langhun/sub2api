@@ -122,7 +122,7 @@ func buildBankLedgerPostings(
 	case BankTxTypeLoanBorrow:
 		return bankDebitCredit(bankPlatformLoanReceivable(), available, amount, account.UserID), nil
 	case BankTxTypeLoanRepay:
-		return bankDebitCredit(available, bankPlatformLoanReceivable(), amount, account.UserID), nil
+		return bankLoanRepayPostings(available, amount, account, mutation)
 	case BankTxTypeLoanInterest:
 		return bankDebitCredit(bankPlatformInterestReceivable(), bankPlatformInterestRevenue(), amount, 0), nil
 	case BankTxTypeLendInvest, BankTxTypeFreeze:
@@ -143,6 +143,38 @@ func buildBankLedgerPostings(
 	default:
 		return nil, ErrBankInvalidType
 	}
+}
+
+func bankLoanRepayPostings(
+	available bankLedgerAccountSpec,
+	amount decimal.Decimal,
+	account bankAccountSnapshot,
+	mutation bankMutation,
+) ([]bankLedgerPosting, error) {
+	principalBefore, interestBefore, _ := bankDebtParts(account)
+	principalPaid := principalBefore.Sub(mutation.debtPrincipalAfter)
+	interestPaid := interestBefore.Sub(mutation.debtInterestAfter)
+	if principalPaid.IsNegative() || interestPaid.IsNegative() {
+		return nil, ErrBankInvalidAmount
+	}
+	totalPaid := principalPaid.Add(interestPaid)
+	if !totalPaid.Equal(amount) {
+		return nil, ErrBankInvalidAmount
+	}
+
+	postings := []bankLedgerPosting{
+		bankLedgerPostingFor(available, bankLedgerSideDebit, amount, account.UserID),
+	}
+	if interestPaid.GreaterThan(decimal.Zero) {
+		postings = append(postings, bankLedgerPostingFor(bankPlatformInterestReceivable(), bankLedgerSideCredit, interestPaid, account.UserID))
+	}
+	if principalPaid.GreaterThan(decimal.Zero) {
+		postings = append(postings, bankLedgerPostingFor(bankPlatformLoanReceivable(), bankLedgerSideCredit, principalPaid, account.UserID))
+	}
+	if len(postings) == 1 {
+		return nil, ErrBankInvalidAmount
+	}
+	return postings, nil
 }
 
 func bankLotteryBetPostings(

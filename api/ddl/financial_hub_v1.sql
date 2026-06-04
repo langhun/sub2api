@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS transactions_log (
             'TRANSFER_IN',
             'SLOT_BET',
             'SLOT_WIN',
+            'LOTTERY_BET',
+            'LOTTERY_WIN',
             'LOAN_BORROW',
             'LOAN_REPAY',
             'LOAN_INTEREST',
