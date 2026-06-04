@@ -48,14 +48,14 @@ export type BankTransaction = FinanceTransaction
 export type BankTransactionQuery = FinanceTransactionQuery
 
 export async function getFinanceAccount(): Promise<FinanceAccount> {
-  const { data } = await apiClient.get<FinanceAccount>('/bank/account')
+  const { data } = await apiClient.get<FinanceAccount>('/finance/account')
   return data
 }
 
 export async function getFinanceTransactions(
   params: FinanceTransactionQuery = {},
 ): Promise<PaginatedResponse<FinanceTransaction>> {
-  const { data } = await apiClient.get<PaginatedResponse<FinanceTransaction>>('/bank/transactions', { params })
+  const { data } = await apiClient.get<PaginatedResponse<FinanceTransaction>>('/finance/transactions', { params })
   return data
 }
 

@@ -97,6 +97,11 @@ func RegisterUserRoutes(
 			bank.GET("/account", h.BankCenter.GetAccount)
 			bank.GET("/transactions", h.BankCenter.ListTransactions)
 		}
+		finance := authenticated.Group("/finance")
+		{
+			finance.GET("/account", h.BankCenter.GetAccount)
+			finance.GET("/transactions", h.BankCenter.ListTransactions)
+		}
 
 		// 公告（用户可见）
 		announcements := authenticated.Group("/announcements")
