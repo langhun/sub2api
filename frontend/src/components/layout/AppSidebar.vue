@@ -182,7 +182,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { sanitizeSvg } from '@/utils/sanitize'
-import { FeatureFlags, isRedPacketFeatureEnabled, makeSidebarFlag } from '@/utils/featureFlags'
+import { FeatureFlags, isGameHallFeatureEnabled, isRedPacketFeatureEnabled, makeSidebarFlag } from '@/utils/featureFlags'
 
 const { t } = useI18n()
 
@@ -676,6 +676,7 @@ const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagTransfer = makeSidebarFlag(FeatureFlags.transfer)
 const flagRedPacket = () => isRedPacketFeatureEnabled()
+const flagGameHall = () => isGameHallFeatureEnabled()
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
@@ -702,6 +703,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/checkin', label: t('nav.checkin'), icon: StarIcon },
+    { path: '/games', label: t('nav.gameHall'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagGameHall },
     { path: '/transfer', label: t('nav.transfer'), icon: DollarIcon, hideInSimpleMode: true, featureFlag: flagTransfer },
     { path: '/redpacket', label: t('nav.redpacket'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagRedPacket },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },

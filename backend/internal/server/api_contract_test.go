@@ -912,6 +912,7 @@ func TestAPIContracts(t *testing.T) {
 					"channel_monitor_enabled": true,
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
+					"game_hall_enabled": false,
 					"risk_control_enabled": false,
 					"redeem_code_format": {
 						"prefix": "",
@@ -1240,6 +1241,7 @@ func TestAPIContracts(t *testing.T) {
 					"channel_monitor_enabled": true,
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
+					"game_hall_enabled": false,
 					"risk_control_enabled": false,
 					"redeem_code_format": {
 						"prefix": "",

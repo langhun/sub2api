@@ -114,6 +114,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Red Packet',
   }),
+  gameHall: defineFlag({
+    key: 'game_hall_enabled',
+    mode: 'opt-in',
+    label: 'Entertainment Hall',
+  }),
   payment: defineFlag({
     key: 'payment_enabled',
     mode: 'opt-out',
@@ -164,4 +169,8 @@ export function isTransferFeatureEnabled(): boolean {
 
 export function isRedPacketFeatureEnabled(): boolean {
   return isTransferFeatureEnabled() && isFeatureFlagEnabled(FeatureFlags.redpacket)
+}
+
+export function isGameHallFeatureEnabled(): boolean {
+  return isFeatureFlagEnabled(FeatureFlags.gameHall)
 }

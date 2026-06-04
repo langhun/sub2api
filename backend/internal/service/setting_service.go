@@ -738,6 +738,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeyGameHallEnabled,
 		SettingKeyTransferEnabled,
 		SettingKeyRedPacketEnabled,
 		SettingKeyAffiliateEnabled,
@@ -865,6 +866,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
+		GameHallEnabled:          settings[SettingKeyGameHallEnabled] == "true",
 		TransferEnabled:          settings[SettingKeyTransferEnabled] == "true",
 		RedPacketEnabled:         settings[SettingKeyRedPacketEnabled] == "true",
 
@@ -1180,6 +1182,7 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
+	GameHallEnabled                      bool `json:"game_hall_enabled"`
 	TransferEnabled                      bool `json:"transfer_enabled"`
 	RedPacketEnabled                     bool `json:"redpacket_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
@@ -1253,6 +1256,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		GameHallEnabled:                      settings.GameHallEnabled,
 		TransferEnabled:                      settings.TransferEnabled,
 		RedPacketEnabled:                     settings.RedPacketEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
@@ -1948,8 +1952,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		updates[SettingKeyChannelMonitorDefaultIntervalSeconds] = strconv.Itoa(v)
 	}
 
-	// Available channels feature switch
+	// Available channels / game hall feature switches
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
+	updates[SettingKeyGameHallEnabled] = strconv.FormatBool(settings.GameHallEnabled)
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
@@ -3108,8 +3113,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyChannelMonitorEnabled:                "true",
 		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",
 
-		// Available channels feature (default disabled; opt-in)
+		// Available channels / game hall features (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
+		SettingKeyGameHallEnabled:          "false",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
@@ -3632,8 +3638,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		settings[SettingKeyChannelMonitorDefaultIntervalSeconds],
 	)
 
-	// Available channels feature (default: disabled; strict true)
+	// Available channels / game hall features (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
+	result.GameHallEnabled = settings[SettingKeyGameHallEnabled] == "true"
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"

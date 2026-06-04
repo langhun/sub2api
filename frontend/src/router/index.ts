@@ -9,7 +9,7 @@ import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useNavigationLoadingState } from '@/composables/useNavigationLoading'
 import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
-import { isRedPacketFeatureEnabled, isTransferFeatureEnabled } from '@/utils/featureFlags'
+import { isGameHallFeatureEnabled, isRedPacketFeatureEnabled, isTransferFeatureEnabled } from '@/utils/featureFlags'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveDocumentTitle } from './title'
@@ -345,6 +345,18 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       titleKey: 'nav.checkin',
       descriptionKey: 'checkin.page.description'
+    }
+  },
+  {
+    path: '/games',
+    name: 'GameHall',
+    component: () => import('@/views/user/GameHallView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Entertainment Hall',
+      titleKey: 'nav.gameHall',
+      requiresGameHall: true,
     }
   },
   {
@@ -947,6 +959,11 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   if (to.meta.requiresRedPacket && !isRedPacketFeatureEnabled()) {
+    next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
+    return
+  }
+
+  if (to.meta.requiresGameHall && !isGameHallFeatureEnabled()) {
     next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
     return
   }

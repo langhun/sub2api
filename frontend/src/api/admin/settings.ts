@@ -650,8 +650,9 @@ export interface SystemSettings {
   channel_monitor_enabled: boolean;
   channel_monitor_default_interval_seconds: number;
 
-  // Available Channels feature switch
+  // Available Channels / Game Hall feature switches
   available_channels_enabled: boolean;
+  game_hall_enabled: boolean;
 
   // Balance Transfer 余额流转设置
   transfer_enabled: boolean;
@@ -928,6 +929,7 @@ export interface UpdateSettingsRequest {
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
 
   // Balance Transfer 余额流转设置
+  game_hall_enabled?: boolean;
   transfer_enabled?: boolean;
   transfer_fee_rate?: number;
   transfer_min_amount?: number;

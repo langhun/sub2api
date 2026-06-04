@@ -320,6 +320,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+		GameHallEnabled:          settings.GameHallEnabled,
 
 		TransferEnabled:         settings.TransferEnabled,
 		TransferFeeRate:         settings.TransferFeeRate,
@@ -697,8 +698,9 @@ type UpdateSettingsRequest struct {
 	ChannelMonitorEnabled                *bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds *int  `json:"channel_monitor_default_interval_seconds"`
 
-	// Available Channels feature switch (user-facing)
+	// Available Channels / Game Hall feature switches (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
+	GameHallEnabled          *bool `json:"game_hall_enabled"`
 
 	// Balance Transfer 余额流转设置
 	TransferEnabled         *bool    `json:"transfer_enabled"`
@@ -1907,6 +1909,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
+		GameHallEnabled: func() bool {
+			if req.GameHallEnabled != nil {
+				return *req.GameHallEnabled
+			}
+			return previousSettings.GameHallEnabled
+		}(),
 		TransferEnabled: func() bool {
 			if req.TransferEnabled != nil {
 				return *req.TransferEnabled
@@ -2320,6 +2328,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: updatedSettings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
+		GameHallEnabled:          updatedSettings.GameHallEnabled,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 

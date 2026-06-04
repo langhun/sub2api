@@ -512,6 +512,7 @@ const (
 	SettingKeyCheckinBlindboxInterval    = "checkin_blindbox_interval"     // 触发间隔: 每N天/次
 
 	// Balance Transfer 余额流转设置
+	SettingKeyGameHallEnabled         = "game_hall_enabled"
 	SettingKeyTransferEnabled         = "transfer_enabled"
 	SettingKeyTransferFeeRate         = "transfer_fee_rate"
 	SettingKeyTransferMinAmount       = "transfer_min_amount"

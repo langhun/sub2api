@@ -266,8 +266,9 @@ type SystemSettings struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
-	// Available Channels feature switch (user-facing aggregate view)
+	// Available Channels / Game Hall feature switches
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+	GameHallEnabled          bool `json:"game_hall_enabled"`
 
 	// Balance Transfer 余额流转设置
 	TransferEnabled         bool    `json:"transfer_enabled"`
@@ -361,6 +362,7 @@ type PublicSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+	GameHallEnabled          bool `json:"game_hall_enabled"`
 
 	TransferEnabled  bool `json:"transfer_enabled"`
 	RedPacketEnabled bool `json:"redpacket_enabled"`

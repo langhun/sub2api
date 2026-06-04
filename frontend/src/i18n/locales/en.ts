@@ -409,6 +409,7 @@
     docs: 'Docs',
     myOrders: 'My Orders',
   checkin: 'Check-in Center',
+    gameHall: 'Entertainment Hall',
     orderManagement: 'Orders',
     paymentDashboard: 'Payment Dashboard',
     paymentConfig: 'Payment Config',
@@ -6258,6 +6259,11 @@
           configureLink: 'Configure model pricing in Channel Management > Channel Pricing',
           enabled: 'Enable Available Channels',
           enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty list.',
+        },
+        gameHall: {
+          title: 'Entertainment Hall',
+          enabled: 'Enable Entertainment Hall',
+          enabledHint: 'When off, the user sidebar entry is hidden and entertainment hall access is blocked.',
         },
         riskControl: {
           title: 'Risk Control',

@@ -389,6 +389,7 @@ export default {
     "docs": "文档",
     "myOrders": "我的订单",
     "checkin": "签到中心",
+    "gameHall": "娱乐大厅",
     "orderManagement": "订单管理",
     "paymentDashboard": "支付概览",
     "paymentConfig": "支付配置",
@@ -6283,6 +6284,11 @@ export default {
           "configureLink": "前往 渠道管理 > 渠道定价 配置模型价格",
           "enabled": "启用可用渠道",
           "enabledHint": "关闭后用户端侧边栏入口隐藏，接口返回空数组。"
+        },
+        "gameHall": {
+          "title": "娱乐大厅",
+          "enabled": "启用娱乐大厅",
+          "enabledHint": "关闭后隐藏用户侧边栏入口，并拒绝娱乐大厅访问。"
         },
         "transfer": {
           "title": "转账设置",
