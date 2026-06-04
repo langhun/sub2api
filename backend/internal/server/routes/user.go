@@ -134,6 +134,13 @@ func RegisterUserRoutes(
 			games.POST("/play", h.Game.Play)
 		}
 
+		lottery := authenticated.Group("/lottery")
+		{
+			lottery.GET("/current", h.Lottery.GetCurrent)
+			lottery.POST("/bet", h.Lottery.Bet)
+			lottery.GET("/orders", h.Lottery.GetOrders)
+		}
+
 		subscriptions := authenticated.Group("/subscriptions")
 		{
 			subscriptions.GET("", h.Subscription.List)

@@ -65,6 +65,7 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	Transfer         *BalanceTransferHandler
 	Game             *GameHandler
+	Lottery          *LotteryHandler
 	BankCenter       *BankCenterHandler
 }
 
