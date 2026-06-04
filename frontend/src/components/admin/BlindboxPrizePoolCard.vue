@@ -36,7 +36,7 @@
           </div>
           <div>
             <label class="mb-2 block text-sm font-medium opacity-0">&nbsp;</label>
-            <button type="button" @click="showCreate = true" class="btn btn-primary">
+            <button type="button" @click="showCreate = true" class="btn btn-secondary">
               <Icon name="plus" size="md" class="mr-1" />
               {{ t('admin.blindbox.createItem') }}
             </button>
@@ -50,11 +50,11 @@
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.blindbox.totalItems') }}</p>
           </div>
           <div class="rounded-lg bg-gray-50 p-3 text-center dark:bg-dark-800">
-            <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ stats.enabled_items }}</p>
+            <p class="text-lg font-bold text-gray-700 dark:text-gray-300">{{ stats.enabled_items }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.blindbox.enabledItems') }}</p>
           </div>
           <div class="rounded-lg bg-gray-50 p-3 text-center dark:bg-dark-800">
-            <p class="text-lg font-bold text-purple-600 dark:text-purple-400">{{ stats.total_draws }}</p>
+            <p class="text-lg font-bold text-gray-700 dark:text-gray-300">{{ stats.total_draws }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.blindbox.totalDraws') }}</p>
           </div>
         </div>
@@ -62,7 +62,7 @@
         <!-- Prize Items Table -->
         <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-700">
           <div v-if="loading" class="flex items-center justify-center py-8">
-            <div class="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+            <div class="h-5 w-5 animate-spin rounded-full border-2 border-gray-200 border-t-transparent"></div>
           </div>
           <div v-else-if="items.length === 0" class="py-8 text-center text-sm text-gray-400 dark:text-gray-500">
             {{ t('admin.blindbox.empty') }}
@@ -91,12 +91,12 @@
                 <td class="px-3 py-2 text-gray-600 dark:text-gray-300">{{ formatReward(item) }}</td>
                 <td class="px-3 py-2 text-gray-600 dark:text-gray-300">{{ item.weight }}</td>
                 <td class="px-3 py-2">
-                  <span :class="item.is_enabled ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'" class="text-xs font-medium">
+                  <span :class="item.is_enabled ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'" class="text-xs font-medium">
                     {{ item.is_enabled ? t('common.enabled') : t('common.disabled') }}
                   </span>
                 </td>
                 <td class="px-3 py-2 text-right">
-                  <button type="button" @click="editItem(item)" class="mr-2 text-primary-600 hover:text-primary-700 dark:text-primary-400">{{ t('common.edit') }}</button>
+                  <button type="button" @click="editItem(item)" class="mr-2 text-gray-700 hover:text-gray-700 dark:text-gray-300">{{ t('common.edit') }}</button>
                   <button type="button" @click="deleteItem(item)" class="text-red-500 hover:text-red-600">{{ t('common.delete') }}</button>
                 </td>
               </tr>
@@ -107,7 +107,7 @@
     </template>
 
     <!-- Create/Edit Modal -->
-    <div v-if="showCreate || editingItem" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="closeModal">
+    <div v-if="showCreate || editingItem" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="closeModal">
       <div class="card mx-4 w-full max-w-lg space-y-4 p-6">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
           {{ editingItem ? t('admin.blindbox.editItem') : t('admin.blindbox.createItem') }}
@@ -172,7 +172,7 @@
             </div>
             <div class="flex items-end">
               <label class="flex items-center gap-2 text-sm">
-                <input v-model="form.is_enabled" type="checkbox" class="rounded border-gray-300 dark:border-dark-600" />
+                <input v-model="form.is_enabled" type="checkbox" class="rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)] dark:border-dark-600" />
                 {{ t('common.enabled') }}
               </label>
             </div>
@@ -180,7 +180,7 @@
         </div>
         <div class="flex justify-end gap-3 pt-2">
           <button type="button" @click="closeModal" class="btn btn-secondary">{{ t('common.cancel') }}</button>
-          <button type="button" @click="saveItem" class="btn btn-primary" :disabled="saving">
+          <button type="button" @click="saveItem" class="btn btn-secondary" :disabled="saving">
             {{ saving ? t('common.saving') : t('common.save') }}
           </button>
         </div>
@@ -226,8 +226,8 @@ const form = ref({ ...defaultForm })
 function rarityClass(rarity: string): string {
   switch (rarity) {
     case 'legendary': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-    case 'epic': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-    case 'rare': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+    case 'epic': return 'badge-info'
+    case 'rare': return 'badge-secondary'
     default: return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
   }
 }

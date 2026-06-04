@@ -39,7 +39,7 @@
         </template>
 
         <template #cell-eligible="{ value }">
-          <span :class="['badge', value ? 'badge-success' : 'badge-gray']">
+          <span :class="['badge', value ? 'badge-success' : 'badge-secondary']">
             {{ value ? t('admin.announcements.eligible') : t('common.no') }}
           </span>
         </template>

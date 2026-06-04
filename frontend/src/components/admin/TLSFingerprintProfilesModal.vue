@@ -11,7 +11,7 @@
         <p class="text-sm text-gray-500 dark:text-gray-400">
           {{ t('admin.tlsFingerprintProfiles.description') }}
         </p>
-        <button @click="showCreateModal = true" class="btn btn-primary btn-sm">
+        <button @click="showCreateModal = true" class="btn btn-secondary btn-sm">
           <Icon name="plus" size="sm" class="mr-1" />
           {{ t('admin.tlsFingerprintProfiles.createProfile') }}
         </button>
@@ -70,7 +70,7 @@
                 <Icon
                   :name="profile.enable_grease ? 'check' : 'lock'"
                   size="sm"
-                  :class="profile.enable_grease ? 'text-green-500' : 'text-gray-400'"
+                  :class="profile.enable_grease ? 'text-gray-700' : 'text-gray-400'"
                 />
               </td>
               <td class="px-3 py-2">
@@ -78,7 +78,7 @@
                   <span
                     v-for="proto in profile.alpn_protocols.slice(0, 3)"
                     :key="proto"
-                    class="badge badge-primary text-xs"
+                    class="badge badge-gray text-xs"
                   >
                     {{ proto }}
                   </span>
@@ -92,7 +92,7 @@
                 <div class="flex items-center gap-1">
                   <button
                     @click="handleEdit(profile)"
-                    class="p-1 text-gray-500 hover:text-primary-600 dark:hover:text-primary-400"
+                    class="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-700"
                     :title="t('common.edit')"
                   >
                     <Icon name="edit" size="sm" />
@@ -145,7 +145,7 @@
             </button>
             <p class="text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.tlsFingerprintProfiles.form.pasteYamlHint') }}
-              <a href="https://tls.sub2api.org" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 underline">{{ t('admin.tlsFingerprintProfiles.form.openCollector') }}</a>
+              <a href="https://tls.sub2api.org" target="_blank" rel="noopener noreferrer" class="text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700 underline">{{ t('admin.tlsFingerprintProfiles.form.openCollector') }}</a>
             </p>
           </div>
         </div>
@@ -181,14 +181,14 @@
             type="button"
             @click="form.enable_grease = !form.enable_grease"
             :class="[
-              'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              form.enable_grease ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+              'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2',
+              form.enable_grease ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-gray-200 dark:bg-dark-600'
             ]"
           >
             <span
               :class="[
-                'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                form.enable_grease ? 'translate-x-4' : 'translate-x-0'
+                'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out',
+                form.enable_grease ? 'translate-x-[14px]' : 'translate-x-0'
               ]"
             />
           </button>
@@ -304,7 +304,7 @@
           <button @click="closeFormModal" type="button" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button @click="handleSubmit" :disabled="submitting" class="btn btn-primary">
+          <button @click="handleSubmit" :disabled="submitting" class="btn btn-secondary">
             <Icon v-if="submitting" name="refresh" size="sm" class="mr-1 animate-spin" />
             {{ showEditModal ? t('common.update') : t('common.create') }}
           </button>

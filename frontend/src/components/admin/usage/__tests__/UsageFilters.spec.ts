@@ -43,6 +43,28 @@ describe('admin usage filters', () => {
     getModelStats.mockResolvedValue({ models: [{ model: 'gpt-5.4' }] })
   })
 
+  it('keeps action slot dropdowns outside the filter card clipping area', () => {
+    const wrapper = mount(UsageFilters, {
+      props: {
+        modelValue: {},
+        exporting: false,
+        startDate: '2026-05-03',
+        endDate: '2026-05-04',
+      },
+      slots: {
+        'after-reset': '<div class="column-dropdown-probe">column settings</div>',
+      },
+      global: {
+        stubs: {
+          Select: SelectStub,
+        },
+      },
+    })
+
+    expect(wrapper.classes()).toContain('overflow-visible')
+    expect(wrapper.find('.column-dropdown-probe').exists()).toBe(true)
+  })
+
   it('defers model stats option loading until the model filter is focused', async () => {
     const wrapper = mount(UsageFilters, {
       props: {

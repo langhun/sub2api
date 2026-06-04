@@ -70,10 +70,10 @@ const STATUS_HEIGHT: Record<string, number> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  operational: 'bg-emerald-500',
-  degraded: 'bg-amber-500',
-  failed: 'bg-red-500',
-  error: 'bg-red-500',
+  operational: 'bg-[var(--success)]',
+  degraded: 'bg-[var(--warning)]',
+  failed: 'bg-[var(--destructive)]',
+  error: 'bg-[var(--destructive)]',
   empty: 'bg-gray-300 dark:bg-dark-600',
 }
 

@@ -3,25 +3,25 @@
     <div class="w-full max-w-md space-y-6">
       <!-- Loading -->
       <div v-if="loading" class="flex items-center justify-center py-20">
-        <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
+        <div class="h-8 w-8 animate-spin rounded-full border-4 border-gray-500 border-t-transparent"></div>
       </div>
       <template v-else>
         <!-- Status Icon -->
         <div class="text-center">
           <div v-if="isSuccess"
-            class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <svg class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            class="feature-icon feature-icon-success mx-auto flex h-20 w-20 items-center justify-center rounded-xl">
+            <svg class="h-10 w-10 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"
               stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
           <div v-else-if="isPending"
-            class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
-            <div class="h-10 w-10 animate-spin rounded-full border-4 border-yellow-500 border-t-transparent"></div>
+            class="feature-icon feature-icon-warning mx-auto flex h-20 w-20 items-center justify-center rounded-xl">
+            <div class="h-10 w-10 animate-spin rounded-full border-4 border-current border-t-transparent"></div>
           </div>
           <div v-else
-            class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-            <svg class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            class="feature-icon feature-icon-danger mx-auto flex h-20 w-20 items-center justify-center rounded-xl">
+            <svg class="h-10 w-10 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
@@ -33,7 +33,7 @@
           </p>
         </div>
         <!-- Order Info -->
-        <div v-if="order" class="rounded-xl bg-white p-5 shadow-sm dark:bg-dark-800">
+        <div v-if="order" :class="['rounded-xl border p-5 shadow-sm', orderInfoPanelClass]">
           <div class="space-y-3 text-sm">
             <div class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
@@ -53,11 +53,16 @@
             </div>
             <div class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-              <span class="font-bold text-primary-600 dark:text-primary-400">{{ formatGatewayAmount(order.pay_amount) }}</span>
+              <span class="font-bold text-gray-600 dark:text-gray-400">{{ formatGatewayAmount(order.pay_amount) }}</span>
             </div>
             <div v-if="order.amount !== order.pay_amount" class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.creditedAmount') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ order.order_type === 'balance' ? '$' + order.amount.toFixed(2) : formatGatewayAmount(order.amount) }}</span>
+              <span
+                class="font-medium text-gray-900 dark:text-white"
+                :title="order.order_type === 'balance' ? formatBalanceTitle(order.amount) : undefined"
+              >
+                {{ order.order_type === 'balance' ? formatBalanceDisplay(order.amount) : formatGatewayAmount(order.amount) }}
+              </span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.paymentMethod') }}</span>
@@ -70,7 +75,7 @@
           </div>
         </div>
         <!-- EasyPay return info (when no order loaded) -->
-        <div v-else-if="returnInfo" class="rounded-xl bg-white p-5 shadow-sm dark:bg-dark-800">
+        <div v-else-if="returnInfo" class="feature-panel-info rounded-xl border p-5 shadow-sm">
           <div class="space-y-3 text-sm">
             <div v-if="returnInfo.outTradeNo" class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
@@ -89,7 +94,7 @@
         <!-- Actions -->
         <div class="flex gap-3">
           <button class="btn btn-secondary flex-1" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
-          <button class="btn btn-primary flex-1" @click="router.push('/orders')">{{ t('payment.result.viewOrders') }}</button>
+          <button class="btn btn-secondary flex-1" @click="router.push('/orders')">{{ t('payment.result.viewOrders') }}</button>
         </div>
       </template>
     </div>
@@ -111,6 +116,7 @@ import { paymentAPI } from '@/api/payment'
 import type { PaymentOrder } from '@/types/payment'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import { normalizePaymentMethodForDisplay, paymentMethodI18nKey } from './paymentUx'
+import { formatDualDisplayAmount } from '@/utils/format'
 
 const i18n = useI18n()
 const { t } = i18n
@@ -181,12 +187,26 @@ const statusTitle = computed(() => {
   return t('payment.result.failed')
 })
 
+const orderInfoPanelClass = computed(() => {
+  if (isSuccess.value) return 'feature-panel-success'
+  if (isPending.value) return 'feature-panel-warning'
+  return 'feature-panel-danger'
+})
+
 function normalizedOrderPaymentType(paymentType: string): string {
   return normalizePaymentMethodForDisplay(paymentType) || paymentType
 }
 
 function formatGatewayAmount(value: number): string {
   return formatPaymentAmount(value, currency.value, localeCode.value)
+}
+
+function formatBalanceDisplay(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).display
+}
+
+function formatBalanceTitle(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).full
 }
 
 function setResolvedOrder(nextOrder: PaymentOrder | null): void {

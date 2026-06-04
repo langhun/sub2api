@@ -10,19 +10,19 @@
         </p>
       </div>
       <div class="grid grid-cols-2 gap-2 sm:min-w-[220px]">
-        <div class="rounded-xl bg-gray-50 px-3 py-2 dark:bg-dark-800/80">
-          <div class="text-[11px] text-gray-500 dark:text-dark-400">
+        <div class="leaderboard-summary-card rounded-xl px-3 py-2">
+          <div class="leaderboard-summary-label text-[11px]">
             {{ valueLabel }}
           </div>
-          <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+          <div class="leaderboard-summary-value mt-1 text-sm font-semibold" :title="formatValueTitle(totalValue)">
             {{ formatValue(totalValue) }}
           </div>
         </div>
-        <div class="rounded-xl bg-gray-50 px-3 py-2 dark:bg-dark-800/80">
-          <div class="text-[11px] text-gray-500 dark:text-dark-400">
+        <div class="leaderboard-summary-card rounded-xl px-3 py-2">
+          <div class="leaderboard-summary-label text-[11px]">
             {{ t('leaderboard.totalUsers') }}
           </div>
-          <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+          <div class="leaderboard-summary-value mt-1 text-sm font-semibold">
             {{ totalUsers }}
           </div>
         </div>
@@ -103,7 +103,7 @@
               <td class="py-2 text-right text-gray-600 dark:text-gray-400">
                 {{ formatMetric(entry) }}
               </td>
-              <td class="py-2 text-right text-green-600 dark:text-green-400">
+              <td class="py-2 text-right text-green-600 dark:text-green-400" :title="formatValueTitle(entry.value)">
                 {{ formatValue(entry.value) }}
               </td>
               <td class="py-2 text-right text-gray-400 dark:text-gray-500">
@@ -131,6 +131,7 @@ import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 
 import type { LeaderboardChartItem, LeaderboardEntry, LeaderboardSummary } from '@/api/leaderboard'
+import { formatDualDisplayAmount } from '@/utils/format'
 import { createConsumptionLeaderboardPalette } from './consumptionChartPalette'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
@@ -233,7 +234,7 @@ function rankClass(rank: number): string {
   if (rank === 1) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
   if (rank === 2) return 'bg-slate-200 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200'
   if (rank === 3) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-  return 'bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-dark-300'
+  return 'bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-300'
 }
 
 function getEntryColor(rank: number): string {
@@ -273,24 +274,31 @@ function formatValue(value: number): string {
   if (props.valueType === 'number') {
     return value.toLocaleString()
   }
-  return `$${formatCurrency(value)}`
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).display
 }
 
-function formatCurrency(value: number): string {
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(2)}K`
+function formatValueTitle(value: number): string {
+  if (props.valueType === 'number') {
+    return value.toLocaleString()
   }
-  if (value >= 1) {
-    return value.toFixed(2)
-  }
-  if (value >= 0.01) {
-    return value.toFixed(3)
-  }
-  return value.toFixed(4)
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).full
 }
 </script>
 
 <style scoped>
+.leaderboard-summary-card {
+  background: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.leaderboard-summary-label {
+  color: var(--muted-foreground);
+}
+
+.leaderboard-summary-value {
+  color: var(--foreground);
+}
+
 .leaderboard-chart-ranking-scroll {
   scrollbar-gutter: stable;
   scrollbar-width: thin;

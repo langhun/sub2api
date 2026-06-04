@@ -84,6 +84,9 @@ function mountView(settings: Record<string, boolean>) {
   return mount(LeaderboardView, {
     global: {
       stubs: {
+        AppLayout: {
+          template: '<div class="app-layout-stub"><h1>Leaderboard</h1><p>Top users</p><slot /></div>',
+        },
         PublicPageHeader: { template: '<header />' },
         PublicPageFooter: { template: '<footer />' },
         PublicLeaderboardChart: {
@@ -108,6 +111,20 @@ describe('LeaderboardView tab switches', () => {
     getBalanceLeaderboard.mockReset().mockResolvedValue(emptyLeaderboard())
     getConsumptionLeaderboard.mockReset().mockResolvedValue(emptyLeaderboard())
     getCheckinLeaderboard.mockReset().mockResolvedValue(emptyLeaderboard())
+  })
+
+  it('uses the layout heading without rendering a duplicate page title', async () => {
+    const wrapper = mountView({
+      leaderboard_balance_enabled: true,
+      leaderboard_consumption_enabled: false,
+      leaderboard_transfer_enabled: false,
+      leaderboard_checkin_enabled: false,
+    })
+
+    await settleLeaderboard()
+
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Leaderboard'])
+    expect((wrapper.text().match(/Top users/g) ?? []).length).toBe(1)
   })
 
   it('shows only enabled public leaderboard tabs', async () => {

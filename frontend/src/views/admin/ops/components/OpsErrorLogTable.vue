@@ -2,7 +2,7 @@
   <div class="flex h-full min-h-0 flex-col bg-white dark:bg-dark-900">
     <!-- Loading State -->
     <div v-if="loading" class="flex flex-1 items-center justify-center py-10">
-      <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-600"></div>
+      <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-200"></div>
     </div>
 
     <!-- Table Container -->
@@ -104,7 +104,7 @@
                       <span class="flex items-center gap-1 truncate font-mono text-[11px] text-gray-700 dark:text-gray-300">
                         <span class="truncate">{{ log.requested_model }}</span>
                         <span class="flex-shrink-0 text-gray-400">→</span>
-                        <span class="truncate text-primary-600 dark:text-primary-400">{{ log.upstream_model }}</span>
+                        <span class="truncate text-gray-700 dark:text-gray-300">{{ log.upstream_model }}</span>
                       </span>
                     </el-tooltip>
                   </template>
@@ -185,7 +185,7 @@
               <!-- Actions -->
               <td class="whitespace-nowrap px-4 py-2 text-right" @click.stop>
                 <div class="flex items-center justify-end gap-3">
-                  <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400 text-xs font-bold" @click="emit('openErrorDetail', log.id)">
+                  <button type="button" class="text-gray-700 hover:text-gray-700 dark:text-gray-300 text-xs font-bold" @click="emit('openErrorDetail', log.id)">
                     {{ t('admin.ops.errorLog.details') }}
                   </button>
                 </div>
@@ -273,13 +273,13 @@ function getTypeBadge(log: OpsErrorLog): { label: string; className: string } {
     return { label: t('admin.ops.errorLog.typeRequest'), className: 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/30' }
   }
   if (phase === 'auth' && owner === 'client') {
-    return { label: t('admin.ops.errorLog.typeAuth'), className: 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-500/30' }
+    return { label: t('admin.ops.errorLog.typeAuth'), className: 'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-900/30 dark:text-sky-400 dark:ring-sky-500/30' }
   }
   if (phase === 'routing' && owner === 'platform') {
-    return { label: t('admin.ops.errorLog.typeRouting'), className: 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-500/30' }
+    return { label: t('admin.ops.errorLog.typeRouting'), className: 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/30' }
   }
   if (phase === 'internal' && owner === 'platform') {
-    return { label: t('admin.ops.errorLog.typeInternal'), className: 'bg-gray-100 text-gray-800 ring-gray-600/20 dark:bg-dark-700 dark:text-gray-200 dark:ring-dark-500/40' }
+    return { label: t('admin.ops.errorLog.typeInternal'), className: 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/30' }
   }
 
     const fallback = phase || owner || t('common.unknown')
@@ -305,9 +305,9 @@ const emit = defineEmits<Emits>()
 
 function getStatusClass(code: number): string {
   if (code >= 500) return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-900/30 dark:text-red-400 dark:ring-red-500/30'
-  if (code === 429) return 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-500/30'
+  if (code === 429) return 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/30'
   if (code >= 400) return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/30'
-  return 'bg-gray-50 text-gray-700 ring-gray-600/20 dark:bg-gray-900/30 dark:text-gray-400 dark:ring-gray-500/30'
+  return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/30'
 }
 
 function formatSmartMessage(msg: string): string {

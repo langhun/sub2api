@@ -1,36 +1,22 @@
 <template>
   <AppLayout>
     <div class="mx-auto max-w-2xl space-y-5">
-      <section class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#ff355c] via-[#ff5b46] to-[#ff8c30] px-6 py-7 shadow-lg">
-        <div class="pointer-events-none absolute inset-0">
-          <div class="hero-glow hero-glow-left"></div>
-          <div class="hero-glow hero-glow-right"></div>
-          <span class="hero-spark hero-spark-a"></span>
-          <span class="hero-spark hero-spark-b"></span>
-          <span class="hero-spark hero-spark-c"></span>
-        </div>
-
-        <div class="relative flex items-center gap-5">
-          <div class="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
-            <svg viewBox="0 0 1024 1024" class="h-12 w-12" xmlns="http://www.w3.org/2000/svg">
-              <path d="M868.251 829.599c0 55-45 100-100 100H255.745c-55 0-100-45-100-100V194.401c0-55 45-100 100-100h512.506c55 0 100 45 100 100v635.198z" fill="#E7402E" />
-              <path d="M511.998 466.089c-96.093 0-173.991 77.899-173.991 173.991s77.899 173.991 173.991 173.991 173.991-77.899 173.991-173.991-77.898-173.991-173.991-173.991z m1 259.487l-85.496-85.496 85.496-85.496 85.496 85.496-85.496 85.496z" fill="#F4DD50" />
-              <path d="M340.103 880.595h-59.177c-40.901 0-74.177-42.621-74.177-95.008v-80.008c0-8.284 6.716-15 15-15 8.284 0 15 6.716 15 15v80.008c0 35.238 20.23 65.008 44.177 65.008h59.177c8.284 0 15 6.716 15 15s-6.716 15-15 15zM464.596 880.595h-44.997c-8.284 0-15-6.716-15-15s6.716-15 15-15h44.997c8.284 0 15 6.716 15 15s-6.715 15-15 15z" fill="#FFFFFF" />
-              <path d="M768.25 944.599H255.745c-63.411 0-115-51.589-115-115V194.401c0-63.411 51.589-115 115-115H768.25c63.411 0 115 51.589 115 115v252.063c0 8.284-6.716 15-15 15-8.284 0-15-6.716-15-15V194.401c0-46.869-38.131-85-85-85H255.745c-46.869 0-85 38.131-85 85v635.198c0 46.869 38.131 85 85 85H768.25c46.869 0 85-38.131 85-85V696.951c0-8.284 6.716-15 15-15 8.284 0 15 6.716 15 15v132.648c0.001 63.411-51.588 115-115 115z" fill="#3D100B" />
-              <path d="M868.251 641.455c-8.284 0-15-6.716-15-15v-86.996c0-8.284 6.716-15 15-15s15 6.716 15 15v86.996c0 8.284-6.716 15-15 15zM549 422.096c-79.635 0-155.779-7.503-226.316-22.301-67.737-14.21-127.949-35.052-174.127-60.273-7.271-3.971-9.945-13.084-5.975-20.354 3.971-7.27 13.084-9.945 20.355-5.975C253.398 362.6 397.72 392.096 549 392.096c156.316 0 222.174-29.81 312.063-78.906 7.271-3.97 16.384-1.295 20.355 5.975 3.971 7.271 1.296 16.383-5.974 20.354C784.117 389.4 712.056 422.096 549 422.096z" fill="#3D100B" />
-            </svg>
+      <section class="rounded-xl border border-[var(--border)] bg-[var(--card)] px-6 py-7 shadow-sm">
+        <div class="flex items-center gap-5">
+          <div class="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] shadow-sm">
+            <Icon name="gift" size="xl" class="text-current" />
           </div>
           <div class="min-w-0 flex-1">
-            <h1 class="text-2xl font-bold tracking-tight text-white">
+            <h1 class="text-2xl font-bold tracking-tight text-[var(--foreground)]">
               {{ t('redpacket.title') }}
             </h1>
-            <p class="mt-1 text-sm text-white/80">
+            <p class="mt-1 text-sm text-[var(--muted-foreground)]">
               {{ t('redpacket.subtitle') }}
             </p>
           </div>
-          <div class="text-right">
-            <p class="text-xs text-white/70">{{ t('redpacket.currentBalance') }}</p>
-            <p class="mt-1 text-2xl font-bold text-white">${{ user?.balance?.toFixed(2) || '0.00' }}</p>
+          <div class="rounded-xl border border-[var(--border)] bg-[var(--muted)] px-4 py-2.5 text-right">
+            <p class="text-xs text-[var(--muted-foreground)]">{{ t('redpacket.currentBalance') }}</p>
+            <p class="mt-1 text-2xl font-bold text-[var(--foreground)]" :title="redPacketBalanceDisplay.full">{{ redPacketBalanceDisplay.display }}</p>
           </div>
         </div>
       </section>
@@ -39,7 +25,7 @@
         <button type="button" @click="openCreate" :class="actionCardClass('create')">
           <div class="flex items-center gap-3">
             <div class="action-illustration action-illustration-create">
-              <Icon name="sparkles" size="lg" class="text-rose-500" />
+              <Icon name="sparkles" size="lg" class="text-current" />
             </div>
             <div class="min-w-0 flex-1 text-left">
               <p class="text-base font-semibold text-slate-900 dark:text-white">
@@ -56,7 +42,7 @@
         <button type="button" @click="openClaim" :class="actionCardClass('claim')">
           <div class="flex items-center gap-3">
             <div class="action-illustration action-illustration-claim">
-              <Icon name="gift" size="lg" class="text-amber-500" />
+              <Icon name="gift" size="lg" class="text-current" />
             </div>
             <div class="min-w-0 flex-1 text-left">
               <p class="text-base font-semibold text-slate-900 dark:text-white">
@@ -73,10 +59,10 @@
 
       <transition name="fade">
         <section v-if="showCreate" class="card overflow-hidden">
-          <div class="border-b border-gray-100 bg-rose-50/80 px-5 py-3.5 dark:border-dark-700 dark:bg-dark-800/80">
+          <div class="border-b border-rose-100 bg-rose-50/80 px-5 py-3.5 dark:border-rose-500/20 dark:bg-rose-500/10">
             <div class="flex items-center gap-2.5">
-              <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-100 dark:bg-rose-900/25">
-                <Icon name="sparkles" size="sm" class="text-rose-500" />
+              <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
+                <Icon name="sparkles" size="sm" class="text-current" />
               </div>
               <p class="text-sm font-semibold text-slate-900 dark:text-white">
                 {{ t('redpacket.create') }}
@@ -117,7 +103,7 @@
                 <input v-model="createForm.memo" type="text" maxlength="100" :placeholder="t('redpacket.memoPlaceholder')" :disabled="createLoading" class="input mt-1 w-full" />
               </div>
 
-              <p v-if="createError" class="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:border-rose-900/30 dark:bg-rose-900/20 dark:text-rose-300">
+              <p v-if="createError" class="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
                 {{ createError }}
               </p>
 
@@ -135,9 +121,9 @@
               </div>
             </form>
 
-            <div v-if="createdRp" class="rounded-xl border border-emerald-100 bg-emerald-50/80 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
+            <div v-if="createdRp" class="rounded-xl border border-emerald-100 bg-emerald-50/80 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
               <div class="flex items-start gap-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-emerald-500 shadow-sm dark:bg-dark-800">
+                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm dark:bg-dark-800 dark:text-emerald-300">
                   <Icon name="checkCircle" size="md" />
                 </div>
                 <div class="min-w-0 flex-1">
@@ -148,7 +134,7 @@
                     <code class="min-w-0 flex-1 truncate font-mono text-sm font-semibold text-slate-900 dark:text-white">
                       {{ createdRp.code }}
                     </code>
-                    <button type="button" @click="copyCode(createdRp.code)" class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-emerald-500 dark:hover:bg-dark-700">
+                    <button type="button" @click="copyCode(createdRp.code)" class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10">
                       <Icon :name="copiedCode === createdRp.code ? 'checkCircle' : 'copy'" size="xs" />
                     </button>
                   </div>
@@ -164,10 +150,10 @@
 
       <transition name="fade">
         <section v-if="showClaim" class="card overflow-hidden">
-          <div class="border-b border-gray-100 bg-amber-50/80 px-5 py-3.5 dark:border-dark-700 dark:bg-dark-800/80">
+          <div class="border-b border-amber-100 bg-amber-50/80 px-5 py-3.5 dark:border-amber-500/20 dark:bg-amber-500/10">
             <div class="flex items-center gap-2.5">
-              <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/25">
-                <Icon name="gift" size="sm" class="text-amber-500" />
+              <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
+                <Icon name="gift" size="sm" class="text-current" />
               </div>
               <p class="text-sm font-semibold text-slate-900 dark:text-white">
                 {{ t('redpacket.claim') }}
@@ -182,16 +168,16 @@
                 <input v-model="claimCode" type="text" required :placeholder="t('redpacket.codePlaceholder')" :disabled="claimLoading" class="input mt-1 w-full text-center font-mono text-lg tracking-[0.22em]" />
               </div>
 
-              <div v-if="claimResult" class="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 text-center dark:border-emerald-900/30 dark:from-emerald-900/10 dark:to-dark-900">
-                <p class="text-xs uppercase tracking-wider text-emerald-500">
+              <div v-if="claimResult" class="rounded-xl border border-emerald-100 bg-emerald-50 p-5 text-center dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                <p class="text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
                   {{ t('redpacket.congrats') }}
                 </p>
-                <p class="mt-2 text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                  +${{ claimResult.amount.toFixed(2) }}
+                <p class="mt-2 text-3xl font-bold text-emerald-700 dark:text-emerald-300">
+                  +{{ formatAmount(claimResult.amount) }}
                 </p>
               </div>
 
-              <p v-if="claimError" class="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:border-rose-900/30 dark:bg-rose-900/20 dark:text-rose-300">
+              <p v-if="claimError" :class="claimMessageClass">
                 {{ claimError }}
               </p>
 
@@ -224,7 +210,7 @@
 
         <div class="p-4">
           <div v-if="loadingPackets" class="flex items-center justify-center py-12">
-            <svg class="h-6 w-6 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24">
+            <svg class="h-6 w-6 animate-spin text-[var(--foreground)]" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -235,7 +221,7 @@
               <article v-for="rp in myPackets" :key="rp.id" class="overflow-hidden rounded-xl border border-gray-100 bg-white transition-all hover:border-gray-200 dark:border-dark-700 dark:bg-dark-800 dark:hover:border-dark-600">
                 <div class="flex items-center gap-3.5 px-4 py-3.5">
                   <div class="packet-avatar-shell">
-                    <Icon name="gift" size="md" class="text-rose-500" />
+                    <Icon name="gift" size="md" class="text-[var(--foreground)]" />
                   </div>
 
                   <div class="min-w-0 flex-1">
@@ -257,11 +243,11 @@
 
                   <div class="flex items-center gap-2">
                     <div class="text-right">
-                      <p class="text-lg font-bold leading-none text-rose-600 dark:text-rose-400">
-                        ${{ rp.total_amount.toFixed(2) }}
+                      <p class="text-lg font-bold leading-none text-[var(--foreground)]">
+                        {{ formatAmount(rp.total_amount) }}
                       </p>
                       <p class="mt-1 text-xs text-slate-400 dark:text-dark-500">
-                        {{ t('redpacket.remainingAmount') }} ${{ rp.remaining_amount.toFixed(2) }}
+                        {{ t('redpacket.remainingAmount') }} {{ formatAmount(rp.remaining_amount) }}
                       </p>
                     </div>
                     <button type="button" @click="toggleDetail(rp)" :class="['flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-dark-700 dark:hover:text-dark-300', detailExpandedId === rp.id ? 'rotate-180' : '']">
@@ -271,21 +257,21 @@
                 </div>
 
                 <div class="px-4 pb-3">
-                  <div class="rounded-lg bg-slate-50 px-3 py-2.5 dark:bg-dark-700/60">
+                  <div class="rounded-lg bg-amber-50/70 px-3 py-2.5 dark:bg-amber-500/10">
                     <div class="flex items-center gap-2">
                       <code class="min-w-0 flex-1 truncate text-xs text-slate-500 dark:text-dark-400">{{ rp.code }}</code>
-                      <button type="button" @click="copyCode(rp.code)" class="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-primary-500 dark:hover:bg-dark-800">
+                      <button type="button" @click="copyCode(rp.code)" class="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-[var(--foreground)] dark:hover:bg-dark-800">
                         <Icon :name="copiedCode === rp.code ? 'checkCircle' : 'copy'" size="xs" />
                       </button>
                     </div>
                     <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white dark:bg-dark-800">
-                      <div class="h-full rounded-full bg-gradient-to-r from-rose-400 to-orange-400 transition-all duration-300" :style="{ width: `${packetClaimedPercent(rp)}%` }"></div>
+                      <div class="h-full rounded-full bg-emerald-500 transition-all duration-300" :style="{ width: `${packetClaimedPercent(rp)}%` }"></div>
                     </div>
                   </div>
                 </div>
 
                 <transition name="fade">
-                  <div v-if="detailExpandedId === rp.id" class="border-t border-dashed border-gray-100 bg-slate-50/70 px-4 py-3 dark:border-dark-700 dark:bg-dark-900/60">
+                  <div v-if="detailExpandedId === rp.id" class="border-t border-dashed border-amber-100 bg-amber-50/50 px-4 py-3 dark:border-amber-500/20 dark:bg-amber-500/5">
                     <div v-if="loadingDetail" class="flex items-center justify-center py-4">
                       <svg class="h-4 w-4 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -300,7 +286,7 @@
                       <div class="space-y-1.5">
                         <div v-for="claim in detailClaims" :key="claim.id" class="flex items-center justify-between rounded-lg bg-white px-3 py-2.5 shadow-sm dark:bg-dark-800">
                           <div class="flex min-w-0 items-center gap-2.5">
-                            <div class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-50 text-primary-500 dark:bg-primary-900/20 dark:text-primary-300">
+                            <div class="flex h-7 w-7 items-center justify-center rounded-full bg-sky-50 text-sky-600 ring-1 ring-inset ring-sky-100 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30">
                               <Icon name="user" size="xs" />
                             </div>
                             <div class="min-w-0">
@@ -312,12 +298,17 @@
                               </p>
                             </div>
                           </div>
-                          <span class="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                            +${{ claim.amount.toFixed(2) }}
-                          </span>
+                          <div class="flex flex-shrink-0 flex-col items-end gap-1">
+                            <span class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                              +{{ formatAmount(claim.amount) }}
+                            </span>
+                            <span v-if="isBestLuckClaim(claim, rp)" class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30">
+                              {{ t('redpacket.bestLuck') }}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div v-if="getDisplayStatus(rp) === 'active' && rp.remaining_count > 0" class="rounded-lg border border-dashed border-slate-200 px-3 py-2 text-center text-xs text-slate-500 dark:border-dark-700 dark:text-dark-400">
+                      <div v-if="getDisplayStatus(rp) === 'active' && rp.remaining_count > 0" class="rounded-lg border border-dashed border-amber-200 bg-white/70 px-3 py-2 text-center text-xs text-amber-700 dark:border-amber-500/30 dark:bg-dark-800/70 dark:text-amber-300">
                         {{ t('redpacket.waitingClaim', { n: rp.remaining_count }) }}
                       </div>
                     </div>
@@ -342,8 +333,8 @@
           </template>
 
           <div v-else class="py-10 text-center">
-            <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-dark-800">
-              <Icon name="gift" size="xl" class="text-slate-400 dark:text-dark-500" />
+            <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-rose-50 text-rose-500 ring-1 ring-inset ring-rose-100 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/30">
+              <Icon name="gift" size="xl" class="text-current" />
             </div>
             <p class="text-sm text-slate-400 dark:text-dark-500">
               {{ t('redpacket.noPackets') }}
@@ -362,20 +353,25 @@ import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { createRedPacket, claimRedPacket, getMyRedPackets, getRedPacketDetail } from '@/api/transfer'
 import type { RedPacketRecord, RedPacketClaimRecord } from '@/api/transfer'
+import { extractApiErrorCode, extractApiErrorMessage } from '@/utils/apiError'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, formatDualDisplayAmount } from '@/utils/format'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
+const redPacketBalanceDisplay = computed(() =>
+  formatDualDisplayAmount(user.value?.balance || 0, { currencySymbol: '$' })
+)
 
 const showCreate = ref(false)
 const showClaim = ref(false)
 const claimCode = ref('')
 const claimResult = ref<RedPacketClaimRecord | null>(null)
 const claimError = ref('')
+const claimMessageType = ref<'error' | 'info'>('error')
 const claimLoading = ref(false)
 const createError = ref('')
 const createLoading = ref(false)
@@ -392,6 +388,13 @@ const detailClaims = ref<RedPacketClaimRecord[]>([])
 const loadingDetail = ref(false)
 
 const totalPages = computed(() => Math.max(1, Math.ceil(totalPackets.value / pageSize)))
+
+const claimMessageClass = computed(() => [
+  'rounded-xl border px-3 py-2 text-sm',
+  claimMessageType.value === 'info'
+    ? 'border-amber-100 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'
+    : 'border-red-100 bg-red-50 text-red-600 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-300',
+])
 
 const createForm = reactive({
   total_amount: 0,
@@ -433,15 +436,15 @@ function openClaim() {
 
 function actionCardClass(kind: 'create' | 'claim') {
   const active = kind === 'create' ? showCreate.value : showClaim.value
-  const tone = kind === 'create'
-    ? 'hover:border-rose-200 dark:hover:border-rose-800/60'
-    : 'hover:border-amber-200 dark:hover:border-amber-800/60'
+  const inactiveTone = kind === 'create'
+    ? 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-dark-700 dark:hover:border-dark-600 dark:hover:bg-dark-800'
+    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-dark-700 dark:hover:border-dark-600 dark:hover:bg-dark-800'
   const activeTone = kind === 'create'
-    ? 'border-rose-200 ring-1 ring-rose-100 dark:border-rose-800/60'
-    : 'border-amber-200 ring-1 ring-amber-100 dark:border-amber-800/60'
+    ? 'border-gray-300 bg-gray-50 ring-1 ring-gray-200 dark:border-dark-500 dark:bg-dark-800 dark:ring-white/10'
+    : 'border-gray-300 bg-gray-50 ring-1 ring-gray-200 dark:border-dark-500 dark:bg-dark-800 dark:ring-white/10'
   return [
     'group flex items-center justify-between rounded-xl border bg-white px-4 py-3.5 text-left transition-all dark:bg-dark-900',
-    active ? activeTone : `border-gray-100 ${tone}`,
+    active ? activeTone : inactiveTone,
   ]
 }
 
@@ -449,8 +452,8 @@ function typeToggleClass(active: boolean) {
   return [
     'flex items-center justify-center rounded-xl border px-3 py-2.5 text-sm font-medium transition-all',
     active
-      ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-900/20 dark:text-rose-300'
-      : 'border-gray-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300 dark:hover:bg-dark-700',
+      ? 'border-[var(--foreground)] bg-[var(--foreground)] text-[var(--primary-foreground)] shadow-sm'
+      : 'border-gray-200 bg-white text-slate-600 hover:border-gray-300 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300 dark:hover:border-dark-500 dark:hover:bg-dark-700',
   ]
 }
 
@@ -472,9 +475,9 @@ function rpStatusLabel(status: string) {
 function statusBadgeClass(status: string) {
   const base = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold'
   switch (status) {
-    case 'active': return [base, 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300']
+    case 'active': return [base, 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30']
     case 'exhausted': return [base, 'bg-slate-100 text-slate-600 dark:bg-dark-700 dark:text-dark-300']
-    case 'expired': return [base, 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300']
+    case 'expired': return [base, 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/30']
     default: return [base, 'bg-slate-100 text-slate-600 dark:bg-dark-700 dark:text-dark-300']
   }
 }
@@ -488,8 +491,8 @@ function packetTypeBadgeClass(type: 'equal' | 'random') {
   return [
     base,
     type === 'equal'
-      ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-300'
-      : 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-300',
+      ? 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30'
+      : 'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30',
   ]
 }
 
@@ -505,6 +508,12 @@ function packetClaimedPercent(rp: RedPacketRecord) {
 function packetProgressText(rp: RedPacketRecord) {
   const claimed = rp.total_count - rp.remaining_count
   return `${claimed}/${rp.total_count} ${t('redpacket.copies')}`
+}
+
+function isBestLuckClaim(claim: RedPacketClaimRecord, rp: RedPacketRecord) {
+  if (rp.redpacket_type !== 'random' || detailClaims.value.length !== rp.total_count) return false
+  const maxAmount = Math.max(...detailClaims.value.map(item => item.amount))
+  return claim.amount === maxAmount
 }
 
 async function copyCode(code: string) {
@@ -575,6 +584,7 @@ async function handleCreate() {
 
 async function handleClaim() {
   claimError.value = ''
+  claimMessageType.value = 'error'
   claimResult.value = null
   claimLoading.value = true
   try {
@@ -583,13 +593,24 @@ async function handleClaim() {
     loadMyPackets().catch(() => {})
     authStore.refreshUser().catch(() => {})
   } catch (e: any) {
-    claimError.value = e?.response?.data?.error || t('redpacket.claimFailed')
+    if (extractApiErrorCode(e) === 'REDPACKET_EXHAUSTED') {
+      claimMessageType.value = 'info'
+      claimError.value = t('redpacket.claimExhausted')
+      appStore.showInfo(t('redpacket.claimExhausted'))
+      loadMyPackets().catch(() => {})
+    } else {
+      claimError.value = extractApiErrorMessage(e, t('redpacket.claimFailed'))
+    }
   } finally {
     claimLoading.value = false
   }
 }
 
 onMounted(loadMyPackets)
+
+function formatAmount(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).display
+}
 </script>
 
 <style scoped>
@@ -604,56 +625,6 @@ onMounted(loadMyPackets)
   transform: translateY(-6px);
 }
 
-.hero-glow {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(50px);
-  opacity: 0.4;
-}
-
-.hero-glow-left {
-  left: -2rem;
-  top: -1rem;
-  height: 8rem;
-  width: 8rem;
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.hero-glow-right {
-  bottom: -2rem;
-  right: -1rem;
-  height: 9rem;
-  width: 9rem;
-  background: rgba(255, 195, 120, 0.28);
-}
-
-.hero-spark {
-  position: absolute;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.65);
-}
-
-.hero-spark-a {
-  left: 5rem;
-  top: 1.5rem;
-  height: 0.45rem;
-  width: 0.45rem;
-}
-
-.hero-spark-b {
-  right: 5rem;
-  top: 0.8rem;
-  height: 0.5rem;
-  width: 0.5rem;
-}
-
-.hero-spark-c {
-  right: 12rem;
-  bottom: 1.5rem;
-  height: 0.35rem;
-  width: 0.35rem;
-}
-
 .action-illustration {
   display: flex;
   height: 3rem;
@@ -665,11 +636,15 @@ onMounted(loadMyPackets)
 }
 
 .action-illustration-create {
-  background: linear-gradient(135deg, #fff0f2 0%, #ffe0e7 100%);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
 }
 
 .action-illustration-claim {
-  background: linear-gradient(135deg, #fff6e1 0%, #ffedd0 100%);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
 }
 
 .packet-avatar-shell {
@@ -680,6 +655,21 @@ onMounted(loadMyPackets)
   align-items: center;
   justify-content: center;
   border-radius: 0.75rem;
-  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e8 100%);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+:global(.dark) .action-illustration-create,
+:global(.dark) .packet-avatar-shell {
+  background: var(--muted);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+:global(.dark) .action-illustration-claim {
+  background: var(--muted);
+  border-color: var(--border);
+  color: var(--foreground);
 }
 </style>

@@ -6,8 +6,8 @@
           <!-- Total Requests -->
           <div class="card p-4">
           <div class="flex items-center gap-3">
-            <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-              <Icon name="document" size="md" class="text-blue-600 dark:text-blue-400" />
+            <div class="feature-icon feature-icon-info rounded-lg p-2">
+              <Icon name="document" size="md" class="text-current" />
             </div>
             <div>
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -26,8 +26,8 @@
         <!-- Total Tokens -->
         <div class="card p-4">
           <div class="flex items-center gap-3">
-            <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
-              <Icon name="cube" size="md" class="text-amber-600 dark:text-amber-400" />
+            <div class="feature-icon feature-icon-purple rounded-lg p-2">
+              <Icon name="cube" size="md" class="text-current" />
             </div>
             <div>
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -47,14 +47,14 @@
         <!-- Total Cost -->
         <div class="card p-4">
           <div class="flex items-center gap-3">
-            <div class="rounded-lg bg-green-100 p-2 dark:bg-green-900/30">
-              <Icon name="dollar" size="md" class="text-green-600 dark:text-green-400" />
+            <div class="feature-icon feature-icon-warning rounded-lg p-2">
+              <Icon name="dollar" size="md" class="text-current" />
             </div>
             <div class="min-w-0 flex-1">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
                 {{ t('usage.totalCost') }}
               </p>
-              <p class="text-xl font-bold text-green-600 dark:text-green-400">
+              <p class="text-xl font-bold text-amber-600 dark:text-amber-300">
                 ${{ (usageStats?.total_actual_cost || 0).toFixed(4) }}
               </p>
               <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -69,8 +69,8 @@
         <!-- Average Duration -->
         <div class="card p-4">
           <div class="flex items-center gap-3">
-            <div class="rounded-lg bg-purple-100 p-2 dark:bg-purple-900/30">
-              <Icon name="clock" size="md" class="text-purple-600 dark:text-purple-400" />
+            <div class="feature-icon feature-icon-info rounded-lg p-2">
+              <Icon name="clock" size="md" class="text-current" />
             </div>
             <div>
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -119,7 +119,7 @@
               <button @click="resetFilters" class="btn btn-secondary">
                 {{ t('common.reset') }}
               </button>
-              <button @click="exportToCSV" :disabled="exporting" class="btn btn-primary">
+              <button @click="exportToCSV" :disabled="exporting" class="btn btn-secondary">
                 <svg
                   v-if="exporting"
                   class="-ml-1 mr-2 h-4 w-4 animate-spin"
@@ -304,7 +304,8 @@
           <template #cell-first_token="{ row }">
             <span
               v-if="row.first_token_ms != null"
-              class="text-sm text-gray-600 dark:text-gray-400"
+              class="text-sm"
+              :class="durationTextClass(row.first_token_ms)"
             >
               {{ formatDuration(row.first_token_ms) }}
             </span>
@@ -312,7 +313,7 @@
           </template>
 
           <template #cell-duration="{ row }">
-            <span class="text-sm text-gray-600 dark:text-gray-400">{{
+            <span class="text-sm" :class="durationTextClass(row.duration_ms)">{{
               formatDuration(row.duration_ms)
             }}</span>
           </template>
@@ -358,7 +359,7 @@
       }"
     >
       <div
-        class="whitespace-nowrap rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-xl dark:border-gray-600 dark:bg-gray-800"
+        class="whitespace-nowrap rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-sm dark:border-gray-600 dark:bg-gray-800"
       >
         <div class="space-y-1.5">
           <!-- Token Breakdown -->
@@ -433,7 +434,7 @@
       }"
     >
       <div
-        class="whitespace-nowrap rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-xl dark:border-gray-600 dark:bg-gray-800"
+        class="whitespace-nowrap rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-sm dark:border-gray-600 dark:bg-gray-800"
       >
         <div class="space-y-1.5">
           <!-- Cost Breakdown -->
@@ -666,6 +667,13 @@ const sortState = reactive({
   sort_order: 'desc' as 'asc' | 'desc'
 })
 
+
+const durationTextClass = (ms: number | null | undefined): string => {
+  if (ms == null) return 'text-gray-400 dark:text-gray-500'
+  if (ms >= 5000) return 'text-red-600 dark:text-red-400'
+  if (ms >= 1500) return 'text-gray-600 dark:text-gray-300'
+  return 'text-gray-600 dark:text-gray-300'
+}
 const formatDuration = (ms: number): string => {
   if (ms < 1000) return `${ms.toFixed(0)}ms`
   return `${(ms / 1000).toFixed(2)}s`
@@ -703,9 +711,9 @@ const getRequestTypeLabel = (log: UsageLog): string => {
 
 const getRequestTypeBadgeClass = (log: UsageLog): string => {
   const requestType = resolveUsageRequestType(log)
-  if (requestType === 'ws_v2') return 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200'
-  if (requestType === 'stream') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-  if (requestType === 'sync') return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+  if (requestType === 'ws_v2') return 'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30'
+  if (requestType === 'stream') return 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30'
+  if (requestType === 'sync') return 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30'
   return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
 }
 

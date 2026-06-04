@@ -9,26 +9,26 @@
       <!-- Refund Request Info -->
       <div
         v-if="order?.refund_requested_at || order?.refund_request_reason"
-        class="rounded-lg border border-violet-200 bg-violet-50 p-3 dark:border-violet-800 dark:bg-violet-900/20"
+        class="feature-panel-warning rounded-lg border p-3"
       >
-        <div class="flex items-center gap-2 text-sm font-medium text-violet-700 dark:text-violet-300">
+        <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           {{ t('payment.admin.refundRequestInfo') }}
         </div>
         <div v-if="order?.refund_requested_at" class="mt-2 flex justify-between text-sm">
-          <span class="text-violet-600 dark:text-violet-400">{{ t('payment.admin.refundRequestedAt') }}</span>
-          <span class="text-violet-800 dark:text-violet-200">{{ formatDateTime(order.refund_requested_at) }}</span>
+          <span class="text-gray-600 dark:text-gray-400">{{ t('payment.admin.refundRequestedAt') }}</span>
+          <span class="text-gray-800 dark:text-gray-200">{{ formatDateTime(order.refund_requested_at) }}</span>
         </div>
         <div v-if="order?.refund_request_reason" class="mt-1 text-sm">
-          <span class="text-violet-600 dark:text-violet-400">{{ t('payment.admin.refundRequestReason') }}:</span>
-          <span class="ml-1 text-violet-800 dark:text-violet-200">{{ order.refund_request_reason }}</span>
+          <span class="text-gray-600 dark:text-gray-400">{{ t('payment.admin.refundRequestReason') }}:</span>
+          <span class="ml-1 text-gray-800 dark:text-gray-200">{{ order.refund_request_reason }}</span>
         </div>
       </div>
 
       <!-- Order Info -->
-      <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700">
+      <div class="feature-panel-info rounded-lg border p-3">
         <div class="flex justify-between text-sm">
           <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
           <span class="font-mono text-gray-900 dark:text-white">#{{ order?.id }}</span>
@@ -54,7 +54,7 @@
             id="deduct-balance"
             v-model="form.deduct_balance"
             type="checkbox"
-            class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
           />
           <label for="deduct-balance" class="text-sm text-gray-700 dark:text-gray-300">
             {{ t('payment.admin.deductBalance') }}
@@ -64,11 +64,11 @@
 
         <!-- User Balance Info (when deduct_balance is checked) -->
         <div v-if="form.deduct_balance && userBalance != null" class="mt-3 grid grid-cols-2 gap-3">
-          <div class="rounded-lg bg-gray-50 p-3 text-sm dark:bg-dark-700">
+          <div class="feature-panel-info rounded-lg border p-3 text-sm">
             <div class="text-gray-500 dark:text-gray-400">{{ t('payment.admin.userBalance') }}</div>
             <div class="mt-1 font-semibold text-gray-900 dark:text-white">${{ userBalance.toFixed(2) }}</div>
           </div>
-          <div class="rounded-lg bg-gray-50 p-3 text-sm dark:bg-dark-700">
+          <div class="feature-panel-success rounded-lg border p-3 text-sm">
             <div class="text-gray-500 dark:text-gray-400">{{ t('payment.admin.orderAmount') }}</div>
             <div class="mt-1 font-semibold text-gray-900 dark:text-white">{{ order?.order_type === 'balance' ? '$' : '¥' }}{{ order?.amount?.toFixed(2) }}</div>
           </div>
@@ -77,7 +77,7 @@
         <!-- Insufficient balance warning -->
         <div
           v-if="form.deduct_balance && balanceInsufficient"
-          class="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+          class="feature-panel-danger mt-2 rounded-lg border p-3 text-sm"
         >
           {{ t('payment.admin.insufficientBalance') }}
         </div>
@@ -85,7 +85,7 @@
         <!-- No deduction info -->
         <div
           v-if="!form.deduct_balance"
-          class="mt-2 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+          class="feature-panel-info mt-2 rounded-lg border p-3 text-sm text-gray-700 dark:text-gray-300"
         >
           {{ t('payment.admin.noDeduction') }}
         </div>
@@ -126,7 +126,7 @@
       <!-- Warning -->
       <div
         v-if="warning"
-        class="rounded-lg bg-yellow-50 p-3 text-sm text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300"
+        class="feature-panel-warning rounded-lg border p-3 text-sm"
       >
         {{ warning }}
       </div>
@@ -154,7 +154,7 @@
           type="submit"
           form="refund-form"
           :disabled="submitting || form.amount <= 0 || (requireForce && !form.force)"
-          class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-dark-800"
+          class="btn btn-danger"
         >
           {{ submitting ? t('common.processing') : t('payment.admin.confirmRefund') }}
         </button>

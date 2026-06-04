@@ -34,7 +34,7 @@
             />
             <div
               v-if="showDropdown && searchResults.length > 0"
-              class="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-500 dark:bg-dark-700"
+              class="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-500 dark:bg-dark-700"
             >
               <button
                 v-for="user in searchResults"
@@ -62,7 +62,7 @@
           </div>
           <button
             type="button"
-            class="btn btn-primary shrink-0"
+            class="btn btn-secondary shrink-0"
             :disabled="!selectedUser || !newRate"
             @click="handleAddLocal"
           >
@@ -81,12 +81,12 @@
               step="0.1"
               min="0"
               autocomplete="off"
-              class="hide-spinner w-20 rounded border border-gray-200 bg-white px-2 py-1 text-center text-sm transition-colors focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/20 dark:border-dark-500 dark:bg-dark-700 dark:focus:border-primary-500"
+              class="hide-spinner w-20 rounded border border-gray-200 bg-white px-2 py-1 text-center text-sm transition-colors focus:border-gray-200 focus:outline-none focus:ring-1 focus:ring-gray-300 dark:border-dark-500 dark:bg-dark-700 dark:focus:border-gray-200"
               placeholder="0.5"
             />
             <button
               type="button"
-              class="btn btn-primary btn-sm shrink-0 px-2.5 py-1 text-xs"
+              class="btn btn-secondary btn-sm shrink-0 px-2.5 py-1 text-xs"
               :disabled="!batchFactor || batchFactor <= 0"
               @click="applyBatchFactor"
             >
@@ -107,7 +107,7 @@
 
       <!-- 加载状态 -->
       <div v-if="loading" class="flex justify-center py-6">
-        <svg class="h-6 w-6 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24">
+        <svg class="h-6 w-6 animate-spin text-gray-700" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
@@ -136,7 +136,7 @@
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.groups.columns.userNotes') }}</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.groups.columns.userStatus') }}</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.groups.columns.rateMultiplier') }}</th>
-                    <th v-if="showFinalRate" class="px-3 py-2 text-left text-xs font-medium text-primary-600 dark:text-primary-400">{{ t('admin.groups.finalRate') }}</th>
+                    <th v-if="showFinalRate" class="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('admin.groups.finalRate') }}</th>
                     <th class="w-10 px-2 py-2"></th>
                   </tr>
                 </thead>
@@ -155,7 +155,7 @@
                         :class="[
                           'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
                           entry.user_status === 'active'
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            ? 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300'
                             : 'bg-gray-100 text-gray-600 dark:bg-dark-600 dark:text-gray-400'
                         ]"
                       >
@@ -170,11 +170,11 @@
                         autocomplete="off"
                         :value="entry.rate_multiplier ?? ''"
                         :placeholder="String(props.group?.rate_multiplier ?? 1)"
-                        class="hide-spinner w-20 rounded border border-gray-200 bg-white px-2 py-1 text-center text-sm font-medium transition-colors focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/20 dark:border-dark-500 dark:bg-dark-700 dark:focus:border-primary-500"
+                        class="hide-spinner w-20 rounded border border-gray-200 bg-white px-2 py-1 text-center text-sm font-medium transition-colors focus:border-gray-200 focus:outline-none focus:ring-1 focus:ring-gray-300 dark:border-dark-500 dark:bg-dark-700 dark:focus:border-gray-200"
                         @change="updateLocalRate(entry.user_id, ($event.target as HTMLInputElement).value)"
                       />
                     </td>
-                    <td v-if="showFinalRate" class="whitespace-nowrap px-3 py-2 font-medium text-primary-600 dark:text-primary-400">
+                    <td v-if="showFinalRate" class="whitespace-nowrap px-3 py-2 font-medium text-gray-700 dark:text-gray-300">
                       {{ computeFinalRate(entry.rate_multiplier) }}
                     </td>
                     <td class="px-2 py-2">
@@ -210,7 +210,7 @@
           <span class="text-xs text-amber-600 dark:text-amber-400">{{ t('admin.groups.unsavedChanges') }}</span>
           <button
             type="button"
-            class="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+            class="text-xs font-medium text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
             @click="handleCancel"
           >
             {{ t('admin.groups.revertChanges') }}
@@ -224,7 +224,7 @@
           <button
             v-if="isDirty"
             type="button"
-            class="btn btn-primary btn-sm px-4 py-1.5"
+            class="btn btn-secondary btn-sm px-4 py-1.5"
             :disabled="saving"
             @click="handleSave"
           >
@@ -282,10 +282,10 @@ let searchTimeout: ReturnType<typeof setTimeout>
 
 const platformColorClass = computed(() => {
   switch (props.group?.platform) {
-    case 'anthropic': return 'text-orange-700 dark:text-orange-400'
-    case 'openai': return 'text-emerald-700 dark:text-emerald-400'
-    case 'antigravity': return 'text-purple-700 dark:text-purple-400'
-    default: return 'text-blue-700 dark:text-blue-400'
+    case 'anthropic': return 'text-amber-700 dark:text-amber-400'
+    case 'openai': return 'text-gray-700 dark:text-gray-300'
+    case 'antigravity': return 'text-gray-700 dark:text-gray-300'
+    default: return 'text-gray-700 dark:text-gray-300'
   }
 })
 

@@ -6,11 +6,11 @@
     <template v-if="outcome === 'success'">
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4 py-4">
-          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <Icon name="check" size="lg" class="text-green-500" />
+          <div class="feature-icon feature-icon-success flex h-16 w-16 items-center justify-center rounded-xl">
+            <Icon name="check" size="lg" class="text-[var(--success)]" />
           </div>
           <p class="text-lg font-bold text-gray-900 dark:text-white">{{ props.orderType === 'subscription' ? t('payment.result.subscriptionSuccess') : t('payment.result.success') }}</p>
-          <div v-if="paidOrder" class="w-full rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
+          <div v-if="paidOrder" class="feature-panel-success w-full rounded-xl border p-4">
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
@@ -22,7 +22,12 @@
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ paidOrder.order_type === 'balance' ? '$' + paidOrder.amount.toFixed(2) : formatGatewayAmount(paidOrder.amount) }}</span>
+                <span
+                  class="font-medium text-gray-900 dark:text-white"
+                  :title="paidOrder.order_type === 'balance' ? formatBalanceTitle(paidOrder.amount) : undefined"
+                >
+                  {{ paidOrder.order_type === 'balance' ? formatBalanceDisplay(paidOrder.amount) : formatGatewayAmount(paidOrder.amount) }}
+                </span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
@@ -39,8 +44,8 @@
     <template v-else-if="outcome === 'cancelled'">
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4 py-4">
-          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700">
-            <svg class="h-8 w-8 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <div class="feature-icon feature-icon-danger flex h-16 w-16 items-center justify-center rounded-xl">
+            <svg class="h-8 w-8 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
@@ -55,8 +60,8 @@
     <template v-else-if="outcome === 'expired'">
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4 py-4">
-          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-            <svg class="h-8 w-8 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <div class="feature-icon feature-icon-warning flex h-16 w-16 items-center justify-center rounded-xl">
+            <svg class="h-8 w-8 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
@@ -71,14 +76,14 @@
 
     <!-- QR Code Mode -->
     <template v-else-if="qrUrl">
-      <div class="card p-6">
+      <div class="card feature-panel-info p-6">
         <div class="flex flex-col items-center space-y-4">
           <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ scanTitle }}</p>
           <div :class="['relative rounded-lg border-2 p-4', qrBorderClass]">
             <canvas ref="qrCanvas" class="mx-auto"></canvas>
             <!-- Brand logo overlay -->
             <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <span :class="['rounded-full p-2 shadow ring-2 ring-white', qrLogoBgClass]">
+              <span :class="['rounded-full p-2 shadow-none ring-1 ring-[var(--border)]', qrLogoBgClass]">
                 <img :src="isAlipay ? alipayIcon : wxpayIcon" alt="" class="h-5 w-5 brightness-0 invert" />
               </span>
             </div>
@@ -89,7 +94,7 @@
           </button>
         </div>
       </div>
-      <div class="card p-4 text-center">
+      <div class="card feature-panel-warning p-4 text-center">
         <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.expiresIn') }}</p>
         <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
         <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
@@ -101,7 +106,7 @@
 
     <!-- Waiting for Popup/Redirect Mode -->
     <template v-else>
-      <div class="card p-6">
+      <div class="card feature-panel-info p-6">
         <div class="flex flex-col items-center space-y-4 py-4">
           <div class="h-10 w-10 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
           <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('payment.qr.payInNewWindowHint') }}</p>
@@ -110,7 +115,7 @@
           </button>
         </div>
       </div>
-      <div class="card p-4 text-center">
+      <div class="card feature-panel-warning p-4 text-center">
         <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
         <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
       </div>
@@ -130,6 +135,7 @@ import { paymentAPI } from '@/api/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { formatDualDisplayAmount } from '@/utils/format'
 import type { PaymentOrder } from '@/types/payment'
 import Icon from '@/components/icons/Icon.vue'
 import QRCode from 'qrcode'
@@ -185,15 +191,15 @@ const isAlipay = computed(() => props.paymentType.includes('alipay'))
 const isWxpay = computed(() => props.paymentType.includes('wxpay'))
 
 const qrBorderClass = computed(() => {
-  if (isAlipay.value) return 'border-[#00AEEF] bg-blue-50 dark:border-[#00AEEF]/70 dark:bg-blue-950/20'
-  if (isWxpay.value) return 'border-[#2BB741] bg-green-50 dark:border-[#2BB741]/70 dark:bg-green-950/20'
-  return 'border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800'
+  if (isAlipay.value) return 'border-[var(--border)] bg-[var(--card)]'
+  if (isWxpay.value) return 'border-[var(--border)] bg-[var(--card)]'
+  return 'border-[var(--border)] bg-[var(--card)]'
 })
 
 const qrLogoBgClass = computed(() => {
   if (isAlipay.value) return 'bg-[#00AEEF]'
   if (isWxpay.value) return 'bg-[#2BB741]'
-  return 'bg-gray-400'
+  return 'bg-slate-400'
 })
 
 const scanTitle = computed(() => {
@@ -216,6 +222,14 @@ const countdownDisplay = computed(() => {
 
 function formatGatewayAmount(value: number): string {
   return formatPaymentAmount(value, paymentCurrency.value, localeCode.value)
+}
+
+function formatBalanceDisplay(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).display
+}
+
+function formatBalanceTitle(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).full
 }
 
 function isSuccessStatus(status: string | null | undefined): boolean {

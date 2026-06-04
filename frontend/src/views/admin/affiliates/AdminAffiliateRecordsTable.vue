@@ -120,7 +120,7 @@
       @close="overviewDialog = false"
     >
       <div v-if="overviewLoading" class="flex justify-center py-8">
-        <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+        <div class="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-transparent"></div>
       </div>
       <div v-else-if="selectedOverview" class="space-y-4">
         <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-800">
@@ -344,7 +344,7 @@ const UserCell = defineComponent({
       h('div', { class: 'font-mono text-sm text-gray-900 dark:text-white' }, `#${cellProps.id}`),
       h(cellProps.clickable ? 'button' : 'div', {
         class: cellProps.clickable
-          ? 'max-w-56 truncate text-left text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300'
+          ? 'max-w-56 truncate text-left text-sm font-medium text-gray-700 hover:text-gray-700 hover:underline dark:text-gray-300 dark:hover:text-gray-700'
           : 'max-w-56 truncate text-sm text-gray-700 dark:text-gray-300',
         type: cellProps.clickable ? 'button' : undefined,
         onClick: cellProps.clickable ? () => emit('open', cellProps.id) : undefined,
@@ -362,7 +362,7 @@ const AmountText = defineComponent({
   setup(amountProps) {
     return () => h('span', {
       class: amountProps.strong
-        ? 'text-sm font-semibold text-emerald-600 dark:text-emerald-400'
+        ? 'text-sm font-semibold text-gray-700 dark:text-gray-300'
         : 'text-sm text-gray-900 dark:text-white',
     }, `$${formatAmount(amountProps.value)}`)
   },

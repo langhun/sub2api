@@ -1,18 +1,18 @@
 <template>
-  <div class="relative flex min-h-screen flex-col overflow-x-hidden bg-gray-50 dark:bg-dark-950">
+  <div class="relative flex min-h-screen flex-col overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]">
     <PublicPageHeader active-path="/monitoring" />
 
     <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
       <div class="space-y-6">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 class="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{{ t('admin.monitoring.title') }}</h1>
-            <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.description') }}</p>
+            <h1 class="text-xl font-bold text-[var(--foreground)] sm:text-2xl">{{ t('admin.monitoring.title') }}</h1>
+            <p class="mt-1 text-sm text-[var(--muted-foreground)]">{{ t('admin.monitoring.description') }}</p>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.monitoring.last24h') }}</span>
             <button @click="refresh" :disabled="loading"
-              class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-200 dark:hover:bg-dark-700">
+              class="btn btn-secondary inline-flex items-center gap-2 px-4 py-2 text-sm">
               <svg class="h-4 w-4" :class="{ 'animate-spin': loading }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
               </svg>
@@ -23,30 +23,30 @@
 
         <!-- Summary Cards -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
-          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+          <div class="card p-3 sm:p-5">
             <p class="text-xs text-gray-500 dark:text-dark-400 sm:text-sm">{{ t('admin.monitoring.todayRequests') }}</p>
             <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ summary?.total_requests_today?.toLocaleString() ?? '-' }}</p>
           </div>
-          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+          <div class="card p-3 sm:p-5">
             <p class="text-xs text-green-600 dark:text-green-400 sm:text-sm">{{ t('admin.monitoring.success') }}</p>
             <p class="mt-1 text-lg font-bold text-green-600 dark:text-green-400 sm:text-2xl">{{ summary?.success_count_today?.toLocaleString() ?? '-' }}</p>
           </div>
-          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+          <div class="card p-3 sm:p-5">
             <p class="text-xs text-red-500 dark:text-red-400 sm:text-sm">{{ t('admin.monitoring.errors') }}</p>
             <p class="mt-1 text-lg font-bold text-red-600 dark:text-red-400 sm:text-2xl">{{ summary?.error_count_today?.toLocaleString() ?? '-' }}</p>
           </div>
-          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+          <div class="card p-3 sm:p-5">
             <p class="text-xs text-gray-500 dark:text-dark-400 sm:text-sm">{{ t('admin.monitoring.avgLatency') }}</p>
             <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ summary ? Math.round(summary.avg_latency_ms_today) + 'ms' : '-' }}</p>
           </div>
-          <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-5">
+          <div class="card p-3 sm:p-5">
             <p class="text-xs text-gray-500 dark:text-dark-400 sm:text-sm">{{ t('admin.monitoring.totalGroups') }}</p>
             <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white sm:text-2xl">{{ summary?.groups?.length ?? 0 }}</p>
           </div>
         </div>
 
         <!-- 24h Hourly Success Rate Bar -->
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900 sm:p-6">
+        <div class="card p-4 sm:p-6">
           <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('admin.monitoring.hourlySuccessRate') }}</p>
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 dark:text-dark-500 sm:gap-4">
@@ -61,7 +61,7 @@
               class="relative flex-1 rounded transition-all cursor-pointer group hover:opacity-80"
               :class="hourColor(h.rate)"
               :title="hourTooltip(i, h)">
-              <div class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-dark-600">
+              <div class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-xs text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 dark:bg-dark-600">
                 {{ hourTooltip(i, h) }}
                 <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-dark-600"></div>
               </div>
@@ -77,10 +77,10 @@
         </div>
 
         <!-- Group × Model Matrix -->
-        <div v-for="group in groupedModels" :key="group.groupId" class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900 overflow-hidden">
-          <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-3 dark:border-dark-700 sm:px-6 sm:py-4">
+        <div v-for="group in groupedModels" :key="group.groupId" class="card overflow-hidden">
+          <div class="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-6 sm:py-4">
             <span class="text-base font-semibold text-gray-900 dark:text-white sm:text-lg">{{ group.groupName }}</span>
-            <span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-800 dark:text-dark-300">
+            <span class="badge badge-gray">
               {{ group.models.length }} {{ group.models.length === 1 ? 'model' : 'models' }}
             </span>
           </div>
@@ -99,7 +99,7 @@
                   <col style="width: 6%;">
                 </colgroup>
                 <thead>
-                  <tr class="border-b border-gray-100 bg-gray-50 dark:border-dark-700 dark:bg-dark-800">
+                  <tr class="border-b border-[var(--border)] bg-[var(--muted)]">
                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.model') }}</th>
                     <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.requests') }}</th>
                     <th class="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-green-600 dark:text-green-400">{{ t('admin.monitoring.success') }}</th>
@@ -112,7 +112,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="m in group.models" :key="m.model" class="border-b border-gray-50 dark:border-dark-800">
+                  <tr v-for="m in group.models" :key="m.model" class="border-b border-[var(--border)]">
                     <td class="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white font-mono truncate" :title="m.model">{{ m.model }}</td>
                     <td class="px-4 py-3 text-center text-sm text-gray-700 dark:text-dark-200 tabular-nums">{{ m.request_count.toLocaleString() }}</td>
                     <td class="px-3 py-3 text-center">
@@ -135,7 +135,7 @@
                           class="relative flex-1 rounded-[1px] transition-colors cursor-pointer group/cell"
                           :class="hourColorMini(h.rate)"
                           :title="modelHourTooltip(m.model, hi, h)">
-                          <div class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-[10px] text-white opacity-0 shadow-lg group-hover/cell:opacity-100 dark:bg-dark-600">
+                          <div class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-[10px] text-white opacity-0 shadow-sm group-hover/cell:opacity-100 dark:bg-dark-600">
                             {{ modelHourTooltip(m.model, hi, h) }}
                           </div>
                         </div>
@@ -176,13 +176,13 @@
           </div>
         </div>
 
-        <div v-if="summary && (!groupModels?.group_models || groupModels.group_models.length === 0)" class="rounded-xl border border-gray-200 bg-white py-16 text-center shadow-sm dark:border-dark-700 dark:bg-dark-900">
+        <div v-if="summary && (!groupModels?.group_models || groupModels.group_models.length === 0)" class="card py-16 text-center">
           <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.noData') }}</p>
         </div>
 
         <!-- Model Latency Overview -->
-        <div v-if="modelLatency?.model_latencies?.length" class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900 overflow-hidden">
-          <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-3 dark:border-dark-700 sm:px-6 sm:py-4">
+        <div v-if="modelLatency?.model_latencies?.length" class="card overflow-hidden">
+          <div class="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-6 sm:py-4">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white sm:text-lg">{{ t('admin.monitoring.modelLatency') }}</h2>
             <span class="text-xs text-gray-400 dark:text-dark-500">{{ t('admin.monitoring.modelLatencyHint') }}</span>
           </div>
@@ -190,7 +190,7 @@
             <div class="hidden sm:block overflow-x-auto">
               <table class="w-full">
                 <thead>
-                  <tr class="border-b border-gray-100 bg-gray-50 dark:border-dark-700 dark:bg-dark-800">
+                  <tr class="border-b border-[var(--border)] bg-[var(--muted)]">
                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.model') }}</th>
                     <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('admin.monitoring.requests') }}</th>
                     <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-green-600 dark:text-green-400">{{ t('admin.monitoring.success') }}</th>
@@ -203,7 +203,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="m in modelLatency.model_latencies" :key="m.model" class="border-b border-gray-50 dark:border-dark-800">
+                  <tr v-for="m in modelLatency.model_latencies" :key="m.model" class="border-b border-[var(--border)]">
                     <td class="px-6 py-3 text-sm font-medium text-gray-900 dark:text-white font-mono">{{ m.model }}</td>
                     <td class="px-6 py-3 text-center text-sm text-gray-700 dark:text-dark-200">{{ m.request_count.toLocaleString() }}</td>
                     <td class="px-6 py-3 text-center">
@@ -323,7 +323,7 @@ function successRateWidth(success: number, total: number): string {
 }
 
 function successRateColor(success: number, total: number): string {
-  if (total === 0) return 'bg-gray-300'
+  if (total === 0) return 'bg-slate-300 dark:bg-slate-600'
   const rate = success / total
   if (rate >= 0.95) return 'bg-green-500'
   if (rate >= 0.8) return 'bg-amber-500'
@@ -391,14 +391,14 @@ function getModelHourly(groupId: number, model: string): HourBucket[] {
 }
 
 function hourColor(rate: number | null): string {
-  if (rate === null) return 'bg-gray-200 dark:bg-dark-700'
+  if (rate === null) return 'bg-slate-200 dark:bg-slate-700'
   if (rate >= 0.95) return 'bg-green-500'
   if (rate >= 0.8) return 'bg-amber-500'
   return 'bg-red-500'
 }
 
 function hourColorMini(rate: number | null): string {
-  if (rate === null) return 'bg-gray-200 dark:bg-dark-700'
+  if (rate === null) return 'bg-slate-200 dark:bg-slate-700'
   if (rate >= 0.95) return 'bg-green-400'
   if (rate >= 0.8) return 'bg-amber-400'
   return 'bg-red-400'

@@ -12,7 +12,7 @@
             <button @click="loadTransfers" :disabled="loading" class="btn btn-secondary" :title="t('common.refresh')">
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
-            <button @click="showBatchDialog = true" class="btn btn-primary">
+            <button @click="showBatchDialog = true" class="btn btn-secondary">
               {{ t('admin.transfer.batchDistribute', '批量发放') }}
             </button>
           </div>
@@ -66,7 +66,7 @@
           <template #cell-actions="{ row }">
             <div class="flex items-center space-x-2">
               <template v-if="row.status === 'completed'">
-                <button @click="confirmFreeze(row)" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-yellow-50 hover:text-yellow-600 dark:hover:bg-yellow-900/20 dark:hover:text-yellow-400">
+                <button @click="confirmFreeze(row)" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400">
                   <Icon name="ban" size="sm" />
                   <span class="text-xs">{{ t('admin.transfer.freeze', '冻结') }}</span>
                 </button>
@@ -117,8 +117,8 @@
 
     <Teleport to="body">
       <div v-if="showBatchDialog" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="fixed inset-0 bg-black/50" @click="showBatchDialog = false"></div>
-        <div class="relative z-10 w-full max-w-xl rounded-xl bg-white p-6 shadow-xl dark:bg-dark-800">
+        <div class="fixed inset-0 bg-black/40" @click="showBatchDialog = false"></div>
+        <div class="relative z-10 w-full max-w-xl rounded-xl bg-white p-6 shadow-sm dark:bg-dark-800">
           <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.transfer.batchDistribute', '批量发放') }}</h2>
           <div class="max-h-96 space-y-3 overflow-y-auto">
             <div v-for="(target, i) in batchTargets" :key="i" class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
@@ -129,11 +129,11 @@
                     class="input w-full"
                     @input="onBatchSearch(i)"
                     @focus="onBatchSearch(i)" />
-                  <div v-if="target.results && target.results.length > 0 && !target.selected" class="absolute left-0 right-0 top-full z-10 mt-1 max-h-36 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800">
+                  <div v-if="target.results && target.results.length > 0 && !target.selected" class="absolute left-0 right-0 top-full z-10 mt-1 max-h-36 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-600 dark:bg-dark-800">
                     <button v-for="u in target.results" :key="u.id" type="button" @click="selectBatchUser(i, u)"
                       class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-dark-700">
-                      <div class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
-                        <Icon name="user" size="xs" class="text-primary-600 dark:text-primary-400" />
+                      <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700">
+                        <Icon name="user" size="xs" class="text-gray-700 dark:text-gray-300" />
                       </div>
                       <span class="flex-1 truncate text-gray-900 dark:text-white">{{ u.email }}</span>
                       <span class="text-xs text-gray-400">#{{ u.id }}</span>
@@ -141,7 +141,7 @@
                   </div>
                 </div>
                 <div v-if="target.selected" class="flex items-center gap-1">
-                  <span class="rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/20 dark:text-primary-300">{{ target.selected.email }}</span>
+                  <span class="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300">{{ target.selected.email }}</span>
                   <button @click="clearBatchUser(i)" class="text-gray-400 hover:text-red-500">
                     <Icon name="x" size="xs" />
                   </button>
@@ -154,12 +154,12 @@
               </div>
             </div>
           </div>
-          <button @click="addBatchTarget" class="mt-3 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+          <button @click="addBatchTarget" class="mt-3 text-sm font-medium text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700">
             + {{ t('admin.transfer.addTarget', '添加目标') }}
           </button>
           <input v-model="batchMemo" type="text" :placeholder="t('admin.transfer.memoPlaceholder', '备注（可选）')" class="input mt-3 w-full" />
           <div class="mt-4 flex gap-3">
-            <button @click="handleBatch" :disabled="batchLoading" class="btn btn-primary flex-1">
+            <button @click="handleBatch" :disabled="batchLoading" class="btn btn-secondary flex-1">
               <svg v-if="batchLoading" class="-ml-1 mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -291,10 +291,10 @@ async function loadTransfers() {
 
 function typeBadgeClass(type: string) {
   switch (type) {
-    case 'direct': return 'badge-primary'
+    case 'direct': return 'badge-info'
     case 'redpacket': return 'badge-danger'
     case 'batch': return 'badge-warning'
-    default: return 'badge-gray'
+    default: return 'badge-warning'
   }
 }
 
@@ -312,7 +312,7 @@ function statusBadgeClass(status: string) {
     case 'completed': return 'badge-success'
     case 'frozen': return 'badge-warning'
     case 'revoked': return 'badge-danger'
-    default: return 'badge-gray'
+    default: return 'badge-warning'
   }
 }
 

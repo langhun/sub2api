@@ -4,16 +4,16 @@
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center py-12">
         <div
-          class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
+          class="h-8 w-8 animate-spin rounded-full border-2 border-gray-500 border-t-transparent"
         ></div>
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="subscriptions.length === 0" class="card p-12 text-center">
+      <div v-else-if="subscriptions.length === 0" class="card feature-panel-info p-12 text-center">
         <div
-          class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700"
+          class="feature-icon feature-icon-info mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl"
         >
-          <Icon name="creditCard" size="xl" class="text-gray-400" />
+          <Icon name="creditCard" size="xl" class="text-current" />
         </div>
         <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
           {{ t('userSubscriptions.noActiveSubscriptions') }}
@@ -28,7 +28,7 @@
         <div
           v-for="subscription in subscriptions"
           :key="subscription.id"
-          class="overflow-hidden rounded-2xl border bg-white dark:bg-dark-800"
+          class="overflow-hidden rounded-xl border bg-white dark:bg-dark-800"
           :class="platformBorderClass(subscription.group?.platform || '')"
         >
           <!-- Header -->
@@ -56,9 +56,9 @@
                 :class="[
                   'rounded-full px-2 py-0.5 text-xs font-medium',
                   subscription.status === 'active'
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                    ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30'
                     : subscription.status === 'expired'
-                      ? 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-400'
+                      ? 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-500/30'
                       : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
                 ]"
               >
@@ -106,7 +106,7 @@
                   }}
                 </span>
               </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+              <div class="subscription-progress-track">
                 <div
                   class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
                   :class="
@@ -143,7 +143,7 @@
                   }}
                 </span>
               </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+              <div class="subscription-progress-track">
                 <div
                   class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
                   :class="
@@ -184,7 +184,7 @@
                   }}
                 </span>
               </div>
-              <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+              <div class="subscription-progress-track">
                 <div
                   class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
                   :class="
@@ -220,15 +220,15 @@
                 !subscription.group?.weekly_limit_usd &&
                 !subscription.group?.monthly_limit_usd
               "
-              class="flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 py-6 dark:from-emerald-900/20 dark:to-teal-900/20"
+              class="feature-panel-info flex items-center justify-center rounded-xl border py-6"
             >
               <div class="flex items-center gap-3">
-                <span class="text-4xl text-emerald-600 dark:text-emerald-400">∞</span>
+                <span class="text-4xl text-gray-600 dark:text-gray-400">∞</span>
                 <div>
-                  <p class="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                  <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {{ t('userSubscriptions.unlimited') }}
                   </p>
-                  <p class="text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                  <p class="text-xs text-gray-600/70 dark:text-gray-400/70">
                     {{ t('userSubscriptions.unlimitedDesc') }}
                   </p>
                 </div>
@@ -256,11 +256,11 @@ import { getRemainingDurationParts, isOneTimeDailyQuota, type RemainingDurationP
 
 function platformAccentDotClass(p: string): string {
   switch (p) {
-    case 'anthropic': return 'bg-orange-500'
-    case 'openai': return 'bg-emerald-500'
-    case 'antigravity': return 'bg-purple-500'
-    case 'gemini': return 'bg-blue-500'
-    default: return 'bg-gray-400'
+    case 'anthropic': return 'bg-[var(--info)]'
+    case 'openai': return 'bg-[var(--success)]'
+    case 'antigravity': return 'bg-[var(--info)]'
+    case 'gemini': return 'bg-[var(--info)]'
+    default: return 'bg-slate-400'
   }
 }
 
@@ -290,11 +290,11 @@ function getProgressWidth(used: number | undefined, limit: number | null | undef
 }
 
 function getProgressBarClass(used: number | undefined, limit: number | null | undefined): string {
-  if (!limit || limit === 0) return 'bg-gray-400'
+  if (!limit || limit === 0) return 'subscription-progress-fill'
   const percentage = ((used || 0) / limit) * 100
-  if (percentage >= 90) return 'bg-red-500'
-  if (percentage >= 70) return 'bg-orange-500'
-  return 'bg-green-500'
+  if (percentage >= 90) return 'subscription-progress-fill-danger'
+  if (percentage >= 70) return 'subscription-progress-fill-warning'
+  return 'subscription-progress-fill'
 }
 
 function formatExpirationDate(expiresAt: string): string {
@@ -327,7 +327,7 @@ function getExpirationClass(expiresAt: string): string {
 
   if (days <= 0) return 'text-red-600 dark:text-red-400 font-medium'
   if (days <= 3) return 'text-red-600 dark:text-red-400'
-  if (days <= 7) return 'text-orange-600 dark:text-orange-400'
+  if (days <= 7) return 'text-amber-600 dark:text-amber-400'
   return 'text-gray-700 dark:text-gray-300'
 }
 
@@ -369,3 +369,41 @@ onMounted(() => {
   loadSubscriptions()
 })
 </script>
+
+<style scoped>
+.subscription-progress-track {
+  position: relative;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--muted);
+}
+
+.subscription-progress-fill {
+  background: var(--success);
+}
+
+.subscription-progress-fill-warning {
+  background: var(--warning);
+}
+
+.subscription-progress-fill-danger {
+  background: var(--destructive);
+}
+
+:global(.dark) .subscription-progress-track {
+  background: var(--muted);
+}
+
+:global(.dark) .subscription-progress-fill {
+  background: var(--success);
+}
+
+:global(.dark) .subscription-progress-fill-warning {
+  background: var(--warning);
+}
+
+:global(.dark) .subscription-progress-fill-danger {
+  background: var(--destructive);
+}
+</style>

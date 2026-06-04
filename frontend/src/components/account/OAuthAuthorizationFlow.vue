@@ -1,17 +1,17 @@
 <template>
   <div
-    class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-700 dark:bg-blue-900/30"
+    class="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 dark:border-[var(--border)] dark:bg-[var(--card)]"
   >
       <div class="flex items-start gap-4">
-      <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-500">
+      <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--foreground)]">
         <Icon name="link" size="md" class="text-white" />
       </div>
       <div class="flex-1">
-        <h4 class="mb-3 font-semibold text-blue-900 dark:text-blue-200">{{ oauthTitle }}</h4>
+        <h4 class="mb-3 font-semibold text-[var(--foreground)]">{{ oauthTitle }}</h4>
 
         <!-- Auth Method Selection -->
         <div v-if="showMethodSelection" class="mb-4">
-          <label class="mb-2 block text-sm font-medium text-blue-800 dark:text-blue-300">
+          <label class="mb-2 block text-sm font-medium text-[var(--foreground)]">
             {{ methodLabel }}
           </label>
           <div class="flex flex-wrap gap-4">
@@ -20,9 +20,9 @@
                 v-model="inputMethod"
                 type="radio"
                 value="manual"
-                class="text-blue-600 focus:ring-blue-500"
+                class="text-[var(--foreground)] focus:ring-[var(--ring)]"
               />
-              <span class="text-sm text-blue-900 dark:text-blue-200">{{
+              <span class="text-sm text-[var(--foreground)]">{{
                 t('admin.accounts.oauth.manualAuth')
               }}</span>
             </label>
@@ -31,9 +31,9 @@
                 v-model="inputMethod"
                 type="radio"
                 value="cookie"
-                class="text-blue-600 focus:ring-blue-500"
+                class="text-[var(--foreground)] focus:ring-[var(--ring)]"
               />
-              <span class="text-sm text-blue-900 dark:text-blue-200">{{
+              <span class="text-sm text-[var(--foreground)]">{{
                 t('admin.accounts.oauth.cookieAutoAuth')
               }}</span>
             </label>
@@ -42,9 +42,9 @@
                 v-model="inputMethod"
                 type="radio"
                 value="refresh_token"
-                class="text-blue-600 focus:ring-blue-500"
+                class="text-[var(--foreground)] focus:ring-[var(--ring)]"
               />
-              <span class="text-sm text-blue-900 dark:text-blue-200">{{
+              <span class="text-sm text-[var(--foreground)]">{{
                 t(getOAuthKey('refreshTokenAuth'))
               }}</span>
             </label>
@@ -53,9 +53,9 @@
                 v-model="inputMethod"
                 type="radio"
                 value="mobile_refresh_token"
-                class="text-blue-600 focus:ring-blue-500"
+                class="text-[var(--foreground)] focus:ring-[var(--ring)]"
               />
-              <span class="text-sm text-blue-900 dark:text-blue-200">{{
+              <span class="text-sm text-[var(--foreground)]">{{
                 t('admin.accounts.oauth.openai.mobileRefreshTokenAuth', '手动输入 Mobile RT')
               }}</span>
             </label>
@@ -64,9 +64,9 @@
                 v-model="inputMethod"
                 type="radio"
                 value="session_token"
-                class="text-blue-600 focus:ring-blue-500"
+                class="text-[var(--foreground)] focus:ring-[var(--ring)]"
               />
-              <span class="text-sm text-blue-900 dark:text-blue-200">{{
+              <span class="text-sm text-[var(--foreground)]">{{
                 t(getOAuthKey('sessionTokenAuth'))
               }}</span>
             </label>
@@ -75,9 +75,9 @@
                 v-model="inputMethod"
                 type="radio"
                 value="access_token"
-                class="text-blue-600 focus:ring-blue-500"
+                class="text-[var(--foreground)] focus:ring-[var(--ring)]"
               />
-              <span class="text-sm text-blue-900 dark:text-blue-200">{{
+              <span class="text-sm text-[var(--foreground)]">{{
                 t('admin.accounts.oauth.openai.accessTokenAuth', '手动输入 AT')
               }}</span>
             </label>
@@ -86,9 +86,9 @@
                 v-model="inputMethod"
                 type="radio"
                 value="codex_session"
-                class="text-blue-600 focus:ring-blue-500"
+                class="text-[var(--foreground)] focus:ring-[var(--ring)]"
               />
-              <span class="text-sm text-blue-900 dark:text-blue-200">{{
+              <span class="text-sm text-[var(--foreground)]">{{
                 t('admin.accounts.oauth.openai.codexSessionAuth')
               }}</span>
             </label>
@@ -98,9 +98,9 @@
         <!-- Refresh Token Input (OpenAI / Antigravity / Mobile RT) -->
         <div v-if="inputMethod === 'refresh_token' || inputMethod === 'mobile_refresh_token'" class="space-y-4">
           <div
-            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+            class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-4 dark:border-[var(--border)] dark:bg-[var(--muted)]"
           >
-            <p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
+            <p class="mb-3 text-sm text-[var(--muted-foreground)]">
               {{ t(getOAuthKey('refreshTokenDesc')) }}
             </p>
 
@@ -109,11 +109,11 @@
               <label
                 class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
               >
-                <Icon name="key" size="sm" class="text-blue-500" />
+                <Icon name="key" size="sm" class="text-[var(--muted-foreground)]" />
                 Refresh Token
                 <span
                   v-if="parsedRefreshTokenCount > 1"
-                  class="rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white"
+                  class="rounded-full bg-[var(--foreground)] px-2 py-0.5 text-xs text-white"
                 >
                   {{ t('admin.accounts.oauth.keysCount', { count: parsedRefreshTokenCount }) }}
                 </span>
@@ -126,7 +126,7 @@
               ></textarea>
               <p
                 v-if="parsedRefreshTokenCount > 1"
-                class="mt-1 text-xs text-blue-600 dark:text-blue-400"
+                class="mt-1 text-xs text-[var(--muted-foreground)]"
               >
                 {{ t('admin.accounts.oauth.batchCreateAccounts', { count: parsedRefreshTokenCount }) }}
               </p>
@@ -182,9 +182,9 @@
         <!-- Codex JSON / AT 批量输入 -->
         <div v-if="inputMethod === 'codex_session'" class="space-y-4">
           <div
-            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+            class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-4 dark:border-[var(--border)] dark:bg-[var(--muted)]"
           >
-            <p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
+            <p class="mb-3 text-sm text-[var(--muted-foreground)]">
               {{ t('admin.accounts.oauth.openai.codexSessionDesc') }}
             </p>
 
@@ -192,11 +192,11 @@
               <label
                 class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
               >
-                <Icon name="key" size="sm" class="text-blue-500" />
+                <Icon name="key" size="sm" class="text-[var(--muted-foreground)]" />
                 {{ t('admin.accounts.oauth.openai.codexSessionInputLabel') }}
                 <span
                   v-if="parsedCodexSessionCount > 1"
-                  class="rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white"
+                  class="rounded-full bg-[var(--foreground)] px-2 py-0.5 text-xs text-white"
                 >
                   {{ t('admin.accounts.oauth.keysCount', { count: parsedCodexSessionCount }) }}
                 </span>
@@ -208,7 +208,7 @@
                 :placeholder="t('admin.accounts.oauth.openai.codexSessionPlaceholder')"
                 spellcheck="false"
               ></textarea>
-              <p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+              <p class="mt-1 text-xs text-[var(--muted-foreground)]">
                 {{ t('admin.accounts.oauth.openai.codexSessionHint') }}
               </p>
             </div>
@@ -261,9 +261,9 @@
         <!-- Cookie Auto-Auth Form -->
         <div v-if="inputMethod === 'cookie'" class="space-y-4">
           <div
-            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+            class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-4 dark:border-[var(--border)] dark:bg-[var(--muted)]"
           >
-            <p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
+            <p class="mb-3 text-sm text-[var(--muted-foreground)]">
               {{ t('admin.accounts.oauth.cookieAutoAuthDesc') }}
             </p>
 
@@ -272,18 +272,18 @@
               <label
                 class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
               >
-                <Icon name="key" size="sm" class="text-blue-500" />
+                <Icon name="key" size="sm" class="text-[var(--muted-foreground)]" />
                 {{ t('admin.accounts.oauth.sessionKey') }}
                 <span
                   v-if="parsedKeyCount > 1 && allowMultiple"
-                  class="rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white"
+                  class="rounded-full bg-[var(--foreground)] px-2 py-0.5 text-xs text-white"
                 >
                   {{ t('admin.accounts.oauth.keysCount', { count: parsedKeyCount }) }}
                 </span>
                 <button
                   v-if="showHelp"
                   type="button"
-                  class="text-blue-500 hover:text-blue-600"
+                  class="text-[var(--foreground)] hover:text-[var(--muted-foreground)]"
                   @click="showHelpDialog = !showHelpDialog"
                 >
                   <svg
@@ -313,7 +313,7 @@
               ></textarea>
               <p
                 v-if="parsedKeyCount > 1 && allowMultiple"
-                class="mt-1 text-xs text-blue-600 dark:text-blue-400"
+                class="mt-1 text-xs text-[var(--muted-foreground)]"
               >
                 {{ t('admin.accounts.oauth.batchCreateAccounts', { count: parsedKeyCount }) }}
               </p>
@@ -392,22 +392,22 @@
 
         <!-- Manual Authorization Flow -->
         <div v-if="inputMethod === 'manual'" class="space-y-4">
-          <p class="mb-4 text-sm text-blue-800 dark:text-blue-300">
+          <p class="mb-4 text-sm text-[var(--foreground)]">
             {{ oauthFollowSteps }}
           </p>
 
           <!-- Step 1: Generate Auth URL -->
           <div
-            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+            class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-4 dark:border-[var(--border)] dark:bg-[var(--muted)]"
           >
             <div class="flex items-start gap-3">
               <div
-                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
+                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--foreground)] text-xs font-bold text-white"
               >
                 1
               </div>
               <div class="flex-1">
-                <p class="mb-2 font-medium text-blue-900 dark:text-blue-200">
+                <p class="mb-2 font-medium text-[var(--foreground)]">
                   {{ oauthStep1GenerateUrl }}
                 </p>
                 <div v-if="showProjectId && platform === 'gemini'" class="mb-3">
@@ -417,7 +417,7 @@
                       href="https://console.cloud.google.com/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="inline-flex items-center gap-1 text-xs font-normal text-blue-500 hover:text-blue-600 dark:text-blue-400"
+                      class="inline-flex items-center gap-1 text-xs font-normal text-[var(--muted-foreground)] hover:text-[var(--muted-foreground)]"
                     >
                       <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
@@ -504,7 +504,7 @@
                   </div>
                   <button
                     type="button"
-                    class="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    class="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
                     @click="handleRegenerate"
                   >
                     <Icon name="refresh" size="xs" class="mr-1 inline" />
@@ -517,19 +517,19 @@
 
           <!-- Step 2: Open URL and authorize -->
           <div
-            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+            class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-4 dark:border-[var(--border)] dark:bg-[var(--muted)]"
           >
             <div class="flex items-start gap-3">
               <div
-                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
+                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--foreground)] text-xs font-bold text-white"
               >
                 2
               </div>
               <div class="flex-1">
-                <p class="mb-2 font-medium text-blue-900 dark:text-blue-200">
+                <p class="mb-2 font-medium text-[var(--foreground)]">
                   {{ oauthStep2OpenUrl }}
                 </p>
-                <p class="text-sm text-blue-700 dark:text-blue-300">
+                <p class="text-sm text-[var(--muted-foreground)]">
                   {{ oauthOpenUrlDesc }}
                 </p>
                 <!-- OpenAI Important Notice -->
@@ -558,25 +558,25 @@
 
           <!-- Step 3: Enter authorization code -->
           <div
-            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+            class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-4 dark:border-[var(--border)] dark:bg-[var(--muted)]"
           >
             <div class="flex items-start gap-3">
               <div
-                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
+                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--foreground)] text-xs font-bold text-white"
               >
                 3
               </div>
               <div class="flex-1">
-                <p class="mb-2 font-medium text-blue-900 dark:text-blue-200">
+                <p class="mb-2 font-medium text-[var(--foreground)]">
                   {{ oauthStep3EnterCode }}
                 </p>
                 <p
-                  class="mb-3 text-sm text-blue-700 dark:text-blue-300"
+                  class="mb-3 text-sm text-[var(--muted-foreground)]"
                   v-text="oauthAuthCodeDesc"
                 ></p>
                 <div>
                   <label class="input-label">
-                    <Icon name="key" size="sm" class="mr-1 inline text-blue-500" />
+                    <Icon name="key" size="sm" class="mr-1 inline text-[var(--muted-foreground)]" />
                     {{ oauthAuthCode }}
                   </label>
                   <textarea
@@ -593,7 +593,7 @@
                   <!-- Gemini-specific state parameter warning -->
                   <div
                     v-if="platform === 'gemini'"
-                    class="mt-3 rounded-lg border-2 border-amber-400 bg-amber-50 p-3 dark:border-amber-600 dark:bg-amber-900/30"
+                    class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10"
                   >
                     <div class="flex items-start gap-2">
                       <Icon

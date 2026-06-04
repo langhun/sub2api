@@ -1,5 +1,5 @@
 <template>
-  <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
+  <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
     <div v-if="loading" class="p-6 text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
     <div v-else-if="items.length === 0" class="p-6 text-sm text-gray-500 dark:text-gray-400">
       {{ t('admin.proxies.subscriptions.empty') }}
@@ -20,12 +20,12 @@
                   item.last_error
                     ? 'bg-red-500'
                     : item.last_success_at
-                      ? 'bg-emerald-500'
+                      ? 'bg-[var(--success)]'
                       : 'bg-amber-400'
                 ]"
               />
               <span class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ item.name }}</span>
-              <span :class="['badge', item.enabled ? 'badge-success' : 'badge-gray']">
+              <span :class="['badge', item.enabled ? 'badge-success' : 'badge-secondary']">
                 {{ item.enabled ? t('common.enabled') : t('common.disabled') }}
               </span>
               <span class="badge badge-gray">{{ item.source_format }}</span>
@@ -35,7 +35,7 @@
                   item.last_error
                     ? 'bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-300'
                     : item.last_success_at
-                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-300'
+                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
                       : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
                 ]"
               >

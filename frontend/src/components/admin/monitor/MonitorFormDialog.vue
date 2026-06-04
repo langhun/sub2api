@@ -29,7 +29,7 @@
         </div>
       </div>
 
-      <div v-if="form.provider === PROVIDER_OPENAI" class="rounded-lg border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-500/20 dark:bg-blue-500/10">
+      <div v-if="form.provider === PROVIDER_OPENAI" class="rounded-lg border border-gray-200 bg-gray-100 p-3 dark:border-dark-600 dark:bg-dark-700">
         <label class="input-label">{{ t('admin.channelMonitor.form.apiMode') }}</label>
         <div class="grid gap-3 sm:grid-cols-2">
           <button
@@ -155,7 +155,7 @@
           type="submit"
           form="channel-monitor-form"
           :disabled="submitting"
-          class="btn btn-primary"
+          class="btn btn-secondary"
         >
           {{ submitting
             ? t('common.submitting')
@@ -356,9 +356,9 @@ function normalizeAPIMode(mode: APIMode | undefined | null): APIMode {
 function apiModeButtonClass(mode: APIMode): string {
   const active = form.api_mode === mode
   if (active) {
-    return 'border-primary-500 bg-white text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-300'
+    return 'border-gray-200 bg-white text-gray-700 shadow-sm dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300'
   }
-  return 'border-blue-100 bg-white/70 text-gray-600 hover:border-primary-300 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-400'
+  return 'border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:border-[var(--foreground)]'
 }
 
 function templateOptionLabel(tpl: ChannelMonitorTemplate): string {

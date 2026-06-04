@@ -53,6 +53,21 @@ export const useAppStore = defineStore('app', () => {
 
   const loadingCount = ref<number>(0)
 
+  function normalizeThemePreset(value: unknown): 'minimal-mono' | 'classic' {
+    return value === 'classic' ? 'classic' : 'minimal-mono'
+  }
+
+  function normalizeThemeFont(value: unknown): 'serif' | 'sans' {
+    return value === 'serif' ? 'serif' : 'sans'
+  }
+
+  function applyThemeSettings(config: Pick<PublicSettings, 'theme_preset' | 'theme_font'>): void {
+    if (typeof document === 'undefined') return
+
+    document.documentElement.dataset.themePreset = normalizeThemePreset(config.theme_preset)
+    document.documentElement.dataset.themeFont = normalizeThemeFont(config.theme_font)
+  }
+
   // ==================== Actions ====================
 
   /**
@@ -292,6 +307,8 @@ export const useAppStore = defineStore('app', () => {
     const legacyHomeNavEnabled = config.home_nav_links_enabled !== false
     const normalized = {
       ...config,
+      theme_preset: normalizeThemePreset(config.theme_preset),
+      theme_font: normalizeThemeFont(config.theme_font),
       home_nav_leaderboard_enabled: config.home_nav_leaderboard_enabled ?? legacyHomeNavEnabled,
       home_nav_key_usage_enabled: config.home_nav_key_usage_enabled ?? legacyHomeNavEnabled,
       home_nav_monitoring_enabled: config.home_nav_monitoring_enabled ?? legacyHomeNavEnabled,
@@ -317,6 +334,7 @@ export const useAppStore = defineStore('app', () => {
       window.__APP_CONFIG__ = { ...normalized }
     }
     cachedPublicSettings.value = normalized
+    applyThemeSettings(normalized)
     siteName.value = normalized.site_name || 'Sub2API'
     siteLogo.value = normalized.site_logo || ''
     siteVersion.value = normalized.version || ''
@@ -353,6 +371,8 @@ export const useAppStore = defineStore('app', () => {
         turnstile_enabled: false,
         turnstile_site_key: '',
         site_name: siteName.value,
+        theme_preset: 'minimal-mono',
+        theme_font: 'sans',
         site_logo: siteLogo.value,
         site_subtitle: '',
         api_base_url: apiBaseUrl.value,
@@ -391,7 +411,6 @@ export const useAppStore = defineStore('app', () => {
         channel_monitor_enabled: true,
         channel_monitor_default_interval_seconds: 60,
         available_channels_enabled: false,
-        game_hall_enabled: false,
         transfer_enabled: false,
         redpacket_enabled: false,
         risk_control_enabled: false,

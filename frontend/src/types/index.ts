@@ -201,6 +201,8 @@ export interface PublicSettings {
   turnstile_enabled: boolean
   turnstile_site_key: string
   site_name: string
+  theme_preset: 'minimal-mono' | 'classic' | string
+  theme_font: 'serif' | 'sans' | string
   site_logo: string
   site_subtitle: string
   api_base_url: string
@@ -241,7 +243,7 @@ export interface PublicSettings {
   channel_monitor_enabled: boolean
   channel_monitor_default_interval_seconds: number
   available_channels_enabled: boolean
-  game_hall_enabled: boolean
+  game_hall_enabled?: boolean
   transfer_enabled?: boolean
   redpacket_enabled?: boolean
   affiliate_enabled: boolean

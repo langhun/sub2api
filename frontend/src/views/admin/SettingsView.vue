@@ -4,7 +4,7 @@
       <!-- Loading State -->
       <div v-if="loading" class="flex items-center justify-center py-12">
         <div
-          class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-600"
+          class="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-200"
         ></div>
       </div>
 
@@ -81,7 +81,7 @@
                 class="flex items-center gap-2 text-gray-500"
               >
                 <div
-                  class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-600"
+                  class="h-4 w-4 animate-spin rounded-full border-b-2 border-gray-200"
                 ></div>
                 {{ t("common.loading") }}
               </div>
@@ -98,7 +98,7 @@
                   type="button"
                   @click="createAdminApiKey"
                   :disabled="adminApiKeyOperating"
-                  class="btn btn-primary btn-sm"
+                  class="btn btn-secondary btn-sm"
                 >
                   <svg
                     v-if="adminApiKeyOperating"
@@ -170,28 +170,28 @@
                 <!-- Newly Generated Key Display -->
                 <div
                   v-if="newAdminApiKey"
-                  class="space-y-3 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20"
+                  class="space-y-3 rounded-lg border border-gray-200 bg-gray-100 p-4 dark:border-dark-600 dark:bg-dark-700"
                 >
                   <p
-                    class="text-sm font-medium text-green-700 dark:text-green-300"
+                    class="text-sm font-medium text-gray-700 dark:text-gray-300"
                   >
                     {{ t("admin.settings.adminApiKey.keyWarning") }}
                   </p>
                   <div class="flex items-center gap-2">
                     <code
-                      class="flex-1 select-all break-all rounded border border-green-300 bg-white px-3 py-2 font-mono text-sm dark:border-green-700 dark:bg-dark-800"
+                      class="flex-1 select-all break-all rounded border border-gray-200 bg-white px-3 py-2 font-mono text-sm dark:border-dark-600 dark:bg-dark-800"
                     >
                       {{ newAdminApiKey }}
                     </code>
                     <button
                       type="button"
                       @click="copyNewKey"
-                      class="btn btn-primary btn-sm flex-shrink-0"
+                      class="btn btn-secondary btn-sm flex-shrink-0"
                     >
                       {{ t("admin.settings.adminApiKey.copyKey") }}
                     </button>
                   </div>
-                  <p class="text-xs text-green-600 dark:text-green-400">
+                  <p class="text-xs text-gray-700 dark:text-gray-300">
                     {{ t("admin.settings.adminApiKey.usage") }}
                   </p>
                 </div>
@@ -508,7 +508,7 @@
                 <button
                   type="button"
                   @click="rectifier.form.apikey_signature_patterns.push('')"
-                  class="btn btn-ghost btn-xs text-primary-600 dark:text-primary-400"
+                  class="btn btn-ghost btn-xs text-gray-700 dark:text-gray-300"
                 >
                   + {{ t("admin.settings.rectifier.addPattern") }}
                 </button>
@@ -606,7 +606,7 @@
                         v-for="preset in betaPresets[rule.beta_token]"
                         :key="preset.label"
                         type="button"
-                        class="inline-flex items-center gap-1 rounded-md border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 transition-colors hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50"
+                        class="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300 dark:hover:bg-gray-100"
                         @click="applyBetaPreset(rule, preset)"
                         :title="preset.description"
                       >
@@ -666,7 +666,7 @@
                         if (!rule.model_whitelist) rule.model_whitelist = [];
                         rule.model_whitelist.push('');
                       "
-                      class="mb-2 inline-flex items-center gap-1 text-xs text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                      class="mb-2 inline-flex items-center gap-1 text-xs text-gray-700 transition-colors hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
                     >
                       <svg
                         class="h-3.5 w-3.5"
@@ -694,7 +694,7 @@
                         v-for="pattern in commonModelPatterns"
                         :key="pattern"
                         type="button"
-                        class="rounded border border-gray-200 px-2 py-0.5 text-xs text-gray-600 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 dark:border-dark-600 dark:text-gray-400 dark:hover:border-primary-700 dark:hover:bg-primary-900/30 dark:hover:text-primary-300"
+                        class="rounded border border-gray-200 px-2 py-0.5 text-xs text-gray-600 transition-colors hover:border-gray-200 hover:bg-gray-100 hover:text-gray-700 dark:border-dark-600 dark:text-gray-400 dark:hover:border-gray-200 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                         @click="addQuickPattern(rule, pattern)"
                       >
                         {{ pattern }}
@@ -933,7 +933,7 @@
                   <button
                     type="button"
                     @click="addOpenAIFastPolicyModelPattern(rule)"
-                    class="mb-2 inline-flex items-center gap-1 text-xs text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                    class="mb-2 inline-flex items-center gap-1 text-xs text-gray-700 transition-colors hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
                   >
                     <svg
                       class="h-3.5 w-3.5"
@@ -1108,7 +1108,7 @@
                     </span>
 
                     <div
-                      class="flex min-w-[220px] flex-1 items-center gap-1 rounded border border-transparent px-2 py-1 focus-within:border-primary-300 dark:focus-within:border-primary-700"
+                      class="flex min-w-[220px] flex-1 items-center gap-1 rounded border border-transparent px-2 py-1 focus-within:border-gray-200 dark:focus-within:border-gray-200"
                     >
                       <span
                         class="font-mono text-sm text-gray-400 dark:text-gray-500"
@@ -1388,7 +1388,7 @@
                       <a
                         href="https://dash.cloudflare.com/"
                         target="_blank"
-                        class="text-primary-600 hover:text-primary-500"
+                        class="text-gray-700 hover:text-gray-700"
                         >{{
                           t("admin.settings.turnstile.cloudflareDashboard")
                         }}</a
@@ -1586,7 +1586,7 @@
                           href="https://github.com/settings/developers"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                          class="font-medium text-gray-700 hover:underline dark:text-gray-300"
                         >OAuth Apps</a>
                         → New OAuth App；Homepage URL 填站点域名，Authorization callback URL 填下面的后端回调地址。
                       </template>
@@ -1597,7 +1597,7 @@
                           href="https://github.com/settings/developers"
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                          class="font-medium text-gray-700 hover:underline dark:text-gray-300"
                         >OAuth Apps</a>
                         → New OAuth App. Use your site origin as Homepage URL and the backend callback URL below as Authorization callback URL.
                       </template>
@@ -2219,7 +2219,7 @@
                           v-model="form.dingtalk_connect_corp_restriction_policy"
                           type="radio"
                           value="none"
-                          class="h-4 w-4 text-primary-600"
+                          class="h-4 w-4 text-gray-700"
                         />
                         <span class="text-sm text-gray-700 dark:text-gray-300">
                           {{ t("admin.settings.dingtalk.corpPolicy.none") }}
@@ -2230,7 +2230,7 @@
                           v-model="form.dingtalk_connect_corp_restriction_policy"
                           type="radio"
                           value="internal_only"
-                          class="h-4 w-4 text-primary-600"
+                          class="h-4 w-4 text-gray-700"
                         />
                         <span class="text-sm text-gray-700 dark:text-gray-300">
                           {{ t("admin.settings.dingtalk.corpPolicy.internalOnly") }}
@@ -3825,7 +3825,7 @@
                           !expandedProviders[pIdx] &&
                           provider.api_key_configured
                         "
-                        class="text-xs text-green-500"
+                        class="text-xs text-gray-700"
                       >
                         {{
                           t(
@@ -4014,7 +4014,7 @@
                           provider.quota_limit != null &&
                           provider.quota_limit > 0
                         "
-                        class="flex-1 rounded-full bg-gray-200 dark:bg-dark-600"
+                        class="flex-1 rounded-full bg-[var(--input)]"
                         style="height: 6px"
                       >
                         <div
@@ -4023,8 +4023,8 @@
                             quotaPercentage(provider) > 90
                               ? 'bg-red-500'
                               : quotaPercentage(provider) > 70
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
+                                ? 'bg-amber-500'
+                                : 'bg-gray-100'
                           "
                           :style="{
                             width:
@@ -4045,7 +4045,7 @@
                       <button
                         v-if="(provider.quota_used ?? 0) > 0"
                         type="button"
-                        class="text-xs text-primary-600 hover:text-primary-700"
+                        class="text-xs text-gray-700 hover:text-gray-700"
                         @click="resetWebSearchUsage(pIdx)"
                       >
                         {{ t("admin.settings.webSearchEmulation.resetUsage") }}
@@ -4080,11 +4080,11 @@
           <!-- Web Search Test Dialog -->
           <div
             v-if="wsTestDialogOpen"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
             @click.self="wsTestDialogOpen = false"
           >
             <div
-              class="mx-4 w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-dark-800"
+              class="mx-4 w-full max-w-lg rounded-xl bg-white p-6 shadow-sm dark:bg-dark-800"
             >
               <h3
                 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white"
@@ -4103,7 +4103,7 @@
                 />
                 <button
                   type="button"
-                  class="btn btn-primary btn-sm"
+                  class="btn btn-secondary btn-sm"
                   :disabled="wsTestLoading"
                   @click="testWebSearchProvider()"
                 >
@@ -4140,7 +4140,7 @@
                   <a
                     :href="r.url"
                     target="_blank"
-                    class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                    class="text-sm font-medium text-gray-700 hover:underline dark:text-gray-300"
                     >{{ r.title }}</a
                   >
                   <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -4225,6 +4225,45 @@
                   />
                   <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                     {{ t("admin.settings.site.siteSubtitleHint") }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.site.themePreset") }}
+                  </label>
+                  <select v-model="form.theme_preset" class="input">
+                    <option value="minimal-mono">
+                      {{ t("admin.settings.site.themeMinimalMono") }}
+                    </option>
+                    <option value="classic">
+                      {{ t("admin.settings.site.themeClassic") }}
+                    </option>
+                  </select>
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.site.themePresetHint") }}
+                  </p>
+                </div>
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.site.themeFont") }}
+                  </label>
+                  <select v-model="form.theme_font" class="input">
+                    <option value="sans">
+                      {{ t("admin.settings.site.themeFontSans") }}
+                    </option>
+                    <option value="serif">
+                      {{ t("admin.settings.site.themeFontSerif") }}
+                    </option>
+                  </select>
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.site.themeFontHint") }}
                   </p>
                 </div>
               </div>
@@ -4406,7 +4445,7 @@
 
                 <button
                   type="button"
-                  class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:text-gray-400 dark:hover:border-primary-500 dark:hover:text-primary-400"
+                  class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 transition-colors hover:border-gray-200 hover:text-gray-700 dark:border-dark-600 dark:text-gray-400 dark:hover:border-gray-200 dark:hover:text-gray-700"
                   @click="addEndpoint"
                 >
                   <svg
@@ -4746,7 +4785,7 @@
               <!-- Add button -->
               <button
                 type="button"
-                class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-3 text-sm text-gray-500 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:text-gray-400 dark:hover:border-primary-500 dark:hover:text-primary-400"
+                class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-3 text-sm text-gray-500 transition-colors hover:border-gray-200 hover:text-gray-700 dark:border-dark-600 dark:text-gray-400 dark:hover:border-gray-200 dark:hover:text-gray-700"
                 @click="addMenuItem"
               >
                 <svg
@@ -4808,7 +4847,7 @@
                       class="inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
                       :class="
                         form.login_agreement_mode === 'modal'
-                          ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
+                          ? 'bg-white text-gray-700 shadow-sm dark:bg-dark-800 dark:text-gray-300'
                           : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
                       "
                       @click="form.login_agreement_mode = 'modal'"
@@ -4821,7 +4860,7 @@
                       class="inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
                       :class="
                         form.login_agreement_mode === 'checkbox'
-                          ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
+                          ? 'bg-white text-gray-700 shadow-sm dark:bg-dark-800 dark:text-gray-300'
                           : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
                       "
                       @click="form.login_agreement_mode = 'checkbox'"
@@ -4871,7 +4910,7 @@
                   </div>
                   <button
                     type="button"
-                    class="btn btn-primary btn-sm inline-flex items-center gap-1.5"
+                    class="btn btn-secondary btn-sm inline-flex items-center gap-1.5"
                     @click="addLoginAgreementDocument"
                   >
                     <Icon name="plus" size="sm" />
@@ -4939,7 +4978,7 @@
                         <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                           {{ localText("路由标识", "Route slug") }}
                         </label>
-                        <div class="flex overflow-hidden rounded-lg border border-gray-300 bg-white focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 dark:border-dark-600 dark:bg-dark-900">
+                        <div class="flex overflow-hidden rounded-lg border border-gray-300 bg-white focus-within:border-gray-200 focus-within:ring-1 focus-within:ring-gray-300 dark:border-dark-600 dark:bg-dark-900">
                           <span class="inline-flex flex-shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-sm text-gray-500 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-400">
                             /legal/
                           </span>
@@ -4985,7 +5024,7 @@
             <p class="mt-1.5 text-xs">
               <router-link
                 to="/admin/channels/monitor"
-                class="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
+                class="inline-flex items-center gap-1 text-gray-700 hover:underline dark:text-gray-300"
               >
                 {{ t('admin.settings.features.channelMonitor.configureLink') }}
                 <span aria-hidden="true">→</span>
@@ -5035,7 +5074,7 @@
             <p class="mt-1.5 text-xs">
               <router-link
                 to="/admin/channels/pricing"
-                class="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
+                class="inline-flex items-center gap-1 text-gray-700 hover:underline dark:text-gray-300"
               >
                 {{ t('admin.settings.features.availableChannels.configureLink') }}
                 <span aria-hidden="true">→</span>
@@ -5054,6 +5093,28 @@
               </div>
               <Toggle v-model="form.available_channels_enabled" />
             </div>
+            </div>
+          </div>
+
+          <!-- Entertainment Hall -->
+          <div class="card">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t('admin.settings.features.gameHall.title', '娱乐大厅') }}
+              </h2>
+            </div>
+            <div class="space-y-5 p-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t('admin.settings.features.gameHall.enabled', '启用娱乐大厅') }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.features.gameHall.enabledHint', '关闭后隐藏用户侧边栏入口，并拒绝娱乐大厅接口访问。') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.game_hall_enabled" />
+              </div>
             </div>
           </div>
 
@@ -5234,7 +5295,7 @@
                   </div>
                   <button
                     type="button"
-                    class="btn-primary btn-sm"
+                    class="btn-secondary btn-sm"
                     @click="openAffiliateModal(null)"
                   >
                     + {{ t('admin.settings.features.affiliate.customUsers.addButton') }}
@@ -5302,7 +5363,7 @@
                           {{ entry.aff_code }}
                           <span
                             v-if="entry.aff_code_custom"
-                            class="ml-1 inline-block rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                            class="ml-1 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300"
                           >{{ t('admin.settings.features.affiliate.customUsers.customBadge') }}</span>
                         </td>
                         <td class="px-3 py-2 text-sm">
@@ -5311,12 +5372,12 @@
                         </td>
                         <td class="px-3 py-2 text-sm">
                           <div class="flex items-center gap-2">
-                            <button class="text-primary-600 hover:underline" @click="openAffiliateModal(entry)">
+                            <button class="text-gray-700 hover:underline" @click="openAffiliateModal(entry)">
                               {{ t('common.edit') }}
                             </button>
                             <button
                               v-if="entry.aff_code_custom"
-                              class="text-yellow-600 hover:underline"
+                              class="text-amber-600 hover:underline"
                               @click="askResetAffiliateUser(entry)"
                             >
                               {{ t('admin.settings.features.affiliate.customUsers.resetCode') }}
@@ -5361,10 +5422,10 @@
         <!-- Affiliate add/edit modal -->
         <div
           v-if="affiliateModal.open"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           @click.self="closeAffiliateModal"
         >
-          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dark-900">
+          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-sm dark:bg-dark-900">
             <h3 class="mb-4 text-lg font-semibold">
               {{ affiliateModal.mode === 'add' ? t('admin.settings.features.affiliate.modal.addTitle') : t('admin.settings.features.affiliate.modal.editTitle') }}
             </h3>
@@ -5384,7 +5445,7 @@
                     :key="u.id"
                     type="button"
                     class="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-dark-800"
-                    :class="{ 'bg-primary-50 dark:bg-primary-900/20': affiliateModal.selectedUser?.id === u.id }"
+                    :class="{ 'bg-gray-100 dark:bg-dark-700': affiliateModal.selectedUser?.id === u.id }"
                     @click="affiliateModal.selectedUser = u"
                   >
                     {{ u.email }} <span class="text-xs text-gray-500">({{ u.username }})</span>
@@ -5444,7 +5505,7 @@
               </button>
               <button
                 type="button"
-                class="btn-primary"
+                class="btn-secondary"
                 :disabled="affiliateModal.saving"
                 @click="submitAffiliateModal"
               >
@@ -5457,10 +5518,10 @@
         <!-- Affiliate batch rate modal -->
         <div
           v-if="affiliateBatchModal.open"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           @click.self="affiliateBatchModal.open = false"
         >
-          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dark-900">
+          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-sm dark:bg-dark-900">
             <h3 class="mb-4 text-lg font-semibold">
               {{ t('admin.settings.features.affiliate.batchModal.title', { count: affiliateState.selected.length }) }}
             </h3>
@@ -5488,7 +5549,7 @@
               </button>
               <button
                 type="button"
-                class="btn-primary"
+                class="btn-secondary"
                 :disabled="affiliateBatchModal.saving"
                 @click="submitAffiliateBatchModal"
               >
@@ -5509,7 +5570,7 @@
             <p class="mt-1.5 text-xs">
               <router-link
                 to="/admin/risk-control"
-                class="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
+                class="inline-flex items-center gap-1 text-gray-700 hover:underline dark:text-gray-300"
               >
                 {{ t('admin.settings.features.riskControl.configureLink') }}
                 <span aria-hidden="true">→</span>
@@ -5639,7 +5700,7 @@
                   </div>
                   <button
                     type="button"
-                    class="btn btn-primary btn-sm"
+                    class="btn btn-secondary btn-sm"
                     @click="openAffiliateModal(null)"
                   >
                     + {{ t('admin.settings.features.affiliate.customUsers.addButton') }}
@@ -5707,7 +5768,7 @@
                           {{ entry.aff_code }}
                           <span
                             v-if="entry.aff_code_custom"
-                            class="ml-1 inline-block rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                            class="ml-1 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300"
                           >{{ t('admin.settings.features.affiliate.customUsers.customBadge') }}</span>
                         </td>
                         <td class="px-3 py-2 text-sm">
@@ -5716,7 +5777,7 @@
                         </td>
                         <td class="px-3 py-2 text-sm">
                           <div class="flex items-center gap-2">
-                            <button type="button" class="text-primary-600 hover:underline" @click="openAffiliateModal(entry)">
+                            <button type="button" class="text-gray-700 hover:underline" @click="openAffiliateModal(entry)">
                               {{ t('common.edit') }}
                             </button>
                             <button
@@ -5765,10 +5826,10 @@
         <!-- Affiliate add/edit modal -->
         <div
           v-if="affiliateModal.open"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           @click.self="closeAffiliateModal"
         >
-          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dark-900">
+          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-sm dark:bg-dark-900">
             <h3 class="mb-4 text-lg font-semibold">
               {{ affiliateModal.mode === 'add' ? t('admin.settings.features.affiliate.modal.addTitle') : t('admin.settings.features.affiliate.modal.editTitle') }}
             </h3>
@@ -5778,7 +5839,7 @@
                 <!-- Chip showing the picked user; clicking it re-opens the search -->
                 <div
                   v-if="affiliateModal.selectedUser"
-                  class="flex items-center justify-between rounded-md border border-primary-200 bg-primary-50 px-3 py-2 dark:border-primary-700/50 dark:bg-primary-900/20"
+                  class="flex items-center justify-between rounded-md border border-gray-200 bg-gray-100 px-3 py-2 dark:border-dark-600 dark:bg-dark-700"
                 >
                   <div class="text-sm">
                     <span class="font-medium text-gray-900 dark:text-white">{{ affiliateModal.selectedUser.email }}</span>
@@ -5876,7 +5937,7 @@
                 </button>
                 <button
                   type="button"
-                  class="btn btn-primary"
+                  class="btn btn-secondary"
                   :disabled="affiliateModal.saving || !affiliateModalCanSubmit"
                   @click="submitAffiliateModal"
                 >
@@ -5890,10 +5951,10 @@
         <!-- Affiliate batch rate modal -->
         <div
           v-if="affiliateBatchModal.open"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           @click.self="affiliateBatchModal.open = false"
         >
-          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-dark-900">
+          <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-sm dark:bg-dark-900">
             <h3 class="mb-4 text-lg font-semibold">
               {{ t('admin.settings.features.affiliate.batchModal.title', { count: affiliateState.selected.length }) }}
             </h3>
@@ -5921,7 +5982,7 @@
               </button>
               <button
                 type="button"
-                class="btn btn-primary"
+                class="btn btn-secondary"
                 :disabled="affiliateBatchModal.saving"
                 @click="submitAffiliateBatchModal"
               >
@@ -5950,7 +6011,7 @@
                   :href="paymentGuideHref"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="ml-2 inline-flex items-center text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  class="ml-2 inline-flex items-center text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
                 >
                   <svg
                     class="mr-0.5 h-3.5 w-3.5"
@@ -6106,7 +6167,7 @@
                       }}
                     </p>
                     <p
-                      class="mt-1 text-xs font-medium text-primary-600 dark:text-primary-400"
+                      class="mt-1 text-xs font-medium text-gray-700 dark:text-gray-300"
                     >
                       {{
                         t("admin.settings.payment.balanceRechargePreview", {
@@ -6155,7 +6216,7 @@
                     </p>
                     <p
                       v-if="(Number(form.payment_recharge_fee_rate) || 0) > 0"
-                      class="mt-1 text-xs font-medium text-primary-600 dark:text-primary-400"
+                      class="mt-1 text-xs font-medium text-gray-700 dark:text-gray-300"
                     >
                       {{
                         t("admin.settings.payment.rechargeFeePreview", {
@@ -6213,10 +6274,10 @@
                       <button
                         type="button"
                         :class="[
-                          'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+                          'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2',
                           form.payment_cancel_rate_limit_enabled
-                            ? 'bg-primary-500'
-                            : 'bg-gray-300 dark:bg-dark-600',
+                            ? 'bg-emerald-600 dark:bg-emerald-500'
+                            : 'bg-gray-200 dark:bg-dark-600',
                         ]"
                         @click="
                           form.payment_cancel_rate_limit_enabled =
@@ -6225,9 +6286,9 @@
                       >
                         <span
                           :class="[
-                            'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                            'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out',
                             form.payment_cancel_rate_limit_enabled
-                              ? 'translate-x-5'
+                              ? 'translate-x-[14px]'
                               : 'translate-x-0',
                           ]"
                         />
@@ -6303,10 +6364,10 @@
                       <button
                         type="button"
                         :class="[
-                          'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+                          'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2',
                           form.payment_alipay_force_qrcode
-                            ? 'bg-primary-500'
-                            : 'bg-gray-300 dark:bg-dark-600',
+                            ? 'bg-emerald-600 dark:bg-emerald-500'
+                            : 'bg-gray-200 dark:bg-dark-600',
                         ]"
                         @click="
                           form.payment_alipay_force_qrcode =
@@ -6315,9 +6376,9 @@
                       >
                         <span
                           :class="[
-                            'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                            'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out',
                             form.payment_alipay_force_qrcode
-                              ? 'translate-x-5'
+                              ? 'translate-x-[14px]'
                               : 'translate-x-0',
                           ]"
                         />
@@ -6342,7 +6403,7 @@
                       :class="[
                         'rounded-lg border px-3 py-1.5 text-sm font-medium transition-all',
                         isPaymentTypeEnabled(pt.value)
-                          ? 'border-primary-500 bg-primary-500 text-white shadow-sm'
+                          ? 'border-gray-200 bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 shadow-sm'
                           : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-dark-500',
                       ]"
                     >
@@ -6355,7 +6416,7 @@
                       :href="paymentMethodsHref"
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="ml-1 text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300"
+                      class="ml-1 text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
                     >
                       {{ t("admin.settings.payment.findProvider") }}
                       <svg
@@ -6782,7 +6843,7 @@
                         class="sr-only peer"
                       />
                       <div
-                        class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-500 peer-checked:bg-primary-600"
+                        class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-500 peer-checked:bg-emerald-600 dark:peer-checked:bg-emerald-500"
                       ></div>
                     </label>
                     <input
@@ -6902,7 +6963,7 @@
             </template>
 
             <div class="flex justify-end border-t pt-4 dark:border-dark-700">
-              <button type="button" @click="saveSettings" :disabled="saving" class="btn btn-primary btn-sm">
+              <button type="button" @click="saveSettings" :disabled="saving" class="btn btn-secondary btn-sm">
                 {{ saving ? t('common.saving') : t('common.save') }}
               </button>
             </div>
@@ -6928,7 +6989,7 @@
           <button
             type="submit"
             :disabled="saving || loadFailed"
-            class="btn btn-primary"
+            class="btn btn-secondary"
           >
             <svg
               v-if="saving"
@@ -7491,6 +7552,8 @@ const form = reactive<SettingsForm>({
   force_email_on_third_party_signup: false,
   default_user_rpm_limit: 0,
   site_name: "Sub2API",
+  theme_preset: "minimal-mono",
+  theme_font: "sans",
   site_logo: "",
   site_subtitle: "Subscription to API Conversion Platform",
   api_base_url: "",
@@ -7680,6 +7743,7 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   // Available Channels feature switch
   available_channels_enabled: false,
+  game_hall_enabled: false,
   // Transfer settings
   transfer_enabled: false,
   transfer_fee_rate: 0.01,
@@ -8691,6 +8755,8 @@ async function saveSettings() {
       force_email_on_third_party_signup: form.force_email_on_third_party_signup,
       default_user_rpm_limit: form.default_user_rpm_limit,
       site_name: form.site_name,
+      theme_preset: form.theme_preset,
+      theme_font: form.theme_font,
       site_logo: form.site_logo,
       site_subtitle: form.site_subtitle,
       api_base_url: form.api_base_url,
@@ -8887,6 +8953,7 @@ async function saveSettings() {
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
       // Transfer settings
+      game_hall_enabled: form.game_hall_enabled,
       transfer_enabled: form.transfer_enabled,
       transfer_fee_rate: Number(form.transfer_fee_rate) || 0.01,
       transfer_min_amount: Number(form.transfer_min_amount) || 0.01,
@@ -10129,11 +10196,9 @@ watch(
 
 /* ============ 系统设置 Tab 导航 ============ */
 .settings-tabs-shell {
-  @apply sticky z-20 -mx-1 rounded-2xl border border-white/80 bg-white/90 p-1.5 backdrop-blur-xl;
+  @apply sticky z-20 -mx-1 rounded-lg border border-gray-200 bg-white p-1.5 dark:border-dark-700 dark:bg-dark-800;
   top: 4.75rem;
-  box-shadow:
-    0 12px 28px rgb(15 23 42 / 0.07),
-    0 1px 0 rgb(255 255 255 / 0.9) inset;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
 }
 
 .settings-tabs-scroll {
@@ -10171,7 +10236,7 @@ watch(
 .settings-tab::before {
   @apply absolute inset-0 -z-10 rounded-xl opacity-0 transition-opacity duration-200;
   content: "";
-  background: linear-gradient(135deg, rgb(248 250 252 / 0.95), rgb(241 245 249 / 0.8));
+  background: var(--muted);
 }
 
 .settings-tab:hover::before,
@@ -10180,14 +10245,12 @@ watch(
 }
 
 .settings-tab:focus-visible {
-  @apply ring-2 ring-primary-500/40 ring-offset-2 ring-offset-white dark:ring-offset-dark-900;
+  @apply ring-2 ring-gray-300 ring-offset-2 ring-offset-white dark:ring-offset-dark-900;
 }
 
 .settings-tab-active {
-  @apply border-primary-200/80 bg-white text-primary-700 shadow-sm dark:border-primary-400/30 dark:bg-dark-700/95 dark:text-primary-200;
-  box-shadow:
-    0 8px 18px rgb(15 23 42 / 0.08),
-    0 1px 0 rgb(255 255 255 / 0.92) inset;
+  @apply border-gray-200 bg-white text-gray-700 shadow-sm dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
 }
 
 .settings-tab-active::before {
@@ -10202,7 +10265,7 @@ watch(
   height: 2px;
   border-radius: 9999px;
   content: "";
-  background: linear-gradient(90deg, #14b8a6, #0ea5e9);
+  background: var(--foreground);
 }
 
 .settings-tab-icon {
@@ -10215,7 +10278,7 @@ watch(
 }
 
 .settings-tab-active .settings-tab-icon {
-  @apply bg-primary-50 text-primary-600 dark:bg-primary-400/10 dark:text-primary-300;
+  @apply bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300;
 }
 
 .settings-tab-label {
@@ -10260,20 +10323,16 @@ watch(
    because Vue's scoped-CSS compiler was dropping the `:global(.dark) ...`
    rules in the production build, leaving inactive tabs unreadable on dark. */
 .dark .settings-tabs-shell {
-  border-color: rgb(51 65 85 / 0.65);
-  background: rgb(15 23 42 / 0.86);
-  box-shadow:
-    0 16px 36px rgb(0 0 0 / 0.28),
-    0 1px 0 rgb(255 255 255 / 0.06) inset;
+  border-color: var(--border);
+  background: var(--card);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
 }
 
 .dark .settings-tab::before {
-  background: linear-gradient(135deg, rgb(30 41 59 / 0.9), rgb(51 65 85 / 0.62));
+  background: var(--muted);
 }
 
 .dark .settings-tab-active {
-  box-shadow:
-    0 12px 26px rgb(0 0 0 / 0.22),
-    0 1px 0 rgb(255 255 255 / 0.08) inset;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
 }
 </style>

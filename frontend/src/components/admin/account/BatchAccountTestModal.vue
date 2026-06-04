@@ -13,11 +13,12 @@
           </div>
           <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ rows.length }}</div>
         </div>
-        <div class="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-500/30 dark:bg-green-500/10">
-          <div class="text-xs font-medium text-green-700 dark:text-green-300">
+        <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-dark-500 dark:bg-dark-700">
+          <div class="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--success)]"></span>
             {{ t('admin.accounts.batchTest.success') }}
           </div>
-          <div class="mt-1 text-2xl font-semibold text-green-700 dark:text-green-300">{{ successCount }}</div>
+          <div class="mt-1 text-2xl font-semibold text-emerald-600 dark:text-emerald-400">{{ successCount }}</div>
         </div>
         <div class="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-500/30 dark:bg-red-500/10">
           <div class="text-xs font-medium text-red-700 dark:text-red-300">
@@ -25,19 +26,20 @@
           </div>
           <div class="mt-1 text-2xl font-semibold text-red-700 dark:text-red-300">{{ failedCount }}</div>
         </div>
-        <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-500/30 dark:bg-blue-500/10">
-          <div class="text-xs font-medium text-blue-700 dark:text-blue-300">
+        <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-dark-500 dark:bg-dark-700">
+          <div class="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--info)]"></span>
             {{ t('admin.accounts.batchTest.progress') }}
           </div>
-          <div class="mt-1 text-2xl font-semibold text-blue-700 dark:text-blue-300">
+          <div class="mt-1 text-2xl font-semibold text-sky-600 dark:text-sky-400">
             {{ completedCount }}/{{ rows.length }}
           </div>
         </div>
       </div>
 
-      <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-600">
+      <div class="h-2 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--muted)]">
         <div
-          class="h-full rounded-full bg-primary-500 transition-all"
+          class="h-full rounded-full bg-[var(--info)] transition-all"
           :style="{ width: progressPercent + '%' }"
         ></div>
       </div>
@@ -195,7 +197,7 @@
           v-else
           @click="startBatch"
           :disabled="rows.length === 0 || loadingModels || !selectedModelId"
-          class="btn btn-primary"
+          class="btn btn-secondary"
         >
           {{ hasCompleted ? t('admin.accounts.batchTest.retry') : t('admin.accounts.batchTest.start') }}
         </button>
@@ -464,8 +466,8 @@ const queueDeleteIfUnauthorized = (row: BatchTestRow, resultCode: string) => {
 const quickFilterButtonClass = (value: ResultFilterValue) => {
   const selected = resultFilter.value === value
   return selected
-    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/20 dark:text-primary-200'
-    : 'border-gray-200 bg-white text-gray-600 hover:border-primary-300 hover:text-primary-700 dark:border-dark-500 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-primary-500 dark:hover:text-primary-200'
+    ? 'border-gray-200 bg-gray-100 text-gray-700 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300'
+    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-200 hover:text-gray-700 dark:border-dark-500 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-gray-200 dark:hover:text-gray-700'
 }
 
 const statusLabel = (status: BatchTestStatus) => {
@@ -475,15 +477,15 @@ const statusLabel = (status: BatchTestStatus) => {
 const statusBadgeClass = (status: BatchTestStatus) => {
   switch (status) {
     case 'running':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
+      return 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200 dark:bg-[var(--info)]/10 dark:text-sky-300 dark:ring-sky-500/30'
     case 'success':
-      return 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
+      return 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-[var(--success)]/10 dark:text-emerald-300 dark:ring-emerald-500/30'
     case 'failed':
       return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
     case 'skipped':
-      return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300'
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
     default:
-      return 'bg-gray-100 text-gray-700 dark:bg-dark-600 dark:text-gray-300'
+      return 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-500/30'
   }
 }
 

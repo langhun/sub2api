@@ -54,7 +54,7 @@
         <!-- Code Status -->
         <div
           v-if="codeSent"
-          class="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-800/50 dark:bg-green-900/20"
+          class="rounded-xl border border-[var(--border)] bg-[var(--muted)] p-4"
         >
           <div class="flex items-start gap-3">
             <div class="flex-shrink-0">

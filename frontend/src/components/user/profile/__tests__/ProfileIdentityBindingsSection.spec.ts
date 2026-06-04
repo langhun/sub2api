@@ -534,6 +534,27 @@ describe('ProfileIdentityBindingsSection', () => {
     expect(wrapper.get('[data-testid="profile-binding-email-input"]').exists()).toBe(true)
   })
 
+  it('uses theme-token row classes for embedded binding cards', () => {
+    const wrapper = mount(ProfileIdentityBindingsSection, {
+      global: {
+        plugins: [pinia],
+      },
+      props: {
+        user: createUser(),
+        embedded: true,
+        compact: true,
+        linuxdoEnabled: false,
+        oidcEnabled: false,
+        wechatEnabled: false,
+      },
+    })
+
+    const row = wrapper.get('.profile-binding-row')
+    expect(row.classes()).toContain('profile-binding-row-compact')
+    expect(row.classes()).not.toContain('bg-white')
+    expect(row.classes()).not.toContain('dark:bg-dark-900/40')
+  })
+
   it('shows third-party binding details and unbinds a connected provider', async () => {
     userApiMocks.unbindAuthIdentity.mockResolvedValue(
       createUser({

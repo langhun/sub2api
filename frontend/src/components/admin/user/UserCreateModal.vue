@@ -51,7 +51,7 @@
     <template #footer>
       <div class="flex justify-end gap-3">
         <button @click="$emit('close')" type="button" class="btn btn-secondary">{{ t('common.cancel') }}</button>
-        <button type="submit" form="create-user-form" :disabled="loading" class="btn btn-primary">
+        <button type="submit" form="create-user-form" :disabled="loading" class="btn btn-secondary">
           {{ loading ? t('admin.users.creating') : t('common.create') }}
         </button>
       </div>

@@ -21,7 +21,7 @@
       <div class="mb-2 flex items-center gap-3 text-xs">
         <button
           type="button"
-          class="text-primary-600 hover:underline dark:text-primary-400"
+          class="text-gray-700 hover:underline dark:text-gray-300"
           @click="selectAll"
         >
           {{ t('common.selectAll') }}
@@ -51,7 +51,7 @@
           <input
             type="checkbox"
             :checked="selectedSet.has(m.id)"
-            class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
             @click.stop="toggle(m.id)"
           />
           <span class="font-medium text-gray-900 dark:text-white">{{ m.name }}</span>
@@ -73,7 +73,7 @@
           {{ t('common.cancel') }}
         </button>
         <button
-          class="btn btn-primary"
+          class="btn btn-secondary"
           :disabled="submitting || selectedIds.length === 0"
           @click="handleApply"
         >

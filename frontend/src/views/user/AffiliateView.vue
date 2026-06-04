@@ -3,55 +3,55 @@
     <div class="space-y-6">
       <div v-if="loading" class="flex justify-center py-12">
         <div
-          class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
+          class="h-8 w-8 animate-spin rounded-full border-2 border-gray-500 border-t-transparent"
         ></div>
       </div>
 
       <template v-else-if="detail">
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div class="card p-5">
+          <div class="card feature-panel-purple p-5">
             <p class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-dark-400">
-              <Icon name="dollar" size="sm" class="text-primary-500" />
+              <Icon name="dollar" size="sm" class="text-[var(--foreground)]" />
               {{ t('affiliate.stats.rebateRate') }}
             </p>
-            <p class="mt-2 text-2xl font-semibold text-primary-600 dark:text-primary-400">
+            <p class="mt-2 text-2xl font-semibold text-gray-600 dark:text-gray-400">
               {{ formattedRebateRate }}<span class="ml-0.5 text-base font-medium">%</span>
             </p>
             <p class="mt-1 text-xs text-gray-400 dark:text-dark-500">
               {{ t('affiliate.stats.rebateRateHint') }}
             </p>
           </div>
-          <div class="card p-5">
+          <div class="card feature-panel-info p-5">
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.stats.invitedUsers') }}</p>
             <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
               {{ formatCount(detail.aff_count) }}
             </p>
           </div>
-          <div class="card p-5">
+          <div class="card feature-panel-success p-5">
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.stats.availableQuota') }}</p>
-            <p class="mt-2 text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
-              {{ formatCurrency(detail.aff_quota) }}
+            <p class="mt-2 text-2xl font-semibold text-gray-600 dark:text-gray-400" :title="formatAmountTitle(detail.aff_quota)">
+              {{ formatAmount(detail.aff_quota) }}
             </p>
           </div>
-          <div class="card p-5">
+          <div class="card feature-panel-warning p-5">
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.stats.totalQuota') }}</p>
-            <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
-              {{ formatCurrency(detail.aff_history_quota) }}
+            <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white" :title="formatAmountTitle(detail.aff_history_quota)">
+              {{ formatAmount(detail.aff_history_quota) }}
             </p>
-            <p v-if="detail.aff_frozen_quota > 0" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
-              {{ t('affiliate.stats.frozenQuota') }}: {{ formatCurrency(detail.aff_frozen_quota) }}
+            <p v-if="detail.aff_frozen_quota > 0" class="mt-1 text-xs text-[var(--muted-foreground)]" :title="formatAmountTitle(detail.aff_frozen_quota)">
+              {{ t('affiliate.stats.frozenQuota') }}: {{ formatAmount(detail.aff_frozen_quota) }}
             </p>
           </div>
         </div>
 
-        <div class="card p-6">
+        <div class="card feature-panel-info p-6">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('affiliate.title') }}</h3>
           <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.description') }}</p>
 
           <div class="mt-5 grid gap-4 md:grid-cols-2">
             <div class="space-y-2">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('affiliate.yourCode') }}</p>
-              <div class="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-dark-700 dark:bg-dark-900">
+              <div class="feature-panel-info flex items-center gap-2 rounded-xl border px-3 py-2">
                 <code class="flex-1 truncate text-sm font-semibold text-gray-900 dark:text-white">{{ detail.aff_code }}</code>
                 <button class="btn btn-secondary btn-sm" @click="copyCode">
                   <Icon name="copy" size="sm" />
@@ -62,7 +62,7 @@
 
             <div class="space-y-2">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('affiliate.inviteLink') }}</p>
-              <div class="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-dark-700 dark:bg-dark-900">
+              <div class="feature-panel-info flex items-center gap-2 rounded-xl border px-3 py-2">
                 <code class="flex-1 truncate text-sm text-gray-700 dark:text-gray-300">{{ inviteLink }}</code>
                 <button class="btn btn-secondary btn-sm" @click="copyInviteLink">
                   <Icon name="copy" size="sm" />
@@ -72,9 +72,9 @@
             </div>
           </div>
 
-          <div class="mt-5 rounded-xl border border-primary-200 bg-primary-50 p-4 dark:border-primary-900/40 dark:bg-primary-900/20">
-            <p class="text-sm font-medium text-primary-800 dark:text-primary-200">{{ t('affiliate.tips.title') }}</p>
-            <ul class="mt-2 space-y-1 text-sm text-primary-700 dark:text-primary-300">
+          <div class="feature-panel-warning mt-5 rounded-xl border p-4">
+            <p class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ t('affiliate.tips.title') }}</p>
+            <ul class="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
               <li>1. {{ t('affiliate.tips.line1') }}</li>
               <li>2. {{ t('affiliate.tips.line2', { rate: `${formattedRebateRate}%` }) }}</li>
               <li>3. {{ t('affiliate.tips.line3') }}</li>
@@ -83,14 +83,14 @@
           </div>
         </div>
 
-        <div class="card p-6">
+        <div class="card feature-panel-success p-6">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('affiliate.transfer.title') }}</h3>
               <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.transfer.description') }}</p>
             </div>
             <button
-              class="btn btn-primary"
+              class="btn btn-secondary"
               :disabled="transferring || detail.aff_quota <= 0"
               @click="transferQuota"
             >
@@ -99,7 +99,7 @@
               <span>{{ transferring ? t('affiliate.transfer.transferring') : t('affiliate.transfer.button') }}</span>
             </button>
           </div>
-          <p v-if="detail.aff_quota <= 0" class="mt-3 text-sm text-amber-600 dark:text-amber-400">
+          <p v-if="detail.aff_quota <= 0" class="mt-3 text-sm text-[var(--muted-foreground)]">
             {{ t('affiliate.transfer.empty') }}
           </p>
         </div>
@@ -127,7 +127,7 @@
                 >
                   <td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.email || '-' }}</td>
                   <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ item.username || '-' }}</td>
-                  <td class="px-3 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{{ formatCurrency(item.total_rebate) }}</td>
+                  <td class="px-3 py-3 text-right font-medium text-gray-600 dark:text-gray-400">{{ formatAmount(item.total_rebate) }}</td>
                   <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ formatDateTime(item.created_at) || '-' }}</td>
                 </tr>
               </tbody>
@@ -149,7 +149,7 @@ import type { UserAffiliateDetail } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
-import { formatCurrency, formatDateTime } from '@/utils/format'
+import { formatDateTime, formatDualDisplayAmount } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
@@ -177,6 +177,14 @@ const formattedRebateRate = computed(() => {
 
 function formatCount(value: number): string {
   return value.toLocaleString()
+}
+
+function formatAmount(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).display
+}
+
+function formatAmountTitle(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).full
 }
 
 async function loadAffiliateDetail(silent = false): Promise<void> {
@@ -209,7 +217,7 @@ async function transferQuota(): Promise<void> {
   transferring.value = true
   try {
     const resp = await userAPI.transferAffiliateQuota()
-    appStore.showSuccess(t('affiliate.transfer.success', { amount: formatCurrency(resp.transferred_quota) }))
+    appStore.showSuccess(t('affiliate.transfer.success', { amount: formatAmount(resp.transferred_quota) }))
     await Promise.all([
       loadAffiliateDetail(true),
       authStore.refreshUser().catch(() => undefined),

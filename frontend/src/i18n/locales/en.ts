@@ -408,7 +408,7 @@
     buySubscription: 'Recharge / Subscription',
     docs: 'Docs',
     myOrders: 'My Orders',
-  checkin: 'Check-in Center',
+    checkin: 'Check-in Center',
     gameHall: 'Entertainment Hall',
     orderManagement: 'Orders',
     paymentDashboard: 'Payment Dashboard',
@@ -1034,7 +1034,7 @@
       GAME: 'Game',
       LENDING: 'Lending',
       SYSTEM: 'System',
-      FINANCIAL_HUB: 'Finance Center'
+      FINANCIAL_HUB: 'Financial Hub'
     }
   },
 
@@ -1358,6 +1358,8 @@
     createFailed: 'Failed to create',
     claimSuccess: 'Claimed successfully!',
     claimFailed: 'Failed to claim',
+    claimExhausted: 'This red packet has already been fully claimed.',
+    bestLuck: 'Best Luck',
     currentBalance: 'Current Balance',
     feeHint: 'Fee ${fee} (rate {rate}%)',
     expireAt: 'Expires',
@@ -6263,7 +6265,7 @@
         gameHall: {
           title: 'Entertainment Hall',
           enabled: 'Enable Entertainment Hall',
-          enabledHint: 'When off, the user sidebar entry is hidden and entertainment hall access is blocked.',
+          enabledHint: 'When off, the user sidebar entry is hidden and game hall APIs are blocked.',
         },
         riskControl: {
           title: 'Risk Control',
@@ -6624,6 +6626,14 @@
         siteSubtitle: 'Site Subtitle',
         siteSubtitlePlaceholder: 'Subscription to API Conversion Platform',
         siteSubtitleHint: 'Displayed on login and register pages',
+        themePreset: 'Global Theme',
+        themePresetHint: 'All users use this color style after saving',
+        themeMinimalMono: 'Minimal Mono',
+        themeClassic: 'Classic',
+        themeFont: 'Global Font',
+        themeFontHint: 'Applies the selected font stack across the app after saving',
+        themeFontSerif: 'Editorial Serif',
+        themeFontSans: 'Minimal Sans',
         apiBaseUrl: 'API Base URL',
         apiBaseUrlPlaceholder: 'https://api.example.com',
         apiBaseUrlHint:

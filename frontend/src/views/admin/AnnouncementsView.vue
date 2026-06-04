@@ -30,7 +30,7 @@
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
-            <button @click="openCreateDialog" class="btn btn-primary">
+            <button @click="openCreateDialog" class="btn btn-secondary">
               <Icon name="plus" size="md" class="mr-1" />
               {{ t('admin.announcements.createAnnouncement') }}
             </button>
@@ -68,7 +68,7 @@
                 value === 'active'
                   ? 'badge-success'
                   : value === 'draft'
-                    ? 'badge-gray'
+                    ? 'badge-secondary'
                     : 'badge-warning'
               ]"
             >
@@ -82,7 +82,7 @@
                 'badge',
                 row.notify_mode === 'popup'
                   ? 'badge-warning'
-                  : 'badge-gray'
+                  : 'badge-info'
               ]"
             >
               {{ row.notify_mode === 'popup' ? t('admin.announcements.notifyModeLabels.popup') : t('admin.announcements.notifyModeLabels.silent') }}
@@ -116,7 +116,7 @@
             <div class="flex items-center space-x-1">
               <button
                 @click="openReadStatus(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                 :title="t('admin.announcements.readStatus')"
               >
                 <Icon name="eye" size="sm" />
@@ -215,7 +215,7 @@
           <button type="button" @click="closeEdit" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button type="submit" form="announcement-form" :disabled="saving" class="btn btn-primary">
+          <button type="submit" form="announcement-form" :disabled="saving" class="btn btn-secondary">
             {{ saving ? t('common.saving') : t('common.save') }}
           </button>
         </div>

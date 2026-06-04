@@ -379,7 +379,7 @@ function cancelDelete() {
 </script>
 
 <template>
-  <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-dark-800 dark:ring-dark-700">
+  <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-dark-800 dark:ring-dark-700">
     <div class="mb-4 flex items-start justify-between gap-4">
       <div>
         <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ t('admin.ops.alertRules.title') }}</h3>
@@ -387,7 +387,7 @@ function cancelDelete() {
       </div>
 
       <div class="flex items-center gap-2">
-        <button class="btn btn-sm btn-primary" :disabled="loading" @click="openCreate">
+        <button class="btn btn-sm btn-secondary" :disabled="loading" @click="openCreate">
           {{ t('admin.ops.alertRules.create') }}
         </button>
         <button
@@ -472,7 +472,7 @@ function cancelDelete() {
       @close="showEditor = false"
     >
       <div class="space-y-4">
-        <div v-if="!editorValidation.valid" class="rounded-xl bg-red-50 p-4 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
+        <div v-if="!editorValidation.valid" class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-xs text-red-700 dark:text-red-300">
           <div class="font-bold">{{ t('admin.ops.alertRules.validation.title') }}</div>
           <ul class="mt-1 list-disc pl-5">
             <li v-for="e in editorValidation.errors" :key="e">{{ e }}</li>
@@ -556,12 +556,12 @@ function cancelDelete() {
 
           <div class="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 dark:bg-dark-800/50 md:col-span-2">
             <span class="text-xs font-bold text-gray-700 dark:text-gray-200">{{ t('admin.ops.alertRules.form.enabled') }}</span>
-            <input v-model="draft!.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+            <input v-model="draft!.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]" />
           </div>
 
           <div class="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 dark:bg-dark-800/50 md:col-span-2">
             <span class="text-xs font-bold text-gray-700 dark:text-gray-200">{{ t('admin.ops.alertRules.form.notifyEmail') }}</span>
-            <input v-model="draft!.notify_email" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+            <input v-model="draft!.notify_email" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]" />
           </div>
         </div>
       </div>
@@ -571,7 +571,7 @@ function cancelDelete() {
           <button class="btn btn-secondary" :disabled="saving" @click="showEditor = false">
             {{ t('common.cancel') }}
           </button>
-          <button class="btn btn-primary" :disabled="saving" @click="save">
+          <button class="btn btn-secondary" :disabled="saving" @click="save">
             {{ saving ? t('common.saving') : t('common.save') }}
           </button>
         </div>

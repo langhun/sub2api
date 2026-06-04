@@ -185,7 +185,6 @@ async function copyCode(code: string) {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
 }
 
 .blindbox-container {
@@ -200,8 +199,8 @@ async function copyCode(code: string) {
   width: 400px;
   height: 400px;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.35;
+  filter: none;
+  opacity: 0.08;
   animation: pulse-glow 2.5s ease-in-out infinite;
 }
 
@@ -219,27 +218,27 @@ async function copyCode(code: string) {
   align-items: center;
   gap: 14px;
   padding: 36px 28px 28px;
-  border-radius: 20px;
-  background: white;
-  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 
 html.dark .blindbox-card-inner {
-  background: #1a1a2e;
-  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.7);
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
 }
 
 .blindbox-shine {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%);
+  background: transparent;
   animation: shine-sweep 3s ease-in-out infinite;
 }
 
 html.dark .blindbox-shine {
-  background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.04) 50%, transparent 70%);
+  background: transparent;
 }
 
 .shine-epic { animation-duration: 4s; }
@@ -247,7 +246,7 @@ html.dark .blindbox-shine {
 .blindbox-icon-wrapper {
   width: 64px;
   height: 64px;
-  border-radius: 18px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -307,17 +306,17 @@ html.dark .blindbox-shine {
   gap: 6px;
   padding: 10px 14px;
   border-radius: 10px;
-  background: #f9fafb;
+  background: var(--muted);
   width: 100%;
 }
 
 html.dark .blindbox-invite-section {
-  background: rgba(55, 65, 81, 0.5);
+  background: var(--muted);
 }
 
 .blindbox-invite-label {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--muted-foreground);
 }
 
 .blindbox-invite-code-row {
@@ -331,18 +330,18 @@ html.dark .blindbox-invite-section {
   font-family: 'SF Mono', 'Fira Code', monospace;
   word-break: break-all;
   text-align: center;
-  color: #111827;
+  color: var(--foreground);
   font-weight: 600;
-  background: white;
+  background: var(--card);
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
 }
 
 html.dark .blindbox-invite-code {
-  color: #f3f4f6;
-  background: #1f2937;
-  border-color: #374151;
+  color: var(--foreground);
+  background: var(--card);
+  border-color: var(--border);
 }
 
 .blindbox-copy-btn {
@@ -350,15 +349,15 @@ html.dark .blindbox-invite-code {
   border-radius: 6px;
   font-size: 11px;
   font-weight: 500;
-  color: white;
-  background: #6366f1;
-  border: none;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  border: 1px solid var(--foreground);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .blindbox-copy-btn:hover {
-  background: #4f46e5;
+  opacity: 0.9;
 }
 
 .blindbox-close-btn {
@@ -367,8 +366,8 @@ html.dark .blindbox-invite-code {
   border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
-  color: white;
-  border: none;
+  color: var(--primary-foreground);
+  border: 1px solid var(--foreground);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -383,60 +382,74 @@ html.dark .blindbox-invite-code {
 }
 
 /* Glow colors */
-.glow-common { background-color: #9ca3af; }
-.glow-rare { background-color: #3b82f6; }
-.glow-epic { background-color: #8b5cf6; }
-.glow-legendary { background-color: #f59e0b; }
+.glow-common { background-color: var(--muted-foreground); }
+.glow-rare { background-color: var(--muted-foreground); }
+.glow-epic { background-color: var(--muted-foreground); }
+.glow-legendary { background-color: var(--muted-foreground); }
 
 /* Icon wrapper styles */
-.icon-common { background-color: #f3f4f6; color: #6b7280; }
-.icon-rare { background-color: #dbeafe; color: #2563eb; }
-.icon-epic { background-color: #ede9fe; color: #7c3aed; }
-.icon-legendary { background-color: #fef3c7; color: #d97706; }
+.icon-common,
+.icon-rare,
+.icon-epic,
+.icon-legendary {
+  background-color: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
 
-html.dark .icon-common { background-color: #374151; color: #9ca3af; }
-html.dark .icon-rare { background-color: #1e3a5f; color: #60a5fa; }
-html.dark .icon-epic { background-color: #2d1b69; color: #a78bfa; }
-html.dark .icon-legendary { background-color: #451a03; color: #fbbf24; }
+html.dark .icon-common,
+html.dark .icon-rare,
+html.dark .icon-epic,
+html.dark .icon-legendary {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
 
 /* Badge styles */
-.badge-common { background-color: #f3f4f6; color: #6b7280; }
-.badge-rare { background-color: #dbeafe; color: #2563eb; }
-.badge-epic { background-color: #ede9fe; color: #7c3aed; }
-.badge-legendary { background-color: #fef3c7; color: #d97706; }
+.badge-common,
+.badge-rare,
+.badge-epic,
+.badge-legendary {
+  background-color: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
 
-html.dark .badge-common { background-color: #374151; color: #9ca3af; }
-html.dark .badge-rare { background-color: #1e3a5f; color: #60a5fa; }
-html.dark .badge-epic { background-color: #2d1b69; color: #a78bfa; }
-html.dark .badge-legendary { background-color: #451a03; color: #fbbf24; }
+html.dark .badge-common,
+html.dark .badge-rare,
+html.dark .badge-epic,
+html.dark .badge-legendary {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
 
 /* Text colors */
-.text-common { color: #6b7280; }
-.text-rare { color: #2563eb; }
-.text-epic { color: #7c3aed; }
-.text-legendary { color: #d97706; }
+.text-common { color: var(--foreground); }
+.text-rare { color: var(--foreground); }
+.text-epic { color: var(--foreground); }
+.text-legendary { color: var(--foreground); }
 
-html.dark .text-common { color: #9ca3af; }
-html.dark .text-rare { color: #60a5fa; }
-html.dark .text-epic { color: #a78bfa; }
-html.dark .text-legendary { color: #fbbf24; }
+html.dark .text-common { color: var(--muted-foreground); }
+html.dark .text-rare { color: var(--foreground); }
+html.dark .text-epic { color: var(--foreground); }
+html.dark .text-legendary { color: var(--foreground); }
 
 /* Button colors */
-.btn-common { background-color: #6b7280; }
-.btn-rare { background-color: #2563eb; }
-.btn-epic { background-color: #7c3aed; }
-.btn-legendary { background-color: #d97706; }
+.btn-common { background-color: var(--foreground); }
+.btn-rare { background-color: var(--foreground); }
+.btn-epic { background-color: var(--foreground); }
+.btn-legendary { background-color: var(--foreground); }
 
 /* Reward section backgrounds */
-.reward-bg-common { background-color: #f9fafb; }
-.reward-bg-rare { background-color: #eff6ff; }
-.reward-bg-epic { background-color: #f5f3ff; }
-.reward-bg-legendary { background-color: #fffbeb; }
+.reward-bg-common { background-color: var(--muted); }
+.reward-bg-rare { background-color: var(--muted); }
+.reward-bg-epic { background-color: var(--muted); }
+.reward-bg-legendary { background-color: var(--muted); }
 
-html.dark .reward-bg-common { background-color: rgba(55,65,81,0.4); }
-html.dark .reward-bg-rare { background-color: rgba(30,58,95,0.4); }
-html.dark .reward-bg-epic { background-color: rgba(45,27,105,0.3); }
-html.dark .reward-bg-legendary { background-color: rgba(69,26,3,0.3); }
+html.dark .reward-bg-common { background-color: var(--muted); }
+html.dark .reward-bg-rare { background-color: var(--muted); }
+html.dark .reward-bg-epic { background-color: var(--muted); }
+html.dark .reward-bg-legendary { background-color: var(--muted); }
 
 /* Sparkles */
 .blindbox-sparkles {
@@ -447,10 +460,10 @@ html.dark .reward-bg-legendary { background-color: rgba(69,26,3,0.3); }
 
 .sparkle {
   position: absolute;
-  background: #fbbf24;
+  background: var(--muted-foreground);
   border-radius: 50%;
   animation: sparkle-float 2.5s ease-in-out infinite;
-  box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+  box-shadow: none;
 }
 
 /* Animations */

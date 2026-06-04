@@ -4,15 +4,15 @@
       <!-- Header with Day Switcher -->
       <div class="flex items-center justify-end">
         <div class="flex items-center gap-2">
-          <div class="flex rounded-lg border border-gray-200 dark:border-dark-600">
+          <div class="flex rounded-xl border border-[var(--border)] bg-[var(--muted)] p-1">
             <button
               v-for="d in DAYS_OPTIONS"
               :key="d"
               type="button"
-              class="px-3 py-1.5 text-xs font-medium transition-colors first:rounded-l-lg last:rounded-r-lg"
+              class="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
               :class="days === d
-                ? 'bg-primary-600 text-white'
-                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700'"
+                ? 'feature-panel-info border text-gray-900 dark:text-white'
+                : 'text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-dark-700'"
               @click="days = d"
             >
               {{ d }}{{ t('payment.admin.daySuffix') }}
@@ -32,7 +32,7 @@
         <OrderStatsCards :stats="stats" />
         <DailyRevenueChart :data="stats.daily_series || []" :loading="loading" />
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div class="card p-4">
+          <div class="card feature-panel-info p-4">
             <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.admin.paymentDistribution') }}</h3>
             <div v-if="!stats.payment_methods?.length" class="flex h-32 items-center justify-center text-sm text-gray-500 dark:text-gray-400">{{ t('payment.admin.noData') }}</div>
             <div v-else class="space-y-3">
@@ -48,7 +48,7 @@
               </div>
             </div>
           </div>
-          <div class="card p-4">
+          <div class="card feature-panel-purple p-4">
             <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.admin.topUsers') }}</h3>
             <div v-if="!stats.top_users?.length" class="flex h-32 items-center justify-center text-sm text-gray-500 dark:text-gray-400">{{ t('payment.admin.noData') }}</div>
             <div v-else class="space-y-2">
@@ -90,15 +90,15 @@ const stats = ref<DashboardStats | null>(null)
 
 function methodColor(type: string): string {
   const c: Record<string, string> = {
-    alipay: 'bg-blue-500', wxpay: 'bg-green-500',
-    alipay_direct: 'bg-blue-400', wxpay_direct: 'bg-green-400',
-    stripe: 'bg-purple-500',
+    alipay: 'bg-[var(--info)]', wxpay: 'bg-[var(--success)]',
+    alipay_direct: 'bg-[var(--info)]', wxpay_direct: 'bg-[var(--success)]',
+    stripe: 'bg-[var(--neutral)]',
   }
-  return c[type] || 'bg-gray-400'
+  return c[type] || 'bg-slate-400'
 }
 
 function rankClass(idx: number): string {
-  if (idx === 0) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+  if (idx === 0) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
   if (idx === 1) return 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
   if (idx === 2) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
   return 'bg-gray-100 text-gray-500 dark:bg-dark-700 dark:text-gray-400'

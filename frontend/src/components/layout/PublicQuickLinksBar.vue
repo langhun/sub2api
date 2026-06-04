@@ -11,7 +11,7 @@
         :class="[
           'dropdown-item',
           route.path === link.path
-            ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+            ? 'bg-[var(--muted)] text-[var(--foreground)]'
             : ''
         ]"
         @click="emit('navigate')"
@@ -28,8 +28,8 @@
         :class="[
           'shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
           route.path === link.path
-            ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-white'
+            ? 'bg-[var(--muted)] text-[var(--foreground)]'
+            : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]'
         ]"
       >
         {{ link.label }}
@@ -88,7 +88,7 @@ const containerClass = computed(() => props.variant === 'menu'
   ? 'py-1'
   : props.inline
   ? 'w-full'
-  : 'border-b border-gray-200/60 bg-white/75 px-4 backdrop-blur dark:border-dark-800/60 dark:bg-dark-950/75 md:px-6')
+  : 'border-b border-[var(--border)] bg-[var(--background)] px-4 md:px-6')
 
 const linksClass = computed(() => props.inline
   ? 'flex items-center justify-end gap-2 overflow-x-auto whitespace-nowrap'

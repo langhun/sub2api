@@ -11,7 +11,7 @@
         <p class="text-sm text-gray-500 dark:text-gray-400">
           {{ t('admin.errorPassthrough.description') }}
         </p>
-        <button @click="showCreateModal = true" class="btn btn-primary btn-sm">
+        <button @click="showCreateModal = true" class="btn btn-secondary btn-sm">
           <Icon name="plus" size="sm" class="mr-1" />
           {{ t('admin.errorPassthrough.createRule') }}
         </button>
@@ -115,7 +115,7 @@
                   <span
                     v-for="platform in rule.platforms.slice(0, 2)"
                     :key="platform"
-                    class="badge badge-primary text-xs"
+                    class="badge badge-gray text-xs"
                   >
                     {{ platform }}
                   </span>
@@ -130,7 +130,7 @@
                     <Icon
                       :name="rule.passthrough_code ? 'checkCircle' : 'xCircle'"
                       size="xs"
-                      :class="rule.passthrough_code ? 'text-green-500' : 'text-gray-400'"
+                      :class="rule.passthrough_code ? 'text-emerald-500' : 'text-gray-400'"
                     />
                     <span class="text-gray-600 dark:text-gray-400">
                       {{ t('admin.errorPassthrough.code') }}:
@@ -141,7 +141,7 @@
                     <Icon
                       :name="rule.passthrough_body ? 'checkCircle' : 'xCircle'"
                       size="xs"
-                      :class="rule.passthrough_body ? 'text-green-500' : 'text-gray-400'"
+                      :class="rule.passthrough_body ? 'text-emerald-500' : 'text-gray-400'"
                     />
                     <span class="text-gray-600 dark:text-gray-400">
                       {{ t('admin.errorPassthrough.body') }}:
@@ -152,7 +152,7 @@
                     <Icon
                       name="checkCircle"
                       size="xs"
-                      class="text-yellow-500"
+                      class="text-amber-500"
                     />
                     <span class="text-gray-600 dark:text-gray-400">
                       {{ t('admin.errorPassthrough.skipMonitoring') }}
@@ -164,14 +164,14 @@
                 <button
                   @click="toggleEnabled(rule)"
                   :class="[
-                    'relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                    rule.enabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+                    'relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2',
+                    rule.enabled ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-gray-200 dark:bg-dark-600'
                   ]"
                 >
                   <span
                     :class="[
-                      'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                      rule.enabled ? 'translate-x-3' : 'translate-x-0'
+                      'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out',
+                      rule.enabled ? 'translate-x-[12px]' : 'translate-x-0'
                     ]"
                   />
                 </button>
@@ -180,7 +180,7 @@
                 <div class="flex items-center gap-1">
                   <button
                     @click="handleEdit(rule)"
-                    class="p-1 text-gray-500 hover:text-primary-600 dark:hover:text-primary-400"
+                    class="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-700"
                     :title="t('common.edit')"
                   >
                     <Icon name="edit" size="sm" />
@@ -291,7 +291,7 @@
                   type="radio"
                   :value="option.value"
                   v-model="form.match_mode"
-                  class="mt-0.5 h-3.5 w-3.5 border-gray-300 text-primary-600 focus:ring-primary-500"
+                  class="mt-0.5 h-3.5 w-3.5 border-gray-300 text-sky-600 focus:ring-sky-500"
                 />
                 <div class="flex-1">
                   <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ option.label }}</span>
@@ -313,7 +313,7 @@
                   type="checkbox"
                   :value="platform.value"
                   v-model="form.platforms"
-                  class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  class="h-3.5 w-3.5 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
                 />
                 <span class="text-xs text-gray-700 dark:text-gray-300">{{ platform.label }}</span>
               </label>
@@ -334,7 +334,7 @@
                 <input
                   type="checkbox"
                   v-model="form.passthrough_code"
-                  class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  class="h-3.5 w-3.5 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
                 />
                 <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
                   {{ t('admin.errorPassthrough.form.passthroughCode') }}
@@ -357,7 +357,7 @@
                 <input
                   type="checkbox"
                   v-model="form.passthrough_body"
-                  class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  class="h-3.5 w-3.5 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
                 />
                 <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
                   {{ t('admin.errorPassthrough.form.passthroughBody') }}
@@ -381,7 +381,7 @@
           <input
             type="checkbox"
             v-model="form.skip_monitoring"
-            class="h-3.5 w-3.5 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
+            class="h-3.5 w-3.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
           />
           <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
             {{ t('admin.errorPassthrough.form.skipMonitoring') }}
@@ -394,7 +394,7 @@
           <input
             type="checkbox"
             v-model="form.enabled"
-            class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            class="h-3.5 w-3.5 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
           />
           <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
             {{ t('admin.errorPassthrough.form.enabled') }}
@@ -407,7 +407,7 @@
           <button @click="closeFormModal" type="button" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button @click="handleSubmit" :disabled="submitting" class="btn btn-primary">
+          <button @click="handleSubmit" :disabled="submitting" class="btn btn-secondary">
             <Icon v-if="submitting" name="refresh" size="sm" class="mr-1 animate-spin" />
             {{ showEditModal ? t('common.update') : t('common.create') }}
           </button>

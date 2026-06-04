@@ -3,36 +3,36 @@
     <div class="mx-auto max-w-2xl space-y-6">
       <!-- Current Balance Card -->
       <div class="card overflow-hidden">
-        <div class="bg-gradient-to-br from-primary-500 to-primary-600 px-6 py-8 text-center">
-          <div class="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-            <Icon name="dollar" size="xl" class="text-white" />
+        <div class="px-6 py-8 text-center">
+          <div class="feature-icon feature-icon-success mb-4 inline-flex h-16 w-16 items-center justify-center rounded-xl">
+            <Icon name="dollar" size="xl" class="text-current" />
           </div>
-          <p class="text-sm font-medium text-primary-100">{{ t('transfer.currentBalance', '当前余额') }}</p>
-          <p class="mt-2 text-4xl font-bold text-white">${{ user?.balance?.toFixed(2) || '0.00' }}</p>
+          <p class="text-sm font-medium text-[var(--muted-foreground)]">{{ t('transfer.currentBalance', '当前余额') }}</p>
+          <p class="mt-2 text-4xl font-bold text-[var(--foreground)]" :title="currentBalanceDisplay.full">{{ currentBalanceDisplay.display }}</p>
         </div>
       </div>
 
       <!-- Stats -->
       <div v-if="stats" class="grid grid-cols-3 gap-4">
         <div class="card p-4 text-center">
-          <div class="mb-1 flex h-8 w-8 mx-auto items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-            <Icon name="arrowUp" size="sm" class="text-blue-600 dark:text-blue-400" />
+          <div class="feature-icon feature-icon-warning mb-1 mx-auto flex h-8 w-8 items-center justify-center rounded-lg">
+            <Icon name="arrowUp" size="sm" class="text-current" />
           </div>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">${{ stats.total_sent.toFixed(2) }}</p>
+          <p class="text-lg font-bold text-gray-900 dark:text-white" :title="formatMoneyTitle(stats.total_sent)">{{ formatMoney(stats.total_sent) }}</p>
           <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('transfer.totalSent', '累计转出') }}</p>
         </div>
         <div class="card p-4 text-center">
-          <div class="mb-1 flex h-8 w-8 mx-auto items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-            <Icon name="arrowDown" size="sm" class="text-green-600 dark:text-green-400" />
+          <div class="feature-icon feature-icon-success mb-1 mx-auto flex h-8 w-8 items-center justify-center rounded-lg">
+            <Icon name="arrowDown" size="sm" class="text-current" />
           </div>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">${{ stats.total_received.toFixed(2) }}</p>
+          <p class="text-lg font-bold text-gray-900 dark:text-white" :title="formatMoneyTitle(stats.total_received)">{{ formatMoney(stats.total_received) }}</p>
           <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('transfer.totalReceived', '累计转入') }}</p>
         </div>
         <div class="card p-4 text-center">
-          <div class="mb-1 flex h-8 w-8 mx-auto items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-            <Icon name="creditCard" size="sm" class="text-orange-600 dark:text-orange-400" />
+          <div class="feature-icon feature-icon-purple mb-1 mx-auto flex h-8 w-8 items-center justify-center rounded-lg">
+            <Icon name="creditCard" size="sm" class="text-current" />
           </div>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">${{ stats.total_fee_paid.toFixed(2) }}</p>
+          <p class="text-lg font-bold text-gray-900 dark:text-white" :title="formatMoneyTitle(stats.total_fee_paid)">{{ formatMoney(stats.total_fee_paid) }}</p>
           <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('transfer.totalFee', '手续费') }}</p>
         </div>
       </div>
@@ -54,12 +54,12 @@
               </div>
 
               <!-- Search Results Dropdown -->
-              <div v-if="searchResults.length > 0 && !selectedUser" class="mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800">
+              <div v-if="searchResults.length > 0 && !selectedUser" class="mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-600 dark:bg-dark-800">
                 <button v-for="u in searchResults" :key="u.id" type="button"
                   @click="selectUser(u)"
                   class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-dark-700">
-                  <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
-                    <Icon name="user" size="sm" class="text-primary-600 dark:text-primary-400" />
+                  <div class="feature-icon feature-icon-info flex h-8 w-8 items-center justify-center rounded-full">
+                    <Icon name="user" size="sm" class="text-current" />
                   </div>
                   <div class="min-w-0 flex-1">
                     <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ u.email }}</p>
@@ -70,12 +70,12 @@
               </div>
 
               <!-- Selected User Badge -->
-              <div v-if="selectedUser" class="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary-50 px-3 py-2 dark:bg-primary-900/20">
-                <div class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
-                  <Icon name="user" size="xs" class="text-primary-600 dark:text-primary-400" />
+              <div v-if="selectedUser" class="feature-panel-info mt-2 inline-flex items-center gap-2 rounded-lg border px-3 py-2">
+                <div class="feature-icon feature-icon-info flex h-6 w-6 items-center justify-center rounded-full">
+                  <Icon name="user" size="xs" class="text-current" />
                 </div>
-                <span class="text-sm font-medium text-primary-700 dark:text-primary-300">{{ selectedUser.email }}</span>
-                <button type="button" @click="clearSelection" class="ml-1 text-primary-400 hover:text-primary-600 dark:hover:text-primary-200">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ selectedUser.email }}</span>
+                <button type="button" @click="clearSelection" class="ml-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                   <Icon name="x" size="xs" />
                 </button>
               </div>
@@ -95,14 +95,16 @@
               </div>
               <div class="mt-1 flex items-center justify-between">
                 <p v-if="feePreview !== null" class="input-hint">
-                  {{ t('transfer.feePreview', '手续费') }}: ${{ feePreview.toFixed(4) }}
-                  · {{ t('transfer.total', '合计扣款') }}: ${{ (amount + feePreview).toFixed(4) }}
+                  {{ t('transfer.feePreview', '手续费') }}:
+                  <span :title="formatMoneyTitle(feePreview)">{{ formatMoney(feePreview) }}</span>
+                  · {{ t('transfer.total', '合计扣款') }}:
+                  <span :title="formatMoneyTitle(amount + feePreview)">{{ formatMoney(amount + feePreview) }}</span>
                 </p>
-                <button v-else type="button" class="input-hint text-primary-500 hover:text-primary-600" @click="calcFee">
+                <button v-else type="button" class="input-hint text-gray-500 hover:text-gray-600" @click="calcFee">
                   {{ t('transfer.calcFee', '计算手续费') }}
                 </button>
                 <p class="text-xs text-gray-400 dark:text-dark-500">
-                  {{ t('transfer.available', '可用') }}: ${{ user?.balance?.toFixed(2) || '0.00' }}
+                  {{ t('transfer.available', '可用') }}: {{ currentBalanceDisplay.display }}
                 </p>
               </div>
             </div>
@@ -120,7 +122,7 @@
               </div>
             </div>
 
-            <button type="submit" :disabled="!selectedUser || !amount || submitting" class="btn btn-primary w-full py-3">
+            <button type="submit" :disabled="!selectedUser || !amount || submitting" class="btn btn-secondary w-full py-3">
               <svg v-if="submitting" class="-ml-1 mr-2 h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -139,7 +141,7 @@
         </div>
         <div class="p-6">
           <div v-if="loadingHistory" class="flex items-center justify-center py-8">
-            <svg class="h-6 w-6 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24">
+            <svg class="h-6 w-6 animate-spin text-gray-500" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -149,9 +151,8 @@
             <div v-for="item in history" :key="item.id" class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-600 dark:bg-dark-800">
               <div class="flex items-start justify-between">
                 <div class="flex items-start gap-3">
-                  <div :class="['flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg', item.sender_id === user?.id ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30']">
-                    <Icon :name="item.sender_id === user?.id ? 'arrowUp' : 'arrowDown'" size="sm"
-                      :class="item.sender_id === user?.id ? 'text-orange-600 dark:text-orange-400' : 'text-emerald-600 dark:text-emerald-400'" />
+                  <div :class="['feature-icon flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg', item.sender_id === user?.id ? 'feature-icon-warning' : 'feature-icon-success']">
+                    <Icon :name="item.sender_id === user?.id ? 'arrowUp' : 'arrowDown'" size="sm" class="text-current" />
                   </div>
                   <div>
                     <p class="text-sm font-medium text-gray-900 dark:text-white">
@@ -162,18 +163,18 @@
                   </div>
                 </div>
                 <div class="text-right">
-                  <p :class="['text-sm font-semibold', item.sender_id === user?.id ? 'text-orange-600 dark:text-orange-400' : 'text-emerald-600 dark:text-emerald-400']">
-                    {{ item.sender_id === user?.id ? '-' : '+' }}${{ item.amount.toFixed(2) }}
+                  <p :class="['text-sm font-semibold', item.sender_id === user?.id ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300']">
+                    <span :title="formatSignedMoneyTitle(item.sender_id === user?.id ? -item.amount : item.amount)">{{ formatSignedMoney(item.sender_id === user?.id ? -item.amount : item.amount) }}</span>
                   </p>
-                  <p v-if="item.fee > 0" class="text-xs text-gray-400 dark:text-dark-500">{{ t('transfer.fee', '手续费') }}: ${{ item.fee.toFixed(2) }}</p>
+                  <p v-if="item.fee > 0" class="text-xs text-gray-400 dark:text-dark-500">{{ t('transfer.fee', '手续费') }}: <span :title="formatMoneyTitle(item.fee)">{{ formatMoney(item.fee) }}</span></p>
                 </div>
               </div>
             </div>
           </div>
 
           <div v-else class="empty-state py-8">
-            <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-800">
-              <Icon name="clock" size="xl" class="text-gray-400 dark:text-dark-500" />
+            <div class="feature-icon feature-icon-info mb-4 flex h-16 w-16 items-center justify-center rounded-xl">
+              <Icon name="clock" size="xl" class="text-current" />
             </div>
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('transfer.noHistory', '暂无转账记录') }}</p>
           </div>
@@ -192,12 +193,15 @@ import { transferBalance, getTransferStats, validateTransfer, getTransferHistory
 import type { TransferStats, TransferRecord, UserSearchResult } from '@/api/transfer'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, formatDualDisplayAmount } from '@/utils/format'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const user = computed(() => authStore.user)
+const currentBalanceDisplay = computed(() =>
+  formatDualDisplayAmount(user.value?.balance || 0, { currencySymbol: '$' })
+)
 
 const stats = ref<TransferStats | null>(null)
 const feePreview = ref<number | null>(null)
@@ -306,4 +310,20 @@ onMounted(() => {
   loadStats()
   loadHistory()
 })
+
+function formatMoney(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).display
+}
+
+function formatMoneyTitle(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).full
+}
+
+function formatSignedMoney(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).display
+}
+
+function formatSignedMoneyTitle(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).full
+}
 </script>

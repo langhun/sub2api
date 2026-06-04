@@ -14,13 +14,13 @@
         <label class="input-label mb-0">{{ t('profile.balanceNotify.enabled') }}</label>
         <label class="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" v-model="notifyEnabled" @change="handleToggle" class="sr-only peer" />
-          <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:after:border-gray-600 peer-checked:bg-primary-600"></div>
+          <div class="h-6 w-11 rounded-full bg-gray-200 peer peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 peer-checked:bg-emerald-600 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-dark-600 dark:peer-focus:ring-emerald-800 dark:peer-checked:bg-emerald-500 dark:after:border-gray-500"></div>
         </label>
       </div>
 
       <template v-if="notifyEnabled">
         <!-- Custom threshold with save button -->
-        <div>
+        <div class="feature-panel-info rounded-xl border p-4">
           <label class="input-label">
             {{ t('profile.balanceNotify.threshold') }}
             <span class="text-xs text-gray-400 ml-2">{{ t('profile.balanceNotify.thresholdHint') }}</span>
@@ -38,7 +38,7 @@
             <button
               @click="handleThresholdUpdate"
               :disabled="savingThreshold"
-              class="btn btn-primary btn-sm whitespace-nowrap"
+              class="btn btn-secondary btn-sm whitespace-nowrap"
             >
               {{ savingThreshold ? t('common.saving') : t('common.save') }}
             </button>
@@ -48,16 +48,16 @@
         <!-- Email list with toggles -->
         <div>
           <label class="input-label">{{ t('profile.balanceNotify.extraEmails') }}</label>
-          <p class="mb-2 text-xs text-yellow-600 dark:text-yellow-400">{{ t('profile.balanceNotify.extraEmailsHint') }}</p>
+          <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">{{ t('profile.balanceNotify.extraEmailsHint') }}</p>
 
           <!-- Saved email entries -->
           <div v-if="emailEntries.length > 0" class="space-y-2 mb-3">
             <div v-for="(entry, idx) in emailEntries" :key="idx"
-              class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-dark-700 rounded-lg">
+              class="feature-panel-info flex items-center justify-between rounded-lg border px-3 py-2">
               <div class="flex items-center gap-2 min-w-0 flex-1">
                 <label class="relative inline-flex items-center cursor-pointer shrink-0">
                   <input type="checkbox" :checked="!entry.disabled" @change="handleEmailToggle(entry)" class="sr-only peer" />
-                  <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:after:border-gray-500 peer-checked:bg-primary-600"></div>
+                  <div class="h-5 w-9 rounded-full bg-gray-200 peer peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-300 peer-checked:bg-emerald-600 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-dark-600 dark:peer-focus:ring-emerald-800 dark:peer-checked:bg-emerald-500 dark:after:border-gray-500"></div>
                 </label>
                 <span class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ entry.email }}</span>
               </div>
@@ -72,7 +72,7 @@
                       class="w-20 rounded border border-gray-300 px-2 py-1 text-xs dark:border-dark-500 dark:bg-dark-700"
                       :placeholder="t('profile.balanceNotify.codePlaceholder')"
                     />
-                    <button @click="verifySavedEmail(entry.email)" :disabled="!verifyCode || verifyCode.length !== 6 || verifyingSaved" class="text-xs text-primary-600 hover:text-primary-700">
+                    <button @click="verifySavedEmail(entry.email)" :disabled="!verifyCode || verifyCode.length !== 6 || verifyingSaved" class="text-xs text-gray-600 hover:text-gray-700">
                       {{ t('profile.balanceNotify.verify') }}
                     </button>
                     <span v-if="verifyCountdown > 0" class="text-xs text-gray-400">{{ verifyCountdown }}s</span>
@@ -84,13 +84,13 @@
                     </button>
                   </template>
                   <template v-else>
-                    <button @click="sendCodeForSaved(entry.email)" :disabled="sendingSavedCode" class="text-xs text-primary-600 hover:text-primary-700">
+                    <button @click="sendCodeForSaved(entry.email)" :disabled="sendingSavedCode" class="text-xs text-gray-600 hover:text-gray-700">
                       {{ t('profile.balanceNotify.verify') }}
                     </button>
-                    <span class="text-xs text-yellow-500">{{ t('profile.balanceNotify.unverified') }}</span>
+                    <span class="feature-pill feature-pill-warning px-2 py-0.5 text-xs">{{ t('profile.balanceNotify.unverified') }}</span>
                   </template>
                 </template>
-                <span v-else class="text-xs text-green-500">{{ t('profile.balanceNotify.verified') }}</span>
+                <span v-else class="feature-pill feature-pill-success px-2 py-0.5 text-xs">{{ t('profile.balanceNotify.verified') }}</span>
                 <button @click="handleRemoveEmail(entry.email)" class="text-red-500 hover:text-red-700 text-xs">
                   {{ t('profile.balanceNotify.removeEmail') }}
                 </button>
@@ -101,10 +101,10 @@
           <!-- Pending (unverified) emails in verification flow -->
           <div v-if="pendingEmails.length > 0" class="space-y-2 mb-3">
             <div v-for="(pe, idx) in pendingEmails" :key="pe.email"
-              class="flex items-center gap-2 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              class="feature-panel-warning flex items-center gap-2 rounded-lg border px-3 py-2">
               <span class="flex-1 text-sm text-gray-700 dark:text-gray-300">{{ pe.email }}</span>
               <div v-if="!pe.codeSent" class="flex items-center gap-1">
-                <button @click="sendCodeFor(idx)" :disabled="pe.sending" class="text-xs text-primary-600 hover:text-primary-700">
+                <button @click="sendCodeFor(idx)" :disabled="pe.sending" class="text-xs text-gray-600 hover:text-gray-700">
                   {{ t('profile.balanceNotify.sendCode') }}
                 </button>
                 <button @click="pendingEmails.splice(idx, 1)" class="text-xs text-red-500 hover:text-red-700 ml-1">
@@ -119,7 +119,7 @@
                   class="w-20 rounded border border-gray-300 px-2 py-1 text-xs dark:border-dark-500 dark:bg-dark-700"
                   :placeholder="t('profile.balanceNotify.codePlaceholder')"
                 />
-                <button @click="verifyPending(idx)" :disabled="!pe.code || pe.code.length !== 6 || pe.verifying" class="text-xs text-primary-600 hover:text-primary-700">
+                <button @click="verifyPending(idx)" :disabled="!pe.code || pe.code.length !== 6 || pe.verifying" class="text-xs text-gray-600 hover:text-gray-700">
                   {{ t('profile.balanceNotify.verify') }}
                 </button>
                 <span v-if="pe.countdown > 0" class="text-xs text-gray-400">{{ pe.countdown }}s</span>

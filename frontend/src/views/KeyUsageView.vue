@@ -1,15 +1,15 @@
 <template>
-  <div class="relative flex min-h-screen flex-col bg-gray-50 dark:bg-dark-950">
+  <div class="relative flex min-h-screen flex-col bg-[var(--background)] text-[var(--foreground)]">
     <PublicPageHeader active-path="/key-usage" />
 
     <!-- Main Content -->
     <main class="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
       <!-- Hero -->
       <div class="text-center mb-12">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mb-3 text-gray-900 dark:text-white">
+        <h1 class="mb-3 text-3xl font-bold tracking-tight text-[var(--foreground)] sm:text-4xl">
           {{ t('keyUsage.title') }}
         </h1>
-        <p class="text-gray-500 dark:text-dark-400 text-base max-w-md mx-auto">
+        <p class="mx-auto max-w-md text-base text-[var(--muted-foreground)]">
           {{ t('keyUsage.subtitle') }}
         </p>
       </div>
@@ -27,7 +27,7 @@
               v-model="apiKey"
               :type="keyVisible ? 'text' : 'password'"
               :placeholder="t('keyUsage.placeholder')"
-              class="input-ring w-full h-12 pl-12 pr-12 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 transition-all dark:border-dark-700 dark:bg-dark-900 dark:text-white dark:placeholder:text-dark-500"
+              class="input-ring w-full h-12 pl-12 pr-12 rounded-xl border border-[var(--border)] bg-[var(--card)] text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] transition-all"
               @keydown.enter="queryKey"
             />
             <button
@@ -46,7 +46,7 @@
           <button
             @click="queryKey"
             :disabled="isQuerying"
-            class="h-12 px-7 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium text-sm transition-all active:scale-[0.97] flex items-center gap-2 whitespace-nowrap disabled:opacity-60"
+            class="btn btn-primary h-12 px-7 text-sm"
           >
             <svg v-if="isQuerying" class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity="0.25"/>
@@ -70,26 +70,26 @@
               v-for="range in dateRanges"
               :key="range.key"
               @click="setDateRange(range.key)"
-              class="text-xs px-3 py-1.5 rounded-lg border transition-all"
+              class="text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] transition-all"
               :class="currentRange === range.key
-                ? 'bg-primary-500 text-white border-primary-500'
-                : 'border-gray-200 bg-white text-gray-700 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-200 hover:border-primary-300 dark:hover:border-dark-600'"
+                ? 'bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]'
+                : 'border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:border-[var(--ring)]'"
             >{{ range.label }}</button>
             <div v-if="currentRange === 'custom'" class="flex items-center gap-2 ml-1">
               <input
                 v-model="customStartDate"
                 type="date"
-                class="input-ring text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-900 dark:border-dark-700 dark:bg-dark-900 dark:text-white"
+                class="input-ring text-xs px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
               />
               <span class="text-xs text-gray-400">-</span>
               <input
                 v-model="customEndDate"
                 type="date"
-                class="input-ring text-xs px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-900 dark:border-dark-700 dark:bg-dark-900 dark:text-white"
+                class="input-ring text-xs px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
               />
               <button
                 @click="queryKey"
-                class="text-xs px-3 py-1.5 rounded-lg bg-primary-500 text-white hover:bg-primary-600"
+                class="btn btn-primary h-auto px-3 py-1.5 text-xs"
               >{{ t('keyUsage.apply') }}</button>
             </div>
           </div>
@@ -101,16 +101,16 @@
         <!-- Loading Skeleton -->
         <div v-if="showLoading" class="space-y-6">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="rounded-2xl border border-gray-200 bg-white p-8 dark:border-dark-700 dark:bg-dark-900">
+            <div class="card p-8">
               <div class="skeleton h-5 w-24 mb-6"></div>
               <div class="flex justify-center"><div class="skeleton w-44 h-44 rounded-full"></div></div>
             </div>
-            <div class="rounded-2xl border border-gray-200 bg-white p-8 dark:border-dark-700 dark:bg-dark-900">
+            <div class="card p-8">
               <div class="skeleton h-5 w-24 mb-6"></div>
               <div class="flex justify-center"><div class="skeleton w-44 h-44 rounded-full"></div></div>
             </div>
           </div>
-          <div class="rounded-2xl border border-gray-200 bg-white p-8 dark:border-dark-700 dark:bg-dark-900">
+          <div class="card p-8">
             <div class="skeleton h-5 w-32 mb-6"></div>
             <div class="space-y-4">
               <div class="skeleton h-4 w-full"></div>
@@ -125,10 +125,10 @@
         <div v-else-if="resultData" class="space-y-6">
           <!-- Status Badge -->
           <div v-if="statusInfo" class="fade-up flex items-center justify-center mb-2">
-            <div class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-gray-200 bg-white/90 shadow-sm backdrop-blur-sm dark:border-dark-700 dark:bg-dark-900/90">
+            <div class="card inline-flex items-center gap-2 px-5 py-2.5">
               <span
                 class="w-2.5 h-2.5 rounded-full pulse-dot"
-                :class="statusInfo.isActive ? 'bg-emerald-500' : 'bg-rose-500'"
+                :class="statusInfo.isActive ? 'bg-[var(--success)]' : 'bg-[var(--destructive)]'"
               ></span>
               <span class="text-sm font-medium text-gray-900 dark:text-white">{{ statusInfo.label }}</span>
               <span class="text-xs text-gray-400 dark:text-dark-500">|</span>
@@ -140,7 +140,7 @@
           <div v-if="statusInfo" class="fade-up flex items-center justify-center mb-2 mt-4">
             <button
               @click="generateHudScript"
-              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-200 dark:hover:bg-dark-800"
+              class="btn btn-secondary h-auto px-4 py-2 text-sm"
             >
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
@@ -154,7 +154,7 @@
             <div
               v-for="(ring, i) in ringItems"
               :key="i"
-              class="fade-up rounded-2xl border border-gray-200 bg-white/90 p-8 backdrop-blur-sm transition-all duration-300 hover:shadow-lg dark:border-dark-700 dark:bg-dark-900/90"
+              class="fade-up card p-8 transition-all duration-300 hover:shadow-sm"
               :class="`fade-up-delay-${Math.min(i + 1, 4)}`"
             >
               <div class="flex items-center justify-between mb-6">
@@ -221,9 +221,9 @@
           <!-- Detail Card -->
           <div
             v-if="detailRows.length > 0"
-            class="fade-up fade-up-delay-3 rounded-2xl border border-gray-200 bg-white/90 backdrop-blur-sm overflow-hidden dark:border-dark-700 dark:bg-dark-900/90"
+            class="fade-up fade-up-delay-3 card overflow-hidden"
           >
-            <div class="px-8 py-5 border-b border-gray-200 dark:border-dark-700">
+            <div class="px-8 py-5 border-b border-[var(--border)]">
               <h3 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.detailInfo') }}</h3>
             </div>
             <div class="divide-y divide-gray-100 dark:divide-dark-800">
@@ -254,16 +254,16 @@
           <!-- Usage Stats Card -->
           <div
             v-if="usageStatCells.length > 0"
-            class="fade-up fade-up-delay-3 rounded-2xl border border-gray-200 bg-white/90 backdrop-blur-sm overflow-hidden dark:border-dark-700 dark:bg-dark-900/90"
+            class="fade-up fade-up-delay-3 card overflow-hidden"
           >
-            <div class="px-8 py-5 border-b border-gray-200 dark:border-dark-700">
+            <div class="px-8 py-5 border-b border-[var(--border)]">
               <h3 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.tokenStats') }}</h3>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-px bg-gray-100 dark:bg-dark-800">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-px bg-[var(--muted)]">
               <div
                 v-for="(cell, i) in usageStatCells"
                 :key="i"
-                class="bg-white px-6 py-4 dark:bg-dark-900"
+                class="bg-[var(--card)] px-6 py-4"
               >
                 <div class="text-xs text-gray-500 dark:text-dark-400 mb-1">{{ cell.label }}</div>
                 <div class="text-sm font-semibold tabular-nums text-gray-900 dark:text-white">{{ cell.value }}</div>
@@ -274,19 +274,19 @@
           <!-- Daily Usage Table -->
           <div
             v-if="showDailyUsage"
-            class="fade-up fade-up-delay-4 rounded-2xl border border-gray-200 bg-white/90 backdrop-blur-sm overflow-hidden dark:border-dark-700 dark:bg-dark-900/90"
+            class="fade-up fade-up-delay-4 card overflow-hidden"
           >
-            <div class="flex flex-col gap-3 px-8 py-5 border-b border-gray-200 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-col gap-3 px-8 py-5 border-b border-[var(--border)] sm:flex-row sm:items-center sm:justify-between">
               <h3 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.dailyDetail') }}</h3>
-              <div class="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 dark:border-dark-700 dark:bg-dark-950">
+              <div class="inline-flex rounded-lg border border-[var(--border)] bg-[var(--muted)] p-0.5">
                 <button
                   v-for="option in dailyUsageOptions"
                   :key="option.value"
                   @click="setDailyUsageDays(option.value)"
                   class="min-w-12 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
                   :class="dailyUsageDays === option.value
-                    ? 'bg-primary-500 text-white'
-                    : 'text-gray-600 hover:bg-gray-100 dark:text-dark-300 dark:hover:bg-dark-800'"
+                    ? 'bg-[var(--card)] text-[var(--foreground)] shadow-sm'
+                    : 'text-[var(--muted-foreground)] hover:bg-[var(--card)] hover:text-[var(--foreground)]'"
                 >
                   {{ option.label }}
                 </button>
@@ -295,7 +295,7 @@
             <div v-if="dailyUsageRows.length > 0" class="overflow-x-auto">
               <table class="w-full">
                 <thead>
-                  <tr class="border-b border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-950">
+                  <tr class="border-b border-[var(--border)] bg-[var(--muted)]">
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.date') }}</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.requests') }}</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.inputTokens') }}</th>
@@ -309,7 +309,7 @@
                   <tr
                     v-for="row in dailyUsageRows"
                     :key="row.date"
-                    class="border-b border-gray-100 last:border-b-0 dark:border-dark-800"
+                    class="border-b border-[var(--border)] last:border-b-0"
                   >
                     <td class="px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">{{ row.date }}</td>
                     <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200">{{ fmtNum(row.requests) }}</td>
@@ -330,15 +330,15 @@
           <!-- Model Stats Table -->
           <div
             v-if="modelStats.length > 0"
-            class="fade-up fade-up-delay-4 rounded-2xl border border-gray-200 bg-white/90 backdrop-blur-sm overflow-hidden dark:border-dark-700 dark:bg-dark-900/90"
+            class="fade-up fade-up-delay-4 card overflow-hidden"
           >
-            <div class="px-8 py-5 border-b border-gray-200 dark:border-dark-700">
+            <div class="px-8 py-5 border-b border-[var(--border)]">
               <h3 class="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.modelStats') }}</h3>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full">
                 <thead>
-                  <tr class="border-b border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-950">
+                  <tr class="border-b border-[var(--border)] bg-[var(--muted)]">
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.model') }}</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.requests') }}</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-dark-400">{{ t('keyUsage.inputTokens') }}</th>
@@ -353,7 +353,7 @@
                   <tr
                     v-for="(m, i) in modelStats"
                     :key="i"
-                    class="border-b border-gray-100 last:border-b-0 dark:border-dark-800"
+                    class="border-b border-[var(--border)] last:border-b-0"
                   >
                     <td class="px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">{{ m.model || '-' }}</td>
                     <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200">{{ fmtNum(m.requests) }}</td>
@@ -375,9 +375,9 @@
     <PublicPageFooter />
 
     <!-- HUD Script Modal (at root level for full-screen overlay) -->
-    <div v-if="showHudModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="showHudModal = false">
-      <div class="bg-white dark:bg-dark-900 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col border border-gray-200 dark:border-dark-700">
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-dark-700 flex items-center justify-between">
+    <div v-if="showHudModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showHudModal = false">
+      <div class="modal-content max-w-2xl w-full mx-4 max-h-[85vh] flex flex-col">
+        <div class="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('keyUsage.hudTitle') }}</h3>
           <button @click="showHudModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -386,7 +386,7 @@
         <div class="px-6 py-4 overflow-y-auto space-y-4 text-sm text-gray-700 dark:text-dark-200">
           <div>
             <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep1') }}</h4>
-            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto"><code>mkdir -p ~/.claude/plugins/sub2api-hud</code></pre>
+            <pre class="bg-gray-900 text-gray-200 rounded-lg p-3 text-xs overflow-x-auto"><code>mkdir -p ~/.claude/plugins/sub2api-hud</code></pre>
           </div>
           <div>
             <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep2') }}</h4>
@@ -394,16 +394,16 @@
               <button @click="copyHudScript" class="absolute top-2 right-2 px-2 py-1 rounded text-xs bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors">
                 {{ hudCopied ? '✓' : t('keyUsage.hudCopy') }}
               </button>
-              <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto max-h-64"><code>{{ hudScript }}</code></pre>
+              <pre class="bg-gray-900 text-gray-200 rounded-lg p-3 text-xs overflow-x-auto max-h-64"><code>{{ hudScript }}</code></pre>
             </div>
           </div>
           <div>
             <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep3') }}</h4>
-            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto"><code>node ~/.claude/plugins/sub2api-hud/hud.mjs</code></pre>
+            <pre class="bg-gray-900 text-gray-200 rounded-lg p-3 text-xs overflow-x-auto"><code>node ~/.claude/plugins/sub2api-hud/hud.mjs</code></pre>
           </div>
           <div>
             <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{{ t('keyUsage.hudStep4') }}</h4>
-            <pre class="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap"><code>{{ hudSettingsJson }}</code></pre>
+            <pre class="bg-gray-900 text-gray-200 rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap"><code>{{ hudSettingsJson }}</code></pre>
           </div>
         </div>
       </div>
@@ -506,10 +506,10 @@ function setDailyUsageDays(days: 7 | 30 | 90) {
 
 const CIRCUMFERENCE = 2 * Math.PI * 68
 const RING_GRADIENTS = [
-  { from: '#14b8a6', to: '#5eead4' },
-  { from: '#6366F1', to: '#A5B4FC' },
-  { from: '#10B981', to: '#6EE7B7' },
-  { from: '#F59E0B', to: '#FCD34D' },
+  { from: '#171717', to: '#737373' },
+  { from: '#404040', to: '#A3A3A3' },
+  { from: '#525252', to: '#D4D4D4' },
+  { from: '#737373', to: '#E5E5E5' },
 ]
 
 const ringAnimated = ref(false)
@@ -649,7 +649,7 @@ interface DetailRow {
 }
 
 function getUsageColor(pct: number): string {
-  if (pct > 90) return 'text-rose-500'
+  if (pct > 90) return 'text-red-500'
   if (pct > 70) return 'text-amber-500'
   return 'text-emerald-500'
 }
@@ -666,11 +666,11 @@ const detailRows = computed<DetailRow[]>(() => {
 
   if (data.mode === 'quota_limited') {
     if (data.quota) {
-      const remainColor = data.quota.remaining <= 0 ? 'text-rose-500'
+      const remainColor = data.quota.remaining <= 0 ? 'text-red-500'
         : data.quota.remaining < data.quota.limit * 0.1 ? 'text-amber-500'
-        : 'text-emerald-500'
+        : 'text-gray-500'
       rows.push({
-        iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', iconSvg: ICON_SHIELD,
+        iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--success)]', iconSvg: ICON_SHIELD,
         label: t('keyUsage.remainingQuota'), value: usd(data.quota.remaining), valueClass: remainColor,
       })
     }
@@ -681,7 +681,7 @@ const detailRows = computed<DetailRow[]>(() => {
         expiryStr += daysLeft > 0 ? ` ${t('keyUsage.daysLeft', { days: daysLeft })}` : daysLeft === 0 ? ` ${t('keyUsage.todayExpires')}` : ''
       }
       rows.push({
-        iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', iconSvg: ICON_CALENDAR,
+        iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--warning)]', iconSvg: ICON_CALENDAR,
         label: t('keyUsage.expiresAt'), value: expiryStr, valueClass: '',
       })
     }
@@ -695,7 +695,7 @@ const detailRows = computed<DetailRow[]>(() => {
           valueStr += ` (⟳ ${resetStr})`
         }
         rows.push({
-          iconBg: 'bg-primary-500/10', iconColor: 'text-primary-500', iconSvg: ICON_DOLLAR,
+          iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--info)]', iconSvg: ICON_DOLLAR,
           label: `${t('keyUsage.usedQuota')} (${windowMap[rl.window] || rl.window})`,
           value: valueStr,
           valueClass: getUsageColor(pct),
@@ -704,7 +704,7 @@ const detailRows = computed<DetailRow[]>(() => {
     }
   } else {
     rows.push({
-      iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', iconSvg: ICON_CHECK,
+      iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--success)]', iconSvg: ICON_CHECK,
       label: t('keyUsage.subscriptionType'), value: data.planName || t('keyUsage.walletBalance'), valueClass: '',
     })
 
@@ -713,37 +713,37 @@ const detailRows = computed<DetailRow[]>(() => {
       if (sub.daily_limit_usd > 0) {
         const pct = (sub.daily_usage_usd / sub.daily_limit_usd) * 100
         rows.push({
-          iconBg: 'bg-primary-500/10', iconColor: 'text-primary-500', iconSvg: ICON_DOLLAR,
+          iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--info)]', iconSvg: ICON_DOLLAR,
           label: `${t('keyUsage.usedQuota')} (${locale.value === 'zh' ? '日' : 'D'})`, value: `${usd(sub.daily_usage_usd)} / ${usd(sub.daily_limit_usd)}`, valueClass: getUsageColor(pct),
         })
       }
       if (sub.weekly_limit_usd > 0) {
         const pct = (sub.weekly_usage_usd / sub.weekly_limit_usd) * 100
         rows.push({
-          iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-500', iconSvg: ICON_DOLLAR,
+          iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--info)]', iconSvg: ICON_DOLLAR,
           label: `${t('keyUsage.usedQuota')} (${locale.value === 'zh' ? '周' : 'W'})`, value: `${usd(sub.weekly_usage_usd)} / ${usd(sub.weekly_limit_usd)}`, valueClass: getUsageColor(pct),
         })
       }
       if (sub.monthly_limit_usd > 0) {
         const pct = (sub.monthly_usage_usd / sub.monthly_limit_usd) * 100
         rows.push({
-          iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', iconSvg: ICON_DOLLAR,
+          iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--info)]', iconSvg: ICON_DOLLAR,
           label: `${t('keyUsage.usedQuota')} (${locale.value === 'zh' ? '月' : 'M'})`, value: `${usd(sub.monthly_usage_usd)} / ${usd(sub.monthly_limit_usd)}`, valueClass: getUsageColor(pct),
         })
       }
       if (sub.expires_at) {
         rows.push({
-          iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', iconSvg: ICON_CALENDAR,
+          iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--warning)]', iconSvg: ICON_CALENDAR,
           label: t('keyUsage.subscriptionExpires'), value: formatDate(sub.expires_at), valueClass: '',
         })
       }
     }
 
     const remainColor = data.remaining != null
-      ? (data.remaining <= 0 ? 'text-rose-500' : data.remaining < 10 ? 'text-amber-500' : 'text-emerald-500')
+      ? (data.remaining <= 0 ? 'text-red-500' : data.remaining < 10 ? 'text-amber-500' : 'text-emerald-500')
       : ''
     rows.push({
-      iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', iconSvg: ICON_SHIELD,
+      iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--success)]', iconSvg: ICON_SHIELD,
       label: t('keyUsage.remainingQuota'), value: data.remaining != null ? usd(data.remaining) : '-', valueClass: remainColor,
     })
   }
@@ -854,23 +854,21 @@ const RESET = '\\x1b[0m';
 const DIM = '\\x1b[2m';
 const RED = '\\x1b[31m';
 const GREEN = '\\x1b[32m';
-const YELLOW = '\\x1b[33m';
-const CYAN = '\\x1b[36m';
-const BRIGHT_BLUE = '\\x1b[94m';
-const BRIGHT_MAGENTA = '\\x1b[95m';
-const CLAUDE_ORANGE = '\\x1b[38;5;208m';
+const AMBER = '\\x1b[33m';
+const GRAY = '\\x1b[90m';
+const BRIGHT_GRAY = '\\x1b[37m';
 
 function colorize(text, color) { return color + text + RESET; }
 function bar(pct, width = 10) {
   const p = Math.min(100, Math.max(0, Math.round(pct)));
   const f = Math.round((p / 100) * width);
-  const c = p >= 85 ? RED : p >= 70 ? YELLOW : GREEN;
+  const c = p >= 85 ? RED : p >= 70 ? AMBER : GREEN;
   return c + '\\u2588'.repeat(f) + DIM + '\\u2591'.repeat(width - f) + RESET;
 }
 function quotaBar(pct, width = 8) {
   const p = Math.min(100, Math.max(0, Math.round(pct)));
   const f = Math.round((p / 100) * width);
-  const c = p >= 90 ? RED : p >= 75 ? BRIGHT_MAGENTA : BRIGHT_BLUE;
+  const c = p >= 90 ? RED : p >= 75 ? AMBER : BRIGHT_GRAY;
   return c + '\\u2588'.repeat(f) + DIM + '\\u2591'.repeat(width - f) + RESET;
 }
 function fmt(n) {
@@ -939,14 +937,14 @@ async function readStdin() {
   if (stdin) {
     const modelName = stdin.model?.display_name || stdin.model?.id || 'Unknown';
     const name = modelName.replace(/^Claude\\s+/i, '');
-    parts.push(colorize('[' + name + ']', CYAN));
+    parts.push(colorize('[' + name + ']', GRAY));
 
     const cw = stdin.context_window;
     if (cw) {
       const pct = cw.used_percentage != null ? Math.round(cw.used_percentage) :
         (cw.context_window_size > 0 ? Math.round(((cw.current_usage?.input_tokens || 0) + (cw.current_usage?.cache_creation_input_tokens || 0) + (cw.current_usage?.cache_read_input_tokens || 0)) / cw.context_window_size * 100) : 0);
       const p = Math.min(100, Math.max(0, pct));
-      parts.push(bar(p) + ' ' + colorize(p + '%', p >= 85 ? RED : p >= 70 ? YELLOW : GREEN));
+      parts.push(bar(p) + ' ' + colorize(p + '%', p >= 85 ? RED : p >= 70 ? AMBER : GREEN));
     }
 
     if (stdin.rate_limits) {
@@ -954,17 +952,17 @@ async function readStdin() {
       const rates = [];
       if (rl.five_hour?.used_percentage != null) {
         const p = Math.round(rl.five_hour.used_percentage);
-        rates.push('5h:' + quotaBar(p, 6) + ' ' + colorize(p + '%', p >= 90 ? RED : p >= 75 ? BRIGHT_MAGENTA : BRIGHT_BLUE));
+        rates.push('5h:' + quotaBar(p, 6) + ' ' + colorize(p + '%', p >= 90 ? RED : p >= 75 ? AMBER : BRIGHT_GRAY));
       }
       if (rl.seven_day?.used_percentage != null) {
         const p = Math.round(rl.seven_day.used_percentage);
-        rates.push('7d:' + quotaBar(p, 6) + ' ' + colorize(p + '%', p >= 90 ? RED : p >= 75 ? BRIGHT_MAGENTA : BRIGHT_BLUE));
+        rates.push('7d:' + quotaBar(p, 6) + ' ' + colorize(p + '%', p >= 90 ? RED : p >= 75 ? AMBER : BRIGHT_GRAY));
       }
       if (rates.length) parts.push(colorize('usage', DIM) + ' ' + rates.join(' '));
     }
 
     if (stdin.cost?.total_cost_usd != null) {
-      parts.push(colorize('\\u2b50 ' + usd(stdin.cost.total_cost_usd), CLAUDE_ORANGE));
+      parts.push(colorize('\\u2b50 ' + usd(stdin.cost.total_cost_usd), GRAY));
     }
   }
 
@@ -974,7 +972,7 @@ async function readStdin() {
 
     if (u.mode === 'quota_limited' && u.quota) {
       const pct = u.quota.limit > 0 ? Math.round((u.quota.used / u.quota.limit) * 100) : 0;
-      quotaParts.push(colorize('quota', DIM) + ' ' + quotaBar(pct, 8) + ' ' + colorize(pct + '% ' + usd(u.quota.used) + '/' + usd(u.quota.limit), pct >= 90 ? RED : pct >= 70 ? YELLOW : BRIGHT_BLUE));
+      quotaParts.push(colorize('quota', DIM) + ' ' + quotaBar(pct, 8) + ' ' + colorize(pct + '% ' + usd(u.quota.used) + '/' + usd(u.quota.limit), pct >= 90 ? RED : pct >= 70 ? AMBER : BRIGHT_GRAY));
       if (u.rate_limits) {
         for (const rl of u.rate_limits) {
           const rp = rl.limit > 0 ? Math.round((rl.used / rl.limit) * 100) : 0;
@@ -994,7 +992,7 @@ async function readStdin() {
     }
 
     if (u.remaining != null) {
-      const rc = u.remaining <= 0 ? RED : u.remaining < 10 ? YELLOW : GREEN;
+      const rc = u.remaining <= 0 ? RED : u.remaining < 10 ? AMBER : GREEN;
       quotaParts.push(colorize('remain', DIM) + ' ' + colorize(usd(u.remaining), rc));
     }
 
@@ -1112,8 +1110,8 @@ onUnmounted(() => {
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .input-ring:focus {
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2);
-  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(23, 23, 23, 0.12);
+  border-color: #171717;
   outline: none;
 }
 
@@ -1130,13 +1128,13 @@ onUnmounted(() => {
   100% { background-position: 200% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background: #e5e7eb;
   background-size: 200% 100%;
   animation: shimmer-kv 1.8s ease-in-out infinite;
   border-radius: 8px;
 }
 :global(.dark) .skeleton {
-  background: linear-gradient(90deg, #334155 25%, #1e293b 50%, #334155 75%);
+  background: #334155;
   background-size: 200% 100%;
 }
 
@@ -1156,7 +1154,7 @@ onUnmounted(() => {
 /* Pulse dot */
 @keyframes pulse-dot-kv {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
-  50% { opacity: 0.6; box-shadow: 0 0 8px 2px currentColor; }
+  50% { opacity: 0.6; box-shadow: none; }
 }
 .pulse-dot {
   animation: pulse-dot-kv 2s ease-in-out infinite;

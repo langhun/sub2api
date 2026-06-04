@@ -75,6 +75,29 @@ describe('PublicLeaderboardChart', () => {
     expect(wrapper.text()).toContain('Users')
   })
 
+  it('keeps summary cards on theme tokens so contrast stays correct across themes', () => {
+    const wrapper = mount(PublicLeaderboardChart, {
+      props: {
+        ...baseProps,
+        chartItems: [
+          { username: 'Alpha', value: 60 },
+          { username: 'Beta', value: 40 },
+        ],
+        summary: {
+          total_value: 100,
+          total_users: 2,
+        },
+      },
+    })
+
+    const summaryCards = wrapper.findAll('.leaderboard-summary-card')
+    expect(summaryCards).toHaveLength(2)
+    expect(summaryCards[0].find('.leaderboard-summary-label').text()).toBe('Amount')
+    expect(summaryCards[0].find('.leaderboard-summary-value').text()).toBe('$100')
+    expect(summaryCards[1].find('.leaderboard-summary-label').text()).toBe('Users')
+    expect(summaryCards[1].find('.leaderboard-summary-value').text()).toBe('2')
+  })
+
   it('formats tooltip as amount plus percentage', () => {
     const wrapper = mount(PublicLeaderboardChart, {
       props: {
@@ -99,7 +122,7 @@ describe('PublicLeaderboardChart', () => {
       },
     })
 
-    expect(label).toBe('Alpha: $60.00 (60.0%)')
+    expect(label).toBe('Alpha: $60 (60.0%)')
   })
 
   it('renders ranking rows with medal and colored-dot style', () => {

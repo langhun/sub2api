@@ -8,7 +8,7 @@
         id="login-agreement-consent"
         type="checkbox"
         :checked="accepted"
-        class="mt-[2px] h-4 w-4 flex-shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-900"
+        class="mt-[2px] h-4 w-4 flex-shrink-0 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)] dark:border-dark-600 dark:bg-dark-900"
         @change="handleCheckboxChange"
       />
       <div class="min-w-0 flex-1">
@@ -49,7 +49,7 @@
       </div>
       <button
         type="button"
-        class="flex-shrink-0 rounded-md bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-primary-700"
+        class="flex-shrink-0 rounded-md bg-[var(--foreground)] px-3 py-1.5 text-xs font-medium text-[var(--background)] transition hover:opacity-90"
         @click="emit('open')"
       >
         查看条款
@@ -61,19 +61,18 @@
     <Transition name="agreement-fade">
       <div
         v-if="dialogVisible"
-        class="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto bg-gray-950/60 p-4 backdrop-blur-sm"
+        class="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto bg-gray-950/50 p-4"
       >
-        <div class="w-full max-w-[600px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 dark:bg-dark-900 dark:ring-white/10">
+        <div class="w-full max-w-[600px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-none">
           <div class="border-b border-gray-100 bg-white px-6 py-6 dark:border-dark-800 dark:bg-dark-900">
             <div class="flex items-start gap-4">
-              <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700 ring-1 ring-primary-100 dark:bg-primary-500/10 dark:text-primary-300 dark:ring-primary-500/20">
+              <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] ring-1 ring-[var(--border)]">
                 <Icon name="shield" size="md" />
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                   <h2 class="text-xl font-bold tracking-normal text-gray-950 dark:text-white">
-                    条款更新通知
-                  </h2>
+                    条款更新通知</h2>
                   <span
                     v-if="updatedAt"
                     class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-dark-800 dark:text-dark-300"
@@ -82,8 +81,7 @@
                   </span>
                 </div>
                 <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
-                  我们的服务条款已于 {{ updatedAt || '近期' }} 更新。在继续使用服务之前，请仔细阅读并同意以下条款。
-                </p>
+                  我们的服务条款已于 {{ updatedAt || '近期' }} 更新。在继续使用服务之前，请仔细阅读并同意以下条款。</p>
               </div>
             </div>
           </div>
@@ -125,7 +123,7 @@
               </button>
               <button
                 type="button"
-                class="rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-primary-600/20 transition hover:bg-primary-700"
+                class="rounded-xl bg-[var(--foreground)] px-4 py-3 text-sm font-semibold text-[var(--background)] shadow-none transition hover:opacity-90"
                 @click="emit('accept')"
               >
                 同意并继续

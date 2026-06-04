@@ -30,7 +30,7 @@
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
-            <button @click="showCreateDialog = true" class="btn btn-primary">
+            <button @click="showCreateDialog = true" class="btn btn-secondary">
               <Icon name="plus" size="md" class="mr-1" />
               {{ t('admin.promo.createCode') }}
             </button>
@@ -56,7 +56,7 @@
                 :class="[
                   'flex items-center transition-colors',
                   copiedCode === value
-                    ? 'text-green-500'
+                    ? 'text-gray-700'
                     : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                 ]"
                 :title="copiedCode === value ? t('admin.promo.copied') : t('keys.copyToClipboard')"
@@ -113,14 +113,14 @@
             <div class="flex items-center space-x-1">
               <button
                 @click="copyRegisterLink(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                 :title="t('admin.promo.copyRegisterLink')"
               >
                 <Icon name="link" size="sm" />
               </button>
               <button
                 @click="handleViewUsages(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                 :title="t('admin.promo.viewUsages')"
               >
                 <Icon name="eye" size="sm" />
@@ -228,7 +228,7 @@
           <button type="button" @click="showCreateDialog = false" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button type="submit" form="create-promo-form" :disabled="creating" class="btn btn-primary">
+          <button type="submit" form="create-promo-form" :disabled="creating" class="btn btn-secondary">
             {{ creating ? t('common.creating') : t('common.create') }}
           </button>
         </div>
@@ -306,7 +306,7 @@
           <button type="button" @click="closeEditDialog" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button type="submit" form="edit-promo-form" :disabled="updating" class="btn btn-primary">
+          <button type="submit" form="edit-promo-form" :disabled="updating" class="btn btn-secondary">
             {{ updating ? t('common.saving') : t('common.save') }}
           </button>
         </div>
@@ -333,8 +333,8 @@
           class="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-dark-600"
         >
           <div class="flex items-center gap-3">
-            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-              <Icon name="user" size="sm" class="text-green-600 dark:text-green-400" />
+            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700">
+              <Icon name="user" size="sm" class="text-gray-700 dark:text-gray-300" />
             </div>
             <div>
               <p class="text-sm font-medium text-gray-900 dark:text-white">
@@ -346,7 +346,7 @@
             </div>
           </div>
           <div class="text-right">
-            <span class="text-sm font-medium text-green-600 dark:text-green-400">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
               +${{ usage.bonus_amount.toFixed(2) }}
             </span>
           </div>
@@ -493,9 +493,9 @@ const getStatusClass = (status: string, row: PromoCode) => {
     return 'badge-danger'
   }
   if (row.max_uses > 0 && row.used_count >= row.max_uses) {
-    return 'badge-gray'
+    return 'badge-warning'
   }
-  return status === 'active' ? 'badge-success' : 'badge-gray'
+  return status === 'active' ? 'badge-success' : 'badge-secondary'
 }
 
 const getStatusLabel = (status: string, row: PromoCode) => {

@@ -6,11 +6,11 @@
     @close="$emit('close')"
   >
     <form id="create-subscription-form" class="space-y-4" @submit.prevent="$emit('submit')">
-      <div class="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm leading-6 text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/20 dark:text-indigo-100">
+      <div class="rounded-xl border border-gray-200 bg-gray-100 p-4 text-sm leading-6 text-gray-700 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300">
         {{ t('admin.proxies.subscriptions.productHint') }}
       </div>
 
-      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+      <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
         <div class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.subscriptions.formSections.basic') }}</div>
         <div class="space-y-4">
           <div>
@@ -32,7 +32,7 @@
         </div>
       </div>
 
-      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+      <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
         <div class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.proxies.subscriptions.formSections.policy') }}</div>
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
@@ -63,7 +63,7 @@
               <input
                 :checked="form.enabled"
                 type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
                 @change="updateCheckboxField('enabled', $event)"
               />
               {{ t('common.enabled') }}
@@ -73,7 +73,7 @@
             <input
               :checked="form.auto_add_to_pool"
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
               @change="updateCheckboxField('auto_add_to_pool', $event)"
             />
             {{ t('admin.proxies.subscriptions.fields.autoAddToPool') }}
@@ -84,7 +84,7 @@
     <template #footer>
       <div class="flex justify-end gap-3">
         <button class="btn btn-secondary" type="button" @click="$emit('close')">{{ t('common.cancel') }}</button>
-        <button class="btn btn-primary" type="submit" form="create-subscription-form" :disabled="submitting">
+        <button class="btn btn-secondary" type="submit" form="create-subscription-form" :disabled="submitting">
           {{ submitting ? t('common.submitting') : editing ? t('common.save') : t('common.create') }}
         </button>
       </div>

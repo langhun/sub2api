@@ -1310,6 +1310,8 @@ export default {
     "createFailed": "创建失败",
     "claimSuccess": "领取成功！",
     "claimFailed": "领取失败",
+    "claimExhausted": "红包已被抢光，下次早点来～",
+    "bestLuck": "手气最佳",
     "currentBalance": "当前余额",
     "feeHint": "含手续费 ${fee}（费率 {rate}%）",
     "expireAt": "有效期至",
@@ -6288,7 +6290,7 @@ export default {
         "gameHall": {
           "title": "娱乐大厅",
           "enabled": "启用娱乐大厅",
-          "enabledHint": "关闭后隐藏用户侧边栏入口，并拒绝娱乐大厅访问。"
+          "enabledHint": "关闭后隐藏用户侧边栏入口，并拒绝娱乐大厅接口访问。"
         },
         "transfer": {
           "title": "转账设置",
@@ -6658,6 +6660,14 @@ export default {
         "siteSubtitle": "站点副标题",
         "siteSubtitleHint": "显示在登录和注册页面",
         "siteSubtitlePlaceholder": "订阅转 API 转换平台",
+        "themePreset": "全站主题",
+        "themePresetHint": "保存后所有用户统一使用该配色风格",
+        "themeMinimalMono": "黑白极简",
+        "themeClassic": "经典模式",
+        "themeFont": "全站字体",
+        "themeFontHint": "保存后会统一调整前台与后台字体栈",
+        "themeFontSerif": "文艺衬线",
+        "themeFontSans": "极简无衬线",
         "apiBaseUrl": "API 端点地址",
         "apiBaseUrlHint": "用于\"使用密钥\"和\"导入到 CC Switch\"功能，留空则使用当前站点地址",
         "apiBaseUrlPlaceholder": "https://api.example.com",

@@ -6,7 +6,7 @@
         variantClass
       ]"
     ></span>
-    <span class="text-sm text-gray-700 dark:text-gray-300">
+    <span class="text-sm text-[var(--muted-foreground)]">
       {{ label }}
     </span>
   </div>
@@ -28,12 +28,12 @@ const variantClass = computed(() => {
     case 'disabled':
     case 'inactive':
     case 'warning':
-      return 'bg-yellow-500'
+      return 'bg-amber-500'
     case 'error':
     case 'danger':
       return 'bg-red-500'
     default:
-      return 'bg-gray-400'
+      return 'bg-[var(--muted-foreground)]'
   }
 })
 </script>

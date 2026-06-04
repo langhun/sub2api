@@ -13,7 +13,7 @@
         </p>
         <button
           @click="showAddForm = !showAddForm"
-          class="btn btn-primary flex items-center gap-1.5 text-sm"
+          class="btn btn-secondary flex items-center gap-1.5 text-sm"
         >
           <Icon name="plus" size="sm" :stroke-width="2" />
           {{ t('admin.scheduledTests.addPlan') }}
@@ -23,7 +23,7 @@
       <!-- Add Plan Form -->
       <div
         v-if="showAddForm"
-        class="rounded-xl border border-primary-200 bg-primary-50/50 p-4 dark:border-primary-800 dark:bg-primary-900/20"
+        class="rounded-xl border border-gray-200 bg-gray-100 p-4 dark:border-dark-600 dark:bg-dark-700"
       >
         <div class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.scheduledTests.addPlan') }}
@@ -45,7 +45,7 @@
               {{ t('admin.scheduledTests.cronExpression') }}
               <HelpTooltip>
                 <template #trigger>
-                  <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-gray-500 dark:text-gray-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+                  <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-gray-200 hover:text-gray-700 dark:border-gray-500 dark:text-gray-500 dark:hover:border-gray-200 dark:hover:text-gray-700">
                     ?
                   </span>
                 </template>
@@ -71,7 +71,7 @@
               {{ t('admin.scheduledTests.maxResults') }}
               <HelpTooltip>
                 <template #trigger>
-                  <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-gray-500 dark:text-gray-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+                  <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-gray-200 hover:text-gray-700 dark:border-gray-500 dark:text-gray-500 dark:hover:border-gray-200 dark:hover:text-gray-700">
                     ?
                   </span>
                 </template>
@@ -151,7 +151,7 @@
           <button
             @click="handleCreate"
             :disabled="!newPlan.model_id || !newPlan.cron_expression || creating"
-            class="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon v-if="creating" name="refresh" size="sm" class="animate-spin" :stroke-width="2" />
             {{ t('common.save') }}
@@ -213,7 +213,7 @@
               <!-- Auto Recover Badge -->
               <span
                 v-if="plan.auto_recover"
-                class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+                class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300"
               >
                 {{ t('admin.scheduledTests.autoRecover') }}
               </span>
@@ -236,7 +236,7 @@
               <div class="flex items-center gap-1" @click.stop>
                 <button
                   @click="startEdit(plan)"
-                  class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20"
+                  class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-100"
                   :title="t('admin.scheduledTests.editPlan')"
                 >
                   <Icon name="edit" size="sm" :stroke-width="2" />
@@ -265,7 +265,7 @@
           <!-- Edit Form -->
           <div
             v-if="editingPlanId === plan.id"
-            class="border-t border-blue-100 bg-blue-50/50 px-4 py-3 dark:border-blue-900 dark:bg-blue-900/10"
+            class="border-t border-gray-200 bg-gray-100 px-4 py-3 dark:border-dark-600 dark:bg-dark-700"
             @click.stop
           >
             <div class="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -288,7 +288,7 @@
                   {{ t('admin.scheduledTests.cronExpression') }}
                   <HelpTooltip>
                     <template #trigger>
-                      <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-gray-500 dark:text-gray-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+                      <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-gray-200 hover:text-gray-700 dark:border-gray-500 dark:text-gray-500 dark:hover:border-gray-200 dark:hover:text-gray-700">
                         ?
                       </span>
                     </template>
@@ -314,7 +314,7 @@
                   {{ t('admin.scheduledTests.maxResults') }}
                   <HelpTooltip>
                     <template #trigger>
-                      <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-gray-500 dark:text-gray-500 dark:hover:border-primary-400 dark:hover:text-primary-400">
+                      <span class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-gray-400/70 text-[10px] font-semibold text-gray-400 transition-colors hover:border-gray-200 hover:text-gray-700 dark:border-gray-500 dark:text-gray-500 dark:hover:border-gray-200 dark:hover:text-gray-700">
                         ?
                       </span>
                     </template>
@@ -394,7 +394,7 @@
               <button
                 @click="handleEdit"
                 :disabled="!editForm.model_id || !editForm.cron_expression || updating"
-                class="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
+                class="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon v-if="updating" name="refresh" size="sm" class="animate-spin" :stroke-width="2" />
                 {{ t('common.save') }}
@@ -439,9 +439,9 @@
                       :class="[
                         'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
                         result.status === 'success'
-                          ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+                          ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30'
                           : result.status === 'running'
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
+                            ? 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30'
                             : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
                       ]"
                     >
@@ -455,11 +455,11 @@
                     </span>
 
                     <!-- Latency -->
-                    <span v-if="result.latency_ms > 0" class="text-xs text-gray-500 dark:text-gray-400">
+                    <span v-if="result.latency_ms > 0" class="text-xs" :class="result.latency_ms >= 3000 ? 'text-red-600 dark:text-red-400' : result.latency_ms >= 800 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'">
                       {{ result.latency_ms }}ms
                     </span>
 
-                    <span v-if="result.http_status_code !== null" class="text-xs text-gray-500 dark:text-gray-400">
+                    <span v-if="result.http_status_code !== null" class="text-xs" :class="result.http_status_code >= 500 ? 'text-red-600 dark:text-red-400' : result.http_status_code >= 400 ? 'text-amber-600 dark:text-amber-400' : result.http_status_code >= 300 ? 'text-sky-600 dark:text-sky-400' : 'text-emerald-600 dark:text-emerald-400'">
                       HTTP {{ result.http_status_code }}
                     </span>
 

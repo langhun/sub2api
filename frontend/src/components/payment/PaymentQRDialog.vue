@@ -4,7 +4,7 @@
     <div v-if="!success" class="flex flex-col items-center space-y-4">
       <!-- QR Code mode -->
       <template v-if="qrUrl">
-        <div class="rounded-2xl bg-white p-4 shadow-sm dark:bg-dark-800">
+        <div class="feature-panel-info rounded-xl border p-4">
           <canvas ref="qrCanvas" class="mx-auto"></canvas>
         </div>
         <p v-if="scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">
@@ -25,7 +25,7 @@
       <div v-if="expired" class="text-center">
         <p class="text-lg font-medium text-red-500">{{ t('payment.qr.expired') }}</p>
       </div>
-      <div v-else class="text-center">
+      <div v-else class="feature-panel-warning w-full rounded-xl border px-4 py-3 text-center">
         <p class="text-sm text-gray-500 dark:text-gray-400">{{ qrUrl ? t('payment.qr.expiresIn') : '' }}</p>
         <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
         <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
@@ -33,11 +33,11 @@
     </div>
     <!-- Success State -->
     <div v-else class="flex flex-col items-center space-y-4 py-4">
-      <div class="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-        <Icon name="check" size="lg" class="text-green-500" />
+      <div class="feature-icon feature-icon-success flex h-16 w-16 items-center justify-center rounded-xl">
+        <Icon name="check" size="lg" class="text-[var(--success)]" />
       </div>
       <p class="text-lg font-bold text-gray-900 dark:text-white">{{ t('payment.result.success') }}</p>
-      <div v-if="paidOrder" class="w-full rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
+      <div v-if="paidOrder" class="feature-panel-success w-full rounded-xl border p-4">
         <div class="space-y-2 text-sm">
           <div class="flex justify-between">
             <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
@@ -45,11 +45,16 @@
           </div>
           <div class="flex justify-between">
             <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-            <span class="font-medium text-gray-900 dark:text-white">{{ paidOrder.order_type === 'balance' ? '$' : '¥' }}{{ paidOrder.amount.toFixed(2) }}</span>
+            <span
+              class="font-medium text-gray-900 dark:text-white"
+              :title="paidOrder.order_type === 'balance' ? formatBalanceTitle(paidOrder.amount) : undefined"
+            >
+              {{ paidOrder.order_type === 'balance' ? formatBalanceDisplay(paidOrder.amount) : formatGatewayAmount(paidOrder.amount, paidOrder.currency) }}
+            </span>
           </div>
           <div class="flex justify-between">
             <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-            <span class="font-medium text-gray-900 dark:text-white">¥{{ paidOrder.pay_amount.toFixed(2) }}</span>
+            <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(paidOrder.pay_amount, paidOrder.currency) }}</span>
           </div>
         </div>
       </div>
@@ -80,6 +85,8 @@ import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
+import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { formatDualDisplayAmount } from '@/utils/format'
 import type { PaymentOrder } from '@/types/payment'
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
@@ -100,7 +107,8 @@ const emit = defineEmits<{
   success: []
 }>()
 
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 const paymentStore = usePaymentStore()
 const appStore = useAppStore()
 
@@ -111,6 +119,15 @@ const expired = ref(false)
 const cancelling = ref(false)
 const success = ref(false)
 const paidOrder = ref<PaymentOrder | null>(null)
+
+const localeCode = computed(() => {
+  const raw = i18n.locale as unknown
+  if (typeof raw === 'string') return raw
+  if (raw && typeof raw === 'object' && 'value' in raw) {
+    return String((raw as { value?: string }).value || '')
+  }
+  return undefined
+})
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
@@ -142,6 +159,18 @@ const countdownDisplay = computed(() => {
   const s = remainingSeconds.value % 60
   return m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0')
 })
+
+function formatGatewayAmount(value: number, currency?: string | null): string {
+  return formatPaymentAmount(value, normalizePaymentCurrency(currency), localeCode.value)
+}
+
+function formatBalanceDisplay(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).display
+}
+
+function formatBalanceTitle(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).full
+}
 
 function getLogoForType(): string | null {
   if (isAlipay.value) return alipayIcon

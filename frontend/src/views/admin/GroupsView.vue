@@ -70,7 +70,7 @@
             </button>
             <button
               @click="openCreateModal"
-              class="btn btn-primary"
+              class="btn btn-secondary"
               data-tour="groups-create-btn"
             >
               <Icon name="plus" size="md" class="mr-2" />
@@ -101,12 +101,12 @@
               :class="[
                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
                 value === 'anthropic'
-                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                   : value === 'openai'
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                    ? 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300'
                     : value === 'antigravity'
-                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                      : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                      ? 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300'
+                      : 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300',
               ]"
             >
               <PlatformIcon :platform="value" size="xs" />
@@ -121,7 +121,7 @@
                 :class="[
                   'inline-block rounded-full px-2 py-0.5 text-xs font-medium',
                   row.subscription_type === 'subscription'
-                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                    ? 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
                     : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
                 ]"
               >
@@ -186,7 +186,7 @@
           </template>
 
           <template #cell-is_exclusive="{ value }">
-            <span :class="['badge', value ? 'badge-primary' : 'badge-gray']">
+            <span :class="['badge', value ? 'badge-success' : 'badge-info']">
               {{
                 value ? t("admin.groups.exclusive") : t("admin.groups.public")
               }}
@@ -200,7 +200,7 @@
                   t("admin.groups.accountsAvailable")
                 }}</span>
                 <span
-                  class="ml-1 font-medium text-emerald-600 dark:text-emerald-400"
+                  class="ml-1 font-medium text-gray-700 dark:text-gray-300"
                   >{{ getAvailableAccountCount(row) }}</span
                 >
                 <span
@@ -291,14 +291,14 @@
             <div class="flex items-center gap-1">
               <button
                 @click="handleEdit(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-700 dark:hover:text-gray-700"
               >
                 <Icon name="edit" size="sm" />
                 <span class="text-xs">{{ t("common.edit") }}</span>
               </button>
               <button
                 @click="handleRateMultipliers(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-purple-600 dark:hover:bg-dark-700 dark:hover:text-purple-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-700 dark:hover:text-gray-700"
               >
                 <Icon name="dollar" size="sm" />
                 <span class="text-xs">{{
@@ -307,7 +307,7 @@
               </button>
               <button
                 @click="handleRPMOverrides(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-orange-600 dark:hover:bg-dark-700 dark:hover:text-orange-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-amber-600 dark:hover:bg-dark-700 dark:hover:text-amber-400"
               >
                 <Icon name="bolt" size="sm" />
                 <span class="text-xs">{{
@@ -404,13 +404,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.copyAccounts.tooltip") }}
@@ -430,7 +430,7 @@
             <span
               v-for="groupId in createForm.copy_accounts_from_group_ids"
               :key="groupId"
-              class="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+              class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300"
             >
               {{
                 copyAccountsGroupOptions.find((o) => o.value === groupId)
@@ -444,7 +444,7 @@
                       (id) => id !== groupId,
                     )
                 "
-                class="ml-0.5 text-primary-500 hover:text-primary-700 dark:hover:text-primary-200"
+                class="ml-0.5 text-gray-700 hover:text-gray-700 dark:hover:text-gray-700"
               >
                 <Icon name="x" size="xs" />
               </button>
@@ -523,14 +523,14 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <!-- Tooltip Popover -->
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="mb-2 text-xs font-medium">
                     {{ t("admin.groups.exclusiveTooltip.title") }}
@@ -541,7 +541,7 @@
                   <div class="rounded bg-gray-800 p-2 dark:bg-gray-700">
                     <p class="text-xs leading-relaxed text-gray-300">
                       <span
-                        class="inline-flex items-center gap-1 text-primary-400"
+                        class="inline-flex items-center gap-1 text-gray-700"
                         ><Icon name="lightbulb" size="xs" />
                         {{ t("admin.groups.exclusiveTooltip.example") }}</span
                       >
@@ -563,13 +563,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                 createForm.is_exclusive
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   createForm.is_exclusive ? 'translate-x-6' : 'translate-x-1',
                 ]"
               />
@@ -602,7 +602,7 @@
           <!-- Subscription limits (only show when subscription type is selected) -->
           <div
             v-if="createForm.subscription_type === 'subscription'"
-            class="space-y-4 border-l-2 border-primary-200 pl-4 dark:border-primary-800"
+            class="space-y-4 border-l-2 border-gray-200 pl-4 dark:border-dark-600"
           >
             <div>
               <label class="input-label">{{
@@ -662,13 +662,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors',
                 createModelsListState.enabled
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   createModelsListState.enabled ? 'translate-x-6' : 'translate-x-1',
                 ]"
               />
@@ -676,11 +676,11 @@
           </div>
           <div
             v-if="createModelsListState.enabled"
-            class="overflow-hidden rounded-lg border border-gray-200 bg-gray-50/50 dark:border-dark-600 dark:bg-dark-800/40"
+            class="overflow-hidden rounded-lg border border-gray-200 bg-gray-50/50 dark:border-dark-600 dark:bg-[var(--card)]/40"
           >
             <div
               v-if="!createModelsListLoading && createModelsListState.items.length > 0"
-              class="flex items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-dark-600 dark:bg-dark-800"
+              class="flex items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-dark-600 dark:bg-[var(--card)]"
             >
               <span class="text-gray-500 dark:text-gray-400">
                 已选 {{ createModelsListSelectedCount }} /
@@ -689,7 +689,7 @@
               <div class="flex items-center gap-1.5">
                 <button
                   type="button"
-                  class="rounded px-2 py-1 font-medium text-primary-600 transition-colors hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20"
+                  class="rounded px-2 py-1 font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-100"
                   @click="selectAllModelsListItems(createModelsListState)"
                 >
                   全选
@@ -718,12 +718,12 @@
               <div
                 v-for="(item, index) in createModelsListState.items"
                 :key="item.id"
-                class="flex items-center gap-2 rounded border border-gray-200 bg-white px-3 py-2 dark:border-dark-600 dark:bg-dark-800"
+                class="flex items-center gap-2 rounded border border-gray-200 bg-[var(--card)] px-3 py-2 dark:border-dark-600 dark:bg-[var(--card)]"
               >
                 <input
                   v-model="item.selected"
                   type="checkbox"
-                  class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
                 />
                 <span class="min-w-0 flex-1 break-all text-sm text-gray-700 dark:text-gray-300">
                   {{ item.id }}
@@ -771,7 +771,7 @@
               <input
                 v-model="createForm.allow_image_generation"
                 type="checkbox"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                class="rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
               />
               {{ t("admin.groups.imagePricing.allowImageGeneration") }}
             </label>
@@ -779,7 +779,7 @@
               <input
                 v-model="createForm.image_rate_independent"
                 type="checkbox"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                class="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
               />
               {{ t("admin.groups.imagePricing.independentMultiplier") }}
             </label>
@@ -865,13 +865,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.supportedScopes.tooltip") }}
@@ -889,7 +889,7 @@
                 type="checkbox"
                 :checked="createForm.supported_model_scopes.includes('claude')"
                 @change="toggleCreateScope('claude')"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-700"
+                class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)] dark:border-dark-600 dark:bg-dark-700"
               />
               <span class="text-sm text-gray-700 dark:text-gray-300">{{
                 t("admin.groups.supportedScopes.claude")
@@ -902,7 +902,7 @@
                   createForm.supported_model_scopes.includes('gemini_text')
                 "
                 @change="toggleCreateScope('gemini_text')"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-700"
+                class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)] dark:border-dark-600 dark:bg-dark-700"
               />
               <span class="text-sm text-gray-700 dark:text-gray-300">{{
                 t("admin.groups.supportedScopes.geminiText")
@@ -915,7 +915,7 @@
                   createForm.supported_model_scopes.includes('gemini_image')
                 "
                 @change="toggleCreateScope('gemini_image')"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-700"
+                class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)] dark:border-dark-600 dark:bg-dark-700"
               />
               <span class="text-sm text-gray-700 dark:text-gray-300">{{
                 t("admin.groups.supportedScopes.geminiImage")
@@ -938,13 +938,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.mcpXml.tooltip") }}
@@ -963,13 +963,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                 createForm.mcp_xml_inject
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   createForm.mcp_xml_inject ? 'translate-x-6' : 'translate-x-1',
                 ]"
               />
@@ -996,13 +996,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.claudeCode.tooltip") }}
@@ -1023,13 +1023,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                 createForm.claude_code_only
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   createForm.claude_code_only
                     ? 'translate-x-6'
                     : 'translate-x-1',
@@ -1080,15 +1080,15 @@
                 createForm.allow_messages_dispatch =
                   !createForm.allow_messages_dispatch
               "
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none"
               :class="
                 createForm.allow_messages_dispatch
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600'
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600'
               "
             >
               <span
-                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out"
                 :class="
                   createForm.allow_messages_dispatch
                     ? 'translate-x-6'
@@ -1103,13 +1103,13 @@
 
           <div v-if="createForm.allow_messages_dispatch" class="mt-3">
             <div
-              class="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-600 dark:bg-dark-800"
+              class="relative overflow-hidden rounded-xl border border-gray-200 bg-[var(--card)] shadow-sm dark:border-dark-600 dark:bg-[var(--card)]"
             >
               <div
                 class="border-b border-gray-100 bg-gray-50/80 px-4 py-3 dark:border-dark-700 dark:bg-dark-700/50"
               >
                 <div class="flex items-center gap-2">
-                  <div class="h-2 w-2 rounded-full bg-blue-500"></div>
+                  <div class="h-2 w-2 rounded-full bg-gray-100"></div>
                   <label
                     class="text-sm font-medium text-gray-900 dark:text-white"
                     >{{
@@ -1167,24 +1167,24 @@
             </div>
 
             <div
-              class="mt-5 relative overflow-hidden rounded-xl border border-primary-200 bg-white shadow-sm dark:border-primary-900/50 dark:bg-dark-800"
+              class="mt-5 relative overflow-hidden rounded-xl border border-gray-200 bg-[var(--card)] shadow-sm dark:border-dark-600 dark:bg-[var(--card)]"
             >
               <div
-                class="border-b border-primary-100 bg-primary-50/80 px-4 py-3 dark:border-primary-900/40 dark:bg-primary-900/20"
+                class="border-b border-gray-200 bg-gray-100 px-4 py-3 dark:border-dark-600 dark:bg-dark-700"
               >
                 <div class="flex items-start justify-between gap-3">
                   <div>
                     <div class="flex items-center gap-2">
-                      <div class="h-2 w-2 rounded-full bg-primary-500"></div>
+                      <div class="h-2 w-2 rounded-full bg-gray-100"></div>
                       <label
-                        class="text-sm font-medium text-primary-900 dark:text-primary-100"
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
                         >{{
                           t("admin.groups.openaiMessages.exactMappingTitle")
                         }}</label
                       >
                     </div>
                     <p
-                      class="mt-1 text-xs text-primary-600/90 dark:text-primary-400/90"
+                      class="mt-1 text-xs text-gray-700 dark:text-gray-300"
                     >
                       {{ t("admin.groups.openaiMessages.exactMappingHint") }}
                     </p>
@@ -1192,10 +1192,10 @@
                 </div>
               </div>
 
-              <div class="p-4 bg-gray-50/30 dark:bg-dark-800/30">
+              <div class="p-4 bg-gray-50/30 dark:bg-[var(--card)]/30">
                 <div
                   v-if="createForm.exact_model_mappings.length === 0"
-                  class="flex items-center justify-between gap-3 rounded-xl border-2 border-dashed border-primary-200 bg-white px-5 py-4 text-sm text-primary-700 transition-colors hover:border-primary-300 dark:border-primary-900/40 dark:bg-dark-800 dark:text-primary-300 dark:hover:border-primary-800"
+                  class="flex items-center justify-between gap-3 rounded-xl border border-dashed border-gray-200 bg-[var(--card)] px-5 py-4 text-sm text-gray-700 transition-colors hover:border-gray-200 dark:border-dark-600 dark:bg-[var(--card)] dark:text-gray-300 dark:hover:border-gray-200"
                 >
                   <span>{{
                     t("admin.groups.openaiMessages.noExactMappings")
@@ -1203,7 +1203,7 @@
                   <button
                     type="button"
                     @click="addCreateMessagesDispatchMapping"
-                    class="flex items-center gap-1.5 text-sm font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                    class="flex items-center gap-1.5 text-sm font-medium text-gray-700 transition-colors hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
                   >
                     <Icon name="plus" size="sm" />
                     {{ t("admin.groups.openaiMessages.addExactMapping") }}
@@ -1214,7 +1214,7 @@
                   <div
                     v-for="row in createForm.exact_model_mappings"
                     :key="getCreateMessagesDispatchRowKey(row)"
-                    class="group relative rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-primary-300 hover:shadow-md dark:border-dark-600 dark:bg-dark-700 dark:hover:border-primary-700"
+                    class="group relative rounded-xl border border-gray-200 bg-[var(--card)] p-4 shadow-none transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-700 dark:hover:border-gray-200"
                   >
                     <div class="flex items-center gap-4">
                       <div
@@ -1232,11 +1232,11 @@
                                 'admin.groups.openaiMessages.claudeModelPlaceholder',
                               )
                             "
-                            class="input bg-gray-50 focus:bg-white dark:bg-dark-800 dark:focus:bg-dark-900"
+                            class="input bg-gray-50 focus:bg-white dark:bg-[var(--card)] dark:focus:bg-dark-900"
                           />
                         </div>
                         <div
-                          class="hidden md:flex md:justify-center md:pt-7 text-primary-300 dark:text-primary-700"
+                          class="hidden md:flex md:justify-center md:pt-7 text-gray-700 dark:text-gray-300"
                         >
                           <Icon
                             name="arrowRight"
@@ -1256,7 +1256,7 @@
                                 'admin.groups.openaiMessages.targetModelPlaceholder',
                               )
                             "
-                            class="input bg-gray-50 focus:bg-white dark:bg-dark-800 dark:focus:bg-dark-900"
+                            class="input bg-gray-50 focus:bg-white dark:bg-[var(--card)] dark:focus:bg-dark-900"
                           />
                         </div>
                       </div>
@@ -1276,7 +1276,7 @@
                   <button
                     type="button"
                     @click="addCreateMessagesDispatchMapping"
-                    class="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white py-3 text-sm font-medium text-gray-500 transition-all hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-400 dark:hover:border-primary-800 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+                    class="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-[var(--card)] py-3 text-sm font-medium text-gray-500 transition-all hover:border-gray-200 hover:bg-gray-100 hover:text-gray-700 dark:border-dark-600 dark:bg-[var(--card)] dark:text-gray-400 dark:hover:border-gray-200 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                   >
                     <Icon name="plus" size="sm" />
                     {{ t("admin.groups.openaiMessages.addExactMapping") }}
@@ -1319,15 +1319,15 @@
               @click="
                 createForm.require_oauth_only = !createForm.require_oauth_only
               "
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none"
               :class="
                 createForm.require_oauth_only
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600'
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600'
               "
             >
               <span
-                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out"
                 :class="
                   createForm.require_oauth_only
                     ? 'translate-x-6'
@@ -1356,15 +1356,15 @@
               @click="
                 createForm.require_privacy_set = !createForm.require_privacy_set
               "
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none"
               :class="
                 createForm.require_privacy_set
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600'
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600'
               "
             >
               <span
-                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out"
                 :class="
                   createForm.require_privacy_set
                     ? 'translate-x-6'
@@ -1408,13 +1408,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-80 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.modelRouting.tooltip") }}
@@ -1437,13 +1437,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                 createForm.model_routing_enabled
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   createForm.model_routing_enabled
                     ? 'translate-x-6'
                     : 'translate-x-1',
@@ -1501,13 +1501,13 @@
                       <span
                         v-for="account in rule.accounts"
                         :key="account.id"
-                        class="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                        class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300"
                       >
                         {{ account.name }}
                         <button
                           type="button"
                           @click="removeSelectedAccount(rule, account.id)"
-                          class="ml-0.5 text-primary-500 hover:text-primary-700 dark:hover:text-primary-200"
+                          class="ml-0.5 text-gray-700 hover:text-gray-700 dark:hover:text-gray-700"
                         >
                           <Icon name="x" size="xs" />
                         </button>
@@ -1536,7 +1536,7 @@
                           accountSearchResults[getCreateRuleSearchKey(rule)]
                             ?.length > 0
                         "
-                        class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                        class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-sm dark:border-dark-600 dark:bg-[var(--card)]"
                       >
                         <button
                           v-for="account in accountSearchResults[
@@ -1583,7 +1583,7 @@
             v-if="createForm.model_routing_enabled"
             type="button"
             @click="addCreateRoutingRule"
-            class="mt-3 flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+            class="mt-3 flex items-center gap-1.5 text-sm text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
           >
             <Icon name="plus" size="sm" />
             {{ t("admin.groups.modelRouting.addRule") }}
@@ -1604,7 +1604,7 @@
             type="submit"
             form="create-group-form"
             :disabled="submitting"
-            class="btn btn-primary"
+            class="btn btn-secondary"
             data-tour="group-form-submit"
           >
             <svg
@@ -1689,13 +1689,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.copyAccounts.tooltipEdit") }}
@@ -1715,7 +1715,7 @@
             <span
               v-for="groupId in editForm.copy_accounts_from_group_ids"
               :key="groupId"
-              class="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+              class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300"
             >
               {{
                 copyAccountsGroupOptionsForEdit.find((o) => o.value === groupId)
@@ -1729,7 +1729,7 @@
                       (id) => id !== groupId,
                     )
                 "
-                class="ml-0.5 text-primary-500 hover:text-primary-700 dark:hover:text-primary-200"
+                class="ml-0.5 text-gray-700 hover:text-gray-700 dark:hover:text-gray-700"
               >
                 <Icon name="x" size="xs" />
               </button>
@@ -1806,14 +1806,14 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <!-- Tooltip Popover -->
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="mb-2 text-xs font-medium">
                     {{ t("admin.groups.exclusiveTooltip.title") }}
@@ -1824,7 +1824,7 @@
                   <div class="rounded bg-gray-800 p-2 dark:bg-gray-700">
                     <p class="text-xs leading-relaxed text-gray-300">
                       <span
-                        class="inline-flex items-center gap-1 text-primary-400"
+                        class="inline-flex items-center gap-1 text-gray-700"
                         ><Icon name="lightbulb" size="xs" />
                         {{ t("admin.groups.exclusiveTooltip.example") }}</span
                       >
@@ -1846,13 +1846,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                 editForm.is_exclusive
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   editForm.is_exclusive ? 'translate-x-6' : 'translate-x-1',
                 ]"
               />
@@ -1890,7 +1890,7 @@
           <!-- Subscription limits (only show when subscription type is selected) -->
           <div
             v-if="editForm.subscription_type === 'subscription'"
-            class="space-y-4 border-l-2 border-primary-200 pl-4 dark:border-primary-800"
+            class="space-y-4 border-l-2 border-gray-200 pl-4 dark:border-dark-600"
           >
             <div>
               <label class="input-label">{{
@@ -1950,13 +1950,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors',
                 editModelsListState.enabled
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   editModelsListState.enabled ? 'translate-x-6' : 'translate-x-1',
                 ]"
               />
@@ -1964,11 +1964,11 @@
           </div>
           <div
             v-if="editModelsListState.enabled"
-            class="overflow-hidden rounded-lg border border-gray-200 bg-gray-50/50 dark:border-dark-600 dark:bg-dark-800/40"
+            class="overflow-hidden rounded-lg border border-gray-200 bg-gray-50/50 dark:border-dark-600 dark:bg-[var(--card)]/40"
           >
             <div
               v-if="!editModelsListLoading && editModelsListState.items.length > 0"
-              class="flex items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-dark-600 dark:bg-dark-800"
+              class="flex items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-dark-600 dark:bg-[var(--card)]"
             >
               <span class="text-gray-500 dark:text-gray-400">
                 已选 {{ editModelsListSelectedCount }} /
@@ -1977,7 +1977,7 @@
               <div class="flex items-center gap-1.5">
                 <button
                   type="button"
-                  class="rounded px-2 py-1 font-medium text-primary-600 transition-colors hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20"
+                  class="rounded px-2 py-1 font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-100"
                   @click="selectAllModelsListItems(editModelsListState)"
                 >
                   全选
@@ -2006,12 +2006,12 @@
               <div
                 v-for="(item, index) in editModelsListState.items"
                 :key="item.id"
-                class="flex items-center gap-2 rounded border border-gray-200 bg-white px-3 py-2 dark:border-dark-600 dark:bg-dark-800"
+                class="flex items-center gap-2 rounded border border-gray-200 bg-[var(--card)] px-3 py-2 dark:border-dark-600 dark:bg-[var(--card)]"
               >
                 <input
                   v-model="item.selected"
                   type="checkbox"
-                  class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
                 />
                 <span class="min-w-0 flex-1 break-all text-sm text-gray-700 dark:text-gray-300">
                   {{ item.id }}
@@ -2059,7 +2059,7 @@
               <input
                 v-model="editForm.allow_image_generation"
                 type="checkbox"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                class="rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
               />
               {{ t("admin.groups.imagePricing.allowImageGeneration") }}
             </label>
@@ -2067,7 +2067,7 @@
               <input
                 v-model="editForm.image_rate_independent"
                 type="checkbox"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                class="rounded border-gray-300 text-sky-600 focus:ring-sky-500"
               />
               {{ t("admin.groups.imagePricing.independentMultiplier") }}
             </label>
@@ -2153,13 +2153,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.supportedScopes.tooltip") }}
@@ -2177,7 +2177,7 @@
                 type="checkbox"
                 :checked="editForm.supported_model_scopes.includes('claude')"
                 @change="toggleEditScope('claude')"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-700"
+                class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)] dark:border-dark-600 dark:bg-dark-700"
               />
               <span class="text-sm text-gray-700 dark:text-gray-300">{{
                 t("admin.groups.supportedScopes.claude")
@@ -2190,7 +2190,7 @@
                   editForm.supported_model_scopes.includes('gemini_text')
                 "
                 @change="toggleEditScope('gemini_text')"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-700"
+                class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)] dark:border-dark-600 dark:bg-dark-700"
               />
               <span class="text-sm text-gray-700 dark:text-gray-300">{{
                 t("admin.groups.supportedScopes.geminiText")
@@ -2203,7 +2203,7 @@
                   editForm.supported_model_scopes.includes('gemini_image')
                 "
                 @change="toggleEditScope('gemini_image')"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-700"
+                class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)] dark:border-dark-600 dark:bg-dark-700"
               />
               <span class="text-sm text-gray-700 dark:text-gray-300">{{
                 t("admin.groups.supportedScopes.geminiImage")
@@ -2226,13 +2226,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.mcpXml.tooltip") }}
@@ -2251,13 +2251,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                 editForm.mcp_xml_inject
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   editForm.mcp_xml_inject ? 'translate-x-6' : 'translate-x-1',
                 ]"
               />
@@ -2284,13 +2284,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.claudeCode.tooltip") }}
@@ -2309,13 +2309,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                 editForm.claude_code_only
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   editForm.claude_code_only ? 'translate-x-6' : 'translate-x-1',
                 ]"
               />
@@ -2364,15 +2364,15 @@
                 editForm.allow_messages_dispatch =
                   !editForm.allow_messages_dispatch
               "
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none"
               :class="
                 editForm.allow_messages_dispatch
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600'
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600'
               "
             >
               <span
-                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out"
                 :class="
                   editForm.allow_messages_dispatch
                     ? 'translate-x-6'
@@ -2387,13 +2387,13 @@
 
           <div v-if="editForm.allow_messages_dispatch" class="mt-3">
             <div
-              class="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-600 dark:bg-dark-800"
+              class="relative overflow-hidden rounded-xl border border-gray-200 bg-[var(--card)] shadow-sm dark:border-dark-600 dark:bg-[var(--card)]"
             >
               <div
                 class="border-b border-gray-100 bg-gray-50/80 px-4 py-3 dark:border-dark-700 dark:bg-dark-700/50"
               >
                 <div class="flex items-center gap-2">
-                  <div class="h-2 w-2 rounded-full bg-blue-500"></div>
+                  <div class="h-2 w-2 rounded-full bg-gray-100"></div>
                   <label
                     class="text-sm font-medium text-gray-900 dark:text-white"
                     >{{
@@ -2451,24 +2451,24 @@
             </div>
 
             <div
-              class="mt-5 relative overflow-hidden rounded-xl border border-primary-200 bg-white shadow-sm dark:border-primary-900/50 dark:bg-dark-800"
+              class="mt-5 relative overflow-hidden rounded-xl border border-gray-200 bg-[var(--card)] shadow-sm dark:border-dark-600 dark:bg-[var(--card)]"
             >
               <div
-                class="border-b border-primary-100 bg-primary-50/80 px-4 py-3 dark:border-primary-900/40 dark:bg-primary-900/20"
+                class="border-b border-gray-200 bg-gray-100 px-4 py-3 dark:border-dark-600 dark:bg-dark-700"
               >
                 <div class="flex items-start justify-between gap-3">
                   <div>
                     <div class="flex items-center gap-2">
-                      <div class="h-2 w-2 rounded-full bg-primary-500"></div>
+                      <div class="h-2 w-2 rounded-full bg-gray-100"></div>
                       <label
-                        class="text-sm font-medium text-primary-900 dark:text-primary-100"
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
                         >{{
                           t("admin.groups.openaiMessages.exactMappingTitle")
                         }}</label
                       >
                     </div>
                     <p
-                      class="mt-1 text-xs text-primary-600/90 dark:text-primary-400/90"
+                      class="mt-1 text-xs text-gray-700 dark:text-gray-300"
                     >
                       {{ t("admin.groups.openaiMessages.exactMappingHint") }}
                     </p>
@@ -2476,10 +2476,10 @@
                 </div>
               </div>
 
-              <div class="p-4 bg-gray-50/30 dark:bg-dark-800/30">
+              <div class="p-4 bg-gray-50/30 dark:bg-[var(--card)]/30">
                 <div
                   v-if="editForm.exact_model_mappings.length === 0"
-                  class="flex items-center justify-between gap-3 rounded-xl border-2 border-dashed border-primary-200 bg-white px-5 py-4 text-sm text-primary-700 transition-colors hover:border-primary-300 dark:border-primary-900/40 dark:bg-dark-800 dark:text-primary-300 dark:hover:border-primary-800"
+                  class="flex items-center justify-between gap-3 rounded-xl border border-dashed border-gray-200 bg-[var(--card)] px-5 py-4 text-sm text-gray-700 transition-colors hover:border-gray-200 dark:border-dark-600 dark:bg-[var(--card)] dark:text-gray-300 dark:hover:border-gray-200"
                 >
                   <span>{{
                     t("admin.groups.openaiMessages.noExactMappings")
@@ -2487,7 +2487,7 @@
                   <button
                     type="button"
                     @click="addEditMessagesDispatchMapping"
-                    class="flex items-center gap-1.5 text-sm font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                    class="flex items-center gap-1.5 text-sm font-medium text-gray-700 transition-colors hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
                   >
                     <Icon name="plus" size="sm" />
                     {{ t("admin.groups.openaiMessages.addExactMapping") }}
@@ -2498,7 +2498,7 @@
                   <div
                     v-for="row in editForm.exact_model_mappings"
                     :key="getEditMessagesDispatchRowKey(row)"
-                    class="group relative rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-primary-300 hover:shadow-md dark:border-dark-600 dark:bg-dark-700 dark:hover:border-primary-700"
+                    class="group relative rounded-xl border border-gray-200 bg-[var(--card)] p-4 shadow-none transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-700 dark:hover:border-gray-200"
                   >
                     <div class="flex items-center gap-4">
                       <div
@@ -2516,11 +2516,11 @@
                                 'admin.groups.openaiMessages.claudeModelPlaceholder',
                               )
                             "
-                            class="input bg-gray-50 focus:bg-white dark:bg-dark-800 dark:focus:bg-dark-900"
+                            class="input bg-gray-50 focus:bg-white dark:bg-[var(--card)] dark:focus:bg-dark-900"
                           />
                         </div>
                         <div
-                          class="hidden md:flex md:justify-center md:pt-7 text-primary-300 dark:text-primary-700"
+                          class="hidden md:flex md:justify-center md:pt-7 text-gray-700 dark:text-gray-300"
                         >
                           <Icon
                             name="arrowRight"
@@ -2540,7 +2540,7 @@
                                 'admin.groups.openaiMessages.targetModelPlaceholder',
                               )
                             "
-                            class="input bg-gray-50 focus:bg-white dark:bg-dark-800 dark:focus:bg-dark-900"
+                            class="input bg-gray-50 focus:bg-white dark:bg-[var(--card)] dark:focus:bg-dark-900"
                           />
                         </div>
                       </div>
@@ -2560,7 +2560,7 @@
                   <button
                     type="button"
                     @click="addEditMessagesDispatchMapping"
-                    class="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white py-3 text-sm font-medium text-gray-500 transition-all hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-400 dark:hover:border-primary-800 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+                    class="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-[var(--card)] py-3 text-sm font-medium text-gray-500 transition-all hover:border-gray-200 hover:bg-gray-100 hover:text-gray-700 dark:border-dark-600 dark:bg-[var(--card)] dark:text-gray-400 dark:hover:border-gray-200 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                   >
                     <Icon name="plus" size="sm" />
                     {{ t("admin.groups.openaiMessages.addExactMapping") }}
@@ -2603,15 +2603,15 @@
               @click="
                 editForm.require_oauth_only = !editForm.require_oauth_only
               "
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none"
               :class="
                 editForm.require_oauth_only
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600'
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600'
               "
             >
               <span
-                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out"
                 :class="
                   editForm.require_oauth_only
                     ? 'translate-x-6'
@@ -2640,15 +2640,15 @@
               @click="
                 editForm.require_privacy_set = !editForm.require_privacy_set
               "
-              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              class="relative inline-flex h-6 w-12 flex-shrink-0 cursor-pointer rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none"
               :class="
                 editForm.require_privacy_set
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600'
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600'
               "
             >
               <span
-                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out"
                 :class="
                   editForm.require_privacy_set
                     ? 'translate-x-6'
@@ -2692,13 +2692,13 @@
                 name="questionCircle"
                 size="sm"
                 :stroke-width="2"
-                class="cursor-help text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                class="cursor-help text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-700"
               />
               <div
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-80 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-sm dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.modelRouting.tooltip") }}
@@ -2720,13 +2720,13 @@
               :class="[
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                 editForm.model_routing_enabled
-                  ? 'bg-primary-500'
-                  : 'bg-gray-300 dark:bg-dark-600',
+                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                  : 'bg-gray-200 dark:bg-dark-600',
               ]"
             >
               <span
                 :class="[
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                  'inline-block h-4 w-4 transform rounded-full bg-[var(--background)] transition-transform',
                   editForm.model_routing_enabled
                     ? 'translate-x-6'
                     : 'translate-x-1',
@@ -2784,13 +2784,13 @@
                       <span
                         v-for="account in rule.accounts"
                         :key="account.id"
-                        class="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                        class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300"
                       >
                         {{ account.name }}
                         <button
                           type="button"
                           @click="removeSelectedAccount(rule, account.id, true)"
-                          class="ml-0.5 text-primary-500 hover:text-primary-700 dark:hover:text-primary-200"
+                          class="ml-0.5 text-gray-700 hover:text-gray-700 dark:hover:text-gray-700"
                         >
                           <Icon name="x" size="xs" />
                         </button>
@@ -2819,7 +2819,7 @@
                           accountSearchResults[getEditRuleSearchKey(rule)]
                             ?.length > 0
                         "
-                        class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                        class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-sm dark:border-dark-600 dark:bg-[var(--card)]"
                       >
                         <button
                           v-for="account in accountSearchResults[
@@ -2866,7 +2866,7 @@
             v-if="editForm.model_routing_enabled"
             type="button"
             @click="addEditRoutingRule"
-            class="mt-3 flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+            class="mt-3 flex items-center gap-1.5 text-sm text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
           >
             <Icon name="plus" size="sm" />
             {{ t("admin.groups.modelRouting.addRule") }}
@@ -2887,7 +2887,7 @@
             type="submit"
             form="edit-group-form"
             :disabled="submitting"
-            class="btn btn-primary"
+            class="btn btn-secondary"
             data-tour="group-form-submit"
           >
             <svg
@@ -2947,7 +2947,7 @@
           <div
             v-for="group in sortableGroups"
             :key="group.id"
-            class="flex cursor-grab items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition-shadow hover:shadow-md active:cursor-grabbing dark:border-dark-600 dark:bg-dark-700"
+            class="flex cursor-grab items-center gap-3 rounded-lg border border-gray-200 bg-[var(--card)] p-3 transition-colors hover:bg-gray-50 active:cursor-grabbing dark:border-dark-600 dark:bg-dark-700"
           >
             <div class="text-gray-400">
               <Icon name="menu" size="md" />
@@ -2961,12 +2961,12 @@
                   :class="[
                     'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
                     group.platform === 'anthropic'
-                      ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                       : group.platform === 'openai'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        ? 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300'
                         : group.platform === 'antigravity'
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                          ? 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300',
                   ]"
                 >
                   {{ t("admin.groups.platforms." + group.platform) }}
@@ -2990,7 +2990,7 @@
           <button
             @click="saveSortOrder"
             :disabled="sortSubmitting"
-            class="btn btn-primary"
+            class="btn btn-secondary"
           >
             <svg
               v-if="sortSubmitting"

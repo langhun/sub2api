@@ -124,7 +124,7 @@
 
         <div
           v-if="showDropdown"
-          class="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800"
+          class="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-600 dark:bg-dark-800"
           @click.stop
         >
           <div class="py-1">
@@ -132,14 +132,14 @@
               @click="handleAction('enable-pool')"
               class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
             >
-              <Icon name="plus" size="sm" class="text-violet-500" />
+              <Icon name="plus" size="sm" class="text-gray-500" />
               {{ t('admin.proxies.poolBatchEnable') }}
             </button>
             <button
               @click="handleAction('disable-pool')"
               class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
             >
-              <Icon name="x" size="sm" class="text-violet-500" />
+              <Icon name="x" size="sm" class="text-gray-500" />
               {{ t('admin.proxies.poolBatchDisable') }}
             </button>
             <button
@@ -154,7 +154,7 @@
               @click="handleAction('assign')"
               class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
             >
-              <Icon name="link" size="sm" class="text-blue-500" />
+              <Icon name="link" size="sm" class="text-gray-700" />
               {{ t('admin.proxies.assignAccounts') }}
             </button>
             <button

@@ -1,5 +1,5 @@
 <template>
-  <div class="card p-6">
+  <div class="card relative overflow-visible p-6">
     <!-- Toolbar: left filters (multi-line) + right actions -->
     <div class="flex flex-wrap items-end justify-between gap-4">
       <!-- Left: filters (allowed to wrap to multiple rows) -->
@@ -26,7 +26,7 @@
           </button>
           <div
             v-if="showUserDropdown && (userResults.length > 0 || userKeyword)"
-            class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:bg-gray-800"
+            class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border bg-white shadow-sm dark:bg-gray-800"
           >
             <button
               v-for="u in userResults"
@@ -63,7 +63,7 @@
           </button>
           <div
             v-if="showApiKeyDropdown && apiKeyResults.length > 0"
-            class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:bg-gray-800"
+            class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border bg-white shadow-sm dark:bg-gray-800"
           >
             <button
               v-for="k in apiKeyResults"
@@ -106,7 +106,7 @@
           </button>
           <div
             v-if="showAccountDropdown && (accountResults.length > 0 || accountKeyword)"
-            class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:bg-gray-800"
+            class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border bg-white shadow-sm dark:bg-gray-800"
           >
             <button
               v-for="a in accountResults"
@@ -159,7 +159,7 @@
         <button type="button" @click="$emit('cleanup')" class="btn btn-danger">
           {{ t('admin.usage.cleanup.button') }}
         </button>
-        <button type="button" @click="$emit('export')" :disabled="exporting" class="btn btn-primary">
+        <button type="button" @click="$emit('export')" :disabled="exporting" class="btn btn-secondary">
           {{ t('usage.exportExcel') }}
         </button>
       </div>

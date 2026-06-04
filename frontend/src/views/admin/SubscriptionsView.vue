@@ -37,7 +37,7 @@
               <!-- User Dropdown -->
               <div
                 v-if="showFilterUserDropdown && (filterUserResults.length > 0 || filterUserKeyword)"
-                class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
               >
                 <div
                   v-if="filterUserLoading"
@@ -116,7 +116,7 @@
               <!-- Dropdown menu -->
               <div
                 v-if="showColumnDropdown"
-                class="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                class="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
               >
                 <div class="p-2">
                   <!-- User column mode selection -->
@@ -129,14 +129,14 @@
                       class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
                       <span>{{ t('admin.users.columns.email') }}</span>
-                      <Icon v-if="userColumnMode === 'email'" name="check" size="sm" class="text-primary-500" />
+                      <Icon v-if="userColumnMode === 'email'" name="check" size="sm" class="text-gray-700" />
                     </button>
                     <button
                       @click="setUserColumnMode('username')"
                       class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
                       <span>{{ t('admin.users.columns.username') }}</span>
-                      <Icon v-if="userColumnMode === 'username'" name="check" size="sm" class="text-primary-500" />
+                      <Icon v-if="userColumnMode === 'username'" name="check" size="sm" class="text-gray-700" />
                     </button>
                   </div>
                   <!-- Other columns toggle -->
@@ -147,7 +147,7 @@
                     class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                   >
                     <span>{{ col.label }}</span>
-                    <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="text-primary-500" />
+                    <Icon v-if="isColumnVisible(col.key)" name="check" size="sm" class="text-gray-700" />
                   </button>
                 </div>
               </div>
@@ -159,7 +159,7 @@
             >
               <Icon name="questionCircle" size="md" />
             </button>
-            <button @click="showAssignModal = true" class="btn btn-primary">
+            <button @click="showAssignModal = true" class="btn btn-secondary">
               <Icon name="plus" size="md" class="mr-2" />
               {{ t('admin.subscriptions.assignSubscription') }}
             </button>
@@ -181,9 +181,9 @@
           <template #cell-user="{ row }">
             <div class="flex items-center gap-2">
               <div
-                class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30"
+                class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700"
               >
-                <span class="text-sm font-medium text-primary-700 dark:text-primary-300">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ userColumnMode === 'email'
                     ? (row.user?.email?.charAt(0).toUpperCase() || '?')
                     : (row.user?.username?.charAt(0).toUpperCase() || '?')
@@ -217,9 +217,9 @@
               <div v-if="row.group?.daily_limit_usd" class="usage-row">
                 <div class="flex items-center gap-2">
                   <span class="usage-label">{{ t('admin.subscriptions.daily') }}</span>
-                  <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
+                  <div class="usage-progress-track">
                     <div
-                      class="h-1.5 rounded-full transition-all"
+                      class="h-full rounded-full transition-all"
                       :class="getProgressClass(row.daily_usage_usd, row.group?.daily_limit_usd)"
                       :style="{
                         width: getProgressWidth(row.daily_usage_usd, row.group?.daily_limit_usd)
@@ -254,9 +254,9 @@
               <div v-if="row.group?.weekly_limit_usd" class="usage-row">
                 <div class="flex items-center gap-2">
                   <span class="usage-label">{{ t('admin.subscriptions.weekly') }}</span>
-                  <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
+                  <div class="usage-progress-track">
                     <div
-                      class="h-1.5 rounded-full transition-all"
+                      class="h-full rounded-full transition-all"
                       :class="getProgressClass(row.weekly_usage_usd, row.group?.weekly_limit_usd)"
                       :style="{
                         width: getProgressWidth(row.weekly_usage_usd, row.group?.weekly_limit_usd)
@@ -291,9 +291,9 @@
               <div v-if="row.group?.monthly_limit_usd" class="usage-row">
                 <div class="flex items-center gap-2">
                   <span class="usage-label">{{ t('admin.subscriptions.monthly') }}</span>
-                  <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
+                  <div class="usage-progress-track">
                     <div
-                      class="h-1.5 rounded-full transition-all"
+                      class="h-full rounded-full transition-all"
                       :class="getProgressClass(row.monthly_usage_usd, row.group?.monthly_limit_usd)"
                       :style="{
                         width: getProgressWidth(row.monthly_usage_usd, row.group?.monthly_limit_usd)
@@ -331,10 +331,10 @@
                   !row.group?.weekly_limit_usd &&
                   !row.group?.monthly_limit_usd
                 "
-                class="flex items-center gap-2 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-2 dark:from-emerald-900/20 dark:to-teal-900/20"
+                class="flex items-center gap-2 rounded-lg bg-gray-50 dark:bg-dark-800 px-3 py-2"
               >
-                <span class="text-lg text-emerald-600 dark:text-emerald-400">∞</span>
-                <span class="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                <span class="text-lg text-gray-700 dark:text-gray-300">∞</span>
+                <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
                   {{ t('admin.subscriptions.unlimited') }}
                 </span>
               </div>
@@ -347,7 +347,7 @@
                 class="text-sm"
                 :class="
                   isExpiringSoon(value)
-                    ? 'text-orange-600 dark:text-orange-400'
+                    ? 'text-amber-600 dark:text-amber-400'
                     : 'text-gray-700 dark:text-gray-300'
                 "
               >
@@ -382,7 +382,7 @@
               <button
                 v-if="row.status === 'active' || row.status === 'expired'"
                 @click="handleExtend(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-100 dark:hover:text-gray-700"
               >
                 <Icon name="calendar" size="sm" />
                 <span class="text-xs">{{ t('admin.subscriptions.adjust') }}</span>
@@ -391,7 +391,7 @@
                 v-if="row.status === 'active'"
                 @click="handleResetQuota(row)"
                 :disabled="resettingQuota && resettingSubscription?.id === row.id"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-900/20 dark:hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon name="refresh" size="sm" />
                 <span class="text-xs">{{ t('admin.subscriptions.resetQuota') }}</span>
@@ -465,7 +465,7 @@
             <!-- User Dropdown -->
             <div
               v-if="showUserDropdown && (userSearchResults.length > 0 || userSearchKeyword)"
-              class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+              class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
             >
               <div
                 v-if="userSearchLoading"
@@ -537,7 +537,7 @@
             type="submit"
             form="assign-subscription-form"
             :disabled="submitting"
-            class="btn btn-primary"
+            class="btn btn-secondary"
           >
             <svg
               v-if="submitting"
@@ -625,7 +625,7 @@
             type="submit"
             form="extend-subscription-form"
             :disabled="submitting"
-            class="btn btn-primary"
+            class="btn btn-secondary"
           >
             {{ submitting ? t('admin.subscriptions.adjusting') : t('admin.subscriptions.adjust') }}
           </button>
@@ -659,8 +659,8 @@
     <teleport to="body">
       <transition name="modal">
         <div v-if="showGuideModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" @mousedown.self="showGuideModal = false">
-          <div class="fixed inset-0 bg-black/50" @click="showGuideModal = false"></div>
-          <div class="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl dark:bg-dark-800">
+          <div class="fixed inset-0 bg-black/40" @click="showGuideModal = false"></div>
+          <div class="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-sm dark:bg-dark-800">
             <button type="button" class="absolute right-4 top-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" @click="showGuideModal = false">
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -671,7 +671,7 @@
             <!-- Step 1 -->
             <div class="mb-5">
               <h3 class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">1</span>
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700 dark:bg-dark-700 dark:text-gray-300">1</span>
                 {{ t('admin.subscriptions.guide.step1.title') }}
               </h3>
               <ol class="ml-8 list-decimal space-y-1 text-sm text-gray-600 dark:text-gray-300">
@@ -683,7 +683,7 @@
                 <router-link
                   to="/admin/groups"
                   @click="showGuideModal = false"
-                  class="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  class="inline-flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
                 >
                   {{ t('admin.subscriptions.guide.step1.link') }}
                   <Icon name="arrowRight" size="xs" />
@@ -694,7 +694,7 @@
             <!-- Step 2 -->
             <div class="mb-5">
               <h3 class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">2</span>
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700 dark:bg-dark-700 dark:text-gray-300">2</span>
                 {{ t('admin.subscriptions.guide.step2.title') }}
               </h3>
               <ol class="ml-8 list-decimal space-y-1 text-sm text-gray-600 dark:text-gray-300">
@@ -707,7 +707,7 @@
             <!-- Step 3 -->
             <div class="mb-5">
               <h3 class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">3</span>
+                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700 dark:bg-dark-700 dark:text-gray-300">3</span>
                 {{ t('admin.subscriptions.guide.step3.title') }}
               </h3>
               <div class="ml-8 overflow-hidden rounded-lg border border-gray-200 dark:border-dark-600">
@@ -723,12 +723,12 @@
             </div>
 
             <!-- Tip -->
-            <div class="rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+            <div class="rounded-lg bg-gray-100 p-3 text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-300">
               {{ t('admin.subscriptions.guide.tip') }}
             </div>
 
             <div class="mt-4 text-right">
-              <button type="button" class="btn btn-primary btn-sm" @click="showGuideModal = false">{{ t('common.close') }}</button>
+              <button type="button" class="btn btn-secondary btn-sm" @click="showGuideModal = false">{{ t('common.close') }}</button>
             </div>
           </div>
         </div>
@@ -1306,12 +1306,12 @@ const getProgressWidth = (used: number | null | undefined, limit: number | null)
 }
 
 const getProgressClass = (used: number | null | undefined, limit: number | null): string => {
-  if (!limit || limit === 0) return 'bg-gray-400'
+  if (!limit || limit === 0) return 'usage-progress-fill'
   const usedValue = used ?? 0
   const percentage = (usedValue / limit) * 100
-  if (percentage >= 90) return 'bg-red-500'
-  if (percentage >= 70) return 'bg-orange-500'
-  return 'bg-green-500'
+  if (percentage >= 90) return 'usage-progress-fill-danger'
+  if (percentage >= 70) return 'usage-progress-fill-warning'
+  return 'usage-progress-fill'
 }
 
 const formatResetDuration = (parts: RemainingDurationParts): string => {
@@ -1415,7 +1415,44 @@ onUnmounted(() => {
   @apply whitespace-nowrap text-xs tabular-nums text-gray-600 dark:text-gray-300;
 }
 
+.usage-progress-track {
+  height: 0.5rem;
+  min-width: 12rem;
+  flex: 1 1 0%;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--muted);
+}
+
+.usage-progress-fill {
+  background: var(--success);
+}
+
+.usage-progress-fill-warning {
+  background: var(--warning);
+}
+
+.usage-progress-fill-danger {
+  background: var(--destructive);
+}
+
+:global(.dark) .usage-progress-track {
+  background: var(--muted);
+}
+
+:global(.dark) .usage-progress-fill {
+  background: var(--success);
+}
+
+:global(.dark) .usage-progress-fill-warning {
+  background: var(--warning);
+}
+
+:global(.dark) .usage-progress-fill-danger {
+  background: var(--destructive);
+}
+
 .reset-info {
-  @apply flex items-center gap-1 pl-12 text-[10px] text-blue-600 dark:text-blue-400;
+  @apply flex items-center gap-1 pl-12 text-[10px] text-gray-700 dark:text-gray-300;
 }
 </style>

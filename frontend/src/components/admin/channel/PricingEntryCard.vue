@@ -40,7 +40,7 @@
 
         <!-- Billing mode badge -->
         <span
-          class="flex-shrink-0 rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+          class="flex-shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300"
         >
           {{ billingModeLabel }}
         </span>
@@ -136,7 +136,7 @@
                 {{ t('admin.channels.form.intervals', '上下文区间定价（可选）') }}
                 <span class="ml-1 font-normal text-gray-400">(min, max]</span>
               </label>
-              <button type="button" @click="addInterval" class="text-xs text-primary-600 hover:text-primary-700">
+              <button type="button" @click="addInterval" class="text-xs text-gray-700 hover:text-gray-700">
                 + {{ t('admin.channels.form.addInterval', '添加区间') }}
               </button>
             </div>
@@ -170,7 +170,7 @@
             <label class="text-xs font-medium text-gray-500 dark:text-gray-400">
               {{ t('admin.channels.form.requestTiers', '按次计费层级') }}
             </label>
-            <button type="button" @click="addInterval" class="text-xs text-primary-600 hover:text-primary-700">
+            <button type="button" @click="addInterval" class="text-xs text-gray-700 hover:text-gray-700">
               + {{ t('admin.channels.form.addTier', '添加层级') }}
             </button>
           </div>
@@ -206,7 +206,7 @@
             <label class="text-xs font-medium text-gray-500 dark:text-gray-400">
               {{ t('admin.channels.form.imageTiers', '图片计费层级（按次）') }}
             </label>
-            <button type="button" @click="addImageTier" class="text-xs text-primary-600 hover:text-primary-700">
+            <button type="button" @click="addImageTier" class="text-xs text-gray-700 hover:text-gray-700">
               + {{ t('admin.channels.form.addTier', '添加层级') }}
             </button>
           </div>

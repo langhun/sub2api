@@ -39,14 +39,14 @@
             </button>
             <button
               @click="toggleAutoSync"
-              :class="['btn', syncStatus.auto_sync_enabled ? 'btn-primary' : 'btn-secondary']"
+              :class="['btn', syncStatus.auto_sync_enabled ? 'btn-secondary' : 'btn-secondary']"
             >
               <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
               </svg>
               {{ t('admin.modelPricing.autoSync', 'Auto Sync') }}
             </button>
-            <button @click="openCreateDialog" class="btn btn-primary">
+            <button @click="openCreateDialog" class="btn btn-secondary">
               <Icon name="plus" size="md" class="mr-1" />
               {{ t('admin.modelPricing.add', 'Add') }}
             </button>
@@ -64,8 +64,8 @@
       </template>
 
       <template #table>
-        <div v-if="selectedIds.length > 0" class="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 dark:border-blue-800 dark:bg-blue-900/20">
-          <span class="text-sm text-blue-700 dark:text-blue-300">
+        <div v-if="selectedIds.length > 0" class="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-100 px-4 py-2 dark:border-dark-600 dark:bg-dark-700">
+          <span class="text-sm text-gray-700 dark:text-gray-300">
             {{ selectedIds.length }} selected
           </span>
           <button
@@ -92,7 +92,7 @@
           <template #header-select>
             <input
               type="checkbox"
-              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
               :checked="allSelected"
               @change="toggleSelectAll"
             />
@@ -100,7 +100,7 @@
           <template #cell-select="{ row }">
             <input
               type="checkbox"
-              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
               :checked="isSelected(row.id)"
               @change="toggleSelect(row.id)"
             />
@@ -135,7 +135,7 @@
             <span
               :class="[
                 'badge',
-                value === 'remote' ? 'badge-primary' : 'badge-gray'
+                value === 'remote' ? 'badge-info' : 'badge-gray'
               ]"
             >
               {{ value === 'remote' ? t('admin.modelPricing.remote', 'Remote') : t('admin.modelPricing.manual', 'Manual') }}
@@ -163,7 +163,7 @@
             <div class="flex items-center gap-1">
               <button
                 @click="openEditDialog(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-700 dark:hover:text-gray-700"
               >
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
@@ -302,7 +302,7 @@
             <input
               v-model="form.locked"
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
             />
             <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('admin.modelPricing.locked', 'Locked') }}</span>
           </label>
@@ -310,7 +310,7 @@
             <input
               v-model="form.supports_prompt_caching"
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
             />
             <span class="text-sm text-gray-700 dark:text-gray-300">Supports Prompt Caching</span>
           </label>
@@ -322,7 +322,7 @@
           <button
             type="button"
             @click="showFormDialog = false"
-            class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600 dark:focus:ring-offset-dark-800"
+            class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600 dark:focus:ring-offset-dark-800"
           >
             {{ t('admin.modelPricing.cancel', 'Cancel') }}
           </button>
@@ -330,7 +330,7 @@
             type="button"
             :disabled="saving"
             @click="handleSave"
-            class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-dark-800 disabled:opacity-50"
+            class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 dark:focus:ring-offset-dark-800 disabled:opacity-50"
           >
             {{ saving ? '...' : t('admin.modelPricing.save', 'Save') }}
           </button>

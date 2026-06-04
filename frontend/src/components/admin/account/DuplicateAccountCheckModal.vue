@@ -18,7 +18,7 @@
           <label v-for="option in platformOptions" :key="option.value" class="mb-2 flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
               :checked="selectedPlatforms.includes(option.value)"
               @change="toggleValue(selectedPlatforms, option.value)"
             />
@@ -37,14 +37,14 @@
             <input
               v-model="includeInactive"
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
             />
             <span>{{ t('admin.accounts.duplicateCheck.includeInactive') }}</span>
           </label>
           <label v-for="option in statusOptions" :key="option.value" class="mb-2 flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
               :checked="selectedStatuses.includes(option.value)"
               @change="toggleValue(selectedStatuses, option.value)"
             />
@@ -63,7 +63,7 @@
             <button
               v-if="selectedGroupIds.length"
               type="button"
-              class="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400"
+              class="text-xs text-gray-700 hover:text-gray-700 dark:text-gray-300"
               @click="selectedGroupIds = []"
             >
               {{ t('common.clear') }}
@@ -73,7 +73,7 @@
             <label v-for="group in groups" :key="group.id" class="mb-2 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
                 :checked="selectedGroupIds.includes(group.id)"
                 @change="toggleValue(selectedGroupIds, group.id)"
               />
@@ -87,7 +87,7 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <button type="button" class="btn btn-primary" :disabled="checking" @click="runCheck">
+        <button type="button" class="btn btn-secondary" :disabled="checking" @click="runCheck">
           <Icon name="search" size="sm" class="mr-1.5" />
           {{ checking ? t('admin.accounts.duplicateCheck.checking') : t('admin.accounts.duplicateCheck.run') }}
         </button>
@@ -109,7 +109,7 @@
           </div>
         </div>
 
-        <div v-if="result.groups.length === 0" class="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-700/40 dark:bg-green-900/20 dark:text-green-200">
+        <div v-if="result.groups.length === 0" class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-4 text-sm text-[var(--muted-foreground)]">
           {{ t('admin.accounts.duplicateCheck.noDuplicates') }}
         </div>
 
@@ -162,7 +162,7 @@
                     <td class="px-3 py-2">
                       <button
                         type="button"
-                        class="font-mono text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                        class="font-mono text-gray-700 hover:text-gray-700 dark:text-gray-300"
                         @click="copyAccountId(account.id)"
                       >
                         #{{ account.id }}

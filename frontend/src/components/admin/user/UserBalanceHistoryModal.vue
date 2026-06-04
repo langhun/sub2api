@@ -5,8 +5,8 @@
       <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-700">
         <!-- Row 1: avatar + email/username/created_at (left) + current balance (right) -->
         <div class="flex items-center gap-3">
-          <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
-            <span class="text-lg font-medium text-primary-700 dark:text-primary-300">
+          <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700">
+            <span class="text-lg font-medium text-gray-700 dark:text-gray-300">
               {{ user.email.charAt(0).toUpperCase() }}
             </span>
           </div>
@@ -15,7 +15,7 @@
               <p class="truncate font-medium text-gray-900 dark:text-white">{{ user.email }}</p>
               <span
                 v-if="user.username"
-                class="flex-shrink-0 rounded bg-primary-50 px-1.5 py-0.5 text-xs text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
+                class="flex-shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-300"
               >
                 {{ user.username }}
               </span>
@@ -39,7 +39,7 @@
             <template v-else>&nbsp;</template>
           </p>
           <p class="ml-4 flex-shrink-0 text-xs text-gray-500 dark:text-dark-400">
-            {{ t('admin.users.totalRecharged') }}: <span class="font-semibold text-emerald-600 dark:text-emerald-400">${{ totalRecharged.toFixed(2) }}</span>
+            {{ t('admin.users.totalRecharged') }}: <span class="font-semibold text-gray-700 dark:text-gray-300">${{ totalRecharged.toFixed(2) }}</span>
           </p>
         </div>
       </div>
@@ -58,7 +58,7 @@
           @click="emit('deposit')"
           class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700"
         >
-          <Icon name="plus" size="sm" class="text-emerald-500" :stroke-width="2" />
+          <Icon name="plus" size="sm" class="text-gray-700" :stroke-width="2" />
           {{ t('admin.users.deposit') }}
         </button>
         <!-- Withdraw button - matches menu style -->
@@ -76,7 +76,7 @@
 
       <!-- Loading -->
       <div v-if="loading" class="flex justify-center py-8">
-        <svg class="h-8 w-8 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24">
+        <svg class="h-8 w-8 animate-spin text-gray-700" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
@@ -290,55 +290,55 @@ const getIconName = (item: BalanceHistoryItem) => {
 
 // Icon background color
 const getIconBg = (item: BalanceHistoryItem) => {
-  if (isBlindboxInvitationCode(item)) return 'bg-indigo-100 dark:bg-indigo-900/30'
+  if (isBlindboxInvitationCode(item)) return 'bg-violet-100 dark:bg-violet-900/30'
   if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'bg-amber-100 dark:bg-amber-900/30'
   if (item.type === 'registration') return 'bg-sky-100 dark:bg-sky-900/30'
-  if (item.type === 'invitation') return 'bg-rose-100 dark:bg-rose-900/30'
+  if (item.type === 'invitation') return 'bg-red-100 dark:bg-red-900/30'
   if (isBalanceType(item.type)) {
     return item.value >= 0
       ? 'bg-emerald-100 dark:bg-emerald-900/30'
       : 'bg-red-100 dark:bg-red-900/30'
   }
-  if (isSubscriptionType(item.type)) return 'bg-purple-100 dark:bg-purple-900/30'
+  if (isSubscriptionType(item.type)) return 'bg-sky-100 dark:bg-sky-900/30'
   return item.value >= 0
-    ? 'bg-blue-100 dark:bg-blue-900/30'
-    : 'bg-orange-100 dark:bg-orange-900/30'
+    ? 'bg-emerald-100 dark:bg-emerald-900/30'
+    : 'bg-amber-100 dark:bg-amber-900/30'
 }
 
 // Icon text color
 const getIconColor = (item: BalanceHistoryItem) => {
-  if (isBlindboxInvitationCode(item)) return 'text-indigo-600 dark:text-indigo-400'
+  if (isBlindboxInvitationCode(item)) return 'text-gray-700 dark:text-gray-300'
   if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'text-amber-600 dark:text-amber-400'
   if (item.type === 'registration') return 'text-sky-600 dark:text-sky-400'
-  if (item.type === 'invitation') return 'text-rose-600 dark:text-rose-400'
+  if (item.type === 'invitation') return 'text-red-600 dark:text-red-400'
   if (isBalanceType(item.type)) {
     return item.value >= 0
-      ? 'text-emerald-600 dark:text-emerald-400'
+      ? 'text-gray-700 dark:text-gray-300'
       : 'text-red-600 dark:text-red-400'
   }
-  if (isSubscriptionType(item.type)) return 'text-purple-600 dark:text-purple-400'
+  if (isSubscriptionType(item.type)) return 'text-gray-700 dark:text-gray-300'
   return item.value >= 0
-    ? 'text-blue-600 dark:text-blue-400'
-    : 'text-orange-600 dark:text-orange-400'
+    ? 'text-gray-700 dark:text-gray-300'
+    : 'text-amber-600 dark:text-amber-400'
 }
 
 // Value text color
 const getValueColor = (item: BalanceHistoryItem) => {
-  if (isBlindboxInvitationCode(item)) return 'text-indigo-600 dark:text-indigo-400'
-  if (isBlindboxConcurrency(item)) return 'text-blue-600 dark:text-blue-400'
-  if (isBlindboxSubscription(item)) return 'text-purple-600 dark:text-purple-400'
+  if (isBlindboxInvitationCode(item)) return 'text-gray-700 dark:text-gray-300'
+  if (isBlindboxConcurrency(item)) return 'text-gray-700 dark:text-gray-300'
+  if (isBlindboxSubscription(item)) return 'text-gray-700 dark:text-gray-300'
   if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'text-amber-600 dark:text-amber-400'
   if (item.type === 'registration') return 'text-sky-600 dark:text-sky-400'
-  if (item.type === 'invitation') return 'text-rose-600 dark:text-rose-400'
+  if (item.type === 'invitation') return 'text-red-600 dark:text-red-400'
   if (isBalanceType(item.type)) {
     return item.value >= 0
-      ? 'text-emerald-600 dark:text-emerald-400'
+      ? 'text-gray-700 dark:text-gray-300'
       : 'text-red-600 dark:text-red-400'
   }
-  if (isSubscriptionType(item.type)) return 'text-purple-600 dark:text-purple-400'
+  if (isSubscriptionType(item.type)) return 'text-gray-700 dark:text-gray-300'
   return item.value >= 0
-    ? 'text-blue-600 dark:text-blue-400'
-    : 'text-orange-600 dark:text-orange-400'
+    ? 'text-gray-700 dark:text-gray-300'
+    : 'text-amber-600 dark:text-amber-400'
 }
 
 // Item title
@@ -425,14 +425,14 @@ const rarityColorMap: Record<string, { border: string; bg: string; badge: string
     valueText: 'text-gray-700', darkValueText: 'dark:text-gray-300',
   },
   rare: {
-    border: 'border-blue-300', bg: 'bg-blue-50', badge: 'bg-blue-100', badgeText: 'text-blue-700',
-    darkBorder: 'dark:border-blue-800', darkBg: 'dark:bg-blue-950/30', darkBadge: 'dark:bg-blue-900/50', darkBadgeText: 'dark:text-blue-300',
-    valueText: 'text-blue-700', darkValueText: 'dark:text-blue-300',
+    border: 'border-gray-200', bg: 'bg-gray-100', badge: 'bg-gray-100', badgeText: 'text-gray-700',
+    darkBorder: 'dark:border-dark-600', darkBg: 'dark:bg-dark-700', darkBadge: 'dark:bg-dark-700', darkBadgeText: 'dark:text-gray-300',
+    valueText: 'text-gray-700', darkValueText: 'dark:text-gray-300',
   },
   epic: {
-    border: 'border-purple-300', bg: 'bg-purple-50', badge: 'bg-purple-100', badgeText: 'text-purple-700',
-    darkBorder: 'dark:border-purple-800', darkBg: 'dark:bg-purple-950/30', darkBadge: 'dark:bg-purple-900/50', darkBadgeText: 'dark:text-purple-300',
-    valueText: 'text-purple-700', darkValueText: 'dark:text-purple-300',
+    border: 'border-gray-200', bg: 'bg-gray-100', badge: 'bg-gray-100', badgeText: 'text-gray-700',
+    darkBorder: 'dark:border-dark-600', darkBg: 'dark:bg-dark-700', darkBadge: 'dark:bg-dark-700', darkBadgeText: 'dark:text-gray-300',
+    valueText: 'text-gray-700', darkValueText: 'dark:text-gray-300',
   },
   legendary: {
     border: 'border-amber-300', bg: 'bg-amber-50', badge: 'bg-amber-100', badgeText: 'text-amber-700',

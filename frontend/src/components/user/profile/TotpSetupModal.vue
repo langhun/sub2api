@@ -1,9 +1,9 @@
 <template>
   <div class="fixed inset-0 z-50 overflow-y-auto" @click.self="$emit('close')">
     <div class="flex min-h-full items-center justify-center p-4">
-      <div class="fixed inset-0 bg-black/50 transition-opacity" @click="$emit('close')"></div>
+      <div class="fixed inset-0 bg-black/40 transition-opacity" @click="$emit('close')"></div>
 
-      <div class="relative w-full max-w-md transform rounded-xl bg-white p-6 shadow-xl transition-all dark:bg-dark-800">
+      <div class="relative w-full max-w-md transform rounded-xl bg-white p-6 shadow-sm transition-all dark:bg-dark-800">
         <!-- Header -->
         <div class="mb-6 text-center">
           <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -18,7 +18,7 @@
         <div v-if="step === 0" class="space-y-6">
           <!-- Loading verification method -->
           <div v-if="methodLoading" class="flex items-center justify-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
           </div>
 
           <template v-else>
@@ -67,7 +67,7 @@
               </button>
               <button
                 type="button"
-                class="btn btn-primary"
+                class="btn btn-secondary"
                 :disabled="!canProceedFromVerify || setupLoading"
                 @click="handleVerifyAndSetup"
               >
@@ -114,7 +114,7 @@
             </button>
             <button
               type="button"
-              class="btn btn-primary"
+              class="btn btn-secondary"
               :disabled="!setupData"
               @click="step = 2"
             >
@@ -139,7 +139,7 @@
                   maxlength="1"
                   inputmode="numeric"
                   pattern="[0-9]"
-                  class="h-12 w-10 rounded-lg border border-gray-300 text-center text-lg font-semibold focus:border-primary-500 focus:ring-primary-500 dark:border-dark-600 dark:bg-dark-700"
+                  class="h-12 w-10 rounded-lg border border-gray-300 text-center text-lg font-semibold focus:border-sky-500 focus:ring-sky-500 dark:border-dark-600 dark:bg-dark-700 dark:focus:border-sky-400 dark:focus:ring-sky-500/40"
                   @input="handleCodeInput($event, index)"
                   @keydown="handleKeydown($event, index)"
                   @paste="handlePaste"
@@ -153,7 +153,7 @@
               </button>
               <button
                 type="submit"
-                class="btn btn-primary"
+                class="btn btn-secondary"
                 :disabled="verifying || code.join('').length !== 6"
               >
                 {{ verifying ? t('common.verifying') : t('profile.totp.verify') }}

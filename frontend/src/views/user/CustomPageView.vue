@@ -4,7 +4,7 @@
       <div class="card flex-1 min-h-0 overflow-hidden">
         <div v-if="loading" class="flex h-full items-center justify-center py-12">
           <div
-            class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
+            class="h-8 w-8 animate-spin rounded-full border-2 border-gray-500 border-t-transparent"
           ></div>
         </div>
 
@@ -395,7 +395,7 @@ onUnmounted(() => {
     width: 70%;
     max-width: 240px;
     height: 100%;
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   }
 }
 
@@ -421,7 +421,7 @@ onUnmounted(() => {
 }
 
 .toc-item.toc-active {
-  @apply text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 font-medium;
+  @apply text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 font-medium;
 }
 
 .toc-level-1 { padding-left: 8px; }
@@ -438,14 +438,14 @@ onUnmounted(() => {
 
 .custom-embed-shell {
   @apply relative;
-  @apply h-full w-full overflow-hidden rounded-2xl;
-  @apply bg-gradient-to-b from-gray-50 to-white dark:from-dark-900 dark:to-dark-950;
+  @apply h-full w-full overflow-hidden rounded-xl;
+  @apply bg-gray-50;
   @apply p-0;
 }
 
 .custom-open-fab {
   @apply absolute right-3 top-3 z-10;
-  @apply shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-dark-800/80;
+  @apply bg-white shadow-sm dark:bg-dark-800;
 }
 
 .custom-embed-frame {
@@ -473,7 +473,7 @@ onUnmounted(() => {
 .markdown-page-content ul { @apply list-disc pl-6 mb-4; }
 .markdown-page-content ol { @apply list-decimal pl-6 mb-4; }
 .markdown-page-content li { @apply mb-1; }
-.markdown-page-content a { @apply text-primary-500 hover:text-primary-600 underline; }
+.markdown-page-content a { @apply text-gray-500 hover:text-gray-600 underline; }
 .markdown-page-content blockquote { @apply border-l-4 border-gray-300 dark:border-dark-500 pl-4 italic text-gray-600 dark:text-dark-300 my-4; }
 .markdown-page-content img { @apply max-w-full h-auto rounded-lg my-4; }
 .markdown-page-content table { @apply w-full border-collapse my-4; }

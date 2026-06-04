@@ -322,6 +322,24 @@ func normalizeLoginAgreementMode(raw string) string {
 	}
 }
 
+func normalizeThemePreset(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "classic":
+		return "classic"
+	default:
+		return "minimal-mono"
+	}
+}
+
+func normalizeThemeFont(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "sans":
+		return "sans"
+	default:
+		return "sans"
+	}
+}
+
 func defaultLoginAgreementDocuments() []LoginAgreementDocument {
 	return []LoginAgreementDocument{
 		{
@@ -682,6 +700,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyTurnstileEnabled,
 		SettingKeyTurnstileSiteKey,
 		SettingKeySiteName,
+		SettingKeyThemePreset,
+		SettingKeyThemeFont,
 		SettingKeySiteLogo,
 		SettingKeySiteSubtitle,
 		SettingKeyAPIBaseURL,
@@ -824,6 +844,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		TurnstileEnabled:                 settings[SettingKeyTurnstileEnabled] == "true",
 		TurnstileSiteKey:                 settings[SettingKeyTurnstileSiteKey],
 		SiteName:                         s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
+		ThemePreset:                      normalizeThemePreset(settings[SettingKeyThemePreset]),
+		ThemeFont:                        normalizeThemeFont(settings[SettingKeyThemeFont]),
 		SiteLogo:                         settings[SettingKeySiteLogo],
 		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                       settings[SettingKeyAPIBaseURL],
@@ -1136,6 +1158,8 @@ type PublicSettingsInjectionPayload struct {
 	TurnstileEnabled                 bool                     `json:"turnstile_enabled"`
 	TurnstileSiteKey                 string                   `json:"turnstile_site_key"`
 	SiteName                         string                   `json:"site_name"`
+	ThemePreset                      string                   `json:"theme_preset"`
+	ThemeFont                        string                   `json:"theme_font"`
 	SiteLogo                         string                   `json:"site_logo"`
 	SiteSubtitle                     string                   `json:"site_subtitle"`
 	APIBaseURL                       string                   `json:"api_base_url"`
@@ -1213,6 +1237,8 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		TurnstileEnabled:                 settings.TurnstileEnabled,
 		TurnstileSiteKey:                 settings.TurnstileSiteKey,
 		SiteName:                         settings.SiteName,
+		ThemePreset:                      settings.ThemePreset,
+		ThemeFont:                        settings.ThemeFont,
 		SiteLogo:                         settings.SiteLogo,
 		SiteSubtitle:                     settings.SiteSubtitle,
 		APIBaseURL:                       settings.APIBaseURL,
@@ -1859,6 +1885,8 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// OEM设置
 	updates[SettingKeySiteName] = settings.SiteName
+	updates[SettingKeyThemePreset] = normalizeThemePreset(settings.ThemePreset)
+	updates[SettingKeyThemeFont] = normalizeThemeFont(settings.ThemeFont)
 	updates[SettingKeySiteLogo] = settings.SiteLogo
 	updates[SettingKeySiteSubtitle] = settings.SiteSubtitle
 	updates[SettingKeyAPIBaseURL] = settings.APIBaseURL
@@ -1952,7 +1980,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		updates[SettingKeyChannelMonitorDefaultIntervalSeconds] = strconv.Itoa(v)
 	}
 
-	// Available channels / game hall feature switches
+	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
 	updates[SettingKeyGameHallEnabled] = strconv.FormatBool(settings.GameHallEnabled)
 
@@ -2986,6 +3014,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyLoginAgreementUpdatedAt:                  defaultLoginAgreementDate,
 		SettingKeyLoginAgreementDocuments:                  loginAgreementDocumentsJSON,
 		SettingKeySiteName:                                 "Sub2API",
+		SettingKeyThemePreset:                              "minimal-mono",
+		SettingKeyThemeFont:                                "sans",
 		SettingKeySiteLogo:                                 "",
 		SettingKeyHomeNavLinksEnabled:                      "true",
 		SettingKeyHomeNavLeaderboardEnabled:                "true",
@@ -3113,7 +3143,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyChannelMonitorEnabled:                "true",
 		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",
 
-		// Available channels / game hall features (default disabled; opt-in)
+		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 		SettingKeyGameHallEnabled:          "false",
 
@@ -3224,6 +3254,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		TurnstileSiteKey:                 settings[SettingKeyTurnstileSiteKey],
 		TurnstileSecretKeyConfigured:     settings[SettingKeyTurnstileSecretKey] != "",
 		SiteName:                         s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
+		ThemePreset:                      normalizeThemePreset(settings[SettingKeyThemePreset]),
+		ThemeFont:                        normalizeThemeFont(settings[SettingKeyThemeFont]),
 		SiteLogo:                         settings[SettingKeySiteLogo],
 		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
 		APIBaseURL:                       settings[SettingKeyAPIBaseURL],
@@ -3638,7 +3670,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		settings[SettingKeyChannelMonitorDefaultIntervalSeconds],
 	)
 
-	// Available channels / game hall features (default: disabled; strict true)
+	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
 	result.GameHallEnabled = settings[SettingKeyGameHallEnabled] == "true"
 

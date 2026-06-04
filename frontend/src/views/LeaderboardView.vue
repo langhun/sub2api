@@ -1,17 +1,10 @@
 <template>
-  <div class="relative flex min-h-screen flex-col bg-gray-50 dark:bg-dark-950">
-    <PublicPageHeader active-path="/leaderboard" :nav-link-visibility="homeNavLinkVisibility" />
-
-    <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+  <AppLayout>
+    <main class="mx-auto w-full max-w-7xl px-0 py-0">
       <div class="space-y-6">
-        <div>
-          <h1 class="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{{ t('leaderboard.title') }}</h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('leaderboard.subtitle') }}</p>
-        </div>
-
         <div v-if="tabs.length > 0" class="card p-4">
           <div class="flex flex-wrap items-center gap-4">
-            <div class="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
+            <div class="inline-flex rounded-lg bg-[var(--muted)] p-1">
               <button
                 v-for="tab in tabs"
                 :key="tab.key"
@@ -19,8 +12,8 @@
                 :class="[
                   'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                   activeTab === tab.key
-                    ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-dark-400 dark:hover:text-dark-200'
+                    ? 'bg-[var(--card)] text-[var(--foreground)] shadow-sm'
+                    : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
                 ]"
               >
                 {{ tab.label }}
@@ -29,7 +22,7 @@
 
             <div
               v-if="showPeriodSelector"
-              class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-dark-800"
+              class="inline-flex rounded-lg border border-[var(--border)] bg-[var(--muted)] p-0.5"
             >
               <button
                 v-for="p in periods"
@@ -38,8 +31,8 @@
                 :class="[
                   'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
                   activePeriod === p.key
-                    ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-dark-400 dark:hover:text-dark-200'
+                    ? 'bg-[var(--card)] text-[var(--foreground)] shadow-sm'
+                    : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
                 ]"
               >
                 {{ p.label }}
@@ -49,10 +42,10 @@
         </div>
 
         <div class="card relative overflow-hidden p-4">
-          <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm dark:bg-dark-900/80">
+          <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_oklch,var(--card)_90%,transparent)]">
             <div class="flex flex-col items-center gap-3">
               <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
-              <span class="text-xs text-gray-400 dark:text-dark-500">{{ t('common.loading') }}</span>
+              <span class="text-xs text-[var(--muted-foreground)]">{{ t('common.loading') }}</span>
             </div>
           </div>
 
@@ -80,17 +73,14 @@
         </div>
       </div>
     </main>
-
-    <PublicPageFooter />
-  </div>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
-import PublicPageFooter from '@/components/common/PublicPageFooter.vue'
+import AppLayout from '@/components/layout/AppLayout.vue'
 import PublicLeaderboardChart from '@/components/leaderboard/PublicLeaderboardChart.vue'
 import {
   leaderboardAPI,
@@ -113,19 +103,6 @@ const consumptionSummary = ref<LeaderboardSummary | null>(null)
 const consumptionChartItems = ref<LeaderboardChartItem[]>([])
 const loading = ref(false)
 let fetchSequence = 0
-
-const homeNavLinkVisibility = computed(() => {
-  const settings = appStore.cachedPublicSettings
-  const legacyEnabled = settings?.home_nav_links_enabled !== false
-  const resolve = (value?: boolean) => value ?? legacyEnabled
-
-  return {
-    leaderboard: resolve(settings?.home_nav_leaderboard_enabled),
-    keyUsage: resolve(settings?.home_nav_key_usage_enabled),
-    monitoring: resolve(settings?.home_nav_monitoring_enabled),
-    pricing: resolve(settings?.home_nav_pricing_enabled),
-  }
-})
 
 const leaderboardTabVisibility = computed<Record<TabKey, boolean>>(() => {
   const settings = appStore.cachedPublicSettings

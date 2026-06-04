@@ -43,7 +43,7 @@
     <div class="space-y-5 p-6">
       <!-- Loading State -->
       <div v-if="loading" class="flex items-center gap-2 text-gray-500">
-        <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-600"></div>
+        <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-gray-200"></div>
         {{ t('common.loading') }}
       </div>
 
@@ -60,7 +60,7 @@
             type="button"
             @click="$emit('save')"
             :disabled="saving"
-            class="btn btn-primary btn-sm"
+            class="btn btn-secondary btn-sm"
           >
             <svg
               v-if="saving"

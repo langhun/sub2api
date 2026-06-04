@@ -3,7 +3,7 @@
     <div class="flex items-center justify-end gap-3 flex-wrap">
       <div
         role="tablist"
-        class="inline-flex p-0.5 rounded-xl bg-gray-100 dark:bg-dark-800 border border-gray-200/60 dark:border-dark-700/60 text-xs"
+        class="inline-flex rounded-xl border border-[var(--border)] bg-[var(--muted)] p-0.5 text-xs"
       >
         <button
           v-for="opt in windowOptions"
@@ -11,10 +11,10 @@
           type="button"
           role="tab"
           :aria-selected="window === opt.value"
-          class="px-3 py-1 rounded-lg transition-colors"
+          class="rounded-lg px-3 py-1 transition-colors"
           :class="window === opt.value
-            ? 'bg-white dark:bg-dark-700 shadow-sm text-gray-900 dark:text-white font-semibold'
-            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            ? 'bg-[var(--card)] font-semibold text-[var(--foreground)] shadow-sm'
+            : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'"
           @click="emit('update:window', opt.value)"
         >
           {{ opt.label }}
@@ -34,7 +34,7 @@
 
       <button
         type="button"
-        class="h-8 w-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-dark-700 transition-colors disabled:opacity-50"
+        class="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-50"
         :disabled="loading"
         :title="t('common.refresh')"
         @click="emit('refresh')"
@@ -96,7 +96,7 @@ const overallLabel = computed(() => t(`channelStatus.overall.${props.overallStat
 const overallChipClass = computed(() => {
   switch (props.overallStatus) {
     case 'operational':
-      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+      return 'bg-[var(--muted)] text-[var(--foreground)]'
     case 'degraded':
     default:
       return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
@@ -106,7 +106,7 @@ const overallChipClass = computed(() => {
 const overallDotClass = computed(() => {
   switch (props.overallStatus) {
     case 'operational':
-      return 'bg-emerald-500 animate-pulse'
+      return 'bg-[var(--success)] animate-pulse'
     case 'degraded':
     default:
       return 'bg-amber-500 animate-pulse'

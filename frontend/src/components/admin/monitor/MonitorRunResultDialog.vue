@@ -28,7 +28,7 @@
     </div>
     <template #footer>
       <div class="flex justify-end">
-        <button @click="$emit('close')" class="btn btn-primary">
+        <button @click="$emit('close')" class="btn btn-secondary">
           {{ t('common.close') }}
         </button>
       </div>

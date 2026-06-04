@@ -121,6 +121,8 @@ type SystemSettings struct {
 	OIDCConnectUserInfoUsernamePath   string `json:"oidc_connect_userinfo_username_path"`
 
 	SiteName                          string           `json:"site_name"`
+	ThemePreset                       string           `json:"theme_preset"`
+	ThemeFont                         string           `json:"theme_font"`
 	SiteLogo                          string           `json:"site_logo"`
 	SiteSubtitle                      string           `json:"site_subtitle"`
 	APIBaseURL                        string           `json:"api_base_url"`
@@ -266,7 +268,7 @@ type SystemSettings struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
-	// Available Channels / Game Hall feature switches
+	// Available Channels feature switch (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 	GameHallEnabled          bool `json:"game_hall_enabled"`
 
@@ -317,6 +319,8 @@ type PublicSettings struct {
 	TurnstileEnabled                 bool                     `json:"turnstile_enabled"`
 	TurnstileSiteKey                 string                   `json:"turnstile_site_key"`
 	SiteName                         string                   `json:"site_name"`
+	ThemePreset                      string                   `json:"theme_preset"`
+	ThemeFont                        string                   `json:"theme_font"`
 	SiteLogo                         string                   `json:"site_logo"`
 	SiteSubtitle                     string                   `json:"site_subtitle"`
 	APIBaseURL                       string                   `json:"api_base_url"`

@@ -6,7 +6,7 @@
         <p class="text-sm text-gray-500 dark:text-dark-400">
           {{ t('admin.users.attributes.description') }}
         </p>
-        <button @click="openCreateModal" class="btn btn-primary btn-sm">
+        <button @click="openCreateModal" class="btn btn-secondary btn-sm">
           <Icon name="plus" size="sm" class="mr-1.5" :stroke-width="2" />
           {{ t('admin.users.attributes.addAttribute') }}
         </button>
@@ -14,7 +14,7 @@
 
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center py-12">
-        <svg class="h-8 w-8 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24">
+        <svg class="h-8 w-8 animate-spin text-gray-500" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
@@ -56,7 +56,7 @@
               <span v-if="attr.required" class="badge badge-danger text-xs">
                 {{ t('admin.users.attributes.required') }}
               </span>
-              <span v-if="!attr.enabled" class="badge badge-gray text-xs">
+              <span v-if="!attr.enabled" class="badge badge-secondary text-xs">
                 {{ t('common.disabled') }}
               </span>
             </div>
@@ -70,7 +70,7 @@
           <div class="flex items-center gap-1">
             <button
               @click="openEditModal(attr)"
-              class="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+              class="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700 dark:hover:text-gray-400"
               :title="t('common.edit')"
             >
               <Icon name="edit" size="sm" />
@@ -197,11 +197,11 @@
       <!-- Required & Enabled -->
       <div class="flex items-center gap-6">
         <label class="flex items-center gap-2">
-          <input v-model="form.required" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600" />
+          <input v-model="form.required" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
           <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('admin.users.attributes.required') }}</span>
         </label>
         <label class="flex items-center gap-2">
-          <input v-model="form.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600" />
+          <input v-model="form.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]" />
           <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('admin.users.attributes.enabled') }}</span>
         </label>
       </div>
@@ -212,7 +212,7 @@
         <button @click="closeEditModal" type="button" class="btn btn-secondary">
           {{ t('common.cancel') }}
         </button>
-        <button type="submit" form="attribute-form" :disabled="saving" class="btn btn-primary">
+        <button type="submit" form="attribute-form" :disabled="saving" class="btn btn-secondary">
           <svg v-if="saving" class="-ml-1 mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />

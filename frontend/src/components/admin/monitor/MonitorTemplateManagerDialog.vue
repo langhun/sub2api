@@ -32,7 +32,7 @@
     <!-- active provider list -->
     <div v-if="!editing" class="space-y-2">
       <div class="flex justify-end">
-        <button class="btn btn-primary btn-sm" @click="openCreateForm">
+        <button class="btn btn-secondary btn-sm" @click="openCreateForm">
           <Icon name="plus" size="sm" class="mr-1" />
           {{ t('admin.channelMonitor.template.createButton') }}
         </button>
@@ -144,7 +144,7 @@
         </div>
       </div>
 
-      <div v-if="form.provider === PROVIDER_OPENAI" class="rounded-lg border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-500/20 dark:bg-blue-500/10">
+      <div v-if="form.provider === PROVIDER_OPENAI" class="rounded-lg border border-gray-200 bg-gray-100 p-3 dark:border-dark-600 dark:bg-dark-700">
         <label class="input-label">{{ t('admin.channelMonitor.form.apiMode') }}</label>
         <div class="grid gap-3 sm:grid-cols-2">
           <button
@@ -198,7 +198,7 @@
           <button class="btn btn-secondary" @click="$emit('close')">
             {{ t('common.close') }}
           </button>
-          <button v-if="editing" class="btn btn-primary" :disabled="submitting" @click="handleSubmit">
+          <button v-if="editing" class="btn btn-secondary" :disabled="submitting" @click="handleSubmit">
             {{ submitting ? t('common.submitting') : editing === 'new' ? t('common.create') : t('common.update') }}
           </button>
         </div>
@@ -460,7 +460,7 @@ async function doDelete() {
 // --- misc ---
 function tabClass(value: Provider): string {
   return activeProvider.value === value
-    ? 'border-b-2 border-primary-500 text-primary-600 dark:text-primary-400'
+    ? 'border-b-2 border-gray-200 text-gray-700 dark:text-gray-300'
     : 'border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
 }
 
@@ -469,9 +469,9 @@ function modeBadgeClass(mode: BodyOverrideMode): string {
     case 'merge':
       return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
     case 'replace':
-      return 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300'
+      return 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30'
     default:
-      return 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300'
+      return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-500/30'
   }
 }
 
@@ -505,9 +505,9 @@ function normalizeAPIMode(mode: APIMode | undefined | null): APIMode {
 function apiModeButtonClass(mode: APIMode): string {
   const active = form.api_mode === mode
   if (active) {
-    return 'border-primary-500 bg-white text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-500/15 dark:text-primary-300'
+    return 'border-gray-200 bg-white text-gray-700 shadow-sm dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300'
   }
-  return 'border-blue-100 bg-white/70 text-gray-600 hover:border-primary-300 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-400'
+  return 'border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:border-[var(--foreground)]'
 }
 
 function apiModeLabel(mode: APIMode): string {
@@ -518,8 +518,8 @@ function apiModeLabel(mode: APIMode): string {
 
 function apiModeBadgeClass(mode: APIMode): string {
   if (normalizeAPIMode(mode) === API_MODE_RESPONSES) {
-    return 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300'
+    return 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30'
   }
-  return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+  return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-500/30'
 }
 </script>

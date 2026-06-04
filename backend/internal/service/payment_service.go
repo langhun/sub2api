@@ -173,6 +173,10 @@ type TopUserStat struct {
 	Amount float64 `json:"amount"`
 }
 
+type paymentBankAccountViewLoader interface {
+	GetAccountView(ctx context.Context, userID int64) (*BankAccountView, error)
+}
+
 // --- Service ---
 
 type PaymentService struct {
@@ -189,16 +193,27 @@ type PaymentService struct {
 	resumeService            *PaymentResumeService
 	affiliateService         *AffiliateService
 	notificationEmailService *NotificationEmailService
+	bankAccountLoader        paymentBankAccountViewLoader
 }
 
 func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService) *PaymentService {
 	svc := &PaymentService{entClient: entClient, registry: registry, loadBalancer: newVisibleMethodLoadBalancer(loadBalancer, configService), redeemService: redeemService, subscriptionSvc: subscriptionSvc, configService: configService, userRepo: userRepo, groupRepo: groupRepo, affiliateService: affiliateService}
+	if entClient != nil {
+		svc.bankAccountLoader = NewBankService(entClient)
+	}
 	svc.resumeService = psNewPaymentResumeService(configService)
 	return svc
 }
 
 func (s *PaymentService) SetNotificationEmailService(notificationEmailService *NotificationEmailService) {
 	s.notificationEmailService = notificationEmailService
+}
+
+func (s *PaymentService) SetBankAccountLoader(loader paymentBankAccountViewLoader) {
+	if s == nil {
+		return
+	}
+	s.bankAccountLoader = loader
 }
 
 // --- Provider Registry ---

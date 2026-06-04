@@ -1,6 +1,7 @@
 <template>
   <div class="relative" ref="containerRef">
     <button
+      ref="triggerRef"
       type="button"
       @click="toggle"
       :disabled="disabled"
@@ -22,116 +23,39 @@
       </span>
     </button>
 
-    <Transition name="select-dropdown">
-      <div v-if="isOpen" class="select-dropdown">
-        <!-- Search and Batch Test Header -->
-        <div class="select-header">
-          <div class="select-search">
-            <Icon name="search" size="sm" class="text-gray-400" />
-            <input
-              ref="searchInputRef"
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('admin.proxies.searchProxies')"
-              class="select-search-input"
-              @click.stop
-            />
-          </div>
-          <button
-            v-if="proxies.length > 0"
-            type="button"
-            @click.stop="handleBatchTest"
-            :disabled="batchTesting"
-            class="batch-test-btn"
-            :title="t('admin.proxies.batchTest')"
-          >
-            <svg v-if="batchTesting" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <Icon v-else name="play" size="sm" />
-          </button>
-        </div>
-
-        <!-- Options list -->
-        <div class="select-options">
-          <!-- No Proxy option -->
-          <div
-            @click="selectOption(null)"
-            :class="['select-option', modelValue === null && 'select-option-selected']"
-          >
-            <span class="select-option-label">{{ t('admin.accounts.noProxy') }}</span>
-            <Icon v-if="modelValue === null" name="check" size="sm" class="text-primary-500" />
-          </div>
-
-          <!-- Proxy options -->
-          <div
-            v-for="proxy in filteredProxies"
-            :key="proxy.id"
-            @click="selectOption(proxy.id)"
-            :class="['select-option', modelValue === proxy.id && 'select-option-selected']"
-          >
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <span class="truncate font-medium">{{ proxy.name }}</span>
-                <!-- Account count badge -->
-                <span
-                  v-if="proxy.account_count !== undefined"
-                  class="inline-flex flex-shrink-0 items-center rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-dark-600 dark:text-gray-400"
-                >
-                  {{ proxy.account_count }}
-                </span>
-                <!-- Test result badges -->
-                <template v-if="testResults[proxy.id]">
-                  <span
-                    v-if="testResults[proxy.id].success"
-                    class="inline-flex flex-shrink-0 items-center gap-1 rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                  >
-                    <span v-if="testResults[proxy.id].country">{{
-                      testResults[proxy.id].country
-                    }}</span>
-                    <span v-if="testResults[proxy.id].latency_ms"
-                      >{{ testResults[proxy.id].latency_ms }}ms</span
-                    >
-                  </span>
-                  <span
-                    v-else
-                    class="inline-flex flex-shrink-0 items-center rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                  >
-                    {{ t('admin.proxies.testFailed') }}
-                  </span>
-                </template>
-              </div>
-              <div class="truncate text-xs text-gray-500 dark:text-gray-400">
-                {{ proxy.protocol }}://{{ proxy.host }}:{{ proxy.port }}
-              </div>
+    <Teleport to="body">
+      <Transition name="select-dropdown">
+        <div
+          v-if="isOpen"
+          ref="dropdownRef"
+          class="select-dropdown"
+          :class="instanceId"
+          :style="dropdownStyle"
+          @click.stop
+          @mousedown.stop
+        >
+          <!-- Search and Batch Test Header -->
+          <div class="select-header">
+            <div class="select-search">
+              <Icon name="search" size="sm" class="text-[var(--muted-foreground)]" />
+              <input
+                ref="searchInputRef"
+                v-model="searchQuery"
+                type="text"
+                :placeholder="t('admin.proxies.searchProxies')"
+                class="select-search-input"
+                @click.stop
+              />
             </div>
-
-            <!-- Individual test button -->
             <button
+              v-if="proxies.length > 0"
               type="button"
-              @click.stop="handleTestProxy(proxy)"
-              :disabled="testingProxyIds.has(proxy.id)"
-              class="test-btn"
-              :title="t('admin.proxies.testConnection')"
+              @click.stop="handleBatchTest"
+              :disabled="batchTesting"
+              class="batch-test-btn"
+              :title="t('admin.proxies.batchTest')"
             >
-              <svg
-                v-if="testingProxyIds.has(proxy.id)"
-                class="h-3.5 w-3.5 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
+              <svg v-if="batchTesting" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle
                   class="opacity-25"
                   cx="12"
@@ -146,35 +70,123 @@
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
               </svg>
-              <Icon v-else name="play" size="xs" />
+              <Icon v-else name="play" size="sm" />
             </button>
-
-            <Icon
-              v-if="modelValue === proxy.id"
-              name="check"
-              size="sm"
-              class="flex-shrink-0 text-primary-500"
-            />
           </div>
 
-          <!-- Empty state -->
-          <div v-if="filteredProxies.length === 0 && searchQuery" class="select-empty">
-            {{ t('common.noOptionsFound') }}
+          <!-- Options list -->
+          <div class="select-options">
+            <!-- No Proxy option -->
+            <div
+              @click="selectOption(null)"
+              :class="['select-option', modelValue === null && 'select-option-selected']"
+            >
+              <span class="select-option-label">{{ t('admin.accounts.noProxy') }}</span>
+              <Icon v-if="modelValue === null" name="check" size="sm" class="text-[var(--foreground)]" />
+            </div>
+
+            <!-- Proxy options -->
+            <div
+              v-for="proxy in filteredProxies"
+              :key="proxy.id"
+              @click="selectOption(proxy.id)"
+              :class="['select-option', modelValue === proxy.id && 'select-option-selected']"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="truncate font-medium">{{ proxy.name }}</span>
+                  <!-- Account count badge -->
+                  <span
+                    v-if="proxy.account_count !== undefined"
+                    class="inline-flex flex-shrink-0 items-center rounded bg-[var(--muted)] px-1.5 py-0.5 text-xs text-[var(--muted-foreground)]"
+                  >
+                    {{ proxy.account_count }}
+                  </span>
+                  <!-- Test result badges -->
+                  <template v-if="testResults[proxy.id]">
+                    <span
+                      v-if="testResults[proxy.id].success"
+                      class="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-[var(--muted)] px-1.5 py-0.5 text-xs text-[var(--foreground)]"
+                    >
+                      <span v-if="testResults[proxy.id].country">{{
+                        testResults[proxy.id].country
+                      }}</span>
+                      <span v-if="testResults[proxy.id].latency_ms"
+                        >{{ testResults[proxy.id].latency_ms }}ms</span
+                      >
+                    </span>
+                    <span
+                      v-else
+                      class="inline-flex flex-shrink-0 items-center rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                    >
+                      {{ t('admin.proxies.testFailed') }}
+                    </span>
+                  </template>
+                </div>
+                <div class="truncate text-xs text-[var(--muted-foreground)]">
+                  {{ proxy.protocol }}://{{ proxy.host }}:{{ proxy.port }}
+                </div>
+              </div>
+
+              <!-- Individual test button -->
+              <button
+                type="button"
+                @click.stop="handleTestProxy(proxy)"
+                :disabled="testingProxyIds.has(proxy.id)"
+                class="test-btn"
+                :title="t('admin.proxies.testConnection')"
+              >
+                <svg
+                  v-if="testingProxyIds.has(proxy.id)"
+                  class="h-3.5 w-3.5 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                <Icon v-else name="play" size="xs" />
+              </button>
+
+              <Icon
+                v-if="modelValue === proxy.id"
+                name="check"
+                size="sm"
+                class="flex-shrink-0 text-[var(--foreground)]"
+              />
+            </div>
+
+            <!-- Empty state -->
+            <div v-if="filteredProxies.length === 0 && searchQuery" class="select-empty">
+              {{ t('common.noOptionsFound') }}
+            </div>
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import Icon from '@/components/icons/Icon.vue'
 import type { Proxy } from '@/types'
 
 const { t } = useI18n()
+const instanceId = `proxy-selector-${Math.random().toString(36).substring(2, 9)}`
 
 interface ProxyTestResult {
   success: boolean
@@ -203,7 +215,11 @@ const emit = defineEmits<{
 const isOpen = ref(false)
 const searchQuery = ref('')
 const containerRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<HTMLButtonElement | null>(null)
+const dropdownRef = ref<HTMLElement | null>(null)
 const searchInputRef = ref<HTMLInputElement | null>(null)
+const dropdownPosition = ref<'bottom' | 'top'>('bottom')
+const triggerRect = ref<DOMRect | null>(null)
 
 // Test state
 const testResults = reactive<Record<number, ProxyTestResult>>({})
@@ -235,14 +251,58 @@ const filteredProxies = computed(() => {
   })
 })
 
+const dropdownStyle = computed(() => {
+  if (!triggerRect.value) return {}
+
+  const rect = triggerRect.value
+  const viewportPadding = 8
+  const dropdownWidth = Math.min(
+    Math.max(rect.width, 320),
+    Math.max(240, window.innerWidth - viewportPadding * 2)
+  )
+  const maxLeft = Math.max(viewportPadding, window.innerWidth - dropdownWidth - viewportPadding)
+  const left = Math.min(Math.max(rect.left, viewportPadding), maxLeft)
+  const style: Record<string, string> = {
+    position: 'fixed',
+    left: `${left}px`,
+    width: `${dropdownWidth}px`,
+    zIndex: '100000020'
+  }
+
+  if (dropdownPosition.value === 'top') {
+    style.bottom = `${window.innerHeight - rect.top + 4}px`
+  } else {
+    style.top = `${rect.bottom + 4}px`
+  }
+
+  return style
+})
+
+const updateTriggerRect = () => {
+  const anchor = triggerRef.value ?? containerRef.value
+  if (!anchor) return
+  triggerRect.value = anchor.getBoundingClientRect()
+}
+
+const calculateDropdownPosition = () => {
+  updateTriggerRect()
+
+  nextTick(() => {
+    if (!dropdownRef.value || !triggerRect.value) return
+
+    const dropdownHeight = dropdownRef.value.offsetHeight || 260
+    const spaceBelow = window.innerHeight - triggerRect.value.bottom
+    const spaceAbove = triggerRect.value.top
+
+    dropdownPosition.value = spaceBelow < dropdownHeight + 8 && spaceAbove > dropdownHeight
+      ? 'top'
+      : 'bottom'
+  })
+}
+
 const toggle = () => {
   if (props.disabled) return
   isOpen.value = !isOpen.value
-  if (isOpen.value) {
-    nextTick(() => {
-      searchInputRef.value?.focus()
-    })
-  }
 }
 
 const selectOption = (value: number | null) => {
@@ -294,7 +354,11 @@ const handleBatchTest = async () => {
 }
 
 const handleClickOutside = (event: MouseEvent) => {
-  if (containerRef.value && !containerRef.value.contains(event.target as Node)) {
+  const target = event.target as HTMLElement
+  const isInDropdown = !!target.closest(`.${instanceId}`)
+  const isInTrigger = containerRef.value?.contains(target)
+
+  if (!isInDropdown && !isInTrigger) {
     isOpen.value = false
     searchQuery.value = ''
   }
@@ -307,6 +371,18 @@ const handleEscape = (event: KeyboardEvent) => {
   }
 }
 
+watch(isOpen, (open) => {
+  if (open) {
+    calculateDropdownPosition()
+    nextTick(() => searchInputRef.value?.focus())
+    window.addEventListener('scroll', calculateDropdownPosition, { capture: true, passive: true })
+    window.addEventListener('resize', calculateDropdownPosition)
+  } else {
+    window.removeEventListener('scroll', calculateDropdownPosition, { capture: true })
+    window.removeEventListener('resize', calculateDropdownPosition)
+  }
+})
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleEscape)
@@ -315,6 +391,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleEscape)
+  window.removeEventListener('scroll', calculateDropdownPosition, { capture: true })
+  window.removeEventListener('resize', calculateDropdownPosition)
 })
 </script>
 
@@ -322,21 +400,27 @@ onUnmounted(() => {
 .select-trigger {
   @apply flex w-full items-center justify-between gap-2;
   @apply rounded-xl px-4 py-2.5 text-sm;
-  @apply bg-white dark:bg-dark-800;
-  @apply border border-gray-200 dark:border-dark-600;
-  @apply text-gray-900 dark:text-gray-100;
+  @apply border;
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--foreground);
   @apply transition-all duration-200;
-  @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30;
-  @apply hover:border-gray-300 dark:hover:border-dark-500;
+  @apply focus:outline-none;
+  @apply hover:border-[var(--input)];
   @apply cursor-pointer;
 }
 
+.select-trigger:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 10%, transparent);
+}
+
 .select-trigger-open {
-  @apply border-primary-500 ring-2 ring-primary-500/30;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 10%, transparent);
 }
 
 .select-trigger-disabled {
-  @apply cursor-not-allowed bg-gray-100 opacity-60 dark:bg-dark-900;
+  @apply cursor-not-allowed bg-[var(--muted)] opacity-60;
 }
 
 .select-value {
@@ -344,21 +428,21 @@ onUnmounted(() => {
 }
 
 .select-icon {
-  @apply flex-shrink-0 text-gray-400 dark:text-dark-400;
+  @apply flex-shrink-0 text-[var(--muted-foreground)];
 }
 
 .select-dropdown {
-  @apply absolute z-[100] mt-2 w-full;
-  @apply bg-white dark:bg-dark-800;
-  @apply rounded-xl;
-  @apply border border-gray-200 dark:border-dark-700;
-  @apply shadow-lg shadow-black/10 dark:shadow-black/30;
+  @apply rounded-lg border;
+  background: var(--card);
+  border-color: var(--border);
+  box-shadow: var(--surface-shadow);
   @apply overflow-hidden;
+  pointer-events: auto !important;
 }
 
 .select-header {
   @apply flex items-center gap-2 px-3 py-2;
-  @apply border-b border-gray-100 dark:border-dark-700;
+  @apply border-b border-[var(--border)];
 }
 
 .select-search {
@@ -367,15 +451,14 @@ onUnmounted(() => {
 
 .select-search-input {
   @apply flex-1 bg-transparent text-sm;
-  @apply text-gray-900 dark:text-gray-100;
-  @apply placeholder:text-gray-400 dark:placeholder:text-dark-400;
+  @apply text-[var(--foreground)];
+  @apply placeholder:text-[var(--muted-foreground)];
   @apply focus:outline-none;
 }
 
 .batch-test-btn {
   @apply flex-shrink-0 rounded-lg p-1.5;
-  @apply text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400;
-  @apply hover:bg-emerald-50 dark:hover:bg-emerald-900/20;
+  @apply text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)];
   @apply transition-colors disabled:cursor-not-allowed disabled:opacity-50;
 }
 
@@ -386,14 +469,14 @@ onUnmounted(() => {
 .select-option {
   @apply flex items-center justify-between gap-2;
   @apply px-4 py-2.5 text-sm;
-  @apply text-gray-700 dark:text-gray-300;
+  color: var(--muted-foreground);
   @apply cursor-pointer transition-colors duration-150;
-  @apply hover:bg-gray-50 dark:hover:bg-dark-700;
+  @apply hover:bg-[var(--muted)] hover:text-[var(--foreground)];
 }
 
 .select-option-selected {
-  @apply bg-primary-50 dark:bg-primary-900/20;
-  @apply text-primary-700 dark:text-primary-300;
+  background: var(--muted);
+  color: var(--foreground);
 }
 
 .select-option-label {
@@ -402,13 +485,12 @@ onUnmounted(() => {
 
 .select-empty {
   @apply px-4 py-8 text-center text-sm;
-  @apply text-gray-500 dark:text-dark-400;
+  @apply text-[var(--muted-foreground)];
 }
 
 .test-btn {
   @apply flex-shrink-0 rounded p-1;
-  @apply text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400;
-  @apply hover:bg-emerald-50 dark:hover:bg-emerald-900/20;
+  @apply text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)];
   @apply transition-colors disabled:cursor-not-allowed disabled:opacity-50;
 }
 

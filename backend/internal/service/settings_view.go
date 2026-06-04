@@ -132,6 +132,8 @@ type SystemSettings struct {
 	GoogleOAuthFrontendRedirectURL    string
 
 	SiteName                      string
+	ThemePreset                   string
+	ThemeFont                     string
 	SiteLogo                      string
 	SiteSubtitle                  string
 	APIBaseURL                    string
@@ -294,6 +296,8 @@ type PublicSettings struct {
 	TurnstileEnabled                 bool
 	TurnstileSiteKey                 string
 	SiteName                         string
+	ThemePreset                      string
+	ThemeFont                        string
 	SiteLogo                         string
 	SiteSubtitle                     string
 	APIBaseURL                       string

@@ -36,11 +36,11 @@ const { t } = useI18n()
 
 const isDarkMode = computed(() => document.documentElement.classList.contains('dark'))
 const colors = computed(() => ({
-  red: '#ef4444',
-  redAlpha: '#ef444420',
-  purple: '#8b5cf6',
-  purpleAlpha: '#8b5cf620',
-  gray: '#9ca3af',
+  sla: '#dc2626',
+  slaAlpha: '#dc262620',
+  businessLimited: '#0891b2',
+  upstreamAlpha: '#f59e0b20',
+  upstream: '#f59e0b',
   grid: isDarkMode.value ? '#374151' : '#f3f4f6',
   text: isDarkMode.value ? '#9ca3af' : '#6b7280'
 }))
@@ -68,8 +68,8 @@ const chartData = computed(() => {
       {
         label: t('admin.ops.errorsSla'),
         data: props.points.map((p) => p.error_count_sla ?? 0),
-        borderColor: colors.value.red,
-        backgroundColor: colors.value.redAlpha,
+        borderColor: colors.value.sla,
+        backgroundColor: colors.value.slaAlpha,
         fill: true,
         tension: 0.35,
         pointRadius: 0,
@@ -78,8 +78,8 @@ const chartData = computed(() => {
       {
         label: t('admin.ops.upstreamExcl429529'),
         data: props.points.map((p) => p.upstream_error_count_excl_429_529 ?? 0),
-        borderColor: colors.value.purple,
-        backgroundColor: colors.value.purpleAlpha,
+        borderColor: colors.value.upstream,
+        backgroundColor: colors.value.upstreamAlpha,
         fill: true,
         tension: 0.35,
         pointRadius: 0,
@@ -88,7 +88,7 @@ const chartData = computed(() => {
       {
         label: t('admin.ops.businessLimited'),
         data: props.points.map((p) => p.business_limited_count ?? 0),
-        borderColor: colors.value.gray,
+        borderColor: colors.value.businessLimited,
         backgroundColor: 'transparent',
         borderDash: [6, 6],
         fill: false,
@@ -153,10 +153,10 @@ const options = computed(() => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-dark-800 dark:ring-dark-700">
+  <div class="flex h-full flex-col rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-dark-800 dark:ring-dark-700">
     <div class="mb-4 flex shrink-0 items-center justify-between">
       <h3 class="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
-        <svg class="h-4 w-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg class="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"

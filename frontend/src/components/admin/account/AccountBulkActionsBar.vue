@@ -1,23 +1,23 @@
 <template>
-  <div class="mb-4 flex items-center justify-between rounded-lg bg-primary-50 p-3 dark:bg-primary-900/20">
+  <div class="mb-4 flex items-center justify-between rounded-lg bg-gray-100 p-3 dark:bg-dark-700">
     <div class="flex flex-wrap items-center gap-2">
-      <span v-if="selectedIds.length > 0" class="text-sm font-medium text-primary-900 dark:text-primary-100">
+      <span v-if="selectedIds.length > 0" class="text-sm font-medium text-gray-700 dark:text-gray-300">
         {{ t('admin.accounts.bulkActions.selected', { count: selectedIds.length }) }}
       </span>
-      <span v-else class="text-sm font-medium text-primary-900 dark:text-primary-100">
+      <span v-else class="text-sm font-medium text-gray-700 dark:text-gray-300">
         {{ t('admin.accounts.bulkEdit.title') }}
       </span>
       <template v-if="selectedIds.length > 0">
       <button
         @click="$emit('select-page')"
-        class="text-xs font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 dark:hover:text-primary-200"
+        class="text-xs font-medium text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
       >
         {{ t('admin.accounts.bulkActions.selectCurrentPage') }}
       </button>
-      <span class="text-gray-300 dark:text-primary-800">•</span>
+      <span class="text-gray-300 dark:text-gray-300">•</span>
       <button
         @click="$emit('clear')"
-        class="text-xs font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 dark:hover:text-primary-200"
+        class="text-xs font-medium text-gray-700 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-700"
       >
         {{ t('admin.accounts.bulkActions.clear') }}
       </button>
@@ -26,9 +26,9 @@
     <div class="flex flex-wrap justify-end gap-2">
       <div
         v-if="showTestAllUngrouped"
-        class="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-primary-200/70 bg-white/70 px-2.5 py-1.5 dark:border-primary-700/40 dark:bg-primary-950/10"
+        class="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-gray-200 bg-[var(--card)] px-2.5 py-1.5 dark:border-dark-600 dark:bg-dark-700"
       >
-        <span class="text-xs font-medium text-primary-800 dark:text-primary-200">
+        <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.bulkActions.testUngroupedPrefix') }}
         </span>
         <input
@@ -39,7 +39,7 @@
           class="input h-8 w-20 px-2 py-1 text-sm"
           @input="handleUngroupedLimitInput"
         />
-        <span class="text-xs text-primary-700/80 dark:text-primary-300/80">
+        <span class="text-xs text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.bulkActions.testUngroupedCountHint', { total: ungroupedTotalCount }) }}
         </span>
         <button
@@ -64,7 +64,7 @@
         <button data-testid="account-bulk-clear-privacy" @click="$emit('clear-privacy')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.clearPrivacy') }}</button>
         <button @click="$emit('toggle-schedulable', true)" class="btn btn-success btn-sm">{{ t('admin.accounts.bulkActions.enableScheduling') }}</button>
         <button @click="$emit('toggle-schedulable', false)" class="btn btn-warning btn-sm">{{ t('admin.accounts.bulkActions.disableScheduling') }}</button>
-        <button data-testid="account-bulk-edit-selected" @click="$emit('edit-selected')" class="btn btn-primary btn-sm">{{ t('admin.accounts.bulkActions.edit') }}</button>
+        <button data-testid="account-bulk-edit-selected" @click="$emit('edit-selected')" class="btn btn-secondary btn-sm">{{ t('admin.accounts.bulkActions.edit') }}</button>
       </template>
     </div>
   </div>

@@ -13,17 +13,17 @@
         <div class="flex items-center gap-3">
           <div
             :class="[
-              'flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br',
+              'flex h-10 w-10 items-center justify-center rounded-lg border ring-1 ring-inset',
               isOpenAILike
-                ? 'from-green-500 to-green-600'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300'
                 : isGemini
-                  ? 'from-blue-500 to-blue-600'
+                  ? 'border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] ring-[var(--border)]'
                   : isAntigravity
-                    ? 'from-purple-500 to-purple-600'
-                    : 'from-orange-500 to-orange-600'
+                    ? 'border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] ring-[var(--border)]'
+                    : 'border-orange-200 bg-orange-50 text-orange-700 ring-orange-100 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-300'
             ]"
           >
-            <Icon name="sparkles" size="md" class="text-white" />
+            <Icon name="sparkles" size="md" class="text-current" />
           </div>
           <div>
             <span class="block font-semibold text-gray-900 dark:text-white">{{
@@ -53,7 +53,7 @@
               v-model="addMethod"
               type="radio"
               value="oauth"
-              class="mr-2 text-primary-600 focus:ring-primary-500"
+              class="mr-2 text-[var(--foreground)] focus:ring-[var(--ring)]"
             />
             <span class="text-sm text-gray-700 dark:text-gray-300">{{
               t('admin.accounts.types.oauth')
@@ -64,7 +64,7 @@
               v-model="addMethod"
               type="radio"
               value="setup-token"
-              class="mr-2 text-primary-600 focus:ring-primary-500"
+              class="mr-2 text-[var(--foreground)] focus:ring-[var(--ring)]"
             />
             <span class="text-sm text-gray-700 dark:text-gray-300">{{
               t('admin.accounts.setupTokenLongLived')
@@ -83,10 +83,10 @@
             :class="[
               'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
               geminiOAuthType === 'google_one'
-                ? 'bg-purple-500 text-white'
+                ? 'border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300'
                 : geminiOAuthType === 'code_assist'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-amber-500 text-white'
+                  ? 'bg-[var(--foreground)] text-[var(--background)]'
+                  : 'border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'
             ]"
           >
             <Icon v-if="geminiOAuthType === 'google_one'" name="user" size="sm" />

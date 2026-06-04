@@ -9,13 +9,13 @@
       <!-- Account Info Header -->
       <div
         v-if="account"
-        class="flex items-center justify-between rounded-xl border border-primary-200 bg-gradient-to-r from-primary-50 to-primary-100 p-3 dark:border-primary-700/50 dark:from-primary-900/20 dark:to-primary-800/20"
+        class="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--muted)] p-3"
       >
         <div class="flex items-center gap-3">
           <div
-            class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600"
+            class="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--foreground)] text-[var(--background)]"
           >
-            <Icon name="chartBar" size="md" class="text-white" :stroke-width="2" />
+            <Icon name="chartBar" size="md" class="text-current" :stroke-width="2" />
           </div>
           <div>
             <div class="font-semibold text-gray-900 dark:text-gray-100">{{ account.name }}</div>
@@ -46,15 +46,15 @@
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <!-- 30-Day Total Cost -->
           <div
-            class="card border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 dark:border-emerald-800/30 dark:from-emerald-900/10 dark:to-dark-700"
+            class="card border-[var(--border)] bg-[var(--card)] p-4"
           >
             <div class="mb-2 flex items-center justify-between">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{
                 t('admin.accounts.stats.totalCost')
               }}</span>
-              <div class="rounded-lg bg-emerald-100 p-1.5 dark:bg-emerald-900/30">
+              <div class="rounded-lg bg-gray-100 p-1.5 dark:bg-dark-700">
                 <svg
-                  class="h-4 w-4 text-emerald-600 dark:text-emerald-400"
+                  class="h-4 w-4 text-gray-600 dark:text-gray-300"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -84,14 +84,14 @@
 
           <!-- 30-Day Total Requests -->
           <div
-            class="card border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 dark:border-blue-800/30 dark:from-blue-900/10 dark:to-dark-700"
+            class="card border-[var(--border)] bg-[var(--card)] p-4"
           >
             <div class="mb-2 flex items-center justify-between">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{
                 t('admin.accounts.stats.totalRequests')
               }}</span>
-              <div class="rounded-lg bg-blue-100 p-1.5 dark:bg-blue-900/30">
-                <Icon name="bolt" size="sm" class="text-blue-600 dark:text-blue-400" :stroke-width="2" />
+              <div class="rounded-lg bg-gray-100 p-1.5 dark:bg-dark-700">
+                <Icon name="bolt" size="sm" class="text-gray-600 dark:text-gray-300" :stroke-width="2" />
               </div>
             </div>
             <p class="text-2xl font-bold text-gray-900 dark:text-white">
@@ -104,17 +104,17 @@
 
           <!-- Daily Average Cost -->
           <div
-            class="card border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 dark:border-amber-800/30 dark:from-amber-900/10 dark:to-dark-700"
+            class="card border-[var(--border)] bg-[var(--card)] p-4"
           >
             <div class="mb-2 flex items-center justify-between">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{
                 t('admin.accounts.stats.avgDailyCost')
               }}</span>
-              <div class="rounded-lg bg-amber-100 p-1.5 dark:bg-amber-900/30">
+              <div class="rounded-lg bg-gray-100 p-1.5 dark:bg-dark-700">
                 <Icon
                   name="calculator"
                   size="sm"
-                  class="text-amber-600 dark:text-amber-400"
+                  class="text-gray-600 dark:text-gray-300"
                   :stroke-width="2"
                 />
               </div>
@@ -136,15 +136,15 @@
 
           <!-- Daily Average Requests -->
           <div
-            class="card border-purple-200 bg-gradient-to-br from-purple-50 to-white p-4 dark:border-purple-800/30 dark:from-purple-900/10 dark:to-dark-700"
+            class="card border-[var(--border)] bg-[var(--card)] p-4"
           >
             <div class="mb-2 flex items-center justify-between">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{
                 t('admin.accounts.stats.avgDailyRequests')
               }}</span>
-              <div class="rounded-lg bg-purple-100 p-1.5 dark:bg-purple-900/30">
+              <div class="rounded-lg bg-gray-100 p-1.5 dark:bg-dark-700">
                 <svg
-                  class="h-4 w-4 text-purple-600 dark:text-purple-400"
+                  class="h-4 w-4 text-gray-600 dark:text-gray-300"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -172,9 +172,9 @@
           <!-- Today Overview -->
           <div class="card p-4">
             <div class="mb-3 flex items-center gap-2">
-              <div class="rounded-lg bg-cyan-100 p-1.5 dark:bg-cyan-900/30">
+              <div class="rounded-lg bg-gray-100 p-1.5 dark:bg-dark-700">
                 <svg
-                  class="h-4 w-4 text-cyan-600 dark:text-cyan-400"
+                  class="h-4 w-4 text-gray-600 dark:text-gray-300"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -226,7 +226,7 @@
           <!-- Highest Cost Day -->
           <div class="card p-4">
             <div class="mb-3 flex items-center gap-2">
-              <div class="rounded-lg bg-orange-100 p-1.5 dark:bg-orange-900/30">
+              <div class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-1.5">
                 <Icon
                   name="fire"
                   size="sm"
@@ -273,7 +273,7 @@
           <!-- Highest Request Day -->
           <div class="card p-4">
             <div class="mb-3 flex items-center gap-2">
-              <div class="rounded-lg bg-indigo-100 p-1.5 dark:bg-indigo-900/30">
+              <div class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-1.5">
                 <Icon
                   name="trendingUp"
                   size="sm"
@@ -323,7 +323,7 @@
           <!-- Accumulated Tokens -->
           <div class="card p-4">
             <div class="mb-3 flex items-center gap-2">
-              <div class="rounded-lg bg-teal-100 p-1.5 dark:bg-teal-900/30">
+              <div class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-1.5">
                 <Icon name="cube" size="sm" class="text-teal-600 dark:text-teal-400" :stroke-width="2" />
               </div>
               <span class="text-sm font-semibold text-gray-900 dark:text-white">{{
@@ -353,7 +353,7 @@
           <!-- Performance -->
           <div class="card p-4">
             <div class="mb-3 flex items-center gap-2">
-              <div class="rounded-lg bg-rose-100 p-1.5 dark:bg-rose-900/30">
+              <div class="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-1.5">
                 <Icon name="bolt" size="sm" class="text-rose-600 dark:text-rose-400" :stroke-width="2" />
               </div>
               <span class="text-sm font-semibold text-gray-900 dark:text-white">{{
@@ -383,11 +383,11 @@
           <!-- Recent Activity -->
           <div class="card p-4">
             <div class="mb-3 flex items-center gap-2">
-              <div class="rounded-lg bg-lime-100 p-1.5 dark:bg-lime-900/30">
+              <div class="rounded-lg bg-gray-100 p-1.5 dark:bg-dark-700">
                 <Icon
                   name="clipboard"
                   size="sm"
-                  class="text-lime-600 dark:text-lime-400"
+                  class="text-gray-600 dark:text-gray-300"
                   :stroke-width="2"
                 />
               </div>

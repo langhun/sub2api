@@ -21,7 +21,7 @@
                 <span
                   class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
                   :class="monitoringEnabled
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                    ? 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-300'
                     : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'"
                 >
                   {{ monitoringEnabled ? t('admin.channelMonitor.pageStatusEnabled') : t('admin.channelMonitor.pageStatusDisabled') }}
@@ -234,7 +234,7 @@
 
       <template #footer>
         <div class="flex justify-end">
-          <button class="btn btn-primary" @click="closeHistoryDialog">{{ t('common.close') }}</button>
+          <button class="btn btn-secondary" @click="closeHistoryDialog">{{ t('common.close') }}</button>
         </div>
       </template>
     </BaseDialog>

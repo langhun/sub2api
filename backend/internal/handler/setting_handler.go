@@ -59,6 +59,8 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		TurnstileEnabled:                 settings.TurnstileEnabled,
 		TurnstileSiteKey:                 settings.TurnstileSiteKey,
 		SiteName:                         settings.SiteName,
+		ThemePreset:                      settings.ThemePreset,
+		ThemeFont:                        settings.ThemeFont,
 		SiteLogo:                         settings.SiteLogo,
 		SiteSubtitle:                     settings.SiteSubtitle,
 		APIBaseURL:                       settings.APIBaseURL,

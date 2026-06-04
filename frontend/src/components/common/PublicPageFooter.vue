@@ -1,11 +1,11 @@
 <template>
-  <footer class="border-t border-gray-100 py-10 dark:border-dark-800">
+  <footer class="border-t border-[var(--border)] py-10">
     <div class="mx-auto flex max-w-7xl items-center justify-center px-6">
       <div class="flex items-center justify-center gap-3 text-center">
         <div class="h-6 w-6 overflow-hidden rounded-md">
           <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
         </div>
-        <p class="text-sm text-gray-500 dark:text-dark-400">
+        <p class="text-sm text-[var(--muted-foreground)]">
           &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
         </p>
       </div>

@@ -6,7 +6,7 @@
     @close="handleClose"
   >
     <div class="space-y-5">
-      <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-700/40 dark:bg-blue-900/20 dark:text-blue-200">
+      <div class="rounded-lg border border-gray-200 bg-gray-100 p-3 text-sm text-gray-700 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300">
         {{ t('admin.proxies.assignAccounts.scopeHint', { count: proxyIds.length }) }}
       </div>
 
@@ -18,7 +18,7 @@
           <label v-for="option in platformOptions" :key="option.value" class="mb-2 flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
               :checked="selectedPlatforms.includes(option.value)"
               @change="toggleValue(selectedPlatforms, option.value)"
             />
@@ -36,7 +36,7 @@
           <label v-for="option in statusOptions" :key="option.value" class="mb-2 flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
               :checked="selectedStatuses.includes(option.value)"
               @change="toggleValue(selectedStatuses, option.value)"
             />
@@ -55,7 +55,7 @@
             <button
               v-if="selectedGroupIds.length"
               type="button"
-              class="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400"
+              class="text-xs text-gray-700 hover:text-gray-700 dark:text-gray-300"
               @click="selectedGroupIds = []"
             >
               {{ t('common.clear') }}
@@ -65,7 +65,7 @@
             <label v-for="group in groups" :key="group.id" class="mb-2 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
                 :checked="selectedGroupIds.includes(group.id)"
                 @change="toggleValue(selectedGroupIds, group.id)"
               />
@@ -93,7 +93,7 @@
         </button>
         <button
           type="button"
-          class="btn btn-primary"
+          class="btn btn-secondary"
           :disabled="executing || previewing || proxyIds.length === 0"
           @click="executeAssignment"
         >
@@ -151,7 +151,7 @@
                 :title="account.skipped_reason || undefined"
               >
                 #{{ account.account_id }} {{ account.account_name }}
-                <span v-if="account.assigned" class="text-green-600 dark:text-green-400">✓</span>
+                <span v-if="account.assigned" class="text-gray-700 dark:text-gray-300">✓</span>
                 <span v-else-if="account.skipped_reason" class="text-amber-600 dark:text-amber-400">!</span>
               </span>
               <span v-if="proxy.accounts.length > 8" class="text-xs text-gray-500">

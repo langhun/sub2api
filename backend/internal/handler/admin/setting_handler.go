@@ -218,6 +218,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		GoogleOAuthRedirectURL:                 settings.GoogleOAuthRedirectURL,
 		GoogleOAuthFrontendRedirectURL:         settings.GoogleOAuthFrontendRedirectURL,
 		SiteName:                               settings.SiteName,
+		ThemePreset:                            settings.ThemePreset,
+		ThemeFont:                              settings.ThemeFont,
 		SiteLogo:                               settings.SiteLogo,
 		SiteSubtitle:                           settings.SiteSubtitle,
 		APIBaseURL:                             settings.APIBaseURL,
@@ -530,6 +532,8 @@ type UpdateSettingsRequest struct {
 
 	// OEM设置
 	SiteName                      string                `json:"site_name"`
+	ThemePreset                   string                `json:"theme_preset"`
+	ThemeFont                     string                `json:"theme_font"`
 	SiteLogo                      string                `json:"site_logo"`
 	SiteSubtitle                  string                `json:"site_subtitle"`
 	APIBaseURL                    string                `json:"api_base_url"`
@@ -698,7 +702,7 @@ type UpdateSettingsRequest struct {
 	ChannelMonitorEnabled                *bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds *int  `json:"channel_monitor_default_interval_seconds"`
 
-	// Available Channels / Game Hall feature switches (user-facing)
+	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
 	GameHallEnabled          *bool `json:"game_hall_enabled"`
 
@@ -1657,6 +1661,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GoogleOAuthRedirectURL:                 req.GoogleOAuthRedirectURL,
 		GoogleOAuthFrontendRedirectURL:         req.GoogleOAuthFrontendRedirectURL,
 		SiteName:                               req.SiteName,
+		ThemePreset:                            req.ThemePreset,
+		ThemeFont:                              req.ThemeFont,
 		SiteLogo:                               req.SiteLogo,
 		SiteSubtitle:                           req.SiteSubtitle,
 		APIBaseURL:                             req.APIBaseURL,
@@ -2212,6 +2218,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		GoogleOAuthRedirectURL:                 updatedSettings.GoogleOAuthRedirectURL,
 		GoogleOAuthFrontendRedirectURL:         updatedSettings.GoogleOAuthFrontendRedirectURL,
 		SiteName:                               updatedSettings.SiteName,
+		ThemePreset:                            updatedSettings.ThemePreset,
+		ThemeFont:                              updatedSettings.ThemeFont,
 		SiteLogo:                               updatedSettings.SiteLogo,
 		SiteSubtitle:                           updatedSettings.SiteSubtitle,
 		APIBaseURL:                             updatedSettings.APIBaseURL,

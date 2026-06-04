@@ -6,7 +6,7 @@
         <button @click="loadPlans" :disabled="plansLoading" class="btn btn-secondary" :title="t('common.refresh')">
           <Icon name="refresh" size="md" :class="plansLoading ? 'animate-spin' : ''" />
         </button>
-        <button @click="openPlanEdit(null)" class="btn btn-primary">{{ t('payment.admin.createPlan') }}</button>
+        <button @click="openPlanEdit(null)" class="btn btn-secondary">{{ t('payment.admin.createPlan') }}</button>
       </div>
 
       <!-- Plans Table -->
@@ -40,20 +40,20 @@
           <button
             type="button"
             :class="[
-              'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              value ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-600'
+              'relative inline-flex h-[18.4px] w-8 flex-shrink-0 cursor-pointer items-center rounded-full border border-[var(--border)] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--ring)]',
+              value ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-gray-200 dark:bg-dark-600'
             ]"
             @click="toggleForSale(row)"
           >
             <span :class="[
-              'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+              'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-[var(--background)] ring-0 transition duration-200 ease-in-out',
               value ? 'translate-x-4' : 'translate-x-0'
             ]" />
           </button>
         </template>
         <template #cell-actions="{ row }">
           <div class="flex items-center gap-2">
-            <button @click="openPlanEdit(row)" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400">
+            <button @click="openPlanEdit(row)" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-100 dark:hover:text-gray-700">
               <Icon name="edit" size="sm" />
               <span class="text-xs">{{ t('common.edit') }}</span>
             </button>

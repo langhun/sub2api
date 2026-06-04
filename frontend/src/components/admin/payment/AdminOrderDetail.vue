@@ -90,7 +90,7 @@
         <button
           v-if="order.status === 'PENDING'"
           @click="emit('cancel', order)"
-          class="btn btn-sm rounded-md bg-yellow-50 px-3 py-1.5 text-sm text-yellow-600 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:hover:bg-yellow-900/30"
+          class="btn btn-sm rounded-md bg-amber-50 px-3 py-1.5 text-sm text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30"
         >
           {{ t('payment.orders.cancel') }}
         </button>

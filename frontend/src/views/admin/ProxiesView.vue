@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <AppLayout>
     <TablePageLayout>
       <template #filters>
@@ -60,7 +60,7 @@
           <template #header-select>
             <input
               type="checkbox"
-              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
               :checked="allVisibleSelected"
               @click.stop
               @change="toggleSelectAllVisible($event)"
@@ -70,7 +70,7 @@
           <template #cell-select="{ row }">
             <input
               type="checkbox"
-              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
               :checked="selectedProxyIds.has(row.id)"
               @click.stop
               @change="toggleSelectRow(row.id, $event)"
@@ -95,7 +95,7 @@
           <template #cell-protocol="{ value }">
             <span
               v-if="value"
-              :class="['badge', value.startsWith('socks5') ? 'badge-primary' : 'badge-gray']"
+              :class="['badge', value.startsWith('socks5') ? 'badge-purple' : 'badge-gray']"
             >
               {{ value.toUpperCase() }}
             </span>
@@ -108,7 +108,7 @@
               <div class="relative">
                 <button
                   type="button"
-                  class="rounded p-0.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+                  class="rounded p-0.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-700"
                   :title="t('admin.proxies.copyProxyUrl')"
                   @click.stop="copyProxyUrl(row)"
                   @contextmenu.prevent="toggleCopyMenu(row.id)"
@@ -118,7 +118,7 @@
                 <!-- Context menu for alternate copy formats -->
                 <div
                   v-if="dropdownState.copyMenuProxyId === row.id"
-                  class="absolute left-0 top-full z-50 mt-1 w-auto min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-500 dark:bg-dark-700"
+                  class="absolute left-0 top-full z-50 mt-1 w-auto min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-sm dark:border-dark-500 dark:bg-dark-700"
                 >
                   <button
                     v-for="fmt in getCopyFormats(row)"
@@ -180,7 +180,7 @@
             <button
               v-if="(value || 0) > 0"
               type="button"
-              class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-primary-700 hover:bg-gray-200 dark:bg-dark-600 dark:text-primary-300 dark:hover:bg-dark-500"
+              class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500"
               @click="openAccountsModal(row)"
             >
               {{ t('admin.groups.accountsCount', { count: value || 0 }) }}
@@ -195,7 +195,7 @@
 
           <template #cell-pool="{ row }">
             <div class="flex flex-col items-start gap-1">
-              <span :class="['badge', row.auto_failover_pool_enabled ? 'badge-primary' : 'badge-gray']">
+              <span :class="['badge', row.auto_failover_pool_enabled ? 'badge-success' : 'badge-secondary']">
                 {{ row.auto_failover_pool_enabled ? t('admin.proxies.poolEnabled') : t('admin.proxies.poolDisabled') }}
               </span>
               <span
@@ -270,7 +270,7 @@
               <button
                 @click="handleTestConnection(row)"
                 :disabled="testingProxyIds.has(row.id)"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                 :title="t('admin.proxies.testConnection')"
                 :aria-label="t('admin.proxies.testConnection')"
               >
@@ -300,7 +300,7 @@
               <button
                 @click="handleQualityCheck(row)"
                 :disabled="qualityCheckingProxyIds.has(row.id)"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-100 dark:hover:text-gray-700"
                 :title="t('admin.proxies.qualityCheck')"
                 :aria-label="t('admin.proxies.qualityCheck')"
               >
@@ -329,7 +329,7 @@
               </button>
               <button
                 @click="handleEdit(row)"
-                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-700 dark:hover:text-gray-700"
                 :title="t('common.edit')"
                 :aria-label="t('common.edit')"
               >
@@ -390,7 +390,7 @@
           :class="[
             '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
             createMode === 'standard'
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              ? 'border-gray-200 text-gray-700 dark:text-gray-300'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
           ]"
         >
@@ -403,7 +403,7 @@
           :class="[
             '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors',
             createMode === 'batch'
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              ? 'border-gray-200 text-gray-700 dark:text-gray-300'
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
           ]"
         >
@@ -500,7 +500,7 @@
           <input
             v-model="createForm.auto_failover_pool_enabled"
             type="checkbox"
-            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
           />
           <span class="space-y-1">
             <span class="font-medium text-gray-900 dark:text-white">{{ t('admin.proxies.poolToggleLabel') }}</span>
@@ -530,7 +530,7 @@
         <div v-if="batchParseResult.total > 0" class="rounded-lg bg-gray-50 p-4 dark:bg-dark-700">
             <div class="flex items-center gap-4 text-sm">
               <div class="flex items-center gap-1.5">
-              <Icon name="checkCircle" size="sm" :stroke-width="2" class="text-primary-500" />
+              <Icon name="checkCircle" size="sm" :stroke-width="2" class="text-gray-700" />
               <span class="text-gray-700 dark:text-gray-300">
                 {{ t('admin.proxies.parsedCount', { count: batchParseResult.valid }) }}
               </span>
@@ -579,7 +579,7 @@
             type="submit"
             form="create-proxy-form"
             :disabled="loadingState.submitting"
-            class="btn btn-primary"
+            class="btn btn-secondary"
           >
             <svg
               v-if="loadingState.submitting"
@@ -608,7 +608,7 @@
             @click="handleBatchCreate"
             type="button"
             :disabled="loadingState.submitting || batchParseResult.valid === 0"
-            class="btn btn-primary"
+            class="btn btn-secondary"
           >
             <svg
               v-if="loadingState.submitting"
@@ -717,7 +717,7 @@
           <input
             v-model="editForm.auto_failover_pool_enabled"
             type="checkbox"
-            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            class="mt-0.5 h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]"
           />
           <span class="space-y-1">
             <span class="font-medium text-gray-900 dark:text-white">{{ t('admin.proxies.poolToggleLabel') }}</span>
@@ -737,7 +737,7 @@
             type="submit"
             form="edit-proxy-form"
             :disabled="loadingState.submitting"
-            class="btn btn-primary"
+            class="btn btn-secondary"
           >
             <svg
               v-if="loadingState.submitting"
@@ -821,7 +821,7 @@
     >
       <div class="space-y-4">
         <div class="flex justify-end">
-          <button class="btn btn-primary shrink-0" type="button" @click="openCreateSubscriptionDialog">
+          <button class="btn btn-secondary shrink-0" type="button" @click="openCreateSubscriptionDialog">
             <Icon name="plus" size="sm" class="mr-2" />
             {{ t('admin.proxies.subscriptions.create') }}
           </button>
@@ -953,8 +953,8 @@
                 <td class="px-3 py-2">
                   <span class="badge" :class="qualityStatusClass(item.status)">{{ qualityStatusLabel(item.status) }}</span>
                 </td>
-                <td class="px-3 py-3 align-top text-gray-600 dark:text-gray-300">{{ item.http_status ?? '-' }}</td>
-                <td class="px-3 py-3 align-top text-gray-600 dark:text-gray-300">
+                <td class="px-3 py-3 align-top" :class="httpStatusClass(item.http_status)">{{ item.http_status ?? '-' }}</td>
+                <td class="px-3 py-3 align-top" :class="latencyTextClass(item.latency_ms)">
                   {{ typeof item.latency_ms === 'number' ? `${item.latency_ms}ms` : '-' }}
                 </td>
                 <td class="px-3 py-3 align-top text-gray-600 dark:text-gray-300">
@@ -1032,7 +1032,7 @@
     <Teleport to="body">
       <div
         v-if="dropdownState.activeRowActionMenuId !== null && dropdownState.rowActionMenuPosition"
-        class="fixed z-[200] w-44 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 dark:bg-dark-800 dark:ring-white/10"
+        class="fixed z-[200] w-44 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-none"
         :style="{
           top: `${dropdownState.rowActionMenuPosition.top}px`,
           left: `${dropdownState.rowActionMenuPosition.left}px`
@@ -1050,7 +1050,7 @@
             <Icon
               :name="activeRowActionMenuRow.status === 'active' ? 'ban' : 'play'"
               size="sm"
-              :class="activeRowActionMenuRow.status === 'active' ? 'text-amber-500' : 'text-emerald-500'"
+              :class="activeRowActionMenuRow.status === 'active' ? 'text-amber-500' : 'text-gray-700'"
             />
             {{ activeRowActionMenuRow.status === 'active' ? t('admin.proxies.disableAction') : t('admin.proxies.enableAction') }}
           </button>
@@ -1061,7 +1061,7 @@
             class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
             :class="{ 'cursor-not-allowed opacity-50': loadingState.rowActionSubmitting }"
           >
-            <Icon :name="activeRowActionMenuRow.auto_failover_pool_enabled ? 'x' : 'plus'" size="sm" class="text-violet-500" />
+            <Icon :name="activeRowActionMenuRow.auto_failover_pool_enabled ? 'x' : 'plus'" size="sm" class="text-gray-500" />
             {{ activeRowActionMenuRow.auto_failover_pool_enabled ? t('admin.proxies.poolDisableAction') : t('admin.proxies.poolEnableAction') }}
           </button>
           <button
@@ -1894,7 +1894,7 @@ const healthStatusClass = (status?: Proxy['health_status']) => {
   if (status === 'healthy') return 'badge-success'
   if (status === 'cooldown') return 'badge-warning'
   if (status === 'failed') return 'badge-danger'
-  return 'badge-gray'
+  return 'badge-secondary'
 }
 
 const healthStatusLabel = (status?: Proxy['health_status']) => {
@@ -2038,6 +2038,21 @@ const closeQualityReportDialog = () => {
   currentItems.qualityReport = null
 }
 
+
+const httpStatusClass = (status?: number | null): string => {
+  if (typeof status !== 'number') return 'text-gray-500 dark:text-gray-400'
+  if (status >= 500) return 'text-red-600 dark:text-red-400'
+  if (status >= 400) return 'text-amber-600 dark:text-amber-400'
+  if (status >= 300) return 'text-sky-600 dark:text-sky-400'
+  return 'text-emerald-600 dark:text-emerald-400'
+}
+
+const latencyTextClass = (ms?: number | null): string => {
+  if (typeof ms !== 'number') return 'text-gray-500 dark:text-gray-400'
+  if (ms >= 3000) return 'text-red-600 dark:text-red-400'
+  if (ms >= 800) return 'text-amber-600 dark:text-amber-400'
+  return 'text-emerald-600 dark:text-emerald-400'
+}
 const qualityStatusClass = (status: string) => {
   if (status === 'pass') return 'badge-success'
   if (status === 'warn') return 'badge-warning'

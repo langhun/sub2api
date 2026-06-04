@@ -6,12 +6,12 @@
     @close="emit('close')"
   >
     <div class="space-y-4">
-      <div class="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-100">
+      <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 dark:border-gray-900/40 dark:bg-gray-950/30 dark:text-gray-100">
         <div class="font-medium">{{ t('admin.proxies.poolMembersSummary', { count: rows.length }) }}</div>
-        <div v-if="hasActiveFilters" class="mt-1 text-xs text-violet-800 dark:text-violet-200">
+        <div v-if="hasActiveFilters" class="mt-1 text-xs text-gray-800 dark:text-gray-200">
           {{ t('admin.proxies.poolMembersFilteredSummary', { visible: filteredRows.length, total: rows.length }) }}
         </div>
-        <div class="mt-1 text-xs text-violet-800 dark:text-violet-200">
+        <div class="mt-1 text-xs text-gray-800 dark:text-gray-200">
           {{ t('admin.proxies.poolUsageHint') }}
         </div>
       </div>
@@ -191,7 +191,7 @@ const healthStatusClass = (status?: Proxy['health_status']) => {
   if (status === 'healthy') return 'badge-success'
   if (status === 'cooldown') return 'badge-warning'
   if (status === 'failed') return 'badge-danger'
-  return 'badge-gray'
+  return 'badge-secondary'
 }
 
 const healthStatusLabel = (status?: Proxy['health_status']) => {

@@ -61,7 +61,7 @@
         </div>
 
         <div class="flex justify-end pt-4">
-          <button type="submit" :disabled="loading" class="btn btn-primary">
+          <button type="submit" :disabled="loading" class="btn btn-secondary">
             {{ loading ? t('profile.changingPassword') : t('profile.changePasswordButton') }}
           </button>
         </div>

@@ -39,7 +39,7 @@
             <button @click="handleExportCodes" class="btn btn-secondary">
               {{ t('admin.redeem.exportCsv') }}
             </button>
-            <button @click="showGenerateDialog = true" class="btn btn-primary">
+            <button @click="showGenerateDialog = true" class="btn btn-secondary">
               {{ t('admin.redeem.generateCodes') }}
             </button>
           </div>
@@ -64,7 +64,7 @@
                 :class="[
                   'flex items-center transition-colors',
                   copiedCode === value
-                    ? 'text-green-500'
+                    ? 'text-gray-700'
                     : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                 ]"
                 :title="copiedCode === value ? t('admin.redeem.copied') : t('keys.copyToClipboard')"
@@ -92,7 +92,7 @@
                     ? 'badge-warning'
                     : value === 'checkin' || value === 'checkin_luck' || value === 'checkin_blindbox'
                       ? 'badge-warning'
-                      : 'badge-primary'
+                      : 'badge-info'
               ]"
             >
               {{ t('admin.redeem.types.' + value) }}
@@ -119,7 +119,7 @@
                 value === 'unused'
                   ? 'badge-success'
                   : value === 'used'
-                    ? 'badge-gray'
+                    ? 'badge-secondary'
                     : 'badge-danger'
               ]"
             >
@@ -221,9 +221,9 @@
     <!-- Generate Codes Dialog -->
     <Teleport to="body">
       <div v-if="showGenerateDialog" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="fixed inset-0 bg-black/50" @click="showGenerateDialog = false"></div>
+        <div class="fixed inset-0 bg-black/40" @click="showGenerateDialog = false"></div>
         <div
-          class="relative z-10 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dark-800"
+          class="relative z-10 w-full max-w-md rounded-xl bg-white p-6 shadow-sm dark:bg-dark-800"
         >
           <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
             {{ t('admin.redeem.generateCodesTitle') }}
@@ -265,8 +265,8 @@
               />
             </div>
             <!-- 邀请码类型：显示提示信息 -->
-            <div v-if="generateForm.type === 'invitation'" class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-              <p class="text-sm text-blue-700 dark:text-blue-300">
+            <div v-if="generateForm.type === 'invitation'" class="rounded-lg bg-gray-100 p-3 dark:bg-dark-700">
+              <p class="text-sm text-gray-700 dark:text-gray-300">
                 {{ t('admin.redeem.invitationHint') }}
               </p>
             </div>
@@ -326,7 +326,7 @@
                   :class="[
                     'rounded-lg border px-3 py-2 text-sm transition-colors',
                     generateForm.expiry_option === option.value
-                      ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/20 dark:text-primary-300'
+                      ? 'border-gray-200 bg-gray-100 text-gray-700 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300'
                       : 'border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-dark-600 dark:text-gray-300 dark:hover:bg-dark-700'
                   ]"
                 >
@@ -359,7 +359,7 @@
               <button type="button" @click="showGenerateDialog = false" class="btn btn-secondary">
                 {{ t('common.cancel') }}
               </button>
-              <button type="submit" :disabled="generating" class="btn btn-primary">
+              <button type="submit" :disabled="generating" class="btn btn-secondary">
                 {{ generating ? t('admin.redeem.generating') : t('admin.redeem.generate') }}
               </button>
             </div>
@@ -371,18 +371,18 @@
     <!-- Generated Codes Result Dialog -->
     <Teleport to="body">
       <div v-if="showResultDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="fixed inset-0 bg-black/50" @click="closeResultDialog"></div>
-        <div class="relative z-10 w-full max-w-lg rounded-xl bg-white shadow-xl dark:bg-dark-800">
+        <div class="fixed inset-0 bg-black/40" @click="closeResultDialog"></div>
+        <div class="relative z-10 w-full max-w-lg rounded-xl bg-white shadow-sm dark:bg-dark-800">
           <!-- Header -->
           <div
             class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-dark-600"
           >
             <div class="flex items-center gap-3">
               <div
-                class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30"
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-dark-700"
               >
                 <svg
-                  class="h-5 w-5 text-green-600 dark:text-green-400"
+                  class="h-5 w-5 text-gray-700 dark:text-gray-300"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -444,7 +444,7 @@
               </svg>
               {{ copiedAll ? t('admin.redeem.copied') : t('admin.redeem.copyAll') }}
             </button>
-            <button @click="downloadGeneratedCodes" class="btn btn-primary flex items-center gap-2">
+            <button @click="downloadGeneratedCodes" class="btn btn-secondary flex items-center gap-2">
               <Icon name="download" size="sm" :stroke-width="2" />
               {{ t('admin.redeem.download') }}
             </button>

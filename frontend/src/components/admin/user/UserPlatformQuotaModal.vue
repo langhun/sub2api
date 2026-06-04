@@ -106,7 +106,7 @@
         <button type="button" class="btn btn-secondary" @click="$emit('close')">
           {{ t('admin.users.platformQuota.cancel') }}
         </button>
-        <button type="button" class="btn btn-primary" :disabled="submitting || loading" @click="onSave">
+        <button type="button" class="btn btn-secondary" :disabled="submitting || loading" @click="onSave">
           {{ submitting ? t('admin.users.platformQuota.saving') : t('admin.users.platformQuota.save') }}
         </button>
       </div>

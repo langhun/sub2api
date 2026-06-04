@@ -1,14 +1,14 @@
 <template>
   <div
     :class="[
-      'group relative flex flex-col overflow-hidden rounded-2xl border transition-all',
-      'hover:shadow-xl hover:-translate-y-0.5',
+      'group relative flex flex-col overflow-hidden rounded-xl border transition-all',
+      'hover:shadow-sm hover:-translate-y-px',
       borderClass,
       'bg-white dark:bg-dark-800',
     ]"
   >
-    <!-- Colored top accent bar -->
-    <div :class="['h-1.5', accentClass]" />
+    <!-- Subtle top divider -->
+    <div class="h-px bg-[var(--border)]" />
 
     <div class="flex flex-1 flex-col p-4">
       <!-- Header: name + badge + price -->
@@ -100,7 +100,6 @@ import { useI18n } from 'vue-i18n'
 import type { SubscriptionPlan } from '@/types/payment'
 import type { UserSubscription } from '@/types'
 import {
-  platformAccentBarClass,
   platformBadgeLightClass,
   platformBorderClass,
   platformTextClass,
@@ -120,7 +119,6 @@ const isRenewal = computed(() =>
 )
 
 // Derived color classes from central config
-const accentClass = computed(() => platformAccentBarClass(platform.value))
 const borderClass = computed(() => platformBorderClass(platform.value))
 const badgeLightClass = computed(() => platformBadgeLightClass(platform.value))
 const textClass = computed(() => platformTextClass(platform.value))

@@ -20,7 +20,7 @@ if not exist "%CONFIG_EXAMPLE%" (
 
 set /p VERSION=<%VERSION_FILE%
 for /f "tokens=*" %%i in ('git rev-parse --short HEAD') do set COMMIT=%%i
-for /f "tokens=*" %%i in ('powershell -NoProfile -Command "(Get-Date).ToUniversalTime().ToString(''yyyy-MM-ddTHH:mm:ssZ'')"') do set DATE=%%i
+for /f "tokens=*" %%i in ('powershell -NoProfile -Command "[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')"') do set DATE=%%i
 set "BUILD_TYPE=production"
 set "PACKAGE_BASENAME=sub2api-%VERSION%-linux-amd64"
 
@@ -34,7 +34,7 @@ if exist "%UPLOAD_DIR%" rmdir /s /q "%UPLOAD_DIR%"
 mkdir "%UPLOAD_DIR%"
 
 echo Building frontend into backend\internal\web\dist...
-corepack pnpm --dir frontend run build
+call corepack pnpm --dir frontend run build
 if errorlevel 1 exit /b 1
 
 echo Building backend for linux/amd64...

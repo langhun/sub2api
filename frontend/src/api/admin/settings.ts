@@ -450,6 +450,8 @@ export interface SystemSettings {
   auth_source_default_dingtalk_platform_quotas?: DefaultPlatformQuotasMap;
   // OEM settings
   site_name: string;
+  theme_preset: "minimal-mono" | "classic" | string;
+  theme_font: "serif" | "sans" | string;
   site_logo: string;
   site_subtitle: string;
   api_base_url: string;
@@ -650,7 +652,7 @@ export interface SystemSettings {
   channel_monitor_enabled: boolean;
   channel_monitor_default_interval_seconds: number;
 
-  // Available Channels / Game Hall feature switches
+  // Available Channels feature switch
   available_channels_enabled: boolean;
   game_hall_enabled: boolean;
 
@@ -746,6 +748,8 @@ export interface UpdateSettingsRequest {
   auth_source_default_google_platform_quotas?: DefaultPlatformQuotasMap;
   auth_source_default_dingtalk_platform_quotas?: DefaultPlatformQuotasMap;
   site_name?: string;
+  theme_preset?: "minimal-mono" | "classic" | string;
+  theme_font?: "serif" | "sans" | string;
   site_logo?: string;
   site_subtitle?: string;
   api_base_url?: string;

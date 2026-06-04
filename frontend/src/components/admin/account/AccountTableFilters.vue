@@ -21,7 +21,7 @@
         <span>{{ showAdvancedFilters ? t('admin.accounts.hideAdvancedFilters') : t('admin.accounts.moreFilters') }}</span>
         <span
           v-if="advancedFilterCount > 0"
-          class="inline-flex min-w-5 items-center justify-center rounded-full bg-primary-50 px-1.5 py-0.5 text-[11px] font-semibold text-primary-600 dark:bg-primary-500/15 dark:text-primary-300"
+          class="inline-flex min-w-5 items-center justify-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-700 dark:bg-dark-700 dark:text-gray-300"
         >
           {{ advancedFilterCount }}
         </span>

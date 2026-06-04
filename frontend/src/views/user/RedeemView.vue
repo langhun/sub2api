@@ -2,18 +2,18 @@
   <AppLayout>
     <div class="mx-auto max-w-2xl space-y-6">
       <!-- Current Balance Card -->
-      <div class="card overflow-hidden">
-        <div class="bg-gradient-to-br from-primary-500 to-primary-600 px-6 py-8 text-center">
+      <div class="card feature-panel-success overflow-hidden">
+        <div class="bg-[var(--card)] px-6 py-8 text-center">
           <div
-            class="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm"
+            class="feature-icon feature-icon-success mb-4 inline-flex h-16 w-16 items-center justify-center rounded-xl"
           >
-            <Icon name="creditCard" size="xl" class="text-white" />
+            <Icon name="creditCard" size="xl" class="text-current" />
           </div>
-          <p class="text-sm font-medium text-primary-100">{{ t('redeem.currentBalance') }}</p>
-          <p class="mt-2 text-4xl font-bold text-white">
-            ${{ user?.balance?.toFixed(2) || '0.00' }}
+          <p class="text-sm font-medium text-[var(--muted-foreground)]">{{ t('redeem.currentBalance') }}</p>
+          <p class="mt-2 text-4xl font-bold text-[var(--foreground)]">
+            {{ redeemBalanceDisplay.display }}
           </p>
-          <p class="mt-2 text-sm text-primary-100">
+          <p class="mt-2 text-sm text-[var(--muted-foreground)]">
             {{ t('redeem.concurrency') }}: {{ user?.concurrency || 0 }} {{ t('redeem.requests') }}
           </p>
         </div>
@@ -49,7 +49,7 @@
             <button
               type="submit"
               :disabled="!redeemCode || submitting"
-              class="btn btn-primary w-full py-3"
+              class="btn btn-secondary w-full py-3"
             >
               <svg
                 v-if="submitting"
@@ -80,16 +80,11 @@
 
       <!-- Success Message -->
       <transition name="fade">
-        <div
-          v-if="redeemResult"
-          class="card border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20"
-        >
+        <div v-if="redeemResult" class="card feature-panel-success">
           <div class="p-6">
             <div class="flex items-start gap-4">
-              <div
-                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30"
-              >
-                <Icon name="checkCircle" size="md" class="text-emerald-600 dark:text-emerald-400" />
+              <div class="feature-icon feature-icon-success flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg">
+                <Icon name="checkCircle" size="md" class="text-current" />
               </div>
               <div class="flex-1">
                 <h3 class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
@@ -116,7 +111,7 @@
                     </p>
                     <p v-if="redeemResult.new_balance !== undefined">
                       {{ t('redeem.newBalance') }}:
-                      <span class="font-semibold">${{ redeemResult.new_balance.toFixed(2) }}</span>
+                      <span class="font-semibold">{{ formatDualDisplayAmount(redeemResult.new_balance, { currencySymbol: '$' }).display }}</span>
                     </p>
                     <p v-if="redeemResult.new_concurrency !== undefined">
                       {{ t('redeem.newConcurrency') }}:
@@ -134,20 +129,11 @@
 
       <!-- Error Message -->
       <transition name="fade">
-        <div
-          v-if="errorMessage"
-          class="card border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20"
-        >
+        <div v-if="errorMessage" class="card feature-panel-danger">
           <div class="p-6">
             <div class="flex items-start gap-4">
-              <div
-                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30"
-              >
-                <Icon
-                  name="exclamationCircle"
-                  size="md"
-                  class="text-red-600 dark:text-red-400"
-                />
+              <div class="feature-icon feature-icon-danger flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl">
+                <Icon name="exclamationCircle" size="md" class="text-current" />
               </div>
               <div class="flex-1">
                 <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">
@@ -163,22 +149,18 @@
       </transition>
 
       <!-- Information Card -->
-      <div
-        class="card border-primary-200 bg-primary-50 dark:border-primary-800/50 dark:bg-primary-900/20"
-      >
+      <div class="card feature-panel-info">
         <div class="p-6">
           <div class="flex items-start gap-4">
-            <div
-              class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/30"
-            >
-              <Icon name="infoCircle" size="md" class="text-primary-600 dark:text-primary-400" />
+            <div class="feature-icon feature-icon-info flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl">
+              <Icon name="infoCircle" size="md" class="text-current" />
             </div>
             <div class="flex-1">
-              <h3 class="text-sm font-semibold text-primary-800 dark:text-primary-300">
+              <h3 class="text-sm font-semibold text-[var(--foreground)]">
                 {{ t('redeem.aboutCodes') }}
               </h3>
               <ul
-                class="mt-2 list-inside list-disc space-y-1 text-sm text-primary-700 dark:text-primary-400"
+                class="mt-2 list-inside list-disc space-y-1 text-sm text-[var(--muted-foreground)]"
               >
                 <li>{{ t('redeem.codeRule1') }}</li>
                 <li>{{ t('redeem.codeRule2') }}</li>
@@ -186,7 +168,7 @@
                   {{ t('redeem.codeRule3') }}
                   <span
                     v-if="contactInfo"
-                    class="ml-1.5 inline-flex items-center rounded-md bg-primary-200/50 px-2 py-0.5 text-xs font-medium text-primary-800 dark:bg-primary-800/40 dark:text-primary-200"
+                    class="badge badge-info ml-1.5 px-2 py-0.5"
                   >
                     {{ contactInfo }}
                   </span>
@@ -208,7 +190,7 @@
         <div class="p-6">
           <!-- Loading State -->
           <div v-if="loadingHistory" class="flex items-center justify-center py-8">
-            <svg class="h-6 w-6 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24">
+            <svg class="h-6 w-6 animate-spin text-[var(--foreground)]" fill="none" viewBox="0 0 24 24">
               <circle
                 class="opacity-25"
                 cx="12"
@@ -276,7 +258,7 @@
                     </p>
                     <p class="mt-0.5 text-xs text-gray-400 dark:text-dark-500">
                       {{ formatDateTime(item.used_at) }}
-                      <span v-if="item.type === 'checkin_luck' && item.multiplier" class="ml-1 text-amber-600 dark:text-amber-400">
+                      <span v-if="item.type === 'checkin_luck' && item.multiplier" class="ml-1 text-gray-600 dark:text-gray-400">
                         · {{ t('checkin.multiplier') }} x{{ item.multiplier.toFixed(2) }}
                       </span>
                     </p>
@@ -305,10 +287,8 @@
 
           <!-- Empty State -->
           <div v-else class="empty-state py-8">
-            <div
-              class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-800"
-            >
-              <Icon name="clock" size="xl" class="text-gray-400 dark:text-dark-500" />
+            <div class="feature-icon feature-icon-info mb-4 flex h-16 w-16 items-center justify-center rounded-xl">
+              <Icon name="clock" size="xl" class="text-current" />
             </div>
             <p class="text-sm text-gray-500 dark:text-dark-400">
               {{ t('redeem.historyWillAppear') }}
@@ -329,7 +309,7 @@ import { useSubscriptionStore } from '@/stores/subscriptions'
 import { redeemAPI, authAPI, type RedeemHistoryItem } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, formatDualDisplayAmount } from '@/utils/format'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -337,6 +317,9 @@ const appStore = useAppStore()
 const subscriptionStore = useSubscriptionStore()
 
 const user = computed(() => authStore.user)
+const redeemBalanceDisplay = computed(() =>
+  formatDualDisplayAmount(user.value?.balance || 0, { currencySymbol: '$' })
+)
 
 const redeemCode = ref('')
 const submitting = ref(false)
@@ -434,7 +417,7 @@ const getIconName = (item: RedeemHistoryItem) => {
 }
 
 const getIconBg = (item: RedeemHistoryItem) => {
-  if (isBlindboxInvitationCode(item)) return 'bg-indigo-100 dark:bg-indigo-900/30'
+  if (isBlindboxInvitationCode(item)) return 'bg-violet-100 dark:bg-violet-900/30'
   if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'bg-amber-100 dark:bg-amber-900/30'
   if (item.type === 'registration') return 'bg-sky-100 dark:bg-sky-900/30'
   if (item.type === 'invitation') return 'bg-rose-100 dark:bg-rose-900/30'
@@ -443,17 +426,17 @@ const getIconBg = (item: RedeemHistoryItem) => {
       ? 'bg-emerald-100 dark:bg-emerald-900/30'
       : 'bg-red-100 dark:bg-red-900/30'
   }
-  if (isSubscriptionType(item.type)) return 'bg-purple-100 dark:bg-purple-900/30'
+  if (isSubscriptionType(item.type)) return 'bg-sky-100 dark:bg-sky-900/30'
   return item.value >= 0
-    ? 'bg-blue-100 dark:bg-blue-900/30'
-    : 'bg-orange-100 dark:bg-orange-900/30'
+    ? 'bg-emerald-100 dark:bg-emerald-900/30'
+    : 'bg-amber-100 dark:bg-amber-900/30'
 }
 
 const getIconColor = (item: RedeemHistoryItem) => {
-  if (isBlindboxInvitationCode(item)) return 'text-indigo-600 dark:text-indigo-400'
+  if (isBlindboxInvitationCode(item)) return 'text-violet-600 dark:text-violet-400'
   if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'text-amber-600 dark:text-amber-400'
   if (item.type === 'registration') return 'text-sky-600 dark:text-sky-400'
-  if (item.type === 'invitation') return 'text-rose-600 dark:text-rose-400'
+  if (item.type === 'invitation') return 'text-sky-600 dark:text-sky-400'
   if (isBalanceType(item.type)) {
     return item.value >= 0
       ? 'text-emerald-600 dark:text-emerald-400'
@@ -461,17 +444,17 @@ const getIconColor = (item: RedeemHistoryItem) => {
   }
   if (isSubscriptionType(item.type)) return 'text-purple-600 dark:text-purple-400'
   return item.value >= 0
-    ? 'text-blue-600 dark:text-blue-400'
-    : 'text-orange-600 dark:text-orange-400'
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : 'text-amber-600 dark:text-amber-400'
 }
 
 const getValueColor = (item: RedeemHistoryItem) => {
-  if (isBlindboxInvitationCode(item)) return 'text-indigo-600 dark:text-indigo-400'
-  if (isBlindboxConcurrency(item)) return 'text-blue-600 dark:text-blue-400'
+  if (isBlindboxInvitationCode(item)) return 'text-violet-600 dark:text-violet-400'
+  if (isBlindboxConcurrency(item)) return 'text-sky-600 dark:text-sky-400'
   if (isBlindboxSubscription(item)) return 'text-purple-600 dark:text-purple-400'
   if (item.type === 'checkin' || item.type === 'checkin_luck' || item.type === 'checkin_blindbox') return 'text-amber-600 dark:text-amber-400'
   if (item.type === 'registration') return 'text-sky-600 dark:text-sky-400'
-  if (item.type === 'invitation') return 'text-rose-600 dark:text-rose-400'
+  if (item.type === 'invitation') return 'text-sky-600 dark:text-sky-400'
   if (isBalanceType(item.type)) {
     return item.value >= 0
       ? 'text-emerald-600 dark:text-emerald-400'
@@ -479,8 +462,8 @@ const getValueColor = (item: RedeemHistoryItem) => {
   }
   if (isSubscriptionType(item.type)) return 'text-purple-600 dark:text-purple-400'
   return item.value >= 0
-    ? 'text-blue-600 dark:text-blue-400'
-    : 'text-orange-600 dark:text-orange-400'
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : 'text-amber-600 dark:text-amber-400'
 }
 
 const getHistoryItemTitle = (item: RedeemHistoryItem) => {

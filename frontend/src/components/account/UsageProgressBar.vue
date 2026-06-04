@@ -35,7 +35,7 @@
       </span>
 
       <!-- Progress bar container -->
-      <div class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+      <div class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-[var(--muted)]">
         <div
           :class="['h-full transition-all duration-300', barClass]"
           :style="{ width: barWidth }"
@@ -110,11 +110,11 @@ const labelClass = computed(() => {
 // Progress bar color based on utilization
 const barClass = computed(() => {
   if (props.utilization >= 100) {
-    return 'bg-red-500'
+    return 'bg-[var(--destructive)]'
   } else if (props.utilization >= 80) {
-    return 'bg-amber-500'
+    return 'bg-[var(--warning)]'
   } else {
-    return 'bg-green-500'
+    return 'bg-[var(--success)]'
   }
 })
 

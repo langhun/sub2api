@@ -11,23 +11,28 @@
     <template v-else-if="success">
       <div class="card p-6">
         <div class="flex flex-col items-center space-y-4 py-4">
-          <div class="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <Icon name="check" size="lg" class="text-green-500" />
+          <div class="feature-icon feature-icon-success flex h-16 w-16 items-center justify-center rounded-xl">
+            <Icon name="check" size="lg" class="text-[var(--success)]" />
           </div>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">{{ t('payment.result.success') }}</p>
-          <div class="w-full rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
+          <p class="text-lg font-bold text-gray-900 dark:text-[var(--foreground)]">{{ t('payment.result.success') }}</p>
+          <div class="feature-panel-success w-full rounded-xl border p-4">
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">#{{ orderId }}</span>
+                <span class="font-medium text-gray-900 dark:text-[var(--foreground)]">#{{ orderId }}</span>
               </div>
               <div v-if="amount > 0" class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ orderType === 'balance' ? '$' : '¥' }}{{ amount.toFixed(2) }}</span>
+                <span
+                  class="font-medium text-gray-900 dark:text-[var(--foreground)]"
+                  :title="orderType === 'balance' ? formatBalanceTitle(amount) : undefined"
+                >
+                  {{ orderType === 'balance' ? formatBalanceDisplay(amount) : formatGatewayAmount(amount) }}
+                </span>
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">¥{{ payAmount.toFixed(2) }}</span>
+                <span class="font-medium text-gray-900 dark:text-[var(--foreground)]">{{ formatGatewayAmount(payAmount) }}</span>
               </div>
             </div>
           </div>
@@ -37,10 +42,10 @@
     </template>
     <template v-else>
       <!-- Amount -->
-      <div class="card overflow-hidden">
-        <div class="bg-gradient-to-br from-[#635bff] to-[#4f46e5] px-6 py-5 text-center">
-          <p class="text-sm font-medium text-indigo-200">{{ t('payment.actualPay') }}</p>
-          <p class="mt-1 text-3xl font-bold text-white">¥{{ payAmount.toFixed(2) }}</p>
+      <div class="card feature-panel-info overflow-hidden">
+        <div class="px-6 py-5 text-center">
+          <p class="text-sm font-medium text-[var(--muted-foreground)]">{{ t('payment.actualPay') }}</p>
+          <p class="mt-1 text-3xl font-bold text-[var(--foreground)]">{{ formatGatewayAmount(payAmount) }}</p>
         </div>
       </div>
       <!-- Stripe Payment Element -->
@@ -64,13 +69,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { paymentAPI } from '@/api/payment'
 import { useAppStore } from '@/stores'
 import { getPaymentPopupFeatures } from '@/components/payment/providerConfig'
+import { formatPaymentAmount } from '@/components/payment/currency'
+import { formatDualDisplayAmount } from '@/utils/format'
 import type { Stripe, StripeElements } from '@stripe/stripe-js'
 import Icon from '@/components/icons/Icon.vue'
 
@@ -88,7 +95,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ success: []; done: []; back: []; redirect: [orderId: number, payUrl: string] }>()
 
-const { t } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
 const router = useRouter()
 const appStore = useAppStore()
 
@@ -102,8 +110,29 @@ const success = ref(false)
 const ready = ref(false)
 const selectedType = ref('')
 
+const localeCode = computed(() => {
+  const raw = i18n.locale as unknown
+  if (typeof raw === 'string') return raw
+  if (raw && typeof raw === 'object' && 'value' in raw) {
+    return String((raw as { value?: string }).value || '')
+  }
+  return undefined
+})
+
 let stripeInstance: Stripe | null = null
 let elementsInstance: StripeElements | null = null
+
+function formatGatewayAmount(value: number): string {
+  return formatPaymentAmount(value, 'CNY', localeCode.value)
+}
+
+function formatBalanceDisplay(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).display
+}
+
+function formatBalanceTitle(value: number): string {
+  return formatDualDisplayAmount(value, { currencySymbol: '$' }).full
+}
 
 onMounted(async () => {
   try {

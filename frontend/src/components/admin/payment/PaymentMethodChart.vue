@@ -13,7 +13,7 @@
       <div v-for="method in methods" :key="method.type" class="space-y-1">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span :class="['inline-block h-3 w-3 rounded-full', colorMap[method.type] || 'bg-gray-400']"></span>
+            <span :class="['inline-block h-3 w-3 rounded-full', colorMap[method.type] || 'bg-slate-400']"></span>
             <span class="text-sm text-gray-700 dark:text-gray-300">
               {{ t('payment.methods.' + method.type, method.type) }}
             </span>
@@ -27,9 +27,9 @@
             </span>
           </div>
         </div>
-        <div class="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700">
+        <div class="h-2 w-full overflow-hidden rounded-full border border-[var(--border)] bg-[var(--muted)]">
           <div
-            :class="['h-full rounded-full transition-all', barColorMap[method.type] || 'bg-gray-400']"
+            :class="['h-full rounded-full transition-all', barColorMap[method.type] || 'bg-slate-400']"
             :style="{ width: barWidth(method.amount) + '%' }"
           ></div>
         </div>
@@ -49,19 +49,19 @@ const props = defineProps<{
 }>()
 
 const colorMap: Record<string, string> = {
-  alipay: 'bg-blue-500',
-  wxpay: 'bg-green-500',
-  alipay_direct: 'bg-blue-400',
-  wxpay_direct: 'bg-green-400',
-  stripe: 'bg-purple-500',
+  alipay: 'bg-[var(--info)]',
+  wxpay: 'bg-[var(--success)]',
+  alipay_direct: 'bg-[var(--info)]',
+  wxpay_direct: 'bg-[var(--success)]',
+  stripe: 'bg-[var(--neutral)]',
 }
 
 const barColorMap: Record<string, string> = {
-  alipay: 'bg-blue-500',
-  wxpay: 'bg-green-500',
-  alipay_direct: 'bg-blue-400',
-  wxpay_direct: 'bg-green-400',
-  stripe: 'bg-purple-500',
+  alipay: 'bg-[var(--info)]',
+  wxpay: 'bg-[var(--success)]',
+  alipay_direct: 'bg-[var(--info)]',
+  wxpay_direct: 'bg-[var(--success)]',
+  stripe: 'bg-[var(--neutral)]',
 }
 
 const maxAmount = computed(() => {

@@ -237,7 +237,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-dark-800 dark:ring-dark-700">
+  <div class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-dark-800 dark:ring-dark-700">
     <div class="mb-4 flex items-start justify-between gap-4">
       <div>
         <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ t('admin.ops.runtime.title') }}</h3>
@@ -261,7 +261,7 @@ onMounted(() => {
     </div>
 
     <div v-else class="space-y-6">
-      <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-700/50">
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
         <div class="mb-3 flex items-center justify-between">
           <h4 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.ops.runtime.alertTitle') }}</h4>
           <button class="btn btn-sm btn-secondary" @click="openAlertEditor">{{ t('common.edit') }}</button>
@@ -280,10 +280,10 @@ onMounted(() => {
           </div>
 
           <details class="col-span-1 md:col-span-2">
-            <summary class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400">
+            <summary class="cursor-pointer text-xs font-medium text-gray-700 hover:text-gray-700 dark:text-gray-300">
               {{ t('admin.ops.runtime.showAdvancedDeveloperSettings') }}
             </summary>
-            <div class="mt-2 grid grid-cols-1 gap-3 rounded-lg bg-gray-100 p-3 dark:bg-dark-800 md:grid-cols-2">
+            <div class="mt-2 grid grid-cols-1 gap-3 rounded-lg bg-[var(--muted)] p-3 md:grid-cols-2">
               <div class="text-xs text-gray-500 dark:text-gray-400">
                 {{ t('admin.ops.runtime.lockEnabled') }}:
                 <span class="ml-1 font-mono text-gray-700 dark:text-gray-300">{{ alertSettings.distributed_lock.enabled }}</span>
@@ -307,7 +307,7 @@ onMounted(() => {
     <div v-if="draftAlert" class="space-y-4">
       <div
         v-if="!alertValidation.valid"
-        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200"
+        class="rounded-lg border border-[var(--border)] bg-[var(--card)] p-3 text-xs text-amber-800 dark:text-amber-200"
       >
         <div class="font-bold">{{ t('admin.ops.runtime.validation.title') }}</div>
         <ul class="mt-1 list-disc space-y-1 pl-4">
@@ -328,7 +328,7 @@ onMounted(() => {
         <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.runtime.evalIntervalHint') }}</p>
       </div>
 
-      <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-700/50">
+      <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-700/50">
         <div class="mb-2 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.ops.runtime.metricThresholds') }}</div>
         <p class="mb-4 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.runtime.metricThresholdsHint') }}</p>
 
@@ -392,11 +392,11 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-700/50">
+      <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-700/50">
         <div class="mb-2 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.ops.runtime.silencing.title') }}</div>
 
         <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-          <input v-model="draftAlert.silencing.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300" />
+          <input v-model="draftAlert.silencing.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]" />
           <span>{{ t('admin.ops.runtime.silencing.enabled') }}</span>
         </label>
 
@@ -504,7 +504,7 @@ onMounted(() => {
         <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label class="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
-              <input v-model="draftAlert.distributed_lock.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300" />
+              <input v-model="draftAlert.distributed_lock.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-[var(--foreground)] focus:ring-[var(--ring)]" />
               <span>{{ t('admin.ops.runtime.lockEnabled') }}</span>
             </label>
           </div>
@@ -526,11 +526,10 @@ onMounted(() => {
     <template #footer>
       <div class="flex justify-end gap-2">
         <button class="btn btn-secondary" @click="showAlertEditor = false">{{ t('common.cancel') }}</button>
-        <button class="btn btn-primary" :disabled="saving || !alertValidation.valid" @click="saveAlertSettings">
+        <button class="btn btn-secondary" :disabled="saving || !alertValidation.valid" @click="saveAlertSettings">
           {{ saving ? t('common.saving') : t('common.save') }}
         </button>
       </div>
     </template>
   </BaseDialog>
 </template>
-

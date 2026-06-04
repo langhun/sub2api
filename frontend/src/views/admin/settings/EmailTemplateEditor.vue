@@ -30,7 +30,7 @@
         </button>
         <button
           type="button"
-          class="btn btn-primary btn-sm"
+          class="btn btn-secondary btn-sm"
           :disabled="loadingTemplate || saving || !canSave"
           @click="saveTemplate"
         >
@@ -45,7 +45,7 @@
         class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"
       >
         <span
-          class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-600"
+          class="h-4 w-4 animate-spin rounded-full border-b-2 border-gray-200"
         ></span>
         {{ t("common.loading") }}
       </div>
@@ -146,7 +146,7 @@
                   v-for="placeholder in placeholderList"
                   :key="placeholder"
                   type="button"
-                  class="rounded-full border border-gray-200 bg-white px-3 py-1 font-mono text-xs text-gray-700 transition-colors hover:border-primary-300 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-200 dark:hover:border-primary-500 dark:hover:text-primary-300"
+                  class="rounded-full border border-gray-200 bg-white px-3 py-1 font-mono text-xs text-gray-700 transition-colors hover:border-gray-200 hover:text-gray-700 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-200 dark:hover:border-gray-200 dark:hover:text-gray-700"
                   @click="copyPlaceholder(placeholder)"
                 >
                   {{ placeholder }}
@@ -172,7 +172,7 @@
                 </div>
                 <span
                   v-if="isCustomTemplate"
-                  class="rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                  class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300"
                 >
                   {{ t("admin.settings.emailTemplates.customized") }}
                 </span>
