@@ -635,6 +635,13 @@ func NewSettingService(settingRepo SettingRepository, cfg *config.Config) *Setti
 	}
 }
 
+func (s *SettingService) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	if s == nil || s.settingRepo == nil {
+		return map[string]string{}, nil
+	}
+	return s.settingRepo.GetMultiple(ctx, keys)
+}
+
 // SetDefaultSubscriptionGroupReader injects an optional group reader for default subscription validation.
 func (s *SettingService) SetDefaultSubscriptionGroupReader(reader DefaultSubscriptionGroupReader) {
 	s.defaultSubGroupReader = reader
@@ -738,6 +745,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeyGameHallEnabled,
 		SettingKeyTransferEnabled,
 		SettingKeyRedPacketEnabled,
 		SettingKeyAffiliateEnabled,
@@ -865,6 +873,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
+		GameHallEnabled:          settings[SettingKeyGameHallEnabled] == "true",
 		TransferEnabled:          settings[SettingKeyTransferEnabled] == "true",
 		RedPacketEnabled:         settings[SettingKeyRedPacketEnabled] == "true",
 
@@ -1180,6 +1189,7 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
+	GameHallEnabled                      bool `json:"game_hall_enabled"`
 	TransferEnabled                      bool `json:"transfer_enabled"`
 	RedPacketEnabled                     bool `json:"redpacket_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
@@ -1253,6 +1263,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		GameHallEnabled:                      settings.GameHallEnabled,
 		TransferEnabled:                      settings.TransferEnabled,
 		RedPacketEnabled:                     settings.RedPacketEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
@@ -1950,6 +1961,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
+
+	// Entertainment hall feature switch
+	updates[SettingKeyGameHallEnabled] = strconv.FormatBool(settings.GameHallEnabled)
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
@@ -3111,6 +3125,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
+		// Entertainment hall feature (default disabled; opt-in)
+		SettingKeyGameHallEnabled: "false",
+
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
 
@@ -3634,6 +3651,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
+
+	// Entertainment hall feature (default: disabled; strict true)
+	result.GameHallEnabled = settings[SettingKeyGameHallEnabled] == "true"
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"

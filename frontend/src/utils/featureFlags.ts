@@ -104,6 +104,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Available Channels',
   }),
+  gameHall: defineFlag({
+    key: 'game_hall_enabled',
+    mode: 'opt-in',
+    label: 'Game Hall',
+  }),
   transfer: defineFlag({
     key: 'transfer_enabled',
     mode: 'opt-in',

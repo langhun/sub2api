@@ -361,6 +361,7 @@ describe('useAppStore', () => {
         custom_endpoints: [],
         linuxdo_oauth_enabled: false,
         backend_mode_enabled: false,
+        game_hall_enabled: true,
         version: '1.0.0'
       })
 
@@ -375,8 +376,73 @@ describe('useAppStore', () => {
       expect((window as any).__APP_CONFIG__.leaderboard_consumption_enabled).toBe(false)
       expect((window as any).__APP_CONFIG__.leaderboard_transfer_enabled).toBe(true)
       expect((window as any).__APP_CONFIG__.leaderboard_checkin_enabled).toBe(false)
+      expect((window as any).__APP_CONFIG__.game_hall_enabled).toBe(true)
       expect(localStorage.getItem('table-page-size')).toBeNull()
       expect(localStorage.getItem('table-page-size-source')).toBeNull()
+    })
+
+    it('fetchPublicSettings(force) 保留 game_hall_enabled 到 store 缓存', async () => {
+      vi.mocked(getPublicSettings).mockResolvedValue({
+        registration_enabled: false,
+        email_verify_enabled: false,
+        force_email_on_third_party_signup: false,
+        registration_email_suffix_whitelist: [],
+        promo_code_enabled: true,
+        password_reset_enabled: false,
+        invitation_code_enabled: false,
+        turnstile_enabled: false,
+        turnstile_site_key: '',
+        site_name: 'Game Hall Site',
+        site_logo: '',
+        site_subtitle: '',
+        api_base_url: '',
+        contact_info: '',
+        doc_url: '',
+        home_content: '',
+        home_nav_links_enabled: true,
+        home_nav_leaderboard_enabled: true,
+        home_nav_key_usage_enabled: true,
+        home_nav_monitoring_enabled: true,
+        home_nav_pricing_enabled: true,
+        leaderboard_balance_enabled: true,
+        leaderboard_consumption_enabled: true,
+        leaderboard_transfer_enabled: true,
+        leaderboard_checkin_enabled: true,
+        hide_ccs_import_button: false,
+        payment_enabled: false,
+        table_default_page_size: 20,
+        table_page_size_options: [10, 20, 50, 100],
+        custom_menu_items: [],
+        custom_endpoints: [],
+        linuxdo_oauth_enabled: false,
+        wechat_oauth_enabled: false,
+        wechat_oauth_open_enabled: false,
+        wechat_oauth_mp_enabled: false,
+        wechat_oauth_mobile_enabled: false,
+        oidc_oauth_enabled: false,
+        oidc_oauth_provider_name: 'OIDC',
+        github_oauth_enabled: false,
+        google_oauth_enabled: false,
+        backend_mode_enabled: false,
+        version: '1.0.0',
+        balance_low_notify_enabled: false,
+        account_quota_notify_enabled: false,
+        balance_low_notify_threshold: 0,
+        channel_monitor_enabled: true,
+        channel_monitor_default_interval_seconds: 60,
+        available_channels_enabled: false,
+        transfer_enabled: false,
+        redpacket_enabled: false,
+        affiliate_enabled: false,
+        risk_control_enabled: false,
+        game_hall_enabled: true,
+      } as any)
+
+      const store = useAppStore()
+      await store.fetchPublicSettings(true)
+
+      expect(store.cachedPublicSettings?.game_hall_enabled).toBe(true)
+      expect((window as any).__APP_CONFIG__.game_hall_enabled).toBe(true)
     })
 
     it('fetchPublicSettings 并发调用时复用同一个进行中的请求', async () => {
@@ -429,6 +495,7 @@ describe('useAppStore', () => {
         custom_endpoints: [],
         linuxdo_oauth_enabled: false,
         backend_mode_enabled: false,
+        game_hall_enabled: false,
         version: '1.0.1'
       } as any)
 

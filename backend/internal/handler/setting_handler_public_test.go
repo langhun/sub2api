@@ -151,3 +151,31 @@ func TestSettingHandler_GetPublicSettings_ExposesTransferFeatureSwitches(t *test
 	require.True(t, resp.Data.TransferEnabled)
 	require.False(t, resp.Data.RedPacketEnabled)
 }
+
+func TestSettingHandler_GetPublicSettings_ExposesGameHallFeatureSwitch(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := NewSettingHandler(service.NewSettingService(&settingHandlerPublicRepoStub{
+		values: map[string]string{
+			service.SettingKeyGameHallEnabled: "true",
+		},
+	}, &config.Config{}), "test-version")
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/settings/public", nil)
+
+	h.GetPublicSettings(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			GameHallEnabled bool `json:"game_hall_enabled"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.True(t, resp.Data.GameHallEnabled)
+}

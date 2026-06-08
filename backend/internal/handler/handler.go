@@ -64,6 +64,7 @@ type Handlers struct {
 	Leaderboard      *LeaderboardHandler
 	AvailableChannel *AvailableChannelHandler
 	Transfer         *BalanceTransferHandler
+	Game             *GameHandler
 }
 
 // BuildInfo contains build-time information

@@ -674,6 +674,7 @@ const ChevronDownIcon = {
 const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
+const flagGameHall = makeSidebarFlag(FeatureFlags.gameHall)
 const flagTransfer = makeSidebarFlag(FeatureFlags.transfer)
 const flagRedPacket = () => isRedPacketFeatureEnabled()
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
@@ -701,6 +702,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/checkin', label: t('nav.checkin'), icon: StarIcon },
+    { path: '/games', label: t('nav.gameHall'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagGameHall },
     { path: '/transfer', label: t('nav.transfer'), icon: DollarIcon, hideInSimpleMode: true, featureFlag: flagTransfer },
     { path: '/redpacket', label: t('nav.redpacket'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagRedPacket },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },

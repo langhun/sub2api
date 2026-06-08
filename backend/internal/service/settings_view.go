@@ -192,6 +192,9 @@ type SystemSettings struct {
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	// Entertainment hall feature
+	GameHallEnabled bool `json:"game_hall_enabled"`
+
 	// Claude Code version check
 	MinClaudeCodeVersion string
 	MaxClaudeCodeVersion string
@@ -340,6 +343,9 @@ type PublicSettings struct {
 
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	// Entertainment hall feature
+	GameHallEnabled bool `json:"game_hall_enabled"`
 
 	// Balance transfer / red packet feature switches (user-facing entry visibility)
 	TransferEnabled  bool `json:"transfer_enabled"`

@@ -407,6 +407,10 @@ const (
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
 
+	// SettingKeyGameHallEnabled controls whether the entertainment hall entry and
+	// related user-facing APIs are enabled. Defaults to false (opt-in feature).
+	SettingKeyGameHallEnabled = "game_hall_enabled"
+
 	// =========================
 	// Overload Cooldown (529)
 	// =========================

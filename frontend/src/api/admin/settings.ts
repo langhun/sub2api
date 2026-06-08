@@ -654,6 +654,9 @@ export interface SystemSettings {
   // Available Channels feature switch
   available_channels_enabled: boolean;
 
+  // Entertainment hall feature switch
+  game_hall_enabled: boolean;
+
   // Balance Transfer 余额流转设置
   transfer_enabled: boolean;
   transfer_fee_rate: number;
@@ -922,6 +925,9 @@ export interface UpdateSettingsRequest {
 
   // Available Channels feature switch
   available_channels_enabled?: boolean;
+
+  // Entertainment hall feature switch
+  game_hall_enabled?: boolean;
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;

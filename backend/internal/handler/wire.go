@@ -110,6 +110,10 @@ func ProvideSettingHandler(settingService *service.SettingService, buildInfo Bui
 	return h
 }
 
+func ProvideGameHandler(gameService *service.GameHallService) *GameHandler {
+	return NewGameHandler(gameService)
+}
+
 // ProvideAdminSettingHandler creates admin.SettingHandler with notification template APIs.
 func ProvideAdminSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService, userAttributeService *service.UserAttributeService, notificationEmailService *service.NotificationEmailService) *admin.SettingHandler {
 	h := admin.NewSettingHandler(settingService, emailService, turnstileService, opsService, paymentConfigService, paymentService, userAttributeService)
@@ -138,6 +142,7 @@ func ProvideHandlers(
 	leaderboardHandler *LeaderboardHandler,
 	availableChannelHandler *AvailableChannelHandler,
 	transferHandler *BalanceTransferHandler,
+	gameHandler *GameHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -161,6 +166,7 @@ func ProvideHandlers(
 		Leaderboard:      leaderboardHandler,
 		AvailableChannel: availableChannelHandler,
 		Transfer:         transferHandler,
+		Game:             gameHandler,
 	}
 }
 
@@ -185,6 +191,7 @@ var ProviderSet = wire.NewSet(
 	NewLeaderboardHandler,
 	NewAvailableChannelHandler,
 	NewBalanceTransferHandler,
+	ProvideGameHandler,
 
 	// Admin handlers
 	ProvideDashboardHandler,

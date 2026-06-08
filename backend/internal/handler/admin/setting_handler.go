@@ -320,6 +320,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+		GameHallEnabled:          settings.GameHallEnabled,
 
 		TransferEnabled:         settings.TransferEnabled,
 		TransferFeeRate:         settings.TransferFeeRate,
@@ -699,6 +700,9 @@ type UpdateSettingsRequest struct {
 
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
+
+	// Entertainment hall feature switch (user-facing)
+	GameHallEnabled *bool `json:"game_hall_enabled"`
 
 	// Balance Transfer 余额流转设置
 	TransferEnabled         *bool    `json:"transfer_enabled"`
@@ -1907,6 +1911,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
+		GameHallEnabled: func() bool {
+			if req.GameHallEnabled != nil {
+				return *req.GameHallEnabled
+			}
+			return previousSettings.GameHallEnabled
+		}(),
 		TransferEnabled: func() bool {
 			if req.TransferEnabled != nil {
 				return *req.TransferEnabled
@@ -2320,6 +2330,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: updatedSettings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
+		GameHallEnabled:          updatedSettings.GameHallEnabled,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 
@@ -2767,6 +2778,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.AvailableChannelsEnabled != after.AvailableChannelsEnabled {
 		changed = append(changed, "available_channels_enabled")
+	}
+	if before.GameHallEnabled != after.GameHallEnabled {
+		changed = append(changed, "game_hall_enabled")
 	}
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")

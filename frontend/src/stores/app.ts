@@ -391,6 +391,7 @@ export const useAppStore = defineStore('app', () => {
         channel_monitor_enabled: true,
         channel_monitor_default_interval_seconds: 60,
         available_channels_enabled: false,
+        game_hall_enabled: false,
         transfer_enabled: false,
         redpacket_enabled: false,
         risk_control_enabled: false,

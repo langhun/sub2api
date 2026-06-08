@@ -359,6 +359,7 @@ export default {
     "apiKeys": "API 密钥",
     "usage": "使用记录",
     "redeem": "兑换充值",
+    "gameHall": "娱乐大厅",
     "affiliate": "邀请返利",
     "affiliateManagement": "邀请返利",
     "affiliateInviteRecords": "邀请记录",

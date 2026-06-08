@@ -467,6 +467,10 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	return svc
 }
 
+func ProvideGameHallService(store GameHallStore, settingService *SettingService) *GameHallService {
+	return NewGameHallService(store, settingService)
+}
+
 func ProvideAutoFailoverProxyPoolService(
 	proxyRepo ProxyRepository,
 	accountRepo AccountRepository,
@@ -684,6 +688,7 @@ var ProviderSet = wire.NewSet(
 	NewAccountUsageService,
 	NewAccountTestService,
 	ProvideSettingService,
+	ProvideGameHallService,
 	ProvideAutoFailoverProxyPoolService,
 	ProvideProxySubscriptionService,
 	ProvideProxySubscriptionRefreshService,

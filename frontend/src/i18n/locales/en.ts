@@ -379,6 +379,7 @@
     apiKeys: 'API Keys',
     usage: 'Usage',
     redeem: 'Redeem',
+    gameHall: 'Game Hall',
     affiliate: 'Affiliate Rebates',
     affiliateManagement: 'Affiliate Rebates',
     affiliateInviteRecords: 'Invite Records',

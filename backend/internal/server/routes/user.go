@@ -150,5 +150,12 @@ func RegisterUserRoutes(
 			redpacket.GET("/:id", h.Transfer.GetRedPacketDetail)
 			redpacket.GET("/my", h.Transfer.GetMyRedPackets)
 		}
+
+		games := authenticated.Group("/games")
+		{
+			games.GET("/hall", h.Game.GetHallStatus)
+			games.POST("/exchange", h.Game.Exchange)
+			games.POST("/play", h.Game.Play)
+		}
 	}
 }

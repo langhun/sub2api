@@ -5221,6 +5221,13 @@
               </div>
               <div class="flex items-center justify-between gap-4">
                 <div>
+                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">娱乐大厅</label>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">控制 DG 钱包、娱乐大厅首页和老虎机入口。</p>
+                </div>
+                <Toggle v-model="form.game_hall_enabled" />
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <div>
                   <label class="text-sm font-medium text-gray-700 dark:text-gray-300">余额转账</label>
                   <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">允许用户之间进行余额转账。</p>
                 </div>
@@ -7341,6 +7348,7 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   // Available Channels feature switch
   available_channels_enabled: false,
+  game_hall_enabled: false,
   transfer_enabled: false,
   transfer_fee_rate: 0,
   transfer_min_amount: 0.01,
@@ -8486,6 +8494,7 @@ async function saveSettings() {
         Number(form.channel_monitor_default_interval_seconds) || 60,
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
+      game_hall_enabled: form.game_hall_enabled,
       checkin_enabled: form.checkin_enabled,
       checkin_min_balance: Number(form.checkin_min_balance) || 0,
       checkin_max_balance: Number(form.checkin_max_balance) || 0,
