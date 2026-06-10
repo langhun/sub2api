@@ -518,7 +518,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
 
-		return s.sendErrorAndEnd(c, errMsg)
+		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, errMsg)
 	}
 
 	// Process SSE stream
@@ -582,7 +582,7 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 		if resp.StatusCode == http.StatusForbidden {
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
-		return s.sendErrorAndEnd(c, errMsg)
+		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, errMsg)
 	}
 
 	return s.processClaudeStream(c, account, resp.Body)
@@ -897,7 +897,7 @@ func (s *AccountTestService) testOpenAIChatCompletionsConnection(
 			errMsg := fmt.Sprintf("Chat Completions authentication failed (401): %s", string(body))
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Chat Completions API (/v1/chat/completions) returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("Chat Completions API (/v1/chat/completions) returned %d: %s", resp.StatusCode, string(body)))
 	}
 
 	return s.processOpenAIChatCompletionsStream(c, account, resp.Body)
@@ -999,7 +999,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
 	// Process SSE stream
@@ -1577,7 +1577,7 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
 	}
 
 	// Parse {"data": [{"b64_json": "...", "revised_prompt": "..."}]}
@@ -1680,7 +1680,7 @@ func (s *AccountTestService) testOpenAIImageOAuth(c *gin.Context, ctx context.Co
 		if message == "" {
 			message = fmt.Sprintf("Responses API returned %d", resp.StatusCode)
 		}
-		return s.sendErrorAndEnd(c, message)
+		return s.sendHTTPErrorAndEnd(c, resp.StatusCode, message)
 	}
 
 	return s.processOpenAIImageStream(c, account, resp.Body)

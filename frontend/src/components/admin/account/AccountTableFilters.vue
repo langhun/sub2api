@@ -1,58 +1,40 @@
 <template>
-  <div class="w-full space-y-1.5 sm:space-y-2">
-    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+  <div class="w-full rounded-[16px] border border-white/75 bg-[linear-gradient(135deg,rgba(255,255,255,0.94),rgba(239,250,250,0.98))] px-2 py-1 shadow-[0_6px_16px_rgba(15,118,110,0.045)] backdrop-blur sm:px-2.5">
+    <div class="flex flex-col gap-1">
+      <div class="flex flex-wrap items-center gap-1">
+        <div class="flex min-w-0 items-center gap-1.5">
+          <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-teal-500/10 text-teal-700 dark:bg-teal-400/15 dark:text-teal-200">
+            <Icon name="filter" size="sm" />
+          </div>
+          <div class="min-w-0">
+            <div class="text-[12px] font-semibold text-gray-900 dark:text-white">筛选条件</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-1 md:grid-cols-2 xl:grid-cols-5">
       <SearchInput
         :model-value="searchQuery"
         :placeholder="t('admin.accounts.searchAccounts')"
-        class="min-w-0 w-full sm:w-44 lg:w-48 xl:w-56 2xl:w-64"
+        class="min-w-0 w-full md:col-span-2 xl:col-span-1 2xl:col-span-1"
         @update:model-value="$emit('update:searchQuery', $event)"
         @search="$emit('change')"
       />
-      <Select :model-value="filters.platform" class="w-32 sm:w-36" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
-      <Select :model-value="filters.main_status" class="w-36 sm:w-40" :options="mainStatusOpts" @update:model-value="updateMainStatus" @change="$emit('change')" />
-      <Select :model-value="filters.runtime_status" class="w-40 sm:w-44" :options="runtimeStatusOpts" @update:model-value="updateRuntimeStatus" @change="$emit('change')" />
-      <button
-        type="button"
-        data-testid="account-more-filters-toggle"
-        class="btn btn-secondary btn-sm shrink-0 gap-1.5 px-2.5 text-xs"
-        @click="showAdvancedFilters = !showAdvancedFilters"
-      >
-        <Icon name="filter" size="sm" />
-        <span>{{ showAdvancedFilters ? t('admin.accounts.hideAdvancedFilters') : t('admin.accounts.moreFilters') }}</span>
-        <span
-          v-if="advancedFilterCount > 0"
-          class="inline-flex min-w-5 items-center justify-center rounded-full bg-primary-50 px-1.5 py-0.5 text-[11px] font-semibold text-primary-600 dark:bg-primary-500/15 dark:text-primary-300"
-        >
-          {{ advancedFilterCount }}
-        </span>
-        <Icon
-          name="chevronDown"
-          size="sm"
-          :class="['transition-transform duration-200', showAdvancedFilters ? 'rotate-180' : '']"
-        />
-      </button>
-      <button
-        type="button"
-        data-testid="account-status-guide-button"
-        class="btn btn-secondary btn-sm shrink-0 gap-1.5 px-2 text-xs text-gray-600 dark:text-gray-300"
-        @click="$emit('status-guide')"
-      >
-        <Icon name="questionCircle" size="sm" />
-        <span class="hidden 2xl:inline">{{ t('admin.accounts.statusGuide.shortAction') }}</span>
-      </button>
-    </div>
-    <div v-if="showAdvancedFilters" class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-      <Select :model-value="filters.group" class="w-32 sm:w-36" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
-      <Select :model-value="filters.tier" class="w-36 sm:w-40" :options="tierOpts" @update:model-value="updateTier" @change="$emit('change')" />
-      <Select :model-value="filters.type" class="w-32 sm:w-36" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
-      <Select :model-value="filters.scheduling_status" class="w-40 sm:w-44" :options="schedulingStatusOpts" @update:model-value="updateSchedulingStatus" @change="$emit('change')" />
-      <Select :model-value="filters.privacy_mode" class="w-32 sm:w-36" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
+      <Select :model-value="filters.platform" class="w-full" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
+      <Select :model-value="filters.main_status" class="w-full" :options="mainStatusOpts" @update:model-value="updateMainStatus" @change="$emit('change')" />
+      <Select :model-value="filters.runtime_status" class="w-full" :options="runtimeStatusOpts" @update:model-value="updateRuntimeStatus" @change="$emit('change')" />
+      <Select :model-value="filters.group" class="w-full" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
+      <Select :model-value="filters.tier" class="w-full" :options="tierOpts" @update:model-value="updateTier" @change="$emit('change')" />
+      <Select :model-value="filters.type" class="w-full" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
+      <Select :model-value="filters.scheduling_status" class="w-full" :options="schedulingStatusOpts" @update:model-value="updateSchedulingStatus" @change="$emit('change')" />
+      <Select :model-value="filters.privacy_mode" class="w-full" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select from '@/components/common/Select.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
@@ -102,25 +84,7 @@ const tierGroupLabels: Record<string, string> = {
   antigravity: 'Antigravity'
 }
 
-const showAdvancedFilters = ref(false)
-
 const toFilterValue = (value: string | number | boolean | null) => String(value ?? '')
-
-const advancedFilterCount = computed(() => (
-  [
-    props.filters.group,
-    props.filters.tier,
-    props.filters.type,
-    props.filters.scheduling_status,
-    props.filters.privacy_mode
-  ].filter((value) => toFilterValue(value).trim() !== '').length
-))
-
-watch(advancedFilterCount, (count) => {
-  if (count > 0) {
-    showAdvancedFilters.value = true
-  }
-}, { immediate: true })
 
 const tierPlatform = (tier: string) => {
   const [platform] = tier.split(':', 1)

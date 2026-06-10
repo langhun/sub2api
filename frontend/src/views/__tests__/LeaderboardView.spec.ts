@@ -27,18 +27,31 @@ vi.mock('@/api/leaderboard', () => ({
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, string> = {
-    'common.loading': '加载中',
-    'leaderboard.title': '排行榜',
-    'leaderboard.subtitle': '看看谁是活跃之星',
-    'leaderboard.tabs.balance': '余额排行',
-    'leaderboard.tabs.consumption': '消耗排行',
-    'leaderboard.tabs.transfer': '转账排行',
-    'leaderboard.tabs.checkin': '签到排行',
-    'leaderboard.tabsDisabled': '排行榜标签已关闭',
-    'leaderboard.empty': '暂无数据',
-    'leaderboard.periods.daily': '日',
-    'leaderboard.periods.weekly': '周',
-    'leaderboard.periods.monthly': '月',
+    'common.loading': 'Loading',
+    'leaderboard.title': 'Leaderboard',
+    'leaderboard.subtitle': 'Top users',
+    'leaderboard.tabs.balance': 'Balance',
+    'leaderboard.tabs.consumption': 'Consumption',
+    'leaderboard.tabs.transfer': 'Transfer',
+    'leaderboard.tabs.checkin': 'Check-in',
+    'leaderboard.tabsDisabled': 'Tabs disabled',
+    'leaderboard.empty': 'No data',
+    'leaderboard.periods.daily': 'Day',
+    'leaderboard.periods.weekly': 'Week',
+    'leaderboard.periods.monthly': 'Month',
+    'leaderboard.balanceChartTitle': 'Balance Distribution',
+    'leaderboard.balanceChartSubtitle': 'Balance subtitle',
+    'leaderboard.consumptionChartTitle': 'Consumption Distribution',
+    'leaderboard.consumptionChartSubtitle': 'Consumption subtitle',
+    'leaderboard.checkinChartTitle': 'Check-in Distribution',
+    'leaderboard.checkinChartSubtitle': 'Check-in subtitle',
+    'leaderboard.amount': 'Amount',
+    'leaderboard.requests': 'Requests',
+    'leaderboard.checkins': 'Check-ins',
+    'leaderboard.totalCheckins': 'Total Check-ins',
+    'leaderboard.streak': 'Streak',
+    'leaderboard.hoverHint': 'Hover amount',
+    'leaderboard.checkinHoverHint': 'Hover streak',
   }
   return {
     ...actual,
@@ -71,11 +84,12 @@ function mountView(settings: Record<string, boolean>) {
   return mount(LeaderboardView, {
     global: {
       stubs: {
-        PublicPageHeader: { template: '<header />' },
-        PublicPageFooter: { template: '<footer />' },
-        PublicConsumptionLeaderboardChart: {
-          props: ['chartItems', 'summary', 'entries'],
-          template: '<div class="consumption-chart-stub">{{ chartItems.length }}|{{ summary?.total_value }}|{{ entries.length }}</div>',
+        AppLayout: {
+          template: '<div class="app-layout-stub"><h1>Leaderboard</h1><p>Top users</p><slot /></div>',
+        },
+        PublicLeaderboardChart: {
+          props: ['chartItems', 'summary', 'entries', 'title', 'subtitle', 'valueLabel', 'metricLabel', 'hoverHint', 'valueType', 'subtitleType'],
+          template: '<div class="leaderboard-chart-stub">{{ subtitleType }}|{{ chartItems.length }}|{{ summary?.total_value }}|{{ entries.length }}|{{ title }}</div>',
         },
       },
     },
@@ -97,7 +111,23 @@ describe('LeaderboardView tab switches', () => {
     getCheckinLeaderboard.mockReset().mockResolvedValue(emptyLeaderboard())
   })
 
-  it('按独立开关只显示启用的排行榜标签', async () => {
+  it('uses the layout heading without rendering a duplicate page title', async () => {
+    const wrapper = mountView({
+      leaderboard_balance_enabled: true,
+      leaderboard_consumption_enabled: false,
+      leaderboard_transfer_enabled: false,
+      leaderboard_checkin_enabled: false,
+    })
+
+    await settleLeaderboard()
+
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Leaderboard'])
+    expect((wrapper.text().match(/Top users/g) ?? []).length).toBe(1)
+    expect(wrapper.get('[data-testid="leaderboard-page-shell"]').classes()).toContain('leaderboard-page-shell')
+    expect(wrapper.findAll('.leaderboard-page-shell__glow')).toHaveLength(2)
+  })
+
+  it('shows only enabled public leaderboard tabs', async () => {
     const wrapper = mountView({
       leaderboard_balance_enabled: false,
       leaderboard_consumption_enabled: true,
@@ -107,15 +137,41 @@ describe('LeaderboardView tab switches', () => {
 
     await settleLeaderboard()
 
-    expect(wrapper.text()).not.toContain('余额排行')
-    expect(wrapper.text()).toContain('消耗排行')
-    expect(wrapper.text()).not.toContain('转账排行')
-    expect(wrapper.text()).toContain('签到排行')
-    expect(getBalanceLeaderboard).not.toHaveBeenCalled()
-    expect(getConsumptionLeaderboard).toHaveBeenCalledWith('daily', 1, 20)
+    expect(wrapper.text()).not.toContain('Balance')
+    expect(wrapper.text()).toContain('Consumption')
+    expect(wrapper.text()).not.toContain('Transfer')
+    expect(wrapper.text()).toContain('Check-in')
   })
 
-  it('公开排行榜即使开启 transfer 开关也不会显示转账标签或请求 transfer 接口', async () => {
+  it('uses a clearly distinguishable active style for the selected leaderboard tab', async () => {
+    const wrapper = mountView({
+      leaderboard_balance_enabled: true,
+      leaderboard_consumption_enabled: true,
+      leaderboard_transfer_enabled: false,
+      leaderboard_checkin_enabled: false,
+    })
+
+    await settleLeaderboard()
+
+    const buttons = wrapper.findAll('button')
+    const balanceButton = buttons.find((button) => button.text() === 'Balance')
+    const consumptionButton = buttons.find((button) => button.text() === 'Consumption')
+
+    expect(balanceButton).toBeTruthy()
+    expect(consumptionButton).toBeTruthy()
+    expect(balanceButton!.classes()).toContain('rounded-full')
+    expect(balanceButton!.classes()).toContain('bg-primary-600')
+    expect(balanceButton!.classes()).toContain('text-white')
+    expect(consumptionButton!.classes()).toContain('border-transparent')
+
+    await consumptionButton!.trigger('click')
+
+    expect(consumptionButton!.classes()).toContain('rounded-full')
+    expect(consumptionButton!.classes()).toContain('bg-primary-600')
+    expect(consumptionButton!.classes()).toContain('text-white')
+  })
+
+  it('does not show transfer tab or call transfer endpoint', async () => {
     const wrapper = mountView({
       leaderboard_balance_enabled: false,
       leaderboard_consumption_enabled: false,
@@ -125,14 +181,14 @@ describe('LeaderboardView tab switches', () => {
 
     await settleLeaderboard()
 
-    expect(wrapper.text()).toContain('排行榜标签已关闭')
-    expect(wrapper.text()).not.toContain('转账排行')
+    expect(wrapper.text()).toContain('Tabs disabled')
+    expect(wrapper.text()).not.toContain('Transfer')
     expect(getBalanceLeaderboard).not.toHaveBeenCalled()
     expect(getConsumptionLeaderboard).not.toHaveBeenCalled()
     expect(getCheckinLeaderboard).not.toHaveBeenCalled()
   })
 
-  it('三个公开标签全关时不请求排行榜接口', async () => {
+  it('does not request leaderboard data when all public tabs are disabled', async () => {
     const wrapper = mountView({
       leaderboard_balance_enabled: false,
       leaderboard_consumption_enabled: false,
@@ -142,21 +198,40 @@ describe('LeaderboardView tab switches', () => {
 
     await settleLeaderboard()
 
-    expect(wrapper.text()).toContain('排行榜标签已关闭')
+    expect(wrapper.text()).toContain('Tabs disabled')
     expect(getBalanceLeaderboard).not.toHaveBeenCalled()
     expect(getConsumptionLeaderboard).not.toHaveBeenCalled()
     expect(getCheckinLeaderboard).not.toHaveBeenCalled()
   })
 
-  it('消费榜图表使用全量 chart_items，列表显示金额占比', async () => {
+  it('uses chart component for balance leaderboard', async () => {
+    getBalanceLeaderboard.mockResolvedValueOnce({
+      items: [
+        { rank: 1, username: 'Alpha', value: 70, extra_int: 5 },
+        { rank: 2, username: 'Beta', value: 30, extra_int: 4 },
+      ],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+
+    const wrapper = mountView({
+      leaderboard_balance_enabled: true,
+      leaderboard_consumption_enabled: false,
+      leaderboard_transfer_enabled: false,
+      leaderboard_checkin_enabled: false,
+    })
+
+    await settleLeaderboard()
+
+    expect(wrapper.find('.leaderboard-chart-stub').text()).toBe('balance|2|100|2|Balance Distribution')
+  })
+
+  it('passes full chart_items to consumption chart', async () => {
     getConsumptionLeaderboard.mockResolvedValueOnce({
       items: [
-        {
-          rank: 1,
-          username: 'Alpha',
-          value: 70,
-          extra_int: 5,
-        },
+        { rank: 1, username: 'Alpha', value: 70, extra_int: 5 },
       ],
       total: 2,
       page: 1,
@@ -181,15 +256,15 @@ describe('LeaderboardView tab switches', () => {
 
     await settleLeaderboard()
 
-    expect(wrapper.find('.consumption-chart-stub').text()).toBe('2|100|1')
+    expect(wrapper.find('.leaderboard-chart-stub').text()).toBe('consumption|2|100|1|Consumption Distribution')
   })
 
-  it('消费榜用户数超过默认 20 条时会补拉全量榜单条目', async () => {
+  it('refetches all consumption items when total exceeds default page size', async () => {
     getConsumptionLeaderboard
       .mockResolvedValueOnce({
         items: Array.from({ length: 20 }, (_, index) => ({
           rank: index + 1,
-          username: `用户${index + 1}`,
+          username: `User${index + 1}`,
           value: 100 - index,
           extra_int: index + 1,
         })),
@@ -202,14 +277,14 @@ describe('LeaderboardView tab switches', () => {
           total_users: 23,
         },
         chart_items: Array.from({ length: 23 }, (_, index) => ({
-          username: `用户${index + 1}`,
+          username: `User${index + 1}`,
           value: 100 - index,
         })),
       })
       .mockResolvedValueOnce({
         items: Array.from({ length: 23 }, (_, index) => ({
           rank: index + 1,
-          username: `用户${index + 1}`,
+          username: `User${index + 1}`,
           value: 100 - index,
           extra_int: index + 1,
         })),
@@ -222,7 +297,7 @@ describe('LeaderboardView tab switches', () => {
           total_users: 23,
         },
         chart_items: Array.from({ length: 23 }, (_, index) => ({
-          username: `用户${index + 1}`,
+          username: `User${index + 1}`,
           value: 100 - index,
         })),
       })
@@ -238,6 +313,6 @@ describe('LeaderboardView tab switches', () => {
 
     expect(getConsumptionLeaderboard).toHaveBeenNthCalledWith(1, 'daily', 1, 20)
     expect(getConsumptionLeaderboard).toHaveBeenNthCalledWith(2, 'daily', 1, 23)
-    expect(wrapper.find('.consumption-chart-stub').text()).toBe('23|507.62|23')
+    expect(wrapper.find('.leaderboard-chart-stub').text()).toBe('consumption|23|507.62|23|Consumption Distribution')
   })
 })

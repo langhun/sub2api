@@ -28,7 +28,7 @@
         @click="$emit('open-subscriptions')"
       >
         <Icon name="server" size="sm" />
-        <span>{{ t('admin.proxies.subscriptions.manage') }}</span>
+        <span>{{ t('admin.proxies.subscriptions.title') }}</span>
       </button>
 
       <button class="btn btn-secondary gap-2 px-3" data-test="proxy-toolbar-pool" @click="$emit('open-pool')">

@@ -236,6 +236,7 @@ interface TestStreamEvent {
   model?: string
   success?: boolean
   error?: string
+  code?: string
 }
 
 const props = defineProps<{
@@ -253,7 +254,6 @@ const emit = defineEmits<{
     failedIds: number[]
     unauthorizedFailedIds: number[]
   }): void
-  (e: 'queue-delete', accountId: number): void
 }>()
 
 const { t } = useI18n()
@@ -273,7 +273,6 @@ const activeAbortControllers = new Set<AbortController>()
 let activeRunToken = 0
 let modelLoadSeq = 0
 const DEFAULT_BATCH_MODEL_ID = '__default__'
-const queuedDeleteIds = new Set<number>()
 
 const completedCount = computed(() => rows.value.filter(row => ['success', 'failed', 'skipped'].includes(row.status)).length)
 const successCount = computed(() => rows.value.filter(row => row.status === 'success').length)
@@ -368,7 +367,6 @@ watch(
 )
 
 const resetRows = () => {
-  queuedDeleteIds.clear()
   rows.value = props.targets.map(target => ({
     ...target,
     status: 'pending',
@@ -455,12 +453,6 @@ const setRow = (index: number, patch: Partial<BatchTestRow>) => {
   rows.value[index] = { ...current, ...patch }
 }
 
-const queueDeleteIfUnauthorized = (row: BatchTestRow, resultCode: string) => {
-  if (resultCode !== '401' || queuedDeleteIds.has(row.id)) return
-  queuedDeleteIds.add(row.id)
-  emit('queue-delete', row.id)
-}
-
 const quickFilterButtonClass = (value: ResultFilterValue) => {
   const selected = resultFilter.value === value
   return selected
@@ -513,6 +505,13 @@ const handleClose = () => {
   emit('close')
 }
 
+const normalizeResultCode = (code?: string | number | null) => {
+  const normalized = String(code ?? '').trim()
+  if (normalized === '401') return '401'
+  if (normalized === '429') return '429'
+  return 'other'
+}
+
 const startBatch = async () => {
   if (running.value || rows.value.length === 0 || !selectedModelId.value) return
 
@@ -544,9 +543,6 @@ const startBatch = async () => {
           message: result.message,
           resultCode: result.resultCode
         })
-        if (!result.success) {
-          queueDeleteIfUnauthorized(row, result.resultCode)
-        }
       } catch (error) {
         if (runToken !== activeRunToken) return
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -554,13 +550,11 @@ const startBatch = async () => {
           continue
         }
         const errorMessage = error instanceof Error ? error.message : t('common.error')
-        const resultCode = classifyResultCode(errorMessage)
         setRow(index, {
           status: 'failed',
           message: errorMessage,
-          resultCode
+          resultCode: 'other'
         })
-        queueDeleteIfUnauthorized(row, resultCode)
       } finally {
         activeAbortControllers.delete(controller)
       }
@@ -603,7 +597,11 @@ const testAccount = async (
   })
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`)
+    return {
+      success: false,
+      message: `HTTP ${response.status}`,
+      resultCode: normalizeResultCode(response.status)
+    }
   }
 
   const reader = response.body?.getReader()
@@ -638,13 +636,13 @@ const testAccount = async (
         ? formatSuccessMessage(model, responseText)
         : event.error || t('admin.accounts.batchTest.failedMessage')
       if (!event.success) {
-        resultCode = classifyResultCode(message)
+        resultCode = normalizeResultCode(event.code)
       }
     } else if (event.type === 'error') {
       completed = true
       success = false
       message = event.error || t('admin.accounts.batchTest.failedMessage')
-      resultCode = classifyResultCode(message)
+      resultCode = normalizeResultCode(event.code)
     }
   }
 
@@ -687,16 +685,5 @@ const formatSuccessMessage = (model: string, responseText: string) => {
     return t('admin.accounts.batchTest.successWithModel', { model })
   }
   return t('admin.accounts.batchTest.successMessage')
-}
-
-const classifyResultCode = (message: string) => {
-  const normalized = message.trim()
-  if (/(^|\D)401(\D|$)/.test(normalized) || /unauthorized/i.test(normalized)) {
-    return '401'
-  }
-  if (/(^|\D)429(\D|$)/.test(normalized) || /rate\s*limit/i.test(normalized)) {
-    return '429'
-  }
-  return 'other'
 }
 </script>

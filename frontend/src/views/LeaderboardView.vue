@@ -1,29 +1,21 @@
 <template>
-  <div class="relative flex min-h-screen flex-col bg-gray-50 dark:bg-dark-950">
-    <PublicPageHeader active-path="/leaderboard" :nav-link-visibility="homeNavLinkVisibility" />
-
-    <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-      <div class="space-y-6">
-        <div>
-          <h1 class="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">{{ t('leaderboard.title') }}</h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('leaderboard.subtitle') }}</p>
-        </div>
-
-        <div
-          v-if="tabs.length > 0"
-          class="card p-4"
-        >
+  <AppLayout>
+    <section data-testid="leaderboard-page-shell" class="leaderboard-page-shell -m-4 space-y-6 px-4 pb-6 pt-5 md:-m-6 md:px-5 lg:-m-8 lg:px-6">
+      <div aria-hidden="true" class="leaderboard-page-shell__glow leaderboard-page-shell__glow--cyan"></div>
+      <div aria-hidden="true" class="leaderboard-page-shell__glow leaderboard-page-shell__glow--amber"></div>
+      <div class="mx-auto w-full max-w-7xl space-y-6">
+        <div v-if="tabs.length > 0" class="card p-4">
           <div class="flex flex-wrap items-center gap-4">
-            <div class="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
+            <div class="inline-flex rounded-lg bg-[var(--muted)] p-1">
               <button
                 v-for="tab in tabs"
                 :key="tab.key"
                 @click="activeTab = tab.key"
                 :class="[
-                  'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  'px-3 py-1.5 text-sm font-medium transition-all',
                   activeTab === tab.key
-                    ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-dark-400 dark:hover:text-dark-200'
+                    ? 'rounded-full border border-primary-600 bg-primary-600 text-white shadow-sm dark:border-primary-500 dark:bg-primary-500 dark:text-primary-950'
+                    : 'rounded-lg border border-transparent bg-transparent text-[var(--muted-foreground)] shadow-none hover:bg-[var(--card)] hover:text-[var(--foreground)]'
                 ]"
               >
                 {{ tab.label }}
@@ -32,17 +24,17 @@
 
             <div
               v-if="showPeriodSelector"
-              class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-dark-800"
+              class="inline-flex rounded-full bg-[color-mix(in_oklch,var(--muted)_88%,white)] p-0.5 shadow-[inset_0_1px_0_color-mix(in_oklch,white_70%,transparent)] dark:bg-[color-mix(in_oklch,var(--muted)_88%,var(--card))]"
             >
               <button
                 v-for="p in periods"
                 :key="p.key"
                 @click="activePeriod = p.key"
                 :class="[
-                  'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                  'rounded-md border px-2.5 py-1 text-xs font-medium transition-all',
                   activePeriod === p.key
-                    ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-dark-400 dark:hover:text-dark-200'
+                    ? 'border-primary-300 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-700/70 dark:bg-primary-900/30 dark:text-primary-200'
+                    : 'border-transparent text-[var(--muted-foreground)] hover:bg-[var(--card)] hover:text-[var(--foreground)]'
                 ]"
               >
                 {{ p.label }}
@@ -52,18 +44,25 @@
         </div>
 
         <div class="card relative overflow-hidden p-4">
-          <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm dark:bg-dark-900/80">
+          <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_oklch,var(--card)_90%,transparent)]">
             <div class="flex flex-col items-center gap-3">
               <div class="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
-              <span class="text-xs text-gray-400 dark:text-dark-500">{{ t('common.loading') }}</span>
+              <span class="text-xs text-[var(--muted-foreground)]">{{ t('common.loading') }}</span>
             </div>
           </div>
 
-          <PublicConsumptionLeaderboardChart
-            v-if="activeTab === 'consumption' && !loading && consumptionSummary && consumptionChartItems.length > 0"
-            :chart-items="consumptionChartItems"
-            :summary="consumptionSummary"
+          <PublicLeaderboardChart
+            v-if="!loading && tabs.length > 0 && entries.length > 0"
+            :chart-items="activeChartItems"
+            :summary="activeSummary"
             :entries="entries"
+            :title="activeChartTitle"
+            :subtitle="activeChartSubtitle"
+            :value-label="activeValueLabel"
+            :metric-label="activeMetricLabel"
+            :hover-hint="activeHoverHint"
+            :value-type="activeValueType"
+            :subtitle-type="activeTab"
           />
 
           <div v-if="!loading && tabs.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
@@ -73,66 +72,22 @@
           <div v-else-if="!loading && entries.length === 0" class="py-16 text-center text-sm text-gray-400 dark:text-dark-500">
             {{ t('leaderboard.empty') }}
           </div>
-
-          <div v-else-if="activeTab !== 'consumption'">
-            <div class="mb-4">
-              <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ activeTabLabel }}
-              </p>
-              <p v-if="showPeriodSelector" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-                {{ activePeriodLabel }}
-              </p>
-            </div>
-
-            <div class="max-h-[24rem] overflow-y-auto">
-              <div class="space-y-2 pr-1">
-                <div
-                  v-for="entry in entries"
-                  :key="entry.rank"
-                  class="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-gray-50 dark:hover:bg-dark-800/50"
-                >
-                  <div
-                    :class="rankClass(entry.rank)"
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-                  >
-                    <span v-if="entry.rank <= 3">{{ ['🥇', '🥈', '🥉'][entry.rank - 1] }}</span>
-                    <span v-else class="text-gray-500 dark:text-dark-400">{{ entry.rank }}</span>
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ entry.username }}</p>
-                    <p v-if="getSubtitle(entry)" class="mt-1 truncate text-xs text-gray-400 dark:text-dark-500">{{ getSubtitle(entry) }}</p>
-                  </div>
-                  <div class="shrink-0 text-right">
-                    <template v-if="activeTab === 'checkin'">
-                      <span class="text-sm font-bold text-amber-600 dark:text-amber-400">{{ entry.value }}</span>
-                      <span class="text-xs text-amber-500/70 dark:text-amber-400/50"> {{ t('leaderboard.streakDays', { days: '' }).trim() }}</span>
-                    </template>
-                    <template v-else>
-                      <span class="text-sm font-bold text-gray-900 dark:text-white">${{ entry.value.toFixed(2) }}</span>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-    </main>
-
-    <PublicPageFooter />
-  </div>
+    </section>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
-import PublicPageHeader from '@/components/common/PublicPageHeader.vue'
-import PublicPageFooter from '@/components/common/PublicPageFooter.vue'
-import PublicConsumptionLeaderboardChart from '@/components/leaderboard/PublicConsumptionLeaderboardChart.vue'
+import AppLayout from '@/components/layout/AppLayout.vue'
+import PublicLeaderboardChart from '@/components/leaderboard/PublicLeaderboardChart.vue'
 import {
   leaderboardAPI,
   type LeaderboardChartItem,
+  type LeaderboardData,
   type LeaderboardEntry,
   type LeaderboardSummary,
 } from '@/api/leaderboard'
@@ -150,19 +105,6 @@ const consumptionSummary = ref<LeaderboardSummary | null>(null)
 const consumptionChartItems = ref<LeaderboardChartItem[]>([])
 const loading = ref(false)
 let fetchSequence = 0
-
-const homeNavLinkVisibility = computed(() => {
-  const settings = appStore.cachedPublicSettings
-  const legacyEnabled = settings?.home_nav_links_enabled !== false
-  const resolve = (value?: boolean) => value ?? legacyEnabled
-
-  return {
-    leaderboard: resolve(settings?.home_nav_leaderboard_enabled),
-    keyUsage: resolve(settings?.home_nav_key_usage_enabled),
-    monitoring: resolve(settings?.home_nav_monitoring_enabled),
-    pricing: resolve(settings?.home_nav_pricing_enabled),
-  }
-})
 
 const leaderboardTabVisibility = computed<Record<TabKey, boolean>>(() => {
   const settings = appStore.cachedPublicSettings
@@ -184,7 +126,6 @@ const allTabs = computed(() => [
 const tabs = computed(() => allTabs.value.filter((tab) => leaderboardTabVisibility.value[tab.key] !== false))
 const visibleTabKeys = computed(() => tabs.value.map((tab) => tab.key).join(','))
 const showPeriodSelector = computed(() => tabs.value.length > 0 && activeTab.value === 'consumption')
-const activeTabLabel = computed(() => tabs.value.find((tab) => tab.key === activeTab.value)?.label ?? '')
 
 const periods = computed(() => [
   { key: 'daily' as PeriodKey, label: t('leaderboard.periods.daily') },
@@ -192,44 +133,72 @@ const periods = computed(() => [
   { key: 'monthly' as PeriodKey, label: t('leaderboard.periods.monthly') },
 ])
 
-const activePeriodLabel = computed(() => periods.value.find((period) => period.key === activePeriod.value)?.label ?? '')
-
 const defaultPublicLeaderboardPageSize = 20
 
-function rankClass(rank: number): string {
-  if (rank === 1) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-  if (rank === 2) return 'bg-slate-200 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200'
-  if (rank === 3) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-  return 'bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-dark-300'
-}
-
-function getSubtitle(entry: LeaderboardEntry): string {
-  if (activeTab.value === 'balance') {
-    if (entry.extra_int) return t('leaderboard.balanceSubtitle', { count: entry.extra_int })
-  } else if (activeTab.value === 'consumption') {
-    if (entry.extra_int) return t('leaderboard.consumptionSubtitle', { count: entry.extra_int })
-  } else if (activeTab.value === 'checkin') {
-    if (entry.extra_int || entry.extra_date) {
-      return t('leaderboard.checkinSubtitle', { total: entry.extra_int || 0, date: entry.extra_date || '', reward: entry.extra_float?.toFixed(2) || '0.00' })
-    }
+const activeChartItems = computed<LeaderboardChartItem[]>(() => {
+  if (activeTab.value === 'consumption' && consumptionChartItems.value.length > 0) {
+    return consumptionChartItems.value
   }
-  return ''
-}
+  return entries.value.map((entry) => ({
+    username: entry.username,
+    value: entry.value,
+  }))
+})
+
+const activeSummary = computed<LeaderboardSummary>(() => {
+  if (activeTab.value === 'consumption' && consumptionSummary.value) {
+    return consumptionSummary.value
+  }
+  return {
+    total_value: entries.value.reduce((sum, entry) => sum + entry.value, 0),
+    total_users: entries.value.length,
+  }
+})
+
+const activeChartTitle = computed(() => {
+  if (activeTab.value === 'balance') return t('leaderboard.balanceChartTitle')
+  if (activeTab.value === 'checkin') return t('leaderboard.checkinChartTitle')
+  return t('leaderboard.consumptionChartTitle')
+})
+
+const activeChartSubtitle = computed(() => {
+  if (activeTab.value === 'balance') return t('leaderboard.balanceChartSubtitle')
+  if (activeTab.value === 'checkin') return t('leaderboard.checkinChartSubtitle')
+  return t('leaderboard.consumptionChartSubtitle')
+})
+
+const activeValueLabel = computed(() => {
+  if (activeTab.value === 'checkin') return t('leaderboard.streak')
+  return t('leaderboard.amount')
+})
+
+const activeMetricLabel = computed(() => {
+  if (activeTab.value === 'balance') return t('leaderboard.checkins')
+  if (activeTab.value === 'checkin') return t('leaderboard.totalCheckins')
+  return t('leaderboard.requests')
+})
+
+const activeHoverHint = computed(() => {
+  if (activeTab.value === 'checkin') return t('leaderboard.checkinHoverHint')
+  return t('leaderboard.hoverHint')
+})
+
+const activeValueType = computed(() => activeTab.value === 'checkin' ? 'number' : 'currency')
 
 async function fetchData() {
   const currentFetch = ++fetchSequence
   loading.value = true
   try {
-    let res
+    let res: LeaderboardData
     switch (activeTab.value) {
       case 'balance':
-        res = await leaderboardAPI.getBalanceLeaderboard(1, defaultPublicLeaderboardPageSize)
+        res = await fetchPagedLeaderboardData((pageSize) => leaderboardAPI.getBalanceLeaderboard(1, pageSize))
         break
       case 'consumption':
         res = await fetchConsumptionLeaderboardData(activePeriod.value)
         break
       case 'checkin':
-        res = await leaderboardAPI.getCheckinLeaderboard(1, defaultPublicLeaderboardPageSize)
+        res = await fetchPagedLeaderboardData((pageSize) => leaderboardAPI.getCheckinLeaderboard(1, pageSize))
         break
     }
     if (currentFetch === fetchSequence) {
@@ -257,7 +226,7 @@ async function fetchData() {
 }
 
 async function fetchConsumptionLeaderboardData(period: PeriodKey) {
-  const firstPage = await leaderboardAPI.getConsumptionLeaderboard(period, 1, defaultPublicLeaderboardPageSize)
+  const firstPage = await fetchPagedLeaderboardData((pageSize) => leaderboardAPI.getConsumptionLeaderboard(period, 1, pageSize))
   const currentPageSize = firstPage.page_size || defaultPublicLeaderboardPageSize
   const totalUsers = Math.max(
     firstPage.summary?.total_users ?? 0,
@@ -267,6 +236,18 @@ async function fetchConsumptionLeaderboardData(period: PeriodKey) {
 
   if (totalUsers > currentPageSize) {
     return leaderboardAPI.getConsumptionLeaderboard(period, 1, totalUsers)
+  }
+
+  return firstPage
+}
+
+async function fetchPagedLeaderboardData(fetchPage: (pageSize: number) => Promise<LeaderboardData>) {
+  const firstPage = await fetchPage(defaultPublicLeaderboardPageSize)
+  const currentPageSize = firstPage.page_size || defaultPublicLeaderboardPageSize
+  const totalItems = firstPage.total || 0
+
+  if (totalItems > currentPageSize) {
+    return fetchPage(totalItems)
   }
 
   return firstPage
@@ -321,3 +302,76 @@ onMounted(async () => {
   refreshLeaderboard()
 })
 </script>
+
+<style scoped>
+.leaderboard-page-shell {
+  position: relative;
+  overflow: hidden;
+  min-height: calc(100vh - var(--app-header-height, 3rem));
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.25);
+  background:
+    radial-gradient(circle at top left, color-mix(in oklch, oklch(0.94 0.03 210) 65%, transparent) 0%, transparent 32%),
+    radial-gradient(circle at top right, color-mix(in oklch, oklch(0.94 0.04 85) 38%, transparent) 0%, transparent 24%),
+    linear-gradient(180deg, color-mix(in oklch, var(--card) 92%, white) 0%, var(--card) 48%, color-mix(in oklch, var(--card) 96%, var(--muted)) 100%);
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 4%),
+    0 18px 42px oklch(0 0 0 / 5%);
+}
+
+.leaderboard-page-shell__glow {
+  position: absolute;
+  pointer-events: none;
+  filter: blur(18px);
+  opacity: 0.65;
+}
+
+.leaderboard-page-shell__glow--cyan {
+  top: 1.5rem;
+  left: 2rem;
+  height: 10rem;
+  width: 10rem;
+  border-radius: 9999px;
+  background: color-mix(in oklch, oklch(0.87 0.06 210) 70%, transparent);
+}
+
+.leaderboard-page-shell__glow--amber {
+  right: 3rem;
+  top: 10rem;
+  height: 8rem;
+  width: 8rem;
+  border-radius: 9999px;
+  background: color-mix(in oklch, oklch(0.9 0.07 85) 55%, transparent);
+}
+
+@media (max-width: 1023px) {
+  .leaderboard-page-shell {
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .leaderboard-page-shell__glow {
+    opacity: 0.45;
+  }
+}
+
+:global(.dark) .leaderboard-page-shell {
+  background:
+    radial-gradient(circle at top left, color-mix(in oklch, oklch(0.38 0.05 220) 42%, transparent) 0%, transparent 30%),
+    radial-gradient(circle at top right, color-mix(in oklch, oklch(0.42 0.05 75) 24%, transparent) 0%, transparent 22%),
+    linear-gradient(180deg, color-mix(in oklch, var(--card) 92%, black) 0%, var(--card) 52%, color-mix(in oklch, var(--card) 96%, var(--muted)) 100%);
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 24%),
+    0 20px 46px oklch(0 0 0 / 20%);
+}
+
+:global(.dark) .leaderboard-page-shell__glow--cyan {
+  background: color-mix(in oklch, oklch(0.52 0.07 220) 32%, transparent);
+}
+
+:global(.dark) .leaderboard-page-shell__glow--amber {
+  background: color-mix(in oklch, oklch(0.58 0.08 80) 24%, transparent);
+}
+</style>

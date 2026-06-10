@@ -174,3 +174,60 @@ func TestGameHallService_PlaySlotsDeductsDGAndReturnsOutcome(t *testing.T) {
 	require.Equal(t, 80.0, result.JackpotBalance)
 	require.Equal(t, 20.0, result.NetAmount)
 }
+
+func TestDefaultSlotRoller_UsesRandomizedRollsInsteadOfFixedOutcome(t *testing.T) {
+	previous := slotRandomIntN
+	t.Cleanup(func() {
+		slotRandomIntN = previous
+	})
+
+	slotRandomIntN = sequenceIntN(96, 96, 96)
+	firstMultiplier, firstSymbols, firstMessage := defaultSlotRoller()
+
+	slotRandomIntN = sequenceIntN(0, 25, 43)
+	secondMultiplier, secondSymbols, secondMessage := defaultSlotRoller()
+
+	require.Equal(t, 50.0, firstMultiplier)
+	require.Equal(t, []string{"seven", "seven", "seven"}, firstSymbols)
+	require.Equal(t, "中奖", firstMessage)
+
+	require.Equal(t, 0.0, secondMultiplier)
+	require.Equal(t, []string{"cherry", "lemon", "orange"}, secondSymbols)
+	require.Equal(t, "未中奖", secondMessage)
+}
+
+func TestRollSlotWithIntN_ReturnsThreeOfAKindPayout(t *testing.T) {
+	multiplier, symbols, message := rollSlotWithIntN(sequenceIntN(96, 96, 96))
+
+	require.Equal(t, 50.0, multiplier)
+	require.Equal(t, []string{"seven", "seven", "seven"}, symbols)
+	require.Equal(t, "中奖", message)
+}
+
+func TestRollSlotWithIntN_ReturnsLoseForMixedSymbols(t *testing.T) {
+	multiplier, symbols, message := rollSlotWithIntN(sequenceIntN(0, 25, 43))
+
+	require.Equal(t, 0.0, multiplier)
+	require.Equal(t, []string{"cherry", "lemon", "orange"}, symbols)
+	require.Equal(t, "未中奖", message)
+}
+
+func sequenceIntN(values ...int) func(int) int {
+	index := 0
+
+	return func(max int) int {
+		if len(values) == 0 {
+			return 0
+		}
+
+		value := values[index%len(values)]
+		index++
+		if max <= 0 {
+			return 0
+		}
+		if value >= 0 && value < max {
+			return value
+		}
+		return value % max
+	}
+}

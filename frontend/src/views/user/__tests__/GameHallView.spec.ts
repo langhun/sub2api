@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import GameHallView from '../GameHallView.vue'
 
@@ -62,19 +63,41 @@ describe('GameHallView', () => {
     getHall.mockResolvedValue(hallStatus)
   })
 
-  it('renders main balance, DG balance, jackpot and slots entry', async () => {
+  it('renders DG balance and jackpot in the hall summary', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const hallSummary = wrapper.get('[data-testid="hall-summary"]')
+
+    expect(wrapper.text()).toContain('娱乐大厅')
+    expect(hallSummary.text()).toContain('DG 余额')
+    expect(hallSummary.text()).toContain('大厅奖池')
+    expect(hallSummary.text()).toContain('12 DG')
+    expect(hallSummary.text()).toContain('345 DG')
+    expect(hallSummary.text()).not.toContain('主余额')
+    expect(hallSummary.text()).not.toContain('88')
+    expect(getHall).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows main balance only inside the exchange card', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const exchangeCard = wrapper.get('[data-testid="exchange-card"]')
+
+    expect(exchangeCard.text()).toContain('余额兑换')
+    expect(exchangeCard.text()).toContain('主余额')
+    expect(exchangeCard.text()).toContain('88')
+    expect(exchangeCard.text()).toContain('DG 币')
+    expect(exchangeCard.text()).toContain('12 DG')
+  })
+
+  it('renders a slots entry inside the hall', async () => {
     const wrapper = mountPage()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('娱乐大厅')
-    expect(wrapper.text()).toContain('主余额')
-    expect(wrapper.text()).toContain('DG 余额')
-    expect(wrapper.text()).toContain('大厅奖池')
-    expect(wrapper.text()).toContain('88')
-    expect(wrapper.text()).toContain('12 DG')
-    expect(wrapper.text()).toContain('345 DG')
-    expect(wrapper.get('[data-testid="slots-entry"]').attributes('href')).toBe('/games/slots')
-    expect(getHall).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('幸运老虎机')
+    expect(wrapper.text()).toContain('进入游戏')
+    expect(wrapper.text()).toContain('当前可用范围：0.01 DG - 100000000 DG')
+    expect(wrapper.find('a[href="/games/slots"]').exists()).toBe(true)
   })
 
   it('shows a readable error when hall loading fails', async () => {
@@ -84,7 +107,36 @@ describe('GameHallView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('hall api failed')
-    expect(wrapper.get('[data-testid="slots-entry"]').attributes('href')).toBe('/games/slots')
     expect(showError).toHaveBeenCalledWith('hall api failed')
+  })
+
+  it('shows chinese amount hints for large exchange values', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+
+    const amountInput = wrapper.get('input[type="number"]')
+    const directionSelect = wrapper.get('select')
+
+    await amountInput.setValue('10000000')
+    await nextTick()
+    expect(wrapper.get('[data-testid="exchange-amount-hint"]').text()).toBe('1千万DG币')
+    expect(wrapper.get('[data-testid="exchange-amount-helper"]').text()).toBe('按 1:1 兑换，预计到账 1千万DG币')
+
+    await amountInput.setValue('12345678')
+    await nextTick()
+    expect(wrapper.get('[data-testid="exchange-amount-hint"]').text()).toBe('1.235千万DG币')
+
+    await amountInput.setValue('100000000')
+    await nextTick()
+    expect(wrapper.get('[data-testid="exchange-amount-hint"]').text()).toBe('1亿DG币')
+
+    await amountInput.setValue('123456789')
+    await nextTick()
+    expect(wrapper.get('[data-testid="exchange-amount-hint"]').text()).toBe('1.235亿DG币')
+
+    await directionSelect.setValue('dg_to_balance')
+    await nextTick()
+    expect(wrapper.get('[data-testid="exchange-amount-hint"]').text()).toBe('1.235亿主余额')
+    expect(wrapper.get('[data-testid="exchange-amount-helper"]').text()).toBe('按 1:1 兑换，预计到账 1.235亿主余额')
   })
 })

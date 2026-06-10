@@ -433,8 +433,32 @@ describe('admin ProxiesView pool state', () => {
     await flushPromises()
 
     expect(listProxySubscriptions).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('admin.proxies.subscriptions.manageHint')
+    expect(wrapper.text()).toContain('admin.proxies.subscriptions.modalHint')
     expect(wrapper.text()).toContain('admin.proxies.subscriptions.empty')
+  })
+
+  it('uses the localized node subscription label instead of the fallback english manage text', async () => {
+    const wrapper = mountProxiesView()
+    await flushPromises()
+
+    const subscriptionButton = wrapper.get('[data-test="proxy-toolbar-subscriptions"]')
+
+    expect(subscriptionButton.text()).not.toContain('Manage')
+    expect(subscriptionButton.text()).toContain('admin.proxies.subscriptions.title')
+  })
+
+  it('keeps node subscription terminology consistent across the dialog copy', async () => {
+    const wrapper = mountProxiesView()
+    await flushPromises()
+
+    const subscriptionButton = wrapper.get('[data-test="proxy-toolbar-subscriptions"]')
+    await subscriptionButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.proxies.subscriptions.modalHint')
+    expect(wrapper.text()).toContain('admin.proxies.subscriptions.empty')
+    expect(wrapper.text()).not.toContain('Manage Hint')
+    expect(wrapper.text()).not.toContain('Manage Title')
   })
 
   it('renders shared subscription sources and wires refresh, nodes, and create flows', async () => {

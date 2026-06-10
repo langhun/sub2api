@@ -183,6 +183,46 @@ func (r *gameHallRepository) CommitSlotRound(ctx context.Context, plan service.G
 		if err := updateGameJackpot(txCtx, client, jackpotAfter); err != nil {
 			return err
 		}
+		if err := insertGameJackpotTransaction(txCtx, client, gameJackpotTransactionParams{
+			JackpotCode:    gameHallJackpotCode,
+			UserID:         &plan.UserID,
+			TxType:         "bet_in",
+			Amount:         plan.BetAmount,
+			BalanceBefore:  jackpotBalance,
+			BalanceAfter:   roundDBAmount(jackpotBalance + plan.BetAmount),
+			ReferenceType:  gameHallReferenceSlot,
+			ReferenceID:    plan.GameType,
+			IdempotencyKey: plan.IdempotencyKey + ":jackpot:bet",
+			Metadata: map[string]any{
+				"game_type": plan.GameType,
+				"symbols":   plan.Symbols,
+				"outcome":   plan.Outcome,
+			},
+		}); err != nil {
+			return err
+		}
+		if plan.PayoutAmount > 0 {
+			betInAfter := roundDBAmount(jackpotBalance + plan.BetAmount)
+			if err := insertGameJackpotTransaction(txCtx, client, gameJackpotTransactionParams{
+				JackpotCode:    gameHallJackpotCode,
+				UserID:         &plan.UserID,
+				TxType:         "payout_out",
+				Amount:         plan.PayoutAmount,
+				BalanceBefore:  betInAfter,
+				BalanceAfter:   jackpotAfter,
+				ReferenceType:  gameHallReferenceSlot,
+				ReferenceID:    plan.GameType,
+				IdempotencyKey: plan.IdempotencyKey + ":jackpot:payout",
+				Metadata: map[string]any{
+					"game_type":  plan.GameType,
+					"symbols":    plan.Symbols,
+					"multiplier": plan.Multiplier,
+					"outcome":    plan.Outcome,
+				},
+			}); err != nil {
+				return err
+			}
+		}
 
 		if err := insertGameWalletTransaction(txCtx, client, gameWalletTransactionParams{
 			UserID:         plan.UserID,
@@ -295,6 +335,19 @@ type gameWalletTransactionParams struct {
 	Metadata       map[string]any
 }
 
+type gameJackpotTransactionParams struct {
+	JackpotCode    string
+	UserID         *int64
+	TxType         string
+	Amount         float64
+	BalanceBefore  float64
+	BalanceAfter   float64
+	ReferenceType  string
+	ReferenceID    string
+	IdempotencyKey string
+	Metadata       map[string]any
+}
+
 func insertGameWalletTransaction(ctx context.Context, client *dbent.Client, params gameWalletTransactionParams) error {
 	metadataJSON, err := json.Marshal(params.Metadata)
 	if err != nil {
@@ -319,6 +372,35 @@ INSERT INTO game_wallet_transactions (
 	)
 	if err != nil {
 		return fmt.Errorf("insert game wallet transaction: %w", err)
+	}
+	return nil
+}
+
+func insertGameJackpotTransaction(ctx context.Context, client *dbent.Client, params gameJackpotTransactionParams) error {
+	metadataJSON, err := json.Marshal(params.Metadata)
+	if err != nil {
+		return fmt.Errorf("marshal game jackpot transaction metadata: %w", err)
+	}
+	_, err = client.ExecContext(ctx, `
+INSERT INTO game_jackpot_transactions (
+    jackpot_code, tx_type, amount, balance_before, balance_after,
+    reference_type, reference_id, user_id, idempotency_key, metadata, created_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+`,
+		params.JackpotCode,
+		params.TxType,
+		roundDBAmount(params.Amount),
+		roundDBAmount(params.BalanceBefore),
+		roundDBAmount(params.BalanceAfter),
+		params.ReferenceType,
+		params.ReferenceID,
+		params.UserID,
+		params.IdempotencyKey,
+		string(metadataJSON),
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return fmt.Errorf("insert game jackpot transaction: %w", err)
 	}
 	return nil
 }

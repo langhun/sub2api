@@ -4334,6 +4334,35 @@
               </div>
             </div>
           </div>
+
+        <!-- Usage Records Settings -->
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.usageRecords.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.usageRecords.description') }}
+            </p>
+          </div>
+          <div class="space-y-4 p-6">
+            <!-- User error requests visibility -->
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.user_error_view.label') }}
+                </label>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.user_error_view.description') }}
+                </p>
+              </div>
+              <label class="toggle">
+                <input v-model="form.allow_user_view_error_requests" type="checkbox" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
         </div>
         <!-- /Tab: Gateway -->
 
@@ -5222,7 +5251,7 @@
               <div class="flex items-center justify-between gap-4">
                 <div>
                   <label class="text-sm font-medium text-gray-700 dark:text-gray-300">娱乐大厅</label>
-                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">控制 DG 钱包、娱乐大厅首页和老虎机入口。</p>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">控制 DG 钱包与娱乐大厅首页入口。</p>
                 </div>
                 <Toggle v-model="form.game_hall_enabled" />
               </div>
@@ -7361,6 +7390,8 @@ const form = reactive<SettingsForm>({
   redpacket_expire_hours: 24,
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
+  // Allow user view error requests
+  allow_user_view_error_requests: false,
 });
 
 const authSourceDefaults = reactive<AuthSourceDefaultsState>(
@@ -8520,6 +8551,7 @@ async function saveSettings() {
       redpacket_expire_hours: Number(form.redpacket_expire_hours) || 0,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
+      allow_user_view_error_requests: form.allow_user_view_error_requests,
     };
 
     // 仅当 openai_fast_policy_settings 已成功从后端加载时才回写，

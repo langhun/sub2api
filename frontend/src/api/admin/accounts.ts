@@ -208,6 +208,11 @@ export async function refreshCredentials(id: number): Promise<Account> {
   return data
 }
 
+export async function revertProxyFallback(id: number): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>(`/admin/accounts/${id}/revert-proxy-fallback`)
+  return data
+}
+
 /**
  * Apply OAuth credentials after re-authorization.
  *
@@ -802,6 +807,7 @@ export const accountsAPI = {
   batchClearError,
   batchRefresh,
   setPrivacy,
+  revertProxyFallback,
   batchSetPrivacy,
   batchClearPrivacy
 }

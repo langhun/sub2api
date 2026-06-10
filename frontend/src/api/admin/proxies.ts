@@ -30,7 +30,7 @@ export async function list(
   pageSize: number = 20,
   filters?: {
     protocol?: string
-    status?: 'active' | 'inactive'
+    status?: 'active' | 'inactive' | 'expired'
     runtime_status?: 'failed' | 'cooldown' | 'healthy' | 'warn' | 'challenge'
     search?: string
     sort_by?: string
@@ -267,7 +267,7 @@ export async function exportData(options?: {
   ids?: number[]
   filters?: {
     protocol?: string
-    status?: 'active' | 'inactive'
+    status?: 'active' | 'inactive' | 'expired'
     runtime_status?: 'failed' | 'cooldown' | 'healthy' | 'warn' | 'challenge'
     search?: string
     sort_by?: string

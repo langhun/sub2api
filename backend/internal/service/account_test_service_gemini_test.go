@@ -3,7 +3,9 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -56,4 +58,37 @@ func TestProcessGeminiStream_EmitsImageEvent(t *testing.T) {
 	require.Contains(t, body, "\"type\":\"image\"")
 	require.Contains(t, body, "\"image_url\":\"data:image/png;base64,QUJD\"")
 	require.Contains(t, body, "\"mime_type\":\"image/png\"")
+}
+
+func TestAccountTestService_RunTestBackground_Gemini429ReturnsStructuredHTTPStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &mockAccountRepoForGemini{
+		accountsByID: map[int64]*Account{
+			71: {
+				ID:          71,
+				Platform:    PlatformGemini,
+				Type:        AccountTypeOAuth,
+				Concurrency: 1,
+				Credentials: map[string]any{"access_token": "test-token"},
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{
+		responses: []*http.Response{
+			newJSONResponse(http.StatusTooManyRequests, `{"error":"quota exhausted"}`),
+		},
+	}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+	}
+
+	result, err := svc.RunTestBackground(context.Background(), 71, "gemini-2.5-pro")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "failed", result.Status)
+	require.NotNil(t, result.HTTPStatusCode)
+	require.Equal(t, http.StatusTooManyRequests, *result.HTTPStatusCode)
+	require.Contains(t, result.ErrorMessage, "429")
 }

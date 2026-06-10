@@ -5,7 +5,7 @@ export interface AutoRefreshSkipConditions {
   autoRefreshFetching: boolean
   isAnyModalOpen: boolean
   menuShow: boolean
-  showAccountToolsDropdown: boolean
+  showAccountToolsDropdown?: boolean
   showAutoRefreshDropdown: boolean
   showColumnSettingsDropdown?: boolean
   inSilentWindow: boolean

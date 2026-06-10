@@ -2,7 +2,7 @@
   <AppLayout>
     <TablePageLayout>
       <template #filters>
-        <div class="flex flex-wrap-reverse items-start justify-between gap-2">
+        <div class="flex flex-wrap-reverse items-start justify-between gap-1.5">
           <AccountTableFilters
             v-model:searchQuery="params.search"
             :filters="params"
@@ -23,7 +23,6 @@
                 <button
                   @click="
                     dropdownState.showAutoRefreshDropdown = !dropdownState.showAutoRefreshDropdown;
-                    dropdownState.showAccountToolsDropdown = false;
                     dropdownState.showColumnSettingsDropdown = false
                   "
                   class="btn btn-secondary btn-sm px-2 md:px-3"
@@ -70,7 +69,6 @@
                   @click="
                     dropdownState.showColumnSettingsDropdown = !dropdownState.showColumnSettingsDropdown;
                     dropdownState.showAutoRefreshDropdown = false;
-                    dropdownState.showAccountToolsDropdown = false
                   "
                   class="btn btn-secondary btn-sm px-2 md:px-3"
                   :title="t('admin.accounts.viewColumns')"
@@ -96,83 +94,31 @@
                 </div>
               </div>
 
-              <!-- More Actions Dropdown -->
-              <div class="relative" ref="accountToolsDropdownRef">
-                <button
-                  @click="
-                    dropdownState.showAccountToolsDropdown = !dropdownState.showAccountToolsDropdown;
-                    dropdownState.showAutoRefreshDropdown = false;
-                    dropdownState.showColumnSettingsDropdown = false
-                  "
-                  class="btn btn-secondary btn-sm px-2 md:px-3"
-                  :title="t('admin.accounts.moreActions')"
-                >
-                  <Icon name="more" size="sm" />
-                  <span class="hidden md:inline">{{ t('admin.accounts.moreActions') }}</span>
+              <div class="flex flex-wrap items-center gap-1">
+                <button class="btn btn-secondary btn-sm gap-1 px-2.5" @click="openSyncFromCrs">
+                  <Icon name="sync" size="sm" />
+                  <span class="hidden lg:inline">{{ t('admin.accounts.syncFromCrs') }}</span>
                 </button>
-                <div
-                  v-if="dropdownState.showAccountToolsDropdown"
-                  class="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
-                >
-                  <div class="max-h-[70vh] overflow-y-auto p-2">
-                    <div class="px-2 py-2">
-                      <div class="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        {{ t('admin.accounts.dataActions') }}
-                      </div>
-                    </div>
-                    <button class="account-tools-menu-item" @click="openSyncFromCrs">
-                      <span class="account-tools-menu-icon bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
-                        <Icon name="sync" size="sm" />
-                      </span>
-                      <span class="flex-1 text-left">{{ t('admin.accounts.syncFromCrs') }}</span>
-                    </button>
-                    <button class="account-tools-menu-item" @click="openDuplicateCheck">
-                      <span class="account-tools-menu-icon bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300">
-                        <Icon name="search" size="sm" />
-                      </span>
-                      <span class="flex-1 text-left">{{ t('admin.accounts.duplicateCheck.open') }}</span>
-                    </button>
-                    <button class="account-tools-menu-item" @click="openImportData">
-                      <span class="account-tools-menu-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
-                        <Icon name="upload" size="sm" />
-                      </span>
-                      <span class="flex-1 text-left">{{ t('admin.accounts.dataImport') }}</span>
-                    </button>
-                    <button class="account-tools-menu-item" @click="openExportDataDialogFromMenu">
-                      <span class="account-tools-menu-icon bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300">
-                        <Icon name="download" size="sm" />
-                      </span>
-                      <span class="flex-1 text-left">
-                        {{ selIds.length ? t('admin.accounts.dataExportSelected') : t('admin.accounts.dataExport') }}
-                      </span>
-                      <span
-                        v-if="selIds.length"
-                        class="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300"
-                      >
-                        {{ t('admin.accounts.selectedCount', { count: selIds.length }) }}
-                      </span>
-                    </button>
-
-                    <div class="my-2 border-t border-gray-100 dark:border-gray-700"></div>
-                    <div class="px-2 py-2">
-                      <div class="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        {{ t('admin.accounts.toolActions') }}
-                      </div>
-                    </div>
-                    <button class="account-tools-menu-item" @click="openErrorPassthrough">
-                      <span class="account-tools-menu-icon bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300">
-                        <Icon name="shield" size="sm" />
-                      </span>
-                      <span class="flex-1 text-left">{{ t('admin.errorPassthrough.title') }}</span>
-                    </button>
-                    <button class="account-tools-menu-item" @click="openTLSFingerprintProfiles">
-                      <span class="account-tools-menu-icon bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200">
-                        <Icon name="lock" size="sm" />
-                      </span>
-                      <span class="flex-1 text-left">{{ t('admin.tlsFingerprintProfiles.title') }}</span>
-                    </button>
-                  </div>
-                </div>
+                <button class="btn btn-secondary btn-sm gap-1 px-2.5" @click="openDuplicateCheck">
+                  <Icon name="search" size="sm" />
+                  <span class="hidden xl:inline">{{ t('admin.accounts.duplicateCheck.open') }}</span>
+                </button>
+                <button class="btn btn-secondary btn-sm gap-1 px-2.5" @click="openImportData">
+                  <Icon name="upload" size="sm" />
+                  <span class="hidden xl:inline">{{ t('admin.accounts.dataImport') }}</span>
+                </button>
+                <button class="btn btn-secondary btn-sm gap-1 px-2.5" @click="openExportDataDialog">
+                  <Icon name="download" size="sm" />
+                  <span class="hidden xl:inline">{{ selIds.length ? t('admin.accounts.dataExportSelected') : t('admin.accounts.dataExport') }}</span>
+                </button>
+                <button class="btn btn-secondary btn-sm gap-1 px-2.5" @click="openErrorPassthrough">
+                  <Icon name="shield" size="sm" />
+                  <span class="hidden 2xl:inline">{{ t('admin.errorPassthrough.title') }}</span>
+                </button>
+                <button class="btn btn-secondary btn-sm gap-1 px-2.5" @click="openTLSFingerprintProfiles">
+                  <Icon name="lock" size="sm" />
+                  <span class="hidden 2xl:inline">{{ t('admin.tlsFingerprintProfiles.title') }}</span>
+                </button>
               </div>
             </template>
           </AccountTableActions>
@@ -338,6 +284,12 @@
           <template #cell-groups="{ row }">
             <AccountGroupsCell :groups="row.groups" :max-display="4" />
           </template>
+          <template #header-usage="{ column }">
+            <div class="flex items-center">
+              <span>{{ column.label }}</span>
+              <HelpTooltip :content="t('admin.accounts.usageWindowsHint')" width-class="w-72" />
+            </div>
+          </template>
           <template #cell-usage="{ row }">
             <AccountUsageCell
               :account="row"
@@ -347,12 +299,17 @@
             />
           </template>
           <template #cell-proxy="{ row }">
-            <div v-if="row.proxy" class="flex flex-col items-start gap-1">
-              <div class="flex items-center gap-2">
+            <div class="flex flex-col gap-1">
+              <div v-if="row.proxy" class="flex items-center gap-2">
                 <span class="text-sm text-gray-700 dark:text-gray-300">{{ row.proxy.name }}</span>
                 <span v-if="row.proxy.country_code" class="text-xs text-gray-500 dark:text-gray-400">
                   ({{ row.proxy.country_code }})
                 </span>
+              </div>
+              <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+              <div v-if="row.proxy && row.proxy.expires_at" class="flex items-center gap-2 text-xs">
+                <span class="text-gray-600 dark:text-gray-300">{{ formatDateTime(row.proxy.expires_at) }}</span>
+                <span :class="proxyExpiryBadge(row.proxy)">{{ proxyExpiryText(row.proxy) }}</span>
               </div>
               <div
                 v-if="getProxyFailoverSummary(row)"
@@ -361,8 +318,13 @@
               >
                 {{ getProxyFailoverSummary(row) }}
               </div>
+              <div v-if="row.proxy_fallback_origin_id" class="flex items-center gap-1">
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :title="t('admin.accounts.fallbackActiveTip', { origin: row.proxy_fallback_origin_name })">
+                  {{ t('admin.accounts.fallbackActive') }}
+                </span>
+                <button class="text-xs px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="onRevertFallback(row)">{{ t('admin.accounts.revertProxy') }}</button>
+              </div>
             </div>
-            <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
           </template>
           <template #cell-rate_multiplier="{ row }">
             <span class="text-sm font-mono text-gray-700 dark:text-gray-300">
@@ -429,7 +391,6 @@
       :default-model-only="batchTestState.showBatchTestSource === 'ungrouped'"
       @close="closeBatchTestModal"
       @completed="handleBatchTestCompleted"
-      @queue-delete="enqueueBatchTestDelete"
     />
     <AccountStatsModal v-if="modalState.showStats && modalData.statsAcc" :show="modalState.showStats" :account="modalData.statsAcc" @close="closeStatsModal" />
     <ScheduledTestsPanel v-if="modalState.showSchedulePanel && modalData.scheduleAcc" :show="modalState.showSchedulePanel" :account-id="modalData.scheduleAcc?.id ?? null" :model-options="modalData.scheduleModelOptions" @close="closeSchedulePanel" />
@@ -522,6 +483,7 @@ import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
+import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -546,6 +508,7 @@ import {
 } from '@/utils/accountStatus'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
 import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
 import { accountStatusNowMsKey } from '@/components/account/accountStatusClock'
 import {
@@ -644,12 +607,10 @@ const modalData = reactive({
 
 // UI State - Dropdown menus
 const dropdownState = reactive({
-  showAccountToolsDropdown: false,
   showColumnSettingsDropdown: false,
   showAutoRefreshDropdown: false,
 })
 
-const accountToolsDropdownRef = ref<HTMLElement | null>(null)
 const columnSettingsDropdownRef = ref<HTMLElement | null>(null)
 const autoRefreshDropdownRef = ref<HTMLElement | null>(null)
 
@@ -1488,37 +1449,23 @@ const handleManualRefresh = async () => {
   usageManualRefreshToken.value += 1
 }
 
-const closeAccountToolsDropdown = () => {
-  dropdownState.showAccountToolsDropdown = false
-}
-
 const openSyncFromCrs = () => {
-  closeAccountToolsDropdown()
   modalState.showSync = true
 }
 
 const openDuplicateCheck = () => {
-  closeAccountToolsDropdown()
   modalState.showDuplicateCheck = true
 }
 
 const openImportData = () => {
-  closeAccountToolsDropdown()
   modalState.showImportData = true
 }
 
-const openExportDataDialogFromMenu = () => {
-  closeAccountToolsDropdown()
-  openExportDataDialog()
-}
-
 const openErrorPassthrough = () => {
-  closeAccountToolsDropdown()
   modalState.showErrorPassthrough = true
 }
 
 const openTLSFingerprintProfiles = () => {
-  closeAccountToolsDropdown()
   modalState.showTLSFingerprintProfiles = true
 }
 
@@ -1540,7 +1487,6 @@ const { pause: pauseAutoRefresh, resume: resumeAutoRefresh } = useIntervalFn(
       autoRefreshFetching: autoRefreshState.fetching,
       isAnyModalOpen: isAnyModalOpen.value,
       menuShow: menu.show,
-      showAccountToolsDropdown: dropdownState.showAccountToolsDropdown,
       showAutoRefreshDropdown: dropdownState.showAutoRefreshDropdown,
       showColumnSettingsDropdown: dropdownState.showColumnSettingsDropdown,
       inSilentWindow: inAutoRefreshSilentWindow()
@@ -2135,26 +2081,19 @@ const drainBatchTestDeleteQueue = async () => {
   }
 }
 
-const enqueueBatchTestDelete = (accountId: number) => {
-  if (
-    batchTestState.deleteSucceededIds.has(accountId) ||
-    batchTestState.deleteFailedIds.has(accountId) ||
-    batchTestState.deleteQueue.includes(accountId)
-  ) {
-    return
-  }
-
+const enqueueBatchTestDelete = async (accountId: number) => {
   batchTestState.deleteQueue.push(accountId)
   ensureBatchTestDeleteQueueDrain()
+  await Promise.resolve()
 }
 
 const waitForBatchTestDeleteQueueIdle = async () => {
   while (batchTestDeleteDrainPromise || batchTestState.deleteQueue.length > 0) {
-    if (!batchTestDeleteDrainPromise && batchTestState.deleteQueue.length > 0) {
-      ensureBatchTestDeleteQueueDrain()
-      continue
+    if (batchTestDeleteDrainPromise) {
+      await batchTestDeleteDrainPromise
+    } else {
+      await Promise.resolve()
     }
-    await batchTestDeleteDrainPromise
   }
 }
 
@@ -2240,41 +2179,19 @@ const handleBatchTestCompleted = async (result: {
   failedIds: number[]
   unauthorizedFailedIds?: number[]
 }) => {
-  const unauthorized401Ids = Array.from(new Set(result.unauthorizedFailedIds || []))
-  for (const accountId of unauthorized401Ids) {
-    enqueueBatchTestDelete(accountId)
-  }
-
-  await waitForBatchTestDeleteQueueIdle()
-
-  const deleted401Ids = new Set(
-    unauthorized401Ids.filter(id => batchTestState.deleteSucceededIds.has(id))
-  )
-  const deleteFailed401Ids = new Set(
-    unauthorized401Ids.filter(id => batchTestState.deleteFailedIds.has(id))
-  )
-  const remainingFailedIds = result.failedIds.filter(id => !deleted401Ids.has(id))
-
-  if (remainingFailedIds.length > 0) {
+  if (result.failedIds.length > 0) {
     appStore.showError(
       t('admin.accounts.batchTest.partialSuccess', {
         success: result.success,
-        failed: remainingFailedIds.length
+        failed: result.failedIds.length
       })
     )
-    setSelectedIds(remainingFailedIds)
+    setSelectedIds(result.failedIds)
   } else if (result.success > 0) {
     appStore.showSuccess(t('admin.accounts.batchTest.successToast', { count: result.success }))
     clearSelection()
   } else {
     clearSelection()
-  }
-
-  if (deleted401Ids.size > 0) {
-    appStore.showSuccess(t('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted', { count: deleted401Ids.size }))
-  }
-  if (deleteFailed401Ids.size > 0) {
-    appStore.showError(t('admin.accounts.batchTest.unauthorizedAutoDeleteFailed', { count: deleteFailed401Ids.size }))
   }
 
   await reload()
@@ -2332,6 +2249,16 @@ const handleSetPrivacy = async (a: Account) => {
   } catch (error: any) {
     console.error('Failed to set privacy:', error)
     appStore.showError(extractApiErrorMessage(error, t('admin.accounts.privacyFailed')))
+  }
+}
+const onRevertFallback = async (a: Account) => {
+  try {
+    await adminAPI.accounts.revertProxyFallback(a.id)
+    appStore.showSuccess(t('admin.accounts.revertProxySuccess'))
+    reload()
+  } catch (error: any) {
+    console.error('Failed to revert proxy fallback:', error)
+    appStore.showError(error?.response?.data?.message || t('admin.accounts.revertProxyFailed'))
   }
 }
 const handleDelete = (a: Account) => { modalData.deletingAcc = a; modalState.showDeleteDialog = true }
@@ -2398,6 +2325,12 @@ const isExpired = (value: number | null) => {
   if (!value) return false
   return value * 1000 <= Date.now()
 }
+// 所绑定代理的有效期(逻辑同 /admin/proxies,见 utils/proxyExpiry)
+const proxyExpiryBadge = (p: AccountProxy): string => proxyExpiryBadgeClass(p.expires_at, p.status)
+const proxyExpiryText = (p: AccountProxy): string => {
+  const { key, params } = proxyExpiryLabelKey(p.expires_at, p.status)
+  return params ? t(key, params) : t(key)
+}
 
 // 滚动时关闭操作菜单（不关闭列设置下拉菜单）
 const handleScroll = () => {
@@ -2407,9 +2340,6 @@ const handleScroll = () => {
 // 点击外部关闭顶部下拉菜单
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
-  if (accountToolsDropdownRef.value && !accountToolsDropdownRef.value.contains(target)) {
-    dropdownState.showAccountToolsDropdown = false
-  }
   if (autoRefreshDropdownRef.value && !autoRefreshDropdownRef.value.contains(target)) {
     dropdownState.showAutoRefreshDropdown = false
   }
@@ -2450,6 +2380,11 @@ useKeyboardShortcuts({
     }
   },
   disabled: computed(() => isAnyModalOpen.value && selIds.value.length === 0)
+})
+
+defineExpose({
+  enqueueBatchTestDelete,
+  waitForBatchTestDeleteQueueIdle
 })
 
 onMounted(async () => {

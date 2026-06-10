@@ -74,6 +74,92 @@ export function formatCurrency(amount: number | null | undefined, currency: stri
   }).format(amount)
 }
 
+type DualDisplayAmountOptions = {
+  currencySymbol?: string
+  maxFractionDigits?: number
+}
+
+type DualDisplayAmountResult = {
+  compact: string
+  chinese: string
+  display: string
+  full: string
+}
+
+type AmountUnit = {
+  value: number
+  short: 'K' | 'M' | 'B' | 'T'
+}
+
+const DUAL_DISPLAY_UNITS: AmountUnit[] = [
+  { value: 1_000_000_000_000, short: 'T' },
+  { value: 1_000_000_000, short: 'B' },
+  { value: 1_000_000, short: 'M' },
+  { value: 1_000, short: 'K' },
+]
+
+function trimTrailingZeros(value: string): string {
+  return value.replace(/(\.\d*?[1-9])0+$/u, '$1').replace(/\.0+$/u, '')
+}
+
+function formatFixedValue(value: number, maxFractionDigits: number): string {
+  return trimTrailingZeros(value.toFixed(maxFractionDigits))
+}
+
+export function formatFullNumber(value: number | null | undefined, maxFractionDigits: number = 2): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '0'
+  return trimTrailingZeros(value.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxFractionDigits,
+  }))
+}
+
+export function formatDualDisplayAmount(
+  amount: number | null | undefined,
+  options: DualDisplayAmountOptions = {}
+): DualDisplayAmountResult {
+  const value = Number(amount ?? 0)
+  const safeValue = Number.isFinite(value) ? value : 0
+  const currencySymbol = options.currencySymbol ?? ''
+  const maxFractionDigits = options.maxFractionDigits ?? 2
+  const sign = safeValue < 0 ? '-' : ''
+  const absValue = Math.abs(safeValue)
+  const full = `${sign}${currencySymbol}${formatFullNumber(absValue, maxFractionDigits)}`
+
+  if (absValue < 1000) {
+    return {
+      compact: `${sign}${currencySymbol}${formatFixedValue(absValue, maxFractionDigits)}`,
+      chinese: `${sign}${currencySymbol}${formatFixedValue(absValue, maxFractionDigits)}`,
+      display: `${sign}${currencySymbol}${formatFixedValue(absValue, maxFractionDigits)}`,
+      full,
+    }
+  }
+
+  const unit = DUAL_DISPLAY_UNITS.find((item) => absValue >= item.value) ?? DUAL_DISPLAY_UNITS[DUAL_DISPLAY_UNITS.length - 1]
+  const compactValue = formatFixedValue(absValue / unit.value, maxFractionDigits)
+  const chineseValue = formatChineseAmount(absValue, maxFractionDigits)
+
+  return {
+    compact: `${sign}${currencySymbol}${compactValue}${unit.short}`,
+    chinese: `${sign}${currencySymbol}${chineseValue}`,
+    display: `${sign}${currencySymbol}${compactValue}${unit.short}（${chineseValue}）`,
+    full,
+  }
+}
+
+function formatChineseAmount(value: number, maxFractionDigits: number): string {
+  if (value >= 1_000_000_000_000) {
+    return `${formatFixedValue(value / 1_000_000_000_000, maxFractionDigits)}万亿`
+  }
+  if (value >= 100_000_000) {
+    return `${formatFixedValue(value / 100_000_000, maxFractionDigits)}亿`
+  }
+  if (value >= 10_000) {
+    return `${formatFixedValue(value / 10_000, maxFractionDigits)}万`
+  }
+  return formatFixedValue(value, maxFractionDigits)
+}
+
 /**
  * 格式化带正负号的美元金额，避免出现 "+$-1.00" 这类重复符号。
  * @param amount 金额

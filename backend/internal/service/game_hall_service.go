@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"math/rand/v2"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -16,14 +17,35 @@ const (
 )
 
 var (
-	ErrGameHallDisabled            = infraerrors.Forbidden("GAME_HALL_DISABLED", "game hall is disabled")
-	ErrGameExchangeAmountInvalid   = infraerrors.BadRequest("GAME_EXCHANGE_AMOUNT_INVALID", "exchange amount must be greater than 0")
+	ErrGameHallDisabled             = infraerrors.Forbidden("GAME_HALL_DISABLED", "game hall is disabled")
+	ErrGameExchangeAmountInvalid    = infraerrors.BadRequest("GAME_EXCHANGE_AMOUNT_INVALID", "exchange amount must be greater than 0")
 	ErrGameExchangeDirectionInvalid = infraerrors.BadRequest("GAME_EXCHANGE_DIRECTION_INVALID", "exchange direction is invalid")
-	ErrGameInsufficientMainBalance = infraerrors.BadRequest("GAME_INSUFFICIENT_MAIN_BALANCE", "insufficient main balance")
-	ErrGameInsufficientDGBalance   = infraerrors.BadRequest("GAME_INSUFFICIENT_DG_BALANCE", "insufficient DG balance")
-	ErrGameInvalidType             = infraerrors.BadRequest("GAME_INVALID_TYPE", "game type is invalid")
-	ErrGameInvalidBetAmount        = infraerrors.BadRequest("GAME_INVALID_BET_AMOUNT", "bet amount must be greater than 0")
+	ErrGameInsufficientMainBalance  = infraerrors.BadRequest("GAME_INSUFFICIENT_MAIN_BALANCE", "insufficient main balance")
+	ErrGameInsufficientDGBalance    = infraerrors.BadRequest("GAME_INSUFFICIENT_DG_BALANCE", "insufficient DG balance")
+	ErrGameInvalidType              = infraerrors.BadRequest("GAME_INVALID_TYPE", "game type is invalid")
+	ErrGameInvalidBetAmount         = infraerrors.BadRequest("GAME_INVALID_BET_AMOUNT", "bet amount must be greater than 0")
+
+	slotRandomIntN = rand.IntN
 )
+
+type slotSymbolSpec struct {
+	id      string
+	weight  int
+	payout3 float64
+}
+
+var slotSymbolTable = []slotSymbolSpec{
+	{id: "cherry", weight: 25, payout3: 3},
+	{id: "lemon", weight: 18, payout3: 5},
+	{id: "orange", weight: 18, payout3: 5},
+	{id: "grape", weight: 14, payout3: 8},
+	{id: "bell", weight: 10, payout3: 12},
+	{id: "star", weight: 7, payout3: 18},
+	{id: "diamond", weight: 4, payout3: 30},
+	{id: "seven", weight: 2, payout3: 50},
+}
+
+var slotTotalWeight = sumSlotWeights(slotSymbolTable)
 
 type GameHallSettingsReader interface {
 	GetMultiple(ctx context.Context, keys []string) (map[string]string, error)
@@ -306,5 +328,44 @@ func resolveGameOutcome(netAmount float64) string {
 }
 
 func defaultSlotRoller() (float64, []string, string) {
-	return 0, []string{"cherry", "lemon", "orange"}, "未中奖"
+	return rollSlotWithIntN(slotRandomIntN)
+}
+
+func rollSlotWithIntN(intN func(int) int) (float64, []string, string) {
+	symbols := make([]string, 3)
+	selected := make([]slotSymbolSpec, 3)
+
+	for index := range 3 {
+		symbol := pickWeightedSlotSymbol(intN)
+		selected[index] = symbol
+		symbols[index] = symbol.id
+	}
+
+	if selected[0].id == selected[1].id && selected[1].id == selected[2].id {
+		return selected[0].payout3, symbols, "中奖"
+	}
+
+	return 0, symbols, "未中奖"
+}
+
+func pickWeightedSlotSymbol(intN func(int) int) slotSymbolSpec {
+	roll := intN(slotTotalWeight)
+	cumulative := 0
+
+	for _, symbol := range slotSymbolTable {
+		cumulative += symbol.weight
+		if roll < cumulative {
+			return symbol
+		}
+	}
+
+	return slotSymbolTable[len(slotSymbolTable)-1]
+}
+
+func sumSlotWeights(symbols []slotSymbolSpec) int {
+	total := 0
+	for _, symbol := range symbols {
+		total += symbol.weight
+	}
+	return total
 }

@@ -263,7 +263,7 @@ describe('BatchAccountTestModal', () => {
     expect((wrapper.vm as any).successCount).toBe(3)
   })
 
-  it('按成功、401、429 和其他失败分类并支持快速筛选', async () => {
+  it('按结构化错误码分类并支持快速筛选', async () => {
     getAvailableModels.mockResolvedValue([
       { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5' }
     ])
@@ -275,10 +275,10 @@ describe('BatchAccountTestModal', () => {
         'data: {"type":"test_complete","success":true}\n'
       ]))
       .mockResolvedValueOnce(createStreamResponse([
-        'data: {"type":"error","error":"Authentication failed (401): invalid token"}\n'
+        'data: {"type":"error","code":"401","error":"token expired"}\n'
       ]))
       .mockResolvedValueOnce(createStreamResponse([
-        'data: {"type":"error","error":"API returned 429: rate limit"}\n'
+        'data: {"type":"error","code":"429","error":"quota exhausted"}\n'
       ]))
       .mockResolvedValueOnce(createStreamResponse([
         'data: {"type":"error","error":"Upstream timeout"}\n'
@@ -331,13 +331,13 @@ describe('BatchAccountTestModal', () => {
     expect(wrapper.findAll('[data-testid="batch-test-row"]')).toHaveLength(1)
   })
 
-  it('检测到 401 时会立刻发出排队删除事件', async () => {
+  it('检测到结构化 401 错误码时不会再发出自动删除事件', async () => {
     getAvailableModels.mockResolvedValue([
       { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5' }
     ])
 
     global.fetch = vi.fn().mockResolvedValueOnce(createStreamResponse([
-      'data: {"type":"error","error":"Authentication failed (401): invalid token"}\n'
+      'data: {"type":"error","code":"401","error":"token expired"}\n'
     ])) as any
 
     const wrapper = mount(BatchAccountTestModal, {
@@ -365,23 +365,23 @@ describe('BatchAccountTestModal', () => {
     await (wrapper.vm as any).startBatch()
     await flushPromises()
 
-    expect(wrapper.emitted('queue-delete')).toEqual([[9]])
+    expect(wrapper.emitted('queue-delete')).toBeUndefined()
   })
 
-  it('completed 事件会带回全部 401 失败账号 id', async () => {
+  it('completed 事件会带回全部结构化 401 失败账号 id', async () => {
     getAvailableModels.mockResolvedValue([
       { id: 'claude-sonnet-4-5', display_name: 'Claude Sonnet 4.5' }
     ])
 
     global.fetch = vi.fn()
       .mockResolvedValueOnce(createStreamResponse([
-        'data: {"type":"error","error":"Authentication failed (401): invalid token"}\n'
+        'data: {"type":"error","code":"401","error":"token expired"}\n'
       ]))
       .mockResolvedValueOnce(createStreamResponse([
-        'data: {"type":"error","error":"API returned 429: rate limit"}\n'
+        'data: {"type":"error","code":"429","error":"quota exhausted"}\n'
       ]))
       .mockResolvedValueOnce(createStreamResponse([
-        'data: {"type":"error","error":"Authentication failed (401): invalid token"}\n'
+        'data: {"type":"error","code":"401","error":"session revoked"}\n'
       ])) as any
 
     const wrapper = mount(BatchAccountTestModal, {

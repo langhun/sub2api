@@ -398,9 +398,7 @@ describe('admin AccountsView bulk edit scope', () => {
     expect(deleteAccount).toHaveBeenNthCalledWith(2, 4020)
   })
 
-  it('excludes auto-deleted 401 accounts from follow-up selection and final failure summary', async () => {
-    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
-
+  it('keeps 401 accounts in follow-up selection and final failure summary', async () => {
     const wrapper = mount(AccountsView, {
       global: {
         stubs: {
@@ -440,8 +438,6 @@ describe('admin AccountsView bulk edit scope', () => {
     })
 
     await flushPromises()
-    await (wrapper.vm as any).enqueueBatchTestDelete(1001)
-    await (wrapper.vm as any).waitForBatchTestDeleteQueueIdle()
     await (wrapper.vm as any).handleBatchTestCompleted({
       success: 3,
       failed: 997,
@@ -452,15 +448,13 @@ describe('admin AccountsView bulk edit scope', () => {
     await flushPromises()
 
     expect(showError).toHaveBeenCalledWith('admin.accounts.batchTest.partialSuccess')
-    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
-    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
-    expect((wrapper.vm as any).selIds).not.toContain(1001)
-    expect((wrapper.vm as any).selIds).toHaveLength(996)
+    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
+    expect(deleteAccount).not.toHaveBeenCalled()
+    expect((wrapper.vm as any).selIds).toContain(1001)
+    expect((wrapper.vm as any).selIds).toHaveLength(997)
   })
 
-  it('keeps failed 401 accounts selected when auto-delete fails', async () => {
-    deleteAccount.mockRejectedValueOnce(new Error('delete failed'))
-
+  it('keeps failed 401 accounts selected without auto-delete follow-up', async () => {
     const wrapper = mount(AccountsView, {
       global: {
         stubs: {
@@ -500,8 +494,6 @@ describe('admin AccountsView bulk edit scope', () => {
     })
 
     await flushPromises()
-    await (wrapper.vm as any).enqueueBatchTestDelete(2001)
-    await (wrapper.vm as any).waitForBatchTestDeleteQueueIdle()
     await (wrapper.vm as any).handleBatchTestCompleted({
       success: 0,
       failed: 1,
@@ -511,16 +503,13 @@ describe('admin AccountsView bulk edit scope', () => {
     })
     await flushPromises()
 
-    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
-    expect(showError).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteFailed')
+    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
+    expect(showError).toHaveBeenCalledWith('admin.accounts.batchTest.partialSuccess')
+    expect(deleteAccount).not.toHaveBeenCalled()
     expect((wrapper.vm as any).selIds).toEqual([2001])
   })
 
-  it('backfills missing queue-delete events from completed unauthorized ids', async () => {
-    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
-    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
-    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
-
+  it('does not backfill automatic deletes from completed unauthorized ids', async () => {
     const wrapper = mount(AccountsView, {
       global: {
         stubs: {
@@ -569,18 +558,14 @@ describe('admin AccountsView bulk edit scope', () => {
     })
     await flushPromises()
 
-    expect(deleteAccount).toHaveBeenCalledTimes(3)
-    expect(deleteAccount).toHaveBeenNthCalledWith(1, 1001)
-    expect(deleteAccount).toHaveBeenNthCalledWith(2, 1002)
-    expect(deleteAccount).toHaveBeenNthCalledWith(3, 1003)
-    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
-    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteSuccess')
+    expect(deleteAccount).not.toHaveBeenCalled()
+    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
+    expect((wrapper.vm as any).selIds).toContain(1001)
+    expect((wrapper.vm as any).selIds).toContain(1002)
+    expect((wrapper.vm as any).selIds).toContain(1003)
   })
 
-  it('does not show a failure summary when all failed accounts were auto-deleted after 401', async () => {
-    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
-    deleteAccount.mockResolvedValueOnce({ message: 'ok' })
-
+  it('still shows a failure summary when all failed accounts are 401', async () => {
     const wrapper = mount(AccountsView, {
       global: {
         stubs: {
@@ -629,9 +614,10 @@ describe('admin AccountsView bulk edit scope', () => {
     })
     await flushPromises()
 
-    expect(showError).not.toHaveBeenCalledWith('admin.accounts.batchTest.partialSuccess')
-    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
-    expect((wrapper.vm as any).selIds).toEqual([])
+    expect(showError).toHaveBeenCalledWith('admin.accounts.batchTest.partialSuccess')
+    expect(showSuccess).not.toHaveBeenCalledWith('admin.accounts.batchTest.unauthorizedAutoDeleteCompleted')
+    expect(deleteAccount).not.toHaveBeenCalled()
+    expect((wrapper.vm as any).selIds).toEqual([3001, 3002])
   })
 
   it('calls batchSetPrivacy and shows success when all selected accounts are processed', async () => {

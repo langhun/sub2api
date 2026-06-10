@@ -795,7 +795,7 @@ export interface Proxy {
   port: number
   username: string | null
   password?: string | null
-  status: 'active' | 'inactive'
+  status: 'active' | 'inactive' | 'expired'
   auto_failover_pool_enabled?: boolean
   managed_by_subscription?: boolean
   subscription_source_id?: number | null
@@ -811,6 +811,10 @@ export interface Proxy {
   country_code?: string
   region?: string
   city?: string
+  expires_at?: string | null
+  fallback_mode?: 'none' | 'proxy' | 'direct'
+  backup_proxy_id?: number | null
+  expiry_warn_days?: number | null
   quality_status?: 'healthy' | 'warn' | 'challenge' | 'failed'
   quality_score?: number
   quality_grade?: string
@@ -1054,6 +1058,8 @@ export interface Account {
   current_window_cost?: number | null // 当前窗口费用
   active_sessions?: number | null // 当前活跃会话数
   current_rpm?: number | null // 当前分钟 RPM 计数
+  proxy_fallback_origin_id?: number | null
+  proxy_fallback_origin_name?: string | null
 }
 
 export interface DuplicateAccountCheckRequest {
@@ -1264,6 +1270,10 @@ export interface CreateProxyRequest {
   username?: string | null
   password?: string | null
   auto_failover_pool_enabled?: boolean
+  expires_at?: number | null
+  fallback_mode?: 'none' | 'proxy' | 'direct'
+  backup_proxy_id?: number | null
+  expiry_warn_days?: number | null
 }
 
 export interface UpdateProxyRequest {
@@ -1275,6 +1285,10 @@ export interface UpdateProxyRequest {
   password?: string | null
   status?: 'active' | 'inactive'
   auto_failover_pool_enabled?: boolean
+  expires_at?: number | null
+  fallback_mode?: 'none' | 'proxy' | 'direct'
+  backup_proxy_id?: number | null
+  expiry_warn_days?: number | null
 }
 
 export interface AdminDataPayload {
