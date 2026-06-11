@@ -21,8 +21,13 @@ if not exist "%CONFIG_EXAMPLE%" (
 
 set /p VERSION=<%VERSION_FILE%
 for /f "tokens=*" %%i in ('git rev-parse --short HEAD') do set COMMIT=%%i
-for /f "tokens=*" %%i in ('powershell -NoProfile -Command "(Get-Date).ToUniversalTime().ToString(''yyyy-MM-ddTHH:mm:ssZ'')"') do set DATE=%%i
+for /f "usebackq delims=" %%i in (`powershell -NoProfile -Command "[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')"` ) do set "DATE=%%i"
 set "BUILD_TYPE=production"
+
+if not defined DATE (
+  echo Failed to resolve UTC build timestamp. 1>&2
+  exit /b 1
+)
 
 echo Version: %VERSION%
 echo Commit: %COMMIT%
@@ -44,6 +49,10 @@ set GOARCH=amd64
 set CGO_ENABLED=0
 go build -tags embed -ldflags "-s -w -X 'main.Version=%VERSION%' -X 'main.Commit=%COMMIT%' -X 'main.Date=%DATE%' -X 'main.BuildType=%BUILD_TYPE%'" -trimpath -o "..\%UPLOAD_DIR%\%BINARY_NAME%" .\cmd\server
 if errorlevel 1 exit /b 1
+if not exist "..\%UPLOAD_DIR%\%BINARY_NAME%" (
+  echo Missing built binary: ..\%UPLOAD_DIR%\%BINARY_NAME% 1>&2
+  exit /b 1
+)
 popd
 
 echo Copying release metadata and example config...
