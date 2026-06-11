@@ -75,6 +75,44 @@ function Invoke-Checked {
     }
 }
 
+function Invoke-LocalBuildScript {
+    param([string]$ScriptPath)
+
+    $extension = [System.IO.Path]::GetExtension($ScriptPath).ToLowerInvariant()
+
+    switch ($extension) {
+        ".sh" {
+            $bashPath = Resolve-CommandPath -Candidates @(
+                "bash",
+                "C:\Program Files\Git\bin\bash.exe",
+                "C:\Program Files\Git\usr\bin\bash.exe"
+            ) -Label "bash"
+            Invoke-Checked -FilePath $bashPath -Arguments @($ScriptPath) -Label "bash $ScriptPath"
+            return
+        }
+        ".bat" {
+            $cmdPath = Resolve-CommandPath -Candidates @(
+                "cmd",
+                "C:\Windows\System32\cmd.exe"
+            ) -Label "cmd"
+            Invoke-Checked -FilePath $cmdPath -Arguments @("/c", $ScriptPath) -Label "cmd /c $ScriptPath"
+            return
+        }
+        ".cmd" {
+            $cmdPath = Resolve-CommandPath -Candidates @(
+                "cmd",
+                "C:\Windows\System32\cmd.exe"
+            ) -Label "cmd"
+            Invoke-Checked -FilePath $cmdPath -Arguments @("/c", $ScriptPath) -Label "cmd /c $ScriptPath"
+            return
+        }
+        default {
+            Invoke-Checked -FilePath $ScriptPath -Arguments @() -Label $ScriptPath
+            return
+        }
+    }
+}
+
 function Quote-Bash {
     param([string]$Value)
 
@@ -121,7 +159,7 @@ if (-not $SkipBuild) {
     }
 
     Write-Step "本地编译 Linux amd64 发布包"
-    Invoke-Checked -FilePath $buildScriptPath -Arguments @() -Label $buildScriptPath
+    Invoke-LocalBuildScript -ScriptPath $buildScriptPath
 }
 
 if (-not (Test-Path $binaryPath)) {
