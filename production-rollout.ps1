@@ -216,7 +216,10 @@ $envAssignments = @(
     "PRODUCTION_PORT=$(Quote-Bash $ProductionPort.ToString())",
     "KEEP_TEST_SERVICE=$(Quote-Bash $keepTestServiceValue)"
 )
-$remoteCommand = "chmod +x $(Quote-Bash $remoteScriptPath) && env $($envAssignments -join ' ') bash $(Quote-Bash $remoteScriptPath) $(Quote-Bash $Mode)"
+$remoteCommand = 'chmod +x {0} && env {1} bash {0} {2}' -f `
+    (Quote-Bash $remoteScriptPath), `
+    ($envAssignments -join ' '), `
+    (Quote-Bash $Mode)
 
 Write-Step "执行远端生产流程 ($Mode)"
 Invoke-Checked -FilePath $sshPath -Arguments @(
