@@ -29,7 +29,7 @@ function Write-Step {
     param([string]$Message)
 
     Write-Host ""
-    Write-Host "==> $Message" -ForegroundColor Cyan
+    Write-Host ("==> {0}" -f $Message) -ForegroundColor Cyan
 }
 
 function Resolve-CommandPath {
@@ -52,6 +52,7 @@ function Resolve-CommandPath {
             if ($command.Source) {
                 return $command.Source
             }
+
             if ($command.Path) {
                 return $command.Path
             }
@@ -59,7 +60,7 @@ function Resolve-CommandPath {
         }
     }
 
-    throw "Missing required command: $Label"
+    throw ("Missing required command: {0}" -f $Label)
 }
 
 function Invoke-Checked {
@@ -70,8 +71,14 @@ function Invoke-Checked {
     )
 
     & $FilePath @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Label failed with exit code $LASTEXITCODE"
+    $exitCode = $LASTEXITCODE
+
+    if (-not $?) {
+        throw ("{0} failed" -f $Label)
+    }
+
+    if (($null -ne $exitCode) -and ($exitCode -ne 0)) {
+        throw ("{0} failed with exit code {1}" -f $Label, $exitCode)
     }
 }
 
@@ -80,43 +87,35 @@ function Invoke-LocalBuildScript {
 
     $extension = [System.IO.Path]::GetExtension($ScriptPath).ToLowerInvariant()
 
-    switch ($extension) {
-        ".sh" {
-            $bashPath = Resolve-CommandPath -Candidates @(
-                "bash",
-                "C:\Program Files\Git\bin\bash.exe",
-                "C:\Program Files\Git\usr\bin\bash.exe"
-            ) -Label "bash"
-            Invoke-Checked -FilePath $bashPath -Arguments @($ScriptPath) -Label "bash $ScriptPath"
-            return
-        }
-        ".bat" {
-            $cmdPath = Resolve-CommandPath -Candidates @(
-                "cmd",
-                "C:\Windows\System32\cmd.exe"
-            ) -Label "cmd"
-            Invoke-Checked -FilePath $cmdPath -Arguments @("/c", $ScriptPath) -Label "cmd /c $ScriptPath"
-            return
-        }
-        ".cmd" {
-            $cmdPath = Resolve-CommandPath -Candidates @(
-                "cmd",
-                "C:\Windows\System32\cmd.exe"
-            ) -Label "cmd"
-            Invoke-Checked -FilePath $cmdPath -Arguments @("/c", $ScriptPath) -Label "cmd /c $ScriptPath"
-            return
-        }
-        default {
-            Invoke-Checked -FilePath $ScriptPath -Arguments @() -Label $ScriptPath
-            return
-        }
+    if ($extension -eq ".sh") {
+        $bashPath = Resolve-CommandPath -Candidates @(
+            "bash",
+            "C:\Program Files\Git\bin\bash.exe",
+            "C:\Program Files\Git\usr\bin\bash.exe"
+        ) -Label "bash"
+        Invoke-Checked -FilePath $bashPath -Arguments @($ScriptPath) -Label ("bash {0}" -f $ScriptPath)
+        return
     }
+
+    if (($extension -eq ".bat") -or ($extension -eq ".cmd")) {
+        $cmdPath = Resolve-CommandPath -Candidates @(
+            "cmd",
+            "C:\Windows\System32\cmd.exe"
+        ) -Label "cmd"
+        Invoke-Checked -FilePath $cmdPath -Arguments @("/c", $ScriptPath) -Label ("cmd /c {0}" -f $ScriptPath)
+        return
+    }
+
+    Invoke-Checked -FilePath $ScriptPath -Arguments @() -Label $ScriptPath
 }
 
 function Quote-Bash {
     param([string]$Value)
 
-    return "'" + $Value.Replace("'", "'""'""'") + "'"
+    $singleQuote = [string][char]39
+    $replacement = [string]::Concat([char]39, [char]34, [char]39, [char]34, [char]39)
+    $escapedValue = $Value.Replace($singleQuote, $replacement)
+    return ([string]::Format("{0}{1}{0}", [char]39, $escapedValue))
 }
 
 function Join-RemotePath {
@@ -126,10 +125,10 @@ function Join-RemotePath {
     )
 
     if ($Base.EndsWith("/")) {
-        return "$Base$Child"
+        return ("{0}{1}" -f $Base, $Child)
     }
 
-    return "$Base/$Child"
+    return ("{0}/{1}" -f $Base, $Child)
 }
 
 $repoRoot = $PSScriptRoot
@@ -139,7 +138,7 @@ $buildScriptPath = if ([System.IO.Path]::IsPathRooted($BuildScript)) { $BuildScr
 $remoteScriptLocalPath = if ([System.IO.Path]::IsPathRooted($RemoteScriptSource)) { $RemoteScriptSource } else { Join-Path $repoRoot $RemoteScriptSource }
 
 if (-not (Test-Path $remoteScriptLocalPath)) {
-    throw "Missing remote flow script: $remoteScriptLocalPath"
+    throw ("Missing remote flow script: {0}" -f $remoteScriptLocalPath)
 }
 
 $sshPath = Resolve-CommandPath -Candidates @(
@@ -155,81 +154,90 @@ $scpPath = Resolve-CommandPath -Candidates @(
 
 if (-not $SkipBuild) {
     if (-not (Test-Path $buildScriptPath)) {
-        throw "Missing build script: $buildScriptPath"
+        throw ("Missing build script: {0}" -f $buildScriptPath)
     }
 
-    Write-Step "本地编译 Linux amd64 发布包"
+    Write-Step "Build local Linux amd64 release package"
     Invoke-LocalBuildScript -ScriptPath $buildScriptPath
 }
 
 if (-not (Test-Path $binaryPath)) {
-    throw "Missing binary artifact: $binaryPath"
+    throw ("Missing binary artifact: {0}" -f $binaryPath)
 }
 
-$packagePath = @(
-    (Join-Path $uploadDir "$BinaryName.tar.zst")
-    (Join-Path $uploadDir "$BinaryName.tar.gz")
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
+$packagePath = $null
+$packageCandidates = @(
+    (Join-Path $uploadDir ("{0}.tar.zst" -f $BinaryName)),
+    (Join-Path $uploadDir ("{0}.tar.gz" -f $BinaryName))
+)
+
+foreach ($candidate in $packageCandidates) {
+    if (Test-Path $candidate) {
+        $packagePath = $candidate
+        break
+    }
+}
 
 if (-not $packagePath) {
-    throw "Missing package artifact under $uploadDir"
+    throw ("Missing package artifact under {0}" -f $uploadDir)
 }
 
 $binaryHash = (Get-FileHash -Algorithm SHA256 $binaryPath).Hash.ToLowerInvariant()
 $packageHash = (Get-FileHash -Algorithm SHA256 $packagePath).Hash.ToLowerInvariant()
 $remotePackagePath = Join-RemotePath -Base $RemoteUploadDir -Child (Split-Path $packagePath -Leaf)
 $remoteScriptPath = Join-RemotePath -Base $RemoteUploadDir -Child $RemoteScriptName
-$remoteTarget = "$RemoteUser@$RemoteHost"
+$remoteTarget = ("{0}@{1}" -f $RemoteUser, $RemoteHost)
 
-Write-Step "准备远端目录"
+Write-Step "Prepare remote staging directory"
 Invoke-Checked -FilePath $sshPath -Arguments @(
     "-p",
-    "$RemotePort",
+    ([string]$RemotePort),
     $remoteTarget,
-    "mkdir -p $(Quote-Bash $RemoteUploadDir)"
+    ("mkdir -p {0}" -f (Quote-Bash $RemoteUploadDir))
 ) -Label "ssh mkdir"
 
-Write-Step "上传压缩包和远端流程脚本"
+Write-Step "Upload release package and remote flow script"
 Invoke-Checked -FilePath $scpPath -Arguments @(
     "-P",
-    "$RemotePort",
+    ([string]$RemotePort),
     $packagePath,
     $remoteScriptLocalPath,
-    "${remoteTarget}:$RemoteUploadDir/"
+    ("{0}:{1}/" -f $remoteTarget, $RemoteUploadDir)
 ) -Label "scp upload"
 
 $keepTestServiceValue = if ($KeepTestService) { "1" } else { "0" }
 $envAssignments = @(
-    "MODE=$(Quote-Bash $Mode)",
-    "STAGE_DIR=$(Quote-Bash $RemoteUploadDir)",
-    "PACKAGE_PATH=$(Quote-Bash $remotePackagePath)",
-    "EXPECTED_BINARY_SHA256=$(Quote-Bash $binaryHash)",
-    "EXPECTED_PACKAGE_SHA256=$(Quote-Bash $packageHash)",
-    "BINARY_NAME=$(Quote-Bash $BinaryName)",
-    "TEST_SERVICE=$(Quote-Bash $TestService)",
-    "PRODUCTION_SERVICE=$(Quote-Bash $ProductionService)",
-    "TEST_BINARY_PATH=$(Quote-Bash $TestBinaryPath)",
-    "PRODUCTION_BINARY_PATH=$(Quote-Bash $ProductionBinaryPath)",
-    "TEST_CONFIG_PATH=$(Quote-Bash $TestConfigPath)",
-    "PRODUCTION_CONFIG_PATH=$(Quote-Bash $ProductionConfigPath)",
-    "TEST_PORT=$(Quote-Bash $TestPort.ToString())",
-    "PRODUCTION_PORT=$(Quote-Bash $ProductionPort.ToString())",
-    "KEEP_TEST_SERVICE=$(Quote-Bash $keepTestServiceValue)"
+    ("MODE={0}" -f (Quote-Bash $Mode)),
+    ("STAGE_DIR={0}" -f (Quote-Bash $RemoteUploadDir)),
+    ("PACKAGE_PATH={0}" -f (Quote-Bash $remotePackagePath)),
+    ("EXPECTED_BINARY_SHA256={0}" -f (Quote-Bash $binaryHash)),
+    ("EXPECTED_PACKAGE_SHA256={0}" -f (Quote-Bash $packageHash)),
+    ("BINARY_NAME={0}" -f (Quote-Bash $BinaryName)),
+    ("TEST_SERVICE={0}" -f (Quote-Bash $TestService)),
+    ("PRODUCTION_SERVICE={0}" -f (Quote-Bash $ProductionService)),
+    ("TEST_BINARY_PATH={0}" -f (Quote-Bash $TestBinaryPath)),
+    ("PRODUCTION_BINARY_PATH={0}" -f (Quote-Bash $ProductionBinaryPath)),
+    ("TEST_CONFIG_PATH={0}" -f (Quote-Bash $TestConfigPath)),
+    ("PRODUCTION_CONFIG_PATH={0}" -f (Quote-Bash $ProductionConfigPath)),
+    ("TEST_PORT={0}" -f (Quote-Bash ([string]$TestPort))),
+    ("PRODUCTION_PORT={0}" -f (Quote-Bash ([string]$ProductionPort))),
+    ("KEEP_TEST_SERVICE={0}" -f (Quote-Bash $keepTestServiceValue))
 )
-$remoteCommand = 'chmod +x {0} && env {1} bash {0} {2}' -f `
-    (Quote-Bash $remoteScriptPath), `
-    ($envAssignments -join ' '), `
-    (Quote-Bash $Mode)
+$remoteCommandParts = @(
+    ("chmod +x {0}" -f (Quote-Bash $remoteScriptPath)),
+    ("env {0} bash {1} {2}" -f ($envAssignments -join " "), (Quote-Bash $remoteScriptPath), (Quote-Bash $Mode))
+)
+$remoteCommand = $remoteCommandParts -join " && "
 
-Write-Step "执行远端生产流程 ($Mode)"
+Write-Step ("Run remote production flow ({0})" -f $Mode)
 Invoke-Checked -FilePath $sshPath -Arguments @(
     "-p",
-    "$RemotePort",
+    ([string]$RemotePort),
     $remoteTarget,
     $remoteCommand
 ) -Label "ssh rollout"
 
-Write-Step "完成"
-Write-Host "Remote package: $remotePackagePath"
-Write-Host "Binary SHA256: $binaryHash"
-Write-Host "Package SHA256: $packageHash"
+Write-Step "Done"
+Write-Host ("Remote package: {0}" -f $remotePackagePath)
+Write-Host ("Binary SHA256: {0}" -f $binaryHash)
+Write-Host ("Package SHA256: {0}" -f $packageHash)
