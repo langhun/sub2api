@@ -204,6 +204,14 @@ func TestRollSlotWithIntN_ReturnsThreeOfAKindPayout(t *testing.T) {
 	require.Equal(t, "中奖", message)
 }
 
+func TestRollSlotWithIntN_ReturnsSmallWinForAnyPair(t *testing.T) {
+	multiplier, symbols, message := rollSlotWithIntN(sequenceIntN(0, 24, 25))
+
+	require.Equal(t, 1.2, multiplier)
+	require.Equal(t, []string{"cherry", "cherry", "lemon"}, symbols)
+	require.Equal(t, "小奖", message)
+}
+
 func TestRollSlotWithIntN_ReturnsLoseForMixedSymbols(t *testing.T) {
 	multiplier, symbols, message := rollSlotWithIntN(sequenceIntN(0, 25, 43))
 

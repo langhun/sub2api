@@ -7,8 +7,10 @@ This repo uses a fixed production rollout flow. Deployment credentials and targe
 - Build only the Linux `amd64` production binary on Windows.
 - Do not do local pseudo-production cutovers.
 - Keep the upload artifact in `dist/upload/sub2api-linux-amd64`.
+- Keep the upload package stable as `dist/upload/sub2api-linux-amd64.tar.zst` and fall back to `dist/upload/sub2api-linux-amd64.tar.gz` when `zstd` is unavailable.
 - Use `backend/cmd/server/VERSION` as the release version source.
 - Use `./build-linux.bat` on Windows or `./build-linux.sh` on Unix-like shells.
+- The Windows build script falls back to `frontend/node_modules/.bin/vite.cmd` when `pnpm` / `corepack` are not on `PATH`.
 
 ## Target Access
 
@@ -16,6 +18,7 @@ This repo uses a fixed production rollout flow. Deployment credentials and targe
   - `REMOTE_HOST`: target host, required.
   - `REMOTE_PORT`: SSH port, defaults to `22`.
   - `REMOTE_USER`: SSH user, defaults to `root`.
+- `REMOTE_UPLOAD_DIR`: remote upload/staging directory, defaults to `/opt/sub2api-rollout`.
 - Credentials are managed out-of-band and must not be committed into the repo.
 
 ## Production Layout
@@ -39,25 +42,30 @@ This repo uses a fixed production rollout flow. Deployment credentials and targe
 0. Before any restart, verify the runtime config already contains:
    - a fixed `totp.encryption_key`
    - HTTPS upstream URLs for internet-facing deployments
-   - `security.url_allowlist.allow_private_hosts=false` unless private upstreams are explicitly required
+   - if the config still carries legacy `security.url_allowlist` fields, keep `enabled=true` and `allow_private_hosts=false` unless private upstreams are explicitly required
 1. Build the Linux `amd64` production binary locally.
-2. Upload the exact candidate binary or package to the server.
-3. Refresh the isolated `18808` test instance first.
-4. Verify the test instance before touching production.
-5. Promote the exact same verified binary to `/opt/sub2api/sub2api`.
-6. Restart `sub2api.service`.
+2. Upload the exact candidate package and `deploy/remote-production-flow.sh` to the remote staging directory.
+3. Run the remote flow script in `test` or `full` mode.
+4. Refresh the isolated `18808` test instance first.
+5. Verify the test instance before touching production.
+6. Promote the exact same verified binary to `/opt/sub2api/sub2api`.
+7. Restart `sub2api.service`, verify `8808`, then stop/disable `sub2api-test.service` unless explicitly kept.
 
 ## Helper Scripts
 
-- Test instance validation: `REMOTE_HOST=<host> REMOTE_PORT=<port> REMOTE_USER=<user> ./deploy-to-test.sh`
-- Production promotion: `REMOTE_HOST=<host> REMOTE_PORT=<port> REMOTE_USER=<user> ./deploy-to-production.sh`
-- Scripts must fail on missing host, hash mismatch, failed health checks, or `needs_setup=true`.
+- Windows one-shot rollout: `.\production-rollout.ps1 -RemoteHost <host> -RemotePort <port> -RemoteUser <user> -RemoteUploadDir <dir>`
+- Unix test validation wrapper: `REMOTE_HOST=<host> REMOTE_PORT=<port> REMOTE_USER=<user> REMOTE_UPLOAD_DIR=<dir> ./deploy-to-test.sh`
+- Unix production promotion wrapper: `REMOTE_HOST=<host> REMOTE_PORT=<port> REMOTE_USER=<user> REMOTE_UPLOAD_DIR=<dir> ./deploy-to-production.sh`
+- Remote server flow entry: `deploy/remote-production-flow.sh` with modes `test`, `promote`, `full`
+- Scripts must fail on missing host, missing artifacts, hash mismatch, failed health checks, or `needs_setup=true`.
 
 ## Required Verification
 
 - Binary hash matches between local artifact, test binary, and production binary.
 - `-version` output is correct.
-- Recent startup logs do not contain `TOTP encryption key auto-generated` or unexpected private-host allowance.
+- Config precheck must reject empty `totp.encryption_key`.
+- If legacy `security.url_allowlist` keys still exist in the runtime config, `enabled=true` and `allow_private_hosts=false` must be enforced before rollout.
+- Recent startup logs do not contain `TOTP encryption key auto-generated`.
 - `http://127.0.0.1:18808/health` returns OK before promotion.
 - `http://127.0.0.1:18808/setup/status` returns `needs_setup=false`.
 - `http://127.0.0.1:18808/api/v1/public/pricing` returns JSON successfully.

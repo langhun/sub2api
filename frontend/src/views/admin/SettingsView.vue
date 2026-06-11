@@ -5272,23 +5272,89 @@
             </div>
 
             <div>
-              <h3 class="text-sm font-semibold text-gray-900 dark:text-white">兑换码格式</h3>
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white">兑换码格式</h3>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    可调整前缀、分隔符、分组数与每组长度，保存后新生成的兑换码将按此格式输出。
+                  </p>
+                </div>
+              </div>
               <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">余额兑换码</div>
-                  <code class="mt-2 block text-xs text-gray-500 dark:text-gray-400">BAL-XXXX-XXXX-XXXX</code>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">并发兑换码</div>
-                  <code class="mt-2 block text-xs text-gray-500 dark:text-gray-400">CC-8888-8888-8888</code>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">订阅兑换码</div>
-                  <code class="mt-2 block text-xs text-gray-500 dark:text-gray-400">SUB-XXX-XXX-XXX</code>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-                  <div class="text-sm font-medium text-gray-900 dark:text-white">邀请码</div>
-                  <code class="mt-2 block text-xs text-gray-500 dark:text-gray-400">DG-XXXXXX</code>
+                <div
+                  v-for="card in codeFormatCards"
+                  :key="card.key"
+                  class="rounded-lg border border-gray-200 p-3 dark:border-dark-700"
+                >
+                  <div class="text-sm font-medium text-gray-900 dark:text-white">
+                    {{ card.label }}
+                  </div>
+                  <code class="mt-2 block rounded bg-gray-50 px-2 py-1 font-mono text-xs text-gray-600 dark:bg-dark-800 dark:text-gray-300">
+                    {{ buildCodeFormatPreview(card.format) }}
+                  </code>
+                  <div class="mt-3 grid grid-cols-2 gap-2">
+                    <div class="col-span-2">
+                      <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        前缀
+                      </label>
+                      <input
+                        :data-testid="`code-format-${card.key}-prefix`"
+                        v-model="card.format.prefix"
+                        type="text"
+                        maxlength="16"
+                        class="input h-9 font-mono text-sm"
+                        placeholder="例如 BAL"
+                        @input="normalizeEditableCodeFormat(card.format)"
+                      />
+                    </div>
+                    <div>
+                      <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        分隔符
+                      </label>
+                      <select
+                        :data-testid="`code-format-${card.key}-separator`"
+                        v-model="card.format.separator"
+                        class="input h-9 text-sm"
+                        @change="normalizeEditableCodeFormat(card.format)"
+                      >
+                        <option
+                          v-for="option in codeFormatSeparatorOptions"
+                          :key="option.value"
+                          :value="option.value"
+                        >
+                          {{ option.label }}
+                        </option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        分组数
+                      </label>
+                      <input
+                        :data-testid="`code-format-${card.key}-group-count`"
+                        v-model.number="card.format.group_count"
+                        type="number"
+                        min="1"
+                        max="16"
+                        class="input h-9 text-sm"
+                        @input="normalizeEditableCodeFormat(card.format)"
+                      />
+                    </div>
+                    <div class="col-span-2">
+                      <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        每组长度
+                      </label>
+                      <input
+                        :data-testid="`code-format-${card.key}-chars-per-group`"
+                        v-model.number="card.format.chars_per_group"
+                        type="number"
+                        min="1"
+                        max="16"
+                        class="input h-9 text-sm"
+                        @input="normalizeEditableCodeFormat(card.format)"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -7046,6 +7112,7 @@ type SettingsForm = Omit<
   | "balance_code_format"
   | "concurrency_code_format"
   | "subscription_code_format"
+  | "redpacket_code_format"
   | "invitation_code_format"
   | "affiliate_code_format"
   | "home_nav_leaderboard_enabled"
@@ -7099,6 +7166,7 @@ type SettingsForm = Omit<
   balance_code_format: CodeFormatSettings;
   concurrency_code_format: CodeFormatSettings;
   subscription_code_format: CodeFormatSettings;
+  redpacket_code_format: CodeFormatSettings;
   invitation_code_format: CodeFormatSettings;
   affiliate_code_format: CodeFormatSettings;
   home_nav_leaderboard_enabled: boolean;
@@ -7148,6 +7216,57 @@ const createCodeFormat = (
   ...overrides,
 });
 
+function normalizeEditableCodeFormat(format: CodeFormatSettings): void {
+  const groupCount = Math.max(
+    1,
+    Math.min(16, Math.floor(Number(format.group_count ?? 1) || 1)),
+  );
+  const charsPerGroup = Math.max(
+    1,
+    Math.min(
+      16,
+      Math.floor(Number(format.chars_per_group ?? format.group_size ?? 1) || 1),
+    ),
+  );
+  const letterCase = format.letter_case === "lower" ? "lower" : "upper";
+  const rawPrefix = String(format.prefix ?? "").trim();
+
+  format.letter_case = letterCase;
+  format.prefix =
+    letterCase === "lower" ? rawPrefix.toLowerCase() : rawPrefix.toUpperCase();
+  format.separator =
+    format.separator === "-" || format.separator === "_" ? format.separator : "";
+  format.group_count = groupCount;
+  format.chars_per_group = charsPerGroup;
+  format.group_size = charsPerGroup;
+  format.random_length = groupCount * charsPerGroup;
+}
+
+function buildCodeFormatPreview(format: CodeFormatSettings): string {
+  const groupCount = Math.max(1, Math.floor(Number(format.group_count ?? 1) || 1));
+  const charsPerGroup = Math.max(
+    1,
+    Math.floor(Number(format.chars_per_group ?? format.group_size ?? 1) || 1),
+  );
+  const sampleChar =
+    format.charset === "digits"
+      ? "8"
+      : format.letter_case === "lower"
+        ? "x"
+        : "X";
+  const groups = Array.from({ length: groupCount }, () =>
+    sampleChar.repeat(charsPerGroup),
+  );
+  const parts = [
+    String(format.prefix ?? "").trim(),
+    ...groups,
+    String(format.suffix ?? "").trim(),
+  ].filter(Boolean);
+  const separator =
+    format.separator === "-" || format.separator === "_" ? format.separator : "";
+  return separator ? parts.join(separator) : parts.join("");
+}
+
 const form = reactive<SettingsForm>({
   registration_enabled: true,
   email_verify_enabled: false,
@@ -7157,6 +7276,7 @@ const form = reactive<SettingsForm>({
   balance_code_format: createCodeFormat({ prefix: "BAL" }),
   concurrency_code_format: createCodeFormat({ prefix: "CC" }),
   subscription_code_format: createCodeFormat({ prefix: "SUB", group_count: 3, chars_per_group: 3 }),
+  redpacket_code_format: createCodeFormat({ prefix: "RP", separator: "_", group_count: 2, chars_per_group: 4, charset: "digits" }),
   invitation_code_enabled: false,
   invitation_code_format: createCodeFormat({ prefix: "DG", random_length: 6, group_count: 1, chars_per_group: 6 }),
   password_reset_enabled: false,
@@ -7393,6 +7513,46 @@ const form = reactive<SettingsForm>({
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
+
+const codeFormatSeparatorOptions = [
+  { value: "-", label: "-" },
+  { value: "_", label: "_" },
+  { value: "", label: "无" },
+];
+
+const codeFormatCards = computed<
+  Array<{
+    key: "balance" | "concurrency" | "subscription" | "redpacket" | "invitation";
+    label: string;
+    format: CodeFormatSettings;
+  }>
+>(() => [
+  {
+    key: "balance",
+    label: "余额兑换码",
+    format: form.balance_code_format,
+  },
+  {
+    key: "concurrency",
+    label: "并发兑换码",
+    format: form.concurrency_code_format,
+  },
+  {
+    key: "subscription",
+    label: "订阅兑换码",
+    format: form.subscription_code_format,
+  },
+  {
+    key: "redpacket",
+    label: "红包口令",
+    format: form.redpacket_code_format,
+  },
+  {
+    key: "invitation",
+    label: "邀请码",
+    format: form.invitation_code_format,
+  },
+]);
 
 const authSourceDefaults = reactive<AuthSourceDefaultsState>(
   buildAuthSourceDefaultsState({}),
@@ -7985,6 +8145,13 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    normalizeEditableCodeFormat(form.redeem_code_format);
+    normalizeEditableCodeFormat(form.balance_code_format);
+    normalizeEditableCodeFormat(form.concurrency_code_format);
+    normalizeEditableCodeFormat(form.subscription_code_format);
+    normalizeEditableCodeFormat(form.redpacket_code_format);
+    normalizeEditableCodeFormat(form.invitation_code_format);
+    normalizeEditableCodeFormat(form.affiliate_code_format);
     form.doc_url = settings.doc_url ?? "";
     form.login_agreement_mode =
       settings.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
@@ -8179,6 +8346,14 @@ function findDuplicateDefaultSubscription(
 async function saveSettings() {
   saving.value = true;
   try {
+    normalizeEditableCodeFormat(form.redeem_code_format);
+    normalizeEditableCodeFormat(form.balance_code_format);
+    normalizeEditableCodeFormat(form.concurrency_code_format);
+    normalizeEditableCodeFormat(form.subscription_code_format);
+    normalizeEditableCodeFormat(form.redpacket_code_format);
+    normalizeEditableCodeFormat(form.invitation_code_format);
+    normalizeEditableCodeFormat(form.affiliate_code_format);
+
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -8353,6 +8528,7 @@ async function saveSettings() {
       balance_code_format: form.balance_code_format,
       concurrency_code_format: form.concurrency_code_format,
       subscription_code_format: form.subscription_code_format,
+      redpacket_code_format: form.redpacket_code_format,
       invitation_code_format: form.invitation_code_format,
       affiliate_code_format: form.affiliate_code_format,
       table_default_page_size: form.table_default_page_size,
@@ -8592,6 +8768,13 @@ async function saveSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    normalizeEditableCodeFormat(form.redeem_code_format);
+    normalizeEditableCodeFormat(form.balance_code_format);
+    normalizeEditableCodeFormat(form.concurrency_code_format);
+    normalizeEditableCodeFormat(form.subscription_code_format);
+    normalizeEditableCodeFormat(form.redpacket_code_format);
+    normalizeEditableCodeFormat(form.invitation_code_format);
+    normalizeEditableCodeFormat(form.affiliate_code_format);
     form.doc_url = updated.doc_url ?? "";
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(updated));
     form.default_platform_quotas = normalizePlatformQuotasMap(updated.default_platform_quotas);

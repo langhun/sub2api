@@ -126,6 +126,7 @@ describe('GameSlotsView', () => {
     expect(wrapper.get('[data-testid="slots-odds-toggle"]').attributes('aria-expanded')).toBe('true')
     expect(wrapper.find('#slots-odds-table').exists()).toBe(true)
     expect(wrapper.text()).toContain('50x')
+    expect(wrapper.text()).toContain('1.2x')
   })
 
   it('plays slots and updates balances from the API result', async () => {
@@ -194,6 +195,45 @@ describe('GameSlotsView', () => {
     expect(wrapper.text()).toContain('-255')
     expect(wrapper.text()).not.toContain('-255 DG')
     expect(wrapper.findAll('.history-table__row')).toHaveLength(5)
+  })
+
+  it('keeps accumulating session net after more than 10 spins and makes history scrollable', async () => {
+    let callCount = 0
+    play.mockImplementation(() => {
+      callCount += 1
+      return Promise.resolve({
+        game_type: 'slots',
+        bet_amount: 10,
+        payout_amount: 0,
+        net_amount: -10,
+        multiplier: 0,
+        dg_balance_before: 120 - ((callCount - 1) * 10),
+        dg_balance_after: 120 - (callCount * 10),
+        jackpot_balance: 345 + (callCount * 10),
+        outcome: 'lose',
+        symbols: ['cherry', 'lemon', 'orange'],
+        message: '未中奖',
+      })
+    })
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="slots-spin-10-button"]').trigger('click')
+    for (let index = 0; index < 10; index += 1) {
+      await vi.advanceTimersByTimeAsync(totalSpinSettleMs)
+      await flushPromises()
+    }
+
+    await wrapper.get('[data-testid="slots-spin-button"]').trigger('click')
+    await vi.advanceTimersByTimeAsync(totalSpinSettleMs)
+    await flushPromises()
+
+    expect(play).toHaveBeenCalledTimes(11)
+    expect(wrapper.get('[data-testid="slots-session-net"]').text()).toBe('-110')
+    expect(wrapper.get('[data-testid="slots-history-count"]').text()).toBe('11')
+    expect(wrapper.findAll('.history-table__row')).toHaveLength(11)
+    expect(wrapper.get('[data-testid="slots-history-table"]').classes()).toContain('history-table--scrollable')
   })
 
   it('shows a Chinese amount hint for custom bet input', async () => {

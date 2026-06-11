@@ -305,7 +305,7 @@
                             </div>
                             <div class="min-w-0">
                               <p class="truncate text-sm font-medium text-slate-700 dark:text-dark-200">
-                                {{ claim.user_email || '#' + claim.user_id }}
+                                {{ claim.user_display_name || claim.user_email || '#' + claim.user_id }}
                               </p>
                               <p class="text-xs text-slate-400 dark:text-dark-500">
                                 {{ formatDateTime(claim.created_at) }}

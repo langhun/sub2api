@@ -35,6 +35,7 @@ type SystemSettings struct {
 	BalanceCodeFormat                service.CodeFormatSettings `json:"balance_code_format"`
 	ConcurrencyCodeFormat            service.CodeFormatSettings `json:"concurrency_code_format"`
 	SubscriptionCodeFormat           service.CodeFormatSettings `json:"subscription_code_format"`
+	RedPacketCodeFormat              service.CodeFormatSettings `json:"redpacket_code_format"`
 	PasswordResetEnabled             bool                       `json:"password_reset_enabled"`
 	FrontendURL                      string                     `json:"frontend_url"`
 	InvitationCodeEnabled            bool                       `json:"invitation_code_enabled"`

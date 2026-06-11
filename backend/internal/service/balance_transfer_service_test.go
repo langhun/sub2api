@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,8 +18,11 @@ type transferSettingRepoStub struct {
 
 func (s *transferSettingRepoStub) Get(context.Context, string) (*Setting, error) { return nil, nil }
 
-func (s *transferSettingRepoStub) GetValue(context.Context, string) (string, error) {
-	return "", nil
+func (s *transferSettingRepoStub) GetValue(_ context.Context, key string) (string, error) {
+	if value, ok := s.settings[key]; ok {
+		return value, nil
+	}
+	return "", ErrSettingNotFound
 }
 
 func (s *transferSettingRepoStub) Set(context.Context, string, string) error { return nil }
@@ -210,6 +214,7 @@ type redPacketRepoStub struct {
 	claims          map[int64][]*RedPacketClaimRecord
 	activeExpired   []*RedPacketRecord
 	created         bool
+	lastCreated     *RedPacketRecord
 	returnRemaining map[int64]float64
 	returnErr       error
 }
@@ -222,10 +227,17 @@ func (s *redPacketRepoStub) Create(_ context.Context, rp *RedPacketRecord) error
 	}
 	cloned := *rp
 	s.redPackets[rp.ID] = &cloned
+	s.lastCreated = &cloned
 	return nil
 }
 
-func (s *redPacketRepoStub) GetByCode(context.Context, string) (*RedPacketRecord, error) {
+func (s *redPacketRepoStub) GetByCode(_ context.Context, code string) (*RedPacketRecord, error) {
+	for _, rp := range s.redPackets {
+		if rp.Code == code {
+			cloned := *rp
+			return &cloned, nil
+		}
+	}
 	return nil, ErrRedPacketNotFound
 }
 
@@ -484,6 +496,36 @@ func TestCreateRedPacket_RechecksSenderBalanceInsideTx(t *testing.T) {
 	require.Empty(t, userRepo.deductCalls)
 }
 
+func TestCreateAndClaimRedPacket_UsesConfiguredCodeFormat(t *testing.T) {
+	repo := &transferRepoStub{
+		lockedBalances: map[int64]float64{1: 100},
+	}
+	redPacketRepo := &redPacketRepoStub{}
+	userRepo := &transferUserRepoStub{
+		users: map[int64]*User{
+			1: {ID: 1, Balance: 100},
+			2: {ID: 2, Balance: 0},
+		},
+	}
+	formatJSON := `{"prefix":"RP","suffix":"","random_length":6,"separator":"_","group_size":3,"group_count":2,"chars_per_group":3,"charset":"digits","letter_case":"upper"}`
+	format := ParseCodeFormatSettings(formatJSON, DefaultRedeemCodeFormat())
+	svc := newRedPacketTestService(t, repo, redPacketRepo, userRepo, map[string]string{
+		SettingKeyRedPacketCodeFormat: formatJSON,
+	})
+
+	record, err := svc.CreateRedPacket(context.Background(), 1, 10, 2, "equal", nil)
+	require.NoError(t, err)
+	require.NotNil(t, record)
+	require.True(t, IsCodeMatchingFormat(record.Code, format), record.Code)
+	require.NotNil(t, redPacketRepo.lastCreated)
+	require.Equal(t, record.Code, redPacketRepo.lastCreated.Code)
+
+	claim, err := svc.ClaimRedPacket(context.Background(), 2, strings.ToLower(record.Code))
+	require.NoError(t, err)
+	require.NotNil(t, claim)
+	require.Equal(t, int64(1), claim.RedPacketID)
+}
+
 func TestGetRedPacketDetail_OnlySenderCanViewSensitiveDetail(t *testing.T) {
 	repo := &transferRepoStub{}
 	redPacketRepo := &redPacketRepoStub{
@@ -502,7 +544,7 @@ func TestGetRedPacketDetail_OnlySenderCanViewSensitiveDetail(t *testing.T) {
 	userRepo := &transferUserRepoStub{
 		users: map[int64]*User{
 			1: {ID: 1, Email: "sender@example.com"},
-			2: {ID: 2, Email: "claimant@example.com"},
+			2: {ID: 2, Email: "claimant@example.com", Username: "claimant-name"},
 		},
 	}
 	svc := newRedPacketTestService(t, repo, redPacketRepo, userRepo, nil)
@@ -512,11 +554,41 @@ func TestGetRedPacketDetail_OnlySenderCanViewSensitiveDetail(t *testing.T) {
 	require.Equal(t, "secret-code", rp.Code)
 	require.Len(t, claims, 1)
 	require.Equal(t, "claimant@example.com", claims[0].UserEmail)
+	require.Equal(t, "claimant-name", claims[0].UserDisplayName)
 
 	rp, claims, err = svc.GetRedPacketDetail(context.Background(), 2, 7)
 	require.Nil(t, rp)
 	require.Nil(t, claims)
 	require.ErrorIs(t, err, ErrRedPacketNotFound)
+}
+
+func TestGetRedPacketDetail_FallsBackToEmailWhenUsernameEmpty(t *testing.T) {
+	repo := &transferRepoStub{}
+	redPacketRepo := &redPacketRepoStub{
+		redPackets: map[int64]*RedPacketRecord{
+			8: {
+				ID:       8,
+				SenderID: 1,
+				Code:     "email-fallback",
+				Status:   "active",
+			},
+		},
+		claims: map[int64][]*RedPacketClaimRecord{
+			8: {{ID: 12, RedPacketID: 8, UserID: 3, Amount: 5}},
+		},
+	}
+	userRepo := &transferUserRepoStub{
+		users: map[int64]*User{
+			1: {ID: 1, Email: "sender@example.com"},
+			3: {ID: 3, Email: "fallback@example.com", Username: ""},
+		},
+	}
+	svc := newRedPacketTestService(t, repo, redPacketRepo, userRepo, nil)
+
+	_, claims, err := svc.GetRedPacketDetail(context.Background(), 1, 8)
+	require.NoError(t, err)
+	require.Len(t, claims, 1)
+	require.Equal(t, "fallback@example.com", claims[0].UserDisplayName)
 }
 
 func TestExpireRedPackets_ReturnsRemainingOnceAndPropagatesErrors(t *testing.T) {

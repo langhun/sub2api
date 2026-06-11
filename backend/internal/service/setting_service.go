@@ -748,6 +748,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyGameHallEnabled,
 		SettingKeyTransferEnabled,
 		SettingKeyRedPacketEnabled,
+		SettingKeyRedPacketCodeFormat,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 	}
@@ -819,6 +820,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		BalanceCodeFormat:                ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		ConcurrencyCodeFormat:            ParseCodeFormatSettings(settings[SettingKeyConcurrencyCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		SubscriptionCodeFormat:           ParseCodeFormatSettings(settings[SettingKeySubscriptionCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		RedPacketCodeFormat:              ParseCodeFormatSettings(settings[SettingKeyRedPacketCodeFormat], ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()))),
 		PasswordResetEnabled:             passwordResetEnabled,
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
 		InvitationCodeFormat:             ParseCodeFormatSettings(settings[SettingKeyInvitationCodeFormat], DefaultRegistrationInvitationCodeFormat()),
@@ -1679,6 +1681,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if settings.SubscriptionCodeFormat.RandomLength <= 0 {
 		settings.SubscriptionCodeFormat = settings.RedeemCodeFormat
 	}
+	if settings.RedPacketCodeFormat.RandomLength <= 0 {
+		settings.RedPacketCodeFormat = settings.BalanceCodeFormat
+	}
 	if settings.InvitationCodeFormat.RandomLength <= 0 {
 		settings.InvitationCodeFormat = DefaultRegistrationInvitationCodeFormat()
 	}
@@ -1727,6 +1732,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		return nil, fmt.Errorf("marshal subscription code format: %w", err)
 	}
 	updates[SettingKeySubscriptionCodeFormat] = subscriptionCodeFormatJSON
+	redPacketCodeFormatJSON, err := MarshalCodeFormatSettings(settings.RedPacketCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal red packet code format: %w", err)
+	}
+	updates[SettingKeyRedPacketCodeFormat] = redPacketCodeFormatJSON
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
 	updates[SettingKeyFrontendURL] = settings.FrontendURL
 	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
@@ -2497,6 +2507,14 @@ func (s *SettingService) GetSubscriptionCodeFormat(ctx context.Context) CodeForm
 	return ParseCodeFormatSettings(value, s.GetRedeemCodeFormat(ctx))
 }
 
+func (s *SettingService) GetRedPacketCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRedPacketCodeFormat)
+	if err != nil {
+		return s.GetBalanceCodeFormat(ctx)
+	}
+	return ParseCodeFormatSettings(value, s.GetBalanceCodeFormat(ctx))
+}
+
 func (s *SettingService) GetCodeFormatForRedeemType(ctx context.Context, codeType string) CodeFormatSettings {
 	switch codeType {
 	case RedeemTypeInvitation:
@@ -2989,6 +3007,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyBalanceCodeFormat:                        mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
 		SettingKeyConcurrencyCodeFormat:                    mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
 		SettingKeySubscriptionCodeFormat:                   mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+		SettingKeyRedPacketCodeFormat:                      mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
 		SettingKeyInvitationCodeFormat:                     mustMarshalCodeFormatDefaults(DefaultRegistrationInvitationCodeFormat()),
 		SettingKeyLoginAgreementEnabled:                    "false",
 		SettingKeyLoginAgreementMode:                       defaultLoginAgreementMode,
@@ -3216,6 +3235,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		BalanceCodeFormat:                ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		ConcurrencyCodeFormat:            ParseCodeFormatSettings(settings[SettingKeyConcurrencyCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		SubscriptionCodeFormat:           ParseCodeFormatSettings(settings[SettingKeySubscriptionCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		RedPacketCodeFormat:              ParseCodeFormatSettings(settings[SettingKeyRedPacketCodeFormat], ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()))),
 		PasswordResetEnabled:             emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                      settings[SettingKeyFrontendURL],
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",

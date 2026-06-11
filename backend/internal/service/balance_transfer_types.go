@@ -47,6 +47,7 @@ type RedPacketClaimRecord struct {
 	RedPacketID int64     `json:"redpacket_id"`
 	UserID      int64     `json:"user_id"`
 	UserEmail   string    `json:"user_email"`
+	UserDisplayName string `json:"user_display_name"`
 	Amount      float64   `json:"amount"`
 	TransferID  *int64    `json:"transfer_id"`
 	CreatedAt   time.Time `json:"created_at"`

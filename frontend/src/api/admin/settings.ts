@@ -383,6 +383,7 @@ export interface SystemSettings {
   balance_code_format: CodeFormatSettings;
   concurrency_code_format: CodeFormatSettings;
   subscription_code_format: CodeFormatSettings;
+  redpacket_code_format: CodeFormatSettings;
   password_reset_enabled: boolean;
   frontend_url: string;
   invitation_code_enabled: boolean;
@@ -688,6 +689,7 @@ export interface UpdateSettingsRequest {
   balance_code_format?: CodeFormatSettings;
   concurrency_code_format?: CodeFormatSettings;
   subscription_code_format?: CodeFormatSettings;
+  redpacket_code_format?: CodeFormatSettings;
   password_reset_enabled?: boolean;
   frontend_url?: string;
   invitation_code_enabled?: boolean;

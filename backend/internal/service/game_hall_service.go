@@ -345,6 +345,10 @@ func rollSlotWithIntN(intN func(int) int) (float64, []string, string) {
 		return selected[0].payout3, symbols, "中奖"
 	}
 
+	if selected[0].id == selected[1].id || selected[0].id == selected[2].id || selected[1].id == selected[2].id {
+		return 1.2, symbols, "小奖"
+	}
+
 	return 0, symbols, "未中奖"
 }
 

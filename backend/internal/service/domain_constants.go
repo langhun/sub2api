@@ -163,6 +163,7 @@ const (
 	SettingKeyBalanceCodeFormat                = "balance_code_format"                 // 余额兑换码/余额审计码格式(JSON)
 	SettingKeyConcurrencyCodeFormat            = "concurrency_code_format"             // 并发兑换码/并发审计码格式(JSON)
 	SettingKeySubscriptionCodeFormat           = "subscription_code_format"            // 订阅兑换码格式(JSON)
+	SettingKeyRedPacketCodeFormat              = "redpacket_code_format"               // 红包口令格式(JSON)
 	SettingKeyPasswordResetEnabled             = "password_reset_enabled"              // 是否启用忘记密码功能（需要先开启邮件验证）
 	SettingKeyFrontendURL                      = "frontend_url"                        // 前端基础URL，用于生成邮件中的重置密码链接
 	SettingKeyInvitationCodeEnabled            = "invitation_code_enabled"             // 是否启用邀请码注册

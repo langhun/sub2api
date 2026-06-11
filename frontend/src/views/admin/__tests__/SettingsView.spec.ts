@@ -378,6 +378,17 @@ const baseSettingsResponse = {
     charset: "letters",
     letter_case: "upper",
   },
+  redpacket_code_format: {
+    prefix: "RP",
+    suffix: "",
+    random_length: 8,
+    separator: "_",
+    group_size: 4,
+    group_count: 2,
+    chars_per_group: 4,
+    charset: "digits",
+    letter_case: "upper",
+  },
   invitation_code_enabled: false,
   invitation_code_format: {
     prefix: "DG",
@@ -772,7 +783,7 @@ describe("admin SettingsView payment visible method controls", () => {
     );
   });
 
-  it("renders independent code format cards for balance, concurrency, subscription, and invitation", async () => {
+  it("renders independent code format cards for balance, concurrency, subscription, redpacket, and invitation", async () => {
     const wrapper = mountView();
 
     await flushPromises();
@@ -780,10 +791,69 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(wrapper.text()).toContain("余额兑换码");
     expect(wrapper.text()).toContain("并发兑换码");
     expect(wrapper.text()).toContain("订阅兑换码");
+    expect(wrapper.text()).toContain("红包口令");
     expect(wrapper.text()).toContain("邀请码");
     expect(wrapper.text()).toContain("BAL-XXXX-XXXX-XXXX");
     expect(wrapper.text()).toContain("CC-8888-8888-8888");
     expect(wrapper.text()).toContain("SUB-XXX-XXX-XXX");
+  });
+
+  it("allows editing code format cards and submits the normalized values", async () => {
+    const wrapper = mountView();
+
+    await flushPromises();
+
+    const balancePrefixInput = wrapper.get(
+      'input[data-testid="code-format-balance-prefix"]',
+    );
+    const balanceSeparatorSelect = wrapper.get(
+      'select[data-testid="code-format-balance-separator"]',
+    );
+    const balanceGroupCountInput = wrapper.get(
+      'input[data-testid="code-format-balance-group-count"]',
+    );
+    const balanceCharsPerGroupInput = wrapper.get(
+      'input[data-testid="code-format-balance-chars-per-group"]',
+    );
+    const redpacketPrefixInput = wrapper.get(
+      'input[data-testid="code-format-redpacket-prefix"]',
+    );
+
+    await balancePrefixInput.setValue("balx");
+    await balanceSeparatorSelect.setValue("_");
+    await balanceGroupCountInput.setValue("2");
+    await balanceCharsPerGroupInput.setValue("5");
+    await redpacketPrefixInput.setValue("rp");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("BALX_XXXXX_XXXXX");
+    expect(wrapper.text()).toContain("RP_8888_8888");
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        balance_code_format: expect.objectContaining({
+          prefix: "BALX",
+          separator: "_",
+          group_count: 2,
+          chars_per_group: 5,
+          group_size: 5,
+          random_length: 10,
+        }),
+        redpacket_code_format: expect.objectContaining({
+          prefix: "RP",
+          separator: "_",
+          group_count: 2,
+          chars_per_group: 4,
+          group_size: 4,
+          random_length: 8,
+          charset: "digits",
+        }),
+      }),
+    );
   });
 
   it("orders settings tabs by workflow and mounts backup content on demand", async () => {

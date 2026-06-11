@@ -129,6 +129,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		BalanceCodeFormat:                      settings.BalanceCodeFormat,
 		ConcurrencyCodeFormat:                  settings.ConcurrencyCodeFormat,
 		SubscriptionCodeFormat:                 settings.SubscriptionCodeFormat,
+		RedPacketCodeFormat:                    settings.RedPacketCodeFormat,
 		PasswordResetEnabled:                   settings.PasswordResetEnabled,
 		FrontendURL:                            settings.FrontendURL,
 		InvitationCodeEnabled:                  settings.InvitationCodeEnabled,
@@ -427,6 +428,7 @@ type UpdateSettingsRequest struct {
 	BalanceCodeFormat                *service.CodeFormatSettings  `json:"balance_code_format"`
 	ConcurrencyCodeFormat            *service.CodeFormatSettings  `json:"concurrency_code_format"`
 	SubscriptionCodeFormat           *service.CodeFormatSettings  `json:"subscription_code_format"`
+	RedPacketCodeFormat              *service.CodeFormatSettings  `json:"redpacket_code_format"`
 	PasswordResetEnabled             bool                         `json:"password_reset_enabled"`
 	FrontendURL                      string                       `json:"frontend_url"`
 	InvitationCodeEnabled            bool                         `json:"invitation_code_enabled"`
@@ -1566,6 +1568,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.SubscriptionCodeFormat
 		}(),
+		RedPacketCodeFormat: func() service.CodeFormatSettings {
+			if req.RedPacketCodeFormat != nil {
+				return *req.RedPacketCodeFormat
+			}
+			return previousSettings.RedPacketCodeFormat
+		}(),
 		PasswordResetEnabled:  req.PasswordResetEnabled,
 		FrontendURL:           req.FrontendURL,
 		InvitationCodeEnabled: req.InvitationCodeEnabled,
@@ -2141,6 +2149,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		BalanceCodeFormat:                      updatedSettings.BalanceCodeFormat,
 		ConcurrencyCodeFormat:                  updatedSettings.ConcurrencyCodeFormat,
 		SubscriptionCodeFormat:                 updatedSettings.SubscriptionCodeFormat,
+		RedPacketCodeFormat:                    updatedSettings.RedPacketCodeFormat,
 		PasswordResetEnabled:                   updatedSettings.PasswordResetEnabled,
 		FrontendURL:                            updatedSettings.FrontendURL,
 		InvitationCodeEnabled:                  updatedSettings.InvitationCodeEnabled,

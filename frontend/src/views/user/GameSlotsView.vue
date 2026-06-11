@@ -44,7 +44,7 @@
             </div>
             <div class="machine-stats__item machine-stats__item--centered">
               <span>本场盈亏</span>
-              <strong :class="sessionNetClass">{{ sessionNetValueDisplay }}</strong>
+              <strong data-testid="slots-session-net" :class="sessionNetClass">{{ sessionNetValueDisplay }}</strong>
             </div>
           </div>
 
@@ -163,10 +163,14 @@
                 <span class="text-lg">📜</span>
                 <h3 class="text-xl font-semibold tracking-[-0.03em] text-gray-950 dark:text-white">历史记录</h3>
               </div>
-              <span class="text-xl font-semibold italic text-gray-950 dark:text-white">{{ spinHistoryLimit }}</span>
+              <span data-testid="slots-history-count" class="text-xl font-semibold italic text-gray-950 dark:text-white">{{ spinHistory.length }}</span>
             </div>
 
-            <div class="history-table">
+            <div
+              data-testid="slots-history-table"
+              class="history-table"
+              :class="{ 'history-table--scrollable': isHistoryScrollable }"
+            >
               <div v-if="!spinHistory.length" class="history-table__empty">
                 还没有历史结果，先转一局看看。
               </div>
@@ -193,7 +197,7 @@
               <h3 class="text-xl font-semibold tracking-[-0.03em] text-gray-950 dark:text-white">友好模式</h3>
             </div>
             <p class="mt-4 text-sm leading-7 text-gray-500 dark:text-gray-400">
-              自定义投注和连抽都会逐局真实结算，建议先用 10 / 100 / 1000 试手感，再根据 DG 币余额逐步切到 1万 / 10万 / 100万。
+              当前采用友好模式：中线任意两同会返 1.2 倍，三连按赔率表结算。建议先用 10 / 100 / 1000 试手感，再根据 DG 币余额逐步切到 1万 / 10万 / 100万。
             </p>
           </section>
 
@@ -289,7 +293,7 @@ const reelFrameRef = ref<HTMLElement | null>(null)
 const reelSpinDurations = [1000, 1500, 2000] as const
 const reelDecelDurationMs = 500
 const reelSpinSpeedPx = 18
-const spinHistoryLimit = 10
+const spinHistoryScrollThreshold = 10
 
 const hallStatus = ref<GameHallStatus | null>(null)
 const slotsGame = ref<GameInfo | null>(null)
@@ -350,7 +354,9 @@ const sessionSummary = computed(() => {
 const winRateDisplay = computed(() => (sessionSummary.value.totalSpins ? `${sessionSummary.value.winRate}%` : '0%'))
 const sessionNetClass = computed(() => getAmountClass(sessionSummary.value.totalNet))
 const sessionNetValueDisplay = computed(() => (sessionSummary.value.totalSpins ? formatSignedAmount(sessionSummary.value.totalNet) : '0.00'))
+const isHistoryScrollable = computed(() => spinHistory.value.length > spinHistoryScrollThreshold)
 const payoutTable = computed(() => [
+  { id: 'pair', emoji: '🍒 🍒 / 🍋 🍋 / 任意两同', multiplier: '1.2x', label: '中线小奖' },
   { id: 'seven', emoji: '7️⃣ 7️⃣ 7️⃣', multiplier: '50x', label: '' },
   { id: 'diamond', emoji: '💎 💎 💎', multiplier: '30x', label: '' },
   { id: 'star', emoji: '⭐ ⭐ ⭐', multiplier: '18x', label: '' },
@@ -692,7 +698,7 @@ function recordSpin(resultState: GamePlayResult) {
       createdAt: Date.now(),
     },
     ...spinHistory.value,
-  ].slice(0, spinHistoryLimit)
+  ]
 }
 
 function selectPresetBet(bet: number) {
@@ -1286,6 +1292,13 @@ function toErrorMessage(error: unknown) {
   margin-top: 0.15rem;
 }
 
+.history-table--scrollable {
+  max-height: 27rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+  scrollbar-gutter: stable;
+}
+
 .history-table__row {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr) 92px;
@@ -1335,6 +1348,19 @@ function toErrorMessage(error: unknown) {
 
 .dark .history-table__empty {
   color: #9ca3af;
+}
+
+.history-table--scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-table--scrollable::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+}
+
+.dark .history-table--scrollable::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
 }
 
 .odds-table {

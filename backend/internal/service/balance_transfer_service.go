@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -348,7 +347,7 @@ func (s *BalanceTransferService) CreateRedPacket(ctx context.Context, senderID i
 	feeRate := cfg.FeeRate
 	fee := math.Round(totalAmount*feeRate*1e8) / 1e8
 	grossAmount := totalAmount + fee
-	code, err := generateRedPacketCode()
+	code, err := GenerateRedeemCodeWithFormat(s.settingService.GetRedPacketCodeFormat(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("generate code: %w", err)
 	}
@@ -395,6 +394,7 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 	if !cfg.Enabled || !cfg.RedPacketEnabled {
 		return nil, ErrRedPacketDisabled
 	}
+	code = NormalizeCodeValueWithFormat(code, s.settingService.GetRedPacketCodeFormat(ctx))
 	rp, err := s.redPacketRepo.GetByCode(ctx, code)
 	if err != nil {
 		return nil, ErrRedPacketNotFound
@@ -499,6 +499,10 @@ func (s *BalanceTransferService) GetRedPacketDetail(ctx context.Context, viewerI
 	for _, c := range claims {
 		if u, err := s.userRepo.GetByID(ctx, c.UserID); err == nil {
 			c.UserEmail = u.Email
+			c.UserDisplayName = strings.TrimSpace(u.Username)
+			if c.UserDisplayName == "" {
+				c.UserDisplayName = u.Email
+			}
 		}
 	}
 	return rp, claims, nil
@@ -577,14 +581,6 @@ func (s *BalanceTransferService) calculateClaimAmount(rp *RedPacketRecord) float
 		amount = maxAllowed
 	}
 	return math.Round(amount*1e8) / 1e8
-}
-
-func generateRedPacketCode() (string, error) {
-	b := make([]byte, 12)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
 }
 
 func (s *BalanceTransferService) GetTransferStats(ctx context.Context, userID int64) (sent float64, received float64, feePaid float64, err error) {

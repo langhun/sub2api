@@ -20,6 +20,7 @@ type SystemSettings struct {
 	BalanceCodeFormat                CodeFormatSettings
 	ConcurrencyCodeFormat            CodeFormatSettings
 	SubscriptionCodeFormat           CodeFormatSettings
+	RedPacketCodeFormat              CodeFormatSettings
 	PasswordResetEnabled             bool
 	FrontendURL                      string
 	InvitationCodeEnabled            bool
@@ -282,6 +283,7 @@ type PublicSettings struct {
 	BalanceCodeFormat                CodeFormatSettings
 	ConcurrencyCodeFormat            CodeFormatSettings
 	SubscriptionCodeFormat           CodeFormatSettings
+	RedPacketCodeFormat              CodeFormatSettings
 	PasswordResetEnabled             bool
 	InvitationCodeEnabled            bool
 	InvitationCodeFormat             CodeFormatSettings
