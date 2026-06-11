@@ -31,3 +31,16 @@ func TestMigration144CompatLegacyGameHallSchema(t *testing.T) {
 	require.Contains(t, sql, "SET code = 'game_hall'")
 	require.Contains(t, sql, "CREATE UNIQUE INDEX idx_game_jackpots_code ON game_jackpots(code)")
 }
+
+func TestMigration147AddsDedicatedGameHallTables(t *testing.T) {
+	content, err := FS.ReadFile("147_add_game_hall_dedicated_tables.sql")
+	require.NoError(t, err)
+
+	sql := string(content)
+	require.Contains(t, sql, "CREATE TABLE IF NOT EXISTS game_hall_wallets")
+	require.Contains(t, sql, "CREATE TABLE IF NOT EXISTS game_hall_wallet_transactions")
+	require.Contains(t, sql, "CREATE TABLE IF NOT EXISTS game_hall_jackpots")
+	require.Contains(t, sql, "CREATE TABLE IF NOT EXISTS game_hall_jackpot_transactions")
+	require.Contains(t, sql, "INSERT INTO game_hall_wallets (user_id, dg_balance, created_at, updated_at)")
+	require.Contains(t, sql, "INSERT INTO game_hall_jackpot_transactions (")
+}

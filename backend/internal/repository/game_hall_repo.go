@@ -19,6 +19,10 @@ const (
 	gameHallRepoTxMaxRetries  = 3
 	gameHallReferenceExchange = "exchange"
 	gameHallReferenceSlot     = "slots"
+	gameHallWalletsTable      = "game_hall_wallets"
+	gameHallWalletTxTable     = "game_hall_wallet_transactions"
+	gameHallJackpotsTable     = "game_hall_jackpots"
+	gameHallJackpotTxTable    = "game_hall_jackpot_transactions"
 )
 
 type gameHallRepository struct {
@@ -47,8 +51,8 @@ SELECT u.balance,
        gw.dg_balance,
        gj.balance
 FROM users u
-JOIN game_wallets gw ON gw.user_id = u.id
-JOIN game_jackpots gj ON gj.code = $2
+JOIN game_hall_wallets gw ON gw.user_id = u.id
+JOIN game_hall_jackpots gj ON gj.code = $2
 WHERE u.id = $1 AND u.deleted_at IS NULL
 LIMIT 1
 `, userID, gameHallJackpotCode)
@@ -354,7 +358,7 @@ func insertGameWalletTransaction(ctx context.Context, client *dbent.Client, para
 		return fmt.Errorf("marshal game wallet transaction metadata: %w", err)
 	}
 	_, err = client.ExecContext(ctx, `
-INSERT INTO game_wallet_transactions (
+INSERT INTO game_hall_wallet_transactions (
     user_id, tx_type, amount, balance_before, balance_after,
     reference_type, reference_id, idempotency_key, metadata, created_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
@@ -382,7 +386,7 @@ func insertGameJackpotTransaction(ctx context.Context, client *dbent.Client, par
 		return fmt.Errorf("marshal game jackpot transaction metadata: %w", err)
 	}
 	_, err = client.ExecContext(ctx, `
-INSERT INTO game_jackpot_transactions (
+INSERT INTO game_hall_jackpot_transactions (
     jackpot_code, tx_type, amount, balance_before, balance_after,
     reference_type, reference_id, user_id, idempotency_key, metadata, created_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
@@ -407,7 +411,7 @@ INSERT INTO game_jackpot_transactions (
 
 func ensureGameWalletRow(ctx context.Context, client *dbent.Client, userID int64) error {
 	_, err := client.ExecContext(ctx, `
-INSERT INTO game_wallets (user_id, dg_balance, created_at, updated_at)
+INSERT INTO game_hall_wallets (user_id, dg_balance, created_at, updated_at)
 VALUES ($1, 0, NOW(), NOW())
 ON CONFLICT (user_id) DO NOTHING
 `, userID)
@@ -419,7 +423,7 @@ ON CONFLICT (user_id) DO NOTHING
 
 func ensureGameJackpotRow(ctx context.Context, client *dbent.Client) error {
 	_, err := client.ExecContext(ctx, `
-INSERT INTO game_jackpots (code, balance, enabled, created_at, updated_at)
+INSERT INTO game_hall_jackpots (code, balance, enabled, created_at, updated_at)
 VALUES ($1, 0, TRUE, NOW(), NOW())
 ON CONFLICT (code) DO NOTHING
 `, gameHallJackpotCode)
@@ -458,7 +462,7 @@ FOR UPDATE
 func lockUserDGBalance(ctx context.Context, client *dbent.Client, userID int64) (float64, error) {
 	rows, err := client.QueryContext(ctx, `
 SELECT dg_balance
-FROM game_wallets
+FROM game_hall_wallets
 WHERE user_id = $1
 FOR UPDATE
 `, userID)
@@ -484,7 +488,7 @@ FOR UPDATE
 func lockGameJackpot(ctx context.Context, client *dbent.Client) (float64, error) {
 	rows, err := client.QueryContext(ctx, `
 SELECT balance
-FROM game_jackpots
+FROM game_hall_jackpots
 WHERE code = $1
 FOR UPDATE
 `, gameHallJackpotCode)
@@ -522,7 +526,7 @@ WHERE id = $1 AND deleted_at IS NULL
 
 func updateUserDGBalance(ctx context.Context, client *dbent.Client, userID int64, balance float64) error {
 	_, err := client.ExecContext(ctx, `
-UPDATE game_wallets
+UPDATE game_hall_wallets
 SET dg_balance = $2,
     updated_at = NOW()
 WHERE user_id = $1
@@ -535,7 +539,7 @@ WHERE user_id = $1
 
 func updateGameJackpot(ctx context.Context, client *dbent.Client, balance float64) error {
 	_, err := client.ExecContext(ctx, `
-UPDATE game_jackpots
+UPDATE game_hall_jackpots
 SET balance = $2,
     updated_at = NOW()
 WHERE code = $1

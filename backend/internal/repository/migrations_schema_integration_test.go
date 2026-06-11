@@ -116,6 +116,31 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireIndex(t, tx, "game_jackpot_transactions", "idx_game_jackpot_transactions_code_idempotency")
 	requireIndex(t, tx, "game_jackpot_transactions", "idx_game_jackpot_transactions_code_created_at")
 
+	var gameHallWalletsRegclass sql.NullString
+	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.game_hall_wallets')").Scan(&gameHallWalletsRegclass))
+	require.True(t, gameHallWalletsRegclass.Valid, "expected game_hall_wallets table to exist")
+	requireColumn(t, tx, "game_hall_wallets", "dg_balance", "numeric", 0, false)
+
+	var gameHallWalletTransactionsRegclass sql.NullString
+	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.game_hall_wallet_transactions')").Scan(&gameHallWalletTransactionsRegclass))
+	require.True(t, gameHallWalletTransactionsRegclass.Valid, "expected game_hall_wallet_transactions table to exist")
+	requireColumn(t, tx, "game_hall_wallet_transactions", "metadata", "jsonb", 0, false)
+	requireIndex(t, tx, "game_hall_wallet_transactions", "idx_game_hall_wallet_transactions_user_idempotency")
+
+	var gameHallJackpotsRegclass sql.NullString
+	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.game_hall_jackpots')").Scan(&gameHallJackpotsRegclass))
+	require.True(t, gameHallJackpotsRegclass.Valid, "expected game_hall_jackpots table to exist")
+	requireColumn(t, tx, "game_hall_jackpots", "enabled", "boolean", 0, false)
+
+	var gameHallJackpotTransactionsRegclass sql.NullString
+	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.game_hall_jackpot_transactions')").Scan(&gameHallJackpotTransactionsRegclass))
+	require.True(t, gameHallJackpotTransactionsRegclass.Valid, "expected game_hall_jackpot_transactions table to exist")
+	requireColumn(t, tx, "game_hall_jackpot_transactions", "jackpot_code", "character varying", 32, false)
+	requireColumn(t, tx, "game_hall_jackpot_transactions", "user_id", "bigint", 0, true)
+	requireColumn(t, tx, "game_hall_jackpot_transactions", "metadata", "jsonb", 0, false)
+	requireIndex(t, tx, "game_hall_jackpot_transactions", "idx_game_hall_jackpot_transactions_code_idempotency")
+	requireIndex(t, tx, "game_hall_jackpot_transactions", "idx_game_hall_jackpot_transactions_code_created_at")
+
 	// settings table should exist
 	var settingsRegclass sql.NullString
 	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.settings')").Scan(&settingsRegclass))

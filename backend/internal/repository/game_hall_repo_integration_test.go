@@ -26,14 +26,14 @@ func TestGameHallRepositoryCommitSlotRound_WritesJackpotTransactions(t *testing.
 	})
 
 	_, err := integrationDB.ExecContext(ctx, `
-INSERT INTO game_wallets (user_id, dg_balance, created_at, updated_at)
+INSERT INTO game_hall_wallets (user_id, dg_balance, created_at, updated_at)
 VALUES ($1, $2, NOW(), NOW())
 ON CONFLICT (user_id) DO UPDATE SET dg_balance = EXCLUDED.dg_balance, updated_at = NOW()
 `, user.ID, 50.0)
 	require.NoError(t, err)
 
 	_, err = integrationDB.ExecContext(ctx, `
-INSERT INTO game_jackpots (code, balance, enabled, created_at, updated_at)
+INSERT INTO game_hall_jackpots (code, balance, enabled, created_at, updated_at)
 VALUES ($1, $2, TRUE, NOW(), NOW())
 ON CONFLICT (code) DO UPDATE SET balance = EXCLUDED.balance, enabled = TRUE, updated_at = NOW()
 `, gameHallJackpotCode, 100.0)
@@ -59,7 +59,7 @@ ON CONFLICT (code) DO UPDATE SET balance = EXCLUDED.balance, enabled = TRUE, upd
 
 	rows, err := integrationDB.QueryContext(ctx, `
 SELECT tx_type, amount, balance_before, balance_after, reference_type, reference_id, user_id
-FROM game_jackpot_transactions
+FROM game_hall_jackpot_transactions
 WHERE jackpot_code = $1
 ORDER BY id
 `, gameHallJackpotCode)
@@ -111,4 +111,63 @@ ORDER BY id
 		referenceID:   service.GameTypeSlots,
 		userID:        user.ID,
 	}, transactions[1])
+}
+
+func TestGameHallRepositoryGetSnapshot_IgnoresLegacySharedTables(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewGameHallRepository(client, integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("game-hall-legacy-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      88,
+	})
+
+	_, err := integrationDB.ExecContext(ctx, `
+INSERT INTO game_wallets (user_id, dg_balance, created_at, updated_at)
+VALUES ($1, $2, NOW(), NOW())
+ON CONFLICT (user_id) DO UPDATE SET dg_balance = EXCLUDED.dg_balance, updated_at = NOW()
+`, user.ID, 999.0)
+	require.NoError(t, err)
+
+	_, err = integrationDB.ExecContext(ctx, `
+UPDATE game_jackpots
+SET balance = $2,
+    updated_at = NOW()
+WHERE code = $1
+`, gameHallJackpotCode, 777.0)
+	require.NoError(t, err)
+
+	_, err = integrationDB.ExecContext(ctx, `
+DELETE FROM game_hall_wallet_transactions
+WHERE user_id = $1
+`, user.ID)
+	require.NoError(t, err)
+
+	_, err = integrationDB.ExecContext(ctx, `
+DELETE FROM game_hall_wallets
+WHERE user_id = $1
+`, user.ID)
+	require.NoError(t, err)
+
+	_, err = integrationDB.ExecContext(ctx, `
+DELETE FROM game_hall_jackpot_transactions
+WHERE jackpot_code = $1
+`, gameHallJackpotCode)
+	require.NoError(t, err)
+
+	_, err = integrationDB.ExecContext(ctx, `
+UPDATE game_hall_jackpots
+SET balance = 0,
+    updated_at = NOW()
+WHERE code = $1
+`, gameHallJackpotCode)
+	require.NoError(t, err)
+
+	snapshot, err := repo.GetSnapshot(ctx, user.ID)
+	require.NoError(t, err)
+	require.Equal(t, 88.0, snapshot.MainBalance)
+	require.Equal(t, 0.0, snapshot.DGBalance)
+	require.Equal(t, 0.0, snapshot.JackpotBalance)
 }
