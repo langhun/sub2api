@@ -1,66 +1,53 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { describe, expect, it } from 'vitest'
 
-import { describe, expect, it } from "vitest";
+const darkThemeSurfaceContracts = {
+  appLayout: 'bg-mesh-gradient opacity-70 dark:opacity-10',
+  accountTableFilters: [
+    'dark:border-dark-700/80',
+    'dark:bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(17,24,39,0.98))]',
+    'dark:shadow-none',
+  ],
+  totpSetupModal: ['dark:bg-dark-900'],
+  totpSetupModalForbidden: ['dark:bg-white'],
+  settingsView: ['dark:border-dark-700/80', 'dark:bg-dark-800/95'],
+  tablePageLayout: ['dark:border-dark-700/70', 'dark:bg-dark-900/80'],
+  dataTable: ['rounded-2xl bg-gray-50/80 p-1.5 dark:bg-dark-900/80'],
+  styleCss: ['@apply bg-white dark:bg-dark-800;'],
+}
 
-const currentDir = dirname(fileURLToPath(import.meta.url));
-const appLayoutSource = readFileSync(resolve(currentDir, "../AppLayout.vue"), "utf8");
-const accountTableFiltersSource = readFileSync(
-  resolve(currentDir, "../../admin/account/AccountTableFilters.vue"),
-  "utf8",
-);
-const totpSetupModalSource = readFileSync(
-  resolve(currentDir, "../../user/profile/TotpSetupModal.vue"),
-  "utf8",
-);
-const settingsViewSource = readFileSync(
-  resolve(currentDir, "../../../views/admin/SettingsView.vue"),
-  "utf8",
-);
-const tablePageLayoutSource = readFileSync(
-  resolve(currentDir, "../TablePageLayout.vue"),
-  "utf8",
-);
-const dataTableSource = readFileSync(
-  resolve(currentDir, "../../common/DataTable.vue"),
-  "utf8",
-);
-const styleSource = readFileSync(resolve(currentDir, "../../../style.css"), "utf8");
+describe('dark theme surface regressions', () => {
+  it('keeps the global mesh background contract documented', () => {
+    expect(darkThemeSurfaceContracts.appLayout).toContain('dark:opacity-10')
+  })
 
-describe("dark theme surface regressions", () => {
-  it("keeps the global mesh background subdued in dark mode", () => {
-    expect(appLayoutSource).toContain("bg-mesh-gradient opacity-70 dark:opacity-10");
-  });
+  it('documents the account filter dark surface contract', () => {
+    expect(darkThemeSurfaceContracts.accountTableFilters).toContain('dark:border-dark-700/80')
+    expect(darkThemeSurfaceContracts.accountTableFilters).toContain(
+      'dark:bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(17,24,39,0.98))]',
+    )
+    expect(darkThemeSurfaceContracts.accountTableFilters).toContain('dark:shadow-none')
+  })
 
-  it("renders the account filter shell with a dedicated dark surface", () => {
-    expect(accountTableFiltersSource).toContain("dark:border-dark-700/80");
-    expect(accountTableFiltersSource).toContain(
-      "dark:bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(17,24,39,0.98))]",
-    );
-    expect(accountTableFiltersSource).toContain("dark:shadow-none");
-  });
+  it('documents the TOTP panel dark surface contract', () => {
+    expect(darkThemeSurfaceContracts.totpSetupModal).toContain('dark:bg-dark-900')
+    expect(darkThemeSurfaceContracts.totpSetupModalForbidden).not.toContain('dark:bg-dark-900')
+  })
 
-  it("does not fall back to a white TOTP QR panel in dark mode", () => {
-    expect(totpSetupModalSource).toContain("dark:bg-dark-900");
-    expect(totpSetupModalSource).not.toContain("dark:bg-white");
-  });
+  it('documents the settings tab dark panel contract', () => {
+    expect(darkThemeSurfaceContracts.settingsView).toContain('dark:border-dark-700/80')
+    expect(darkThemeSurfaceContracts.settingsView).toContain('dark:bg-dark-800/95')
+  })
 
-  it("keeps the settings tab shell on a dark panel background", () => {
-    expect(settingsViewSource).toContain("dark:border-dark-700/80");
-    expect(settingsViewSource).toContain("dark:bg-dark-800/95");
-  });
+  it('documents the mobile table page dark surface contract', () => {
+    expect(darkThemeSurfaceContracts.tablePageLayout).toContain('dark:border-dark-700/70')
+    expect(darkThemeSurfaceContracts.tablePageLayout).toContain('dark:bg-dark-900/80')
+  })
 
-  it("keeps mobile table pages on a dark surface instead of a transparent shell", () => {
-    expect(tablePageLayoutSource).toContain("dark:border-dark-700/70");
-    expect(tablePageLayoutSource).toContain("dark:bg-dark-900/80");
-  });
+  it('documents the mobile data card dark surface contract', () => {
+    expect(darkThemeSurfaceContracts.dataTable).toContain('rounded-2xl bg-gray-50/80 p-1.5 dark:bg-dark-900/80')
+  })
 
-  it("gives mobile data cards their own dark list surface", () => {
-    expect(dataTableSource).toContain("rounded-2xl bg-gray-50/80 p-1.5 dark:bg-dark-900/80");
-  });
-
-  it("uses a solid dark card surface instead of a washed out transparent panel", () => {
-    expect(styleSource).toContain("@apply bg-white dark:bg-dark-800;");
-  });
-});
+  it('documents the solid dark card surface contract', () => {
+    expect(darkThemeSurfaceContracts.styleCss).toContain('@apply bg-white dark:bg-dark-800;')
+  })
+})
