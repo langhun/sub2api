@@ -41,6 +41,8 @@ type User struct {
 type AdminUser struct {
 	User
 
+	SignupSource string     `json:"signup_source"`
+	InviterUser  *User      `json:"inviter_user,omitempty"`
 	Notes      string     `json:"notes"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	// GroupRates 用户专属分组倍率配置

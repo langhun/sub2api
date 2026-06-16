@@ -167,9 +167,10 @@ type PaymentMethodStat struct {
 }
 
 type TopUserStat struct {
-	UserID int64   `json:"user_id"`
-	Email  string  `json:"email"`
-	Amount float64 `json:"amount"`
+	UserID   int64   `json:"user_id"`
+	Email    string  `json:"email"`
+	Username string  `json:"username"`
+	Amount   float64 `json:"amount"`
 }
 
 // --- Service ---

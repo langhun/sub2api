@@ -431,6 +431,11 @@ func (h *UserHandler) GetBalanceHistory(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	amountSources, err := h.adminService.GetUserBalanceSourceSummary(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 
 	// Convert to admin DTO (includes notes field for admin visibility)
 	out := make([]dto.AdminRedeemCode, 0, len(codes))
@@ -450,6 +455,7 @@ func (h *UserHandler) GetBalanceHistory(c *gin.Context) {
 		"page_size":       pageSize,
 		"pages":           pages,
 		"total_recharged": totalRecharged,
+		"amount_sources":  amountSources,
 	})
 }
 

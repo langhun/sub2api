@@ -7,6 +7,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -49,6 +50,21 @@ func (s *PaymentService) GetDashboardStats(ctx context.Context, days int) (*Dash
 	st.DailySeries = buildDailySeries(orders, since, days)
 	st.PaymentMethods = buildMethodDistribution(orders)
 	st.TopUsers = buildTopUsers(orders)
+	if len(st.TopUsers) > 0 {
+		users := make(map[int64]*User, len(st.TopUsers))
+		for _, item := range st.TopUsers {
+			if _, ok := users[item.UserID]; ok {
+				continue
+			}
+			user, profileErr := s.userRepo.GetByID(ctx, item.UserID)
+			if profileErr != nil {
+				slog.Warn("[PaymentService] failed to load top user profile", "userID", item.UserID, "error", profileErr)
+				continue
+			}
+			users[item.UserID] = user
+		}
+		st.TopUsers = applyTopUserProfiles(st.TopUsers, users)
+	}
 
 	return st, nil
 }
@@ -146,6 +162,21 @@ func buildTopUsers(orders []*dbent.PaymentOrder) []TopUserStat {
 		result = append(result, *userList[i])
 	}
 	return result
+}
+
+func applyTopUserProfiles(topUsers []TopUserStat, users map[int64]*User) []TopUserStat {
+	if len(topUsers) == 0 || len(users) == 0 {
+		return topUsers
+	}
+	for i := range topUsers {
+		if user := users[topUsers[i].UserID]; user != nil {
+			topUsers[i].Username = strings.TrimSpace(user.Username)
+			if email := strings.TrimSpace(user.Email); email != "" {
+				topUsers[i].Email = email
+			}
+		}
+	}
+	return topUsers
 }
 
 // --- Audit Logs ---

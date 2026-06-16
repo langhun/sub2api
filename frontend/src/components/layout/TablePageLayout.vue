@@ -93,7 +93,7 @@ onUnmounted(() => {
 
 /* 移动端：恢复正常滚动 */
 .table-page-layout.mobile-mode .table-scroll-container {
-  @apply h-auto overflow-visible border-none shadow-none bg-transparent;
+  @apply h-auto overflow-visible rounded-2xl border border-gray-200/80 bg-gray-50/80 shadow-none dark:border-dark-700/70 dark:bg-dark-900/80;
 }
 
 .table-page-layout.mobile-mode .layout-section-scrollable {

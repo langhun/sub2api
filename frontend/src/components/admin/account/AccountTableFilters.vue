@@ -1,17 +1,35 @@
 <template>
-  <div class="flex flex-wrap items-center gap-3">
-    <SearchInput
-      :model-value="searchQuery"
-      :placeholder="t('admin.accounts.searchAccounts')"
-      class="w-full sm:w-64"
-      @update:model-value="$emit('update:searchQuery', $event)"
-      @search="$emit('change')"
-    />
-    <Select :model-value="filters.platform" class="w-40" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
-    <Select :model-value="filters.type" class="w-40" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
-    <Select :model-value="filters.status" class="w-40" :options="sOpts" @update:model-value="updateStatus" @change="$emit('change')" />
-    <Select :model-value="filters.privacy_mode" class="w-40" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
-    <Select :model-value="filters.group" class="w-40" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
+  <div class="w-full rounded-[16px] border border-white/75 bg-[linear-gradient(135deg,rgba(255,255,255,0.94),rgba(239,250,250,0.98))] px-2 py-1 shadow-[0_6px_16px_rgba(15,118,110,0.045)] backdrop-blur dark:border-dark-700/80 dark:bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(17,24,39,0.98))] dark:shadow-none sm:px-2.5">
+    <div class="flex flex-col gap-1">
+      <div class="flex flex-wrap items-center gap-1">
+        <div class="flex min-w-0 items-center gap-1.5">
+          <div class="flex h-6 w-6 items-center justify-center rounded-lg bg-teal-500/10 text-teal-700 dark:bg-teal-400/15 dark:text-teal-200">
+            <Icon name="filter" size="sm" />
+          </div>
+          <div class="min-w-0">
+            <div class="text-[12px] font-semibold text-gray-900 dark:text-white">筛选条件</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-1 md:grid-cols-2 xl:grid-cols-5 2xl:grid-cols-9">
+        <SearchInput
+          :model-value="searchQuery"
+          :placeholder="t('admin.accounts.searchAccounts')"
+          class="min-w-0 w-full md:col-span-2 xl:col-span-2 2xl:col-span-1"
+          @update:model-value="$emit('update:searchQuery', $event)"
+          @search="$emit('change')"
+        />
+        <Select :model-value="filters.platform" class="w-full" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
+        <Select :model-value="filters.main_status" class="w-full" :options="mainStatusOpts" @update:model-value="updateMainStatus" @change="$emit('change')" />
+        <Select :model-value="filters.runtime_status" class="w-full" :options="runtimeStatusOpts" @update:model-value="updateRuntimeStatus" @change="$emit('change')" />
+        <Select :model-value="filters.group" class="w-full" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
+        <Select :model-value="filters.tier" class="w-full" :options="tierOpts" @update:model-value="updateTier" @change="$emit('change')" />
+        <Select :model-value="filters.type" class="w-full" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
+        <Select :model-value="filters.scheduling_status" class="w-full" :options="schedulingStatusOpts" @update:model-value="updateSchedulingStatus" @change="$emit('change')" />
+        <Select :model-value="filters.privacy_mode" class="w-full" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
+      </div>
+    </div>
   </div>
 </template>
 

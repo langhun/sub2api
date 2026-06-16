@@ -246,9 +246,20 @@ export interface BalanceHistoryItem {
   group?: { id: number; name: string } | null
 }
 
+export interface UserBalanceAmountSources {
+  recharge: number
+  registration_bonus: number
+  invitation_bonus: number
+  checkin_bonus: number
+  affiliate_transfer: number
+  admin_adjustment: number
+  total_credited: number
+}
+
 // Balance history response extends pagination with total_recharged summary
 export interface BalanceHistoryResponse extends PaginatedResponse<BalanceHistoryItem> {
   total_recharged: number
+  amount_sources?: UserBalanceAmountSources
 }
 
 /**

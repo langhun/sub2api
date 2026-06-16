@@ -371,6 +371,7 @@ type ContentModerationLog struct {
 	RequestID         string             `json:"request_id"`
 	UserID            *int64             `json:"user_id,omitempty"`
 	UserEmail         string             `json:"user_email"`
+	Username          string             `json:"username"`
 	APIKeyID          *int64             `json:"api_key_id,omitempty"`
 	APIKeyName        string             `json:"api_key_name"`
 	GroupID           *int64             `json:"group_id,omitempty"`

@@ -139,6 +139,7 @@ const runtimeStatus = () => ({
 })
 
 const AppLayoutStub = { template: '<div><slot /></div>' }
+const ModelWhitelistSelectorStub = { template: '<div data-test="model-whitelist-selector-stub" />' }
 const BaseDialogStub = defineComponent({
   props: {
     show: {
@@ -403,5 +404,71 @@ describe('admin RiskControlView', () => {
       'max-h-[280px]',
       'overflow-y-auto',
     ]))
+  })
+
+  it('prefers username over email in logs and detail modal', async () => {
+    listLogs.mockResolvedValue({
+      items: [{
+        id: 1,
+        request_id: 'req_1',
+        user_id: 9,
+        user_email: 'alpha@example.com',
+        username: 'Alpha',
+        api_key_id: null,
+        api_key_name: '',
+        group_id: 1,
+        group_name: 'Group A',
+        endpoint: '/v1/messages',
+        provider: 'openai',
+        model: 'gpt',
+        mode: 'input',
+        action: 'block',
+        flagged: true,
+        highest_category: 'sexual',
+        highest_score: 0.98,
+        category_scores: { sexual: 0.98 },
+        threshold_snapshot: { sexual: 0.95 },
+        input_excerpt: 'some text',
+        upstream_latency_ms: 100,
+        error: '',
+        violation_count: 2,
+        auto_banned: false,
+        email_sent: true,
+        user_status: 'active',
+        queue_delay_ms: 5,
+        created_at: '2026-06-12T10:00:00Z',
+      }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+
+    const wrapper = mount(RiskControlView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+          Select: true,
+          Toggle: true,
+          Pagination: true,
+          ModelWhitelistSelector: ModelWhitelistSelectorStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Alpha')
+    expect(wrapper.text()).toContain('alpha@example.com')
+
+    const inputButton = wrapper.findAll('button').find((item) => item.text().includes('some text'))
+    expect(inputButton).toBeTruthy()
+    await inputButton!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Alpha')
+    expect(wrapper.text()).toContain('alpha@example.com')
   })
 })

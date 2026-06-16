@@ -94,7 +94,7 @@ func (r *contentModerationRepository) ListLogs(ctx context.Context, filter servi
 	queryArgs = append(queryArgs, params.Limit(), params.Offset())
 	rows, err := r.db.QueryContext(ctx, `
 SELECT
-    l.id, l.request_id, l.user_id, l.user_email, l.api_key_id, l.api_key_name, l.group_id, l.group_name,
+    l.id, l.request_id, l.user_id, l.user_email, COALESCE(u.username, ''), l.api_key_id, l.api_key_name, l.group_id, l.group_name,
     l.endpoint, l.provider, l.model, l.mode, l.action, l.flagged, l.highest_category, l.highest_score,
     l.category_scores, l.threshold_snapshot, l.input_excerpt, l.upstream_latency_ms, l.error,
     l.violation_count, l.auto_banned, l.email_sent, COALESCE(u.status, ''), l.queue_delay_ms, l.created_at
@@ -119,6 +119,7 @@ LIMIT $`+fmt.Sprint(len(queryArgs)-1)+` OFFSET $`+fmt.Sprint(len(queryArgs)),
 			&item.RequestID,
 			&userID,
 			&item.UserEmail,
+			&item.Username,
 			&apiKeyID,
 			&item.APIKeyName,
 			&groupID,

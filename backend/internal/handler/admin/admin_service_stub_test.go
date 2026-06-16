@@ -69,7 +69,16 @@ type stubAdminService struct {
 		sortOrder string
 		calls     int
 	}
-	mu sync.Mutex
+	redeemStats          service.RedeemCodeStats
+	redeemStatsErr       error
+	balanceSourceSummary *service.UserBalanceSourceSummary
+	mu                   sync.Mutex
+}
+
+type groupAPIKeyCall struct {
+	groupID  int64
+	page     int
+	pageSize int
 }
 
 func newStubAdminService() *stubAdminService {
@@ -568,6 +577,13 @@ func (s *stubAdminService) ExpireRedeemCode(ctx context.Context, id int64) (*ser
 
 func (s *stubAdminService) GetUserBalanceHistory(ctx context.Context, userID int64, page, pageSize int, codeType string) ([]service.RedeemCode, int64, float64, error) {
 	return s.redeems, int64(len(s.redeems)), 100.0, nil
+}
+
+func (s *stubAdminService) GetUserBalanceSourceSummary(ctx context.Context, userID int64) (*service.UserBalanceSourceSummary, error) {
+	if s.balanceSourceSummary == nil {
+		return &service.UserBalanceSourceSummary{}, nil
+	}
+	return s.balanceSourceSummary, nil
 }
 
 func (s *stubAdminService) UpdateGroupSortOrders(ctx context.Context, updates []service.GroupSortOrderUpdate) error {

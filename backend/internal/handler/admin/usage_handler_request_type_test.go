@@ -119,6 +119,32 @@ func TestAdminUsageStatsRequestTypePriority(t *testing.T) {
 	require.Nil(t, repo.statsFilters.Stream)
 }
 
+func TestAdminUsageSearchUsersIncludesUsername(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.users = []service.User{
+		{
+			ID:       7,
+			Email:    "alice@example.com",
+			Username: "Alice",
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	usageSvc := service.NewUsageService(&adminUsageRepoCapture{}, nil, nil, nil)
+	handler := NewUsageHandler(usageSvc, nil, adminSvc, nil)
+	router := gin.New()
+	router.GET("/admin/usage/search-users", handler.SearchUsers)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/usage/search-users?q=alice", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "alice", adminSvc.lastListUsers.filters.Search)
+	require.Contains(t, rec.Body.String(), "\"email\":\"alice@example.com\"")
+	require.Contains(t, rec.Body.String(), "\"username\":\"Alice\"")
+}
+
 func TestAdminUsageStatsInvalidRequestType(t *testing.T) {
 	repo := &adminUsageRepoCapture{}
 	router := newAdminUsageRequestTypeTestRouter(repo)

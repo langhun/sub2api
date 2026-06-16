@@ -1,49 +1,60 @@
 <template>
   <BaseDialog :show="show" :title="t('admin.users.balanceHistoryTitle')" width="wide" :close-on-click-outside="true" :z-index="40" @close="$emit('close')">
-    <div v-if="user" class="space-y-4">
+    <div v-if="displayUser" class="space-y-4">
       <!-- User header: two-row layout with full user info -->
       <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-700">
         <!-- Row 1: avatar + email/username/created_at (left) + current balance (right) -->
         <div class="flex items-center gap-3">
           <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
             <span class="text-lg font-medium text-primary-700 dark:text-primary-300">
-              {{ user.email.charAt(0).toUpperCase() }}
+              {{ getUserDisplayInitial(displayUser) }}
             </span>
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
-              <p class="truncate font-medium text-gray-900 dark:text-white">{{ user.email }}</p>
-              <span v-if="user.deleted_at" class="flex-shrink-0 inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30">
+              <p class="truncate font-medium text-gray-900 dark:text-white">{{ getPreferredUserDisplayName(displayUser, '#' + displayUser.id) }}</p>
+              <span v-if="displayUser.deleted_at" class="flex-shrink-0 inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30">
                 {{ t('admin.usage.userDeletedBadge') }}
               </span>
-              <span
-                v-if="user.username"
-                class="flex-shrink-0 rounded bg-primary-50 px-1.5 py-0.5 text-xs text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
-              >
-                {{ user.username }}
-              </span>
             </div>
+            <p v-if="getSecondaryUserEmail(displayUser)" class="truncate text-xs text-gray-400 dark:text-dark-500">
+              {{ getSecondaryUserEmail(displayUser) }}
+            </p>
             <p class="text-xs text-gray-400 dark:text-dark-500">
-              {{ t('admin.users.createdAt') }}: {{ formatDateTime(user.created_at) }}
+              {{ t('admin.users.createdAt') }}: {{ formatDateTime(displayUser.created_at) }}
             </p>
           </div>
           <!-- Current balance: prominent display on the right -->
           <div class="flex-shrink-0 text-right">
             <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.users.currentBalance') }}</p>
             <p class="text-xl font-bold text-gray-900 dark:text-white">
-              ${{ user.balance?.toFixed(2) || '0.00' }}
+              ${{ displayUser.balance?.toFixed(2) || '0.00' }}
             </p>
           </div>
         </div>
-        <!-- Row 2: notes + total recharged -->
-        <div class="mt-2.5 flex items-center justify-between border-t border-gray-200/60 pt-2.5 dark:border-dark-600/60">
-          <p class="min-w-0 flex-1 truncate text-xs text-gray-500 dark:text-dark-400" :title="user.notes || ''">
-            <template v-if="user.notes">{{ t('admin.users.notes') }}: {{ user.notes }}</template>
-            <template v-else>&nbsp;</template>
-          </p>
-          <p class="ml-4 flex-shrink-0 text-xs text-gray-500 dark:text-dark-400">
-            {{ t('admin.users.totalRecharged') }}: <span class="font-semibold text-emerald-600 dark:text-emerald-400">${{ totalRecharged.toFixed(2) }}</span>
-          </p>
+        <div class="mt-2.5 space-y-2 border-t border-gray-200/60 pt-2.5 dark:border-dark-600/60">
+          <div class="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+            <p class="min-w-0 flex-1 truncate text-xs text-gray-500 dark:text-dark-400" :title="displayUser.notes || ''">
+              <template v-if="displayUser.notes">{{ t('admin.users.notes') }}: {{ displayUser.notes }}</template>
+              <template v-else>&nbsp;</template>
+            </p>
+            <p class="flex-shrink-0 text-xs text-gray-500 dark:text-dark-400">
+              {{ t('admin.users.totalRecharged') }}: <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ formatCurrencyAmount(totalRecharged) }}</span>
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-dark-400">
+            <span>{{ t('admin.users.signupSourceLabel') }}: {{ formatSignupSource(displayUser.signup_source) }}</span>
+            <span>{{ t('admin.users.inviterLabel') }}: {{ inviterDisplayName || t('admin.users.noInviter') }}</span>
+          </div>
+          <div v-if="visibleAmountSources.length > 0" class="flex flex-wrap gap-2">
+            <span
+              v-for="source in visibleAmountSources"
+              :key="source.key"
+              class="rounded-md bg-white px-2 py-1 text-xs text-gray-600 dark:bg-dark-800 dark:text-gray-300"
+            >
+              {{ source.label }}: <span class="font-semibold">{{ formatAmountSourceValue(source.key, source.value) }}</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -175,11 +186,13 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI, type BalanceHistoryItem } from '@/api/admin'
+import type { UserBalanceAmountSources } from '@/api/admin/users'
 import { formatDateTime } from '@/utils/format'
 import type { AdminUser } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { getPreferredUserDisplayName, getSecondaryUserEmail, getUserDisplayInitial } from '@/utils/userDisplay'
 
 const props = defineProps<{ show: boolean; user: AdminUser | null; hideActions?: boolean }>()
 const emit = defineEmits(['close', 'deposit', 'withdraw'])
@@ -190,10 +203,29 @@ const loading = ref(false)
 const currentPage = ref(1)
 const total = ref(0)
 const totalRecharged = ref(0)
+const userDetail = ref<AdminUser | null>(null)
+const amountSources = ref<UserBalanceAmountSources | null>(null)
 const pageSize = 15
 const typeFilter = ref('')
 
 const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
+const displayUser = computed(() => userDetail.value ?? props.user)
+const inviterDisplayName = computed(() => formatHistoryUser(displayUser.value?.inviter_user))
+const visibleAmountSources = computed(() => {
+  if (!amountSources.value) return []
+
+  const entries = [
+    { key: 'total_credited', label: t('admin.users.amountSourceTotal'), value: amountSources.value.total_credited },
+    { key: 'recharge', label: t('admin.users.amountSourceRecharge'), value: amountSources.value.recharge },
+    { key: 'registration_bonus', label: t('admin.users.amountSourceRegistration'), value: amountSources.value.registration_bonus },
+    { key: 'invitation_bonus', label: t('admin.users.amountSourceInvitation'), value: amountSources.value.invitation_bonus },
+    { key: 'checkin_bonus', label: t('admin.users.amountSourceCheckin'), value: amountSources.value.checkin_bonus },
+    { key: 'affiliate_transfer', label: t('admin.users.amountSourceAffiliateTransfer'), value: amountSources.value.affiliate_transfer },
+    { key: 'admin_adjustment', label: t('admin.users.amountSourceAdminAdjustment'), value: amountSources.value.admin_adjustment },
+  ]
+
+  return entries.filter((entry) => entry.key === 'total_credited' || Math.abs(entry.value) > 0.000001)
+})
 
 // Type filter options
 const typeOptions = computed(() => [
@@ -210,9 +242,17 @@ const typeOptions = computed(() => [
 watch(() => props.show, (v) => {
   if (v && props.user) {
     typeFilter.value = ''
-    loadHistory(1)
+    void Promise.all([loadUserDetail(), loadHistory(1)])
+  } else if (!v) {
+    userDetail.value = null
+    amountSources.value = null
   }
 })
+
+const loadUserDetail = async () => {
+  if (!props.user) return
+  userDetail.value = await adminAPI.users.getById(props.user.id)
+}
 
 const loadHistory = async (page: number) => {
   if (!props.user) return
@@ -228,10 +268,42 @@ const loadHistory = async (page: number) => {
     history.value = res.items || []
     total.value = res.total || 0
     totalRecharged.value = res.total_recharged || 0
+    amountSources.value = res.amount_sources || null
   } catch (error) {
     console.error('Failed to load balance history:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const formatCurrencyAmount = (value: number) => `$${value.toFixed(2)}`
+
+const formatAmountSourceValue = (key: string, value: number) => {
+  if (key === 'admin_adjustment' || value < 0) {
+    const sign = value >= 0 ? '+' : '-'
+    return `${sign}$${Math.abs(value).toFixed(2)}`
+  }
+  return formatCurrencyAmount(value)
+}
+
+const formatSignupSource = (source?: string | null) => {
+  switch ((source || '').toLowerCase()) {
+    case 'linuxdo':
+      return t('admin.users.signupSourceLinuxdo')
+    case 'wechat':
+      return t('admin.users.signupSourceWechat')
+    case 'oidc':
+      return t('admin.users.signupSourceOidc')
+    case 'github':
+      return t('admin.users.signupSourceGithub')
+    case 'google':
+      return t('admin.users.signupSourceGoogle')
+    case 'dingtalk':
+      return t('admin.users.signupSourceDingtalk')
+    case 'email':
+      return t('admin.users.signupSourceEmail')
+    default:
+      return source || t('admin.users.signupSourceUnknown')
   }
 }
 
@@ -310,7 +382,87 @@ const getItemTitle = (item: BalanceHistoryItem) => {
   }
 }
 
+<<<<<<< HEAD
 // Format display value
+=======
+const isBlindboxConcurrency = (item: BalanceHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Concurrency') || item.notes?.includes('并发'))
+
+const isBlindboxSubscription = (item: BalanceHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Subscription') || item.notes?.includes('订阅'))
+
+const isBlindboxInvitationCode = (item: BalanceHistoryItem) => item.type === 'checkin_blindbox' && (item.notes?.includes('Invitation Code') || item.notes?.includes('邀请码'))
+
+const formatHistoryUser = (user?: { id: number; email?: string; username?: string } | null) => {
+  if (!user) return null
+  const displayName = getPreferredUserDisplayName(user)
+  if (displayName) return displayName
+  if (user.id) return `#${user.id}`
+  return null
+}
+
+const getInvitationDescription = (item: BalanceHistoryItem) => {
+  if (item.type !== 'invitation') return null
+
+  const parts: string[] = []
+  if (item.source_summary) {
+    parts.push(`邀请码来源：${item.source_summary}`)
+  }
+
+  const inviter = formatHistoryUser(item.inviter_user)
+  if (inviter) {
+    parts.push(`邀请人：${inviter}`)
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
+const getItemDescription = (item: BalanceHistoryItem) => {
+  if (item.type === 'invitation') {
+    return getInvitationDescription(item)
+  }
+  if (!item.notes) return ''
+  return item.notes.length > 60 ? item.notes.substring(0, 55) + '...' : item.notes
+}
+
+const getBlindboxRarity = (item: BalanceHistoryItem): string | null => {
+  if (item.type !== 'checkin_blindbox' || !item.notes) return null
+  const parts = item.notes.split(' · ')
+  if (parts.length < 2) return null
+  const rarityMap: Record<string, string> = {
+    Common: 'common', Rare: 'rare', Epic: 'epic', Legendary: 'legendary',
+  }
+  return rarityMap[parts[1]] || null
+}
+
+const rarityColorMap: Record<string, { border: string; bg: string; badge: string; badgeText: string; darkBorder: string; darkBg: string; darkBadge: string; darkBadgeText: string; valueText: string; darkValueText: string }> = {
+  common: {
+    border: 'border-gray-300', bg: 'bg-gray-50', badge: 'bg-gray-200', badgeText: 'text-gray-600',
+    darkBorder: 'dark:border-gray-600', darkBg: 'dark:bg-gray-800/50', darkBadge: 'dark:bg-gray-700', darkBadgeText: 'dark:text-gray-400',
+    valueText: 'text-gray-700', darkValueText: 'dark:text-gray-300',
+  },
+  rare: {
+    border: 'border-blue-300', bg: 'bg-blue-50', badge: 'bg-blue-100', badgeText: 'text-blue-700',
+    darkBorder: 'dark:border-blue-800', darkBg: 'dark:bg-blue-950/30', darkBadge: 'dark:bg-blue-900/50', darkBadgeText: 'dark:text-blue-300',
+    valueText: 'text-blue-700', darkValueText: 'dark:text-blue-300',
+  },
+  epic: {
+    border: 'border-purple-300', bg: 'bg-purple-50', badge: 'bg-purple-100', badgeText: 'text-purple-700',
+    darkBorder: 'dark:border-purple-800', darkBg: 'dark:bg-purple-950/30', darkBadge: 'dark:bg-purple-900/50', darkBadgeText: 'dark:text-purple-300',
+    valueText: 'text-purple-700', darkValueText: 'dark:text-purple-300',
+  },
+  legendary: {
+    border: 'border-amber-300', bg: 'bg-amber-50', badge: 'bg-amber-100', badgeText: 'text-amber-700',
+    darkBorder: 'dark:border-amber-800', darkBg: 'dark:bg-amber-950/30', darkBadge: 'dark:bg-amber-900/50', darkBadgeText: 'dark:text-amber-300',
+    valueText: 'text-amber-700', darkValueText: 'dark:text-amber-300',
+  },
+}
+
+const getBlindboxRarityStyle = (item: BalanceHistoryItem) => {
+  const rarity = getBlindboxRarity(item)
+  if (!rarity) return null
+  return rarityColorMap[rarity]
+}
+
+>>>>>>> cec6fd725 (feat(admin): enrich usage risk control and balance history)
 const formatValue = (item: BalanceHistoryItem) => {
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''

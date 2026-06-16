@@ -327,7 +327,7 @@ const handleSearchUsers = () => {
 
 const selectUser = (user: AdminUser) => {
   selectedUser.value = user
-  searchQuery.value = user.email
+  searchQuery.value = user.username || user.email
   showDropdown.value = false
   searchResults.value = []
 }

@@ -537,6 +537,29 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetUserBreakdownStats_IncludesUsername(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+
+	rows := sqlmock.NewRows([]string{
+		"user_id", "email", "username", "requests", "total_tokens", "cost", "actual_cost", "account_cost",
+	}).AddRow(int64(9), "alpha@example.com", "Alpha", int64(6), int64(900), 1.2, 1.0, 0.8)
+
+	mock.ExpectQuery("SELECT\\s+COALESCE\\(ul.user_id, 0\\) as user_id,\\s+COALESCE\\(u.email, ''\\) as email,\\s+COALESCE\\(u.username, ''\\) as username").
+		WithArgs(start, end).
+		WillReturnRows(rows)
+
+	got, err := repo.GetUserBreakdownStats(context.Background(), start, end, usagestats.UserBreakdownDimension{}, 0)
+	require.NoError(t, err)
+	require.Equal(t, []usagestats.UserBreakdownItem{
+		{UserID: 9, Email: "alpha@example.com", Username: "Alpha", Requests: 6, TotalTokens: 900, Cost: 1.2, ActualCost: 1.0, AccountCost: 0.8},
+	}, got)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestBuildRequestTypeFilterConditionLegacyFallback(t *testing.T) {
 	tests := []struct {
 		name      string

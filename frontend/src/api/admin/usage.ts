@@ -28,6 +28,7 @@ export interface SimpleUser {
   id: number
   email: string
   deleted: boolean
+  username: string
 }
 
 export interface SimpleApiKey {
@@ -130,8 +131,8 @@ export async function getStats(params: {
 }
 
 /**
- * Search users by email keyword (admin only)
- * @param keyword - Email keyword to search
+ * Search users by email or username keyword (admin only)
+ * @param keyword - Email or username keyword to search
  * @returns List of matching users (max 30)
  */
 export async function searchUsers(keyword: string): Promise<SimpleUser[]> {
