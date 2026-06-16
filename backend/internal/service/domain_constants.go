@@ -92,6 +92,10 @@ const (
 const (
 	AdjustmentTypeAdminBalance     = domain.AdjustmentTypeAdminBalance     // 管理员调整余额
 	AdjustmentTypeAdminConcurrency = domain.AdjustmentTypeAdminConcurrency // 管理员调整并发数
+	AdjustmentTypeCheckin          = domain.AdjustmentTypeCheckin          // 签到奖励
+	AdjustmentTypeCheckinLuck      = domain.AdjustmentTypeCheckinLuck      // 运气签到奖励
+	AdjustmentTypeCheckinBlindbox  = domain.AdjustmentTypeCheckinBlindbox  // 盲盒奖励
+	AdjustmentTypeRegistration     = domain.AdjustmentTypeRegistration     // 注册赠送
 )
 
 // Group subscription type constants
@@ -140,6 +144,13 @@ const (
 	SettingKeyLoginAgreementMode               = "login_agreement_mode"                // 条款确认展示模式：modal / checkbox
 	SettingKeyLoginAgreementUpdatedAt          = "login_agreement_updated_at"          // 条款更新日期（展示用）
 	SettingKeyLoginAgreementDocuments          = "login_agreement_documents"           // 条款文档列表（JSON，Markdown 内容）
+	SettingKeyRedeemCodeFormat                 = "redeem_code_format"                  // 旧版通用兑换码格式(JSON)，新版本作为余额/并发/订阅格式回退
+	SettingKeyBalanceCodeFormat                = "balance_code_format"                 // 余额兑换码/余额审计码格式(JSON)
+	SettingKeyConcurrencyCodeFormat            = "concurrency_code_format"             // 并发兑换码/并发审计码格式(JSON)
+	SettingKeySubscriptionCodeFormat           = "subscription_code_format"            // 订阅兑换码格式(JSON)
+	SettingKeyRedPacketCodeFormat              = "redpacket_code_format"               // 红包口令格式(JSON)
+	SettingKeyInvitationCodeFormat             = "invitation_code_format"              // 注册邀请码格式(JSON)
+	SettingKeyAffiliateCodeFormat              = "affiliate_code_format"               // 返利邀请码格式(JSON)
 
 	// 邮件服务设置
 	SettingKeySMTPHost     = "smtp_host"      // SMTP服务器地址
@@ -240,20 +251,30 @@ const (
 	SettingKeyGoogleOAuthFrontendRedirectURL = "google_oauth_frontend_redirect_url"
 
 	// OEM设置
-	SettingKeySiteName                    = "site_name"                     // 网站名称
-	SettingKeySiteLogo                    = "site_logo"                     // 网站Logo (base64)
-	SettingKeySiteSubtitle                = "site_subtitle"                 // 网站副标题
-	SettingKeyAPIBaseURL                  = "api_base_url"                  // API端点地址（用于客户端配置和导入）
-	SettingKeyContactInfo                 = "contact_info"                  // 客服联系方式
-	SettingKeyDocURL                      = "doc_url"                       // 文档链接
-	SettingKeyHomeContent                 = "home_content"                  // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
-	SettingKeyHideCcsImportButton         = "hide_ccs_import_button"        // 是否隐藏 API Keys 页面的导入 CCS 按钮
-	SettingKeyPurchaseSubscriptionEnabled = "purchase_subscription_enabled" // 是否展示"购买订阅"页面入口
-	SettingKeyPurchaseSubscriptionURL     = "purchase_subscription_url"     // "购买订阅"页面 URL（作为 iframe src）
-	SettingKeyTableDefaultPageSize        = "table_default_page_size"       // 表格默认每页条数
-	SettingKeyTablePageSizeOptions        = "table_page_size_options"       // 表格可选每页条数（JSON 数组）
-	SettingKeyCustomMenuItems             = "custom_menu_items"             // 自定义菜单项（JSON 数组）
-	SettingKeyCustomEndpoints             = "custom_endpoints"              // 自定义端点列表（JSON 数组）
+	SettingKeySiteName                      = "site_name"                       // 网站名称
+	SettingKeySiteLogo                      = "site_logo"                       // 网站Logo (base64)
+	SettingKeySiteSubtitle                  = "site_subtitle"                   // 网站副标题
+	SettingKeyAPIBaseURL                    = "api_base_url"                    // API端点地址（用于客户端配置和导入）
+	SettingKeyContactInfo                   = "contact_info"                    // 客服联系方式
+	SettingKeyDocURL                        = "doc_url"                         // 文档链接
+	SettingKeyHomeContent                   = "home_content"                    // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
+	SettingKeyHomeNavLinksEnabled           = "home_nav_links_enabled"          // 首页快捷入口总开关（兼容旧配置）
+	SettingKeyHomeNavLeaderboardEnabled     = "home_nav_leaderboard_enabled"    // 首页排行榜快捷入口
+	SettingKeyHomeNavKeyUsageEnabled        = "home_nav_key_usage_enabled"      // 首页用量快捷入口
+	SettingKeyHomeNavMonitoringEnabled      = "home_nav_monitoring_enabled"     // 首页监控快捷入口
+	SettingKeyHomeNavPricingEnabled         = "home_nav_pricing_enabled"        // 首页定价快捷入口
+	SettingKeyLeaderboardBalanceEnabled     = "leaderboard_balance_enabled"     // 排行榜余额榜单开关
+	SettingKeyLeaderboardConsumptionEnabled = "leaderboard_consumption_enabled" // 排行榜消费榜单开关
+	SettingKeyLeaderboardTransferEnabled    = "leaderboard_transfer_enabled"    // 排行榜转账榜单开关
+	SettingKeyLeaderboardCheckinEnabled     = "leaderboard_checkin_enabled"     // 排行榜签到榜单开关
+	SettingKeyLeaderboardIncludeAdmin       = "leaderboard_include_admin"       // 排行榜是否包含管理员
+	SettingKeyHideCcsImportButton           = "hide_ccs_import_button"          // 是否隐藏 API Keys 页面的导入 CCS 按钮
+	SettingKeyPurchaseSubscriptionEnabled   = "purchase_subscription_enabled"   // 是否展示"购买订阅"页面入口
+	SettingKeyPurchaseSubscriptionURL       = "purchase_subscription_url"       // "购买订阅"页面 URL（作为 iframe src）
+	SettingKeyTableDefaultPageSize          = "table_default_page_size"         // 表格默认每页条数
+	SettingKeyTablePageSizeOptions          = "table_page_size_options"         // 表格可选每页条数（JSON 数组）
+	SettingKeyCustomMenuItems               = "custom_menu_items"               // 自定义菜单项（JSON 数组）
+	SettingKeyCustomEndpoints               = "custom_endpoints"                // 自定义端点列表（JSON 数组）
 
 	// 默认配置
 	SettingKeyDefaultConcurrency   = "default_concurrency"    // 新用户默认并发量
@@ -360,6 +381,33 @@ const (
 	// user-facing aggregate view. When false: user endpoint returns an empty list and the
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
+
+	// SettingKeyGameHallEnabled controls whether the entertainment hall entry and
+	// related user-facing APIs are enabled. Defaults to false (opt-in feature).
+	SettingKeyGameHallEnabled = "game_hall_enabled"
+
+	// Balance Transfer 余额流转设置
+	SettingKeyTransferEnabled         = "transfer_enabled"
+	SettingKeyTransferFeeRate         = "transfer_fee_rate"
+	SettingKeyTransferMinAmount       = "transfer_min_amount"
+	SettingKeyTransferMaxAmount       = "transfer_max_amount"
+	SettingKeyTransferDailyLimit      = "transfer_daily_limit"
+	SettingKeyTransferDailyCountLimit = "transfer_daily_count_limit"
+	SettingKeyTransferVIPFeeExempt    = "transfer_vip_fee_exempt"
+	SettingKeyRedPacketEnabled        = "redpacket_enabled"
+	SettingKeyRedPacketMaxCount       = "redpacket_max_count"
+	SettingKeyRedPacketExpireHours    = "redpacket_expire_hours"
+
+	// Checkin 签到设置
+	SettingKeyCheckinEnabled             = "checkin_enabled"
+	SettingKeyCheckinMinBalance          = "checkin_min_balance"
+	SettingKeyCheckinMaxBalance          = "checkin_max_balance"
+	SettingKeyCheckinLuckEnabled         = "checkin_luck_enabled"
+	SettingKeyCheckinLuckMinMultiplier   = "checkin_luck_min_multiplier"
+	SettingKeyCheckinLuckMaxMultiplier   = "checkin_luck_max_multiplier"
+	SettingKeyCheckinBlindboxEnabled     = "checkin_blindbox_enabled"
+	SettingKeyCheckinBlindboxTriggerType = "checkin_blindbox_trigger_type"
+	SettingKeyCheckinBlindboxInterval    = "checkin_blindbox_interval"
 
 	// =========================
 	// Overload Cooldown (529)

@@ -5,12 +5,14 @@ package server_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,6 +40,7 @@ func TestAPIContracts(t *testing.T) {
 		headers    map[string]string
 		wantStatus int
 		wantJSON   string
+		wantJSONOverlay string
 	}{
 		{
 			name:       "GET /api/v1/auth/me",
@@ -670,6 +673,7 @@ func TestAPIContracts(t *testing.T) {
 			method:     http.MethodGet,
 			path:       "/api/v1/admin/settings",
 			wantStatus: http.StatusOK,
+			wantJSONOverlay: adminSettingsExpandedFieldsOverlay,
 			wantJSON: `{
 				"code": 0,
 				"message": "success",
@@ -942,6 +946,7 @@ func TestAPIContracts(t *testing.T) {
 			method:     http.MethodGet,
 			path:       "/api/v1/admin/settings",
 			wantStatus: http.StatusOK,
+			wantJSONOverlay: adminSettingsExpandedFieldsOverlay,
 			wantJSON: `{
 				"code": 0,
 				"message": "success",
@@ -1211,8 +1216,12 @@ func TestAPIContracts(t *testing.T) {
 			}
 
 			status, body := doRequest(t, deps.router, tt.method, tt.path, tt.body, tt.headers)
+			expectedJSON := tt.wantJSON
+			if tt.wantJSONOverlay != "" {
+				expectedJSON = mergeJSONDocuments(t, tt.wantJSON, tt.wantJSONOverlay)
+			}
 			require.Equal(t, tt.wantStatus, status)
-			require.JSONEq(t, tt.wantJSON, body)
+			require.JSONEq(t, expectedJSON, body)
 		})
 	}
 }
@@ -1366,6 +1375,156 @@ func doRequest(t *testing.T, router http.Handler, method, path, body string, hea
 	require.NoError(t, err)
 
 	return w.Result().StatusCode, string(respBody)
+}
+
+const adminSettingsExpandedFieldsOverlay = `{
+	"data": {
+		"affiliate_code_format": {
+			"prefix": "",
+			"suffix": "",
+			"random_length": 12,
+			"separator": "",
+			"group_size": 12,
+			"group_count": 1,
+			"chars_per_group": 12,
+			"charset": "mixed",
+			"letter_case": "upper"
+		},
+		"balance_code_format": {
+			"prefix": "",
+			"suffix": "",
+			"random_length": 16,
+			"separator": "-",
+			"group_size": 4,
+			"group_count": 4,
+			"chars_per_group": 4,
+			"charset": "mixed",
+			"letter_case": "upper"
+		},
+		"checkin_blindbox_enabled": false,
+		"checkin_blindbox_interval": 7,
+		"checkin_blindbox_trigger_type": "streak",
+		"checkin_enabled": false,
+		"checkin_luck_enabled": false,
+		"checkin_luck_max_multiplier": 3,
+		"checkin_luck_min_multiplier": 0.1,
+		"checkin_max_balance": 1,
+		"checkin_min_balance": 0.1,
+		"concurrency_code_format": {
+			"prefix": "",
+			"suffix": "",
+			"random_length": 16,
+			"separator": "-",
+			"group_size": 4,
+			"group_count": 4,
+			"chars_per_group": 4,
+			"charset": "mixed",
+			"letter_case": "upper"
+		},
+		"game_hall_enabled": false,
+		"home_nav_key_usage_enabled": true,
+		"home_nav_leaderboard_enabled": true,
+		"home_nav_links_enabled": true,
+		"home_nav_monitoring_enabled": true,
+		"home_nav_pricing_enabled": true,
+		"invitation_code_format": {
+			"prefix": "DG",
+			"suffix": "",
+			"random_length": 6,
+			"separator": "-",
+			"group_size": 6,
+			"group_count": 1,
+			"chars_per_group": 6,
+			"charset": "mixed",
+			"letter_case": "upper"
+		},
+		"leaderboard_balance_enabled": true,
+		"leaderboard_checkin_enabled": true,
+		"leaderboard_consumption_enabled": true,
+		"leaderboard_include_admin_enabled": false,
+		"leaderboard_transfer_enabled": true,
+		"redeem_code_format": {
+			"prefix": "",
+			"suffix": "",
+			"random_length": 16,
+			"separator": "-",
+			"group_size": 4,
+			"group_count": 4,
+			"chars_per_group": 4,
+			"charset": "mixed",
+			"letter_case": "upper"
+		},
+		"redpacket_code_format": {
+			"prefix": "",
+			"suffix": "",
+			"random_length": 16,
+			"separator": "-",
+			"group_size": 4,
+			"group_count": 4,
+			"chars_per_group": 4,
+			"charset": "mixed",
+			"letter_case": "upper"
+		},
+		"redpacket_enabled": false,
+		"redpacket_expire_hours": 24,
+		"redpacket_max_count": 100,
+		"subscription_code_format": {
+			"prefix": "",
+			"suffix": "",
+			"random_length": 16,
+			"separator": "-",
+			"group_size": 4,
+			"group_count": 4,
+			"chars_per_group": 4,
+			"charset": "mixed",
+			"letter_case": "upper"
+		},
+		"transfer_daily_count_limit": 50,
+		"transfer_daily_limit": 1000,
+		"transfer_enabled": false,
+		"transfer_fee_rate": 0.01,
+		"transfer_max_amount": 1000,
+		"transfer_min_amount": 0.01,
+		"transfer_vip_fee_exempt": false
+	}
+}`
+
+func mergeJSONDocuments(t *testing.T, baseJSON, overlayJSON string) string {
+	t.Helper()
+
+	if strings.TrimSpace(overlayJSON) == "" {
+		return baseJSON
+	}
+
+	var base any
+	require.NoError(t, json.Unmarshal([]byte(baseJSON), &base))
+
+	var overlay any
+	require.NoError(t, json.Unmarshal([]byte(overlayJSON), &overlay))
+
+	merged := mergeJSONValue(base, overlay)
+	bytes, err := json.Marshal(merged)
+	require.NoError(t, err)
+
+	return string(bytes)
+}
+
+func mergeJSONValue(base, overlay any) any {
+	baseMap, baseIsMap := base.(map[string]any)
+	overlayMap, overlayIsMap := overlay.(map[string]any)
+	if !baseIsMap || !overlayIsMap {
+		return overlay
+	}
+
+	for key, overlayValue := range overlayMap {
+		if baseValue, ok := baseMap[key]; ok {
+			baseMap[key] = mergeJSONValue(baseValue, overlayValue)
+			continue
+		}
+		baseMap[key] = overlayValue
+	}
+
+	return baseMap
 }
 
 func ptr[T any](v T) *T { return &v }

@@ -123,9 +123,15 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		EmailVerifyEnabled:                     settings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:       settings.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                       settings.PromoCodeEnabled,
+		RedeemCodeFormat:                       settings.RedeemCodeFormat,
+		BalanceCodeFormat:                      settings.BalanceCodeFormat,
+		ConcurrencyCodeFormat:                  settings.ConcurrencyCodeFormat,
+		SubscriptionCodeFormat:                 settings.SubscriptionCodeFormat,
+		RedPacketCodeFormat:                    settings.RedPacketCodeFormat,
 		PasswordResetEnabled:                   settings.PasswordResetEnabled,
 		FrontendURL:                            settings.FrontendURL,
 		InvitationCodeEnabled:                  settings.InvitationCodeEnabled,
+		InvitationCodeFormat:                   settings.InvitationCodeFormat,
 		TotpEnabled:                            settings.TotpEnabled,
 		TotpEncryptionKeyConfigured:            h.settingService.IsTotpEncryptionKeyConfigured(),
 		LoginAgreementEnabled:                  settings.LoginAgreementEnabled,
@@ -218,6 +224,16 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ContactInfo:                            settings.ContactInfo,
 		DocURL:                                 settings.DocURL,
 		HomeContent:                            settings.HomeContent,
+		HomeNavLinksEnabled:                    settings.HomeNavLinksEnabled,
+		HomeNavLeaderboardEnabled:              settings.HomeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:                 settings.HomeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:               settings.HomeNavMonitoringEnabled,
+		HomeNavPricingEnabled:                  settings.HomeNavPricingEnabled,
+		LeaderboardBalanceEnabled:              settings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:          settings.LeaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:             settings.LeaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:              settings.LeaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:                settings.LeaderboardIncludeAdmin,
 		HideCcsImportButton:                    settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                settings.PurchaseSubscriptionURL,
@@ -227,6 +243,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		CustomEndpoints:                        dto.ParseCustomEndpoints(settings.CustomEndpoints),
 		DefaultConcurrency:                     settings.DefaultConcurrency,
 		DefaultBalance:                         settings.DefaultBalance,
+		AffiliateCodeFormat:                    settings.AffiliateCodeFormat,
 		RiskControlEnabled:                     settings.RiskControlEnabled,
 		AffiliateRebateRate:                    settings.AffiliateRebateRate,
 		AffiliateRebateFreezeHours:             settings.AffiliateRebateFreezeHours,
@@ -295,6 +312,28 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+		GameHallEnabled:          settings.GameHallEnabled,
+
+		CheckinEnabled:             settings.CheckinEnabled,
+		CheckinMinBalance:          settings.CheckinMinBalance,
+		CheckinMaxBalance:          settings.CheckinMaxBalance,
+		CheckinLuckEnabled:         settings.CheckinLuckEnabled,
+		CheckinLuckMinMultiplier:   settings.CheckinLuckMinMultiplier,
+		CheckinLuckMaxMultiplier:   settings.CheckinLuckMaxMultiplier,
+		CheckinBlindboxEnabled:     settings.CheckinBlindboxEnabled,
+		CheckinBlindboxTriggerType: settings.CheckinBlindboxTriggerType,
+		CheckinBlindboxInterval:    settings.CheckinBlindboxInterval,
+
+		TransferEnabled:         settings.TransferEnabled,
+		TransferFeeRate:         settings.TransferFeeRate,
+		TransferMinAmount:       settings.TransferMinAmount,
+		TransferMaxAmount:       settings.TransferMaxAmount,
+		TransferDailyLimit:      settings.TransferDailyLimit,
+		TransferDailyCountLimit: settings.TransferDailyCountLimit,
+		TransferVIPFeeExempt:    settings.TransferVIPFeeExempt,
+		RedPacketEnabled:        settings.RedPacketEnabled,
+		RedPacketMaxCount:       settings.RedPacketMaxCount,
+		RedPacketExpireHours:    settings.RedPacketExpireHours,
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 
@@ -388,9 +427,15 @@ type UpdateSettingsRequest struct {
 	EmailVerifyEnabled               bool                         `json:"email_verify_enabled"`
 	RegistrationEmailSuffixWhitelist []string                     `json:"registration_email_suffix_whitelist"`
 	PromoCodeEnabled                 bool                         `json:"promo_code_enabled"`
+	RedeemCodeFormat                 *service.CodeFormatSettings  `json:"redeem_code_format"`
+	BalanceCodeFormat                *service.CodeFormatSettings  `json:"balance_code_format"`
+	ConcurrencyCodeFormat            *service.CodeFormatSettings  `json:"concurrency_code_format"`
+	SubscriptionCodeFormat           *service.CodeFormatSettings  `json:"subscription_code_format"`
+	RedPacketCodeFormat              *service.CodeFormatSettings  `json:"redpacket_code_format"`
 	PasswordResetEnabled             bool                         `json:"password_reset_enabled"`
 	FrontendURL                      string                       `json:"frontend_url"`
 	InvitationCodeEnabled            bool                         `json:"invitation_code_enabled"`
+	InvitationCodeFormat             *service.CodeFormatSettings  `json:"invitation_code_format"`
 	TotpEnabled                      bool                         `json:"totp_enabled"` // TOTP 双因素认证
 	LoginAgreementEnabled            bool                         `json:"login_agreement_enabled"`
 	LoginAgreementMode               string                       `json:"login_agreement_mode"`
@@ -492,24 +537,35 @@ type UpdateSettingsRequest struct {
 	GoogleOAuthFrontendRedirectURL string `json:"google_oauth_frontend_redirect_url"`
 
 	// OEM设置
-	SiteName                    string                `json:"site_name"`
-	SiteLogo                    string                `json:"site_logo"`
-	SiteSubtitle                string                `json:"site_subtitle"`
-	APIBaseURL                  string                `json:"api_base_url"`
-	ContactInfo                 string                `json:"contact_info"`
-	DocURL                      string                `json:"doc_url"`
-	HomeContent                 string                `json:"home_content"`
-	HideCcsImportButton         bool                  `json:"hide_ccs_import_button"`
-	PurchaseSubscriptionEnabled *bool                 `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL     *string               `json:"purchase_subscription_url"`
-	TableDefaultPageSize        int                   `json:"table_default_page_size"`
-	TablePageSizeOptions        []int                 `json:"table_page_size_options"`
-	CustomMenuItems             *[]dto.CustomMenuItem `json:"custom_menu_items"`
-	CustomEndpoints             *[]dto.CustomEndpoint `json:"custom_endpoints"`
+	SiteName                      string                `json:"site_name"`
+	SiteLogo                      string                `json:"site_logo"`
+	SiteSubtitle                  string                `json:"site_subtitle"`
+	APIBaseURL                    string                `json:"api_base_url"`
+	ContactInfo                   string                `json:"contact_info"`
+	DocURL                        string                `json:"doc_url"`
+	HomeContent                   string                `json:"home_content"`
+	HomeNavLinksEnabled           *bool                 `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled     *bool                 `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled        *bool                 `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled      *bool                 `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled         *bool                 `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled     *bool                 `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled *bool                 `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled    *bool                 `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled     *bool                 `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin       *bool                 `json:"leaderboard_include_admin_enabled"`
+	HideCcsImportButton           bool                  `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled   *bool                 `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL       *string               `json:"purchase_subscription_url"`
+	TableDefaultPageSize          int                   `json:"table_default_page_size"`
+	TablePageSizeOptions          []int                 `json:"table_page_size_options"`
+	CustomMenuItems               *[]dto.CustomMenuItem `json:"custom_menu_items"`
+	CustomEndpoints               *[]dto.CustomEndpoint `json:"custom_endpoints"`
 
 	// 默认配置
 	DefaultConcurrency                        int                               `json:"default_concurrency"`
 	DefaultBalance                            float64                           `json:"default_balance"`
+	AffiliateCodeFormat                       *service.CodeFormatSettings       `json:"affiliate_code_format"`
 	AffiliateRebateRate                       *float64                          `json:"affiliate_rebate_rate"`
 	AffiliateRebateFreezeHours                *int                              `json:"affiliate_rebate_freeze_hours"`
 	AffiliateRebateDurationDays               *int                              `json:"affiliate_rebate_duration_days"`
@@ -639,6 +695,36 @@ type UpdateSettingsRequest struct {
 
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
+
+	// Entertainment hall feature switch (user-facing)
+	GameHallEnabled *bool `json:"game_hall_enabled"`
+
+	// Checkin settings
+	CheckinEnabled    *bool    `json:"checkin_enabled"`
+	CheckinMinBalance *float64 `json:"checkin_min_balance"`
+	CheckinMaxBalance *float64 `json:"checkin_max_balance"`
+
+	// Checkin luck settings
+	CheckinLuckEnabled       *bool    `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier *float64 `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier *float64 `json:"checkin_luck_max_multiplier"`
+
+	// Checkin blind box settings
+	CheckinBlindboxEnabled     *bool   `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType *string `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval    *int    `json:"checkin_blindbox_interval"`
+
+	// Balance transfer settings
+	TransferEnabled         *bool    `json:"transfer_enabled"`
+	TransferFeeRate         *float64 `json:"transfer_fee_rate"`
+	TransferMinAmount       *float64 `json:"transfer_min_amount"`
+	TransferMaxAmount       *float64 `json:"transfer_max_amount"`
+	TransferDailyLimit      *float64 `json:"transfer_daily_limit"`
+	TransferDailyCountLimit *int     `json:"transfer_daily_count_limit"`
+	TransferVIPFeeExempt    *bool    `json:"transfer_vip_fee_exempt"`
+	RedPacketEnabled        *bool    `json:"redpacket_enabled"`
+	RedPacketMaxCount       *int     `json:"redpacket_max_count"`
+	RedPacketExpireHours    *int     `json:"redpacket_expire_hours"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
@@ -1462,6 +1548,31 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	resolveHomeNavLink := func(requested *bool, fallback bool) bool {
+		if requested != nil {
+			return *requested
+		}
+		if req.HomeNavLinksEnabled != nil {
+			return *req.HomeNavLinksEnabled
+		}
+		return fallback
+	}
+	homeNavLeaderboardEnabled := resolveHomeNavLink(req.HomeNavLeaderboardEnabled, previousSettings.HomeNavLeaderboardEnabled)
+	homeNavKeyUsageEnabled := resolveHomeNavLink(req.HomeNavKeyUsageEnabled, previousSettings.HomeNavKeyUsageEnabled)
+	homeNavMonitoringEnabled := resolveHomeNavLink(req.HomeNavMonitoringEnabled, previousSettings.HomeNavMonitoringEnabled)
+	homeNavPricingEnabled := resolveHomeNavLink(req.HomeNavPricingEnabled, previousSettings.HomeNavPricingEnabled)
+	resolveOptionalBool := func(requested *bool, fallback bool) bool {
+		if requested != nil {
+			return *requested
+		}
+		return fallback
+	}
+	leaderboardBalanceEnabled := resolveOptionalBool(req.LeaderboardBalanceEnabled, previousSettings.LeaderboardBalanceEnabled)
+	leaderboardConsumptionEnabled := resolveOptionalBool(req.LeaderboardConsumptionEnabled, previousSettings.LeaderboardConsumptionEnabled)
+	leaderboardTransferEnabled := resolveOptionalBool(req.LeaderboardTransferEnabled, previousSettings.LeaderboardTransferEnabled)
+	leaderboardCheckinEnabled := resolveOptionalBool(req.LeaderboardCheckinEnabled, previousSettings.LeaderboardCheckinEnabled)
+	leaderboardIncludeAdmin := resolveOptionalBool(req.LeaderboardIncludeAdmin, previousSettings.LeaderboardIncludeAdmin)
+
 	settings := &service.SystemSettings{
 		// 系统全局 platform quota 默认值（整体替换语义）
 		DefaultPlatformQuotas: req.DefaultPlatformQuotas,
@@ -1470,24 +1581,60 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		EmailVerifyEnabled:               req.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                 req.PromoCodeEnabled,
-		PasswordResetEnabled:             req.PasswordResetEnabled,
-		FrontendURL:                      req.FrontendURL,
-		InvitationCodeEnabled:            req.InvitationCodeEnabled,
-		TotpEnabled:                      req.TotpEnabled,
-		LoginAgreementEnabled:            req.LoginAgreementEnabled,
-		LoginAgreementMode:               loginAgreementMode,
-		LoginAgreementUpdatedAt:          loginAgreementUpdatedAt,
-		LoginAgreementDocuments:          loginAgreementDocuments,
-		SMTPHost:                         req.SMTPHost,
-		SMTPPort:                         req.SMTPPort,
-		SMTPUsername:                     req.SMTPUsername,
-		SMTPPassword:                     req.SMTPPassword,
-		SMTPFrom:                         req.SMTPFrom,
-		SMTPFromName:                     req.SMTPFromName,
-		SMTPUseTLS:                       req.SMTPUseTLS,
-		TurnstileEnabled:                 req.TurnstileEnabled,
-		TurnstileSiteKey:                 req.TurnstileSiteKey,
-		TurnstileSecretKey:               req.TurnstileSecretKey,
+		RedeemCodeFormat: func() service.CodeFormatSettings {
+			if req.RedeemCodeFormat != nil {
+				return *req.RedeemCodeFormat
+			}
+			return previousSettings.RedeemCodeFormat
+		}(),
+		BalanceCodeFormat: func() service.CodeFormatSettings {
+			if req.BalanceCodeFormat != nil {
+				return *req.BalanceCodeFormat
+			}
+			return previousSettings.BalanceCodeFormat
+		}(),
+		ConcurrencyCodeFormat: func() service.CodeFormatSettings {
+			if req.ConcurrencyCodeFormat != nil {
+				return *req.ConcurrencyCodeFormat
+			}
+			return previousSettings.ConcurrencyCodeFormat
+		}(),
+		SubscriptionCodeFormat: func() service.CodeFormatSettings {
+			if req.SubscriptionCodeFormat != nil {
+				return *req.SubscriptionCodeFormat
+			}
+			return previousSettings.SubscriptionCodeFormat
+		}(),
+		RedPacketCodeFormat: func() service.CodeFormatSettings {
+			if req.RedPacketCodeFormat != nil {
+				return *req.RedPacketCodeFormat
+			}
+			return previousSettings.RedPacketCodeFormat
+		}(),
+		PasswordResetEnabled:  req.PasswordResetEnabled,
+		FrontendURL:           req.FrontendURL,
+		InvitationCodeEnabled: req.InvitationCodeEnabled,
+		InvitationCodeFormat: func() service.CodeFormatSettings {
+			if req.InvitationCodeFormat != nil {
+				return *req.InvitationCodeFormat
+			}
+			return previousSettings.InvitationCodeFormat
+		}(),
+		TotpEnabled:             req.TotpEnabled,
+		LoginAgreementEnabled:   req.LoginAgreementEnabled,
+		LoginAgreementMode:      loginAgreementMode,
+		LoginAgreementUpdatedAt: loginAgreementUpdatedAt,
+		LoginAgreementDocuments: loginAgreementDocuments,
+		SMTPHost:                req.SMTPHost,
+		SMTPPort:                req.SMTPPort,
+		SMTPUsername:            req.SMTPUsername,
+		SMTPPassword:            req.SMTPPassword,
+		SMTPFrom:                req.SMTPFrom,
+		SMTPFromName:            req.SMTPFromName,
+		SMTPUseTLS:              req.SMTPUseTLS,
+		TurnstileEnabled:        req.TurnstileEnabled,
+		TurnstileSiteKey:        req.TurnstileSiteKey,
+		TurnstileSecretKey:      req.TurnstileSecretKey,
 		APIKeyACLTrustForwardedIP: func() bool {
 			if req.APIKeyACLTrustForwardedIP != nil {
 				return *req.APIKeyACLTrustForwardedIP
@@ -1569,6 +1716,16 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ContactInfo:                            req.ContactInfo,
 		DocURL:                                 req.DocURL,
 		HomeContent:                            req.HomeContent,
+		HomeNavLinksEnabled:                    homeNavLeaderboardEnabled && homeNavKeyUsageEnabled && homeNavMonitoringEnabled && homeNavPricingEnabled,
+		HomeNavLeaderboardEnabled:              homeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:                 homeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:               homeNavMonitoringEnabled,
+		HomeNavPricingEnabled:                  homeNavPricingEnabled,
+		LeaderboardBalanceEnabled:              leaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:          leaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:             leaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:              leaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:                leaderboardIncludeAdmin,
 		HideCcsImportButton:                    req.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            purchaseEnabled,
 		PurchaseSubscriptionURL:                purchaseURL,
@@ -1578,23 +1735,29 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                        customEndpointsJSON,
 		DefaultConcurrency:                     req.DefaultConcurrency,
 		DefaultBalance:                         req.DefaultBalance,
-		AffiliateRebateRate:                    affiliateRebateRate,
-		AffiliateRebateFreezeHours:             affiliateRebateFreezeHours,
-		AffiliateRebateDurationDays:            affiliateRebateDurationDays,
-		AffiliateRebatePerInviteeCap:           affiliateRebatePerInviteeCap,
-		DefaultUserRPMLimit:                    req.DefaultUserRPMLimit,
-		DefaultSubscriptions:                   defaultSubscriptions,
-		EnableModelFallback:                    req.EnableModelFallback,
-		FallbackModelAnthropic:                 req.FallbackModelAnthropic,
-		FallbackModelOpenAI:                    req.FallbackModelOpenAI,
-		FallbackModelGemini:                    req.FallbackModelGemini,
-		FallbackModelAntigravity:               req.FallbackModelAntigravity,
-		EnableIdentityPatch:                    req.EnableIdentityPatch,
-		IdentityPatchPrompt:                    req.IdentityPatchPrompt,
-		MinClaudeCodeVersion:                   req.MinClaudeCodeVersion,
-		MaxClaudeCodeVersion:                   req.MaxClaudeCodeVersion,
-		AllowUngroupedKeyScheduling:            req.AllowUngroupedKeyScheduling,
-		BackendModeEnabled:                     req.BackendModeEnabled,
+		AffiliateCodeFormat: func() service.CodeFormatSettings {
+			if req.AffiliateCodeFormat != nil {
+				return *req.AffiliateCodeFormat
+			}
+			return previousSettings.AffiliateCodeFormat
+		}(),
+		AffiliateRebateRate:          affiliateRebateRate,
+		AffiliateRebateFreezeHours:   affiliateRebateFreezeHours,
+		AffiliateRebateDurationDays:  affiliateRebateDurationDays,
+		AffiliateRebatePerInviteeCap: affiliateRebatePerInviteeCap,
+		DefaultUserRPMLimit:          req.DefaultUserRPMLimit,
+		DefaultSubscriptions:         defaultSubscriptions,
+		EnableModelFallback:          req.EnableModelFallback,
+		FallbackModelAnthropic:       req.FallbackModelAnthropic,
+		FallbackModelOpenAI:          req.FallbackModelOpenAI,
+		FallbackModelGemini:          req.FallbackModelGemini,
+		FallbackModelAntigravity:     req.FallbackModelAntigravity,
+		EnableIdentityPatch:          req.EnableIdentityPatch,
+		IdentityPatchPrompt:          req.IdentityPatchPrompt,
+		MinClaudeCodeVersion:         req.MinClaudeCodeVersion,
+		MaxClaudeCodeVersion:         req.MaxClaudeCodeVersion,
+		AllowUngroupedKeyScheduling:  req.AllowUngroupedKeyScheduling,
+		BackendModeEnabled:           req.BackendModeEnabled,
 		AllowUserViewErrorRequests: func() bool {
 			if req.AllowUserViewErrorRequests != nil {
 				return *req.AllowUserViewErrorRequests
@@ -1757,6 +1920,126 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AvailableChannelsEnabled
 		}(),
+		GameHallEnabled: func() bool {
+			if req.GameHallEnabled != nil {
+				return *req.GameHallEnabled
+			}
+			return previousSettings.GameHallEnabled
+		}(),
+		CheckinEnabled: func() bool {
+			if req.CheckinEnabled != nil {
+				return *req.CheckinEnabled
+			}
+			return previousSettings.CheckinEnabled
+		}(),
+		CheckinMinBalance: func() float64 {
+			if req.CheckinMinBalance != nil {
+				return *req.CheckinMinBalance
+			}
+			return previousSettings.CheckinMinBalance
+		}(),
+		CheckinMaxBalance: func() float64 {
+			if req.CheckinMaxBalance != nil {
+				return *req.CheckinMaxBalance
+			}
+			return previousSettings.CheckinMaxBalance
+		}(),
+		CheckinLuckEnabled: func() bool {
+			if req.CheckinLuckEnabled != nil {
+				return *req.CheckinLuckEnabled
+			}
+			return previousSettings.CheckinLuckEnabled
+		}(),
+		CheckinLuckMinMultiplier: func() float64 {
+			if req.CheckinLuckMinMultiplier != nil {
+				return *req.CheckinLuckMinMultiplier
+			}
+			return previousSettings.CheckinLuckMinMultiplier
+		}(),
+		CheckinLuckMaxMultiplier: func() float64 {
+			if req.CheckinLuckMaxMultiplier != nil {
+				return *req.CheckinLuckMaxMultiplier
+			}
+			return previousSettings.CheckinLuckMaxMultiplier
+		}(),
+		CheckinBlindboxEnabled: func() bool {
+			if req.CheckinBlindboxEnabled != nil {
+				return *req.CheckinBlindboxEnabled
+			}
+			return previousSettings.CheckinBlindboxEnabled
+		}(),
+		CheckinBlindboxTriggerType: func() string {
+			if req.CheckinBlindboxTriggerType != nil {
+				return *req.CheckinBlindboxTriggerType
+			}
+			return previousSettings.CheckinBlindboxTriggerType
+		}(),
+		CheckinBlindboxInterval: func() int {
+			if req.CheckinBlindboxInterval != nil {
+				return *req.CheckinBlindboxInterval
+			}
+			return previousSettings.CheckinBlindboxInterval
+		}(),
+		TransferEnabled: func() bool {
+			if req.TransferEnabled != nil {
+				return *req.TransferEnabled
+			}
+			return previousSettings.TransferEnabled
+		}(),
+		TransferFeeRate: func() float64 {
+			if req.TransferFeeRate != nil && *req.TransferFeeRate >= 0 {
+				return *req.TransferFeeRate
+			}
+			return previousSettings.TransferFeeRate
+		}(),
+		TransferMinAmount: func() float64 {
+			if req.TransferMinAmount != nil && *req.TransferMinAmount >= 0 {
+				return *req.TransferMinAmount
+			}
+			return previousSettings.TransferMinAmount
+		}(),
+		TransferMaxAmount: func() float64 {
+			if req.TransferMaxAmount != nil && *req.TransferMaxAmount >= 0 {
+				return *req.TransferMaxAmount
+			}
+			return previousSettings.TransferMaxAmount
+		}(),
+		TransferDailyLimit: func() float64 {
+			if req.TransferDailyLimit != nil && *req.TransferDailyLimit >= 0 {
+				return *req.TransferDailyLimit
+			}
+			return previousSettings.TransferDailyLimit
+		}(),
+		TransferDailyCountLimit: func() int {
+			if req.TransferDailyCountLimit != nil && *req.TransferDailyCountLimit > 0 {
+				return *req.TransferDailyCountLimit
+			}
+			return previousSettings.TransferDailyCountLimit
+		}(),
+		TransferVIPFeeExempt: func() bool {
+			if req.TransferVIPFeeExempt != nil {
+				return *req.TransferVIPFeeExempt
+			}
+			return previousSettings.TransferVIPFeeExempt
+		}(),
+		RedPacketEnabled: func() bool {
+			if req.RedPacketEnabled != nil {
+				return *req.RedPacketEnabled
+			}
+			return previousSettings.RedPacketEnabled
+		}(),
+		RedPacketMaxCount: func() int {
+			if req.RedPacketMaxCount != nil && *req.RedPacketMaxCount > 0 {
+				return *req.RedPacketMaxCount
+			}
+			return previousSettings.RedPacketMaxCount
+		}(),
+		RedPacketExpireHours: func() int {
+			if req.RedPacketExpireHours != nil && *req.RedPacketExpireHours > 0 {
+				return *req.RedPacketExpireHours
+			}
+			return previousSettings.RedPacketExpireHours
+		}(),
 		AffiliateEnabled: func() bool {
 			if req.AffiliateEnabled != nil {
 				return *req.AffiliateEnabled
@@ -1917,9 +2200,15 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		EmailVerifyEnabled:                     updatedSettings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:       updatedSettings.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                       updatedSettings.PromoCodeEnabled,
+		RedeemCodeFormat:                       updatedSettings.RedeemCodeFormat,
+		BalanceCodeFormat:                      updatedSettings.BalanceCodeFormat,
+		ConcurrencyCodeFormat:                  updatedSettings.ConcurrencyCodeFormat,
+		SubscriptionCodeFormat:                 updatedSettings.SubscriptionCodeFormat,
+		RedPacketCodeFormat:                    updatedSettings.RedPacketCodeFormat,
 		PasswordResetEnabled:                   updatedSettings.PasswordResetEnabled,
 		FrontendURL:                            updatedSettings.FrontendURL,
 		InvitationCodeEnabled:                  updatedSettings.InvitationCodeEnabled,
+		InvitationCodeFormat:                   updatedSettings.InvitationCodeFormat,
 		TotpEnabled:                            updatedSettings.TotpEnabled,
 		TotpEncryptionKeyConfigured:            h.settingService.IsTotpEncryptionKeyConfigured(),
 		LoginAgreementEnabled:                  updatedSettings.LoginAgreementEnabled,
@@ -2012,6 +2301,16 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ContactInfo:                            updatedSettings.ContactInfo,
 		DocURL:                                 updatedSettings.DocURL,
 		HomeContent:                            updatedSettings.HomeContent,
+		HomeNavLinksEnabled:                    updatedSettings.HomeNavLinksEnabled,
+		HomeNavLeaderboardEnabled:              updatedSettings.HomeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:                 updatedSettings.HomeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:               updatedSettings.HomeNavMonitoringEnabled,
+		HomeNavPricingEnabled:                  updatedSettings.HomeNavPricingEnabled,
+		LeaderboardBalanceEnabled:              updatedSettings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:          updatedSettings.LeaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:             updatedSettings.LeaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:              updatedSettings.LeaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:                updatedSettings.LeaderboardIncludeAdmin,
 		HideCcsImportButton:                    updatedSettings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            updatedSettings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                updatedSettings.PurchaseSubscriptionURL,
@@ -2021,6 +2320,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                        dto.ParseCustomEndpoints(updatedSettings.CustomEndpoints),
 		DefaultConcurrency:                     updatedSettings.DefaultConcurrency,
 		DefaultBalance:                         updatedSettings.DefaultBalance,
+		AffiliateCodeFormat:                    updatedSettings.AffiliateCodeFormat,
 		AffiliateRebateRate:                    updatedSettings.AffiliateRebateRate,
 		AffiliateRebateFreezeHours:             updatedSettings.AffiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:            updatedSettings.AffiliateRebateDurationDays,
@@ -2087,6 +2387,28 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: updatedSettings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
+		GameHallEnabled:          updatedSettings.GameHallEnabled,
+
+		CheckinEnabled:             updatedSettings.CheckinEnabled,
+		CheckinMinBalance:          updatedSettings.CheckinMinBalance,
+		CheckinMaxBalance:          updatedSettings.CheckinMaxBalance,
+		CheckinLuckEnabled:         updatedSettings.CheckinLuckEnabled,
+		CheckinLuckMinMultiplier:   updatedSettings.CheckinLuckMinMultiplier,
+		CheckinLuckMaxMultiplier:   updatedSettings.CheckinLuckMaxMultiplier,
+		CheckinBlindboxEnabled:     updatedSettings.CheckinBlindboxEnabled,
+		CheckinBlindboxTriggerType: updatedSettings.CheckinBlindboxTriggerType,
+		CheckinBlindboxInterval:    updatedSettings.CheckinBlindboxInterval,
+
+		TransferEnabled:         updatedSettings.TransferEnabled,
+		TransferFeeRate:         updatedSettings.TransferFeeRate,
+		TransferMinAmount:       updatedSettings.TransferMinAmount,
+		TransferMaxAmount:       updatedSettings.TransferMaxAmount,
+		TransferDailyLimit:      updatedSettings.TransferDailyLimit,
+		TransferDailyCountLimit: updatedSettings.TransferDailyCountLimit,
+		TransferVIPFeeExempt:    updatedSettings.TransferVIPFeeExempt,
+		RedPacketEnabled:        updatedSettings.RedPacketEnabled,
+		RedPacketMaxCount:       updatedSettings.RedPacketMaxCount,
+		RedPacketExpireHours:    updatedSettings.RedPacketExpireHours,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 

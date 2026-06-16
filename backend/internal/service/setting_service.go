@@ -700,8 +700,13 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyForceEmailOnThirdPartySignup,
 		SettingKeyRegistrationEmailSuffixWhitelist,
 		SettingKeyPromoCodeEnabled,
+		SettingKeyRedeemCodeFormat,
+		SettingKeyBalanceCodeFormat,
+		SettingKeyConcurrencyCodeFormat,
+		SettingKeySubscriptionCodeFormat,
 		SettingKeyPasswordResetEnabled,
 		SettingKeyInvitationCodeEnabled,
+		SettingKeyInvitationCodeFormat,
 		SettingKeyTotpEnabled,
 		SettingKeyLoginAgreementEnabled,
 		SettingKeyLoginAgreementMode,
@@ -717,6 +722,15 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyContactInfo,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
+		SettingKeyHomeNavLinksEnabled,
+		SettingKeyHomeNavLeaderboardEnabled,
+		SettingKeyHomeNavKeyUsageEnabled,
+		SettingKeyHomeNavMonitoringEnabled,
+		SettingKeyHomeNavPricingEnabled,
+		SettingKeyLeaderboardBalanceEnabled,
+		SettingKeyLeaderboardConsumptionEnabled,
+		SettingKeyLeaderboardTransferEnabled,
+		SettingKeyLeaderboardCheckinEnabled,
 		SettingKeyHideCcsImportButton,
 		SettingKeyPurchaseSubscriptionEnabled,
 		SettingKeyPurchaseSubscriptionURL,
@@ -759,7 +773,11 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeyGameHallEnabled,
+		SettingKeyTransferEnabled,
+		SettingKeyRedPacketEnabled,
 		SettingKeyAffiliateEnabled,
+		SettingKeyAffiliateCodeFormat,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
 	}
@@ -808,6 +826,14 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		settings[SettingKeyTableDefaultPageSize],
 		settings[SettingKeyTablePageSizeOptions],
 	)
+	homeNavLeaderboardEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavLeaderboardEnabled)
+	homeNavKeyUsageEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavKeyUsageEnabled)
+	homeNavMonitoringEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavMonitoringEnabled)
+	homeNavPricingEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavPricingEnabled)
+	leaderboardBalanceEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardBalanceEnabled)
+	leaderboardConsumptionEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardConsumptionEnabled)
+	leaderboardTransferEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardTransferEnabled)
+	leaderboardCheckinEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardCheckinEnabled)
 	loginAgreementDocuments := parseLoginAgreementDocuments(settings[SettingKeyLoginAgreementDocuments])
 	loginAgreementUpdatedAt := strings.TrimSpace(settings[SettingKeyLoginAgreementUpdatedAt])
 	if loginAgreementUpdatedAt == "" {
@@ -825,8 +851,13 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ForceEmailOnThirdPartySignup:     settings[SettingKeyForceEmailOnThirdPartySignup] == "true",
 		RegistrationEmailSuffixWhitelist: registrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                 settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
+		RedeemCodeFormat:                 ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()),
+		BalanceCodeFormat:                ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		ConcurrencyCodeFormat:            ParseCodeFormatSettings(settings[SettingKeyConcurrencyCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		SubscriptionCodeFormat:           ParseCodeFormatSettings(settings[SettingKeySubscriptionCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		PasswordResetEnabled:             passwordResetEnabled,
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
+		InvitationCodeFormat:             ParseCodeFormatSettings(settings[SettingKeyInvitationCodeFormat], DefaultRegistrationInvitationCodeFormat()),
 		TotpEnabled:                      settings[SettingKeyTotpEnabled] == "true",
 		LoginAgreementEnabled:            settings[SettingKeyLoginAgreementEnabled] == "true" && len(loginAgreementDocuments) > 0,
 		LoginAgreementMode:               normalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]),
@@ -842,6 +873,15 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
+		HomeNavLinksEnabled:              homeNavLeaderboardEnabled && homeNavKeyUsageEnabled && homeNavMonitoringEnabled && homeNavPricingEnabled,
+		HomeNavLeaderboardEnabled:        homeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:           homeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:         homeNavMonitoringEnabled,
+		HomeNavPricingEnabled:            homeNavPricingEnabled,
+		LeaderboardBalanceEnabled:        leaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:    leaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:       leaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:        leaderboardCheckinEnabled,
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
@@ -870,8 +910,12 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
+		GameHallEnabled:          settings[SettingKeyGameHallEnabled] == "true",
+		TransferEnabled:          settings[SettingKeyTransferEnabled] == "true",
+		RedPacketEnabled:         settings[SettingKeyRedPacketEnabled] == "true",
 
-		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
+		AffiliateEnabled:    settings[SettingKeyAffiliateEnabled] == "true",
+		AffiliateCodeFormat: ParseCodeFormatSettings(settings[SettingKeyAffiliateCodeFormat], DefaultAffiliateCodeFormat()),
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
@@ -1139,8 +1183,13 @@ type PublicSettingsInjectionPayload struct {
 	EmailVerifyEnabled               bool                     `json:"email_verify_enabled"`
 	RegistrationEmailSuffixWhitelist []string                 `json:"registration_email_suffix_whitelist"`
 	PromoCodeEnabled                 bool                     `json:"promo_code_enabled"`
+	RedeemCodeFormat                 CodeFormatSettings       `json:"redeem_code_format"`
+	BalanceCodeFormat                CodeFormatSettings       `json:"balance_code_format"`
+	ConcurrencyCodeFormat            CodeFormatSettings       `json:"concurrency_code_format"`
+	SubscriptionCodeFormat           CodeFormatSettings       `json:"subscription_code_format"`
 	PasswordResetEnabled             bool                     `json:"password_reset_enabled"`
 	InvitationCodeEnabled            bool                     `json:"invitation_code_enabled"`
+	InvitationCodeFormat             CodeFormatSettings       `json:"invitation_code_format"`
 	TotpEnabled                      bool                     `json:"totp_enabled"`
 	LoginAgreementEnabled            bool                     `json:"login_agreement_enabled"`
 	LoginAgreementMode               string                   `json:"login_agreement_mode"`
@@ -1156,6 +1205,15 @@ type PublicSettingsInjectionPayload struct {
 	ContactInfo                      string                   `json:"contact_info"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
+	HomeNavLinksEnabled              bool                     `json:"home_nav_links_enabled"`
+	HomeNavLeaderboardEnabled        bool                     `json:"home_nav_leaderboard_enabled"`
+	HomeNavKeyUsageEnabled           bool                     `json:"home_nav_key_usage_enabled"`
+	HomeNavMonitoringEnabled         bool                     `json:"home_nav_monitoring_enabled"`
+	HomeNavPricingEnabled            bool                     `json:"home_nav_pricing_enabled"`
+	LeaderboardBalanceEnabled        bool                     `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled    bool                     `json:"leaderboard_consumption_enabled"`
+	LeaderboardTransferEnabled       bool                     `json:"leaderboard_transfer_enabled"`
+	LeaderboardCheckinEnabled        bool                     `json:"leaderboard_checkin_enabled"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string                   `json:"purchase_subscription_url"`
@@ -1184,12 +1242,16 @@ type PublicSettingsInjectionPayload struct {
 	// Feature flags — MUST match the opt-in/opt-out registry in
 	// frontend/src/utils/featureFlags.ts. Missing a field here is the bug
 	// that hid the "可用渠道" menu on page refresh.
-	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
-	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
-	AffiliateEnabled                     bool `json:"affiliate_enabled"`
-	RiskControlEnabled                   bool `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
+	ChannelMonitorEnabled                bool               `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds int                `json:"channel_monitor_default_interval_seconds"`
+	AvailableChannelsEnabled             bool               `json:"available_channels_enabled"`
+	GameHallEnabled                      bool               `json:"game_hall_enabled"`
+	TransferEnabled                      bool               `json:"transfer_enabled"`
+	RedPacketEnabled                     bool               `json:"redpacket_enabled"`
+	AffiliateEnabled                     bool               `json:"affiliate_enabled"`
+	AffiliateCodeFormat                  CodeFormatSettings `json:"affiliate_code_format"`
+	RiskControlEnabled                   bool               `json:"risk_control_enabled"`
+	AllowUserViewErrorRequests           bool               `json:"allow_user_view_error_requests"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -1205,8 +1267,13 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		EmailVerifyEnabled:               settings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist: settings.RegistrationEmailSuffixWhitelist,
 		PromoCodeEnabled:                 settings.PromoCodeEnabled,
+		RedeemCodeFormat:                 settings.RedeemCodeFormat,
+		BalanceCodeFormat:                settings.BalanceCodeFormat,
+		ConcurrencyCodeFormat:            settings.ConcurrencyCodeFormat,
+		SubscriptionCodeFormat:           settings.SubscriptionCodeFormat,
 		PasswordResetEnabled:             settings.PasswordResetEnabled,
 		InvitationCodeEnabled:            settings.InvitationCodeEnabled,
+		InvitationCodeFormat:             settings.InvitationCodeFormat,
 		TotpEnabled:                      settings.TotpEnabled,
 		LoginAgreementEnabled:            settings.LoginAgreementEnabled,
 		LoginAgreementMode:               settings.LoginAgreementMode,
@@ -1222,6 +1289,15 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ContactInfo:                      settings.ContactInfo,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
+		HomeNavLinksEnabled:              settings.HomeNavLinksEnabled,
+		HomeNavLeaderboardEnabled:        settings.HomeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:           settings.HomeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:         settings.HomeNavMonitoringEnabled,
+		HomeNavPricingEnabled:            settings.HomeNavPricingEnabled,
+		LeaderboardBalanceEnabled:        settings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:    settings.LeaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:       settings.LeaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:        settings.LeaderboardCheckinEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
@@ -1250,7 +1326,11 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		GameHallEnabled:                      settings.GameHallEnabled,
+		TransferEnabled:                      settings.TransferEnabled,
+		RedPacketEnabled:                     settings.RedPacketEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
+		AffiliateCodeFormat:                  settings.AffiliateCodeFormat,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil
@@ -1652,6 +1732,27 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if settings.WeChatConnectFrontendRedirectURL == "" {
 		settings.WeChatConnectFrontendRedirectURL = defaultWeChatConnectFrontend
 	}
+	if settings.RedeemCodeFormat.RandomLength <= 0 {
+		settings.RedeemCodeFormat = DefaultRedeemCodeFormat()
+	}
+	if settings.BalanceCodeFormat.RandomLength <= 0 {
+		settings.BalanceCodeFormat = settings.RedeemCodeFormat
+	}
+	if settings.ConcurrencyCodeFormat.RandomLength <= 0 {
+		settings.ConcurrencyCodeFormat = settings.RedeemCodeFormat
+	}
+	if settings.SubscriptionCodeFormat.RandomLength <= 0 {
+		settings.SubscriptionCodeFormat = settings.RedeemCodeFormat
+	}
+	if settings.RedPacketCodeFormat.RandomLength <= 0 {
+		settings.RedPacketCodeFormat = settings.BalanceCodeFormat
+	}
+	if settings.InvitationCodeFormat.RandomLength <= 0 {
+		settings.InvitationCodeFormat = DefaultRegistrationInvitationCodeFormat()
+	}
+	if settings.AffiliateCodeFormat.RandomLength <= 0 {
+		settings.AffiliateCodeFormat = DefaultAffiliateCodeFormat()
+	}
 	settings.GitHubOAuthRedirectURL = strings.TrimSpace(settings.GitHubOAuthRedirectURL)
 	settings.GitHubOAuthFrontendRedirectURL = strings.TrimSpace(settings.GitHubOAuthFrontendRedirectURL)
 	if settings.GitHubOAuthFrontendRedirectURL == "" {
@@ -1674,9 +1775,34 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 	updates[SettingKeyRegistrationEmailSuffixWhitelist] = string(registrationEmailSuffixWhitelistJSON)
 	updates[SettingKeyPromoCodeEnabled] = strconv.FormatBool(settings.PromoCodeEnabled)
+	redeemCodeFormatJSON, err := MarshalCodeFormatSettings(settings.RedeemCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal redeem code format: %w", err)
+	}
+	updates[SettingKeyRedeemCodeFormat] = redeemCodeFormatJSON
+	balanceCodeFormatJSON, err := MarshalCodeFormatSettings(settings.BalanceCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal balance code format: %w", err)
+	}
+	updates[SettingKeyBalanceCodeFormat] = balanceCodeFormatJSON
+	concurrencyCodeFormatJSON, err := MarshalCodeFormatSettings(settings.ConcurrencyCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal concurrency code format: %w", err)
+	}
+	updates[SettingKeyConcurrencyCodeFormat] = concurrencyCodeFormatJSON
+	subscriptionCodeFormatJSON, err := MarshalCodeFormatSettings(settings.SubscriptionCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal subscription code format: %w", err)
+	}
+	updates[SettingKeySubscriptionCodeFormat] = subscriptionCodeFormatJSON
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
 	updates[SettingKeyFrontendURL] = settings.FrontendURL
 	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
+	invitationCodeFormatJSON, err := MarshalCodeFormatSettings(settings.InvitationCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal invitation code format: %w", err)
+	}
+	updates[SettingKeyInvitationCodeFormat] = invitationCodeFormatJSON
 	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
 	settings.LoginAgreementMode = normalizeLoginAgreementMode(settings.LoginAgreementMode)
 	settings.LoginAgreementUpdatedAt = strings.TrimSpace(settings.LoginAgreementUpdatedAt)
@@ -1815,6 +1941,17 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyContactInfo] = settings.ContactInfo
 	updates[SettingKeyDocURL] = settings.DocURL
 	updates[SettingKeyHomeContent] = settings.HomeContent
+	homeNavLinksEnabled := settings.HomeNavLeaderboardEnabled && settings.HomeNavKeyUsageEnabled && settings.HomeNavMonitoringEnabled && settings.HomeNavPricingEnabled
+	updates[SettingKeyHomeNavLinksEnabled] = strconv.FormatBool(homeNavLinksEnabled)
+	updates[SettingKeyHomeNavLeaderboardEnabled] = strconv.FormatBool(settings.HomeNavLeaderboardEnabled)
+	updates[SettingKeyHomeNavKeyUsageEnabled] = strconv.FormatBool(settings.HomeNavKeyUsageEnabled)
+	updates[SettingKeyHomeNavMonitoringEnabled] = strconv.FormatBool(settings.HomeNavMonitoringEnabled)
+	updates[SettingKeyHomeNavPricingEnabled] = strconv.FormatBool(settings.HomeNavPricingEnabled)
+	updates[SettingKeyLeaderboardBalanceEnabled] = strconv.FormatBool(settings.LeaderboardBalanceEnabled)
+	updates[SettingKeyLeaderboardConsumptionEnabled] = strconv.FormatBool(settings.LeaderboardConsumptionEnabled)
+	updates[SettingKeyLeaderboardTransferEnabled] = strconv.FormatBool(settings.LeaderboardTransferEnabled)
+	updates[SettingKeyLeaderboardCheckinEnabled] = strconv.FormatBool(settings.LeaderboardCheckinEnabled)
+	updates[SettingKeyLeaderboardIncludeAdmin] = strconv.FormatBool(settings.LeaderboardIncludeAdmin)
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)
@@ -1889,8 +2026,16 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
 
+	// Entertainment hall feature switch
+	updates[SettingKeyGameHallEnabled] = strconv.FormatBool(settings.GameHallEnabled)
+
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
+	affiliateCodeFormatJSON, err := MarshalCodeFormatSettings(settings.AffiliateCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal affiliate code format: %w", err)
+	}
+	updates[SettingKeyAffiliateCodeFormat] = affiliateCodeFormatJSON
 
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
@@ -1919,6 +2064,34 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingPaymentVisibleMethodAlipayEnabled] = strconv.FormatBool(settings.PaymentVisibleMethodAlipayEnabled)
 	updates[SettingPaymentVisibleMethodWxpayEnabled] = strconv.FormatBool(settings.PaymentVisibleMethodWxpayEnabled)
 	updates[openAIAdvancedSchedulerSettingKey] = strconv.FormatBool(settings.OpenAIAdvancedSchedulerEnabled)
+
+	// Checkin 签到设置
+	updates[SettingKeyCheckinEnabled] = strconv.FormatBool(settings.CheckinEnabled)
+	updates[SettingKeyCheckinMinBalance] = strconv.FormatFloat(settings.CheckinMinBalance, 'f', 8, 64)
+	updates[SettingKeyCheckinMaxBalance] = strconv.FormatFloat(settings.CheckinMaxBalance, 'f', 8, 64)
+	updates[SettingKeyCheckinLuckEnabled] = strconv.FormatBool(settings.CheckinLuckEnabled)
+	updates[SettingKeyCheckinLuckMinMultiplier] = strconv.FormatFloat(settings.CheckinLuckMinMultiplier, 'f', 8, 64)
+	updates[SettingKeyCheckinLuckMaxMultiplier] = strconv.FormatFloat(settings.CheckinLuckMaxMultiplier, 'f', 8, 64)
+	updates[SettingKeyCheckinBlindboxEnabled] = strconv.FormatBool(settings.CheckinBlindboxEnabled)
+	updates[SettingKeyCheckinBlindboxTriggerType] = settings.CheckinBlindboxTriggerType
+	updates[SettingKeyCheckinBlindboxInterval] = strconv.Itoa(settings.CheckinBlindboxInterval)
+
+	// Balance Transfer 余额流转设置
+	updates[SettingKeyTransferEnabled] = strconv.FormatBool(settings.TransferEnabled)
+	updates[SettingKeyTransferFeeRate] = strconv.FormatFloat(settings.TransferFeeRate, 'f', 6, 64)
+	updates[SettingKeyTransferMinAmount] = strconv.FormatFloat(settings.TransferMinAmount, 'f', 8, 64)
+	updates[SettingKeyTransferMaxAmount] = strconv.FormatFloat(settings.TransferMaxAmount, 'f', 8, 64)
+	updates[SettingKeyTransferDailyLimit] = strconv.FormatFloat(settings.TransferDailyLimit, 'f', 8, 64)
+	updates[SettingKeyTransferDailyCountLimit] = strconv.Itoa(settings.TransferDailyCountLimit)
+	updates[SettingKeyTransferVIPFeeExempt] = strconv.FormatBool(settings.TransferVIPFeeExempt)
+	updates[SettingKeyRedPacketEnabled] = strconv.FormatBool(settings.RedPacketEnabled)
+	updates[SettingKeyRedPacketMaxCount] = strconv.Itoa(settings.RedPacketMaxCount)
+	updates[SettingKeyRedPacketExpireHours] = strconv.Itoa(settings.RedPacketExpireHours)
+	redPacketCodeFormatJSON, err := MarshalCodeFormatSettings(settings.RedPacketCodeFormat)
+	if err != nil {
+		return nil, fmt.Errorf("marshal red packet code format: %w", err)
+	}
+	updates[SettingKeyRedPacketCodeFormat] = redPacketCodeFormatJSON
 
 	// 余额、订阅到期与账号限额通知
 	updates[SettingKeyBalanceLowNotifyEnabled] = strconv.FormatBool(settings.BalanceLowNotifyEnabled)
@@ -2543,6 +2716,30 @@ func (s *SettingService) GetDefaultSubscriptions(ctx context.Context) []DefaultS
 	return parseDefaultSubscriptions(value)
 }
 
+func (s *SettingService) GetRedeemCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRedeemCodeFormat)
+	if err != nil || strings.TrimSpace(value) == "" {
+		return DefaultRedeemCodeFormat()
+	}
+	return ParseCodeFormatSettings(value, DefaultRedeemCodeFormat())
+}
+
+func (s *SettingService) GetBalanceCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyBalanceCodeFormat)
+	if err != nil || strings.TrimSpace(value) == "" {
+		return s.GetRedeemCodeFormat(ctx)
+	}
+	return ParseCodeFormatSettings(value, s.GetRedeemCodeFormat(ctx))
+}
+
+func (s *SettingService) GetRedPacketCodeFormat(ctx context.Context) CodeFormatSettings {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRedPacketCodeFormat)
+	if err != nil || strings.TrimSpace(value) == "" {
+		return s.GetBalanceCodeFormat(ctx)
+	}
+	return ParseCodeFormatSettings(value, s.GetBalanceCodeFormat(ctx))
+}
+
 func (s *SettingService) GetAuthSourceDefaultSettings(ctx context.Context) (*AuthSourceDefaultSettings, error) {
 	keys := []string{
 		SettingKeyAuthSourceDefaultEmailBalance,
@@ -2652,14 +2849,9 @@ func (s *SettingService) UpdateAuthSourceDefaultSettings(ctx context.Context, se
 
 // InitializeDefaultSettings 初始化默认设置
 func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
-	// 检查是否已有设置
-	_, err := s.settingRepo.GetValue(ctx, SettingKeyRegistrationEnabled)
-	if err == nil {
-		// 已有设置，不需要初始化
-		return nil
-	}
-	if !errors.Is(err, ErrSettingNotFound) {
-		return fmt.Errorf("check existing settings: %w", err)
+	existing, err := s.settingRepo.GetAll(ctx)
+	if err != nil {
+		return fmt.Errorf("load existing settings: %w", err)
 	}
 
 	oidcUsePKCEDefault := true
@@ -2683,6 +2875,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyEmailVerifyEnabled:                        "false",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
 		SettingKeyPromoCodeEnabled:                          "true", // 默认启用优惠码功能
+		SettingKeyRedeemCodeFormat:                          mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+		SettingKeyBalanceCodeFormat:                         mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+		SettingKeyConcurrencyCodeFormat:                     mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+		SettingKeySubscriptionCodeFormat:                    mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+		SettingKeyInvitationCodeFormat:                      mustMarshalCodeFormatDefaults(DefaultRegistrationInvitationCodeFormat()),
 		SettingKeyLoginAgreementEnabled:                     "false",
 		SettingKeyLoginAgreementMode:                        defaultLoginAgreementMode,
 		SettingKeyLoginAgreementUpdatedAt:                   defaultLoginAgreementDate,
@@ -2690,6 +2887,16 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAPIKeyACLTrustForwardedIP:                 "false",
 		SettingKeySiteName:                                  "Sub2API",
 		SettingKeySiteLogo:                                  "",
+		SettingKeyHomeNavLinksEnabled:                       "true",
+		SettingKeyHomeNavLeaderboardEnabled:                 "true",
+		SettingKeyHomeNavKeyUsageEnabled:                    "true",
+		SettingKeyHomeNavMonitoringEnabled:                  "true",
+		SettingKeyHomeNavPricingEnabled:                     "true",
+		SettingKeyLeaderboardBalanceEnabled:                 "true",
+		SettingKeyLeaderboardConsumptionEnabled:             "true",
+		SettingKeyLeaderboardTransferEnabled:                "true",
+		SettingKeyLeaderboardCheckinEnabled:                 "true",
+		SettingKeyLeaderboardIncludeAdmin:                   "false",
 		SettingKeyPurchaseSubscriptionEnabled:               "false",
 		SettingKeyPurchaseSubscriptionURL:                   "",
 		SettingKeyTableDefaultPageSize:                      "20",
@@ -2746,6 +2953,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOIDCConnectUserInfoUsernamePath:           "",
 		SettingKeyDefaultConcurrency:                        strconv.Itoa(s.cfg.Default.UserConcurrency),
 		SettingKeyDefaultBalance:                            strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
+		SettingKeyAffiliateCodeFormat:                       mustMarshalCodeFormatDefaults(DefaultAffiliateCodeFormat()),
 		SettingKeyAffiliateRebateRate:                       strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
 		SettingKeyAffiliateRebateFreezeHours:                strconv.Itoa(AffiliateRebateFreezeHoursDefault),
 		SettingKeyAffiliateRebateDurationDays:               strconv.Itoa(AffiliateRebateDurationDaysDefault),
@@ -2813,6 +3021,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
+		// Entertainment hall feature (default disabled; opt-in)
+		SettingKeyGameHallEnabled: "false",
+
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
 
@@ -2835,15 +3046,57 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingPaymentVisibleMethodWxpayEnabled:      "false",
 		openAIAdvancedSchedulerSettingKey:            "false",
 
+		// Checkin 签到设置（默认关闭）
+		SettingKeyCheckinEnabled:             "false",
+		SettingKeyCheckinMinBalance:          "0.10",
+		SettingKeyCheckinMaxBalance:          "1.00",
+		SettingKeyCheckinLuckEnabled:         "false",
+		SettingKeyCheckinLuckMinMultiplier:   "0.10",
+		SettingKeyCheckinLuckMaxMultiplier:   "3.00",
+		SettingKeyCheckinBlindboxEnabled:     "false",
+		SettingKeyCheckinBlindboxTriggerType: "streak",
+		SettingKeyCheckinBlindboxInterval:    "7",
+
+		// Balance Transfer 余额流转设置（默认关闭）
+		SettingKeyTransferEnabled:         "false",
+		SettingKeyTransferFeeRate:         "0.010000",
+		SettingKeyTransferMinAmount:       "0.01000000",
+		SettingKeyTransferMaxAmount:       "1000.00000000",
+		SettingKeyTransferDailyLimit:      "1000.00000000",
+		SettingKeyTransferDailyCountLimit: "50",
+		SettingKeyTransferVIPFeeExempt:    "false",
+		SettingKeyRedPacketEnabled:        "false",
+		SettingKeyRedPacketMaxCount:       "100",
+		SettingKeyRedPacketExpireHours:    "24",
+		SettingKeyRedPacketCodeFormat:     mustMarshalCodeFormatDefaults(DefaultRedeemCodeFormat()),
+
 		SettingKeyAllowUserViewErrorRequests: "false",
 	}
 
-	return s.settingRepo.SetMultiple(ctx, defaults)
+	missing := make(map[string]string, len(defaults))
+	for key, value := range defaults {
+		if _, ok := existing[key]; !ok {
+			missing[key] = value
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	return s.settingRepo.SetMultiple(ctx, missing)
 }
 
 // parseSettings 解析设置到结构体
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
+	homeNavLeaderboardEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavLeaderboardEnabled)
+	homeNavKeyUsageEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavKeyUsageEnabled)
+	homeNavMonitoringEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavMonitoringEnabled)
+	homeNavPricingEnabled := homeNavLinkEnabled(settings, SettingKeyHomeNavPricingEnabled)
+	leaderboardBalanceEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardBalanceEnabled)
+	leaderboardConsumptionEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardConsumptionEnabled)
+	leaderboardTransferEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardTransferEnabled)
+	leaderboardCheckinEnabled := leaderboardTabEnabled(settings, SettingKeyLeaderboardCheckinEnabled)
+	leaderboardIncludeAdmin := settings[SettingKeyLeaderboardIncludeAdmin] == "true"
 	loginAgreementDocuments := parseLoginAgreementDocuments(settings[SettingKeyLoginAgreementDocuments])
 	loginAgreementUpdatedAt := strings.TrimSpace(settings[SettingKeyLoginAgreementUpdatedAt])
 	if loginAgreementUpdatedAt == "" {
@@ -2860,9 +3113,14 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		EmailVerifyEnabled:               emailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist: ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]),
 		PromoCodeEnabled:                 settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
+		RedeemCodeFormat:                 ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat()),
+		BalanceCodeFormat:                ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		ConcurrencyCodeFormat:            ParseCodeFormatSettings(settings[SettingKeyConcurrencyCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
+		SubscriptionCodeFormat:           ParseCodeFormatSettings(settings[SettingKeySubscriptionCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())),
 		PasswordResetEnabled:             emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                      settings[SettingKeyFrontendURL],
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
+		InvitationCodeFormat:             ParseCodeFormatSettings(settings[SettingKeyInvitationCodeFormat], DefaultRegistrationInvitationCodeFormat()),
 		TotpEnabled:                      settings[SettingKeyTotpEnabled] == "true",
 		LoginAgreementEnabled:            settings[SettingKeyLoginAgreementEnabled] == "true",
 		LoginAgreementMode:               normalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]),
@@ -2885,12 +3143,24 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
+		HomeNavLinksEnabled:              homeNavLeaderboardEnabled && homeNavKeyUsageEnabled && homeNavMonitoringEnabled && homeNavPricingEnabled,
+		HomeNavLeaderboardEnabled:        homeNavLeaderboardEnabled,
+		HomeNavKeyUsageEnabled:           homeNavKeyUsageEnabled,
+		HomeNavMonitoringEnabled:         homeNavMonitoringEnabled,
+		HomeNavPricingEnabled:            homeNavPricingEnabled,
+		LeaderboardBalanceEnabled:        leaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:    leaderboardConsumptionEnabled,
+		LeaderboardTransferEnabled:       leaderboardTransferEnabled,
+		LeaderboardCheckinEnabled:        leaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:          leaderboardIncludeAdmin,
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
 		CustomMenuItems:                  settings[SettingKeyCustomMenuItems],
 		CustomEndpoints:                  settings[SettingKeyCustomEndpoints],
 		BackendModeEnabled:               settings[SettingKeyBackendModeEnabled] == "true",
+		AffiliateEnabled:                 settings[SettingKeyAffiliateEnabled] == "true",
+		AffiliateCodeFormat:              ParseCodeFormatSettings(settings[SettingKeyAffiliateCodeFormat], DefaultAffiliateCodeFormat()),
 	}
 	result.TableDefaultPageSize, result.TablePageSizeOptions = parseTablePreferences(
 		settings[SettingKeyTableDefaultPageSize],
@@ -3322,11 +3592,89 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
 
+	// Entertainment hall feature (default: disabled; strict true)
+	result.GameHallEnabled = settings[SettingKeyGameHallEnabled] == "true"
+
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"
+
+	// Checkin 签到设置
+	result.CheckinEnabled = settings[SettingKeyCheckinEnabled] == "true"
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinMinBalance], 64); err == nil && v >= 0 {
+		result.CheckinMinBalance = v
+	} else {
+		result.CheckinMinBalance = 0.10
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinMaxBalance], 64); err == nil && v >= 0 {
+		result.CheckinMaxBalance = v
+	} else {
+		result.CheckinMaxBalance = 1.00
+	}
+	result.CheckinLuckEnabled = settings[SettingKeyCheckinLuckEnabled] == "true"
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinLuckMinMultiplier], 64); err == nil && v >= 0 {
+		result.CheckinLuckMinMultiplier = v
+	} else {
+		result.CheckinLuckMinMultiplier = 0.10
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinLuckMaxMultiplier], 64); err == nil && v >= 0 {
+		result.CheckinLuckMaxMultiplier = v
+	} else {
+		result.CheckinLuckMaxMultiplier = 3.00
+	}
+	result.CheckinBlindboxEnabled = settings[SettingKeyCheckinBlindboxEnabled] == "true"
+	result.CheckinBlindboxTriggerType = settings[SettingKeyCheckinBlindboxTriggerType]
+	if result.CheckinBlindboxTriggerType == "" {
+		result.CheckinBlindboxTriggerType = "streak"
+	}
+	if v, err := strconv.Atoi(settings[SettingKeyCheckinBlindboxInterval]); err == nil && v > 0 {
+		result.CheckinBlindboxInterval = v
+	} else {
+		result.CheckinBlindboxInterval = 7
+	}
+
+	// Balance Transfer 余额流转设置
+	result.TransferEnabled = settings[SettingKeyTransferEnabled] == "true"
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferFeeRate], 64); err == nil && v >= 0 {
+		result.TransferFeeRate = v
+	} else {
+		result.TransferFeeRate = 0.01
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferMinAmount], 64); err == nil && v >= 0 {
+		result.TransferMinAmount = v
+	} else {
+		result.TransferMinAmount = 0.01
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferMaxAmount], 64); err == nil && v >= 0 {
+		result.TransferMaxAmount = v
+	} else {
+		result.TransferMaxAmount = 1000
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyTransferDailyLimit], 64); err == nil && v >= 0 {
+		result.TransferDailyLimit = v
+	} else {
+		result.TransferDailyLimit = 1000
+	}
+	if v, err := strconv.Atoi(settings[SettingKeyTransferDailyCountLimit]); err == nil && v >= 0 {
+		result.TransferDailyCountLimit = v
+	} else {
+		result.TransferDailyCountLimit = 50
+	}
+	result.TransferVIPFeeExempt = settings[SettingKeyTransferVIPFeeExempt] == "true"
+	result.RedPacketEnabled = settings[SettingKeyRedPacketEnabled] == "true"
+	if v, err := strconv.Atoi(settings[SettingKeyRedPacketMaxCount]); err == nil && v > 0 {
+		result.RedPacketMaxCount = v
+	} else {
+		result.RedPacketMaxCount = 100
+	}
+	if v, err := strconv.Atoi(settings[SettingKeyRedPacketExpireHours]); err == nil && v > 0 {
+		result.RedPacketExpireHours = v
+	} else {
+		result.RedPacketExpireHours = 24
+	}
+	result.RedPacketCodeFormat = ParseCodeFormatSettings(settings[SettingKeyRedPacketCodeFormat], ParseCodeFormatSettings(settings[SettingKeyBalanceCodeFormat], ParseCodeFormatSettings(settings[SettingKeyRedeemCodeFormat], DefaultRedeemCodeFormat())))
 
 	// Claude Code version check
 	result.MinClaudeCodeVersion = settings[SettingKeyMinClaudeCodeVersion]
@@ -3418,6 +3766,20 @@ func isFalseSettingValue(value string) bool {
 	default:
 		return false
 	}
+}
+
+func homeNavLinkEnabled(settings map[string]string, key string) bool {
+	if raw, ok := settings[key]; ok && strings.TrimSpace(raw) != "" {
+		return !isFalseSettingValue(raw)
+	}
+	return !isFalseSettingValue(settings[SettingKeyHomeNavLinksEnabled])
+}
+
+func leaderboardTabEnabled(settings map[string]string, key string) bool {
+	if raw, ok := settings[key]; ok && strings.TrimSpace(raw) != "" {
+		return !isFalseSettingValue(raw)
+	}
+	return true
 }
 
 func normalizeVisibleMethodSettingSource(method, source string, enabled bool) (string, error) {

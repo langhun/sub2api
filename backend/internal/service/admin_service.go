@@ -17,6 +17,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -26,6 +27,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/util/httputil"
+	"github.com/lib/pq"
 )
 
 // AdminService interface defines admin management operations
@@ -1253,11 +1255,11 @@ WHERE user_id = $1
 
 	summary.TotalCredited =
 		summary.Recharge +
-		summary.RegistrationBonus +
-		summary.InvitationBonus +
-		summary.CheckinBonus +
-		summary.AffiliateTransfer +
-		summary.AdminAdjustment
+			summary.RegistrationBonus +
+			summary.InvitationBonus +
+			summary.CheckinBonus +
+			summary.AffiliateTransfer +
+			summary.AdminAdjustment
 
 	return summary, nil
 }
@@ -3379,8 +3381,6 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 	return codes, nil
 }
 
-<<<<<<< HEAD
-=======
 type redeemBlindboxInfo struct {
 	UserID     int64
 	PrizeName  string
@@ -3604,8 +3604,6 @@ func mapKeysInt64(source map[int64]struct{}) []int64 {
 	}
 	return out
 }
-
->>>>>>> cec6fd725 (feat(admin): enrich usage risk control and balance history)
 func (s *adminServiceImpl) DeleteRedeemCode(ctx context.Context, id int64) error {
 	return s.redeemCodeRepo.Delete(ctx, id)
 }

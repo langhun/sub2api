@@ -77,6 +77,10 @@ func (s *transferUserRepoStub) GetByID(_ context.Context, id int64) (*User, erro
 	return &cloned, nil
 }
 
+func (s *transferUserRepoStub) GetByIDIncludeDeleted(ctx context.Context, id int64) (*User, error) {
+	return s.GetByID(ctx, id)
+}
+
 func (s *transferUserRepoStub) GetByEmail(context.Context, string) (*User, error) {
 	return nil, ErrUserNotFound
 }

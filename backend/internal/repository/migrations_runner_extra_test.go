@@ -104,6 +104,10 @@ func TestMigrationChecksumCompatibilityRules_CoverEditedUpgradeCompatibilityMigr
 		"118_wechat_dual_mode_and_auth_source_defaults.sql",
 		"120_enforce_payment_orders_out_trade_no_unique_notx.sql",
 		"123_fix_legacy_auth_source_grant_on_signup_defaults.sql",
+		"144_game_hall_legacy_schema_compat.sql",
+		"146_add_game_jackpot_transactions.sql",
+		"147_add_game_hall_dedicated_tables.sql",
+		"148_backfill_game_hall_dedicated_balances.sql",
 	} {
 		rule, ok := migrationChecksumCompatibilityRules[name]
 		require.Truef(t, ok, "missing compatibility rule for %s", name)

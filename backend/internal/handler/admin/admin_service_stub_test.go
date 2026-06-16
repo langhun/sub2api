@@ -69,8 +69,6 @@ type stubAdminService struct {
 		sortOrder string
 		calls     int
 	}
-	redeemStats          service.RedeemCodeStats
-	redeemStatsErr       error
 	balanceSourceSummary *service.UserBalanceSourceSummary
 	mu                   sync.Mutex
 }

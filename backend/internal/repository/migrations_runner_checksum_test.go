@@ -153,6 +153,42 @@ func TestIsMigrationChecksumCompatible(t *testing.T) {
 		}
 	})
 
+	t.Run("144历史checksum可兼容当前安全恢复版本", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"144_game_hall_legacy_schema_compat.sql",
+			"2c79e90d93c76549ebd85b387cb7011395767db1f95b768a169f2b53a1e59af9",
+			"a3277e3a96137ec57a807aa9246dc8d5c237bd70f0dea734c6738e9552f61a11",
+		)
+		require.True(t, ok)
+	})
+
+	t.Run("146历史checksum可兼容当前安全恢复版本", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"146_add_game_jackpot_transactions.sql",
+			"6cc815ee3cbe6344d313797a39bba29465b6d93831b3e2402843bc7e7ad300d1",
+			"e1fc6da69d6c8658a1503f8b3813df663a94da6cac8f80acc6588cde9e00d8d8",
+		)
+		require.True(t, ok)
+	})
+
+	t.Run("147历史checksum可兼容当前安全恢复版本", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"147_add_game_hall_dedicated_tables.sql",
+			"39fa59973fcc708d6b28f2a7287da994fd80b8049d73867671611756f2d05824",
+			"eebb1ea306c9026a8650b3f572254ebb110138850bde81c5ce07edf6a20e0f28",
+		)
+		require.True(t, ok)
+	})
+
+	t.Run("148历史checksum可兼容当前安全恢复版本", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"148_backfill_game_hall_dedicated_balances.sql",
+			"1cf0d9c080a1bc642e1dc713898a53cbe7537ab71a75324a075461ac9dd183fd",
+			"8b3b39a1f15e57711414958bbb0ac47445fda54ee48f4d60ae23495d30bdeb71",
+		)
+		require.True(t, ok)
+	})
+
 	t.Run("119未知checksum不兼容", func(t *testing.T) {
 		ok := isMigrationChecksumCompatible(
 			"119_enforce_payment_orders_out_trade_no_unique.sql",

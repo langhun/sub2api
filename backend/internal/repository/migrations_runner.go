@@ -75,6 +75,10 @@ var migrationChecksumCompatibilityRules = map[string]migrationChecksumCompatibil
 	"119_enforce_payment_orders_out_trade_no_unique.sql":      newMigrationChecksumCompatibilityRule("0bbe809ae48a9d811dabda1ba1c74955bd71c4a9cc610f9128816818dfa6c11e", "ebd2c67cce0116393fb4f1b5d5116a67c6aceb73820dfb5133d1ff6f36d72d34"),
 	"120_enforce_payment_orders_out_trade_no_unique_notx.sql": newMigrationChecksumCompatibilityRule("34aadc0db59a4e390f92a12b73bd74642d9724f33124f73638ae00089ea5e074", "e77921f79d539bc24575cb9c16cbe566d2b23ce816190343d0a7568f6a3fcf61", "707431450603e70a43ce9fbd61e0c12fa67da4875158ccefabacea069587ab22", "04b082b5a239c525154fe9185d324ee2b05ff90da9297e10dba19f9be79aa59a"),
 	"123_fix_legacy_auth_source_grant_on_signup_defaults.sql": newMigrationChecksumCompatibilityRule("2ce43c2cd89e9f9e1febd34a407ed9e84d177386c5544b6f02c1f58a21129f57", "6cd33422f215dcd1f486ab6f35c0ea5805d9ca69bb25906d94bc649156657145"),
+	"144_game_hall_legacy_schema_compat.sql":                  newMigrationChecksumCompatibilityRule("a3277e3a96137ec57a807aa9246dc8d5c237bd70f0dea734c6738e9552f61a11", "2c79e90d93c76549ebd85b387cb7011395767db1f95b768a169f2b53a1e59af9"),
+	"146_add_game_jackpot_transactions.sql":                   newMigrationChecksumCompatibilityRule("e1fc6da69d6c8658a1503f8b3813df663a94da6cac8f80acc6588cde9e00d8d8", "6cc815ee3cbe6344d313797a39bba29465b6d93831b3e2402843bc7e7ad300d1"),
+	"147_add_game_hall_dedicated_tables.sql":                  newMigrationChecksumCompatibilityRule("eebb1ea306c9026a8650b3f572254ebb110138850bde81c5ce07edf6a20e0f28", "39fa59973fcc708d6b28f2a7287da994fd80b8049d73867671611756f2d05824"),
+	"148_backfill_game_hall_dedicated_balances.sql":           newMigrationChecksumCompatibilityRule("8b3b39a1f15e57711414958bbb0ac47445fda54ee48f4d60ae23495d30bdeb71", "1cf0d9c080a1bc642e1dc713898a53cbe7537ab71a75324a075461ac9dd183fd"),
 }
 
 // ApplyMigrations 将嵌入的 SQL 迁移文件应用到指定的数据库。

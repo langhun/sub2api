@@ -11,13 +11,87 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var configEnvPrefixes = []string{
+	"API_KEY_AUTH_CACHE_",
+	"BILLING_",
+	"CORS_",
+	"CONCURRENCY_",
+	"DASHBOARD_",
+	"DATABASE_",
+	"DEFAULT_",
+	"DINGTALK_CONNECT_",
+	"GATEWAY_",
+	"GEMINI_",
+	"GITHUB_OAUTH_",
+	"GOOGLE_OAUTH_",
+	"IDEMPOTENCY_",
+	"JWT_",
+	"LINUXDO_CONNECT_",
+	"LOG_",
+	"OIDC_CONNECT_",
+	"OPS_",
+	"PRICING_",
+	"RATE_LIMIT_",
+	"REDIS_",
+	"SECURITY_",
+	"SERVER_",
+	"SUBSCRIPTION_",
+	"TOKEN_REFRESH_",
+	"TOTP_",
+	"TURNSTILE_",
+	"UPDATE_",
+	"USAGE_CLEANUP_",
+	"WECHAT_CONNECT_",
+}
+
+func shouldClearConfigEnv(name string) bool {
+	switch name {
+	case "DATA_DIR", "RUN_MODE", "TIMEZONE":
+		return true
+	}
+
+	for _, prefix := range configEnvPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isolateConfigLoadEnvironment(t *testing.T) {
+	t.Helper()
+
+	for _, entry := range os.Environ() {
+		name, _, found := strings.Cut(entry, "=")
+		if !found {
+			continue
+		}
+		if shouldClearConfigEnv(name) {
+			t.Setenv(name, "")
+		}
+	}
+
+	tempDir := t.TempDir()
+	t.Setenv("DATA_DIR", tempDir)
+
+	originalWD, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tempDir))
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+}
+
 func resetViperWithJWTSecret(t *testing.T) {
 	t.Helper()
+	isolateConfigLoadEnvironment(t)
 	viper.Reset()
 	t.Setenv("JWT_SECRET", strings.Repeat("x", 32))
 }
 
 func TestLoadForBootstrapAllowsMissingJWTSecret(t *testing.T) {
+	isolateConfigLoadEnvironment(t)
 	viper.Reset()
 	t.Setenv("JWT_SECRET", "")
 
