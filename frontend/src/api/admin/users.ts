@@ -242,7 +242,10 @@ export interface BalanceHistoryItem {
   group_id: number | null
   validity_days: number
   notes: string
-  user?: { id: number; email: string } | null
+  multiplier?: number | null
+  source_summary?: string | null
+  user?: { id: number; email?: string; username?: string } | null
+  inviter_user?: { id: number; email?: string; username?: string } | null
   group?: { id: number; name: string } | null
 }
 
