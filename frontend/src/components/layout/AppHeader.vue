@@ -21,6 +21,8 @@
         </div>
       </div>
 
+      <PublicQuickLinksBar inline class="hidden lg:flex lg:flex-1 lg:justify-end lg:pr-2" />
+
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="flex items-center gap-3">
         <!-- Announcement Bell -->
@@ -66,6 +68,48 @@
             ${{ user.balance?.toFixed(2) || '0.00' }}
           </span>
         </div>
+
+        <!-- Checkin Button (desktop) -->
+        <div
+          v-if="user && checkinEnabled"
+          class="hidden items-center gap-2 sm:flex"
+        >
+          <button
+            v-if="canCheckin && normalEnabled"
+            type="button"
+            :disabled="checkinLoading"
+            class="flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700 transition-all hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
+            @click="handleCheckin"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+            </svg>
+            <span>{{ checkinLoading ? '...' : t('checkin.normalCheckin') }}</span>
+          </button>
+          <button
+            v-if="canCheckin && luckEnabled"
+            type="button"
+            :disabled="checkinLoading"
+            class="flex items-center gap-1.5 rounded-xl bg-purple-50 px-3 py-1.5 text-sm font-semibold text-purple-700 transition-all hover:bg-purple-100 disabled:opacity-50 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
+            @click="showLuckModal = true"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+            </svg>
+            <span>{{ t('checkin.luckCheckin') }}</span>
+          </button>
+        </div>
+
+        <LuckCheckinDialog
+          :show="showLuckModal"
+          v-model:bet-amount="luckBetAmount"
+          :loading="checkinLoading"
+          :balance-limit="luckBalanceLimit"
+          :min-multiplier="checkinStore.status?.min_multiplier"
+          :max-multiplier="checkinStore.status?.max_multiplier"
+          @close="showLuckModal = false"
+          @submit="submitLuckCheckin"
+        />
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
@@ -115,6 +159,12 @@
                 </div>
               </div>
 
+              <PublicQuickLinksBar
+                variant="menu"
+                class="border-b border-gray-100 dark:border-dark-700 lg:hidden"
+                @navigate="closeDropdown"
+              />
+
               <div class="py-1">
                 <router-link to="/profile" @click="closeDropdown" class="dropdown-item">
                   <Icon name="user" size="sm" />
@@ -125,24 +175,6 @@
                   <Icon name="key" size="sm" />
                   {{ t('nav.apiKeys') }}
                 </router-link>
-
-                <a
-                  v-if="authStore.isAdmin"
-                  href="https://github.com/Wei-Shaw/sub2api"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  @click="closeDropdown"
-                  class="dropdown-item"
-                >
-                  <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                      fill-rule="evenodd"
-                      clip-rule="evenodd"
-                      d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"
-                    />
-                  </svg>
-                  {{ t('nav.github') }}
-                </a>
 
               </div>
 
@@ -210,19 +242,28 @@
       </div>
     </div>
   </header>
+  <BlindboxModal
+    :show="!!checkinStore.blindboxResult"
+    :result="checkinStore.blindboxResult"
+    @close="checkinStore.clearBlindboxResult()"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
+import { useCheckinStore } from '@/stores/checkin'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
-
+import BlindboxModal from '@/components/user/profile/BlindboxModal.vue'
+import LuckCheckinDialog from '@/components/user/checkin/LuckCheckinDialog.vue'
+import { getPreferredUserDisplayName } from '@/utils/userDisplay'
+import PublicQuickLinksBar from './PublicQuickLinksBar.vue'
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
@@ -230,8 +271,40 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
 const onboardingStore = useOnboardingStore()
+const checkinStore = useCheckinStore()
 
 const user = computed(() => authStore.user)
+const checkinLoading = computed(() => checkinStore.loading)
+const checkinEnabled = computed(() => checkinStore.enabled)
+const normalEnabled = computed(() => checkinStore.normalEnabled)
+const luckEnabled = computed(() => checkinStore.luckEnabled)
+const canCheckin = computed(() => checkinStore.canCheckin)
+const showLuckModal = ref(false)
+const luckBetAmount = ref<number>(0)
+const luckBalanceLimit = computed(() => {
+  const balances = [checkinStore.status?.balance, user.value?.balance]
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0)
+  const balance = balances.length > 0 ? Math.min(...balances) : 0
+  if (!Number.isFinite(balance) || balance <= 0) return 0
+  return Math.floor((balance + Number.EPSILON) * 100) / 100
+})
+
+async function handleCheckin() {
+  const result = await checkinStore.doCheckin()
+  if (result) {
+    // success feedback is handled by the UI state change
+  }
+}
+
+async function submitLuckCheckin() {
+  if (!luckBetAmount.value || luckBetAmount.value <= 0) return
+  const result = await checkinStore.doLuckCheckin(luckBetAmount.value)
+  if (result) {
+    showLuckModal.value = false
+    luckBetAmount.value = 0
+  }
+}
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
@@ -245,21 +318,12 @@ const showOnboardingButton = computed(() => {
 
 const userInitials = computed(() => {
   if (!user.value) return ''
-  // Prefer username, fallback to email
-  if (user.value.username) {
-    return user.value.username.substring(0, 2).toUpperCase()
-  }
-  if (user.value.email) {
-    // Get the part before @ and take first 2 chars
-    const localPart = user.value.email.split('@')[0]
-    return localPart.substring(0, 2).toUpperCase()
-  }
-  return ''
+  return getPreferredUserDisplayName(user.value).substring(0, 2).toUpperCase()
 })
 
 const displayName = computed(() => {
   if (!user.value) return ''
-  return user.value.username || user.value.email?.split('@')[0] || ''
+  return getPreferredUserDisplayName(user.value)
 })
 
 const pageTitle = computed(() => {
@@ -324,6 +388,12 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
 })
 
+watch(() => authStore.user, (user) => {
+  if (user) {
+    checkinStore.fetchStatus()
+  }
+}, { immediate: true })
+
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
 })
@@ -340,4 +410,5 @@ onBeforeUnmount(() => {
   opacity: 0;
   transform: scale(0.95) translateY(-4px);
 }
+
 </style>

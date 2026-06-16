@@ -58,8 +58,8 @@
                   @click="selectFilterUser(user)"
                   class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <span class="font-medium text-gray-900 dark:text-white">{{ user.email }}</span>
-                  <span class="ml-2 text-gray-500 dark:text-gray-400">#{{ user.id }}</span>
+                  <span class="block font-medium text-gray-900 dark:text-white">{{ getPreferredUserDisplayName(user, '#' + user.id) }}</span>
+                  <span v-if="getSecondaryUserEmail(user)" class="block text-xs text-gray-500 dark:text-gray-400">{{ getSecondaryUserEmail(user) }}</span>
                 </button>
               </div>
             </div>
@@ -184,18 +184,17 @@
                 class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30"
               >
                 <span class="text-sm font-medium text-primary-700 dark:text-primary-300">
-                  {{ userColumnMode === 'email'
-                    ? (row.user?.email?.charAt(0).toUpperCase() || '?')
-                    : (row.user?.username?.charAt(0).toUpperCase() || '?')
-                  }}
+                  {{ getUserDisplayInitial(row.user) }}
                 </span>
               </div>
-              <span class="font-medium text-gray-900 dark:text-white">
-                {{ userColumnMode === 'email'
-                  ? (row.user?.email || t('admin.redeem.userPrefix', { id: row.user_id }))
-                  : (row.user?.username || '-')
-                }}
-              </span>
+              <div class="min-w-0">
+                <span class="block truncate font-medium text-gray-900 dark:text-white">
+                  {{ getPreferredUserDisplayName(row.user, t('admin.redeem.userPrefix', { id: row.user_id })) }}
+                </span>
+                <span v-if="userColumnMode === 'email' && getSecondaryUserEmail(row.user)" class="block truncate text-xs text-gray-500 dark:text-gray-400">
+                  {{ getSecondaryUserEmail(row.user) }}
+                </span>
+              </div>
             </div>
           </template>
 
@@ -486,8 +485,8 @@
                 @click="selectUser(user)"
                 class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                <span class="font-medium text-gray-900 dark:text-white">{{ user.email }}</span>
-                <span class="ml-2 text-gray-500 dark:text-gray-400">#{{ user.id }}</span>
+                <span class="block font-medium text-gray-900 dark:text-white">{{ getPreferredUserDisplayName(user, '#' + user.id) }}</span>
+                <span v-if="getSecondaryUserEmail(user)" class="block text-xs text-gray-500 dark:text-gray-400">{{ getSecondaryUserEmail(user) }}</span>
               </button>
             </div>
           </div>
@@ -582,7 +581,7 @@
           <p class="text-sm text-gray-600 dark:text-gray-400">
             {{ t('admin.subscriptions.adjustingFor') }}
             <span class="font-medium text-gray-900 dark:text-white">{{
-              extendingSubscription.user?.email
+              getPreferredUserDisplayName(extendingSubscription.user, t('admin.redeem.userPrefix', { id: extendingSubscription.user_id }))
             }}</span>
           </p>
           <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -637,7 +636,7 @@
     <ConfirmDialog
       :show="showRevokeDialog"
       :title="t('admin.subscriptions.revokeSubscription')"
-      :message="t('admin.subscriptions.revokeConfirm', { user: revokingSubscription?.user?.email })"
+      :message="t('admin.subscriptions.revokeConfirm', { user: getPreferredUserDisplayName(revokingSubscription?.user, revokingSubscription ? t('admin.redeem.userPrefix', { id: revokingSubscription.user_id }) : '-') })"
       :confirm-text="t('admin.subscriptions.revoke')"
       :cancel-text="t('common.cancel')"
       :danger="true"
@@ -649,7 +648,7 @@
     <ConfirmDialog
       :show="showResetQuotaConfirm"
       :title="t('admin.subscriptions.resetQuotaTitle')"
-      :message="t('admin.subscriptions.resetQuotaConfirm', { user: resettingSubscription?.user?.email })"
+      :message="t('admin.subscriptions.resetQuotaConfirm', { user: getPreferredUserDisplayName(resettingSubscription?.user, resettingSubscription ? t('admin.redeem.userPrefix', { id: resettingSubscription.user_id }) : '-') })"
       :confirm-text="t('admin.subscriptions.resetQuota')"
       :cancel-text="t('common.cancel')"
       @confirm="confirmResetQuota"
@@ -746,6 +745,7 @@ import type { UserSubscription, Group, GroupPlatform, SubscriptionType } from '@
 import type { SimpleUser } from '@/api/admin/usage'
 import type { Column } from '@/components/common/types'
 import { formatDateOnly } from '@/utils/format'
+import { getPreferredUserDisplayName, getSecondaryUserEmail, getUserDisplayInitial } from '@/utils/userDisplay'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -807,6 +807,11 @@ const saveUserColumnMode = () => {
 const setUserColumnMode = (mode: 'email' | 'username') => {
   userColumnMode.value = mode
   saveUserColumnMode()
+}
+
+const getSelectedUserKeyword = (user?: SimpleUser | null) => {
+  if (!user) return ''
+  return getPreferredUserDisplayName(user, user.email)
 }
 
 // All available columns
@@ -1053,7 +1058,7 @@ const searchFilterUsers = async () => {
   const keyword = filterUserKeyword.value.trim()
 
   // Clear active user filter if user modified the search keyword
-  if (selectedFilterUser.value && keyword !== selectedFilterUser.value.email) {
+  if (selectedFilterUser.value && keyword !== getSelectedUserKeyword(selectedFilterUser.value)) {
     selectedFilterUser.value = null
     filters.user_id = null
     applyFilters()
@@ -1077,7 +1082,7 @@ const searchFilterUsers = async () => {
 
 const selectFilterUser = (user: SimpleUser) => {
   selectedFilterUser.value = user
-  filterUserKeyword.value = user.email
+  filterUserKeyword.value = getSelectedUserKeyword(user)
   showFilterUserDropdown.value = false
   filters.user_id = user.id
   applyFilters()
@@ -1104,7 +1109,7 @@ const searchUsers = async () => {
   const keyword = userSearchKeyword.value.trim()
 
   // Clear selection if user modified the search keyword
-  if (selectedUser.value && keyword !== selectedUser.value.email) {
+  if (selectedUser.value && keyword !== getSelectedUserKeyword(selectedUser.value)) {
     selectedUser.value = null
     assignForm.user_id = null
   }
@@ -1127,7 +1132,7 @@ const searchUsers = async () => {
 
 const selectUser = (user: SimpleUser) => {
   selectedUser.value = user
-  userSearchKeyword.value = user.email
+  userSearchKeyword.value = getSelectedUserKeyword(user)
   showUserDropdown.value = false
   assignForm.user_id = user.id
 }

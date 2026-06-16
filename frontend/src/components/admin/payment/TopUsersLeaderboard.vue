@@ -14,8 +14,8 @@
         v-for="(user, idx) in users"
         :key="user.user_id"
         class="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-dark-700"
-      >
-        <div class="flex items-center gap-3">
+        >
+          <div class="flex items-center gap-3">
           <span
             :class="[
               'flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold',
@@ -24,7 +24,10 @@
           >
             {{ idx + 1 }}
           </span>
-          <span class="text-sm text-gray-700 dark:text-gray-300">{{ user.email }}</span>
+          <div class="min-w-0">
+            <div class="truncate text-sm text-gray-700 dark:text-gray-300">{{ user.username || user.email }}</div>
+            <div v-if="user.username && user.email" class="truncate text-xs text-gray-400 dark:text-gray-500">{{ user.email }}</div>
+          </div>
         </div>
         <span class="text-sm font-medium text-gray-900 dark:text-white">
           ${{ user.amount.toFixed(2) }}
@@ -40,7 +43,7 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
 defineProps<{
-  users: { user_id: number; email: string; amount: number }[]
+  users: { user_id: number; email: string; username: string; amount: number }[]
 }>()
 
 function rankClass(idx: number): string {

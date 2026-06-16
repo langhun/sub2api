@@ -4,11 +4,12 @@
       <!-- 用户信息头部 -->
       <div class="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-primary-50 to-primary-100 p-5 dark:from-primary-900/30 dark:to-primary-800/20">
         <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm dark:bg-dark-700">
-          <span class="text-2xl font-semibold text-primary-600 dark:text-primary-400">{{ user.email.charAt(0).toUpperCase() }}</span>
+          <span class="text-2xl font-semibold text-primary-600 dark:text-primary-400">{{ getUserDisplayInitial(user) }}</span>
         </div>
         <div class="flex-1">
-          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ user.email }}</p>
-          <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ t('admin.users.groupConfigHint', { email: user.email }) }}</p>
+          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ getPreferredUserDisplayName(user, '#' + user.id) }}</p>
+          <p v-if="getSecondaryUserEmail(user)" class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ getSecondaryUserEmail(user) }}</p>
+          <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ t('admin.users.groupConfigHint', { email: getPreferredUserDisplayName(user, '#' + user.id) }) }}</p>
         </div>
       </div>
 
@@ -186,6 +187,7 @@ import { adminAPI } from '@/api/admin'
 import type { AdminUser, Group, GroupPlatform } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
+import { getPreferredUserDisplayName, getSecondaryUserEmail, getUserDisplayInitial } from '@/utils/userDisplay'
 
 interface GroupRateConfig {
   groupId: number
