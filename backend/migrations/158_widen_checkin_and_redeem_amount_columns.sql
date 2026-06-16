@@ -1,0 +1,10 @@
+ALTER TABLE users
+    ALTER COLUMN total_recharged TYPE DECIMAL(38, 18);
+
+ALTER TABLE checkins
+    ALTER COLUMN reward_amount TYPE DECIMAL(38, 18),
+    ALTER COLUMN bet_amount TYPE DECIMAL(38, 18);
+
+ALTER TABLE redeem_codes
+    ALTER COLUMN value TYPE DECIMAL(38, 18),
+    ALTER COLUMN bet_amount TYPE DECIMAL(38, 18);
