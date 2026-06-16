@@ -163,30 +163,45 @@ func TestIsMigrationChecksumCompatible(t *testing.T) {
 	})
 
 	t.Run("146历史checksum可兼容当前安全恢复版本", func(t *testing.T) {
-		ok := isMigrationChecksumCompatible(
-			"146_add_game_jackpot_transactions.sql",
+		for _, dbChecksum := range []string{
 			"6cc815ee3cbe6344d313797a39bba29465b6d93831b3e2402843bc7e7ad300d1",
-			"e1fc6da69d6c8658a1503f8b3813df663a94da6cac8f80acc6588cde9e00d8d8",
-		)
-		require.True(t, ok)
+			"aef97bd801934f0a5a52d808426878ab9ad6cf6ce139a6050896cb72870e73b2",
+		} {
+			ok := isMigrationChecksumCompatible(
+				"146_add_game_jackpot_transactions.sql",
+				dbChecksum,
+				"e1fc6da69d6c8658a1503f8b3813df663a94da6cac8f80acc6588cde9e00d8d8",
+			)
+			require.True(t, ok)
+		}
 	})
 
 	t.Run("147历史checksum可兼容当前安全恢复版本", func(t *testing.T) {
-		ok := isMigrationChecksumCompatible(
-			"147_add_game_hall_dedicated_tables.sql",
+		for _, dbChecksum := range []string{
 			"39fa59973fcc708d6b28f2a7287da994fd80b8049d73867671611756f2d05824",
-			"eebb1ea306c9026a8650b3f572254ebb110138850bde81c5ce07edf6a20e0f28",
-		)
-		require.True(t, ok)
+			"61ecb6f1723bea56901bf83b50d2c811d1cdcd971d510441ba29c7c4a64c7666",
+		} {
+			ok := isMigrationChecksumCompatible(
+				"147_add_game_hall_dedicated_tables.sql",
+				dbChecksum,
+				"eebb1ea306c9026a8650b3f572254ebb110138850bde81c5ce07edf6a20e0f28",
+			)
+			require.True(t, ok)
+		}
 	})
 
 	t.Run("148历史checksum可兼容当前安全恢复版本", func(t *testing.T) {
-		ok := isMigrationChecksumCompatible(
-			"148_backfill_game_hall_dedicated_balances.sql",
+		for _, dbChecksum := range []string{
 			"1cf0d9c080a1bc642e1dc713898a53cbe7537ab71a75324a075461ac9dd183fd",
-			"8b3b39a1f15e57711414958bbb0ac47445fda54ee48f4d60ae23495d30bdeb71",
-		)
-		require.True(t, ok)
+			"02b74855aeaa099d626375832414bd60fba51caad8adbb2ff5b60bccc838f5aa",
+		} {
+			ok := isMigrationChecksumCompatible(
+				"148_backfill_game_hall_dedicated_balances.sql",
+				dbChecksum,
+				"8b3b39a1f15e57711414958bbb0ac47445fda54ee48f4d60ae23495d30bdeb71",
+			)
+			require.True(t, ok)
+		}
 	})
 
 	t.Run("119未知checksum不兼容", func(t *testing.T) {
