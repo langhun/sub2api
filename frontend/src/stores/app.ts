@@ -380,6 +380,7 @@ export const useAppStore = defineStore('app', () => {
 		leaderboard_balance_enabled: true,
 		leaderboard_consumption_enabled: true,
 		leaderboard_checkin_enabled: true,
+		leaderboard_transfer_enabled: false,
 		leaderboard_include_admin: false,
         allow_user_view_error_requests: false,
       })

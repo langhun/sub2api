@@ -25,6 +25,7 @@ var (
 	ErrTransferReceiverNotFound     = infraerrors.NotFound("RECEIVER_NOT_FOUND", "receiver not found")
 	ErrTransferReceiverQueryInvalid = infraerrors.BadRequest("RECEIVER_QUERY_INVALID", "receiver query must be a positive user ID or at least 2 characters")
 	ErrTransferReceiverAmbiguous    = infraerrors.Conflict("RECEIVER_AMBIGUOUS", "receiver query matches multiple users; use a user ID or exact email")
+	ErrTransferLeaderboardDisabled  = infraerrors.NotFound("TRANSFER_LEADERBOARD_DISABLED", "transfer leaderboard is disabled")
 	ErrTransferNotFound             = infraerrors.NotFound("TRANSFER_NOT_FOUND", "transfer not found")
 	ErrTransferAlreadyFrozen        = infraerrors.BadRequest("TRANSFER_ALREADY_FROZEN", "transfer already frozen")
 	ErrTransferAlreadyRevoked       = infraerrors.BadRequest("TRANSFER_ALREADY_REVOKED", "transfer already revoked")
@@ -407,6 +408,10 @@ func (s *BalanceTransferService) GetFeeStats(ctx context.Context, startTime, end
 func (s *BalanceTransferService) GetLeaderboard(ctx context.Context, period string, limit int) ([]*TransferRankEntry, error) {
 	if !s.getTransferSettings(ctx).Enabled {
 		return nil, ErrTransferDisabled
+	}
+	leaderboardSettings := s.settingService.GetLeaderboardSettings(ctx)
+	if !leaderboardSettings.LeaderboardEnabled || !leaderboardSettings.LeaderboardTransferEnabled {
+		return nil, ErrTransferLeaderboardDisabled
 	}
 	now := time.Now()
 	var start time.Time

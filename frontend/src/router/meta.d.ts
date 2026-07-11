@@ -59,6 +59,10 @@ declare module 'vue-router' {
 	requiresFeature?: keyof import('@/types').PublicSettings
 	/** At least one of these public-settings flags must be enabled. */
 	requiresAnyFeature?: (keyof import('@/types').PublicSettings)[]
+	/** At least one group must have every feature enabled. */
+	requiresAnyFeatureGroups?: (keyof import('@/types').PublicSettings)[][]
+	/** Every public-settings flag in this list must be enabled. */
+	requiresAllFeatures?: (keyof import('@/types').PublicSettings)[]
 
     /**
      * i18n key for the page title

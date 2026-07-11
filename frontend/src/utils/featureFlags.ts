@@ -122,10 +122,15 @@ export const FeatureFlags = {
 	gameHall: defineFlag({ key: 'game_hall_enabled', mode: 'opt-in', label: 'Game Hall' }),
 	checkin: defineFlag({ key: 'checkin_enabled', mode: 'opt-in', label: 'Check-in' }),
 	checkinLuck: defineFlag({ key: 'checkin_luck_enabled', mode: 'opt-in', label: 'Lucky Check-in' }),
+	checkinBlindbox: defineFlag({ key: 'checkin_blindbox_enabled', mode: 'opt-in', label: 'Check-in Blind Box' }),
 	transfer: defineFlag({ key: 'transfer_enabled', mode: 'opt-in', label: 'Balance Transfer' }),
 	redpacket: defineFlag({ key: 'redpacket_enabled', mode: 'opt-in', label: 'Red Packet' }),
 	usageQuery: defineFlag({ key: 'usage_query_enabled', mode: 'opt-out', label: 'Usage Query' }),
 	leaderboard: defineFlag({ key: 'leaderboard_enabled', mode: 'opt-out', label: 'Leaderboard' }),
+	leaderboardBalance: defineFlag({ key: 'leaderboard_balance_enabled', mode: 'opt-out', label: 'Balance Leaderboard' }),
+	leaderboardConsumption: defineFlag({ key: 'leaderboard_consumption_enabled', mode: 'opt-out', label: 'Consumption Leaderboard' }),
+	leaderboardCheckin: defineFlag({ key: 'leaderboard_checkin_enabled', mode: 'opt-out', label: 'Check-in Leaderboard' }),
+	leaderboardTransfer: defineFlag({ key: 'leaderboard_transfer_enabled', mode: 'opt-in', label: 'Transfer Leaderboard' }),
 } as const
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags

@@ -185,7 +185,13 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: false,
       title: 'Leaderboard',
 	  titleKey: 'leaderboard.title',
-	  requiresFeature: 'leaderboard_enabled'
+	  requiresFeature: 'leaderboard_enabled',
+	  requiresAnyFeatureGroups: [
+	    ['leaderboard_balance_enabled'],
+	    ['leaderboard_consumption_enabled'],
+	    ['leaderboard_checkin_enabled'],
+	    ['leaderboard_transfer_enabled', 'transfer_enabled']
+	  ]
     }
   },
 
@@ -296,13 +302,13 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/transfer/leaderboard',
     name: 'TransferLeaderboard',
-    component: () => import('@/views/user/TransferLeaderboardView.vue'),
+    component: () => import('@/views/LeaderboardView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
       title: 'Transfer Leaderboard',
 	  titleKey: 'nav.transferLeaderboard',
-	  requiresFeature: 'transfer_enabled'
+	  requiresAllFeatures: ['transfer_enabled', 'leaderboard_enabled', 'leaderboard_transfer_enabled']
     }
   },
   {
@@ -915,7 +921,7 @@ router.beforeEach(async (to, _from, next) => {
   // 公共设置可能尚未加载（App.vue 的 onMounted 异步拉取晚于首次导航，且纯静态部署
   // 无 __APP_CONFIG__ 注入）。此时 cachedPublicSettings 为空会把 payment/risk_control
   // 误判为“未启用”而错误拦截，故这里先确保设置加载完成。
-  if ((to.meta.requiresPayment || to.meta.requiresRiskControl || to.meta.requiresFeature || to.meta.requiresAnyFeature) && !appStore.publicSettingsLoaded) {
+  if ((to.meta.requiresPayment || to.meta.requiresRiskControl || to.meta.requiresFeature || to.meta.requiresAnyFeature || to.meta.requiresAnyFeatureGroups || to.meta.requiresAllFeatures) && !appStore.publicSettingsLoaded) {
     try {
       await appStore.fetchPublicSettings()
     } catch (error) {
@@ -947,6 +953,26 @@ router.beforeEach(async (to, _from, next) => {
 		to.meta.requiresAnyFeature?.length &&
 		appStore.publicSettingsLoaded &&
 		!to.meta.requiresAnyFeature.some((key) => resolveFeatureFlagKey(key, appStore.cachedPublicSettings))
+	) {
+		next(authStore.isAuthenticated ? (authStore.isAdmin ? '/admin/dashboard' : '/dashboard') : '/login')
+		return
+	}
+
+	if (
+		to.meta.requiresAnyFeatureGroups?.length &&
+		appStore.publicSettingsLoaded &&
+		!to.meta.requiresAnyFeatureGroups.some((group) => (
+			group.length > 0 && group.every((key) => resolveFeatureFlagKey(key, appStore.cachedPublicSettings))
+		))
+	) {
+		next(authStore.isAuthenticated ? (authStore.isAdmin ? '/admin/dashboard' : '/dashboard') : '/login')
+		return
+	}
+
+	if (
+		to.meta.requiresAllFeatures?.length &&
+		appStore.publicSettingsLoaded &&
+		!to.meta.requiresAllFeatures.every((key) => resolveFeatureFlagKey(key, appStore.cachedPublicSettings))
 	) {
 		next(authStore.isAuthenticated ? (authStore.isAdmin ? '/admin/dashboard' : '/dashboard') : '/login')
 		return

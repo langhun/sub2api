@@ -82,7 +82,9 @@ func (h *LeaderboardHandler) GetCheckinLeaderboard(c *gin.Context) {
 }
 
 func (h *LeaderboardHandler) GetTransferLeaderboard(c *gin.Context) {
-	if !h.enabled(c, func(s service.BalanceFeatureSettings) bool { return s.LeaderboardTransferEnabled }) {
+	if !h.enabled(c, func(s service.BalanceFeatureSettings) bool {
+		return s.TransferEnabled && s.LeaderboardTransferEnabled
+	}) {
 		return
 	}
 	period := c.DefaultQuery("period", "daily")

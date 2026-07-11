@@ -2,7 +2,7 @@
   <AppLayout>
     <div class="mx-auto max-w-5xl space-y-6">
       <!-- Top Stats Row -->
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div class="grid grid-cols-2 gap-4" :class="blindboxEnabled ? 'sm:grid-cols-4' : 'sm:grid-cols-3'">
         <div class="card p-4">
           <div class="flex items-center gap-3">
             <div class="rounded-xl bg-emerald-100 p-2.5 dark:bg-emerald-900/30">
@@ -43,7 +43,7 @@
             </div>
           </div>
         </div>
-        <div class="card p-4">
+        <div v-if="blindboxEnabled" class="card p-4">
           <div class="flex items-center gap-3">
             <div class="rounded-xl bg-purple-100 p-2.5 dark:bg-purple-900/30">
               <svg class="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -174,13 +174,13 @@
         </div>
 
         <div class="mt-3 flex items-center justify-center gap-5 text-xs text-gray-400 dark:text-dark-500">
-          <div class="flex items-center gap-1.5"><span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">+$0.00</span>{{ t('checkin.normalCheckin') }}</div>
-          <div class="flex items-center gap-1.5"><span class="text-[10px] font-semibold text-purple-600 dark:text-purple-400">+$0.00</span>{{ t('checkin.luckCheckin') }}</div>
+          <div v-if="checkinStore.normalEnabled" class="flex items-center gap-1.5"><span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">+$0.00</span>{{ t('checkin.normalCheckin') }}</div>
+          <div v-if="checkinStore.luckEnabled" class="flex items-center gap-1.5"><span class="text-[10px] font-semibold text-purple-600 dark:text-purple-400">+$0.00</span>{{ t('checkin.luckCheckin') }}</div>
         </div>
       </div>
 
       <!-- Three Column: Today + Rarity + Blindbox Info -->
-      <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+      <div class="grid grid-cols-1 gap-6" :class="blindboxEnabled ? 'sm:grid-cols-3' : 'sm:grid-cols-1'">
         <!-- Today's Check-in Result -->
         <div class="card p-5">
           <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.todayResult') }}</h4>
@@ -201,7 +201,7 @@
               <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('checkin.page.todayMultiplier') }}</span>
               <span class="text-sm font-semibold text-purple-600 dark:text-purple-400">{{ checkinStore.todayMultiplier?.toFixed(2) }}×</span>
             </div>
-            <div v-if="checkinStore.blindboxResult" class="mt-2 rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-3 dark:border-purple-800/50 dark:from-purple-900/20 dark:to-indigo-900/20">
+            <div v-if="blindboxEnabled && checkinStore.blindboxResult" class="mt-2 rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50 p-3 dark:border-purple-800/50 dark:from-purple-900/20 dark:to-indigo-900/20">
               <div class="mb-1.5 flex items-center justify-between">
                 <span class="text-xs font-medium text-purple-600 dark:text-purple-400">{{ t('checkin.page.todayBlindbox') }}</span>
                 <span class="blindbox-rarity-badge text-[10px]" :class="getRarityBadgeClass(checkinStore.blindboxResult.rarity)">{{ getRarityLabel(checkinStore.blindboxResult.rarity) }}</span>
@@ -221,7 +221,7 @@
         </div>
 
         <!-- Rarity Breakdown -->
-        <div class="card p-5">
+        <div v-if="blindboxEnabled" class="card p-5">
           <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.rarityBreakdown') }}</h4>
           <div v-if="blindboxRecords.length > 0" class="space-y-2.5">
             <div v-for="r in rarityBreakdown" :key="r.key" class="flex items-center gap-2.5">
@@ -238,7 +238,7 @@
         </div>
 
         <!-- Blindbox Trigger Info -->
-        <div class="card p-5">
+        <div v-if="blindboxEnabled" class="card p-5">
           <h4 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">{{ t('checkin.page.blindboxInfo') }}</h4>
           <div v-if="checkinStore.status?.blindbox_enabled" class="space-y-2 text-xs text-gray-600 dark:text-gray-400">
             <div class="flex justify-between">
@@ -260,7 +260,7 @@
       </div>
 
       <!-- Blindbox History (full width) -->
-      <div class="card p-6">
+      <div v-if="blindboxEnabled" class="card p-6">
         <div class="mb-4 flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div class="rounded-xl bg-purple-100 p-2.5 dark:bg-purple-900/30">
@@ -307,19 +307,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useCheckinStore } from '@/stores/checkin'
+import { useAppStore } from '@/stores/app'
 import { getBlindboxRecords, getCheckinCalendar, type BlindboxRecordItem, type BlindboxResult, type CheckinCalendarDay } from '@/api/checkin'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import { formatCalendarDate, parseCalendarDate } from '@/utils/checkinCalendar'
+import { FeatureFlags, resolveFeatureFlagValue } from '@/utils/featureFlags'
 
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const checkinStore = useCheckinStore()
+const appStore = useAppStore()
 const user = computed(() => authStore.user)
+const blindboxEnabled = computed(() => (
+  checkinStore.status?.blindbox_enabled === true
+  && resolveFeatureFlagValue(FeatureFlags.checkinBlindbox, appStore.cachedPublicSettings)
+))
 
 const showLuckModal = ref(false)
 const luckBet = ref<number>(0)
@@ -328,6 +335,7 @@ const blindboxRecords = ref<BlindboxRecordItem[]>([])
 const blindboxTotal = ref(0)
 const blindboxPage = ref(1)
 const blindboxLoadingMore = ref(false)
+let blindboxRequestSequence = 0
 
 const calendarDays = ref<CheckinCalendarDay[]>([])
 
@@ -447,7 +455,9 @@ async function submitLuck() {
     showLuckModal.value = false
     luckBet.value = 0
     blindboxPage.value = 1
-    await Promise.all([fetchBlindboxRecords(), fetchCalendar()])
+    const refreshes = [fetchCalendar()]
+    if (blindboxEnabled.value) refreshes.push(fetchBlindboxRecords())
+    await Promise.all(refreshes)
   }
 }
 
@@ -455,7 +465,9 @@ async function submitNormal() {
   const result = await checkinStore.doCheckin()
   if (!result) return
   blindboxPage.value = 1
-  await Promise.all([fetchBlindboxRecords(), fetchCalendar()])
+  const refreshes = [fetchCalendar()]
+  if (blindboxEnabled.value) refreshes.push(fetchBlindboxRecords())
+  await Promise.all(refreshes)
 }
 
 function getRarityBadgeClass(rarity: string) {
@@ -538,19 +550,24 @@ async function fetchCalendar() {
 }
 
 async function fetchBlindboxRecords() {
+  if (!blindboxEnabled.value) return
+  const requestId = ++blindboxRequestSequence
   try {
     const result = await getBlindboxRecords(blindboxPage.value, 20)
+    if (requestId !== blindboxRequestSequence || !blindboxEnabled.value) return
     blindboxRecords.value = result.items || []
     blindboxTotal.value = result.total || 0
   } catch { /* noop */ }
 }
 
 async function loadMoreBlindboxRecords() {
-  if (blindboxLoadingMore.value) return
+  if (blindboxLoadingMore.value || !blindboxEnabled.value) return
   const nextPage = blindboxPage.value + 1
+  const requestId = ++blindboxRequestSequence
   blindboxLoadingMore.value = true
   try {
     const result = await getBlindboxRecords(nextPage, 20)
+    if (requestId !== blindboxRequestSequence || !blindboxEnabled.value) return
     blindboxRecords.value = [...blindboxRecords.value, ...(result.items || [])]
     blindboxTotal.value = result.total || 0
     blindboxPage.value = nextPage
@@ -559,10 +576,21 @@ async function loadMoreBlindboxRecords() {
   }
 }
 
-onMounted(() => {
-  checkinStore.fetchStatus()
-  fetchCalendar()
-  fetchBlindboxRecords()
+watch(blindboxEnabled, (enabled) => {
+  blindboxRequestSequence += 1
+  if (enabled) {
+    blindboxPage.value = 1
+    void fetchBlindboxRecords()
+    return
+  }
+  blindboxRecords.value = []
+  blindboxTotal.value = 0
+  blindboxPage.value = 1
+  checkinStore.clearBlindboxResult()
+}, { immediate: true })
+
+onMounted(async () => {
+  await Promise.all([checkinStore.fetchStatus(), fetchCalendar()])
 })
 </script>
 

@@ -66,6 +66,7 @@ function createPublicSettings(overrides: Partial<PublicSettings> = {}): PublicSe
 	leaderboard_balance_enabled: true,
 	leaderboard_consumption_enabled: true,
 	leaderboard_checkin_enabled: true,
+	leaderboard_transfer_enabled: false,
 	leaderboard_include_admin: false,
     ...overrides,
   }

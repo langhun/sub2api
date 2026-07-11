@@ -227,6 +227,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { leaderboardAPI, type LeaderboardData, type LeaderboardEntry } from '@/api/leaderboard'
 import { useAppStore } from '@/stores/app'
+import { FeatureFlags, resolveFeatureFlagValue } from '@/utils/featureFlags'
 
 ChartJS.register(ArcElement, Tooltip)
 
@@ -262,26 +263,28 @@ let ready = false
 
 const tabs = computed(() => {
   const settings = appStore.cachedPublicSettings
+  if (!resolveFeatureFlagValue(FeatureFlags.leaderboard, settings)) return []
   return [
     {
       key: 'balance' as const,
       label: t('leaderboard.tabs.balance'),
-      enabled: settings?.leaderboard_balance_enabled !== false,
+      enabled: resolveFeatureFlagValue(FeatureFlags.leaderboardBalance, settings),
     },
     {
       key: 'consumption' as const,
       label: t('leaderboard.tabs.consumption'),
-      enabled: settings?.leaderboard_consumption_enabled !== false,
+      enabled: resolveFeatureFlagValue(FeatureFlags.leaderboardConsumption, settings),
     },
     {
       key: 'checkin' as const,
       label: t('leaderboard.tabs.checkin'),
-      enabled: settings?.leaderboard_checkin_enabled !== false,
+      enabled: resolveFeatureFlagValue(FeatureFlags.leaderboardCheckin, settings),
     },
     {
       key: 'transfer' as const,
       label: t('leaderboard.tabs.transfer'),
-      enabled: settings?.leaderboard_transfer_enabled ?? settings?.transfer_enabled ?? false,
+      enabled: resolveFeatureFlagValue(FeatureFlags.leaderboardTransfer, settings)
+        && resolveFeatureFlagValue(FeatureFlags.transfer, settings),
     },
   ].filter((item) => item.enabled)
 })

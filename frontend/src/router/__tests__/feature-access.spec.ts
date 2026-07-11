@@ -8,6 +8,7 @@ type NavigationGuard = (
 
 const routerHarness = vi.hoisted(() => ({
   guard: null as NavigationGuard | null,
+  routes: [] as Array<{ path: string; meta?: Record<string, unknown> }>,
 }))
 
 const authStore = vi.hoisted(() => ({
@@ -32,6 +33,10 @@ const appStore = vi.hoisted(() => ({
 	redpacket_enabled?: boolean
 	game_hall_enabled?: boolean
 	leaderboard_enabled?: boolean
+	leaderboard_balance_enabled?: boolean
+	leaderboard_consumption_enabled?: boolean
+	leaderboard_checkin_enabled?: boolean
+	leaderboard_transfer_enabled?: boolean
     custom_menu_items?: []
   },
   fetchPublicSettings: vi.fn(),
@@ -39,13 +44,16 @@ const appStore = vi.hoisted(() => ({
 
 vi.mock('vue-router', () => ({
   createWebHistory: vi.fn(() => ({})),
-  createRouter: vi.fn(() => ({
+  createRouter: vi.fn((options: { routes: Array<{ path: string; meta?: Record<string, unknown> }> }) => {
+    routerHarness.routes = options.routes
+    return {
     beforeEach: vi.fn((guard: NavigationGuard) => {
       routerHarness.guard = guard
     }),
     afterEach: vi.fn(),
     onError: vi.fn(),
-  })),
+    }
+  }),
 }))
 
 vi.mock('@/stores/auth', () => ({
@@ -234,5 +242,81 @@ describe('feature route guard', () => {
 		await navigation
 
 		expect(next).toHaveBeenCalledWith()
+	})
+
+	it.each([
+		['transfer disabled', { transfer_enabled: false, leaderboard_enabled: true, leaderboard_transfer_enabled: true }],
+		['leaderboard disabled', { transfer_enabled: true, leaderboard_enabled: false, leaderboard_transfer_enabled: true }],
+		['transfer leaderboard disabled', { transfer_enabled: true, leaderboard_enabled: true, leaderboard_transfer_enabled: false }],
+		['transfer leaderboard missing', { transfer_enabled: true, leaderboard_enabled: true }],
+	])('blocks a direct transfer leaderboard route when %s', async (_name, settings) => {
+		appStore.cachedPublicSettings = settings
+		appStore.publicSettingsLoaded = true
+
+		const { navigation, next } = runGuard({
+			requiresAllFeatures: ['transfer_enabled', 'leaderboard_enabled', 'leaderboard_transfer_enabled'],
+		}, '/transfer/leaderboard')
+		await navigation
+
+		expect(next).toHaveBeenCalledWith('/dashboard')
+	})
+
+	it('allows the transfer leaderboard route only when all switches are enabled', async () => {
+		appStore.cachedPublicSettings = {
+			transfer_enabled: true,
+			leaderboard_enabled: true,
+			leaderboard_transfer_enabled: true,
+		}
+		appStore.publicSettingsLoaded = true
+
+		const { navigation, next } = runGuard({
+			requiresAllFeatures: ['transfer_enabled', 'leaderboard_enabled', 'leaderboard_transfer_enabled'],
+		}, '/transfer/leaderboard')
+		await navigation
+
+		expect(next).toHaveBeenCalledWith()
+	})
+
+	it('wires the real leaderboard routes to the effective switch groups', () => {
+		const leaderboard = routerHarness.routes.find((route) => route.path === '/leaderboard')
+		const transferLeaderboard = routerHarness.routes.find((route) => route.path === '/transfer/leaderboard')
+
+		expect(leaderboard?.meta?.requiresFeature).toBe('leaderboard_enabled')
+		expect(leaderboard?.meta?.requiresAnyFeatureGroups).toEqual([
+			['leaderboard_balance_enabled'],
+			['leaderboard_consumption_enabled'],
+			['leaderboard_checkin_enabled'],
+			['leaderboard_transfer_enabled', 'transfer_enabled'],
+		])
+		expect(transferLeaderboard?.meta?.requiresAllFeatures).toEqual([
+			'transfer_enabled',
+			'leaderboard_enabled',
+			'leaderboard_transfer_enabled',
+		])
+	})
+
+	it('blocks the leaderboard when no effective board group is enabled', async () => {
+		appStore.cachedPublicSettings = {
+			leaderboard_enabled: true,
+			leaderboard_balance_enabled: false,
+			leaderboard_consumption_enabled: false,
+			leaderboard_checkin_enabled: false,
+			leaderboard_transfer_enabled: true,
+			transfer_enabled: false,
+		}
+		appStore.publicSettingsLoaded = true
+
+		const { navigation, next } = runGuard({
+			requiresFeature: 'leaderboard_enabled',
+			requiresAnyFeatureGroups: [
+				['leaderboard_balance_enabled'],
+				['leaderboard_consumption_enabled'],
+				['leaderboard_checkin_enabled'],
+				['leaderboard_transfer_enabled', 'transfer_enabled'],
+			],
+		}, '/leaderboard')
+		await navigation
+
+		expect(next).toHaveBeenCalledWith('/dashboard')
 	})
 })
