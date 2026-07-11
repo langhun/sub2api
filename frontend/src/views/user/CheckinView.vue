@@ -150,33 +150,7 @@
         </div>
       </div>
 
-      <!-- Luck Checkin Modal -->
-      <BaseDialog :show="showLuckModal" :title="t('checkin.luckTitle')" width="narrow" :close-on-click-outside="!checkinStore.loading" :close-on-escape="!checkinStore.loading" @close="closeLuckDialog">
-        <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-          <p class="text-xs text-purple-700 dark:text-purple-300">
-            {{ t('checkin.multiplierRange', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}
-          </p>
-        </div>
-        <div class="space-y-4">
-          <div>
-            <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('checkin.betAmount') }}</label>
-            <input v-model.number="luckBet" data-testid="luck-bet-input" type="number" step="0.01" :min="0.01" :max="checkinStore.status?.balance ?? 0" class="input" :placeholder="t('checkin.betAmountPlaceholder')" @keyup.enter="submitLuck" />
-          </div>
-          <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>{{ t('profile.accountBalance') }}: ${{ checkinStore.status?.balance?.toFixed(2) ?? '0.00' }}</span>
-            <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="luckBet = checkinStore.status?.balance ?? 0">MAX</button>
-          </div>
-        </div>
-        <div v-if="checkinStore.actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300" role="alert">
-          {{ actionErrorMessage }}
-        </div>
-        <template #footer>
-          <div class="flex flex-row items-center justify-end gap-3">
-            <button type="button" class="btn btn-secondary" :disabled="checkinStore.loading" @click="closeLuckDialog">{{ t('common.cancel') }}</button>
-            <button type="button" data-testid="luck-submit" :disabled="checkinStore.loading || !validLuckBet" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50" @click="submitLuck">{{ checkinStore.loading ? t('common.loading') : t('checkin.luckButton') }}</button>
-          </div>
-        </template>
-      </BaseDialog>
+      <LuckyCheckinDialog :show="showLuckModal" @close="showLuckModal = false" @success="handleLuckSuccess" />
 
       <!-- Check-in Calendar -->
       <div v-if="calendarDays.length > 0" class="card p-6">
@@ -347,7 +321,7 @@ import { useCheckinStore } from '@/stores/checkin'
 import { useAppStore } from '@/stores/app'
 import { getBlindboxRecords, getCheckinCalendar, type BlindboxRecordItem, type BlindboxResult, type CheckinCalendarDay } from '@/api/checkin'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
+import LuckyCheckinDialog from '@/components/checkin/LuckyCheckinDialog.vue'
 import { formatCalendarDate, parseCalendarDate } from '@/utils/checkinCalendar'
 import { FeatureFlags, resolveFeatureFlagValue } from '@/utils/featureFlags'
 import { extractApiErrorMessage } from '@/utils/apiError'
@@ -363,12 +337,10 @@ const blindboxEnabled = computed(() => (
 ))
 
 const showLuckModal = ref(false)
-const luckBet = ref<number>(0)
 const lastAction = ref<'normal' | 'luck'>('normal')
 
 const statusErrorMessage = computed(() => extractApiErrorMessage(checkinStore.statusError, t('checkin.statusLoadFailed')))
 const actionErrorMessage = computed(() => extractApiErrorMessage(checkinStore.actionError, t('checkin.actionFailed')))
-const validLuckBet = computed(() => Number.isFinite(luckBet.value) && luckBet.value > 0 && luckBet.value <= (checkinStore.status?.balance ?? 0))
 
 const blindboxRecords = ref<BlindboxRecordItem[]>([])
 const blindboxTotal = ref(0)
@@ -487,18 +459,13 @@ const nextBlindboxHint = computed(() => {
   return t('checkin.page.blindboxNextIn', { days: next })
 })
 
-async function submitLuck() {
-  if (!validLuckBet.value) return
+async function handleLuckSuccess() {
   lastAction.value = 'luck'
-  const result = await checkinStore.doLuckCheckin(luckBet.value)
-  if (result) {
-    closeLuckDialog()
-    luckBet.value = 0
-    blindboxPage.value = 1
-    const refreshes = [fetchCalendar()]
-    if (blindboxEnabled.value) refreshes.push(fetchBlindboxRecords())
-    await Promise.all(refreshes)
-  }
+  showLuckModal.value = false
+  blindboxPage.value = 1
+  const refreshes = [fetchCalendar()]
+  if (blindboxEnabled.value) refreshes.push(fetchBlindboxRecords())
+  await Promise.all(refreshes)
 }
 
 async function submitNormal() {
@@ -512,14 +479,7 @@ async function submitNormal() {
 }
 
 function openLuckDialog() {
-  checkinStore.clearActionError()
   showLuckModal.value = true
-}
-
-function closeLuckDialog() {
-  if (checkinStore.loading) return
-  showLuckModal.value = false
-  checkinStore.clearActionError()
 }
 
 function retryLastAction() {
