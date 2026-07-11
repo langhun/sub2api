@@ -100,6 +100,7 @@ describe('LeaderboardView', () => {
 
     expect(api.balance).toHaveBeenCalledWith(1, 100)
     expect(wrapper.text()).toContain('Balance user')
+    expect(wrapper.text()).toContain('🥇')
   })
 
   it('requests the selected period for the consumption board', async () => {
