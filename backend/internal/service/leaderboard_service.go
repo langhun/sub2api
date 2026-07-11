@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -66,7 +67,7 @@ func (s *LeaderboardService) GetBalanceLeaderboard(ctx context.Context, page, pa
 
 	users, err := s.entClient.User.Query().
 		Where(predicates...).
-		Order(dbent.Desc(dbuser.FieldBalance)).
+		Order(dbent.Desc(dbuser.FieldBalance), dbent.Asc(dbuser.FieldID)).
 		Offset(offset).
 		Limit(pageSize).
 		All(ctx)
@@ -74,19 +75,59 @@ func (s *LeaderboardService) GetBalanceLeaderboard(ctx context.Context, page, pa
 		return nil, fmt.Errorf("query users: %w", err)
 	}
 
+	userIDs := make([]int64, 0, len(users))
+	for _, user := range users {
+		userIDs = append(userIDs, user.ID)
+	}
+	checkinCounts, err := s.getCheckinCounts(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("query checkin counts: %w", err)
+	}
+
 	entries := make([]LeaderboardEntry, 0, len(users))
 	for i, u := range users {
-		var checkinCount int
-		s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM checkins WHERE user_id = $1`, u.ID).Scan(&checkinCount)
 		entries = append(entries, LeaderboardEntry{
 			Rank:     offset + i + 1,
 			Username: maskUsername(u.Username, u.Email),
 			Value:    math.Round(u.Balance*100) / 100,
-			ExtraInt: checkinCount,
+			ExtraInt: checkinCounts[u.ID],
 		})
 	}
 
 	return &LeaderboardResult{Entries: entries, Total: int64(total)}, nil
+}
+
+func (s *LeaderboardService) getCheckinCounts(ctx context.Context, userIDs []int64) (map[int64]int, error) {
+	counts := make(map[int64]int, len(userIDs))
+	if len(userIDs) == 0 {
+		return counts, nil
+	}
+
+	placeholders := make([]string, len(userIDs))
+	args := make([]any, len(userIDs))
+	for index, userID := range userIDs {
+		placeholders[index] = fmt.Sprintf("$%d", index+1)
+		args[index] = userID
+	}
+	query := `SELECT user_id, COUNT(*) FROM checkins WHERE user_id IN (` + strings.Join(placeholders, ",") + `) GROUP BY user_id`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID int64
+		var count int
+		if err := rows.Scan(&userID, &count); err != nil {
+			return nil, err
+		}
+		counts[userID] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return counts, nil
 }
 
 func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, period string, page, pageSize int) (*LeaderboardResult, error) {
@@ -131,7 +172,7 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 		WHERE ul.created_at >= $1 AND u.status = 'active'` + roleClause + `
 		GROUP BY ul.user_id, u.username, u.email
 		HAVING SUM(ul.actual_cost) > 0
-		ORDER BY total_cost DESC
+		ORDER BY total_cost DESC, ul.user_id ASC
 		LIMIT $2 OFFSET $3
 	`
 	rows, err := s.db.QueryContext(ctx, dataQuery, startTime, pageSize, offset)
@@ -156,6 +197,9 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 			Value:    math.Round(totalCost*100) / 100,
 			ExtraInt: requestCount,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate consumption rows: %w", err)
 	}
 
 	return &LeaderboardResult{Entries: entries, Total: total}, nil
@@ -201,7 +245,7 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 		) latest ON c.user_id = latest.user_id AND c.checkin_date = latest.max_date
 		INNER JOIN users u ON c.user_id = u.id AND u.deleted_at IS NULL
 		WHERE c.checkin_date >= $1 AND u.status = 'active'` + roleClause + `
-		ORDER BY c.streak_days DESC, c.checkin_date DESC
+		ORDER BY c.streak_days DESC, c.checkin_date DESC, c.user_id ASC
 		LIMIT $2 OFFSET $3
 	`
 	rows, err := s.db.QueryContext(ctx, dataQuery, yesterday, pageSize, offset)
@@ -230,6 +274,9 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 			ExtraFloat: math.Round(rewardAmount*100) / 100,
 			ExtraDate:  lastDate.Format("2006-01-02"),
 		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate checkin rows: %w", err)
 	}
 
 	return &LeaderboardResult{Entries: entries, Total: total}, nil
@@ -294,14 +341,26 @@ func (s *LeaderboardService) GetTransferLeaderboard(ctx context.Context, period 
 }
 
 func maskUsername(username, email string) string {
-	if username != "" {
-		return username
+	displayName := strings.TrimSpace(username)
+	if displayName == "" {
+		email = strings.TrimSpace(email)
+		if at := strings.IndexByte(email, '@'); at >= 0 {
+			displayName = email[:at]
+		} else {
+			displayName = email
+		}
 	}
-	if email == "" {
+	if displayName == "" {
 		return "user"
 	}
-	if len(email) <= 3 {
-		return email
+
+	runes := []rune(displayName)
+	switch len(runes) {
+	case 1:
+		return "*"
+	case 2:
+		return string(runes[0]) + "*"
+	default:
+		return string(runes[0]) + "***" + string(runes[len(runes)-1])
 	}
-	return email[:3] + "***"
 }

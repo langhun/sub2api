@@ -158,9 +158,7 @@
                     :class="rankClass(entry.rank)"
                     :aria-label="t('leaderboard.rank', { rank: entry.rank })"
                   >
-                    <span v-if="entry.rank <= 3" class="text-base leading-none" aria-hidden="true">
-                      {{ rankMedal(entry.rank) }}
-                    </span>
+                    <Icon v-if="entry.rank <= 3" name="badge" size="md" aria-hidden="true" />
                     <span v-else>{{ entry.rank }}</span>
                   </div>
                   <span
@@ -427,10 +425,6 @@ function rankClass(rank: number) {
   if (rank === 2) return 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-200'
   if (rank === 3) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
   return 'bg-gray-100 text-gray-500 dark:bg-dark-800 dark:text-dark-400'
-}
-
-function rankMedal(rank: number) {
-  return ['🥇', '🥈', '🥉'][rank - 1] ?? ''
 }
 
 function entryColor(index: number) {

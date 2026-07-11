@@ -102,7 +102,8 @@ describe('LeaderboardView', () => {
 
     expect(api.balance).toHaveBeenCalledWith(1, 100)
     expect(wrapper.text()).toContain('Balance user')
-    expect(wrapper.text()).toContain('🥇')
+    expect(wrapper.text()).not.toContain('🥇')
+    expect(wrapper.find('icon-stub[name="badge"]').exists()).toBe(true)
   })
 
   it('shows English and Chinese compact units for large amounts in Chinese', async () => {
