@@ -415,6 +415,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 
 	updates[SettingKeyAllowUserViewErrorRequests] = strconv.FormatBool(settings.AllowUserViewErrorRequests)
+	appendBalanceFeatureUpdates(updates, settings.BalanceFeatureSettings)
 
 	return updates, nil
 }

@@ -5756,6 +5756,22 @@
 
 	        <!-- Tab: Features (功能开关) -->
         <div v-show="activeTab === 'features'" class="space-y-6">
+		<div class="card">
+		  <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+			<h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ localText('入口与活动开关', 'Entry and activity switches') }}</h2>
+			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ localText('集中控制用户端入口、排行榜标签及其接口访问。', 'Control user entries, leaderboard tabs, and API access.') }}</p>
+		  </div>
+		  <div class="grid gap-x-8 gap-y-5 p-6 md:grid-cols-2">
+			<div class="flex items-center justify-between gap-4"><span class="text-sm font-medium">{{ localText('显示用量查询入口', 'Show usage query entry') }}</span><Toggle v-model="form.usage_query_enabled" /></div>
+			<div class="flex items-center justify-between gap-4"><span class="text-sm font-medium">{{ localText('显示排行榜入口', 'Show leaderboard entry') }}</span><Toggle v-model="form.leaderboard_enabled" /></div>
+			<template v-if="form.leaderboard_enabled">
+			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示余额排行标签', 'Show balance ranking') }}</span><Toggle v-model="form.leaderboard_balance_enabled" /></div>
+			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示消费排行标签', 'Show consumption ranking') }}</span><Toggle v-model="form.leaderboard_consumption_enabled" /></div>
+			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示签到排行标签', 'Show check-in ranking') }}</span><Toggle v-model="form.leaderboard_checkin_enabled" /></div>
+			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('排行榜包含管理员', 'Include administrators') }}</span><Toggle v-model="form.leaderboard_include_admin" /></div>
+			</template>
+		  </div>
+		</div>
 
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -7243,6 +7259,62 @@
         <!-- /Tab: Email -->
 
         <!-- Tab: Backup -->
+        <div v-show="activeTab === 'balanceFeatures'" class="space-y-6">
+          <div class="card">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.checkinTitle") }}</h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.settings.balanceFeatures.checkinDescription") }}</p>
+            </div>
+            <div class="space-y-5 p-6">
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.normalCheckin") }}</span>
+                <Toggle v-model="form.checkin_enabled" />
+              </div>
+              <div v-if="form.checkin_enabled" class="grid gap-4 md:grid-cols-2">
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.minReward") }}<input v-model.number="form.checkin_min_balance" type="number" min="0" step="0.01" class="input mt-1" /></label>
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.maxReward") }}<input v-model.number="form.checkin_max_balance" type="number" min="0" step="0.01" class="input mt-1" /></label>
+              </div>
+              <div class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700">
+                <span class="font-medium text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.luckCheckin") }}</span>
+                <Toggle v-model="form.checkin_luck_enabled" />
+              </div>
+              <div v-if="form.checkin_luck_enabled" class="grid gap-4 md:grid-cols-2">
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.minMultiplier") }}<input v-model.number="form.checkin_luck_min_multiplier" type="number" min="0" step="0.1" class="input mt-1" /></label>
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.maxMultiplier") }}<input v-model.number="form.checkin_luck_max_multiplier" type="number" min="0" step="0.1" class="input mt-1" /></label>
+              </div>
+            </div>
+          </div>
+
+          <BlindboxPrizePoolCard
+            v-model:enabled="form.checkin_blindbox_enabled"
+            v-model:trigger-type="form.checkin_blindbox_trigger_type"
+            v-model:interval="form.checkin_blindbox_interval"
+          />
+
+          <div class="card">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.transferTitle") }}</h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.settings.balanceFeatures.transferDescription") }}</p>
+            </div>
+            <div class="space-y-5 p-6">
+              <div class="flex items-center justify-between"><span class="font-medium text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.transferEnabled") }}</span><Toggle v-model="form.transfer_enabled" /></div>
+              <div v-if="form.transfer_enabled" class="grid gap-4 md:grid-cols-3">
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.feeRate") }}<input v-model.number="form.transfer_fee_rate" type="number" min="0" step="0.001" class="input mt-1" /></label>
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.minAmount") }}<input v-model.number="form.transfer_min_amount" type="number" min="0" step="0.01" class="input mt-1" /></label>
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.maxAmount") }}<input v-model.number="form.transfer_max_amount" type="number" min="0" step="0.01" class="input mt-1" /></label>
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.dailyLimit") }}<input v-model.number="form.transfer_daily_limit" type="number" min="0" step="0.01" class="input mt-1" /></label>
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.dailyCount") }}<input v-model.number="form.transfer_daily_count_limit" type="number" min="0" class="input mt-1" /></label>
+                <label class="flex items-center gap-3 pt-6 text-sm text-gray-600 dark:text-gray-300"><Toggle v-model="form.transfer_vip_fee_exempt" />{{ t("admin.settings.balanceFeatures.vipExempt") }}</label>
+              </div>
+              <div class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"><span class="font-medium text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.redpacketEnabled") }}</span><Toggle v-model="form.redpacket_enabled" /></div>
+              <div v-if="form.redpacket_enabled" class="grid gap-4 md:grid-cols-2">
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.redpacketMaxCount") }}<input v-model.number="form.redpacket_max_count" type="number" min="1" class="input mt-1" /></label>
+                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.redpacketExpireHours") }}<input v-model.number="form.redpacket_expire_hours" type="number" min="1" class="input mt-1" /></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div v-show="activeTab === 'backup'">
           <BackupSettings />
         </div>
@@ -7365,6 +7437,7 @@ import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
+import BlindboxPrizePoolCard from "@/components/admin/BlindboxPrizePoolCard.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSimpleUser } from "@/api/admin/affiliates";
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
@@ -7414,6 +7487,7 @@ type SettingsTab =
   | "gateway"
   | "payment"
   | "email"
+  | "balanceFeatures"
   | "backup";
 const activeTab = ref<SettingsTab>("general");
 const settingsTabs = [
@@ -7425,6 +7499,7 @@ const settingsTabs = [
   { key: "gateway" as SettingsTab, icon: "server" as const },
   { key: "payment" as SettingsTab, icon: "creditCard" as const },
   { key: "email" as SettingsTab, icon: "mail" as const },
+  { key: "balanceFeatures" as SettingsTab, icon: "gift" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
 ];
 
@@ -8253,6 +8328,31 @@ const form = reactive<SettingsForm>({
   subscription_expiry_notify_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [] as NotifyEmailEntry[],
+  checkin_enabled: false,
+  checkin_min_balance: 0.1,
+  checkin_max_balance: 1,
+  checkin_luck_enabled: false,
+  checkin_luck_min_multiplier: 0.1,
+  checkin_luck_max_multiplier: 3,
+  checkin_blindbox_enabled: false,
+  checkin_blindbox_trigger_type: "streak",
+  checkin_blindbox_interval: 7,
+  transfer_enabled: false,
+  transfer_fee_rate: 0.01,
+  transfer_min_amount: 0.01,
+  transfer_max_amount: 1000,
+  transfer_daily_limit: 1000,
+  transfer_daily_count_limit: 50,
+  transfer_vip_fee_exempt: false,
+  redpacket_enabled: false,
+  redpacket_max_count: 100,
+  redpacket_expire_hours: 24,
+	usage_query_enabled: true,
+	leaderboard_enabled: true,
+	leaderboard_balance_enabled: true,
+	leaderboard_consumption_enabled: true,
+	leaderboard_checkin_enabled: true,
+	leaderboard_include_admin: false,
   // Channel Monitor feature switch
   channel_monitor_enabled: true,
   channel_monitor_default_interval_seconds: 60,
@@ -9627,6 +9727,31 @@ async function saveSettings() {
       account_quota_notify_emails: (
         form.account_quota_notify_emails || []
       ).filter((e) => e.email.trim() !== ""),
+      checkin_enabled: form.checkin_enabled,
+      checkin_min_balance: Number(form.checkin_min_balance) || 0,
+      checkin_max_balance: Number(form.checkin_max_balance) || 0,
+      checkin_luck_enabled: form.checkin_luck_enabled,
+      checkin_luck_min_multiplier: Number(form.checkin_luck_min_multiplier) || 0,
+      checkin_luck_max_multiplier: Number(form.checkin_luck_max_multiplier) || 0,
+      checkin_blindbox_enabled: form.checkin_blindbox_enabled,
+      checkin_blindbox_trigger_type: form.checkin_blindbox_trigger_type,
+      checkin_blindbox_interval: Number(form.checkin_blindbox_interval) || 1,
+      transfer_enabled: form.transfer_enabled,
+      transfer_fee_rate: Number(form.transfer_fee_rate) || 0,
+      transfer_min_amount: Number(form.transfer_min_amount) || 0,
+      transfer_max_amount: Number(form.transfer_max_amount) || 0,
+      transfer_daily_limit: Number(form.transfer_daily_limit) || 0,
+      transfer_daily_count_limit: Number(form.transfer_daily_count_limit) || 0,
+      transfer_vip_fee_exempt: form.transfer_vip_fee_exempt,
+      redpacket_enabled: form.redpacket_enabled,
+      redpacket_max_count: Number(form.redpacket_max_count) || 1,
+      redpacket_expire_hours: Number(form.redpacket_expire_hours) || 1,
+	  usage_query_enabled: form.usage_query_enabled,
+	  leaderboard_enabled: form.leaderboard_enabled,
+	  leaderboard_balance_enabled: form.leaderboard_balance_enabled,
+	  leaderboard_consumption_enabled: form.leaderboard_consumption_enabled,
+	  leaderboard_checkin_enabled: form.leaderboard_checkin_enabled,
+	  leaderboard_include_admin: form.leaderboard_include_admin,
       // Channel Monitor feature switch
       channel_monitor_enabled: form.channel_monitor_enabled,
       channel_monitor_default_interval_seconds:

@@ -94,6 +94,9 @@ const (
 const (
 	AdjustmentTypeAdminBalance     = domain.AdjustmentTypeAdminBalance     // 管理员调整余额
 	AdjustmentTypeAdminConcurrency = domain.AdjustmentTypeAdminConcurrency // 管理员调整并发数
+	AdjustmentTypeCheckin          = domain.AdjustmentTypeCheckin
+	AdjustmentTypeCheckinLuck      = domain.AdjustmentTypeCheckinLuck
+	AdjustmentTypeCheckinBlindbox  = domain.AdjustmentTypeCheckinBlindbox
 )
 
 // Group subscription type constants
@@ -499,6 +502,32 @@ const (
 
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
+
+	SettingKeyCheckinEnabled                = "checkin_enabled"
+	SettingKeyCheckinMinBalance             = "checkin_min_balance"
+	SettingKeyCheckinMaxBalance             = "checkin_max_balance"
+	SettingKeyCheckinLuckEnabled            = "checkin_luck_enabled"
+	SettingKeyCheckinLuckMinMultiplier      = "checkin_luck_min_multiplier"
+	SettingKeyCheckinLuckMaxMultiplier      = "checkin_luck_max_multiplier"
+	SettingKeyCheckinBlindboxEnabled        = "checkin_blindbox_enabled"
+	SettingKeyCheckinBlindboxTriggerType    = "checkin_blindbox_trigger_type"
+	SettingKeyCheckinBlindboxInterval       = "checkin_blindbox_interval"
+	SettingKeyTransferEnabled               = "transfer_enabled"
+	SettingKeyTransferFeeRate               = "transfer_fee_rate"
+	SettingKeyTransferMinAmount             = "transfer_min_amount"
+	SettingKeyTransferMaxAmount             = "transfer_max_amount"
+	SettingKeyTransferDailyLimit            = "transfer_daily_limit"
+	SettingKeyTransferDailyCountLimit       = "transfer_daily_count_limit"
+	SettingKeyTransferVIPFeeExempt          = "transfer_vip_fee_exempt"
+	SettingKeyRedPacketEnabled              = "redpacket_enabled"
+	SettingKeyRedPacketMaxCount             = "redpacket_max_count"
+	SettingKeyRedPacketExpireHours          = "redpacket_expire_hours"
+	SettingKeyUsageQueryEnabled             = "usage_query_enabled"
+	SettingKeyLeaderboardEnabled            = "leaderboard_enabled"
+	SettingKeyLeaderboardBalanceEnabled     = "leaderboard_balance_enabled"
+	SettingKeyLeaderboardConsumptionEnabled = "leaderboard_consumption_enabled"
+	SettingKeyLeaderboardCheckinEnabled     = "leaderboard_checkin_enabled"
+	SettingKeyLeaderboardIncludeAdmin       = "leaderboard_include_admin"
 )
 
 // SettingKeyDefaultPlatformQuotas —— 系统全局：每用户 × 平台日/周/月 USD 上限（JSON）。

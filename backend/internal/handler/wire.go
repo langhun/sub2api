@@ -41,6 +41,8 @@ func ProvideAdminHandlers(
 	paymentHandler *admin.PaymentHandler,
 	affiliateHandler *admin.AffiliateHandler,
 	complianceHandler *admin.ComplianceHandler,
+	blindboxHandler *admin.BlindboxHandler,
+	transferAdminHandler *admin.TransferAdminHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
@@ -75,6 +77,8 @@ func ProvideAdminHandlers(
 		Payment:                paymentHandler,
 		Affiliate:              affiliateHandler,
 		Compliance:             complianceHandler,
+		Blindbox:               blindboxHandler,
+		TransferAdmin:          transferAdminHandler,
 	}
 }
 
@@ -116,6 +120,9 @@ func ProvideHandlers(
 	paymentWebhookHandler *PaymentWebhookHandler,
 	availableChannelHandler *AvailableChannelHandler,
 	batchImageHandler *BatchImageHandler,
+	checkinHandler *CheckinHandler,
+	leaderboardHandler *LeaderboardHandler,
+	transferHandler *BalanceTransferHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -137,6 +144,9 @@ func ProvideHandlers(
 		PaymentWebhook:   paymentWebhookHandler,
 		AvailableChannel: availableChannelHandler,
 		BatchImage:       batchImageHandler,
+		Checkin:          checkinHandler,
+		Leaderboard:      leaderboardHandler,
+		Transfer:         transferHandler,
 	}
 }
 
@@ -159,6 +169,9 @@ var ProviderSet = wire.NewSet(
 	NewPaymentWebhookHandler,
 	NewAvailableChannelHandler,
 	NewBatchImageHandler,
+	NewCheckinHandler,
+	NewLeaderboardHandler,
+	NewBalanceTransferHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -193,6 +206,8 @@ var ProviderSet = wire.NewSet(
 	admin.NewPaymentHandler,
 	admin.NewAffiliateHandler,
 	admin.NewComplianceHandler,
+	admin.NewBlindboxHandler,
+	admin.NewTransferAdminHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

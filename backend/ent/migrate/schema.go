@@ -435,6 +435,169 @@ var (
 			},
 		},
 	}
+	// BalanceRedpacketsColumns holds the columns for the "balance_redpackets" table.
+	BalanceRedpacketsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "total_amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "total_count", Type: field.TypeInt},
+		{Name: "remaining_amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "remaining_count", Type: field.TypeInt},
+		{Name: "redpacket_type", Type: field.TypeString, Size: 20, Default: "equal"},
+		{Name: "fee", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "fee_rate", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(10,6)"}},
+		{Name: "code", Type: field.TypeString, Unique: true, Size: 32},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
+		{Name: "memo", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "expire_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "sender_id", Type: field.TypeInt64},
+	}
+	// BalanceRedpacketsTable holds the schema information for the "balance_redpackets" table.
+	BalanceRedpacketsTable = &schema.Table{
+		Name:       "balance_redpackets",
+		Columns:    BalanceRedpacketsColumns,
+		PrimaryKey: []*schema.Column{BalanceRedpacketsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "balance_redpackets_users_redpackets",
+				Columns:    []*schema.Column{BalanceRedpacketsColumns[13]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "balanceredpacket_sender_id",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceRedpacketsColumns[13]},
+			},
+			{
+				Name:    "balanceredpacket_code",
+				Unique:  true,
+				Columns: []*schema.Column{BalanceRedpacketsColumns[8]},
+			},
+			{
+				Name:    "balanceredpacket_status",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceRedpacketsColumns[9]},
+			},
+			{
+				Name:    "balanceredpacket_expire_at",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceRedpacketsColumns[11]},
+			},
+		},
+	}
+	// BalanceRedpacketClaimsColumns holds the columns for the "balance_redpacket_claims" table.
+	BalanceRedpacketClaimsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "transfer_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "redpacket_id", Type: field.TypeInt64},
+	}
+	// BalanceRedpacketClaimsTable holds the schema information for the "balance_redpacket_claims" table.
+	BalanceRedpacketClaimsTable = &schema.Table{
+		Name:       "balance_redpacket_claims",
+		Columns:    BalanceRedpacketClaimsColumns,
+		PrimaryKey: []*schema.Column{BalanceRedpacketClaimsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "balance_redpacket_claims_balance_redpackets_claims",
+				Columns:    []*schema.Column{BalanceRedpacketClaimsColumns[5]},
+				RefColumns: []*schema.Column{BalanceRedpacketsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "balanceredpacketclaim_redpacket_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{BalanceRedpacketClaimsColumns[5], BalanceRedpacketClaimsColumns[1]},
+			},
+			{
+				Name:    "balanceredpacketclaim_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceRedpacketClaimsColumns[1]},
+			},
+		},
+	}
+	// BalanceTransfersColumns holds the columns for the "balance_transfers" table.
+	BalanceTransfersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "fee", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "fee_rate", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(10,6)"}},
+		{Name: "gross_amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "transfer_type", Type: field.TypeString, Size: 20, Default: "direct"},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "completed"},
+		{Name: "memo", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "redpacket_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "frozen_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "frozen_by", Type: field.TypeInt64, Nullable: true},
+		{Name: "revoke_reason", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "sender_id", Type: field.TypeInt64},
+		{Name: "receiver_id", Type: field.TypeInt64},
+	}
+	// BalanceTransfersTable holds the schema information for the "balance_transfers" table.
+	BalanceTransfersTable = &schema.Table{
+		Name:       "balance_transfers",
+		Columns:    BalanceTransfersColumns,
+		PrimaryKey: []*schema.Column{BalanceTransfersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "balance_transfers_users_sent_transfers",
+				Columns:    []*schema.Column{BalanceTransfersColumns[13]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "balance_transfers_users_received_transfers",
+				Columns:    []*schema.Column{BalanceTransfersColumns[14]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "balancetransfer_sender_id",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceTransfersColumns[13]},
+			},
+			{
+				Name:    "balancetransfer_receiver_id",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceTransfersColumns[14]},
+			},
+			{
+				Name:    "balancetransfer_status",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceTransfersColumns[6]},
+			},
+			{
+				Name:    "balancetransfer_transfer_type",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceTransfersColumns[5]},
+			},
+			{
+				Name:    "balancetransfer_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceTransfersColumns[12]},
+			},
+			{
+				Name:    "balancetransfer_sender_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceTransfersColumns[13], BalanceTransfersColumns[12]},
+			},
+			{
+				Name:    "balancetransfer_receiver_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{BalanceTransfersColumns[14], BalanceTransfersColumns[12]},
+			},
+		},
+	}
 	// BatchImageEventsColumns holds the columns for the "batch_image_events" table.
 	BatchImageEventsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -790,6 +953,104 @@ var (
 				Name:    "channelmonitorrequesttemplate_provider_api_mode",
 				Unique:  false,
 				Columns: []*schema.Column{ChannelMonitorRequestTemplatesColumns[4], ChannelMonitorRequestTemplatesColumns[5]},
+			},
+		},
+	}
+	// CheckinsColumns holds the columns for the "checkins" table.
+	CheckinsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "checkin_date", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "date"}},
+		{Name: "reward_amount", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "streak_days", Type: field.TypeInt, Default: 1},
+		{Name: "checkin_type", Type: field.TypeString, Default: "normal", SchemaType: map[string]string{"postgres": "varchar(20)"}},
+		{Name: "bet_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "multiplier", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+	}
+	// CheckinsTable holds the schema information for the "checkins" table.
+	CheckinsTable = &schema.Table{
+		Name:       "checkins",
+		Columns:    CheckinsColumns,
+		PrimaryKey: []*schema.Column{CheckinsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "checkins_users_checkins",
+				Columns:    []*schema.Column{CheckinsColumns[8]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "checkin_user_id_checkin_date",
+				Unique:  true,
+				Columns: []*schema.Column{CheckinsColumns[8], CheckinsColumns[1]},
+			},
+			{
+				Name:    "checkin_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinsColumns[8]},
+			},
+		},
+	}
+	// CheckinBlindboxRecordsColumns holds the columns for the "checkin_blindbox_records" table.
+	CheckinBlindboxRecordsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "prize_item_id", Type: field.TypeInt64},
+		{Name: "prize_name", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "varchar(100)"}},
+		{Name: "rarity", Type: field.TypeString, Default: "common", SchemaType: map[string]string{"postgres": "varchar(20)"}},
+		{Name: "reward_type", Type: field.TypeString, Default: "balance", SchemaType: map[string]string{"postgres": "varchar(30)"}},
+		{Name: "reward_value", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "streak_days", Type: field.TypeInt, Default: 0},
+		{Name: "reward_detail", Type: field.TypeString, Nullable: true, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// CheckinBlindboxRecordsTable holds the schema information for the "checkin_blindbox_records" table.
+	CheckinBlindboxRecordsTable = &schema.Table{
+		Name:       "checkin_blindbox_records",
+		Columns:    CheckinBlindboxRecordsColumns,
+		PrimaryKey: []*schema.Column{CheckinBlindboxRecordsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "checkinblindboxrecord_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinBlindboxRecordsColumns[1]},
+			},
+			{
+				Name:    "checkinblindboxrecord_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinBlindboxRecordsColumns[9]},
+			},
+		},
+	}
+	// CheckinPrizeItemsColumns holds the columns for the "checkin_prize_items" table.
+	CheckinPrizeItemsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "name", Type: field.TypeString, SchemaType: map[string]string{"postgres": "varchar(100)"}},
+		{Name: "rarity", Type: field.TypeString, Default: "common", SchemaType: map[string]string{"postgres": "varchar(20)"}},
+		{Name: "reward_type", Type: field.TypeString, Default: "balance", SchemaType: map[string]string{"postgres": "varchar(30)"}},
+		{Name: "reward_value", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "reward_value_max", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "subscription_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "subscription_days", Type: field.TypeInt, Default: 0},
+		{Name: "weight", Type: field.TypeInt, Default: 100},
+		{Name: "is_enabled", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// CheckinPrizeItemsTable holds the schema information for the "checkin_prize_items" table.
+	CheckinPrizeItemsTable = &schema.Table{
+		Name:       "checkin_prize_items",
+		Columns:    CheckinPrizeItemsColumns,
+		PrimaryKey: []*schema.Column{CheckinPrizeItemsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "checkinprizeitem_is_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{CheckinPrizeItemsColumns[9]},
 			},
 		},
 	}
@@ -1366,6 +1627,8 @@ var (
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "expires_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "validity_days", Type: field.TypeInt, Default: 30},
+		{Name: "multiplier", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "bet_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "group_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "used_by", Type: field.TypeInt64, Nullable: true},
 	}
@@ -1377,13 +1640,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "redeem_codes_groups_redeem_codes",
-				Columns:    []*schema.Column{RedeemCodesColumns[10]},
+				Columns:    []*schema.Column{RedeemCodesColumns[12]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "redeem_codes_users_redeem_codes",
-				Columns:    []*schema.Column{RedeemCodesColumns[11]},
+				Columns:    []*schema.Column{RedeemCodesColumns[13]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -1397,12 +1660,12 @@ var (
 			{
 				Name:    "redeemcode_used_by",
 				Unique:  false,
-				Columns: []*schema.Column{RedeemCodesColumns[11]},
+				Columns: []*schema.Column{RedeemCodesColumns[13]},
 			},
 			{
 				Name:    "redeemcode_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{RedeemCodesColumns[10]},
+				Columns: []*schema.Column{RedeemCodesColumns[12]},
 			},
 			{
 				Name:    "redeemcode_expires_at",
@@ -1993,6 +2256,9 @@ var (
 		AnnouncementReadsTable,
 		AuthIdentitiesTable,
 		AuthIdentityChannelsTable,
+		BalanceRedpacketsTable,
+		BalanceRedpacketClaimsTable,
+		BalanceTransfersTable,
 		BatchImageEventsTable,
 		BatchImageItemsTable,
 		BatchImageJobsTable,
@@ -2000,6 +2266,9 @@ var (
 		ChannelMonitorDailyRollupsTable,
 		ChannelMonitorHistoriesTable,
 		ChannelMonitorRequestTemplatesTable,
+		CheckinsTable,
+		CheckinBlindboxRecordsTable,
+		CheckinPrizeItemsTable,
 		ErrorPassthroughRulesTable,
 		GroupsTable,
 		IdempotencyRecordsTable,
@@ -2059,6 +2328,19 @@ func init() {
 	AuthIdentityChannelsTable.Annotation = &entsql.Annotation{
 		Table: "auth_identity_channels",
 	}
+	BalanceRedpacketsTable.ForeignKeys[0].RefTable = UsersTable
+	BalanceRedpacketsTable.Annotation = &entsql.Annotation{
+		Table: "balance_redpackets",
+	}
+	BalanceRedpacketClaimsTable.ForeignKeys[0].RefTable = BalanceRedpacketsTable
+	BalanceRedpacketClaimsTable.Annotation = &entsql.Annotation{
+		Table: "balance_redpacket_claims",
+	}
+	BalanceTransfersTable.ForeignKeys[0].RefTable = UsersTable
+	BalanceTransfersTable.ForeignKeys[1].RefTable = UsersTable
+	BalanceTransfersTable.Annotation = &entsql.Annotation{
+		Table: "balance_transfers",
+	}
 	BatchImageEventsTable.Annotation = &entsql.Annotation{
 		Table: "batch_image_events",
 	}
@@ -2082,6 +2364,16 @@ func init() {
 	}
 	ChannelMonitorRequestTemplatesTable.Annotation = &entsql.Annotation{
 		Table: "channel_monitor_request_templates",
+	}
+	CheckinsTable.ForeignKeys[0].RefTable = UsersTable
+	CheckinsTable.Annotation = &entsql.Annotation{
+		Table: "checkins",
+	}
+	CheckinBlindboxRecordsTable.Annotation = &entsql.Annotation{
+		Table: "checkin_blindbox_records",
+	}
+	CheckinPrizeItemsTable.Annotation = &entsql.Annotation{
+		Table: "checkin_prize_items",
 	}
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",

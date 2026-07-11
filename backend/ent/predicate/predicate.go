@@ -27,6 +27,15 @@ type AuthIdentity func(*sql.Selector)
 // AuthIdentityChannel is the predicate function for authidentitychannel builders.
 type AuthIdentityChannel func(*sql.Selector)
 
+// BalanceRedPacket is the predicate function for balanceredpacket builders.
+type BalanceRedPacket func(*sql.Selector)
+
+// BalanceRedPacketClaim is the predicate function for balanceredpacketclaim builders.
+type BalanceRedPacketClaim func(*sql.Selector)
+
+// BalanceTransfer is the predicate function for balancetransfer builders.
+type BalanceTransfer func(*sql.Selector)
+
 // BatchImageEvent is the predicate function for batchimageevent builders.
 type BatchImageEvent func(*sql.Selector)
 
@@ -47,6 +56,15 @@ type ChannelMonitorHistory func(*sql.Selector)
 
 // ChannelMonitorRequestTemplate is the predicate function for channelmonitorrequesttemplate builders.
 type ChannelMonitorRequestTemplate func(*sql.Selector)
+
+// Checkin is the predicate function for checkin builders.
+type Checkin func(*sql.Selector)
+
+// CheckinBlindboxRecord is the predicate function for checkinblindboxrecord builders.
+type CheckinBlindboxRecord func(*sql.Selector)
+
+// CheckinPrizeItem is the predicate function for checkinprizeitem builders.
+type CheckinPrizeItem func(*sql.Selector)
 
 // ErrorPassthroughRule is the predicate function for errorpassthroughrule builders.
 type ErrorPassthroughRule func(*sql.Selector)

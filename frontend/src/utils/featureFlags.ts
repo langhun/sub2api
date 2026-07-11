@@ -119,6 +119,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Affiliate',
   }),
+	checkin: defineFlag({ key: 'checkin_enabled', mode: 'opt-in', label: 'Check-in' }),
+	transfer: defineFlag({ key: 'transfer_enabled', mode: 'opt-in', label: 'Balance Transfer' }),
+	redpacket: defineFlag({ key: 'redpacket_enabled', mode: 'opt-in', label: 'Red Packet' }),
+	usageQuery: defineFlag({ key: 'usage_query_enabled', mode: 'opt-out', label: 'Usage Query' }),
+	leaderboard: defineFlag({ key: 'leaderboard_enabled', mode: 'opt-out', label: 'Leaderboard' }),
 } as const
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags

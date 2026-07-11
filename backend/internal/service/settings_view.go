@@ -12,6 +12,7 @@ func firstNonEmpty(values ...string) string {
 }
 
 type SystemSettings struct {
+	BalanceFeatureSettings
 	RegistrationEnabled              bool
 	EmailVerifyEnabled               bool
 	RegistrationEmailSuffixWhitelist []string
@@ -325,7 +326,18 @@ type PublicSettings struct {
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
-	AffiliateEnabled bool `json:"affiliate_enabled"`
+	AffiliateEnabled              bool `json:"affiliate_enabled"`
+	CheckinEnabled                bool `json:"checkin_enabled"`
+	TransferEnabled               bool `json:"transfer_enabled"`
+	RedPacketEnabled              bool `json:"redpacket_enabled"`
+	CheckinLuckEnabled            bool `json:"checkin_luck_enabled"`
+	CheckinBlindboxEnabled        bool `json:"checkin_blindbox_enabled"`
+	UsageQueryEnabled             bool `json:"usage_query_enabled"`
+	LeaderboardEnabled            bool `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled     bool `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled bool `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled     bool `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin       bool `json:"leaderboard_include_admin"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`
