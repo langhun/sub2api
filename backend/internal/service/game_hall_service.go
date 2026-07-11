@@ -55,6 +55,8 @@ var slotSymbolTable = []slotSymbolSpec{
 
 var slotTotalWeight = sumSlotWeights(slotSymbolTable)
 
+const slotRuleVersion = "slots-v1"
+
 type GameHallSettingsReader interface {
 	GetMultiple(ctx context.Context, keys []string) (map[string]string, error)
 }
@@ -86,12 +88,22 @@ type GameWalletSnapshot struct {
 }
 
 type GameInfo struct {
-	Type        string    `json:"type"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	MinBet      float64   `json:"min_bet"`
-	MaxBet      float64   `json:"max_bet"`
-	Multipliers []float64 `json:"multipliers"`
+	Type           string           `json:"type"`
+	Name           string           `json:"name"`
+	Description    string           `json:"description"`
+	MinBet         float64          `json:"min_bet"`
+	MaxBet         float64          `json:"max_bet"`
+	Multipliers    []float64        `json:"multipliers"`
+	RuleVersion    string           `json:"rule_version"`
+	TheoreticalRTP float64          `json:"theoretical_rtp"`
+	PayoutRules    []GamePayoutRule `json:"payout_rules"`
+}
+
+type GamePayoutRule struct {
+	Symbol      string  `json:"symbol"`
+	MatchCount  int     `json:"match_count"`
+	Multiplier  float64 `json:"multiplier"`
+	Probability float64 `json:"probability"`
 }
 
 type GameHallStatus struct {
@@ -434,14 +446,40 @@ func configuredGameInfos(settings gameHallRuntimeSettings) []GameInfo {
 	}
 	return []GameInfo{
 		{
-			Type:        GameTypeSlots,
-			Name:        "Slots",
-			Description: "Three reels with instant DG settlement.",
-			MinBet:      settings.minBet,
-			MaxBet:      settings.maxBet,
-			Multipliers: []float64{0, 18.7, 30, 48, 72, 108, 180, 320},
+			Type:           GameTypeSlots,
+			Name:           "Slots",
+			Description:    "Three reels with instant DG settlement.",
+			MinBet:         settings.minBet,
+			MaxBet:         settings.maxBet,
+			Multipliers:    []float64{0, 18.7, 30, 48, 72, 108, 180, 320},
+			RuleVersion:    slotRuleVersion,
+			TheoreticalRTP: roundGameAmount(slotTheoreticalRTP()),
+			PayoutRules:    configuredSlotPayoutRules(),
 		},
 	}
+}
+
+func configuredSlotPayoutRules() []GamePayoutRule {
+	rules := make([]GamePayoutRule, 0, len(slotSymbolTable))
+	for _, symbol := range slotSymbolTable {
+		singleProbability := float64(symbol.weight) / float64(slotTotalWeight)
+		rules = append(rules, GamePayoutRule{
+			Symbol:      symbol.id,
+			MatchCount:  3,
+			Multiplier:  symbol.payout3,
+			Probability: roundGameAmount(singleProbability * singleProbability * singleProbability),
+		})
+	}
+	return rules
+}
+
+func slotTheoreticalRTP() float64 {
+	rtp := 0.0
+	for _, symbol := range slotSymbolTable {
+		probability := float64(symbol.weight) / float64(slotTotalWeight)
+		rtp += probability * probability * probability * symbol.payout3
+	}
+	return rtp
 }
 
 func roundGameAmount(value float64) float64 {

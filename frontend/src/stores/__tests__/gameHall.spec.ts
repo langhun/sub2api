@@ -21,7 +21,11 @@ describe('game hall store', () => {
       main_balance: 120,
       dg_balance: 30,
       jackpot_balance: 500,
-      games: [{ type: 'slots', name: 'Slots', min_bet: 1, max_bet: 10, multipliers: [0, 2] }],
+      games: [{
+        type: 'slots', name: 'Slots', min_bet: 1, max_bet: 10, multipliers: [0, 2],
+        rule_version: 'slots-v1', theoretical_rtp: 0.953,
+        payout_rules: [{ symbol: 'cherry', match_count: 3, multiplier: 18.7, probability: 0.0166 }],
+      }],
     })
 
     const store = useGameHallStore()
