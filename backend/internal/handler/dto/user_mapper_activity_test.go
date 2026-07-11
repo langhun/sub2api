@@ -31,3 +31,10 @@ func TestUserFromServiceAdmin_MapsActivityTimestamps(t *testing.T) {
 	require.WithinDuration(t, lastActiveAt, *out.LastActiveAt, time.Second)
 	require.WithinDuration(t, lastUsedAt, *out.LastUsedAt, time.Second)
 }
+
+func TestUserFromServiceAdminMapsGameHallDisabled(t *testing.T) {
+	out := UserFromServiceAdmin(&service.User{GameHallDisabled: true})
+
+	require.NotNil(t, out)
+	require.True(t, out.GameHallDisabled)
+}

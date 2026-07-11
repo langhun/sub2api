@@ -47,6 +47,7 @@ func (r *gameHallRepository) GetSnapshot(ctx context.Context, userID int64) (*se
 
 	query := `
 SELECT u.balance,
+       u.game_hall_disabled,
        gw.dg_balance,
        gj.balance
 FROM users u
@@ -69,7 +70,7 @@ LIMIT 1
 	}
 
 	snapshot := &service.GameWalletSnapshot{UserID: userID}
-	if err := rows.Scan(&snapshot.MainBalance, &snapshot.DGBalance, &snapshot.JackpotBalance); err != nil {
+	if err := rows.Scan(&snapshot.MainBalance, &snapshot.GameHallDisabled, &snapshot.DGBalance, &snapshot.JackpotBalance); err != nil {
 		return nil, fmt.Errorf("scan game hall snapshot: %w", err)
 	}
 	return snapshot, rows.Err()
@@ -88,9 +89,12 @@ func (r *gameHallRepository) CommitExchange(ctx context.Context, plan service.Ga
 			return err
 		}
 
-		mainBalance, err := lockUserMainBalance(txCtx, client, plan.UserID)
+		mainBalance, gameHallDisabled, err := lockUserMainBalance(txCtx, client, plan.UserID)
 		if err != nil {
 			return err
+		}
+		if gameHallDisabled {
+			return service.ErrGameHallUserDisabled
 		}
 		dgBalance, err := lockUserDGBalance(txCtx, client, plan.UserID)
 		if err != nil {
@@ -271,6 +275,13 @@ func (r *gameHallRepository) CommitSlotRound(ctx context.Context, plan service.G
 			return err
 		}
 
+		_, gameHallDisabled, err := lockUserMainBalance(txCtx, client, plan.UserID)
+		if err != nil {
+			return err
+		}
+		if gameHallDisabled {
+			return service.ErrGameHallUserDisabled
+		}
 		dgBalance, err := lockUserDGBalance(txCtx, client, plan.UserID)
 		if err != nil {
 			return err
@@ -705,34 +716,35 @@ ON CONFLICT (code) DO NOTHING
 	return nil
 }
 
-func lockUserMainBalance(ctx context.Context, client *dbent.Client, userID int64) (float64, error) {
+func lockUserMainBalance(ctx context.Context, client *dbent.Client, userID int64) (float64, bool, error) {
 	return lockLegacyUserMainBalance(ctx, client, userID)
 }
 
-func lockLegacyUserMainBalance(ctx context.Context, client *dbent.Client, userID int64) (float64, error) {
+func lockLegacyUserMainBalance(ctx context.Context, client *dbent.Client, userID int64) (float64, bool, error) {
 	rows, err := client.QueryContext(ctx, `
-SELECT balance
+SELECT balance, game_hall_disabled
 FROM users
 WHERE id = $1 AND deleted_at IS NULL
 FOR UPDATE
 `, userID)
 	if err != nil {
-		return 0, fmt.Errorf("lock legacy user main balance: %w", err)
+		return 0, false, fmt.Errorf("lock legacy user main balance: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return 0, fmt.Errorf("lock legacy user main balance: %w", err)
+			return 0, false, fmt.Errorf("lock legacy user main balance: %w", err)
 		}
-		return 0, service.ErrUserNotFound
+		return 0, false, service.ErrUserNotFound
 	}
 
 	var balance float64
-	if err := rows.Scan(&balance); err != nil {
-		return 0, fmt.Errorf("scan legacy user main balance: %w", err)
+	var gameHallDisabled bool
+	if err := rows.Scan(&balance, &gameHallDisabled); err != nil {
+		return 0, false, fmt.Errorf("scan legacy user main balance: %w", err)
 	}
-	return balance, rows.Err()
+	return balance, gameHallDisabled, rows.Err()
 }
 
 func lockUserDGBalance(ctx context.Context, client *dbent.Client, userID int64) (float64, error) {

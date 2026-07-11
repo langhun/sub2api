@@ -24,6 +24,7 @@ const (
 
 var (
 	ErrGameHallDisabled             = infraerrors.Forbidden("GAME_HALL_DISABLED", "game hall is disabled")
+	ErrGameHallUserDisabled         = infraerrors.Forbidden("GAME_HALL_USER_DISABLED", "game hall is disabled for this user")
 	ErrGameExchangeAmountInvalid    = infraerrors.BadRequest("GAME_EXCHANGE_AMOUNT_INVALID", "exchange amount must be greater than 0")
 	ErrGameExchangeDirectionInvalid = infraerrors.BadRequest("GAME_EXCHANGE_DIRECTION_INVALID", "exchange direction is invalid")
 	ErrGameExchangeOutOfRange       = infraerrors.BadRequest("GAME_EXCHANGE_OUT_OF_RANGE", "exchange amount is outside the configured range")
@@ -86,10 +87,11 @@ type GameHallService struct {
 }
 
 type GameWalletSnapshot struct {
-	UserID         int64
-	MainBalance    float64
-	DGBalance      float64
-	JackpotBalance float64
+	UserID           int64
+	GameHallDisabled bool
+	MainBalance      float64
+	DGBalance        float64
+	JackpotBalance   float64
 }
 
 type GameInfo struct {
@@ -253,6 +255,9 @@ func (s *GameHallService) GetHallStatus(ctx context.Context, userID int64) (*Gam
 	if err != nil {
 		return nil, fmt.Errorf("get game hall snapshot: %w", err)
 	}
+	if snapshot.GameHallDisabled {
+		return nil, ErrGameHallUserDisabled
+	}
 	dailyTotal, err := s.dailyExchangeTotal(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -300,6 +305,9 @@ func (s *GameHallService) Exchange(ctx context.Context, input GameExchangeInput)
 	snapshot, err := s.store.GetSnapshot(ctx, input.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("get game hall snapshot: %w", err)
+	}
+	if snapshot.GameHallDisabled {
+		return nil, ErrGameHallUserDisabled
 	}
 
 	plan := GameExchangePlan{
@@ -406,6 +414,9 @@ func (s *GameHallService) Play(ctx context.Context, input GamePlayInput) (*GameP
 	snapshot, err := s.store.GetSnapshot(ctx, input.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("get game hall snapshot: %w", err)
+	}
+	if snapshot.GameHallDisabled {
+		return nil, ErrGameHallUserDisabled
 	}
 	if snapshot.DGBalance < betAmount {
 		return nil, ErrGameInsufficientDGBalance

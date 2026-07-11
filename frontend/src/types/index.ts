@@ -89,6 +89,7 @@ export interface User {
   frozen_balance?: number // Balance currently held by async batch jobs
   concurrency: number // Allowed concurrent requests
   rpm_limit?: number // User-level RPM cap (0 = unlimited); effective as fallback when group has no rpm_limit
+  game_hall_disabled?: boolean // Per-user game hall risk-control switch
   status: 'active' | 'disabled' // Account status
   allowed_groups: number[] | null // Allowed group IDs (null = all non-exclusive groups)
   balance_notify_enabled: boolean
@@ -1132,6 +1133,8 @@ export interface CreateAccountRequest {
   extra?: Record<string, unknown>
   proxy_id?: number | null
   concurrency?: number
+  rpm_limit?: number
+  game_hall_disabled?: boolean
   load_factor?: number | null
   priority?: number
   rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
