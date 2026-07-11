@@ -63,7 +63,7 @@ describe('AppSidebar Chinese menu labels', () => {
       redeem: '兑换中心',
       proxies: '代理管理',
       redeemCodes: '兑换管理',
-      ops: '运维管理',
+      ops: '运维监控',
       promoCodes: '优惠管理',
       buySubscription: '充值订阅',
       docs: '帮助文档',
