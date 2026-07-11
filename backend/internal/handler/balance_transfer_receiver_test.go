@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -61,5 +62,31 @@ func TestBalanceTransferHandlerResolveReceiver(t *testing.T) {
 
 		require.Equal(t, http.StatusBadRequest, w.Code)
 		require.Contains(t, w.Body.String(), "RECEIVER_QUERY_INVALID")
+	})
+}
+
+func TestGetUserIDAware(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("reads the authenticated subject set by JWT middleware", func(t *testing.T) {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Set("user", servermiddleware.AuthSubject{UserID: 42})
+
+		require.Equal(t, int64(42), GetUserIDAware(c))
+	})
+
+	t.Run("prefers the authenticated subject over the legacy key", func(t *testing.T) {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Set("user", servermiddleware.AuthSubject{UserID: 42})
+		c.Set("user_id", int64(7))
+
+		require.Equal(t, int64(42), GetUserIDAware(c))
+	})
+
+	t.Run("keeps the legacy key fallback", func(t *testing.T) {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Set("user_id", int64(7))
+
+		require.Equal(t, int64(7), GetUserIDAware(c))
 	})
 }

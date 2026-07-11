@@ -8,6 +8,7 @@ import (
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -216,6 +217,11 @@ func (h *BalanceTransferHandler) GetLeaderboard(c *gin.Context) {
 }
 
 func GetUserIDAware(c *gin.Context) int64 {
+	if subject, ok := servermiddleware.GetAuthSubjectFromContext(c); ok {
+		return subject.UserID
+	}
+
+	// Keep the legacy key fallback for callers that have not migrated yet.
 	id, exists := c.Get("user_id")
 	if !exists {
 		return 0
