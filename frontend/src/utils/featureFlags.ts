@@ -130,6 +130,26 @@ export const FeatureFlags = {
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags
 
+export function resolveFeatureFlagValue(
+  flag: FeatureFlagDefinition,
+  settings: Partial<PublicSettings> | null | undefined,
+): boolean {
+  const raw = settings?.[flag.key] as boolean | undefined
+  if (typeof raw === 'boolean') return raw
+  return flag.mode === 'opt-out'
+}
+
+export function resolveFeatureFlagKey(
+  key: keyof PublicSettings,
+  settings: Partial<PublicSettings> | null | undefined,
+): boolean {
+  const flag = Object.values(FeatureFlags).find((item) => item.key === key)
+  if (flag) return resolveFeatureFlagValue(flag, settings)
+
+  const raw = settings?.[key]
+  return typeof raw === 'boolean' ? raw : true
+}
+
 /**
  * Read the current value of a flag, honoring the mode's fallback.
  * `true`  → the feature is enabled (menu/route should render).
@@ -137,13 +157,7 @@ export type RegisteredFeatureFlag = keyof typeof FeatureFlags
  */
 export function isFeatureFlagEnabled(flag: FeatureFlagDefinition): boolean {
   const appStore = useAppStore()
-  const raw = appStore.cachedPublicSettings?.[flag.key] as
-    | boolean
-    | undefined
-  if (typeof raw === 'boolean') return raw
-  // Settings not yet loaded → fall back to the flag's declared mode:
-  //   opt-out → visible by default, opt-in → hidden by default.
-  return flag.mode === 'opt-out'
+  return resolveFeatureFlagValue(flag, appStore.cachedPublicSettings)
 }
 
 /**

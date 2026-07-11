@@ -101,7 +101,7 @@
               </div>
               <div class="flex gap-2">
                 <template v-if="checkinStore.canCheckin">
-                  <button v-if="checkinStore.normalEnabled" type="button" :disabled="checkinStore.loading" class="checkin-btn checkin-btn-normal" @click="checkinStore.doCheckin()">
+                  <button v-if="checkinStore.normalEnabled" type="button" :disabled="checkinStore.loading" class="checkin-btn checkin-btn-normal" @click="submitNormal">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     {{ checkinStore.loading ? '...' : t('checkin.normalCheckin') }}
                   </button>
@@ -299,7 +299,7 @@
         </div>
 
         <div v-if="blindboxTotal > blindboxRecords.length" class="mt-4 text-center">
-          <button type="button" class="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="loadMoreBlindboxRecords">{{ t('common.loadMore') }}</button>
+          <button type="button" :disabled="blindboxLoadingMore" class="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50 dark:text-primary-400" @click="loadMoreBlindboxRecords">{{ blindboxLoadingMore ? t('common.loading') : t('common.loadMore') }}</button>
         </div>
       </div>
     </div>
@@ -314,8 +314,9 @@ import { useCheckinStore } from '@/stores/checkin'
 import { getBlindboxRecords, getCheckinCalendar, type BlindboxRecordItem, type BlindboxResult, type CheckinCalendarDay } from '@/api/checkin'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import { formatCalendarDate, parseCalendarDate } from '@/utils/checkinCalendar'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const checkinStore = useCheckinStore()
 const user = computed(() => authStore.user)
@@ -326,12 +327,12 @@ const luckBet = ref<number>(0)
 const blindboxRecords = ref<BlindboxRecordItem[]>([])
 const blindboxTotal = ref(0)
 const blindboxPage = ref(1)
+const blindboxLoadingMore = ref(false)
 
 const calendarDays = ref<CheckinCalendarDay[]>([])
 
 const weekHeaders = computed(() => {
-  const locale = (t as any).locale?.() || 'en'
-  if (locale === 'zh') return ['一', '二', '三', '四', '五', '六', '日']
+  if (locale.value.toLowerCase().startsWith('zh')) return ['一', '二', '三', '四', '五', '六', '日']
   return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 })
 
@@ -349,8 +350,8 @@ const calendarGrid = computed<CalendarCell[]>(() => {
   const days = calendarDays.value
   if (days.length === 0) return []
 
-  const firstDate = new Date(days[0].date + 'T00:00:00')
-  const lastDate = new Date(days[days.length - 1].date + 'T00:00:00')
+  const firstDate = parseCalendarDate(days[0].date)
+  const lastDate = parseCalendarDate(days[days.length - 1].date)
 
   const checkedMap = new Map<string, CheckinCalendarDay>()
   for (const d of days) {
@@ -367,12 +368,12 @@ const calendarGrid = computed<CalendarCell[]>(() => {
   const sundayOffset = endDow === 0 ? 0 : 7 - endDow
   endOfWeek.setDate(endOfWeek.getDate() + sundayOffset)
 
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = formatCalendarDate(new Date())
 
   const cells: CalendarCell[] = []
   const current = new Date(startOfWeek)
   while (current <= endOfWeek) {
-    const dateStr = current.toISOString().slice(0, 10)
+    const dateStr = formatCalendarDate(current)
     const calDay = checkedMap.get(dateStr)
     const firstMonth = firstDate.getFullYear() * 100 + firstDate.getMonth()
     const curMonth = current.getFullYear() * 100 + current.getMonth()
@@ -445,8 +446,16 @@ async function submitLuck() {
   if (result) {
     showLuckModal.value = false
     luckBet.value = 0
-    fetchBlindboxRecords()
+    blindboxPage.value = 1
+    await Promise.all([fetchBlindboxRecords(), fetchCalendar()])
   }
+}
+
+async function submitNormal() {
+  const result = await checkinStore.doCheckin()
+  if (!result) return
+  blindboxPage.value = 1
+  await Promise.all([fetchBlindboxRecords(), fetchCalendar()])
 }
 
 function getRarityBadgeClass(rarity: string) {
@@ -537,12 +546,17 @@ async function fetchBlindboxRecords() {
 }
 
 async function loadMoreBlindboxRecords() {
-  blindboxPage.value++
+  if (blindboxLoadingMore.value) return
+  const nextPage = blindboxPage.value + 1
+  blindboxLoadingMore.value = true
   try {
-    const result = await getBlindboxRecords(blindboxPage.value, 20)
+    const result = await getBlindboxRecords(nextPage, 20)
     blindboxRecords.value = [...blindboxRecords.value, ...(result.items || [])]
     blindboxTotal.value = result.total || 0
-  } catch { /* noop */ }
+    blindboxPage.value = nextPage
+  } catch { /* noop */ } finally {
+    blindboxLoadingMore.value = false
+  }
 }
 
 onMounted(() => {
