@@ -161,4 +161,22 @@ func TestIsMigrationChecksumCompatible(t *testing.T) {
 		)
 		require.False(t, ok)
 	})
+
+	t.Run("177提交前已应用版本兼容正式迁移", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"177_migrate_legacy_checkin_records.sql",
+			"5e4dd7852287cc4bef04f2f4e6e7e8713eb40c317481a0f7b7de76e117c381e6",
+			"e2418fb16e4ba277ff48ca03f2da78255642671d4edbf8d5cf69a851d8ad7c9c",
+		)
+		require.True(t, ok)
+	})
+
+	t.Run("177未知数据库checksum不兼容", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"177_migrate_legacy_checkin_records.sql",
+			"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			"e2418fb16e4ba277ff48ca03f2da78255642671d4edbf8d5cf69a851d8ad7c9c",
+		)
+		require.False(t, ok)
+	})
 }
