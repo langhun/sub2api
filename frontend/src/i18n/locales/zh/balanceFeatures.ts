@@ -4,6 +4,8 @@ export default {
     rangeHint: '奖励范围 ${min} - ${max}', luckTitle: '幸运签到', luckButton: '确认幸运签到',
     luckSuccess: '倍率 ${multiplier}x，获得 ${amount}', luckLoss: '倍率 ${multiplier}x，失去 ${amount}', luckEven: '倍率 1.00x，不赚不赔',
     betAmount: '下注金额', betAmountPlaceholder: '输入下注金额', multiplierRange: '倍率范围 ${min}x - ${max}x',
+    statusLoadFailed: '签到状态加载失败', actionFailed: '签到失败，请检查错误后重试',
+    luckReviewAction: '核对风险', luckRiskTitle: '确认可能亏损', luckRiskWarning: '结果随机，本次签到最多可能减少余额 {amount}。', luckOutcomeRange: '余额可能变化',
     checkinType: '签到类型', normalCheckin: '普通签到', luckCheckin: '幸运签到',
     blindboxCommon: '普通', blindboxRare: '稀有', blindboxEpic: '史诗', blindboxLegendary: '传说',
     blindboxBalanceReward: '余额 +${value}', blindboxConcurrencyReward: '并发 +{value}', blindboxSubscriptionReward: '{days} 天订阅体验',
