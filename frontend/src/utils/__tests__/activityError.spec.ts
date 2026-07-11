@@ -12,4 +12,10 @@ describe('activityErrorMessage', () => {
     expect(activityErrorMessage({ response: { data: { detail: 'specific failure' } } }, vi.fn(), 'fallback'))
       .toBe('specific failure')
   })
+
+  it('maps interceptor-normalized top-level activity errors', () => {
+    const t = vi.fn((key: string) => `translated:${key}`)
+    expect(activityErrorMessage({ status: 404, code: 'RECEIVER_NOT_FOUND', message: 'receiver not found' }, t, 'fallback'))
+      .toBe('translated:activityErrors.receiverNotFound')
+  })
 })

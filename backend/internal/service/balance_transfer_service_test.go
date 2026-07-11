@@ -121,6 +121,19 @@ type transferSafetyUserRepo struct {
 	userByID                map[int64]*User
 	conditionalBalanceOK    bool
 	conditionalBalanceCalls int
+	resolvedReceiver        *User
+	resolveErr              error
+	resolveQuery            string
+	resolveNumericID        *int64
+}
+
+func (r *transferSafetyUserRepo) ResolveActiveTransferReceiver(_ context.Context, query string, numericID *int64) (*User, error) {
+	r.resolveQuery = query
+	if numericID != nil {
+		id := *numericID
+		r.resolveNumericID = &id
+	}
+	return r.resolvedReceiver, r.resolveErr
 }
 
 type transferSafetySettingRepo struct {
@@ -189,6 +202,56 @@ func TestBalanceTransferLocksBeforeLimitsAndRejectsInsufficientBalance(t *testin
 	require.True(t, repo.deductAfterLock)
 	require.Zero(t, repo.createCalls)
 	require.Zero(t, users.creditCalls)
+}
+
+func TestBalanceTransferResolveReceiverSupportsNumericIDAndExactIdentity(t *testing.T) {
+	settings := newTransferSafetySettings(map[string]string{SettingKeyTransferEnabled: "true"})
+
+	t.Run("numeric id bypasses minimum text length", func(t *testing.T) {
+		users := &transferSafetyUserRepo{resolvedReceiver: &User{ID: 7, Status: StatusActive, Username: "alice"}}
+		svc := NewBalanceTransferService(&transferSafetyRepo{}, &redPacketSafetyRepo{}, users, settings, nil)
+		result, err := svc.ResolveReceiver(context.Background(), 1, "7")
+		require.NoError(t, err)
+		require.Equal(t, int64(7), result.ReceiverID)
+		require.Equal(t, "a***e", result.ReceiverDisplay)
+		require.NotNil(t, users.resolveNumericID)
+		require.Equal(t, int64(7), *users.resolveNumericID)
+	})
+
+	t.Run("exact email is passed without fuzzy expansion", func(t *testing.T) {
+		users := &transferSafetyUserRepo{resolvedReceiver: &User{ID: 8, Status: StatusActive, Email: "alice@example.com"}}
+		svc := NewBalanceTransferService(&transferSafetyRepo{}, &redPacketSafetyRepo{}, users, settings, nil)
+		result, err := svc.ResolveReceiver(context.Background(), 1, " Alice@Example.com ")
+		require.NoError(t, err)
+		require.Equal(t, "Alice@Example.com", users.resolveQuery)
+		require.Nil(t, users.resolveNumericID)
+		require.Equal(t, "a***@example.com", result.ReceiverDisplay)
+	})
+}
+
+func TestBalanceTransferResolveReceiverRejectsUnsafeQueriesAndExcludedUsers(t *testing.T) {
+	settings := newTransferSafetySettings(map[string]string{SettingKeyTransferEnabled: "true"})
+	tests := map[string]struct {
+		query       string
+		requesterID int64
+		resolved    *User
+		wantErr     error
+	}{
+		"empty":            {query: "", requesterID: 1, wantErr: ErrTransferReceiverQueryInvalid},
+		"one character":    {query: "a", requesterID: 1, wantErr: ErrTransferReceiverQueryInvalid},
+		"numeric zero":     {query: "0", requesterID: 1, wantErr: ErrTransferReceiverQueryInvalid},
+		"numeric overflow": {query: "999999999999999999999999", requesterID: 1, wantErr: ErrTransferReceiverQueryInvalid},
+		"self":             {query: "self", requesterID: 4, resolved: &User{ID: 4, Status: StatusActive}, wantErr: ErrTransferReceiverNotFound},
+		"disabled":         {query: "disabled", requesterID: 1, resolved: &User{ID: 5, Status: StatusDisabled}, wantErr: ErrTransferReceiverNotFound},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			users := &transferSafetyUserRepo{resolvedReceiver: tc.resolved}
+			svc := NewBalanceTransferService(&transferSafetyRepo{}, &redPacketSafetyRepo{}, users, settings, nil)
+			_, err := svc.ResolveReceiver(context.Background(), tc.requesterID, tc.query)
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
 }
 
 func TestBalanceTransferEnforcesDailyCountInsideLockedTransaction(t *testing.T) {

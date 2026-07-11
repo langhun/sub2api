@@ -7,32 +7,40 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 var (
-	ErrTransferDisabled         = infraerrors.Forbidden("TRANSFER_DISABLED", "transfer feature is disabled")
-	ErrTransferSelf             = infraerrors.BadRequest("TRANSFER_SELF", "cannot transfer to yourself")
-	ErrTransferAmountInvalid    = infraerrors.BadRequest("TRANSFER_AMOUNT_INVALID", "invalid transfer amount")
-	ErrTransferInsufficient     = infraerrors.BadRequest("TRANSFER_INSUFFICIENT", "insufficient balance")
-	ErrTransferDailyLimit       = infraerrors.Forbidden("TRANSFER_DAILY_LIMIT", "daily transfer limit exceeded")
-	ErrTransferDailyCount       = infraerrors.Forbidden("TRANSFER_DAILY_COUNT", "daily transfer count limit exceeded")
-	ErrTransferReceiverNotFound = infraerrors.NotFound("RECEIVER_NOT_FOUND", "receiver not found")
-	ErrTransferNotFound         = infraerrors.NotFound("TRANSFER_NOT_FOUND", "transfer not found")
-	ErrTransferAlreadyFrozen    = infraerrors.BadRequest("TRANSFER_ALREADY_FROZEN", "transfer already frozen")
-	ErrTransferAlreadyRevoked   = infraerrors.BadRequest("TRANSFER_ALREADY_REVOKED", "transfer already revoked")
-	ErrRedPacketDisabled        = infraerrors.Forbidden("REDPACKET_DISABLED", "red packet feature is disabled")
-	ErrRedPacketNotFound        = infraerrors.NotFound("REDPACKET_NOT_FOUND", "red packet not found")
-	ErrRedPacketExpired         = infraerrors.BadRequest("REDPACKET_EXPIRED", "red packet has expired")
-	ErrRedPacketExhausted       = infraerrors.BadRequest("REDPACKET_EXHAUSTED", "red packet has been fully claimed")
-	ErrRedPacketAlreadyClaimed  = infraerrors.BadRequest("REDPACKET_ALREADY_CLAIMED", "you have already claimed this red packet")
-	ErrRedPacketSelfClaim       = infraerrors.BadRequest("REDPACKET_SELF_CLAIM", "cannot claim your own red packet")
-	ErrRedPacketCountInvalid    = infraerrors.BadRequest("REDPACKET_COUNT_INVALID", "invalid red packet count")
-	ErrRedPacketDetailForbidden = infraerrors.Forbidden("REDPACKET_DETAIL_FORBIDDEN", "red packet detail is only available to its sender or claimants")
+	ErrTransferDisabled             = infraerrors.Forbidden("TRANSFER_DISABLED", "transfer feature is disabled")
+	ErrTransferSelf                 = infraerrors.BadRequest("TRANSFER_SELF", "cannot transfer to yourself")
+	ErrTransferAmountInvalid        = infraerrors.BadRequest("TRANSFER_AMOUNT_INVALID", "invalid transfer amount")
+	ErrTransferInsufficient         = infraerrors.BadRequest("TRANSFER_INSUFFICIENT", "insufficient balance")
+	ErrTransferDailyLimit           = infraerrors.Forbidden("TRANSFER_DAILY_LIMIT", "daily transfer limit exceeded")
+	ErrTransferDailyCount           = infraerrors.Forbidden("TRANSFER_DAILY_COUNT", "daily transfer count limit exceeded")
+	ErrTransferReceiverNotFound     = infraerrors.NotFound("RECEIVER_NOT_FOUND", "receiver not found")
+	ErrTransferReceiverQueryInvalid = infraerrors.BadRequest("RECEIVER_QUERY_INVALID", "receiver query must be a positive user ID or at least 2 characters")
+	ErrTransferReceiverAmbiguous    = infraerrors.Conflict("RECEIVER_AMBIGUOUS", "receiver query matches multiple users; use a user ID or exact email")
+	ErrTransferNotFound             = infraerrors.NotFound("TRANSFER_NOT_FOUND", "transfer not found")
+	ErrTransferAlreadyFrozen        = infraerrors.BadRequest("TRANSFER_ALREADY_FROZEN", "transfer already frozen")
+	ErrTransferAlreadyRevoked       = infraerrors.BadRequest("TRANSFER_ALREADY_REVOKED", "transfer already revoked")
+	ErrRedPacketDisabled            = infraerrors.Forbidden("REDPACKET_DISABLED", "red packet feature is disabled")
+	ErrRedPacketNotFound            = infraerrors.NotFound("REDPACKET_NOT_FOUND", "red packet not found")
+	ErrRedPacketExpired             = infraerrors.BadRequest("REDPACKET_EXPIRED", "red packet has expired")
+	ErrRedPacketExhausted           = infraerrors.BadRequest("REDPACKET_EXHAUSTED", "red packet has been fully claimed")
+	ErrRedPacketAlreadyClaimed      = infraerrors.BadRequest("REDPACKET_ALREADY_CLAIMED", "you have already claimed this red packet")
+	ErrRedPacketSelfClaim           = infraerrors.BadRequest("REDPACKET_SELF_CLAIM", "cannot claim your own red packet")
+	ErrRedPacketCountInvalid        = infraerrors.BadRequest("REDPACKET_COUNT_INVALID", "invalid red packet count")
+	ErrRedPacketDetailForbidden     = infraerrors.Forbidden("REDPACKET_DETAIL_FORBIDDEN", "red packet detail is only available to its sender or claimants")
 )
+
+type transferReceiverResolver interface {
+	ResolveActiveTransferReceiver(ctx context.Context, query string, numericID *int64) (*User, error)
+}
 
 type BalanceTransferService struct {
 	transferRepo        BalanceTransferRepository
@@ -245,6 +253,48 @@ func transferReceiverDisplay(user *User) string {
 	}
 	local := []rune(parts[0])
 	return string(local[:1]) + "***@" + parts[1]
+}
+
+func (s *BalanceTransferService) ResolveReceiver(ctx context.Context, requesterID int64, rawQuery string) (*TransferReceiver, error) {
+	if !s.getTransferSettings(ctx).Enabled {
+		return nil, ErrTransferDisabled
+	}
+	query := strings.TrimSpace(rawQuery)
+	var numericID *int64
+	if query != "" {
+		if id, err := strconv.ParseInt(query, 10, 64); err == nil && id > 0 {
+			numericID = &id
+		} else if isASCIIDigits(query) {
+			return nil, ErrTransferReceiverQueryInvalid
+		}
+	}
+	if numericID == nil && utf8.RuneCountInString(query) < 2 {
+		return nil, ErrTransferReceiverQueryInvalid
+	}
+	resolver, ok := s.userRepo.(transferReceiverResolver)
+	if !ok {
+		return nil, ErrTransferReceiverNotFound
+	}
+	user, err := resolver.ResolveActiveTransferReceiver(ctx, query, numericID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil || user.ID == requesterID || user.Status != StatusActive {
+		return nil, ErrTransferReceiverNotFound
+	}
+	return &TransferReceiver{ReceiverID: user.ID, ReceiverDisplay: transferReceiverDisplay(user)}, nil
+}
+
+func isASCIIDigits(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *BalanceTransferService) GetHistory(ctx context.Context, userID int64, role string, page, pageSize int) ([]*BalanceTransferRecord, int, error) {

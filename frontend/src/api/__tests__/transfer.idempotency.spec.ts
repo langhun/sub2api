@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { post } = vi.hoisted(() => ({ post: vi.fn() }))
-vi.mock('@/api/client', () => ({ apiClient: { post, get: vi.fn() } }))
+const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }))
+vi.mock('@/api/client', () => ({ apiClient: { post, get } }))
 
-import { claimRedPacket, createRedPacket, transferBalance, validateTransfer } from '@/api/transfer'
+import { claimRedPacket, createRedPacket, resolveTransferReceiver, transferBalance, validateTransfer } from '@/api/transfer'
 
 describe('activity write API idempotency', () => {
   beforeEach(() => post.mockReset().mockResolvedValue({ data: {} }))
@@ -17,5 +17,27 @@ describe('activity write API idempotency', () => {
     await request()
     const config = post.mock.calls[0][2]
     expect(config.headers['Idempotency-Key']).toMatch(/^[a-z-]+-.+/)
+  })
+
+  it('uses the operation key supplied by the UI for retried writes', async () => {
+    await transferBalance(2, 10, 'memo', 'balance-transfer-stable')
+    await createRedPacket({ total_amount: 10, count: 2 }, 'redpacket-create-stable')
+    await claimRedPacket('RP-CODE', 'redpacket-claim-stable')
+
+    expect(post.mock.calls.map((call) => call[2].headers['Idempotency-Key'])).toEqual([
+      'balance-transfer-stable',
+      'redpacket-create-stable',
+      'redpacket-claim-stable',
+    ])
+  })
+
+  it('uses the user-scoped receiver resolver endpoint', async () => {
+    get.mockResolvedValueOnce({ data: { receiver_id: 2, receiver_display: 'a***e' } })
+
+    await resolveTransferReceiver('alice@example.com')
+
+    expect(get).toHaveBeenCalledWith('/user/transfer/receiver', {
+      params: { query: 'alice@example.com' },
+    })
   })
 })

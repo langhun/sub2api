@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 
-function idempotencyKey(scope: string): string {
+export function createActivityIdempotencyKey(scope: string): string {
   const suffix = typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -46,12 +46,24 @@ export interface TransferValidation {
   daily_remaining_count?: number
 }
 
-export async function transferBalance(receiverId: number, amount: number, memo?: string): Promise<TransferRecord> {
+export interface TransferReceiver {
+  receiver_id: number
+  receiver_display: string
+}
+
+export async function resolveTransferReceiver(query: string): Promise<TransferReceiver> {
+  const { data } = await apiClient.get<TransferReceiver>('/user/transfer/receiver', {
+    params: { query },
+  })
+  return data
+}
+
+export async function transferBalance(receiverId: number, amount: number, memo?: string, requestKey?: string): Promise<TransferRecord> {
   const { data } = await apiClient.post<TransferRecord>('/user/transfer', {
     receiver_id: receiverId,
     amount,
     memo,
-  }, { headers: { 'Idempotency-Key': idempotencyKey('balance-transfer') } })
+  }, { headers: { 'Idempotency-Key': requestKey || createActivityIdempotencyKey('balance-transfer') } })
   return data
 }
 
@@ -59,12 +71,12 @@ export async function validateTransfer(receiverId: number, amount: number): Prom
   const { data } = await apiClient.post<TransferValidation>('/user/transfer/validate', {
     receiver_id: receiverId,
     amount,
-  }, { headers: { 'Idempotency-Key': idempotencyKey('transfer-validate') } })
+  }, { headers: { 'Idempotency-Key': createActivityIdempotencyKey('transfer-validate') } })
   return data
 }
 
 export async function getTransferHistory(params: {
-  role?: string
+  role?: 'sender' | 'receiver'
   page?: number
   page_size?: number
 }): Promise<{ items: TransferRecord[]; total: number; page: number; page_size: number }> {
@@ -116,13 +128,13 @@ export async function createRedPacket(params: {
   count: number
   redpacket_type?: 'equal' | 'random'
   memo?: string
-}): Promise<RedPacketRecord> {
-  const { data } = await apiClient.post<RedPacketRecord>('/user/redpacket', params, { headers: { 'Idempotency-Key': idempotencyKey('redpacket-create') } })
+}, requestKey?: string): Promise<RedPacketRecord> {
+  const { data } = await apiClient.post<RedPacketRecord>('/user/redpacket', params, { headers: { 'Idempotency-Key': requestKey || createActivityIdempotencyKey('redpacket-create') } })
   return data
 }
 
-export async function claimRedPacket(code: string): Promise<RedPacketClaimRecord> {
-  const { data } = await apiClient.post<RedPacketClaimRecord>('/user/redpacket/claim', { code }, { headers: { 'Idempotency-Key': idempotencyKey('redpacket-claim') } })
+export async function claimRedPacket(code: string, requestKey?: string): Promise<RedPacketClaimRecord> {
+  const { data } = await apiClient.post<RedPacketClaimRecord>('/user/redpacket/claim', { code }, { headers: { 'Idempotency-Key': requestKey || createActivityIdempotencyKey('redpacket-claim') } })
   return data
 }
 
@@ -144,6 +156,7 @@ export async function getMyRedPackets(params: {
 }
 
 export const transferAPI = {
+  resolveTransferReceiver,
   transferBalance,
   validateTransfer,
   getTransferHistory,

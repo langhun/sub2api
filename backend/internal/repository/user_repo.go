@@ -180,6 +180,29 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*service
 	return out, nil
 }
 
+func (r *userRepository) ResolveActiveTransferReceiver(ctx context.Context, query string, numericID *int64) (*service.User, error) {
+	predicates := []predicate.User{dbuser.StatusEQ(service.StatusActive)}
+	if numericID != nil {
+		predicates = append(predicates, dbuser.IDEQ(*numericID))
+	} else {
+		predicates = append(predicates, dbuser.Or(
+			dbuser.EmailEqualFold(query),
+			dbuser.UsernameEqualFold(query),
+		))
+	}
+	users, err := r.client.User.Query().Where(predicates...).Order(dbent.Asc(dbuser.FieldID)).Limit(2).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve active transfer receiver: %w", err)
+	}
+	if len(users) == 0 {
+		return nil, service.ErrTransferReceiverNotFound
+	}
+	if len(users) > 1 {
+		return nil, service.ErrTransferReceiverAmbiguous
+	}
+	return userEntityToService(users[0]), nil
+}
+
 func (r *userRepository) Update(ctx context.Context, userIn *service.User) error {
 	if userIn == nil {
 		return nil

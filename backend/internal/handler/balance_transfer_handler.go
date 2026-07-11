@@ -62,6 +62,20 @@ func (h *BalanceTransferHandler) ValidateTransfer(c *gin.Context) {
 	c.JSON(http.StatusOK, validation)
 }
 
+func (h *BalanceTransferHandler) ResolveReceiver(c *gin.Context) {
+	userID := GetUserIDAware(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	receiver, err := h.transferService.ResolveReceiver(c.Request.Context(), userID, c.Query("query"))
+	if err != nil {
+		WriteAppError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, receiver)
+}
+
 func (h *BalanceTransferHandler) GetHistory(c *gin.Context) {
 	userID := GetUserIDAware(c)
 	if userID == 0 {
