@@ -98,7 +98,7 @@ describe('LeaderboardView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(api.balance).toHaveBeenCalledWith(1, 20)
+    expect(api.balance).toHaveBeenCalledWith(1, 100)
     expect(wrapper.text()).toContain('Balance user')
   })
 
@@ -115,7 +115,7 @@ describe('LeaderboardView', () => {
     await periodButtons[2].trigger('click')
     await flushPromises()
 
-    expect(api.consumption).toHaveBeenLastCalledWith('monthly', 1, 20)
+    expect(api.consumption).toHaveBeenLastCalledWith('monthly', 1, 100)
     expect(wrapper.text()).toContain('Consumption user')
   })
 

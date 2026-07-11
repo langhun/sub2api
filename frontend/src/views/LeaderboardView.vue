@@ -1,66 +1,51 @@
 <template>
   <AppLayout>
     <div class="mx-auto max-w-7xl space-y-5">
-      <header class="flex items-start gap-3">
-        <div
-          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/25 dark:text-primary-400"
-        >
-          <Icon name="chartBar" size="md" />
-        </div>
-        <div class="min-w-0">
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
-            {{ t('leaderboard.title') }}
-          </h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">
-            {{ t('leaderboard.subtitle') }}
-          </p>
-        </div>
-      </header>
-
       <section
         v-if="tabs.length > 0"
-        class="card flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between sm:p-3"
+        class="card flex min-h-[4.75rem] items-center px-4 py-3 sm:px-5"
         :aria-label="t('leaderboard.filterLabel')"
       >
-        <div class="flex min-w-0 overflow-x-auto" role="tablist">
-          <button
-            v-for="tab in tabs"
-            :key="tab.key"
-            type="button"
-            role="tab"
-            :aria-selected="activeTab === tab.key"
-            class="flex min-w-fit items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors sm:px-4"
-            :class="
-              activeTab === tab.key
-                ? 'bg-primary-500 text-white shadow-sm shadow-primary-500/20'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-white'
-            "
-            @click="selectTab(tab.key)"
-          >
-            <Icon :name="tab.icon" size="sm" />
-            {{ tab.label }}
-          </button>
-        </div>
+        <div class="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+          <div class="flex min-w-0 overflow-x-auto" role="tablist">
+            <button
+              v-for="tab in tabs"
+              :key="tab.key"
+              type="button"
+              role="tab"
+              :aria-selected="activeTab === tab.key"
+              class="min-w-fit rounded-full px-3.5 py-2 text-sm font-medium transition-colors sm:px-4"
+              :class="
+                activeTab === tab.key
+                  ? 'bg-primary-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-50 dark:text-dark-200 dark:hover:bg-dark-800'
+              "
+              @click="selectTab(tab.key)"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
 
-        <div
-          v-if="periodic"
-          class="flex shrink-0 items-center gap-1 border-t border-gray-100 pt-2 dark:border-dark-700 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0"
-          :aria-label="t('leaderboard.periodFilterLabel')"
-        >
-          <button
-            v-for="period in periods"
-            :key="period.key"
-            type="button"
-            class="flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors sm:flex-none"
-            :class="
-              activePeriod === period.key
-                ? 'bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-200 dark:bg-primary-900/25 dark:text-primary-300 dark:ring-primary-800'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-dark-100'
-            "
-            @click="selectPeriod(period.key)"
+          <div
+            v-if="periodic"
+            class="flex shrink-0 items-center gap-0.5"
+            :aria-label="t('leaderboard.periodFilterLabel')"
           >
-            {{ period.label }}
-          </button>
+            <button
+              v-for="period in periods"
+              :key="period.key"
+              type="button"
+              class="rounded-md px-3 py-2 text-xs font-medium transition-colors"
+              :class="
+                activePeriod === period.key
+                  ? 'border border-primary-300 bg-primary-50 text-primary-700 dark:border-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
+                  : 'border border-transparent text-gray-700 hover:bg-gray-50 dark:text-dark-200 dark:hover:bg-dark-800'
+              "
+              @click="selectPeriod(period.key)"
+            >
+              {{ period.label }}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -78,34 +63,34 @@
         </p>
       </section>
 
-      <section v-else class="card overflow-hidden">
+      <section v-else class="card overflow-hidden p-4 sm:p-5">
         <div
-          class="flex flex-col gap-4 border-b border-gray-100 px-4 py-4 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+          class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
         >
           <div>
-            <h2 class="text-base font-semibold text-gray-900 dark:text-white">
-              {{ t('leaderboard.distributionTitle', { board: activeTabLabel }) }}
+            <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
+              {{ t('leaderboard.distributionTitle', { board: distributionName }) }}
             </h2>
-            <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-              {{ t('leaderboard.distributionHint') }}
+            <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">
+              {{ distributionHint }}
             </p>
           </div>
 
-          <dl class="grid grid-cols-2 divide-x divide-gray-200 rounded-xl bg-gray-50 dark:divide-dark-700 dark:bg-dark-900/60">
-            <div class="min-w-0 px-4 py-2.5 sm:min-w-36">
+          <dl class="grid grid-cols-2 gap-2">
+            <div class="min-w-0 rounded-xl bg-gray-50 px-3.5 py-2.5 dark:bg-dark-900/60 sm:min-w-36">
               <dt class="text-[11px] font-medium text-gray-500 dark:text-dark-400">
-                {{ t('leaderboard.pageTotal') }}
+                {{ summaryHeader }}
               </dt>
               <dd class="mt-0.5 truncate text-base font-bold text-gray-900 dark:text-white">
-                {{ compactSummaryValue }}
+                {{ loading ? '--' : compactSummaryValue }}
               </dd>
             </div>
-            <div class="min-w-0 px-4 py-2.5 sm:min-w-28">
+            <div class="min-w-0 rounded-xl bg-gray-50 px-3.5 py-2.5 dark:bg-dark-900/60 sm:min-w-28">
               <dt class="text-[11px] font-medium text-gray-500 dark:text-dark-400">
                 {{ t('leaderboard.listedUsers') }}
               </dt>
               <dd class="mt-0.5 truncate text-base font-bold text-gray-900 dark:text-white">
-                {{ formatInteger(total) }}
+                {{ loading ? '--' : formatInteger(total) }}
               </dd>
             </div>
           </dl>
@@ -139,41 +124,23 @@
           </p>
         </div>
 
-        <div v-else class="grid min-w-0 lg:grid-cols-[minmax(17rem,0.72fr)_minmax(0,1.8fr)]">
-          <div
-            class="order-2 flex min-w-0 flex-col items-center justify-start border-t border-gray-100 px-5 py-6 dark:border-dark-700 lg:order-1 lg:border-r lg:border-t-0 lg:py-7"
-          >
-            <div class="relative aspect-square w-full max-w-[13rem] sm:max-w-[15.5rem]">
+        <div v-else class="mt-3 grid min-w-0 gap-6 lg:grid-cols-[minmax(17rem,0.8fr)_minmax(0,1.8fr)]">
+          <div class="flex min-w-0 flex-col items-center justify-start px-2 pb-1 pt-2 sm:px-5 sm:pt-3">
+            <div class="relative aspect-square w-full max-w-[16rem]">
               <Doughnut :data="chartData" :options="chartOptions" />
-              <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-14 text-center">
-                <span class="max-w-full truncate text-xl font-bold text-gray-900 dark:text-white">
-                  {{ compactSummaryValue }}
-                </span>
-                <span class="mt-1 text-[11px] text-gray-500 dark:text-dark-400">
-                  {{ t('leaderboard.currentPageUsers', { count: entries.length }) }}
-                </span>
-              </div>
             </div>
             <p class="mt-5 max-w-xs text-center text-xs leading-5 text-gray-500 dark:text-dark-400">
               {{ t('leaderboard.chartHint') }}
             </p>
           </div>
 
-          <div class="order-1 min-w-0 lg:order-2">
-            <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-dark-700 sm:px-5">
-              <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                {{ t('leaderboard.rankingTitle') }}
-              </h3>
-              <span class="text-xs text-gray-400 dark:text-dark-500">
-                {{ t('leaderboard.currentPage', { page }) }}
-              </span>
-            </div>
-
+          <div class="min-w-0 lg:max-h-[38rem] lg:overflow-y-auto lg:pr-1">
             <div
-              class="hidden grid-cols-[minmax(0,1fr)_7rem_8rem_4.5rem] items-center gap-3 border-b border-gray-100 bg-gray-50/70 px-5 py-2.5 text-[11px] font-medium text-gray-500 dark:border-dark-700 dark:bg-dark-900/35 dark:text-dark-400 sm:grid"
+              class="sticky top-0 z-10 hidden items-center gap-3 border-b border-gray-100 bg-white px-0 py-2.5 text-xs font-medium text-gray-500 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-400 sm:grid"
+              :class="tableGridClass"
             >
-              <span>{{ t('leaderboard.columns.user') }}</span>
-              <span class="text-right">{{ activityHeader }}</span>
+              <span>{{ t('leaderboard.title') }}</span>
+              <span v-if="showsActivityColumn" class="text-right">{{ activityHeader }}</span>
               <span class="text-right">{{ valueHeader }}</span>
               <span class="text-right">{{ t('leaderboard.columns.share') }}</span>
             </div>
@@ -182,15 +149,17 @@
               <li
                 v-for="(entry, index) in entries"
                 :key="`${activeTab}-${entry.rank}-${index}`"
-                class="grid min-h-[4.5rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50/70 dark:hover:bg-dark-800/35 sm:grid-cols-[minmax(0,1fr)_7rem_8rem_4.5rem] sm:px-5"
+                class="grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-2 transition-colors hover:bg-gray-50/70 dark:hover:bg-dark-800/35 sm:px-0"
+                :class="tableGridClass"
               >
                 <div class="flex min-w-0 items-center gap-3">
                   <div
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold"
                     :class="rankClass(entry.rank)"
                     :aria-label="t('leaderboard.rank', { rank: entry.rank })"
                   >
-                    <span>{{ entry.rank }}</span>
+                    <Icon v-if="entry.rank <= 3" name="badge" size="sm" />
+                    <span v-else>{{ entry.rank }}</span>
                   </div>
                   <span
                     class="h-2 w-2 shrink-0 rounded-full"
@@ -204,18 +173,20 @@
                     <p
                       v-if="detailLabel(entry)"
                       class="mt-1 truncate text-xs text-gray-500 dark:text-dark-400"
-                      :class="activeTab === 'checkin' ? '' : 'sm:hidden'"
                     >
                       {{ detailLabel(entry) }}
                     </p>
                   </div>
                 </div>
 
-                <span class="hidden text-right text-sm tabular-nums text-gray-600 dark:text-dark-300 sm:block">
+                <span
+                  v-if="showsActivityColumn"
+                  class="hidden text-right text-sm tabular-nums text-gray-600 dark:text-dark-300 sm:block"
+                >
                   {{ activityValue(entry) }}
                 </span>
                 <span
-                  class="min-w-0 truncate text-right text-sm font-semibold tabular-nums text-primary-600 dark:text-primary-400"
+                  class="min-w-0 truncate text-right text-sm font-medium tabular-nums text-emerald-600 dark:text-emerald-400"
                   :title="preciseValueLabel(entry)"
                 >
                   {{ valueLabel(entry) }}
@@ -238,10 +209,6 @@
         />
       </section>
 
-      <p v-if="tabs.length > 0" class="flex items-start gap-2 text-xs leading-5 text-gray-500 dark:text-dark-400">
-        <Icon name="infoCircle" size="sm" class="mt-0.5 shrink-0" />
-        <span>{{ t('leaderboard.privacyNotice') }}</span>
-      </p>
     </div>
   </AppLayout>
 </template>
@@ -264,7 +231,7 @@ ChartJS.register(ArcElement, Tooltip)
 type TabKey = 'balance' | 'consumption' | 'checkin' | 'transfer'
 type PeriodKey = 'daily' | 'weekly' | 'monthly'
 
-const chartColors = ['#14b8a6', '#3b82f6', '#f59e0b', '#10b981', '#f43f5e', '#8b5cf6', '#06b6d4']
+const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
 const remainderColor = '#94a3b8'
 
 const { t, locale } = useI18n()
@@ -275,7 +242,7 @@ const entries = ref<LeaderboardEntry[]>([])
 const loading = ref(false)
 const error = ref('')
 const page = ref(1)
-const pageSize = 20
+const pageSize = 100
 const total = ref(0)
 let requestSequence = 0
 let ready = false
@@ -286,25 +253,21 @@ const tabs = computed(() => {
     {
       key: 'balance' as const,
       label: t('leaderboard.tabs.balance'),
-      icon: 'dollar' as const,
       enabled: settings?.leaderboard_balance_enabled !== false,
     },
     {
       key: 'consumption' as const,
       label: t('leaderboard.tabs.consumption'),
-      icon: 'chartBar' as const,
       enabled: settings?.leaderboard_consumption_enabled !== false,
     },
     {
       key: 'checkin' as const,
       label: t('leaderboard.tabs.checkin'),
-      icon: 'calendar' as const,
       enabled: settings?.leaderboard_checkin_enabled !== false,
     },
     {
       key: 'transfer' as const,
       label: t('leaderboard.tabs.transfer'),
-      icon: 'swap' as const,
       enabled: settings?.leaderboard_transfer_enabled ?? settings?.transfer_enabled ?? false,
     },
   ].filter((item) => item.enabled)
@@ -317,11 +280,19 @@ const periods = computed(() => [
 ])
 
 const periodic = computed(() => activeTab.value === 'consumption' || activeTab.value === 'transfer')
-const activeTabLabel = computed(() => tabs.value.find((tab) => tab.key === activeTab.value)?.label ?? '')
 const summaryValue = computed(() => entries.value.reduce((sum, entry) => sum + finiteNumber(entry.value), 0))
 const compactSummaryValue = computed(() => formatCompactValue(summaryValue.value))
+const distributionName = computed(() => t(`leaderboard.distributionNames.${activeTab.value}`))
+const distributionHint = computed(() => t(`leaderboard.distributionHints.${activeTab.value}`))
+const summaryHeader = computed(() => t(`leaderboard.summaryHeaders.${activeTab.value}`))
 const activityHeader = computed(() => t(`leaderboard.activityHeaders.${activeTab.value}`))
 const valueHeader = computed(() => t(`leaderboard.valueHeaders.${activeTab.value}`))
+const showsActivityColumn = computed(() => activeTab.value !== 'balance')
+const tableGridClass = computed(() =>
+  showsActivityColumn.value
+    ? 'sm:grid-cols-[minmax(0,1fr)_7rem_8rem_4.5rem]'
+    : 'sm:grid-cols-[minmax(0,1fr)_8rem_4.5rem]',
+)
 
 const chartEntries = computed(() => {
   const visible = entries.value.slice(0, chartColors.length)
@@ -352,7 +323,7 @@ const chartData = computed<ChartData<'doughnut'>>(() => ({
 const chartOptions = computed<ChartOptions<'doughnut'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  cutout: '68%',
+  cutout: '50%',
   plugins: {
     legend: { display: false },
     tooltip: {
@@ -435,7 +406,7 @@ function activityValue(entry: LeaderboardEntry) {
 
 function detailLabel(entry: LeaderboardEntry) {
   if (activeTab.value === 'balance') {
-    return t('leaderboard.balanceSubtitle', { count: entry.extra_int ?? 0 })
+    return ''
   }
   if (activeTab.value === 'consumption') {
     return t('leaderboard.consumptionSubtitle', { count: entry.extra_int ?? 0 })

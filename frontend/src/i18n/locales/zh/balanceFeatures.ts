@@ -19,7 +19,8 @@ export default {
   leaderboard: {
     title: '排行榜', subtitle: '按统一统计口径查看站内活跃排行', empty: '暂无榜单数据', streakDays: '{days} 天', rank: '第 {rank} 名', daysValue: '{value} 天', loadFailed: '排行榜加载失败，请重试', privacyNotice: '榜单昵称已按站点隐私规则处理，数据仅用于站内活动展示。',
     balanceSubtitle: '累计签到 {count} 次', consumptionSubtitle: '{count} 次请求', checkinSubtitle: '累计 {total} 次 · 最近 {date} · 获得 ${reward}', transferSubtitle: '成功转账 {count} 次',
-    filterLabel: '榜单筛选', periodFilterLabel: '统计周期', distributionTitle: '{board}分布', distributionHint: '基于当前页上榜数据计算金额与占比', pageTotal: '当前页总值', listedUsers: '上榜用户', currentPageUsers: '当前页 {count} 人', chartHint: '圆环展示当前页头部用户分布，其余用户合并统计', rankingTitle: '排行明细', currentPage: '第 {page} 页', others: '其他用户', noBoards: '暂无可用榜单', noBoardsHint: '管理员尚未开放任何排行榜，请稍后再试。',
+    filterLabel: '榜单筛选', periodFilterLabel: '统计周期', distributionTitle: '{board}分布', distributionHint: '基于当前页上榜数据计算金额与占比', pageTotal: '当前页总值', listedUsers: '用户数', currentPageUsers: '当前页 {count} 人', chartHint: '悬停圆环切片可查看用户、金额和占比', rankingTitle: '排行明细', currentPage: '第 {page} 页', others: '其他用户', noBoards: '暂无可用榜单', noBoardsHint: '管理员尚未开放任何排行榜，请稍后再试。',
+    distributionNames: { balance: '余额', consumption: '消费', checkin: '签到', transfer: '转账' }, distributionHints: { balance: '查看余额排行用户的金额占比', consumption: '查看当前周期所有消费用户的金额占比', checkin: '查看签到排行用户的连续天数占比', transfer: '查看当前周期所有转账用户的金额占比' }, summaryHeaders: { balance: '金额', consumption: '总金额', checkin: '总天数', transfer: '总金额' },
     columns: { user: '用户', share: '占比' }, activityHeaders: { balance: '签到', consumption: '请求', checkin: '累计签到', transfer: '转账' }, valueHeaders: { balance: '余额', consumption: '消费金额', checkin: '连续天数', transfer: '转出金额' },
     tabs: { balance: '余额排行', consumption: '消耗排行', checkin: '签到排行', transfer: '转账排行' }, periods: { daily: '日榜', weekly: '周榜', monthly: '月榜' }
   },
