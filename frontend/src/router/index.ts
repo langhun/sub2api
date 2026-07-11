@@ -13,6 +13,7 @@ import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
+import { resolveFeatureFlagKey } from '@/utils/featureFlags'
 
 /**
  * Route definitions with lazy loading
@@ -936,7 +937,7 @@ router.beforeEach(async (to, _from, next) => {
 	if (
 		to.meta.requiresFeature &&
 		appStore.publicSettingsLoaded &&
-		appStore.cachedPublicSettings?.[to.meta.requiresFeature] === false
+		!resolveFeatureFlagKey(to.meta.requiresFeature, appStore.cachedPublicSettings)
 	) {
 		next(authStore.isAuthenticated ? (authStore.isAdmin ? '/admin/dashboard' : '/dashboard') : '/login')
 		return
@@ -945,7 +946,7 @@ router.beforeEach(async (to, _from, next) => {
 	if (
 		to.meta.requiresAnyFeature?.length &&
 		appStore.publicSettingsLoaded &&
-		!to.meta.requiresAnyFeature.some((key) => appStore.cachedPublicSettings?.[key] === true)
+		!to.meta.requiresAnyFeature.some((key) => resolveFeatureFlagKey(key, appStore.cachedPublicSettings))
 	) {
 		next(authStore.isAuthenticated ? (authStore.isAdmin ? '/admin/dashboard' : '/dashboard') : '/login')
 		return

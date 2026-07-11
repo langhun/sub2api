@@ -215,4 +215,24 @@ describe('feature route guard', () => {
 		await navigation
 		expect(next).toHaveBeenCalledWith('/dashboard')
 	})
+
+	it('treats a missing opt-in route flag as disabled after settings load', async () => {
+		appStore.cachedPublicSettings = {}
+		appStore.publicSettingsLoaded = true
+
+		const { navigation, next } = runGuard({ requiresFeature: 'game_hall_enabled' }, '/game-hall')
+		await navigation
+
+		expect(next).toHaveBeenCalledWith('/dashboard')
+	})
+
+	it('treats a missing opt-out route flag as enabled after settings load', async () => {
+		appStore.cachedPublicSettings = {}
+		appStore.publicSettingsLoaded = true
+
+		const { navigation, next } = runGuard({ requiresFeature: 'leaderboard_enabled' }, '/leaderboard')
+		await navigation
+
+		expect(next).toHaveBeenCalledWith()
+	})
 })
