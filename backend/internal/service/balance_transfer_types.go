@@ -6,21 +6,23 @@ import (
 )
 
 type BalanceTransferRecord struct {
-	ID           int64      `json:"id"`
-	SenderID     int64      `json:"sender_id"`
-	ReceiverID   int64      `json:"receiver_id"`
-	Amount       float64    `json:"amount"`
-	Fee          float64    `json:"fee"`
-	FeeRate      float64    `json:"fee_rate"`
-	GrossAmount  float64    `json:"gross_amount"`
-	TransferType string     `json:"transfer_type"`
-	Status       string     `json:"status"`
-	Memo         *string    `json:"memo"`
-	RedpacketID  *int64     `json:"redpacket_id"`
-	FrozenAt     *time.Time `json:"frozen_at"`
-	FrozenBy     *int64     `json:"frozen_by"`
-	RevokeReason *string    `json:"revoke_reason"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ID              int64      `json:"id"`
+	SenderID        int64      `json:"sender_id"`
+	ReceiverID      int64      `json:"receiver_id"`
+	SenderDisplay   string     `json:"sender_display"`
+	ReceiverDisplay string     `json:"receiver_display"`
+	Amount          float64    `json:"amount"`
+	Fee             float64    `json:"fee"`
+	FeeRate         float64    `json:"fee_rate"`
+	GrossAmount     float64    `json:"gross_amount"`
+	TransferType    string     `json:"transfer_type"`
+	Status          string     `json:"status"`
+	Memo            *string    `json:"memo"`
+	RedpacketID     *int64     `json:"redpacket_id"`
+	FrozenAt        *time.Time `json:"frozen_at"`
+	FrozenBy        *int64     `json:"frozen_by"`
+	RevokeReason    *string    `json:"revoke_reason"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 type RedPacketRecord struct {
@@ -44,6 +46,7 @@ type RedPacketClaimRecord struct {
 	ID          int64     `json:"id"`
 	RedPacketID int64     `json:"redpacket_id"`
 	UserID      int64     `json:"user_id"`
+	UserDisplay string    `json:"user_display"`
 	Amount      float64   `json:"amount"`
 	TransferID  *int64    `json:"transfer_id"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -67,6 +70,7 @@ type TransferRankEntry struct {
 	Rank        int     `json:"rank"`
 	UserID      int64   `json:"user_id"`
 	Email       string  `json:"email"`
+	DisplayName string  `json:"display_name"`
 	TotalAmount float64 `json:"total_amount"`
 	TotalCount  int     `json:"total_count"`
 }

@@ -31,7 +31,7 @@ function mountView(component: typeof TransferView | typeof RedPacketView) {
         fallbackWarn: false,
         messages: {
           en: {
-            transfer: { receiverResolved: 'Selected {recipient}' },
+            transfer: { receiverResolved: 'Selected {recipient}', toUser: 'To', fromUser: 'From' },
             redpacket: {
               remaining: '{remaining}/{total} portions left',
               validUntil: 'Valid until {date}',
@@ -63,6 +63,18 @@ describe('TransferView', () => {
     expect(wrapper.text()).toContain('$12.00')
     expect(wrapper.text()).toContain('$1.50')
     expect(api.getTransferHistory).toHaveBeenCalledWith({ role: 'sender', page: 1, page_size: 10 })
+  })
+
+  it('renders the counterparty display name instead of a raw user id', async () => {
+    api.getTransferHistory.mockResolvedValue({
+      items: [{ id: 1, sender_id: 1, receiver_id: 10, sender_display: 'Current User', receiver_display: 'Alice', amount: 5, fee: 0, fee_rate: 0, gross_amount: 5, transfer_type: 'direct', status: 'completed', memo: null, redpacket_id: null, created_at: '2026-07-11T00:00:00Z' }],
+      total: 1, page: 1, page_size: 10,
+    })
+    const wrapper = mountView(TransferView)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).not.toContain('#10')
   })
 
   it('resolves a receiver and validates the fee preview', async () => {
@@ -145,7 +157,7 @@ describe('RedPacketView', () => {
       items: [{ id: 9, sender_id: 1, total_amount: 20, total_count: 4, remaining_amount: 10, remaining_count: 2, redpacket_type: 'random', fee: 0, fee_rate: 0, code: 'RP-TEST-CODE', status: 'active', memo: 'Best wishes', expire_at: '2026-07-12T00:00:00Z', created_at: '2026-07-11T00:00:00Z' }],
       total: 1, page: 1, page_size: 10,
     })
-    api.getRedPacketDetail.mockResolvedValue({ redpacket: {}, claims: [{ id: 3, redpacket_id: 9, user_id: 7, amount: 5, transfer_id: 12, created_at: '2026-07-11T01:00:00Z' }] })
+    api.getRedPacketDetail.mockResolvedValue({ redpacket: {}, claims: [{ id: 3, redpacket_id: 9, user_id: 7, user_display: 'Bob', amount: 5, transfer_id: 12, created_at: '2026-07-11T01:00:00Z' }] })
   })
 
   it('renders the hero, action entries, packet code, and claim progress', async () => {
@@ -165,7 +177,8 @@ describe('RedPacketView', () => {
     await wrapper.find('article > button').trigger('click')
     await flushPromises()
     expect(api.getRedPacketDetail).toHaveBeenCalledWith(9)
-    expect(wrapper.text()).toContain('#7')
+    expect(wrapper.text()).toContain('Bob')
+    expect(wrapper.text()).not.toContain('#7')
     expect(wrapper.text()).toContain('$5.00')
   })
 

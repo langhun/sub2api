@@ -88,7 +88,7 @@
         <div v-else class="divide-y divide-gray-100 dark:divide-dark-700">
           <div v-for="record in history" :key="record.id" class="flex items-center justify-between gap-4 px-5 py-4">
             <div class="min-w-0">
-              <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ historyRole === 'sender' ? t('transfer.toUser', { id: record.receiver_id }) : t('transfer.fromUser', { id: record.sender_id }) }}</p>
+              <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ historyRole === 'sender' ? t('transfer.toUser') : t('transfer.fromUser') }} {{ historyRole === 'sender' ? record.receiver_display : record.sender_display }}</p>
               <p class="mt-1 truncate text-xs text-gray-500 dark:text-dark-400">{{ transferTypeLabel(record.transfer_type) }} · #{{ record.id }} · {{ dateTime(record.created_at) }}<span v-if="record.memo"> · {{ record.memo }}</span></p>
             </div>
             <div class="shrink-0 text-right"><p class="font-semibold" :class="historyRole === 'sender' ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'">{{ historyRole === 'sender' ? '-' : '+' }}{{ money(record.amount) }}</p><p class="mt-1 text-xs text-gray-500">{{ t(`transfer.status.${record.status}`, record.status) }}</p></div>

@@ -123,7 +123,7 @@
                 <h3 class="text-xs font-semibold text-gray-700 dark:text-dark-200">{{ t('redpacket.claimRecords') }}</h3>
                 <div class="mt-2 max-h-44 divide-y divide-gray-100 overflow-y-auto dark:divide-dark-700">
                   <div v-for="claim in detailClaims" :key="claim.id" class="flex items-center justify-between py-2 text-xs">
-                    <span class="text-gray-500 dark:text-dark-400">#{{ claim.user_id }} · {{ dateTime(claim.created_at) }}</span>
+                    <span class="text-gray-500 dark:text-dark-400">{{ claim.user_display }} · {{ dateTime(claim.created_at) }}</span>
                     <strong class="text-gray-900 dark:text-white">{{ money(claim.amount) }}</strong>
                   </div>
                 </div>

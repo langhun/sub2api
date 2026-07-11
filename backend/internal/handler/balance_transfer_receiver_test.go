@@ -49,7 +49,7 @@ func TestBalanceTransferHandlerResolveReceiver(t *testing.T) {
 		h.ResolveReceiver(c)
 
 		require.Equal(t, http.StatusOK, w.Code)
-		require.JSONEq(t, `{"receiver_id":9,"receiver_display":"a***e"}`, w.Body.String())
+		require.JSONEq(t, `{"receiver_id":9,"receiver_display":"alice"}`, w.Body.String())
 	})
 
 	t.Run("rejects short nonnumeric query", func(t *testing.T) {

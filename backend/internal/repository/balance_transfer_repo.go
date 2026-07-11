@@ -132,7 +132,7 @@ func (r *balanceTransferRepo) ListByUser(ctx context.Context, userID int64, role
 		))
 	}
 	query := client.BalanceTransfer.Query().Where(preds...).Order(dbent.Desc(balancetransfer.FieldCreatedAt))
-	return r.queryWithPagination(ctx, query, page, pageSize)
+	return r.queryWithPagination(ctx, client, query, page, pageSize)
 }
 
 func (r *balanceTransferRepo) ListAll(ctx context.Context, filter *service.TransferFilter, page, pageSize int) ([]*service.BalanceTransferRecord, int, error) {
@@ -159,7 +159,7 @@ func (r *balanceTransferRepo) ListAll(ctx context.Context, filter *service.Trans
 		}
 	}
 	query := client.BalanceTransfer.Query().Where(preds...).Order(dbent.Desc(balancetransfer.FieldCreatedAt))
-	return r.queryWithPagination(ctx, query, page, pageSize)
+	return r.queryWithPagination(ctx, client, query, page, pageSize)
 }
 
 func (r *balanceTransferRepo) GetDailyTransferTotal(ctx context.Context, userID int64) (float64, int, error) {
@@ -214,7 +214,7 @@ func (r *balanceTransferRepo) GetLeaderboard(ctx context.Context, startTime, end
 		col = "COUNT(*)"
 	}
 	query := fmt.Sprintf(
-		"SELECT u.id, u.email, COALESCE(SUM(bt.amount),0) as total_amount, COUNT(*) as total_count FROM balance_transfers bt JOIN users u ON u.id = bt.sender_id WHERE bt.status = 'completed' AND bt.transfer_type = 'direct' AND bt.created_at >= $1 AND bt.created_at < $2 GROUP BY u.id, u.email ORDER BY %s DESC LIMIT $3",
+		"SELECT u.id, u.username, u.email, COALESCE(SUM(bt.amount),0) as total_amount, COUNT(*) as total_count FROM balance_transfers bt JOIN users u ON u.id = bt.sender_id WHERE bt.status = 'completed' AND bt.transfer_type = 'direct' AND bt.created_at >= $1 AND bt.created_at < $2 GROUP BY u.id, u.username, u.email ORDER BY %s DESC LIMIT $3",
 		col,
 	)
 	rows, err := r.db.QueryContext(ctx, query, startTime, endTime, limit)
@@ -226,9 +226,11 @@ func (r *balanceTransferRepo) GetLeaderboard(ctx context.Context, startTime, end
 	rank := 1
 	for rows.Next() {
 		var e service.TransferRankEntry
-		if err := rows.Scan(&e.UserID, &e.Email, &e.TotalAmount, &e.TotalCount); err != nil {
+		var username string
+		if err := rows.Scan(&e.UserID, &username, &e.Email, &e.TotalAmount, &e.TotalCount); err != nil {
 			return nil, err
 		}
+		e.DisplayName = service.UserDisplayName(username, e.Email, e.UserID)
 		e.Email = maskTransferEmail(e.Email)
 		e.Rank = rank
 		rank++
@@ -245,7 +247,7 @@ func maskTransferEmail(email string) string {
 	return email[:1] + "***" + email[at:]
 }
 
-func (r *balanceTransferRepo) queryWithPagination(ctx context.Context, query *dbent.BalanceTransferQuery, page, pageSize int) ([]*service.BalanceTransferRecord, int, error) {
+func (r *balanceTransferRepo) queryWithPagination(ctx context.Context, client *dbent.Client, query *dbent.BalanceTransferQuery, page, pageSize int) ([]*service.BalanceTransferRecord, int, error) {
 	total, err := query.Count(ctx)
 	if err != nil {
 		return nil, 0, err
@@ -256,8 +258,24 @@ func (r *balanceTransferRepo) queryWithPagination(ctx context.Context, query *db
 		return nil, 0, err
 	}
 	records := make([]*service.BalanceTransferRecord, len(items))
+	userIDs := make([]int64, 0, len(items)*2)
 	for i, item := range items {
 		records[i] = toTransferRecord(item)
+		userIDs = append(userIDs, item.SenderID, item.ReceiverID)
+	}
+	displays, err := queryUserDisplayNames(ctx, client, userIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, record := range records {
+		record.SenderDisplay = displays[record.SenderID]
+		if record.SenderDisplay == "" {
+			record.SenderDisplay = service.UserDisplayName("", "", record.SenderID)
+		}
+		record.ReceiverDisplay = displays[record.ReceiverID]
+		if record.ReceiverDisplay == "" {
+			record.ReceiverDisplay = service.UserDisplayName("", "", record.ReceiverID)
+		}
 	}
 	return records, total, nil
 }

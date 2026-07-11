@@ -41,24 +41,24 @@ func TestLeaderboardGetCheckinCountsSkipsQueryForEmptyPage(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestMaskLeaderboardUsername(t *testing.T) {
+func TestLeaderboardUserDisplay(t *testing.T) {
 	tests := []struct {
 		name     string
 		username string
 		email    string
 		want     string
 	}{
-		{name: "username", username: "alice", email: "ignored@example.com", want: "a***e"},
-		{name: "unicode username", username: "张小明", want: "张***明"},
-		{name: "two runes", username: "阿明", want: "阿*"},
-		{name: "email local part", email: "person@example.com", want: "p***n"},
-		{name: "single character", username: "x", want: "*"},
+		{name: "username", username: "alice", email: "ignored@example.com", want: "alice"},
+		{name: "unicode username", username: "张小明", want: "张小明"},
+		{name: "two runes", username: "阿明", want: "阿明"},
+		{name: "email fallback", email: "person@example.com", want: "person@example.com"},
+		{name: "single character", username: "x", want: "x"},
 		{name: "anonymous fallback", want: "user"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			require.Equal(t, test.want, maskUsername(test.username, test.email))
+			require.Equal(t, test.want, leaderboardUserDisplay(test.username, test.email))
 		})
 	}
 }

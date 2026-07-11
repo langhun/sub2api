@@ -12,7 +12,7 @@
       class="flex items-center gap-4 rounded-lg bg-white dark:bg-gray-800 p-4 shadow mb-2">
       <div class="text-2xl font-bold w-8 text-center" :class="i < 3 ? 'text-yellow-500' : 'text-gray-400'">{{ entry.rank }}</div>
       <div class="flex-1">
-        <div class="text-sm font-medium">{{ entry.email }}</div>
+        <div class="text-sm font-medium">{{ entry.display_name }}</div>
         <div class="text-xs text-gray-500">{{ entry.total_count }} 笔</div>
       </div>
       <div class="text-right">

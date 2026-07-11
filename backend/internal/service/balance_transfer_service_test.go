@@ -238,7 +238,7 @@ func TestBalanceTransferResolveReceiverSupportsNumericIDAndExactIdentity(t *test
 		result, err := svc.ResolveReceiver(context.Background(), 1, "7")
 		require.NoError(t, err)
 		require.Equal(t, int64(7), result.ReceiverID)
-		require.Equal(t, "a***e", result.ReceiverDisplay)
+		require.Equal(t, "alice", result.ReceiverDisplay)
 		require.NotNil(t, users.resolveNumericID)
 		require.Equal(t, int64(7), *users.resolveNumericID)
 	})
@@ -250,7 +250,7 @@ func TestBalanceTransferResolveReceiverSupportsNumericIDAndExactIdentity(t *test
 		require.NoError(t, err)
 		require.Equal(t, "Alice@Example.com", users.resolveQuery)
 		require.Nil(t, users.resolveNumericID)
-		require.Equal(t, "a***@example.com", result.ReceiverDisplay)
+		require.Equal(t, "alice@example.com", result.ReceiverDisplay)
 	})
 }
 
@@ -432,7 +432,7 @@ func TestValidateTransferReturnsReceiverAndDailyPreview(t *testing.T) {
 	require.NoError(t, err)
 	require.InDelta(t, 1, preview.Fee, 1e-8)
 	require.InDelta(t, 11, preview.GrossAmount, 1e-8)
-	require.Equal(t, "a***e", preview.ReceiverDisplay)
+	require.Equal(t, "alice", preview.ReceiverDisplay)
 	require.InDelta(t, 75, preview.DailyRemainingAmount, 1e-8)
 	require.Equal(t, 3, preview.DailyRemainingCount)
 }

@@ -159,6 +159,7 @@ func (r *balanceRedPacketRepo) GetClaims(ctx context.Context, redpacketID int64)
 		return nil, err
 	}
 	claims := make([]*service.RedPacketClaimRecord, len(items))
+	userIDs := make([]int64, 0, len(items))
 	for i, c := range items {
 		claims[i] = &service.RedPacketClaimRecord{
 			ID:          c.ID,
@@ -167,6 +168,17 @@ func (r *balanceRedPacketRepo) GetClaims(ctx context.Context, redpacketID int64)
 			Amount:      c.Amount,
 			TransferID:  c.TransferID,
 			CreatedAt:   c.CreatedAt,
+		}
+		userIDs = append(userIDs, c.UserID)
+	}
+	displays, err := queryUserDisplayNames(ctx, client, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	for _, claim := range claims {
+		claim.UserDisplay = displays[claim.UserID]
+		if claim.UserDisplay == "" {
+			claim.UserDisplay = service.UserDisplayName("", "", claim.UserID)
 		}
 	}
 	return claims, nil
