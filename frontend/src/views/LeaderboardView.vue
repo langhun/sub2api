@@ -233,7 +233,18 @@ ChartJS.register(ArcElement, Tooltip)
 type TabKey = 'balance' | 'consumption' | 'checkin' | 'transfer'
 type PeriodKey = 'daily' | 'weekly' | 'monthly'
 
-const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
+const chartColors = [
+  '#3b82f6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#8b5cf6',
+  '#ec4899',
+  '#14b8a6',
+  '#f97316',
+  '#6366f1',
+  '#84cc16',
+]
 const remainderColor = '#94a3b8'
 
 const { t, locale } = useI18n()
@@ -292,8 +303,8 @@ const valueHeader = computed(() => t(`leaderboard.valueHeaders.${activeTab.value
 const showsActivityColumn = computed(() => activeTab.value !== 'balance')
 const tableGridClass = computed(() =>
   showsActivityColumn.value
-    ? 'sm:grid-cols-[minmax(0,1fr)_7rem_8rem_4.5rem]'
-    : 'sm:grid-cols-[minmax(0,1fr)_8rem_4.5rem]',
+    ? 'sm:grid-cols-[minmax(0,1fr)_7rem_11.5rem_4.5rem]'
+    : 'sm:grid-cols-[minmax(0,1fr)_11.5rem_4.5rem]',
 )
 
 const chartEntries = computed(() => {
@@ -354,14 +365,41 @@ function formatInteger(value: number) {
   return numberFormatter({ maximumFractionDigits: 0 }).format(finiteNumber(value))
 }
 
-function formatCurrency(value: number, compact = false) {
+function formatCurrency(value: number, compact = false): string {
   const safeValue = finiteNumber(value)
+  if (compact) return formatCompactCurrency(safeValue)
+
   const formatted = numberFormatter({
-    notation: compact ? 'compact' : 'standard',
-    minimumFractionDigits: compact ? 0 : 2,
-    maximumFractionDigits: compact ? 2 : activeTab.value === 'transfer' ? 4 : 2,
+    notation: 'standard',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: activeTab.value === 'transfer' ? 4 : 2,
   }).format(Math.abs(safeValue))
   return `${safeValue < 0 ? '-' : ''}$${formatted}`
+}
+
+function formatCompactCurrency(value: number): string {
+  const safeValue = finiteNumber(value)
+  const absoluteValue = Math.abs(safeValue)
+  const units = [
+    { threshold: 1_000_000_000_000, divisor: 1_000_000_000_000, suffix: 'T' },
+    { threshold: 1_000_000_000, divisor: 1_000_000_000, suffix: 'B' },
+    { threshold: 1_000_000, divisor: 1_000_000, suffix: 'M' },
+    { threshold: 1_000, divisor: 1_000, suffix: 'K' },
+  ]
+  const unit = units.find((item) => absoluteValue >= item.threshold)
+  const sign = safeValue < 0 ? '-' : ''
+
+  if (!unit) return formatCurrency(safeValue)
+
+  const compactNumber = (absoluteValue / unit.divisor).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')
+  const englishValue = `${sign}$${compactNumber}${unit.suffix}`
+  if (!locale.value.toLowerCase().startsWith('zh')) return englishValue
+
+  const chineseValue = new Intl.NumberFormat('zh-CN', {
+    notation: 'compact',
+    maximumFractionDigits: 2,
+  }).format(absoluteValue)
+  return `${englishValue}（${chineseValue}）`
 }
 
 function formatValue(value: number) {
@@ -393,13 +431,13 @@ function rankMedal(rank: number) {
 }
 
 function entryColor(index: number) {
-  return index < chartColors.length ? chartColors[index] : remainderColor
+  return chartColors[index % chartColors.length]
 }
 
 function valueLabel(entry: LeaderboardEntry) {
   const value = finiteNumber(entry.value)
   if (activeTab.value === 'checkin') return formatValue(value)
-  return formatCurrency(value, Math.abs(value) >= 1_000_000)
+  return formatCurrency(value, Math.abs(value) >= 10_000)
 }
 
 function preciseValueLabel(entry: LeaderboardEntry) {

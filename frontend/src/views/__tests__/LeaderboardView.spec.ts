@@ -63,10 +63,10 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-function mountView() {
+function mountView(locale = 'en') {
   return mount(LeaderboardView, {
     global: {
-      plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })],
+      plugins: [createI18n({ legacy: false, locale, missingWarn: false, fallbackWarn: false, messages: { en: {}, 'zh-CN': {} } })],
       stubs: {
         AppLayout: AppLayoutStub,
         Icon: true,
@@ -101,6 +101,15 @@ describe('LeaderboardView', () => {
     expect(api.balance).toHaveBeenCalledWith(1, 100)
     expect(wrapper.text()).toContain('Balance user')
     expect(wrapper.text()).toContain('🥇')
+  })
+
+  it('shows English and Chinese compact units for large amounts in Chinese', async () => {
+    api.balance.mockResolvedValue(page('Large balance user', 58_770_000_000_000))
+
+    const wrapper = mountView('zh-CN')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('$58.77T（58.77万亿）')
   })
 
   it('requests the selected period for the consumption board', async () => {
