@@ -67,6 +67,7 @@ export default {
     noGroupsAvailable: '无可用分组',
     unknownError: '发生未知错误',
     saving: '保存中...',
+    loadMore: '加载更多',
     selectedCount: '（已选 {count} 个）',
     refresh: '刷新',
     autoRefresh: {
@@ -190,6 +191,12 @@ export default {
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',
     riskControl: '风控中心',
+    checkin: '签到中心',
+    transfer: '余额转账',
+    redpacket: '红包中心',
+    leaderboard: '排行榜',
+    transferLeaderboard: '转账排行榜',
+    transferManage: '转账管理',
   },
 
   // Auth

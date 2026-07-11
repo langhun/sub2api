@@ -221,6 +221,17 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeyAffiliateEnabled,
+		SettingKeyCheckinEnabled,
+		SettingKeyCheckinLuckEnabled,
+		SettingKeyCheckinBlindboxEnabled,
+		SettingKeyTransferEnabled,
+		SettingKeyRedPacketEnabled,
+		SettingKeyUsageQueryEnabled,
+		SettingKeyLeaderboardEnabled,
+		SettingKeyLeaderboardBalanceEnabled,
+		SettingKeyLeaderboardConsumptionEnabled,
+		SettingKeyLeaderboardCheckinEnabled,
+		SettingKeyLeaderboardIncludeAdmin,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
 	}
@@ -332,7 +343,18 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
-		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
+		AffiliateEnabled:              settings[SettingKeyAffiliateEnabled] == "true",
+		CheckinEnabled:                settings[SettingKeyCheckinEnabled] == "true",
+		CheckinLuckEnabled:            settings[SettingKeyCheckinLuckEnabled] == "true",
+		CheckinBlindboxEnabled:        settings[SettingKeyCheckinBlindboxEnabled] == "true",
+		TransferEnabled:               settings[SettingKeyTransferEnabled] == "true",
+		RedPacketEnabled:              settings[SettingKeyRedPacketEnabled] == "true",
+		UsageQueryEnabled:             settings[SettingKeyUsageQueryEnabled] != "false",
+		LeaderboardEnabled:            settings[SettingKeyLeaderboardEnabled] != "false",
+		LeaderboardBalanceEnabled:     settings[SettingKeyLeaderboardBalanceEnabled] != "false",
+		LeaderboardConsumptionEnabled: settings[SettingKeyLeaderboardConsumptionEnabled] != "false",
+		LeaderboardCheckinEnabled:     settings[SettingKeyLeaderboardCheckinEnabled] != "false",
+		LeaderboardIncludeAdmin:       settings[SettingKeyLeaderboardIncludeAdmin] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
@@ -495,6 +517,17 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
+	CheckinEnabled                       bool `json:"checkin_enabled"`
+	CheckinLuckEnabled                   bool `json:"checkin_luck_enabled"`
+	CheckinBlindboxEnabled               bool `json:"checkin_blindbox_enabled"`
+	TransferEnabled                      bool `json:"transfer_enabled"`
+	RedPacketEnabled                     bool `json:"redpacket_enabled"`
+	UsageQueryEnabled                    bool `json:"usage_query_enabled"`
+	LeaderboardEnabled                   bool `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled            bool `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled        bool `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled            bool `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin              bool `json:"leaderboard_include_admin"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
 }
@@ -560,6 +593,17 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
+		CheckinEnabled:                       settings.CheckinEnabled,
+		CheckinLuckEnabled:                   settings.CheckinLuckEnabled,
+		CheckinBlindboxEnabled:               settings.CheckinBlindboxEnabled,
+		TransferEnabled:                      settings.TransferEnabled,
+		RedPacketEnabled:                     settings.RedPacketEnabled,
+		UsageQueryEnabled:                    settings.UsageQueryEnabled,
+		LeaderboardEnabled:                   settings.LeaderboardEnabled,
+		LeaderboardBalanceEnabled:            settings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled:        settings.LeaderboardConsumptionEnabled,
+		LeaderboardCheckinEnabled:            settings.LeaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:              settings.LeaderboardIncludeAdmin,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil

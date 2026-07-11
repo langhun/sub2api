@@ -22,6 +22,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacketclaim"
+	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/batchimageevent"
 	"github.com/Wei-Shaw/sub2api/ent/batchimageitem"
 	"github.com/Wei-Shaw/sub2api/ent/batchimagejob"
@@ -29,6 +32,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/checkin"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -76,6 +82,12 @@ type Client struct {
 	AuthIdentity *AuthIdentityClient
 	// AuthIdentityChannel is the client for interacting with the AuthIdentityChannel builders.
 	AuthIdentityChannel *AuthIdentityChannelClient
+	// BalanceRedPacket is the client for interacting with the BalanceRedPacket builders.
+	BalanceRedPacket *BalanceRedPacketClient
+	// BalanceRedPacketClaim is the client for interacting with the BalanceRedPacketClaim builders.
+	BalanceRedPacketClaim *BalanceRedPacketClaimClient
+	// BalanceTransfer is the client for interacting with the BalanceTransfer builders.
+	BalanceTransfer *BalanceTransferClient
 	// BatchImageEvent is the client for interacting with the BatchImageEvent builders.
 	BatchImageEvent *BatchImageEventClient
 	// BatchImageItem is the client for interacting with the BatchImageItem builders.
@@ -90,6 +102,12 @@ type Client struct {
 	ChannelMonitorHistory *ChannelMonitorHistoryClient
 	// ChannelMonitorRequestTemplate is the client for interacting with the ChannelMonitorRequestTemplate builders.
 	ChannelMonitorRequestTemplate *ChannelMonitorRequestTemplateClient
+	// Checkin is the client for interacting with the Checkin builders.
+	Checkin *CheckinClient
+	// CheckinBlindboxRecord is the client for interacting with the CheckinBlindboxRecord builders.
+	CheckinBlindboxRecord *CheckinBlindboxRecordClient
+	// CheckinPrizeItem is the client for interacting with the CheckinPrizeItem builders.
+	CheckinPrizeItem *CheckinPrizeItemClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -156,6 +174,9 @@ func (c *Client) init() {
 	c.AnnouncementRead = NewAnnouncementReadClient(c.config)
 	c.AuthIdentity = NewAuthIdentityClient(c.config)
 	c.AuthIdentityChannel = NewAuthIdentityChannelClient(c.config)
+	c.BalanceRedPacket = NewBalanceRedPacketClient(c.config)
+	c.BalanceRedPacketClaim = NewBalanceRedPacketClaimClient(c.config)
+	c.BalanceTransfer = NewBalanceTransferClient(c.config)
 	c.BatchImageEvent = NewBatchImageEventClient(c.config)
 	c.BatchImageItem = NewBatchImageItemClient(c.config)
 	c.BatchImageJob = NewBatchImageJobClient(c.config)
@@ -163,6 +184,9 @@ func (c *Client) init() {
 	c.ChannelMonitorDailyRollup = NewChannelMonitorDailyRollupClient(c.config)
 	c.ChannelMonitorHistory = NewChannelMonitorHistoryClient(c.config)
 	c.ChannelMonitorRequestTemplate = NewChannelMonitorRequestTemplateClient(c.config)
+	c.Checkin = NewCheckinClient(c.config)
+	c.CheckinBlindboxRecord = NewCheckinBlindboxRecordClient(c.config)
+	c.CheckinPrizeItem = NewCheckinPrizeItemClient(c.config)
 	c.ErrorPassthroughRule = NewErrorPassthroughRuleClient(c.config)
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
@@ -286,6 +310,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AnnouncementRead:              NewAnnouncementReadClient(cfg),
 		AuthIdentity:                  NewAuthIdentityClient(cfg),
 		AuthIdentityChannel:           NewAuthIdentityChannelClient(cfg),
+		BalanceRedPacket:              NewBalanceRedPacketClient(cfg),
+		BalanceRedPacketClaim:         NewBalanceRedPacketClaimClient(cfg),
+		BalanceTransfer:               NewBalanceTransferClient(cfg),
 		BatchImageEvent:               NewBatchImageEventClient(cfg),
 		BatchImageItem:                NewBatchImageItemClient(cfg),
 		BatchImageJob:                 NewBatchImageJobClient(cfg),
@@ -293,6 +320,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
+		Checkin:                       NewCheckinClient(cfg),
+		CheckinBlindboxRecord:         NewCheckinBlindboxRecordClient(cfg),
+		CheckinPrizeItem:              NewCheckinPrizeItemClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
@@ -343,6 +373,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AnnouncementRead:              NewAnnouncementReadClient(cfg),
 		AuthIdentity:                  NewAuthIdentityClient(cfg),
 		AuthIdentityChannel:           NewAuthIdentityChannelClient(cfg),
+		BalanceRedPacket:              NewBalanceRedPacketClient(cfg),
+		BalanceRedPacketClaim:         NewBalanceRedPacketClaimClient(cfg),
+		BalanceTransfer:               NewBalanceTransferClient(cfg),
 		BatchImageEvent:               NewBatchImageEventClient(cfg),
 		BatchImageItem:                NewBatchImageItemClient(cfg),
 		BatchImageJob:                 NewBatchImageJobClient(cfg),
@@ -350,6 +383,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
+		Checkin:                       NewCheckinClient(cfg),
+		CheckinBlindboxRecord:         NewCheckinBlindboxRecordClient(cfg),
+		CheckinPrizeItem:              NewCheckinPrizeItemClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
@@ -404,10 +440,12 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
-		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
-		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
+		c.AuthIdentity, c.AuthIdentityChannel, c.BalanceRedPacket,
+		c.BalanceRedPacketClaim, c.BalanceTransfer, c.BatchImageEvent,
+		c.BatchImageItem, c.BatchImageJob, c.ChannelMonitor,
+		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
+		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
+		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
@@ -424,10 +462,12 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIKey, c.Account, c.AccountGroup, c.Announcement, c.AnnouncementRead,
-		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
-		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
-		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
+		c.AuthIdentity, c.AuthIdentityChannel, c.BalanceRedPacket,
+		c.BalanceRedPacketClaim, c.BalanceTransfer, c.BatchImageEvent,
+		c.BatchImageItem, c.BatchImageJob, c.ChannelMonitor,
+		c.ChannelMonitorDailyRollup, c.ChannelMonitorHistory,
+		c.ChannelMonitorRequestTemplate, c.Checkin, c.CheckinBlindboxRecord,
+		c.CheckinPrizeItem, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
@@ -456,6 +496,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AuthIdentity.mutate(ctx, m)
 	case *AuthIdentityChannelMutation:
 		return c.AuthIdentityChannel.mutate(ctx, m)
+	case *BalanceRedPacketMutation:
+		return c.BalanceRedPacket.mutate(ctx, m)
+	case *BalanceRedPacketClaimMutation:
+		return c.BalanceRedPacketClaim.mutate(ctx, m)
+	case *BalanceTransferMutation:
+		return c.BalanceTransfer.mutate(ctx, m)
 	case *BatchImageEventMutation:
 		return c.BatchImageEvent.mutate(ctx, m)
 	case *BatchImageItemMutation:
@@ -470,6 +516,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ChannelMonitorHistory.mutate(ctx, m)
 	case *ChannelMonitorRequestTemplateMutation:
 		return c.ChannelMonitorRequestTemplate.mutate(ctx, m)
+	case *CheckinMutation:
+		return c.Checkin.mutate(ctx, m)
+	case *CheckinBlindboxRecordMutation:
+		return c.CheckinBlindboxRecord.mutate(ctx, m)
+	case *CheckinPrizeItemMutation:
+		return c.CheckinPrizeItem.mutate(ctx, m)
 	case *ErrorPassthroughRuleMutation:
 		return c.ErrorPassthroughRule.mutate(ctx, m)
 	case *GroupMutation:
@@ -1697,6 +1749,485 @@ func (c *AuthIdentityChannelClient) mutate(ctx context.Context, m *AuthIdentityC
 	}
 }
 
+// BalanceRedPacketClient is a client for the BalanceRedPacket schema.
+type BalanceRedPacketClient struct {
+	config
+}
+
+// NewBalanceRedPacketClient returns a client for the BalanceRedPacket from the given config.
+func NewBalanceRedPacketClient(c config) *BalanceRedPacketClient {
+	return &BalanceRedPacketClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `balanceredpacket.Hooks(f(g(h())))`.
+func (c *BalanceRedPacketClient) Use(hooks ...Hook) {
+	c.hooks.BalanceRedPacket = append(c.hooks.BalanceRedPacket, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `balanceredpacket.Intercept(f(g(h())))`.
+func (c *BalanceRedPacketClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BalanceRedPacket = append(c.inters.BalanceRedPacket, interceptors...)
+}
+
+// Create returns a builder for creating a BalanceRedPacket entity.
+func (c *BalanceRedPacketClient) Create() *BalanceRedPacketCreate {
+	mutation := newBalanceRedPacketMutation(c.config, OpCreate)
+	return &BalanceRedPacketCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BalanceRedPacket entities.
+func (c *BalanceRedPacketClient) CreateBulk(builders ...*BalanceRedPacketCreate) *BalanceRedPacketCreateBulk {
+	return &BalanceRedPacketCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BalanceRedPacketClient) MapCreateBulk(slice any, setFunc func(*BalanceRedPacketCreate, int)) *BalanceRedPacketCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BalanceRedPacketCreateBulk{err: fmt.Errorf("calling to BalanceRedPacketClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BalanceRedPacketCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BalanceRedPacketCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BalanceRedPacket.
+func (c *BalanceRedPacketClient) Update() *BalanceRedPacketUpdate {
+	mutation := newBalanceRedPacketMutation(c.config, OpUpdate)
+	return &BalanceRedPacketUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BalanceRedPacketClient) UpdateOne(_m *BalanceRedPacket) *BalanceRedPacketUpdateOne {
+	mutation := newBalanceRedPacketMutation(c.config, OpUpdateOne, withBalanceRedPacket(_m))
+	return &BalanceRedPacketUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BalanceRedPacketClient) UpdateOneID(id int64) *BalanceRedPacketUpdateOne {
+	mutation := newBalanceRedPacketMutation(c.config, OpUpdateOne, withBalanceRedPacketID(id))
+	return &BalanceRedPacketUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BalanceRedPacket.
+func (c *BalanceRedPacketClient) Delete() *BalanceRedPacketDelete {
+	mutation := newBalanceRedPacketMutation(c.config, OpDelete)
+	return &BalanceRedPacketDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BalanceRedPacketClient) DeleteOne(_m *BalanceRedPacket) *BalanceRedPacketDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BalanceRedPacketClient) DeleteOneID(id int64) *BalanceRedPacketDeleteOne {
+	builder := c.Delete().Where(balanceredpacket.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BalanceRedPacketDeleteOne{builder}
+}
+
+// Query returns a query builder for BalanceRedPacket.
+func (c *BalanceRedPacketClient) Query() *BalanceRedPacketQuery {
+	return &BalanceRedPacketQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBalanceRedPacket},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BalanceRedPacket entity by its id.
+func (c *BalanceRedPacketClient) Get(ctx context.Context, id int64) (*BalanceRedPacket, error) {
+	return c.Query().Where(balanceredpacket.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BalanceRedPacketClient) GetX(ctx context.Context, id int64) *BalanceRedPacket {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySender queries the sender edge of a BalanceRedPacket.
+func (c *BalanceRedPacketClient) QuerySender(_m *BalanceRedPacket) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balanceredpacket.Table, balanceredpacket.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, balanceredpacket.SenderTable, balanceredpacket.SenderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryClaims queries the claims edge of a BalanceRedPacket.
+func (c *BalanceRedPacketClient) QueryClaims(_m *BalanceRedPacket) *BalanceRedPacketClaimQuery {
+	query := (&BalanceRedPacketClaimClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balanceredpacket.Table, balanceredpacket.FieldID, id),
+			sqlgraph.To(balanceredpacketclaim.Table, balanceredpacketclaim.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, balanceredpacket.ClaimsTable, balanceredpacket.ClaimsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BalanceRedPacketClient) Hooks() []Hook {
+	return c.hooks.BalanceRedPacket
+}
+
+// Interceptors returns the client interceptors.
+func (c *BalanceRedPacketClient) Interceptors() []Interceptor {
+	return c.inters.BalanceRedPacket
+}
+
+func (c *BalanceRedPacketClient) mutate(ctx context.Context, m *BalanceRedPacketMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BalanceRedPacketCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BalanceRedPacketUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BalanceRedPacketUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BalanceRedPacketDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BalanceRedPacket mutation op: %q", m.Op())
+	}
+}
+
+// BalanceRedPacketClaimClient is a client for the BalanceRedPacketClaim schema.
+type BalanceRedPacketClaimClient struct {
+	config
+}
+
+// NewBalanceRedPacketClaimClient returns a client for the BalanceRedPacketClaim from the given config.
+func NewBalanceRedPacketClaimClient(c config) *BalanceRedPacketClaimClient {
+	return &BalanceRedPacketClaimClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `balanceredpacketclaim.Hooks(f(g(h())))`.
+func (c *BalanceRedPacketClaimClient) Use(hooks ...Hook) {
+	c.hooks.BalanceRedPacketClaim = append(c.hooks.BalanceRedPacketClaim, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `balanceredpacketclaim.Intercept(f(g(h())))`.
+func (c *BalanceRedPacketClaimClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BalanceRedPacketClaim = append(c.inters.BalanceRedPacketClaim, interceptors...)
+}
+
+// Create returns a builder for creating a BalanceRedPacketClaim entity.
+func (c *BalanceRedPacketClaimClient) Create() *BalanceRedPacketClaimCreate {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpCreate)
+	return &BalanceRedPacketClaimCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BalanceRedPacketClaim entities.
+func (c *BalanceRedPacketClaimClient) CreateBulk(builders ...*BalanceRedPacketClaimCreate) *BalanceRedPacketClaimCreateBulk {
+	return &BalanceRedPacketClaimCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BalanceRedPacketClaimClient) MapCreateBulk(slice any, setFunc func(*BalanceRedPacketClaimCreate, int)) *BalanceRedPacketClaimCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BalanceRedPacketClaimCreateBulk{err: fmt.Errorf("calling to BalanceRedPacketClaimClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BalanceRedPacketClaimCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BalanceRedPacketClaimCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BalanceRedPacketClaim.
+func (c *BalanceRedPacketClaimClient) Update() *BalanceRedPacketClaimUpdate {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpUpdate)
+	return &BalanceRedPacketClaimUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BalanceRedPacketClaimClient) UpdateOne(_m *BalanceRedPacketClaim) *BalanceRedPacketClaimUpdateOne {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpUpdateOne, withBalanceRedPacketClaim(_m))
+	return &BalanceRedPacketClaimUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BalanceRedPacketClaimClient) UpdateOneID(id int64) *BalanceRedPacketClaimUpdateOne {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpUpdateOne, withBalanceRedPacketClaimID(id))
+	return &BalanceRedPacketClaimUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BalanceRedPacketClaim.
+func (c *BalanceRedPacketClaimClient) Delete() *BalanceRedPacketClaimDelete {
+	mutation := newBalanceRedPacketClaimMutation(c.config, OpDelete)
+	return &BalanceRedPacketClaimDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BalanceRedPacketClaimClient) DeleteOne(_m *BalanceRedPacketClaim) *BalanceRedPacketClaimDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BalanceRedPacketClaimClient) DeleteOneID(id int64) *BalanceRedPacketClaimDeleteOne {
+	builder := c.Delete().Where(balanceredpacketclaim.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BalanceRedPacketClaimDeleteOne{builder}
+}
+
+// Query returns a query builder for BalanceRedPacketClaim.
+func (c *BalanceRedPacketClaimClient) Query() *BalanceRedPacketClaimQuery {
+	return &BalanceRedPacketClaimQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBalanceRedPacketClaim},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BalanceRedPacketClaim entity by its id.
+func (c *BalanceRedPacketClaimClient) Get(ctx context.Context, id int64) (*BalanceRedPacketClaim, error) {
+	return c.Query().Where(balanceredpacketclaim.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BalanceRedPacketClaimClient) GetX(ctx context.Context, id int64) *BalanceRedPacketClaim {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryRedpacket queries the redpacket edge of a BalanceRedPacketClaim.
+func (c *BalanceRedPacketClaimClient) QueryRedpacket(_m *BalanceRedPacketClaim) *BalanceRedPacketQuery {
+	query := (&BalanceRedPacketClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balanceredpacketclaim.Table, balanceredpacketclaim.FieldID, id),
+			sqlgraph.To(balanceredpacket.Table, balanceredpacket.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, balanceredpacketclaim.RedpacketTable, balanceredpacketclaim.RedpacketColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BalanceRedPacketClaimClient) Hooks() []Hook {
+	return c.hooks.BalanceRedPacketClaim
+}
+
+// Interceptors returns the client interceptors.
+func (c *BalanceRedPacketClaimClient) Interceptors() []Interceptor {
+	return c.inters.BalanceRedPacketClaim
+}
+
+func (c *BalanceRedPacketClaimClient) mutate(ctx context.Context, m *BalanceRedPacketClaimMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BalanceRedPacketClaimCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BalanceRedPacketClaimUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BalanceRedPacketClaimUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BalanceRedPacketClaimDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BalanceRedPacketClaim mutation op: %q", m.Op())
+	}
+}
+
+// BalanceTransferClient is a client for the BalanceTransfer schema.
+type BalanceTransferClient struct {
+	config
+}
+
+// NewBalanceTransferClient returns a client for the BalanceTransfer from the given config.
+func NewBalanceTransferClient(c config) *BalanceTransferClient {
+	return &BalanceTransferClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `balancetransfer.Hooks(f(g(h())))`.
+func (c *BalanceTransferClient) Use(hooks ...Hook) {
+	c.hooks.BalanceTransfer = append(c.hooks.BalanceTransfer, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `balancetransfer.Intercept(f(g(h())))`.
+func (c *BalanceTransferClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BalanceTransfer = append(c.inters.BalanceTransfer, interceptors...)
+}
+
+// Create returns a builder for creating a BalanceTransfer entity.
+func (c *BalanceTransferClient) Create() *BalanceTransferCreate {
+	mutation := newBalanceTransferMutation(c.config, OpCreate)
+	return &BalanceTransferCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BalanceTransfer entities.
+func (c *BalanceTransferClient) CreateBulk(builders ...*BalanceTransferCreate) *BalanceTransferCreateBulk {
+	return &BalanceTransferCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BalanceTransferClient) MapCreateBulk(slice any, setFunc func(*BalanceTransferCreate, int)) *BalanceTransferCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BalanceTransferCreateBulk{err: fmt.Errorf("calling to BalanceTransferClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BalanceTransferCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BalanceTransferCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BalanceTransfer.
+func (c *BalanceTransferClient) Update() *BalanceTransferUpdate {
+	mutation := newBalanceTransferMutation(c.config, OpUpdate)
+	return &BalanceTransferUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BalanceTransferClient) UpdateOne(_m *BalanceTransfer) *BalanceTransferUpdateOne {
+	mutation := newBalanceTransferMutation(c.config, OpUpdateOne, withBalanceTransfer(_m))
+	return &BalanceTransferUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BalanceTransferClient) UpdateOneID(id int64) *BalanceTransferUpdateOne {
+	mutation := newBalanceTransferMutation(c.config, OpUpdateOne, withBalanceTransferID(id))
+	return &BalanceTransferUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BalanceTransfer.
+func (c *BalanceTransferClient) Delete() *BalanceTransferDelete {
+	mutation := newBalanceTransferMutation(c.config, OpDelete)
+	return &BalanceTransferDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BalanceTransferClient) DeleteOne(_m *BalanceTransfer) *BalanceTransferDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BalanceTransferClient) DeleteOneID(id int64) *BalanceTransferDeleteOne {
+	builder := c.Delete().Where(balancetransfer.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BalanceTransferDeleteOne{builder}
+}
+
+// Query returns a query builder for BalanceTransfer.
+func (c *BalanceTransferClient) Query() *BalanceTransferQuery {
+	return &BalanceTransferQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBalanceTransfer},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BalanceTransfer entity by its id.
+func (c *BalanceTransferClient) Get(ctx context.Context, id int64) (*BalanceTransfer, error) {
+	return c.Query().Where(balancetransfer.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BalanceTransferClient) GetX(ctx context.Context, id int64) *BalanceTransfer {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySender queries the sender edge of a BalanceTransfer.
+func (c *BalanceTransferClient) QuerySender(_m *BalanceTransfer) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balancetransfer.Table, balancetransfer.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, balancetransfer.SenderTable, balancetransfer.SenderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryReceiver queries the receiver edge of a BalanceTransfer.
+func (c *BalanceTransferClient) QueryReceiver(_m *BalanceTransfer) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(balancetransfer.Table, balancetransfer.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, balancetransfer.ReceiverTable, balancetransfer.ReceiverColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BalanceTransferClient) Hooks() []Hook {
+	return c.hooks.BalanceTransfer
+}
+
+// Interceptors returns the client interceptors.
+func (c *BalanceTransferClient) Interceptors() []Interceptor {
+	return c.inters.BalanceTransfer
+}
+
+func (c *BalanceTransferClient) mutate(ctx context.Context, m *BalanceTransferMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BalanceTransferCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BalanceTransferUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BalanceTransferUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BalanceTransferDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BalanceTransfer mutation op: %q", m.Op())
+	}
+}
+
 // BatchImageEventClient is a client for the BatchImageEvent schema.
 type BatchImageEventClient struct {
 	config
@@ -2721,6 +3252,421 @@ func (c *ChannelMonitorRequestTemplateClient) mutate(ctx context.Context, m *Cha
 		return (&ChannelMonitorRequestTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ChannelMonitorRequestTemplate mutation op: %q", m.Op())
+	}
+}
+
+// CheckinClient is a client for the Checkin schema.
+type CheckinClient struct {
+	config
+}
+
+// NewCheckinClient returns a client for the Checkin from the given config.
+func NewCheckinClient(c config) *CheckinClient {
+	return &CheckinClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `checkin.Hooks(f(g(h())))`.
+func (c *CheckinClient) Use(hooks ...Hook) {
+	c.hooks.Checkin = append(c.hooks.Checkin, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `checkin.Intercept(f(g(h())))`.
+func (c *CheckinClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Checkin = append(c.inters.Checkin, interceptors...)
+}
+
+// Create returns a builder for creating a Checkin entity.
+func (c *CheckinClient) Create() *CheckinCreate {
+	mutation := newCheckinMutation(c.config, OpCreate)
+	return &CheckinCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Checkin entities.
+func (c *CheckinClient) CreateBulk(builders ...*CheckinCreate) *CheckinCreateBulk {
+	return &CheckinCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CheckinClient) MapCreateBulk(slice any, setFunc func(*CheckinCreate, int)) *CheckinCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CheckinCreateBulk{err: fmt.Errorf("calling to CheckinClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CheckinCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CheckinCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Checkin.
+func (c *CheckinClient) Update() *CheckinUpdate {
+	mutation := newCheckinMutation(c.config, OpUpdate)
+	return &CheckinUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CheckinClient) UpdateOne(_m *Checkin) *CheckinUpdateOne {
+	mutation := newCheckinMutation(c.config, OpUpdateOne, withCheckin(_m))
+	return &CheckinUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CheckinClient) UpdateOneID(id int64) *CheckinUpdateOne {
+	mutation := newCheckinMutation(c.config, OpUpdateOne, withCheckinID(id))
+	return &CheckinUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Checkin.
+func (c *CheckinClient) Delete() *CheckinDelete {
+	mutation := newCheckinMutation(c.config, OpDelete)
+	return &CheckinDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CheckinClient) DeleteOne(_m *Checkin) *CheckinDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CheckinClient) DeleteOneID(id int64) *CheckinDeleteOne {
+	builder := c.Delete().Where(checkin.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CheckinDeleteOne{builder}
+}
+
+// Query returns a query builder for Checkin.
+func (c *CheckinClient) Query() *CheckinQuery {
+	return &CheckinQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCheckin},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Checkin entity by its id.
+func (c *CheckinClient) Get(ctx context.Context, id int64) (*Checkin, error) {
+	return c.Query().Where(checkin.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CheckinClient) GetX(ctx context.Context, id int64) *Checkin {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a Checkin.
+func (c *CheckinClient) QueryUser(_m *Checkin) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(checkin.Table, checkin.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, checkin.UserTable, checkin.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CheckinClient) Hooks() []Hook {
+	return c.hooks.Checkin
+}
+
+// Interceptors returns the client interceptors.
+func (c *CheckinClient) Interceptors() []Interceptor {
+	return c.inters.Checkin
+}
+
+func (c *CheckinClient) mutate(ctx context.Context, m *CheckinMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CheckinCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CheckinUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CheckinUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CheckinDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Checkin mutation op: %q", m.Op())
+	}
+}
+
+// CheckinBlindboxRecordClient is a client for the CheckinBlindboxRecord schema.
+type CheckinBlindboxRecordClient struct {
+	config
+}
+
+// NewCheckinBlindboxRecordClient returns a client for the CheckinBlindboxRecord from the given config.
+func NewCheckinBlindboxRecordClient(c config) *CheckinBlindboxRecordClient {
+	return &CheckinBlindboxRecordClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `checkinblindboxrecord.Hooks(f(g(h())))`.
+func (c *CheckinBlindboxRecordClient) Use(hooks ...Hook) {
+	c.hooks.CheckinBlindboxRecord = append(c.hooks.CheckinBlindboxRecord, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `checkinblindboxrecord.Intercept(f(g(h())))`.
+func (c *CheckinBlindboxRecordClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CheckinBlindboxRecord = append(c.inters.CheckinBlindboxRecord, interceptors...)
+}
+
+// Create returns a builder for creating a CheckinBlindboxRecord entity.
+func (c *CheckinBlindboxRecordClient) Create() *CheckinBlindboxRecordCreate {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpCreate)
+	return &CheckinBlindboxRecordCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CheckinBlindboxRecord entities.
+func (c *CheckinBlindboxRecordClient) CreateBulk(builders ...*CheckinBlindboxRecordCreate) *CheckinBlindboxRecordCreateBulk {
+	return &CheckinBlindboxRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CheckinBlindboxRecordClient) MapCreateBulk(slice any, setFunc func(*CheckinBlindboxRecordCreate, int)) *CheckinBlindboxRecordCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CheckinBlindboxRecordCreateBulk{err: fmt.Errorf("calling to CheckinBlindboxRecordClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CheckinBlindboxRecordCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CheckinBlindboxRecordCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CheckinBlindboxRecord.
+func (c *CheckinBlindboxRecordClient) Update() *CheckinBlindboxRecordUpdate {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpUpdate)
+	return &CheckinBlindboxRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CheckinBlindboxRecordClient) UpdateOne(_m *CheckinBlindboxRecord) *CheckinBlindboxRecordUpdateOne {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpUpdateOne, withCheckinBlindboxRecord(_m))
+	return &CheckinBlindboxRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CheckinBlindboxRecordClient) UpdateOneID(id int64) *CheckinBlindboxRecordUpdateOne {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpUpdateOne, withCheckinBlindboxRecordID(id))
+	return &CheckinBlindboxRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CheckinBlindboxRecord.
+func (c *CheckinBlindboxRecordClient) Delete() *CheckinBlindboxRecordDelete {
+	mutation := newCheckinBlindboxRecordMutation(c.config, OpDelete)
+	return &CheckinBlindboxRecordDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CheckinBlindboxRecordClient) DeleteOne(_m *CheckinBlindboxRecord) *CheckinBlindboxRecordDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CheckinBlindboxRecordClient) DeleteOneID(id int64) *CheckinBlindboxRecordDeleteOne {
+	builder := c.Delete().Where(checkinblindboxrecord.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CheckinBlindboxRecordDeleteOne{builder}
+}
+
+// Query returns a query builder for CheckinBlindboxRecord.
+func (c *CheckinBlindboxRecordClient) Query() *CheckinBlindboxRecordQuery {
+	return &CheckinBlindboxRecordQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCheckinBlindboxRecord},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CheckinBlindboxRecord entity by its id.
+func (c *CheckinBlindboxRecordClient) Get(ctx context.Context, id int64) (*CheckinBlindboxRecord, error) {
+	return c.Query().Where(checkinblindboxrecord.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CheckinBlindboxRecordClient) GetX(ctx context.Context, id int64) *CheckinBlindboxRecord {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CheckinBlindboxRecordClient) Hooks() []Hook {
+	return c.hooks.CheckinBlindboxRecord
+}
+
+// Interceptors returns the client interceptors.
+func (c *CheckinBlindboxRecordClient) Interceptors() []Interceptor {
+	return c.inters.CheckinBlindboxRecord
+}
+
+func (c *CheckinBlindboxRecordClient) mutate(ctx context.Context, m *CheckinBlindboxRecordMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CheckinBlindboxRecordCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CheckinBlindboxRecordUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CheckinBlindboxRecordUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CheckinBlindboxRecordDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CheckinBlindboxRecord mutation op: %q", m.Op())
+	}
+}
+
+// CheckinPrizeItemClient is a client for the CheckinPrizeItem schema.
+type CheckinPrizeItemClient struct {
+	config
+}
+
+// NewCheckinPrizeItemClient returns a client for the CheckinPrizeItem from the given config.
+func NewCheckinPrizeItemClient(c config) *CheckinPrizeItemClient {
+	return &CheckinPrizeItemClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `checkinprizeitem.Hooks(f(g(h())))`.
+func (c *CheckinPrizeItemClient) Use(hooks ...Hook) {
+	c.hooks.CheckinPrizeItem = append(c.hooks.CheckinPrizeItem, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `checkinprizeitem.Intercept(f(g(h())))`.
+func (c *CheckinPrizeItemClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CheckinPrizeItem = append(c.inters.CheckinPrizeItem, interceptors...)
+}
+
+// Create returns a builder for creating a CheckinPrizeItem entity.
+func (c *CheckinPrizeItemClient) Create() *CheckinPrizeItemCreate {
+	mutation := newCheckinPrizeItemMutation(c.config, OpCreate)
+	return &CheckinPrizeItemCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CheckinPrizeItem entities.
+func (c *CheckinPrizeItemClient) CreateBulk(builders ...*CheckinPrizeItemCreate) *CheckinPrizeItemCreateBulk {
+	return &CheckinPrizeItemCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CheckinPrizeItemClient) MapCreateBulk(slice any, setFunc func(*CheckinPrizeItemCreate, int)) *CheckinPrizeItemCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CheckinPrizeItemCreateBulk{err: fmt.Errorf("calling to CheckinPrizeItemClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CheckinPrizeItemCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CheckinPrizeItemCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CheckinPrizeItem.
+func (c *CheckinPrizeItemClient) Update() *CheckinPrizeItemUpdate {
+	mutation := newCheckinPrizeItemMutation(c.config, OpUpdate)
+	return &CheckinPrizeItemUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CheckinPrizeItemClient) UpdateOne(_m *CheckinPrizeItem) *CheckinPrizeItemUpdateOne {
+	mutation := newCheckinPrizeItemMutation(c.config, OpUpdateOne, withCheckinPrizeItem(_m))
+	return &CheckinPrizeItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CheckinPrizeItemClient) UpdateOneID(id int64) *CheckinPrizeItemUpdateOne {
+	mutation := newCheckinPrizeItemMutation(c.config, OpUpdateOne, withCheckinPrizeItemID(id))
+	return &CheckinPrizeItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CheckinPrizeItem.
+func (c *CheckinPrizeItemClient) Delete() *CheckinPrizeItemDelete {
+	mutation := newCheckinPrizeItemMutation(c.config, OpDelete)
+	return &CheckinPrizeItemDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CheckinPrizeItemClient) DeleteOne(_m *CheckinPrizeItem) *CheckinPrizeItemDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CheckinPrizeItemClient) DeleteOneID(id int64) *CheckinPrizeItemDeleteOne {
+	builder := c.Delete().Where(checkinprizeitem.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CheckinPrizeItemDeleteOne{builder}
+}
+
+// Query returns a query builder for CheckinPrizeItem.
+func (c *CheckinPrizeItemClient) Query() *CheckinPrizeItemQuery {
+	return &CheckinPrizeItemQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCheckinPrizeItem},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CheckinPrizeItem entity by its id.
+func (c *CheckinPrizeItemClient) Get(ctx context.Context, id int64) (*CheckinPrizeItem, error) {
+	return c.Query().Where(checkinprizeitem.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CheckinPrizeItemClient) GetX(ctx context.Context, id int64) *CheckinPrizeItem {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CheckinPrizeItemClient) Hooks() []Hook {
+	return c.hooks.CheckinPrizeItem
+}
+
+// Interceptors returns the client interceptors.
+func (c *CheckinPrizeItemClient) Interceptors() []Interceptor {
+	return c.inters.CheckinPrizeItem
+}
+
+func (c *CheckinPrizeItemClient) mutate(ctx context.Context, m *CheckinPrizeItemMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CheckinPrizeItemCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CheckinPrizeItemUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CheckinPrizeItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CheckinPrizeItemDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CheckinPrizeItem mutation op: %q", m.Op())
 	}
 }
 
@@ -5790,6 +6736,70 @@ func (c *UserClient) QueryPaymentOrders(_m *User) *PaymentOrderQuery {
 	return query
 }
 
+// QueryCheckins queries the checkins edge of a User.
+func (c *UserClient) QueryCheckins(_m *User) *CheckinQuery {
+	query := (&CheckinClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(checkin.Table, checkin.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CheckinsTable, user.CheckinsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySentTransfers queries the sent_transfers edge of a User.
+func (c *UserClient) QuerySentTransfers(_m *User) *BalanceTransferQuery {
+	query := (&BalanceTransferClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.SentTransfersTable, user.SentTransfersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryReceivedTransfers queries the received_transfers edge of a User.
+func (c *UserClient) QueryReceivedTransfers(_m *User) *BalanceTransferQuery {
+	query := (&BalanceTransferClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ReceivedTransfersTable, user.ReceivedTransfersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRedpackets queries the redpackets edge of a User.
+func (c *UserClient) QueryRedpackets(_m *User) *BalanceRedPacketQuery {
+	query := (&BalanceRedPacketClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(balanceredpacket.Table, balanceredpacket.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.RedpacketsTable, user.RedpacketsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryAuthIdentities queries the auth_identities edge of a User.
 func (c *UserClient) QueryAuthIdentities(_m *User) *AuthIdentityQuery {
 	query := (&AuthIdentityClient{config: c.config}).Query()
@@ -6667,9 +7677,11 @@ func (c *UserSubscriptionClient) mutate(ctx context.Context, m *UserSubscription
 type (
 	hooks struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
-		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
-		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, ErrorPassthroughRule, Group, IdempotencyRecord,
+		AuthIdentityChannel, BalanceRedPacket, BalanceRedPacketClaim, BalanceTransfer,
+		BatchImageEvent, BatchImageItem, BatchImageJob, ChannelMonitor,
+		ChannelMonitorDailyRollup, ChannelMonitorHistory,
+		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
+		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
 		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
 		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
 		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
@@ -6678,9 +7690,11 @@ type (
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
-		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
-		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, ErrorPassthroughRule, Group, IdempotencyRecord,
+		AuthIdentityChannel, BalanceRedPacket, BalanceRedPacketClaim, BalanceTransfer,
+		BatchImageEvent, BatchImageItem, BatchImageJob, ChannelMonitor,
+		ChannelMonitorDailyRollup, ChannelMonitorHistory,
+		ChannelMonitorRequestTemplate, Checkin, CheckinBlindboxRecord,
+		CheckinPrizeItem, ErrorPassthroughRule, Group, IdempotencyRecord,
 		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
 		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
 		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,

@@ -98,7 +98,18 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
-		AffiliateEnabled: settings.AffiliateEnabled,
+		AffiliateEnabled:              settings.AffiliateEnabled,
+		CheckinEnabled:                settings.CheckinEnabled,
+		CheckinLuckEnabled:            settings.CheckinLuckEnabled,
+		CheckinBlindboxEnabled:        settings.CheckinBlindboxEnabled,
+		TransferEnabled:               settings.TransferEnabled,
+		RedPacketEnabled:              settings.RedPacketEnabled,
+		UsageQueryEnabled:             settings.UsageQueryEnabled,
+		LeaderboardEnabled:            settings.LeaderboardEnabled,
+		LeaderboardBalanceEnabled:     settings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled: settings.LeaderboardConsumptionEnabled,
+		LeaderboardCheckinEnabled:     settings.LeaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:       settings.LeaderboardIncludeAdmin,
 
 		RiskControlEnabled: settings.RiskControlEnabled,
 

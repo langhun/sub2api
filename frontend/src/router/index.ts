@@ -164,6 +164,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       title: 'Key Usage',
+	  requiresFeature: 'usage_query_enabled',
     }
   },
   {
@@ -173,6 +174,17 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       title: 'Legal Document'
+    }
+  },
+  {
+    path: '/leaderboard',
+    name: 'Leaderboard',
+    component: () => import('@/views/LeaderboardView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Leaderboard',
+	  titleKey: 'leaderboard.title',
+	  requiresFeature: 'leaderboard_enabled'
     }
   },
 
@@ -227,7 +239,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Usage Records',
       titleKey: 'usage.title',
-      descriptionKey: 'usage.description'
+	  descriptionKey: 'usage.description',
+	  requiresFeature: 'usage_query_enabled'
     }
   },
   {
@@ -252,6 +265,55 @@ const routes: RouteRecordRaw[] = [
       title: 'Affiliate',
       titleKey: 'affiliate.title',
       descriptionKey: 'affiliate.description'
+    }
+  },
+  {
+    path: '/checkin',
+    name: 'Checkin',
+    component: () => import('@/views/user/CheckinView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Check-in',
+      titleKey: 'nav.checkin',
+	  descriptionKey: 'checkin.page.description',
+	  requiresFeature: 'checkin_enabled'
+    }
+  },
+  {
+    path: '/transfer',
+    name: 'BalanceTransfer',
+    component: () => import('@/views/user/TransferView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Balance Transfer',
+	  titleKey: 'nav.transfer',
+	  requiresFeature: 'transfer_enabled'
+    }
+  },
+  {
+    path: '/transfer/leaderboard',
+    name: 'TransferLeaderboard',
+    component: () => import('@/views/user/TransferLeaderboardView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Transfer Leaderboard',
+	  titleKey: 'nav.transferLeaderboard',
+	  requiresFeature: 'transfer_enabled'
+    }
+  },
+  {
+    path: '/redpacket',
+    name: 'RedPacket',
+    component: () => import('@/views/user/RedPacketView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Red Packet',
+	  titleKey: 'nav.redpacket',
+	  requiresFeature: 'redpacket_enabled'
     }
   },
   {
@@ -551,6 +613,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/transfer',
+    name: 'AdminBalanceTransfer',
+    component: () => import('@/views/admin/TransferManageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Transfer Management',
+      titleKey: 'nav.transferManage'
+    }
+  },
+  {
     path: '/admin/settings',
     name: 'AdminSettings',
     component: () => import('@/views/admin/SettingsView.vue'),
@@ -829,7 +902,7 @@ router.beforeEach(async (to, _from, next) => {
   // 公共设置可能尚未加载（App.vue 的 onMounted 异步拉取晚于首次导航，且纯静态部署
   // 无 __APP_CONFIG__ 注入）。此时 cachedPublicSettings 为空会把 payment/risk_control
   // 误判为“未启用”而错误拦截，故这里先确保设置加载完成。
-  if ((to.meta.requiresPayment || to.meta.requiresRiskControl) && !appStore.publicSettingsLoaded) {
+  if ((to.meta.requiresPayment || to.meta.requiresRiskControl || to.meta.requiresFeature) && !appStore.publicSettingsLoaded) {
     try {
       await appStore.fetchPublicSettings()
     } catch (error) {
@@ -847,6 +920,15 @@ router.beforeEach(async (to, _from, next) => {
     next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
     return
   }
+
+	if (
+		to.meta.requiresFeature &&
+		appStore.publicSettingsLoaded &&
+		appStore.cachedPublicSettings?.[to.meta.requiresFeature] === false
+	) {
+		next(authStore.isAuthenticated ? (authStore.isAdmin ? '/admin/dashboard' : '/dashboard') : '/login')
+		return
+	}
 
   if (
     to.meta.requiresRiskControl &&

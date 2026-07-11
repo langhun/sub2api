@@ -240,6 +240,17 @@ export interface PublicSettings {
   available_channels_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
+	checkin_enabled: boolean
+	checkin_luck_enabled: boolean
+	checkin_blindbox_enabled: boolean
+	transfer_enabled: boolean
+	redpacket_enabled: boolean
+	usage_query_enabled: boolean
+	leaderboard_enabled: boolean
+	leaderboard_balance_enabled: boolean
+	leaderboard_consumption_enabled: boolean
+	leaderboard_checkin_enabled: boolean
+	leaderboard_include_admin: boolean
   allow_user_view_error_requests?: boolean
 }
 

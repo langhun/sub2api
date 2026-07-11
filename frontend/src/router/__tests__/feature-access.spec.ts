@@ -25,6 +25,11 @@ const appStore = vi.hoisted(() => ({
   cachedPublicSettings: null as null | {
     payment_enabled?: boolean
     risk_control_enabled?: boolean
+	usage_query_enabled?: boolean
+	checkin_enabled?: boolean
+	transfer_enabled?: boolean
+	redpacket_enabled?: boolean
+	leaderboard_enabled?: boolean
     custom_menu_items?: []
   },
   fetchPublicSettings: vi.fn(),
@@ -174,4 +179,21 @@ describe('feature route guard', () => {
     expect(next).toHaveBeenCalledOnce()
     expect(next).toHaveBeenCalledWith(target)
   })
+
+	it.each([
+		['usage query', 'usage_query_enabled'],
+		['check-in', 'checkin_enabled'],
+		['transfer', 'transfer_enabled'],
+		['red packet', 'redpacket_enabled'],
+		['leaderboard', 'leaderboard_enabled'],
+	])('redirects when the %s route feature is disabled', async (_name, key) => {
+		appStore.cachedPublicSettings = { [key]: false }
+		appStore.publicSettingsLoaded = true
+
+		const { navigation, next } = runGuard({ requiresFeature: key }, '/feature')
+		await navigation
+
+		expect(next).toHaveBeenCalledOnce()
+		expect(next).toHaveBeenCalledWith('/dashboard')
+	})
 })

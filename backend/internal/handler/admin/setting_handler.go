@@ -114,6 +114,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 	}
 
 	payload := dto.SystemSettings{
+		BalanceFeatureSettings:                                 balanceFeatureSettingsToDTO(settings.BalanceFeatureSettings),
 		RegistrationEnabled:                                    settings.RegistrationEnabled,
 		EmailVerifyEnabled:                                     settings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:                       settings.RegistrationEmailSuffixWhitelist,
@@ -391,6 +392,26 @@ func loginAgreementDocumentsToDTO(items []service.LoginAgreementDocument) []dto.
 		})
 	}
 	return result
+}
+
+func balanceFeatureSettingsToDTO(settings service.BalanceFeatureSettings) dto.BalanceFeatureSettings {
+	return dto.BalanceFeatureSettings{
+		CheckinEnabled: settings.CheckinEnabled, CheckinMinBalance: settings.CheckinMinBalance,
+		CheckinMaxBalance: settings.CheckinMaxBalance, CheckinLuckEnabled: settings.CheckinLuckEnabled,
+		CheckinLuckMinMultiplier: settings.CheckinLuckMinMultiplier, CheckinLuckMaxMultiplier: settings.CheckinLuckMaxMultiplier,
+		CheckinBlindboxEnabled: settings.CheckinBlindboxEnabled, CheckinBlindboxTriggerType: settings.CheckinBlindboxTriggerType,
+		CheckinBlindboxInterval: settings.CheckinBlindboxInterval, TransferEnabled: settings.TransferEnabled,
+		TransferFeeRate: settings.TransferFeeRate, TransferMinAmount: settings.TransferMinAmount,
+		TransferMaxAmount: settings.TransferMaxAmount, TransferDailyLimit: settings.TransferDailyLimit,
+		TransferDailyCountLimit: settings.TransferDailyCountLimit, TransferVIPFeeExempt: settings.TransferVIPFeeExempt,
+		RedPacketEnabled: settings.RedPacketEnabled, RedPacketMaxCount: settings.RedPacketMaxCount,
+		RedPacketExpireHours: settings.RedPacketExpireHours,
+		UsageQueryEnabled:    settings.UsageQueryEnabled, LeaderboardEnabled: settings.LeaderboardEnabled,
+		LeaderboardBalanceEnabled:     settings.LeaderboardBalanceEnabled,
+		LeaderboardConsumptionEnabled: settings.LeaderboardConsumptionEnabled,
+		LeaderboardCheckinEnabled:     settings.LeaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:       settings.LeaderboardIncludeAdmin,
+	}
 }
 
 func loginAgreementDocumentsToService(items []dto.LoginAgreementDocument) []service.LoginAgreementDocument {

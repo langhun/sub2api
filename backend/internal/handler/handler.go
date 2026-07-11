@@ -38,6 +38,8 @@ type AdminHandlers struct {
 	Payment                *admin.PaymentHandler
 	Affiliate              *admin.AffiliateHandler
 	Compliance             *admin.ComplianceHandler
+	Blindbox               *admin.BlindboxHandler
+	TransferAdmin          *admin.TransferAdminHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -59,6 +61,9 @@ type Handlers struct {
 	PaymentWebhook   *PaymentWebhookHandler
 	AvailableChannel *AvailableChannelHandler
 	BatchImage       *BatchImageHandler
+	Checkin          *CheckinHandler
+	Leaderboard      *LeaderboardHandler
+	Transfer         *BalanceTransferHandler
 }
 
 // BuildInfo contains build-time information

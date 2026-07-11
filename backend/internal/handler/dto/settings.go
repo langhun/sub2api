@@ -27,6 +27,7 @@ type CustomEndpoint struct {
 
 // SystemSettings represents the admin settings API response payload.
 type SystemSettings struct {
+	BalanceFeatureSettings
 	RegistrationEnabled              bool                     `json:"registration_enabled"`
 	EmailVerifyEnabled               bool                     `json:"email_verify_enabled"`
 	RegistrationEmailSuffixWhitelist []string                 `json:"registration_email_suffix_whitelist"`
@@ -295,6 +296,34 @@ type SystemSettings struct {
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
 }
 
+type BalanceFeatureSettings struct {
+	CheckinEnabled                bool    `json:"checkin_enabled"`
+	CheckinMinBalance             float64 `json:"checkin_min_balance"`
+	CheckinMaxBalance             float64 `json:"checkin_max_balance"`
+	CheckinLuckEnabled            bool    `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier      float64 `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier      float64 `json:"checkin_luck_max_multiplier"`
+	CheckinBlindboxEnabled        bool    `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType    string  `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval       int     `json:"checkin_blindbox_interval"`
+	TransferEnabled               bool    `json:"transfer_enabled"`
+	TransferFeeRate               float64 `json:"transfer_fee_rate"`
+	TransferMinAmount             float64 `json:"transfer_min_amount"`
+	TransferMaxAmount             float64 `json:"transfer_max_amount"`
+	TransferDailyLimit            float64 `json:"transfer_daily_limit"`
+	TransferDailyCountLimit       int     `json:"transfer_daily_count_limit"`
+	TransferVIPFeeExempt          bool    `json:"transfer_vip_fee_exempt"`
+	RedPacketEnabled              bool    `json:"redpacket_enabled"`
+	RedPacketMaxCount             int     `json:"redpacket_max_count"`
+	RedPacketExpireHours          int     `json:"redpacket_expire_hours"`
+	UsageQueryEnabled             bool    `json:"usage_query_enabled"`
+	LeaderboardEnabled            bool    `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled     bool    `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled bool    `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled     bool    `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin       bool    `json:"leaderboard_include_admin"`
+}
+
 type DefaultSubscriptionSetting struct {
 	GroupID      int64 `json:"group_id"`
 	ValidityDays int   `json:"validity_days"`
@@ -358,7 +387,18 @@ type PublicSettings struct {
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
-	AffiliateEnabled bool `json:"affiliate_enabled"`
+	AffiliateEnabled              bool `json:"affiliate_enabled"`
+	CheckinEnabled                bool `json:"checkin_enabled"`
+	TransferEnabled               bool `json:"transfer_enabled"`
+	RedPacketEnabled              bool `json:"redpacket_enabled"`
+	CheckinLuckEnabled            bool `json:"checkin_luck_enabled"`
+	CheckinBlindboxEnabled        bool `json:"checkin_blindbox_enabled"`
+	UsageQueryEnabled             bool `json:"usage_query_enabled"`
+	LeaderboardEnabled            bool `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled     bool `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled bool `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled     bool `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin       bool `json:"leaderboard_include_admin"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 

@@ -104,6 +104,36 @@ func TestSettingService_GetPublicSettings_ExposesAllowUserViewErrorRequests(t *t
 	require.True(t, settings.AllowUserViewErrorRequests)
 }
 
+func TestSettingService_GetPublicSettings_ExposesEntryFeatureSwitches(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{values: map[string]string{
+		SettingKeyCheckinEnabled:                "true",
+		SettingKeyCheckinLuckEnabled:            "true",
+		SettingKeyCheckinBlindboxEnabled:        "true",
+		SettingKeyTransferEnabled:               "true",
+		SettingKeyRedPacketEnabled:              "true",
+		SettingKeyUsageQueryEnabled:             "false",
+		SettingKeyLeaderboardEnabled:            "true",
+		SettingKeyLeaderboardBalanceEnabled:     "false",
+		SettingKeyLeaderboardConsumptionEnabled: "true",
+		SettingKeyLeaderboardCheckinEnabled:     "false",
+		SettingKeyLeaderboardIncludeAdmin:       "true",
+	}}, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.CheckinEnabled)
+	require.True(t, settings.CheckinLuckEnabled)
+	require.True(t, settings.CheckinBlindboxEnabled)
+	require.True(t, settings.TransferEnabled)
+	require.True(t, settings.RedPacketEnabled)
+	require.False(t, settings.UsageQueryEnabled)
+	require.True(t, settings.LeaderboardEnabled)
+	require.False(t, settings.LeaderboardBalanceEnabled)
+	require.True(t, settings.LeaderboardConsumptionEnabled)
+	require.False(t, settings.LeaderboardCheckinEnabled)
+	require.True(t, settings.LeaderboardIncludeAdmin)
+}
+
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{
 		values: map[string]string{

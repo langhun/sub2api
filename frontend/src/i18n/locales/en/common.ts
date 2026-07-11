@@ -67,6 +67,7 @@ export default {
     noGroupsAvailable: 'No groups available',
     unknownError: 'Unknown error occurred',
     saving: 'Saving...',
+    loadMore: 'Load more',
     selectedCount: '({count} selected)',
     refresh: 'Refresh',
     autoRefresh: {
@@ -190,6 +191,12 @@ export default {
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
+    checkin: 'Check-in',
+    transfer: 'Balance Transfer',
+    redpacket: 'Red Packets',
+    leaderboard: 'Leaderboard',
+    transferLeaderboard: 'Transfer Leaderboard',
+    transferManage: 'Transfer Management',
   },
 
   // Auth

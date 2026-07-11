@@ -55,6 +55,9 @@ declare module 'vue-router' {
      */
     requiresRiskControl?: boolean
 
+	/** Public-settings boolean key required by this route. */
+	requiresFeature?: keyof import('@/types').PublicSettings
+
     /**
      * i18n key for the page title
      */

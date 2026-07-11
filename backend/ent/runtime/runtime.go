@@ -12,6 +12,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
 	"github.com/Wei-Shaw/sub2api/ent/authidentitychannel"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
+	"github.com/Wei-Shaw/sub2api/ent/balanceredpacketclaim"
+	"github.com/Wei-Shaw/sub2api/ent/balancetransfer"
 	"github.com/Wei-Shaw/sub2api/ent/batchimageevent"
 	"github.com/Wei-Shaw/sub2api/ent/batchimageitem"
 	"github.com/Wei-Shaw/sub2api/ent/batchimagejob"
@@ -19,6 +22,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/checkin"
+	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
+	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -435,6 +441,52 @@ func init() {
 	authidentitychannelDescMetadata := authidentitychannelFields[6].Descriptor()
 	// authidentitychannel.DefaultMetadata holds the default value on creation for the metadata field.
 	authidentitychannel.DefaultMetadata = authidentitychannelDescMetadata.Default.(func() map[string]interface{})
+	balanceredpacketFields := schema.BalanceRedPacket{}.Fields()
+	_ = balanceredpacketFields
+	// balanceredpacketDescRedpacketType is the schema descriptor for redpacket_type field.
+	balanceredpacketDescRedpacketType := balanceredpacketFields[5].Descriptor()
+	// balanceredpacket.DefaultRedpacketType holds the default value on creation for the redpacket_type field.
+	balanceredpacket.DefaultRedpacketType = balanceredpacketDescRedpacketType.Default.(string)
+	// balanceredpacket.RedpacketTypeValidator is a validator for the "redpacket_type" field. It is called by the builders before save.
+	balanceredpacket.RedpacketTypeValidator = balanceredpacketDescRedpacketType.Validators[0].(func(string) error)
+	// balanceredpacketDescCode is the schema descriptor for code field.
+	balanceredpacketDescCode := balanceredpacketFields[8].Descriptor()
+	// balanceredpacket.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	balanceredpacket.CodeValidator = balanceredpacketDescCode.Validators[0].(func(string) error)
+	// balanceredpacketDescStatus is the schema descriptor for status field.
+	balanceredpacketDescStatus := balanceredpacketFields[9].Descriptor()
+	// balanceredpacket.DefaultStatus holds the default value on creation for the status field.
+	balanceredpacket.DefaultStatus = balanceredpacketDescStatus.Default.(string)
+	// balanceredpacket.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	balanceredpacket.StatusValidator = balanceredpacketDescStatus.Validators[0].(func(string) error)
+	// balanceredpacketDescCreatedAt is the schema descriptor for created_at field.
+	balanceredpacketDescCreatedAt := balanceredpacketFields[12].Descriptor()
+	// balanceredpacket.DefaultCreatedAt holds the default value on creation for the created_at field.
+	balanceredpacket.DefaultCreatedAt = balanceredpacketDescCreatedAt.Default.(func() time.Time)
+	balanceredpacketclaimFields := schema.BalanceRedPacketClaim{}.Fields()
+	_ = balanceredpacketclaimFields
+	// balanceredpacketclaimDescCreatedAt is the schema descriptor for created_at field.
+	balanceredpacketclaimDescCreatedAt := balanceredpacketclaimFields[4].Descriptor()
+	// balanceredpacketclaim.DefaultCreatedAt holds the default value on creation for the created_at field.
+	balanceredpacketclaim.DefaultCreatedAt = balanceredpacketclaimDescCreatedAt.Default.(func() time.Time)
+	balancetransferFields := schema.BalanceTransfer{}.Fields()
+	_ = balancetransferFields
+	// balancetransferDescTransferType is the schema descriptor for transfer_type field.
+	balancetransferDescTransferType := balancetransferFields[6].Descriptor()
+	// balancetransfer.DefaultTransferType holds the default value on creation for the transfer_type field.
+	balancetransfer.DefaultTransferType = balancetransferDescTransferType.Default.(string)
+	// balancetransfer.TransferTypeValidator is a validator for the "transfer_type" field. It is called by the builders before save.
+	balancetransfer.TransferTypeValidator = balancetransferDescTransferType.Validators[0].(func(string) error)
+	// balancetransferDescStatus is the schema descriptor for status field.
+	balancetransferDescStatus := balancetransferFields[7].Descriptor()
+	// balancetransfer.DefaultStatus holds the default value on creation for the status field.
+	balancetransfer.DefaultStatus = balancetransferDescStatus.Default.(string)
+	// balancetransfer.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	balancetransfer.StatusValidator = balancetransferDescStatus.Validators[0].(func(string) error)
+	// balancetransferDescCreatedAt is the schema descriptor for created_at field.
+	balancetransferDescCreatedAt := balancetransferFields[13].Descriptor()
+	// balancetransfer.DefaultCreatedAt holds the default value on creation for the created_at field.
+	balancetransfer.DefaultCreatedAt = balancetransferDescCreatedAt.Default.(func() time.Time)
 	batchimageeventFields := schema.BatchImageEvent{}.Fields()
 	_ = batchimageeventFields
 	// batchimageeventDescJobID is the schema descriptor for job_id field.
@@ -865,6 +917,98 @@ func init() {
 	channelmonitorrequesttemplate.DefaultBodyOverrideMode = channelmonitorrequesttemplateDescBodyOverrideMode.Default.(string)
 	// channelmonitorrequesttemplate.BodyOverrideModeValidator is a validator for the "body_override_mode" field. It is called by the builders before save.
 	channelmonitorrequesttemplate.BodyOverrideModeValidator = channelmonitorrequesttemplateDescBodyOverrideMode.Validators[0].(func(string) error)
+	checkinFields := schema.Checkin{}.Fields()
+	_ = checkinFields
+	// checkinDescStreakDays is the schema descriptor for streak_days field.
+	checkinDescStreakDays := checkinFields[3].Descriptor()
+	// checkin.DefaultStreakDays holds the default value on creation for the streak_days field.
+	checkin.DefaultStreakDays = checkinDescStreakDays.Default.(int)
+	// checkinDescCheckinType is the schema descriptor for checkin_type field.
+	checkinDescCheckinType := checkinFields[4].Descriptor()
+	// checkin.DefaultCheckinType holds the default value on creation for the checkin_type field.
+	checkin.DefaultCheckinType = checkinDescCheckinType.Default.(string)
+	// checkinDescBetAmount is the schema descriptor for bet_amount field.
+	checkinDescBetAmount := checkinFields[5].Descriptor()
+	// checkin.DefaultBetAmount holds the default value on creation for the bet_amount field.
+	checkin.DefaultBetAmount = checkinDescBetAmount.Default.(float64)
+	// checkinDescMultiplier is the schema descriptor for multiplier field.
+	checkinDescMultiplier := checkinFields[6].Descriptor()
+	// checkin.DefaultMultiplier holds the default value on creation for the multiplier field.
+	checkin.DefaultMultiplier = checkinDescMultiplier.Default.(float64)
+	// checkinDescCreatedAt is the schema descriptor for created_at field.
+	checkinDescCreatedAt := checkinFields[7].Descriptor()
+	// checkin.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkin.DefaultCreatedAt = checkinDescCreatedAt.Default.(func() time.Time)
+	checkinblindboxrecordFields := schema.CheckinBlindboxRecord{}.Fields()
+	_ = checkinblindboxrecordFields
+	// checkinblindboxrecordDescPrizeName is the schema descriptor for prize_name field.
+	checkinblindboxrecordDescPrizeName := checkinblindboxrecordFields[2].Descriptor()
+	// checkinblindboxrecord.DefaultPrizeName holds the default value on creation for the prize_name field.
+	checkinblindboxrecord.DefaultPrizeName = checkinblindboxrecordDescPrizeName.Default.(string)
+	// checkinblindboxrecordDescRarity is the schema descriptor for rarity field.
+	checkinblindboxrecordDescRarity := checkinblindboxrecordFields[3].Descriptor()
+	// checkinblindboxrecord.DefaultRarity holds the default value on creation for the rarity field.
+	checkinblindboxrecord.DefaultRarity = checkinblindboxrecordDescRarity.Default.(string)
+	// checkinblindboxrecordDescRewardType is the schema descriptor for reward_type field.
+	checkinblindboxrecordDescRewardType := checkinblindboxrecordFields[4].Descriptor()
+	// checkinblindboxrecord.DefaultRewardType holds the default value on creation for the reward_type field.
+	checkinblindboxrecord.DefaultRewardType = checkinblindboxrecordDescRewardType.Default.(string)
+	// checkinblindboxrecordDescRewardValue is the schema descriptor for reward_value field.
+	checkinblindboxrecordDescRewardValue := checkinblindboxrecordFields[5].Descriptor()
+	// checkinblindboxrecord.DefaultRewardValue holds the default value on creation for the reward_value field.
+	checkinblindboxrecord.DefaultRewardValue = checkinblindboxrecordDescRewardValue.Default.(float64)
+	// checkinblindboxrecordDescStreakDays is the schema descriptor for streak_days field.
+	checkinblindboxrecordDescStreakDays := checkinblindboxrecordFields[6].Descriptor()
+	// checkinblindboxrecord.DefaultStreakDays holds the default value on creation for the streak_days field.
+	checkinblindboxrecord.DefaultStreakDays = checkinblindboxrecordDescStreakDays.Default.(int)
+	// checkinblindboxrecordDescRewardDetail is the schema descriptor for reward_detail field.
+	checkinblindboxrecordDescRewardDetail := checkinblindboxrecordFields[7].Descriptor()
+	// checkinblindboxrecord.DefaultRewardDetail holds the default value on creation for the reward_detail field.
+	checkinblindboxrecord.DefaultRewardDetail = checkinblindboxrecordDescRewardDetail.Default.(string)
+	// checkinblindboxrecordDescCreatedAt is the schema descriptor for created_at field.
+	checkinblindboxrecordDescCreatedAt := checkinblindboxrecordFields[8].Descriptor()
+	// checkinblindboxrecord.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkinblindboxrecord.DefaultCreatedAt = checkinblindboxrecordDescCreatedAt.Default.(func() time.Time)
+	checkinprizeitemFields := schema.CheckinPrizeItem{}.Fields()
+	_ = checkinprizeitemFields
+	// checkinprizeitemDescRarity is the schema descriptor for rarity field.
+	checkinprizeitemDescRarity := checkinprizeitemFields[1].Descriptor()
+	// checkinprizeitem.DefaultRarity holds the default value on creation for the rarity field.
+	checkinprizeitem.DefaultRarity = checkinprizeitemDescRarity.Default.(string)
+	// checkinprizeitemDescRewardType is the schema descriptor for reward_type field.
+	checkinprizeitemDescRewardType := checkinprizeitemFields[2].Descriptor()
+	// checkinprizeitem.DefaultRewardType holds the default value on creation for the reward_type field.
+	checkinprizeitem.DefaultRewardType = checkinprizeitemDescRewardType.Default.(string)
+	// checkinprizeitemDescRewardValue is the schema descriptor for reward_value field.
+	checkinprizeitemDescRewardValue := checkinprizeitemFields[3].Descriptor()
+	// checkinprizeitem.DefaultRewardValue holds the default value on creation for the reward_value field.
+	checkinprizeitem.DefaultRewardValue = checkinprizeitemDescRewardValue.Default.(float64)
+	// checkinprizeitemDescRewardValueMax is the schema descriptor for reward_value_max field.
+	checkinprizeitemDescRewardValueMax := checkinprizeitemFields[4].Descriptor()
+	// checkinprizeitem.DefaultRewardValueMax holds the default value on creation for the reward_value_max field.
+	checkinprizeitem.DefaultRewardValueMax = checkinprizeitemDescRewardValueMax.Default.(float64)
+	// checkinprizeitemDescSubscriptionDays is the schema descriptor for subscription_days field.
+	checkinprizeitemDescSubscriptionDays := checkinprizeitemFields[6].Descriptor()
+	// checkinprizeitem.DefaultSubscriptionDays holds the default value on creation for the subscription_days field.
+	checkinprizeitem.DefaultSubscriptionDays = checkinprizeitemDescSubscriptionDays.Default.(int)
+	// checkinprizeitemDescWeight is the schema descriptor for weight field.
+	checkinprizeitemDescWeight := checkinprizeitemFields[7].Descriptor()
+	// checkinprizeitem.DefaultWeight holds the default value on creation for the weight field.
+	checkinprizeitem.DefaultWeight = checkinprizeitemDescWeight.Default.(int)
+	// checkinprizeitemDescIsEnabled is the schema descriptor for is_enabled field.
+	checkinprizeitemDescIsEnabled := checkinprizeitemFields[8].Descriptor()
+	// checkinprizeitem.DefaultIsEnabled holds the default value on creation for the is_enabled field.
+	checkinprizeitem.DefaultIsEnabled = checkinprizeitemDescIsEnabled.Default.(bool)
+	// checkinprizeitemDescCreatedAt is the schema descriptor for created_at field.
+	checkinprizeitemDescCreatedAt := checkinprizeitemFields[9].Descriptor()
+	// checkinprizeitem.DefaultCreatedAt holds the default value on creation for the created_at field.
+	checkinprizeitem.DefaultCreatedAt = checkinprizeitemDescCreatedAt.Default.(func() time.Time)
+	// checkinprizeitemDescUpdatedAt is the schema descriptor for updated_at field.
+	checkinprizeitemDescUpdatedAt := checkinprizeitemFields[10].Descriptor()
+	// checkinprizeitem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	checkinprizeitem.DefaultUpdatedAt = checkinprizeitemDescUpdatedAt.Default.(func() time.Time)
+	// checkinprizeitem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	checkinprizeitem.UpdateDefaultUpdatedAt = checkinprizeitemDescUpdatedAt.UpdateDefault.(func() time.Time)
 	errorpassthroughruleMixin := schema.ErrorPassthroughRule{}.Mixin()
 	errorpassthroughruleMixinFields0 := errorpassthroughruleMixin[0].Fields()
 	_ = errorpassthroughruleMixinFields0
@@ -1631,6 +1775,14 @@ func init() {
 	redeemcodeDescValidityDays := redeemcodeFields[10].Descriptor()
 	// redeemcode.DefaultValidityDays holds the default value on creation for the validity_days field.
 	redeemcode.DefaultValidityDays = redeemcodeDescValidityDays.Default.(int)
+	// redeemcodeDescMultiplier is the schema descriptor for multiplier field.
+	redeemcodeDescMultiplier := redeemcodeFields[11].Descriptor()
+	// redeemcode.DefaultMultiplier holds the default value on creation for the multiplier field.
+	redeemcode.DefaultMultiplier = redeemcodeDescMultiplier.Default.(float64)
+	// redeemcodeDescBetAmount is the schema descriptor for bet_amount field.
+	redeemcodeDescBetAmount := redeemcodeFields[12].Descriptor()
+	// redeemcode.DefaultBetAmount holds the default value on creation for the bet_amount field.
+	redeemcode.DefaultBetAmount = redeemcodeDescBetAmount.Default.(float64)
 	securitysecretMixin := schema.SecuritySecret{}.Mixin()
 	securitysecretMixinFields0 := securitysecretMixin[0].Fields()
 	_ = securitysecretMixinFields0

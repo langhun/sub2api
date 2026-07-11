@@ -638,6 +638,33 @@ export interface SystemSettings {
   account_quota_notify_enabled: boolean;
   account_quota_notify_emails: NotifyEmailEntry[];
 
+  // Check-in, blind box, balance transfer and red packet settings
+  checkin_enabled: boolean;
+  checkin_min_balance: number;
+  checkin_max_balance: number;
+  checkin_luck_enabled: boolean;
+  checkin_luck_min_multiplier: number;
+  checkin_luck_max_multiplier: number;
+  checkin_blindbox_enabled: boolean;
+  checkin_blindbox_trigger_type: string;
+  checkin_blindbox_interval: number;
+  transfer_enabled: boolean;
+  transfer_fee_rate: number;
+  transfer_min_amount: number;
+  transfer_max_amount: number;
+  transfer_daily_limit: number;
+  transfer_daily_count_limit: number;
+  transfer_vip_fee_exempt: boolean;
+  redpacket_enabled: boolean;
+  redpacket_max_count: number;
+  redpacket_expire_hours: number;
+	usage_query_enabled: boolean;
+	leaderboard_enabled: boolean;
+	leaderboard_balance_enabled: boolean;
+	leaderboard_consumption_enabled: boolean;
+	leaderboard_checkin_enabled: boolean;
+	leaderboard_include_admin: boolean;
+
   // Channel Monitor feature switch
   channel_monitor_enabled: boolean;
   channel_monitor_default_interval_seconds: number;
@@ -663,6 +690,31 @@ export interface UpdateSettingsRequest {
   password_reset_enabled?: boolean;
   frontend_url?: string;
   invitation_code_enabled?: boolean;
+  checkin_enabled?: boolean;
+  checkin_min_balance?: number;
+  checkin_max_balance?: number;
+  checkin_luck_enabled?: boolean;
+  checkin_luck_min_multiplier?: number;
+  checkin_luck_max_multiplier?: number;
+  checkin_blindbox_enabled?: boolean;
+  checkin_blindbox_trigger_type?: string;
+  checkin_blindbox_interval?: number;
+  transfer_enabled?: boolean;
+  transfer_fee_rate?: number;
+  transfer_min_amount?: number;
+  transfer_max_amount?: number;
+  transfer_daily_limit?: number;
+  transfer_daily_count_limit?: number;
+  transfer_vip_fee_exempt?: boolean;
+  redpacket_enabled?: boolean;
+  redpacket_max_count?: number;
+  redpacket_expire_hours?: number;
+	usage_query_enabled?: boolean;
+	leaderboard_enabled?: boolean;
+	leaderboard_balance_enabled?: boolean;
+	leaderboard_consumption_enabled?: boolean;
+	leaderboard_checkin_enabled?: boolean;
+	leaderboard_include_admin?: boolean;
   totp_enabled?: boolean; // TOTP 双因素认证
   login_agreement_enabled?: boolean;
   login_agreement_mode?: "modal" | "checkbox" | string;

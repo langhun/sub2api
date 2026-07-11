@@ -183,6 +183,14 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
 
+		// User-facing entry switches. Keep existing routes available by default.
+		SettingKeyUsageQueryEnabled:             "true",
+		SettingKeyLeaderboardEnabled:            "true",
+		SettingKeyLeaderboardBalanceEnabled:     "true",
+		SettingKeyLeaderboardConsumptionEnabled: "true",
+		SettingKeyLeaderboardCheckinEnabled:     "true",
+		SettingKeyLeaderboardIncludeAdmin:       "false",
+
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
 
@@ -284,6 +292,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		CustomEndpoints:                  settings[SettingKeyCustomEndpoints],
 		BackendModeEnabled:               settings[SettingKeyBackendModeEnabled] == "true",
 	}
+	result.BalanceFeatureSettings = parseBalanceFeatureSettings(settings)
 	result.TableDefaultPageSize, result.TablePageSizeOptions = parseTablePreferences(
 		settings[SettingKeyTableDefaultPageSize],
 		settings[SettingKeyTablePageSizeOptions],
