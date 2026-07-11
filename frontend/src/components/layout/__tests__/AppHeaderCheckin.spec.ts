@@ -113,4 +113,15 @@ describe('AppHeader check-in actions', () => {
     expect(wrapper.find('[data-testid="header-normal-checkin"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(false)
   })
+
+  it('removes the header check-in area after today is completed', () => {
+    checkinStore.canCheckin = false
+    checkinStore.checkedInToday = true
+
+    const wrapper = mountHeader()
+
+    expect(wrapper.find('[data-testid="header-normal-checkin"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('checkin.checked')
+  })
 })

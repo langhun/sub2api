@@ -116,36 +116,9 @@
               {{ t('checkin.luckCheckin') }}
             </button>
           </template>
-          <span v-else-if="checkinStore.checkedInToday" class="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <Icon name="checkCircle" size="sm" />
-            {{ t('checkin.checked') }}
-          </span>
         </div>
 
-        <BaseDialog :show="showHeaderLuckDialog" :title="t('checkin.luckTitle')" width="narrow" :close-on-click-outside="!checkinStore.loading" :close-on-escape="!checkinStore.loading" @close="closeHeaderLuckDialog">
-          <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-            <p class="text-xs text-purple-700 dark:text-purple-300">
-              {{ t('checkin.multiplierRange', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}
-            </p>
-          </div>
-          <div class="space-y-4">
-            <label class="block">
-              <span class="input-label">{{ t('checkin.betAmount') }}</span>
-              <input v-model.number="headerLuckBet" data-testid="header-luck-bet" type="number" step="0.01" :min="0.01" :max="checkinStore.status?.balance ?? availableBalance" class="input" :placeholder="t('checkin.betAmountPlaceholder')" @keyup.enter="submitHeaderLuckCheckin" />
-            </label>
-            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-dark-400">
-              <span>{{ t('profile.accountBalance') }}: {{ formatHeaderMoney(checkinStore.status?.balance ?? availableBalance) }}</span>
-              <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="headerLuckBet = checkinStore.status?.balance ?? availableBalance">MAX</button>
-            </div>
-            <p v-if="checkinStore.actionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300" role="alert">{{ checkinActionError }}</p>
-          </div>
-          <template #footer>
-            <div class="flex justify-end gap-3">
-              <button type="button" class="btn btn-secondary" :disabled="checkinStore.loading" @click="closeHeaderLuckDialog">{{ t('common.cancel') }}</button>
-              <button type="button" data-testid="header-luck-submit" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-600 disabled:opacity-50" :disabled="checkinStore.loading || !validHeaderLuckBet" @click="submitHeaderLuckCheckin">{{ checkinStore.loading ? t('common.loading') : t('checkin.luckButton') }}</button>
-            </div>
-          </template>
-        </BaseDialog>
+        <LuckyCheckinDialog :show="showHeaderLuckDialog" @close="showHeaderLuckDialog = false" @success="showHeaderLuckDialog = false" />
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
@@ -303,12 +276,11 @@ import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useCheckinStore } from '@/stores/checkin'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
-import BaseDialog from '@/components/common/BaseDialog.vue'
+import LuckyCheckinDialog from '@/components/checkin/LuckyCheckinDialog.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
-import { activityErrorMessage } from '@/utils/activityError'
 
 const router = useRouter()
 const route = useRoute()
@@ -333,12 +305,6 @@ const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.f
 const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
 const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHeaderMoney(frozenBalance.value)}`)
 const showHeaderLuckDialog = ref(false)
-const headerLuckBet = ref(0)
-const validHeaderLuckBet = computed(() => {
-  const balance = checkinStore.status?.balance ?? availableBalance.value
-  return Number.isFinite(headerLuckBet.value) && headerLuckBet.value > 0 && headerLuckBet.value <= balance
-})
-const checkinActionError = computed(() => activityErrorMessage(checkinStore.actionError, t, t('checkin.actionFailed')))
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
@@ -426,22 +392,7 @@ async function submitHeaderNormalCheckin() {
 }
 
 function openHeaderLuckDialog() {
-  checkinStore.clearActionError()
   showHeaderLuckDialog.value = true
-}
-
-function closeHeaderLuckDialog() {
-  if (checkinStore.loading) return
-  showHeaderLuckDialog.value = false
-  checkinStore.clearActionError()
-}
-
-async function submitHeaderLuckCheckin() {
-  if (!validHeaderLuckBet.value) return
-  const result = await checkinStore.doLuckCheckin(headerLuckBet.value)
-  if (!result) return
-  headerLuckBet.value = 0
-  showHeaderLuckDialog.value = false
 }
 
 function handleClickOutside(event: MouseEvent) {
