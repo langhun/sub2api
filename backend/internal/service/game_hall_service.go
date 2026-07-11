@@ -10,6 +10,7 @@ import (
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/google/uuid"
 )
 
@@ -25,6 +26,9 @@ var (
 	ErrGameHallDisabled             = infraerrors.Forbidden("GAME_HALL_DISABLED", "game hall is disabled")
 	ErrGameExchangeAmountInvalid    = infraerrors.BadRequest("GAME_EXCHANGE_AMOUNT_INVALID", "exchange amount must be greater than 0")
 	ErrGameExchangeDirectionInvalid = infraerrors.BadRequest("GAME_EXCHANGE_DIRECTION_INVALID", "exchange direction is invalid")
+	ErrGameExchangeOutOfRange       = infraerrors.BadRequest("GAME_EXCHANGE_OUT_OF_RANGE", "exchange amount is outside the configured range")
+	ErrGameExchangeDailyLimit       = infraerrors.BadRequest("GAME_EXCHANGE_DAILY_LIMIT", "daily exchange limit exceeded")
+	ErrGameExchangeReturnDisabled   = infraerrors.Forbidden("GAME_EXCHANGE_RETURN_DISABLED", "DG to main balance exchange is disabled")
 	ErrGameInsufficientMainBalance  = infraerrors.BadRequest("GAME_INSUFFICIENT_MAIN_BALANCE", "insufficient main balance")
 	ErrGameInsufficientDGBalance    = infraerrors.BadRequest("GAME_INSUFFICIENT_DG_BALANCE", "insufficient DG balance")
 	ErrGameInvalidType              = infraerrors.BadRequest("GAME_INVALID_TYPE", "game type is invalid")
@@ -64,6 +68,7 @@ type GameHallSettingsReader interface {
 type GameHallStore interface {
 	GetSnapshot(ctx context.Context, userID int64) (*GameWalletSnapshot, error)
 	CommitExchange(ctx context.Context, plan GameExchangePlan) (*GameExchangeResult, error)
+	GetDailyExchangeTotal(ctx context.Context, userID int64, start, end time.Time) (float64, error)
 	CommitSlotRound(ctx context.Context, plan GameSlotRoundPlan) (*GamePlayResult, error)
 	ListWalletTransactions(ctx context.Context, userID *int64, page, pageSize int) ([]GameWalletTransaction, int64, error)
 	ListRounds(ctx context.Context, userID *int64, page, pageSize int) ([]GameRound, int64, error)
@@ -107,10 +112,16 @@ type GamePayoutRule struct {
 }
 
 type GameHallStatus struct {
-	MainBalance    float64    `json:"main_balance"`
-	DGBalance      float64    `json:"dg_balance"`
-	JackpotBalance float64    `json:"jackpot_balance"`
-	Games          []GameInfo `json:"games"`
+	MainBalance              float64    `json:"main_balance"`
+	DGBalance                float64    `json:"dg_balance"`
+	JackpotBalance           float64    `json:"jackpot_balance"`
+	Games                    []GameInfo `json:"games"`
+	ExchangeMinAmount        float64    `json:"exchange_min_amount"`
+	ExchangeMaxAmount        float64    `json:"exchange_max_amount"`
+	ExchangeDailyLimit       float64    `json:"exchange_daily_limit"`
+	ExchangeDailyUsed        float64    `json:"exchange_daily_used"`
+	ExchangeDailyRemaining   float64    `json:"exchange_daily_remaining"`
+	ExchangeAllowDGToBalance bool       `json:"exchange_allow_dg_to_balance"`
 }
 
 type GameExchangeInput struct {
@@ -129,6 +140,9 @@ type GameExchangePlan struct {
 	MainBalanceAfter  float64
 	DGBalanceBefore   float64
 	DGBalanceAfter    float64
+	DailyLimit        float64
+	DayStart          time.Time
+	DayEnd            time.Time
 }
 
 type GameExchangeResult struct {
@@ -239,23 +253,44 @@ func (s *GameHallService) GetHallStatus(ctx context.Context, userID int64) (*Gam
 	if err != nil {
 		return nil, fmt.Errorf("get game hall snapshot: %w", err)
 	}
+	dailyTotal, err := s.dailyExchangeTotal(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	dailyRemaining := float64(0)
+	if settings.exchangeDailyLimit > 0 {
+		dailyRemaining = roundGameAmount(math.Max(0, settings.exchangeDailyLimit-dailyTotal))
+	}
 
 	return &GameHallStatus{
-		MainBalance:    roundGameAmount(snapshot.MainBalance),
-		DGBalance:      roundGameAmount(snapshot.DGBalance),
-		JackpotBalance: roundGameAmount(snapshot.JackpotBalance),
-		Games:          configuredGameInfos(settings),
+		MainBalance:              roundGameAmount(snapshot.MainBalance),
+		DGBalance:                roundGameAmount(snapshot.DGBalance),
+		JackpotBalance:           roundGameAmount(snapshot.JackpotBalance),
+		Games:                    configuredGameInfos(settings),
+		ExchangeMinAmount:        settings.exchangeMinAmount,
+		ExchangeMaxAmount:        settings.exchangeMaxAmount,
+		ExchangeDailyLimit:       settings.exchangeDailyLimit,
+		ExchangeDailyUsed:        dailyTotal,
+		ExchangeDailyRemaining:   dailyRemaining,
+		ExchangeAllowDGToBalance: settings.exchangeAllowDGToBalance,
 	}, nil
 }
 
 func (s *GameHallService) Exchange(ctx context.Context, input GameExchangeInput) (*GameExchangeResult, error) {
-	if err := s.ensureEnabled(ctx); err != nil {
+	settings, err := s.readSettings(ctx)
+	if err != nil {
 		return nil, err
 	}
 
 	amount := roundGameAmount(input.Amount)
 	if amount <= 0 || math.IsNaN(amount) || math.IsInf(amount, 0) {
 		return nil, ErrGameExchangeAmountInvalid
+	}
+	if amount < settings.exchangeMinAmount || (settings.exchangeMaxAmount > 0 && amount > settings.exchangeMaxAmount) {
+		return nil, ErrGameExchangeOutOfRange
+	}
+	if input.Direction == GameExchangeDGToBalance && !settings.exchangeAllowDGToBalance {
+		return nil, ErrGameExchangeReturnDisabled
 	}
 	key, err := normalizeGameHallIdempotencyKey(input.IdempotencyKey)
 	if err != nil {
@@ -274,7 +309,10 @@ func (s *GameHallService) Exchange(ctx context.Context, input GameExchangeInput)
 		IdempotencyKey:    key,
 		MainBalanceBefore: roundGameAmount(snapshot.MainBalance),
 		DGBalanceBefore:   roundGameAmount(snapshot.DGBalance),
+		DailyLimit:        settings.exchangeDailyLimit,
 	}
+	plan.DayStart = timezone.Today()
+	plan.DayEnd = plan.DayStart.AddDate(0, 0, 1)
 
 	switch input.Direction {
 	case GameExchangeBalanceToDG:
@@ -411,9 +449,13 @@ func (s *GameHallService) ensureEnabled(ctx context.Context) error {
 }
 
 type gameHallRuntimeSettings struct {
-	slotsEnabled bool
-	minBet       float64
-	maxBet       float64
+	slotsEnabled             bool
+	minBet                   float64
+	maxBet                   float64
+	exchangeMinAmount        float64
+	exchangeMaxAmount        float64
+	exchangeDailyLimit       float64
+	exchangeAllowDGToBalance bool
 }
 
 func (s *GameHallService) readSettings(ctx context.Context) (gameHallRuntimeSettings, error) {
@@ -425,6 +467,7 @@ func (s *GameHallService) readSettings(ctx context.Context) (gameHallRuntimeSett
 	}
 	values, err := s.settings.GetMultiple(ctx, []string{
 		SettingKeyGameHallEnabled, SettingKeyGameSlotsEnabled, SettingKeyGameSlotsMinBet, SettingKeyGameSlotsMaxBet,
+		SettingKeyGameExchangeMinAmount, SettingKeyGameExchangeMaxAmount, SettingKeyGameExchangeDailyLimit, SettingKeyGameExchangeAllowDGToBalance,
 	})
 	if err != nil {
 		return gameHallRuntimeSettings{}, err
@@ -437,7 +480,26 @@ func (s *GameHallService) readSettings(ctx context.Context) (gameHallRuntimeSett
 	if minBet <= 0 || maxBet < minBet {
 		return gameHallRuntimeSettings{}, infraerrors.InternalServer("GAME_SETTINGS_INVALID", "game hall bet range is invalid")
 	}
-	return gameHallRuntimeSettings{slotsEnabled: values[SettingKeyGameSlotsEnabled] == "true", minBet: minBet, maxBet: maxBet}, nil
+	exchangeMinAmount := parseBalanceFeatureFloat(values[SettingKeyGameExchangeMinAmount], 0.01)
+	exchangeMaxAmount := parseBalanceFeatureFloat(values[SettingKeyGameExchangeMaxAmount], 1000)
+	exchangeDailyLimit := parseBalanceFeatureFloat(values[SettingKeyGameExchangeDailyLimit], 1000)
+	if exchangeMinAmount <= 0 || (exchangeMaxAmount > 0 && exchangeMaxAmount < exchangeMinAmount) {
+		return gameHallRuntimeSettings{}, infraerrors.InternalServer("GAME_SETTINGS_INVALID", "game hall exchange range is invalid")
+	}
+	return gameHallRuntimeSettings{
+		slotsEnabled: values[SettingKeyGameSlotsEnabled] == "true", minBet: minBet, maxBet: maxBet,
+		exchangeMinAmount: exchangeMinAmount, exchangeMaxAmount: exchangeMaxAmount, exchangeDailyLimit: exchangeDailyLimit,
+		exchangeAllowDGToBalance: values[SettingKeyGameExchangeAllowDGToBalance] != "false",
+	}, nil
+}
+
+func (s *GameHallService) dailyExchangeTotal(ctx context.Context, userID int64) (float64, error) {
+	start := timezone.Today()
+	total, err := s.store.GetDailyExchangeTotal(ctx, userID, start, start.AddDate(0, 0, 1))
+	if err != nil {
+		return 0, fmt.Errorf("get daily game exchange total: %w", err)
+	}
+	return roundGameAmount(total), nil
 }
 
 func configuredGameInfos(settings gameHallRuntimeSettings) []GameInfo {

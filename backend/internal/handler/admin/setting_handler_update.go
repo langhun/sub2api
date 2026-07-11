@@ -298,11 +298,15 @@ type UpdateSettingsRequest struct {
 	ChannelMonitorDefaultIntervalSeconds *int  `json:"channel_monitor_default_interval_seconds"`
 
 	// Available Channels feature switch (user-facing)
-	AvailableChannelsEnabled *bool    `json:"available_channels_enabled"`
-	GameHallEnabled          *bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled         *bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet          *float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet          *float64 `json:"game_slots_max_bet"`
+	AvailableChannelsEnabled     *bool    `json:"available_channels_enabled"`
+	GameHallEnabled              *bool    `json:"game_hall_enabled"`
+	GameSlotsEnabled             *bool    `json:"game_slots_enabled"`
+	GameSlotsMinBet              *float64 `json:"game_slots_min_bet"`
+	GameSlotsMaxBet              *float64 `json:"game_slots_max_bet"`
+	GameExchangeMinAmount        *float64 `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount        *float64 `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit       *float64 `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance *bool    `json:"game_exchange_allow_dg_to_balance"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled              *bool    `json:"affiliate_enabled"`
@@ -1958,6 +1962,18 @@ func mergeBalanceFeatureSettings(previous service.BalanceFeatureSettings, req Up
 	}
 	if req.GameSlotsMaxBet != nil {
 		next.GameSlotsMaxBet = *req.GameSlotsMaxBet
+	}
+	if req.GameExchangeMinAmount != nil {
+		next.GameExchangeMinAmount = *req.GameExchangeMinAmount
+	}
+	if req.GameExchangeMaxAmount != nil {
+		next.GameExchangeMaxAmount = *req.GameExchangeMaxAmount
+	}
+	if req.GameExchangeDailyLimit != nil {
+		next.GameExchangeDailyLimit = *req.GameExchangeDailyLimit
+	}
+	if req.GameExchangeAllowDGToBalance != nil {
+		next.GameExchangeAllowDGToBalance = *req.GameExchangeAllowDGToBalance
 	}
 	if req.CheckinEnabled != nil {
 		next.CheckinEnabled = *req.CheckinEnabled

@@ -324,11 +324,15 @@ type PublicSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
 	// Available Channels feature (user-facing aggregate view)
-	AvailableChannelsEnabled bool    `json:"available_channels_enabled"`
-	GameHallEnabled          bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled         bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet          float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet          float64 `json:"game_slots_max_bet"`
+	AvailableChannelsEnabled     bool    `json:"available_channels_enabled"`
+	GameHallEnabled              bool    `json:"game_hall_enabled"`
+	GameSlotsEnabled             bool    `json:"game_slots_enabled"`
+	GameSlotsMinBet              float64 `json:"game_slots_min_bet"`
+	GameSlotsMaxBet              float64 `json:"game_slots_max_bet"`
+	GameExchangeMinAmount        float64 `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount        float64 `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit       float64 `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance bool    `json:"game_exchange_allow_dg_to_balance"`
 
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled              bool `json:"affiliate_enabled"`

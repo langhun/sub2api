@@ -7272,6 +7272,15 @@
                 <Toggle v-model="form.game_hall_enabled" />
               </div>
               <template v-if="form.game_hall_enabled">
+                <div class="grid gap-4 border-t border-gray-100 pt-4 dark:border-dark-700 md:grid-cols-3">
+                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('单次兑换下限', 'Minimum exchange') }}<input v-model.number="form.game_exchange_min_amount" type="number" min="0.01" step="0.01" class="input mt-1" /></label>
+                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('单次兑换上限', 'Maximum exchange') }}<input v-model.number="form.game_exchange_max_amount" type="number" min="0" step="0.01" class="input mt-1" /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ localText('0 表示不限', '0 means unlimited') }}</span></label>
+                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('每日兑换上限', 'Daily exchange limit') }}<input v-model.number="form.game_exchange_daily_limit" type="number" min="0" step="0.01" class="input mt-1" /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ localText('双向成功金额合计，0 表示不限', 'Successful amounts in both directions; 0 means unlimited') }}</span></label>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div><p class="font-medium text-gray-900 dark:text-white">{{ localText('允许 DG 转回主余额', 'Allow DG return to main balance') }}</p><p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ localText('关闭后只允许主余额兑换为 DG。', 'When disabled, users can only exchange main balance to DG.') }}</p></div>
+                  <Toggle v-model="form.game_exchange_allow_dg_to_balance" />
+                </div>
                 <div class="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 dark:border-dark-700">
                   <span class="font-medium text-gray-900 dark:text-white">{{ localText('三轴老虎机', 'Three-reel slots') }}</span>
                   <Toggle v-model="form.game_slots_enabled" />
@@ -8366,6 +8375,10 @@ const form = reactive<SettingsForm>({
   game_slots_enabled: false,
   game_slots_min_bet: 0.01,
   game_slots_max_bet: 1000,
+  game_exchange_min_amount: 0.01,
+  game_exchange_max_amount: 1000,
+  game_exchange_daily_limit: 1000,
+  game_exchange_allow_dg_to_balance: true,
   checkin_enabled: false,
   checkin_min_balance: 0.1,
   checkin_max_balance: 1,
@@ -9784,6 +9797,10 @@ async function saveSettings() {
       game_slots_enabled: form.game_slots_enabled,
       game_slots_min_bet: Number(form.game_slots_min_bet) || 0.01,
       game_slots_max_bet: Number(form.game_slots_max_bet) || 0.01,
+      game_exchange_min_amount: Number(form.game_exchange_min_amount) || 0.01,
+      game_exchange_max_amount: Number(form.game_exchange_max_amount) || 0,
+      game_exchange_daily_limit: Number(form.game_exchange_daily_limit) || 0,
+      game_exchange_allow_dg_to_balance: form.game_exchange_allow_dg_to_balance,
       checkin_enabled: form.checkin_enabled,
       checkin_min_balance: Number(form.checkin_min_balance) || 0,
       checkin_max_balance: Number(form.checkin_max_balance) || 0,
@@ -9934,6 +9951,15 @@ async function saveSettings() {
 }
 
 function validateActivitySettings(): string {
+  const exchangeMin = Number(form.game_exchange_min_amount);
+  const exchangeMax = Number(form.game_exchange_max_amount);
+  const exchangeDaily = Number(form.game_exchange_daily_limit);
+  if (!Number.isFinite(exchangeMin) || exchangeMin <= 0 || !Number.isFinite(exchangeMax) || exchangeMax < 0 || !Number.isFinite(exchangeDaily) || exchangeDaily < 0) {
+    return localText('兑换限额必须是有效数字，下限大于 0，上限与每日限额可为 0（不限）', 'Exchange limits must be finite; the minimum must be positive, while maximum and daily limit may be 0 (unlimited)');
+  }
+  if (exchangeMax > 0 && exchangeMin > exchangeMax) {
+    return localText('单次兑换下限不能大于上限', 'The minimum exchange cannot exceed the maximum');
+  }
   if (form.checkin_enabled && Number(form.checkin_min_balance) > Number(form.checkin_max_balance)) {
     return localText('签到最小奖励不能大于最大奖励', 'The minimum check-in reward cannot exceed the maximum');
   }
@@ -9951,9 +9977,6 @@ function validateActivitySettings(): string {
   }
   if (form.leaderboard_transfer_enabled && !form.transfer_enabled) {
     return localText('转账排行榜依赖余额转账功能', 'The transfer leaderboard requires balance transfers');
-  }
-  if (form.game_hall_enabled && !form.game_slots_enabled) {
-    return localText('开启娱乐大厅时至少启用一个游戏', 'Enable at least one game before enabling the game hall');
   }
   return '';
 }

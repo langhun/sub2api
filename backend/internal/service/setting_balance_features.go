@@ -15,6 +15,15 @@ func (s BalanceFeatureSettings) ValidateGameHall() error {
 	if math.IsNaN(s.GameSlotsMaxBet) || math.IsInf(s.GameSlotsMaxBet, 0) || s.GameSlotsMaxBet < s.GameSlotsMinBet {
 		return fmt.Errorf("game_slots_max_bet must be finite and greater than or equal to game_slots_min_bet")
 	}
+	if math.IsNaN(s.GameExchangeMinAmount) || math.IsInf(s.GameExchangeMinAmount, 0) || s.GameExchangeMinAmount <= 0 {
+		return fmt.Errorf("game_exchange_min_amount must be finite and greater than 0")
+	}
+	if !isFiniteNonnegative(s.GameExchangeMaxAmount) || (s.GameExchangeMaxAmount > 0 && s.GameExchangeMaxAmount < s.GameExchangeMinAmount) {
+		return fmt.Errorf("game_exchange_max_amount must be 0 or greater than or equal to game_exchange_min_amount")
+	}
+	if !isFiniteNonnegative(s.GameExchangeDailyLimit) {
+		return fmt.Errorf("game_exchange_daily_limit must be finite and nonnegative")
+	}
 	return nil
 }
 
@@ -71,6 +80,10 @@ type BalanceFeatureSettings struct {
 	GameSlotsEnabled              bool
 	GameSlotsMinBet               float64
 	GameSlotsMaxBet               float64
+	GameExchangeMinAmount         float64
+	GameExchangeMaxAmount         float64
+	GameExchangeDailyLimit        float64
+	GameExchangeAllowDGToBalance  bool
 	CheckinEnabled                bool
 	CheckinMinBalance             float64
 	CheckinMaxBalance             float64
@@ -110,6 +123,10 @@ func parseBalanceFeatureSettings(values map[string]string) BalanceFeatureSetting
 		GameSlotsEnabled:              values[SettingKeyGameSlotsEnabled] == "true",
 		GameSlotsMinBet:               parseBalanceFeatureFloat(values[SettingKeyGameSlotsMinBet], 0.01),
 		GameSlotsMaxBet:               parseBalanceFeatureFloat(values[SettingKeyGameSlotsMaxBet], 1000),
+		GameExchangeMinAmount:         parseBalanceFeatureFloat(values[SettingKeyGameExchangeMinAmount], 0.01),
+		GameExchangeMaxAmount:         parseBalanceFeatureFloat(values[SettingKeyGameExchangeMaxAmount], 1000),
+		GameExchangeDailyLimit:        parseBalanceFeatureFloat(values[SettingKeyGameExchangeDailyLimit], 1000),
+		GameExchangeAllowDGToBalance:  values[SettingKeyGameExchangeAllowDGToBalance] != "false",
 		CheckinEnabled:                values[SettingKeyCheckinEnabled] == "true",
 		CheckinMinBalance:             parseBalanceFeatureFloat(values[SettingKeyCheckinMinBalance], 0.1),
 		CheckinMaxBalance:             parseBalanceFeatureFloat(values[SettingKeyCheckinMaxBalance], 1),
@@ -144,6 +161,10 @@ func appendBalanceFeatureUpdates(updates map[string]string, settings BalanceFeat
 	updates[SettingKeyGameSlotsEnabled] = strconv.FormatBool(settings.GameSlotsEnabled)
 	updates[SettingKeyGameSlotsMinBet] = strconv.FormatFloat(settings.GameSlotsMinBet, 'f', 8, 64)
 	updates[SettingKeyGameSlotsMaxBet] = strconv.FormatFloat(settings.GameSlotsMaxBet, 'f', 8, 64)
+	updates[SettingKeyGameExchangeMinAmount] = strconv.FormatFloat(settings.GameExchangeMinAmount, 'f', 8, 64)
+	updates[SettingKeyGameExchangeMaxAmount] = strconv.FormatFloat(settings.GameExchangeMaxAmount, 'f', 8, 64)
+	updates[SettingKeyGameExchangeDailyLimit] = strconv.FormatFloat(settings.GameExchangeDailyLimit, 'f', 8, 64)
+	updates[SettingKeyGameExchangeAllowDGToBalance] = strconv.FormatBool(settings.GameExchangeAllowDGToBalance)
 	updates[SettingKeyCheckinEnabled] = strconv.FormatBool(settings.CheckinEnabled)
 	updates[SettingKeyCheckinMinBalance] = strconv.FormatFloat(settings.CheckinMinBalance, 'f', 8, 64)
 	updates[SettingKeyCheckinMaxBalance] = strconv.FormatFloat(settings.CheckinMaxBalance, 'f', 8, 64)
@@ -175,6 +196,7 @@ func appendBalanceFeatureUpdates(updates map[string]string, settings BalanceFeat
 func (s *SettingService) balanceFeatureSettings(ctx context.Context) BalanceFeatureSettings {
 	values, err := s.settingRepo.GetMultiple(ctx, []string{
 		SettingKeyGameHallEnabled, SettingKeyGameSlotsEnabled, SettingKeyGameSlotsMinBet, SettingKeyGameSlotsMaxBet,
+		SettingKeyGameExchangeMinAmount, SettingKeyGameExchangeMaxAmount, SettingKeyGameExchangeDailyLimit, SettingKeyGameExchangeAllowDGToBalance,
 		SettingKeyCheckinEnabled, SettingKeyCheckinMinBalance, SettingKeyCheckinMaxBalance,
 		SettingKeyCheckinLuckEnabled, SettingKeyCheckinLuckMinMultiplier, SettingKeyCheckinLuckMaxMultiplier,
 		SettingKeyCheckinBlindboxEnabled, SettingKeyCheckinBlindboxTriggerType, SettingKeyCheckinBlindboxInterval,

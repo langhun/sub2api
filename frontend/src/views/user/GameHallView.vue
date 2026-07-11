@@ -45,19 +45,23 @@
             </div>
             <form data-testid="game-exchange-form" class="space-y-4 p-5" @submit.prevent="confirmingExchange = true">
               <div class="grid grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
-                <button v-for="option in exchangeOptions" :key="option.value" type="button" class="rounded-md px-3 py-2 text-sm font-medium transition-colors" :class="direction === option.value ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-dark-400'" @click="direction = option.value">
+                <button v-for="option in exchangeOptions" :key="option.value" :data-testid="`exchange-direction-${option.value}`" type="button" class="rounded-md px-3 py-2 text-sm font-medium transition-colors" :class="direction === option.value ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-dark-400'" @click="direction = option.value">
                   {{ option.label }}
                 </button>
               </div>
+              <div class="rounded-lg bg-gray-50 px-4 py-3 text-xs text-gray-600 dark:bg-dark-800 dark:text-dark-300">
+                <p>{{ t('gameHall.exchangeRange', { min: money(store.status.exchange_min_amount), max: exchangeMaximumLabel }) }}</p>
+                <p class="mt-1">{{ exchangeDailyLabel }}</p>
+              </div>
               <label class="block">
                 <span class="input-label">{{ t('gameHall.amount') }}</span>
-                <input v-model.number="exchangeAmount" class="input" type="number" min="0.01" step="0.01" required />
+                <input v-model.number="exchangeAmount" data-testid="exchange-amount" class="input" type="number" :min="store.status.exchange_min_amount" :max="exchangeInputMax" step="0.01" required />
               </label>
               <div class="rounded-lg border border-gray-200 px-4 py-3 text-sm dark:border-dark-700">
                 <div class="flex justify-between text-gray-500 dark:text-dark-400"><span>{{ t('gameHall.rate') }}</span><span>1 : 1</span></div>
                 <div class="mt-2 flex justify-between font-medium text-gray-900 dark:text-white"><span>{{ t('gameHall.afterExchange') }}</span><span>{{ exchangePreview }}</span></div>
               </div>
-              <button class="btn btn-primary w-full" type="submit" :disabled="store.submitting || exchangeAmount <= 0">
+              <button class="btn btn-primary w-full" type="submit" :disabled="store.submitting || !validExchange">
                 <Icon name="swap" size="sm" />
                 {{ store.submitting ? t('common.processing') : t('gameHall.exchangeAction') }}
               </button>
@@ -153,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -180,11 +184,27 @@ const transactions = ref<GameWalletTransaction[]>([]); const rounds = ref<GameRo
 
 const exchangeOptions = computed(() => [
   { value: 'balance_to_dg' as const, label: t('gameHall.toDG') },
-  { value: 'dg_to_balance' as const, label: t('gameHall.toMain') },
+  ...(store.status?.exchange_allow_dg_to_balance ? [{ value: 'dg_to_balance' as const, label: t('gameHall.toMain') }] : []),
 ])
 const slots = computed(() => store.enabledGames.find((game) => game.type === 'slots'))
 const displayedSymbols = computed(() => store.lastRound?.symbols?.length ? store.lastRound.symbols : ['STAR', 'SEVEN', 'DIAMOND'])
 const validBet = computed(() => !!slots.value && betAmount.value >= slots.value.min_bet && betAmount.value <= slots.value.max_bet && betAmount.value <= (store.status?.dg_balance ?? 0))
+const exchangeInputMax = computed(() => {
+  if (!store.status) return undefined
+  const available = direction.value === 'balance_to_dg' ? store.status.main_balance : store.status.dg_balance
+  const limits = [available]
+  if (store.status.exchange_max_amount > 0) limits.push(store.status.exchange_max_amount)
+  if (store.status.exchange_daily_limit > 0) limits.push(store.status.exchange_daily_remaining)
+  return Math.max(0, Math.min(...limits))
+})
+const validExchange = computed(() => !!store.status
+  && Number.isFinite(Number(exchangeAmount.value))
+  && exchangeAmount.value >= store.status.exchange_min_amount
+  && exchangeAmount.value <= exchangeInputMax.value!)
+const exchangeMaximumLabel = computed(() => store.status?.exchange_max_amount ? money(store.status.exchange_max_amount) : t('gameHall.unlimited'))
+const exchangeDailyLabel = computed(() => !store.status?.exchange_daily_limit
+  ? t('gameHall.exchangeDailyUnlimited')
+  : t('gameHall.exchangeDailyRemaining', { remaining: money(store.status.exchange_daily_remaining), limit: money(store.status.exchange_daily_limit) }))
 const quickBets = computed(() => {
   if (!slots.value) return []
   const values = [slots.value.min_bet, Math.max(slots.value.min_bet, Math.min(5, slots.value.max_bet)), slots.value.max_bet]
@@ -243,6 +263,10 @@ async function submitPlay(): Promise<void> {
 async function loadHistory(): Promise<void> { historyLoading.value = true; historyError.value = ''; try { const result = historyTab.value === 'transactions' ? await getGameTransactions(historyPage.value, historyPageSize) : await getGameRounds(historyPage.value, historyPageSize); if (historyTab.value === 'transactions') transactions.value = result.items as GameWalletTransaction[]; else rounds.value = result.items as GameRound[]; historyTotal.value = result.total } catch (cause) { historyError.value = extractApiErrorMessage(cause, t('gameHall.historyFailed')) } finally { historyLoading.value = false } }
 function changeHistoryTab(tab: 'transactions' | 'rounds') { historyTab.value = tab; historyPage.value = 1; void loadHistory() }
 function changeHistoryPage(page: number) { historyPage.value = page; void loadHistory() }
+
+watch(() => store.status?.exchange_allow_dg_to_balance, (allowed) => {
+  if (!allowed && direction.value === 'dg_to_balance') direction.value = 'balance_to_dg'
+})
 
 onMounted(async () => { await Promise.all([reload(), loadHistory()]) })
 </script>

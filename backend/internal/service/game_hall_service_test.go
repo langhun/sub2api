@@ -6,6 +6,7 @@ import (
 	"context"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -25,9 +26,14 @@ func (s *gameHallSettingsReaderStub) GetMultiple(_ context.Context, keys []strin
 }
 
 type gameHallStoreStub struct {
-	snapshot     *GameWalletSnapshot
-	exchangePlan *GameExchangePlan
-	slotPlan     *GameSlotRoundPlan
+	snapshot           *GameWalletSnapshot
+	exchangePlan       *GameExchangePlan
+	slotPlan           *GameSlotRoundPlan
+	dailyExchangeTotal float64
+}
+
+func (s *gameHallStoreStub) GetDailyExchangeTotal(_ context.Context, _ int64, _, _ time.Time) (float64, error) {
+	return s.dailyExchangeTotal, nil
 }
 
 type gameHallBalanceCacheStub struct {
@@ -110,6 +116,38 @@ func TestGameHallServiceExchangeBalanceToDGOneToOne(t *testing.T) {
 	require.Equal(t, 25.0, result.DGBalanceAfter)
 	require.Equal(t, 60.0, store.exchangePlan.MainBalanceAfter)
 	require.Equal(t, 25.0, store.exchangePlan.DGBalanceAfter)
+}
+
+func TestGameHallServiceExchangeEnforcesConfiguredRangeAndDailyLimit(t *testing.T) {
+	settings := &gameHallSettingsReaderStub{values: map[string]string{
+		SettingKeyGameHallEnabled: "true", SettingKeyGameExchangeMinAmount: "10",
+		SettingKeyGameExchangeMaxAmount: "50", SettingKeyGameExchangeDailyLimit: "100",
+	}}
+	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1, MainBalance: 200}}
+	svc := NewGameHallService(store, settings)
+
+	_, err := svc.Exchange(context.Background(), GameExchangeInput{UserID: 1, Direction: GameExchangeBalanceToDG, Amount: 9.99})
+	require.ErrorIs(t, err, ErrGameExchangeOutOfRange)
+	_, err = svc.Exchange(context.Background(), GameExchangeInput{UserID: 1, Direction: GameExchangeBalanceToDG, Amount: 50.01})
+	require.ErrorIs(t, err, ErrGameExchangeOutOfRange)
+
+	store.dailyExchangeTotal = 50
+	_, err = svc.Exchange(context.Background(), GameExchangeInput{UserID: 1, Direction: GameExchangeBalanceToDG, Amount: 50})
+	require.NoError(t, err)
+	require.Equal(t, 100.0, store.exchangePlan.DailyLimit)
+	require.False(t, store.exchangePlan.DayStart.IsZero())
+	require.Equal(t, store.exchangePlan.DayStart.AddDate(0, 0, 1), store.exchangePlan.DayEnd)
+}
+
+func TestGameHallServiceExchangeRejectsDGReturnWhenDisabled(t *testing.T) {
+	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1, DGBalance: 100}}
+	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{
+		SettingKeyGameHallEnabled: "true", SettingKeyGameExchangeAllowDGToBalance: "false",
+	}})
+
+	_, err := svc.Exchange(context.Background(), GameExchangeInput{UserID: 1, Direction: GameExchangeDGToBalance, Amount: 10})
+	require.ErrorIs(t, err, ErrGameExchangeReturnDisabled)
+	require.Nil(t, store.exchangePlan)
 }
 
 func TestGameHallServiceGeneratesDistinctKeysWhenCallerOmitsIdempotencyKey(t *testing.T) {
@@ -211,6 +249,11 @@ func TestGameHallServiceGetHallStatusReturnsSlotsGame(t *testing.T) {
 	require.Equal(t, 88.0, status.MainBalance)
 	require.Equal(t, 12.0, status.DGBalance)
 	require.Equal(t, 1234.0, status.JackpotBalance)
+	require.Equal(t, 0.01, status.ExchangeMinAmount)
+	require.Equal(t, 1000.0, status.ExchangeMaxAmount)
+	require.Equal(t, 1000.0, status.ExchangeDailyLimit)
+	require.Equal(t, 1000.0, status.ExchangeDailyRemaining)
+	require.True(t, status.ExchangeAllowDGToBalance)
 	require.Len(t, status.Games, 1)
 	require.Equal(t, GameTypeSlots, status.Games[0].Type)
 	require.Equal(t, slotRuleVersion, status.Games[0].RuleVersion)
@@ -366,21 +409,4 @@ func TestGameHallServicePlayRejectsWhenSecureRandomFails(t *testing.T) {
 }
 
 func sequenceIntN(values ...int) func(int) (int, error) {
-	index := 0
-
-	return func(max int) (int, error) {
-		if len(values) == 0 {
-			return 0, nil
-		}
-
-		value := values[index%len(values)]
-		index++
-		if max <= 0 {
-			return 0, nil
-		}
-		if value >= 0 && value < max {
-			return value, nil
-		}
-		return value % max, nil
-	}
-}
+	index 

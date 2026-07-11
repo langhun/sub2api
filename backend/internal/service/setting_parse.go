@@ -178,11 +178,15 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",
 
 		// Available channels feature (default disabled; opt-in)
-		SettingKeyAvailableChannelsEnabled: "false",
-		SettingKeyGameHallEnabled:          "false",
-		SettingKeyGameSlotsEnabled:         "false",
-		SettingKeyGameSlotsMinBet:          "0.01",
-		SettingKeyGameSlotsMaxBet:          "1000",
+		SettingKeyAvailableChannelsEnabled:     "false",
+		SettingKeyGameHallEnabled:              "false",
+		SettingKeyGameSlotsEnabled:             "false",
+		SettingKeyGameSlotsMinBet:              "0.01",
+		SettingKeyGameSlotsMaxBet:              "1000",
+		SettingKeyGameExchangeMinAmount:        "0.01",
+		SettingKeyGameExchangeMaxAmount:        "1000",
+		SettingKeyGameExchangeDailyLimit:       "1000",
+		SettingKeyGameExchangeAllowDGToBalance: "true",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",

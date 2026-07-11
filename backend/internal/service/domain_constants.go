@@ -533,6 +533,10 @@ const (
 	SettingKeyGameSlotsEnabled              = "game_slots_enabled"
 	SettingKeyGameSlotsMinBet               = "game_slots_min_bet"
 	SettingKeyGameSlotsMaxBet               = "game_slots_max_bet"
+	SettingKeyGameExchangeMinAmount         = "game_exchange_min_amount"
+	SettingKeyGameExchangeMaxAmount         = "game_exchange_max_amount"
+	SettingKeyGameExchangeDailyLimit        = "game_exchange_daily_limit"
+	SettingKeyGameExchangeAllowDGToBalance  = "game_exchange_allow_dg_to_balance"
 )
 
 // SettingKeyDefaultPlatformQuotas —— 系统全局：每用户 × 平台日/周/月 USD 上限（JSON）。
