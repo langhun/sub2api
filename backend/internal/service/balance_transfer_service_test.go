@@ -74,16 +74,19 @@ type redPacketSafetyRepo struct {
 	claimCalls      int
 	claims          []*RedPacketClaimRecord
 	getClaimsErr    error
+	lookupCodes     []string
 }
 
-func (r *redPacketSafetyRepo) GetByCode(context.Context, string) (*RedPacketRecord, error) {
+func (r *redPacketSafetyRepo) GetByCode(_ context.Context, code string) (*RedPacketRecord, error) {
+	r.lookupCodes = append(r.lookupCodes, code)
 	copy := *r.locked
 	copy.RemainingAmount = 99 // Deliberately stale pre-transaction snapshot.
 	copy.RemainingCount = 99
 	return &copy, nil
 }
 
-func (r *redPacketSafetyRepo) GetByCodeForUpdate(context.Context, string) (*RedPacketRecord, error) {
+func (r *redPacketSafetyRepo) GetByCodeForUpdate(_ context.Context, code string) (*RedPacketRecord, error) {
+	r.lookupCodes = append(r.lookupCodes, code)
 	copy := *r.locked
 	return &copy, nil
 }
@@ -112,6 +115,28 @@ func (r *redPacketSafetyRepo) GetByID(context.Context, int64) (*RedPacketRecord,
 
 func (r *redPacketSafetyRepo) GetClaims(context.Context, int64) ([]*RedPacketClaimRecord, error) {
 	return r.claims, r.getClaimsErr
+}
+
+func TestClaimRedPacketNormalizesCodeBeforeBothLookups(t *testing.T) {
+	now := time.Now()
+	redPacketRepo := &redPacketSafetyRepo{
+		locked: &RedPacketRecord{
+			ID: 2, SenderID: 10, RemainingAmount: 1, RemainingCount: 1,
+			RedPacketType: "equal", Status: "active", ExpireAt: now.Add(time.Hour),
+		},
+		updated: &RedPacketRecord{ID: 2, RemainingAmount: 0, RemainingCount: 0},
+	}
+	transferRepo := &transferSafetyRepo{deductOK: true}
+	userRepo := &transferSafetyUserRepo{}
+	settingService := newTransferSafetySettings(map[string]string{
+		SettingKeyRedPacketEnabled: "true",
+	})
+	service := NewBalanceTransferService(transferRepo, redPacketRepo, userRepo, settingService, nil)
+
+	_, err := service.ClaimRedPacket(context.Background(), 20, "  rp-Lower-ABC  ")
+
+	require.NoError(t, err)
+	require.Equal(t, []string{"rp-Lower-ABC", "rp-Lower-ABC"}, redPacketRepo.lookupCodes)
 }
 
 type transferSafetyUserRepo struct {

@@ -49,7 +49,7 @@ func (r *balanceRedPacketRepo) Create(ctx context.Context, rp *service.RedPacket
 
 func (r *balanceRedPacketRepo) GetByCode(ctx context.Context, code string) (*service.RedPacketRecord, error) {
 	client := clientFromContext(ctx, r.client)
-	rp, err := client.BalanceRedPacket.Query().Where(balanceredpacket.Code(code)).Only(ctx)
+	rp, err := client.BalanceRedPacket.Query().Where(balanceredpacket.CodeEqualFold(code)).Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get red packet by code %s: %w", code, err)
 	}
@@ -58,7 +58,7 @@ func (r *balanceRedPacketRepo) GetByCode(ctx context.Context, code string) (*ser
 
 func (r *balanceRedPacketRepo) GetByCodeForUpdate(ctx context.Context, code string) (*service.RedPacketRecord, error) {
 	client := clientFromContext(ctx, r.client)
-	rp, err := client.BalanceRedPacket.Query().Where(balanceredpacket.Code(code)).ForUpdate().Only(ctx)
+	rp, err := client.BalanceRedPacket.Query().Where(balanceredpacket.CodeEqualFold(code)).ForUpdate().Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get red packet by code %s for update: %w", code, err)
 	}

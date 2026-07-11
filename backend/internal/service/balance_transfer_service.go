@@ -497,6 +497,10 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 	if !cfg.RedPacketEnabled {
 		return nil, ErrRedPacketDisabled
 	}
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return nil, ErrRedPacketNotFound
+	}
 	rp, err := s.redPacketRepo.GetByCode(ctx, code)
 	if err != nil {
 		return nil, ErrRedPacketNotFound

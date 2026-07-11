@@ -160,7 +160,7 @@
       <BaseDialog :show="showClaim" :title="t('redpacket.claimTitle')" width="narrow" @close="closeClaimDialog">
         <form class="space-y-5" @submit.prevent="handleClaim">
           <div class="text-center"><div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-500 dark:bg-amber-900/20 dark:text-amber-400"><Icon name="gift" size="lg" /></div><p class="mt-3 text-sm text-gray-500 dark:text-dark-400">{{ t('redpacket.claimHint') }}</p></div>
-          <label class="block"><span class="input-label">{{ t('redpacket.code') }}</span><input v-model.trim="claimCode" class="input text-center font-mono uppercase" type="text" autocomplete="off" required :placeholder="t('redpacket.codePlaceholder')" /></label>
+          <label class="block"><span class="input-label">{{ t('redpacket.code') }}</span><input v-model="claimCode" class="input text-center font-mono" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" required :placeholder="t('redpacket.codePlaceholder')" /></label>
           <div v-if="claimResult" class="rounded-xl bg-emerald-50 p-4 text-center dark:bg-emerald-900/20"><p class="text-sm text-emerald-700 dark:text-emerald-300">{{ t('redpacket.claimSuccess') }}</p><p class="mt-1 text-2xl font-bold text-emerald-700 dark:text-emerald-300">+{{ money(claimResult.amount) }}</p></div>
           <p v-if="claimError" class="text-center text-sm text-red-600 dark:text-red-400">{{ claimError }}</p>
           <button class="btn btn-warning w-full" type="submit" :disabled="claimLoading || !claimCode.trim()">{{ claimLoading ? t('common.processing') : t('redpacket.claim') }}</button>
@@ -322,7 +322,7 @@ async function handleClaim() {
   claimError.value = ''
   claimResult.value = null
   claimLoading.value = true
-  const code = claimCode.value.trim().toUpperCase()
+  const code = claimCode.value.trim()
   if (claimAttempt.value?.signature !== code) {
     claimAttempt.value = { signature: code, key: createActivityIdempotencyKey('redpacket-claim') }
   }

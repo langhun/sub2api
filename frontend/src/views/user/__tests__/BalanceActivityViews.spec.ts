@@ -181,7 +181,7 @@ describe('RedPacketView', () => {
       handleClaim: () => Promise<void>
     }
     view.createForm.total_amount = 10
-    view.claimCode = 'rp-code'
+    view.claimCode = '  rp-Lower-code  '
 
     await view.handleCreate()
     await view.handleCreate()
@@ -192,5 +192,7 @@ describe('RedPacketView', () => {
     expect(api.createRedPacket.mock.calls[1][1]).toBe('redpacket-create-stable-key')
     expect(api.claimRedPacket.mock.calls[0][1]).toBe('redpacket-claim-stable-key')
     expect(api.claimRedPacket.mock.calls[1][1]).toBe('redpacket-claim-stable-key')
+    expect(api.claimRedPacket.mock.calls[0][0]).toBe('rp-Lower-code')
+    expect(api.claimRedPacket.mock.calls[1][0]).toBe('rp-Lower-code')
   })
 })
