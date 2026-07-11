@@ -169,7 +169,7 @@ export default {
     accounts: '账号管理',
     proxies: '代理管理',
     redeemCodes: '兑换管理',
-    ops: '运维管理',
+    ops: '运维监控',
     promoCodes: '优惠管理',
     settings: '系统设置',
     myAccount: '我的账户',
