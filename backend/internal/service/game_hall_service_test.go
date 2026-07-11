@@ -187,6 +187,56 @@ func TestGameHallServiceGetHallStatusRejectsWhenMasterSwitchDisabled(t *testing.
 	require.ErrorIs(t, err, ErrGameHallDisabled)
 }
 
+func TestGameHallServiceRejectsDisabledUserAcrossInteractivePaths(t *testing.T) {
+	settings := &gameHallSettingsReaderStub{values: map[string]string{
+		SettingKeyGameHallEnabled:  "true",
+		SettingKeyGameSlotsEnabled: "true",
+	}}
+
+	t.Run("status", func(t *testing.T) {
+		store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 7, GameHallDisabled: true}}
+		svc := NewGameHallService(store, settings)
+
+		_, err := svc.GetHallStatus(context.Background(), 7)
+
+		require.ErrorIs(t, err, ErrGameHallUserDisabled)
+	})
+
+	t.Run("exchange", func(t *testing.T) {
+		store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{
+			UserID: 7, GameHallDisabled: true, MainBalance: 100, DGBalance: 100,
+		}}
+		svc := NewGameHallService(store, settings)
+
+		_, err := svc.Exchange(context.Background(), GameExchangeInput{
+			UserID: 7, Direction: GameExchangeBalanceToDG, Amount: 10, IdempotencyKey: "disabled-exchange",
+		})
+
+		require.ErrorIs(t, err, ErrGameHallUserDisabled)
+		require.Nil(t, store.exchangePlan)
+	})
+
+	t.Run("play", func(t *testing.T) {
+		store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{
+			UserID: 7, GameHallDisabled: true, DGBalance: 100,
+		}}
+		svc := NewGameHallService(store, settings)
+		rolled := false
+		svc.SetSlotRoller(func() (float64, []string, string, error) {
+			rolled = true
+			return 0, nil, "", nil
+		})
+
+		_, err := svc.Play(context.Background(), GamePlayInput{
+			UserID: 7, GameType: GameTypeSlots, BetAmount: 1, IdempotencyKey: "disabled-play",
+		})
+
+		require.ErrorIs(t, err, ErrGameHallUserDisabled)
+		require.False(t, rolled)
+		require.Nil(t, store.slotPlan)
+	})
+}
+
 func TestGameHallServiceListsUserAuditWithNormalizedPagination(t *testing.T) {
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1}}
 	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{SettingKeyGameHallEnabled: "true"}})

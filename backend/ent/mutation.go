@@ -52269,6 +52269,7 @@ type UserMutation struct {
 	addtotal_recharged            *float64
 	rpm_limit                     *int
 	addrpm_limit                  *int
+	game_hall_disabled            *bool
 	clearedFields                 map[string]struct{}
 	api_keys                      map[int64]struct{}
 	removedapi_keys               map[int64]struct{}
@@ -53487,6 +53488,42 @@ func (m *UserMutation) ResetRpmLimit() {
 	m.addrpm_limit = nil
 }
 
+// SetGameHallDisabled sets the "game_hall_disabled" field.
+func (m *UserMutation) SetGameHallDisabled(b bool) {
+	m.game_hall_disabled = &b
+}
+
+// GameHallDisabled returns the value of the "game_hall_disabled" field in the mutation.
+func (m *UserMutation) GameHallDisabled() (r bool, exists bool) {
+	v := m.game_hall_disabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGameHallDisabled returns the old "game_hall_disabled" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldGameHallDisabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGameHallDisabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGameHallDisabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGameHallDisabled: %w", err)
+	}
+	return oldValue.GameHallDisabled, nil
+}
+
+// ResetGameHallDisabled resets all changes to the "game_hall_disabled" field.
+func (m *UserMutation) ResetGameHallDisabled() {
+	m.game_hall_disabled = nil
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by ids.
 func (m *UserMutation) AddAPIKeyIDs(ids ...int64) {
 	if m.api_keys == nil {
@@ -54439,7 +54476,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 25)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -54512,6 +54549,9 @@ func (m *UserMutation) Fields() []string {
 	if m.rpm_limit != nil {
 		fields = append(fields, user.FieldRpmLimit)
 	}
+	if m.game_hall_disabled != nil {
+		fields = append(fields, user.FieldGameHallDisabled)
+	}
 	return fields
 }
 
@@ -54568,6 +54608,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.TotalRecharged()
 	case user.FieldRpmLimit:
 		return m.RpmLimit()
+	case user.FieldGameHallDisabled:
+		return m.GameHallDisabled()
 	}
 	return nil, false
 }
@@ -54625,6 +54667,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldTotalRecharged(ctx)
 	case user.FieldRpmLimit:
 		return m.OldRpmLimit(ctx)
+	case user.FieldGameHallDisabled:
+		return m.OldGameHallDisabled(ctx)
 	}
 	return nil, fmt.Errorf("unknown User field %s", name)
 }
@@ -54801,6 +54845,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRpmLimit(v)
+		return nil
+	case user.FieldGameHallDisabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGameHallDisabled(v)
 		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)
@@ -55036,6 +55087,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldRpmLimit:
 		m.ResetRpmLimit()
+		return nil
+	case user.FieldGameHallDisabled:
+		m.ResetGameHallDisabled()
 		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)

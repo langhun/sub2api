@@ -46,3 +46,13 @@ func TestMigration178AddsImmutableGameHallRounds(t *testing.T) {
 	require.Contains(t, sql, "CREATE TABLE IF NOT EXISTS game_hall_main_balance_transactions")
 	require.NotContains(t, sql, "DROP TABLE")
 }
+
+func TestMigration180AddsPerUserGameHallDisableSwitch(t *testing.T) {
+	content, err := FS.ReadFile("180_add_user_game_hall_disabled.sql")
+	require.NoError(t, err)
+
+	sql := string(content)
+	require.Contains(t, sql, "ALTER TABLE users")
+	require.Contains(t, sql, "ADD COLUMN IF NOT EXISTS game_hall_disabled BOOLEAN NOT NULL DEFAULT FALSE")
+	require.NotContains(t, sql, "DROP TABLE")
+}

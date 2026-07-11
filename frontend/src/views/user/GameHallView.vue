@@ -168,7 +168,7 @@ import { useAppStore } from '@/stores/app'
 import { useGameHallStore } from '@/stores/gameHall'
 import type { GameExchangeResult } from '@/api/gameHall'
 import { getGameRounds, getGameTransactions, type GameRound, type GameWalletTransaction } from '@/api/gameHall'
-import { extractApiErrorMessage } from '@/utils/apiError'
+import { activityErrorMessage } from '@/utils/activityError'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -244,7 +244,7 @@ async function submitExchange(): Promise<void> {
     await store.exchange(direction.value, exchangeAmount.value)
     appStore.showSuccess(t('gameHall.exchangeSuccess'))
   } catch (cause) {
-    exchangeError.value = extractApiErrorMessage(cause, t('gameHall.exchangeFailed'))
+    exchangeError.value = activityErrorMessage(cause, t, t('gameHall.exchangeFailed'))
     appStore.showError(exchangeError.value)
   }
 }
@@ -255,12 +255,12 @@ async function submitPlay(): Promise<void> {
     await store.play(slots.value.type, betAmount.value)
     await loadHistory()
   } catch (cause) {
-    playError.value = extractApiErrorMessage(cause, t('gameHall.playFailed'))
+    playError.value = activityErrorMessage(cause, t, t('gameHall.playFailed'))
     appStore.showError(playError.value)
   }
 }
 
-async function loadHistory(): Promise<void> { historyLoading.value = true; historyError.value = ''; try { const result = historyTab.value === 'transactions' ? await getGameTransactions(historyPage.value, historyPageSize) : await getGameRounds(historyPage.value, historyPageSize); if (historyTab.value === 'transactions') transactions.value = result.items as GameWalletTransaction[]; else rounds.value = result.items as GameRound[]; historyTotal.value = result.total } catch (cause) { historyError.value = extractApiErrorMessage(cause, t('gameHall.historyFailed')) } finally { historyLoading.value = false } }
+async function loadHistory(): Promise<void> { historyLoading.value = true; historyError.value = ''; try { const result = historyTab.value === 'transactions' ? await getGameTransactions(historyPage.value, historyPageSize) : await getGameRounds(historyPage.value, historyPageSize); if (historyTab.value === 'transactions') transactions.value = result.items as GameWalletTransaction[]; else rounds.value = result.items as GameRound[]; historyTotal.value = result.total } catch (cause) { historyError.value = activityErrorMessage(cause, t, t('gameHall.historyFailed')) } finally { historyLoading.value = false } }
 function changeHistoryTab(tab: 'transactions' | 'rounds') { historyTab.value = tab; historyPage.value = 1; void loadHistory() }
 function changeHistoryPage(page: number) { historyPage.value = page; void loadHistory() }
 

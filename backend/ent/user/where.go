@@ -175,6 +175,11 @@ func RpmLimit(v int) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldRpmLimit, v))
 }
 
+// GameHallDisabled applies equality check predicate on the "game_hall_disabled" field. It's identical to GameHallDisabledEQ.
+func GameHallDisabled(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldGameHallDisabled, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))
@@ -1383,6 +1388,16 @@ func RpmLimitLT(v int) predicate.User {
 // RpmLimitLTE applies the LTE predicate on the "rpm_limit" field.
 func RpmLimitLTE(v int) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldRpmLimit, v))
+}
+
+// GameHallDisabledEQ applies the EQ predicate on the "game_hall_disabled" field.
+func GameHallDisabledEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldGameHallDisabled, v))
+}
+
+// GameHallDisabledNEQ applies the NEQ predicate on the "game_hall_disabled" field.
+func GameHallDisabledNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldGameHallDisabled, v))
 }
 
 // HasAPIKeys applies the HasEdge predicate on the "api_keys" edge.

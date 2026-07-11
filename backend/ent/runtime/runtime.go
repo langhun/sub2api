@@ -2263,6 +2263,10 @@ func init() {
 	userDescRpmLimit := userFields[20].Descriptor()
 	// user.DefaultRpmLimit holds the default value on creation for the rpm_limit field.
 	user.DefaultRpmLimit = userDescRpmLimit.Default.(int)
+	// userDescGameHallDisabled is the schema descriptor for game_hall_disabled field.
+	userDescGameHallDisabled := userFields[21].Descriptor()
+	// user.DefaultGameHallDisabled holds the default value on creation for the game_hall_disabled field.
+	user.DefaultGameHallDisabled = userDescGameHallDisabled.Default.(bool)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()
 	_ = userallowedgroupFields
 	// userallowedgroupDescCreatedAt is the schema descriptor for created_at field.

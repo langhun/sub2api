@@ -369,6 +369,52 @@ WHERE user_id = $1
 	require.Equal(t, 100.0, userBalance)
 }
 
+func TestGameHallRepositoryRejectsDisabledUserAtCommitBoundary(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewGameHallRepository(client, integrationDB)
+	user := mustCreateUser(t, client, &service.User{
+		Email:            fmt.Sprintf("game-hall-disabled-%d@example.com", time.Now().UnixNano()),
+		PasswordHash:     "hash",
+		Balance:          100,
+		GameHallDisabled: true,
+	})
+	_, err := integrationDB.ExecContext(ctx, `
+INSERT INTO game_hall_wallets (user_id, dg_balance, created_at, updated_at)
+VALUES ($1, 100, NOW(), NOW())
+ON CONFLICT (user_id) DO UPDATE SET dg_balance = EXCLUDED.dg_balance, updated_at = NOW()
+`, user.ID)
+	require.NoError(t, err)
+
+	t.Run("exchange", func(t *testing.T) {
+		_, err := repo.CommitExchange(ctx, service.GameExchangePlan{
+			UserID: user.ID, Direction: service.GameExchangeBalanceToDG, Amount: 10,
+			IdempotencyKey: "disabled-exchange-" + uuid.NewString(),
+		})
+		require.ErrorIs(t, err, service.ErrGameHallUserDisabled)
+	})
+
+	t.Run("slot", func(t *testing.T) {
+		_, err := repo.CommitSlotRound(ctx, service.GameSlotRoundPlan{
+			UserID: user.ID, GameType: service.GameTypeSlots, BetAmount: 10,
+			IdempotencyKey: "disabled-slot-" + uuid.NewString(),
+		})
+		require.ErrorIs(t, err, service.ErrGameHallUserDisabled)
+	})
+
+	var (
+		mainBalance float64
+		dgBalance   float64
+		rounds      int
+	)
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT balance FROM users WHERE id = $1`, user.ID).Scan(&mainBalance))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT dg_balance FROM game_hall_wallets WHERE user_id = $1`, user.ID).Scan(&dgBalance))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM game_hall_rounds WHERE user_id = $1`, user.ID).Scan(&rounds))
+	require.Equal(t, 100.0, mainBalance)
+	require.Equal(t, 100.0, dgBalance)
+	require.Zero(t, rounds)
+}
+
 func ensureUsersBankAccountTableForTest(ctx context.Context) error {
 	_, err := integrationDB.ExecContext(ctx, `
 CREATE TABLE IF NOT EXISTS users_bank_account (
