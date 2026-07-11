@@ -5,7 +5,10 @@ import { useAuthStore } from './auth'
 
 export const useCheckinStore = defineStore('checkin', () => {
   const status = ref<CheckinStatus | null>(null)
+  const statusLoading = ref(false)
+  const statusError = ref<unknown | null>(null)
   const loading = ref(false)
+  const actionError = ref<unknown | null>(null)
   const checkinResult = ref<CheckinResult | null>(null)
   const blindboxResult = ref<BlindboxResult | null>(null)
 
@@ -19,17 +22,24 @@ export const useCheckinStore = defineStore('checkin', () => {
   const todayCheckinType = computed(() => status.value?.today_checkin_type ?? null)
   const todayMultiplier = computed(() => status.value?.today_multiplier ?? null)
 
-  async function fetchStatus() {
+  async function fetchStatus(): Promise<boolean> {
+    statusLoading.value = true
+    statusError.value = null
     try {
       status.value = await checkinAPI.getCheckinStatus()
-    } catch {
-      status.value = null
+      return true
+    } catch (cause) {
+      statusError.value = cause
+      return false
+    } finally {
+      statusLoading.value = false
     }
   }
 
   async function doCheckin(): Promise<CheckinResult | null> {
     if (loading.value) return null
     loading.value = true
+    actionError.value = null
     try {
       const result = await checkinAPI.checkin()
       checkinResult.value = result
@@ -46,7 +56,8 @@ export const useCheckinStore = defineStore('checkin', () => {
       await authStore.refreshUser()
 
       return result
-    } catch {
+    } catch (cause) {
+      actionError.value = cause
       return null
     } finally {
       loading.value = false
@@ -56,6 +67,7 @@ export const useCheckinStore = defineStore('checkin', () => {
   async function doLuckCheckin(betAmount: number): Promise<CheckinResult | null> {
     if (loading.value) return null
     loading.value = true
+    actionError.value = null
     try {
       const result = await checkinAPI.luckCheckin(betAmount)
       checkinResult.value = result
@@ -75,7 +87,8 @@ export const useCheckinStore = defineStore('checkin', () => {
       await authStore.refreshUser()
 
       return result
-    } catch {
+    } catch (cause) {
+      actionError.value = cause
       return null
     } finally {
       loading.value = false
@@ -86,16 +99,26 @@ export const useCheckinStore = defineStore('checkin', () => {
     blindboxResult.value = null
   }
 
+  function clearActionError() {
+    actionError.value = null
+  }
+
   function $reset() {
     status.value = null
+    statusLoading.value = false
+    statusError.value = null
     loading.value = false
+    actionError.value = null
     checkinResult.value = null
     blindboxResult.value = null
   }
 
   return {
     status,
+    statusLoading,
+    statusError,
     loading,
+    actionError,
     checkinResult,
     blindboxResult,
     canCheckin,
@@ -111,6 +134,7 @@ export const useCheckinStore = defineStore('checkin', () => {
     doCheckin,
     doLuckCheckin,
     clearBlindboxResult,
+    clearActionError,
     $reset
   }
 })
