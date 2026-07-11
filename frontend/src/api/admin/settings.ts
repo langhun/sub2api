@@ -657,6 +657,10 @@ export interface SystemSettings {
   game_slots_enabled: boolean;
   game_slots_min_bet: number;
   game_slots_max_bet: number;
+  game_exchange_min_amount: number;
+  game_exchange_max_amount: number;
+  game_exchange_daily_limit: number;
+  game_exchange_allow_dg_to_balance: boolean;
   checkin_enabled: boolean;
   checkin_min_balance: number;
   checkin_max_balance: number;
@@ -714,6 +718,10 @@ export interface UpdateSettingsRequest {
   game_slots_enabled?: boolean;
   game_slots_min_bet?: number;
   game_slots_max_bet?: number;
+  game_exchange_min_amount?: number;
+  game_exchange_max_amount?: number;
+  game_exchange_daily_limit?: number;
+  game_exchange_allow_dg_to_balance?: boolean;
   checkin_enabled?: boolean;
   checkin_min_balance?: number;
   checkin_max_balance?: number;

@@ -13,6 +13,9 @@ func validBalanceFeatureSettings() BalanceFeatureSettings {
 	return BalanceFeatureSettings{
 		GameSlotsMinBet:            0.01,
 		GameSlotsMaxBet:            100,
+		GameExchangeMinAmount:      0.01,
+		GameExchangeMaxAmount:      1000,
+		GameExchangeDailyLimit:     1000,
 		CheckinMinBalance:          0.1,
 		CheckinMaxBalance:          1,
 		CheckinLuckMinMultiplier:   0.1,
@@ -39,6 +42,9 @@ func TestBalanceFeatureSettingsValidate(t *testing.T) {
 		"reversed transfer range": func(s *BalanceFeatureSettings) { s.TransferMaxAmount = s.TransferMinAmount / 2 },
 		"negative expiry":         func(s *BalanceFeatureSettings) { s.RedPacketExpireHours = -1 },
 		"invalid trigger":         func(s *BalanceFeatureSettings) { s.CheckinBlindboxTriggerType = "random" },
+		"zero exchange minimum":   func(s *BalanceFeatureSettings) { s.GameExchangeMinAmount = 0 },
+		"reversed exchange range": func(s *BalanceFeatureSettings) { s.GameExchangeMaxAmount = 0.001 },
+		"negative exchange daily": func(s *BalanceFeatureSettings) { s.GameExchangeDailyLimit = -1 },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {

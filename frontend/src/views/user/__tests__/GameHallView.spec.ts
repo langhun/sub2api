@@ -30,6 +30,12 @@ const { gameStore } = vi.hoisted(() => {
         main_balance: 100,
         dg_balance: 20,
         jackpot_balance: 500,
+        exchange_min_amount: 1,
+        exchange_max_amount: 50,
+        exchange_daily_limit: 100,
+        exchange_daily_used: 25,
+        exchange_daily_remaining: 75,
+        exchange_allow_dg_to_balance: true,
         games: [slots],
       },
       lastExchange: null,
@@ -116,5 +122,17 @@ describe('GameHallView rules and operation errors', () => {
     await wrapper.get('[data-testid="exchange-confirm"]').trigger('click')
     await flushPromises()
     expect(gameStore.exchange).toHaveBeenCalledTimes(2)
+  })
+
+  it('renders server exchange limits and removes the return direction when disabled', async () => {
+    gameStore.status.exchange_allow_dg_to_balance = false
+    const wrapper = mountView()
+    await flushPromises()
+
+    const amount = wrapper.get('[data-testid="exchange-amount"]')
+    expect(amount.attributes('min')).toBe('1')
+    expect(amount.attributes('max')).toBe('50')
+    expect(wrapper.find('[data-testid="exchange-direction-balance_to_dg"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="exchange-direction-dg_to_balance"]').exists()).toBe(false)
   })
 })

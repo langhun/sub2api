@@ -399,6 +399,8 @@ func balanceFeatureSettingsToDTO(settings service.BalanceFeatureSettings) dto.Ba
 	return dto.BalanceFeatureSettings{
 		GameHallEnabled: settings.GameHallEnabled, GameSlotsEnabled: settings.GameSlotsEnabled,
 		GameSlotsMinBet: settings.GameSlotsMinBet, GameSlotsMaxBet: settings.GameSlotsMaxBet,
+		GameExchangeMinAmount: settings.GameExchangeMinAmount, GameExchangeMaxAmount: settings.GameExchangeMaxAmount,
+		GameExchangeDailyLimit: settings.GameExchangeDailyLimit, GameExchangeAllowDGToBalance: settings.GameExchangeAllowDGToBalance,
 		CheckinEnabled: settings.CheckinEnabled, CheckinMinBalance: settings.CheckinMinBalance,
 		CheckinMaxBalance: settings.CheckinMaxBalance, CheckinLuckEnabled: settings.CheckinLuckEnabled,
 		CheckinLuckMinMultiplier: settings.CheckinLuckMinMultiplier, CheckinLuckMaxMultiplier: settings.CheckinLuckMaxMultiplier,

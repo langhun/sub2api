@@ -23,6 +23,12 @@ export interface GameHallStatus {
   main_balance: number
   dg_balance: number
   jackpot_balance: number
+  exchange_min_amount: number
+  exchange_max_amount: number
+  exchange_daily_limit: number
+  exchange_daily_used: number
+  exchange_daily_remaining: number
+  exchange_allow_dg_to_balance: boolean
   games: GameHallGame[]
 }
 

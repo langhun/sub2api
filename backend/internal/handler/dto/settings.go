@@ -302,6 +302,10 @@ type BalanceFeatureSettings struct {
 	GameSlotsEnabled              bool    `json:"game_slots_enabled"`
 	GameSlotsMinBet               float64 `json:"game_slots_min_bet"`
 	GameSlotsMaxBet               float64 `json:"game_slots_max_bet"`
+	GameExchangeMinAmount         float64 `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount         float64 `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit        float64 `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance  bool    `json:"game_exchange_allow_dg_to_balance"`
 	CheckinEnabled                bool    `json:"checkin_enabled"`
 	CheckinMinBalance             float64 `json:"checkin_min_balance"`
 	CheckinMaxBalance             float64 `json:"checkin_max_balance"`
@@ -391,11 +395,15 @@ type PublicSettings struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
-	AvailableChannelsEnabled bool    `json:"available_channels_enabled"`
-	GameHallEnabled          bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled         bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet          float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet          float64 `json:"game_slots_max_bet"`
+	AvailableChannelsEnabled     bool    `json:"available_channels_enabled"`
+	GameHallEnabled              bool    `json:"game_hall_enabled"`
+	GameSlotsEnabled             bool    `json:"game_slots_enabled"`
+	GameSlotsMinBet              float64 `json:"game_slots_min_bet"`
+	GameSlotsMaxBet              float64 `json:"game_slots_max_bet"`
+	GameExchangeMinAmount        float64 `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount        float64 `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit       float64 `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance bool    `json:"game_exchange_allow_dg_to_balance"`
 
 	AffiliateEnabled              bool `json:"affiliate_enabled"`
 	CheckinEnabled                bool `json:"checkin_enabled"`

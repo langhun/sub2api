@@ -96,6 +96,33 @@ func (r *gameHallRepository) CommitExchange(ctx context.Context, plan service.Ga
 		if err != nil {
 			return err
 		}
+		if plan.DailyLimit > 0 {
+			var dailyTotal float64
+			rows, queryErr := client.QueryContext(txCtx, `SELECT COALESCE(SUM(amount), 0)
+FROM game_hall_wallet_transactions
+WHERE user_id = $1
+  AND reference_type = $2
+  AND tx_type IN ('exchange_in', 'exchange_out')
+  AND created_at >= $3
+	  AND created_at < $4`, plan.UserID, gameHallReferenceExchange, plan.DayStart, plan.DayEnd)
+			if queryErr != nil {
+				return fmt.Errorf("sum daily game exchanges in transaction: %w", queryErr)
+			}
+			if !rows.Next() {
+				_ = rows.Close()
+				return fmt.Errorf("sum daily game exchanges in transaction: no result")
+			}
+			if scanErr := rows.Scan(&dailyTotal); scanErr != nil {
+				_ = rows.Close()
+				return fmt.Errorf("sum daily game exchanges in transaction: %w", scanErr)
+			}
+			if closeErr := rows.Close(); closeErr != nil {
+				return fmt.Errorf("sum daily game exchanges in transaction: %w", closeErr)
+			}
+			if roundDBAmount(dailyTotal+plan.Amount) > plan.DailyLimit {
+				return service.ErrGameExchangeDailyLimit
+			}
+		}
 
 		mainAfter := mainBalance
 		dgAfter := dgBalance
@@ -164,6 +191,21 @@ func (r *gameHallRepository) CommitExchange(ctx context.Context, plan service.Ga
 		return nil, err
 	}
 	return result, nil
+}
+
+func (r *gameHallRepository) GetDailyExchangeTotal(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
+	row := r.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(amount), 0)
+FROM game_hall_wallet_transactions
+WHERE user_id = $1
+  AND reference_type = $2
+  AND tx_type IN ('exchange_in', 'exchange_out')
+  AND created_at >= $3
+  AND created_at < $4`, userID, gameHallReferenceExchange, start, end)
+	var total float64
+	if err := row.Scan(&total); err != nil {
+		return 0, fmt.Errorf("sum daily game exchanges: %w", err)
+	}
+	return roundDBAmount(total), nil
 }
 
 func insertMainBalanceAudit(ctx context.Context, client *dbent.Client, plan service.GameExchangePlan, before, after float64) error {

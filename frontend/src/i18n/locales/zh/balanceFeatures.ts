@@ -34,7 +34,7 @@ export default {
   }
   ,gameHall: {
     title: '娱乐大厅', description: '使用独立 DG 钱包参与站内娱乐玩法', mainBalance: '主余额', dgBalance: 'DG 娱乐余额', jackpot: '公共奖池',
-    exchangeTitle: '余额兑换', exchangeHint: '主余额与 DG 按 1:1 兑换，每次操作均产生可审计流水。', toDG: '主余额转 DG', toMain: 'DG 转回主余额', amount: '兑换金额', rate: '兑换比例', afterExchange: '兑换后 主余额 / DG', exchangeAction: '确认兑换', exchangeSuccess: '兑换成功', loadFailed: '娱乐大厅加载失败，请重试', exchangeFailed: '兑换失败，请检查余额或功能状态', playFailed: '本局未能完成结算，请稍后重试',
+    exchangeTitle: '余额兑换', exchangeHint: '主余额与 DG 按 1:1 兑换，每次操作均产生可审计流水。', toDG: '主余额转 DG', toMain: 'DG 转回主余额', amount: '兑换金额', rate: '兑换比例', afterExchange: '兑换后 主余额 / DG', exchangeAction: '确认兑换', exchangeSuccess: '兑换成功', exchangeRange: '单次范围 {min} - {max}', exchangeDailyRemaining: '今日双向合计剩余 {remaining} / {limit}', exchangeDailyUnlimited: '今日双向兑换不限额', unlimited: '不限', loadFailed: '娱乐大厅加载失败，请重试', exchangeFailed: '兑换失败，请检查余额或功能状态', playFailed: '本局未能完成结算，请稍后重试',
     safetyTitle: '资金与玩法说明', safetyWallet: 'DG 钱包与主余额隔离，游戏不会直接扣除主余额。', safetySettlement: '游戏结果由服务端生成并原子结算。', riskNotice: '娱乐玩法存在损失 DG 的可能，请合理控制投入。',
     slotsTitle: '三轴老虎机', betRange: '单局投注 {min} - {max} DG', betAmount: '投注金额', serverResult: '点击开始后，页面只展示服务端已结算结果。', playAction: '开始一局', noGames: '当前没有开放的游戏', win: '本局获胜', loss: '本局未中奖', push: '本局持平', payoutSummary: '派彩 {payout} DG · 倍率 {multiplier}x',
     payoutRules: '三连派彩规则', ruleVersion: '规则', theoreticalRtp: '理论 RTP', payoutRuleHint: '三个相同符号才会派彩。概率按当前服务端规则计算，其余组合派彩为 0x。',

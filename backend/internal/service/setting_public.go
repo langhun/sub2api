@@ -224,6 +224,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyGameSlotsEnabled,
 		SettingKeyGameSlotsMinBet,
 		SettingKeyGameSlotsMaxBet,
+		SettingKeyGameExchangeMinAmount,
+		SettingKeyGameExchangeMaxAmount,
+		SettingKeyGameExchangeDailyLimit,
+		SettingKeyGameExchangeAllowDGToBalance,
 		SettingKeyAffiliateEnabled,
 		SettingKeyCheckinEnabled,
 		SettingKeyCheckinLuckEnabled,
@@ -346,11 +350,15 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorEnabled:                !isFalseSettingValue(settings[SettingKeyChannelMonitorEnabled]),
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
-		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
-		GameHallEnabled:          settings[SettingKeyGameHallEnabled] == "true",
-		GameSlotsEnabled:         settings[SettingKeyGameSlotsEnabled] == "true",
-		GameSlotsMinBet:          parseBalanceFeatureFloat(settings[SettingKeyGameSlotsMinBet], 0.01),
-		GameSlotsMaxBet:          parseBalanceFeatureFloat(settings[SettingKeyGameSlotsMaxBet], 1000),
+		AvailableChannelsEnabled:     settings[SettingKeyAvailableChannelsEnabled] == "true",
+		GameHallEnabled:              settings[SettingKeyGameHallEnabled] == "true",
+		GameSlotsEnabled:             settings[SettingKeyGameSlotsEnabled] == "true",
+		GameSlotsMinBet:              parseBalanceFeatureFloat(settings[SettingKeyGameSlotsMinBet], 0.01),
+		GameSlotsMaxBet:              parseBalanceFeatureFloat(settings[SettingKeyGameSlotsMaxBet], 1000),
+		GameExchangeMinAmount:        parseBalanceFeatureFloat(settings[SettingKeyGameExchangeMinAmount], 0.01),
+		GameExchangeMaxAmount:        parseBalanceFeatureFloat(settings[SettingKeyGameExchangeMaxAmount], 1000),
+		GameExchangeDailyLimit:       parseBalanceFeatureFloat(settings[SettingKeyGameExchangeDailyLimit], 1000),
+		GameExchangeAllowDGToBalance: settings[SettingKeyGameExchangeAllowDGToBalance] != "false",
 
 		AffiliateEnabled:              settings[SettingKeyAffiliateEnabled] == "true",
 		CheckinEnabled:                settings[SettingKeyCheckinEnabled] == "true",
@@ -530,6 +538,10 @@ type PublicSettingsInjectionPayload struct {
 	GameSlotsEnabled                     bool    `json:"game_slots_enabled"`
 	GameSlotsMinBet                      float64 `json:"game_slots_min_bet"`
 	GameSlotsMaxBet                      float64 `json:"game_slots_max_bet"`
+	GameExchangeMinAmount                float64 `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount                float64 `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit               float64 `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance         bool    `json:"game_exchange_allow_dg_to_balance"`
 	AffiliateEnabled                     bool    `json:"affiliate_enabled"`
 	CheckinEnabled                       bool    `json:"checkin_enabled"`
 	CheckinLuckEnabled                   bool    `json:"checkin_luck_enabled"`
@@ -611,6 +623,10 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		GameSlotsEnabled:                     settings.GameSlotsEnabled,
 		GameSlotsMinBet:                      settings.GameSlotsMinBet,
 		GameSlotsMaxBet:                      settings.GameSlotsMaxBet,
+		GameExchangeMinAmount:                settings.GameExchangeMinAmount,
+		GameExchangeMaxAmount:                settings.GameExchangeMaxAmount,
+		GameExchangeDailyLimit:               settings.GameExchangeDailyLimit,
+		GameExchangeAllowDGToBalance:         settings.GameExchangeAllowDGToBalance,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		CheckinEnabled:                       settings.CheckinEnabled,
 		CheckinLuckEnabled:                   settings.CheckinLuckEnabled,
