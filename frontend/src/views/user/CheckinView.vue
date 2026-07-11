@@ -157,40 +157,23 @@
             {{ t('checkin.multiplierRange', { min: checkinStore.status?.min_multiplier?.toFixed(1), max: checkinStore.status?.max_multiplier?.toFixed(1) }) }}
           </p>
         </div>
-        <div v-if="luckStep === 'input'" class="space-y-4">
+        <div class="space-y-4">
           <div>
             <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('checkin.betAmount') }}</label>
-            <input v-model.number="luckBet" data-testid="luck-bet-input" type="number" step="0.01" :min="0.01" :max="checkinStore.status?.balance ?? 0" class="input" :placeholder="t('checkin.betAmountPlaceholder')" @keyup.enter="reviewLuck" />
+            <input v-model.number="luckBet" data-testid="luck-bet-input" type="number" step="0.01" :min="0.01" :max="checkinStore.status?.balance ?? 0" class="input" :placeholder="t('checkin.betAmountPlaceholder')" @keyup.enter="submitLuck" />
           </div>
           <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
             <span>{{ t('profile.accountBalance') }}: ${{ checkinStore.status?.balance?.toFixed(2) ?? '0.00' }}</span>
             <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="luckBet = checkinStore.status?.balance ?? 0">MAX</button>
           </div>
         </div>
-        <div v-else class="space-y-3" data-testid="luck-risk-review">
-          <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/60 dark:bg-amber-900/20">
-            <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">{{ t('checkin.luckRiskTitle') }}</p>
-            <p class="mt-1 text-xs leading-5 text-amber-700 dark:text-amber-300">{{ t('checkin.luckRiskWarning', { amount: formatCurrency(maxPotentialLoss) }) }}</p>
-          </div>
-          <dl class="divide-y divide-gray-100 rounded-lg border border-gray-200 px-3 text-sm dark:divide-dark-700 dark:border-dark-700">
-            <div class="flex items-center justify-between gap-4 py-2.5">
-              <dt class="text-gray-500 dark:text-dark-400">{{ t('checkin.betAmount') }}</dt>
-              <dd class="font-semibold text-gray-900 dark:text-white">{{ formatCurrency(luckBet) }}</dd>
-            </div>
-            <div class="flex items-center justify-between gap-4 py-2.5">
-              <dt class="text-gray-500 dark:text-dark-400">{{ t('checkin.luckOutcomeRange') }}</dt>
-              <dd class="text-right font-semibold text-gray-900 dark:text-white">{{ formatSignedCurrency(minPotentialChange) }} - {{ formatSignedCurrency(maxPotentialChange) }}</dd>
-            </div>
-          </dl>
-        </div>
         <div v-if="checkinStore.actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300" role="alert">
           {{ actionErrorMessage }}
         </div>
         <template #footer>
           <div class="flex flex-row items-center justify-end gap-3">
-            <button type="button" class="btn btn-secondary" :disabled="checkinStore.loading" @click="luckStep === 'confirm' ? (luckStep = 'input') : closeLuckDialog()">{{ luckStep === 'confirm' ? t('common.back') : t('common.cancel') }}</button>
-            <button v-if="luckStep === 'input'" type="button" data-testid="luck-review" :disabled="!validLuckBet" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50" @click="reviewLuck">{{ t('checkin.luckReviewAction') }}</button>
-            <button v-else type="button" data-testid="luck-submit" :disabled="checkinStore.loading" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50" @click="submitLuck">{{ checkinStore.loading ? t('common.loading') : t('checkin.luckButton') }}</button>
+            <button type="button" class="btn btn-secondary" :disabled="checkinStore.loading" @click="closeLuckDialog">{{ t('common.cancel') }}</button>
+            <button type="button" data-testid="luck-submit" :disabled="checkinStore.loading || !validLuckBet" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50" @click="submitLuck">{{ checkinStore.loading ? t('common.loading') : t('checkin.luckButton') }}</button>
           </div>
         </template>
       </BaseDialog>
@@ -381,15 +364,11 @@ const blindboxEnabled = computed(() => (
 
 const showLuckModal = ref(false)
 const luckBet = ref<number>(0)
-const luckStep = ref<'input' | 'confirm'>('input')
 const lastAction = ref<'normal' | 'luck'>('normal')
 
 const statusErrorMessage = computed(() => extractApiErrorMessage(checkinStore.statusError, t('checkin.statusLoadFailed')))
 const actionErrorMessage = computed(() => extractApiErrorMessage(checkinStore.actionError, t('checkin.actionFailed')))
 const validLuckBet = computed(() => Number.isFinite(luckBet.value) && luckBet.value > 0 && luckBet.value <= (checkinStore.status?.balance ?? 0))
-const minPotentialChange = computed(() => luckBet.value * ((checkinStore.status?.min_multiplier ?? 0) - 1))
-const maxPotentialChange = computed(() => luckBet.value * ((checkinStore.status?.max_multiplier ?? 0) - 1))
-const maxPotentialLoss = computed(() => Math.max(0, -minPotentialChange.value))
 
 const blindboxRecords = ref<BlindboxRecordItem[]>([])
 const blindboxTotal = ref(0)
@@ -509,7 +488,7 @@ const nextBlindboxHint = computed(() => {
 })
 
 async function submitLuck() {
-  if (luckStep.value !== 'confirm' || !validLuckBet.value) return
+  if (!validLuckBet.value) return
   lastAction.value = 'luck'
   const result = await checkinStore.doLuckCheckin(luckBet.value)
   if (result) {
@@ -534,40 +513,21 @@ async function submitNormal() {
 
 function openLuckDialog() {
   checkinStore.clearActionError()
-  luckStep.value = 'input'
   showLuckModal.value = true
 }
 
 function closeLuckDialog() {
   if (checkinStore.loading) return
   showLuckModal.value = false
-  luckStep.value = 'input'
   checkinStore.clearActionError()
-}
-
-function reviewLuck() {
-  if (!validLuckBet.value) return
-  checkinStore.clearActionError()
-  luckStep.value = 'confirm'
 }
 
 function retryLastAction() {
   if (lastAction.value === 'luck') {
-    luckStep.value = validLuckBet.value ? 'confirm' : 'input'
     showLuckModal.value = true
     return
   }
   void submitNormal()
-}
-
-function formatCurrency(value: number) {
-  return `$${Math.max(0, Number.isFinite(value) ? value : 0).toFixed(2)}`
-}
-
-function formatSignedCurrency(value: number) {
-  const safeValue = Number.isFinite(value) ? value : 0
-  const normalized = Math.abs(safeValue) < 0.005 ? 0 : safeValue
-  return `${normalized >= 0 ? '+' : '-'}$${Math.abs(normalized).toFixed(2)}`
 }
 
 function getRarityBadgeClass(rarity: string) {
