@@ -11,6 +11,8 @@ export interface TransferRecord {
   id: number
   sender_id: number
   receiver_id: number
+  sender_display: string
+  receiver_display: string
   amount: number
   fee: number
   fee_rate: number
@@ -32,6 +34,7 @@ export interface TransferLeaderboardEntry {
   rank: number
   user_id: number
   email: string
+  display_name: string
   total_amount: number
   total_count: number
 }
@@ -118,6 +121,7 @@ export interface RedPacketClaimRecord {
   id: number
   redpacket_id: number
   user_id: number
+  user_display: string
   amount: number
   transfer_id: number | null
   created_at: string

@@ -88,7 +88,7 @@ func (s *LeaderboardService) GetBalanceLeaderboard(ctx context.Context, page, pa
 	for i, u := range users {
 		entries = append(entries, LeaderboardEntry{
 			Rank:     offset + i + 1,
-			Username: maskUsername(u.Username, u.Email),
+			Username: leaderboardUserDisplay(u.Username, u.Email),
 			Value:    math.Round(u.Balance*100) / 100,
 			ExtraInt: checkinCounts[u.ID],
 		})
@@ -193,7 +193,7 @@ func (s *LeaderboardService) GetConsumptionLeaderboard(ctx context.Context, peri
 		}
 		entries = append(entries, LeaderboardEntry{
 			Rank:     rank,
-			Username: maskUsername(username, email),
+			Username: leaderboardUserDisplay(username, email),
 			Value:    math.Round(totalCost*100) / 100,
 			ExtraInt: requestCount,
 		})
@@ -268,7 +268,7 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 		}
 		entries = append(entries, LeaderboardEntry{
 			Rank:       rank,
-			Username:   maskUsername(username, email),
+			Username:   leaderboardUserDisplay(username, email),
 			Value:      float64(streakDays),
 			ExtraInt:   totalCheckins,
 			ExtraFloat: math.Round(rewardAmount*100) / 100,
@@ -330,7 +330,7 @@ func (s *LeaderboardService) GetTransferLeaderboard(ctx context.Context, period 
 			return nil, fmt.Errorf("scan transfer leaderboard: %w", err)
 		}
 		entries = append(entries, LeaderboardEntry{
-			Rank: offset + len(entries) + 1, Username: maskUsername(username, email),
+			Rank: offset + len(entries) + 1, Username: leaderboardUserDisplay(username, email),
 			Value: math.Round(amount*1e8) / 1e8, ExtraInt: count,
 		})
 	}
@@ -340,27 +340,6 @@ func (s *LeaderboardService) GetTransferLeaderboard(ctx context.Context, period 
 	return &LeaderboardResult{Entries: entries, Total: total}, nil
 }
 
-func maskUsername(username, email string) string {
-	displayName := strings.TrimSpace(username)
-	if displayName == "" {
-		email = strings.TrimSpace(email)
-		if at := strings.IndexByte(email, '@'); at >= 0 {
-			displayName = email[:at]
-		} else {
-			displayName = email
-		}
-	}
-	if displayName == "" {
-		return "user"
-	}
-
-	runes := []rune(displayName)
-	switch len(runes) {
-	case 1:
-		return "*"
-	case 2:
-		return string(runes[0]) + "*"
-	default:
-		return string(runes[0]) + "***" + string(runes[len(runes)-1])
-	}
+func leaderboardUserDisplay(username, email string) string {
+	return UserDisplayName(username, email, 0)
 }

@@ -41,8 +41,8 @@
         <tbody>
           <tr v-for="t in transfers" :key="t.id" class="border-t dark:border-gray-700">
             <td class="px-4 py-3">{{ t.id }}</td>
-            <td class="px-4 py-3">{{ t.sender_id }}</td>
-            <td class="px-4 py-3">{{ t.receiver_id }}</td>
+            <td class="px-4 py-3">{{ t.sender_display }}</td>
+            <td class="px-4 py-3">{{ t.receiver_display }}</td>
             <td class="px-4 py-3 text-right">{{ t.amount.toFixed(4) }}</td>
             <td class="px-4 py-3 text-right">{{ t.fee.toFixed(4) }}</td>
             <td class="px-4 py-3">{{ t.transfer_type }}</td>

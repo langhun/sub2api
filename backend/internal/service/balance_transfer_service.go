@@ -248,19 +248,7 @@ func (s *BalanceTransferService) ValidateTransfer(ctx context.Context, senderID,
 }
 
 func transferReceiverDisplay(user *User) string {
-	if user.Username != "" {
-		runes := []rune(user.Username)
-		if len(runes) <= 2 {
-			return string(runes[:1]) + "***"
-		}
-		return string(runes[:1]) + "***" + string(runes[len(runes)-1:])
-	}
-	parts := strings.SplitN(user.Email, "@", 2)
-	if len(parts) != 2 || parts[0] == "" {
-		return "user"
-	}
-	local := []rune(parts[0])
-	return string(local[:1]) + "***@" + parts[1]
+	return UserDisplayName(user.Username, user.Email, user.ID)
 }
 
 func (s *BalanceTransferService) ResolveReceiver(ctx context.Context, requesterID int64, rawQuery string) (*TransferReceiver, error) {
