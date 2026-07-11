@@ -409,4 +409,21 @@ func TestGameHallServicePlayRejectsWhenSecureRandomFails(t *testing.T) {
 }
 
 func sequenceIntN(values ...int) func(int) (int, error) {
-	index 
+	index := 0
+
+	return func(max int) (int, error) {
+		if len(values) == 0 {
+			return 0, nil
+		}
+
+		value := values[index%len(values)]
+		index++
+		if max <= 0 {
+			return 0, nil
+		}
+		if value >= 0 && value < max {
+			return value, nil
+		}
+		return value % max, nil
+	}
+}
