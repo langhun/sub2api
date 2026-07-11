@@ -98,11 +98,11 @@ describe('AppHeader check-in actions', () => {
     expect(checkinStore.doCheckin).toHaveBeenCalledOnce()
   })
 
-  it('submits lucky check-in directly from the amount dialog', async () => {
+  it('submits a header lucky check-in directly after entering the amount', async () => {
     const wrapper = mountHeader()
     await wrapper.get('[data-testid="header-luck-checkin"]').trigger('click')
-    await wrapper.get('[data-testid="header-luck-bet"]').setValue('5')
-    await wrapper.get('[data-testid="header-luck-submit"]').trigger('click')
+    await wrapper.get('[data-testid="luck-bet-input"]').setValue('5')
+    await wrapper.get('[data-testid="luck-submit"]').trigger('click')
 
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(5)
   })

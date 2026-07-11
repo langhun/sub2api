@@ -144,7 +144,7 @@ describe('CheckinView feature visibility', () => {
     expect(checkinStore.doCheckin).toHaveBeenCalledTimes(1)
   })
 
-  it('submits a lucky check-in directly after entering the amount', async () => {
+  it('requires a risk review before submitting a lucky check-in', async () => {
     checkinStore.status.enabled = false
     checkinStore.status.luck_enabled = true
     checkinStore.normalEnabled = false
@@ -155,6 +155,12 @@ describe('CheckinView feature visibility', () => {
 
     await wrapper.get('[data-testid="luck-checkin-open"]').trigger('click')
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('4')
+    await wrapper.get('[data-testid="luck-review"]').trigger('click')
+
+    expect(checkinStore.doLuckCheckin).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="luck-risk-review"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('$2.00')
+
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledOnce()
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(4)
