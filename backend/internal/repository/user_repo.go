@@ -753,6 +753,39 @@ func (r *userRepository) UpdateBalance(ctx context.Context, id int64, amount flo
 	return nil
 }
 
+// UpdateBalanceWithoutRecharge adjusts spendable balance for internal value
+// movements and rewards. These credits are not customer recharge volume.
+func (r *userRepository) UpdateBalanceWithoutRecharge(ctx context.Context, id int64, amount float64) error {
+	client := clientFromContext(ctx, r.client)
+	n, err := client.User.Update().Where(dbuser.IDEQ(id)).AddBalance(amount).Save(ctx)
+	if err != nil {
+		return translatePersistenceError(err, service.ErrUserNotFound, nil)
+	}
+	if n == 0 {
+		return service.ErrUserNotFound
+	}
+	return nil
+}
+
+// UpdateBalanceWithoutRechargeIfNonnegative atomically applies an internal
+// delta only when the resulting spendable balance cannot become negative.
+func (r *userRepository) UpdateBalanceWithoutRechargeIfNonnegative(ctx context.Context, id int64, amount float64) (bool, error) {
+	client := clientFromContext(ctx, r.client)
+	result, err := client.ExecContext(ctx, `
+		UPDATE users
+		SET balance = balance + $1, updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL AND balance + $1 >= 0
+	`, amount, id)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected == 1, nil
+}
+
 func (r *userRepository) ApplyRedeemBalanceAdjustment(ctx context.Context, id int64, delta float64) error {
 	const updateSQL = `
 		UPDATE users

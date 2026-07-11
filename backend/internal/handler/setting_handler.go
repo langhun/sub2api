@@ -97,6 +97,10 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+		GameHallEnabled:          settings.GameHallEnabled,
+		GameSlotsEnabled:         settings.GameSlotsEnabled,
+		GameSlotsMinBet:          settings.GameSlotsMinBet,
+		GameSlotsMaxBet:          settings.GameSlotsMaxBet,
 
 		AffiliateEnabled:              settings.AffiliateEnabled,
 		CheckinEnabled:                settings.CheckinEnabled,
@@ -109,6 +113,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		LeaderboardBalanceEnabled:     settings.LeaderboardBalanceEnabled,
 		LeaderboardConsumptionEnabled: settings.LeaderboardConsumptionEnabled,
 		LeaderboardCheckinEnabled:     settings.LeaderboardCheckinEnabled,
+		LeaderboardTransferEnabled:    settings.LeaderboardTransferEnabled,
 		LeaderboardIncludeAdmin:       settings.LeaderboardIncludeAdmin,
 
 		RiskControlEnabled: settings.RiskControlEnabled,

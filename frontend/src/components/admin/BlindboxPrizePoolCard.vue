@@ -15,6 +15,7 @@
     </div>
     <template v-if="enabled">
       <div class="space-y-4 p-6">
+        <div v-if="operationError" class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">{{ operationError }}</div>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -186,6 +187,15 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :show="!!pendingDelete"
+      :title="t('common.confirm')"
+      :message="t('admin.blindbox.confirmDelete')"
+      danger
+      @confirm="confirmDelete"
+      @cancel="pendingDelete = null"
+    />
   </div>
 </template>
 
@@ -194,9 +204,9 @@ import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import Toggle from '@/components/common/Toggle.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { blindboxAPI, type PrizeItem } from '@/api/admin/blindbox'
 import * as groupAPI from '@/api/admin/groups'
-import { useAppStore } from '@/stores/app'
 
 const props = defineProps<{
   enabled: boolean
@@ -211,7 +221,6 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
-const appStore = useAppStore()
 const loading = ref(false)
 const saving = ref(false)
 const items = ref<PrizeItem[]>([])
@@ -219,6 +228,8 @@ const stats = ref<{ total_items: number; enabled_items: number; total_draws: num
 const showCreate = ref(false)
 const editingItem = ref<PrizeItem | null>(null)
 const subscriptionGroups = ref<{ id: number; name: string }[]>([])
+const operationError = ref('')
+const pendingDelete = ref<PrizeItem | null>(null)
 
 const defaultForm = { name: '', rarity: 'common', reward_type: 'balance', reward_value: 0, reward_value_max: 0, subscription_id: 0, subscription_days: 0, weight: 100, is_enabled: true }
 const form = ref({ ...defaultForm })
@@ -268,6 +279,7 @@ function closeModal() {
 }
 
 async function saveItem() {
+  operationError.value = ''
   saving.value = true
   try {
     const f = form.value
@@ -290,19 +302,25 @@ async function saveItem() {
     closeModal()
     await loadData()
   } catch (e: any) {
-    appStore.showError(e?.response?.data?.detail || t('common.error'))
+    operationError.value = e?.response?.data?.detail || t('common.error')
   } finally {
     saving.value = false
   }
 }
 
-async function deleteItem(item: PrizeItem) {
-  if (!confirm(t('admin.blindbox.confirmDelete'))) return
+function deleteItem(item: PrizeItem) {
+  pendingDelete.value = item
+}
+
+async function confirmDelete() {
+  if (!pendingDelete.value) return
+  operationError.value = ''
   try {
-    await blindboxAPI.deletePrizeItem(item.id)
+    await blindboxAPI.deletePrizeItem(pendingDelete.value.id)
+    pendingDelete.value = null
     await loadData()
   } catch (e: any) {
-    appStore.showError(e?.response?.data?.detail || t('common.error'))
+    operationError.value = e?.response?.data?.detail || t('common.error')
   }
 }
 

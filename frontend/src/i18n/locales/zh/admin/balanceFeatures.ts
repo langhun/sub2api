@@ -18,5 +18,8 @@ export default {
     colName: '名称', colRarity: '稀有度', colRewardType: '奖励类型', colReward: '奖励', colWeight: '权重', colStatus: '状态', colActions: '操作',
     namePlaceholder: '奖品名称', rewardBalance: '余额', rewardConcurrency: '并发', rewardSubscription: '订阅', rewardInvitation: '邀请码', minValue: '最小值', maxValue: '最大值',
     concurrencyValue: '并发值', subscriptionGroup: '订阅分组', selectGroup: '选择分组', subscriptionDays: '订阅天数', weightHint: '权重越高越容易抽中', days: '天', confirmDelete: '确定删除此奖品吗？'
+  },
+  codeFormat: {
+    title: '兑换码与口令格式', description: '统一配置新生成的兑换码、邀请码和红包口令；历史代码不受影响。', balance: '余额兑换码', concurrency: '并发兑换码', subscription: '订阅兑换码', invitation: '邀请码', redpacket: '红包口令', prefix: '前缀', characterSet: '字符集', separator: '分隔符', custom: '自定义', customSeparator: '自定义单字符', combinationSpace: '可用组合空间：{count}', groupLength: '组长', groupCount: '组数', length: '示例长度 {length}', none: '无', uppercase: '大写字母', numeric: '数字', alphanumeric: '字母数字', hex: '十六进制', invalidCharset: '请选择有效字符集', invalidGroupLength: '组长必须是 1 到 32 的整数', invalidGroupCount: '组数必须是 1 到 16 的整数', invalidSeparator: '分隔符必须是单个可打印 ASCII 字符', invalidPrefix: '前缀必须使用可打印 ASCII，且不能包含分隔符'
   }
 }

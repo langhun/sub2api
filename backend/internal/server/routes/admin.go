@@ -109,6 +109,18 @@ func RegisterAdminRoutes(
 
 		registerBlindboxRoutes(admin, h)
 		registerTransferAdminRoutes(admin, h)
+		registerGameHallAdminRoutes(admin, h)
+	}
+}
+
+func registerGameHallAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h.Admin == nil || h.Admin.GameHall == nil {
+		return
+	}
+	gameHall := admin.Group("/game-hall")
+	{
+		gameHall.GET("/transactions", h.Admin.GameHall.Transactions)
+		gameHall.GET("/rounds", h.Admin.GameHall.Rounds)
 	}
 }
 

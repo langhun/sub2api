@@ -1,5 +1,12 @@
 import { apiClient } from './client'
 
+function idempotencyKey(scope: string): string {
+  const suffix = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `${scope}-${suffix}`
+}
+
 export interface TransferRecord {
   id: number
   sender_id: number
@@ -29,20 +36,30 @@ export interface TransferLeaderboardEntry {
   total_count: number
 }
 
+export interface TransferValidation {
+  fee: number
+  fee_rate: number
+  gross_amount?: number
+  receiver_display?: string
+  receiver_id?: number
+  daily_remaining_amount?: number
+  daily_remaining_count?: number
+}
+
 export async function transferBalance(receiverId: number, amount: number, memo?: string): Promise<TransferRecord> {
   const { data } = await apiClient.post<TransferRecord>('/user/transfer', {
     receiver_id: receiverId,
     amount,
     memo,
-  })
+  }, { headers: { 'Idempotency-Key': idempotencyKey('balance-transfer') } })
   return data
 }
 
-export async function validateTransfer(receiverId: number, amount: number): Promise<{ fee: number; fee_rate: number }> {
-  const { data } = await apiClient.post<{ fee: number; fee_rate: number }>('/user/transfer/validate', {
+export async function validateTransfer(receiverId: number, amount: number): Promise<TransferValidation> {
+  const { data } = await apiClient.post<TransferValidation>('/user/transfer/validate', {
     receiver_id: receiverId,
     amount,
-  })
+  }, { headers: { 'Idempotency-Key': idempotencyKey('transfer-validate') } })
   return data
 }
 
@@ -100,12 +117,12 @@ export async function createRedPacket(params: {
   redpacket_type?: 'equal' | 'random'
   memo?: string
 }): Promise<RedPacketRecord> {
-  const { data } = await apiClient.post<RedPacketRecord>('/user/redpacket', params)
+  const { data } = await apiClient.post<RedPacketRecord>('/user/redpacket', params, { headers: { 'Idempotency-Key': idempotencyKey('redpacket-create') } })
   return data
 }
 
 export async function claimRedPacket(code: string): Promise<RedPacketClaimRecord> {
-  const { data } = await apiClient.post<RedPacketClaimRecord>('/user/redpacket/claim', { code })
+  const { data } = await apiClient.post<RedPacketClaimRecord>('/user/redpacket/claim', { code }, { headers: { 'Idempotency-Key': idempotencyKey('redpacket-claim') } })
   return data
 }
 
@@ -118,6 +135,7 @@ export async function getRedPacketDetail(id: number): Promise<{
 }
 
 export async function getMyRedPackets(params: {
+  role?: 'sent' | 'received'
   page?: number
   page_size?: number
 }): Promise<{ items: RedPacketRecord[]; total: number; page: number; page_size: number }> {

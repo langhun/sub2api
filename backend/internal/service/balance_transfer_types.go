@@ -84,6 +84,16 @@ type TransferSettings struct {
 	RedPacketExpireHours int
 }
 
+type TransferValidation struct {
+	Fee                  float64 `json:"fee"`
+	FeeRate              float64 `json:"fee_rate"`
+	GrossAmount          float64 `json:"gross_amount"`
+	ReceiverID           int64   `json:"receiver_id"`
+	ReceiverDisplay      string  `json:"receiver_display"`
+	DailyRemainingAmount float64 `json:"daily_remaining_amount"`
+	DailyRemainingCount  int     `json:"daily_remaining_count"`
+}
+
 type BalanceTransferRepository interface {
 	Create(ctx context.Context, t *BalanceTransferRecord) error
 	GetByID(ctx context.Context, id int64) (*BalanceTransferRecord, error)
@@ -112,6 +122,7 @@ type BalanceRedPacketRepository interface {
 	HasClaimed(ctx context.Context, redpacketID, userID int64) (bool, error)
 	GetClaims(ctx context.Context, redpacketID int64) ([]*RedPacketClaimRecord, error)
 	ListBySender(ctx context.Context, senderID int64, page, pageSize int) ([]*RedPacketRecord, int, error)
+	ListClaimedByUser(ctx context.Context, userID int64, page, pageSize int) ([]*RedPacketRecord, int, error)
 	ListActiveExpired(ctx context.Context) ([]*RedPacketRecord, error)
 	ListAll(ctx context.Context, page, pageSize int) ([]*RedPacketRecord, int, error)
 	ReturnRemaining(ctx context.Context, id int64, senderID int64) (float64, error)

@@ -5768,6 +5768,7 @@
 			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示余额排行标签', 'Show balance ranking') }}</span><Toggle v-model="form.leaderboard_balance_enabled" /></div>
 			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示消费排行标签', 'Show consumption ranking') }}</span><Toggle v-model="form.leaderboard_consumption_enabled" /></div>
 			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示签到排行标签', 'Show check-in ranking') }}</span><Toggle v-model="form.leaderboard_checkin_enabled" /></div>
+			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示转账排行标签', 'Show transfer ranking') }}</span><Toggle v-model="form.leaderboard_transfer_enabled" /></div>
 			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('排行榜包含管理员', 'Include administrators') }}</span><Toggle v-model="form.leaderboard_include_admin" /></div>
 			</template>
 		  </div>
@@ -7258,8 +7259,31 @@
         </div>
         <!-- /Tab: Email -->
 
-        <!-- Tab: Backup -->
-        <div v-show="activeTab === 'balanceFeatures'" class="space-y-6">
+        <!-- Activity modules share the Features tab so entry switches and rules stay together. -->
+        <div v-show="activeTab === 'features'" class="space-y-6">
+          <div class="card">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ localText('娱乐大厅与游戏', 'Game hall and games') }}</h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ localText('统一控制大厅入口、DG 钱包兑换和游戏投注范围。', 'Control the hall entry, DG wallet exchange, and game bet limits.') }}</p>
+            </div>
+            <div class="space-y-5 p-6">
+              <div class="flex items-center justify-between gap-4">
+                <div><p class="font-medium text-gray-900 dark:text-white">{{ localText('娱乐大厅入口', 'Game hall entry') }}</p><p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ localText('关闭后隐藏入口，并由后端拒绝兑换和新游戏。', 'Hides the entry and blocks exchanges and new rounds.') }}</p></div>
+                <Toggle v-model="form.game_hall_enabled" />
+              </div>
+              <template v-if="form.game_hall_enabled">
+                <div class="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 dark:border-dark-700">
+                  <span class="font-medium text-gray-900 dark:text-white">{{ localText('三轴老虎机', 'Three-reel slots') }}</span>
+                  <Toggle v-model="form.game_slots_enabled" />
+                </div>
+                <div v-if="form.game_slots_enabled" class="grid gap-4 md:grid-cols-2">
+                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('最小投注（DG）', 'Minimum bet (DG)') }}<input v-model.number="form.game_slots_min_bet" type="number" min="0.01" step="0.01" class="input mt-1" /></label>
+                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('最大投注（DG）', 'Maximum bet (DG)') }}<input v-model.number="form.game_slots_max_bet" type="number" min="0.01" step="0.01" class="input mt-1" /></label>
+                </div>
+                <p v-if="form.game_slots_enabled && Number(form.game_slots_min_bet) > Number(form.game_slots_max_bet)" class="text-sm text-red-600 dark:text-red-400">{{ localText('最小投注不能大于最大投注', 'Minimum bet cannot exceed maximum bet') }}</p>
+              </template>
+            </div>
+          </div>
           <div class="card">
             <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.checkinTitle") }}</h2>
@@ -7290,6 +7314,8 @@
             v-model:trigger-type="form.checkin_blindbox_trigger_type"
             v-model:interval="form.checkin_blindbox_interval"
           />
+
+          <CodeFormatSettingsEditor v-model="form.code_format_settings" @validity="codeFormatSettingsValid = $event" />
 
           <div class="card">
             <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -7323,7 +7349,7 @@
         <div v-show="activeTab !== 'backup'" class="flex justify-end">
           <button
             type="submit"
-            :disabled="saving || loadFailed"
+            :disabled="saving || loadFailed || !codeFormatSettingsValid || (form.game_slots_enabled && Number(form.game_slots_min_bet) > Number(form.game_slots_max_bet))"
             class="btn btn-primary"
           >
             <svg
@@ -7411,6 +7437,7 @@ import type {
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
   DefaultPlatformQuotasMap,
+  CodeFormatSettings,
   OpenAIFastPolicyRule,
   WeChatConnectMode,
   WebSearchEmulationConfig,
@@ -7426,6 +7453,7 @@ import type {
 import type { ProviderInstance } from "@/types/payment";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Icon from "@/components/icons/Icon.vue";
+import CodeFormatSettingsEditor from "@/components/admin/CodeFormatSettingsEditor.vue";
 import Select from "@/components/common/Select.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import PaymentProviderList from "@/components/payment/PaymentProviderList.vue";
@@ -7487,7 +7515,6 @@ type SettingsTab =
   | "gateway"
   | "payment"
   | "email"
-  | "balanceFeatures"
   | "backup";
 const activeTab = ref<SettingsTab>("general");
 const settingsTabs = [
@@ -7499,7 +7526,6 @@ const settingsTabs = [
   { key: "gateway" as SettingsTab, icon: "server" as const },
   { key: "payment" as SettingsTab, icon: "creditCard" as const },
   { key: "email" as SettingsTab, icon: "mail" as const },
-  { key: "balanceFeatures" as SettingsTab, icon: "gift" as const },
   { key: "backup" as SettingsTab, icon: "database" as const },
 ];
 
@@ -7558,6 +7584,7 @@ const { copyToClipboard } = useClipboard();
 const loading = ref(true);
 const loadFailed = ref(false);
 const saving = ref(false);
+const codeFormatSettingsValid = ref(true);
 const testingSmtp = ref(false);
 const sendingTestEmail = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
@@ -8328,6 +8355,17 @@ const form = reactive<SettingsForm>({
   subscription_expiry_notify_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [] as NotifyEmailEntry[],
+  code_format_settings: {
+    balance: { prefix: "BAL", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
+    concurrency: { prefix: "CON", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
+    subscription: { prefix: "SUB", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
+    invitation: { prefix: "INV", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
+    redpacket: { prefix: "RP", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
+  } as CodeFormatSettings,
+  game_hall_enabled: false,
+  game_slots_enabled: false,
+  game_slots_min_bet: 0.01,
+  game_slots_max_bet: 1000,
   checkin_enabled: false,
   checkin_min_balance: 0.1,
   checkin_max_balance: 1,
@@ -8352,6 +8390,7 @@ const form = reactive<SettingsForm>({
 	leaderboard_balance_enabled: true,
 	leaderboard_consumption_enabled: true,
 	leaderboard_checkin_enabled: true,
+	leaderboard_transfer_enabled: false,
 	leaderboard_include_admin: false,
   // Channel Monitor feature switch
   channel_monitor_enabled: true,
@@ -9334,6 +9373,19 @@ function findDuplicateDefaultSubscription(
 async function saveSettings() {
   saving.value = true;
   try {
+    if (!codeFormatSettingsValid.value) {
+      appStore.showError(localText("请先修正兑换码与口令格式设置", "Fix the code and phrase format settings before saving"));
+      return;
+    }
+	const settingsError = validateActivitySettings();
+	if (settingsError) {
+	  appStore.showError(settingsError);
+	  return;
+	}
+    if (form.game_slots_enabled && Number(form.game_slots_min_bet) > Number(form.game_slots_max_bet)) {
+      appStore.showError(localText("老虎机最小投注不能大于最大投注", "The minimum slots bet cannot exceed the maximum"));
+      return;
+    }
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -9486,6 +9538,7 @@ async function saveSettings() {
         ),
       promo_code_enabled: form.promo_code_enabled,
       invitation_code_enabled: form.invitation_code_enabled,
+      code_format_settings: form.code_format_settings,
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       login_agreement_enabled: form.login_agreement_enabled,
@@ -9727,6 +9780,10 @@ async function saveSettings() {
       account_quota_notify_emails: (
         form.account_quota_notify_emails || []
       ).filter((e) => e.email.trim() !== ""),
+      game_hall_enabled: form.game_hall_enabled,
+      game_slots_enabled: form.game_slots_enabled,
+      game_slots_min_bet: Number(form.game_slots_min_bet) || 0.01,
+      game_slots_max_bet: Number(form.game_slots_max_bet) || 0.01,
       checkin_enabled: form.checkin_enabled,
       checkin_min_balance: Number(form.checkin_min_balance) || 0,
       checkin_max_balance: Number(form.checkin_max_balance) || 0,
@@ -9751,6 +9808,7 @@ async function saveSettings() {
 	  leaderboard_balance_enabled: form.leaderboard_balance_enabled,
 	  leaderboard_consumption_enabled: form.leaderboard_consumption_enabled,
 	  leaderboard_checkin_enabled: form.leaderboard_checkin_enabled,
+	  leaderboard_transfer_enabled: form.leaderboard_transfer_enabled,
 	  leaderboard_include_admin: form.leaderboard_include_admin,
       // Channel Monitor feature switch
       channel_monitor_enabled: form.channel_monitor_enabled,
@@ -9873,6 +9931,31 @@ async function saveSettings() {
   } finally {
     saving.value = false;
   }
+}
+
+function validateActivitySettings(): string {
+  if (form.checkin_enabled && Number(form.checkin_min_balance) > Number(form.checkin_max_balance)) {
+    return localText('签到最小奖励不能大于最大奖励', 'The minimum check-in reward cannot exceed the maximum');
+  }
+  if (form.checkin_luck_enabled && Number(form.checkin_luck_min_multiplier) > Number(form.checkin_luck_max_multiplier)) {
+    return localText('运气签到最小倍率不能大于最大倍率', 'The minimum lucky multiplier cannot exceed the maximum');
+  }
+  if (form.checkin_blindbox_enabled && !form.checkin_enabled && !form.checkin_luck_enabled) {
+    return localText('开启盲盒前至少启用一种签到方式', 'Enable at least one check-in mode before enabling blind boxes');
+  }
+  if (form.transfer_enabled && Number(form.transfer_min_amount) > Number(form.transfer_max_amount)) {
+    return localText('转账最小金额不能大于最大金额', 'The minimum transfer amount cannot exceed the maximum');
+  }
+  if (form.leaderboard_enabled && !form.leaderboard_balance_enabled && !form.leaderboard_consumption_enabled && !form.leaderboard_checkin_enabled && !form.leaderboard_transfer_enabled) {
+    return localText('开启排行榜时至少启用一个榜单标签', 'Enable at least one leaderboard tab');
+  }
+  if (form.leaderboard_transfer_enabled && !form.transfer_enabled) {
+    return localText('转账排行榜依赖余额转账功能', 'The transfer leaderboard requires balance transfers');
+  }
+  if (form.game_hall_enabled && !form.game_slots_enabled) {
+    return localText('开启娱乐大厅时至少启用一个游戏', 'Enable at least one game before enabling the game hall');
+  }
+  return '';
 }
 
 async function testSmtpConnection() {

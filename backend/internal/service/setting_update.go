@@ -51,6 +51,13 @@ func (s *SettingService) UpdateSettingsWithAuthSourceDefaults(ctx context.Contex
 }
 
 func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, settings *SystemSettings) (map[string]string, error) {
+	if settings.GameSlotsMinBet == 0 && settings.GameSlotsMaxBet == 0 {
+		settings.GameSlotsMinBet = 0.01
+		settings.GameSlotsMaxBet = 1000
+	}
+	if err := settings.BalanceFeatureSettings.Validate(); err != nil {
+		return nil, infraerrors.BadRequest("INVALID_BALANCE_FEATURE_SETTINGS", err.Error())
+	}
 	if err := s.validateDefaultSubscriptionGroups(ctx, settings.DefaultSubscriptions); err != nil {
 		return nil, err
 	}
@@ -416,6 +423,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	updates[SettingKeyAllowUserViewErrorRequests] = strconv.FormatBool(settings.AllowUserViewErrorRequests)
 	appendBalanceFeatureUpdates(updates, settings.BalanceFeatureSettings)
+	if err := appendCodeFormatUpdates(updates, settings.CodeFormatSettings); err != nil {
+		return nil, infraerrors.BadRequest("INVALID_CODE_FORMAT_SETTINGS", err.Error())
+	}
 
 	return updates, nil
 }

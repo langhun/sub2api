@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
+	"math/big"
+	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -29,6 +31,7 @@ var (
 	ErrRedPacketAlreadyClaimed  = infraerrors.BadRequest("REDPACKET_ALREADY_CLAIMED", "you have already claimed this red packet")
 	ErrRedPacketSelfClaim       = infraerrors.BadRequest("REDPACKET_SELF_CLAIM", "cannot claim your own red packet")
 	ErrRedPacketCountInvalid    = infraerrors.BadRequest("REDPACKET_COUNT_INVALID", "invalid red packet count")
+	ErrRedPacketDetailForbidden = infraerrors.Forbidden("REDPACKET_DETAIL_FORBIDDEN", "red packet detail is only available to its sender or claimants")
 )
 
 type BalanceTransferService struct {
@@ -37,6 +40,37 @@ type BalanceTransferService struct {
 	userRepo            UserRepository
 	settingService      *SettingService
 	subscriptionService *SubscriptionService
+}
+
+type nonRechargeBalanceUpdater interface {
+	UpdateBalanceWithoutRecharge(ctx context.Context, id int64, amount float64) error
+}
+
+type nonnegativeNonRechargeBalanceUpdater interface {
+	UpdateBalanceWithoutRechargeIfNonnegative(ctx context.Context, id int64, amount float64) (bool, error)
+}
+
+func updateBalanceWithoutRechargeIfNonnegative(ctx context.Context, repo UserRepository, userID int64, amount float64) (bool, error) {
+	if updater, ok := repo.(nonnegativeNonRechargeBalanceUpdater); ok {
+		return updater.UpdateBalanceWithoutRechargeIfNonnegative(ctx, userID, amount)
+	}
+	// Compatibility path for test doubles and alternate repositories. The
+	// production repository implements the atomic conditional update above.
+	user, err := repo.GetByID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	if user == nil || user.Balance+amount < 0 {
+		return false, nil
+	}
+	return true, updateBalanceWithoutRecharge(ctx, repo, userID, amount)
+}
+
+func updateBalanceWithoutRecharge(ctx context.Context, repo UserRepository, userID int64, amount float64) error {
+	if updater, ok := repo.(nonRechargeBalanceUpdater); ok {
+		return updater.UpdateBalanceWithoutRecharge(ctx, userID, amount)
+	}
+	return repo.UpdateBalance(ctx, userID, amount)
 }
 
 func NewBalanceTransferService(
@@ -94,7 +128,7 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 		return nil, ErrTransferSelf
 	}
 	amount = math.Round(amount*1e8) / 1e8
-	if amount < cfg.MinAmount || (cfg.MaxAmount > 0 && amount > cfg.MaxAmount) || amount <= 0 {
+	if math.IsNaN(amount) || math.IsInf(amount, 0) || amount < cfg.MinAmount || (cfg.MaxAmount > 0 && amount > cfg.MaxAmount) || amount <= 0 {
 		return nil, ErrTransferAmountInvalid
 	}
 	receiver, err := s.userRepo.GetByID(ctx, receiverID)
@@ -134,7 +168,7 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 		if !ok {
 			return ErrTransferInsufficient
 		}
-		if err := s.userRepo.UpdateBalance(txCtx, receiverID, amount); err != nil {
+		if err := updateBalanceWithoutRecharge(txCtx, s.userRepo, receiverID, amount); err != nil {
 			return fmt.Errorf("credit receiver balance: %w", err)
 		}
 		record = &BalanceTransferRecord{
@@ -156,21 +190,61 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 	return record, nil
 }
 
-func (s *BalanceTransferService) ValidateTransfer(ctx context.Context, senderID, receiverID int64, amount float64) (fee float64, feeRate float64, err error) {
+func (s *BalanceTransferService) ValidateTransfer(ctx context.Context, senderID, receiverID int64, amount float64) (*TransferValidation, error) {
 	cfg := s.getTransferSettings(ctx)
 	if !cfg.Enabled {
-		return 0, 0, ErrTransferDisabled
+		return nil, ErrTransferDisabled
 	}
 	if senderID == receiverID {
-		return 0, 0, ErrTransferSelf
+		return nil, ErrTransferSelf
 	}
 	amount = math.Round(amount*1e8) / 1e8
-	if amount < cfg.MinAmount || (cfg.MaxAmount > 0 && amount > cfg.MaxAmount) || amount <= 0 {
-		return 0, 0, ErrTransferAmountInvalid
+	if math.IsNaN(amount) || math.IsInf(amount, 0) || amount < cfg.MinAmount || (cfg.MaxAmount > 0 && amount > cfg.MaxAmount) || amount <= 0 {
+		return nil, ErrTransferAmountInvalid
 	}
-	feeRate = s.transferFeeRate(ctx, senderID, cfg)
-	fee = math.Round(amount*feeRate*1e8) / 1e8
-	return fee, feeRate, nil
+	receiver, err := s.userRepo.GetByID(ctx, receiverID)
+	if err != nil || receiver == nil {
+		return nil, ErrTransferReceiverNotFound
+	}
+	dailyTotal, dailyCount, err := s.transferRepo.GetDailyTransferTotal(ctx, senderID)
+	if err != nil {
+		return nil, fmt.Errorf("check daily limit: %w", err)
+	}
+	feeRate := s.transferFeeRate(ctx, senderID, cfg)
+	fee := math.Max(0, math.Round(amount*feeRate*1e8)/1e8)
+	remainingAmount := float64(0)
+	if cfg.DailyLimit > 0 {
+		remainingAmount = math.Max(0, math.Round((cfg.DailyLimit-dailyTotal)*1e8)/1e8)
+	}
+	remainingCount := 0
+	if cfg.DailyCountLimit > 0 {
+		remainingCount = max(0, cfg.DailyCountLimit-dailyCount)
+	}
+	return &TransferValidation{
+		Fee:                  fee,
+		FeeRate:              feeRate,
+		GrossAmount:          math.Round((amount+fee)*1e8) / 1e8,
+		ReceiverID:           receiverID,
+		ReceiverDisplay:      transferReceiverDisplay(receiver),
+		DailyRemainingAmount: remainingAmount,
+		DailyRemainingCount:  remainingCount,
+	}, nil
+}
+
+func transferReceiverDisplay(user *User) string {
+	if user.Username != "" {
+		runes := []rune(user.Username)
+		if len(runes) <= 2 {
+			return string(runes[:1]) + "***"
+		}
+		return string(runes[:1]) + "***" + string(runes[len(runes)-1:])
+	}
+	parts := strings.SplitN(user.Email, "@", 2)
+	if len(parts) != 2 || parts[0] == "" {
+		return "user"
+	}
+	local := []rune(parts[0])
+	return string(local[:1]) + "***@" + parts[1]
 }
 
 func (s *BalanceTransferService) GetHistory(ctx context.Context, userID int64, role string, page, pageSize int) ([]*BalanceTransferRecord, int, error) {
@@ -219,8 +293,13 @@ func (s *BalanceTransferService) RevokeTransfer(ctx context.Context, adminID, tr
 		if !ok {
 			return ErrTransferInsufficient
 		}
-		if err := s.userRepo.UpdateBalance(txCtx, record.SenderID, record.GrossAmount); err != nil {
-			return fmt.Errorf("return sender balance: %w", err)
+		// Batch distribution mints an administrator-authorized reward and never
+		// debits the admin. Revocation only claws the reward back; refunding the
+		// synthetic sender would create new spendable balance.
+		if record.TransferType != "batch" {
+			if err := updateBalanceWithoutRecharge(txCtx, s.userRepo, record.SenderID, record.GrossAmount); err != nil {
+				return fmt.Errorf("return sender balance: %w", err)
+			}
 		}
 		return s.transferRepo.UpdateStatus(txCtx, transferID, "revoked", record.FrozenAt, &adminID, &reason)
 	})
@@ -236,7 +315,7 @@ func (s *BalanceTransferService) BatchDistribute(ctx context.Context, adminID in
 			if _, err := s.userRepo.GetByID(txCtx, t.UserID); err != nil {
 				continue
 			}
-			if err := s.userRepo.UpdateBalance(txCtx, t.UserID, t.Amount); err != nil {
+			if err := updateBalanceWithoutRecharge(txCtx, s.userRepo, t.UserID, t.Amount); err != nil {
 				return fmt.Errorf("update balance for user %d: %w", t.UserID, err)
 			}
 			record := &BalanceTransferRecord{
@@ -299,6 +378,12 @@ func (s *BalanceTransferService) CreateRedPacket(ctx context.Context, senderID i
 		return nil, ErrRedPacketCountInvalid
 	}
 	totalAmount = math.Round(totalAmount*1e8) / 1e8
+	if math.IsNaN(totalAmount) || math.IsInf(totalAmount, 0) || totalAmount <= 0 {
+		return nil, ErrTransferAmountInvalid
+	}
+	if redPacketType != "equal" && redPacketType != "random" {
+		return nil, infraerrors.BadRequest("REDPACKET_TYPE_INVALID", "red packet type must be equal or random")
+	}
 	minRequired := float64(count) * 0.01
 	if totalAmount < minRequired {
 		return nil, infraerrors.BadRequest("REDPACKET_AMOUNT_TOO_SMALL", fmt.Sprintf("minimum amount for %d packets is %.2f", count, minRequired))
@@ -306,7 +391,7 @@ func (s *BalanceTransferService) CreateRedPacket(ctx context.Context, senderID i
 	feeRate := s.transferFeeRate(ctx, senderID, cfg)
 	fee := math.Round(totalAmount*feeRate*1e8) / 1e8
 	grossAmount := totalAmount + fee
-	code, err := generateRedPacketCode()
+	code, err := s.generateRedPacketCode(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("generate code: %w", err)
 	}
@@ -381,7 +466,10 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 		if locked.Status != "active" || locked.RemainingCount <= 0 {
 			return ErrRedPacketExhausted
 		}
-		amount := s.calculateClaimAmount(locked)
+		amount, err := s.calculateClaimAmount(locked)
+		if err != nil {
+			return fmt.Errorf("calculate red packet claim: %w", err)
+		}
 		if amount <= 0 {
 			return ErrRedPacketExhausted
 		}
@@ -389,7 +477,7 @@ func (s *BalanceTransferService) ClaimRedPacket(ctx context.Context, userID int6
 		if err != nil {
 			return ErrRedPacketExhausted
 		}
-		if err := s.userRepo.UpdateBalance(txCtx, userID, amount); err != nil {
+		if err := updateBalanceWithoutRecharge(txCtx, s.userRepo, userID, amount); err != nil {
 			return fmt.Errorf("credit balance: %w", err)
 		}
 		claimRecord = &RedPacketClaimRecord{
@@ -437,16 +525,37 @@ func (s *BalanceTransferService) GetRedPacketDetail(ctx context.Context, redPack
 	}
 	claims, err := s.redPacketRepo.GetClaims(ctx, redPacketID)
 	if err != nil {
-		claims = []*RedPacketClaimRecord{}
+		return nil, nil, fmt.Errorf("get red packet claims: %w", err)
 	}
 	return rp, claims, nil
 }
 
-func (s *BalanceTransferService) GetMyRedPackets(ctx context.Context, senderID int64, page, pageSize int) ([]*RedPacketRecord, int, error) {
+// GetRedPacketDetailForUser limits claim identity and amounts to participants.
+// Administrative callers can use GetRedPacketDetail after enforcing admin auth.
+func (s *BalanceTransferService) GetRedPacketDetailForUser(ctx context.Context, requesterID, redPacketID int64) (*RedPacketRecord, []*RedPacketClaimRecord, error) {
+	rp, claims, err := s.GetRedPacketDetail(ctx, redPacketID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if rp.SenderID == requesterID {
+		return rp, claims, nil
+	}
+	for _, claim := range claims {
+		if claim.UserID == requesterID {
+			return rp, []*RedPacketClaimRecord{claim}, nil
+		}
+	}
+	return nil, nil, ErrRedPacketDetailForbidden
+}
+
+func (s *BalanceTransferService) GetMyRedPackets(ctx context.Context, userID int64, role string, page, pageSize int) ([]*RedPacketRecord, int, error) {
 	if !s.getTransferSettings(ctx).RedPacketEnabled {
 		return nil, 0, ErrRedPacketDisabled
 	}
-	return s.redPacketRepo.ListBySender(ctx, senderID, page, pageSize)
+	if role == "received" {
+		return s.redPacketRepo.ListClaimedByUser(ctx, userID, page, pageSize)
+	}
+	return s.redPacketRepo.ListBySender(ctx, userID, page, pageSize)
 }
 
 func (s *BalanceTransferService) ExpireRedPackets(ctx context.Context) error {
@@ -454,62 +563,62 @@ func (s *BalanceTransferService) ExpireRedPackets(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	var expireErrors []error
 	for _, rp := range rps {
-		_ = s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
+		if err := s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
 			remaining, err := s.redPacketRepo.ReturnRemaining(txCtx, rp.ID, rp.SenderID)
 			if err != nil {
 				return err
 			}
 			if remaining > 0 {
-				return s.userRepo.UpdateBalance(txCtx, rp.SenderID, remaining)
+				return updateBalanceWithoutRecharge(txCtx, s.userRepo, rp.SenderID, remaining)
 			}
 			return nil
-		})
+		}); err != nil {
+			expireErrors = append(expireErrors, fmt.Errorf("expire red packet %d: %w", rp.ID, err))
+		}
 	}
-	return nil
+	return errors.Join(expireErrors...)
 }
 
 func (s *BalanceTransferService) GetAllRedPackets(ctx context.Context, page, pageSize int) ([]*RedPacketRecord, int, error) {
 	return s.redPacketRepo.ListAll(ctx, page, pageSize)
 }
 
-func (s *BalanceTransferService) calculateClaimAmount(rp *RedPacketRecord) float64 {
+func (s *BalanceTransferService) calculateClaimAmount(rp *RedPacketRecord) (float64, error) {
 	if rp.RemainingCount <= 0 || rp.RemainingAmount <= 0 {
-		return 0
+		return 0, nil
 	}
 	if rp.RedPacketType == "equal" {
-		return math.Round(rp.RemainingAmount/float64(rp.RemainingCount)*1e8) / 1e8
+		return math.Round(rp.RemainingAmount/float64(rp.RemainingCount)*1e8) / 1e8, nil
 	}
 	if rp.RemainingCount == 1 {
-		return math.Round(rp.RemainingAmount*1e8) / 1e8
+		return math.Round(rp.RemainingAmount*1e8) / 1e8, nil
 	}
-	max := (rp.RemainingAmount - float64(rp.RemainingCount-1)*0.01) * 2
-	if max <= 0 {
-		max = 0.01
+	maxCents := int64(math.Floor((rp.RemainingAmount-float64(rp.RemainingCount-1)*0.01)*2*100 + 1e-9))
+	if maxCents < 1 {
+		maxCents = 1
 	}
-	var buf [8]byte
-	rand.Read(buf[:])
-	seed := int64(buf[0])<<56 | int64(buf[1])<<48 | int64(buf[2])<<40 | int64(buf[3])<<32 |
-		int64(buf[4])<<24 | int64(buf[5])<<16 | int64(buf[6])<<8 | int64(buf[7])
-	if seed < 0 {
-		seed = -seed
+	randomCent, err := rand.Int(rand.Reader, big.NewInt(maxCents))
+	if err != nil {
+		return 0, err
 	}
-	amount := float64(seed%int64(max*100)) / 100
-	if amount < 0.01 {
-		amount = 0.01
-	}
+	amount := float64(randomCent.Int64()+1) / 100
 	if amount > rp.RemainingAmount-float64(rp.RemainingCount-1)*0.01 {
 		amount = rp.RemainingAmount - float64(rp.RemainingCount-1)*0.01
 	}
-	return math.Round(amount*1e8) / 1e8
+	return math.Round(amount*1e8) / 1e8, nil
 }
 
 func generateRedPacketCode() (string, error) {
-	b := make([]byte, 12)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
+	return DefaultCodeFormatSettings().RedPacket.Generate()
+}
+
+func (s *BalanceTransferService) generateRedPacketCode(ctx context.Context) (string, error) {
+	if s.settingService == nil {
+		return generateRedPacketCode()
 	}
-	return hex.EncodeToString(b), nil
+	return s.settingService.GetCodeFormatSettings(ctx).RedPacket.Generate()
 }
 
 func (s *BalanceTransferService) GetTransferStats(ctx context.Context, userID int64) (sent float64, received float64, feePaid float64, err error) {

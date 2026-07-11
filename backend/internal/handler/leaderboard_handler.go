@@ -80,3 +80,21 @@ func (h *LeaderboardHandler) GetCheckinLeaderboard(c *gin.Context) {
 
 	response.Paginated(c, result.Entries, result.Total, page, pageSize)
 }
+
+func (h *LeaderboardHandler) GetTransferLeaderboard(c *gin.Context) {
+	if !h.enabled(c, func(s service.BalanceFeatureSettings) bool { return s.LeaderboardTransferEnabled }) {
+		return
+	}
+	period := c.DefaultQuery("period", "daily")
+	if period != "daily" && period != "weekly" && period != "monthly" {
+		response.BadRequest(c, "Invalid period, must be daily, weekly or monthly")
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	result, err := h.leaderboardService.GetTransferLeaderboard(c.Request.Context(), period, page, pageSize)
+	if err != nil {
+		response.InternalError(c, "Failed to get transfer leaderboard")
+		return
+	}
+	response.Paginated(c, result.Entries, result.Total, page, pageSize)
+}

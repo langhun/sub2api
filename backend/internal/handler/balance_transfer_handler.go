@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -33,12 +35,9 @@ func (h *BalanceTransferHandler) Transfer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	record, err := h.transferService.Transfer(c.Request.Context(), userID, req.ReceiverID, req.Amount, req.Memo)
-	if err != nil {
-		WriteAppError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, record)
+	executeUserIdempotentJSON(c, "balance_transfer", req, 24*time.Hour, func(ctx context.Context) (any, error) {
+		return h.transferService.Transfer(ctx, userID, req.ReceiverID, req.Amount, req.Memo)
+	})
 }
 
 func (h *BalanceTransferHandler) ValidateTransfer(c *gin.Context) {
@@ -55,12 +54,12 @@ func (h *BalanceTransferHandler) ValidateTransfer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	fee, feeRate, err := h.transferService.ValidateTransfer(c.Request.Context(), userID, req.ReceiverID, req.Amount)
+	validation, err := h.transferService.ValidateTransfer(c.Request.Context(), userID, req.ReceiverID, req.Amount)
 	if err != nil {
 		WriteAppError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"fee": fee, "fee_rate": feeRate})
+	c.JSON(http.StatusOK, validation)
 }
 
 func (h *BalanceTransferHandler) GetHistory(c *gin.Context) {
@@ -119,12 +118,9 @@ func (h *BalanceTransferHandler) CreateRedPacket(c *gin.Context) {
 	if req.RedPacketType == "" {
 		req.RedPacketType = "equal"
 	}
-	rp, err := h.transferService.CreateRedPacket(c.Request.Context(), userID, req.TotalAmount, req.Count, req.RedPacketType, req.Memo)
-	if err != nil {
-		WriteAppError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, rp)
+	executeUserIdempotentJSON(c, "redpacket_create", req, 24*time.Hour, func(ctx context.Context) (any, error) {
+		return h.transferService.CreateRedPacket(ctx, userID, req.TotalAmount, req.Count, req.RedPacketType, req.Memo)
+	})
 }
 
 func (h *BalanceTransferHandler) ClaimRedPacket(c *gin.Context) {
@@ -140,12 +136,9 @@ func (h *BalanceTransferHandler) ClaimRedPacket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	claim, err := h.transferService.ClaimRedPacket(c.Request.Context(), userID, req.Code)
-	if err != nil {
-		WriteAppError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, claim)
+	executeUserIdempotentJSON(c, "redpacket_claim", req, 24*time.Hour, func(ctx context.Context) (any, error) {
+		return h.transferService.ClaimRedPacket(ctx, userID, req.Code)
+	})
 }
 
 func (h *BalanceTransferHandler) GetRedPacketDetail(c *gin.Context) {
@@ -154,7 +147,12 @@ func (h *BalanceTransferHandler) GetRedPacketDetail(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	rp, claims, err := h.transferService.GetRedPacketDetail(c.Request.Context(), id)
+	userID := GetUserIDAware(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	rp, claims, err := h.transferService.GetRedPacketDetailForUser(c.Request.Context(), userID, id)
 	if err != nil {
 		WriteAppError(c, err)
 		return
@@ -176,7 +174,12 @@ func (h *BalanceTransferHandler) GetMyRedPackets(c *gin.Context) {
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
-	records, total, err := h.transferService.GetMyRedPackets(c.Request.Context(), userID, page, pageSize)
+	role := c.DefaultQuery("role", "sent")
+	if role != "sent" && role != "received" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "role must be sent or received"})
+		return
+	}
+	records, total, err := h.transferService.GetMyRedPackets(c.Request.Context(), userID, role, page, pageSize)
 	if err != nil {
 		WriteAppError(c, err)
 		return

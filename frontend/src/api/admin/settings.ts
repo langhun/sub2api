@@ -16,6 +16,19 @@ export interface DefaultSubscriptionSetting {
   validity_days: number;
 }
 
+export type CodeCharacterSet = "uppercase" | "numeric" | "alphanumeric" | "hex";
+export interface CodeFormatRule {
+  prefix: string;
+  character_set: CodeCharacterSet;
+  separator: string;
+  group_length: number;
+  group_count: number;
+}
+export type CodeFormatSettings = Record<
+  "balance" | "concurrency" | "subscription" | "invitation" | "redpacket",
+  CodeFormatRule
+>;
+
 // ── 平台限额类型 ──────────────────────────────────────────────────
 export type PlatformType = "anthropic" | "openai" | "gemini" | "antigravity" | "grok"
 export type QuotaWindowType = "daily" | "weekly" | "monthly"
@@ -639,6 +652,11 @@ export interface SystemSettings {
   account_quota_notify_emails: NotifyEmailEntry[];
 
   // Check-in, blind box, balance transfer and red packet settings
+  code_format_settings: CodeFormatSettings;
+  game_hall_enabled: boolean;
+  game_slots_enabled: boolean;
+  game_slots_min_bet: number;
+  game_slots_max_bet: number;
   checkin_enabled: boolean;
   checkin_min_balance: number;
   checkin_max_balance: number;
@@ -663,6 +681,7 @@ export interface SystemSettings {
 	leaderboard_balance_enabled: boolean;
 	leaderboard_consumption_enabled: boolean;
 	leaderboard_checkin_enabled: boolean;
+	leaderboard_transfer_enabled: boolean;
 	leaderboard_include_admin: boolean;
 
   // Channel Monitor feature switch
@@ -690,6 +709,11 @@ export interface UpdateSettingsRequest {
   password_reset_enabled?: boolean;
   frontend_url?: string;
   invitation_code_enabled?: boolean;
+  code_format_settings?: CodeFormatSettings;
+  game_hall_enabled?: boolean;
+  game_slots_enabled?: boolean;
+  game_slots_min_bet?: number;
+  game_slots_max_bet?: number;
   checkin_enabled?: boolean;
   checkin_min_balance?: number;
   checkin_max_balance?: number;
@@ -714,6 +738,7 @@ export interface UpdateSettingsRequest {
 	leaderboard_balance_enabled?: boolean;
 	leaderboard_consumption_enabled?: boolean;
 	leaderboard_checkin_enabled?: boolean;
+	leaderboard_transfer_enabled?: boolean;
 	leaderboard_include_admin?: boolean;
   totp_enabled?: boolean; // TOTP 双因素认证
   login_agreement_enabled?: boolean;

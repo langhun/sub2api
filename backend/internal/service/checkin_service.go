@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"math/rand/v2"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 )
 
@@ -124,7 +122,11 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 	}
 
 	minReward, maxReward := s.settingService.GetCheckinBalanceRange(ctx)
-	rewardAmount := minReward + rand.Float64()*(maxReward-minReward)
+	randomValue, err := secureRandomFloat64()
+	if err != nil {
+		return nil, fmt.Errorf("generate checkin reward: %w", err)
+	}
+	rewardAmount := minReward + randomValue*(maxReward-minReward)
 	rewardAmount = math.Round(rewardAmount*100) / 100
 
 	streakDays := s.calculateStreak(ctx, userID, today)
@@ -136,6 +138,14 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 	defer func() { _ = tx.Rollback() }()
 
 	txCtx := dbent.NewTxContext(ctx, tx)
+	if err := lockCheckinUser(txCtx, tx.Client(), userID); err != nil {
+		return nil, fmt.Errorf("lock checkin user: %w", err)
+	}
+	if existing, err := findTodayCheckin(txCtx, tx.Client(), userID, today); err != nil {
+		return nil, err
+	} else if existing != nil {
+		return checkinResultFromRecord(existing, todayDate), nil
+	}
 
 	_, err = tx.Client().Checkin.
 		Create().
@@ -149,12 +159,20 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 		return nil, fmt.Errorf("create checkin record: %w", err)
 	}
 
-	if err := s.userRepo.UpdateBalance(txCtx, userID, rewardAmount); err != nil {
+	if err := updateBalanceWithoutRecharge(txCtx, s.userRepo, userID, rewardAmount); err != nil {
 		return nil, fmt.Errorf("update user balance: %w", err)
 	}
 
 	if err := s.createAuditRecord(txCtx, userID, rewardAmount, AdjustmentTypeCheckin, 0, 0); err != nil {
 		return nil, fmt.Errorf("create checkin audit record: %w", err)
+	}
+
+	var blindboxResult *BlindboxResult
+	if s.blindboxService != nil && s.blindboxService.ShouldTriggerBlindbox(txCtx, userID, streakDays) {
+		blindboxResult, err = s.blindboxService.Draw(txCtx, userID, streakDays)
+		if err != nil {
+			return nil, fmt.Errorf("draw checkin blindbox: %w", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -168,22 +186,14 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 		StreakDays:   streakDays,
 		CheckedAt:    todayDate,
 		CheckinType:  CheckinTypeNormal,
-	}
-
-	if s.blindboxService != nil && s.blindboxService.ShouldTriggerBlindbox(ctx, userID, streakDays) {
-		blindboxResult, err := s.blindboxService.Draw(ctx, userID, streakDays)
-		if err == nil && blindboxResult != nil {
-			result.Blindbox = blindboxResult
-		} else if err != nil {
-			logger.LegacyPrintf("service.checkin", "blindbox draw failed for user %d: %v", userID, err)
-		}
+		Blindbox:     blindboxResult,
 	}
 
 	return result, nil
 }
 
 func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmount float64) (*CheckinResult, error) {
-	if !s.settingService.IsCheckinEnabled(ctx) || !s.settingService.IsCheckinLuckEnabled(ctx) {
+	if !s.settingService.IsCheckinLuckEnabled(ctx) {
 		return nil, ErrCheckinLuckDisabled
 	}
 
@@ -229,7 +239,11 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	}
 
 	minMultiplier, maxMultiplier := s.settingService.GetCheckinLuckMultiplierRange(ctx)
-	multiplier := minMultiplier + rand.Float64()*(maxMultiplier-minMultiplier)
+	randomValue, err := secureRandomFloat64()
+	if err != nil {
+		return nil, fmt.Errorf("generate luck checkin multiplier: %w", err)
+	}
+	multiplier := minMultiplier + randomValue*(maxMultiplier-minMultiplier)
 	multiplier = math.Round(multiplier*100) / 100
 
 	rewardAmount := math.Round(betAmount*(multiplier-1)*100) / 100
@@ -243,6 +257,14 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	defer func() { _ = tx.Rollback() }()
 
 	txCtx := dbent.NewTxContext(ctx, tx)
+	if err := lockCheckinUser(txCtx, tx.Client(), userID); err != nil {
+		return nil, fmt.Errorf("lock checkin user: %w", err)
+	}
+	if existing, err := findTodayCheckin(txCtx, tx.Client(), userID, today); err != nil {
+		return nil, err
+	} else if existing != nil {
+		return checkinResultFromRecord(existing, todayDate), nil
+	}
 
 	_, err = tx.Client().Checkin.
 		Create().
@@ -259,13 +281,29 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	}
 
 	if rewardAmount != 0 {
-		if err := s.userRepo.UpdateBalance(txCtx, userID, rewardAmount); err != nil {
+		if rewardAmount < 0 {
+			updated, err := updateBalanceWithoutRechargeIfNonnegative(txCtx, s.userRepo, userID, rewardAmount)
+			if err != nil {
+				return nil, fmt.Errorf("update user balance: %w", err)
+			}
+			if !updated {
+				return nil, ErrInvalidBetAmount
+			}
+		} else if err := updateBalanceWithoutRecharge(txCtx, s.userRepo, userID, rewardAmount); err != nil {
 			return nil, fmt.Errorf("update user balance: %w", err)
 		}
 	}
 
 	if err := s.createAuditRecord(txCtx, userID, rewardAmount, AdjustmentTypeCheckinLuck, multiplier, betAmount); err != nil {
 		return nil, fmt.Errorf("create luck checkin audit record: %w", err)
+	}
+
+	var blindboxResult *BlindboxResult
+	if s.blindboxService != nil && s.blindboxService.ShouldTriggerBlindbox(txCtx, userID, streakDays) {
+		blindboxResult, err = s.blindboxService.Draw(txCtx, userID, streakDays)
+		if err != nil {
+			return nil, fmt.Errorf("draw luck checkin blindbox: %w", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -281,23 +319,49 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 		CheckinType:  CheckinTypeLuck,
 		BetAmount:    betAmount,
 		Multiplier:   multiplier,
-	}
-
-	if s.blindboxService != nil && s.blindboxService.ShouldTriggerBlindbox(ctx, userID, streakDays) {
-		blindboxResult, err := s.blindboxService.Draw(ctx, userID, streakDays)
-		if err == nil && blindboxResult != nil {
-			result.Blindbox = blindboxResult
-		} else if err != nil {
-			logger.LegacyPrintf("service.checkin", "blindbox draw failed for user %d (luck): %v", userID, err)
-		}
+		Blindbox:     blindboxResult,
 	}
 
 	return result, nil
 }
 
+func lockCheckinUser(ctx context.Context, client *dbent.Client, userID int64) error {
+	rows, err := client.QueryContext(ctx, `SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, userID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return ErrCheckinNotAllowed
+	}
+	return rows.Err()
+}
+
+func findTodayCheckin(ctx context.Context, client *dbent.Client, userID int64, today time.Time) (*dbent.Checkin, error) {
+	existing, err := client.Checkin.Query().Where(checkin.UserID(userID), checkin.CheckinDateEQ(today)).Only(ctx)
+	if dbent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query locked checkin: %w", err)
+	}
+	return existing, nil
+}
+
+func checkinResultFromRecord(existing *dbent.Checkin, checkedAt string) *CheckinResult {
+	return &CheckinResult{
+		RewardAmount: existing.RewardAmount,
+		StreakDays:   existing.StreakDays,
+		CheckedAt:    checkedAt,
+		CheckinType:  existing.CheckinType,
+		BetAmount:    existing.BetAmount,
+		Multiplier:   existing.Multiplier,
+	}
+}
+
 func (s *CheckinService) GetStatus(ctx context.Context, userID int64) (*CheckinStatus, error) {
 	normalEnabled := s.settingService.IsCheckinEnabled(ctx)
-	luckEnabled := normalEnabled && s.settingService.IsCheckinLuckEnabled(ctx)
+	luckEnabled := s.settingService.IsCheckinLuckEnabled(ctx)
 	minReward, maxReward := s.settingService.GetCheckinBalanceRange(ctx)
 	minMultiplier, maxMultiplier := s.settingService.GetCheckinLuckMultiplierRange(ctx)
 

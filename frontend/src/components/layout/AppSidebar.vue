@@ -195,7 +195,7 @@ import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } 
 import VersionBadge from '@/components/common/VersionBadge.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
-import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
+import { FeatureFlags, isFeatureFlagEnabled, makeSidebarFlag } from '@/utils/featureFlags'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 
 interface NavItem {
@@ -685,11 +685,12 @@ const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
-const flagCheckin = makeSidebarFlag(FeatureFlags.checkin)
+const flagCheckin = () => isFeatureFlagEnabled(FeatureFlags.checkin) || isFeatureFlagEnabled(FeatureFlags.checkinLuck)
 const flagTransfer = makeSidebarFlag(FeatureFlags.transfer)
 const flagRedpacket = makeSidebarFlag(FeatureFlags.redpacket)
 const flagUsageQuery = makeSidebarFlag(FeatureFlags.usageQuery)
 const flagLeaderboard = makeSidebarFlag(FeatureFlags.leaderboard)
+const flagGameHall = makeSidebarFlag(FeatureFlags.gameHall)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
@@ -718,6 +719,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/checkin', label: t('nav.checkin'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagCheckin },
     { path: '/transfer', label: t('nav.transfer'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagTransfer },
     { path: '/redpacket', label: t('nav.redpacket'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagRedpacket },
+    { path: '/game-hall', label: t('nav.gameHall'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagGameHall },
     { path: '/leaderboard', label: t('nav.leaderboard'), icon: ChartIcon, hideInSimpleMode: true, featureFlag: flagLeaderboard },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
