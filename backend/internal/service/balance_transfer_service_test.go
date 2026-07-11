@@ -444,6 +444,46 @@ func TestValidateTransferDailyLimitUsesGrossAmount(t *testing.T) {
 	})
 }
 
+func TestTransferLeaderboardRequiresLeaderboardSwitches(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings map[string]string
+	}{
+		{
+			name: "leaderboard master disabled",
+			settings: map[string]string{
+				SettingKeyTransferEnabled:            "true",
+				SettingKeyLeaderboardEnabled:         "false",
+				SettingKeyLeaderboardTransferEnabled: "true",
+			},
+		},
+		{
+			name: "transfer board disabled",
+			settings: map[string]string{
+				SettingKeyTransferEnabled:            "true",
+				SettingKeyLeaderboardEnabled:         "true",
+				SettingKeyLeaderboardTransferEnabled: "false",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := NewBalanceTransferService(
+				&transferSafetyRepo{},
+				&redPacketSafetyRepo{},
+				&transferSafetyUserRepo{},
+				newTransferSafetySettings(tt.settings),
+				nil,
+			)
+
+			_, err := svc.GetLeaderboard(context.Background(), "day", 20)
+
+			require.ErrorIs(t, err, ErrTransferLeaderboardDisabled)
+		})
+	}
+}
+
 func TestConditionalInternalDebitRejectsNegativeResult(t *testing.T) {
 	users := &transferSafetyUserRepo{conditionalBalanceOK: false}
 	updated, err := updateBalanceWithoutRechargeIfNonnegative(context.Background(), users, 1, -10)

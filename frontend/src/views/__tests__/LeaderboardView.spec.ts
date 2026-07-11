@@ -15,6 +15,7 @@ const api = vi.hoisted(() => ({
 const appStore = vi.hoisted(() => ({
   publicSettingsLoaded: true,
   cachedPublicSettings: {
+    leaderboard_enabled: true,
     leaderboard_balance_enabled: true,
     leaderboard_consumption_enabled: true,
     leaderboard_checkin_enabled: true,
@@ -82,6 +83,7 @@ describe('LeaderboardView', () => {
     vi.clearAllMocks()
     appStore.publicSettingsLoaded = true
     appStore.cachedPublicSettings = {
+      leaderboard_enabled: true,
       leaderboard_balance_enabled: true,
       leaderboard_consumption_enabled: true,
       leaderboard_checkin_enabled: true,
@@ -144,6 +146,46 @@ describe('LeaderboardView', () => {
     expect(api.balance).not.toHaveBeenCalled()
     expect(api.consumption).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('leaderboard.noBoards')
+  })
+
+  it('hides the transfer board when either transfer switch is disabled or missing', async () => {
+    appStore.cachedPublicSettings.leaderboard_transfer_enabled = false
+    let wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.findAll('button[role="tab"]')).toHaveLength(3)
+    expect(api.transfer).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+    appStore.cachedPublicSettings = {
+      leaderboard_enabled: true,
+      leaderboard_balance_enabled: true,
+      leaderboard_consumption_enabled: true,
+      leaderboard_checkin_enabled: true,
+      transfer_enabled: true,
+    }
+    wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.findAll('button[role="tab"]')).toHaveLength(3)
+  })
+
+  it('honors the leaderboard master switch and makes no requests', async () => {
+    appStore.cachedPublicSettings = {
+      leaderboard_enabled: false,
+      leaderboard_balance_enabled: true,
+      leaderboard_consumption_enabled: true,
+      leaderboard_checkin_enabled: true,
+      leaderboard_transfer_enabled: true,
+      transfer_enabled: true,
+    }
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.findAll('button[role="tab"]')).toHaveLength(0)
+    expect(api.balance).not.toHaveBeenCalled()
+    expect(api.consumption).not.toHaveBeenCalled()
+    expect(api.checkin).not.toHaveBeenCalled()
+    expect(api.transfer).not.toHaveBeenCalled()
   })
 
   it('does not let an older response overwrite a newly selected board', async () => {

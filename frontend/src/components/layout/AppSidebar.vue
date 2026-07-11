@@ -689,7 +689,12 @@ const flagCheckin = () => isFeatureFlagEnabled(FeatureFlags.checkin) || isFeatur
 const flagTransfer = makeSidebarFlag(FeatureFlags.transfer)
 const flagRedpacket = makeSidebarFlag(FeatureFlags.redpacket)
 const flagUsageQuery = makeSidebarFlag(FeatureFlags.usageQuery)
-const flagLeaderboard = makeSidebarFlag(FeatureFlags.leaderboard)
+const flagLeaderboard = () => isFeatureFlagEnabled(FeatureFlags.leaderboard) && (
+  isFeatureFlagEnabled(FeatureFlags.leaderboardBalance)
+  || isFeatureFlagEnabled(FeatureFlags.leaderboardConsumption)
+  || isFeatureFlagEnabled(FeatureFlags.leaderboardCheckin)
+  || (isFeatureFlagEnabled(FeatureFlags.leaderboardTransfer) && isFeatureFlagEnabled(FeatureFlags.transfer))
+)
 const flagGameHall = makeSidebarFlag(FeatureFlags.gameHall)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
