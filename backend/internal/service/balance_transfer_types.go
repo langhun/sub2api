@@ -94,6 +94,11 @@ type TransferValidation struct {
 	DailyRemainingCount  int     `json:"daily_remaining_count"`
 }
 
+type TransferReceiver struct {
+	ReceiverID      int64  `json:"receiver_id"`
+	ReceiverDisplay string `json:"receiver_display"`
+}
+
 type BalanceTransferRepository interface {
 	Create(ctx context.Context, t *BalanceTransferRecord) error
 	GetByID(ctx context.Context, id int64) (*BalanceTransferRecord, error)
