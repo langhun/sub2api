@@ -7,6 +7,16 @@ export interface GameHallGame {
   min_bet: number
   max_bet: number
   multipliers: number[]
+  rule_version: string
+  theoretical_rtp: number
+  payout_rules: GamePayoutRule[]
+}
+
+export interface GamePayoutRule {
+  symbol: string
+  match_count: number
+  multiplier: number
+  probability: number
 }
 
 export interface GameHallStatus {

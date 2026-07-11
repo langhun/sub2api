@@ -37,8 +37,9 @@ export default {
     exchangeTitle: '余额兑换', exchangeHint: '主余额与 DG 按 1:1 兑换，每次操作均产生可审计流水。', toDG: '主余额转 DG', toMain: 'DG 转回主余额', amount: '兑换金额', rate: '兑换比例', afterExchange: '兑换后 主余额 / DG', exchangeAction: '确认兑换', exchangeSuccess: '兑换成功', loadFailed: '娱乐大厅加载失败，请重试', exchangeFailed: '兑换失败，请检查余额或功能状态', playFailed: '本局未能完成结算，请稍后重试',
     safetyTitle: '资金与玩法说明', safetyWallet: 'DG 钱包与主余额隔离，游戏不会直接扣除主余额。', safetySettlement: '游戏结果由服务端生成并原子结算。', riskNotice: '娱乐玩法存在损失 DG 的可能，请合理控制投入。',
     slotsTitle: '三轴老虎机', betRange: '单局投注 {min} - {max} DG', betAmount: '投注金额', serverResult: '点击开始后，页面只展示服务端已结算结果。', playAction: '开始一局', noGames: '当前没有开放的游戏', win: '本局获胜', loss: '本局未中奖', push: '本局持平', payoutSummary: '派彩 {payout} DG · 倍率 {multiplier}x',
+    payoutRules: '三连派彩规则', ruleVersion: '规则', theoreticalRtp: '理论 RTP', payoutRuleHint: '三个相同符号才会派彩。概率按当前服务端规则计算，其余组合派彩为 0x。',
     confirmExchangeTitle: '确认余额兑换', confirmExchangeMessage: '确认按 1:1 将 {amount} 执行“{direction}”？', transactions: '钱包流水', rounds: '游戏记录', historyFailed: '历史记录加载失败', emptyHistory: '暂无历史记录', betValue: '投注 {value} DG', transactionTypes: { balance_to_dg: '主余额转入', dg_to_balance: '转回主余额', bet: '游戏投注', payout: '游戏派彩' },
-    symbols: { star: '星耀', seven: '七号', diamond: '钻石', cherry: '樱桃', bell: '铃铛', lemon: '柠檬', bar: 'BAR' }
+    symbols: { star: '星耀', seven: '七号', diamond: '钻石', cherry: '樱桃', bell: '铃铛', lemon: '柠檬', orange: '橙子', grape: '葡萄', bar: 'BAR' }
   },
   activityErrors: { featureDisabled: '该功能当前未开放', insufficientBalance: '可用余额不足', limitExceeded: '已超过当前额度或次数限制', transferDailyLimit: '已超过今日转账额度', transferDailyCount: '今日转账次数已用完', transferSelf: '不能向自己转账', transferAmountInvalid: '转账金额不符合当前限制', receiverNotFound: '未找到可转账的接收方', alreadyClaimed: '您已经领取过该红包', redpacketExpired: '红包已过期', redpacketExhausted: '红包已领完', redpacketNotFound: '红包口令不存在', cannotClaimOwn: '不能领取自己发出的红包', duplicateRequest: '请求正在处理或已提交，请勿重复操作' }
 }

@@ -43,7 +43,7 @@
               <h2 class="font-semibold text-gray-900 dark:text-white">{{ t('gameHall.exchangeTitle') }}</h2>
               <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('gameHall.exchangeHint') }}</p>
             </div>
-            <form class="space-y-4 p-5" @submit.prevent="confirmingExchange = true">
+            <form data-testid="game-exchange-form" class="space-y-4 p-5" @submit.prevent="confirmingExchange = true">
               <div class="grid grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
                 <button v-for="option in exchangeOptions" :key="option.value" type="button" class="rounded-md px-3 py-2 text-sm font-medium transition-colors" :class="direction === option.value ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-dark-400'" @click="direction = option.value">
                   {{ option.label }}
@@ -61,6 +61,10 @@
                 <Icon name="swap" size="sm" />
                 {{ store.submitting ? t('common.processing') : t('gameHall.exchangeAction') }}
               </button>
+              <div v-if="exchangeError" class="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300" role="alert">
+                <p class="break-words">{{ exchangeError }}</p>
+                <button type="button" class="btn btn-secondary btn-sm self-start" :disabled="store.submitting" @click="confirmingExchange = true">{{ t('common.retry') }}</button>
+              </div>
             </form>
           </div>
 
@@ -93,6 +97,22 @@
                 <div class="flex items-center justify-between gap-3"><strong>{{ outcomeLabel }}</strong><span>{{ signed(store.lastRound.net_amount) }} DG</span></div>
                 <p class="mt-1 opacity-80">{{ t('gameHall.payoutSummary', { payout: money(store.lastRound.payout_amount), multiplier: store.lastRound.multiplier.toFixed(2) }) }}</p>
               </div>
+              <div class="mt-5 border-t border-gray-200 pt-4 dark:border-dark-700">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('gameHall.payoutRules') }}</h3>
+                  <div class="flex flex-wrap gap-2 text-[11px] text-gray-500 dark:text-dark-400">
+                    <span>{{ t('gameHall.ruleVersion') }} <strong data-testid="slot-rule-version">{{ slots.rule_version }}</strong></span>
+                    <span class="font-semibold text-primary-600 dark:text-primary-400">{{ t('gameHall.theoreticalRtp') }} <strong data-testid="slot-rule-rtp">{{ percentage(slots.theoretical_rtp) }}</strong></span>
+                  </div>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4" data-testid="slot-payout-rules">
+                  <div v-for="rule in slots.payout_rules" :key="rule.symbol" class="flex min-w-0 items-center justify-between gap-2 border-b border-gray-200 pb-2 text-xs dark:border-dark-700">
+                    <span class="truncate font-medium text-gray-700 dark:text-dark-200">{{ symbolLabel(rule.symbol) }} x{{ rule.match_count }}</span>
+                    <span class="shrink-0 text-right tabular-nums text-gray-500 dark:text-dark-400">{{ rule.multiplier.toFixed(2) }}x<br><span class="text-[10px]">{{ percentage(rule.probability) }}</span></span>
+                  </div>
+                </div>
+                <p class="mt-3 text-[11px] leading-5 text-gray-500 dark:text-dark-400">{{ t('gameHall.payoutRuleHint') }}</p>
+              </div>
             </div>
             <form class="space-y-4" @submit.prevent="submitPlay">
               <label class="block">
@@ -107,6 +127,10 @@
                 <Icon name="play" size="sm" />
                 {{ store.submitting ? t('common.processing') : t('gameHall.playAction') }}
               </button>
+              <div v-if="playError" class="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300" role="alert">
+                <p class="break-words">{{ playError }}</p>
+                <button type="button" class="btn btn-secondary btn-sm self-start" :disabled="store.submitting || !validBet" @click="submitPlay">{{ t('common.retry') }}</button>
+              </div>
             </form>
           </div>
         </section>
@@ -140,6 +164,7 @@ import { useAppStore } from '@/stores/app'
 import { useGameHallStore } from '@/stores/gameHall'
 import type { GameExchangeResult } from '@/api/gameHall'
 import { getGameRounds, getGameTransactions, type GameRound, type GameWalletTransaction } from '@/api/gameHall'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -148,6 +173,8 @@ const direction = ref<GameExchangeResult['direction']>('balance_to_dg')
 const exchangeAmount = ref(10)
 const betAmount = ref(1)
 const confirmingExchange = ref(false)
+const exchangeError = ref('')
+const playError = ref('')
 const historyTab = ref<'transactions' | 'rounds'>('transactions')
 const transactions = ref<GameWalletTransaction[]>([]); const rounds = ref<GameRound[]>([]); const historyLoading = ref(false); const historyError = ref(''); const historyPage = ref(1); const historyTotal = ref(0); const historyPageSize = 10
 
@@ -180,24 +207,40 @@ const outcomeLabel = computed(() => store.lastRound?.net_amount && store.lastRou
 function money(value: number): string { return Number(value || 0).toFixed(2) }
 function signed(value: number): string { return `${value > 0 ? '+' : ''}${money(value)}` }
 function dateTime(value: string): string { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) }
-function symbolLabel(symbol: string): string { return t(`gameHall.symbols.${symbol.toLowerCase()}`, symbol.replace(/_/g, ' ')) }
+function symbolLabel(symbol: string): string {
+  const key = `gameHall.symbols.${symbol.toLowerCase()}`
+  const translated = t(key)
+  return translated === key ? symbol.replace(/_/g, ' ') : translated
+}
+function percentage(value: number): string { return new Intl.NumberFormat(undefined, { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(Number(value) || 0) }
 
 async function reload(): Promise<void> {
   try { await store.refresh() } catch { /* visible error state is stored */ }
 }
 async function submitExchange(): Promise<void> {
 	confirmingExchange.value = false
+  exchangeError.value = ''
   try {
     await store.exchange(direction.value, exchangeAmount.value)
     appStore.showSuccess(t('gameHall.exchangeSuccess'))
-  } catch { appStore.showError(t('gameHall.exchangeFailed')) }
+  } catch (cause) {
+    exchangeError.value = extractApiErrorMessage(cause, t('gameHall.exchangeFailed'))
+    appStore.showError(exchangeError.value)
+  }
 }
 async function submitPlay(): Promise<void> {
   if (!slots.value) return
-  try { await store.play(slots.value.type, betAmount.value); await loadHistory() } catch { appStore.showError(store.error || t('gameHall.playFailed')) }
+  playError.value = ''
+  try {
+    await store.play(slots.value.type, betAmount.value)
+    await loadHistory()
+  } catch (cause) {
+    playError.value = extractApiErrorMessage(cause, t('gameHall.playFailed'))
+    appStore.showError(playError.value)
+  }
 }
 
-async function loadHistory(): Promise<void> { historyLoading.value = true; historyError.value = ''; try { const result = historyTab.value === 'transactions' ? await getGameTransactions(historyPage.value, historyPageSize) : await getGameRounds(historyPage.value, historyPageSize); if (historyTab.value === 'transactions') transactions.value = result.items as GameWalletTransaction[]; else rounds.value = result.items as GameRound[]; historyTotal.value = result.total } catch { historyError.value = store.error || t('gameHall.historyFailed') } finally { historyLoading.value = false } }
+async function loadHistory(): Promise<void> { historyLoading.value = true; historyError.value = ''; try { const result = historyTab.value === 'transactions' ? await getGameTransactions(historyPage.value, historyPageSize) : await getGameRounds(historyPage.value, historyPageSize); if (historyTab.value === 'transactions') transactions.value = result.items as GameWalletTransaction[]; else rounds.value = result.items as GameRound[]; historyTotal.value = result.total } catch (cause) { historyError.value = extractApiErrorMessage(cause, t('gameHall.historyFailed')) } finally { historyLoading.value = false } }
 function changeHistoryTab(tab: 'transactions' | 'rounds') { historyTab.value = tab; historyPage.value = 1; void loadHistory() }
 function changeHistoryPage(page: number) { historyPage.value = page; void loadHistory() }
 

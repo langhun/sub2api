@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -212,6 +213,13 @@ func TestGameHallServiceGetHallStatusReturnsSlotsGame(t *testing.T) {
 	require.Equal(t, 1234.0, status.JackpotBalance)
 	require.Len(t, status.Games, 1)
 	require.Equal(t, GameTypeSlots, status.Games[0].Type)
+	require.Equal(t, slotRuleVersion, status.Games[0].RuleVersion)
+	require.InDelta(t, 0.953, status.Games[0].TheoreticalRTP, 0.0001)
+	require.Len(t, status.Games[0].PayoutRules, len(slotSymbolTable))
+	require.Equal(t, "cherry", status.Games[0].PayoutRules[0].Symbol)
+	require.Equal(t, 3, status.Games[0].PayoutRules[0].MatchCount)
+	require.Equal(t, 18.7, status.Games[0].PayoutRules[0].Multiplier)
+	require.InDelta(t, math.Pow(25.0/98.0, 3), status.Games[0].PayoutRules[0].Probability, 0.00000001)
 }
 
 func TestGameHallServicePlaySlotsDeductsDGAndReturnsOutcome(t *testing.T) {
@@ -314,12 +322,7 @@ func TestRollSlotWithIntNReturnsThreeOfAKindPayout(t *testing.T) {
 }
 
 func TestSlotRuleTheoreticalRTPMatchesTarget(t *testing.T) {
-	rtp := 0.0
-	for _, symbol := range slotSymbolTable {
-		probability := float64(symbol.weight) / float64(slotTotalWeight)
-		rtp += probability * probability * probability * symbol.payout3
-	}
-	require.InDelta(t, 0.953, rtp, 0.0001)
+	require.InDelta(t, 0.953, slotTheoreticalRTP(), 0.0001)
 }
 
 func TestSlotRuleDeterministicDistributionMatchesTheoreticalRTP(t *testing.T) {
