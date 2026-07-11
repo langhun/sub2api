@@ -151,7 +151,7 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 	if fee < 0 {
 		fee = 0
 	}
-	grossAmount := amount + fee
+	grossAmount := math.Round((amount+fee)*1e8) / 1e8
 	var record *BalanceTransferRecord
 	if err := s.transferRepo.RunInTx(ctx, func(txCtx context.Context) error {
 		// Serializing on the sender row makes the daily limits authoritative for
@@ -163,7 +163,7 @@ func (s *BalanceTransferService) Transfer(ctx context.Context, senderID, receive
 		if err != nil {
 			return fmt.Errorf("check daily limit: %w", err)
 		}
-		if cfg.DailyLimit > 0 && dailyTotal+amount > cfg.DailyLimit {
+		if cfg.DailyLimit > 0 && dailyTotal+grossAmount > cfg.DailyLimit {
 			return ErrTransferDailyLimit
 		}
 		if cfg.DailyCountLimit > 0 && dailyCount >= cfg.DailyCountLimit {
@@ -220,6 +220,13 @@ func (s *BalanceTransferService) ValidateTransfer(ctx context.Context, senderID,
 	}
 	feeRate := s.transferFeeRate(ctx, senderID, cfg)
 	fee := math.Max(0, math.Round(amount*feeRate*1e8)/1e8)
+	grossAmount := math.Round((amount+fee)*1e8) / 1e8
+	if cfg.DailyLimit > 0 && dailyTotal+grossAmount > cfg.DailyLimit {
+		return nil, ErrTransferDailyLimit
+	}
+	if cfg.DailyCountLimit > 0 && dailyCount >= cfg.DailyCountLimit {
+		return nil, ErrTransferDailyCount
+	}
 	remainingAmount := float64(0)
 	if cfg.DailyLimit > 0 {
 		remainingAmount = math.Max(0, math.Round((cfg.DailyLimit-dailyTotal)*1e8)/1e8)
@@ -231,7 +238,7 @@ func (s *BalanceTransferService) ValidateTransfer(ctx context.Context, senderID,
 	return &TransferValidation{
 		Fee:                  fee,
 		FeeRate:              feeRate,
-		GrossAmount:          math.Round((amount+fee)*1e8) / 1e8,
+		GrossAmount:          grossAmount,
 		ReceiverID:           receiverID,
 		ReceiverDisplay:      transferReceiverDisplay(receiver),
 		DailyRemainingAmount: remainingAmount,

@@ -271,6 +271,44 @@ func TestBalanceTransferEnforcesDailyCountInsideLockedTransaction(t *testing.T) 
 	require.Zero(t, users.creditCalls)
 }
 
+func TestBalanceTransferDailyLimitUsesGrossAmount(t *testing.T) {
+	settings := newTransferSafetySettings(map[string]string{
+		SettingKeyTransferEnabled:    "true",
+		SettingKeyTransferMinAmount:  "0.01",
+		SettingKeyTransferFeeRate:    "0.1",
+		SettingKeyTransferDailyLimit: "100",
+	})
+
+	t.Run("fee pushes gross amount over the limit", func(t *testing.T) {
+		repo := &transferSafetyRepo{dailyTotal: 90, deductOK: true}
+		users := &transferSafetyUserRepo{}
+		svc := NewBalanceTransferService(repo, &redPacketSafetyRepo{}, users, settings, nil)
+
+		_, err := svc.Transfer(context.Background(), 1, 2, 10, nil)
+
+		require.ErrorIs(t, err, ErrTransferDailyLimit)
+		require.True(t, repo.dailyAfterLock)
+		require.Zero(t, repo.deductCalls)
+		require.Zero(t, repo.createCalls)
+		require.Zero(t, users.nonRechargeCreditCalls)
+	})
+
+	t.Run("gross amount exactly at the limit succeeds", func(t *testing.T) {
+		repo := &transferSafetyRepo{dailyTotal: 89, deductOK: true}
+		users := &transferSafetyUserRepo{}
+		svc := NewBalanceTransferService(repo, &redPacketSafetyRepo{}, users, settings, nil)
+
+		record, err := svc.Transfer(context.Background(), 1, 2, 10, nil)
+
+		require.NoError(t, err)
+		require.InDelta(t, 1, record.Fee, 1e-8)
+		require.InDelta(t, 11, record.GrossAmount, 1e-8)
+		require.Equal(t, 1, repo.deductCalls)
+		require.Equal(t, 1, repo.createCalls)
+		require.Equal(t, 1, users.nonRechargeCreditCalls)
+	})
+}
+
 func TestBalanceTransferRevokeIsIdempotent(t *testing.T) {
 	repo := &transferSafetyRepo{record: &BalanceTransferRecord{ID: 8, Status: "revoked", SenderID: 1, ReceiverID: 2, Amount: 3, GrossAmount: 4}}
 	users := &transferSafetyUserRepo{}
@@ -372,6 +410,38 @@ func TestValidateTransferReturnsReceiverAndDailyPreview(t *testing.T) {
 	require.Equal(t, "a***e", preview.ReceiverDisplay)
 	require.InDelta(t, 75, preview.DailyRemainingAmount, 1e-8)
 	require.Equal(t, 3, preview.DailyRemainingCount)
+}
+
+func TestValidateTransferDailyLimitUsesGrossAmount(t *testing.T) {
+	users := &transferSafetyUserRepo{userByID: map[int64]*User{
+		2: {ID: 2, Username: "alice"},
+	}}
+	settings := newTransferSafetySettings(map[string]string{
+		SettingKeyTransferEnabled:    "true",
+		SettingKeyTransferMinAmount:  "0.01",
+		SettingKeyTransferFeeRate:    "0.1",
+		SettingKeyTransferDailyLimit: "100",
+	})
+
+	t.Run("fee pushes gross amount over the limit", func(t *testing.T) {
+		repo := &transferSafetyRepo{dailyTotal: 90}
+		svc := NewBalanceTransferService(repo, &redPacketSafetyRepo{}, users, settings, nil)
+
+		_, err := svc.ValidateTransfer(context.Background(), 1, 2, 10)
+
+		require.ErrorIs(t, err, ErrTransferDailyLimit)
+	})
+
+	t.Run("gross amount exactly at the limit succeeds", func(t *testing.T) {
+		repo := &transferSafetyRepo{dailyTotal: 89, dailyCount: 2}
+		svc := NewBalanceTransferService(repo, &redPacketSafetyRepo{}, users, settings, nil)
+
+		preview, err := svc.ValidateTransfer(context.Background(), 1, 2, 10)
+
+		require.NoError(t, err)
+		require.InDelta(t, 11, preview.GrossAmount, 1e-8)
+		require.InDelta(t, 11, preview.DailyRemainingAmount, 1e-8)
+	})
 }
 
 func TestConditionalInternalDebitRejectsNegativeResult(t *testing.T) {
