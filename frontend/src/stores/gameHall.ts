@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
+  createGameHallIdempotencyKey,
   exchangeGameBalance,
   getGameHallStatus,
   playGame,
@@ -16,6 +17,8 @@ export const useGameHallStore = defineStore('gameHall', () => {
   const loading = ref(false)
   const submitting = ref(false)
   const error = ref('')
+  const exchangeAttempt = ref<{ signature: string; key: string } | null>(null)
+  const playAttempt = ref<{ signature: string; key: string } | null>(null)
 
   const enabledGames = computed(() => status.value?.games ?? [])
 
@@ -35,9 +38,17 @@ export const useGameHallStore = defineStore('gameHall', () => {
   async function exchange(direction: GameExchangeResult['direction'], amount: number): Promise<void> {
     submitting.value = true
     error.value = ''
+    const signature = JSON.stringify([direction, amount])
+    if (exchangeAttempt.value?.signature !== signature) {
+      exchangeAttempt.value = { signature, key: createGameHallIdempotencyKey('game-exchange') }
+    }
     try {
-      lastExchange.value = await exchangeGameBalance(direction, amount)
-      await refresh()
+      lastExchange.value = await exchangeGameBalance(direction, amount, exchangeAttempt.value.key)
+      exchangeAttempt.value = null
+      if (status.value) {
+        status.value.main_balance = lastExchange.value.main_balance_after
+        status.value.dg_balance = lastExchange.value.dg_balance_after
+      }
     } catch (cause) {
       error.value = getErrorMessage(cause)
       throw cause
@@ -49,8 +60,13 @@ export const useGameHallStore = defineStore('gameHall', () => {
   async function play(gameType: string, betAmount: number): Promise<void> {
     submitting.value = true
     error.value = ''
+    const signature = JSON.stringify([gameType, betAmount])
+    if (playAttempt.value?.signature !== signature) {
+      playAttempt.value = { signature, key: createGameHallIdempotencyKey('game-play') }
+    }
     try {
-      lastRound.value = await playGame(gameType, betAmount)
+      lastRound.value = await playGame(gameType, betAmount, playAttempt.value.key)
+      playAttempt.value = null
       if (status.value) {
         status.value.dg_balance = lastRound.value.dg_balance_after
         status.value.jackpot_balance = lastRound.value.jackpot_balance

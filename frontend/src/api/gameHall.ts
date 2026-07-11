@@ -63,7 +63,7 @@ export interface GameRound {
 
 export interface GameHallPage<T> { items: T[]; total: number; page: number; page_size: number }
 
-function idempotencyKey(scope: string): string {
+export function createGameHallIdempotencyKey(scope: string): string {
   const suffix = typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -78,20 +78,21 @@ export async function getGameHallStatus(): Promise<GameHallStatus> {
 export async function exchangeGameBalance(
   direction: GameExchangeResult['direction'],
   amount: number,
+  requestKey?: string,
 ): Promise<GameExchangeResult> {
   const { data } = await apiClient.post<GameExchangeResult>(
     '/user/game-hall/exchange',
     { direction, amount },
-    { headers: { 'Idempotency-Key': idempotencyKey('game-exchange') } },
+    { headers: { 'Idempotency-Key': requestKey || createGameHallIdempotencyKey('game-exchange') } },
   )
   return data
 }
 
-export async function playGame(gameType: string, betAmount: number): Promise<GamePlayResult> {
+export async function playGame(gameType: string, betAmount: number, requestKey?: string): Promise<GamePlayResult> {
   const { data } = await apiClient.post<GamePlayResult>(
     '/user/game-hall/play',
     { game_type: gameType, bet_amount: betAmount },
-    { headers: { 'Idempotency-Key': idempotencyKey('game-play') } },
+    { headers: { 'Idempotency-Key': requestKey || createGameHallIdempotencyKey('game-play') } },
   )
   return data
 }
