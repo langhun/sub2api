@@ -40,6 +40,7 @@ type AdminHandlers struct {
 	Compliance             *admin.ComplianceHandler
 	Blindbox               *admin.BlindboxHandler
 	TransferAdmin          *admin.TransferAdminHandler
+	GameHall               *admin.GameHallHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -64,6 +65,7 @@ type Handlers struct {
 	Checkin          *CheckinHandler
 	Leaderboard      *LeaderboardHandler
 	Transfer         *BalanceTransferHandler
+	GameHall         *GameHallHandler
 }
 
 // BuildInfo contains build-time information

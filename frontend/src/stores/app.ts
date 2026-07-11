@@ -368,6 +368,8 @@ export const useAppStore = defineStore('app', () => {
         risk_control_enabled: false,
         service_quota_enabled: false,
         affiliate_enabled: false,
+		game_hall_enabled: false,
+		game_slots_enabled: false,
 		checkin_enabled: false,
 		checkin_luck_enabled: false,
 		checkin_blindbox_enabled: false,

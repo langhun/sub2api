@@ -1196,8 +1196,13 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 	}
 
 	codes := make([]RedeemCode, 0, input.Count)
+	formatSettings := DefaultCodeFormatSettings()
+	if s.settingService != nil {
+		formatSettings = s.settingService.GetCodeFormatSettings(ctx)
+	}
+	codeFormat := formatSettings.RedeemFormat(input.Type)
 	for i := 0; i < input.Count; i++ {
-		codeValue, err := GenerateRedeemCode()
+		codeValue, err := codeFormat.Generate()
 		if err != nil {
 			return nil, err
 		}

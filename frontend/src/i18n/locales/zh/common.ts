@@ -70,6 +70,7 @@ export default {
     loadMore: '加载更多',
     selectedCount: '（已选 {count} 个）',
     refresh: '刷新',
+    retry: '重试',
     autoRefresh: {
       title: '自动刷新',
       enable: '启用自动刷新',
@@ -194,6 +195,7 @@ export default {
     checkin: '签到中心',
     transfer: '余额转账',
     redpacket: '红包中心',
+    gameHall: '娱乐大厅',
     leaderboard: '排行榜',
     transferLeaderboard: '转账排行榜',
     transferManage: '转账管理',

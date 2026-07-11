@@ -235,6 +235,64 @@ func (s *LeaderboardService) GetCheckinLeaderboard(ctx context.Context, page, pa
 	return &LeaderboardResult{Entries: entries, Total: total}, nil
 }
 
+func (s *LeaderboardService) GetTransferLeaderboard(ctx context.Context, period string, page, pageSize int) (*LeaderboardResult, error) {
+	now := time.Now()
+	var start time.Time
+	switch period {
+	case "weekly":
+		start = now.AddDate(0, 0, -7)
+	case "monthly":
+		start = now.AddDate(0, -1, 0)
+	default:
+		start = now.AddDate(0, 0, -1)
+	}
+	roleClause := " AND u.role != 'admin'"
+	if s.includeAdmin(ctx) {
+		roleClause = ""
+	}
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM (
+		SELECT bt.sender_id FROM balance_transfers bt
+		JOIN users u ON u.id = bt.sender_id AND u.deleted_at IS NULL
+		WHERE bt.status = 'completed' AND bt.transfer_type = 'direct'
+		  AND bt.created_at >= $1 AND bt.created_at < $2 AND u.status = 'active'` + roleClause + `
+		GROUP BY bt.sender_id
+	) ranked`
+	if err := s.db.QueryRowContext(ctx, countQuery, start, now).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count transfer leaderboard: %w", err)
+	}
+	offset := (page - 1) * pageSize
+	dataQuery := `SELECT u.username, u.email, SUM(bt.amount), COUNT(*)
+		FROM balance_transfers bt
+		JOIN users u ON u.id = bt.sender_id AND u.deleted_at IS NULL
+		WHERE bt.status = 'completed' AND bt.transfer_type = 'direct'
+		  AND bt.created_at >= $1 AND bt.created_at < $2 AND u.status = 'active'` + roleClause + `
+		GROUP BY bt.sender_id, u.username, u.email
+		ORDER BY SUM(bt.amount) DESC, bt.sender_id ASC LIMIT $3 OFFSET $4`
+	rows, err := s.db.QueryContext(ctx, dataQuery, start, now, pageSize, offset)
+	if err != nil {
+		return nil, fmt.Errorf("query transfer leaderboard: %w", err)
+	}
+	defer rows.Close()
+	entries := make([]LeaderboardEntry, 0, pageSize)
+	for rows.Next() {
+		var username, email string
+		var amount float64
+		var count int
+		if err := rows.Scan(&username, &email, &amount, &count); err != nil {
+			return nil, fmt.Errorf("scan transfer leaderboard: %w", err)
+		}
+		entries = append(entries, LeaderboardEntry{
+			Rank: offset + len(entries) + 1, Username: maskUsername(username, email),
+			Value: math.Round(amount*1e8) / 1e8, ExtraInt: count,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return &LeaderboardResult{Entries: entries, Total: total}, nil
+}
+
 func maskUsername(username, email string) string {
 	if username != "" {
 		return username

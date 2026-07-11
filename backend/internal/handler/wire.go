@@ -43,6 +43,7 @@ func ProvideAdminHandlers(
 	complianceHandler *admin.ComplianceHandler,
 	blindboxHandler *admin.BlindboxHandler,
 	transferAdminHandler *admin.TransferAdminHandler,
+	gameHallAdminHandler *admin.GameHallHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
@@ -79,6 +80,7 @@ func ProvideAdminHandlers(
 		Compliance:             complianceHandler,
 		Blindbox:               blindboxHandler,
 		TransferAdmin:          transferAdminHandler,
+		GameHall:               gameHallAdminHandler,
 	}
 }
 
@@ -123,6 +125,7 @@ func ProvideHandlers(
 	checkinHandler *CheckinHandler,
 	leaderboardHandler *LeaderboardHandler,
 	transferHandler *BalanceTransferHandler,
+	gameHallHandler *GameHallHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -147,6 +150,7 @@ func ProvideHandlers(
 		Checkin:          checkinHandler,
 		Leaderboard:      leaderboardHandler,
 		Transfer:         transferHandler,
+		GameHall:         gameHallHandler,
 	}
 }
 
@@ -172,6 +176,7 @@ var ProviderSet = wire.NewSet(
 	NewCheckinHandler,
 	NewLeaderboardHandler,
 	NewBalanceTransferHandler,
+	NewGameHallHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -208,6 +213,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewComplianceHandler,
 	admin.NewBlindboxHandler,
 	admin.NewTransferAdminHandler,
+	admin.NewGameHallHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

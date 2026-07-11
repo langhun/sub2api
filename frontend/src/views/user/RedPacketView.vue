@@ -1,150 +1,69 @@
 <template>
-  <div class="max-w-2xl mx-auto space-y-6 p-4">
-    <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('redpacket.title', '红包中心') }}</h2>
+  <AppLayout>
+    <div class="mx-auto max-w-5xl space-y-6">
+      <header><h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('redpacket.title') }}</h1><p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('redpacket.description') }}</p></header>
+      <div class="grid grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
+        <button v-for="tab in actionTabs" :key="tab.value" class="rounded-md px-4 py-2.5 text-sm font-medium" :class="activeAction === tab.value ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-dark-400'" @click="activeAction = tab.value">{{ tab.label }}</button>
+      </div>
 
-    <div class="grid grid-cols-2 gap-4">
-      <button class="rounded-lg bg-red-500 text-white py-3 font-medium hover:bg-red-600" @click="showCreate = true">
-        {{ t('redpacket.create', '发红包') }}
-      </button>
-      <button class="rounded-lg bg-yellow-500 text-white py-3 font-medium hover:bg-yellow-600" @click="showClaim = true">
-        {{ t('redpacket.claim', '领红包') }}
-      </button>
-    </div>
-
-    <div v-if="showCreate" class="rounded-lg bg-white dark:bg-gray-800 p-6 shadow space-y-4">
-      <h3 class="text-lg font-semibold">{{ t('redpacket.create', '发红包') }}</h3>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">总金额</label>
-        <input v-model.number="createForm.total_amount" type="number" step="0.01" min="0.01" class="input-field w-full" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">份数</label>
-        <input v-model.number="createForm.count" type="number" min="1" max="100" class="input-field w-full" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">类型</label>
-        <select v-model="createForm.redpacket_type" class="input-field w-full">
-          <option value="equal">等分红包</option>
-          <option value="random">拼手气红包</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">附言</label>
-        <input v-model="createForm.memo" type="text" maxlength="100" class="input-field w-full" />
-      </div>
-      <div v-if="createError" class="text-sm text-red-500">{{ createError }}</div>
-      <div class="flex gap-2">
-        <button class="btn-primary flex-1" @click="handleCreate" :disabled="createLoading">{{ t('common.saving') }}</button>
-        <button class="btn-secondary flex-1" @click="showCreate = false">{{ t('common.cancel', '取消') }}</button>
-      </div>
-      <div v-if="createdRp" class="rounded bg-green-50 dark:bg-green-900/20 p-4">
-        <p class="text-sm font-medium text-green-700">红包已创建！</p>
-        <p class="mt-1 font-mono text-lg select-all">{{ createdRp.code }}</p>
-        <p class="text-xs text-gray-500 mt-1">将此口令分享给好友即可领取</p>
-      </div>
-    </div>
-
-    <div v-if="showClaim" class="rounded-lg bg-white dark:bg-gray-800 p-6 shadow space-y-4">
-      <h3 class="text-lg font-semibold">{{ t('redpacket.claim', '领红包') }}</h3>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">红包口令</label>
-        <input v-model="claimCode" type="text" class="input-field w-full" placeholder="输入红包口令" />
-      </div>
-      <div v-if="claimResult" class="rounded bg-green-50 dark:bg-green-900/20 p-4">
-        <p class="text-green-700 font-bold text-lg">+{{ claimResult.amount.toFixed(4) }}</p>
-      </div>
-      <div v-if="claimError" class="text-sm text-red-500">{{ claimError }}</div>
-      <div class="flex gap-2">
-        <button class="btn-primary flex-1" @click="handleClaim" :disabled="claimLoading">领取</button>
-        <button class="btn-secondary flex-1" @click="showClaim = false; claimResult = null; claimError = ''">{{ t('common.cancel', '取消') }}</button>
-      </div>
-    </div>
-
-    <div>
-      <h3 class="text-lg font-semibold mb-3">{{ t('redpacket.myPackets', '我的红包') }}</h3>
-      <div v-if="myPackets.length === 0" class="text-sm text-gray-500">暂无红包记录</div>
-      <div v-for="rp in myPackets" :key="rp.id" class="rounded-lg bg-white dark:bg-gray-800 p-4 shadow mb-2">
-        <div class="flex justify-between items-center">
-          <div>
-            <span class="text-sm font-medium">{{ rp.redpacket_type === 'equal' ? '等分' : '拼手气' }}红包</span>
-            <span class="text-xs text-gray-500 ml-2">{{ rp.total_count }}份</span>
+      <section class="card p-5">
+        <form v-if="activeAction === 'create'" class="space-y-5" @submit.prevent="prepareCreate">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label><span class="input-label">{{ t('redpacket.totalAmount') }}</span><input v-model.number="createForm.total_amount" class="input" type="number" min="0.01" step="0.01" required /></label>
+            <label><span class="input-label">{{ t('redpacket.count') }}</span><input v-model.number="createForm.count" class="input" type="number" min="1" max="100" required /></label>
           </div>
-          <div class="text-right">
-            <div class="font-bold text-red-500">{{ rp.total_amount.toFixed(4) }}</div>
-            <div class="text-xs text-gray-500">{{ rp.status }}</div>
-          </div>
-        </div>
-        <div v-if="rp.memo" class="text-xs text-gray-400 mt-1">{{ rp.memo }}</div>
-      </div>
+          <div><span class="input-label">{{ t('redpacket.type') }}</span><div class="grid grid-cols-2 gap-3"><button v-for="type in packetTypes" :key="type.value" type="button" class="rounded-lg border p-3 text-left text-sm" :class="createForm.redpacket_type === type.value ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-dark-700'" @click="createForm.redpacket_type = type.value"><strong class="block">{{ type.label }}</strong><span class="mt-1 block text-xs text-gray-500">{{ type.hint }}</span></button></div></div>
+          <label class="block"><span class="input-label">{{ t('redpacket.memo') }}</span><input v-model.trim="createForm.memo" class="input" type="text" maxlength="100" :placeholder="t('redpacket.memoPlaceholder')" /></label>
+          <div class="rounded-lg bg-gray-50 p-4 text-sm dark:bg-dark-800"><div class="flex justify-between"><span class="text-gray-500">{{ t('redpacket.perPacket') }}</span><span>{{ money(createForm.count > 0 ? createForm.total_amount / createForm.count : 0) }}</span></div></div>
+          <p v-if="createError" class="text-sm text-red-600 dark:text-red-400">{{ createError }}</p>
+          <button class="btn btn-primary w-full sm:w-auto" type="submit" :disabled="createLoading || createForm.total_amount <= 0 || createForm.count < 1"><Icon name="gift" size="sm" />{{ createLoading ? t('common.processing') : t('redpacket.create') }}</button>
+        </form>
+
+        <form v-else class="mx-auto max-w-xl space-y-5 py-4" @submit.prevent="handleClaim">
+          <div class="text-center"><div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300"><Icon name="gift" size="lg" /></div><h2 class="mt-3 font-semibold text-gray-900 dark:text-white">{{ t('redpacket.claimTitle') }}</h2><p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('redpacket.claimHint') }}</p></div>
+          <label class="block"><span class="input-label">{{ t('redpacket.code') }}</span><input v-model.trim="claimCode" class="input text-center font-mono uppercase" type="text" autocomplete="off" required :placeholder="t('redpacket.codePlaceholder')" /></label>
+          <div v-if="claimResult" class="rounded-lg bg-green-50 p-4 text-center dark:bg-green-900/20"><p class="text-sm text-green-700 dark:text-green-300">{{ t('redpacket.claimSuccess') }}</p><p class="mt-1 text-2xl font-bold text-green-700 dark:text-green-300">+{{ money(claimResult.amount) }}</p></div>
+          <p v-if="claimError" class="text-center text-sm text-red-600 dark:text-red-400">{{ claimError }}</p>
+          <button class="btn btn-primary w-full" type="submit" :disabled="claimLoading || !claimCode.trim()">{{ claimLoading ? t('common.processing') : t('redpacket.claim') }}</button>
+        </form>
+      </section>
+
+      <section class="card overflow-hidden p-0">
+        <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-dark-700"><div><h2 class="font-semibold text-gray-900 dark:text-white">{{ t('redpacket.myPackets') }}</h2><p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('redpacket.sentHistoryHint') }}</p></div><button class="btn btn-ghost" @click="loadPackets"><Icon name="refresh" size="sm" /></button></div>
+        <div class="grid grid-cols-2 border-b border-gray-100 p-1 dark:border-dark-700"><button v-for="role in historyRoles" :key="role.value" class="px-3 py-2 text-sm font-medium" :class="historyRole === role.value ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500'" @click="changeHistoryRole(role.value)">{{ role.label }}</button></div>
+        <div v-if="listLoading" class="flex min-h-44 items-center justify-center"><LoadingSpinner /></div>
+        <div v-else-if="listError" class="py-10 text-center"><p class="text-sm text-red-600">{{ listError }}</p><button class="btn btn-secondary mt-3" @click="loadPackets">{{ t('common.retry') }}</button></div>
+        <div v-else-if="packets.length === 0" class="py-10 text-center text-sm text-gray-500 dark:text-dark-400">{{ t('redpacket.empty') }}</div>
+        <div v-else class="divide-y divide-gray-100 dark:divide-dark-700"><button v-for="packet in packets" :key="packet.id" type="button" class="flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-dark-800" @click="openPacketDetail(packet)"><div class="min-w-0"><p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ packet.memo || typeLabel(packet.redpacket_type) }}</p><p class="mt-1 text-xs text-gray-500">{{ dateTime(packet.created_at) }} · {{ t('redpacket.remaining', { remaining: packet.remaining_count, total: packet.total_count }) }}</p></div><div class="shrink-0 text-right"><p class="font-semibold text-red-600 dark:text-red-400">{{ money(packet.total_amount) }}</p><span class="text-xs text-gray-500">{{ statusLabel(packet.status) }}</span></div></button></div>
+        <Pagination v-if="total > pageSize" :page="page" :page-size="pageSize" :total="total" :show-page-size-selector="false" @update:page="changePage" />
+      </section>
+
+      <ConfirmDialog :show="confirmingCreate" :title="t('redpacket.confirmTitle')" :message="t('redpacket.confirmMessage', { amount: money(createForm.total_amount), count: createForm.count })" @confirm="handleCreate" @cancel="confirmingCreate = false" />
+      <BaseDialog :show="!!createdPacket" :title="t('redpacket.createdTitle')" width="narrow" @close="createdPacket = null"><div v-if="createdPacket" class="space-y-4 text-center"><p class="text-sm text-gray-500">{{ t('redpacket.shareHint') }}</p><div class="rounded-lg bg-gray-50 p-4 font-mono text-lg font-semibold tracking-wider dark:bg-dark-800">{{ createdPacket.code }}</div><button class="btn btn-primary w-full" @click="copyCode(createdPacket.code)"><Icon name="copy" size="sm" />{{ t('common.copy') }}</button></div></BaseDialog>
+      <BaseDialog :show="!!selectedPacket" :title="t('redpacket.detailTitle')" width="narrow" @close="closePacketDetail"><div v-if="detailLoading" class="flex min-h-32 items-center justify-center"><LoadingSpinner /></div><div v-else-if="detailError" class="text-center"><p class="text-sm text-red-600 dark:text-red-400">{{ detailError }}</p><button class="btn btn-secondary mt-3" @click="selectedPacket && openPacketDetail(selectedPacket)">{{ t('common.retry') }}</button></div><div v-else-if="selectedPacket" class="space-y-4"><dl class="space-y-3 text-sm"><div class="flex justify-between"><dt class="text-gray-500">{{ t('redpacket.code') }}</dt><dd class="font-mono">{{ selectedPacket.code }}</dd></div><div class="flex justify-between"><dt class="text-gray-500">{{ t('redpacket.totalAmount') }}</dt><dd>{{ money(selectedPacket.total_amount) }}</dd></div><div class="flex justify-between"><dt class="text-gray-500">{{ t('redpacket.remainingAmount') }}</dt><dd>{{ money(selectedPacket.remaining_amount) }}</dd></div><div class="flex justify-between"><dt class="text-gray-500">{{ t('redpacket.expiresAt') }}</dt><dd>{{ dateTime(selectedPacket.expire_at) }}</dd></div></dl><div v-if="detailClaims.length" class="border-t border-gray-100 pt-3 dark:border-dark-700"><h3 class="text-sm font-medium text-gray-900 dark:text-white">{{ t('redpacket.claimRecords') }}</h3><div class="mt-2 max-h-48 divide-y divide-gray-100 overflow-y-auto dark:divide-dark-700"><div v-for="claim in detailClaims" :key="claim.id" class="flex justify-between py-2 text-sm"><span class="text-gray-500">#{{ claim.user_id }} · {{ dateTime(claim.created_at) }}</span><strong>{{ money(claim.amount) }}</strong></div></div></div></div></BaseDialog>
     </div>
-  </div>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { createRedPacket, claimRedPacket, getMyRedPackets } from '@/api/transfer'
-import type { RedPacketRecord, RedPacketClaimRecord } from '@/api/transfer'
-
-const { t } = useI18n()
-const showCreate = ref(false)
-const showClaim = ref(false)
-const claimCode = ref('')
-const claimResult = ref<RedPacketClaimRecord | null>(null)
-const claimError = ref('')
-const claimLoading = ref(false)
-const createError = ref('')
-const createLoading = ref(false)
-const createdRp = ref<RedPacketRecord | null>(null)
-const myPackets = ref<RedPacketRecord[]>([])
-
-const createForm = reactive({
-  total_amount: 0,
-  count: 1,
-  redpacket_type: 'equal' as 'equal' | 'random',
-  memo: '',
-})
-
-onMounted(loadMyPackets)
-
-async function loadMyPackets() {
-  try {
-    const res = await getMyRedPackets({ page: 1, page_size: 20 })
-    myPackets.value = res.items || []
-  } catch (error) {
-    console.error('Failed to load red packets', error)
-  }
-}
-
-async function handleCreate() {
-  createError.value = ''
-  createLoading.value = true
-  try {
-    createdRp.value = await createRedPacket({
-      total_amount: createForm.total_amount,
-      count: createForm.count,
-      redpacket_type: createForm.redpacket_type,
-      memo: createForm.memo || undefined,
-    })
-    loadMyPackets()
-  } catch (e: any) {
-    createError.value = e?.response?.data?.error || '创建失败'
-  } finally {
-    createLoading.value = false
-  }
-}
-
-async function handleClaim() {
-  claimError.value = ''
-  claimResult.value = null
-  claimLoading.value = true
-  try {
-    claimResult.value = await claimRedPacket(claimCode.value)
-    loadMyPackets()
-  } catch (e: any) {
-    claimError.value = e?.response?.data?.error || '领取失败'
-  } finally {
-    claimLoading.value = false
-  }
-}
+import { computed, onMounted, reactive, ref } from 'vue'; import { useI18n } from 'vue-i18n'
+import AppLayout from '@/components/layout/AppLayout.vue'; import BaseDialog from '@/components/common/BaseDialog.vue'; import ConfirmDialog from '@/components/common/ConfirmDialog.vue'; import LoadingSpinner from '@/components/common/LoadingSpinner.vue'; import Pagination from '@/components/common/Pagination.vue'; import Icon from '@/components/icons/Icon.vue'
+import { claimRedPacket, createRedPacket, getMyRedPackets, getRedPacketDetail, type RedPacketClaimRecord, type RedPacketRecord } from '@/api/transfer'; import { useAppStore } from '@/stores/app'; import { activityErrorMessage } from '@/utils/activityError'
+const { t, locale } = useI18n(); const appStore = useAppStore(); const activeAction = ref<'create' | 'claim'>('create')
+const actionTabs = computed(() => [{ value: 'create' as const, label: t('redpacket.create') }, { value: 'claim' as const, label: t('redpacket.claim') }]); const packetTypes = computed(() => [{ value: 'equal' as const, label: t('redpacket.equal'), hint: t('redpacket.equalHint') }, { value: 'random' as const, label: t('redpacket.random'), hint: t('redpacket.randomHint') }])
+const createForm = reactive({ total_amount: 0, count: 1, redpacket_type: 'equal' as 'equal' | 'random', memo: '' }); const createLoading = ref(false); const createError = ref(''); const confirmingCreate = ref(false); const createdPacket = ref<RedPacketRecord | null>(null)
+const claimCode = ref(''); const claimLoading = ref(false); const claimError = ref(''); const claimResult = ref<RedPacketClaimRecord | null>(null)
+const packets = ref<RedPacketRecord[]>([]); const selectedPacket = ref<RedPacketRecord | null>(null); const listLoading = ref(false); const listError = ref(''); const total = ref(0); const page = ref(1); const pageSize = 10; const historyRole = ref<'sent' | 'received'>('sent'); const historyRoles = computed(() => [{ value: 'sent' as const, label: t('redpacket.sent') }, { value: 'received' as const, label: t('redpacket.received') }])
+const detailClaims = ref<RedPacketClaimRecord[]>([]); const detailLoading = ref(false); const detailError = ref('')
+function money(value: number) { return Number(value || 0).toFixed(2) } function dateTime(value: string) { return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) }
+function errorMessage(error: unknown, fallback: string) { return activityErrorMessage(error, t, fallback) }
+function typeLabel(type: string) { return type === 'equal' ? t('redpacket.equal') : t('redpacket.random') } function statusLabel(status: string) { return t(`redpacket.status.${status}`, status) }
+function prepareCreate() { createError.value = ''; confirmingCreate.value = true }
+async function handleCreate() { confirmingCreate.value = false; createLoading.value = true; try { createdPacket.value = await createRedPacket({ ...createForm, memo: createForm.memo || undefined }); createForm.total_amount = 0; createForm.count = 1; createForm.memo = ''; await loadPackets() } catch (error) { createError.value = errorMessage(error, t('redpacket.createFailed')) } finally { createLoading.value = false } }
+async function handleClaim() { claimError.value = ''; claimResult.value = null; claimLoading.value = true; try { claimResult.value = await claimRedPacket(claimCode.value.trim().toUpperCase()); claimCode.value = ''; appStore.showSuccess(t('redpacket.claimSuccess')); if (historyRole.value === 'received') await loadPackets() } catch (error) { claimError.value = errorMessage(error, t('redpacket.claimFailed')) } finally { claimLoading.value = false } }
+async function loadPackets() { listLoading.value = true; listError.value = ''; try { const result = await getMyRedPackets({ role: historyRole.value, page: page.value, page_size: pageSize }); packets.value = result.items || []; total.value = result.total || 0 } catch (error) { listError.value = errorMessage(error, t('redpacket.historyFailed')) } finally { listLoading.value = false } }
+function changeHistoryRole(role: 'sent' | 'received') { historyRole.value = role; page.value = 1; void loadPackets() } function changePage(value: number) { page.value = value; void loadPackets() } async function copyCode(code: string) { try { await navigator.clipboard.writeText(code); appStore.showSuccess(t('common.copied')) } catch { appStore.showError(t('common.copyFailed')) } }
+async function openPacketDetail(packet: RedPacketRecord) { selectedPacket.value = packet; detailClaims.value = []; detailError.value = ''; detailLoading.value = true; try { const detail = await getRedPacketDetail(packet.id); selectedPacket.value = detail.redpacket; detailClaims.value = detail.claims || [] } catch (error) { detailError.value = errorMessage(error, t('redpacket.detailFailed')) } finally { detailLoading.value = false } }
+function closePacketDetail() { selectedPacket.value = null; detailClaims.value = []; detailError.value = '' }
+onMounted(loadPackets)
 </script>

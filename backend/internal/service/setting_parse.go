@@ -179,6 +179,10 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
+		SettingKeyGameHallEnabled:          "false",
+		SettingKeyGameSlotsEnabled:         "false",
+		SettingKeyGameSlotsMinBet:          "0.01",
+		SettingKeyGameSlotsMaxBet:          "1000",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled: "false",
@@ -293,6 +297,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		BackendModeEnabled:               settings[SettingKeyBackendModeEnabled] == "true",
 	}
 	result.BalanceFeatureSettings = parseBalanceFeatureSettings(settings)
+	result.CodeFormatSettings = parseCodeFormatSettings(settings)
 	result.TableDefaultPageSize, result.TablePageSizeOptions = parseTablePreferences(
 		settings[SettingKeyTableDefaultPageSize],
 		settings[SettingKeyTablePageSizeOptions],

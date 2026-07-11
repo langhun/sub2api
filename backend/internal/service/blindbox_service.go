@@ -2,16 +2,41 @@ package service
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"database/sql"
 	"fmt"
 	"math"
-	"math/rand/v2"
+	"math/big"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+)
+
+var ErrBlindboxPrizeInvalid = infraerrors.BadRequest("BLINDBOX_PRIZE_INVALID", "blind box prize configuration is invalid")
+
+var (
+	secureRandomIntN = func(n int) (int, error) {
+		if n <= 0 {
+			return 0, fmt.Errorf("random upper bound must be positive")
+		}
+		value, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(n)))
+		if err != nil {
+			return 0, err
+		}
+		return int(value.Int64()), nil
+	}
+	secureRandomFloat64 = func() (float64, error) {
+		const precision = int64(1) << 53
+		value, err := cryptorand.Int(cryptorand.Reader, big.NewInt(precision))
+		if err != nil {
+			return 0, err
+		}
+		return float64(value.Int64()) / float64(precision), nil
+	}
 )
 
 const (
@@ -126,6 +151,12 @@ type CreatePrizeItemRequest struct {
 }
 
 func (s *BlindBoxService) CreatePrizeItem(ctx context.Context, req CreatePrizeItemRequest) (*PrizeItem, error) {
+	if req.Weight <= 0 {
+		req.Weight = 100
+	}
+	if err := validatePrizeItem(req.Rarity, req.RewardType, req.RewardValue, req.RewardValueMax, req.SubscriptionID, req.SubscriptionDays, req.Weight); err != nil {
+		return nil, err
+	}
 	builder := s.entClient.CheckinPrizeItem.Create().
 		SetName(req.Name).
 		SetRarity(req.Rarity).
@@ -141,10 +172,6 @@ func (s *BlindBoxService) CreatePrizeItem(ctx context.Context, req CreatePrizeIt
 	if req.IsEnabled != nil {
 		builder.SetIsEnabled(*req.IsEnabled)
 	}
-	if req.Weight <= 0 {
-		builder.SetWeight(100)
-	}
-
 	item, err := builder.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("create prize item: %w", err)
@@ -167,6 +194,37 @@ type UpdatePrizeItemRequest struct {
 }
 
 func (s *BlindBoxService) UpdatePrizeItem(ctx context.Context, id int64, req UpdatePrizeItemRequest) (*PrizeItem, error) {
+	existing, err := s.entClient.CheckinPrizeItem.Get(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get prize item: %w", err)
+	}
+	rarity, rewardType := existing.Rarity, existing.RewardType
+	rewardValue, rewardValueMax := existing.RewardValue, existing.RewardValueMax
+	subscriptionID, subscriptionDays, weight := existing.SubscriptionID, existing.SubscriptionDays, existing.Weight
+	if req.Rarity != nil {
+		rarity = *req.Rarity
+	}
+	if req.RewardType != nil {
+		rewardType = *req.RewardType
+	}
+	if req.RewardValue != nil {
+		rewardValue = *req.RewardValue
+	}
+	if req.RewardValueMax != nil {
+		rewardValueMax = *req.RewardValueMax
+	}
+	if req.SubscriptionID != nil {
+		subscriptionID = *req.SubscriptionID
+	}
+	if req.SubscriptionDays != nil {
+		subscriptionDays = *req.SubscriptionDays
+	}
+	if req.Weight != nil {
+		weight = *req.Weight
+	}
+	if err := validatePrizeItem(rarity, rewardType, rewardValue, rewardValueMax, subscriptionID, subscriptionDays, weight); err != nil {
+		return nil, err
+	}
 	builder := s.entClient.CheckinPrizeItem.UpdateOneID(id)
 	if req.Name != nil {
 		builder.SetName(*req.Name)
@@ -205,6 +263,21 @@ func (s *BlindBoxService) UpdatePrizeItem(ctx context.Context, id int64, req Upd
 	return &result, nil
 }
 
+func validatePrizeItem(rarity, rewardType string, rewardValue, rewardValueMax float64, subscriptionID *int64, subscriptionDays, weight int) error {
+	validRarity := rarity == RarityCommon || rarity == RarityRare || rarity == RarityEpic || rarity == RarityLegendary
+	validReward := rewardType == BlindboxRewardBalance || rewardType == BlindboxRewardConcurrency || rewardType == BlindboxRewardSubscription || rewardType == BlindboxRewardInvitationCode
+	if !validRarity || !validReward || weight <= 0 || math.IsNaN(rewardValue) || math.IsInf(rewardValue, 0) || rewardValue < 0 || math.IsNaN(rewardValueMax) || math.IsInf(rewardValueMax, 0) || rewardValueMax < 0 || (rewardValueMax > 0 && rewardValueMax < rewardValue) {
+		return ErrBlindboxPrizeInvalid
+	}
+	if rewardType == BlindboxRewardSubscription && (subscriptionID == nil || *subscriptionID <= 0 || subscriptionDays <= 0) {
+		return ErrBlindboxPrizeInvalid
+	}
+	if rewardType == BlindboxRewardConcurrency && rewardValue != math.Trunc(rewardValue) {
+		return ErrBlindboxPrizeInvalid
+	}
+	return nil
+}
+
 func (s *BlindBoxService) DeletePrizeItem(ctx context.Context, id int64) error {
 	return s.entClient.CheckinPrizeItem.UpdateOneID(id).
 		SetDeletedAt(time.Now()).
@@ -212,7 +285,7 @@ func (s *BlindBoxService) DeletePrizeItem(ctx context.Context, id int64) error {
 }
 
 func (s *BlindBoxService) ShouldTriggerBlindbox(ctx context.Context, userID int64, streakDays int) bool {
-	if !s.settingSvc.IsCheckinEnabled(ctx) || !s.settingSvc.IsCheckinBlindboxEnabled(ctx) {
+	if (!s.settingSvc.IsCheckinEnabled(ctx) && !s.settingSvc.IsCheckinLuckEnabled(ctx)) || !s.settingSvc.IsCheckinBlindboxEnabled(ctx) {
 		return false
 	}
 
@@ -224,7 +297,19 @@ func (s *BlindBoxService) ShouldTriggerBlindbox(ctx context.Context, userID int6
 
 	if triggerType == "total" {
 		var totalCheckins int
-		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM checkins WHERE user_id = $1`, userID).Scan(&totalCheckins); err != nil {
+		if tx := dbent.TxFromContext(ctx); tx != nil {
+			rows, err := tx.Client().QueryContext(ctx, `SELECT COUNT(*) FROM checkins WHERE user_id = $1`, userID)
+			if err == nil {
+				defer rows.Close()
+				if rows.Next() {
+					err = rows.Scan(&totalCheckins)
+				}
+			}
+			if err != nil {
+				logger.LegacyPrintf("service.blindbox", "failed to count total checkins for user %d: %v", userID, err)
+				return false
+			}
+		} else if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM checkins WHERE user_id = $1`, userID).Scan(&totalCheckins); err != nil {
 			logger.LegacyPrintf("service.blindbox", "failed to count total checkins for user %d: %v", userID, err)
 			return false
 		}
@@ -257,7 +342,10 @@ func (s *BlindBoxService) Draw(ctx context.Context, userID int64, streakDays int
 		totalWeight += item.Weight
 	}
 
-	roll := rand.IntN(totalWeight)
+	roll, err := secureRandomIntN(totalWeight)
+	if err != nil {
+		return nil, fmt.Errorf("select blindbox prize: %w", err)
+	}
 	cumWeight := 0
 	var selected *dbent.CheckinPrizeItem
 	for _, item := range items {
@@ -273,7 +361,11 @@ func (s *BlindBoxService) Draw(ctx context.Context, userID int64, streakDays int
 
 	rewardValue := selected.RewardValue
 	if selected.RewardType == BlindboxRewardBalance && selected.RewardValueMax > selected.RewardValue {
-		rewardValue = selected.RewardValue + rand.Float64()*(selected.RewardValueMax-selected.RewardValue)
+		randomValue, err := secureRandomFloat64()
+		if err != nil {
+			return nil, fmt.Errorf("select blindbox reward value: %w", err)
+		}
+		rewardValue = selected.RewardValue + randomValue*(selected.RewardValueMax-selected.RewardValue)
 		rewardValue = math.Round(rewardValue*100) / 100
 	}
 
@@ -334,7 +426,7 @@ func (s *BlindBoxService) applyReward(ctx context.Context, client *dbent.Client,
 	switch item.RewardType {
 	case BlindboxRewardBalance:
 		if value > 0 {
-			if err := s.userRepo.UpdateBalance(ctx, userID, value); err != nil {
+			if err := updateBalanceWithoutRecharge(ctx, s.userRepo, userID, value); err != nil {
 				return "", fmt.Errorf("update balance: %w", err)
 			}
 			if err := s.createAuditRecord(ctx, userID, value, item); err != nil {
@@ -367,7 +459,11 @@ func (s *BlindBoxService) applyReward(ctx context.Context, client *dbent.Client,
 			}
 		}
 	case BlindboxRewardInvitationCode:
-		code, err := GenerateRedeemCode()
+		format := DefaultCompactRedeemCodeFormat()
+		if s.settingSvc != nil {
+			format = s.settingSvc.GetCodeFormatSettings(ctx).Invitation
+		}
+		code, err := format.Generate()
 		if err != nil {
 			return "", fmt.Errorf("generate invitation code: %w", err)
 		}

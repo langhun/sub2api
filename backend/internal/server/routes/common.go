@@ -37,5 +37,6 @@ func RegisterCommonRoutes(r *gin.Engine, h *handler.Handlers) {
 		leaderboard.GET("/balance", h.Leaderboard.GetBalanceLeaderboard)
 		leaderboard.GET("/consumption", h.Leaderboard.GetConsumptionLeaderboard)
 		leaderboard.GET("/checkin", h.Leaderboard.GetCheckinLeaderboard)
+		leaderboard.GET("/transfer", h.Leaderboard.GetTransferLeaderboard)
 	}
 }

@@ -115,6 +115,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 	payload := dto.SystemSettings{
 		BalanceFeatureSettings:                                 balanceFeatureSettingsToDTO(settings.BalanceFeatureSettings),
+		CodeFormatSettings:                                     settings.CodeFormatSettings,
 		RegistrationEnabled:                                    settings.RegistrationEnabled,
 		EmailVerifyEnabled:                                     settings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:                       settings.RegistrationEmailSuffixWhitelist,
@@ -396,6 +397,8 @@ func loginAgreementDocumentsToDTO(items []service.LoginAgreementDocument) []dto.
 
 func balanceFeatureSettingsToDTO(settings service.BalanceFeatureSettings) dto.BalanceFeatureSettings {
 	return dto.BalanceFeatureSettings{
+		GameHallEnabled: settings.GameHallEnabled, GameSlotsEnabled: settings.GameSlotsEnabled,
+		GameSlotsMinBet: settings.GameSlotsMinBet, GameSlotsMaxBet: settings.GameSlotsMaxBet,
 		CheckinEnabled: settings.CheckinEnabled, CheckinMinBalance: settings.CheckinMinBalance,
 		CheckinMaxBalance: settings.CheckinMaxBalance, CheckinLuckEnabled: settings.CheckinLuckEnabled,
 		CheckinLuckMinMultiplier: settings.CheckinLuckMinMultiplier, CheckinLuckMaxMultiplier: settings.CheckinLuckMaxMultiplier,
@@ -410,6 +413,7 @@ func balanceFeatureSettingsToDTO(settings service.BalanceFeatureSettings) dto.Ba
 		LeaderboardBalanceEnabled:     settings.LeaderboardBalanceEnabled,
 		LeaderboardConsumptionEnabled: settings.LeaderboardConsumptionEnabled,
 		LeaderboardCheckinEnabled:     settings.LeaderboardCheckinEnabled,
+		LeaderboardTransferEnabled:    settings.LeaderboardTransferEnabled,
 		LeaderboardIncludeAdmin:       settings.LeaderboardIncludeAdmin,
 	}
 }

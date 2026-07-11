@@ -57,6 +57,8 @@ declare module 'vue-router' {
 
 	/** Public-settings boolean key required by this route. */
 	requiresFeature?: keyof import('@/types').PublicSettings
+	/** At least one of these public-settings flags must be enabled. */
+	requiresAnyFeature?: (keyof import('@/types').PublicSettings)[]
 
     /**
      * i18n key for the page title

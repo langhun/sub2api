@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -213,7 +214,7 @@ func (r *balanceTransferRepo) GetLeaderboard(ctx context.Context, startTime, end
 		col = "COUNT(*)"
 	}
 	query := fmt.Sprintf(
-		"SELECT u.id, u.email, COALESCE(SUM(bt.amount),0) as total_amount, COUNT(*) as total_count FROM balance_transfers bt JOIN users u ON u.id = bt.sender_id WHERE bt.status = 'completed' AND bt.created_at >= $1 AND bt.created_at < $2 GROUP BY u.id, u.email ORDER BY %s DESC LIMIT $3",
+		"SELECT u.id, u.email, COALESCE(SUM(bt.amount),0) as total_amount, COUNT(*) as total_count FROM balance_transfers bt JOIN users u ON u.id = bt.sender_id WHERE bt.status = 'completed' AND bt.transfer_type = 'direct' AND bt.created_at >= $1 AND bt.created_at < $2 GROUP BY u.id, u.email ORDER BY %s DESC LIMIT $3",
 		col,
 	)
 	rows, err := r.db.QueryContext(ctx, query, startTime, endTime, limit)
@@ -228,11 +229,20 @@ func (r *balanceTransferRepo) GetLeaderboard(ctx context.Context, startTime, end
 		if err := rows.Scan(&e.UserID, &e.Email, &e.TotalAmount, &e.TotalCount); err != nil {
 			return nil, err
 		}
+		e.Email = maskTransferEmail(e.Email)
 		e.Rank = rank
 		rank++
 		entries = append(entries, &e)
 	}
 	return entries, nil
+}
+
+func maskTransferEmail(email string) string {
+	at := strings.IndexByte(email, '@')
+	if at <= 0 {
+		return "u***"
+	}
+	return email[:1] + "***" + email[at:]
 }
 
 func (r *balanceTransferRepo) queryWithPagination(ctx context.Context, query *dbent.BalanceTransferQuery, page, pageSize int) ([]*service.BalanceTransferRecord, int, error) {

@@ -239,7 +239,9 @@ export interface PublicSettings {
   channel_monitor_default_interval_seconds: number
   available_channels_enabled: boolean
   service_quota_enabled: boolean
-  affiliate_enabled: boolean
+	affiliate_enabled: boolean
+	game_hall_enabled?: boolean
+	game_slots_enabled?: boolean
 	checkin_enabled: boolean
 	checkin_luck_enabled: boolean
 	checkin_blindbox_enabled: boolean
@@ -250,6 +252,7 @@ export interface PublicSettings {
 	leaderboard_balance_enabled: boolean
 	leaderboard_consumption_enabled: boolean
 	leaderboard_checkin_enabled: boolean
+	leaderboard_transfer_enabled?: boolean
 	leaderboard_include_admin: boolean
   allow_user_view_error_requests?: boolean
 }

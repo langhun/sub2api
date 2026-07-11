@@ -70,6 +70,7 @@ export default {
     loadMore: 'Load more',
     selectedCount: '({count} selected)',
     refresh: 'Refresh',
+    retry: 'Retry',
     autoRefresh: {
       title: 'Auto Refresh',
       enable: 'Enable auto refresh',
@@ -194,6 +195,7 @@ export default {
     checkin: 'Check-in',
     transfer: 'Balance Transfer',
     redpacket: 'Red Packets',
+    gameHall: 'Game Hall',
     leaderboard: 'Leaderboard',
     transferLeaderboard: 'Transfer Leaderboard',
     transferManage: 'Transfer Management',

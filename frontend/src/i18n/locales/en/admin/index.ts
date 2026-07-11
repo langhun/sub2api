@@ -18,6 +18,7 @@ const base = {
 export default {
   ...base,
   blindbox: balanceFeatures.blindbox,
+  codeFormat: balanceFeatures.codeFormat,
   settings: {
     ...base.settings,
     ...balanceFeatures.settings,

@@ -220,6 +220,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeyGameHallEnabled,
+		SettingKeyGameSlotsEnabled,
+		SettingKeyGameSlotsMinBet,
+		SettingKeyGameSlotsMaxBet,
 		SettingKeyAffiliateEnabled,
 		SettingKeyCheckinEnabled,
 		SettingKeyCheckinLuckEnabled,
@@ -231,6 +235,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyLeaderboardBalanceEnabled,
 		SettingKeyLeaderboardConsumptionEnabled,
 		SettingKeyLeaderboardCheckinEnabled,
+		SettingKeyLeaderboardTransferEnabled,
 		SettingKeyLeaderboardIncludeAdmin,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
@@ -342,6 +347,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
+		GameHallEnabled:          settings[SettingKeyGameHallEnabled] == "true",
+		GameSlotsEnabled:         settings[SettingKeyGameSlotsEnabled] == "true",
+		GameSlotsMinBet:          parseBalanceFeatureFloat(settings[SettingKeyGameSlotsMinBet], 0.01),
+		GameSlotsMaxBet:          parseBalanceFeatureFloat(settings[SettingKeyGameSlotsMaxBet], 1000),
 
 		AffiliateEnabled:              settings[SettingKeyAffiliateEnabled] == "true",
 		CheckinEnabled:                settings[SettingKeyCheckinEnabled] == "true",
@@ -354,6 +363,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		LeaderboardBalanceEnabled:     settings[SettingKeyLeaderboardBalanceEnabled] != "false",
 		LeaderboardConsumptionEnabled: settings[SettingKeyLeaderboardConsumptionEnabled] != "false",
 		LeaderboardCheckinEnabled:     settings[SettingKeyLeaderboardCheckinEnabled] != "false",
+		LeaderboardTransferEnabled:    settings[SettingKeyLeaderboardTransferEnabled] == "true",
 		LeaderboardIncludeAdmin:       settings[SettingKeyLeaderboardIncludeAdmin] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
@@ -513,23 +523,28 @@ type PublicSettingsInjectionPayload struct {
 	// Feature flags — MUST match the opt-in/opt-out registry in
 	// frontend/src/utils/featureFlags.ts. Missing a field here is the bug
 	// that hid the "可用渠道" menu on page refresh.
-	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
-	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
-	AffiliateEnabled                     bool `json:"affiliate_enabled"`
-	CheckinEnabled                       bool `json:"checkin_enabled"`
-	CheckinLuckEnabled                   bool `json:"checkin_luck_enabled"`
-	CheckinBlindboxEnabled               bool `json:"checkin_blindbox_enabled"`
-	TransferEnabled                      bool `json:"transfer_enabled"`
-	RedPacketEnabled                     bool `json:"redpacket_enabled"`
-	UsageQueryEnabled                    bool `json:"usage_query_enabled"`
-	LeaderboardEnabled                   bool `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled            bool `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled        bool `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled            bool `json:"leaderboard_checkin_enabled"`
-	LeaderboardIncludeAdmin              bool `json:"leaderboard_include_admin"`
-	RiskControlEnabled                   bool `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
+	ChannelMonitorEnabled                bool    `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds int     `json:"channel_monitor_default_interval_seconds"`
+	AvailableChannelsEnabled             bool    `json:"available_channels_enabled"`
+	GameHallEnabled                      bool    `json:"game_hall_enabled"`
+	GameSlotsEnabled                     bool    `json:"game_slots_enabled"`
+	GameSlotsMinBet                      float64 `json:"game_slots_min_bet"`
+	GameSlotsMaxBet                      float64 `json:"game_slots_max_bet"`
+	AffiliateEnabled                     bool    `json:"affiliate_enabled"`
+	CheckinEnabled                       bool    `json:"checkin_enabled"`
+	CheckinLuckEnabled                   bool    `json:"checkin_luck_enabled"`
+	CheckinBlindboxEnabled               bool    `json:"checkin_blindbox_enabled"`
+	TransferEnabled                      bool    `json:"transfer_enabled"`
+	RedPacketEnabled                     bool    `json:"redpacket_enabled"`
+	UsageQueryEnabled                    bool    `json:"usage_query_enabled"`
+	LeaderboardEnabled                   bool    `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled            bool    `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled        bool    `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled            bool    `json:"leaderboard_checkin_enabled"`
+	LeaderboardTransferEnabled           bool    `json:"leaderboard_transfer_enabled"`
+	LeaderboardIncludeAdmin              bool    `json:"leaderboard_include_admin"`
+	RiskControlEnabled                   bool    `json:"risk_control_enabled"`
+	AllowUserViewErrorRequests           bool    `json:"allow_user_view_error_requests"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -592,6 +607,10 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		GameHallEnabled:                      settings.GameHallEnabled,
+		GameSlotsEnabled:                     settings.GameSlotsEnabled,
+		GameSlotsMinBet:                      settings.GameSlotsMinBet,
+		GameSlotsMaxBet:                      settings.GameSlotsMaxBet,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		CheckinEnabled:                       settings.CheckinEnabled,
 		CheckinLuckEnabled:                   settings.CheckinLuckEnabled,
@@ -603,6 +622,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		LeaderboardBalanceEnabled:            settings.LeaderboardBalanceEnabled,
 		LeaderboardConsumptionEnabled:        settings.LeaderboardConsumptionEnabled,
 		LeaderboardCheckinEnabled:            settings.LeaderboardCheckinEnabled,
+		LeaderboardTransferEnabled:           settings.LeaderboardTransferEnabled,
 		LeaderboardIncludeAdmin:              settings.LeaderboardIncludeAdmin,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,

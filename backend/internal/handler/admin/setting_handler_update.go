@@ -18,6 +18,7 @@ import (
 
 // UpdateSettingsRequest 更新设置请求
 type UpdateSettingsRequest struct {
+	CodeFormatSettings *service.CodeFormatSettings `json:"code_format_settings"`
 	// 注册设置
 	RegistrationEnabled              bool                         `json:"registration_enabled"`
 	EmailVerifyEnabled               bool                         `json:"email_verify_enabled"`
@@ -297,7 +298,11 @@ type UpdateSettingsRequest struct {
 	ChannelMonitorDefaultIntervalSeconds *int  `json:"channel_monitor_default_interval_seconds"`
 
 	// Available Channels feature switch (user-facing)
-	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
+	AvailableChannelsEnabled *bool    `json:"available_channels_enabled"`
+	GameHallEnabled          *bool    `json:"game_hall_enabled"`
+	GameSlotsEnabled         *bool    `json:"game_slots_enabled"`
+	GameSlotsMinBet          *float64 `json:"game_slots_min_bet"`
+	GameSlotsMaxBet          *float64 `json:"game_slots_max_bet"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled              *bool    `json:"affiliate_enabled"`
@@ -325,6 +330,7 @@ type UpdateSettingsRequest struct {
 	LeaderboardBalanceEnabled     *bool    `json:"leaderboard_balance_enabled"`
 	LeaderboardConsumptionEnabled *bool    `json:"leaderboard_consumption_enabled"`
 	LeaderboardCheckinEnabled     *bool    `json:"leaderboard_checkin_enabled"`
+	LeaderboardTransferEnabled    *bool    `json:"leaderboard_transfer_enabled"`
 	LeaderboardIncludeAdmin       *bool    `json:"leaderboard_include_admin"`
 
 	// 风控中心功能开关
@@ -1186,6 +1192,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 	settings := &service.SystemSettings{
 		BalanceFeatureSettings: mergeBalanceFeatureSettings(previousSettings.BalanceFeatureSettings, req),
+		CodeFormatSettings:     previousSettings.CodeFormatSettings,
 		// 系统全局 platform quota 默认值（整体替换语义）
 		DefaultPlatformQuotas: req.DefaultPlatformQuotas,
 
@@ -1556,6 +1563,13 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return previousSettings.CyberSessionBlockTTLSeconds
 		}(),
 	}
+	if req.CodeFormatSettings != nil {
+		if err := req.CodeFormatSettings.Validate(); err != nil {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		settings.CodeFormatSettings = *req.CodeFormatSettings
+	}
 
 	// req.AuthSourceXxxPlatformQuotas 为 nil 表示本次请求未包含该 source 的 quota 配置（保留 previousAuthSourceDefaults 中的值）；
 	// non-nil（含 empty map）表示整体覆盖：empty map = 清空该 source 的所有 quota 配置。
@@ -1701,6 +1715,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 	payload := dto.SystemSettings{
 		BalanceFeatureSettings:                                 balanceFeatureSettingsToDTO(updatedSettings.BalanceFeatureSettings),
+		CodeFormatSettings:                                     updatedSettings.CodeFormatSettings,
 		RegistrationEnabled:                                    updatedSettings.RegistrationEnabled,
 		EmailVerifyEnabled:                                     updatedSettings.EmailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:                       updatedSettings.RegistrationEmailSuffixWhitelist,
@@ -1932,6 +1947,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 func mergeBalanceFeatureSettings(previous service.BalanceFeatureSettings, req UpdateSettingsRequest) service.BalanceFeatureSettings {
 	next := previous
+	if req.GameHallEnabled != nil {
+		next.GameHallEnabled = *req.GameHallEnabled
+	}
+	if req.GameSlotsEnabled != nil {
+		next.GameSlotsEnabled = *req.GameSlotsEnabled
+	}
+	if req.GameSlotsMinBet != nil {
+		next.GameSlotsMinBet = *req.GameSlotsMinBet
+	}
+	if req.GameSlotsMaxBet != nil {
+		next.GameSlotsMaxBet = *req.GameSlotsMaxBet
+	}
 	if req.CheckinEnabled != nil {
 		next.CheckinEnabled = *req.CheckinEnabled
 	}
@@ -2003,6 +2030,9 @@ func mergeBalanceFeatureSettings(previous service.BalanceFeatureSettings, req Up
 	}
 	if req.LeaderboardCheckinEnabled != nil {
 		next.LeaderboardCheckinEnabled = *req.LeaderboardCheckinEnabled
+	}
+	if req.LeaderboardTransferEnabled != nil {
+		next.LeaderboardTransferEnabled = *req.LeaderboardTransferEnabled
 	}
 	if req.LeaderboardIncludeAdmin != nil {
 		next.LeaderboardIncludeAdmin = *req.LeaderboardIncludeAdmin

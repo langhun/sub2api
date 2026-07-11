@@ -527,7 +527,12 @@ const (
 	SettingKeyLeaderboardBalanceEnabled     = "leaderboard_balance_enabled"
 	SettingKeyLeaderboardConsumptionEnabled = "leaderboard_consumption_enabled"
 	SettingKeyLeaderboardCheckinEnabled     = "leaderboard_checkin_enabled"
+	SettingKeyLeaderboardTransferEnabled    = "leaderboard_transfer_enabled"
 	SettingKeyLeaderboardIncludeAdmin       = "leaderboard_include_admin"
+	SettingKeyGameHallEnabled               = "game_hall_enabled"
+	SettingKeyGameSlotsEnabled              = "game_slots_enabled"
+	SettingKeyGameSlotsMinBet               = "game_slots_min_bet"
+	SettingKeyGameSlotsMaxBet               = "game_slots_max_bet"
 )
 
 // SettingKeyDefaultPlatformQuotas —— 系统全局：每用户 × 平台日/周/月 USD 上限（JSON）。

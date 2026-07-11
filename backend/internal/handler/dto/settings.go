@@ -28,19 +28,20 @@ type CustomEndpoint struct {
 // SystemSettings represents the admin settings API response payload.
 type SystemSettings struct {
 	BalanceFeatureSettings
-	RegistrationEnabled              bool                     `json:"registration_enabled"`
-	EmailVerifyEnabled               bool                     `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist []string                 `json:"registration_email_suffix_whitelist"`
-	PromoCodeEnabled                 bool                     `json:"promo_code_enabled"`
-	PasswordResetEnabled             bool                     `json:"password_reset_enabled"`
-	FrontendURL                      string                   `json:"frontend_url"`
-	InvitationCodeEnabled            bool                     `json:"invitation_code_enabled"`
-	TotpEnabled                      bool                     `json:"totp_enabled"`                   // TOTP 双因素认证
-	TotpEncryptionKeyConfigured      bool                     `json:"totp_encryption_key_configured"` // TOTP 加密密钥是否已配置
-	LoginAgreementEnabled            bool                     `json:"login_agreement_enabled"`
-	LoginAgreementMode               string                   `json:"login_agreement_mode"`
-	LoginAgreementUpdatedAt          string                   `json:"login_agreement_updated_at"`
-	LoginAgreementDocuments          []LoginAgreementDocument `json:"login_agreement_documents"`
+	CodeFormatSettings               service.CodeFormatSettings `json:"code_format_settings"`
+	RegistrationEnabled              bool                       `json:"registration_enabled"`
+	EmailVerifyEnabled               bool                       `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist []string                   `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                 bool                       `json:"promo_code_enabled"`
+	PasswordResetEnabled             bool                       `json:"password_reset_enabled"`
+	FrontendURL                      string                     `json:"frontend_url"`
+	InvitationCodeEnabled            bool                       `json:"invitation_code_enabled"`
+	TotpEnabled                      bool                       `json:"totp_enabled"`                   // TOTP 双因素认证
+	TotpEncryptionKeyConfigured      bool                       `json:"totp_encryption_key_configured"` // TOTP 加密密钥是否已配置
+	LoginAgreementEnabled            bool                       `json:"login_agreement_enabled"`
+	LoginAgreementMode               string                     `json:"login_agreement_mode"`
+	LoginAgreementUpdatedAt          string                     `json:"login_agreement_updated_at"`
+	LoginAgreementDocuments          []LoginAgreementDocument   `json:"login_agreement_documents"`
 
 	SMTPHost               string `json:"smtp_host"`
 	SMTPPort               int    `json:"smtp_port"`
@@ -297,6 +298,10 @@ type SystemSettings struct {
 }
 
 type BalanceFeatureSettings struct {
+	GameHallEnabled               bool    `json:"game_hall_enabled"`
+	GameSlotsEnabled              bool    `json:"game_slots_enabled"`
+	GameSlotsMinBet               float64 `json:"game_slots_min_bet"`
+	GameSlotsMaxBet               float64 `json:"game_slots_max_bet"`
 	CheckinEnabled                bool    `json:"checkin_enabled"`
 	CheckinMinBalance             float64 `json:"checkin_min_balance"`
 	CheckinMaxBalance             float64 `json:"checkin_max_balance"`
@@ -321,6 +326,7 @@ type BalanceFeatureSettings struct {
 	LeaderboardBalanceEnabled     bool    `json:"leaderboard_balance_enabled"`
 	LeaderboardConsumptionEnabled bool    `json:"leaderboard_consumption_enabled"`
 	LeaderboardCheckinEnabled     bool    `json:"leaderboard_checkin_enabled"`
+	LeaderboardTransferEnabled    bool    `json:"leaderboard_transfer_enabled"`
 	LeaderboardIncludeAdmin       bool    `json:"leaderboard_include_admin"`
 }
 
@@ -385,7 +391,11 @@ type PublicSettings struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
-	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+	AvailableChannelsEnabled bool    `json:"available_channels_enabled"`
+	GameHallEnabled          bool    `json:"game_hall_enabled"`
+	GameSlotsEnabled         bool    `json:"game_slots_enabled"`
+	GameSlotsMinBet          float64 `json:"game_slots_min_bet"`
+	GameSlotsMaxBet          float64 `json:"game_slots_max_bet"`
 
 	AffiliateEnabled              bool `json:"affiliate_enabled"`
 	CheckinEnabled                bool `json:"checkin_enabled"`
@@ -398,6 +408,7 @@ type PublicSettings struct {
 	LeaderboardBalanceEnabled     bool `json:"leaderboard_balance_enabled"`
 	LeaderboardConsumptionEnabled bool `json:"leaderboard_consumption_enabled"`
 	LeaderboardCheckinEnabled     bool `json:"leaderboard_checkin_enabled"`
+	LeaderboardTransferEnabled    bool `json:"leaderboard_transfer_enabled"`
 	LeaderboardIncludeAdmin       bool `json:"leaderboard_include_admin"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`

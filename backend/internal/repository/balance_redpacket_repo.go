@@ -192,6 +192,29 @@ func (r *balanceRedPacketRepo) ListBySender(ctx context.Context, senderID int64,
 	return records, total, nil
 }
 
+func (r *balanceRedPacketRepo) ListClaimedByUser(ctx context.Context, userID int64, page, pageSize int) ([]*service.RedPacketRecord, int, error) {
+	client := clientFromContext(ctx, r.client)
+	query := client.BalanceRedPacket.Query().
+		Where(balanceredpacket.HasClaimsWith(balanceredpacketclaim.UserID(userID))).
+		Order(dbent.Desc(balanceredpacket.FieldCreatedAt))
+	total, err := query.Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	offset := (&pagination.PaginationParams{Page: page, PageSize: pageSize}).Offset()
+	items, err := query.Offset(offset).Limit(pageSize).All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	records := make([]*service.RedPacketRecord, len(items))
+	for i, item := range items {
+		records[i] = toRedPacketRecord(item)
+		// Claimants must never receive the reusable share code through history.
+		records[i].Code = ""
+	}
+	return records, total, nil
+}
+
 func (r *balanceRedPacketRepo) ListActiveExpired(ctx context.Context) ([]*service.RedPacketRecord, error) {
 	client := clientFromContext(ctx, r.client)
 	items, err := client.BalanceRedPacket.Query().

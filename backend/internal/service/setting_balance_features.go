@@ -2,11 +2,75 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
 
+func (s BalanceFeatureSettings) ValidateGameHall() error {
+	if math.IsNaN(s.GameSlotsMinBet) || math.IsInf(s.GameSlotsMinBet, 0) || s.GameSlotsMinBet <= 0 {
+		return fmt.Errorf("game_slots_min_bet must be finite and greater than 0")
+	}
+	if math.IsNaN(s.GameSlotsMaxBet) || math.IsInf(s.GameSlotsMaxBet, 0) || s.GameSlotsMaxBet < s.GameSlotsMinBet {
+		return fmt.Errorf("game_slots_max_bet must be finite and greater than or equal to game_slots_min_bet")
+	}
+	return nil
+}
+
+func (s BalanceFeatureSettings) Validate() error {
+	if err := s.ValidateGameHall(); err != nil {
+		return err
+	}
+	if err := validateFiniteRange("checkin balance", s.CheckinMinBalance, s.CheckinMaxBalance); err != nil {
+		return err
+	}
+	if err := validateFiniteRange("checkin luck multiplier", s.CheckinLuckMinMultiplier, s.CheckinLuckMaxMultiplier); err != nil {
+		return err
+	}
+	if !isFiniteNonnegative(s.TransferFeeRate) || s.TransferFeeRate > 1 {
+		return fmt.Errorf("transfer_fee_rate must be finite and between 0 and 1")
+	}
+	for name, value := range map[string]float64{
+		"transfer_min_amount":  s.TransferMinAmount,
+		"transfer_max_amount":  s.TransferMaxAmount,
+		"transfer_daily_limit": s.TransferDailyLimit,
+	} {
+		if !isFiniteNonnegative(value) {
+			return fmt.Errorf("%s must be finite and nonnegative", name)
+		}
+	}
+	if s.TransferMaxAmount > 0 && s.TransferMaxAmount < s.TransferMinAmount {
+		return fmt.Errorf("transfer_max_amount must be 0 or greater than or equal to transfer_min_amount")
+	}
+	if s.CheckinBlindboxInterval < 0 || s.TransferDailyCountLimit < 0 || s.RedPacketMaxCount < 0 || s.RedPacketExpireHours < 0 {
+		return fmt.Errorf("count, interval, and expiry settings must be nonnegative")
+	}
+	if s.CheckinBlindboxTriggerType != "" && s.CheckinBlindboxTriggerType != "streak" && s.CheckinBlindboxTriggerType != "total" {
+		return fmt.Errorf("checkin_blindbox_trigger_type must be streak or total")
+	}
+	return nil
+}
+
+func validateFiniteRange(name string, minValue, maxValue float64) error {
+	if !isFiniteNonnegative(minValue) || !isFiniteNonnegative(maxValue) {
+		return fmt.Errorf("%s values must be finite and nonnegative", name)
+	}
+	if maxValue < minValue {
+		return fmt.Errorf("%s maximum must be greater than or equal to minimum", name)
+	}
+	return nil
+}
+
+func isFiniteNonnegative(value float64) bool {
+	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
 type BalanceFeatureSettings struct {
+	GameHallEnabled               bool
+	GameSlotsEnabled              bool
+	GameSlotsMinBet               float64
+	GameSlotsMaxBet               float64
 	CheckinEnabled                bool
 	CheckinMinBalance             float64
 	CheckinMaxBalance             float64
@@ -31,11 +95,21 @@ type BalanceFeatureSettings struct {
 	LeaderboardBalanceEnabled     bool
 	LeaderboardConsumptionEnabled bool
 	LeaderboardCheckinEnabled     bool
+	LeaderboardTransferEnabled    bool
 	LeaderboardIncludeAdmin       bool
+}
+
+// GetMultiple exposes read-only setting access to focused feature services.
+func (s *SettingService) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	return s.settingRepo.GetMultiple(ctx, keys)
 }
 
 func parseBalanceFeatureSettings(values map[string]string) BalanceFeatureSettings {
 	return BalanceFeatureSettings{
+		GameHallEnabled:               values[SettingKeyGameHallEnabled] == "true",
+		GameSlotsEnabled:              values[SettingKeyGameSlotsEnabled] == "true",
+		GameSlotsMinBet:               parseBalanceFeatureFloat(values[SettingKeyGameSlotsMinBet], 0.01),
+		GameSlotsMaxBet:               parseBalanceFeatureFloat(values[SettingKeyGameSlotsMaxBet], 1000),
 		CheckinEnabled:                values[SettingKeyCheckinEnabled] == "true",
 		CheckinMinBalance:             parseBalanceFeatureFloat(values[SettingKeyCheckinMinBalance], 0.1),
 		CheckinMaxBalance:             parseBalanceFeatureFloat(values[SettingKeyCheckinMaxBalance], 1),
@@ -60,11 +134,16 @@ func parseBalanceFeatureSettings(values map[string]string) BalanceFeatureSetting
 		LeaderboardBalanceEnabled:     values[SettingKeyLeaderboardBalanceEnabled] != "false",
 		LeaderboardConsumptionEnabled: values[SettingKeyLeaderboardConsumptionEnabled] != "false",
 		LeaderboardCheckinEnabled:     values[SettingKeyLeaderboardCheckinEnabled] != "false",
+		LeaderboardTransferEnabled:    values[SettingKeyLeaderboardTransferEnabled] == "true",
 		LeaderboardIncludeAdmin:       values[SettingKeyLeaderboardIncludeAdmin] == "true",
 	}
 }
 
 func appendBalanceFeatureUpdates(updates map[string]string, settings BalanceFeatureSettings) {
+	updates[SettingKeyGameHallEnabled] = strconv.FormatBool(settings.GameHallEnabled)
+	updates[SettingKeyGameSlotsEnabled] = strconv.FormatBool(settings.GameSlotsEnabled)
+	updates[SettingKeyGameSlotsMinBet] = strconv.FormatFloat(settings.GameSlotsMinBet, 'f', 8, 64)
+	updates[SettingKeyGameSlotsMaxBet] = strconv.FormatFloat(settings.GameSlotsMaxBet, 'f', 8, 64)
 	updates[SettingKeyCheckinEnabled] = strconv.FormatBool(settings.CheckinEnabled)
 	updates[SettingKeyCheckinMinBalance] = strconv.FormatFloat(settings.CheckinMinBalance, 'f', 8, 64)
 	updates[SettingKeyCheckinMaxBalance] = strconv.FormatFloat(settings.CheckinMaxBalance, 'f', 8, 64)
@@ -89,11 +168,13 @@ func appendBalanceFeatureUpdates(updates map[string]string, settings BalanceFeat
 	updates[SettingKeyLeaderboardBalanceEnabled] = strconv.FormatBool(settings.LeaderboardBalanceEnabled)
 	updates[SettingKeyLeaderboardConsumptionEnabled] = strconv.FormatBool(settings.LeaderboardConsumptionEnabled)
 	updates[SettingKeyLeaderboardCheckinEnabled] = strconv.FormatBool(settings.LeaderboardCheckinEnabled)
+	updates[SettingKeyLeaderboardTransferEnabled] = strconv.FormatBool(settings.LeaderboardTransferEnabled)
 	updates[SettingKeyLeaderboardIncludeAdmin] = strconv.FormatBool(settings.LeaderboardIncludeAdmin)
 }
 
 func (s *SettingService) balanceFeatureSettings(ctx context.Context) BalanceFeatureSettings {
 	values, err := s.settingRepo.GetMultiple(ctx, []string{
+		SettingKeyGameHallEnabled, SettingKeyGameSlotsEnabled, SettingKeyGameSlotsMinBet, SettingKeyGameSlotsMaxBet,
 		SettingKeyCheckinEnabled, SettingKeyCheckinMinBalance, SettingKeyCheckinMaxBalance,
 		SettingKeyCheckinLuckEnabled, SettingKeyCheckinLuckMinMultiplier, SettingKeyCheckinLuckMaxMultiplier,
 		SettingKeyCheckinBlindboxEnabled, SettingKeyCheckinBlindboxTriggerType, SettingKeyCheckinBlindboxInterval,
@@ -101,7 +182,7 @@ func (s *SettingService) balanceFeatureSettings(ctx context.Context) BalanceFeat
 		SettingKeyTransferDailyLimit, SettingKeyTransferDailyCountLimit, SettingKeyTransferVIPFeeExempt,
 		SettingKeyRedPacketEnabled, SettingKeyRedPacketMaxCount, SettingKeyRedPacketExpireHours,
 		SettingKeyUsageQueryEnabled, SettingKeyLeaderboardEnabled, SettingKeyLeaderboardBalanceEnabled,
-		SettingKeyLeaderboardConsumptionEnabled, SettingKeyLeaderboardCheckinEnabled, SettingKeyLeaderboardIncludeAdmin,
+		SettingKeyLeaderboardConsumptionEnabled, SettingKeyLeaderboardCheckinEnabled, SettingKeyLeaderboardTransferEnabled, SettingKeyLeaderboardIncludeAdmin,
 	})
 	if err != nil {
 		return parseBalanceFeatureSettings(nil)
@@ -139,7 +220,7 @@ func (s *SettingService) GetCheckinBlindboxInterval(ctx context.Context) int {
 
 func parseBalanceFeatureFloat(raw string, fallback float64) float64 {
 	v, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
-	if err != nil || v < 0 {
+	if err != nil || v < 0 || math.IsNaN(v) || math.IsInf(v, 0) {
 		return fallback
 	}
 	return v

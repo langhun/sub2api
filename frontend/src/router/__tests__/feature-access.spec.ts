@@ -27,8 +27,10 @@ const appStore = vi.hoisted(() => ({
     risk_control_enabled?: boolean
 	usage_query_enabled?: boolean
 	checkin_enabled?: boolean
+	checkin_luck_enabled?: boolean
 	transfer_enabled?: boolean
 	redpacket_enabled?: boolean
+	game_hall_enabled?: boolean
 	leaderboard_enabled?: boolean
     custom_menu_items?: []
   },
@@ -185,6 +187,7 @@ describe('feature route guard', () => {
 		['check-in', 'checkin_enabled'],
 		['transfer', 'transfer_enabled'],
 		['red packet', 'redpacket_enabled'],
+		['game hall', 'game_hall_enabled'],
 		['leaderboard', 'leaderboard_enabled'],
 	])('redirects when the %s route feature is disabled', async (_name, key) => {
 		appStore.cachedPublicSettings = { [key]: false }
@@ -194,6 +197,22 @@ describe('feature route guard', () => {
 		await navigation
 
 		expect(next).toHaveBeenCalledOnce()
+		expect(next).toHaveBeenCalledWith('/dashboard')
+	})
+
+	it('allows check-in route when only lucky check-in is enabled', async () => {
+		appStore.cachedPublicSettings = { checkin_enabled: false, checkin_luck_enabled: true }
+		appStore.publicSettingsLoaded = true
+		const { navigation, next } = runGuard({ requiresAnyFeature: ['checkin_enabled', 'checkin_luck_enabled'] }, '/checkin')
+		await navigation
+		expect(next).toHaveBeenCalledWith()
+	})
+
+	it('redirects check-in route when all check-in modes are disabled', async () => {
+		appStore.cachedPublicSettings = { checkin_enabled: false, checkin_luck_enabled: false }
+		appStore.publicSettingsLoaded = true
+		const { navigation, next } = runGuard({ requiresAnyFeature: ['checkin_enabled', 'checkin_luck_enabled'] }, '/checkin')
+		await navigation
 		expect(next).toHaveBeenCalledWith('/dashboard')
 	})
 })

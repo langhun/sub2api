@@ -277,7 +277,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Check-in',
       titleKey: 'nav.checkin',
 	  descriptionKey: 'checkin.page.description',
-	  requiresFeature: 'checkin_enabled'
+	  requiresAnyFeature: ['checkin_enabled', 'checkin_luck_enabled']
     }
   },
   {
@@ -314,6 +314,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Red Packet',
 	  titleKey: 'nav.redpacket',
 	  requiresFeature: 'redpacket_enabled'
+    }
+  },
+  {
+    path: '/game-hall',
+    name: 'GameHall',
+    component: () => import('@/views/user/GameHallView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Game Hall',
+      titleKey: 'gameHall.title',
+      requiresFeature: 'game_hall_enabled'
     }
   },
   {
@@ -902,7 +914,7 @@ router.beforeEach(async (to, _from, next) => {
   // 公共设置可能尚未加载（App.vue 的 onMounted 异步拉取晚于首次导航，且纯静态部署
   // 无 __APP_CONFIG__ 注入）。此时 cachedPublicSettings 为空会把 payment/risk_control
   // 误判为“未启用”而错误拦截，故这里先确保设置加载完成。
-  if ((to.meta.requiresPayment || to.meta.requiresRiskControl || to.meta.requiresFeature) && !appStore.publicSettingsLoaded) {
+  if ((to.meta.requiresPayment || to.meta.requiresRiskControl || to.meta.requiresFeature || to.meta.requiresAnyFeature) && !appStore.publicSettingsLoaded) {
     try {
       await appStore.fetchPublicSettings()
     } catch (error) {
@@ -925,6 +937,15 @@ router.beforeEach(async (to, _from, next) => {
 		to.meta.requiresFeature &&
 		appStore.publicSettingsLoaded &&
 		appStore.cachedPublicSettings?.[to.meta.requiresFeature] === false
+	) {
+		next(authStore.isAuthenticated ? (authStore.isAdmin ? '/admin/dashboard' : '/dashboard') : '/login')
+		return
+	}
+
+	if (
+		to.meta.requiresAnyFeature?.length &&
+		appStore.publicSettingsLoaded &&
+		!to.meta.requiresAnyFeature.some((key) => appStore.cachedPublicSettings?.[key] === true)
 	) {
 		next(authStore.isAuthenticated ? (authStore.isAdmin ? '/admin/dashboard' : '/dashboard') : '/login')
 		return

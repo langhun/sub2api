@@ -72,6 +72,8 @@ type redPacketSafetyRepo struct {
 	decrementAmount float64
 	markCalls       int
 	claimCalls      int
+	claims          []*RedPacketClaimRecord
+	getClaimsErr    error
 }
 
 func (r *redPacketSafetyRepo) GetByCode(context.Context, string) (*RedPacketRecord, error) {
@@ -103,9 +105,22 @@ func (r *redPacketSafetyRepo) MarkExhausted(context.Context, int64) error {
 	return nil
 }
 
+func (r *redPacketSafetyRepo) GetByID(context.Context, int64) (*RedPacketRecord, error) {
+	copy := *r.locked
+	return &copy, nil
+}
+
+func (r *redPacketSafetyRepo) GetClaims(context.Context, int64) ([]*RedPacketClaimRecord, error) {
+	return r.claims, r.getClaimsErr
+}
+
 type transferSafetyUserRepo struct {
 	UserRepository
-	creditCalls int
+	creditCalls             int
+	nonRechargeCreditCalls  int
+	userByID                map[int64]*User
+	conditionalBalanceOK    bool
+	conditionalBalanceCalls int
 }
 
 type transferSafetySettingRepo struct {
@@ -129,12 +144,28 @@ func (r *transferSafetySettingRepo) GetAll(context.Context) (map[string]string, 
 func (r *transferSafetySettingRepo) Delete(context.Context, string) error { return nil }
 
 func (r *transferSafetyUserRepo) GetByID(_ context.Context, id int64) (*User, error) {
+	if user := r.userByID[id]; user != nil {
+		return user, nil
+	}
 	return &User{ID: id, Balance: 100}, nil
 }
 
 func (r *transferSafetyUserRepo) UpdateBalance(context.Context, int64, float64) error {
 	r.creditCalls++
 	return nil
+}
+
+func (r *transferSafetyUserRepo) UpdateBalanceWithoutRecharge(context.Context, int64, float64) error {
+	r.nonRechargeCreditCalls++
+	return nil
+}
+
+func (r *transferSafetyUserRepo) UpdateBalanceWithoutRechargeIfNonnegative(context.Context, int64, float64) (bool, error) {
+	r.conditionalBalanceCalls++
+	if r.conditionalBalanceOK {
+		r.nonRechargeCreditCalls++
+	}
+	return r.conditionalBalanceOK, nil
 }
 
 func newTransferSafetySettings(values map[string]string) *SettingService {
@@ -188,6 +219,17 @@ func TestBalanceTransferRevokeIsIdempotent(t *testing.T) {
 	require.Zero(t, repo.updateStatusCalls)
 }
 
+func TestBalanceTransferRevokeBatchDoesNotMintAdminBalance(t *testing.T) {
+	repo := &transferSafetyRepo{record: &BalanceTransferRecord{ID: 8, Status: "completed", TransferType: "batch", SenderID: 10, ReceiverID: 2, Amount: 3, GrossAmount: 3}, deductOK: true}
+	users := &transferSafetyUserRepo{conditionalBalanceOK: true}
+	svc := NewBalanceTransferService(repo, &redPacketSafetyRepo{}, users, newTransferSafetySettings(nil), nil)
+
+	require.NoError(t, svc.RevokeTransfer(context.Background(), 10, 8, "rollback grant"))
+	require.Equal(t, 1, repo.deductCalls)
+	require.Zero(t, users.nonRechargeCreditCalls)
+	require.Equal(t, 1, repo.updateStatusCalls)
+}
+
 func TestBalanceTransferClaimUsesLockedStateAndUpdatedExhaustion(t *testing.T) {
 	packet := &RedPacketRecord{
 		ID: 5, SenderID: 1, RemainingAmount: 2, RemainingCount: 2,
@@ -211,5 +253,79 @@ func TestBalanceTransferClaimUsesLockedStateAndUpdatedExhaustion(t *testing.T) {
 	require.Equal(t, 1.0, redRepo.decrementAmount)
 	require.Equal(t, 1, redRepo.claimCalls)
 	require.Equal(t, 1, redRepo.markCalls)
-	require.Equal(t, 1, users.creditCalls)
+	require.Equal(t, 1, users.nonRechargeCreditCalls)
+	require.Zero(t, users.creditCalls)
+}
+
+func TestGetRedPacketDetailForUserRequiresParticipation(t *testing.T) {
+	packet := &RedPacketRecord{ID: 5, SenderID: 1}
+	redRepo := &redPacketSafetyRepo{
+		locked: packet,
+		claims: []*RedPacketClaimRecord{
+			{RedPacketID: 5, UserID: 2, Amount: 1},
+			{RedPacketID: 5, UserID: 4, Amount: 2},
+		},
+	}
+	svc := NewBalanceTransferService(&transferSafetyRepo{}, redRepo, &transferSafetyUserRepo{}, newTransferSafetySettings(map[string]string{
+		SettingKeyRedPacketEnabled: "true",
+	}), nil)
+
+	_, _, err := svc.GetRedPacketDetailForUser(context.Background(), 3, 5)
+	require.ErrorIs(t, err, ErrRedPacketDetailForbidden)
+	_, claims, err := svc.GetRedPacketDetailForUser(context.Background(), 2, 5)
+	require.NoError(t, err)
+	require.Len(t, claims, 1)
+	require.Equal(t, int64(2), claims[0].UserID)
+	_, claims, err = svc.GetRedPacketDetailForUser(context.Background(), 1, 5)
+	require.NoError(t, err)
+	require.Len(t, claims, 2)
+}
+
+func TestGenerateRedPacketCodeUsesConfiguredDefaultShape(t *testing.T) {
+	code, err := generateRedPacketCode()
+	require.NoError(t, err)
+	settings := DefaultCodeFormatSettings().RedPacket
+	require.True(t, len(code) >= len(settings.Prefix))
+	require.Equal(t, settings.Prefix, code[:len(settings.Prefix)])
+}
+
+func TestValidateTransferReturnsReceiverAndDailyPreview(t *testing.T) {
+	repo := &transferSafetyRepo{dailyTotal: 25, dailyCount: 2}
+	users := &transferSafetyUserRepo{userByID: map[int64]*User{
+		2: {ID: 2, Username: "alice", Email: "alice@example.com"},
+	}}
+	svc := NewBalanceTransferService(repo, &redPacketSafetyRepo{}, users, newTransferSafetySettings(map[string]string{
+		SettingKeyTransferEnabled:         "true",
+		SettingKeyTransferMinAmount:       "0.01",
+		SettingKeyTransferFeeRate:         "0.1",
+		SettingKeyTransferDailyLimit:      "100",
+		SettingKeyTransferDailyCountLimit: "5",
+	}), nil)
+
+	preview, err := svc.ValidateTransfer(context.Background(), 1, 2, 10)
+	require.NoError(t, err)
+	require.InDelta(t, 1, preview.Fee, 1e-8)
+	require.InDelta(t, 11, preview.GrossAmount, 1e-8)
+	require.Equal(t, "a***e", preview.ReceiverDisplay)
+	require.InDelta(t, 75, preview.DailyRemainingAmount, 1e-8)
+	require.Equal(t, 3, preview.DailyRemainingCount)
+}
+
+func TestConditionalInternalDebitRejectsNegativeResult(t *testing.T) {
+	users := &transferSafetyUserRepo{conditionalBalanceOK: false}
+	updated, err := updateBalanceWithoutRechargeIfNonnegative(context.Background(), users, 1, -10)
+	require.NoError(t, err)
+	require.False(t, updated)
+	require.Equal(t, 1, users.conditionalBalanceCalls)
+	require.Zero(t, users.nonRechargeCreditCalls)
+	require.Zero(t, users.creditCalls)
+}
+
+func TestLuckCheckinSettingIsIndependentFromNormalCheckin(t *testing.T) {
+	settings := newTransferSafetySettings(map[string]string{
+		SettingKeyCheckinEnabled:     "false",
+		SettingKeyCheckinLuckEnabled: "true",
+	})
+	require.False(t, settings.IsCheckinEnabled(context.Background()))
+	require.True(t, settings.IsCheckinLuckEnabled(context.Background()))
 }

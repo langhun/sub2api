@@ -114,12 +114,14 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Risk Control',
   }),
-  affiliate: defineFlag({
+	affiliate: defineFlag({
     key: 'affiliate_enabled',
     mode: 'opt-in',
     label: 'Affiliate',
-  }),
+	}),
+	gameHall: defineFlag({ key: 'game_hall_enabled', mode: 'opt-in', label: 'Game Hall' }),
 	checkin: defineFlag({ key: 'checkin_enabled', mode: 'opt-in', label: 'Check-in' }),
+	checkinLuck: defineFlag({ key: 'checkin_luck_enabled', mode: 'opt-in', label: 'Lucky Check-in' }),
 	transfer: defineFlag({ key: 'transfer_enabled', mode: 'opt-in', label: 'Balance Transfer' }),
 	redpacket: defineFlag({ key: 'redpacket_enabled', mode: 'opt-in', label: 'Red Packet' }),
 	usageQuery: defineFlag({ key: 'usage_query_enabled', mode: 'opt-out', label: 'Usage Query' }),
