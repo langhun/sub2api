@@ -3,10 +3,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }))
 vi.mock('@/api/client', () => ({ apiClient: { post, get } }))
 
-import { claimRedPacket, createRedPacket, resolveTransferReceiver, transferBalance, validateTransfer } from '@/api/transfer'
+import {
+  claimRedPacket,
+  createRedPacket,
+  getMyRedPackets,
+  getRedPacketDetail,
+  getTransferHistory,
+  getTransferLeaderboard,
+  getTransferStats,
+  resolveTransferReceiver,
+  transferBalance,
+  validateTransfer,
+} from '@/api/transfer'
 
 describe('activity write API idempotency', () => {
-  beforeEach(() => post.mockReset().mockResolvedValue({ data: {} }))
+  beforeEach(() => {
+    get.mockReset().mockResolvedValue({ data: {} })
+    post.mockReset().mockResolvedValue({ data: {} })
+  })
 
   it.each([
     ['transfer', () => transferBalance(2, 10)],
@@ -36,8 +50,26 @@ describe('activity write API idempotency', () => {
 
     await resolveTransferReceiver('alice@example.com')
 
-    expect(get).toHaveBeenCalledWith('/user/transfer/receiver', {
+    expect(get).toHaveBeenCalledWith('/transfer/receiver', {
       params: { query: 'alice@example.com' },
     })
+  })
+
+  it('matches the backend transfer and red packet route groups', async () => {
+    get.mockResolvedValue({ data: {} })
+
+    await getTransferHistory({ page: 1 })
+    await getTransferStats()
+    await getTransferLeaderboard({ limit: 10 })
+    await getMyRedPackets({ role: 'sent' })
+    await getRedPacketDetail(7)
+
+    expect(get.mock.calls.map((call) => call[0])).toEqual([
+      '/transfer/history',
+      '/transfer/stats',
+      '/transfer/leaderboard',
+      '/redpacket/my',
+      '/redpacket/7',
+    ])
   })
 })
