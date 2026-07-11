@@ -19,6 +19,8 @@ export default {
   leaderboard: {
     title: 'Leaderboard', subtitle: 'Explore site activity using consistent ranking rules', empty: 'No ranking data', streakDays: '{days} days', rank: 'Rank {rank}', daysValue: '{value} days', loadFailed: 'Could not load the leaderboard. Try again.', privacyNotice: 'Display names follow the site privacy policy. Rankings are for on-site activity only.',
     balanceSubtitle: '{count} total check-ins', consumptionSubtitle: '{count} requests', checkinSubtitle: '{total} check-ins · Latest {date} · Earned ${reward}', transferSubtitle: '{count} successful transfers',
+    filterLabel: 'Leaderboard filters', periodFilterLabel: 'Ranking period', distributionTitle: '{board} distribution', distributionHint: 'Values and shares are calculated from the current page', pageTotal: 'Page total', listedUsers: 'Ranked users', currentPageUsers: '{count} on this page', chartHint: 'The chart shows leading users on this page and groups the remainder', rankingTitle: 'Ranking details', currentPage: 'Page {page}', others: 'Other users', noBoards: 'No leaderboards available', noBoardsHint: 'No leaderboard has been enabled yet. Please check again later.',
+    columns: { user: 'User', share: 'Share' }, activityHeaders: { balance: 'Check-ins', consumption: 'Requests', checkin: 'Total check-ins', transfer: 'Transfers' }, valueHeaders: { balance: 'Balance', consumption: 'Spend', checkin: 'Streak', transfer: 'Amount sent' },
     tabs: { balance: 'Balance', consumption: 'Consumption', checkin: 'Check-in', transfer: 'Transfers' }, periods: { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' }
   },
   transfer: {
