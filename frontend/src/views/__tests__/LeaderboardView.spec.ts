@@ -115,15 +115,16 @@ describe('LeaderboardView', () => {
     expect(wrapper.text()).toContain('$58.77T（58.77万亿）')
   })
 
-  it('uses the page surface instead of gray nested summary cards', async () => {
+  it('uses subtle borderless summary surfaces', async () => {
     const wrapper = mountView()
     await flushPromises()
 
     for (const testId of ['leaderboard-summary-value', 'leaderboard-summary-users']) {
       const summary = wrapper.get(`[data-testid="${testId}"]`)
-      expect(summary.classes()).toContain('bg-white')
-      expect(summary.classes()).toContain('border-gray-200/80')
+      expect(summary.classes()).toContain('bg-white/80')
+      expect(summary.classes()).toContain('shadow-[0_6px_18px_rgba(15,23,42,0.035)]')
       expect(summary.classes()).not.toContain('bg-gray-50')
+      expect(summary.classes().some(className => className.startsWith('border'))).toBe(false)
     }
   })
 
