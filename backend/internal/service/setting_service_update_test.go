@@ -165,6 +165,25 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_ValidGroup(t *testin
 	}, got)
 }
 
+func TestSettingServiceUpdateSettingsPersistsCodeFormats(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+	formats := DefaultCodeFormatSettings()
+	formats.Balance = CodeFormatConfig{
+		Prefix: "BAL", CharacterSet: CodeCharacterSetNumeric,
+		Separator: "-", GroupLength: 4, GroupCount: 2,
+	}
+
+	require.NoError(t, svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings: validBalanceFeatureSettings(),
+		CodeFormatSettings:     formats,
+	}))
+	require.Contains(t, repo.updates[SettingKeyCodeFormatBalance], `"character_set":"numeric"`)
+	for _, key := range codeFormatSettingKeys {
+		require.NotEmpty(t, repo.updates[key], key)
+	}
+}
+
 func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNonSubscriptionGroup(t *testing.T) {
 	repo := &settingUpdateRepoStub{}
 	groupReader := &defaultSubGroupReaderStub{

@@ -26,6 +26,15 @@ func TestParseCodeFormatSettingsFallsBackForInvalidValues(t *testing.T) {
 	require.Equal(t, DefaultCompactRedeemCodeFormat(), settings.Invitation)
 }
 
+func TestParseCodeFormatSettingsMigratesLegacyHex(t *testing.T) {
+	settings := parseCodeFormatSettings(map[string]string{
+		SettingKeyCodeFormatBalance: `{"prefix":"BAL","character_set":"hex","separator":"","group_length":32,"group_count":1}`,
+	})
+
+	require.Equal(t, CodeCharacterSetAlphanumeric, settings.Balance.CharacterSet)
+	require.Equal(t, "BAL", settings.Balance.Prefix)
+}
+
 func TestAppendCodeFormatUpdatesRoundTrips(t *testing.T) {
 	want := DefaultCodeFormatSettings()
 	want.RedPacket.Prefix = "RP"

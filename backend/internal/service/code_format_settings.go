@@ -111,6 +111,9 @@ func decodeCodeFormat(raw string, target *CodeFormatConfig) {
 	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
 		return
 	}
+	if parsed.CharacterSet == codeCharacterSetLegacyHex {
+		parsed.CharacterSet = CodeCharacterSetAlphanumeric
+	}
 	if err := parsed.Validate(); err != nil {
 		return
 	}
