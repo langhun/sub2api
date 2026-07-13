@@ -24,17 +24,15 @@
             <Icon name="search" size="sm" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               v-model.trim="receiverQuery"
-              class="input pl-11 pr-24"
+              data-testid="receiver-search-input"
+              class="input pl-11 pr-4"
               type="text"
               autocomplete="off"
               :placeholder="t('transfer.receiverPlaceholder')"
               required
-              @input="resetReceiver"
-              @blur="resolveReceiver"
+              @input="handleReceiverInput"
             />
-            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20" :disabled="receiverLoading || !receiverQuery" @mousedown.prevent @click="resolveReceiver">
-              {{ receiverLoading ? t('common.loading') : t('common.search') }}
-            </button>
+            <Icon v-if="receiverLoading" name="refresh" size="sm" class="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-primary-500" />
           </span>
           <span v-if="receiver" data-testid="resolved-receiver" class="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400"><Icon name="checkCircle" size="xs" />{{ t('transfer.receiverResolved', { recipient: receiver.receiver_display }) }}</span>
         </label>
@@ -105,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -149,6 +147,7 @@ const historyTotal = ref(0)
 const page = ref(1)
 const pageSize = 10
 let receiverRequestToken = 0
+let receiverSearchTimer: ReturnType<typeof setTimeout> | null = null
 const transferAttempt = ref<{ signature: string; key: string } | null>(null)
 
 const currentBalance = computed(() => Number(authStore.user?.balance || 0))
@@ -190,6 +189,19 @@ function resetReceiver() {
   receiver.value = null
   receiverResolvedQuery.value = ''
   resetPreview()
+}
+
+function handleReceiverInput() {
+  if (receiverSearchTimer) {
+    clearTimeout(receiverSearchTimer)
+    receiverSearchTimer = null
+  }
+  resetReceiver()
+  if (!receiverQuery.value.trim()) return
+  receiverSearchTimer = setTimeout(() => {
+    receiverSearchTimer = null
+    void resolveReceiver()
+  }, 250)
 }
 
 async function resolveReceiver() {
@@ -304,5 +316,10 @@ onMounted(() => {
   void loadStats()
   void loadHistory()
   void authStore.refreshUser().catch(() => undefined)
+})
+
+onBeforeUnmount(() => {
+  if (receiverSearchTimer) clearTimeout(receiverSearchTimer)
+  receiverRequestToken += 1
 })
 </script>

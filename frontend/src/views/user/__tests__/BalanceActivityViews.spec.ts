@@ -47,6 +47,7 @@ function mountView(component: typeof TransferView | typeof RedPacketView) {
 
 describe('TransferView', () => {
   beforeEach(() => {
+    vi.useRealTimers()
     vi.clearAllMocks()
     authStore.user = { id: 1, balance: 125.5 }
     api.getTransferStats.mockResolvedValue({ total_sent: 50, total_received: 12, total_fee_paid: 1.5 })
@@ -77,13 +78,13 @@ describe('TransferView', () => {
     expect(wrapper.text()).not.toContain('#10')
   })
 
-  it('resolves a receiver and validates the fee preview', async () => {
+  it('resolves a receiver in real time and validates the fee preview', async () => {
+    vi.useFakeTimers()
     const wrapper = mountView(TransferView)
     await flushPromises()
-    await wrapper.find('input[type="text"]').setValue('alice@example.com')
-    const searchButton = wrapper.findAll('button').find((button) => button.text().includes('common.search'))
-    expect(searchButton).toBeDefined()
-    await searchButton!.trigger('click')
+    await wrapper.get('[data-testid="receiver-search-input"]').setValue('alice@example.com')
+    expect(api.resolveTransferReceiver).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(250)
     await flushPromises()
     await wrapper.find('input[type="number"]').setValue('10')
     const feeButton = wrapper.findAll('button').find((button) => button.text().includes('transfer.calculateFee'))
@@ -107,6 +108,7 @@ describe('TransferView', () => {
   })
 
   it('discards a stale receiver response after the query changes', async () => {
+    vi.useFakeTimers()
     let resolveAlice!: (value: { receiver_id: number; receiver_display: string }) => void
     let resolveBob!: (value: { receiver_id: number; receiver_display: string }) => void
     api.resolveTransferReceiver.mockImplementation((query: string) => new Promise((resolve) => {
@@ -115,13 +117,12 @@ describe('TransferView', () => {
     }))
     const wrapper = mountView(TransferView)
     await flushPromises()
-    const input = wrapper.find('input[type="text"]')
-    const searchButton = () => wrapper.findAll('button').find((button) => button.text().includes('common.search'))!
+    const input = wrapper.get('[data-testid="receiver-search-input"]')
 
     await input.setValue('alice')
-    await searchButton().trigger('click')
+    await vi.advanceTimersByTimeAsync(250)
     await input.setValue('bob')
-    await searchButton().trigger('click')
+    await vi.advanceTimersByTimeAsync(250)
     resolveAlice({ receiver_id: 7, receiver_display: 'a***e' })
     await flushPromises()
     expect(wrapper.find('[data-testid="resolved-receiver"]').exists()).toBe(false)
@@ -132,11 +133,12 @@ describe('TransferView', () => {
   })
 
   it('reuses the same transfer operation key after a failed response', async () => {
+    vi.useFakeTimers()
     api.transferBalance.mockRejectedValue(new Error('timeout'))
     const wrapper = mountView(TransferView)
     await flushPromises()
-    await wrapper.find('input[type="text"]').setValue('alice')
-    await wrapper.findAll('button').find((button) => button.text().includes('common.search'))!.trigger('click')
+    await wrapper.get('[data-testid="receiver-search-input"]').setValue('alice')
+    await vi.advanceTimersByTimeAsync(250)
     await flushPromises()
     await wrapper.find('input[type="number"]').setValue('10')
 
