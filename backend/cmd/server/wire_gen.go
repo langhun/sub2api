@@ -46,6 +46,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	}
 	userRepository := repository.NewUserRepository(client, db)
 	redeemCodeRepository := repository.NewRedeemCodeRepository(client)
+	rewardDeliveryStore := repository.NewRewardDeliveryRepository(client, db)
 	redisClient := repository.ProvideRedis(configConfig)
 	refreshTokenCache := repository.NewRefreshTokenCache(redisClient)
 	settingRepository := repository.NewSettingRepository(client)
@@ -248,7 +249,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	paymentHandler := admin.NewPaymentHandler(paymentService, paymentConfigService)
 	affiliateHandler := admin.NewAffiliateHandler(affiliateService, adminService)
 	complianceHandler := admin.NewComplianceHandler(settingService)
-	blindBoxService := service.NewBlindBoxService(client, db, settingService, userRepository, billingCacheService, subscriptionService, redeemCodeRepository)
+	blindBoxService := service.NewBlindBoxService(client, db, settingService, userRepository, billingCacheService, subscriptionService, redeemCodeRepository, rewardDeliveryStore)
 	blindboxHandler := admin.NewBlindboxHandler(blindBoxService)
 	balanceTransferRepository := repository.NewBalanceTransferRepository(client, db)
 	balanceRedPacketRepository := repository.NewBalanceRedPacketRepository(client, db)
