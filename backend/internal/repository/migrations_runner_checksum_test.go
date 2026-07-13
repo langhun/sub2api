@@ -7,6 +7,15 @@ import (
 )
 
 func TestIsMigrationChecksumCompatible(t *testing.T) {
+	t.Run("181历史checksum可兼容", func(t *testing.T) {
+		ok := isMigrationChecksumCompatible(
+			"181_create_reward_deliveries.sql",
+			"1dab0fb2a621919f9b67538f3decb43e89a510801bf01978e0e436051eddaef8",
+			"035e5bcc6e27dbb238368f8378791caa2472429fa3938e12e0287aa47298bcb7",
+		)
+		require.True(t, ok)
+	})
+
 	t.Run("054历史checksum可兼容", func(t *testing.T) {
 		ok := isMigrationChecksumCompatible(
 			"054_drop_legacy_cache_columns.sql",
