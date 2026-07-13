@@ -168,6 +168,22 @@ func TestRewardDeliveryRepositoryMarkFailedSchedulesRetryOrTerminalFailure(t *te
 	})
 }
 
+func TestRewardDeliveryRepositoryRetryAndCompensateFailedDelivery(t *testing.T) {
+	client, db, mock := newRewardDeliverySQLMock(t)
+	repo := NewRewardDeliveryRepository(client, db).(service.RewardDeliveryAdminStore)
+
+	mock.ExpectExec("(?s)UPDATE reward_deliveries.*last_error = NULL.*WHERE id = \\$2 AND status = \\$3").
+		WithArgs(service.RewardDeliveryStatusPending, int64(11), service.RewardDeliveryStatusFailed).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	require.NoError(t, repo.Retry(context.Background(), 11))
+
+	mock.ExpectExec("(?s)UPDATE reward_deliveries.*compensated_at = NOW\\(\\).*WHERE id = \\$3 AND status = \\$4").
+		WithArgs(service.RewardDeliveryStatusCompensated, "manual credit", int64(12), service.RewardDeliveryStatusFailed).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	require.NoError(t, repo.Compensate(context.Background(), 12, " manual credit "))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestRewardDeliveryRepositoryProcessClaimedIsAtomic(t *testing.T) {
 	client, db, mock := newRewardDeliverySQLMock(t)
 	repo := NewRewardDeliveryRepository(client, db)

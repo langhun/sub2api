@@ -141,6 +141,31 @@ RETURNING ` + prefixedRewardDeliveryColumns("delivery")
 	return scanRewardDeliveries(rows, "claim due reward deliveries")
 }
 
+func (r *rewardDeliveryRepository) ClaimByID(ctx context.Context, id int64, now time.Time) (*service.RewardDelivery, error) {
+	rows, err := r.db.QueryContext(ctx, `UPDATE reward_deliveries
+SET status = $1, attempts = attempts + 1, locked_at = $2,
+	last_error = NULL, updated_at = $2
+WHERE id = $3 AND status = $4
+	AND (next_retry_at IS NULL OR next_retry_at <= $2)
+RETURNING `+rewardDeliveryColumns,
+		service.RewardDeliveryStatusDelivering, now, id, service.RewardDeliveryStatusPending)
+	if err != nil {
+		return nil, fmt.Errorf("claim reward delivery by id: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("claim reward delivery by id: %w", err)
+		}
+		return nil, nil
+	}
+	delivery, err := scanRewardDelivery(rows)
+	if err != nil {
+		return nil, fmt.Errorf("claim reward delivery by id: %w", err)
+	}
+	return delivery, nil
+}
+
 func (r *rewardDeliveryRepository) ProcessClaimed(ctx context.Context, id int64, apply service.RewardDeliveryApply) error {
 	if r.client == nil {
 		return fmt.Errorf("process claimed reward delivery: ent client is not configured")
@@ -213,6 +238,27 @@ SET status = $1, last_error = $2, next_retry_at = $3, locked_at = NULL, updated_
 WHERE id = $4 AND status = $5`,
 		status, lastError, nextRetryAt, id, service.RewardDeliveryStatusDelivering)
 	return rewardDeliveryTransitionResult(result, err, "mark reward delivery failed")
+}
+
+func (r *rewardDeliveryRepository) Retry(ctx context.Context, id int64) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE reward_deliveries
+SET status = $1, last_error = NULL, next_retry_at = NOW(), locked_at = NULL, updated_at = NOW()
+WHERE id = $2 AND status = $3`,
+		service.RewardDeliveryStatusPending, id, service.RewardDeliveryStatusFailed)
+	return rewardDeliveryTransitionResult(result, err, "retry reward delivery")
+}
+
+func (r *rewardDeliveryRepository) Compensate(ctx context.Context, id int64, reason string) error {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return fmt.Errorf("compensation reason is required")
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE reward_deliveries
+SET status = $1, reward_detail = $2, next_retry_at = NULL, locked_at = NULL,
+	compensated_at = NOW(), updated_at = NOW()
+WHERE id = $3 AND status = $4`,
+		service.RewardDeliveryStatusCompensated, reason, id, service.RewardDeliveryStatusFailed)
+	return rewardDeliveryTransitionResult(result, err, "compensate reward delivery")
 }
 
 func (r *rewardDeliveryRepository) RecoverStale(ctx context.Context, staleBefore, nextRetryAt time.Time) (int, error) {
@@ -478,3 +524,4 @@ func roundRewardDeliveryAmount(value float64) float64 {
 }
 
 var _ service.RewardDeliveryStore = (*rewardDeliveryRepository)(nil)
+var _ service.RewardDeliveryAdminStore = (*rewardDeliveryRepository)(nil)

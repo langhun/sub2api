@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"time"
 
@@ -147,7 +148,7 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 		return checkinResultFromRecord(existing, todayDate), nil
 	}
 
-	_, err = tx.Client().Checkin.
+	checkinRecord, err := tx.Client().Checkin.
 		Create().
 		SetUserID(userID).
 		SetCheckinDate(today).
@@ -168,10 +169,11 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 	}
 
 	var blindboxResult *BlindboxResult
+	var rewardDelivery *RewardDelivery
 	if s.blindboxService != nil && s.blindboxService.ShouldTriggerBlindbox(txCtx, userID, streakDays) {
-		blindboxResult, err = s.blindboxService.Draw(txCtx, userID, streakDays)
+		blindboxResult, rewardDelivery, err = s.blindboxService.PrepareDelivery(txCtx, userID, checkinRecord.ID, streakDays)
 		if err != nil {
-			return nil, fmt.Errorf("draw checkin blindbox: %w", err)
+			return nil, fmt.Errorf("prepare checkin blindbox: %w", err)
 		}
 	}
 
@@ -180,6 +182,14 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 	}
 
 	s.invalidateCaches(ctx, userID)
+	if rewardDelivery != nil {
+		delivered, deliveryErr := s.blindboxService.DeliverNow(ctx, rewardDelivery.ID)
+		if deliveryErr != nil {
+			slog.Warn("immediate check-in blindbox delivery failed", "delivery_id", rewardDelivery.ID, "error", deliveryErr)
+		} else if delivered != nil && blindboxResult != nil {
+			blindboxResult.RewardDetail = delivered.RewardDetail
+		}
+	}
 
 	result := &CheckinResult{
 		RewardAmount: rewardAmount,
@@ -266,7 +276,7 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 		return checkinResultFromRecord(existing, todayDate), nil
 	}
 
-	_, err = tx.Client().Checkin.
+	checkinRecord, err := tx.Client().Checkin.
 		Create().
 		SetUserID(userID).
 		SetCheckinDate(today).
@@ -299,10 +309,11 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	}
 
 	var blindboxResult *BlindboxResult
+	var rewardDelivery *RewardDelivery
 	if s.blindboxService != nil && s.blindboxService.ShouldTriggerBlindbox(txCtx, userID, streakDays) {
-		blindboxResult, err = s.blindboxService.Draw(txCtx, userID, streakDays)
+		blindboxResult, rewardDelivery, err = s.blindboxService.PrepareDelivery(txCtx, userID, checkinRecord.ID, streakDays)
 		if err != nil {
-			return nil, fmt.Errorf("draw luck checkin blindbox: %w", err)
+			return nil, fmt.Errorf("prepare luck checkin blindbox: %w", err)
 		}
 	}
 
@@ -311,6 +322,14 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	}
 
 	s.invalidateCaches(ctx, userID)
+	if rewardDelivery != nil {
+		delivered, deliveryErr := s.blindboxService.DeliverNow(ctx, rewardDelivery.ID)
+		if deliveryErr != nil {
+			slog.Warn("immediate luck check-in blindbox delivery failed", "delivery_id", rewardDelivery.ID, "error", deliveryErr)
+		} else if delivered != nil && blindboxResult != nil {
+			blindboxResult.RewardDetail = delivered.RewardDetail
+		}
+	}
 
 	result := &CheckinResult{
 		RewardAmount: rewardAmount,

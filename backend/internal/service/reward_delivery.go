@@ -78,10 +78,17 @@ type RewardDeliveryApply func(ctx context.Context, delivery RewardDelivery) (det
 
 type RewardDeliveryStore interface {
 	CreatePending(ctx context.Context, input CreateRewardDelivery) (*RewardDelivery, error)
+	ClaimByID(ctx context.Context, id int64, now time.Time) (*RewardDelivery, error)
 	ClaimDue(ctx context.Context, now time.Time, limit int) ([]RewardDelivery, error)
 	ProcessClaimed(ctx context.Context, id int64, apply RewardDeliveryApply) error
 	MarkFailed(ctx context.Context, id int64, lastError string, nextRetryAt *time.Time) error
 	RecoverStale(ctx context.Context, staleBefore, nextRetryAt time.Time) (int, error)
 	GetByID(ctx context.Context, id int64) (*RewardDelivery, error)
 	List(ctx context.Context, filter RewardDeliveryFilter) ([]RewardDelivery, int64, error)
+}
+
+type RewardDeliveryAdminStore interface {
+	RewardDeliveryStore
+	Retry(ctx context.Context, id int64) error
+	Compensate(ctx context.Context, id int64, reason string) error
 }

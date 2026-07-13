@@ -82,3 +82,69 @@ func (h *BlindboxHandler) GetStats(c *gin.Context) {
 	}
 	response.Success(c, stats)
 }
+
+func (h *BlindboxHandler) ListRewardDeliveries(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	filter := service.RewardDeliveryFilter{
+		Status:     c.Query("status"),
+		SourceType: c.Query("source_type"),
+		Page:       page,
+		PageSize:   pageSize,
+	}
+	if rawUserID := c.Query("user_id"); rawUserID != "" {
+		userID, err := strconv.ParseInt(rawUserID, 10, 64)
+		if err != nil || userID <= 0 {
+			response.BadRequest(c, "invalid user_id")
+			return
+		}
+		filter.UserID = &userID
+	}
+	items, total, err := h.blindboxService.ListRewardDeliveries(c.Request.Context(), filter)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, items, total, page, pageSize)
+}
+
+func (h *BlindboxHandler) RetryRewardDelivery(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid id")
+		return
+	}
+	delivery, err := h.blindboxService.RetryRewardDelivery(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, delivery)
+}
+
+func (h *BlindboxHandler) CompensateRewardDelivery(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid id")
+		return
+	}
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.Reason) > 500 {
+		response.BadRequest(c, "invalid compensation reason")
+		return
+	}
+	delivery, err := h.blindboxService.CompensateRewardDelivery(c.Request.Context(), id, req.Reason)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, delivery)
+}

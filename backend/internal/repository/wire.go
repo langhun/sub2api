@@ -99,6 +99,7 @@ var ProviderSet = wire.NewSet(
 	NewBalanceTransferRepository,
 	NewBalanceRedPacketRepository,
 	NewGameHallRepository,
+	NewRewardDeliveryRepository,
 
 	// Cache implementations
 	NewGatewayCache,

@@ -90,24 +90,55 @@ func (w *RewardDeliveryWorker) RunOnce(ctx context.Context) error {
 	}
 	var deliveryErrors []error
 	for i := range deliveries {
-		delivery := deliveries[i]
-		processErr := w.store.ProcessClaimed(ctx, delivery.ID, func(txCtx context.Context, claimed RewardDelivery) (string, error) {
-			return w.processor.ProcessRewardDelivery(txCtx, claimed)
-		})
-		if processErr == nil {
-			continue
-		}
-
-		var nextRetryAt *time.Time
-		if delivery.Attempts < w.opts.MaxAttempts {
-			next := w.now().Add(w.retryDelay(delivery.Attempts))
-			nextRetryAt = &next
-		}
-		if err := w.store.MarkFailed(ctx, delivery.ID, processErr.Error(), nextRetryAt); err != nil {
-			deliveryErrors = append(deliveryErrors, fmt.Errorf("mark reward delivery %d failed: %w", delivery.ID, err))
+		if err := w.processClaimed(ctx, deliveries[i]); err != nil && isRewardDeliveryPersistenceError(err) {
+			deliveryErrors = append(deliveryErrors, err)
 		}
 	}
 	return errors.Join(deliveryErrors...)
+}
+
+// RunByID attempts an immediate delivery after the eligibility transaction commits.
+// A failed attempt is returned to pending with the same retry policy as the worker.
+func (w *RewardDeliveryWorker) RunByID(ctx context.Context, id int64) error {
+	if w == nil || w.store == nil || w.processor == nil {
+		return nil
+	}
+	delivery, err := w.store.ClaimByID(ctx, id, w.now())
+	if err != nil || delivery == nil {
+		return err
+	}
+	return w.processClaimed(ctx, *delivery)
+}
+
+func (w *RewardDeliveryWorker) processClaimed(ctx context.Context, delivery RewardDelivery) error {
+	processErr := w.store.ProcessClaimed(ctx, delivery.ID, func(txCtx context.Context, claimed RewardDelivery) (string, error) {
+		return w.processor.ProcessRewardDelivery(txCtx, claimed)
+	})
+	if processErr == nil {
+		return nil
+	}
+
+	var nextRetryAt *time.Time
+	if delivery.Attempts < w.opts.MaxAttempts {
+		next := w.now().Add(w.retryDelay(delivery.Attempts))
+		nextRetryAt = &next
+	}
+	if err := w.store.MarkFailed(ctx, delivery.ID, processErr.Error(), nextRetryAt); err != nil {
+		return errors.Join(processErr, rewardDeliveryPersistenceError{err: fmt.Errorf("mark reward delivery %d failed: %w", delivery.ID, err)})
+	}
+	return processErr
+}
+
+type rewardDeliveryPersistenceError struct {
+	err error
+}
+
+func (e rewardDeliveryPersistenceError) Error() string { return e.err.Error() }
+func (e rewardDeliveryPersistenceError) Unwrap() error { return e.err }
+
+func isRewardDeliveryPersistenceError(err error) bool {
+	var target rewardDeliveryPersistenceError
+	return errors.As(err, &target)
 }
 
 func (w *RewardDeliveryWorker) recoverStale(ctx context.Context) {
