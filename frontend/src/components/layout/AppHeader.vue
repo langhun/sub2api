@@ -116,9 +116,17 @@
               {{ t('checkin.luckCheckin') }}
             </button>
           </template>
+          <div
+            v-else-if="headerCheckinTip"
+            data-testid="header-checkin-tip"
+            class="flex items-center gap-1.5 rounded-xl bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700 dark:bg-green-900/20 dark:text-green-300"
+          >
+            <Icon name="checkCircle" size="sm" />
+            <span>{{ headerCheckinTip }}</span>
+          </div>
         </div>
 
-        <LuckyCheckinDialog :show="showHeaderLuckDialog" @close="showHeaderLuckDialog = false" @success="showHeaderLuckDialog = false" />
+        <LuckyCheckinDialog :show="showHeaderLuckDialog" @close="showHeaderLuckDialog = false" @success="handleHeaderCheckinSuccess" />
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
@@ -281,6 +289,7 @@ import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMi
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
+import type { CheckinResult } from '@/api/checkin'
 
 const router = useRouter()
 const route = useRoute()
@@ -305,6 +314,8 @@ const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.f
 const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
 const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHeaderMoney(frozenBalance.value)}`)
 const showHeaderLuckDialog = ref(false)
+const headerCheckinTip = ref('')
+let headerCheckinTipTimer: ReturnType<typeof setTimeout> | null = null
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
@@ -388,11 +399,23 @@ function formatHeaderMoney(value: number) {
 }
 
 async function submitHeaderNormalCheckin() {
-  await checkinStore.doCheckin()
+  const result = await checkinStore.doCheckin()
+  if (result) handleHeaderCheckinSuccess(result)
 }
 
 function openHeaderLuckDialog() {
   showHeaderLuckDialog.value = true
+}
+
+function handleHeaderCheckinSuccess(result: CheckinResult) {
+  showHeaderLuckDialog.value = false
+  const reward = Number(result.reward_amount || 0)
+  headerCheckinTip.value = `${reward >= 0 ? '+' : '-'}$${Math.abs(reward).toFixed(2)}`
+  if (headerCheckinTipTimer) clearTimeout(headerCheckinTipTimer)
+  headerCheckinTipTimer = setTimeout(() => {
+    headerCheckinTip.value = ''
+    headerCheckinTipTimer = null
+  }, 5000)
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -410,6 +433,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (headerCheckinTipTimer) clearTimeout(headerCheckinTipTimer)
 })
 </script>
 

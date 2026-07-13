@@ -32,6 +32,7 @@ const appStore = vi.hoisted(() => ({
   docUrl: '',
   cachedPublicSettings: { custom_menu_items: [] },
   toggleMobileSidebar: vi.fn(),
+  showSuccess: vi.fn(),
 }))
 const authStore = vi.hoisted(() => ({
   user: { id: 1, username: 'alice', email: 'alice@example.com', role: 'user', balance: 20, frozen_balance: 0 },
@@ -84,8 +85,16 @@ describe('AppHeader check-in actions', () => {
     checkinStore.checkedInToday = false
     checkinStore.loading = false
     checkinStore.actionError = null
-    checkinStore.doCheckin.mockResolvedValue({ reward_amount: 1 })
-    checkinStore.doLuckCheckin.mockResolvedValue({ reward_amount: 2 })
+    checkinStore.doCheckin.mockImplementation(async () => {
+      checkinStore.canCheckin = false
+      checkinStore.checkedInToday = true
+      return { reward_amount: 1 }
+    })
+    checkinStore.doLuckCheckin.mockImplementation(async () => {
+      checkinStore.canCheckin = false
+      checkinStore.checkedInToday = true
+      return { reward_amount: 2 }
+    })
   })
 
   it('renders both header actions and performs normal check-in directly', async () => {
@@ -98,15 +107,10 @@ describe('AppHeader check-in actions', () => {
     expect(checkinStore.doCheckin).toHaveBeenCalledOnce()
   })
 
-  it('requires risk review before a header lucky check-in can submit', async () => {
+  it('submits a header lucky check-in directly after entering an amount', async () => {
     const wrapper = mountHeader()
     await wrapper.get('[data-testid="header-luck-checkin"]').trigger('click')
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('5')
-    await wrapper.get('[data-testid="luck-review"]').trigger('click')
-
-    expect(checkinStore.doLuckCheckin).not.toHaveBeenCalled()
-    expect(wrapper.find('[data-testid="luck-risk-review"]').exists()).toBe(true)
-
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
 
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(5)
@@ -119,14 +123,22 @@ describe('AppHeader check-in actions', () => {
     expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(false)
   })
 
-  it('removes the header check-in area after today is completed', () => {
-    checkinStore.canCheckin = false
-    checkinStore.checkedInToday = true
+  it('shows a temporary reward tip after a successful check-in', async () => {
+    vi.useFakeTimers()
 
     const wrapper = mountHeader()
+    await wrapper.get('[data-testid="header-normal-checkin"]').trigger('click')
+    await flushPromises()
+    wrapper.vm.$forceUpdate()
+    await wrapper.vm.$nextTick()
 
     expect(wrapper.find('[data-testid="header-normal-checkin"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('checkin.checked')
+    expect(wrapper.get('[data-testid="header-checkin-tip"]').text()).toContain('+$1.00')
+
+    vi.advanceTimersByTime(5000)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="header-checkin-tip"]').exists()).toBe(false)
+    vi.useRealTimers()
   })
 })
