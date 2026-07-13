@@ -5,7 +5,6 @@ export default {
     luckSuccess: '{multiplier}x multiplier, earned ${amount}', luckLoss: '{multiplier}x multiplier, lost ${amount}', luckEven: '1.00x multiplier, no gain or loss',
     betAmount: 'Bet amount', betAmountPlaceholder: 'Enter an amount', multiplierRange: 'Multiplier range ${min}x - ${max}x',
     statusLoadFailed: 'Could not load check-in status', actionFailed: 'Check-in failed. Review the error and try again.',
-    luckReviewAction: 'Review risk', luckRiskTitle: 'Confirm the possible loss', luckRiskWarning: 'The result is random. This check-in may reduce your balance by up to {amount}.', luckOutcomeRange: 'Possible balance change',
     checkinType: 'Check-in type', normalCheckin: 'Normal check-in', luckCheckin: 'Lucky check-in',
     blindboxCommon: 'Common', blindboxRare: 'Rare', blindboxEpic: 'Epic', blindboxLegendary: 'Legendary',
     blindboxBalanceReward: 'Balance +${value}', blindboxConcurrencyReward: 'Concurrency +{value}', blindboxSubscriptionReward: '{days}-day subscription',

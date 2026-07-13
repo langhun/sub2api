@@ -2,7 +2,7 @@ export default {
   settings: {
     tabs: { balanceFeatures: '余额功能' },
     balanceFeatures: {
-      checkinTitle: '签到设置', checkinDescription: '配置普通签到和幸运签到奖励', normalCheckin: '启用普通签到', luckCheckin: '启用幸运签到',
+      checkinTitle: '签到设置', checkinDescription: '配置普通签到和运气签到奖励', normalCheckin: '启用普通签到', luckCheckin: '启用运气签到',
       minReward: '最小奖励', maxReward: '最大奖励', minMultiplier: '最小倍率', maxMultiplier: '最大倍率',
       transferTitle: '转账与红包', transferDescription: '配置用户余额流转限制与红包规则', transferEnabled: '启用余额转账', feeRate: '手续费率',
       minAmount: '单笔最小金额', maxAmount: '单笔最大金额', dailyLimit: '每日金额上限', dailyCount: '每日次数上限', vipExempt: 'VIP 免手续费',

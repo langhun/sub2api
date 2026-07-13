@@ -1,19 +1,18 @@
 export default {
   checkin: {
     title: '每日签到', checked: '今日已签到', todayReward: '今日获得 ${amount}', streakDays: '连续 {days} 天',
-    rangeHint: '奖励范围 ${min} - ${max}', luckTitle: '幸运签到', luckButton: '确认幸运签到',
+    rangeHint: '奖励范围 ${min} - ${max}', luckTitle: '运气签到', luckButton: '运气签到',
     luckSuccess: '倍率 ${multiplier}x，获得 ${amount}', luckLoss: '倍率 ${multiplier}x，失去 ${amount}', luckEven: '倍率 1.00x，不赚不赔',
     betAmount: '下注金额', betAmountPlaceholder: '输入下注金额', multiplierRange: '倍率范围 ${min}x - ${max}x',
     statusLoadFailed: '签到状态加载失败', actionFailed: '签到失败，请检查错误后重试',
-    luckReviewAction: '核对风险', luckRiskTitle: '确认可能亏损', luckRiskWarning: '结果随机，本次签到最多可能减少余额 {amount}。', luckOutcomeRange: '余额可能变化',
-    checkinType: '签到类型', normalCheckin: '普通签到', luckCheckin: '幸运签到',
+    checkinType: '签到类型', normalCheckin: '普通签到', luckCheckin: '运气签到',
     blindboxCommon: '普通', blindboxRare: '稀有', blindboxEpic: '史诗', blindboxLegendary: '传说',
     blindboxBalanceReward: '余额 +${value}', blindboxConcurrencyReward: '并发 +{value}', blindboxSubscriptionReward: '{days} 天订阅体验',
     blindboxInvitationReward: '邀请码 x1', blindboxInviteCode: '您的邀请码', blindboxHistory: '盲盒奖品', blindboxHistoryDesc: '签到盲盒获得的历史奖品', blindboxDays: '天',
     page: {
       description: '每日签到奖励、盲盒奖品和账户概览', balance: '余额', streak: '连续签到', days: '天', concurrency: '并发', blindboxCount: '盲盒',
       noBlindbox: '还没有盲盒奖品，坚持签到吧', todayResult: '今日签到', todayReward: '奖励', todayMultiplier: '倍率', todayBlindbox: '盲盒',
-      todayNormal: '普通签到', todayLuck: '幸运签到', todayNoResult: '今日尚未签到', rarityBreakdown: '稀有度分布', blindboxInfo: '盲盒规则',
+      todayNormal: '普通签到', todayLuck: '运气签到', todayNoResult: '今日尚未签到', rarityBreakdown: '稀有度分布', blindboxInfo: '盲盒规则',
       triggerType: '触发方式', triggerTotal: '累计签到', triggerStreak: '连续签到', triggerInterval: '触发间隔',
       blindboxNextIn: '距离下次盲盒还需 {days} 天', blindboxNextCycle: '每 {interval} 天连续签到触发一次盲盒', calendarTitle: '签到日历'
     }
