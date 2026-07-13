@@ -23,17 +23,43 @@ func (receiverHandlerSettingRepo) GetAll(context.Context) (map[string]string, er
 
 type receiverHandlerUserRepo struct {
 	service.UserRepository
-	user *service.User
+	user       *service.User
+	candidates []*service.User
 }
 
 func (r *receiverHandlerUserRepo) ResolveActiveTransferReceiver(context.Context, string, *int64) (*service.User, error) {
 	return r.user, nil
 }
 
-func newReceiverHandler(user *service.User) *BalanceTransferHandler {
+func (r *receiverHandlerUserRepo) SearchActiveTransferReceivers(context.Context, string, int64, int) ([]*service.User, error) {
+	return r.candidates, nil
+}
+
+func newReceiverHandler(user *service.User, candidates ...*service.User) *BalanceTransferHandler {
 	settings := service.NewSettingService(receiverHandlerSettingRepo{}, &config.Config{})
-	transfer := service.NewBalanceTransferService(nil, nil, &receiverHandlerUserRepo{user: user}, settings, nil)
+	transfer := service.NewBalanceTransferService(nil, nil, &receiverHandlerUserRepo{user: user, candidates: candidates}, settings, nil)
 	return NewBalanceTransferHandler(transfer)
+}
+
+func TestBalanceTransferHandlerSearchReceivers(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := newReceiverHandler(nil, &service.User{
+		ID: 9, Status: service.StatusActive, Username: "openGate", Email: "identity@domain.icu",
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/user/transfer/receivers?query=gate", nil)
+	c.Set("user_id", int64(1))
+
+	h.SearchReceivers(c)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.JSONEq(t, `[{
+		"receiver_id":9,
+		"receiver_display":"o******e",
+		"receiver_username":"o******e",
+		"receiver_email":"i******y@d****n.icu"
+	}]`, w.Body.String())
 }
 
 func TestBalanceTransferHandlerResolveReceiver(t *testing.T) {

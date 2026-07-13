@@ -7,7 +7,7 @@ import TransferView from '@/views/user/TransferView.vue'
 
 const api = vi.hoisted(() => ({
   createActivityIdempotencyKey: vi.fn((scope: string) => `${scope}-stable-key`),
-  getTransferStats: vi.fn(), getTransferHistory: vi.fn(), resolveTransferReceiver: vi.fn(), validateTransfer: vi.fn(), transferBalance: vi.fn(),
+  getTransferStats: vi.fn(), getTransferHistory: vi.fn(), searchTransferReceivers: vi.fn(), validateTransfer: vi.fn(), transferBalance: vi.fn(),
   getMyRedPackets: vi.fn(), getRedPacketDetail: vi.fn(), createRedPacket: vi.fn(), claimRedPacket: vi.fn(),
 }))
 const authStore = vi.hoisted(() => ({ user: { id: 1, balance: 125.5 }, refreshUser: vi.fn().mockResolvedValue(undefined) }))
@@ -52,7 +52,9 @@ describe('TransferView', () => {
     authStore.user = { id: 1, balance: 125.5 }
     api.getTransferStats.mockResolvedValue({ total_sent: 50, total_received: 12, total_fee_paid: 1.5 })
     api.getTransferHistory.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 10 })
-    api.resolveTransferReceiver.mockResolvedValue({ receiver_id: 7, receiver_display: 'a***e' })
+    api.searchTransferReceivers.mockResolvedValue([
+      { receiver_id: 7, receiver_display: 'a***e', receiver_username: 'a***e', receiver_email: 'a***e@example.com' },
+    ])
     api.validateTransfer.mockResolvedValue({ fee: 1, gross_amount: 11, receiver_id: 7, receiver_display: 'a***e' })
   })
 
@@ -78,23 +80,38 @@ describe('TransferView', () => {
     expect(wrapper.text()).not.toContain('#10')
   })
 
-  it('resolves a receiver in real time and validates the fee preview', async () => {
+  it('shows fuzzy receiver candidates and requires an explicit selection', async () => {
     vi.useFakeTimers()
+    api.searchTransferReceivers.mockResolvedValue([
+      { receiver_id: 7, receiver_display: 'a***e', receiver_username: 'a***e', receiver_email: 'a***e@example.com' },
+      { receiver_id: 8, receiver_display: 'a***x', receiver_username: 'a***x', receiver_email: 'a***x@example.com' },
+    ])
     const wrapper = mountView(TransferView)
     await flushPromises()
-    await wrapper.get('[data-testid="receiver-search-input"]').setValue('alice@example.com')
-    expect(api.resolveTransferReceiver).not.toHaveBeenCalled()
+    const input = wrapper.get('[data-testid="receiver-search-input"]')
+    await input.setValue('ali')
+    expect(api.searchTransferReceivers).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(250)
     await flushPromises()
+    expect(api.searchTransferReceivers).toHaveBeenCalledWith('ali')
+    expect(wrapper.findAll('[data-testid="receiver-candidate"]')).toHaveLength(2)
+    expect(wrapper.find('[data-testid="resolved-receiver"]').exists()).toBe(false)
+
+    await wrapper.findAll('[data-testid="receiver-candidate"]')[0].trigger('click')
+    expect(wrapper.find('[data-testid="receiver-candidates"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="resolved-receiver"]').exists()).toBe(true)
+
     await wrapper.find('input[type="number"]').setValue('10')
     const feeButton = wrapper.findAll('button').find((button) => button.text().includes('transfer.calculateFee'))
     expect(feeButton).toBeDefined()
     await feeButton!.trigger('click')
     await flushPromises()
-    expect(api.resolveTransferReceiver).toHaveBeenCalledWith('alice@example.com')
     expect(api.validateTransfer).toHaveBeenCalledWith(7, 10)
-    expect(wrapper.find('[data-testid="resolved-receiver"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('$11.00')
+
+    await input.setValue('alex')
+    expect(wrapper.find('[data-testid="resolved-receiver"]').exists()).toBe(false)
+    expect((wrapper.vm as unknown as { receiver: unknown }).receiver).toBeNull()
   })
 
   it('uses the receiver role for incoming history', async () => {
@@ -109,9 +126,10 @@ describe('TransferView', () => {
 
   it('discards a stale receiver response after the query changes', async () => {
     vi.useFakeTimers()
-    let resolveAlice!: (value: { receiver_id: number; receiver_display: string }) => void
-    let resolveBob!: (value: { receiver_id: number; receiver_display: string }) => void
-    api.resolveTransferReceiver.mockImplementation((query: string) => new Promise((resolve) => {
+    type Receiver = { receiver_id: number; receiver_display: string; receiver_username: string; receiver_email: string }
+    let resolveAlice!: (value: Receiver[]) => void
+    let resolveBob!: (value: Receiver[]) => void
+    api.searchTransferReceivers.mockImplementation((query: string) => new Promise((resolve) => {
       if (query === 'alice') resolveAlice = resolve
       else resolveBob = resolve
     }))
@@ -123,13 +141,16 @@ describe('TransferView', () => {
     await vi.advanceTimersByTimeAsync(250)
     await input.setValue('bob')
     await vi.advanceTimersByTimeAsync(250)
-    resolveAlice({ receiver_id: 7, receiver_display: 'a***e' })
+    resolveAlice([{ receiver_id: 7, receiver_display: 'a***e', receiver_username: 'a***e', receiver_email: 'a***e@example.com' }])
     await flushPromises()
-    expect(wrapper.find('[data-testid="resolved-receiver"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="receiver-candidate"]')).toHaveLength(0)
 
-    resolveBob({ receiver_id: 8, receiver_display: 'b*b' })
+    resolveBob([{ receiver_id: 8, receiver_display: 'b*b', receiver_username: 'b*b', receiver_email: 'b*b@example.com' }])
     await flushPromises()
-    expect((wrapper.vm as unknown as { receiver: { receiver_id: number } }).receiver.receiver_id).toBe(8)
+    const candidates = wrapper.findAll('[data-testid="receiver-candidate"]')
+    expect(candidates).toHaveLength(1)
+    expect(candidates[0].text()).toContain('b*b')
+    expect((wrapper.vm as unknown as { receiver: unknown }).receiver).toBeNull()
   })
 
   it('reuses the same transfer operation key after a failed response', async () => {
@@ -140,6 +161,7 @@ describe('TransferView', () => {
     await wrapper.get('[data-testid="receiver-search-input"]').setValue('alice')
     await vi.advanceTimersByTimeAsync(250)
     await flushPromises()
+    await wrapper.get('[data-testid="receiver-candidate"]').trigger('click')
     await wrapper.find('input[type="number"]').setValue('10')
 
     await (wrapper.vm as unknown as { submitTransfer: () => Promise<void> }).submitTransfer()
