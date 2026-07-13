@@ -33,6 +33,31 @@
               @input="handleReceiverInput"
             />
             <Icon v-if="receiverLoading" name="refresh" size="sm" class="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-primary-500" />
+            <span
+              v-if="receiverDropdownVisible"
+              data-testid="receiver-candidates"
+              class="absolute left-0 right-0 top-full z-20 mt-1.5 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-700 dark:bg-dark-800"
+            >
+              <button
+                v-for="candidate in receiverCandidates"
+                :key="candidate.receiver_id"
+                data-testid="receiver-candidate"
+                type="button"
+                class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:hover:bg-dark-700 dark:focus:bg-dark-700"
+                @click="selectReceiver(candidate)"
+              >
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-600 dark:bg-teal-900/40 dark:text-teal-300">
+                  <Icon name="user" size="sm" />
+                </span>
+                <span class="min-w-0">
+                  <strong class="block truncate text-sm font-medium text-gray-900 dark:text-white">{{ candidate.receiver_username || candidate.receiver_display }}</strong>
+                  <span class="mt-0.5 block truncate text-xs text-gray-500 dark:text-dark-400">{{ candidate.receiver_email }}</span>
+                </span>
+              </button>
+              <span v-if="receiverCandidates.length === 0" data-testid="receiver-empty" class="block px-4 py-3 text-sm text-gray-500 dark:text-dark-400">
+                {{ t('transfer.receiverNoResults') }}
+              </span>
+            </span>
           </span>
           <span v-if="receiver" data-testid="resolved-receiver" class="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400"><Icon name="checkCircle" size="xs" />{{ t('transfer.receiverResolved', { recipient: receiver.receiver_display }) }}</span>
         </label>
@@ -114,7 +139,7 @@ import {
   createActivityIdempotencyKey,
   getTransferHistory,
   getTransferStats,
-  resolveTransferReceiver,
+  searchTransferReceivers,
   transferBalance,
   validateTransfer,
   type TransferReceiver,
@@ -132,6 +157,8 @@ const authStore = useAuthStore()
 const stats = ref<TransferStats>({ total_sent: 0, total_received: 0, total_fee_paid: 0 })
 const receiverQuery = ref('')
 const receiver = ref<TransferReceiver | null>(null)
+const receiverCandidates = ref<TransferReceiver[]>([])
+const receiverDropdownVisible = ref(false)
 const receiverResolvedQuery = ref('')
 const receiverLoading = ref(false)
 const form = reactive({ amount: 0, memo: '' })
@@ -187,6 +214,8 @@ function resetReceiver() {
   receiverRequestToken += 1
   receiverLoading.value = false
   receiver.value = null
+  receiverCandidates.value = []
+  receiverDropdownVisible.value = false
   receiverResolvedQuery.value = ''
   resetPreview()
 }
@@ -197,39 +226,52 @@ function handleReceiverInput() {
     receiverSearchTimer = null
   }
   resetReceiver()
-  if (!receiverQuery.value.trim()) return
+  if (!receiverQueryIsSearchable(receiverQuery.value)) return
   receiverSearchTimer = setTimeout(() => {
     receiverSearchTimer = null
-    void resolveReceiver()
+    void searchReceivers()
   }, 250)
 }
 
-async function resolveReceiver() {
+async function searchReceivers() {
   const query = receiverQuery.value.trim()
-  if (!query) return false
+  if (!receiverQueryIsSearchable(query)) return
   const requestToken = ++receiverRequestToken
   receiverLoading.value = true
   formError.value = ''
   try {
-    const result = await resolveTransferReceiver(query)
-    if (requestToken !== receiverRequestToken || receiverQuery.value.trim() !== query) return false
-    receiver.value = result
-    receiverResolvedQuery.value = query
-    return true
+    const result = await searchTransferReceivers(query)
+    if (requestToken !== receiverRequestToken || receiverQuery.value.trim() !== query) return
+    receiverCandidates.value = result
+    receiverDropdownVisible.value = true
   } catch (error) {
-    if (requestToken !== receiverRequestToken || receiverQuery.value.trim() !== query) return false
-    receiver.value = null
-    receiverResolvedQuery.value = ''
+    if (requestToken !== receiverRequestToken || receiverQuery.value.trim() !== query) return
+    receiverCandidates.value = []
+    receiverDropdownVisible.value = false
     formError.value = errorMessage(error, t('transfer.receiverSearchFailed'))
-    return false
   } finally {
     if (requestToken === receiverRequestToken) receiverLoading.value = false
   }
 }
 
+function receiverQueryIsSearchable(value: string) {
+  const query = value.trim()
+  return [...query].length >= 2 || /^[0-9]+$/.test(query)
+}
+
+function selectReceiver(candidate: TransferReceiver) {
+  receiver.value = candidate
+  receiverResolvedQuery.value = receiverQuery.value.trim()
+  receiverDropdownVisible.value = false
+  resetPreview()
+}
+
 async function calculatePreview() {
-  if (!receiverIsCurrent.value && !(await resolveReceiver())) return false
-  if (!receiver.value || !receiverIsCurrent.value || form.amount <= 0) return false
+  if (!receiver.value || !receiverIsCurrent.value) {
+    formError.value = t('transfer.receiverSelectRequired')
+    return false
+  }
+  if (form.amount <= 0) return false
   formError.value = ''
   submitting.value = true
   try {
@@ -299,6 +341,8 @@ async function submitTransfer() {
     transferAttempt.value = null
     receiverQuery.value = ''
     receiver.value = null
+    receiverCandidates.value = []
+    receiverDropdownVisible.value = false
     receiverResolvedQuery.value = ''
     form.amount = 0
     form.memo = ''

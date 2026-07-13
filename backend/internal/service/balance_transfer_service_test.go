@@ -150,6 +150,11 @@ type transferSafetyUserRepo struct {
 	resolveErr              error
 	resolveQuery            string
 	resolveNumericID        *int64
+	searchedReceivers       []*User
+	searchErr               error
+	searchQuery             string
+	searchRequesterID       int64
+	searchLimit             int
 }
 
 func (r *transferSafetyUserRepo) ResolveActiveTransferReceiver(_ context.Context, query string, numericID *int64) (*User, error) {
@@ -159,6 +164,13 @@ func (r *transferSafetyUserRepo) ResolveActiveTransferReceiver(_ context.Context
 		r.resolveNumericID = &id
 	}
 	return r.resolvedReceiver, r.resolveErr
+}
+
+func (r *transferSafetyUserRepo) SearchActiveTransferReceivers(_ context.Context, query string, requesterID int64, limit int) ([]*User, error) {
+	r.searchQuery = query
+	r.searchRequesterID = requesterID
+	r.searchLimit = limit
+	return r.searchedReceivers, r.searchErr
 }
 
 type transferSafetySettingRepo struct {
@@ -277,6 +289,56 @@ func TestBalanceTransferResolveReceiverRejectsUnsafeQueriesAndExcludedUsers(t *t
 			require.ErrorIs(t, err, tc.wantErr)
 		})
 	}
+}
+
+func TestBalanceTransferSearchReceiversReturnsMaskedCandidates(t *testing.T) {
+	settings := newTransferSafetySettings(map[string]string{SettingKeyTransferEnabled: "true"})
+	users := &transferSafetyUserRepo{searchedReceivers: []*User{
+		{ID: 2, Status: StatusActive, Username: "openGate", Email: "identity@domain.icu"},
+		{ID: 1, Status: StatusActive, Username: "requester", Email: "self@example.com"},
+		{ID: 3, Status: StatusDisabled, Username: "disabled", Email: "disabled@example.com"},
+		{ID: 4, Status: StatusActive, Email: "fallback@example.com"},
+	}}
+	svc := NewBalanceTransferService(&transferSafetyRepo{}, &redPacketSafetyRepo{}, users, settings, nil)
+
+	result, err := svc.SearchReceivers(context.Background(), 1, "  gate  ")
+
+	require.NoError(t, err)
+	require.Equal(t, "gate", users.searchQuery)
+	require.Equal(t, int64(1), users.searchRequesterID)
+	require.Equal(t, 8, users.searchLimit)
+	require.Len(t, result, 2)
+	require.Equal(t, &TransferReceiverCandidate{
+		ReceiverID:       2,
+		ReceiverDisplay:  "o******e",
+		ReceiverUsername: "o******e",
+		ReceiverEmail:    "i******y@d****n.icu",
+	}, result[0])
+	require.Equal(t, "f******k@e*****e.com", result[1].ReceiverDisplay)
+	require.Empty(t, result[1].ReceiverUsername)
+	require.Equal(t, "f******k@e*****e.com", result[1].ReceiverEmail)
+}
+
+func TestBalanceTransferSearchReceiversValidatesQueryAndCapsResults(t *testing.T) {
+	settings := newTransferSafetySettings(map[string]string{SettingKeyTransferEnabled: "true"})
+	users := &transferSafetyUserRepo{}
+	for id := int64(2); id <= 11; id++ {
+		users.searchedReceivers = append(users.searchedReceivers, &User{
+			ID: id, Status: StatusActive, Username: "candidate", Email: "candidate@example.com",
+		})
+	}
+	svc := NewBalanceTransferService(&transferSafetyRepo{}, &redPacketSafetyRepo{}, users, settings, nil)
+
+	_, err := svc.SearchReceivers(context.Background(), 1, "a")
+	require.ErrorIs(t, err, ErrTransferReceiverQueryInvalid)
+
+	result, err := svc.SearchReceivers(context.Background(), 1, "7")
+	require.NoError(t, err)
+	require.Len(t, result, 8)
+
+	result, err = svc.SearchReceivers(context.Background(), 1, "候选")
+	require.NoError(t, err)
+	require.Len(t, result, 8)
 }
 
 func TestBalanceTransferEnforcesDailyCountInsideLockedTransaction(t *testing.T) {

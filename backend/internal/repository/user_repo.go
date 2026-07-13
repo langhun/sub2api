@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -201,6 +202,36 @@ func (r *userRepository) ResolveActiveTransferReceiver(ctx context.Context, quer
 		return nil, service.ErrTransferReceiverAmbiguous
 	}
 	return userEntityToService(users[0]), nil
+}
+
+func (r *userRepository) SearchActiveTransferReceivers(ctx context.Context, query string, requesterID int64, limit int) ([]*service.User, error) {
+	if limit <= 0 {
+		return []*service.User{}, nil
+	}
+	identityPredicates := []predicate.User{
+		dbuser.EmailContainsFold(query),
+		dbuser.UsernameContainsFold(query),
+	}
+	if numericID, err := strconv.ParseInt(query, 10, 64); err == nil && numericID > 0 {
+		identityPredicates = append(identityPredicates, dbuser.IDEQ(numericID))
+	}
+	users, err := r.client.User.Query().
+		Where(
+			dbuser.StatusEQ(service.StatusActive),
+			dbuser.IDNEQ(requesterID),
+			dbuser.Or(identityPredicates...),
+		).
+		Order(dbent.Asc(dbuser.FieldID)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("search active transfer receivers: %w", err)
+	}
+	results := make([]*service.User, len(users))
+	for i, entity := range users {
+		results[i] = userEntityToService(entity)
+	}
+	return results, nil
 }
 
 func (r *userRepository) Update(ctx context.Context, userIn *service.User) error {

@@ -138,6 +138,7 @@ func RegisterUserRoutes(
 		{
 			transfer.POST("", h.Transfer.Transfer)
 			transfer.GET("/receiver", h.Transfer.ResolveReceiver)
+			transfer.GET("/receivers", h.Transfer.SearchReceivers)
 			transfer.POST("/validate", h.Transfer.ValidateTransfer)
 			transfer.GET("/history", h.Transfer.GetHistory)
 			transfer.GET("/stats", h.Transfer.GetStats)

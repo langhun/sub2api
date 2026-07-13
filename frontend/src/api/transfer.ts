@@ -52,6 +52,15 @@ export interface TransferValidation {
 export interface TransferReceiver {
   receiver_id: number
   receiver_display: string
+  receiver_username?: string
+  receiver_email?: string
+}
+
+export async function searchTransferReceivers(query: string): Promise<TransferReceiver[]> {
+  const { data } = await apiClient.get<TransferReceiver[]>('/transfer/receivers', {
+    params: { query },
+  })
+  return data
 }
 
 export async function resolveTransferReceiver(query: string): Promise<TransferReceiver> {
@@ -160,6 +169,7 @@ export async function getMyRedPackets(params: {
 }
 
 export const transferAPI = {
+  searchTransferReceivers,
   resolveTransferReceiver,
   transferBalance,
   validateTransfer,

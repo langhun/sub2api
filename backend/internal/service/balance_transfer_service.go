@@ -43,6 +43,12 @@ type transferReceiverResolver interface {
 	ResolveActiveTransferReceiver(ctx context.Context, query string, numericID *int64) (*User, error)
 }
 
+type transferReceiverSearcher interface {
+	SearchActiveTransferReceivers(ctx context.Context, query string, requesterID int64, limit int) ([]*User, error)
+}
+
+const transferReceiverSearchLimit = 8
+
 type BalanceTransferService struct {
 	transferRepo        BalanceTransferRepository
 	redPacketRepo       BalanceRedPacketRepository
@@ -279,6 +285,73 @@ func (s *BalanceTransferService) ResolveReceiver(ctx context.Context, requesterI
 		return nil, ErrTransferReceiverNotFound
 	}
 	return &TransferReceiver{ReceiverID: user.ID, ReceiverDisplay: transferReceiverDisplay(user)}, nil
+}
+
+func (s *BalanceTransferService) SearchReceivers(ctx context.Context, requesterID int64, rawQuery string) ([]*TransferReceiverCandidate, error) {
+	if !s.getTransferSettings(ctx).Enabled {
+		return nil, ErrTransferDisabled
+	}
+	query := strings.TrimSpace(rawQuery)
+	if utf8.RuneCountInString(query) < 2 && !isASCIIDigits(query) {
+		return nil, ErrTransferReceiverQueryInvalid
+	}
+	searcher, ok := s.userRepo.(transferReceiverSearcher)
+	if !ok {
+		return []*TransferReceiverCandidate{}, nil
+	}
+	users, err := searcher.SearchActiveTransferReceivers(ctx, query, requesterID, transferReceiverSearchLimit)
+	if err != nil {
+		return nil, err
+	}
+	candidates := make([]*TransferReceiverCandidate, 0, min(len(users), transferReceiverSearchLimit))
+	for _, user := range users {
+		if user == nil || user.ID == requesterID || user.Status != StatusActive {
+			continue
+		}
+		username := maskTransferReceiverIdentity(user.Username)
+		email := maskTransferReceiverEmail(user.Email)
+		display := username
+		if display == "" {
+			display = email
+		}
+		candidates = append(candidates, &TransferReceiverCandidate{
+			ReceiverID:       user.ID,
+			ReceiverDisplay:  display,
+			ReceiverUsername: username,
+			ReceiverEmail:    email,
+		})
+		if len(candidates) == transferReceiverSearchLimit {
+			break
+		}
+	}
+	return candidates, nil
+}
+
+func maskTransferReceiverIdentity(value string) string {
+	runes := []rune(strings.TrimSpace(value))
+	switch len(runes) {
+	case 0:
+		return ""
+	case 1:
+		return string(runes[0])
+	case 2:
+		return string(runes[0]) + "*"
+	default:
+		return string(runes[0]) + strings.Repeat("*", len(runes)-2) + string(runes[len(runes)-1])
+	}
+}
+
+func maskTransferReceiverEmail(value string) string {
+	email := strings.TrimSpace(value)
+	local, domain, ok := strings.Cut(email, "@")
+	if !ok || local == "" || domain == "" {
+		return maskTransferReceiverIdentity(email)
+	}
+	domainParts := strings.Split(domain, ".")
+	for i := 0; i < len(domainParts)-1; i++ {
+		domainParts[i] = maskTransferReceiverIdentity(domainParts[i])
+	}
+	return maskTransferReceiverIdentity(local) + "@" + strings.Join(domainParts, ".")
 }
 
 func isASCIIDigits(value string) bool {
