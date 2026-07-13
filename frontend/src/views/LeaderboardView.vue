@@ -77,7 +77,7 @@
           </div>
 
           <dl class="grid grid-cols-2 gap-2">
-            <div data-testid="leaderboard-summary-value" class="min-w-0 rounded-lg border border-gray-200/80 bg-white px-3.5 py-2.5 dark:border-dark-700 dark:bg-dark-800/40 sm:min-w-36">
+            <div data-testid="leaderboard-summary-value" class="min-w-0 rounded-xl bg-white/80 px-3.5 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.035)] dark:bg-dark-800/55 dark:shadow-none sm:min-w-36">
               <dt class="text-[11px] font-medium text-gray-500 dark:text-dark-400">
                 {{ summaryHeader }}
               </dt>
@@ -85,7 +85,7 @@
                 {{ loading ? '--' : compactSummaryValue }}
               </dd>
             </div>
-            <div data-testid="leaderboard-summary-users" class="min-w-0 rounded-lg border border-gray-200/80 bg-white px-3.5 py-2.5 dark:border-dark-700 dark:bg-dark-800/40 sm:min-w-28">
+            <div data-testid="leaderboard-summary-users" class="min-w-0 rounded-xl bg-white/80 px-3.5 py-2.5 shadow-[0_6px_18px_rgba(15,23,42,0.035)] dark:bg-dark-800/55 dark:shadow-none sm:min-w-28">
               <dt class="text-[11px] font-medium text-gray-500 dark:text-dark-400">
                 {{ t('leaderboard.listedUsers') }}
               </dt>
