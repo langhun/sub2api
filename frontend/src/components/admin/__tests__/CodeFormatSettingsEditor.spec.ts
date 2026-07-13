@@ -29,6 +29,15 @@ describe('CodeFormatSettingsEditor', () => {
     expect(wrapper.emitted('validity')?.at(-1)).toEqual([true])
   })
 
+  it('omits hexadecimal and emits changed settings for saving', async () => {
+    const wrapper = mountEditor()
+    expect(wrapper.findAll('option').some(option => option.attributes('value') === 'hex')).toBe(false)
+
+    await wrapper.find('select').setValue('numeric')
+    const updated = wrapper.emitted('update:modelValue')?.at(-1)?.[0] as CodeFormatSettings
+    expect(updated.balance.character_set).toBe('numeric')
+  })
+
   it('rejects prefixes containing the configured separator', async () => {
     const modelValue = settings()
     modelValue.balance.prefix = 'BAD-PREFIX'

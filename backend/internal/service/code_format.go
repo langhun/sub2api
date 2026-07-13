@@ -13,14 +13,13 @@ const (
 	CodeCharacterSetUppercase    CodeCharacterSet = "uppercase"
 	CodeCharacterSetNumeric      CodeCharacterSet = "numeric"
 	CodeCharacterSetAlphanumeric CodeCharacterSet = "alphanumeric"
-	CodeCharacterSetHex          CodeCharacterSet = "hex"
+	codeCharacterSetLegacyHex    CodeCharacterSet = "hex"
 )
 
 const (
 	codeAlphabetUppercase    = "ABCDEFGHJKLMNPQRSTUVWXYZ"
 	codeAlphabetNumeric      = "0123456789"
 	codeAlphabetAlphanumeric = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	codeAlphabetHex          = "0123456789ABCDEF"
 )
 
 type CodeFormatConfig struct {
@@ -33,7 +32,7 @@ type CodeFormatConfig struct {
 
 func DefaultRedeemCodeFormat() CodeFormatConfig {
 	return CodeFormatConfig{
-		CharacterSet: CodeCharacterSetHex,
+		CharacterSet: CodeCharacterSetAlphanumeric,
 		Separator:    "-",
 		GroupLength:  8,
 		GroupCount:   4,
@@ -42,7 +41,7 @@ func DefaultRedeemCodeFormat() CodeFormatConfig {
 
 func DefaultCompactRedeemCodeFormat() CodeFormatConfig {
 	return CodeFormatConfig{
-		CharacterSet: CodeCharacterSetHex,
+		CharacterSet: CodeCharacterSetAlphanumeric,
 		GroupLength:  32,
 		GroupCount:   1,
 	}
@@ -50,7 +49,7 @@ func DefaultCompactRedeemCodeFormat() CodeFormatConfig {
 
 func DefaultRedPacketCodeFormat() CodeFormatConfig {
 	return CodeFormatConfig{
-		CharacterSet: CodeCharacterSetHex,
+		CharacterSet: CodeCharacterSetAlphanumeric,
 		GroupLength:  24,
 		GroupCount:   1,
 	}
@@ -119,8 +118,6 @@ func (c CodeFormatConfig) alphabet() (string, error) {
 		return codeAlphabetNumeric, nil
 	case CodeCharacterSetAlphanumeric:
 		return codeAlphabetAlphanumeric, nil
-	case CodeCharacterSetHex:
-		return codeAlphabetHex, nil
 	default:
 		return "", fmt.Errorf("unsupported character_set %q", c.CharacterSet)
 	}

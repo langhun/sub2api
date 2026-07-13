@@ -16,7 +16,7 @@ export interface DefaultSubscriptionSetting {
   validity_days: number;
 }
 
-export type CodeCharacterSet = "uppercase" | "numeric" | "alphanumeric" | "hex";
+export type CodeCharacterSet = "uppercase" | "numeric" | "alphanumeric";
 export interface CodeFormatRule {
   prefix: string;
   character_set: CodeCharacterSet;

@@ -12,7 +12,7 @@ import (
 func TestCodeFormatConfigGenerate(t *testing.T) {
 	config := CodeFormatConfig{
 		Prefix:       "BAL",
-		CharacterSet: CodeCharacterSetHex,
+		CharacterSet: CodeCharacterSetAlphanumeric,
 		Separator:    "-",
 		GroupLength:  4,
 		GroupCount:   3,
@@ -20,7 +20,7 @@ func TestCodeFormatConfigGenerate(t *testing.T) {
 
 	code, err := config.generate(bytes.NewReader(bytes.Repeat([]byte{0, 1, 2, 3}, 32)))
 	require.NoError(t, err)
-	require.Equal(t, "BAL-0123-1230-2301", code)
+	require.Equal(t, "BAL-ABCD-BCDA-CDAB", code)
 }
 
 func TestCodeFormatConfigGenerateWithoutSeparator(t *testing.T) {
@@ -58,11 +58,11 @@ func TestCodeFormatConfigDefaultsPreserveExistingShapes(t *testing.T) {
 func TestCodeFormatConfigValidation(t *testing.T) {
 	tests := []CodeFormatConfig{
 		{CharacterSet: "unknown", GroupLength: 4, GroupCount: 1},
-		{CharacterSet: CodeCharacterSetHex, GroupLength: 0, GroupCount: 1},
-		{CharacterSet: CodeCharacterSetHex, GroupLength: 4, GroupCount: 0},
-		{Prefix: "BAD PREFIX", CharacterSet: CodeCharacterSetHex, GroupLength: 4, GroupCount: 1},
-		{Separator: "--", CharacterSet: CodeCharacterSetHex, GroupLength: 4, GroupCount: 1},
-		{Prefix: "A-B", Separator: "-", CharacterSet: CodeCharacterSetHex, GroupLength: 4, GroupCount: 1},
+		{CharacterSet: CodeCharacterSetAlphanumeric, GroupLength: 0, GroupCount: 1},
+		{CharacterSet: CodeCharacterSetAlphanumeric, GroupLength: 4, GroupCount: 0},
+		{Prefix: "BAD PREFIX", CharacterSet: CodeCharacterSetAlphanumeric, GroupLength: 4, GroupCount: 1},
+		{Separator: "--", CharacterSet: CodeCharacterSetAlphanumeric, GroupLength: 4, GroupCount: 1},
+		{Prefix: "A-B", Separator: "-", CharacterSet: CodeCharacterSetAlphanumeric, GroupLength: 4, GroupCount: 1},
 	}
 
 	for _, config := range tests {
