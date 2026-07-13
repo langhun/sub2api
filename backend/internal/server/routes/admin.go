@@ -108,8 +108,18 @@ func RegisterAdminRoutes(
 		registerAffiliateRoutes(admin, h)
 
 		registerBlindboxRoutes(admin, h)
+		registerRewardDeliveryRoutes(admin, h)
 		registerTransferAdminRoutes(admin, h)
 		registerGameHallAdminRoutes(admin, h)
+	}
+}
+
+func registerRewardDeliveryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	deliveries := admin.Group("/reward-deliveries")
+	{
+		deliveries.GET("", h.Admin.Blindbox.ListRewardDeliveries)
+		deliveries.POST("/:id/retry", h.Admin.Blindbox.RetryRewardDelivery)
+		deliveries.POST("/:id/compensate", h.Admin.Blindbox.CompensateRewardDelivery)
 	}
 }
 

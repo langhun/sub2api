@@ -4,6 +4,7 @@ import (
 	"context"
 	cryptorand "crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -50,6 +51,23 @@ const (
 	RarityEpic      = "epic"
 	RarityLegendary = "legendary"
 )
+
+const (
+	RewardDeliverySourceCheckinBlindbox = "checkin_blindbox"
+	checkinBlindboxRuleVersion          = "v1"
+)
+
+type BlindboxRewardSnapshot struct {
+	PrizeItemID      int64   `json:"prize_item_id"`
+	PrizeName        string  `json:"prize_name"`
+	Rarity           string  `json:"rarity"`
+	RewardType       string  `json:"reward_type"`
+	RewardValue      float64 `json:"reward_value"`
+	SubscriptionID   *int64  `json:"subscription_id,omitempty"`
+	SubscriptionDays int     `json:"subscription_days,omitempty"`
+	StreakDays       int     `json:"streak_days"`
+	InvitationCode   string  `json:"invitation_code,omitempty"`
+}
 
 type PrizeItem struct {
 	ID               int64   `json:"id"`
@@ -100,6 +118,7 @@ type BlindBoxService struct {
 	billingCache    *BillingCacheService
 	subscriptionSvc *SubscriptionService
 	redeemCodeRepo  RedeemCodeRepository
+	rewardStore     RewardDeliveryStore
 }
 
 func NewBlindBoxService(
@@ -110,6 +129,7 @@ func NewBlindBoxService(
 	billingCache *BillingCacheService,
 	subscriptionSvc *SubscriptionService,
 	redeemCodeRepo RedeemCodeRepository,
+	rewardStore RewardDeliveryStore,
 ) *BlindBoxService {
 	return &BlindBoxService{
 		entClient:       entClient,
@@ -119,6 +139,7 @@ func NewBlindBoxService(
 		billingCache:    billingCache,
 		subscriptionSvc: subscriptionSvc,
 		redeemCodeRepo:  redeemCodeRepo,
+		rewardStore:     rewardStore,
 	}
 }
 
@@ -317,6 +338,234 @@ func (s *BlindBoxService) ShouldTriggerBlindbox(ctx context.Context, userID int6
 	}
 
 	return streakDays > 0 && streakDays%interval == 0
+}
+
+// PrepareDelivery freezes the selected prize and persists its eligibility in
+// the caller's check-in transaction. Mutable prize-pool settings are never read
+// again while delivering this reward.
+func (s *BlindBoxService) PrepareDelivery(ctx context.Context, userID, checkinID int64, streakDays int) (*BlindboxResult, *RewardDelivery, error) {
+	if s == nil || s.rewardStore == nil {
+		return nil, nil, nil
+	}
+	snapshot, err := s.selectRewardSnapshot(ctx, streakDays)
+	if err != nil || snapshot == nil {
+		return nil, nil, err
+	}
+	if snapshot.RewardType == BlindboxRewardInvitationCode {
+		format := DefaultCompactRedeemCodeFormat()
+		if s.settingSvc != nil {
+			format = s.settingSvc.GetCodeFormatSettings(ctx).Invitation
+		}
+		snapshot.InvitationCode, err = format.Generate()
+		if err != nil {
+			return nil, nil, fmt.Errorf("freeze invitation code reward: %w", err)
+		}
+	}
+	payload, err := json.Marshal(snapshot)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal blindbox reward snapshot: %w", err)
+	}
+	prizeItemID := snapshot.PrizeItemID
+	delivery, err := s.rewardStore.CreatePending(ctx, CreateRewardDelivery{
+		SourceType:     RewardDeliverySourceCheckinBlindbox,
+		SourceID:       checkinID,
+		UserID:         userID,
+		PrizeItemID:    &prizeItemID,
+		RewardSnapshot: payload,
+		RewardType:     snapshot.RewardType,
+		RewardValue:    snapshot.RewardValue,
+		RuleVersion:    checkinBlindboxRuleVersion,
+		IdempotencyKey: fmt.Sprintf("%s:%d", RewardDeliverySourceCheckinBlindbox, checkinID),
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("create blindbox reward delivery: %w", err)
+	}
+	return blindboxResultFromSnapshot(*snapshot, ""), delivery, nil
+}
+
+func (s *BlindBoxService) selectRewardSnapshot(ctx context.Context, streakDays int) (*BlindboxRewardSnapshot, error) {
+	client := s.entClient
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		client = tx.Client()
+	}
+	items, err := client.CheckinPrizeItem.Query().Where(
+		checkinprizeitem.IsEnabled(true),
+		checkinprizeitem.DeletedAtIsNil(),
+	).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("query prize items: %w", err)
+	}
+	if len(items) == 0 {
+		return nil, nil
+	}
+	totalWeight := 0
+	for _, item := range items {
+		totalWeight += item.Weight
+	}
+	roll, err := secureRandomIntN(totalWeight)
+	if err != nil {
+		return nil, fmt.Errorf("select blindbox prize: %w", err)
+	}
+	selected := items[0]
+	for cumulative, i := 0, 0; i < len(items); i++ {
+		cumulative += items[i].Weight
+		if roll < cumulative {
+			selected = items[i]
+			break
+		}
+	}
+	rewardValue := selected.RewardValue
+	if selected.RewardType == BlindboxRewardBalance && selected.RewardValueMax > selected.RewardValue {
+		randomValue, err := secureRandomFloat64()
+		if err != nil {
+			return nil, fmt.Errorf("select blindbox reward value: %w", err)
+		}
+		rewardValue = math.Round((selected.RewardValue+randomValue*(selected.RewardValueMax-selected.RewardValue))*100) / 100
+	}
+	return &BlindboxRewardSnapshot{
+		PrizeItemID: selected.ID, PrizeName: selected.Name, Rarity: selected.Rarity,
+		RewardType: selected.RewardType, RewardValue: rewardValue,
+		SubscriptionID: selected.SubscriptionID, SubscriptionDays: selected.SubscriptionDays,
+		StreakDays: streakDays,
+	}, nil
+}
+
+func blindboxResultFromSnapshot(snapshot BlindboxRewardSnapshot, detail string) *BlindboxResult {
+	return &BlindboxResult{
+		PrizeName: snapshot.PrizeName, Rarity: snapshot.Rarity, RewardType: snapshot.RewardType,
+		RewardValue: snapshot.RewardValue, SubscriptionDays: snapshot.SubscriptionDays, RewardDetail: detail,
+	}
+}
+
+// DeliverNow gives the request path a best-effort fast result. Failures are
+// scheduled by the worker policy and must not invalidate the committed check-in.
+func (s *BlindBoxService) DeliverNow(ctx context.Context, deliveryID int64) (*RewardDelivery, error) {
+	worker := NewRewardDeliveryWorker(s.rewardStore, s, RewardDeliveryWorkerOptions{})
+	if err := worker.RunByID(ctx, deliveryID); err != nil {
+		return nil, err
+	}
+	return s.rewardStore.GetByID(ctx, deliveryID)
+}
+
+func (s *BlindBoxService) ListRewardDeliveries(ctx context.Context, filter RewardDeliveryFilter) ([]RewardDelivery, int64, error) {
+	return s.rewardStore.List(ctx, filter)
+}
+
+func (s *BlindBoxService) RetryRewardDelivery(ctx context.Context, deliveryID int64) (*RewardDelivery, error) {
+	store, ok := s.rewardStore.(RewardDeliveryAdminStore)
+	if !ok {
+		return nil, fmt.Errorf("reward delivery administration is unavailable")
+	}
+	if err := store.Retry(ctx, deliveryID); err != nil {
+		return nil, err
+	}
+	return s.DeliverNow(ctx, deliveryID)
+}
+
+func (s *BlindBoxService) CompensateRewardDelivery(ctx context.Context, deliveryID int64, reason string) (*RewardDelivery, error) {
+	store, ok := s.rewardStore.(RewardDeliveryAdminStore)
+	if !ok {
+		return nil, fmt.Errorf("reward delivery administration is unavailable")
+	}
+	if err := store.Compensate(ctx, deliveryID, reason); err != nil {
+		return nil, err
+	}
+	return s.rewardStore.GetByID(ctx, deliveryID)
+}
+
+func (s *BlindBoxService) ProcessRewardDelivery(ctx context.Context, delivery RewardDelivery) (string, error) {
+	if delivery.SourceType != RewardDeliverySourceCheckinBlindbox || delivery.RuleVersion != checkinBlindboxRuleVersion {
+		return "", fmt.Errorf("unsupported reward delivery source %q version %q", delivery.SourceType, delivery.RuleVersion)
+	}
+	var snapshot BlindboxRewardSnapshot
+	if err := json.Unmarshal(delivery.RewardSnapshot, &snapshot); err != nil {
+		return "", fmt.Errorf("decode blindbox reward snapshot: %w", err)
+	}
+	if snapshot.PrizeItemID <= 0 || snapshot.PrizeName == "" || snapshot.RewardType != delivery.RewardType ||
+		math.Round(snapshot.RewardValue*1e8) != math.Round(delivery.RewardValue*1e8) {
+		return "", fmt.Errorf("blindbox reward snapshot does not match delivery")
+	}
+	detail, err := s.applyRewardSnapshot(ctx, delivery.UserID, snapshot)
+	if err != nil {
+		return "", err
+	}
+	client := s.entClient
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		client = tx.Client()
+	}
+	_, err = client.CheckinBlindboxRecord.Create().
+		SetUserID(delivery.UserID).
+		SetPrizeItemID(snapshot.PrizeItemID).
+		SetPrizeName(snapshot.PrizeName).
+		SetRarity(snapshot.Rarity).
+		SetRewardType(snapshot.RewardType).
+		SetRewardValue(snapshot.RewardValue).
+		SetRewardDetail(detail).
+		SetStreakDays(snapshot.StreakDays).
+		Save(ctx)
+	if err != nil {
+		return "", fmt.Errorf("save blindbox record: %w", err)
+	}
+	return detail, nil
+}
+
+func (s *BlindBoxService) applyRewardSnapshot(ctx context.Context, userID int64, snapshot BlindboxRewardSnapshot) (string, error) {
+	client := s.entClient
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		client = tx.Client()
+	}
+	switch snapshot.RewardType {
+	case BlindboxRewardBalance:
+		if snapshot.RewardValue > 0 {
+			if err := updateBalanceWithoutRecharge(ctx, s.userRepo, userID, snapshot.RewardValue); err != nil {
+				return "", fmt.Errorf("update balance: %w", err)
+			}
+		}
+	case BlindboxRewardConcurrency:
+		if _, err := client.User.UpdateOneID(userID).AddConcurrency(int(snapshot.RewardValue)).Save(ctx); err != nil {
+			return "", fmt.Errorf("update concurrency: %w", err)
+		}
+	case BlindboxRewardSubscription:
+		if snapshot.SubscriptionID == nil || *snapshot.SubscriptionID <= 0 || snapshot.SubscriptionDays <= 0 {
+			return "", fmt.Errorf("invalid frozen subscription reward")
+		}
+		if _, _, err := s.subscriptionSvc.AssignOrExtendSubscription(ctx, &AssignSubscriptionInput{
+			UserID: userID, GroupID: *snapshot.SubscriptionID, ValidityDays: snapshot.SubscriptionDays,
+			Notes: "check-in blind box reward",
+		}); err != nil {
+			return "", fmt.Errorf("assign subscription: %w", err)
+		}
+	case BlindboxRewardInvitationCode:
+		if snapshot.InvitationCode == "" {
+			return "", fmt.Errorf("frozen invitation code is empty")
+		}
+		if err := s.redeemCodeRepo.Create(ctx, &RedeemCode{
+			Code: snapshot.InvitationCode, Type: RedeemTypeInvitation, Value: 0, Status: StatusUnused,
+		}); err != nil {
+			return "", fmt.Errorf("create invitation redeem code: %w", err)
+		}
+	default:
+		return "", fmt.Errorf("unsupported blindbox reward type %q", snapshot.RewardType)
+	}
+	if err := s.createSnapshotAuditRecord(ctx, userID, snapshot); err != nil {
+		return "", err
+	}
+	if snapshot.RewardType == BlindboxRewardInvitationCode {
+		return snapshot.InvitationCode, nil
+	}
+	return "", nil
+}
+
+func (s *BlindBoxService) createSnapshotAuditRecord(ctx context.Context, userID int64, snapshot BlindboxRewardSnapshot) error {
+	item := &dbent.CheckinPrizeItem{
+		Name: snapshot.PrizeName, Rarity: snapshot.Rarity, RewardType: snapshot.RewardType,
+		SubscriptionID: snapshot.SubscriptionID, SubscriptionDays: snapshot.SubscriptionDays,
+	}
+	value := snapshot.RewardValue
+	if snapshot.RewardType == BlindboxRewardSubscription {
+		value = float64(snapshot.SubscriptionDays)
+	}
+	return s.createAuditRecord(ctx, userID, value, item)
 }
 
 func (s *BlindBoxService) Draw(ctx context.Context, userID int64, streakDays int) (*BlindboxResult, error) {

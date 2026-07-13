@@ -35,6 +35,7 @@ import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import blindboxAPI from './blindbox'
 import adminTransferAPI from './transfer'
+import rewardDeliveriesAPI from './rewardDeliveries'
 
 /**
  * Unified admin API object for convenient access
@@ -71,7 +72,8 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   blindbox: blindboxAPI,
-  transfer: adminTransferAPI
+  transfer: adminTransferAPI,
+  rewardDeliveries: rewardDeliveriesAPI
 }
 
 export {
@@ -106,7 +108,8 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   blindboxAPI,
-  adminTransferAPI
+  adminTransferAPI,
+  rewardDeliveriesAPI
 }
 
 export default adminAPI

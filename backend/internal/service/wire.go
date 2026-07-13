@@ -659,6 +659,7 @@ var ProviderSet = wire.NewSet(
 	NewCheckinService,
 	NewLeaderboardService,
 	NewBlindBoxService,
+	ProvideRewardDeliveryWorkerRuntime,
 	NewBalanceTransferService,
 	ProvideRedPacketExpiryService,
 	ProvideGameHallService,

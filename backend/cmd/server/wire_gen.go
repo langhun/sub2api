@@ -306,7 +306,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService)
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
 	redPacketExpiryService := service.ProvideRedPacketExpiryService(balanceTransferService, leaderLockCache, db)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, redPacketExpiryService)
+	rewardDeliveryWorkerRuntime := service.ProvideRewardDeliveryWorkerRuntime(rewardDeliveryStore, blindBoxService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, redPacketExpiryService, rewardDeliveryWorkerRuntime)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -367,6 +368,7 @@ func provideCleanup(
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
 	redPacketExpiry *service.RedPacketExpiryService,
+	rewardDeliveryWorker *service.RewardDeliveryWorkerRuntime,
 ) func() {
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -378,6 +380,12 @@ func provideCleanup(
 		}
 
 		parallelSteps := []cleanupStep{
+			{"RewardDeliveryWorkerRuntime", func() error {
+				if rewardDeliveryWorker != nil {
+					rewardDeliveryWorker.Stop()
+				}
+				return nil
+			}},
 			{"RedPacketExpiryService", func() error {
 				if redPacketExpiry != nil {
 					redPacketExpiry.Stop()

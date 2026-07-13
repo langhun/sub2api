@@ -104,6 +104,7 @@ func provideCleanup(
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
 	redPacketExpiry *service.RedPacketExpiryService,
+	rewardDeliveryWorker *service.RewardDeliveryWorkerRuntime,
 ) func() {
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -116,6 +117,12 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"RewardDeliveryWorkerRuntime", func() error {
+				if rewardDeliveryWorker != nil {
+					rewardDeliveryWorker.Stop()
+				}
+				return nil
+			}},
 			{"RedPacketExpiryService", func() error {
 				if redPacketExpiry != nil {
 					redPacketExpiry.Stop()

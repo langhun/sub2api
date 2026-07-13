@@ -32,6 +32,15 @@ func (s *rewardDeliveryStoreStub) ClaimDue(_ context.Context, _ time.Time, _ int
 	return s.claimed, nil
 }
 
+func (s *rewardDeliveryStoreStub) ClaimByID(_ context.Context, id int64, _ time.Time) (*RewardDelivery, error) {
+	for i := range s.claimed {
+		if s.claimed[i].ID == id {
+			return &s.claimed[i], nil
+		}
+	}
+	return nil, nil
+}
+
 func (s *rewardDeliveryStoreStub) MarkDelivered(_ context.Context, id int64, _ string, _ time.Time) error {
 	s.delivered = append(s.delivered, id)
 	return nil
@@ -129,4 +138,17 @@ func TestRewardDeliveryWorkerRecoversStaleClaims(t *testing.T) {
 	worker.recoverStale(context.Background())
 
 	require.Equal(t, 1, store.recovered)
+}
+
+func TestRewardDeliveryWorkerRunByIDUsesRetryPolicy(t *testing.T) {
+	now := time.Date(2026, 7, 11, 12, 0, 0, 0, time.UTC)
+	store := &rewardDeliveryStoreStub{claimed: []RewardDelivery{{ID: 9, Attempts: 1}}}
+	worker := NewRewardDeliveryWorker(store, rewardDeliveryProcessorStub{errors: map[int64]error{9: errors.New("temporary")}}, RewardDeliveryWorkerOptions{RetryDelay: time.Minute})
+	worker.now = func() time.Time { return now }
+
+	err := worker.RunByID(context.Background(), 9)
+
+	require.ErrorContains(t, err, "temporary")
+	require.Len(t, store.failed, 1)
+	require.Equal(t, now.Add(time.Minute), *store.failed[0].nextRetryAt)
 }
