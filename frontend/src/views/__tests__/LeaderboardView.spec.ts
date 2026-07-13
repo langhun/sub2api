@@ -115,6 +115,18 @@ describe('LeaderboardView', () => {
     expect(wrapper.text()).toContain('$58.77T（58.77万亿）')
   })
 
+  it('uses the page surface instead of gray nested summary cards', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    for (const testId of ['leaderboard-summary-value', 'leaderboard-summary-users']) {
+      const summary = wrapper.get(`[data-testid="${testId}"]`)
+      expect(summary.classes()).toContain('bg-white')
+      expect(summary.classes()).toContain('border-gray-200/80')
+      expect(summary.classes()).not.toContain('bg-gray-50')
+    }
+  })
+
   it('requests the selected period for the consumption board', async () => {
     const wrapper = mountView()
     await flushPromises()
