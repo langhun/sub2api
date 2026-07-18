@@ -208,18 +208,20 @@ func (r *userRepository) SearchActiveTransferReceivers(ctx context.Context, quer
 	if limit <= 0 {
 		return []*service.User{}, nil
 	}
-	identityPredicates := []predicate.User{
-		dbuser.EmailContainsFold(query),
-		dbuser.UsernameContainsFold(query),
-	}
+	var identityPredicate predicate.User
 	if numericID, err := strconv.ParseInt(query, 10, 64); err == nil && numericID > 0 {
-		identityPredicates = append(identityPredicates, dbuser.IDEQ(numericID))
+		identityPredicate = dbuser.IDEQ(numericID)
+	} else {
+		identityPredicate = dbuser.Or(
+			dbuser.EmailContainsFold(query),
+			dbuser.UsernameContainsFold(query),
+		)
 	}
 	users, err := r.client.User.Query().
 		Where(
 			dbuser.StatusEQ(service.StatusActive),
 			dbuser.IDNEQ(requesterID),
-			dbuser.Or(identityPredicates...),
+			identityPredicate,
 		).
 		Order(dbent.Asc(dbuser.FieldID)).
 		Limit(limit).
