@@ -5,6 +5,8 @@ import resources from './resources'
 import ops from './ops'
 import settings from './settings'
 import balanceFeatures from './balanceFeatures'
+import audit from './audit'
+import promptAudit from './promptAudit'
 
 const base = {
   ...overview,
@@ -13,6 +15,8 @@ const base = {
   ...resources,
   ...ops,
   ...settings,
+  ...audit,
+  ...promptAudit,
 }
 
 export default {
