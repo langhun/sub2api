@@ -56,8 +56,8 @@ func TestBalanceTransferHandlerSearchReceivers(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.JSONEq(t, `[{
 		"receiver_id":9,
-		"receiver_display":"o******e",
-		"receiver_username":"o******e",
+		"receiver_display":"openGate",
+		"receiver_username":"openGate",
 		"receiver_email":"i******y@d****n.icu"
 	}]`, w.Body.String())
 }

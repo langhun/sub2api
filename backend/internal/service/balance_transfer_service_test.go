@@ -291,7 +291,7 @@ func TestBalanceTransferResolveReceiverRejectsUnsafeQueriesAndExcludedUsers(t *t
 	}
 }
 
-func TestBalanceTransferSearchReceiversReturnsMaskedCandidates(t *testing.T) {
+func TestBalanceTransferSearchReceiversReturnsFullUsernames(t *testing.T) {
 	settings := newTransferSafetySettings(map[string]string{SettingKeyTransferEnabled: "true"})
 	users := &transferSafetyUserRepo{searchedReceivers: []*User{
 		{ID: 2, Status: StatusActive, Username: "openGate", Email: "identity@domain.icu"},
@@ -310,8 +310,8 @@ func TestBalanceTransferSearchReceiversReturnsMaskedCandidates(t *testing.T) {
 	require.Len(t, result, 2)
 	require.Equal(t, &TransferReceiverCandidate{
 		ReceiverID:       2,
-		ReceiverDisplay:  "o******e",
-		ReceiverUsername: "o******e",
+		ReceiverDisplay:  "openGate",
+		ReceiverUsername: "openGate",
 		ReceiverEmail:    "i******y@d****n.icu",
 	}, result[0])
 	require.Equal(t, "f******k@e*****e.com", result[1].ReceiverDisplay)

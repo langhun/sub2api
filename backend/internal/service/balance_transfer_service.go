@@ -308,7 +308,7 @@ func (s *BalanceTransferService) SearchReceivers(ctx context.Context, requesterI
 		if user == nil || user.ID == requesterID || user.Status != StatusActive {
 			continue
 		}
-		username := maskTransferReceiverIdentity(user.Username)
+		username := strings.TrimSpace(user.Username)
 		email := maskTransferReceiverEmail(user.Email)
 		display := username
 		if display == "" {
