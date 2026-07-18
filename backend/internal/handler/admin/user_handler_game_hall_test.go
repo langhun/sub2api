@@ -25,7 +25,7 @@ func (s *captureGameHallUserAdminService) UpdateUser(_ context.Context, id int64
 func TestUserHandlerUpdatePreservesExplicitGameHallEnabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	adminService := &captureGameHallUserAdminService{stubAdminService: newStubAdminService()}
-	handler := NewUserHandler(adminService, nil, nil, nil)
+	handler := NewUserHandler(adminService, nil, nil, nil, nil, nil, nil)
 	router := gin.New()
 	router.PUT("/admin/users/:id", handler.Update)
 
