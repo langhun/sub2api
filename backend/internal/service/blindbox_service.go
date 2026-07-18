@@ -748,7 +748,7 @@ func (s *BlindBoxService) applyReward(ctx context.Context, client *dbent.Client,
 }
 
 func (s *BlindBoxService) createAuditRecord(ctx context.Context, userID int64, value float64, item *dbent.CheckinPrizeItem) error {
-	code, err := GenerateRedeemCode()
+	code, err := s.settingSvc.GenerateCode(ctx, item.RewardType)
 	if err != nil {
 		return err
 	}

@@ -478,7 +478,7 @@ func (s *CheckinService) calculateStreak(ctx context.Context, userID int64, toda
 }
 
 func (s *CheckinService) createAuditRecord(txCtx context.Context, userID int64, rewardAmount float64, adjType string, multiplier float64, betAmount float64) error {
-	code, err := GenerateRedeemCode()
+	code, err := s.settingService.GenerateCode(txCtx, AdjustmentTypeCheckin)
 	if err != nil {
 		return err
 	}

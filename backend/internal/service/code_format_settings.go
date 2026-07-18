@@ -58,15 +58,25 @@ func (s CodeFormatSettings) Validate() error {
 
 func (s CodeFormatSettings) RedeemFormat(codeType string) CodeFormatConfig {
 	switch codeType {
-	case RedeemTypeConcurrency:
+	case RedeemTypeConcurrency, AdjustmentTypeAdminConcurrency:
 		return s.Concurrency
 	case RedeemTypeSubscription:
 		return s.Subscription
-	case RedeemTypeInvitation:
+	case RedeemTypeInvitation, BlindboxRewardInvitationCode:
 		return s.Invitation
 	default:
 		return s.Balance
 	}
+}
+
+// GenerateCode creates a code using the configured format for a redeem or
+// internal adjustment type. A nil service falls back to the built-in defaults.
+func (s *SettingService) GenerateCode(ctx context.Context, codeType string) (string, error) {
+	settings := DefaultCodeFormatSettings()
+	if s != nil {
+		settings = s.GetCodeFormatSettings(ctx)
+	}
+	return settings.RedeemFormat(codeType).Generate()
 }
 
 func parseCodeFormatSettings(values map[string]string) CodeFormatSettings {
