@@ -102,8 +102,8 @@
 
           <template #cell-action="{ row }">
             <div class="min-w-0 max-w-xs">
-              <div class="truncate font-mono text-sm text-gray-800 dark:text-gray-200" :title="row.action">
-                {{ row.action }}
+              <div class="truncate text-sm text-gray-800 dark:text-gray-200" :title="row.action">
+                {{ actionLabel(row.action) }}
               </div>
               <div class="mt-0.5 truncate font-mono text-xs text-gray-400" :title="`${row.method} ${row.path}`">
                 {{ row.method }} {{ row.path }}
@@ -183,7 +183,7 @@
               {{ detail.status_code }} {{ statusText(detail.status_code) }}
             </span>
             <span class="break-all font-mono text-base font-semibold text-gray-900 dark:text-white">
-              {{ detail.action }}
+              {{ actionLabel(detail.action) }}
             </span>
           </div>
 
@@ -367,7 +367,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const appStore = useAppStore()
 
 const loading = ref(false)
@@ -497,6 +497,18 @@ const resultOptions = computed(() => [
 function authMethodLabel(method: string): string {
   const found = authMethodOptions.value.find((o) => o.value === method)
   return found && found.value ? found.label : method
+}
+
+function actionLabel(action: string): string {
+  const parts = action.split('.').filter(Boolean)
+  const visibleParts = parts[0] === 'admin' ? parts.slice(1) : parts
+  if (visibleParts.length === 0) return action
+  return visibleParts
+    .map((part) => {
+      const key = `admin.audit.actionSegments.${part}`
+      return te(key) ? t(key) : part.split('_').join(' ')
+    })
+    .join(' · ')
 }
 
 function toRFC3339(local: string): string | undefined {
