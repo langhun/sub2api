@@ -67,6 +67,26 @@ func newBackendModeSettingService(t *testing.T, enabled string) *service.Setting
 	svc := service.NewSettingService(repo, &config.Config{})
 	require.NoError(t, svc.UpdateSettings(context.Background(), &service.SystemSettings{
 		BackendModeEnabled: enabled == "true",
+		BalanceFeatureSettings: service.BalanceFeatureSettings{
+			GameSlotsMinBet:            0.01,
+			GameSlotsMaxBet:            100,
+			GameExchangeMinAmount:      0.01,
+			GameExchangeMaxAmount:      1000,
+			GameExchangeDailyLimit:     1000,
+			CheckinMinBalance:          0.1,
+			CheckinMaxBalance:          1,
+			CheckinLuckMinMultiplier:   0.1,
+			CheckinLuckMaxMultiplier:   3,
+			TransferFeeRate:            0.01,
+			TransferMinAmount:          0.01,
+			TransferMaxAmount:          1000,
+			TransferDailyLimit:         1000,
+			CheckinBlindboxInterval:    7,
+			CheckinBlindboxTriggerType: "streak",
+			TransferDailyCountLimit:    50,
+			RedPacketMaxCount:          100,
+			RedPacketExpireHours:       24,
+		},
 	}))
 
 	return svc

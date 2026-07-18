@@ -20,6 +20,7 @@ func TestAllowUserViewErrorRequests_PersistsToDB(t *testing.T) {
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings:     validBalanceFeatureSettings(),
 		AllowUserViewErrorRequests: true,
 	})
 	require.NoError(t, err)

@@ -152,6 +152,7 @@ func TestSettingService_AffiliateAdminRechargeSetting(t *testing.T) {
 		svc := NewSettingService(repo, &config.Config{})
 
 		err := svc.UpdateSettings(context.Background(), &SystemSettings{
+			BalanceFeatureSettings:     validBalanceFeatureSettings(),
 			AdminRechargeRebateEnabled: true,
 		})
 		require.NoError(t, err)
@@ -181,6 +182,7 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_ValidGroup(t *testin
 	svc.SetDefaultSubscriptionGroupReader(groupReader)
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings: validBalanceFeatureSettings(),
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
 			{GroupID: 11, ValidityDays: 30},
 		},
@@ -228,6 +230,7 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNonSubscripti
 	svc.SetDefaultSubscriptionGroupReader(groupReader)
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings: validBalanceFeatureSettings(),
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
 			{GroupID: 12, ValidityDays: 7},
 		},
@@ -248,6 +251,7 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsNotFoundGroup
 	svc.SetDefaultSubscriptionGroupReader(groupReader)
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings: validBalanceFeatureSettings(),
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
 			{GroupID: 13, ValidityDays: 7},
 		},
@@ -269,6 +273,7 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsDuplicateGrou
 	svc.SetDefaultSubscriptionGroupReader(groupReader)
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings: validBalanceFeatureSettings(),
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
 			{GroupID: 11, ValidityDays: 30},
 			{GroupID: 11, ValidityDays: 60},
@@ -285,6 +290,7 @@ func TestSettingService_UpdateSettings_DefaultSubscriptions_RejectsDuplicateGrou
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings: validBalanceFeatureSettings(),
 		DefaultSubscriptions: []DefaultSubscriptionSetting{
 			{GroupID: 11, ValidityDays: 30},
 			{GroupID: 11, ValidityDays: 60},
@@ -301,6 +307,7 @@ func TestSettingService_UpdateSettings_RegistrationEmailSuffixWhitelist_Normaliz
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings:           validBalanceFeatureSettings(),
 		RegistrationEmailSuffixWhitelist: []string{"example.com", "@EXAMPLE.com", " @foo.bar ", "*.EDU.CN"},
 	})
 	require.NoError(t, err)
@@ -312,6 +319,7 @@ func TestSettingService_UpdateSettings_RegistrationEmailSuffixWhitelist_Invalid(
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings:           validBalanceFeatureSettings(),
 		RegistrationEmailSuffixWhitelist: []string{"@invalid_domain"},
 	})
 	require.Error(t, err)
@@ -332,16 +340,18 @@ func TestSettingService_UpdateSettings_TablePreferences(t *testing.T) {
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
-		TableDefaultPageSize: 50,
-		TablePageSizeOptions: []int{20, 50, 100},
+		BalanceFeatureSettings: validBalanceFeatureSettings(),
+		TableDefaultPageSize:   50,
+		TablePageSizeOptions:   []int{20, 50, 100},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "50", repo.updates[SettingKeyTableDefaultPageSize])
 	require.Equal(t, "[20,50,100]", repo.updates[SettingKeyTablePageSizeOptions])
 
 	err = svc.UpdateSettings(context.Background(), &SystemSettings{
-		TableDefaultPageSize: 1000,
-		TablePageSizeOptions: []int{20, 100},
+		BalanceFeatureSettings: validBalanceFeatureSettings(),
+		TableDefaultPageSize:   1000,
+		TablePageSizeOptions:   []int{20, 100},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "1000", repo.updates[SettingKeyTableDefaultPageSize])
@@ -356,6 +366,7 @@ func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings:                             validBalanceFeatureSettings(),
 		PaymentVisibleMethodAlipaySource:                   "alipay",
 		PaymentVisibleMethodWxpaySource:                    "easypay",
 		PaymentVisibleMethodAlipayEnabled:                  true,
@@ -405,7 +416,10 @@ func TestSettingService_UpdateSettingsRejectsInvalidOpenAIOAuthSchedulingRateMul
 	svc := NewSettingService(repo, &config.Config{})
 
 	for _, rate := range []float64{-0.01, math.NaN(), math.Inf(1)} {
-		err := svc.UpdateSettings(context.Background(), &SystemSettings{OpenAIOAuthSchedulingRateMultiplier: rate})
+		err := svc.UpdateSettings(context.Background(), &SystemSettings{
+			BalanceFeatureSettings:              validBalanceFeatureSettings(),
+			OpenAIOAuthSchedulingRateMultiplier: rate,
+		})
 		require.Error(t, err)
 	}
 }
@@ -453,7 +467,9 @@ func TestSettingService_UpdateSettings_OpenAIAdvancedSchedulerWeightSums(t *test
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := NewSettingService(&settingUpdateRepoStub{}, &config.Config{})
-			err := svc.UpdateSettings(context.Background(), &tt.weights)
+			settings := tt.weights
+			settings.BalanceFeatureSettings = validBalanceFeatureSettings()
+			err := svc.UpdateSettings(context.Background(), &settings)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -508,6 +524,7 @@ func TestSettingService_UpdateSettings_AntigravityUserAgentVersion(t *testing.T)
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings:      validBalanceFeatureSettings(),
 		AntigravityUserAgentVersion: "1.23.2",
 	})
 	require.NoError(t, err)
@@ -520,6 +537,7 @@ func TestSettingService_UpdateSettings_APIKeyACLTrustForwardedIPRefreshesConfig(
 	svc := NewSettingService(repo, cfg)
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings:    validBalanceFeatureSettings(),
 		APIKeyACLTrustForwardedIP: true,
 	})
 	require.NoError(t, err)
@@ -567,6 +585,7 @@ func TestSettingService_UpdateSettings_RejectsInvalidPaymentVisibleMethodSource(
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		BalanceFeatureSettings:           validBalanceFeatureSettings(),
 		PaymentVisibleMethodAlipaySource: "not-a-provider",
 	})
 	require.Error(t, err)
