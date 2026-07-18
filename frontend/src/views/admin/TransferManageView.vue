@@ -45,9 +45,9 @@
             <td class="px-4 py-3">{{ t.receiver_display }}</td>
             <td class="px-4 py-3 text-right">{{ t.amount.toFixed(4) }}</td>
             <td class="px-4 py-3 text-right">{{ t.fee.toFixed(4) }}</td>
-            <td class="px-4 py-3">{{ t.transfer_type }}</td>
+            <td class="px-4 py-3">{{ transferTypeLabel(t.transfer_type) }}</td>
             <td class="px-4 py-3">
-              <span :class="statusClass(t.status)">{{ t.status }}</span>
+              <span :class="statusClass(t.status)">{{ transferStatusLabel(t.status) }}</span>
             </td>
             <td class="px-4 py-3 text-xs text-gray-500">{{ new Date(t.created_at).toLocaleString() }}</td>
             <td class="px-4 py-3">
@@ -132,6 +132,14 @@ function statusClass(status: string) {
     case 'revoked': return 'text-red-600'
     default: return 'text-gray-500'
   }
+}
+
+function transferTypeLabel(type: string) {
+  return t(`transfer.transferTypes.${type}`, type)
+}
+
+function transferStatusLabel(status: string) {
+  return t(`transfer.status.${status}`, status)
 }
 
 async function handleFreeze(id: number) {
