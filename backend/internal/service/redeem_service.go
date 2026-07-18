@@ -140,6 +140,7 @@ type RedeemService struct {
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	affiliateService     *AffiliateService
+	settingService       *SettingService
 }
 
 // NewRedeemService 创建兑换码服务实例
@@ -152,8 +153,13 @@ func NewRedeemService(
 	entClient *dbent.Client,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
 	affiliateService *AffiliateService,
+	settingServices ...*SettingService,
 ) *RedeemService {
 	redeemUserRepo, _ := userRepo.(RedeemUserAdjustmentRepository)
+	var settingService *SettingService
+	if len(settingServices) > 0 {
+		settingService = settingServices[0]
+	}
 	return &RedeemService{
 		redeemRepo:           redeemRepo,
 		userRepo:             userRepo,
@@ -164,6 +170,7 @@ func NewRedeemService(
 		entClient:            entClient,
 		authCacheInvalidator: authCacheInvalidator,
 		affiliateService:     affiliateService,
+		settingService:       settingService,
 	}
 }
 
@@ -200,7 +207,7 @@ func (s *RedeemService) GenerateCodes(ctx context.Context, req GenerateCodesRequ
 
 	codes := make([]RedeemCode, 0, req.Count)
 	for i := 0; i < req.Count; i++ {
-		code, err := s.GenerateRandomCode()
+		code, err := s.settingService.GenerateCode(ctx, codeType)
 		if err != nil {
 			return nil, fmt.Errorf("generate code: %w", err)
 		}
