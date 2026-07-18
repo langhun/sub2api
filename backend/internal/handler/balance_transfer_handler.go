@@ -83,6 +83,9 @@ func (h *BalanceTransferHandler) SearchReceivers(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
+	// Receiver identity search must never reuse a cached, previously masked response.
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
+	c.Header("Pragma", "no-cache")
 	receivers, err := h.transferService.SearchReceivers(c.Request.Context(), userID, c.Query("query"))
 	if err != nil {
 		WriteAppError(c, err)

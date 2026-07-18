@@ -309,7 +309,7 @@ func (s *BalanceTransferService) SearchReceivers(ctx context.Context, requesterI
 			continue
 		}
 		username := strings.TrimSpace(user.Username)
-		email := maskTransferReceiverEmail(user.Email)
+		email := strings.TrimSpace(user.Email)
 		display := username
 		if display == "" {
 			display = email
@@ -325,33 +325,6 @@ func (s *BalanceTransferService) SearchReceivers(ctx context.Context, requesterI
 		}
 	}
 	return candidates, nil
-}
-
-func maskTransferReceiverIdentity(value string) string {
-	runes := []rune(strings.TrimSpace(value))
-	switch len(runes) {
-	case 0:
-		return ""
-	case 1:
-		return string(runes[0])
-	case 2:
-		return string(runes[0]) + "*"
-	default:
-		return string(runes[0]) + strings.Repeat("*", len(runes)-2) + string(runes[len(runes)-1])
-	}
-}
-
-func maskTransferReceiverEmail(value string) string {
-	email := strings.TrimSpace(value)
-	local, domain, ok := strings.Cut(email, "@")
-	if !ok || local == "" || domain == "" {
-		return maskTransferReceiverIdentity(email)
-	}
-	domainParts := strings.Split(domain, ".")
-	for i := 0; i < len(domainParts)-1; i++ {
-		domainParts[i] = maskTransferReceiverIdentity(domainParts[i])
-	}
-	return maskTransferReceiverIdentity(local) + "@" + strings.Join(domainParts, ".")
 }
 
 func isASCIIDigits(value string) bool {

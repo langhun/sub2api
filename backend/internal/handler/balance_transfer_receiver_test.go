@@ -54,11 +54,12 @@ func TestBalanceTransferHandlerSearchReceivers(t *testing.T) {
 	h.SearchReceivers(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "no-store, no-cache, must-revalidate", w.Header().Get("Cache-Control"))
 	require.JSONEq(t, `[{
 		"receiver_id":9,
 		"receiver_display":"openGate",
 		"receiver_username":"openGate",
-		"receiver_email":"i******y@d****n.icu"
+		"receiver_email":"identity@domain.icu"
 	}]`, w.Body.String())
 }
 
