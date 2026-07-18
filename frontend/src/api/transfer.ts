@@ -58,7 +58,8 @@ export interface TransferReceiver {
 
 export async function searchTransferReceivers(query: string): Promise<TransferReceiver[]> {
   const { data } = await apiClient.get<TransferReceiver[]>('/transfer/receivers', {
-    params: { query },
+    // Avoid reusing an older masked GET response after the display policy changes.
+    params: { query, _t: Date.now() },
   })
   return data
 }

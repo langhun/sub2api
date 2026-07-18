@@ -312,11 +312,11 @@ func TestBalanceTransferSearchReceiversReturnsFullUsernames(t *testing.T) {
 		ReceiverID:       2,
 		ReceiverDisplay:  "openGate",
 		ReceiverUsername: "openGate",
-		ReceiverEmail:    "i******y@d****n.icu",
+		ReceiverEmail:    "identity@domain.icu",
 	}, result[0])
-	require.Equal(t, "f******k@e*****e.com", result[1].ReceiverDisplay)
+	require.Equal(t, "fallback@example.com", result[1].ReceiverDisplay)
 	require.Empty(t, result[1].ReceiverUsername)
-	require.Equal(t, "f******k@e*****e.com", result[1].ReceiverEmail)
+	require.Equal(t, "fallback@example.com", result[1].ReceiverEmail)
 }
 
 func TestBalanceTransferSearchReceiversValidatesQueryAndCapsResults(t *testing.T) {
