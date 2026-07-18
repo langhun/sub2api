@@ -59,7 +59,7 @@ func TestBalanceTransferHandlerSearchReceivers(t *testing.T) {
 		"receiver_id":9,
 		"receiver_display":"openGate",
 		"receiver_username":"openGate",
-		"receiver_email":"identity@domain.icu"
+		"receiver_email":"i******y@d****n.icu"
 	}]`, w.Body.String())
 }
 
