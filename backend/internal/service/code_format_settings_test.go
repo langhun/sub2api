@@ -56,3 +56,16 @@ func TestAppendCodeFormatUpdatesTreatsOmittedSettingsAsDefaults(t *testing.T) {
 	require.NoError(t, appendCodeFormatUpdates(updates, CodeFormatSettings{}))
 	require.Equal(t, DefaultCodeFormatSettings(), parseCodeFormatSettings(updates))
 }
+
+func TestCodeFormatSettingsMapsInternalAdjustmentTypes(t *testing.T) {
+	settings := DefaultCodeFormatSettings()
+	settings.Balance.Prefix = "BAL"
+	settings.Concurrency.Prefix = "CON"
+	settings.Subscription.Prefix = "SUB"
+	settings.Invitation.Prefix = "INV"
+
+	require.Equal(t, "BAL", settings.RedeemFormat(AdjustmentTypeAdminBalance).Prefix)
+	require.Equal(t, "CON", settings.RedeemFormat(AdjustmentTypeAdminConcurrency).Prefix)
+	require.Equal(t, "BAL", settings.RedeemFormat(AdjustmentTypeCheckinLuck).Prefix)
+	require.Equal(t, "INV", settings.RedeemFormat(BlindboxRewardInvitationCode).Prefix)
+}
