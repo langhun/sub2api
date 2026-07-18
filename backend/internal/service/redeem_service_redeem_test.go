@@ -9,6 +9,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type redeemGenerateRepo struct {
+	redeemRejectRepo
+	created []RedeemCode
+}
+
+func (r *redeemGenerateRepo) CreateBatch(_ context.Context, codes []RedeemCode) error {
+	r.created = append(r.created, codes...)
+	return nil
+}
+
+func TestRedeemGenerateCodesUsesConfiguredFormat(t *testing.T) {
+	repo := &redeemGenerateRepo{}
+	settings := NewSettingService(&transferSafetySettingRepo{values: map[string]string{
+		SettingKeyCodeFormatBalance: `{"prefix":"BAL","character_set":"numeric","separator":"-","group_length":2,"group_count":2}`,
+	}}, nil)
+	service := NewRedeemService(repo, nil, nil, nil, nil, nil, nil, nil, settings)
+
+	_, err := service.GenerateCodes(context.Background(), GenerateCodesRequest{Count: 1, Type: RedeemTypeBalance, Value: 5})
+
+	require.NoError(t, err)
+	require.Len(t, repo.created, 1)
+	require.Regexp(t, `^BAL-[0-9]{2}-[0-9]{2}$`, repo.created[0].Code)
+}
+
 type redeemRejectRepo struct {
 	code      RedeemCode
 	useCalled bool
