@@ -82,49 +82,56 @@
         <div v-else-if="packets.length === 0" class="py-14 text-center text-sm text-gray-500 dark:text-dark-400">{{ t('redpacket.empty') }}</div>
 
         <div v-else class="space-y-3 p-4">
-          <article v-for="packet in packets" :key="packet.id" class="overflow-hidden rounded-xl border border-gray-100 dark:border-dark-700">
-            <button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50/70 dark:hover:bg-dark-800/35" @click="togglePacketDetail(packet)">
+          <article v-for="packet in packets" :key="packet.id" class="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
+            <button type="button" class="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50/70 dark:hover:bg-dark-800/35 sm:px-6" @click="togglePacketDetail(packet)">
               <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-500 dark:bg-rose-900/20 dark:text-rose-400">
                 <Icon name="gift" size="sm" />
               </span>
               <span class="min-w-0 flex-1">
                 <span class="flex flex-wrap items-center gap-2">
-                  <strong class="truncate text-sm text-gray-900 dark:text-white">{{ packet.memo || typeLabel(packet.redpacket_type) }}</strong>
-                  <span class="badge" :class="statusBadgeClass(packet.status)">{{ statusLabel(packet.status) }}</span>
+                  <strong class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ packet.memo || typeLabel(packet.redpacket_type) }}</strong>
+                  <span class="badge border border-gray-200/80" :class="statusBadgeClass(packet.status)">{{ statusLabel(packet.status) }}</span>
                   <span class="badge bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400">{{ typeLabel(packet.redpacket_type) }}</span>
                 </span>
                 <span class="mt-1 block truncate text-xs text-gray-500 dark:text-dark-400">
                   {{ t('redpacket.remaining', { remaining: packet.remaining_count, total: packet.total_count }) }} · {{ t('redpacket.validUntil', { date: dateTime(packet.expire_at) }) }}
                 </span>
               </span>
-              <span class="shrink-0 text-right">
-                <strong class="block text-base font-bold tabular-nums text-rose-600 dark:text-rose-400">{{ money(packet.total_amount) }}</strong>
-                <span class="mt-0.5 block text-xs text-gray-400 dark:text-dark-500">{{ t('redpacket.remainingAmount') }} {{ money(packet.remaining_amount) }}</span>
+              <span class="w-36 shrink-0 text-right sm:w-44">
+                <strong class="block truncate text-lg font-bold tabular-nums text-rose-600 dark:text-rose-400 sm:text-xl" :title="money(packet.total_amount)">{{ money(packet.total_amount) }}</strong>
+                <span class="mt-0.5 block truncate text-xs text-gray-400 dark:text-dark-500">{{ t('redpacket.remainingAmount') }} {{ money(packet.remaining_amount) }}</span>
               </span>
               <Icon name="chevronDown" size="sm" class="shrink-0 text-gray-400 transition-transform" :class="expandedPacketId === packet.id ? 'rotate-180' : ''" />
             </button>
 
-            <div class="mx-4 mb-3 rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-dark-900/50">
+            <div class="mx-5 mb-4 rounded-xl bg-slate-50 px-3.5 py-3 dark:bg-dark-800/60 sm:mx-6">
               <div class="flex items-center gap-2">
-                <code class="min-w-0 flex-1 truncate text-xs text-gray-600 dark:text-dark-300">{{ packet.code }}</code>
+                <code class="min-w-0 flex-1 truncate text-xs font-medium tracking-wide text-gray-600 dark:text-dark-300">{{ packet.code }}</code>
                 <button type="button" class="shrink-0 rounded-md p-1 text-gray-400 hover:bg-white hover:text-gray-700 dark:hover:bg-dark-700 dark:hover:text-white" :title="t('common.copy')" @click.stop="copyCode(packet.code)">
                   <Icon name="copy" size="xs" />
                 </button>
               </div>
-              <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white dark:bg-dark-800">
-                <div class="h-full rounded-full bg-gradient-to-r from-rose-400 to-orange-400" :style="{ width: `${progressPercent(packet)}%` }" />
+              <div class="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white dark:bg-dark-700">
+                <div class="h-full rounded-full bg-gradient-to-r from-rose-400 via-rose-400 to-orange-400" :style="{ width: `${progressPercent(packet)}%` }" />
               </div>
             </div>
 
-            <div v-if="expandedPacketId === packet.id" class="border-t border-gray-100 px-4 py-3 dark:border-dark-700">
+            <div v-if="expandedPacketId === packet.id" class="border-t border-gray-100 bg-white px-5 py-3.5 dark:border-dark-700 dark:bg-dark-900 sm:px-6">
               <div v-if="detailLoading" class="flex min-h-20 items-center justify-center"><LoadingSpinner size="sm" /></div>
               <div v-else-if="detailError" class="py-3 text-center text-sm text-red-600 dark:text-red-400">{{ detailError }}</div>
               <div v-else-if="detailClaims.length > 0">
-                <h3 class="text-xs font-semibold text-gray-700 dark:text-dark-200">{{ t('redpacket.claimRecords') }}</h3>
-                <div class="mt-2 max-h-44 divide-y divide-gray-100 overflow-y-auto dark:divide-dark-700">
-                  <div v-for="claim in detailClaims" :key="claim.id" class="flex items-center justify-between py-2 text-xs">
-                    <span class="text-gray-500 dark:text-dark-400">{{ claim.user_display }} · {{ dateTime(claim.created_at) }}</span>
-                    <strong class="text-gray-900 dark:text-white">{{ money(claim.amount) }}</strong>
+                <h3 class="text-xs font-semibold text-gray-500 dark:text-dark-400">{{ t('redpacket.claimRecords') }} ({{ detailClaims.length }}/{{ packet.total_count }})</h3>
+                <div class="mt-3 max-h-64 space-y-2 overflow-y-auto">
+                  <div v-for="claim in detailClaims" :key="claim.id" class="flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm dark:border-dark-700 dark:bg-dark-800/50">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-400 dark:bg-emerald-900/20 dark:text-emerald-300"><Icon name="user" size="xs" /></span>
+                    <span class="min-w-0 flex-1">
+                      <span class="flex items-center gap-2">
+                        <strong class="truncate text-sm font-medium text-gray-700 dark:text-dark-200">{{ claim.user_display }}</strong>
+                        <span v-if="packet.redpacket_type === 'random' && isBestClaim(claim)" class="badge bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-300">{{ t('redpacket.bestLuck') }}</span>
+                      </span>
+                      <span class="mt-0.5 block text-xs text-gray-400 dark:text-dark-500">{{ dateTime(claim.created_at) }}</span>
+                    </span>
+                    <strong class="shrink-0 text-sm font-bold tabular-nums text-emerald-600 dark:text-emerald-400">+{{ money(claim.amount) }}</strong>
                   </div>
                 </div>
               </div>
@@ -269,6 +276,11 @@ function statusBadgeClass(status: string) {
 function progressPercent(packet: RedPacketRecord) {
   if (packet.total_count <= 0) return 0
   return Math.min(100, Math.max(0, ((packet.total_count - packet.remaining_count) / packet.total_count) * 100))
+}
+
+function isBestClaim(claim: RedPacketClaimRecord) {
+  const maxAmount = Math.max(...detailClaims.value.map((item) => Number(item.amount || 0)))
+  return Number(claim.amount || 0) === maxAmount && maxAmount > 0
 }
 
 function openCreateDialog() {
