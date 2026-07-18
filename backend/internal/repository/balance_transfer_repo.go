@@ -230,7 +230,7 @@ func (r *balanceTransferRepo) GetLeaderboard(ctx context.Context, startTime, end
 		if err := rows.Scan(&e.UserID, &username, &e.Email, &e.TotalAmount, &e.TotalCount); err != nil {
 			return nil, err
 		}
-		e.DisplayName = service.UserDisplayName(username, e.Email, e.UserID)
+		e.DisplayName = service.MaskedUserDisplayName(username, e.Email, e.UserID)
 		e.Email = maskTransferEmail(e.Email)
 		e.Rank = rank
 		rank++

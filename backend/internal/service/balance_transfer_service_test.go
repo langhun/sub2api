@@ -262,7 +262,7 @@ func TestBalanceTransferResolveReceiverSupportsNumericIDAndExactIdentity(t *test
 		require.NoError(t, err)
 		require.Equal(t, "Alice@Example.com", users.resolveQuery)
 		require.Nil(t, users.resolveNumericID)
-		require.Equal(t, "alice@example.com", result.ReceiverDisplay)
+		require.Equal(t, "a***e@example.com", result.ReceiverDisplay)
 	})
 }
 

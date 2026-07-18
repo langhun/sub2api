@@ -42,7 +42,7 @@ func queryUserDisplayNames(ctx context.Context, querier userDisplayQuerier, user
 		if err := rows.Scan(&userID, &username, &email); err != nil {
 			return nil, err
 		}
-		displays[userID] = service.UserDisplayName(username, email, userID)
+		displays[userID] = service.MaskedUserDisplayName(username, email, userID)
 	}
 	return displays, rows.Err()
 }
