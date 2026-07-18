@@ -54,6 +54,7 @@ func TestUserRepositorySearchActiveTransferReceiversMatchesNumericID(t *testing.
 	repo, _ := newUserEntRepo(t)
 	requester := createTransferSearchUser(t, repo, "requester", "requester@example.com", service.StatusActive)
 	target := createTransferSearchUser(t, repo, "target", "target@example.com", service.StatusActive)
+	createTransferSearchUser(t, repo, fmt.Sprintf("contains-%d", target.ID), fmt.Sprintf("contains-%d@example.com", target.ID), service.StatusActive)
 
 	got, err := repo.SearchActiveTransferReceivers(context.Background(), fmt.Sprint(target.ID), requester.ID, 8)
 
