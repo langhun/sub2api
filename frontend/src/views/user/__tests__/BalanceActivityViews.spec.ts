@@ -83,8 +83,8 @@ describe('TransferView', () => {
   it('shows fuzzy receiver candidates and requires an explicit selection', async () => {
     vi.useFakeTimers()
     api.searchTransferReceivers.mockResolvedValue([
-      { receiver_id: 7, receiver_display: 'a***e', receiver_username: 'a***e', receiver_email: 'a***e@example.com' },
-      { receiver_id: 8, receiver_display: 'a***x', receiver_username: 'a***x', receiver_email: 'a***x@example.com' },
+      { receiver_id: 7, receiver_display: 'Alice', receiver_username: 'Alice', receiver_email: 'a***e@example.com' },
+      { receiver_id: 8, receiver_display: 'Alex', receiver_username: 'Alex', receiver_email: 'a***x@example.com' },
     ])
     const wrapper = mountView(TransferView)
     await flushPromises()
@@ -95,6 +95,7 @@ describe('TransferView', () => {
     await flushPromises()
     expect(api.searchTransferReceivers).toHaveBeenCalledWith('ali')
     expect(wrapper.findAll('[data-testid="receiver-candidate"]')).toHaveLength(2)
+    expect(wrapper.text()).toContain('Alice')
     expect(wrapper.find('[data-testid="resolved-receiver"]').exists()).toBe(false)
 
     await wrapper.findAll('[data-testid="receiver-candidate"]')[0].trigger('click')
