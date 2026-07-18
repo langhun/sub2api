@@ -341,5 +341,5 @@ func (s *LeaderboardService) GetTransferLeaderboard(ctx context.Context, period 
 }
 
 func leaderboardUserDisplay(username, email string) string {
-	return UserDisplayName(username, email, 0)
+	return MaskedUserDisplayName(username, email, 0)
 }

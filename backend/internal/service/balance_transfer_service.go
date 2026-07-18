@@ -254,7 +254,7 @@ func (s *BalanceTransferService) ValidateTransfer(ctx context.Context, senderID,
 }
 
 func transferReceiverDisplay(user *User) string {
-	return UserDisplayName(user.Username, user.Email, user.ID)
+	return MaskedUserDisplayName(user.Username, user.Email, user.ID)
 }
 
 func (s *BalanceTransferService) ResolveReceiver(ctx context.Context, requesterID int64, rawQuery string) (*TransferReceiver, error) {

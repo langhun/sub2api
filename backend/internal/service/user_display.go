@@ -17,3 +17,13 @@ func UserDisplayName(username, email string, userID int64) string {
 	}
 	return "用户"
 }
+
+func MaskedUserDisplayName(username, email string, userID int64) string {
+	if value := strings.TrimSpace(username); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(email); value != "" {
+		return MaskEmail(value)
+	}
+	return UserDisplayName("", "", userID)
+}

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestQueryUserDisplayNamesPrefersUsernameThenEmail(t *testing.T) {
+func TestQueryUserDisplayNamesPrefersUsernameThenMaskedEmail(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
@@ -20,7 +20,7 @@ func TestQueryUserDisplayNamesPrefersUsernameThenEmail(t *testing.T) {
 
 	displays, err := queryUserDisplayNames(context.Background(), db, []int64{10, 55, 10})
 	require.NoError(t, err)
-	require.Equal(t, map[int64]string{10: "alice", 55: "fallback@example.com"}, displays)
+	require.Equal(t, map[int64]string{10: "alice", 55: "f***k@example.com"}, displays)
 	mock.ExpectClose()
 	require.NoError(t, db.Close())
 	require.NoError(t, mock.ExpectationsWereMet())

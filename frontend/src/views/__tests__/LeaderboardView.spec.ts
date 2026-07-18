@@ -106,6 +106,25 @@ describe('LeaderboardView', () => {
     expect(wrapper.find('icon-stub[name="badge"]').exists()).toBe(true)
   })
 
+  it('renders complete usernames but never raw fallback emails', async () => {
+    api.balance.mockResolvedValue({
+      ...page('unused'),
+      items: [
+        { rank: 1, username: '完整用户名', email: 'owner@example.com', value: 10 },
+        { rank: 2, username: 'p***n@example.com', email: 'person@example.com', value: 9 },
+      ],
+      total: 2,
+    } as unknown as LeaderboardData)
+
+    const wrapper = mountView('zh-CN')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('完整用户名')
+    expect(wrapper.text()).toContain('p***n@example.com')
+    expect(wrapper.text()).not.toContain('owner@example.com')
+    expect(wrapper.text()).not.toContain('person@example.com')
+  })
+
   it('shows English and Chinese compact units for large amounts in Chinese', async () => {
     api.balance.mockResolvedValue(page('Large balance user', 58_770_000_000_000))
 

@@ -51,9 +51,10 @@ func TestLeaderboardUserDisplay(t *testing.T) {
 		{name: "username", username: "alice", email: "ignored@example.com", want: "alice"},
 		{name: "unicode username", username: "张小明", want: "张小明"},
 		{name: "two runes", username: "阿明", want: "阿明"},
-		{name: "email fallback", email: "person@example.com", want: "person@example.com"},
+		{name: "email fallback is masked", email: "person@example.com", want: "p***n@example.com"},
+		{name: "email fallback trims whitespace", email: " x@example.com ", want: "x***@example.com"},
 		{name: "single character", username: "x", want: "x"},
-		{name: "anonymous fallback", want: "user"},
+		{name: "anonymous fallback", want: "用户"},
 	}
 
 	for _, test := range tests {
