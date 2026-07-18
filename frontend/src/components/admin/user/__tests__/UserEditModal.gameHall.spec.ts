@@ -13,7 +13,10 @@ vi.mock('@/api/admin', () => ({
 }))
 vi.mock('@/stores/app', () => ({ useAppStore: () => ({ showError: mocks.showError, showSuccess: mocks.showSuccess }) }))
 vi.mock('@/composables/useClipboard', () => ({ useClipboard: () => ({ copyToClipboard: vi.fn() }) }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key, locale: ref('zh-CN') }) }))
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-i18n')>()
+  return { ...actual, useI18n: () => ({ t: (key: string) => key, locale: ref('zh-CN') }) }
+})
 vi.mock('@/components/common/BaseDialog.vue', () => ({
   default: { props: ['show'], template: '<div v-if="show"><slot/><slot name="footer"/></div>' },
 }))
