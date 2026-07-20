@@ -17,7 +17,9 @@ const translate = (key: string) => messageFromKey(key) ?? key
 describe('formatAuditAction', () => {
   it.each([
     ['auth.validate_invitation_code.create', '认证 · 校验邀请码 · 创建'],
+    ['auth.token.refresh', '认证 · 令牌 · 刷新'],
     ['auth.oauth.pending.exchange.create', '认证 · OAuth 授权 · 待处理 · 兑换 · 创建'],
+    ['admin.accounts.schedulable.create', '账号 · 调度状态 · 创建'],
     ['admin.accounts.test.create', '账号 · 测试 · 创建'],
     ['admin.accounts.today_stats.batch.create', '账号 · 今日统计 · 批量 · 创建'],
     ['admin.accounts.upstream_billing_probe.batch.create', '账号 · 上游计费探测 · 批量 · 创建'],

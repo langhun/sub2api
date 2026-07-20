@@ -90,6 +90,8 @@ export default {
       window: '窗口',
       upstream: '上游',
       billing: '计费',
+      token: '令牌',
+      schedulable: '调度状态',
       sync: '同步',
       test: '测试',
       code: '代码',
@@ -163,7 +165,7 @@ export default {
       login: '登录',
       login_2fa: '二次验证登录',
       register: '注册',
-      refresh: '刷新令牌',
+      refresh: '刷新',
       token_refresh: '刷新令牌',
       step_up: '二次验证'
     },

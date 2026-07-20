@@ -85,6 +85,7 @@ describe('AppHeader check-in actions', () => {
     checkinStore.checkedInToday = false
     checkinStore.loading = false
     checkinStore.actionError = null
+    authStore.user.frozen_balance = 0
     checkinStore.doCheckin.mockImplementation(async () => {
       checkinStore.canCheckin = false
       checkinStore.checkedInToday = true
@@ -137,5 +138,14 @@ describe('AppHeader check-in actions', () => {
     expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="header-checkin-tip"]').exists()).toBe(false)
     expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success +$1.00')
+  })
+
+  it('only shows the balance breakdown when funds are frozen', () => {
+    const withoutHold = mountHeader()
+    expect(withoutHold.find('[data-testid="balance-breakdown"]').exists()).toBe(false)
+
+    authStore.user.frozen_balance = 5
+    const withHold = mountHeader()
+    expect(withHold.find('[data-testid="balance-breakdown"]').exists()).toBe(true)
   })
 })
