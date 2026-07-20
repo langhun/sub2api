@@ -116,14 +116,6 @@
               {{ t('checkin.luckCheckin') }}
             </button>
           </template>
-          <div
-            v-else-if="headerCheckinTip"
-            data-testid="header-checkin-tip"
-            class="flex items-center gap-1.5 rounded-xl bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700 dark:bg-green-900/20 dark:text-green-300"
-          >
-            <Icon name="checkCircle" size="sm" />
-            <span>{{ headerCheckinTip }}</span>
-          </div>
         </div>
 
         <LuckyCheckinDialog :show="showHeaderLuckDialog" @close="showHeaderLuckDialog = false" @success="handleHeaderCheckinSuccess" />
@@ -314,8 +306,6 @@ const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.f
 const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
 const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHeaderMoney(frozenBalance.value)}`)
 const showHeaderLuckDialog = ref(false)
-const headerCheckinTip = ref('')
-let headerCheckinTipTimer: ReturnType<typeof setTimeout> | null = null
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
@@ -410,12 +400,17 @@ function openHeaderLuckDialog() {
 function handleHeaderCheckinSuccess(result: CheckinResult) {
   showHeaderLuckDialog.value = false
   const reward = Number(result.reward_amount || 0)
-  headerCheckinTip.value = `${reward >= 0 ? '+' : '-'}$${Math.abs(reward).toFixed(2)}`
-  if (headerCheckinTipTimer) clearTimeout(headerCheckinTipTimer)
-  headerCheckinTipTimer = setTimeout(() => {
-    headerCheckinTip.value = ''
-    headerCheckinTipTimer = null
-  }, 5000)
+  const amount = Math.abs(reward).toFixed(2)
+  let detail = `${reward >= 0 ? '+' : '-'}$${amount}`
+
+  if (result.checkin_type === 'luck') {
+    const multiplier = Number(result.multiplier || 0).toFixed(2)
+    if (reward > 0) detail = t('checkin.luckSuccess', { multiplier, amount })
+    else if (reward < 0) detail = t('checkin.luckLoss', { multiplier, amount })
+    else detail = t('checkin.luckEven')
+  }
+
+  appStore.showSuccess(`${t('checkin.success')} ${detail}`)
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -433,7 +428,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
-  if (headerCheckinTipTimer) clearTimeout(headerCheckinTipTimer)
 })
 </script>
 

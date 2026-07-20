@@ -93,7 +93,7 @@ describe('AppHeader check-in actions', () => {
     checkinStore.doLuckCheckin.mockImplementation(async () => {
       checkinStore.canCheckin = false
       checkinStore.checkedInToday = true
-      return { reward_amount: 2 }
+      return { reward_amount: 2, checkin_type: 'luck', multiplier: 1.5 }
     })
   })
 
@@ -112,8 +112,11 @@ describe('AppHeader check-in actions', () => {
     await wrapper.get('[data-testid="header-luck-checkin"]').trigger('click')
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('5')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
+    await flushPromises()
 
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(5, false)
+    expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success checkin.luckSuccess')
+    expect(wrapper.find('[data-testid="header-checkin-tip"]').exists()).toBe(false)
   })
 
   it('hides header actions when check-in is disabled', () => {
@@ -123,9 +126,7 @@ describe('AppHeader check-in actions', () => {
     expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(false)
   })
 
-  it('shows a temporary reward tip after a successful check-in', async () => {
-    vi.useFakeTimers()
-
+  it('shows a success toast without an inline reward tip', async () => {
     const wrapper = mountHeader()
     await wrapper.get('[data-testid="header-normal-checkin"]').trigger('click')
     await flushPromises()
@@ -134,11 +135,7 @@ describe('AppHeader check-in actions', () => {
 
     expect(wrapper.find('[data-testid="header-normal-checkin"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="header-checkin-tip"]').text()).toContain('+$1.00')
-
-    vi.advanceTimersByTime(5000)
-    await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="header-checkin-tip"]').exists()).toBe(false)
-    vi.useRealTimers()
+    expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success +$1.00')
   })
 })
