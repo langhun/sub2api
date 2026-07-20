@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
 
 const appStore = vi.hoisted(() => ({
   cachedPublicSettings: { checkin_blindbox_enabled: false } as Record<string, boolean>,
+  showSuccess: vi.fn(),
 }))
 
 const checkinStore = vi.hoisted(() => ({
@@ -149,6 +150,7 @@ describe('CheckinView feature visibility', () => {
     checkinStore.status.luck_enabled = true
     checkinStore.normalEnabled = false
     checkinStore.luckEnabled = true
+    checkinStore.doLuckCheckin.mockResolvedValue({ reward_amount: 1, streak_days: 1, checked_at: '2026-07-20', checkin_type: 'luck' })
 
     const wrapper = mountView()
     await flushPromises()
@@ -158,5 +160,20 @@ describe('CheckinView feature visibility', () => {
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledOnce()
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(4)
+    expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success')
+  })
+
+  it('shows the shared success toast after a normal check-in', async () => {
+    checkinStore.doCheckin.mockResolvedValue({ reward_amount: 1, streak_days: 1, checked_at: '2026-07-20', checkin_type: 'normal' })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    const normalButton = wrapper.findAll('button').find((button) => button.text().includes('checkin.normalCheckin'))
+    expect(normalButton).toBeDefined()
+    await normalButton!.trigger('click')
+    await flushPromises()
+
+    expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success')
   })
 })

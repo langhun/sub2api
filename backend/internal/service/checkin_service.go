@@ -215,13 +215,11 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 		return nil, ErrCheckinNotAllowed
 	}
 
-	if betAmount <= 0 || betAmount > user.Balance {
+	normalizedBetAmount, ok := normalizeLuckCheckinBetAmount(betAmount, user.Balance)
+	if !ok {
 		return nil, ErrInvalidBetAmount
 	}
-
-	if user.Balance <= 0 {
-		return nil, ErrInvalidBetAmount
-	}
+	betAmount = normalizedBetAmount
 
 	today := timezone.Today()
 	todayDate := today.Format("2006-01-02")
@@ -342,6 +340,24 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	}
 
 	return result, nil
+}
+
+func normalizeLuckCheckinBetAmount(betAmount, balance float64) (float64, bool) {
+	if math.IsNaN(betAmount) || math.IsInf(betAmount, 0) ||
+		math.IsNaN(balance) || math.IsInf(balance, 0) ||
+		betAmount <= 0 || balance <= 0 {
+		return 0, false
+	}
+	if betAmount <= balance {
+		return betAmount, true
+	}
+
+	// Large balances cannot represent every cent as float64. MAX values may
+	// round up by one representable unit while crossing the JSON boundary.
+	if betAmount <= math.Nextafter(balance, math.Inf(1)) {
+		return balance, true
+	}
+	return 0, false
 }
 
 func lockCheckinUser(ctx context.Context, client *dbent.Client, userID int64) error {
