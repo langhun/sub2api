@@ -202,7 +202,7 @@ func (s *CheckinService) Checkin(ctx context.Context, userID int64) (*CheckinRes
 	return result, nil
 }
 
-func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmount float64) (*CheckinResult, error) {
+func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmount float64, useMaxBalance bool) (*CheckinResult, error) {
 	if !s.settingService.IsCheckinLuckEnabled(ctx) {
 		return nil, ErrCheckinLuckDisabled
 	}
@@ -214,12 +214,6 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	if user.Status != StatusActive {
 		return nil, ErrCheckinNotAllowed
 	}
-
-	normalizedBetAmount, ok := normalizeLuckCheckinBetAmount(betAmount, user.Balance)
-	if !ok {
-		return nil, ErrInvalidBetAmount
-	}
-	betAmount = normalizedBetAmount
 
 	today := timezone.Today()
 	todayDate := today.Format("2006-01-02")
@@ -254,8 +248,6 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	multiplier := minMultiplier + randomValue*(maxMultiplier-minMultiplier)
 	multiplier = math.Round(multiplier*100) / 100
 
-	rewardAmount := math.Round(betAmount*(multiplier-1)*100) / 100
-
 	streakDays := s.calculateStreak(ctx, userID, today)
 
 	tx, err := s.entClient.Tx(ctx)
@@ -273,6 +265,19 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	} else if existing != nil {
 		return checkinResultFromRecord(existing, todayDate), nil
 	}
+	lockedUser, err := tx.Client().User.Get(txCtx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get locked user: %w", err)
+	}
+	if lockedUser.Status != StatusActive {
+		return nil, ErrCheckinNotAllowed
+	}
+	resolvedBetAmount, ok := resolveLuckCheckinBetAmount(betAmount, lockedUser.Balance, useMaxBalance)
+	if !ok {
+		return nil, ErrInvalidBetAmount
+	}
+	betAmount = resolvedBetAmount
+	rewardAmount := math.Round(betAmount*(multiplier-1)*100) / 100
 
 	checkinRecord, err := tx.Client().Checkin.
 		Create().
@@ -342,20 +347,17 @@ func (s *CheckinService) LuckCheckin(ctx context.Context, userID int64, betAmoun
 	return result, nil
 }
 
-func normalizeLuckCheckinBetAmount(betAmount, balance float64) (float64, bool) {
+func resolveLuckCheckinBetAmount(betAmount, balance float64, useMaxBalance bool) (float64, bool) {
 	if math.IsNaN(betAmount) || math.IsInf(betAmount, 0) ||
 		math.IsNaN(balance) || math.IsInf(balance, 0) ||
 		betAmount <= 0 || balance <= 0 {
 		return 0, false
 	}
+	if useMaxBalance {
+		return math.Min(betAmount, balance), true
+	}
 	if betAmount <= balance {
 		return betAmount, true
-	}
-
-	// Large balances cannot represent every cent as float64. MAX values may
-	// round up by one representable unit while crossing the JSON boundary.
-	if betAmount <= math.Nextafter(balance, math.Inf(1)) {
-		return balance, true
 	}
 	return 0, false
 }

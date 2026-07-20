@@ -25,12 +25,13 @@
           :max="availableBalance"
           class="input"
           :placeholder="t('checkin.betAmountPlaceholder')"
+          @input="useMaxBalance = false"
           @keyup.enter="submit"
         />
       </label>
       <div class="flex items-center justify-between text-xs text-gray-500 dark:text-dark-400">
         <span>{{ t('profile.accountBalance') }}: {{ formatCurrency(availableBalance) }}</span>
-        <button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="betAmount = availableBalance">MAX</button>
+        <button type="button" data-testid="luck-bet-max" class="text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="setMaxBet">MAX</button>
       </div>
     </div>
 
@@ -68,6 +69,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const checkinStore = useCheckinStore()
 const betAmount = ref(0)
+const useMaxBalance = ref(false)
 
 const availableBalance = computed(() => checkinStore.status?.balance ?? 0)
 const validBet = computed(() => Number.isFinite(betAmount.value) && betAmount.value > 0 && betAmount.value <= availableBalance.value)
@@ -76,16 +78,23 @@ const actionErrorMessage = computed(() => extractApiErrorMessage(checkinStore.ac
 watch(() => props.show, (show) => {
   if (!show) return
   betAmount.value = 0
+  useMaxBalance.value = false
   checkinStore.clearActionError()
 })
 
 async function submit() {
   if (!validBet.value || checkinStore.loading) return
-  const result = await checkinStore.doLuckCheckin(betAmount.value)
+  const result = await checkinStore.doLuckCheckin(betAmount.value, useMaxBalance.value)
   if (!result) return
   emit('success', result)
   emit('close')
   betAmount.value = 0
+  useMaxBalance.value = false
+}
+
+function setMaxBet() {
+  betAmount.value = availableBalance.value
+  useMaxBalance.value = true
 }
 
 function closeDialog() {
