@@ -67,7 +67,7 @@
           @click="selectUser(user)"
         >
           <span class="min-w-0 truncate font-medium text-gray-900 dark:text-white">
-            {{ user.email }}
+            {{ userDisplayName(user) }}
             <span v-if="user.deleted" class="ml-1 text-xs font-normal text-gray-400">
               {{ t("admin.settings.openaiFastPolicy.userDeleted") }}
             </span>
@@ -85,6 +85,7 @@ import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api/admin";
 import type { SimpleUser } from "@/api/admin/usage";
 import Icon from "@/components/icons/Icon.vue";
+import { userDisplayName } from "@/utils/userDisplay";
 
 const props = defineProps<{
   modelValue: number[];
@@ -116,7 +117,7 @@ const availableResults = computed(() => {
 });
 
 function selectedUserLabel(userId: number): string {
-  return selectedUsers.value[userId]?.email ||
+  return userDisplayName(selectedUsers.value[userId]) ||
     t("admin.settings.openaiFastPolicy.userIdFallback", { id: userId });
 }
 
@@ -186,6 +187,7 @@ async function hydrateSelectedUsers(userIds: number[]): Promise<void> {
         return {
           id: user.id,
           email: user.email,
+          username: user.username,
           deleted: Boolean(user.deleted_at),
         } satisfies SimpleUser;
       } catch {

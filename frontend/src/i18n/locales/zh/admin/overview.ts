@@ -790,6 +790,7 @@ export default {
         status: '状态',
         actions: '操作',
         billingType: '计费类型',
+        user: '用户',
         userName: '用户名',
         userEmail: '邮箱',
         userNotes: '备注',

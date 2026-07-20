@@ -51,10 +51,11 @@ describe('OpenAIFastPolicyUserSelector', () => {
     vi.useRealTimers()
   })
 
-  it('hydrates existing IDs to email labels without changing the saved IDs', async () => {
+  it('hydrates existing IDs to username-first labels without changing the saved IDs', async () => {
     mockGetUserById.mockResolvedValue({
       id: 7,
       email: 'existing@example.com',
+      username: 'Existing User',
       deleted_at: null,
     })
 
@@ -65,14 +66,15 @@ describe('OpenAIFastPolicyUserSelector', () => {
     await flushPromises()
 
     expect(mockGetUserById).toHaveBeenCalledWith(7, true)
-    expect(wrapper.text()).toContain('existing@example.com')
+    expect(wrapper.text()).toContain('Existing User')
+    expect(wrapper.text()).not.toContain('existing@example.com')
     expect(wrapper.text()).toContain('#7')
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   })
 
   it('searches after one character and adds the selected user ID', async () => {
     mockSearchUsers.mockResolvedValue([
-      { id: 9, email: 'alice@example.com', deleted: false },
+      { id: 9, email: 'alice@example.com', username: 'Alice', deleted: false },
     ])
 
     const wrapper = mount(OpenAIFastPolicyUserSelector, {
@@ -88,7 +90,7 @@ describe('OpenAIFastPolicyUserSelector', () => {
 
     expect(mockSearchUsers).toHaveBeenCalledWith('a')
     const result = wrapper.findAll('button').find((button) =>
-      button.text().includes('alice@example.com'),
+      button.text().includes('Alice'),
     )
     expect(result).toBeDefined()
     await result!.trigger('click')

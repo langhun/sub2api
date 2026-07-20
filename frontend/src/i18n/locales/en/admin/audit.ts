@@ -8,8 +8,9 @@ export default {
     filters: {
       all: 'All',
       q: 'Keyword',
-      qPlaceholder: 'Path / action / actor email',
-      actorEmail: 'Actor Email',
+      qPlaceholder: 'Path / action / username / email',
+      actorEmail: 'Actor',
+      actorPlaceholder: 'Username / email',
       action: 'Action',
       clientIp: 'Client IP',
       method: 'Method',
@@ -19,6 +20,10 @@ export default {
       resultFailure: 'Failure',
       startTime: 'Start Time',
       endTime: 'End Time'
+    },
+    roles: {
+      admin: 'Admin',
+      user: 'User'
     },
     columns: {
       time: 'Time',

@@ -43,8 +43,7 @@
                 @click="selectUser(user)"
               >
                 <span class="text-gray-400">#{{ user.id }}</span>
-                <span class="text-gray-900 dark:text-white">{{ user.username || user.email }}</span>
-                <span v-if="user.username" class="text-xs text-gray-400">{{ user.email }}</span>
+                <span class="text-gray-900 dark:text-white">{{ userDisplayName(user) }}</span>
               </button>
             </div>
           </div>
@@ -106,9 +105,8 @@
               <table class="w-full text-sm">
                 <thead class="sticky top-0 z-[1]">
                   <tr class="border-b border-gray-200 bg-gray-50 dark:border-dark-600 dark:bg-dark-700">
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.groups.columns.userEmail') }}</th>
+                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.groups.columns.user') }}</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">ID</th>
-                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.groups.columns.userName') }}</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.groups.columns.userNotes') }}</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.groups.columns.userStatus') }}</th>
                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400" :title="t('admin.groups.columns.rpmOverrideHint')">{{ t('admin.groups.columns.rpmOverride') }}</th>
@@ -121,9 +119,8 @@
                     :key="entry.user_id"
                     class="hover:bg-gray-50 dark:hover:bg-dark-700/50"
                   >
-                    <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ entry.user_email }}</td>
+                    <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ userDisplayName({ username: entry.user_name, email: entry.user_email }) }}</td>
                     <td class="whitespace-nowrap px-3 py-2 text-gray-400 dark:text-gray-500">{{ entry.user_id }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 text-gray-900 dark:text-white">{{ entry.user_name || '-' }}</td>
                     <td class="max-w-[160px] truncate px-3 py-2 text-gray-500 dark:text-gray-400" :title="entry.user_notes">{{ entry.user_notes || '-' }}</td>
                     <td class="whitespace-nowrap px-3 py-2">
                       <span
@@ -216,6 +213,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
+import { userDisplayName } from '@/utils/userDisplay'
 
 interface LocalEntry extends GroupRPMOverrideEntry {}
 
@@ -327,7 +325,7 @@ const handleSearchUsers = () => {
 
 const selectUser = (user: AdminUser) => {
   selectedUser.value = user
-  searchQuery.value = user.email
+  searchQuery.value = userDisplayName(user)
   showDropdown.value = false
   searchResults.value = []
 }

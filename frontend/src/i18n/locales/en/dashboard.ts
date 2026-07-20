@@ -551,7 +551,8 @@ export default {
       title: 'Invited Users',
       empty: 'No invited users yet',
       columns: {
-        email: 'Email',
+        user: 'User',
+        email: 'User',
         username: 'Username',
         rebate: 'Rebate',
         joinedAt: 'Joined At'

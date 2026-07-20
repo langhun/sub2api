@@ -65,7 +65,7 @@ func TestGetUserBreakdownStatsRequestTypeIncludesLegacyFallback(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(legacyFilter)).
 		WithArgs(start, end, requestType).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"user_id", "email", "requests", "input_tokens", "output_tokens",
+			"user_id", "email", "username", "requests", "input_tokens", "output_tokens",
 			"cache_tokens", "total_tokens", "cost", "actual_cost", "account_cost",
 		}))
 
@@ -75,5 +75,29 @@ func TestGetUserBreakdownStatsRequestTypeIncludesLegacyFallback(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Empty(t, rows)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetUserBreakdownStatsIncludesUsername(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+	start := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+
+	mock.ExpectQuery(`COALESCE\(u\.username, ''\) as username`).
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"user_id", "email", "username", "requests", "input_tokens", "output_tokens",
+			"cache_tokens", "total_tokens", "cost", "actual_cost", "account_cost",
+		}).AddRow(int64(7), "alice@example.com", "alice", int64(2), int64(10), int64(20), int64(3), int64(33), 1.2, 1.0, 0.8))
+
+	rows, err := repo.GetUserBreakdownStats(context.Background(), start, end, usagestats.UserBreakdownDimension{}, 10)
+
+	require.NoError(t, err)
+	require.Equal(t, []usagestats.UserBreakdownItem{{
+		UserID: 7, Email: "alice@example.com", Username: "alice", Requests: 2,
+		InputTokens: 10, OutputTokens: 20, CacheTokens: 3, TotalTokens: 33,
+		Cost: 1.2, ActualCost: 1.0, AccountCost: 0.8,
+	}}, rows)
 	require.NoError(t, mock.ExpectationsWereMet())
 }

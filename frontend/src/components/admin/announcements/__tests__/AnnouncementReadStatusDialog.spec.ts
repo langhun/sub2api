@@ -42,6 +42,19 @@ const BaseDialogStub = {
   template: '<div><slot /><slot name="footer" /></div>',
 }
 
+const DataTableStub = {
+  props: ['columns', 'data', 'defaultSortKey'],
+  template: `
+    <div>
+      <div data-test="columns">{{ columns.map((column) => column.key).join(',') }}</div>
+      <div data-test="default-sort">{{ defaultSortKey }}</div>
+      <div v-for="row in data" :key="row.user_id">
+        <slot name="cell-username" :row="row" :value="row.username" />
+      </div>
+    </div>
+  `,
+}
+
 describe('AnnouncementReadStatusDialog', () => {
   beforeEach(() => {
     getReadStatus.mockReset()
@@ -91,5 +104,48 @@ describe('AnnouncementReadStatusDialog', () => {
     await flushPromises()
 
     expect(getReadStatus).toHaveBeenCalledTimes(1)
+  })
+
+  it('merges email and username into one username-first user column', async () => {
+    getReadStatus.mockResolvedValue({
+      items: [
+        { user_id: 1, username: 'Alice', email: 'alice@example.com', balance: 1, eligible: true },
+        { user_id: 2, username: '', email: 'fallback@example.com', balance: 2, eligible: true },
+      ],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+
+    const wrapper = mount(AnnouncementReadStatusDialog, {
+      props: { show: false, announcementId: 1 },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          DataTable: DataTableStub,
+          Pagination: true,
+          Icon: true,
+        },
+      },
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="columns"]').text().split(',')).toEqual([
+      'username', 'balance', 'eligible', 'read_at',
+    ])
+    expect(wrapper.get('[data-test="default-sort"]').text()).toBe('username')
+    expect(wrapper.text()).toContain('Alice')
+    expect(wrapper.text()).toContain('fallback@example.com')
+    expect(wrapper.text()).not.toContain('alice@example.com')
+    expect(getReadStatus).toHaveBeenCalledWith(
+      1,
+      1,
+      20,
+      expect.objectContaining({ sort_by: 'username', sort_order: 'asc' }),
+      expect.any(Object),
+    )
   })
 })

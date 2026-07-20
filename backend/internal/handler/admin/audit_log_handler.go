@@ -36,10 +36,16 @@ func (h *AuditLogHandler) List(c *gin.Context) {
 		pageSize = 200
 	}
 
+	actor := strings.TrimSpace(c.Query("actor"))
+	legacyActorEmail := strings.TrimSpace(c.Query("actor_email"))
+	if actor == "" {
+		actor = legacyActorEmail
+	}
 	filter := &service.AuditLogFilter{
 		Page:       page,
 		PageSize:   pageSize,
-		ActorEmail: strings.TrimSpace(c.Query("actor_email")),
+		Actor:      actor,
+		ActorEmail: legacyActorEmail,
 		AuthMethod: strings.TrimSpace(c.Query("auth_method")),
 		Action:     strings.TrimSpace(c.Query("action")),
 		Method:     strings.TrimSpace(c.Query("method")),

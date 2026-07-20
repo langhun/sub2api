@@ -252,6 +252,7 @@ SELECT
   COALESCE(e.error_message, ''),
   e.user_id,
   COALESCE(u.email, ''),
+	COALESCE(u.username, ''),
   e.api_key_id,
   e.account_id,
   COALESCE(a.name, ''),
@@ -322,6 +323,7 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 			&item.Message,
 			&userID,
 			&userEmail,
+			&item.Username,
 			&apiKeyID,
 			&accountID,
 			&accountName,
@@ -428,6 +430,7 @@ SELECT
   e.is_business_limited,
   e.user_id,
   COALESCE(u.email, ''),
+	COALESCE(u.username, ''),
   e.api_key_id,
   e.account_id,
   COALESCE(a.name, ''),
@@ -502,6 +505,7 @@ LIMIT 1`
 		&out.IsBusinessLimited,
 		&userID,
 		&out.UserEmail,
+		&out.Username,
 		&apiKeyID,
 		&accountID,
 		&out.AccountName,
@@ -1006,7 +1010,7 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 		like := "%" + userQuery + "%"
 		args = append(args, like)
 		n := itoa(len(args))
-		clauses = append(clauses, "EXISTS (SELECT 1 FROM users u WHERE u.id = e.user_id AND u.email ILIKE $"+n+")")
+		clauses = append(clauses, "EXISTS (SELECT 1 FROM users u WHERE u.id = e.user_id AND (u.username ILIKE $"+n+" OR u.email ILIKE $"+n+"))")
 	}
 
 	if filter.UserID != nil && *filter.UserID > 0 {

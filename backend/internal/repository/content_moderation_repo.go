@@ -94,7 +94,7 @@ func (r *contentModerationRepository) ListLogs(ctx context.Context, filter servi
 	queryArgs = append(queryArgs, params.Limit(), params.Offset())
 	rows, err := r.db.QueryContext(ctx, `
 SELECT
-    l.id, l.request_id, l.user_id, l.user_email, l.api_key_id, l.api_key_name, l.group_id, l.group_name,
+    l.id, l.request_id, l.user_id, l.user_email, COALESCE(u.username, ''), l.api_key_id, l.api_key_name, l.group_id, l.group_name,
     l.endpoint, l.provider, l.model, l.mode, l.action, l.flagged, l.highest_category, l.highest_score,
     l.category_scores, l.threshold_snapshot, l.input_excerpt, l.upstream_latency_ms, l.error,
     l.violation_count, l.auto_banned, l.email_sent, COALESCE(u.status, ''), l.queue_delay_ms, l.matched_keyword, l.created_at
@@ -119,6 +119,7 @@ LIMIT $`+fmt.Sprint(len(queryArgs)-1)+` OFFSET $`+fmt.Sprint(len(queryArgs)),
 			&item.RequestID,
 			&userID,
 			&item.UserEmail,
+			&item.Username,
 			&apiKeyID,
 			&item.APIKeyName,
 			&groupID,
@@ -272,9 +273,9 @@ func buildContentModerationLogWhere(filter service.ContentModerationLogFilter) (
 	}
 	if search := strings.TrimSpace(filter.Search); search != "" {
 		like := "%" + search + "%"
-		args = append(args, like, like, like, like, like)
-		idx := len(args) - 4
-		where = append(where, fmt.Sprintf("(l.request_id ILIKE $%d OR l.user_email ILIKE $%d OR l.api_key_name ILIKE $%d OR l.model ILIKE $%d OR l.input_excerpt ILIKE $%d)", idx, idx+1, idx+2, idx+3, idx+4))
+		args = append(args, like, like, like, like, like, like)
+		idx := len(args) - 5
+		where = append(where, fmt.Sprintf("(l.request_id ILIKE $%d OR l.user_email ILIKE $%d OR EXISTS (SELECT 1 FROM users search_user WHERE search_user.id = l.user_id AND search_user.username ILIKE $%d) OR l.api_key_name ILIKE $%d OR l.model ILIKE $%d OR l.input_excerpt ILIKE $%d)", idx, idx+1, idx+2, idx+3, idx+4, idx+5))
 	}
 	if filter.From != nil && !filter.From.IsZero() {
 		add("l.created_at >= $%d", *filter.From)

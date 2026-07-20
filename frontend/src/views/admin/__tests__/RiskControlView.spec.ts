@@ -404,4 +404,50 @@ describe('admin RiskControlView', () => {
       'overflow-y-auto',
     ]))
   })
+
+  it('shows usernames before emails in moderation logs and input detail', async () => {
+    const row = {
+      id: 11,
+      request_id: 'req-user-label',
+      user_id: 7,
+      username: 'Risk User',
+      user_email: 'risk@example.com',
+      created_at: '2026-07-20T00:00:00Z',
+      flagged: false,
+      highest_category: '',
+      highest_score: 0,
+      category_scores: {},
+      threshold_snapshot: {},
+      input_excerpt: 'hello',
+      violation_count: 0,
+      auto_banned: false,
+      email_sent: false,
+      queue_delay_ms: null,
+      upstream_latency_ms: null,
+    }
+    listLogs.mockResolvedValue({ items: [row], total: 1, page: 1, page_size: 20, pages: 1 })
+
+    const wrapper = mount(RiskControlView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+          Select: true,
+          Toggle: true,
+          Pagination: true,
+          ModelWhitelistSelector: ModelWhitelistSelectorStub,
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Risk User')
+    expect(wrapper.text()).not.toContain('risk@example.com')
+
+    ;(wrapper.vm as any).$?.setupState.openInputDetail(row)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Risk User')
+    expect(wrapper.text()).not.toContain('risk@example.com')
+  })
 })

@@ -251,6 +251,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
 import type { ModelStat, UserSpendingRankingItem, UserBreakdownItem } from '@/types'
 import { getUserBreakdown } from '@/api/admin/dashboard'
+import { userDisplayName } from '@/utils/userDisplay'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -495,8 +496,7 @@ const formatNumber = (value: number): string => {
 }
 
 const getRankingUserLabel = (item: UserSpendingRankingItem): string => {
-  if (item.email) return item.email
-  return t('admin.redeem.userPrefix', { id: item.user_id })
+  return userDisplayName(item, t('admin.redeem.userPrefix', { id: item.user_id }))
 }
 
 const getRankingRowLabel = (item: RankingDisplayItem): string => {

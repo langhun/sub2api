@@ -43,6 +43,7 @@ type AuditLog struct {
 	ID               int64          `json:"id"`
 	CreatedAt        time.Time      `json:"created_at"`
 	ActorUserID      *int64         `json:"actor_user_id,omitempty"`
+	ActorUsername    string         `json:"actor_username"`
 	ActorEmail       string         `json:"actor_email"`
 	ActorRole        string         `json:"actor_role"`
 	AuthMethod       string         `json:"auth_method"`
@@ -67,14 +68,17 @@ type AuditLogFilter struct {
 	StartTime   *time.Time
 	EndTime     *time.Time
 	ActorUserID *int64
-	ActorEmail  string
-	AuthMethod  string
-	Action      string
-	Method      string
-	ClientIP    string
+	// Actor 对关联用户的用户名或审计记录中的历史邮箱做模糊匹配。
+	Actor string
+	// ActorEmail 保留旧调用方兼容，查询语义与 Actor 相同。
+	ActorEmail string
+	AuthMethod string
+	Action     string
+	Method     string
+	ClientIP   string
 	// Success: nil 全部；true 仅 2xx/3xx；false 仅 >=400。
 	Success *bool
-	// Query 对 path / action / actor_email 做模糊匹配。
+	// Query 对 path / action / actor_username / actor_email 做模糊匹配。
 	Query string
 }
 

@@ -7,20 +7,14 @@
         <div class="flex items-center gap-3">
           <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
             <span class="text-lg font-medium text-primary-700 dark:text-primary-300">
-              {{ user.email.charAt(0).toUpperCase() }}
+              {{ userDisplayInitials(user) }}
             </span>
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
-              <p class="truncate font-medium text-gray-900 dark:text-white">{{ user.email }}</p>
+              <p class="truncate font-medium text-gray-900 dark:text-white">{{ userDisplayName(user) }}</p>
               <span v-if="user.deleted_at" class="flex-shrink-0 inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30">
                 {{ t('admin.usage.userDeletedBadge') }}
-              </span>
-              <span
-                v-if="user.username"
-                class="flex-shrink-0 rounded bg-primary-50 px-1.5 py-0.5 text-xs text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
-              >
-                {{ user.username }}
               </span>
             </div>
             <p class="text-xs text-gray-400 dark:text-dark-500">
@@ -177,6 +171,7 @@ import { useI18n } from 'vue-i18n'
 import { adminAPI, type BalanceHistoryItem } from '@/api/admin'
 import { formatDateTime } from '@/utils/format'
 import type { AdminUser } from '@/types'
+import { userDisplayInitials, userDisplayName } from '@/utils/userDisplay'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'

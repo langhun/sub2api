@@ -67,14 +67,16 @@
         <template #cell-user="{ row }">
           <div v-if="row.user_id" class="text-sm">
             <button
-              v-if="userClickable && row.user_email"
+              v-if="userClickable && userDisplayName({ username: row.username, email: row.user_email })"
               class="font-medium text-primary-600 underline decoration-dashed underline-offset-2 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
               :title="t('admin.usage.clickToViewBalance')"
-              @click.stop="emit('userClick', row.user_id, row.user_email)"
+              @click.stop="emit('userClick', row.user_id, userDisplayName({ username: row.username, email: row.user_email }))"
             >
-              {{ row.user_email }}
+              {{ userDisplayName({ username: row.username, email: row.user_email }) }}
             </button>
-            <span v-else class="font-medium text-gray-900 dark:text-white">{{ row.user_email || '-' }}</span>
+            <span v-else class="font-medium text-gray-900 dark:text-white">
+              {{ userDisplayName({ username: row.username, email: row.user_email }, '-') }}
+            </span>
             <span class="ml-1 text-gray-500 dark:text-gray-400">#{{ row.user_id }}</span>
           </div>
           <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
@@ -191,6 +193,7 @@ import type { Column } from '@/components/common/types'
 import { getSeverityClass, formatDateTime } from '../utils/opsFormatters'
 import { mapErrorCategory } from '@/utils/errorCategory'
 import { mapErrorSortKey, statusCodeBadgeClass } from '@/utils/errorBadges'
+import { userDisplayName } from '@/utils/userDisplay'
 
 const { t } = useI18n()
 
@@ -284,7 +287,7 @@ interface Props {
   loading: boolean
   page: number
   pageSize: number
-  /** 用户邮箱可点击(emit userClick),仅在有弹窗承接的使用方开启 */
+  /** 用户标识可点击(emit userClick),仅在有弹窗承接的使用方开启 */
   userClickable?: boolean
   /** 列设置:仅显示这些 key 的列;不传则全量 */
   visibleColumnKeys?: string[]
@@ -298,7 +301,7 @@ interface Emits {
   (e: 'update:pageSize', value: number): void
   (e: 'ipGeoBatchFailed'): void
   (e: 'sort', sortBy: string, sortOrder: 'asc' | 'desc'): void
-  (e: 'userClick', userId: number, email?: string): void
+  (e: 'userClick', userId: number, label?: string): void
 }
 
 const props = defineProps<Props>()
