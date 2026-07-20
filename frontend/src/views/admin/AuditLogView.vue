@@ -27,7 +27,13 @@
 
               <div class="w-full sm:w-auto sm:min-w-[200px]">
                 <label class="input-label">{{ t('admin.audit.filters.actorEmail') }}</label>
-                <input v-model.trim="filters.actor_email" type="text" class="input" @keyup.enter="search" />
+                <input
+                  v-model.trim="filters.actor"
+                  type="text"
+                  class="input"
+                  :placeholder="t('admin.audit.filters.actorPlaceholder')"
+                  @keyup.enter="search"
+                />
               </div>
 
               <div class="w-full sm:w-auto sm:min-w-[180px]">
@@ -91,11 +97,11 @@
 
           <template #cell-actor="{ row }">
             <div class="min-w-0 max-w-[220px]">
-              <div class="truncate font-medium text-gray-900 dark:text-white" :title="row.actor_email">
-                {{ row.actor_email || '—' }}
+              <div class="truncate font-medium text-gray-900 dark:text-white" :title="actorDisplayName(row)">
+                {{ actorDisplayName(row) || '—' }}
               </div>
               <div class="mt-0.5 truncate text-xs text-gray-400">
-                {{ row.actor_role }}<span v-if="row.auth_method"> · {{ authMethodLabel(row.auth_method) }}</span>
+                {{ actorRoleLabel(row.actor_role) }}<span v-if="row.auth_method"> · {{ authMethodLabel(row.auth_method) }}</span>
               </div>
             </div>
           </template>
@@ -214,9 +220,9 @@
               {{ t('admin.audit.columns.actor') }}
             </div>
             <div class="mt-1 break-all text-sm font-medium text-gray-900 dark:text-white">
-              {{ detail.actor_email || '—' }}
+              {{ actorDisplayName(detail) || '—' }}
             </div>
-            <div class="mt-0.5 text-xs text-gray-400">{{ detail.actor_role }}</div>
+            <div class="mt-0.5 text-xs text-gray-400">{{ actorRoleLabel(detail.actor_role) }}</div>
           </div>
 
           <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-900">
@@ -366,6 +372,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores'
+import { userDisplayName } from '@/utils/userDisplay'
+import { formatAuditAction, formatAuditActorRole } from './auditLogActionLabel'
 
 const { t, te } = useI18n()
 const appStore = useAppStore()
@@ -378,7 +386,7 @@ const pageSize = ref(20)
 
 const filters = reactive({
   q: '',
-  actor_email: '',
+  actor: '',
   action: '',
   client_ip: '',
   method: '',
@@ -500,15 +508,15 @@ function authMethodLabel(method: string): string {
 }
 
 function actionLabel(action: string): string {
-  const parts = action.split('.').filter(Boolean)
-  const visibleParts = parts[0] === 'admin' ? parts.slice(1) : parts
-  if (visibleParts.length === 0) return action
-  return visibleParts
-    .map((part) => {
-      const key = `admin.audit.actionSegments.${part}`
-      return te(key) ? t(key) : part.split('_').join(' ')
-    })
-    .join(' · ')
+  return formatAuditAction(action, (key) => t(key), (key) => te(key))
+}
+
+function actorRoleLabel(role: string): string {
+  return formatAuditActorRole(role, (key) => t(key), (key) => te(key))
+}
+
+function actorDisplayName(actor: AuditLog): string {
+  return userDisplayName({ username: actor.actor_username, email: actor.actor_email })
 }
 
 function toRFC3339(local: string): string | undefined {
@@ -535,7 +543,7 @@ function buildQuery() {
     page: page.value,
     page_size: pageSize.value,
     q: filters.q || undefined,
-    actor_email: filters.actor_email || undefined,
+    actor: filters.actor || undefined,
     action: filters.action || undefined,
     client_ip: filters.client_ip || undefined,
     method: filters.method || undefined,
@@ -565,7 +573,7 @@ function search() {
 
 function resetFilters() {
   filters.q = ''
-  filters.actor_email = ''
+  filters.actor = ''
   filters.action = ''
   filters.client_ip = ''
   filters.method = ''

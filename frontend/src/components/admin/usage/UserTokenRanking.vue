@@ -52,7 +52,7 @@
             :key="item.user_id"
             class="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-dark-700/40"
             :title="t('admin.usage.tokenRanking.rowHint')"
-            @click="$emit('select-user', item.user_id, item.email)"
+            @click="$emit('select-user', item.user_id, userDisplayName(item))"
           >
             <td class="px-4 py-3 sm:px-6">
               <span
@@ -62,8 +62,8 @@
               >{{ index + 1 }}</span>
               <span v-else class="inline-block w-6 text-center text-sm tabular-nums text-gray-400">{{ index + 1 }}</span>
             </td>
-            <td class="max-w-[260px] truncate px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200" :title="item.email">
-              {{ item.email || `User #${item.user_id}` }}
+            <td class="max-w-[260px] truncate px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200" :title="userDisplayName(item)">
+              {{ userDisplayName(item, `User #${item.user_id}`) }}
               <span class="ml-1 font-normal text-gray-400 dark:text-gray-500">#{{ item.user_id }}</span>
             </td>
             <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ item.requests.toLocaleString() }}</td>
@@ -85,6 +85,7 @@ import { useI18n } from 'vue-i18n'
 import { getUserBreakdown, type UserBreakdownParams } from '@/api/admin/dashboard'
 import { formatCompactNumber, formatCostFixed } from '@/utils/format'
 import type { UserBreakdownItem } from '@/types'
+import { userDisplayName } from '@/utils/userDisplay'
 import Select from '@/components/common/Select.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
@@ -95,7 +96,7 @@ const props = defineProps<{
   model?: string
 }>()
 
-defineEmits<{ (e: 'select-user', userId: number, email: string): void }>()
+defineEmits<{ (e: 'select-user', userId: number, label: string): void }>()
 
 const { t } = useI18n()
 

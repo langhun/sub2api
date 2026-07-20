@@ -24,7 +24,7 @@
           >
             {{ idx + 1 }}
           </span>
-          <span class="text-sm text-gray-700 dark:text-gray-300">{{ user.email }}</span>
+          <span class="text-sm text-gray-700 dark:text-gray-300">{{ userDisplayName(user, `User #${user.user_id}`) }}</span>
         </div>
         <span class="text-sm font-medium text-gray-900 dark:text-white">
           ${{ user.amount.toFixed(2) }}
@@ -36,11 +36,12 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { userDisplayName } from '@/utils/userDisplay'
 
 const { t } = useI18n()
 
 defineProps<{
-  users: { user_id: number; email: string; amount: number }[]
+  users: { user_id: number; email: string; username?: string; amount: number }[]
 }>()
 
 function rankClass(idx: number): string {

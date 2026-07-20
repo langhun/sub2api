@@ -797,6 +797,7 @@ export default {
         status: 'Status',
         actions: 'Actions',
         billingType: 'Billing Type',
+        user: 'User',
         userName: 'Username',
         userEmail: 'Email',
         userNotes: 'Notes',

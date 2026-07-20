@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { opsAPI, type OpsAccountAvailabilityStatsResponse, type OpsConcurrencyStatsResponse, type OpsUserConcurrencyStatsResponse } from '@/api/admin/ops'
+import { userDisplayName } from '@/utils/userDisplay'
 
 interface Props {
   platformFilter?: string
@@ -414,11 +415,11 @@ watch(
           <!-- 用户信息和并发 -->
           <div class="mb-1.5 flex items-center justify-between gap-2">
             <div class="flex min-w-0 flex-1 items-center gap-1.5">
-              <span class="truncate text-[11px] font-bold text-gray-900 dark:text-white" :title="row.username || row.user_email">
-                {{ row.username || row.user_email }}
-              </span>
-              <span v-if="row.username" class="shrink-0 truncate text-[10px] text-gray-400 dark:text-gray-500" :title="row.user_email">
-                {{ row.user_email }}
+              <span
+                class="truncate text-[11px] font-bold text-gray-900 dark:text-white"
+                :title="userDisplayName({ username: row.username, email: row.user_email })"
+              >
+                {{ userDisplayName({ username: row.username, email: row.user_email }) }}
               </span>
             </div>
             <div class="flex shrink-0 items-center gap-2 text-[10px]">

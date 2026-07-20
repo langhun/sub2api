@@ -26,12 +26,12 @@
         :data="items"
         :loading="loading"
         :server-side-sort="true"
-        default-sort-key="email"
+        default-sort-key="username"
         default-sort-order="asc"
         @sort="handleSort"
       >
-        <template #cell-email="{ value }">
-          <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+        <template #cell-username="{ row }">
+          <span class="font-medium text-gray-900 dark:text-white">{{ userDisplayName(row) }}</span>
         </template>
 
         <template #cell-balance="{ value }">
@@ -78,6 +78,7 @@ import { formatDateTime } from '@/utils/format'
 import type { AnnouncementUserReadStatus } from '@/types'
 import type { Column } from '@/components/common/types'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { userDisplayName } from '@/utils/userDisplay'
 
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -107,15 +108,14 @@ const pagination = reactive({
 })
 
 const sortState = reactive({
-  sort_by: 'email',
+  sort_by: 'username',
   sort_order: 'asc' as 'asc' | 'desc'
 })
 
 const items = ref<AnnouncementUserReadStatus[]>([])
 
 const columns = computed<Column[]>(() => [
-  { key: 'email', label: t('common.email'), sortable: true },
-  { key: 'username', label: t('admin.users.columns.username'), sortable: true },
+  { key: 'username', label: t('admin.users.columns.user'), sortable: true },
   { key: 'balance', label: t('common.balance'), sortable: true },
   { key: 'eligible', label: t('admin.announcements.eligible') },
   { key: 'read_at', label: t('admin.announcements.readAt') }
@@ -131,7 +131,7 @@ function resetDialogState() {
   pagination.page = 1
   pagination.total = 0
   pagination.pages = 0
-  sortState.sort_by = 'email'
+  sortState.sort_by = 'username'
   sortState.sort_order = 'asc'
 }
 

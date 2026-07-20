@@ -32,6 +32,7 @@ function mountTable(row: Partial<OpsErrorLog>) {
     client_request_id: '',
     request_id: 'req-1',
     message: 'boom',
+    username: '',
     user_email: '',
     account_name: '',
     group_name: '',
@@ -50,6 +51,7 @@ describe('OpsErrorLogTable user/api-key/account columns', () => {
   it('renders user, api key and account in separate columns for an upstream row', () => {
     const wrapper = mountTable({
       user_id: 2,
+      username: 'Alice',
       user_email: 'alice@test.com',
       api_key_id: 5,
       api_key_name: 'my-key',
@@ -58,9 +60,18 @@ describe('OpsErrorLogTable user/api-key/account columns', () => {
     })
 
     const text = wrapper.text()
-    expect(text).toContain('alice@test.com') // 用户列(上游行也显示用户)
+    expect(text).toContain('Alice') // 用户列(上游行也显示用户)
+    expect(text).not.toContain('alice@test.com')
     expect(text).toContain('my-key') // API Key 列
     expect(text).toContain('acct-A') // 账号列
+  })
+
+  it('emits the username-first label when the user cell is clickable', async () => {
+    const wrapper = mountTable({ user_id: 2, username: 'Alice', user_email: 'alice@test.com' })
+    await wrapper.setProps({ userClickable: true })
+
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.emitted('userClick')).toEqual([[2, 'Alice']])
   })
 
   it('shows the deleted badge for a soft-deleted api key', () => {

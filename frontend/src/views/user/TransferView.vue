@@ -51,7 +51,6 @@
                 </span>
                 <span class="min-w-0">
                   <strong class="block truncate text-sm font-medium text-gray-900 dark:text-white">{{ candidate.receiver_username || candidate.receiver_display }}</strong>
-                  <span class="mt-0.5 block truncate text-xs text-gray-500 dark:text-dark-400">{{ candidate.receiver_email }}</span>
                 </span>
               </button>
               <span v-if="receiverCandidates.length === 0" data-testid="receiver-empty" class="block px-4 py-3 text-sm text-gray-500 dark:text-dark-400">

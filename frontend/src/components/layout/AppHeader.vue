@@ -155,7 +155,6 @@
                 <div class="text-sm font-medium text-gray-900 dark:text-white">
                   {{ displayName }}
                 </div>
-                <div class="text-xs text-gray-500 dark:text-dark-400">{{ user.email }}</div>
               </div>
 
               <!-- Balance (mobile only) -->
@@ -282,6 +281,7 @@ import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import type { CheckinResult } from '@/api/checkin'
+import { userDisplayInitials, userDisplayName } from '@/utils/userDisplay'
 
 const router = useRouter()
 const route = useRoute()
@@ -313,22 +313,11 @@ const showOnboardingButton = computed(() => {
 })
 
 const userInitials = computed(() => {
-  if (!user.value) return ''
-  // Prefer username, fallback to email
-  if (user.value.username) {
-    return user.value.username.substring(0, 2).toUpperCase()
-  }
-  if (user.value.email) {
-    // Get the part before @ and take first 2 chars
-    const localPart = user.value.email.split('@')[0]
-    return localPart.substring(0, 2).toUpperCase()
-  }
-  return ''
+  return user.value ? userDisplayInitials(user.value, '') : ''
 })
 
 const displayName = computed(() => {
-  if (!user.value) return ''
-  return user.value.username || user.value.email?.split('@')[0] || ''
+  return userDisplayName(user.value)
 })
 
 const pageTitle = computed(() => {
