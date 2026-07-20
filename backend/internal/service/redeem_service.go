@@ -174,6 +174,32 @@ func NewRedeemService(
 	}
 }
 
+// ProvideRedeemService supplies the configurable code formatter to Wire while
+// keeping the variadic constructor compatible with focused service tests.
+func ProvideRedeemService(
+	redeemRepo RedeemCodeRepository,
+	userRepo UserRepository,
+	subscriptionService *SubscriptionService,
+	cache RedeemCache,
+	billingCacheService *BillingCacheService,
+	entClient *dbent.Client,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	affiliateService *AffiliateService,
+	settingService *SettingService,
+) *RedeemService {
+	return NewRedeemService(
+		redeemRepo,
+		userRepo,
+		subscriptionService,
+		cache,
+		billingCacheService,
+		entClient,
+		authCacheInvalidator,
+		affiliateService,
+		settingService,
+	)
+}
+
 // GenerateRandomCode 生成随机兑换码
 func (s *RedeemService) GenerateRandomCode() (string, error) {
 	return DefaultRedeemCodeFormat().Generate()
