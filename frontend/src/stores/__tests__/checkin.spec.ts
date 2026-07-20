@@ -44,7 +44,7 @@ describe('checkin store errors', () => {
 
     api.luckCheckin.mockRejectedValueOnce(luckFailure)
     await expect(store.doLuckCheckin(2)).resolves.toBeNull()
-    expect(api.luckCheckin).toHaveBeenCalledWith(2)
+    expect(api.luckCheckin).toHaveBeenCalledWith(2, false)
     expect(store.actionError).toBe(luckFailure)
 
     store.clearActionError()

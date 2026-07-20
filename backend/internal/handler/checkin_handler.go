@@ -11,7 +11,8 @@ import (
 )
 
 type luckCheckinRequest struct {
-	BetAmount float64 `json:"bet_amount" binding:"required,gt=0"`
+	BetAmount     float64 `json:"bet_amount" binding:"required,gt=0"`
+	UseMaxBalance bool    `json:"use_max_balance"`
 }
 
 type CheckinHandler struct {
@@ -55,7 +56,7 @@ func (h *CheckinHandler) LuckCheckin(c *gin.Context) {
 		return
 	}
 
-	result, err := h.checkinService.LuckCheckin(c.Request.Context(), subject.UserID, req.BetAmount)
+	result, err := h.checkinService.LuckCheckin(c.Request.Context(), subject.UserID, req.BetAmount, req.UseMaxBalance)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

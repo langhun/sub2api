@@ -42,8 +42,11 @@ export async function checkin(): Promise<CheckinResult> {
   return data
 }
 
-export async function luckCheckin(betAmount: number): Promise<CheckinResult> {
-  const { data } = await apiClient.post<CheckinResult>('/checkin/luck', { bet_amount: betAmount })
+export async function luckCheckin(betAmount: number, useMaxBalance = false): Promise<CheckinResult> {
+  const { data } = await apiClient.post<CheckinResult>('/checkin/luck', {
+    bet_amount: betAmount,
+    use_max_balance: useMaxBalance,
+  })
   return data
 }
 

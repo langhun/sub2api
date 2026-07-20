@@ -159,8 +159,45 @@ describe('CheckinView feature visibility', () => {
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('4')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledOnce()
-    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(4)
+    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(4, false)
     expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success')
+  })
+
+  it('resolves MAX against the current server balance', async () => {
+    checkinStore.status.enabled = false
+    checkinStore.status.luck_enabled = true
+    checkinStore.status.balance = 81058106150981.25
+    checkinStore.normalEnabled = false
+    checkinStore.luckEnabled = true
+    checkinStore.doLuckCheckin.mockResolvedValue({ reward_amount: 1, streak_days: 1, checked_at: '2026-07-20', checkin_type: 'luck' })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="luck-checkin-open"]').trigger('click')
+    await wrapper.get('[data-testid="luck-bet-max"]').trigger('click')
+    await wrapper.get('[data-testid="luck-submit"]').trigger('click')
+
+    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(81058106150981.25, true)
+  })
+
+  it('returns to strict manual mode after editing a MAX amount', async () => {
+    checkinStore.status.enabled = false
+    checkinStore.status.luck_enabled = true
+    checkinStore.status.balance = 100
+    checkinStore.normalEnabled = false
+    checkinStore.luckEnabled = true
+    checkinStore.doLuckCheckin.mockResolvedValue({ reward_amount: 1, streak_days: 1, checked_at: '2026-07-20', checkin_type: 'luck' })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="luck-checkin-open"]').trigger('click')
+    await wrapper.get('[data-testid="luck-bet-max"]').trigger('click')
+    await wrapper.get('[data-testid="luck-bet-input"]').setValue('42')
+    await wrapper.get('[data-testid="luck-submit"]').trigger('click')
+
+    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(42, false)
   })
 
   it('shows the shared success toast after a normal check-in', async () => {

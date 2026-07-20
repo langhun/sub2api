@@ -113,7 +113,7 @@ describe('AppHeader check-in actions', () => {
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('5')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
 
-    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(5)
+    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(5, false)
   })
 
   it('hides header actions when check-in is disabled', () => {

@@ -64,12 +64,12 @@ export const useCheckinStore = defineStore('checkin', () => {
     }
   }
 
-  async function doLuckCheckin(betAmount: number): Promise<CheckinResult | null> {
+  async function doLuckCheckin(betAmount: number, useMaxBalance = false): Promise<CheckinResult | null> {
     if (loading.value) return null
     loading.value = true
     actionError.value = null
     try {
-      const result = await checkinAPI.luckCheckin(betAmount)
+      const result = await checkinAPI.luckCheckin(betAmount, useMaxBalance)
       checkinResult.value = result
       blindboxResult.value = result.blindbox ?? null
 
