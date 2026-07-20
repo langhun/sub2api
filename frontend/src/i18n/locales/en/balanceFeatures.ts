@@ -4,7 +4,7 @@ export default {
     rangeHint: 'Reward range ${min} - ${max}', luckTitle: 'Lucky Check-in', luckButton: 'Confirm lucky check-in',
     luckSuccess: '{multiplier}x multiplier, earned ${amount}', luckLoss: '{multiplier}x multiplier, lost ${amount}', luckEven: '1.00x multiplier, no gain or loss',
     betAmount: 'Bet amount', betAmountPlaceholder: 'Enter an amount', multiplierRange: 'Multiplier range ${min}x - ${max}x',
-    statusLoadFailed: 'Could not load check-in status', actionFailed: 'Check-in failed. Review the error and try again.',
+    success: 'Check-in successful!', statusLoadFailed: 'Could not load check-in status', actionFailed: 'Check-in failed. Review the error and try again.',
     checkinType: 'Check-in type', normalCheckin: 'Normal check-in', luckCheckin: 'Lucky check-in',
     blindboxCommon: 'Common', blindboxRare: 'Rare', blindboxEpic: 'Epic', blindboxLegendary: 'Legendary',
     blindboxBalanceReward: 'Balance +${value}', blindboxConcurrencyReward: 'Concurrency +{value}', blindboxSubscriptionReward: '{days}-day subscription',

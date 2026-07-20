@@ -462,6 +462,7 @@ const nextBlindboxHint = computed(() => {
 async function handleLuckSuccess() {
   lastAction.value = 'luck'
   showLuckModal.value = false
+  appStore.showSuccess(t('checkin.success'))
   blindboxPage.value = 1
   const refreshes = [fetchCalendar()]
   if (blindboxEnabled.value) refreshes.push(fetchBlindboxRecords())
@@ -472,6 +473,7 @@ async function submitNormal() {
   lastAction.value = 'normal'
   const result = await checkinStore.doCheckin()
   if (!result) return
+  appStore.showSuccess(t('checkin.success'))
   blindboxPage.value = 1
   const refreshes = [fetchCalendar()]
   if (blindboxEnabled.value) refreshes.push(fetchBlindboxRecords())
