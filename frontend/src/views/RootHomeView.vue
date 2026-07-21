@@ -19,7 +19,7 @@ onMounted(async () => {
     }
   }
 
-  const target = appStore.cachedPublicSettings?.default_homepage === 'dino' ? '/dai-gua' : '/home'
+  const target = appStore.cachedPublicSettings?.default_homepage === 'dino' ? '/Dino' : '/home'
   await router.replace(target)
 })
 </script>
