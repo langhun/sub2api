@@ -5623,6 +5623,20 @@
 
               <!-- Home Content -->
               <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ localText('默认首页', 'Default homepage') }}
+                </label>
+                <select v-model="form.default_homepage" class="input">
+                  <option value="default">{{ localText('默认介绍页', 'Default introduction') }}</option>
+                  <option value="dino">Dino</option>
+                </select>
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ localText('访问根路径 / 时使用的首页；两个页面始终可通过 /home 和 /dai-gua 访问。', 'Selects the page shown at /. Both pages remain available at /home and /dai-gua.') }}
+                </p>
+              </div>
+
+              <!-- Home Content -->
+              <div>
                 <label
                   class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
@@ -8507,6 +8521,7 @@ const form = reactive<SettingsForm>({
   contact_info: "",
   doc_url: "",
   home_content: "",
+  default_homepage: "default",
   backend_mode_enabled: false,
   hide_ccs_import_button: false,
   payment_enabled: false,
@@ -10080,6 +10095,7 @@ async function saveSettings() {
       contact_info: form.contact_info,
       doc_url: form.doc_url,
       home_content: form.home_content,
+      default_homepage: form.default_homepage,
       backend_mode_enabled: form.backend_mode_enabled,
       hide_ccs_import_button: form.hide_ccs_import_button,
       table_default_page_size: form.table_default_page_size,

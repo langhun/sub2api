@@ -78,6 +78,20 @@ func TestSettingService_GetPublicSettings_ExposesTablePreferences(t *testing.T) 
 	require.Equal(t, []int{20, 50, 100}, settings.TablePageSizeOptions)
 }
 
+func TestSettingService_GetPublicSettings_NormalizesDefaultHomepage(t *testing.T) {
+	settings, err := NewSettingService(&settingPublicRepoStub{values: map[string]string{
+		SettingKeyDefaultHomepage: "DINO",
+	}}, &config.Config{}).GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "dino", settings.DefaultHomepage)
+
+	settings, err = NewSettingService(&settingPublicRepoStub{values: map[string]string{
+		SettingKeyDefaultHomepage: "unknown",
+	}}, &config.Config{}).GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "default", settings.DefaultHomepage)
+}
+
 func TestSettingService_GetPublicSettings_ExposesForceEmailOnThirdPartySignup(t *testing.T) {
 	repo := &settingPublicRepoStub{
 		values: map[string]string{
