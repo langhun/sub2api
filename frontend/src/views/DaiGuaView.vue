@@ -10,6 +10,7 @@
       <button
         ref="gameButton"
         class="runner-container"
+        :class="{ 'is-expanded': arcadeEntered }"
         type="button"
         :aria-label="gameAriaLabel"
         @click="handlePrimaryAction"
@@ -57,6 +58,7 @@ const state = ref<GameState>('ready')
 const score = ref(0)
 const highScore = ref(0)
 const nightMode = ref(false)
+const arcadeEntered = ref(false)
 const authStore = useAuthStore()
 
 let context: CanvasRenderingContext2D | null = null
@@ -72,6 +74,8 @@ let jumpVelocity = 0
 let runFrame = 0
 let obstacleFrame = 0
 let groundOffset = 0
+let introElapsed = 0
+let tRexX = 0
 let clouds: Cloud[] = []
 let obstacles: Obstacle[] = []
 
@@ -96,7 +100,7 @@ function loadHighScore(): void {
   highScore.value = Number.isFinite(stored) ? Math.max(0, Math.floor(stored)) : 0
 }
 
-function resetGame(): void {
+function resetGame(resetEntrance = true): void {
   state.value = 'ready'
   score.value = 0
   distance = 0
@@ -108,6 +112,9 @@ function resetGame(): void {
   runFrame = 0
   obstacleFrame = 0
   groundOffset = 0
+  introElapsed = 0
+  if (resetEntrance) arcadeEntered.value = false
+  tRexX = arcadeEntered.value ? TREX_X : 0
   nightMode.value = false
   obstacles = []
   clouds = [{ x: 430, y: 35 }]
@@ -115,8 +122,11 @@ function resetGame(): void {
 }
 
 function startGame(): void {
-  if (state.value === 'crashed') resetGame()
-  if (state.value === 'ready') state.value = 'running'
+  if (state.value === 'crashed') resetGame(false)
+  if (state.value === 'ready') {
+    state.value = 'running'
+    if (!arcadeEntered.value) arcadeEntered.value = true
+  }
   jump()
 }
 
@@ -149,7 +159,7 @@ function createObstacle(): Obstacle {
 }
 
 function collides(obstacle: Obstacle): boolean {
-  const player = { x: TREX_X + 6, y: tRexY + 5, width: 31, height: 38 }
+  const player = { x: tRexX + 6, y: tRexY + 5, width: 31, height: 38 }
   const target = obstacle.kind === 'pterodactyl'
     ? { x: obstacle.x + 5, y: obstacle.y + 8, width: 36, height: 24 }
     : { x: obstacle.x + 2, y: obstacle.y + 2, width: obstacle.width - 4, height: obstacle.height - 3 }
@@ -159,6 +169,10 @@ function collides(obstacle: Obstacle): boolean {
 
 function update(delta: number): void {
   const frameRatio = delta / (1000 / 60)
+  if (introElapsed < 1500) {
+    introElapsed += delta
+    tRexX = Math.min(TREX_X, (TREX_X / 1500) * introElapsed)
+  }
   distance += speed * frameRatio
   speed = Math.min(13, speed + delta * 0.00085)
   groundOffset = (groundOffset + speed * frameRatio) % WIDTH
@@ -243,7 +257,7 @@ function draw(): void {
       : state.value === 'ready'
         ? waitFrame
         : 88 + (Math.floor(runFrame / 84) % 2) * 44
-  drawSprite(848 + frame, 2, TREX_WIDTH, TREX_HEIGHT, TREX_X, Math.round(tRexY))
+  drawSprite(848 + frame, 2, TREX_WIDTH, TREX_HEIGHT, Math.round(tRexX), Math.round(tRexY))
   context.restore()
   drawScore()
   if (state.value === 'crashed') drawGameOver()
@@ -273,7 +287,7 @@ onMounted(async () => {
   loadHighScore()
   sprite = new Image()
   sprite.src = '/dai-gua/chromium-offline-sprite.png'
-  sprite.addEventListener('load', resetGame, { once: true })
+  sprite.addEventListener('load', () => resetGame(), { once: true })
   window.addEventListener('keydown', handleKeydown)
   animationId = window.requestAnimationFrame(tick)
 })
@@ -293,9 +307,10 @@ onBeforeUnmount(() => {
 .account-link:hover, .account-link:focus-visible { color: #202124; text-decoration: underline; }
 .is-night .brand { color: #f1f3f4; }.is-night .account-link { color: #bdc1c6; }.is-night .account-link:hover, .is-night .account-link:focus-visible { color: #f1f3f4; }
 .interstitial-wrapper { box-sizing: border-box; width: 100%; max-width: 600px; margin: calc(20vh - 64px) auto 0; }
-.runner-container { display: block; width: 100%; padding: 0; overflow: hidden; border: 0; outline: 0; background: transparent; cursor: pointer; }
+.runner-container { display: block; width: 44px; padding: 0; overflow: hidden; border: 0; outline: 0; background: transparent; cursor: pointer; transition: width .4s ease-out; }
+.runner-container.is-expanded { width: 100%; }
 .runner-container:focus-visible { outline: 0; }
-.runner-canvas { display: block; width: 100%; height: auto; aspect-ratio: 4 / 1; }
+.runner-canvas { display: block; width: 600px; height: 150px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-@media (max-width: 700px) { .dino-header { height: 56px; padding: 0 20px; font-size: 13px; } .interstitial-wrapper { width: calc(100% - 40px); margin-top: calc(24vh - 56px); } }
+@media (max-width: 700px) { .dino-header { height: 56px; padding: 0 20px; font-size: 13px; } .interstitial-wrapper { width: calc(100% - 40px); margin-top: calc(24vh - 56px); } .runner-canvas { width: calc(100vw - 40px); height: auto; aspect-ratio: 4 / 1; } }
 </style>
