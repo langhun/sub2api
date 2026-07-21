@@ -41,7 +41,7 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/dai-gua',
+    path: '/Dino',
     name: 'DaiGua',
     component: () => import('@/views/DaiGuaView.vue'),
     meta: {

@@ -5631,7 +5631,7 @@
                   <option value="dino">Dino</option>
                 </select>
                 <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ localText('访问根路径 / 时使用的首页；两个页面始终可通过 /home 和 /dai-gua 访问。', 'Selects the page shown at /. Both pages remain available at /home and /dai-gua.') }}
+                  {{ localText('访问根路径 / 时使用的首页；两个页面始终可通过 /home 和 /Dino 访问。', 'Selects the page shown at /. Both pages remain available at /home and /Dino.') }}
                 </p>
               </div>
 

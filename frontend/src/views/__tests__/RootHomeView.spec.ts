@@ -23,7 +23,7 @@ import RootHomeView from '../RootHomeView.vue'
 describe('RootHomeView', () => {
   it.each([
     ['default', '/home'],
-    ['dino', '/dai-gua'],
+    ['dino', '/Dino'],
   ] as const)('redirects %s homepage mode to %s', async (defaultHomepage, target) => {
     appStore.publicSettingsLoaded = true
     appStore.cachedPublicSettings = { default_homepage: defaultHomepage }
