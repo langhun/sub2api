@@ -1,5 +1,5 @@
 <template>
-  <main class="dino-page" :class="{ 'is-night': nightMode }">
+  <main class="dino-page" :class="{ 'is-night': nightMode, 'is-arcade-mode': arcadeMode }">
     <header class="dino-header">
       <router-link class="brand" to="/home">DaiGua</router-link>
       <router-link class="account-link" :to="isAuthenticated ? dashboardPath : '/login'">
@@ -94,7 +94,7 @@ const arcadeContainerStyle = computed(() => arcadeMode.value
 function configureCanvas(): void {
   const element = canvas.value
   if (!element) return
-  const ratio = Math.min(window.devicePixelRatio || 1, 2)
+  const ratio = Math.floor(window.devicePixelRatio) || 1
   element.width = WIDTH * ratio
   element.height = HEIGHT * ratio
   context = element.getContext('2d')
@@ -335,11 +335,14 @@ onBeforeUnmount(() => {
 .account-link { color: #5f6368; text-decoration: none; }
 .account-link:hover, .account-link:focus-visible { color: #202124; text-decoration: underline; }
 .is-night .brand { color: #f1f3f4; }.is-night .account-link { color: #bdc1c6; }.is-night .account-link:hover, .is-night .account-link:focus-visible { color: #f1f3f4; }
-.interstitial-wrapper { box-sizing: border-box; width: 100%; max-width: 600px; margin: calc(20vh - 64px) auto 0; }
-.runner-container { display: block; width: 44px; padding: 0; overflow: hidden; border: 0; outline: 0; transform-origin: center; background: transparent; cursor: pointer; transition: width .4s ease-out; }
+.interstitial-wrapper { box-sizing: border-box; width: 100%; max-width: 600px; min-height: 250px; margin: 0 auto; padding-top: 100px; position: relative; }
+.runner-container { direction: ltr; display: block; position: absolute; top: 35px; width: 44px; height: 150px; max-width: 600px; padding: 0; overflow: hidden; border: 0; outline: 0; background: transparent; cursor: pointer; transition: width .4s ease-out; }
 .runner-container.is-expanded { width: 100%; }
 .runner-container:focus-visible { outline: 0; }
-.runner-canvas { display: block; width: 600px; height: 150px; }
+.runner-canvas { display: block; position: absolute; top: 0; width: 600px; height: 150px; max-width: 600px; overflow: hidden; }
+.is-arcade-mode, .is-arcade-mode .runner-container, .is-arcade-mode .runner-canvas { image-rendering: pixelated; max-width: 100%; overflow: hidden; }
+.is-arcade-mode .interstitial-wrapper { height: 100vh; max-width: 100%; overflow: hidden; }
+.is-arcade-mode .runner-container { width: min(600px, calc(100vw - 40px)); left: 0; right: 0; margin: auto; transform-origin: top center; transition: transform 250ms cubic-bezier(.4, 0, 1, 1) 400ms; z-index: 2; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-@media (max-width: 700px) { .dino-header { height: 56px; padding: 0 20px; font-size: 13px; } .interstitial-wrapper { width: calc(100% - 40px); margin-top: calc(24vh - 56px); } .runner-canvas { width: calc(100vw - 40px); height: auto; aspect-ratio: 4 / 1; } }
+@media (max-width: 700px) { .dino-header { height: 56px; padding: 0 20px; font-size: 13px; } .interstitial-wrapper { width: calc(100% - 40px); } .runner-canvas { width: calc(100vw - 40px); height: auto; aspect-ratio: 4 / 1; } }
 </style>
