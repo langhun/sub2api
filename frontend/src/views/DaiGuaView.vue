@@ -1,7 +1,7 @@
 <template>
   <main class="dino-page">
     <header class="dino-header">
-      <router-link class="brand" to="/home">DaiGua</router-link>
+      <span class="brand">DaiGua</span>
       <router-link class="account-link" :to="isAuthenticated ? dashboardPath : '/login'">
         {{ isAuthenticated ? '控制台' : '登录' }}
       </router-link>
