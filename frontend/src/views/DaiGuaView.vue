@@ -1,25 +1,15 @@
 <template>
   <main class="dino-page" :class="{ 'is-night': nightMode }">
     <header class="dino-header">
-      <router-link class="brand" to="/home" aria-label="返回默认首页">DaiGua</router-link>
-      <nav class="header-actions" aria-label="页面导航">
-        <router-link to="/home">默认首页</router-link>
-        <router-link :to="isAuthenticated ? dashboardPath : '/login'">
-          {{ isAuthenticated ? '控制台' : '登录' }}
-        </router-link>
-      </nav>
+      <router-link class="brand" to="/home">DaiGua</router-link>
+      <router-link class="account-link" :to="isAuthenticated ? dashboardPath : '/login'">
+        {{ isAuthenticated ? '控制台' : '登录' }}
+      </router-link>
     </header>
-
-    <section class="game-stage" aria-labelledby="dino-title">
-      <div class="game-copy">
-        <p class="eyebrow">DAIGUA ARCADE</p>
-        <h1 id="dino-title">离线也向前跑</h1>
-        <p>原版 Chromium 像素恐龙小游戏</p>
-      </div>
-
+    <section class="interstitial-wrapper" aria-label="Chromium Dino Game">
       <button
         ref="gameButton"
-        class="game-frame"
+        class="runner-container"
         type="button"
         :aria-label="gameAriaLabel"
         @click="handlePrimaryAction"
@@ -29,17 +19,7 @@
         <canvas ref="canvas" class="runner-canvas" aria-hidden="true"></canvas>
         <span class="sr-only">{{ gameAriaLabel }}</span>
       </button>
-
-      <div class="game-meta" aria-live="polite">
-        <span>{{ gameStatus }}</span>
-        <span>最高分 {{ paddedHighScore }}</span>
-      </div>
     </section>
-
-    <footer class="dino-footer">
-      <span>空格键、上箭头或点击跳跃</span>
-      <span>Chromium Dino assets, BSD-style license</span>
-    </footer>
   </main>
 </template>
 
@@ -91,18 +71,13 @@ let tRexY = TREX_GROUND_Y
 let jumpVelocity = 0
 let runFrame = 0
 let obstacleFrame = 0
+let groundOffset = 0
 let clouds: Cloud[] = []
 let obstacles: Obstacle[] = []
 
+const gameAriaLabel = computed(() => state.value === 'crashed' ? '重新开始 DaiGua 恐龙游戏' : '开始或跳跃')
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const dashboardPath = computed(() => authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
-const paddedHighScore = computed(() => String(highScore.value).padStart(5, '0'))
-const gameStatus = computed(() => {
-  if (state.value === 'crashed') return '游戏结束，点击重新开始'
-  if (state.value === 'running') return `得分 ${String(score.value).padStart(5, '0')}`
-  return '点击、空格或上箭头开始'
-})
-const gameAriaLabel = computed(() => state.value === 'crashed' ? '重新开始 DaiGua 恐龙游戏' : '开始或跳跃')
 
 function configureCanvas(): void {
   const element = canvas.value
@@ -132,6 +107,7 @@ function resetGame(): void {
   jumpVelocity = 0
   runFrame = 0
   obstacleFrame = 0
+  groundOffset = 0
   nightMode.value = false
   obstacles = []
   clouds = [{ x: 430, y: 35 }]
@@ -185,7 +161,8 @@ function update(delta: number): void {
   const frameRatio = delta / (1000 / 60)
   distance += speed * frameRatio
   speed = Math.min(13, speed + delta * 0.00085)
-  score.value = Math.floor(distance / 5)
+  groundOffset = (groundOffset + speed * frameRatio) % WIDTH
+  score.value = Math.round(distance * 0.025)
   nightMode.value = Math.floor(score.value / 700) % 2 === 1
 
   jumpVelocity += 0.6 * frameRatio
@@ -224,12 +201,22 @@ function drawSprite(sourceX: number, sourceY: number, sourceWidth: number, sourc
   context.drawImage(sprite, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height)
 }
 
+function drawMeter(value: string, startX: number): void {
+  for (let index = 0; index < value.length; index++) {
+    const character = value[index]
+    if (!character || character === ' ') continue
+    const spriteOffset = character === 'H' ? 10 : character === 'I' ? 11 : Number(character)
+    if (!Number.isInteger(spriteOffset)) continue
+    drawSprite(655 + spriteOffset * 10, 2, 10, 13, startX + index * 11, 5)
+  }
+}
+
 function drawScore(): void {
-  if (!context) return
-  context.fillStyle = nightMode.value ? '#f5f5f5' : '#535353'
-  context.font = '10px monospace'
-  context.textAlign = 'right'
-  context.fillText(`${String(highScore.value).padStart(5, '0')}  ${String(score.value).padStart(5, '0')}`, WIDTH - 8, 16)
+  const distanceValue = String(score.value).padStart(5, '0')
+  if (highScore.value > 0) {
+    drawMeter(`HI ${String(highScore.value).padStart(5, '0')}`, 434)
+  }
+  drawMeter(distanceValue, 534)
 }
 
 function draw(): void {
@@ -240,13 +227,22 @@ function draw(): void {
   context.save()
   if (nightMode.value) context.filter = 'invert(1)'
   clouds.forEach(cloud => drawSprite(86, 2, 46, 14, Math.round(cloud.x), cloud.y))
-  drawSprite(2, 54, 600, 12, 0, 127)
+  const horizonX = -Math.round(groundOffset)
+  drawSprite(2, 54, 600, 12, horizonX, 127)
+  drawSprite(2, 54, 600, 12, horizonX + WIDTH, 127)
   obstacles.forEach(obstacle => {
     if (obstacle.kind === 'small') drawSprite(228, 2, 17, 35, Math.round(obstacle.x), obstacle.y)
     if (obstacle.kind === 'large') drawSprite(332, 2, 25, 50, Math.round(obstacle.x), obstacle.y)
     if (obstacle.kind === 'pterodactyl') drawSprite(134 + obstacle.frame * 46, 2, 46, 40, Math.round(obstacle.x), obstacle.y)
   })
-  const frame = state.value === 'crashed' ? 220 : tRexY < TREX_GROUND_Y ? 0 : 88 + (Math.floor(runFrame / 84) % 2) * 44
+  const waitFrame = runFrame % 3000 < 180 ? 44 : 0
+  const frame = state.value === 'crashed'
+    ? 220
+    : tRexY < TREX_GROUND_Y
+      ? 0
+      : state.value === 'ready'
+        ? waitFrame
+        : 88 + (Math.floor(runFrame / 84) % 2) * 44
   drawSprite(848 + frame, 2, TREX_WIDTH, TREX_HEIGHT, TREX_X, Math.round(tRexY))
   context.restore()
   drawScore()
@@ -266,6 +262,7 @@ function tick(timestamp: number): void {
   const delta = Math.min(34, timestamp - lastFrame || 16)
   lastFrame = timestamp
   if (state.value === 'running') update(delta)
+  if (state.value === 'ready') runFrame += delta
   draw()
   animationId = window.requestAnimationFrame(tick)
 }
@@ -288,22 +285,17 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.dino-page { min-height: 100vh; display: flex; flex-direction: column; background: #fff; color: #202124; font-family: Arial, Helvetica, sans-serif; transition: background-color .25s, color .25s; }
-.dino-page.is-night { background: #202124; color: #f5f5f5; }
-.dino-header { display: flex; min-height: 72px; align-items: center; justify-content: space-between; padding: 0 40px; font-size: 14px; }
-.brand { color: inherit; font-size: 18px; font-weight: 600; text-decoration: none; }
-.header-actions { display: flex; gap: 20px; }
-.header-actions a { color: inherit; opacity: .72; text-decoration: none; }
-.header-actions a:hover { opacity: 1; text-decoration: underline; }
-.game-stage { display: flex; flex: 1; flex-direction: column; justify-content: center; width: min(100% - 40px, 760px); margin: 0 auto; padding: 56px 0 40px; }
-.game-copy { margin-bottom: 26px; }
-.eyebrow { margin: 0 0 10px; font: 11px/1.2 monospace; letter-spacing: .12em; opacity: .6; }
-h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); font-weight: 500; letter-spacing: 0; }
-.game-copy > p:last-child { margin: 12px 0 0; font-size: 14px; opacity: .65; }
-.game-frame { display: block; width: 100%; padding: 0; overflow: hidden; border: 0; border-radius: 0; background: transparent; cursor: pointer; outline-offset: 6px; }
+.dino-page { position: relative; min-height: 100vh; overflow: hidden; background: #fff; transition: background-color .25s; }
+.dino-page.is-night { background: #202124; }
+.dino-header { display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 0 32px; font: 14px Arial, sans-serif; }
+.brand { color: #202124; font-size: 16px; font-weight: 600; text-decoration: none; }
+.account-link { color: #5f6368; text-decoration: none; }
+.account-link:hover, .account-link:focus-visible { color: #202124; text-decoration: underline; }
+.is-night .brand { color: #f1f3f4; }.is-night .account-link { color: #bdc1c6; }.is-night .account-link:hover, .is-night .account-link:focus-visible { color: #f1f3f4; }
+.interstitial-wrapper { box-sizing: border-box; width: 100%; max-width: 600px; margin: calc(20vh - 64px) auto 0; }
+.runner-container { display: block; width: 100%; padding: 0; overflow: hidden; border: 0; outline: 0; background: transparent; cursor: pointer; }
+.runner-container:focus-visible { outline: 0; }
 .runner-canvas { display: block; width: 100%; height: auto; aspect-ratio: 4 / 1; }
-.game-meta { display: flex; justify-content: space-between; margin-top: 18px; font: 12px/1.3 monospace; opacity: .68; }
-.dino-footer { display: flex; justify-content: space-between; gap: 20px; padding: 24px 40px 28px; font-size: 11px; opacity: .55; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-@media (max-width: 640px) { .dino-header { min-height: 60px; padding: 0 20px; } .header-actions { gap: 14px; font-size: 12px; } .game-stage { width: min(100% - 28px, 760px); justify-content: flex-start; padding-top: 18vh; } .dino-footer { display: block; padding: 20px; line-height: 1.8; } .dino-footer span { display: block; } }
+@media (max-width: 700px) { .dino-header { height: 56px; padding: 0 20px; font-size: 13px; } .interstitial-wrapper { width: calc(100% - 40px); margin-top: calc(24vh - 56px); } }
 </style>
