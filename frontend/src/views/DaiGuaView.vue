@@ -34,7 +34,9 @@ const dashboardPath = computed(() => authStore.isAdmin ? '/admin/dashboard' : '/
 .dino-header {
   align-items: center;
   display: flex;
-  font: 500 14px Arial, sans-serif;
+  font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
   height: 64px;
   justify-content: space-between;
   padding: 0 32px;
@@ -44,17 +46,30 @@ const dashboardPath = computed(() => authStore.isAdmin ? '/admin/dashboard' : '/
 
 .dino-header .brand,
 .dino-header .account-link {
+  align-items: center;
   color: #202124;
-  font: 500 14px Arial, sans-serif;
+  display: inline-flex;
+  font: inherit;
+  height: 24px;
+  line-height: 1;
   text-decoration: none;
 }
 
-.dino-header .account-link { color: #5f6368; }
+.dino-header .brand {
+  font-weight: 700;
+}
+
+.dino-header .account-link {
+  border-bottom: 1px solid transparent;
+  color: #5f6368;
+  font-weight: 700;
+}
 
 .dino-header .account-link:hover,
 .dino-header .account-link:focus-visible {
+  border-bottom-color: currentColor;
   color: #202124;
-  text-decoration: underline;
+  outline: 0;
 }
 
 .interstitial-wrapper {
@@ -75,7 +90,7 @@ const dashboardPath = computed(() => authStore.isAdmin ? '/admin/dashboard' : '/
 
 @media (max-width: 700px) {
   .dino-header {
-    font-size: 13px;
+    font-size: 14px;
     height: 56px;
     padding: 0 20px;
   }
