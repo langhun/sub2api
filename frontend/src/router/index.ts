@@ -207,7 +207,12 @@ const routes: RouteRecordRaw[] = [
   // ==================== User Routes ====================
   {
     path: '/',
-    redirect: '/home'
+    name: 'RootHome',
+    component: () => import('@/views/RootHomeView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Home'
+    }
   },
   {
     path: '/dashboard',
