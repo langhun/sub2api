@@ -11,6 +11,7 @@
         ref="gameButton"
         class="runner-container"
         :class="{ 'is-expanded': arcadeEntered }"
+        :style="arcadeContainerStyle"
         type="button"
         :aria-label="gameAriaLabel"
         @click="handlePrimaryAction"
@@ -59,6 +60,9 @@ const score = ref(0)
 const highScore = ref(0)
 const nightMode = ref(false)
 const arcadeEntered = ref(false)
+const arcadeMode = ref(false)
+const arcadeScale = ref(1)
+const arcadeTranslateY = ref(0)
 const authStore = useAuthStore()
 
 let context: CanvasRenderingContext2D | null = null
@@ -76,12 +80,16 @@ let obstacleFrame = 0
 let groundOffset = 0
 let introElapsed = 0
 let tRexX = 0
+let arcadeTimer = 0
 let clouds: Cloud[] = []
 let obstacles: Obstacle[] = []
 
 const gameAriaLabel = computed(() => state.value === 'crashed' ? '重新开始 DaiGua 恐龙游戏' : '开始或跳跃')
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const dashboardPath = computed(() => authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+const arcadeContainerStyle = computed(() => arcadeMode.value
+  ? { transform: `scale(${arcadeScale.value}) translateY(${arcadeTranslateY.value}px)` }
+  : undefined)
 
 function configureCanvas(): void {
   const element = canvas.value
@@ -113,7 +121,11 @@ function resetGame(resetEntrance = true): void {
   obstacleFrame = 0
   groundOffset = 0
   introElapsed = 0
-  if (resetEntrance) arcadeEntered.value = false
+  if (resetEntrance) {
+    arcadeEntered.value = false
+    arcadeMode.value = false
+    window.clearTimeout(arcadeTimer)
+  }
   tRexX = arcadeEntered.value ? TREX_X : 0
   nightMode.value = false
   obstacles = []
@@ -125,7 +137,13 @@ function startGame(): void {
   if (state.value === 'crashed') resetGame(false)
   if (state.value === 'ready') {
     state.value = 'running'
-    if (!arcadeEntered.value) arcadeEntered.value = true
+    if (!arcadeEntered.value) {
+      arcadeEntered.value = true
+      arcadeTimer = window.setTimeout(() => {
+        arcadeMode.value = true
+        updateArcadeModeTransform()
+      }, 400)
+    }
   }
   jump()
 }
@@ -145,6 +163,14 @@ function handleKeydown(event: KeyboardEvent): void {
   if (event.code !== 'Space' && event.code !== 'ArrowUp') return
   event.preventDefault()
   startGame()
+}
+
+function updateArcadeModeTransform(): void {
+  if (!arcadeMode.value) return
+  const scale = Math.max(1, Math.min(window.innerHeight / HEIGHT, window.innerWidth / WIDTH))
+  const scaledCanvasHeight = HEIGHT * scale
+  arcadeScale.value = scale
+  arcadeTranslateY.value = Math.ceil(Math.max(0, (window.innerHeight - scaledCanvasHeight - 35) * 0.1))
 }
 
 function createObstacle(): Obstacle {
@@ -289,25 +315,28 @@ onMounted(async () => {
   sprite.src = '/dai-gua/chromium-offline-sprite.png'
   sprite.addEventListener('load', () => resetGame(), { once: true })
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('resize', updateArcadeModeTransform)
   animationId = window.requestAnimationFrame(tick)
 })
 
 onBeforeUnmount(() => {
   window.cancelAnimationFrame(animationId)
+  window.clearTimeout(arcadeTimer)
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('resize', updateArcadeModeTransform)
 })
 </script>
 
 <style scoped>
 .dino-page { position: relative; min-height: 100vh; overflow: hidden; background: #fff; transition: background-color .25s; }
 .dino-page.is-night { background: #202124; }
-.dino-header { display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 0 32px; font: 14px Arial, sans-serif; }
+.dino-header { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 0 32px; font: 14px Arial, sans-serif; }
 .brand { color: #202124; font-size: 16px; font-weight: 600; text-decoration: none; }
 .account-link { color: #5f6368; text-decoration: none; }
 .account-link:hover, .account-link:focus-visible { color: #202124; text-decoration: underline; }
 .is-night .brand { color: #f1f3f4; }.is-night .account-link { color: #bdc1c6; }.is-night .account-link:hover, .is-night .account-link:focus-visible { color: #f1f3f4; }
 .interstitial-wrapper { box-sizing: border-box; width: 100%; max-width: 600px; margin: calc(20vh - 64px) auto 0; }
-.runner-container { display: block; width: 44px; padding: 0; overflow: hidden; border: 0; outline: 0; background: transparent; cursor: pointer; transition: width .4s ease-out; }
+.runner-container { display: block; width: 44px; padding: 0; overflow: hidden; border: 0; outline: 0; transform-origin: center; background: transparent; cursor: pointer; transition: width .4s ease-out; }
 .runner-container.is-expanded { width: 100%; }
 .runner-container:focus-visible { outline: 0; }
 .runner-canvas { display: block; width: 600px; height: 150px; }
