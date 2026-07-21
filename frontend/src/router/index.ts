@@ -41,6 +41,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/dai-gua',
+    name: 'DaiGua',
+    component: () => import('@/views/DaiGuaView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'DaiGua'
+    }
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/auth/LoginView.vue'),
