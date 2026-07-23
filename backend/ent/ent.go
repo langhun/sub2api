@@ -32,6 +32,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/checkin"
 	"github.com/Wei-Shaw/sub2api/ent/checkinblindboxrecord"
 	"github.com/Wei-Shaw/sub2api/ent/checkinprizeitem"
+	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -136,6 +137,7 @@ func checkColumn(t, c string) error {
 			checkin.Table:                       checkin.ValidColumn,
 			checkinblindboxrecord.Table:         checkinblindboxrecord.ValidColumn,
 			checkinprizeitem.Table:              checkinprizeitem.ValidColumn,
+			compositemodelroute.Table:           compositemodelroute.ValidColumn,
 			errorpassthroughrule.Table:          errorpassthroughrule.ValidColumn,
 			group.Table:                         group.ValidColumn,
 			idempotencyrecord.Table:             idempotencyrecord.ValidColumn,

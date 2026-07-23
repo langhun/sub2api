@@ -54,6 +54,8 @@ type Tx struct {
 	CheckinBlindboxRecord *CheckinBlindboxRecordClient
 	// CheckinPrizeItem is the client for interacting with the CheckinPrizeItem builders.
 	CheckinPrizeItem *CheckinPrizeItemClient
+	// CompositeModelRoute is the client for interacting with the CompositeModelRoute builders.
+	CompositeModelRoute *CompositeModelRouteClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -253,6 +255,7 @@ func (tx *Tx) init() {
 	tx.Checkin = NewCheckinClient(tx.config)
 	tx.CheckinBlindboxRecord = NewCheckinBlindboxRecordClient(tx.config)
 	tx.CheckinPrizeItem = NewCheckinPrizeItemClient(tx.config)
+	tx.CompositeModelRoute = NewCompositeModelRouteClient(tx.config)
 	tx.ErrorPassthroughRule = NewErrorPassthroughRuleClient(tx.config)
 	tx.Group = NewGroupClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
