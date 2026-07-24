@@ -2,20 +2,20 @@
   <section class="chromium-dino-runner" aria-label="Chromium Dino">
     <span class="icon-offline" aria-hidden="true"></span>
     <div id="offline-resources" class="hidden">
-      <img id="offline-resources-1x" src="/dai-gua/chromium-offline-sprite.png" alt="" />
-      <img id="offline-resources-2x" src="/dai-gua/chromium-offline-sprite-2x.png" alt="" />
+      <img id="offline-resources-1x" src="/custom/brand-home/chromium-offline-sprite.png" alt="" />
+      <img id="offline-resources-2x" src="/custom/brand-home/chromium-offline-sprite-2x.png" alt="" />
     </div>
     <template id="audio-resources">
-      <audio id="offline-sound-press" src="/dai-gua/button-press.mp3"></audio>
-      <audio id="offline-sound-hit" src="/dai-gua/hit.mp3"></audio>
-      <audio id="offline-sound-reached" src="/dai-gua/score-reached.mp3"></audio>
+      <audio id="offline-sound-press" src="/custom/brand-home/button-press.mp3"></audio>
+      <audio id="offline-sound-hit" src="/custom/brand-home/hit.mp3"></audio>
+      <audio id="offline-sound-reached" src="/custom/brand-home/score-reached.mp3"></audio>
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted } from 'vue'
-import { Runner } from '@/games/chromiumDino/offline'
+import { Runner } from '@/custom/modules/brand-home/chromiumDino/offline'
 
 onMounted(async () => {
   await nextTick()

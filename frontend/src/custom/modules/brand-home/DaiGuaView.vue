@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import ChromiumDinoRunner from '@/components/game/ChromiumDinoRunner.vue'
+import ChromiumDinoRunner from './ChromiumDinoRunner.vue'
 import { useAuthStore } from '@/stores'
 
 const authStore = useAuthStore()
