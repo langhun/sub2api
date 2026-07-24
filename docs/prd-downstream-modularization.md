@@ -442,6 +442,12 @@ upstream/main
 
 `product/main` 已创建为当前已验证产品提交的唯一本地工作分支。重复的 `feat/port-balance-features` 与过期本地 `main` 已在确认分别与 `product/main` 完全相同、或已被其包含后使用非强制删除移除；不影响任何提交历史或远端引用。
 
+#### 当前不可变产品基线
+
+`baseline/v0.1.164-before-overlay` 是模块化开始前的注释标签，指向 `product/main` 在 `v0.1.164` 自定义功能状态下的已验证提交。模块化、新功能和上游同步均不得移动、删除或重写该标签。需要回到当前产品版本时，从该标签创建临时检查分支或直接检出标签；不得通过 reset、rebase 或寻找旧功能分支恢复。
+
+已清理没有 Git remote 配置的遗留远端跟踪引用 `langhun/main`、`xuya/main` 和 `xuya/feat/balance-transfer`。`origin/*` 仍是当前原项目远端的有效跟踪引用，不在本地清理范围内。
+
 #### 本地 Git 保护
 
 本仓库必须启用以下本地配置：
