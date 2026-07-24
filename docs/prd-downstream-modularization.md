@@ -419,6 +419,52 @@ upstream/main
 | 用户/余额/权限 | 上游安全和一致性修复优先；模块通过公开契约适配。 |
 | 前端页面与组件 | 先保留上游的 bugfix 和可访问性改进，再恢复模块特有交互。 |
 
+### 10.4 Git 远端、分支与本地保护
+
+#### 远端职责
+
+| 远端 | 唯一职责 | 允许操作 |
+| --- | --- | --- |
+| `upstream` | 原项目 `Wei-Shaw/sub2api` | `fetch`；同步分支从 `upstream/main` 合并变更。 |
+| `origin` | 本站个人 fork | 推送 `product/main`、`feature/*`、`sync/*` 和标签。 |
+
+当前仓库仅有名为 `origin` 的远端，且指向原项目。个人 fork URL 未配置前，禁止重命名该远端、禁止强推、禁止假定 `origin` 可以承载本站发布分支。待取得个人 fork URL 后，按“新增个人 `origin`、将原项目命名为 `upstream`”的顺序切换，并在切换后验证两者 URL。
+
+#### 分支职责
+
+| 分支 | 职责 | 允许写入 |
+| --- | --- | --- |
+| `main` | 上游镜像基线，仅用于对比 | 不直接提交、不作为开发基线。当前本地 `main` 已过期，未经明确确认不得重置。 |
+| `product/main` | 已验证的本站产品集成和发布基线 | 仅合并验证过的 `feature/*` 与 `sync/*`；禁止直接开发、rebase 或强推。 |
+| `feature/<scope>` | 单一 Overlay 功能或迁移任务 | 正常提交；完成后以 merge commit 合入 `product/main`。 |
+| `sync/upstream-<version>` | 单个上游版本的同步、冲突和回归 | 只允许上游合并、冲突处理、生成输出和测试修复。 |
+| `release/<version>` 或标签 | 已发布的不可变回滚点 | 只创建，不重写。 |
+
+创建 `product/main` 时只增加一个指向当前已验证提交的分支，不删除或改写现有 `feat/port-balance-features`。待发布和远端策略稳定后，再决定是否保留该旧分支名。
+
+#### 本地 Git 保护
+
+本仓库必须启用以下本地配置：
+
+```powershell
+git config --local rerere.enabled true
+git config --local merge.conflictStyle zdiff3
+git config --local fetch.prune true
+git config --local pull.ff only
+git config --local diff.renames true
+```
+
+含义：记录已人工确认的冲突解决方式、显示共同祖先上下文、清理失效远端引用、阻止 `git pull` 产生隐式 merge commit，并提高移动文件的识别能力。`rerere` 只记录解决方案，不自动提交；每次复用结果仍须审查和测试。
+
+#### 强制操作规则
+
+1. 所有操作先执行 `git status --short`；工作区不干净时不开始同步、rebase、切换发布分支或构建发布。
+2. 禁止在 `product/main`、`sync/*` 和已发布提交上执行 `git rebase`、`git push --force`、`git reset --hard` 或删除分支。
+3. 禁止使用不带目标的 `git pull`；上游更新必须显式 `fetch` 后在 `sync/upstream-<version>` 执行 `git merge --no-ff upstream/main`。
+4. 每次提交前执行 `git diff --check`，只暂存本任务文件，并使用中文 Conventional Commit。
+5. 每次同步或模块迁移后，使用 `git diff --name-only <upstream-base>...HEAD` 检查是否出现白名单外的上游文件；任何异常文件必须在合并前解释或归还。
+6. 发布前创建不可变标签；生产回滚仅使用已验证标签或保留二进制，不通过改写 Git 历史恢复。
+
 ## 11. 分阶段交付
 
 ### Phase 0：基线保护与设计确认
