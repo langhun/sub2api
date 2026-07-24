@@ -19,8 +19,16 @@ vi.mock('@/stores', () => ({
 }))
 
 import RootHomeView from '../RootHomeView.vue'
+import { brandHomeRoutes } from '../routes'
 
-describe('RootHomeView', () => {
+describe('brand-home routes', () => {
+  it('registers the root and Dino routes', () => {
+    expect(brandHomeRoutes).toMatchObject([
+      { path: '/Dino', name: 'DaiGua' },
+      { path: '/', name: 'RootHome' },
+    ])
+  })
+
   it.each([
     ['default', '/home'],
     ['dino', '/Dino'],
