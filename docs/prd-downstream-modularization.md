@@ -221,7 +221,7 @@ frontend/src/custom/
 | 集成点 | 目标方式 |
 | --- | --- |
 | 后端依赖注入 | `backend/cmd/server/wire.go` 只负责构造 `custom.Runtime`；自定义 Provider 保留在 `backend/internal/custom/`。`wire_gen.go` 作为可再生输出。 |
-| 后端路由 | `backend/internal/server/router.go` 只调用一次 `custom.RegisterRoutes(...)`；所有现存的签到、转账、红包、排行榜和娱乐大厅路由从 `routes/*.go` 迁出。 |
+| 后端路由 | `backend/internal/server/http.go` 仅将 `custom.Runtime` 传入 Router，`backend/internal/server/router.go` 只调用一次 `custom.RegisterRoutes(...)`；所有现存的签到、转账、红包、排行榜和娱乐大厅路由从 `routes/*.go` 迁出。 |
 | Ent schema | 仍位于 `backend/ent/schema/` 以兼容生成工具，但仅新增 `custom_<module>_*.go` 文件；不编辑上游 schema。`backend/ent/**` 为可再生输出。 |
 | SQL 迁移 | 仍位于 `backend/migrations/`；只新增含 `custom_<module>` 前缀的迁移文件，不修改历史迁移或上游迁移。 |
 | 设置 | 优先由 Overlay 自己的设置表和 `/api/v1/custom/...` 管理接口承载，避免扩散修改上游 `SettingService` 和公开设置 DTO。 |
@@ -250,7 +250,7 @@ frontend/src/custom/
 | --- | --- | --- |
 | Overlay 自有代码 | `backend/internal/custom/**`、`frontend/src/custom/**` | 可自由新增和修改，必须有模块归属与测试。 |
 | 新增数据定义 | `backend/ent/schema/custom_*.go`、`backend/migrations/*_custom_*.sql` | 只新增文件；迁移不可回写或改号。 |
-| 固定挂载/生成输出 | `backend/cmd/server/wire.go`、`backend/internal/server/router.go`、`frontend/src/router/index.ts`、`frontend/src/components/layout/AppSidebar.vue`、必要时 `AppHeader.vue` 与 i18n 入口，以及 Ent/Wire 生成文件 | 仅允许表 7.3 定义的挂载调用或生成结果，禁止混入业务规则。 |
+| 固定挂载/生成输出 | `backend/cmd/server/wire.go`、`backend/internal/server/http.go`、`backend/internal/server/router.go`、`frontend/src/router/index.ts`、`frontend/src/components/layout/AppSidebar.vue`、必要时 `AppHeader.vue` 与 i18n 入口，以及 Ent/Wire 生成文件 | 仅允许表 7.3 定义的挂载调用或生成结果，禁止混入业务规则。 |
 
 除以上三类外，任何相对 `origin/main` 的改动都默认视为不合规。若确有必要，必须先更新白名单说明并在 PR 中说明：为什么 Overlay 无法完成、为什么不能使用现有挂载点、合并上游时的预期冲突位置和回滚方法。
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/repository"
@@ -40,6 +41,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		service.ProviderSet,
 		securityaudit.ProviderSet,
 		payment.ProviderSet,
+		custom.ProviderSet,
 		middleware.ProviderSet,
 		handler.ProviderSet,
 

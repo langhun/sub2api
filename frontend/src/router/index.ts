@@ -14,6 +14,7 @@ import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
 import { resolveFeatureFlagKey } from '@/utils/featureFlags'
+import { customRoutes } from '@/custom/registry'
 
 /**
  * Route definitions with lazy loading
@@ -797,6 +798,8 @@ const routes: RouteRecordRaw[] = [
       requiresPayment: true
     }
   },
+
+  ...customRoutes,
 
   // ==================== 404 Not Found ====================
   {
