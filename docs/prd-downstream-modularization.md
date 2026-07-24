@@ -1,4 +1,4 @@
-# 下游定制功能增量模块化 PRD
+# 下游定制功能 Overlay 模块化 PRD
 
 ## 1. 文档信息
 
@@ -6,7 +6,7 @@
 | --- | --- |
 | 文档状态 | 待评审 |
 | 创建日期 | 2026-07-24 |
-| 适用范围 | `sub2api` 下游定制功能、上游同步与生产发布 |
+| 适用范围 | 仅限 `sub2api` 下游定制功能；上游源代码保持不变 |
 | 当前基线 | `origin/main` v0.1.164；`feat/port-balance-features` 相对该基线领先 78 个提交、落后 0 个提交 |
 | 负责人 | 项目维护者 |
 | 相关文档 | `docs/prd-activity-and-entertainment-center.md` |
@@ -23,23 +23,23 @@
 4. 数据库与资金相关功能的改动若缺少边界，容易在迁移、事务和权限校验中形成隐性耦合。
 5. 用 Git submodule、Go plugin 或拆微服务来回避冲突，会额外引入多仓库版本协调、部署、鉴权和数据一致性成本，当前阶段得不偿失。
 
-本 PRD 的目标是在保留现有单体部署模型的前提下，以业务能力为边界进行增量模块化，降低未来上游合并成本。
+本 PRD 的目标是在保留现有单体部署模型的前提下，将已加入的定制功能收拢为独立 Overlay。上游业务代码不做模块化、不做重构；迁移完成后，上游更新应可直接合并，冲突只允许发生在受控的少数挂载点和可再生输出中。
 
 ## 3. 产品目标
 
 ### 3.1 核心目标
 
-1. 让每项下游能力有可识别的所有权、入口、依赖、开关、测试和迁移记录。
-2. 将上游同步的人工冲突集中在少量明确的集成点，而不是散落到各业务实现中。
+1. 让每项下游能力有可识别的所有权、入口、依赖、开关、测试和迁移记录，并且代码落在自定义目录。
+2. 将上游同步的人工冲突压缩到少量固定挂载点和可再生输出，而不是散落到上游业务实现中。
 3. 使新模块可以在不删除代码的情况下关闭入口、拒绝直达请求并停止业务执行。
 4. 使新模块的开发、测试、代码审查和回滚可以按模块进行。
 5. 维持单个 Go 二进制、单个前端构建产物和当前生产发布流程，不增加运行时网络调用。
 
 ### 3.2 可量化目标
 
-1. 自 Phase 1 起，所有新增下游功能必须归属一个模块，且满足本 PRD 的模块完整性清单。
+1. 自 Phase 1 起，所有新增下游功能必须归属一个 Overlay 模块，且满足本 PRD 的模块完整性清单。
 2. 上游同步提交不得夹带新产品功能；每次同步应有独立的 `sync/upstream-<version>` 分支和 `chore(sync)` 提交。
-3. 三次连续上游同步后，非生成类共享文件的人工冲突数量应可统计，并以减少为目标。
+3. 三次连续上游同步后，除挂载点白名单外，不应再有下游业务逻辑与上游业务文件产生冲突。
 4. 模块关闭时，用户入口、直达路由、公开 API、管理 API 和业务 Service 均不能继续提供该能力。
 5. 每个模块至少拥有一组后端与前端回归测试，并在上游同步后执行。
 
@@ -50,9 +50,10 @@
 1. 不拆分微服务，不引入服务间 RPC、消息队列或独立数据库。
 2. 不使用 Go runtime plugin；所有模块仍在编译期链接进主二进制。
 3. 不将活动中心或现有下游代码拆到 Git submodule、Git subtree 或独立仓库。
-4. 不一次性移动全部现有代码，不为了目录整洁修改已验证的业务行为。
-5. 不改变上游原有 API 的语义；定制接口仅在必要时新增或通过明确扩展点集成。
+4. 不对上游 Handler、Service、Repository、设置、路由或页面进行架构重构。
+5. 不改变上游原有 API 的语义；定制接口通过 Overlay 路由注册，不把业务逻辑塞回上游 API 文件。
 6. 不重写 Ent、迁移执行器、权限系统或全局设置系统。
+7. 不为“目录整洁”批量移动上游文件；只移动本分支已加入的代码，并使被触及的上游文件尽可能恢复为上游版本。
 
 ## 5. 术语与角色
 
@@ -62,8 +63,9 @@
 | 产品集成分支 | 承载所有已验证下游定制并用于发布的长期分支，推荐名为 `product/main`。 |
 | 功能分支 | 从产品集成分支创建的短生命周期分支，命名为 `feature/<scope>`。 |
 | 同步分支 | 专门合并某个上游版本的临时分支，命名为 `sync/upstream-<version>`。 |
-| 业务模块 | 可独立识别、开关、测试并通过受限接口与其他模块协作的一组完整业务能力。 |
-| 集成点 | 必须由主应用统一装配的共享位置，例如路由、Wire、Ent、迁移、设置、导航和 i18n。 |
+| Overlay 模块 | 仅包含本站新增能力、可独立识别、开关、测试并通过受限接口与主应用协作的一组完整业务能力。 |
+| 挂载点 | 为接入 Overlay 而允许保留极小补丁的上游组合入口；不承载任何下游业务规则。 |
+| 可再生输出 | 由 Ent、Wire 或前端构建生成的文件。合并时不手工解决其内容，而是由保留的源文件重新生成。 |
 
 | 角色 | 职责 |
 | --- | --- |
@@ -76,23 +78,23 @@
 
 ### 6.1 单体内模块化
 
-模块化采用“编译期模块”而不是运行时插件：
+模块化采用“编译期 Overlay”而不是运行时插件：
 
 ```text
 单一 Go 服务 + 单一 PostgreSQL 数据库 + 单一 Vue 构建产物
         |
-        +-- core（尽量保持上游原样）
-        +-- modules/activity
-        +-- modules/wallet-extension
-        +-- modules/game-hall
-        +-- modules/brand-home（仅前端）
+        +-- upstream core（不修改业务实现）
+        +-- custom/activity
+        +-- custom/wallet-extension
+        +-- custom/game-hall
+        +-- custom/brand-home（仅前端）
 ```
 
-模块可使用主应用提供的数据库、认证、审计、配置、HTTP 路由和前端基础组件，但不得绕过既有的权限、事务、错误处理和审计机制。
+Overlay 模块可使用主应用提供的数据库、认证、审计、配置、HTTP 路由和前端基础组件，但不得绕过既有的权限、事务、错误处理和审计机制。模块本身必须位于 `custom` 命名空间；上游目录仅保留挂载调用，不能包含模块业务代码。
 
 ### 6.2 模块完整性
 
-一个模块至少包含下列内容；缺少任一项时不得宣称已模块化：
+一个 Overlay 模块至少包含下列内容；缺少任一项时不得宣称已模块化：
 
 | 层级 | 必需内容 |
 | --- | --- |
@@ -121,11 +123,14 @@
 
 ### 7.1 后端目标目录
 
-本项目当前按 `Handler -> Service -> Repository` 分层。为避免一次性重构，模块目录先承载模块装配和新增业务；已有实现仅在再次修改时逐步迁入。
+本项目当前按 `Handler -> Service -> Repository` 分层。Overlay 目录只承载本站新增的业务实现和装配；迁移时只移动本分支引入的代码，并使原有上游文件回到或接近上游版本。
 
 ```text
-backend/internal/modules/
-  activity/
+backend/internal/custom/
+  registry.go
+  runtime.go
+  modules/
+    activity/
     module.go
     routes.go
     handler/
@@ -133,14 +138,14 @@ backend/internal/modules/
     repository/
     contract/
     testdata/
-  wallet-extension/
+    wallet-extension/
     module.go
     routes.go
     handler/
     service/
     repository/
     contract/
-  game-hall/
+    game-hall/
     module.go
     routes.go
     handler/
@@ -152,16 +157,18 @@ backend/internal/modules/
 要求：
 
 1. `module.go` 声明模块 ID、依赖、功能定义和装配入口。
-2. `routes.go` 分别注册用户、公开和管理端路由，禁止在业务实现中直接修改根路由文件。
+2. `routes.go` 分别注册用户、公开和管理端路由；现存于上游 `routes/*.go` 的本站路由必须迁出到此处。
 3. `contract/` 只放跨模块可依赖的 DTO、接口和错误类型，不暴露私有数据访问实现。
-4. 保留 `backend/internal/handler`、`service`、`repository` 的既有实现，避免大规模移动造成无意义冲突。
-5. 新增模块业务文件默认放在模块目录；只有确实属于上游 core 的通用能力才进入原有全局层。
+4. 迁移只处理本分支加入的 Handler、Service、Repository 和测试；既有上游 `backend/internal/handler`、`service`、`repository` 不改名、不搬迁、不重构。
+5. 新增下游业务文件默认放在 `backend/internal/custom/modules/`；不得再进入上游全局层。
 
 ### 7.2 前端目标目录
 
 ```text
-frontend/src/modules/
-  activity/
+frontend/src/custom/
+  registry.ts
+  modules/
+    activity/
     index.ts
     routes.ts
     navigation.ts
@@ -171,7 +178,7 @@ frontend/src/modules/
     components/
     i18n/
     __tests__/
-  wallet-extension/
+    wallet-extension/
     index.ts
     routes.ts
     navigation.ts
@@ -181,7 +188,7 @@ frontend/src/modules/
     components/
     i18n/
     __tests__/
-  game-hall/
+    game-hall/
     index.ts
     routes.ts
     navigation.ts
@@ -191,7 +198,7 @@ frontend/src/modules/
     components/
     i18n/
     __tests__/
-  brand-home/
+    brand-home/
     routes.ts
     views/
     components/
@@ -201,28 +208,53 @@ frontend/src/modules/
 
 要求：
 
-1. 模块 `routes.ts` 导出自身路由和路由元数据，根路由只聚合模块导出。
-2. 模块 `navigation.ts` 导出导航项，由统一导航注册表按权限和功能开关决定展示。
-3. 模块 API、Store、View、组件和 i18n 优先在模块内闭环；公共 UI 基础组件继续复用既有位置。
+1. 模块 `routes.ts` 导出自身路由和路由元数据，根路由只在固定挂载点聚合 `custom/registry.ts` 的导出。
+2. 模块 `navigation.ts` 导出导航项，由 `custom/registry.ts` 汇总后交给固定导航挂载点。
+3. 模块 API、Store、View、组件和 i18n 均在 `frontend/src/custom/` 内闭环；不移动或重写上游页面与组件。
 4. 路由级动态加载由模块自行定义，不能因模块增加而无条件增大首屏包。
 5. 前端不以“隐藏入口”代替权限或开关校验；直达路由仍必须守卫并依赖后端最终校验。
 
-### 7.3 统一注册表
+### 7.3 固定挂载点与自定义注册表
 
-根应用必须建立显式注册表，避免每个模块散改根文件：
+根应用不做通用重构。仅建立 `custom` 注册表，并在下表白名单中的位置保留一次性挂载调用。白名单以外的上游文件不允许再承载下游业务逻辑：
 
 | 集成点 | 目标方式 |
 | --- | --- |
-| 后端依赖注入 | 主 Wire 只装配模块集合；模块内部维护自己的 Provider 集。 |
-| 后端路由 | 根路由按顺序调用模块注册入口；模块不修改其他模块路由。 |
-| Ent schema | 仍位于 `backend/ent/schema/` 以兼容生成工具；文件名使用模块前缀并在注释中注明归属。 |
-| SQL 迁移 | 仍位于 `backend/migrations/`；迁移名包含模块前缀，仅追加。 |
-| 设置 | 通过统一 Feature/Setting Registry 登记模块开关与默认值。 |
-| 前端路由 | `frontend/src/router/index.ts` 聚合各模块 `routes.ts` 的导出。 |
-| 前端导航 | AppHeader/AppSidebar 读取导航注册表，不再各自硬编码模块菜单。 |
-| 国际化 | 模块导出语言片段，由根 i18n 入口统一装配。 |
+| 后端依赖注入 | `backend/cmd/server/wire.go` 只负责构造 `custom.Runtime`；自定义 Provider 保留在 `backend/internal/custom/`。`wire_gen.go` 作为可再生输出。 |
+| 后端路由 | `backend/internal/server/router.go` 只调用一次 `custom.RegisterRoutes(...)`；所有现存的签到、转账、红包、排行榜和娱乐大厅路由从 `routes/*.go` 迁出。 |
+| Ent schema | 仍位于 `backend/ent/schema/` 以兼容生成工具，但仅新增 `custom_<module>_*.go` 文件；不编辑上游 schema。`backend/ent/**` 为可再生输出。 |
+| SQL 迁移 | 仍位于 `backend/migrations/`；只新增含 `custom_<module>` 前缀的迁移文件，不修改历史迁移或上游迁移。 |
+| 设置 | 优先由 Overlay 自己的设置表和 `/api/v1/custom/...` 管理接口承载，避免扩散修改上游 `SettingService` 和公开设置 DTO。 |
+| 前端路由 | `frontend/src/router/index.ts` 只追加一次 `...customRoutes`；各模块路由均由 `frontend/src/custom/registry.ts` 汇总。 |
+| 前端导航 | `AppSidebar.vue` 只接收一次 `customNavigation`；已有定制菜单迁出，禁止在上游导航数组继续添加业务项。 |
+| 前端页头扩展 | 仅当确有需求时，`AppHeader.vue` 增加一个 `CustomHeaderActions` 挂载点；签到等下游 UI 必须迁入该组件。 |
+| 国际化 | `frontend/src/i18n` 只追加一次 `custom` 语言片段入口；模块语言文件保留在 `frontend/src/custom/`。 |
 
-根文件对一个模块最多保留一次导入和一次注册调用。若一个模块需要反复修改根文件，说明模块边界或注册契约设计不完整。
+每个白名单文件最多保留一次导入和一次注册调用。新增下游需求不得扩大白名单；若确实无法避免，必须在 PR 中说明原因、替代方案和预期合并影响。
+
+### 7.4 上游文件归还规则
+
+迁移一个现有定制能力时，必须同时完成以下工作：
+
+1. 将本分支在上游文件中新增的业务逻辑移动到 `backend/internal/custom/` 或 `frontend/src/custom/`。
+2. 删除该能力对 `backend/internal/server/routes/common.go`、`user.go`、`admin.go`、上游 Handler、Service、Repository、前端页面和布局的直接修改。
+3. 除挂载点白名单与可再生输出外，对比 `origin/main...HEAD` 时，上游文件不应再出现该能力的下游 diff。
+4. 若出于兼容必须暂存旧路径，兼容层也必须位于 `custom` 目录，写明移除版本和回归测试。
+5. 每次迁移后运行一次“非白名单 diff”检查；发现新的上游文件改动即阻止合并。
+
+### 7.5 白名单与 diff 检查
+
+白名单分为三类：
+
+| 类别 | 允许路径 | 规则 |
+| --- | --- | --- |
+| Overlay 自有代码 | `backend/internal/custom/**`、`frontend/src/custom/**` | 可自由新增和修改，必须有模块归属与测试。 |
+| 新增数据定义 | `backend/ent/schema/custom_*.go`、`backend/migrations/*_custom_*.sql` | 只新增文件；迁移不可回写或改号。 |
+| 固定挂载/生成输出 | `backend/cmd/server/wire.go`、`backend/internal/server/router.go`、`frontend/src/router/index.ts`、`frontend/src/components/layout/AppSidebar.vue`、必要时 `AppHeader.vue` 与 i18n 入口，以及 Ent/Wire 生成文件 | 仅允许表 7.3 定义的挂载调用或生成结果，禁止混入业务规则。 |
+
+除以上三类外，任何相对 `origin/main` 的改动都默认视为不合规。若确有必要，必须先更新白名单说明并在 PR 中说明：为什么 Overlay 无法完成、为什么不能使用现有挂载点、合并上游时的预期冲突位置和回滚方法。
+
+`go.mod`、`go.sum`、`package.json` 与锁文件在本次迁移中不应变更；Overlay 必须优先复用现有依赖。若后续模块确需新增依赖，必须单独评审，不得与业务迁移混在同一提交。
 
 ## 8. 初始模块边界
 
@@ -274,47 +306,47 @@ frontend/src/modules/
 2. 每个模块必须声明状态：`enabled`、`disabled`、`experimental` 或 `deprecated`。
 3. 每个模块必须声明模块版本和最小兼容上游版本，用于同步评审记录。
 4. 每个模块必须声明直接依赖模块；启动时应检查不存在循环依赖或缺失依赖。
-5. 后台应可查看模块状态、开关、版本、最近迁移和最近同步验证结果；本期可先以只读诊断信息实现。
+5. 后台诊断信息由 Overlay 管理路由提供；不得为此重构上游设置或管理端仪表盘。
 
 ### 9.2 功能开关
 
 1. 模块总开关为所有子功能的前置条件。
 2. 子功能开关只能缩小模块开放范围，不能在模块总开关关闭时绕过限制。
 3. 开关判断必须覆盖：导航、前端路由守卫、公开 API、管理 API、Handler、Service 和后台任务。
-4. 对外公开的功能状态应复用现有公开设置接口；不得让前端自行猜测开关状态。
-5. 设置修改必须写入审计日志，记录模块 ID、设置键、修改前后值和操作人，不记录秘密内容。
+4. 对外状态通过模块自己的公开端点提供；不得为了新增模块状态而修改上游公开设置 DTO。
+5. 设置修改必须写入审计日志，记录模块 ID、设置键、修改前后值和操作人，不记录秘密内容；设置表与管理接口归属 Overlay。
 
 ### 9.3 路由与导航
 
-1. 每个模块应通过独立注册入口提供用户、公开和管理端路由。
+1. 每个模块应通过 Overlay 注册入口提供用户、公开和管理端路由；路径统一位于 `/api/v1/custom/<module>` 或经 `custom` 兼容层映射的旧路径下。
 2. 路由 meta 必须包含模块 ID、权限需求和功能开关标识。
 3. 导航项必须从模块元数据派生，避免 AppHeader、AppSidebar 与路由分别维护同一菜单。
 4. 停用模块后，用户看到的入口应隐藏或禁用，直接访问页面显示明确的不可用状态；后端返回稳定的业务错误码。
-5. 上游已有路由与下游模块路由的路径冲突必须在同步分支处理，不得通过覆盖上游 Handler 静默解决。
+5. 上游已有路由与下游模块路由的路径冲突必须在同步分支处理，不得通过覆盖上游 Handler 静默解决；新增接口优先使用 `custom` 命名空间。
 
 ### 9.4 后端业务与跨模块契约
 
-1. 模块 Handler 只负责鉴权、参数校验、调用 Service 和输出 DTO。
-2. 模块 Service 负责业务规则、功能开关、权限、事务边界、幂等和审计。
-3. 模块 Repository 只访问自身表和明确允许的 core 读取模型；跨模块写入必须经过公开契约。
+1. Overlay Handler 只负责鉴权、参数校验、调用 Overlay Service 和输出 DTO。
+2. Overlay Service 负责业务规则、功能开关、权限、事务边界、幂等和审计。
+3. Overlay Repository 只访问自身表和明确允许的 core 读取模型；跨模块写入必须经由放在 `custom/contract/` 的适配接口。
 4. 跨模块契约应优先使用最小接口与 DTO，避免暴露 Ent client、事务实现或内部表结构。
 5. 发生跨模块失败时，调用方必须返回可追踪错误并保留审计上下文；不得吞掉资金、奖励或派彩异常。
 6. 禁止模块间相互导入私有 Service/Repository，避免循环依赖和升级时的连锁冲突。
 
 ### 9.5 数据、Ent 与迁移
 
-1. 模块专属 Ent schema 文件仍放入 `backend/ent/schema/`，命名使用模块前缀，例如 `activity_checkin.go`、`game_hall_round.go`。
+1. Overlay 专属 Ent schema 文件仍放入 `backend/ent/schema/`，命名使用 `custom_<module>_` 前缀，例如 `custom_activity_checkin.go`、`custom_game_hall_round.go`；只新增文件，不编辑上游 schema。
 2. 每项数据库变更必须新增迁移，禁止修改任何已在环境执行过的 SQL 文件。
 3. 迁移名必须包含模块前缀，并与现有迁移序号规则兼容；引入上游迁移后必须复核排序、checksum 和实际表名。
 4. 迁移应尽量保持向前兼容：先加表/列和双读写，再切换调用方，最后在后续版本清理废弃逻辑。
-5. Ent 或 Wire 发生冲突时，以合并后的 schema、Provider 和依赖图重新生成；禁止手工修补生成文件作为最终结果。
+5. Ent 或 Wire 发生冲突时，保留上游生成物、合并自定义源 schema/Provider 后重新生成；禁止手工修补生成文件作为最终结果。
 6. 资金、奖励和游戏派彩相关迁移必须有专项集成或回归测试，覆盖旧库升级与重复执行保护。
 
 ### 9.6 前端体验
 
-1. 模块页面不得在根路由、全局布局或非本模块 Store 中承载业务状态。
+1. Overlay 页面不得在根路由、上游全局布局或非本模块 Store 中承载业务状态。
 2. 模块页面的加载、空态、权限不足、功能关闭、网络失败和数据一致性错误必须有可用界面。
-3. 模块 API 类型、错误映射和前端文案应随模块维护，禁止散落在不相关的全局工具文件。
+3. Overlay API 类型、错误映射和前端文案应随模块维护，禁止散落在上游全局工具文件。
 4. 对资金与奖励类操作，前端只提供交互保护；最终校验以后端事务和幂等为准。
 5. 新模块页面需要同时验证桌面与移动端；不得因为模块拆分改变既有首页默认路由行为。
 
@@ -402,43 +434,44 @@ upstream/main
 
 验收：现有工作区、生产行为和发布流程不改变。
 
-### Phase 1：模块注册骨架
+### Phase 1：Overlay 挂载骨架
 
-目标：建立模块登记和集成入口，不移动已有业务实现。
-
-交付：
-
-1. 后端模块元数据、依赖声明和路由注册接口。
-2. 前端模块路由、导航和 i18n 聚合接口。
-3. Feature/Setting Registry 的模块归属字段或等价登记能力。
-4. `activity`、`wallet-extension`、`game-hall`、`brand-home` 的空壳注册。
-
-验收：注册骨架不改变用户可见行为；全量基础测试和构建通过。
-
-### Phase 2：新功能模块优先
-
-目标：从下一项新功能开始，杜绝继续向全局层堆叠。
+目标：建立 `custom` 注册表和固定挂载点白名单，不改动上游业务实现。
 
 交付：
 
-1. 新功能按本 PRD 的完整性清单实现。
-2. 新增路由、导航、设置、API、Store、i18n 和测试从模块导出。
-3. 新增 schema 和迁移按模块前缀登记。
+1. 后端 `custom.Runtime`、Overlay 元数据和路由注册接口。
+2. 前端 `custom/registry.ts`、路由、导航和 i18n 聚合接口。
+3. 挂载点白名单及“非白名单 diff”检查脚本。
+4. `activity`、`wallet-extension`、`game-hall`、`brand-home` 的空壳 Overlay 注册。
 
-验收：代码审查可明确判断模块归属；关闭模块后无入口和业务执行遗漏。
+验收：除白名单中的一次性挂载调用外，没有上游源文件业务逻辑变动；全量基础测试和构建通过。
 
-### Phase 3：存量能力渐进迁移
+### Phase 2：迁出现有下游功能
 
-目标：在维护既有能力时逐步收敛，不进行一次性目录大搬迁。
+目标：将已经加入的功能迁入 Overlay，并归还被污染的上游文件。
 
-推荐顺序：
+交付：
 
-1. `brand-home`：前端依赖少，优先验证路由/导航注册机制。
-2. `game-hall`：业务相对独立，验证后端与前端模块闭环。
-3. `activity`：按签到、奖励、红包、排行榜子域逐步迁入。
-4. `wallet-extension`：最后迁移，始终保持与 core 余额模型的契约测试。
+1. 将签到、红包、排行榜、转账、娱乐大厅、Dino/品牌首页按模块迁出。
+2. 将上游 `routes/common.go`、`user.go`、`admin.go` 中的本站路由和辅助函数删除，改由 Overlay 注册。
+3. 将本站 API、Store、View、组件、i18n 和测试迁入 `frontend/src/custom/`。
+4. 将自定义 schema 和迁移统一为 `custom_<module>` 命名；生成物只通过生成命令更新。
 
-验收：每次迁移只改变一个业务子域，且迁移前后 API、数据和开关行为一致。
+验收：每迁出一个能力，除挂载点和可再生输出外，该能力不再使上游文件与 `origin/main` 存在 diff；关闭模块后无入口和业务执行遗漏。
+
+### Phase 3：后续功能 Overlay 优先
+
+目标：禁止新功能再次进入上游目录。
+
+要求：
+
+1. 新功能按本 PRD 的完整性清单实现，所有业务文件进入 `custom` 目录。
+2. 新增路由、导航、设置、API、Store、i18n 和测试从 Overlay 导出。
+3. 新增 schema 和迁移使用 `custom_<module>` 前缀。
+4. 对 core 余额、身份、审计等能力只通过适配接口调用，不把功能实现写回上游包。
+
+验收：代码审查可明确判断 Overlay 归属，且非白名单 diff 检查通过。
 
 ### Phase 4：同步效率评估
 
@@ -454,8 +487,8 @@ upstream/main
 
 1. 新增功能能在代码、路由、设置、迁移和测试中追溯到唯一模块 ID。
 2. 模块之间不存在直接依赖对方私有 Repository、私有 Service 或前端内部 Store 的情况。
-3. 根应用共享文件对一个模块仅有一次聚合入口，不存在多处散改。
-4. 不因模块化改变上游 core 的既有默认路由、鉴权或支付行为。
+3. 上游文件只允许出现在挂载点白名单或可再生输出中，不存在下游业务逻辑散改。
+4. 不因 Overlay 化改变上游 core 的既有默认路由、鉴权或支付行为。
 
 ### 12.2 开关与权限
 
@@ -476,6 +509,7 @@ upstream/main
 2. 同步提交不包含新功能需求或无关重构。
 3. 生成、后端测试、前端类型检查、前端测试和嵌入资源门禁通过。
 4. 同步后所有启用模块的关键用户路径可用，关闭模块的阻断路径仍生效。
+5. “非白名单 diff”检查通过；若产生新上游路径，必须有评审批准的白名单变更。
 
 ### 12.5 发布与回滚
 
@@ -487,8 +521,8 @@ upstream/main
 
 | 风险 | 影响 | 应对 |
 | --- | --- | --- |
-| 一次性大迁移 | 引入大量无关冲突和回归 | 仅在修改某能力时迁移，保持小提交和可回滚。 |
-| 模块名义化 | 文件分目录但仍散改全局 | 将注册、开关、迁移和测试列为模块完成门槛。 |
+| 一次性大迁移 | 引入大量无关冲突和回归 | 一次只迁移一个下游能力，并在每次迁移后归还对应上游文件。 |
+| Overlay 名义化 | 文件分目录但仍散改上游 | 用挂载点白名单和非白名单 diff 检查阻止合并。 |
 | 共享余额模型耦合 | 资金功能升级后出现账务错误 | 使用 core 契约、事务和集成测试；核心安全修复优先。 |
 | Ent 生成冲突 | 生成物误合并或丢失 schema | 只合并源 schema/Provider，统一重新生成。 |
 | 迁移编号冲突 | 部署失败或历史不一致 | 同步时优先处理迁移，检查执行顺序与 checksum。 |
@@ -510,9 +544,9 @@ upstream/main
 首个任务必须是无行为变化的基础设施提交：
 
 ```text
-refactor(modules): 建立下游业务模块注册骨架
+refactor(custom): 建立下游 Overlay 挂载骨架
 ```
 
-范围仅包括：模块元数据、后端/前端注册表、空壳模块和基础测试。不得在此提交中移动活动、转账、娱乐大厅的现有业务实现，不得修改数据库结构，不得改变用户可见功能。
+范围仅包括：`custom` 注册表、后端/前端固定挂载调用、空壳 Overlay、白名单 diff 检查和基础测试。不得在此提交中移动活动、转账、娱乐大厅的现有业务实现，不得修改数据库结构，不得改变用户可见功能；上游文件只允许出现表 7.5 列出的极小挂载补丁。
 
-完成该任务后，下一项新功能作为第一个真实模块进行交付，并按本 PRD 验收。
+完成该任务后，先按一个能力一个提交的方式迁出现有下游功能，再要求后续新功能只进入 `custom` Overlay。
