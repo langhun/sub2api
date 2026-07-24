@@ -158,13 +158,5 @@ func RegisterUserRoutes(
 			redpacket.GET("/:id", h.Transfer.GetRedPacketDetail)
 		}
 
-		if h.GameHall != nil {
-			gameHall := authenticated.Group("/game-hall")
-			gameHall.GET("/status", h.GameHall.Status)
-			gameHall.POST("/exchange", h.GameHall.Exchange)
-			gameHall.POST("/play", h.GameHall.Play)
-			gameHall.GET("/transactions", h.GameHall.Transactions)
-			gameHall.GET("/rounds", h.GameHall.Rounds)
-		}
 	}
 }
