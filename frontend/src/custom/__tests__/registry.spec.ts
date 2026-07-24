@@ -4,14 +4,15 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 import { customNavigation, customRoutes } from '../registry'
+import { brandHomeRoutes } from '../modules/brand-home/routes'
 
 const directory = dirname(fileURLToPath(import.meta.url))
 const routerSource = readFileSync(resolve(directory, '../../router/index.ts'), 'utf8')
 const sidebarSource = readFileSync(resolve(directory, '../../components/layout/AppSidebar.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
-  it('starts without registered routes or navigation items', () => {
-    expect(customRoutes).toEqual([])
+  it('aggregates the brand-home routes without adding navigation items', () => {
+    expect(customRoutes).toEqual(expect.arrayContaining(brandHomeRoutes))
     expect(customNavigation).toEqual([])
   })
 
