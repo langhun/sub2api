@@ -197,26 +197,15 @@ import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled, makeSidebarFlag } from '@/utils/featureFlags'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
+import { customNavigation, type CustomNavigationItem } from '@/custom/registry'
 
-interface NavItem {
-  path: string
-  label: string
-  icon: unknown
-  iconSvg?: string
-  hideInSimpleMode?: boolean
+interface NavItem extends CustomNavigationItem {
   children?: NavItem[]
   /**
    * When true, the parent item only toggles the expand/collapse state and
    * does NOT navigate to its `path`. The `path` is purely a stable key.
    */
   expandOnly?: boolean
-  /**
-   * 可选的功能开关 getter。返回 false 时菜单项被隐藏；返回 undefined/true 时显示。
-   * 宽容策略（undefined → 显示）避免 public settings 未加载完成时菜单闪烁消失。
-   * Getter 里访问的 reactive 来源（store / composable）会被 computed 自动追踪，
-   * 开关切换时菜单自动更新。
-   */
-  featureFlag?: () => boolean | undefined
 }
 
 // applyFeatureFlags 递归过滤掉 featureFlag() === false 的节点（含子节点）。
@@ -727,6 +716,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/game-hall', label: t('nav.gameHall'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagGameHall },
     { path: '/leaderboard', label: t('nav.leaderboard'), icon: ChartIcon, hideInSimpleMode: true, featureFlag: flagLeaderboard },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
+    ...customNavigation,
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
       label: item.label,
