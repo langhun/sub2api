@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
+import { brandHomeRoutes } from './modules/brand-home/routes'
 
 export interface CustomNavigationItem {
   path: string
@@ -12,6 +13,8 @@ export interface CustomNavigationItem {
   featureFlag?: () => boolean | undefined
 }
 
-export const customRoutes: readonly RouteRecordRaw[] = []
+export const customRoutes: readonly RouteRecordRaw[] = [
+  ...brandHomeRoutes,
+]
 
 export const customNavigation: readonly CustomNavigationItem[] = []

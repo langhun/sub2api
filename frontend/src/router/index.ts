@@ -42,15 +42,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/Dino',
-    name: 'DaiGua',
-    component: () => import('@/views/DaiGuaView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'DaiGua'
-    }
-  },
-  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/auth/LoginView.vue'),
@@ -206,15 +197,6 @@ const routes: RouteRecordRaw[] = [
   },
 
   // ==================== User Routes ====================
-  {
-    path: '/',
-    name: 'RootHome',
-    component: () => import('@/views/RootHomeView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Home'
-    }
-  },
   {
     path: '/dashboard',
     name: 'Dashboard',
