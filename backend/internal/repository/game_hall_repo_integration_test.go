@@ -12,13 +12,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 func TestGameHallRepositoryCommitSlotRound_WritesJackpotTransactions(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewGameHallRepository(client, integrationDB)
+	repo := gamehall.NewGameHallRepository(client, integrationDB)
 
 	user := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("game-hall-user-%d@example.com", time.Now().UnixNano()),
@@ -37,12 +38,12 @@ ON CONFLICT (user_id) DO UPDATE SET dg_balance = EXCLUDED.dg_balance, updated_at
 INSERT INTO game_hall_jackpots (code, balance, enabled, created_at, updated_at)
 VALUES ($1, $2, TRUE, NOW(), NOW())
 ON CONFLICT (code) DO UPDATE SET balance = EXCLUDED.balance, enabled = TRUE, updated_at = NOW()
-`, gameHallJackpotCode, 100.0)
+`, gamehall.JackpotCode, 100.0)
 	require.NoError(t, err)
 
-	result, err := repo.CommitSlotRound(ctx, service.GameSlotRoundPlan{
+	result, err := repo.CommitSlotRound(ctx, gamehall.GameSlotRoundPlan{
 		UserID:         user.ID,
-		GameType:       service.GameTypeSlots,
+		GameType:       gamehall.GameTypeSlots,
 		BetAmount:      10,
 		PayoutAmount:   30,
 		NetAmount:      20,
@@ -62,14 +63,14 @@ ON CONFLICT (code) DO UPDATE SET balance = EXCLUDED.balance, enabled = TRUE, upd
 	var ruleVersion string
 	err = integrationDB.QueryRowContext(ctx, `SELECT metadata->>'rule_version' FROM game_hall_rounds WHERE id = $1`, result.RoundID).Scan(&ruleVersion)
 	require.NoError(t, err)
-	require.Equal(t, service.GameSlotsRuleVersion, ruleVersion)
+	require.Equal(t, gamehall.GameSlotsRuleVersion, ruleVersion)
 
 	rows, err := integrationDB.QueryContext(ctx, `
 SELECT tx_type, amount, balance_before, balance_after, reference_type, reference_id, user_id
 FROM game_hall_jackpot_transactions
 WHERE jackpot_code = $1
 ORDER BY id
-`, gameHallJackpotCode)
+`, gamehall.JackpotCode)
 	require.NoError(t, err)
 	defer func() { _ = rows.Close() }()
 
@@ -105,7 +106,7 @@ ORDER BY id
 		amount:        10,
 		balanceBefore: 100,
 		balanceAfter:  110,
-		referenceType: gameHallReferenceSlot,
+		referenceType: gamehall.SlotReference,
 		referenceID:   roundReferenceID,
 		userID:        user.ID,
 	}, transactions[0])
@@ -114,7 +115,7 @@ ORDER BY id
 		amount:        30,
 		balanceBefore: 110,
 		balanceAfter:  80,
-		referenceType: gameHallReferenceSlot,
+		referenceType: gamehall.SlotReference,
 		referenceID:   roundReferenceID,
 		userID:        user.ID,
 	}, transactions[1])
@@ -123,7 +124,7 @@ ORDER BY id
 func TestGameHallRepositoryCommitSlotRound_CapsPayoutToAvailableJackpot(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewGameHallRepository(client, integrationDB)
+	repo := gamehall.NewGameHallRepository(client, integrationDB)
 
 	user := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("game-hall-cap-%d@example.com", time.Now().UnixNano()),
@@ -142,12 +143,12 @@ ON CONFLICT (user_id) DO UPDATE SET dg_balance = EXCLUDED.dg_balance, updated_at
 INSERT INTO game_hall_jackpots (code, balance, enabled, created_at, updated_at)
 VALUES ($1, $2, TRUE, NOW(), NOW())
 ON CONFLICT (code) DO UPDATE SET balance = EXCLUDED.balance, enabled = TRUE, updated_at = NOW()
-`, gameHallJackpotCode, 5.0)
+`, gamehall.JackpotCode, 5.0)
 	require.NoError(t, err)
 
-	result, err := repo.CommitSlotRound(ctx, service.GameSlotRoundPlan{
+	result, err := repo.CommitSlotRound(ctx, gamehall.GameSlotRoundPlan{
 		UserID:         user.ID,
-		GameType:       service.GameTypeSlots,
+		GameType:       gamehall.GameTypeSlots,
 		BetAmount:      10,
 		PayoutAmount:   30,
 		NetAmount:      20,
@@ -174,7 +175,7 @@ SELECT tx_type, amount, balance_before, balance_after
 FROM game_hall_jackpot_transactions
 WHERE jackpot_code = $1 AND user_id = $2
 ORDER BY id
-`, gameHallJackpotCode, user.ID)
+`, gamehall.JackpotCode, user.ID)
 	require.NoError(t, err)
 	defer func() { _ = rows.Close() }()
 
@@ -196,7 +197,7 @@ ORDER BY id
 func TestGameHallRepositoryGetSnapshot_WorksWithoutLegacySharedTables(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewGameHallRepository(client, integrationDB)
+	repo := gamehall.NewGameHallRepository(client, integrationDB)
 
 	user := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("game-hall-legacy-%d@example.com", time.Now().UnixNano()),
@@ -226,7 +227,7 @@ WHERE user_id = $1
 	_, err = integrationDB.ExecContext(ctx, `
 DELETE FROM game_hall_jackpot_transactions
 WHERE jackpot_code = $1
-`, gameHallJackpotCode)
+`, gamehall.JackpotCode)
 	require.NoError(t, err)
 
 	_, err = integrationDB.ExecContext(ctx, `
@@ -234,7 +235,7 @@ UPDATE game_hall_jackpots
 SET balance = 0,
     updated_at = NOW()
 WHERE code = $1
-`, gameHallJackpotCode)
+`, gamehall.JackpotCode)
 	require.NoError(t, err)
 
 	snapshot, err := repo.GetSnapshot(ctx, user.ID)
@@ -247,7 +248,7 @@ WHERE code = $1
 func TestGameHallRepositoryGetSnapshot_UsesUsersBalanceEvenWhenBankTableExists(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewGameHallRepository(client, integrationDB)
+	repo := gamehall.NewGameHallRepository(client, integrationDB)
 
 	require.NoError(t, ensureUsersBankAccountTableForTest(ctx))
 
@@ -277,7 +278,7 @@ ON CONFLICT (user_id) DO UPDATE SET dg_balance = EXCLUDED.dg_balance, updated_at
 INSERT INTO game_hall_jackpots (code, balance, enabled, created_at, updated_at)
 VALUES ($1, $2, TRUE, NOW(), NOW())
 ON CONFLICT (code) DO UPDATE SET balance = EXCLUDED.balance, enabled = TRUE, updated_at = NOW()
-`, gameHallJackpotCode, 345.0)
+`, gamehall.JackpotCode, 345.0)
 	require.NoError(t, err)
 
 	snapshot, err := repo.GetSnapshot(ctx, user.ID)
@@ -290,7 +291,7 @@ ON CONFLICT (code) DO UPDATE SET balance = EXCLUDED.balance, enabled = TRUE, upd
 func TestGameHallRepositoryCommitExchange_UsesUsersBalanceEvenWhenBankTableExists(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewGameHallRepository(client, integrationDB)
+	repo := gamehall.NewGameHallRepository(client, integrationDB)
 
 	require.NoError(t, ensureUsersBankAccountTableForTest(ctx))
 
@@ -317,9 +318,9 @@ ON CONFLICT (user_id) DO UPDATE SET dg_balance = EXCLUDED.dg_balance, updated_at
 	require.NoError(t, err)
 
 	idempotencyKey := "bank-account-exchange-" + uuid.NewString()
-	result, err := repo.CommitExchange(ctx, service.GameExchangePlan{
+	result, err := repo.CommitExchange(ctx, gamehall.GameExchangePlan{
 		UserID:         user.ID,
-		Direction:      service.GameExchangeBalanceToDG,
+		Direction:      gamehall.GameExchangeBalanceToDG,
 		Amount:         20,
 		IdempotencyKey: idempotencyKey,
 	})
@@ -359,8 +360,8 @@ WHERE user_id = $1
 	require.NoError(t, err)
 	require.Equal(t, 30.0, dgBalance)
 
-	replayed, err := repo.CommitExchange(ctx, service.GameExchangePlan{
-		UserID: user.ID, Direction: service.GameExchangeBalanceToDG, Amount: 20, IdempotencyKey: idempotencyKey,
+	replayed, err := repo.CommitExchange(ctx, gamehall.GameExchangePlan{
+		UserID: user.ID, Direction: gamehall.GameExchangeBalanceToDG, Amount: 20, IdempotencyKey: idempotencyKey,
 	})
 	require.NoError(t, err)
 	require.Equal(t, result, replayed)
@@ -372,7 +373,7 @@ WHERE user_id = $1
 func TestGameHallRepositoryRejectsDisabledUserAtCommitBoundary(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
-	repo := NewGameHallRepository(client, integrationDB)
+	repo := gamehall.NewGameHallRepository(client, integrationDB)
 	user := mustCreateUser(t, client, &service.User{
 		Email:            fmt.Sprintf("game-hall-disabled-%d@example.com", time.Now().UnixNano()),
 		PasswordHash:     "hash",
@@ -387,19 +388,19 @@ ON CONFLICT (user_id) DO UPDATE SET dg_balance = EXCLUDED.dg_balance, updated_at
 	require.NoError(t, err)
 
 	t.Run("exchange", func(t *testing.T) {
-		_, err := repo.CommitExchange(ctx, service.GameExchangePlan{
-			UserID: user.ID, Direction: service.GameExchangeBalanceToDG, Amount: 10,
+		_, err := repo.CommitExchange(ctx, gamehall.GameExchangePlan{
+			UserID: user.ID, Direction: gamehall.GameExchangeBalanceToDG, Amount: 10,
 			IdempotencyKey: "disabled-exchange-" + uuid.NewString(),
 		})
-		require.ErrorIs(t, err, service.ErrGameHallUserDisabled)
+		require.ErrorIs(t, err, gamehall.ErrGameHallUserDisabled)
 	})
 
 	t.Run("slot", func(t *testing.T) {
-		_, err := repo.CommitSlotRound(ctx, service.GameSlotRoundPlan{
-			UserID: user.ID, GameType: service.GameTypeSlots, BetAmount: 10,
+		_, err := repo.CommitSlotRound(ctx, gamehall.GameSlotRoundPlan{
+			UserID: user.ID, GameType: gamehall.GameTypeSlots, BetAmount: 10,
 			IdempotencyKey: "disabled-slot-" + uuid.NewString(),
 		})
-		require.ErrorIs(t, err, service.ErrGameHallUserDisabled)
+		require.ErrorIs(t, err, gamehall.ErrGameHallUserDisabled)
 	})
 
 	var (

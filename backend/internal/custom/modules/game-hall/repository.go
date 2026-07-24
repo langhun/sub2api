@@ -1,4 +1,4 @@
-package repository
+package gamehall
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 const (
@@ -24,19 +24,26 @@ const (
 	gameHallRoundsTable       = "game_hall_rounds"
 )
 
+const (
+	JackpotCode   = gameHallJackpotCode
+	SlotReference = gameHallReferenceSlot
+)
+
+var ErrUserNotFound = infraerrors.NotFound("USER_NOT_FOUND", "user not found")
+
 type gameHallRepository struct {
 	client *dbent.Client
 	db     *sql.DB
 }
 
-func NewGameHallRepository(client *dbent.Client, db *sql.DB) service.GameHallStore {
+func NewGameHallRepository(client *dbent.Client, db *sql.DB) GameHallStore {
 	return &gameHallRepository{
 		client: client,
 		db:     db,
 	}
 }
 
-func (r *gameHallRepository) GetSnapshot(ctx context.Context, userID int64) (*service.GameWalletSnapshot, error) {
+func (r *gameHallRepository) GetSnapshot(ctx context.Context, userID int64) (*GameWalletSnapshot, error) {
 	client := clientFromContext(ctx, r.client)
 	if err := ensureGameWalletRow(ctx, client, userID); err != nil {
 		return nil, err
@@ -66,23 +73,23 @@ LIMIT 1
 		if err := rows.Err(); err != nil {
 			return nil, fmt.Errorf("query game hall snapshot: %w", err)
 		}
-		return nil, service.ErrUserNotFound
+		return nil, ErrUserNotFound
 	}
 
-	snapshot := &service.GameWalletSnapshot{UserID: userID}
+	snapshot := &GameWalletSnapshot{UserID: userID}
 	if err := rows.Scan(&snapshot.MainBalance, &snapshot.GameHallDisabled, &snapshot.DGBalance, &snapshot.JackpotBalance); err != nil {
 		return nil, fmt.Errorf("scan game hall snapshot: %w", err)
 	}
 	return snapshot, rows.Err()
 }
 
-func (r *gameHallRepository) CommitExchange(ctx context.Context, plan service.GameExchangePlan) (*service.GameExchangeResult, error) {
+func (r *gameHallRepository) CommitExchange(ctx context.Context, plan GameExchangePlan) (*GameExchangeResult, error) {
 	if existing, err := r.findExchangeResult(ctx, plan.UserID, plan.IdempotencyKey); err != nil {
 		return nil, err
 	} else if existing != nil {
 		return existing, nil
 	}
-	var result *service.GameExchangeResult
+	var result *GameExchangeResult
 	err := r.runInTx(ctx, func(txCtx context.Context) error {
 		client := clientFromContext(txCtx, r.client)
 		if err := ensureGameWalletRow(txCtx, client, plan.UserID); err != nil {
@@ -94,7 +101,7 @@ func (r *gameHallRepository) CommitExchange(ctx context.Context, plan service.Ga
 			return err
 		}
 		if gameHallDisabled {
-			return service.ErrGameHallUserDisabled
+			return ErrGameHallUserDisabled
 		}
 		dgBalance, err := lockUserDGBalance(txCtx, client, plan.UserID)
 		if err != nil {
@@ -124,7 +131,7 @@ WHERE user_id = $1
 				return fmt.Errorf("sum daily game exchanges in transaction: %w", closeErr)
 			}
 			if roundDBAmount(dailyTotal+plan.Amount) > plan.DailyLimit {
-				return service.ErrGameExchangeDailyLimit
+				return ErrGameExchangeDailyLimit
 			}
 		}
 
@@ -132,20 +139,20 @@ WHERE user_id = $1
 		dgAfter := dgBalance
 
 		switch plan.Direction {
-		case service.GameExchangeBalanceToDG:
+		case GameExchangeBalanceToDG:
 			if mainBalance < plan.Amount {
-				return service.ErrGameInsufficientMainBalance
+				return ErrGameInsufficientMainBalance
 			}
 			mainAfter = roundDBAmount(mainBalance - plan.Amount)
 			dgAfter = roundDBAmount(dgBalance + plan.Amount)
-		case service.GameExchangeDGToBalance:
+		case GameExchangeDGToBalance:
 			if dgBalance < plan.Amount {
-				return service.ErrGameInsufficientDGBalance
+				return ErrGameInsufficientDGBalance
 			}
 			mainAfter = roundDBAmount(mainBalance + plan.Amount)
 			dgAfter = roundDBAmount(dgBalance - plan.Amount)
 		default:
-			return service.ErrGameExchangeDirectionInvalid
+			return ErrGameExchangeDirectionInvalid
 		}
 
 		if err := updateUserMainBalance(txCtx, client, plan.UserID, mainAfter); err != nil {
@@ -175,7 +182,7 @@ WHERE user_id = $1
 			return err
 		}
 
-		result = &service.GameExchangeResult{
+		result = &GameExchangeResult{
 			Direction:         plan.Direction,
 			Amount:            roundDBAmount(plan.Amount),
 			MainBalanceBefore: roundDBAmount(mainBalance),
@@ -212,7 +219,7 @@ WHERE user_id = $1
 	return roundDBAmount(total), nil
 }
 
-func insertMainBalanceAudit(ctx context.Context, client *dbent.Client, plan service.GameExchangePlan, before, after float64) error {
+func insertMainBalanceAudit(ctx context.Context, client *dbent.Client, plan GameExchangePlan, before, after float64) error {
 	metadata, err := json.Marshal(map[string]any{"direction": plan.Direction, "dg_amount": plan.Amount})
 	if err != nil {
 		return fmt.Errorf("marshal main balance audit metadata: %w", err)
@@ -226,7 +233,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)`, plan.UserID, plan.Direction, roundDBAm
 	return nil
 }
 
-func (r *gameHallRepository) findExchangeResult(ctx context.Context, userID int64, idempotencyKey string) (*service.GameExchangeResult, error) {
+func (r *gameHallRepository) findExchangeResult(ctx context.Context, userID int64, idempotencyKey string) (*GameExchangeResult, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT tx_type, amount, balance_before, balance_after, metadata
 FROM game_hall_wallet_transactions WHERE user_id = $1 AND idempotency_key = $2`, userID, idempotencyKey)
 	var txType string
@@ -247,25 +254,25 @@ FROM game_hall_wallet_transactions WHERE user_id = $1 AND idempotency_key = $2`,
 		return nil, fmt.Errorf("decode idempotent game exchange: %w", err)
 	}
 	if values.Direction == "" {
-		values.Direction = service.GameExchangeBalanceToDG
+		values.Direction = GameExchangeBalanceToDG
 		if txType == "exchange_out" {
-			values.Direction = service.GameExchangeDGToBalance
+			values.Direction = GameExchangeDGToBalance
 		}
 	}
-	return &service.GameExchangeResult{
+	return &GameExchangeResult{
 		Direction: values.Direction, Amount: amount,
 		MainBalanceBefore: values.MainBefore, MainBalanceAfter: values.MainAfter,
 		DGBalanceBefore: dgBefore, DGBalanceAfter: dgAfter,
 	}, nil
 }
 
-func (r *gameHallRepository) CommitSlotRound(ctx context.Context, plan service.GameSlotRoundPlan) (*service.GamePlayResult, error) {
+func (r *gameHallRepository) CommitSlotRound(ctx context.Context, plan GameSlotRoundPlan) (*GamePlayResult, error) {
 	if existing, err := r.findSlotRoundResult(ctx, plan.UserID, plan.IdempotencyKey); err != nil {
 		return nil, err
 	} else if existing != nil {
 		return existing, nil
 	}
-	var result *service.GamePlayResult
+	var result *GamePlayResult
 	err := r.runInTx(ctx, func(txCtx context.Context) error {
 		client := clientFromContext(txCtx, r.client)
 		if err := ensureGameWalletRow(txCtx, client, plan.UserID); err != nil {
@@ -280,14 +287,14 @@ func (r *gameHallRepository) CommitSlotRound(ctx context.Context, plan service.G
 			return err
 		}
 		if gameHallDisabled {
-			return service.ErrGameHallUserDisabled
+			return ErrGameHallUserDisabled
 		}
 		dgBalance, err := lockUserDGBalance(txCtx, client, plan.UserID)
 		if err != nil {
 			return err
 		}
 		if dgBalance < plan.BetAmount {
-			return service.ErrGameInsufficientDGBalance
+			return ErrGameInsufficientDGBalance
 		}
 		jackpotBalance, err := lockGameJackpot(txCtx, client)
 		if err != nil {
@@ -317,7 +324,7 @@ func (r *gameHallRepository) CommitSlotRound(ctx context.Context, plan service.G
 			PayoutAmount: actualPayout, NetAmount: actualNet, Multiplier: actualMultiplier,
 			BalanceBefore: dgBalance, BalanceAfter: dgAfter, JackpotBefore: jackpotBalance,
 			JackpotAfter: jackpotAfter, Outcome: actualOutcome, Symbols: plan.Symbols,
-			IdempotencyKey: plan.IdempotencyKey, Metadata: map[string]any{"message": actualMessage, "payout_capped": payoutCapped, "rule_version": service.GameSlotsRuleVersion},
+			IdempotencyKey: plan.IdempotencyKey, Metadata: map[string]any{"message": actualMessage, "payout_capped": payoutCapped, "rule_version": GameSlotsRuleVersion},
 		})
 		if err != nil {
 			return err
@@ -409,7 +416,7 @@ func (r *gameHallRepository) CommitSlotRound(ctx context.Context, plan service.G
 			}
 		}
 
-		result = &service.GamePlayResult{
+		result = &GamePlayResult{
 			RoundID:         roundID,
 			GameType:        plan.GameType,
 			BetAmount:       roundDBAmount(plan.BetAmount),
@@ -434,11 +441,11 @@ func (r *gameHallRepository) CommitSlotRound(ctx context.Context, plan service.G
 	return result, nil
 }
 
-func (r *gameHallRepository) findSlotRoundResult(ctx context.Context, userID int64, idempotencyKey string) (*service.GamePlayResult, error) {
+func (r *gameHallRepository) findSlotRoundResult(ctx context.Context, userID int64, idempotencyKey string) (*GamePlayResult, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT id, game_type, bet_amount, payout_amount, net_amount, multiplier,
 balance_before, balance_after, jackpot_after, outcome, symbols, metadata
 FROM game_hall_rounds WHERE user_id = $1 AND idempotency_key = $2`, userID, idempotencyKey)
-	var result service.GamePlayResult
+	var result GamePlayResult
 	var symbols, metadata []byte
 	if err := row.Scan(&result.RoundID, &result.GameType, &result.BetAmount, &result.PayoutAmount, &result.NetAmount,
 		&result.Multiplier, &result.DGBalanceBefore, &result.DGBalanceAfter, &result.JackpotBalance, &result.Outcome, &symbols, &metadata); err != nil {
@@ -460,7 +467,7 @@ FROM game_hall_rounds WHERE user_id = $1 AND idempotency_key = $2`, userID, idem
 	return &result, nil
 }
 
-func (r *gameHallRepository) ListWalletTransactions(ctx context.Context, userID *int64, page, pageSize int) ([]service.GameWalletTransaction, int64, error) {
+func (r *gameHallRepository) ListWalletTransactions(ctx context.Context, userID *int64, page, pageSize int) ([]GameWalletTransaction, int64, error) {
 	where, args := "", []any{}
 	if userID != nil {
 		where, args = " WHERE user_id = $1", append(args, *userID)
@@ -477,9 +484,9 @@ reference_type, reference_id, metadata, created_at FROM %s%s ORDER BY id DESC LI
 		return nil, 0, fmt.Errorf("list game wallet transactions: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	items := make([]service.GameWalletTransaction, 0)
+	items := make([]GameWalletTransaction, 0)
 	for rows.Next() {
-		var item service.GameWalletTransaction
+		var item GameWalletTransaction
 		var metadata []byte
 		if err := rows.Scan(&item.ID, &item.UserID, &item.TxType, &item.Amount, &item.BalanceBefore, &item.BalanceAfter, &item.ReferenceType, &item.ReferenceID, &metadata, &item.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan game wallet transaction: %w", err)
@@ -492,7 +499,7 @@ reference_type, reference_id, metadata, created_at FROM %s%s ORDER BY id DESC LI
 	return items, total, rows.Err()
 }
 
-func (r *gameHallRepository) ListRounds(ctx context.Context, userID *int64, page, pageSize int) ([]service.GameRound, int64, error) {
+func (r *gameHallRepository) ListRounds(ctx context.Context, userID *int64, page, pageSize int) ([]GameRound, int64, error) {
 	where, args := "", []any{}
 	if userID != nil {
 		where, args = " WHERE user_id = $1", append(args, *userID)
@@ -510,9 +517,9 @@ FROM %s%s ORDER BY id DESC LIMIT $%d OFFSET $%d`, gameHallRoundsTable, where, li
 		return nil, 0, fmt.Errorf("list game rounds: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	items := make([]service.GameRound, 0)
+	items := make([]GameRound, 0)
 	for rows.Next() {
-		var item service.GameRound
+		var item GameRound
 		var symbols, metadata []byte
 		if err := rows.Scan(&item.ID, &item.UserID, &item.GameType, &item.BetAmount, &item.PayoutAmount, &item.NetAmount, &item.Multiplier, &item.BalanceBefore, &item.BalanceAfter, &item.JackpotBefore, &item.JackpotAfter, &item.Outcome, &symbols, &metadata, &item.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan game round: %w", err)
@@ -736,7 +743,7 @@ FOR UPDATE
 		if err := rows.Err(); err != nil {
 			return 0, false, fmt.Errorf("lock legacy user main balance: %w", err)
 		}
-		return 0, false, service.ErrUserNotFound
+		return 0, false, ErrUserNotFound
 	}
 
 	var balance float64
@@ -840,7 +847,7 @@ WHERE code = $1
 
 func resolveExchangeTxType(direction string) string {
 	switch direction {
-	case service.GameExchangeDGToBalance:
+	case GameExchangeDGToBalance:
 		return "exchange_out"
 	default:
 		return "exchange_in"
@@ -880,4 +887,11 @@ func resolveGameOutcomeFromNet(netAmount float64) string {
 	default:
 		return "draw"
 	}
+}
+
+func clientFromContext(ctx context.Context, defaultClient *dbent.Client) *dbent.Client {
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		return tx.Client()
+	}
+	return defaultClient
 }

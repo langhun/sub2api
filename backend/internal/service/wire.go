@@ -789,16 +789,11 @@ var ProviderSet = wire.NewSet(
 	ProvideRewardDeliveryWorkerRuntime,
 	NewBalanceTransferService,
 	ProvideRedPacketExpiryService,
-	ProvideGameHallService,
 	ProvideChannelMonitorService,
 	ProvideChannelMonitorRunner,
 	NewChannelMonitorRequestTemplateService,
 	ProvideUserPlatformQuotaUsageFlusher,
 )
-
-func ProvideGameHallService(store GameHallStore, settingService *SettingService, billingCache *BillingCacheService) *GameHallService {
-	return NewGameHallService(store, settingService, billingCache)
-}
 
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。
 func ProvideUserPlatformQuotaUsageFlusher(cfg *config.Config, cache BillingCache, quotaRepo UserPlatformQuotaRepository, tw *TimingWheelService) *UserPlatformQuotaUsageFlusher {
