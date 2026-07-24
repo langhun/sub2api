@@ -1,4 +1,4 @@
-package service
+package gamehall
 
 import (
 	"context"
@@ -7,10 +7,13 @@ import (
 	"log/slog"
 	"math"
 	"math/big"
+	"strconv"
+	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/google/uuid"
 )
 
@@ -20,6 +23,17 @@ const (
 
 	GameExchangeBalanceToDG = "balance_to_dg"
 	GameExchangeDGToBalance = "dg_to_balance"
+
+	// Legacy setting keys remain a read-only compatibility contract until the
+	// game-hall settings endpoint is migrated into this module.
+	SettingKeyGameHallEnabled              = "game_hall_enabled"
+	SettingKeyGameSlotsEnabled             = "game_slots_enabled"
+	SettingKeyGameSlotsMinBet              = "game_slots_min_bet"
+	SettingKeyGameSlotsMaxBet              = "game_slots_max_bet"
+	SettingKeyGameExchangeMinAmount        = "game_exchange_min_amount"
+	SettingKeyGameExchangeMaxAmount        = "game_exchange_max_amount"
+	SettingKeyGameExchangeDailyLimit       = "game_exchange_daily_limit"
+	SettingKeyGameExchangeAllowDGToBalance = "game_exchange_allow_dg_to_balance"
 )
 
 var (
@@ -560,7 +574,7 @@ func roundGameAmount(value float64) float64 {
 }
 
 func normalizeGameHallIdempotencyKey(raw string) (string, error) {
-	key, err := NormalizeIdempotencyKey(raw)
+	key, err := service.NormalizeIdempotencyKey(raw)
 	if err != nil {
 		return "", err
 	}
@@ -571,6 +585,14 @@ func normalizeGameHallIdempotencyKey(raw string) (string, error) {
 		return uuid.NewString(), nil
 	}
 	return key, nil
+}
+
+func parseBalanceFeatureFloat(raw string, fallback float64) float64 {
+	value, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil || value < 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+		return fallback
+	}
+	return value
 }
 
 func resolveGameOutcome(netAmount float64) string {

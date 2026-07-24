@@ -117,7 +117,6 @@ func RegisterAdminRoutes(
 		registerBlindboxRoutes(admin, h)
 		registerRewardDeliveryRoutes(admin, h)
 		registerTransferAdminRoutes(admin, h)
-		registerGameHallAdminRoutes(admin, h)
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
@@ -130,17 +129,6 @@ func registerRewardDeliveryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		deliveries.GET("", h.Admin.Blindbox.ListRewardDeliveries)
 		deliveries.POST("/:id/retry", h.Admin.Blindbox.RetryRewardDelivery)
 		deliveries.POST("/:id/compensate", h.Admin.Blindbox.CompensateRewardDelivery)
-	}
-}
-
-func registerGameHallAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	if h.Admin == nil || h.Admin.GameHall == nil {
-		return
-	}
-	gameHall := admin.Group("/game-hall")
-	{
-		gameHall.GET("/transactions", h.Admin.GameHall.Transactions)
-		gameHall.GET("/rounds", h.Admin.GameHall.Rounds)
 	}
 }
 

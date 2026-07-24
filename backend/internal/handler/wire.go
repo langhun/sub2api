@@ -46,7 +46,6 @@ func ProvideAdminHandlers(
 	complianceHandler *admin.ComplianceHandler,
 	blindboxHandler *admin.BlindboxHandler,
 	transferAdminHandler *admin.TransferAdminHandler,
-	gameHallAdminHandler *admin.GameHallHandler,
 	auditLogHandler *admin.AuditLogHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
@@ -89,7 +88,6 @@ func ProvideAdminHandlers(
 		Compliance:             complianceHandler,
 		Blindbox:               blindboxHandler,
 		TransferAdmin:          transferAdminHandler,
-		GameHall:               gameHallAdminHandler,
 		AuditLog:               auditLogHandler,
 	}
 }
@@ -193,7 +191,6 @@ func ProvideHandlers(
 	checkinHandler *CheckinHandler,
 	leaderboardHandler *LeaderboardHandler,
 	transferHandler *BalanceTransferHandler,
-	gameHallHandler *GameHallHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -219,7 +216,6 @@ func ProvideHandlers(
 		Checkin:          checkinHandler,
 		Leaderboard:      leaderboardHandler,
 		Transfer:         transferHandler,
-		GameHall:         gameHallHandler,
 	}
 }
 
@@ -244,7 +240,6 @@ var ProviderSet = wire.NewSet(
 	NewCheckinHandler,
 	NewLeaderboardHandler,
 	NewBalanceTransferHandler,
-	NewGameHallHandler,
 	NewAsyncImageHandler,
 	ProvideBatchImageHandler,
 
@@ -283,7 +278,6 @@ var ProviderSet = wire.NewSet(
 	admin.NewComplianceHandler,
 	admin.NewBlindboxHandler,
 	admin.NewTransferAdminHandler,
-	admin.NewGameHallHandler,
 	admin.NewAuditLogHandler,
 
 	// AdminHandlers and Handlers constructors
