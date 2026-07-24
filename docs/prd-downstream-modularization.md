@@ -434,13 +434,13 @@ upstream/main
 
 | 分支 | 职责 | 允许写入 |
 | --- | --- | --- |
-| `main` | 上游镜像基线，仅用于对比 | 不直接提交、不作为开发基线。当前本地 `main` 已过期，未经明确确认不得重置。 |
+| `origin/main`（当前）/ `upstream/main`（远端规范化后） | 上游镜像基线，仅用于对比 | 不创建本地 `main`，不直接提交、不作为开发基线。 |
 | `product/main` | 已验证的本站产品集成和发布基线 | 仅合并验证过的 `feature/*` 与 `sync/*`；禁止直接开发、rebase 或强推。 |
 | `feature/<scope>` | 单一 Overlay 功能或迁移任务 | 正常提交；完成后以 merge commit 合入 `product/main`。 |
 | `sync/upstream-<version>` | 单个上游版本的同步、冲突和回归 | 只允许上游合并、冲突处理、生成输出和测试修复。 |
 | `release/<version>` 或标签 | 已发布的不可变回滚点 | 只创建，不重写。 |
 
-创建 `product/main` 时只增加一个指向当前已验证提交的分支，不删除或改写现有 `feat/port-balance-features`。待发布和远端策略稳定后，再决定是否保留该旧分支名。
+`product/main` 已创建为当前已验证产品提交的唯一本地工作分支。重复的 `feat/port-balance-features` 与过期本地 `main` 已在确认分别与 `product/main` 完全相同、或已被其包含后使用非强制删除移除；不影响任何提交历史或远端引用。
 
 #### 本地 Git 保护
 
