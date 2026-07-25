@@ -6,7 +6,6 @@ import enAdminOps from '../locales/en/admin/ops'
 import enAdminOverview from '../locales/en/admin/overview'
 import enAdminResources from '../locales/en/admin/resources'
 import enAdminSettings from '../locales/en/admin/settings'
-import enBalanceFeatures from '../locales/en/balanceFeatures'
 import enCommon from '../locales/en/common'
 import enDashboard from '../locales/en/dashboard'
 import enLanding from '../locales/en/landing'
@@ -17,7 +16,6 @@ import zhAdminOps from '../locales/zh/admin/ops'
 import zhAdminOverview from '../locales/zh/admin/overview'
 import zhAdminResources from '../locales/zh/admin/resources'
 import zhAdminSettings from '../locales/zh/admin/settings'
-import zhBalanceFeatures from '../locales/zh/balanceFeatures'
 import zhCommon from '../locales/zh/common'
 import zhDashboard from '../locales/zh/dashboard'
 import zhLanding from '../locales/zh/landing'
@@ -54,7 +52,6 @@ const roots: Record<string, Modules> = {
     common: zhCommon,
     dashboard: zhDashboard,
     misc: zhMisc,
-    balanceFeatures: zhBalanceFeatures,
     activity: activityLocaleMessages.zh,
     gameHall: gameHallLocaleMessages.zh,
     walletExtension: walletExtensionLocaleMessages.zh,
@@ -64,7 +61,6 @@ const roots: Record<string, Modules> = {
     common: enCommon,
     dashboard: enDashboard,
     misc: enMisc,
-    balanceFeatures: enBalanceFeatures,
     activity: activityLocaleMessages.en,
     gameHall: gameHallLocaleMessages.en,
     walletExtension: walletExtensionLocaleMessages.en,
