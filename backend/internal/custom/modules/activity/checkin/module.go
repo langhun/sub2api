@@ -1,8 +1,9 @@
 package checkin
 
 import (
+	"fmt"
+
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/contract"
-	legacy "github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,13 +18,15 @@ func NewModule(service contract.CheckinService, blindboxReader contract.Blindbox
 	return &Module{Handler: NewHandler(service, blindboxReader)}
 }
 
-// NewLegacyModule is the temporary composition bridge for the current core
-// services. The legacy dependency is contained here and in adapter.go.
-func NewLegacyModule(checkinService *legacy.CheckinService, blindboxService *legacy.BlindBoxService) *Module {
-	return NewModule(
-		NewLegacyAdapter(checkinService),
-		NewLegacyBlindboxRecordsAdapter(blindboxService),
-	)
+// NewOperationalModule constructs the runnable check-in module from narrow
+// Activity/platform ports. It is the target composition API for root runtime
+// wiring and has no dependency on the legacy CheckinService or BlindBoxService.
+func NewOperationalModule(deps Dependencies, blindboxReader contract.BlindboxRecordsReader) (*Module, error) {
+	service, err := NewService(deps)
+	if err != nil {
+		return nil, fmt.Errorf("construct activity check-in service: %w", err)
+	}
+	return NewModule(service, blindboxReader), nil
 }
 
 // RegisterRoutes attaches the established five check-in endpoints to an

@@ -1,6 +1,7 @@
 import { h } from 'vue'
-import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
+import { makeSidebarFlag } from '@/utils/featureFlags'
 import type { CustomNavigationItem } from '../../registry'
+import { walletExtensionFeatureFlags } from './settings'
 
 const DirectTransferIcon = {
   render: () => h(
@@ -21,6 +22,14 @@ export const walletExtensionNavigation: readonly CustomNavigationItem[] = [
     icon: DirectTransferIcon,
     hideInSimpleMode: true,
     slot: 'after-affiliate',
-    featureFlag: makeSidebarFlag(FeatureFlags.transfer),
+    featureFlag: makeSidebarFlag(walletExtensionFeatureFlags.transfer),
+  },
+  {
+    path: '/admin/transfer',
+    label: 'Transfer Management',
+    labelKey: 'nav.transferManage',
+    icon: DirectTransferIcon,
+    hideInSimpleMode: true,
+    section: 'admin',
   },
 ]

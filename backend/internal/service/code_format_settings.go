@@ -62,7 +62,7 @@ func (s CodeFormatSettings) RedeemFormat(codeType string) CodeFormatConfig {
 		return s.Concurrency
 	case RedeemTypeSubscription:
 		return s.Subscription
-	case RedeemTypeInvitation, BlindboxRewardInvitationCode:
+	case RedeemTypeInvitation:
 		return s.Invitation
 	default:
 		return s.Balance

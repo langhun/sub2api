@@ -202,7 +202,7 @@ import {
 import { createActivityIdempotencyKey } from '../api/idempotency'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
-import { activityErrorMessage } from '@/utils/activityError'
+import { activityErrorMessage } from '../errors'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()

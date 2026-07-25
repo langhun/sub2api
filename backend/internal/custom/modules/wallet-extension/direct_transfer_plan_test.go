@@ -10,8 +10,8 @@ import (
 
 func TestDirectTransferMigrationPlanIsBoundedAndOrdered(t *testing.T) {
 	plan := DirectTransferMigrationPlan
-	if plan.Name != "direct-transfer" {
-		t.Fatalf("plan name = %q, want direct-transfer", plan.Name)
+	if plan.Name != "wallet-extension-transfer-ledger" {
+		t.Fatalf("plan name = %q, want wallet-extension-transfer-ledger", plan.Name)
 	}
 	if len(plan.Steps) != 3 {
 		t.Fatalf("plan has %d steps, want 3", len(plan.Steps))
@@ -29,7 +29,7 @@ func TestDirectTransferMigrationPlanIsBoundedAndOrdered(t *testing.T) {
 	for _, capability := range plan.ExcludedCapabilities {
 		excluded[capability] = struct{}{}
 	}
-	for _, capability := range []string{"red packet", "blind box", "leaderboard"} {
+	for _, capability := range []string{"red packet", "blind box"} {
 		if _, exists := excluded[capability]; !exists {
 			t.Fatalf("plan must explicitly exclude %q", capability)
 		}

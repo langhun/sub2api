@@ -67,5 +67,5 @@ func TestCodeFormatSettingsMapsInternalAdjustmentTypes(t *testing.T) {
 	require.Equal(t, "BAL", settings.RedeemFormat(AdjustmentTypeAdminBalance).Prefix)
 	require.Equal(t, "CON", settings.RedeemFormat(AdjustmentTypeAdminConcurrency).Prefix)
 	require.Equal(t, "BAL", settings.RedeemFormat(AdjustmentTypeCheckinLuck).Prefix)
-	require.Equal(t, "INV", settings.RedeemFormat(BlindboxRewardInvitationCode).Prefix)
+	require.Equal(t, "INV", settings.RedeemFormat(RedeemTypeInvitation).Prefix)
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/wallet-extension/contract"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -15,9 +14,9 @@ import (
 func TestServiceTransferCommitsDirectPlanAndInvalidatesBothBalances(t *testing.T) {
 	store := &directTransferStoreStub{record: DirectTransferRecord{ID: 12, TransferType: DirectTransferType, Status: "completed"}}
 	cache := &balanceCacheStub{}
-	svc := NewService(store, directTransferSettingsStub{settings: enabledDirectTransferSettings()}, directTransferUserStub{users: map[int64]*service.User{
-		2: {ID: 2, Status: service.StatusActive, Username: "receiver", Email: "receiver@example.com"},
-	}}, nil, cache)
+	svc := NewService(store, directTransferSettingsStub{settings: enabledDirectTransferSettings()}, directTransferAccountStub{accounts: map[int64]contract.Account{
+		2: {ID: 2, Status: accountStatusActive, Username: "receiver", Email: "receiver@example.com"},
+	}}, nil, nil, nil, cache)
 
 	record, err := svc.Transfer(context.Background(), 1, DirectTransferRequest{ReceiverID: 2, Amount: 10})
 	require.NoError(t, err)
@@ -30,9 +29,9 @@ func TestServiceTransferCommitsDirectPlanAndInvalidatesBothBalances(t *testing.T
 
 func TestServicePreviewRejectsDailyLimitBeforeCommit(t *testing.T) {
 	store := &directTransferStoreStub{dailyAmount: 95}
-	svc := NewService(store, directTransferSettingsStub{settings: enabledDirectTransferSettings()}, directTransferUserStub{users: map[int64]*service.User{
-		2: {ID: 2, Status: service.StatusActive, Username: "receiver", Email: "receiver@example.com"},
-	}}, nil, nil)
+	svc := NewService(store, directTransferSettingsStub{settings: enabledDirectTransferSettings()}, directTransferAccountStub{accounts: map[int64]contract.Account{
+		2: {ID: 2, Status: accountStatusActive, Username: "receiver", Email: "receiver@example.com"},
+	}}, nil, nil, nil, nil)
 
 	_, err := svc.Preview(context.Background(), 1, 2, 10)
 	require.ErrorIs(t, err, ErrTransferDailyLimit)
@@ -40,8 +39,8 @@ func TestServicePreviewRejectsDailyLimitBeforeCommit(t *testing.T) {
 }
 
 func TestServiceResolveRecipientMasksIdentity(t *testing.T) {
-	user := &service.User{ID: 2, Status: service.StatusActive, Username: "alice", Email: "alice@example.com"}
-	svc := NewService(&directTransferStoreStub{}, directTransferSettingsStub{settings: enabledDirectTransferSettings()}, directTransferUserStub{users: map[int64]*service.User{2: user}, resolved: user}, nil, nil)
+	resolved := contract.Recipient{Account: contract.Account{ID: 2, Status: accountStatusActive, Username: "alice", Email: "alice@example.com"}, DisplayName: "alice"}
+	svc := NewService(&directTransferStoreStub{}, directTransferSettingsStub{settings: enabledDirectTransferSettings()}, nil, directTransferRecipientStub{resolved: resolved}, nil, nil, nil)
 
 	recipient, err := svc.ResolveRecipient(context.Background(), 1, "alice@example.com")
 	require.NoError(t, err)
@@ -49,8 +48,60 @@ func TestServiceResolveRecipientMasksIdentity(t *testing.T) {
 	require.Equal(t, "alice", recipient.DisplayName)
 }
 
+func TestServiceRevokeBatchDoesNotCreditAdministrator(t *testing.T) {
+	store := &directTransferStoreStub{
+		adminRecord: TransferRecord{ID: 8, Status: "completed", TransferType: batchTransferType, SenderID: 10, ReceiverID: 2, Amount: 3, GrossAmount: 3},
+		debitOK:     true,
+	}
+	balances := &directTransferBalanceStub{}
+	svc := NewService(store, nil, nil, nil, nil, balances, nil)
+
+	require.NoError(t, svc.RevokeTransfer(context.Background(), 10, 8, "rollback grant"))
+	require.Equal(t, 1, store.debitCalls)
+	require.Equal(t, 1, store.updateStatusCalls)
+	require.Empty(t, balances.adjustments)
+}
+
+func TestServiceRevokeIsIdempotent(t *testing.T) {
+	store := &directTransferStoreStub{adminRecord: TransferRecord{ID: 8, Status: "revoked", SenderID: 1, ReceiverID: 2, Amount: 3, GrossAmount: 4}}
+	balances := &directTransferBalanceStub{}
+	svc := NewService(store, nil, nil, nil, nil, balances, nil)
+
+	require.NoError(t, svc.RevokeTransfer(context.Background(), 10, 8, "retry"))
+	require.Zero(t, store.debitCalls)
+	require.Zero(t, store.updateStatusCalls)
+	require.Empty(t, balances.adjustments)
+}
+
+func TestServiceBatchDistributeRecordsModuleOwnedLedgerEntries(t *testing.T) {
+	store := &directTransferStoreStub{nextTransferID: 91}
+	accounts := directTransferAccountStub{accounts: map[int64]contract.Account{2: {ID: 2, Status: accountStatusActive}}}
+	balances := &directTransferBalanceStub{}
+	svc := NewService(store, nil, accounts, nil, nil, balances, nil)
+
+	items, err := svc.BatchDistribute(context.Background(), 10, []BatchDistributeTarget{{UserID: 2, Amount: 6}, {UserID: 0, Amount: 9}}, nil)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, int64(91), items[0].ID)
+	require.Equal(t, batchTransferType, items[0].TransferType)
+	require.Equal(t, []balanceAdjustment{{UserID: 2, Amount: 6}}, balances.adjustments)
+}
+
+func TestServiceLeaderboardUsesModuleRepository(t *testing.T) {
+	store := &directTransferStoreStub{leaderboard: []TransferRankEntry{{Rank: 1, UserID: 7, TotalAmount: 12}}}
+	settings := directTransferSettingsStub{
+		settings:    enabledDirectTransferSettings(),
+		leaderboard: TransferLeaderboardSettings{Enabled: true},
+	}
+	svc := NewService(store, settings, nil, nil, nil, nil, nil)
+
+	entries, err := svc.GetLeaderboard(context.Background(), "week", 20)
+	require.NoError(t, err)
+	require.Equal(t, store.leaderboard, entries)
+}
+
 func TestModuleRegistersOnlyDirectTransferRoutes(t *testing.T) {
-	module := NewModule(nil, nil)
+	module := NewModule(nil)
 	router := newWalletExtensionRouter(module)
 	routes := make(map[string]struct{})
 	for _, route := range router.Routes() {
@@ -84,11 +135,19 @@ func enabledDirectTransferSettings() contract.Settings {
 }
 
 type directTransferStoreStub struct {
-	plan        DirectTransferCommitPlan
-	record      DirectTransferRecord
-	dailyAmount float64
-	dailyCount  int
-	commitCalls int
+	plan              DirectTransferCommitPlan
+	record            DirectTransferRecord
+	dailyAmount       float64
+	dailyCount        int
+	commitCalls       int
+	adminRecord       TransferRecord
+	adminList         []TransferRecord
+	debitOK           bool
+	debitCalls        int
+	updateStatusCalls int
+	nextTransferID    int64
+	createdTransfers  []TransferRecord
+	leaderboard       []TransferRankEntry
 }
 
 func (s *directTransferStoreStub) CommitDirectTransfer(_ context.Context, plan DirectTransferCommitPlan) (DirectTransferRecord, error) {
@@ -111,31 +170,87 @@ func (s *directTransferStoreStub) GetDirectTransferDailyUsage(context.Context, i
 func (s *directTransferStoreStub) GetDirectTransferStats(context.Context, int64) (DirectTransferStats, error) {
 	return DirectTransferStats{}, nil
 }
+func (s *directTransferStoreStub) ListAllTransfers(context.Context, TransferFilter, int, int) ([]TransferRecord, int, error) {
+	return s.adminList, len(s.adminList), nil
+}
+func (s *directTransferStoreStub) GetTransferForUpdate(context.Context, int64) (TransferRecord, error) {
+	return s.adminRecord, nil
+}
+func (s *directTransferStoreStub) UpdateTransferStatus(_ context.Context, _ int64, status string, _ *time.Time, _ *int64, _ *string) error {
+	s.updateStatusCalls++
+	s.adminRecord.Status = status
+	return nil
+}
+func (s *directTransferStoreStub) DebitBalanceIfSufficient(context.Context, int64, float64) (bool, error) {
+	s.debitCalls++
+	return s.debitOK, nil
+}
+func (s *directTransferStoreStub) CreateTransfer(_ context.Context, record *TransferRecord) error {
+	if s.nextTransferID == 0 {
+		s.nextTransferID = 1
+	}
+	record.ID = s.nextTransferID
+	s.nextTransferID++
+	s.createdTransfers = append(s.createdTransfers, *record)
+	return nil
+}
+func (s *directTransferStoreStub) GetTransferFeeStats(context.Context, time.Time, time.Time) ([]DailyFeeStat, error) {
+	return nil, nil
+}
+func (s *directTransferStoreStub) GetTransferLeaderboard(context.Context, time.Time, time.Time, int) ([]TransferRankEntry, error) {
+	return s.leaderboard, nil
+}
+func (s *directTransferStoreStub) RunInTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
 
-type directTransferSettingsStub struct{ settings contract.Settings }
+type directTransferSettingsStub struct {
+	settings    contract.Settings
+	leaderboard TransferLeaderboardSettings
+}
 
 func (s directTransferSettingsStub) GetWalletExtensionSettings(context.Context) (contract.Settings, error) {
 	return s.settings, nil
 }
-
-type directTransferUserStub struct {
-	users    map[int64]*service.User
-	resolved *service.User
+func (s directTransferSettingsStub) GetWalletTransferLeaderboardSettings(context.Context) (TransferLeaderboardSettings, error) {
+	return s.leaderboard, nil
 }
 
-func (s directTransferUserStub) GetByID(_ context.Context, id int64) (*service.User, error) {
-	return s.users[id], nil
+type directTransferAccountStub struct{ accounts map[int64]contract.Account }
+
+func (s directTransferAccountStub) GetAccount(_ context.Context, id int64) (contract.Account, error) {
+	return s.accounts[id], nil
 }
-func (s directTransferUserStub) ResolveActiveTransferReceiver(context.Context, string, *int64) (*service.User, error) {
+
+type directTransferRecipientStub struct{ resolved contract.Recipient }
+
+func (s directTransferRecipientStub) ResolveDirectTransferRecipient(context.Context, int64, string) (contract.Recipient, error) {
 	return s.resolved, nil
 }
-func (s directTransferUserStub) SearchActiveTransferReceivers(context.Context, string, int64, int) ([]*service.User, error) {
+
+func (directTransferRecipientStub) SearchDirectTransferRecipients(context.Context, int64, string, int) ([]contract.RecipientCandidate, error) {
 	return nil, nil
+}
+
+type directTransferBalanceStub struct{ adjustments []balanceAdjustment }
+
+func (s *directTransferBalanceStub) Credit(_ context.Context, operation contract.BalanceOperation) error {
+	s.adjustments = append(s.adjustments, balanceAdjustment{UserID: operation.AccountID, Amount: operation.Amount})
+	return nil
+}
+
+func (*directTransferBalanceStub) DebitIfSufficient(context.Context, contract.BalanceOperation) (bool, error) {
+	return false, nil
+}
+
+type balanceAdjustment struct {
+	UserID int64
+	Amount float64
 }
 
 type balanceCacheStub struct{ invalidated []int64 }
 
-func (s *balanceCacheStub) InvalidateUserBalance(_ context.Context, userID int64) error {
+func (s *balanceCacheStub) InvalidateBalance(_ context.Context, userID int64) error {
 	s.invalidated = append(s.invalidated, userID)
 	return nil
 }

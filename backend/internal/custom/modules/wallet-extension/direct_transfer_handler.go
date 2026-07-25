@@ -17,13 +17,12 @@ import (
 
 // UserHandler serves the direct-transfer user API.
 type UserHandler struct {
-	service       *Service
-	compatibility *LegacyCompatibility
+	service *Service
 }
 
 // NewUserHandler constructs the direct-transfer HTTP adapter.
-func NewUserHandler(directTransferService *Service, compatibility *LegacyCompatibility) *UserHandler {
-	return &UserHandler{service: directTransferService, compatibility: compatibility}
+func NewUserHandler(directTransferService *Service) *UserHandler {
+	return &UserHandler{service: directTransferService}
 }
 
 type directTransferRequest struct {
@@ -160,9 +159,9 @@ func (h *UserHandler) Stats(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// Leaderboard delegates the legacy transfer leaderboard until activity owns it.
+// Leaderboard returns the module-owned direct-transfer leaderboard.
 func (h *UserHandler) Leaderboard(c *gin.Context) {
-	if h == nil || h.compatibility == nil || h.compatibility.legacy == nil {
+	if h == nil || h.service == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "transfer leaderboard is unavailable"})
 		return
 	}
@@ -170,7 +169,7 @@ func (h *UserHandler) Leaderboard(c *gin.Context) {
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
-	result, err := h.compatibility.legacy.GetLeaderboard(c.Request.Context(), c.DefaultQuery("period", "day"), limit)
+	result, err := h.service.GetLeaderboard(c.Request.Context(), c.DefaultQuery("period", "day"), limit)
 	if err != nil {
 		writeDirectTransferError(c, err)
 		return

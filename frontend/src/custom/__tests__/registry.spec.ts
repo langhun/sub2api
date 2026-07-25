@@ -3,7 +3,13 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
-import { customNavigation, customRoutes } from '../registry'
+import {
+  customHeaderActions,
+  customNavigation,
+  customRoutes,
+  customSettingsPanels,
+} from '../registry'
+import { activityHeaderActions } from '../modules/activity/headerActions'
 import { activityNavigation } from '../modules/activity/navigation'
 import { activityRoutes } from '../modules/activity/routes'
 import { brandHomeRoutes } from '../modules/brand-home/routes'
@@ -15,6 +21,8 @@ import { walletExtensionRoutes } from '../modules/wallet-extension/routes'
 const directory = dirname(fileURLToPath(import.meta.url))
 const routerSource = readFileSync(resolve(directory, '../../router/index.ts'), 'utf8')
 const sidebarSource = readFileSync(resolve(directory, '../../components/layout/AppSidebar.vue'), 'utf8')
+const headerSource = readFileSync(resolve(directory, '../../components/layout/AppHeader.vue'), 'utf8')
+const settingsSource = readFileSync(resolve(directory, '../../views/admin/SettingsView.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
   it('aggregates routes and navigation from custom modules', () => {
@@ -25,6 +33,7 @@ describe('custom overlay registry', () => {
     expect(customNavigation).toEqual(expect.arrayContaining(activityNavigation))
     expect(customNavigation).toEqual(expect.arrayContaining(gameHallNavigation))
     expect(customNavigation).toEqual(expect.arrayContaining(walletExtensionNavigation))
+    expect(customHeaderActions).toEqual(expect.arrayContaining(activityHeaderActions))
   })
 
   it('mounts custom routes before the catch-all route', () => {
@@ -43,5 +52,29 @@ describe('custom overlay registry', () => {
     expect(sidebarSource).toContain('function buildCustomNavigationItems(')
     expect(sidebarSource).toContain("...buildCustomNavigationItems('after-affiliate')")
     expect(sidebarSource).toContain('label: item.labelKey ? t(item.labelKey) : item.label')
+  })
+
+  it('mounts header actions through the registry without importing activity UI directly', () => {
+    expect(headerSource).toContain("import { customHeaderActions } from '@/custom/registry'")
+    expect(headerSource).toContain('v-for="action in customHeaderActions"')
+    expect(headerSource).not.toContain("@/custom/modules/activity/components/CheckinHeaderActions.vue")
+  })
+
+  it('owns custom setting panels through the registry rather than the shared form', () => {
+    expect(customSettingsPanels.map((panel) => panel.id)).toEqual([
+      'brand-home',
+      'game-hall',
+      'activity-leaderboard',
+      'activity',
+      'wallet-extension',
+    ])
+    expect(settingsSource).toContain("customSettingsPanelsFor('site')")
+    expect(settingsSource).toContain("customSettingsPanelsFor('entry-switches')")
+    expect(settingsSource).toContain("customSettingsPanelsFor('features')")
+    expect(settingsSource).toContain('panel.toPayload(customSettingsForms[panel.id] ?? {})')
+    expect(settingsSource).not.toContain('form.game_hall_enabled')
+    expect(settingsSource).not.toContain('form.checkin_enabled')
+    expect(settingsSource).not.toContain('form.transfer_enabled')
+    expect(settingsSource).not.toContain('form.default_homepage')
   })
 })

@@ -1,8 +1,6 @@
 // Package walletextension owns the wallet-extension Overlay boundary.
 package walletextension
 
-import "github.com/Wei-Shaw/sub2api/internal/service"
-
 const (
 	// ModuleID is the stable registry identifier for the wallet-extension Overlay.
 	ModuleID = "wallet_extension"
@@ -59,11 +57,11 @@ type Module struct {
 	Admin *AdminHandler
 }
 
-// NewModule constructs wallet-extension's HTTP module.
-func NewModule(directTransferService *Service, legacyTransferService *service.BalanceTransferService) *Module {
-	compatibility := NewLegacyCompatibility(legacyTransferService)
+// NewModule constructs wallet-extension's HTTP module from its module-owned
+// service. The service obtains only the narrow platform adapters it needs.
+func NewModule(directTransferService *Service) *Module {
 	return &Module{
-		User:  NewUserHandler(directTransferService, compatibility),
-		Admin: NewAdminHandler(compatibility),
+		User:  NewUserHandler(directTransferService),
+		Admin: NewAdminHandler(directTransferService),
 	}
 }

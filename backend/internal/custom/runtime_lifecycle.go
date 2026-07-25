@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -16,29 +17,26 @@ func ProvideRuntime(
 	billingCache *service.BillingCacheService,
 	userRepository service.UserRepository,
 	subscriptionService *service.SubscriptionService,
-	legacyTransferService *service.BalanceTransferService,
-	checkinService *service.CheckinService,
-	blindboxService *service.BlindBoxService,
-	leaderboardService *service.LeaderboardService,
-	rewardDeliveryStore service.RewardDeliveryStore,
+	redeemCodeRepository service.RedeemCodeRepository,
+	customSettingsRegistry *customsettings.Registry,
 	leaderLockCache service.LeaderLockCache,
-) *Runtime {
-	runtime := NewRuntime(
+) (*Runtime, error) {
+	runtime, err := NewRuntime(
 		client,
 		db,
 		settingService,
 		billingCache,
 		userRepository,
 		subscriptionService,
-		legacyTransferService,
-		checkinService,
-		blindboxService,
-		leaderboardService,
-		rewardDeliveryStore,
+		redeemCodeRepository,
+		customSettingsRegistry,
 		leaderLockCache,
 	)
+	if err != nil {
+		return nil, err
+	}
 	runtime.Start()
-	return runtime
+	return runtime, nil
 }
 
 // Start launches the module-owned background workers once dependencies exist.

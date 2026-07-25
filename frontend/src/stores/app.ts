@@ -13,6 +13,8 @@ import {
   type ReleaseInfo
 } from '@/api/admin/system'
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
+import { customPublicSettingsDefaults } from '@/custom/publicSettings'
+import { registerFeatureFlagSettingsSource } from '@/utils/featureFlags'
 
 export const useAppStore = defineStore('app', () => {
   // ==================== State ====================
@@ -33,6 +35,7 @@ export const useAppStore = defineStore('app', () => {
   const apiBaseUrl = ref<string>('')
   const docUrl = ref<string>('')
   const cachedPublicSettings = ref<PublicSettings | null>(null)
+  registerFeatureFlagSettingsSource(() => cachedPublicSettings.value)
   let publicSettingsRequest: Promise<PublicSettings | null> | null = null
 
   // Version cache state
@@ -342,7 +345,6 @@ export const useAppStore = defineStore('app', () => {
         contact_info: contactInfo.value,
         doc_url: docUrl.value,
         home_content: '',
-        default_homepage: 'default',
         hide_ccs_import_button: false,
         payment_enabled: false,
         table_default_page_size: 20,
@@ -369,20 +371,8 @@ export const useAppStore = defineStore('app', () => {
         risk_control_enabled: false,
         service_quota_enabled: false,
         affiliate_enabled: false,
-		game_hall_enabled: false,
-		game_slots_enabled: false,
-		checkin_enabled: false,
-		checkin_luck_enabled: false,
-		checkin_blindbox_enabled: false,
-		transfer_enabled: false,
-		redpacket_enabled: false,
 		usage_query_enabled: true,
-		leaderboard_enabled: true,
-		leaderboard_balance_enabled: true,
-		leaderboard_consumption_enabled: true,
-		leaderboard_checkin_enabled: true,
-		leaderboard_transfer_enabled: false,
-		leaderboard_include_admin: false,
+        ...customPublicSettingsDefaults,
         allow_user_view_error_requests: false,
       })
     }

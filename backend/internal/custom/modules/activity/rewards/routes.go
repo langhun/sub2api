@@ -1,27 +1,43 @@
 package rewards
 
 import (
-	legacyhandler "github.com/Wei-Shaw/sub2api/internal/handler/admin"
-	legacy "github.com/Wei-Shaw/sub2api/internal/service"
+	"context"
+
 	"github.com/gin-gonic/gin"
 )
 
 // Module owns the activity admin HTTP surface for blind-box prize management
 // and durable reward delivery operations.
 type Module struct {
-	Admin *legacyhandler.BlindboxHandler
+	Admin   AdminRouteHandler
+	Rewards *Service
+	Outbox  Outbox
+	Runner  DeliveryRunner
 }
 
-// NewModule adapts the established admin handler without changing endpoint
-// payloads, status codes, or validation behavior.
-func NewModule(adminHandler *legacyhandler.BlindboxHandler) *Module {
+// DeliveryRunner is the check-in-facing immediate delivery capability. It
+// deliberately exposes no worker lifecycle or shared service implementation.
+type DeliveryRunner interface {
+	RunByID(ctx context.Context, id int64) error
+}
+
+// AdminRouteHandler is the narrow HTTP surface bound under the pre-existing
+// admin middleware chain. Both the module-owned handler and the temporary
+// compatibility handler satisfy it.
+type AdminRouteHandler interface {
+	ListPrizeItems(*gin.Context)
+	CreatePrizeItem(*gin.Context)
+	UpdatePrizeItem(*gin.Context)
+	DeletePrizeItem(*gin.Context)
+	GetStats(*gin.Context)
+	ListRewardDeliveries(*gin.Context)
+	RetryRewardDelivery(*gin.Context)
+	CompensateRewardDelivery(*gin.Context)
+}
+
+// NewModule constructs the module-owned admin HTTP surface.
+func NewModule(adminHandler AdminRouteHandler) *Module {
 	return &Module{Admin: adminHandler}
-}
-
-// NewLegacyModule is the temporary composition bridge while the admin handler
-// continues to use the established BlindBoxService implementation.
-func NewLegacyModule(blindboxService *legacy.BlindBoxService) *Module {
-	return NewModule(legacyhandler.NewBlindboxHandler(blindboxService))
 }
 
 // RegisterRoutes attaches the established admin endpoints to the caller's

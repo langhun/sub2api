@@ -40,8 +40,6 @@ type AdminHandlers struct {
 	Payment                *admin.PaymentHandler
 	Affiliate              *admin.AffiliateHandler
 	Compliance             *admin.ComplianceHandler
-	Blindbox               *admin.BlindboxHandler
-	TransferAdmin          *admin.TransferAdminHandler
 	AuditLog               *admin.AuditLogHandler
 }
 

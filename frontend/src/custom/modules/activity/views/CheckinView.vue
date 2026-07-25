@@ -323,7 +323,8 @@ import { getBlindboxRecords, getCheckinCalendar, type BlindboxRecordItem, type B
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LuckyCheckinDialog from '@/custom/modules/activity/components/LuckyCheckinDialog.vue'
 import { formatCalendarDate, parseCalendarDate } from '@/custom/modules/activity/utils/checkinCalendar'
-import { FeatureFlags, resolveFeatureFlagValue } from '@/utils/featureFlags'
+import { resolveFeatureFlagValue } from '@/utils/featureFlags'
+import { activityFeatureFlags } from '../settings'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t, locale } = useI18n()
@@ -333,7 +334,7 @@ const appStore = useAppStore()
 const user = computed(() => authStore.user)
 const blindboxEnabled = computed(() => (
   checkinStore.status?.blindbox_enabled === true
-  && resolveFeatureFlagValue(FeatureFlags.checkinBlindbox, appStore.cachedPublicSettings)
+  && resolveFeatureFlagValue(activityFeatureFlags.checkinBlindbox, appStore.cachedPublicSettings)
 ))
 
 const showLuckModal = ref(false)

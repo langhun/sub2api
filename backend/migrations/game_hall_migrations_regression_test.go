@@ -56,3 +56,14 @@ func TestMigration180AddsPerUserGameHallDisableSwitch(t *testing.T) {
 	require.Contains(t, sql, "ADD COLUMN IF NOT EXISTS game_hall_disabled BOOLEAN NOT NULL DEFAULT FALSE")
 	require.NotContains(t, sql, "DROP TABLE")
 }
+
+func TestMigration187MovesPerUserGameHallAccessOutOfUsers(t *testing.T) {
+	content, err := FS.ReadFile("187_move_game_hall_user_access.sql")
+	require.NoError(t, err)
+
+	sql := string(content)
+	require.Contains(t, sql, "CREATE TABLE IF NOT EXISTS game_hall_user_access")
+	require.Contains(t, sql, "SELECT id, game_hall_disabled")
+	require.Contains(t, sql, "ON CONFLICT (user_id) DO NOTHING")
+	require.Contains(t, sql, "DROP COLUMN IF EXISTS game_hall_disabled")
+}

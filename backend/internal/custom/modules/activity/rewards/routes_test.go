@@ -5,14 +5,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	legacyhandler "github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/gin-gonic/gin"
 )
 
 func TestModuleRegistersEstablishedAdminBlindboxAndDeliveryRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	module := NewModule(legacyhandler.NewBlindboxHandler(nil))
+	module := NewModule(NewHandler(nil))
 	module.RegisterRoutes(router.Group("/api/v1/admin"))
 
 	routes := make(map[string]struct{})
@@ -38,7 +37,7 @@ func TestModuleRegistersEstablishedAdminBlindboxAndDeliveryRoutes(t *testing.T) 
 func TestModuleForwardsExistingHandlerValidationResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	NewModule(legacyhandler.NewBlindboxHandler(nil)).RegisterRoutes(router.Group("/api/v1/admin"))
+	NewModule(NewHandler(nil)).RegisterRoutes(router.Group("/api/v1/admin"))
 
 	request := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/blindbox/prize-items/not-an-id", nil)
 	response := httptest.NewRecorder()

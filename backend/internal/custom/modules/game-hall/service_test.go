@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	gamehallsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall/settings"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,18 +16,13 @@ type gameHallSettingsReaderStub struct {
 	values map[string]string
 }
 
-func (s *gameHallSettingsReaderStub) GetMultiple(_ context.Context, keys []string) (map[string]string, error) {
-	out := make(map[string]string, len(keys))
-	for _, key := range keys {
-		if value, ok := s.values[key]; ok {
-			out[key] = value
-		}
-	}
-	return out, nil
+func (s *gameHallSettingsReaderStub) Read(_ context.Context) (gamehallsettings.Config, error) {
+	return gamehallsettings.FromValues(s.values), nil
 }
 
 type gameHallStoreStub struct {
 	snapshot           *GameWalletSnapshot
+	access             *GameHallUserAccess
 	exchangePlan       *GameExchangePlan
 	slotPlan           *GameSlotRoundPlan
 	dailyExchangeTotal float64
@@ -56,6 +52,18 @@ func (s *gameHallStoreStub) ListRounds(_ context.Context, _ *int64, _, _ int) ([
 
 func (s *gameHallStoreStub) GetSnapshot(_ context.Context, _ int64) (*GameWalletSnapshot, error) {
 	return s.snapshot, nil
+}
+
+func (s *gameHallStoreStub) GetUserAccess(_ context.Context, userID int64) (*GameHallUserAccess, error) {
+	if s.access == nil {
+		return &GameHallUserAccess{UserID: userID}, nil
+	}
+	return s.access, nil
+}
+
+func (s *gameHallStoreStub) SetUserAccessDisabled(_ context.Context, userID int64, disabled bool) (*GameHallUserAccess, error) {
+	s.access = &GameHallUserAccess{UserID: userID, Disabled: disabled}
+	return s.access, nil
 }
 
 func (s *gameHallStoreStub) CommitExchange(_ context.Context, plan GameExchangePlan) (*GameExchangeResult, error) {
@@ -98,8 +106,8 @@ func TestGameHallServiceExchangeBalanceToDGOneToOne(t *testing.T) {
 	}
 	svc := NewGameHallService(store, &gameHallSettingsReaderStub{
 		values: map[string]string{
-			SettingKeyGameHallEnabled:  "true",
-			SettingKeyGameSlotsEnabled: "true",
+			gamehallsettings.KeyGameHallEnabled:  "true",
+			gamehallsettings.KeyGameSlotsEnabled: "true",
 		},
 	})
 
@@ -120,8 +128,8 @@ func TestGameHallServiceExchangeBalanceToDGOneToOne(t *testing.T) {
 
 func TestGameHallServiceExchangeEnforcesConfiguredRangeAndDailyLimit(t *testing.T) {
 	settings := &gameHallSettingsReaderStub{values: map[string]string{
-		SettingKeyGameHallEnabled: "true", SettingKeyGameExchangeMinAmount: "10",
-		SettingKeyGameExchangeMaxAmount: "50", SettingKeyGameExchangeDailyLimit: "100",
+		gamehallsettings.KeyGameHallEnabled: "true", gamehallsettings.KeyGameExchangeMinAmount: "10",
+		gamehallsettings.KeyGameExchangeMaxAmount: "50", gamehallsettings.KeyGameExchangeDailyLimit: "100",
 	}}
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1, MainBalance: 200}}
 	svc := NewGameHallService(store, settings)
@@ -142,7 +150,7 @@ func TestGameHallServiceExchangeEnforcesConfiguredRangeAndDailyLimit(t *testing.
 func TestGameHallServiceExchangeRejectsDGReturnWhenDisabled(t *testing.T) {
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1, DGBalance: 100}}
 	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{
-		SettingKeyGameHallEnabled: "true", SettingKeyGameExchangeAllowDGToBalance: "false",
+		gamehallsettings.KeyGameHallEnabled: "true", gamehallsettings.KeyGameExchangeAllowDGToBalance: "false",
 	}})
 
 	_, err := svc.Exchange(context.Background(), GameExchangeInput{UserID: 1, Direction: GameExchangeDGToBalance, Amount: 10})
@@ -152,7 +160,7 @@ func TestGameHallServiceExchangeRejectsDGReturnWhenDisabled(t *testing.T) {
 
 func TestGameHallServiceGeneratesDistinctKeysWhenCallerOmitsIdempotencyKey(t *testing.T) {
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1, MainBalance: 80, DGBalance: 5}}
-	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{SettingKeyGameHallEnabled: "true"}})
+	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{gamehallsettings.KeyGameHallEnabled: "true"}})
 
 	_, err := svc.Exchange(context.Background(), GameExchangeInput{UserID: 1, Direction: GameExchangeBalanceToDG, Amount: 1})
 	require.NoError(t, err)
@@ -168,7 +176,7 @@ func TestGameHallServiceGeneratesDistinctKeysWhenCallerOmitsIdempotencyKey(t *te
 func TestGameHallServiceExchangeReturnsCommittedResultWhenCacheInvalidationFails(t *testing.T) {
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 9, MainBalance: 80, DGBalance: 5}}
 	cache := &gameHallBalanceCacheStub{err: context.DeadlineExceeded}
-	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{SettingKeyGameHallEnabled: "true"}}, cache)
+	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{gamehallsettings.KeyGameHallEnabled: "true"}}, cache)
 
 	result, err := svc.Exchange(context.Background(), GameExchangeInput{UserID: 9, Direction: GameExchangeBalanceToDG, Amount: 20, IdempotencyKey: "cache-failure"})
 
@@ -180,17 +188,35 @@ func TestGameHallServiceExchangeReturnsCommittedResultWhenCacheInvalidationFails
 
 func TestGameHallServiceGetHallStatusRejectsWhenMasterSwitchDisabled(t *testing.T) {
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1}}
-	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{SettingKeyGameHallEnabled: "false"}})
+	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{gamehallsettings.KeyGameHallEnabled: "false"}})
 
 	_, err := svc.GetHallStatus(context.Background(), 1)
 
 	require.ErrorIs(t, err, ErrGameHallDisabled)
 }
 
+func TestGameHallServiceManagesModuleUserAccess(t *testing.T) {
+	store := &gameHallStoreStub{}
+	svc := NewGameHallService(store, nil)
+
+	updated, err := svc.SetUserAccessDisabled(context.Background(), 7, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(7), updated.UserID)
+	require.True(t, updated.Disabled)
+
+	access, err := svc.GetUserAccess(context.Background(), 7)
+	require.NoError(t, err)
+	require.True(t, access.Disabled)
+
+	enabled, err := svc.SetUserAccessDisabled(context.Background(), 7, false)
+	require.NoError(t, err)
+	require.False(t, enabled.Disabled)
+}
+
 func TestGameHallServiceRejectsDisabledUserAcrossInteractivePaths(t *testing.T) {
 	settings := &gameHallSettingsReaderStub{values: map[string]string{
-		SettingKeyGameHallEnabled:  "true",
-		SettingKeyGameSlotsEnabled: "true",
+		gamehallsettings.KeyGameHallEnabled:  "true",
+		gamehallsettings.KeyGameSlotsEnabled: "true",
 	}}
 
 	t.Run("status", func(t *testing.T) {
@@ -239,7 +265,7 @@ func TestGameHallServiceRejectsDisabledUserAcrossInteractivePaths(t *testing.T) 
 
 func TestGameHallServiceListsUserAuditWithNormalizedPagination(t *testing.T) {
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1}}
-	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{SettingKeyGameHallEnabled: "true"}})
+	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{gamehallsettings.KeyGameHallEnabled: "true"}})
 
 	transactions, transactionTotal, err := svc.ListUserTransactions(context.Background(), 1, 0, 1000)
 	require.NoError(t, err)
@@ -262,7 +288,7 @@ func TestGameHallServiceExchangeRejectsWhenDisabled(t *testing.T) {
 	}
 	svc := NewGameHallService(store, &gameHallSettingsReaderStub{
 		values: map[string]string{
-			SettingKeyGameHallEnabled: "false",
+			gamehallsettings.KeyGameHallEnabled: "false",
 		},
 	})
 
@@ -288,8 +314,8 @@ func TestGameHallServiceGetHallStatusReturnsSlotsGame(t *testing.T) {
 	}
 	svc := NewGameHallService(store, &gameHallSettingsReaderStub{
 		values: map[string]string{
-			SettingKeyGameHallEnabled:  "true",
-			SettingKeyGameSlotsEnabled: "true",
+			gamehallsettings.KeyGameHallEnabled:  "true",
+			gamehallsettings.KeyGameSlotsEnabled: "true",
 		},
 	})
 
@@ -326,8 +352,8 @@ func TestGameHallServicePlaySlotsDeductsDGAndReturnsOutcome(t *testing.T) {
 	}
 	svc := NewGameHallService(store, &gameHallSettingsReaderStub{
 		values: map[string]string{
-			SettingKeyGameHallEnabled:  "true",
-			SettingKeyGameSlotsEnabled: "true",
+			gamehallsettings.KeyGameHallEnabled:  "true",
+			gamehallsettings.KeyGameSlotsEnabled: "true",
 		},
 	})
 	svc.SetSlotRoller(func() (float64, []string, string, error) {
@@ -354,14 +380,14 @@ func TestGameHallServicePlaySlotsDeductsDGAndReturnsOutcome(t *testing.T) {
 func TestGameHallServicePlayHonorsSlotsSwitchAndBetRange(t *testing.T) {
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1, DGBalance: 100}}
 	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{
-		SettingKeyGameHallEnabled: "true", SettingKeyGameSlotsEnabled: "false",
+		gamehallsettings.KeyGameHallEnabled: "true", gamehallsettings.KeyGameSlotsEnabled: "false",
 	}})
 	_, err := svc.Play(context.Background(), GamePlayInput{UserID: 1, GameType: GameTypeSlots, BetAmount: 5, IdempotencyKey: "off"})
 	require.ErrorIs(t, err, ErrGameSlotsDisabled)
 
 	svc = NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{
-		SettingKeyGameHallEnabled: "true", SettingKeyGameSlotsEnabled: "true",
-		SettingKeyGameSlotsMinBet: "10", SettingKeyGameSlotsMaxBet: "20",
+		gamehallsettings.KeyGameHallEnabled: "true", gamehallsettings.KeyGameSlotsEnabled: "true",
+		gamehallsettings.KeyGameSlotsMinBet: "10", gamehallsettings.KeyGameSlotsMaxBet: "20",
 	}})
 	_, err = svc.Play(context.Background(), GamePlayInput{UserID: 1, GameType: GameTypeSlots, BetAmount: 5, IdempotencyKey: "small"})
 	require.ErrorIs(t, err, ErrGameBetOutOfRange)
@@ -372,8 +398,8 @@ func TestGameHallServicePlayHonorsSlotsSwitchAndBetRange(t *testing.T) {
 func TestGameHallServiceRejectsInvalidPersistedBetRange(t *testing.T) {
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1, DGBalance: 100}}
 	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{
-		SettingKeyGameHallEnabled: "true", SettingKeyGameSlotsEnabled: "true",
-		SettingKeyGameSlotsMinBet: "20", SettingKeyGameSlotsMaxBet: "10",
+		gamehallsettings.KeyGameHallEnabled: "true", gamehallsettings.KeyGameSlotsEnabled: "true",
+		gamehallsettings.KeyGameSlotsMinBet: "20", gamehallsettings.KeyGameSlotsMaxBet: "10",
 	}})
 
 	_, err := svc.GetHallStatus(context.Background(), 1)
@@ -446,7 +472,7 @@ func TestRollSlotWithIntNReturnsLoseForMixedSymbols(t *testing.T) {
 func TestGameHallServicePlayRejectsWhenSecureRandomFails(t *testing.T) {
 	store := &gameHallStoreStub{snapshot: &GameWalletSnapshot{UserID: 1, DGBalance: 100, JackpotBalance: 100}}
 	svc := NewGameHallService(store, &gameHallSettingsReaderStub{values: map[string]string{
-		SettingKeyGameHallEnabled: "true", SettingKeyGameSlotsEnabled: "true",
+		gamehallsettings.KeyGameHallEnabled: "true", gamehallsettings.KeyGameSlotsEnabled: "true",
 	}})
 	svc.SetSlotRoller(func() (float64, []string, string, error) {
 		return 0, nil, "", context.DeadlineExceeded

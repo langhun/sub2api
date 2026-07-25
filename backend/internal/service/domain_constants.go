@@ -270,7 +270,6 @@ const (
 	SettingKeyContactInfo                 = "contact_info"                  // 客服联系方式
 	SettingKeyDocURL                      = "doc_url"                       // 文档链接
 	SettingKeyHomeContent                 = "home_content"                  // 首页内容（支持 Markdown/HTML，或 URL 作为 iframe src）
-	SettingKeyDefaultHomepage             = "default_homepage"              // 默认首页（default/dino）
 	SettingKeyHideCcsImportButton         = "hide_ccs_import_button"        // 是否隐藏 API Keys 页面的导入 CCS 按钮
 	SettingKeyPurchaseSubscriptionEnabled = "purchase_subscription_enabled" // 是否展示"购买订阅"页面入口
 	SettingKeyPurchaseSubscriptionURL     = "purchase_subscription_url"     // "购买订阅"页面 URL（作为 iframe src）
@@ -530,40 +529,6 @@ const (
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
 
-	SettingKeyCheckinEnabled                = "checkin_enabled"
-	SettingKeyCheckinMinBalance             = "checkin_min_balance"
-	SettingKeyCheckinMaxBalance             = "checkin_max_balance"
-	SettingKeyCheckinLuckEnabled            = "checkin_luck_enabled"
-	SettingKeyCheckinLuckMinMultiplier      = "checkin_luck_min_multiplier"
-	SettingKeyCheckinLuckMaxMultiplier      = "checkin_luck_max_multiplier"
-	SettingKeyCheckinBlindboxEnabled        = "checkin_blindbox_enabled"
-	SettingKeyCheckinBlindboxTriggerType    = "checkin_blindbox_trigger_type"
-	SettingKeyCheckinBlindboxInterval       = "checkin_blindbox_interval"
-	SettingKeyTransferEnabled               = "transfer_enabled"
-	SettingKeyTransferFeeRate               = "transfer_fee_rate"
-	SettingKeyTransferMinAmount             = "transfer_min_amount"
-	SettingKeyTransferMaxAmount             = "transfer_max_amount"
-	SettingKeyTransferDailyLimit            = "transfer_daily_limit"
-	SettingKeyTransferDailyCountLimit       = "transfer_daily_count_limit"
-	SettingKeyTransferVIPFeeExempt          = "transfer_vip_fee_exempt"
-	SettingKeyRedPacketEnabled              = "redpacket_enabled"
-	SettingKeyRedPacketMaxCount             = "redpacket_max_count"
-	SettingKeyRedPacketExpireHours          = "redpacket_expire_hours"
-	SettingKeyUsageQueryEnabled             = "usage_query_enabled"
-	SettingKeyLeaderboardEnabled            = "leaderboard_enabled"
-	SettingKeyLeaderboardBalanceEnabled     = "leaderboard_balance_enabled"
-	SettingKeyLeaderboardConsumptionEnabled = "leaderboard_consumption_enabled"
-	SettingKeyLeaderboardCheckinEnabled     = "leaderboard_checkin_enabled"
-	SettingKeyLeaderboardTransferEnabled    = "leaderboard_transfer_enabled"
-	SettingKeyLeaderboardIncludeAdmin       = "leaderboard_include_admin"
-	SettingKeyGameHallEnabled               = "game_hall_enabled"
-	SettingKeyGameSlotsEnabled              = "game_slots_enabled"
-	SettingKeyGameSlotsMinBet               = "game_slots_min_bet"
-	SettingKeyGameSlotsMaxBet               = "game_slots_max_bet"
-	SettingKeyGameExchangeMinAmount         = "game_exchange_min_amount"
-	SettingKeyGameExchangeMaxAmount         = "game_exchange_max_amount"
-	SettingKeyGameExchangeDailyLimit        = "game_exchange_daily_limit"
-	SettingKeyGameExchangeAllowDGToBalance  = "game_exchange_allow_dg_to_balance"
 )
 
 // SettingKeyDefaultPlatformQuotas —— 系统全局：每用户 × 平台日/周/月 USD 上限（JSON）。

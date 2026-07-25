@@ -10,6 +10,8 @@ type Account struct {
 	Status        string  `json:"status"`
 	Balance       float64 `json:"balance"`
 	FrozenBalance float64 `json:"frozen_balance"`
+	Username      string  `json:"-"`
+	Email         string  `json:"-"`
 }
 
 // Recipient is an account that may receive a direct transfer.
@@ -35,4 +37,10 @@ type AccountReader interface {
 type RecipientResolver interface {
 	ResolveDirectTransferRecipient(ctx context.Context, requesterID int64, query string) (Recipient, error)
 	SearchDirectTransferRecipients(ctx context.Context, requesterID int64, query string, limit int) ([]RecipientCandidate, error)
+}
+
+// ActiveSubscriptionReader answers the one subscription question needed for
+// direct-transfer fee exemption without exposing subscription records.
+type ActiveSubscriptionReader interface {
+	HasActiveSubscription(ctx context.Context, accountID int64) (bool, error)
 }

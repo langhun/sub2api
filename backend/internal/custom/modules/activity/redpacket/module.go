@@ -1,5 +1,7 @@
 package redpacket
 
+import "github.com/Wei-Shaw/sub2api/internal/custom/platform"
+
 // Module groups the Activity red-packet HTTP adapter and expiry worker.
 type Module struct {
 	User   *Handler
@@ -8,7 +10,13 @@ type Module struct {
 }
 
 func NewModule(service Service, expiry ExpiryWorker) *Module {
-	handler := NewHandler(service)
+	return NewModuleWithIdempotency(service, expiry, nil)
+}
+
+// NewModuleWithIdempotency composes red-packet HTTP routes with a generic
+// platform idempotency port while keeping the worker and service unchanged.
+func NewModuleWithIdempotency(service Service, expiry ExpiryWorker, coordinator platform.IdempotencyCoordinator) *Module {
+	handler := NewHandlerWithIdempotency(service, coordinator)
 	return &Module{User: handler, Admin: handler, Expiry: expiry}
 }
 

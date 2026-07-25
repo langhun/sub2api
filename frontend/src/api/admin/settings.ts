@@ -16,19 +16,6 @@ export interface DefaultSubscriptionSetting {
   validity_days: number;
 }
 
-export type CodeCharacterSet = "uppercase" | "numeric" | "alphanumeric";
-export interface CodeFormatRule {
-  prefix: string;
-  character_set: CodeCharacterSet;
-  separator: string;
-  group_length: number;
-  group_count: number;
-}
-export type CodeFormatSettings = Record<
-  "balance" | "concurrency" | "subscription" | "invitation" | "redpacket",
-  CodeFormatRule
->;
-
 // ── 平台限额类型 ──────────────────────────────────────────────────
 export type PlatformType = "anthropic" | "openai" | "gemini" | "antigravity" | "grok"
 export type QuotaWindowType = "daily" | "weekly" | "monthly"
@@ -369,6 +356,7 @@ export function deriveWeChatConnectStoredMode(
  * System settings interface
  */
 export interface SystemSettings {
+  [key: string]: unknown;
   // Registration settings
   registration_enabled: boolean;
   email_verify_enabled: boolean;
@@ -449,7 +437,6 @@ export interface SystemSettings {
   contact_info: string;
   doc_url: string;
   home_content: string;
-  default_homepage: 'default' | 'dino';
   hide_ccs_import_button: boolean;
   table_default_page_size: number;
   table_page_size_options: number[];
@@ -662,43 +649,6 @@ export interface SystemSettings {
   account_quota_notify_enabled: boolean;
   account_quota_notify_emails: NotifyEmailEntry[];
 
-  // Check-in, blind box, balance transfer and red packet settings
-  code_format_settings: CodeFormatSettings;
-  game_hall_enabled: boolean;
-  game_slots_enabled: boolean;
-  game_slots_min_bet: number;
-  game_slots_max_bet: number;
-  game_exchange_min_amount: number;
-  game_exchange_max_amount: number;
-  game_exchange_daily_limit: number;
-  game_exchange_allow_dg_to_balance: boolean;
-  checkin_enabled: boolean;
-  checkin_min_balance: number;
-  checkin_max_balance: number;
-  checkin_luck_enabled: boolean;
-  checkin_luck_min_multiplier: number;
-  checkin_luck_max_multiplier: number;
-  checkin_blindbox_enabled: boolean;
-  checkin_blindbox_trigger_type: string;
-  checkin_blindbox_interval: number;
-  transfer_enabled: boolean;
-  transfer_fee_rate: number;
-  transfer_min_amount: number;
-  transfer_max_amount: number;
-  transfer_daily_limit: number;
-  transfer_daily_count_limit: number;
-  transfer_vip_fee_exempt: boolean;
-  redpacket_enabled: boolean;
-  redpacket_max_count: number;
-  redpacket_expire_hours: number;
-	usage_query_enabled: boolean;
-	leaderboard_enabled: boolean;
-	leaderboard_balance_enabled: boolean;
-	leaderboard_consumption_enabled: boolean;
-	leaderboard_checkin_enabled: boolean;
-	leaderboard_transfer_enabled: boolean;
-	leaderboard_include_admin: boolean;
-
   // Channel Monitor feature switch
   channel_monitor_enabled: boolean;
   channel_monitor_default_interval_seconds: number;
@@ -717,6 +667,7 @@ export interface SystemSettings {
 }
 
 export interface UpdateSettingsRequest {
+  [key: string]: unknown;
   registration_enabled?: boolean;
   email_verify_enabled?: boolean;
   registration_email_suffix_whitelist?: string[];
@@ -724,41 +675,6 @@ export interface UpdateSettingsRequest {
   password_reset_enabled?: boolean;
   frontend_url?: string;
   invitation_code_enabled?: boolean;
-  code_format_settings?: CodeFormatSettings;
-  game_hall_enabled?: boolean;
-  game_slots_enabled?: boolean;
-  game_slots_min_bet?: number;
-  game_slots_max_bet?: number;
-  game_exchange_min_amount?: number;
-  game_exchange_max_amount?: number;
-  game_exchange_daily_limit?: number;
-  game_exchange_allow_dg_to_balance?: boolean;
-  checkin_enabled?: boolean;
-  checkin_min_balance?: number;
-  checkin_max_balance?: number;
-  checkin_luck_enabled?: boolean;
-  checkin_luck_min_multiplier?: number;
-  checkin_luck_max_multiplier?: number;
-  checkin_blindbox_enabled?: boolean;
-  checkin_blindbox_trigger_type?: string;
-  checkin_blindbox_interval?: number;
-  transfer_enabled?: boolean;
-  transfer_fee_rate?: number;
-  transfer_min_amount?: number;
-  transfer_max_amount?: number;
-  transfer_daily_limit?: number;
-  transfer_daily_count_limit?: number;
-  transfer_vip_fee_exempt?: boolean;
-  redpacket_enabled?: boolean;
-  redpacket_max_count?: number;
-  redpacket_expire_hours?: number;
-	usage_query_enabled?: boolean;
-	leaderboard_enabled?: boolean;
-	leaderboard_balance_enabled?: boolean;
-	leaderboard_consumption_enabled?: boolean;
-	leaderboard_checkin_enabled?: boolean;
-	leaderboard_transfer_enabled?: boolean;
-	leaderboard_include_admin?: boolean;
   totp_enabled?: boolean; // TOTP 双因素认证
   session_binding_enabled?: boolean; // 会话 IP/UA 绑定
   step_up_enabled?: boolean; // 敏感操作 step-up 2FA
@@ -828,7 +744,6 @@ export interface UpdateSettingsRequest {
   contact_info?: string;
   doc_url?: string;
   home_content?: string;
-  default_homepage?: 'default' | 'dino';
   hide_ccs_import_button?: boolean;
   table_default_page_size?: number;
   table_page_size_options?: number[];

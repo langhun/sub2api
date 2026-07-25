@@ -178,7 +178,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyContactInfo,
 		SettingKeyDocURL,
 		SettingKeyHomeContent,
-		SettingKeyDefaultHomepage,
 		SettingKeyHideCcsImportButton,
 		SettingKeyPurchaseSubscriptionEnabled,
 		SettingKeyPurchaseSubscriptionURL,
@@ -221,27 +220,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
-		SettingKeyGameHallEnabled,
-		SettingKeyGameSlotsEnabled,
-		SettingKeyGameSlotsMinBet,
-		SettingKeyGameSlotsMaxBet,
-		SettingKeyGameExchangeMinAmount,
-		SettingKeyGameExchangeMaxAmount,
-		SettingKeyGameExchangeDailyLimit,
-		SettingKeyGameExchangeAllowDGToBalance,
 		SettingKeyAffiliateEnabled,
-		SettingKeyCheckinEnabled,
-		SettingKeyCheckinLuckEnabled,
-		SettingKeyCheckinBlindboxEnabled,
-		SettingKeyTransferEnabled,
-		SettingKeyRedPacketEnabled,
-		SettingKeyUsageQueryEnabled,
-		SettingKeyLeaderboardEnabled,
-		SettingKeyLeaderboardBalanceEnabled,
-		SettingKeyLeaderboardConsumptionEnabled,
-		SettingKeyLeaderboardCheckinEnabled,
-		SettingKeyLeaderboardTransferEnabled,
-		SettingKeyLeaderboardIncludeAdmin,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
 	}
@@ -324,7 +303,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
-		DefaultHomepage:                  normalizeDefaultHomepage(settings[SettingKeyDefaultHomepage]),
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
@@ -352,29 +330,9 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorEnabled:                !isFalseSettingValue(settings[SettingKeyChannelMonitorEnabled]),
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
-		AvailableChannelsEnabled:     settings[SettingKeyAvailableChannelsEnabled] == "true",
-		GameHallEnabled:              settings[SettingKeyGameHallEnabled] == "true",
-		GameSlotsEnabled:             settings[SettingKeyGameSlotsEnabled] == "true",
-		GameSlotsMinBet:              parseBalanceFeatureFloat(settings[SettingKeyGameSlotsMinBet], 0.01),
-		GameSlotsMaxBet:              parseBalanceFeatureFloat(settings[SettingKeyGameSlotsMaxBet], 1000),
-		GameExchangeMinAmount:        parseBalanceFeatureFloat(settings[SettingKeyGameExchangeMinAmount], 0.01),
-		GameExchangeMaxAmount:        parseBalanceFeatureFloat(settings[SettingKeyGameExchangeMaxAmount], 1000),
-		GameExchangeDailyLimit:       parseBalanceFeatureFloat(settings[SettingKeyGameExchangeDailyLimit], 1000),
-		GameExchangeAllowDGToBalance: settings[SettingKeyGameExchangeAllowDGToBalance] != "false",
+		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
-		AffiliateEnabled:              settings[SettingKeyAffiliateEnabled] == "true",
-		CheckinEnabled:                settings[SettingKeyCheckinEnabled] == "true",
-		CheckinLuckEnabled:            settings[SettingKeyCheckinLuckEnabled] == "true",
-		CheckinBlindboxEnabled:        settings[SettingKeyCheckinBlindboxEnabled] == "true",
-		TransferEnabled:               settings[SettingKeyTransferEnabled] == "true",
-		RedPacketEnabled:              settings[SettingKeyRedPacketEnabled] == "true",
-		UsageQueryEnabled:             settings[SettingKeyUsageQueryEnabled] != "false",
-		LeaderboardEnabled:            settings[SettingKeyLeaderboardEnabled] != "false",
-		LeaderboardBalanceEnabled:     settings[SettingKeyLeaderboardBalanceEnabled] != "false",
-		LeaderboardConsumptionEnabled: settings[SettingKeyLeaderboardConsumptionEnabled] != "false",
-		LeaderboardCheckinEnabled:     settings[SettingKeyLeaderboardCheckinEnabled] != "false",
-		LeaderboardTransferEnabled:    settings[SettingKeyLeaderboardTransferEnabled] == "true",
-		LeaderboardIncludeAdmin:       settings[SettingKeyLeaderboardIncludeAdmin] == "true",
+		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
@@ -502,7 +460,6 @@ type PublicSettingsInjectionPayload struct {
 	ContactInfo                      string                   `json:"contact_info"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
-	DefaultHomepage                  string                   `json:"default_homepage"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string                   `json:"purchase_subscription_url"`
@@ -534,32 +491,12 @@ type PublicSettingsInjectionPayload struct {
 	// Feature flags — MUST match the opt-in/opt-out registry in
 	// frontend/src/utils/featureFlags.ts. Missing a field here is the bug
 	// that hid the "可用渠道" menu on page refresh.
-	ChannelMonitorEnabled                bool    `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds int     `json:"channel_monitor_default_interval_seconds"`
-	AvailableChannelsEnabled             bool    `json:"available_channels_enabled"`
-	GameHallEnabled                      bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled                     bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet                      float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet                      float64 `json:"game_slots_max_bet"`
-	GameExchangeMinAmount                float64 `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount                float64 `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit               float64 `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance         bool    `json:"game_exchange_allow_dg_to_balance"`
-	AffiliateEnabled                     bool    `json:"affiliate_enabled"`
-	CheckinEnabled                       bool    `json:"checkin_enabled"`
-	CheckinLuckEnabled                   bool    `json:"checkin_luck_enabled"`
-	CheckinBlindboxEnabled               bool    `json:"checkin_blindbox_enabled"`
-	TransferEnabled                      bool    `json:"transfer_enabled"`
-	RedPacketEnabled                     bool    `json:"redpacket_enabled"`
-	UsageQueryEnabled                    bool    `json:"usage_query_enabled"`
-	LeaderboardEnabled                   bool    `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled            bool    `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled        bool    `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled            bool    `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled           bool    `json:"leaderboard_transfer_enabled"`
-	LeaderboardIncludeAdmin              bool    `json:"leaderboard_include_admin"`
-	RiskControlEnabled                   bool    `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests           bool    `json:"allow_user_view_error_requests"`
+	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
+	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
+	AffiliateEnabled                     bool `json:"affiliate_enabled"`
+	RiskControlEnabled                   bool `json:"risk_control_enabled"`
+	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -592,7 +529,6 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ContactInfo:                      settings.ContactInfo,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
-		DefaultHomepage:                  settings.DefaultHomepage,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
@@ -623,27 +559,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
-		GameHallEnabled:                      settings.GameHallEnabled,
-		GameSlotsEnabled:                     settings.GameSlotsEnabled,
-		GameSlotsMinBet:                      settings.GameSlotsMinBet,
-		GameSlotsMaxBet:                      settings.GameSlotsMaxBet,
-		GameExchangeMinAmount:                settings.GameExchangeMinAmount,
-		GameExchangeMaxAmount:                settings.GameExchangeMaxAmount,
-		GameExchangeDailyLimit:               settings.GameExchangeDailyLimit,
-		GameExchangeAllowDGToBalance:         settings.GameExchangeAllowDGToBalance,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
-		CheckinEnabled:                       settings.CheckinEnabled,
-		CheckinLuckEnabled:                   settings.CheckinLuckEnabled,
-		CheckinBlindboxEnabled:               settings.CheckinBlindboxEnabled,
-		TransferEnabled:                      settings.TransferEnabled,
-		RedPacketEnabled:                     settings.RedPacketEnabled,
-		UsageQueryEnabled:                    settings.UsageQueryEnabled,
-		LeaderboardEnabled:                   settings.LeaderboardEnabled,
-		LeaderboardBalanceEnabled:            settings.LeaderboardBalanceEnabled,
-		LeaderboardConsumptionEnabled:        settings.LeaderboardConsumptionEnabled,
-		LeaderboardCheckinEnabled:            settings.LeaderboardCheckinEnabled,
-		LeaderboardTransferEnabled:           settings.LeaderboardTransferEnabled,
-		LeaderboardIncludeAdmin:              settings.LeaderboardIncludeAdmin,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil

@@ -4,10 +4,10 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| 文档状态 | 待评审 |
+| 文档状态 | 已实施，持续以门禁维护 |
 | 创建日期 | 2026-07-24 |
 | 适用范围 | 仅限 `sub2api` 下游定制功能；上游源代码保持不变 |
-| 当前基线 | `origin/main` v0.1.164；`feat/port-balance-features` 相对该基线领先 78 个提交、落后 0 个提交 |
+| 当前基线 | 2026-07-25：冻结 Overlay 基线为 `baseline/v0.1.164-before-overlay`。上游同步使用独立 `sync/upstream-<version>` 分支；同步前后执行边界门禁，禁止新增未归类的共享业务代码。 |
 | 负责人 | 项目维护者 |
 | 相关文档 | `docs/prd-activity-and-entertainment-center.md` |
 
@@ -230,7 +230,7 @@ frontend/src/custom/
 | 前端页头扩展 | 仅当确有需求时，`AppHeader.vue` 增加一个 `CustomHeaderActions` 挂载点；签到等下游 UI 必须迁入该组件。 |
 | 国际化 | `frontend/src/i18n` 只追加一次 `custom` 语言片段入口；模块语言文件保留在 `frontend/src/custom/`。 |
 
-每个白名单文件最多保留一次导入和一次注册调用。新增下游需求不得扩大白名单；若确实无法避免，必须在 PR 中说明原因、替代方案和预期合并影响。
+每个白名单文件最多保留一次导入和一次注册调用。新增下游需求不得扩大白名单；若确实无法避免，必须在 PR 中说明原因、替代方案和预期合并影响。当前精确白名单由 `tools/check-custom-overlay-boundaries.ps1` 维护：Wire 源/生成物、后端 HTTP/Router/遗留路由卸载点、前端 Router、布局、i18n 入口、品牌首页 Store 与其相邻测试，以及 embed 测试，共 21 个路径。
 
 ### 7.4 上游文件归还规则
 
@@ -249,10 +249,10 @@ frontend/src/custom/
 | 类别 | 允许路径 | 规则 |
 | --- | --- | --- |
 | Overlay 自有代码 | `backend/internal/custom/**`、`frontend/src/custom/**` | 可自由新增和修改，必须有模块归属与测试。 |
-| 新增数据定义 | `backend/ent/schema/custom_*.go`、`backend/migrations/*_custom_*.sql` | 只新增文件；迁移不可回写或改号。 |
-| 固定挂载/生成输出 | `backend/cmd/server/wire.go`、`backend/internal/server/http.go`、`backend/internal/server/router.go`、`frontend/src/router/index.ts`、`frontend/src/components/layout/AppSidebar.vue`、必要时 `AppHeader.vue` 与 i18n 入口，以及 Ent/Wire 生成文件 | 仅允许表 7.3 定义的挂载调用或生成结果，禁止混入业务规则。 |
+| 新增数据定义 | `backend/ent/**`、`backend/migrations/*_custom_*.sql` 及相邻迁移测试 | Ent 输出可再生；迁移只新增，历史迁移不可回写或改号。 |
+| 固定挂载/生成输出 | 脚本中列出的 21 个精确路径，包括 `backend/cmd/server/wire.go`、`backend/internal/server/{http.go,router.go}`、`frontend/src/router/index.ts`、`frontend/src/components/layout/{AppSidebar.vue,AppHeader.vue}`、i18n 入口和 Ent/Wire 生成文件 | 仅允许表 7.3 定义的挂载调用、类型或测试，禁止混入业务规则。 |
 
-除以上三类外，任何相对 `origin/main` 的改动都默认视为不合规。若确有必要，必须先更新白名单说明并在 PR 中说明：为什么 Overlay 无法完成、为什么不能使用现有挂载点、合并上游时的预期冲突位置和回滚方法。
+除以上三类外，任何新增行都默认视为不合规。`tools/check-custom-overlay-boundaries.ps1` 以审计检查点 `4d73b9d` 对比目标提交：共享路径仅允许零新增行的删除，以便归还既有债务；新增或修改后的共享业务实现会失败。上游同步或重新设定检查点必须先重新执行全量分类，并在单独评审提交中更新脚本默认值和清单，不能为了通过门禁直接前移基线。
 
 `go.mod`、`go.sum`、`package.json` 与锁文件在本次迁移中不应变更；Overlay 必须优先复用现有依赖。若后续模块确需新增依赖，必须单独评审，不得与业务迁移混在同一提交。
 
@@ -366,6 +366,8 @@ frontend/src/custom/
 必须执行的基础门禁：
 
 ```powershell
+.\tools\check-custom-overlay-boundaries.ps1
+
 Set-Location backend
 go generate ./ent
 go generate ./cmd/server

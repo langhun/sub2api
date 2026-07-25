@@ -34,6 +34,8 @@ func TestModuleRegistersUserAndAdminRoutes(t *testing.T) {
 		"GET /api/v1/game-hall/rounds",
 		"GET /api/v1/admin/game-hall/transactions",
 		"GET /api/v1/admin/game-hall/rounds",
+		"GET /api/v1/admin/game-hall/users/:user_id/access",
+		"PUT /api/v1/admin/game-hall/users/:user_id/access",
 	} {
 		_, ok := routes[route]
 		require.Truef(t, ok, "missing module route %s", route)

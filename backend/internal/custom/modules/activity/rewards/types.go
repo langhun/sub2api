@@ -6,11 +6,12 @@ package rewards
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"strings"
 	"time"
+
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 const (
@@ -25,11 +26,26 @@ const (
 )
 
 var (
-	ErrInvalidPrize        = errors.New("invalid blind-box prize")
-	ErrInvalidDelivery     = errors.New("invalid reward delivery")
-	ErrUnavailable         = errors.New("activity reward dependency is unavailable")
-	ErrStateConflict       = errors.New("reward delivery state conflict")
-	ErrIdempotencyConflict = errors.New("reward delivery idempotency conflict")
+	ErrInvalidPrize = infraerrors.BadRequest(
+		"BLINDBOX_PRIZE_INVALID",
+		"blind box prize configuration is invalid",
+	)
+	ErrInvalidDelivery = infraerrors.BadRequest(
+		"REWARD_DELIVERY_INVALID",
+		"reward delivery is invalid",
+	)
+	ErrUnavailable = infraerrors.InternalServer(
+		"ACTIVITY_REWARD_UNAVAILABLE",
+		"activity reward dependency is unavailable",
+	)
+	ErrStateConflict = infraerrors.Conflict(
+		"REWARD_DELIVERY_STATE_CONFLICT",
+		"reward delivery state conflict",
+	)
+	ErrIdempotencyConflict = infraerrors.Conflict(
+		"REWARD_DELIVERY_IDEMPOTENCY_CONFLICT",
+		"reward delivery idempotency payload conflict",
+	)
 )
 
 type Rarity string
@@ -53,16 +69,18 @@ const (
 // Prize is the activity-owned representation of a blind-box configuration.
 // The selected fields are frozen into Snapshot before a delivery is queued.
 type Prize struct {
-	ID               int64
-	Name             string
-	Rarity           Rarity
-	RewardType       RewardType
-	RewardValue      float64
-	RewardValueMax   float64
-	SubscriptionID   *int64
-	SubscriptionDays int
-	Weight           int
-	Enabled          bool
+	ID               int64      `json:"id"`
+	Name             string     `json:"name"`
+	Rarity           Rarity     `json:"rarity"`
+	RewardType       RewardType `json:"reward_type"`
+	RewardValue      float64    `json:"reward_value"`
+	RewardValueMax   float64    `json:"reward_value_max"`
+	SubscriptionID   *int64     `json:"subscription_id,omitempty"`
+	SubscriptionDays int        `json:"subscription_days"`
+	Weight           int        `json:"weight"`
+	Enabled          bool       `json:"is_enabled"`
+	CreatedAt        string     `json:"created_at"`
+	UpdatedAt        string     `json:"updated_at"`
 }
 
 func (p Prize) Validate() error {
@@ -97,8 +115,17 @@ func invalidRewardValue(value float64) bool {
 type PrizeCatalog interface {
 	ListEnabled(ctx context.Context) ([]Prize, error)
 	List(ctx context.Context) ([]Prize, error)
+	Get(ctx context.Context, prizeID int64) (*Prize, error)
 	Save(ctx context.Context, prize Prize) (Prize, error)
 	Archive(ctx context.Context, prizeID int64) error
+	Stats(ctx context.Context) (PrizeStats, error)
+}
+
+// PrizeStats is the established admin blind-box summary payload.
+type PrizeStats struct {
+	TotalItems   int `json:"total_items"`
+	EnabledItems int `json:"enabled_items"`
+	TotalDraws   int `json:"total_draws"`
 }
 
 // CheckinCounter supplies the total-count trigger from the same transaction as
@@ -155,26 +182,26 @@ func (s Snapshot) Validate() error {
 }
 
 type Delivery struct {
-	ID             int64
-	SourceType     string
-	SourceID       int64
-	UserID         int64
-	PrizeID        *int64
-	RewardSnapshot json.RawMessage
-	RewardType     RewardType
-	RewardValue    float64
-	RewardDetail   string
-	RuleVersion    string
-	IdempotencyKey string
-	Status         string
-	Attempts       int
-	LastError      *string
-	NextRetryAt    *time.Time
-	LockedAt       *time.Time
-	DeliveredAt    *time.Time
-	CompensatedAt  *time.Time
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID             int64           `json:"id"`
+	SourceType     string          `json:"source_type"`
+	SourceID       int64           `json:"source_id"`
+	UserID         int64           `json:"user_id"`
+	PrizeID        *int64          `json:"prize_item_id,omitempty"`
+	RewardSnapshot json.RawMessage `json:"reward_snapshot"`
+	RewardType     RewardType      `json:"reward_type"`
+	RewardValue    float64         `json:"reward_value"`
+	RewardDetail   string          `json:"reward_detail"`
+	RuleVersion    string          `json:"rule_version"`
+	IdempotencyKey string          `json:"idempotency_key"`
+	Status         string          `json:"status"`
+	Attempts       int             `json:"attempts"`
+	LastError      *string         `json:"last_error,omitempty"`
+	NextRetryAt    *time.Time      `json:"next_retry_at,omitempty"`
+	LockedAt       *time.Time      `json:"locked_at,omitempty"`
+	DeliveredAt    *time.Time      `json:"delivered_at,omitempty"`
+	CompensatedAt  *time.Time      `json:"compensated_at,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
 type CreateDelivery struct {

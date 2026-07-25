@@ -48,17 +48,21 @@ func (r *gameHallRepository) GetSnapshot(ctx context.Context, userID int64) (*Ga
 	if err := ensureGameWalletRow(ctx, client, userID); err != nil {
 		return nil, err
 	}
+	if err := ensureGameHallUserAccessRow(ctx, client, userID); err != nil {
+		return nil, err
+	}
 	if err := ensureGameJackpotRow(ctx, client); err != nil {
 		return nil, err
 	}
 
 	query := `
 SELECT u.balance,
-       u.game_hall_disabled,
-       gw.dg_balance,
-       gj.balance
+	       access.disabled,
+	       gw.dg_balance,
+	       gj.balance
 FROM users u
 JOIN game_hall_wallets gw ON gw.user_id = u.id
+JOIN game_hall_user_access access ON access.user_id = u.id
 JOIN game_hall_jackpots gj ON gj.code = $2
 WHERE u.id = $1 AND u.deleted_at IS NULL
 LIMIT 1
@@ -83,6 +87,65 @@ LIMIT 1
 	return snapshot, rows.Err()
 }
 
+func (r *gameHallRepository) GetUserAccess(ctx context.Context, userID int64) (*GameHallUserAccess, error) {
+	client := clientFromContext(ctx, r.client)
+	if err := ensureGameHallUserAccessRow(ctx, client, userID); err != nil {
+		return nil, err
+	}
+
+	rows, err := client.QueryContext(ctx, `
+SELECT access.user_id, access.disabled, access.updated_at
+FROM game_hall_user_access access
+JOIN users u ON u.id = access.user_id
+WHERE access.user_id = $1 AND u.deleted_at IS NULL
+LIMIT 1`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get game hall user access: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("get game hall user access: %w", err)
+		}
+		return nil, ErrUserNotFound
+	}
+
+	access := &GameHallUserAccess{}
+	if err := rows.Scan(&access.UserID, &access.Disabled, &access.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("scan game hall user access: %w", err)
+	}
+	return access, rows.Err()
+}
+
+func (r *gameHallRepository) SetUserAccessDisabled(ctx context.Context, userID int64, disabled bool) (*GameHallUserAccess, error) {
+	client := clientFromContext(ctx, r.client)
+	rows, err := client.QueryContext(ctx, `
+INSERT INTO game_hall_user_access (user_id, disabled, created_at, updated_at)
+SELECT id, $2, NOW(), NOW()
+FROM users
+WHERE id = $1 AND deleted_at IS NULL
+ON CONFLICT (user_id) DO UPDATE
+SET disabled = EXCLUDED.disabled,
+    updated_at = NOW()
+RETURNING user_id, disabled, updated_at`, userID, disabled)
+	if err != nil {
+		return nil, fmt.Errorf("set game hall user access: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("set game hall user access: %w", err)
+		}
+		return nil, ErrUserNotFound
+	}
+
+	access := &GameHallUserAccess{}
+	if err := rows.Scan(&access.UserID, &access.Disabled, &access.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("scan updated game hall user access: %w", err)
+	}
+	return access, rows.Err()
+}
+
 func (r *gameHallRepository) CommitExchange(ctx context.Context, plan GameExchangePlan) (*GameExchangeResult, error) {
 	if existing, err := r.findExchangeResult(ctx, plan.UserID, plan.IdempotencyKey); err != nil {
 		return nil, err
@@ -93,6 +156,9 @@ func (r *gameHallRepository) CommitExchange(ctx context.Context, plan GameExchan
 	err := r.runInTx(ctx, func(txCtx context.Context) error {
 		client := clientFromContext(txCtx, r.client)
 		if err := ensureGameWalletRow(txCtx, client, plan.UserID); err != nil {
+			return err
+		}
+		if err := ensureGameHallUserAccessRow(txCtx, client, plan.UserID); err != nil {
 			return err
 		}
 
@@ -276,6 +342,9 @@ func (r *gameHallRepository) CommitSlotRound(ctx context.Context, plan GameSlotR
 	err := r.runInTx(ctx, func(txCtx context.Context) error {
 		client := clientFromContext(txCtx, r.client)
 		if err := ensureGameWalletRow(txCtx, client, plan.UserID); err != nil {
+			return err
+		}
+		if err := ensureGameHallUserAccessRow(txCtx, client, plan.UserID); err != nil {
 			return err
 		}
 		if err := ensureGameJackpotRow(txCtx, client); err != nil {
@@ -711,6 +780,19 @@ ON CONFLICT (user_id) DO NOTHING
 	return nil
 }
 
+func ensureGameHallUserAccessRow(ctx context.Context, client *dbent.Client, userID int64) error {
+	_, err := client.ExecContext(ctx, `
+INSERT INTO game_hall_user_access (user_id, disabled, created_at, updated_at)
+SELECT id, FALSE, NOW(), NOW()
+FROM users
+WHERE id = $1 AND deleted_at IS NULL
+ON CONFLICT (user_id) DO NOTHING`, userID)
+	if err != nil {
+		return fmt.Errorf("ensure game hall user access: %w", err)
+	}
+	return nil
+}
+
 func ensureGameJackpotRow(ctx context.Context, client *dbent.Client) error {
 	_, err := client.ExecContext(ctx, `
 INSERT INTO game_hall_jackpots (code, balance, enabled, created_at, updated_at)
@@ -724,24 +806,21 @@ ON CONFLICT (code) DO NOTHING
 }
 
 func lockUserMainBalance(ctx context.Context, client *dbent.Client, userID int64) (float64, bool, error) {
-	return lockLegacyUserMainBalance(ctx, client, userID)
-}
-
-func lockLegacyUserMainBalance(ctx context.Context, client *dbent.Client, userID int64) (float64, bool, error) {
 	rows, err := client.QueryContext(ctx, `
-SELECT balance, game_hall_disabled
-FROM users
-WHERE id = $1 AND deleted_at IS NULL
-FOR UPDATE
+SELECT u.balance, access.disabled
+FROM users u
+JOIN game_hall_user_access access ON access.user_id = u.id
+WHERE u.id = $1 AND u.deleted_at IS NULL
+FOR UPDATE OF u, access
 `, userID)
 	if err != nil {
-		return 0, false, fmt.Errorf("lock legacy user main balance: %w", err)
+		return 0, false, fmt.Errorf("lock user main balance: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return 0, false, fmt.Errorf("lock legacy user main balance: %w", err)
+			return 0, false, fmt.Errorf("lock user main balance: %w", err)
 		}
 		return 0, false, ErrUserNotFound
 	}
@@ -749,7 +828,7 @@ FOR UPDATE
 	var balance float64
 	var gameHallDisabled bool
 	if err := rows.Scan(&balance, &gameHallDisabled); err != nil {
-		return 0, false, fmt.Errorf("scan legacy user main balance: %w", err)
+		return 0, false, fmt.Errorf("scan user main balance: %w", err)
 	}
 	return balance, gameHallDisabled, rows.Err()
 }

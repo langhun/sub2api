@@ -5685,19 +5685,13 @@
                 />
               </div>
 
-              <!-- Home Content -->
-              <div>
-                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {{ localText('默认首页', 'Default homepage') }}
-                </label>
-                <select v-model="form.default_homepage" class="input">
-                  <option value="default">{{ localText('默认介绍页', 'Default introduction') }}</option>
-                  <option value="dino">Dino</option>
-                </select>
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ localText('访问根路径 / 时使用的首页；两个页面始终可通过 /home 和 /Dino 访问。', 'Selects the page shown at /. Both pages remain available at /home and /Dino.') }}
-                </p>
-              </div>
+              <component
+                v-for="panel in customSettingsPanelsFor('site')"
+                :is="panel.component"
+                :key="panel.id"
+                :model-value="customSettingsForms[panel.id]"
+                @update:model-value="customSettingsForms[panel.id] = $event"
+              />
 
               <!-- Home Content -->
               <div>
@@ -6142,14 +6136,13 @@
 		  </div>
 		  <div class="grid gap-x-8 gap-y-5 p-6 md:grid-cols-2">
 			<div class="flex items-center justify-between gap-4"><span class="text-sm font-medium">{{ localText('显示用量查询入口', 'Show usage query entry') }}</span><Toggle v-model="form.usage_query_enabled" /></div>
-			<div class="flex items-center justify-between gap-4"><span class="text-sm font-medium">{{ localText('显示排行榜入口', 'Show leaderboard entry') }}</span><Toggle v-model="form.leaderboard_enabled" /></div>
-			<template v-if="form.leaderboard_enabled">
-			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示余额排行标签', 'Show balance ranking') }}</span><Toggle v-model="form.leaderboard_balance_enabled" /></div>
-			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示消费排行标签', 'Show consumption ranking') }}</span><Toggle v-model="form.leaderboard_consumption_enabled" /></div>
-			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示签到排行标签', 'Show check-in ranking') }}</span><Toggle v-model="form.leaderboard_checkin_enabled" /></div>
-			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示转账排行标签', 'Show transfer ranking') }}</span><Toggle v-model="form.leaderboard_transfer_enabled" /></div>
-			  <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('排行榜包含管理员', 'Include administrators') }}</span><Toggle v-model="form.leaderboard_include_admin" /></div>
-			</template>
+			<component
+			  v-for="panel in customSettingsPanelsFor('entry-switches')"
+			  :is="panel.component"
+			  :key="panel.id"
+			  :model-value="customSettingsForms[panel.id]"
+			  @update:model-value="customSettingsForms[panel.id] = $event"
+			/>
 		  </div>
 		</div>
 
@@ -7679,95 +7672,15 @@
         </div>
         <!-- /Tab: Email -->
 
-        <!-- Activity modules share the Features tab so entry switches and rules stay together. -->
+        <!-- Custom feature settings are rendered from the overlay registry. -->
         <div v-show="activeTab === 'features'" class="space-y-6">
-          <div class="card">
-            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ localText('娱乐大厅与游戏', 'Game hall and games') }}</h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ localText('统一控制大厅入口、DG 钱包兑换和游戏投注范围。', 'Control the hall entry, DG wallet exchange, and game bet limits.') }}</p>
-            </div>
-            <div class="space-y-5 p-6">
-              <div class="flex items-center justify-between gap-4">
-                <div><p class="font-medium text-gray-900 dark:text-white">{{ localText('娱乐大厅入口', 'Game hall entry') }}</p><p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ localText('关闭后隐藏入口，并由后端拒绝兑换和新游戏。', 'Hides the entry and blocks exchanges and new rounds.') }}</p></div>
-                <Toggle v-model="form.game_hall_enabled" />
-              </div>
-              <template v-if="form.game_hall_enabled">
-                <div class="grid gap-4 border-t border-gray-100 pt-4 dark:border-dark-700 md:grid-cols-3">
-                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('单次兑换下限', 'Minimum exchange') }}<input v-model.number="form.game_exchange_min_amount" type="number" min="0.01" step="0.01" class="input mt-1" /></label>
-                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('单次兑换上限', 'Maximum exchange') }}<input v-model.number="form.game_exchange_max_amount" type="number" min="0" step="0.01" class="input mt-1" /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ localText('0 表示不限', '0 means unlimited') }}</span></label>
-                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('每日兑换上限', 'Daily exchange limit') }}<input v-model.number="form.game_exchange_daily_limit" type="number" min="0" step="0.01" class="input mt-1" /><span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">{{ localText('双向成功金额合计，0 表示不限', 'Successful amounts in both directions; 0 means unlimited') }}</span></label>
-                </div>
-                <div class="flex items-center justify-between gap-4">
-                  <div><p class="font-medium text-gray-900 dark:text-white">{{ localText('允许 DG 转回主余额', 'Allow DG return to main balance') }}</p><p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ localText('关闭后只允许主余额兑换为 DG。', 'When disabled, users can only exchange main balance to DG.') }}</p></div>
-                  <Toggle v-model="form.game_exchange_allow_dg_to_balance" />
-                </div>
-                <div class="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 dark:border-dark-700">
-                  <span class="font-medium text-gray-900 dark:text-white">{{ localText('三轴老虎机', 'Three-reel slots') }}</span>
-                  <Toggle v-model="form.game_slots_enabled" />
-                </div>
-                <div v-if="form.game_slots_enabled" class="grid gap-4 md:grid-cols-2">
-                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('最小投注（DG）', 'Minimum bet (DG)') }}<input v-model.number="form.game_slots_min_bet" type="number" min="0.01" step="0.01" class="input mt-1" /></label>
-                  <label class="text-sm text-gray-600 dark:text-gray-300">{{ localText('最大投注（DG）', 'Maximum bet (DG)') }}<input v-model.number="form.game_slots_max_bet" type="number" min="0.01" step="0.01" class="input mt-1" /></label>
-                </div>
-                <p v-if="form.game_slots_enabled && Number(form.game_slots_min_bet) > Number(form.game_slots_max_bet)" class="text-sm text-red-600 dark:text-red-400">{{ localText('最小投注不能大于最大投注', 'Minimum bet cannot exceed maximum bet') }}</p>
-              </template>
-            </div>
-          </div>
-          <div class="card">
-            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.checkinTitle") }}</h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.settings.balanceFeatures.checkinDescription") }}</p>
-            </div>
-            <div class="space-y-5 p-6">
-              <div class="flex items-center justify-between">
-                <span class="font-medium text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.normalCheckin") }}</span>
-                <Toggle v-model="form.checkin_enabled" />
-              </div>
-              <div v-if="form.checkin_enabled" class="grid gap-4 md:grid-cols-2">
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.minReward") }}<input v-model.number="form.checkin_min_balance" type="number" min="0" step="0.01" class="input mt-1" /></label>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.maxReward") }}<input v-model.number="form.checkin_max_balance" type="number" min="0" step="0.01" class="input mt-1" /></label>
-              </div>
-              <div class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700">
-                <span class="font-medium text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.luckCheckin") }}</span>
-                <Toggle v-model="form.checkin_luck_enabled" />
-              </div>
-              <div v-if="form.checkin_luck_enabled" class="grid gap-4 md:grid-cols-2">
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.minMultiplier") }}<input v-model.number="form.checkin_luck_min_multiplier" type="number" min="0" step="0.1" class="input mt-1" /></label>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.maxMultiplier") }}<input v-model.number="form.checkin_luck_max_multiplier" type="number" min="0" step="0.1" class="input mt-1" /></label>
-              </div>
-            </div>
-          </div>
-
-          <BlindboxPrizePoolCard
-            v-model:enabled="form.checkin_blindbox_enabled"
-            v-model:trigger-type="form.checkin_blindbox_trigger_type"
-            v-model:interval="form.checkin_blindbox_interval"
+          <component
+            v-for="panel in customSettingsPanelsFor('features')"
+            :is="panel.component"
+            :key="panel.id"
+            :model-value="customSettingsForms[panel.id]"
+            @update:model-value="customSettingsForms[panel.id] = $event"
           />
-
-          <CodeFormatSettingsEditor v-model="form.code_format_settings" @validity="codeFormatSettingsValid = $event" />
-
-          <div class="card">
-            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.transferTitle") }}</h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.settings.balanceFeatures.transferDescription") }}</p>
-            </div>
-            <div class="space-y-5 p-6">
-              <div class="flex items-center justify-between"><span class="font-medium text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.transferEnabled") }}</span><Toggle v-model="form.transfer_enabled" /></div>
-              <div v-if="form.transfer_enabled" class="grid gap-4 md:grid-cols-3">
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.feeRate") }}<input v-model.number="form.transfer_fee_rate" type="number" min="0" step="0.001" class="input mt-1" /></label>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.minAmount") }}<input v-model.number="form.transfer_min_amount" type="number" min="0" step="0.01" class="input mt-1" /></label>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.maxAmount") }}<input v-model.number="form.transfer_max_amount" type="number" min="0" step="0.01" class="input mt-1" /></label>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.dailyLimit") }}<input v-model.number="form.transfer_daily_limit" type="number" min="0" step="0.01" class="input mt-1" /></label>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.dailyCount") }}<input v-model.number="form.transfer_daily_count_limit" type="number" min="0" class="input mt-1" /></label>
-                <label class="flex items-center gap-3 pt-6 text-sm text-gray-600 dark:text-gray-300"><Toggle v-model="form.transfer_vip_fee_exempt" />{{ t("admin.settings.balanceFeatures.vipExempt") }}</label>
-              </div>
-              <div class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"><span class="font-medium text-gray-900 dark:text-white">{{ t("admin.settings.balanceFeatures.redpacketEnabled") }}</span><Toggle v-model="form.redpacket_enabled" /></div>
-              <div v-if="form.redpacket_enabled" class="grid gap-4 md:grid-cols-2">
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.redpacketMaxCount") }}<input v-model.number="form.redpacket_max_count" type="number" min="1" class="input mt-1" /></label>
-                <label class="text-sm text-gray-600 dark:text-gray-300">{{ t("admin.settings.balanceFeatures.redpacketExpireHours") }}<input v-model.number="form.redpacket_expire_hours" type="number" min="1" class="input mt-1" /></label>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div v-show="activeTab === 'backup'">
@@ -7778,7 +7691,7 @@
         <div v-show="activeTab !== 'backup'" class="flex justify-end">
           <button
             type="submit"
-            :disabled="saving || loadFailed || !codeFormatSettingsValid || (form.game_slots_enabled && Number(form.game_slots_min_bet) > Number(form.game_slots_max_bet))"
+            :disabled="saving || loadFailed || Boolean(customSettingsValidationError)"
             class="btn btn-primary"
           >
             <svg
@@ -7868,7 +7781,6 @@ import type {
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
   DefaultPlatformQuotasMap,
-  CodeFormatSettings,
   OpenAIFastPolicyRule,
   WeChatConnectMode,
   WebSearchEmulationConfig,
@@ -7884,7 +7796,6 @@ import type {
 import type { ProviderInstance } from "@/types/payment";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Icon from "@/components/icons/Icon.vue";
-import CodeFormatSettingsEditor from "@/components/admin/CodeFormatSettingsEditor.vue";
 import Select from "@/components/common/Select.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import PaymentProviderList from "@/components/payment/PaymentProviderList.vue";
@@ -7896,7 +7807,7 @@ import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
-import BlindboxPrizePoolCard from "@/custom/modules/activity/admin/components/BlindboxPrizePoolCard.vue";
+import { customSettingsPanels, type CustomSettingsValues } from "@/custom/registry";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {
@@ -8026,7 +7937,6 @@ const { copyToClipboard } = useClipboard();
 const loading = ref(true);
 const loadFailed = ref(false);
 const saving = ref(false);
-const codeFormatSettingsValid = ref(true);
 const testingSmtp = ref(false);
 const sendingTestEmail = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
@@ -8035,6 +7945,26 @@ const registrationEmailSuffixWhitelistTags = ref<string[]>([]);
 const registrationEmailSuffixWhitelistDraft = ref("");
 const forwardedClientIpHeaderDraft = ref("");
 const tablePageSizeOptionsInput = ref("10, 20, 50, 100");
+
+const customSettingsForms = reactive<Record<string, CustomSettingsValues>>(
+  Object.fromEntries(
+    customSettingsPanels.map((panel) => [panel.id, panel.createForm()]),
+  ),
+);
+const customSettingsKeys = new Set(
+  customSettingsPanels.flatMap((panel) => panel.settingKeys),
+);
+const customSettingsValidationError = computed(() => {
+  for (const panel of customSettingsPanels) {
+    const message = panel.validate(customSettingsForms[panel.id] ?? {}, customSettingsForms);
+    if (message) return message;
+  }
+  return "";
+});
+
+function customSettingsPanelsFor(placement: "site" | "entry-switches" | "features") {
+  return customSettingsPanels.filter((panel) => panel.placement === placement);
+}
 
 // Admin API Key 状态
 const adminApiKeyLoading = ref(true);
@@ -8624,7 +8554,6 @@ const form = reactive<SettingsForm>({
   contact_info: "",
   doc_url: "",
   home_content: "",
-  default_homepage: "default",
   backend_mode_enabled: false,
   hide_ccs_import_button: false,
   payment_enabled: false,
@@ -8826,47 +8755,7 @@ const form = reactive<SettingsForm>({
   subscription_expiry_notify_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [] as NotifyEmailEntry[],
-  code_format_settings: {
-    balance: { prefix: "BAL", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
-    concurrency: { prefix: "CON", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
-    subscription: { prefix: "SUB", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
-    invitation: { prefix: "INV", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
-    redpacket: { prefix: "RP", character_set: "alphanumeric", separator: "-", group_length: 4, group_count: 3 },
-  } as CodeFormatSettings,
-  game_hall_enabled: false,
-  game_slots_enabled: false,
-  game_slots_min_bet: 0.01,
-  game_slots_max_bet: 1000,
-  game_exchange_min_amount: 0.01,
-  game_exchange_max_amount: 1000,
-  game_exchange_daily_limit: 1000,
-  game_exchange_allow_dg_to_balance: true,
-  checkin_enabled: false,
-  checkin_min_balance: 0.1,
-  checkin_max_balance: 1,
-  checkin_luck_enabled: false,
-  checkin_luck_min_multiplier: 0.1,
-  checkin_luck_max_multiplier: 3,
-  checkin_blindbox_enabled: false,
-  checkin_blindbox_trigger_type: "streak",
-  checkin_blindbox_interval: 7,
-  transfer_enabled: false,
-  transfer_fee_rate: 0.01,
-  transfer_min_amount: 0.01,
-  transfer_max_amount: 1000,
-  transfer_daily_limit: 1000,
-  transfer_daily_count_limit: 50,
-  transfer_vip_fee_exempt: false,
-  redpacket_enabled: false,
-  redpacket_max_count: 100,
-  redpacket_expire_hours: 24,
 	usage_query_enabled: true,
-	leaderboard_enabled: true,
-	leaderboard_balance_enabled: true,
-	leaderboard_consumption_enabled: true,
-	leaderboard_checkin_enabled: true,
-	leaderboard_transfer_enabled: false,
-	leaderboard_include_admin: false,
   // Channel Monitor feature switch
   channel_monitor_enabled: true,
   channel_monitor_default_interval_seconds: 60,
@@ -9777,9 +9666,12 @@ async function loadSettings() {
       settings.payment_load_balance_strategy || "round-robin";
     // Only assign non-null values from backend (null means unconfigured, keep defaults)
     for (const [key, value] of Object.entries(settings)) {
-      if (value !== null && value !== undefined) {
+      if (!customSettingsKeys.has(key) && value !== null && value !== undefined) {
         (form as Record<string, unknown>)[key] = value;
       }
+    }
+    for (const panel of customSettingsPanels) {
+      customSettingsForms[panel.id] = panel.fromSettings(settings);
     }
     if (!form.claude_oauth_system_prompt_blocks?.trim()) {
       form.claude_oauth_system_prompt_blocks =
@@ -9997,17 +9889,8 @@ function findDuplicateDefaultSubscription(
 async function saveSettings() {
   saving.value = true;
   try {
-    if (!codeFormatSettingsValid.value) {
-      appStore.showError(localText("请先修正兑换码与口令格式设置", "Fix the code and phrase format settings before saving"));
-      return;
-    }
-	const settingsError = validateActivitySettings();
-	if (settingsError) {
-	  appStore.showError(settingsError);
-	  return;
-	}
-    if (form.game_slots_enabled && Number(form.game_slots_min_bet) > Number(form.game_slots_max_bet)) {
-      appStore.showError(localText("老虎机最小投注不能大于最大投注", "The minimum slots bet cannot exceed the maximum"));
+    if (customSettingsValidationError.value) {
+      appStore.showError(customSettingsValidationError.value);
       return;
     }
     const normalizedTableDefaultPageSize = Math.floor(
@@ -10165,7 +10048,6 @@ async function saveSettings() {
         ),
       promo_code_enabled: form.promo_code_enabled,
       invitation_code_enabled: form.invitation_code_enabled,
-      code_format_settings: form.code_format_settings,
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,
       session_binding_enabled: form.session_binding_enabled,
@@ -10199,7 +10081,6 @@ async function saveSettings() {
       contact_info: form.contact_info,
       doc_url: form.doc_url,
       home_content: form.home_content,
-      default_homepage: form.default_homepage,
       backend_mode_enabled: form.backend_mode_enabled,
       hide_ccs_import_button: form.hide_ccs_import_button,
       table_default_page_size: form.table_default_page_size,
@@ -10425,40 +10306,7 @@ async function saveSettings() {
       account_quota_notify_emails: (
         form.account_quota_notify_emails || []
       ).filter((e) => e.email.trim() !== ""),
-      game_hall_enabled: form.game_hall_enabled,
-      game_slots_enabled: form.game_slots_enabled,
-      game_slots_min_bet: Number(form.game_slots_min_bet) || 0.01,
-      game_slots_max_bet: Number(form.game_slots_max_bet) || 0.01,
-      game_exchange_min_amount: Number(form.game_exchange_min_amount) || 0.01,
-      game_exchange_max_amount: Number(form.game_exchange_max_amount) || 0,
-      game_exchange_daily_limit: Number(form.game_exchange_daily_limit) || 0,
-      game_exchange_allow_dg_to_balance: form.game_exchange_allow_dg_to_balance,
-      checkin_enabled: form.checkin_enabled,
-      checkin_min_balance: Number(form.checkin_min_balance) || 0,
-      checkin_max_balance: Number(form.checkin_max_balance) || 0,
-      checkin_luck_enabled: form.checkin_luck_enabled,
-      checkin_luck_min_multiplier: Number(form.checkin_luck_min_multiplier) || 0,
-      checkin_luck_max_multiplier: Number(form.checkin_luck_max_multiplier) || 0,
-      checkin_blindbox_enabled: form.checkin_blindbox_enabled,
-      checkin_blindbox_trigger_type: form.checkin_blindbox_trigger_type,
-      checkin_blindbox_interval: Number(form.checkin_blindbox_interval) || 1,
-      transfer_enabled: form.transfer_enabled,
-      transfer_fee_rate: Number(form.transfer_fee_rate) || 0,
-      transfer_min_amount: Number(form.transfer_min_amount) || 0,
-      transfer_max_amount: Number(form.transfer_max_amount) || 0,
-      transfer_daily_limit: Number(form.transfer_daily_limit) || 0,
-      transfer_daily_count_limit: Number(form.transfer_daily_count_limit) || 0,
-      transfer_vip_fee_exempt: form.transfer_vip_fee_exempt,
-      redpacket_enabled: form.redpacket_enabled,
-      redpacket_max_count: Number(form.redpacket_max_count) || 1,
-      redpacket_expire_hours: Number(form.redpacket_expire_hours) || 1,
-	  usage_query_enabled: form.usage_query_enabled,
-	  leaderboard_enabled: form.leaderboard_enabled,
-	  leaderboard_balance_enabled: form.leaderboard_balance_enabled,
-	  leaderboard_consumption_enabled: form.leaderboard_consumption_enabled,
-	  leaderboard_checkin_enabled: form.leaderboard_checkin_enabled,
-	  leaderboard_transfer_enabled: form.leaderboard_transfer_enabled,
-	  leaderboard_include_admin: form.leaderboard_include_admin,
+      usage_query_enabled: form.usage_query_enabled,
       // Channel Monitor feature switch
       channel_monitor_enabled: form.channel_monitor_enabled,
       channel_monitor_default_interval_seconds:
@@ -10469,6 +10317,10 @@ async function saveSettings() {
       affiliate_enabled: form.affiliate_enabled,
       allow_user_view_error_requests: form.allow_user_view_error_requests,
     };
+
+    for (const panel of customSettingsPanels) {
+      Object.assign(payload, panel.toPayload(customSettingsForms[panel.id] ?? {}));
+    }
 
     // 仅当 openai_fast_policy_settings 已成功从后端加载时才回写，
     // 否则省略整个字段，让后端保留既有规则（含默认值）。
@@ -10509,10 +10361,13 @@ async function saveSettings() {
       adminAPI.settings.updateSettings(payload),
     );
     for (const [key, value] of Object.entries(updated)) {
-      if (key === "openai_fast_policy_settings") continue;
+      if (key === "openai_fast_policy_settings" || customSettingsKeys.has(key)) continue;
       if (value !== null && value !== undefined) {
         (form as Record<string, unknown>)[key] = value;
       }
+    }
+    for (const panel of customSettingsPanels) {
+      customSettingsForms[panel.id] = panel.fromSettings(updated);
     }
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(updated));
     form.default_platform_quotas = normalizePlatformQuotasMap(updated.default_platform_quotas);
@@ -10610,37 +10465,6 @@ async function saveSettings() {
   } finally {
     saving.value = false;
   }
-}
-
-function validateActivitySettings(): string {
-  const exchangeMin = Number(form.game_exchange_min_amount);
-  const exchangeMax = Number(form.game_exchange_max_amount);
-  const exchangeDaily = Number(form.game_exchange_daily_limit);
-  if (!Number.isFinite(exchangeMin) || exchangeMin <= 0 || !Number.isFinite(exchangeMax) || exchangeMax < 0 || !Number.isFinite(exchangeDaily) || exchangeDaily < 0) {
-    return localText('兑换限额必须是有效数字，下限大于 0，上限与每日限额可为 0（不限）', 'Exchange limits must be finite; the minimum must be positive, while maximum and daily limit may be 0 (unlimited)');
-  }
-  if (exchangeMax > 0 && exchangeMin > exchangeMax) {
-    return localText('单次兑换下限不能大于上限', 'The minimum exchange cannot exceed the maximum');
-  }
-  if (form.checkin_enabled && Number(form.checkin_min_balance) > Number(form.checkin_max_balance)) {
-    return localText('签到最小奖励不能大于最大奖励', 'The minimum check-in reward cannot exceed the maximum');
-  }
-  if (form.checkin_luck_enabled && Number(form.checkin_luck_min_multiplier) > Number(form.checkin_luck_max_multiplier)) {
-    return localText('运气签到最小倍率不能大于最大倍率', 'The minimum lucky multiplier cannot exceed the maximum');
-  }
-  if (form.checkin_blindbox_enabled && !form.checkin_enabled && !form.checkin_luck_enabled) {
-    return localText('开启盲盒前至少启用一种签到方式', 'Enable at least one check-in mode before enabling blind boxes');
-  }
-  if (form.transfer_enabled && Number(form.transfer_min_amount) > Number(form.transfer_max_amount)) {
-    return localText('转账最小金额不能大于最大金额', 'The minimum transfer amount cannot exceed the maximum');
-  }
-  if (form.leaderboard_enabled && !form.leaderboard_balance_enabled && !form.leaderboard_consumption_enabled && !form.leaderboard_checkin_enabled && !form.leaderboard_transfer_enabled) {
-    return localText('开启排行榜时至少启用一个榜单标签', 'Enable at least one leaderboard tab');
-  }
-  if (form.leaderboard_transfer_enabled && !form.transfer_enabled) {
-    return localText('转账排行榜依赖余额转账功能', 'The transfer leaderboard requires balance transfers');
-  }
-  return '';
 }
 
 async function testSmtpConnection() {

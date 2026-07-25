@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/handler/settingsext"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -17,6 +18,7 @@ import (
 type SettingHandler struct {
 	settingService           *service.SettingService
 	notificationEmailService *service.NotificationEmailService
+	settingsMount            settingsext.Mount
 	version                  string
 }
 
@@ -24,6 +26,7 @@ type SettingHandler struct {
 func NewSettingHandler(settingService *service.SettingService, version string) *SettingHandler {
 	return &SettingHandler{
 		settingService: settingService,
+		settingsMount:  settingsext.EmptyMount{},
 		version:        version,
 	}
 }
@@ -34,6 +37,16 @@ func (h *SettingHandler) SetNotificationEmailService(notificationEmailService *s
 	h.notificationEmailService = notificationEmailService
 }
 
+// SetSettingsMount attaches an optional settings extension without exposing
+// its fields or storage rules to the shared public settings handler.
+func (h *SettingHandler) SetSettingsMount(mount settingsext.Mount) {
+	if mount == nil {
+		h.settingsMount = settingsext.EmptyMount{}
+		return
+	}
+	h.settingsMount = mount
+}
+
 // GetPublicSettings 获取公开设置
 // GET /api/v1/settings/public
 func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
@@ -42,8 +55,13 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	extension, err := h.settingsMount.Public(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 
-	response.Success(c, dto.PublicSettings{
+	payload := dto.PublicSettings{
 		RegistrationEnabled:              settings.RegistrationEnabled,
 		EmailVerifyEnabled:               settings.EmailVerifyEnabled,
 		ForceEmailOnThirdPartySignup:     settings.ForceEmailOnThirdPartySignup,
@@ -66,7 +84,6 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		ContactInfo:                      settings.ContactInfo,
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
-		DefaultHomepage:                  settings.DefaultHomepage,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
@@ -97,34 +114,20 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 
-		AvailableChannelsEnabled:     settings.AvailableChannelsEnabled,
-		GameHallEnabled:              settings.GameHallEnabled,
-		GameSlotsEnabled:             settings.GameSlotsEnabled,
-		GameSlotsMinBet:              settings.GameSlotsMinBet,
-		GameSlotsMaxBet:              settings.GameSlotsMaxBet,
-		GameExchangeMinAmount:        settings.GameExchangeMinAmount,
-		GameExchangeMaxAmount:        settings.GameExchangeMaxAmount,
-		GameExchangeDailyLimit:       settings.GameExchangeDailyLimit,
-		GameExchangeAllowDGToBalance: settings.GameExchangeAllowDGToBalance,
+		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
-		AffiliateEnabled:              settings.AffiliateEnabled,
-		CheckinEnabled:                settings.CheckinEnabled,
-		CheckinLuckEnabled:            settings.CheckinLuckEnabled,
-		CheckinBlindboxEnabled:        settings.CheckinBlindboxEnabled,
-		TransferEnabled:               settings.TransferEnabled,
-		RedPacketEnabled:              settings.RedPacketEnabled,
-		UsageQueryEnabled:             settings.UsageQueryEnabled,
-		LeaderboardEnabled:            settings.LeaderboardEnabled,
-		LeaderboardBalanceEnabled:     settings.LeaderboardBalanceEnabled,
-		LeaderboardConsumptionEnabled: settings.LeaderboardConsumptionEnabled,
-		LeaderboardCheckinEnabled:     settings.LeaderboardCheckinEnabled,
-		LeaderboardTransferEnabled:    settings.LeaderboardTransferEnabled,
-		LeaderboardIncludeAdmin:       settings.LeaderboardIncludeAdmin,
+		AffiliateEnabled: settings.AffiliateEnabled,
 
 		RiskControlEnabled: settings.RiskControlEnabled,
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
-	})
+	}
+	merged, err := settingsext.Merge(payload, extension)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, merged)
 }
 
 // UnsubscribeNotificationEmail handles optional notification email opt-outs.

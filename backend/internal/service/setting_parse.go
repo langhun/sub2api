@@ -188,27 +188,11 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",
 
 		// Available channels feature (default disabled; opt-in)
-		SettingKeyAvailableChannelsEnabled:     "false",
-		SettingKeyGameHallEnabled:              "false",
-		SettingKeyGameSlotsEnabled:             "false",
-		SettingKeyGameSlotsMinBet:              "0.01",
-		SettingKeyGameSlotsMaxBet:              "1000",
-		SettingKeyGameExchangeMinAmount:        "0.01",
-		SettingKeyGameExchangeMaxAmount:        "1000",
-		SettingKeyGameExchangeDailyLimit:       "1000",
-		SettingKeyGameExchangeAllowDGToBalance: "true",
+		SettingKeyAvailableChannelsEnabled: "false",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled:              "false",
 		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
-
-		// User-facing entry switches. Keep existing routes available by default.
-		SettingKeyUsageQueryEnabled:             "true",
-		SettingKeyLeaderboardEnabled:            "true",
-		SettingKeyLeaderboardBalanceEnabled:     "true",
-		SettingKeyLeaderboardConsumptionEnabled: "true",
-		SettingKeyLeaderboardCheckinEnabled:     "true",
-		SettingKeyLeaderboardIncludeAdmin:       "false",
 
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
@@ -340,7 +324,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		ContactInfo:                      settings[SettingKeyContactInfo],
 		DocURL:                           settings[SettingKeyDocURL],
 		HomeContent:                      settings[SettingKeyHomeContent],
-		DefaultHomepage:                  normalizeDefaultHomepage(settings[SettingKeyDefaultHomepage]),
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
@@ -348,7 +331,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		CustomEndpoints:                  settings[SettingKeyCustomEndpoints],
 		BackendModeEnabled:               settings[SettingKeyBackendModeEnabled] == "true",
 	}
-	result.BalanceFeatureSettings = parseBalanceFeatureSettings(settings)
 	result.CodeFormatSettings = parseCodeFormatSettings(settings)
 	result.TableDefaultPageSize, result.TablePageSizeOptions = parseTablePreferences(
 		settings[SettingKeyTableDefaultPageSize],
@@ -1244,11 +1226,4 @@ func normalizeTablePreferences(defaultPageSize int, options []int) (int, []int) 
 	}
 
 	return defaultPageSize, normalizedOptions
-}
-
-func normalizeDefaultHomepage(value string) string {
-	if strings.EqualFold(strings.TrimSpace(value), "dino") {
-		return "dino"
-	}
-	return "default"
 }

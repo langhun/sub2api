@@ -1,6 +1,7 @@
 import { h } from 'vue'
-import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
+import { makeSidebarFlag } from '@/utils/featureFlags'
 import type { CustomNavigationItem } from '../../registry'
+import { gameHallFeatureFlags } from './settings'
 
 const GameHallIcon = {
   render: () => h(
@@ -20,6 +21,6 @@ export const gameHallNavigation: readonly CustomNavigationItem[] = [
     labelKey: 'gameHall.title',
     icon: GameHallIcon,
     hideInSimpleMode: true,
-    featureFlag: makeSidebarFlag(FeatureFlags.gameHall),
+    featureFlag: makeSidebarFlag(gameHallFeatureFlags.gameHall),
   },
 ]

@@ -33,9 +33,6 @@ import adminPaymentAPI from './payment'
 import affiliatesAPI from './affiliates'
 import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
-import blindboxAPI from '@/custom/modules/activity/api/admin/blindbox'
-import adminTransferAPI from './transfer'
-import rewardDeliveriesAPI from '@/custom/modules/activity/api/admin/rewardDeliveries'
 import auditAPI from './audit'
 
 /**
@@ -72,9 +69,6 @@ export const adminAPI = {
   affiliates: affiliatesAPI,
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
-  blindbox: blindboxAPI,
-  transfer: adminTransferAPI,
-  rewardDeliveries: rewardDeliveriesAPI,
   audit: auditAPI
 }
 
@@ -109,9 +103,6 @@ export {
   affiliatesAPI,
   riskControlAPI,
   adminComplianceAPI,
-  blindboxAPI,
-  adminTransferAPI,
-  rewardDeliveriesAPI,
   auditAPI
 }
 
