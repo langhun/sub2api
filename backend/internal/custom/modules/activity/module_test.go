@@ -9,8 +9,8 @@ func TestMetadataDeclaresStableContractBoundary(t *testing.T) {
 	if Metadata.Version != ModuleVersion {
 		t.Fatalf("metadata version = %q, want %q", Metadata.Version, ModuleVersion)
 	}
-	if Metadata.Status != StatusContractOnly {
-		t.Fatalf("metadata status = %q, want %q", Metadata.Status, StatusContractOnly)
+	if Metadata.Status != StatusOperational {
+		t.Fatalf("metadata status = %q, want %q", Metadata.Status, StatusOperational)
 	}
 
 	seen := make(map[Dependency]struct{}, len(Metadata.Dependencies))

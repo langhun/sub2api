@@ -34,3 +34,19 @@ type BalanceWriter interface {
 type BalanceCacheInvalidator interface {
 	InvalidateBalance(ctx context.Context, userID int64) error
 }
+
+// ConcurrencyGrant is the account adjustment awarded by a blind-box prize.
+// Implementations must deduplicate the grant using IdempotencyKey in the
+// transaction represented by ctx.
+type ConcurrencyGrant struct {
+	UserID         int64
+	Slots          int
+	Reason         string
+	IdempotencyKey string
+}
+
+// ConcurrencyGranter applies a blind-box concurrency reward. It exists apart
+// from BalanceWriter so reward delivery never reaches into a user repository.
+type ConcurrencyGranter interface {
+	GrantConcurrency(ctx context.Context, grant ConcurrencyGrant) error
+}

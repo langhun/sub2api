@@ -295,6 +295,12 @@ describe('feature route guard', () => {
 		])
 	})
 
+	it('registers every activity URL exactly once through the module registry', () => {
+		for (const path of ['/checkin', '/leaderboard', '/transfer/leaderboard', '/redpacket']) {
+			expect(routerHarness.routes.filter((route) => route.path === path)).toHaveLength(1)
+		}
+	})
+
 	it('blocks the leaderboard when no effective board group is enabled', async () => {
 		appStore.cachedPublicSettings = {
 			leaderboard_enabled: true,

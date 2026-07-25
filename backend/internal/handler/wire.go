@@ -188,9 +188,6 @@ func ProvideHandlers(
 	availableChannelHandler *AvailableChannelHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
-	checkinHandler *CheckinHandler,
-	leaderboardHandler *LeaderboardHandler,
-	transferHandler *BalanceTransferHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -213,9 +210,6 @@ func ProvideHandlers(
 		AvailableChannel: availableChannelHandler,
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
-		Checkin:          checkinHandler,
-		Leaderboard:      leaderboardHandler,
-		Transfer:         transferHandler,
 	}
 }
 
@@ -237,9 +231,6 @@ var ProviderSet = wire.NewSet(
 	NewPaymentHandler,
 	NewPaymentWebhookHandler,
 	NewAvailableChannelHandler,
-	NewCheckinHandler,
-	NewLeaderboardHandler,
-	NewBalanceTransferHandler,
 	NewAsyncImageHandler,
 	ProvideBatchImageHandler,
 

@@ -223,7 +223,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { leaderboardAPI, type LeaderboardData, type LeaderboardEntry } from '@/api/leaderboard'
+import { leaderboardAPI, type LeaderboardData, type LeaderboardEntry } from '@/custom/modules/activity/api/leaderboard'
 import { useAppStore } from '@/stores/app'
 import { FeatureFlags, resolveFeatureFlagValue } from '@/utils/featureFlags'
 

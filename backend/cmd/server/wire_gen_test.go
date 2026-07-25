@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/custom"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
@@ -87,8 +88,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // paymentOrderExpiry
 		nil, // channelMonitorRunner
 		nil, // quotaFlusher
-		nil, // redPacketExpiry
-		nil, // rewardDeliveryWorker
+		&custom.Runtime{},
 		nil, // upstreamBillingProbe
 		nil, // ollamaCloudUsage
 		nil, // auditLog

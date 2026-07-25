@@ -1,5 +1,5 @@
 import { h } from 'vue'
-import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
+import { FeatureFlags, isFeatureFlagEnabled, makeSidebarFlag } from '@/utils/featureFlags'
 import type { CustomNavigationItem } from '../../registry'
 
 const CheckinIcon = {
@@ -11,6 +11,35 @@ const CheckinIcon = {
       h('path', { d: 'm8.25 15 2.25 2.25 5.25-5.25', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
     ],
   ),
+}
+
+const RedPacketIcon = {
+  render: () => h(
+    'svg',
+    { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+    [
+      h('path', { d: 'M20.25 12.75v5.625a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V12.75m16.5 0V8.625A2.25 2.25 0 0 0 18 6.375h-1.5a4.5 4.5 0 0 0-9 0H6a2.25 2.25 0 0 0-2.25 2.25v4.125m16.5 0H3.75m8.25-6.375v14.25m0-14.25H9.75', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+    ],
+  ),
+}
+
+const LeaderboardIcon = {
+  render: () => h(
+    'svg',
+    { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+    [
+      h('path', { d: 'M3.75 19.5h16.5M6.75 16.5v-4.125a.375.375 0 0 1 .375-.375h2.25a.375.375 0 0 1 .375.375V16.5m0 0V8.625a.375.375 0 0 1 .375-.375h2.25a.375.375 0 0 1 .375.375V16.5m0 0v-10.5a.375.375 0 0 1 .375-.375h2.25a.375.375 0 0 1 .375.375V16.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+    ],
+  ),
+}
+
+function isLeaderboardEnabled() {
+  return isFeatureFlagEnabled(FeatureFlags.leaderboard) && (
+    isFeatureFlagEnabled(FeatureFlags.leaderboardBalance)
+    || isFeatureFlagEnabled(FeatureFlags.leaderboardConsumption)
+    || isFeatureFlagEnabled(FeatureFlags.leaderboardCheckin)
+    || (isFeatureFlagEnabled(FeatureFlags.leaderboardTransfer) && isFeatureFlagEnabled(FeatureFlags.transfer))
+  )
 }
 
 export const activityNavigation: readonly CustomNavigationItem[] = [
@@ -25,5 +54,23 @@ export const activityNavigation: readonly CustomNavigationItem[] = [
       isFeatureFlagEnabled(FeatureFlags.checkin)
       || isFeatureFlagEnabled(FeatureFlags.checkinLuck)
     ),
+  },
+  {
+    path: '/redpacket',
+    label: 'Red Packets',
+    labelKey: 'nav.redpacket',
+    icon: RedPacketIcon,
+    hideInSimpleMode: true,
+    slot: 'after-transfer',
+    featureFlag: makeSidebarFlag(FeatureFlags.redpacket),
+  },
+  {
+    path: '/leaderboard',
+    label: 'Leaderboard',
+    labelKey: 'nav.leaderboard',
+    icon: LeaderboardIcon,
+    hideInSimpleMode: true,
+    slot: 'after-transfer',
+    featureFlag: isLeaderboardEnabled,
   },
 ]

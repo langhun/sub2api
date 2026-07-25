@@ -112,8 +112,7 @@ func provideCleanup(
 	paymentOrderExpiry *service.PaymentOrderExpiryService,
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
-	redPacketExpiry *service.RedPacketExpiryService,
-	rewardDeliveryWorker *service.RewardDeliveryWorkerRuntime,
+	customRuntime *custom.Runtime,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 	auditLog *service.AuditLogService,
@@ -130,15 +129,9 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
-			{"RewardDeliveryWorkerRuntime", func() error {
-				if rewardDeliveryWorker != nil {
-					rewardDeliveryWorker.Stop()
-				}
-				return nil
-			}},
-			{"RedPacketExpiryService", func() error {
-				if redPacketExpiry != nil {
-					redPacketExpiry.Stop()
+			{"CustomActivityRuntime", func() error {
+				if customRuntime != nil {
+					customRuntime.Stop()
 				}
 				return nil
 			}},

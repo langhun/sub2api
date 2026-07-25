@@ -65,9 +65,6 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
-	Checkin          *CheckinHandler
-	Leaderboard      *LeaderboardHandler
-	Transfer         *BalanceTransferHandler
 }
 
 // BuildInfo contains build-time information

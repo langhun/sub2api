@@ -195,7 +195,7 @@ import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } 
 import VersionBadge from '@/components/common/VersionBadge.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
-import { FeatureFlags, isFeatureFlagEnabled, makeSidebarFlag } from '@/utils/featureFlags'
+import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 import { customNavigation, type CustomNavigationItem } from '@/custom/registry'
 
@@ -674,15 +674,7 @@ const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
-const flagTransfer = makeSidebarFlag(FeatureFlags.transfer)
-const flagRedpacket = makeSidebarFlag(FeatureFlags.redpacket)
 const flagUsageQuery = makeSidebarFlag(FeatureFlags.usageQuery)
-const flagLeaderboard = () => isFeatureFlagEnabled(FeatureFlags.leaderboard) && (
-  isFeatureFlagEnabled(FeatureFlags.leaderboardBalance)
-  || isFeatureFlagEnabled(FeatureFlags.leaderboardConsumption)
-  || isFeatureFlagEnabled(FeatureFlags.leaderboardCheckin)
-  || (isFeatureFlagEnabled(FeatureFlags.leaderboardTransfer) && isFeatureFlagEnabled(FeatureFlags.transfer))
-)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
@@ -718,9 +710,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
     ...buildCustomNavigationItems('after-affiliate'),
-    { path: '/transfer', label: t('nav.transfer'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagTransfer },
-    { path: '/redpacket', label: t('nav.redpacket'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagRedpacket },
-    { path: '/leaderboard', label: t('nav.leaderboard'), icon: ChartIcon, hideInSimpleMode: true, featureFlag: flagLeaderboard },
+    ...buildCustomNavigationItems('after-transfer'),
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...buildCustomNavigationItems(),
     ...customMenuItemsForUser.value.map((item): NavItem => ({

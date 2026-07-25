@@ -114,48 +114,8 @@ func RegisterAdminRoutes(
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
 
-		registerBlindboxRoutes(admin, h)
-		registerRewardDeliveryRoutes(admin, h)
-		registerTransferAdminRoutes(admin, h)
-
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
-	}
-}
-
-func registerRewardDeliveryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	deliveries := admin.Group("/reward-deliveries")
-	{
-		deliveries.GET("", h.Admin.Blindbox.ListRewardDeliveries)
-		deliveries.POST("/:id/retry", h.Admin.Blindbox.RetryRewardDelivery)
-		deliveries.POST("/:id/compensate", h.Admin.Blindbox.CompensateRewardDelivery)
-	}
-}
-
-func registerBlindboxRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	blindbox := admin.Group("/blindbox")
-	{
-		blindbox.GET("/prize-items", h.Admin.Blindbox.ListPrizeItems)
-		blindbox.POST("/prize-items", h.Admin.Blindbox.CreatePrizeItem)
-		blindbox.PUT("/prize-items/:id", h.Admin.Blindbox.UpdatePrizeItem)
-		blindbox.DELETE("/prize-items/:id", h.Admin.Blindbox.DeletePrizeItem)
-		blindbox.GET("/stats", h.Admin.Blindbox.GetStats)
-	}
-}
-
-func registerTransferAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	transfers := admin.Group("/transfers")
-	{
-		transfers.GET("", h.Admin.TransferAdmin.ListTransfers)
-		transfers.GET("/stats", h.Admin.TransferAdmin.GetFeeStats)
-		transfers.PUT("/:id/freeze", h.Admin.TransferAdmin.FreezeTransfer)
-		transfers.PUT("/:id/revoke", h.Admin.TransferAdmin.RevokeTransfer)
-		transfers.POST("/batch", h.Admin.TransferAdmin.BatchDistribute)
-	}
-
-	redpackets := admin.Group("/redpackets")
-	{
-		redpackets.GET("", h.Admin.TransferAdmin.ListRedPackets)
 	}
 }
 
