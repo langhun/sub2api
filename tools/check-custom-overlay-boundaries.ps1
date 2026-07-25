@@ -1,12 +1,21 @@
 [CmdletBinding()]
 param(
+    # HistoricalAudit keeps the original product-freeze audit. OverlayBoundary
+    # compares a product commit to one reviewed, immutable upstream commit.
+    [ValidateSet('HistoricalAudit', 'OverlayBoundary')]
+    [string]$Mode = 'HistoricalAudit',
     # This is the named Overlay freeze point, not origin/main. Pass a later
     # reviewed checkpoint explicitly when auditing an incremental migration.
     [string]$BaselineRef = 'baseline/v0.1.164-before-overlay',
+    # Required by OverlayBoundary. Pass a resolved commit SHA, never a floating
+    # remote-tracking branch such as origin/main.
+    [string]$UpstreamRef,
     [string]$TargetRef = 'HEAD',
     # Include staged, unstaged, and untracked files relative to TargetRef.
     # This is required before accepting an in-progress migration.
     [switch]$IncludeWorktree,
+    # Optional machine-readable result for a sync workflow or CI comparison.
+    [string]$ReportPath,
     [string]$GitPath
 )
 
@@ -43,6 +52,22 @@ function Invoke-Git {
         throw "git $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
     }
     return @($output)
+}
+
+function Test-GitAncestor {
+    param(
+        [string]$Ancestor,
+        [string]$Descendant
+    )
+
+    & $script:GitExecutable merge-base --is-ancestor $Ancestor $Descendant
+    if ($LASTEXITCODE -eq 0) {
+        return $true
+    }
+    if ($LASTEXITCODE -eq 1) {
+        return $false
+    }
+    throw "git merge-base --is-ancestor failed with exit code $LASTEXITCODE"
 }
 
 function Get-OverlayBucket {
@@ -206,12 +231,28 @@ $script:CleanupAllowlist = [System.Collections.Generic.HashSet[string]]::new([st
 
 # rev-parse produces exactly one line. Do not index the scalar result: in
 # PowerShell that would select the first character of the SHA.
-$baselineCommit = [string](Invoke-Git @('rev-parse', '--verify', "$BaselineRef^{commit}"))
 $targetCommit = [string](Invoke-Git @('rev-parse', '--verify', "$TargetRef^{commit}"))
-$range = "$baselineCommit..$targetCommit"
+$auditBaseLabel = $BaselineRef
+if ($Mode -eq 'OverlayBoundary') {
+    if (-not $UpstreamRef) {
+        throw 'OverlayBoundary requires -UpstreamRef with a reviewed upstream commit SHA.'
+    }
+    if ($UpstreamRef -match '(^|/)origin/main$') {
+        throw 'OverlayBoundary does not accept a floating origin/main reference. Resolve and pass its commit SHA.'
+    }
+    $baselineCommit = [string](Invoke-Git @('rev-parse', '--verify', "$UpstreamRef^{commit}"))
+    if (-not (Test-GitAncestor -Ancestor $baselineCommit -Descendant $targetCommit)) {
+        throw "OverlayBoundary requires upstream $baselineCommit to be an ancestor of target $targetCommit."
+    }
+    $auditBaseLabel = "reviewed upstream $baselineCommit"
+} else {
+    $baselineCommit = [string](Invoke-Git @('rev-parse', '--verify', "$BaselineRef^{commit}"))
+}
 
+$range = "$baselineCommit..$targetCommit"
 if ($baselineCommit -eq $targetCommit) {
-    Write-Host "Committed audit: no commits after frozen baseline $BaselineRef. This is not a worktree audit."
+    Write-Host "Committed audit: no commits after $auditBaseLabel. This is not a worktree audit."
+    $committedRows = @()
     $committedViolations = @()
 } else {
     $committedRows = @(Get-ChangedRows -Scope "committed $range" -DiffArguments @('diff', $range))
@@ -229,8 +270,29 @@ if ($IncludeWorktree) {
 }
 
 if (($committedViolations.Count + $worktreeViolations.Count) -gt 0) {
+    if ($ReportPath) {
+        $report = [pscustomobject]@{
+            Mode = $Mode; BaseCommit = $baselineCommit; TargetCommit = $targetCommit
+            CommittedRows = @($committedRows); WorktreeRows = @($worktreeRows)
+            Violations = @($committedViolations + $worktreeViolations)
+        }
+        $reportDirectory = Split-Path -Parent $ReportPath
+        if ($reportDirectory) { New-Item -ItemType Directory -Force -Path $reportDirectory | Out-Null }
+        $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encoding UTF8
+    }
     Write-Host 'Move business code into custom/, keep shared changes deletion-only for debt cleanup, or obtain a reviewed allowlist change.'
     exit 1
+}
+
+if ($ReportPath) {
+    $report = [pscustomobject]@{
+        Mode = $Mode; BaseCommit = $baselineCommit; TargetCommit = $targetCommit
+        CommittedRows = @($committedRows); WorktreeRows = @($worktreeRows)
+        Violations = @()
+    }
+    $reportDirectory = Split-Path -Parent $ReportPath
+    if ($reportDirectory) { New-Item -ItemType Directory -Force -Path $reportDirectory | Out-Null }
+    $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encoding UTF8
 }
 
 Write-Host 'Overlay boundary gate completed without shared additions in the selected audit scope.'
