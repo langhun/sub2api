@@ -48,6 +48,18 @@ describe('custom overlay registry', () => {
     expect(customNavigation.filter((item) => item.path === '/transfer')).toHaveLength(1)
   })
 
+  it('leaves usage routes and the sidebar entry to the activity module', () => {
+    expect(routerSource).not.toContain("path: '/usage'")
+    expect(routerSource).not.toContain("path: '/key-usage'")
+    expect(sidebarSource).toContain("...buildCustomNavigationItems('after-batch-image')")
+    expect(sidebarSource).not.toContain("{ path: '/usage'")
+    expect(customRoutes.filter((route) => route.path === '/usage')).toHaveLength(1)
+    expect(customRoutes.filter((route) => route.path === '/key-usage')).toHaveLength(1)
+    expect(customNavigation).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: '/usage', slot: 'after-batch-image' }),
+    ]))
+  })
+
   it('mounts custom navigation through the sidebar self-navigation builder', () => {
     expect(sidebarSource).toContain('function buildCustomNavigationItems(')
     expect(sidebarSource).toContain("...buildCustomNavigationItems('after-affiliate')")
@@ -64,6 +76,7 @@ describe('custom overlay registry', () => {
     expect(customSettingsPanels.map((panel) => panel.id)).toEqual([
       'brand-home',
       'game-hall',
+      'activity-usage-query',
       'activity-leaderboard',
       'activity',
       'wallet-extension',

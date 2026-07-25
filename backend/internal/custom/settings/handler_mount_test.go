@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,11 +25,38 @@ func TestHandlerMountProjectsAndAppliesCustomSettingsWithoutCoreFieldKnowledge(t
 	require.Equal(t, "default", public["default_homepage"])
 	require.NotContains(t, public, "checkin_min_balance")
 
-	payload := json.RawMessage(`{"default_homepage":"dino","transfer_enabled":true}`)
+	formats := service.DefaultCodeFormatSettings()
+	formats.RedPacket.Prefix = "RP"
+	payload, err := json.Marshal(map[string]any{
+		"default_homepage":     "dino",
+		"transfer_enabled":     true,
+		"code_format_settings": formats,
+	})
+	require.NoError(t, err)
 	changed, err := mount.ValidateUpdate(context.Background(), payload)
 	require.NoError(t, err)
 	require.True(t, changed)
 	require.NoError(t, mount.ApplyUpdate(context.Background(), payload))
 	require.Equal(t, "dino", store.values["default_homepage"])
 	require.Equal(t, "true", store.values["transfer_enabled"])
+	require.Equal(t, formats, service.ParseCodeFormatSettings(store.values))
+	admin, err = mount.Admin(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, formats, decodeCodeFormatSettings(t, admin["code_format_settings"]))
+}
+
+func TestHandlerMountRejectsInvalidCodeFormatSettings(t *testing.T) {
+	mount := NewHandlerMount(NewRegistry(&memoryStore{values: map[string]string{}}))
+	changed, err := mount.ValidateUpdate(context.Background(), json.RawMessage(`{"code_format_settings":{}}`))
+	require.True(t, changed)
+	require.Error(t, err)
+}
+
+func decodeCodeFormatSettings(t *testing.T, value any) service.CodeFormatSettings {
+	t.Helper()
+	encoded, err := json.Marshal(value)
+	require.NoError(t, err)
+	var settings service.CodeFormatSettings
+	require.NoError(t, json.Unmarshal(encoded, &settings))
+	return settings
 }

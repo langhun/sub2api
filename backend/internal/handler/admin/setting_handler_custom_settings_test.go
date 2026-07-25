@@ -22,10 +22,13 @@ func TestSettingHandler_UpdateSettingsWritesOverlaySettingsThroughRegistry(t *te
 	handler := NewSettingHandler(settingsService, nil, nil, nil, nil, nil, nil)
 	handler.SetSettingsMount(customsettings.NewHandlerMount(customsettings.ProvideRegistry(settingsService)))
 
+	formats := service.DefaultCodeFormatSettings()
+	formats.RedPacket.Prefix = "RP"
 	body, err := json.Marshal(map[string]any{
-		"checkin_enabled":   true,
-		"transfer_enabled":  true,
-		"game_hall_enabled": true,
+		"checkin_enabled":      true,
+		"transfer_enabled":     true,
+		"game_hall_enabled":    true,
+		"code_format_settings": formats,
 	})
 	require.NoError(t, err)
 	recorder := httptest.NewRecorder()
@@ -40,4 +43,5 @@ func TestSettingHandler_UpdateSettingsWritesOverlaySettingsThroughRegistry(t *te
 	require.Equal(t, "true", repo.values["checkin_enabled"])
 	require.Equal(t, "true", repo.values["transfer_enabled"])
 	require.Equal(t, "true", repo.values["game_hall_enabled"])
+	require.Equal(t, formats, settingsService.GetCodeFormatSettings(ctx))
 }

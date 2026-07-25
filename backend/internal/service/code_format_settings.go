@@ -89,6 +89,12 @@ func parseCodeFormatSettings(values map[string]string) CodeFormatSettings {
 	return settings
 }
 
+// ParseCodeFormatSettings exposes the existing storage compatibility rules to
+// an Overlay settings owner without changing the code-generation behavior.
+func ParseCodeFormatSettings(values map[string]string) CodeFormatSettings {
+	return parseCodeFormatSettings(values)
+}
+
 func appendCodeFormatUpdates(updates map[string]string, settings CodeFormatSettings) error {
 	if settings == (CodeFormatSettings{}) {
 		settings = DefaultCodeFormatSettings()
@@ -111,6 +117,17 @@ func appendCodeFormatUpdates(updates map[string]string, settings CodeFormatSetti
 		updates[key] = string(encoded)
 	}
 	return nil
+}
+
+// CodeFormatSettingsValues encodes the existing persisted format keys for an
+// external settings owner. Redeem and adjustment code generation continue to
+// read the same keys through GetCodeFormatSettings.
+func CodeFormatSettingsValues(settings CodeFormatSettings) (map[string]string, error) {
+	updates := make(map[string]string)
+	if err := appendCodeFormatUpdates(updates, settings); err != nil {
+		return nil, err
+	}
+	return updates, nil
 }
 
 func decodeCodeFormat(raw string, target *CodeFormatConfig) {

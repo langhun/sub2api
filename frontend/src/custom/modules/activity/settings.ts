@@ -2,6 +2,7 @@ import { defineFeatureFlag } from '@/utils/featureFlags'
 import type { CustomSettingsPanel, CustomSettingsValues } from '../../registry'
 import ActivityLeaderboardSettingsPanel from './admin/ActivityLeaderboardSettingsPanel.vue'
 import ActivitySettingsPanel from './admin/ActivitySettingsPanel.vue'
+import ActivityUsageSettingsPanel from './admin/ActivityUsageSettingsPanel.vue'
 export { activityPublicSettingsDefaults } from './publicSettings'
 
 export type CodeCharacterSet = 'uppercase' | 'numeric' | 'alphanumeric'
@@ -20,6 +21,7 @@ export type CodeFormatSettings = Record<
 >
 
 export const activityFeatureFlags = {
+  usageQuery: defineFeatureFlag({ key: 'usage_query_enabled', mode: 'opt-out', label: 'Usage Query' }),
   checkin: defineFeatureFlag({ key: 'checkin_enabled', mode: 'opt-in', label: 'Check-in' }),
   checkinLuck: defineFeatureFlag({ key: 'checkin_luck_enabled', mode: 'opt-in', label: 'Lucky Check-in' }),
   checkinBlindbox: defineFeatureFlag({ key: 'checkin_blindbox_enabled', mode: 'opt-in', label: 'Check-in Blind Box' }),
@@ -37,6 +39,10 @@ interface ActivityLeaderboardSettings {
   leaderboard_checkin_enabled: boolean
   leaderboard_transfer_enabled: boolean
   leaderboard_include_admin: boolean
+}
+
+interface ActivityUsageSettings {
+  usage_query_enabled: boolean
 }
 
 interface ActivitySettings {
@@ -70,6 +76,10 @@ const defaultLeaderboardSettings = (): ActivityLeaderboardSettings => ({
   leaderboard_include_admin: false,
 })
 
+const defaultActivityUsageSettings = (): ActivityUsageSettings => ({
+  usage_query_enabled: true,
+})
+
 const defaultActivitySettings = (): ActivitySettings => ({
   checkin_enabled: false,
   checkin_min_balance: 0.1,
@@ -94,6 +104,19 @@ function readSettings<T extends Record<string, unknown>>(defaults: T, settings: 
 }
 
 export const activitySettingsPanels: readonly CustomSettingsPanel[] = [
+  {
+    id: 'activity-usage-query',
+    placement: 'entry-switches',
+    order: 10,
+    component: ActivityUsageSettingsPanel,
+    settingKeys: Object.keys(defaultActivityUsageSettings()),
+    createForm: defaultActivityUsageSettings,
+    fromSettings: (settings) => readSettings(defaultActivityUsageSettings(), settings),
+    toPayload: (form) => ({
+      usage_query_enabled: (form as unknown as ActivityUsageSettings).usage_query_enabled,
+    }),
+    validate: () => '',
+  },
   {
     id: 'activity-leaderboard',
     placement: 'entry-switches',

@@ -32,7 +32,7 @@ export interface CustomNavigationItem {
   iconSvg?: string
   hideInSimpleMode?: boolean
   section?: 'self' | 'admin'
-  slot?: 'after-affiliate' | 'after-transfer'
+  slot?: 'after-batch-image' | 'after-affiliate' | 'after-transfer'
   /**
    * `false` hides the item. `undefined` keeps it visible while settings load.
    */

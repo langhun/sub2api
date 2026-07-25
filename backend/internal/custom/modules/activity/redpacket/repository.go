@@ -9,8 +9,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/balanceredpacket"
 	"github.com/Wei-Shaw/sub2api/ent/balanceredpacketclaim"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 type entRepository struct{ entClient *dbent.Client }
@@ -159,7 +159,7 @@ func (r *entRepository) ListClaims(ctx context.Context, redPacketID int64) ([]Cl
 	for index := range claims {
 		claims[index].UserDisplay = displays[claims[index].UserID]
 		if claims[index].UserDisplay == "" {
-			claims[index].UserDisplay = service.UserDisplayName("", "", claims[index].UserID)
+			claims[index].UserDisplay = platform.UserDisplayName("", "", claims[index].UserID)
 		}
 	}
 	return claims, nil
@@ -243,7 +243,7 @@ func (r *entRepository) userDisplays(ctx context.Context, userIDs []int64) (map[
 	}
 	displays := make(map[int64]string, len(items))
 	for _, item := range items {
-		displays[item.ID] = service.UserDisplayName(item.Username, item.Email, item.ID)
+		displays[item.ID] = platform.UserDisplayName(item.Username, item.Email, item.ID)
 	}
 	return displays, nil
 }

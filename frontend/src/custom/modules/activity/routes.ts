@@ -2,6 +2,29 @@ import type { RouteRecordRaw } from 'vue-router'
 
 export const activityRoutes: readonly RouteRecordRaw[] = [
   {
+    path: '/key-usage',
+    name: 'KeyUsage',
+    component: () => import('@/views/KeyUsageView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Key Usage',
+      requiresFeature: 'usage_query_enabled',
+    },
+  },
+  {
+    path: '/usage',
+    name: 'Usage',
+    component: () => import('@/views/user/UsageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Usage Records',
+      titleKey: 'usage.title',
+      descriptionKey: 'usage.description',
+      requiresFeature: 'usage_query_enabled',
+    },
+  },
+  {
     path: '/checkin',
     name: 'Checkin',
     component: () => import('./views/CheckinView.vue'),

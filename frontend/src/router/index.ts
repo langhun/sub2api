@@ -160,16 +160,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/key-usage',
-    name: 'KeyUsage',
-    component: () => import('@/views/KeyUsageView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Key Usage',
-	  requiresFeature: 'usage_query_enabled',
-    }
-  },
-  {
     path: '/legal/:documentId',
     name: 'LegalDocument',
     component: () => import('@/views/public/LegalDocumentView.vue'),
@@ -214,19 +204,6 @@ const routes: RouteRecordRaw[] = [
       title: 'Batch Image Guide',
       titleKey: 'batchImageGuide.title',
       descriptionKey: 'batchImageGuide.description'
-    }
-  },
-  {
-    path: '/usage',
-    name: 'Usage',
-    component: () => import('@/views/user/UsageView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Usage Records',
-      titleKey: 'usage.title',
-	  descriptionKey: 'usage.description',
-	  requiresFeature: 'usage_query_enabled'
     }
   },
   {

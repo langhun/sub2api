@@ -4,9 +4,9 @@ import accounts from './accounts'
 import resources from './resources'
 import ops from './ops'
 import settings from './settings'
-import balanceFeatures from './balanceFeatures'
 import audit from './audit'
 import promptAudit from './promptAudit'
+import { mergeCustomAdminLocale } from '@/custom/locales'
 
 const base = {
   ...overview,
@@ -19,13 +19,4 @@ const base = {
   ...promptAudit,
 }
 
-export default {
-  ...base,
-  blindbox: balanceFeatures.blindbox,
-  codeFormat: balanceFeatures.codeFormat,
-  settings: {
-    ...base.settings,
-    ...balanceFeatures.settings,
-    tabs: { ...base.settings.tabs, ...balanceFeatures.settings.tabs },
-  },
-}
+export default mergeCustomAdminLocale(base, 'en')

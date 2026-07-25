@@ -2,46 +2,49 @@ package settings
 
 import (
 	"context"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 // Compatibility preserves the established flat admin settings contract while
 // keeping the actual configuration split by Overlay module in Snapshot.
 type Compatibility struct {
-	DefaultHomepage               string  `json:"default_homepage"`
-	GameHallEnabled               bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled              bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet               float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet               float64 `json:"game_slots_max_bet"`
-	GameExchangeMinAmount         float64 `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount         float64 `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit        float64 `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance  bool    `json:"game_exchange_allow_dg_to_balance"`
-	CheckinEnabled                bool    `json:"checkin_enabled"`
-	CheckinMinBalance             float64 `json:"checkin_min_balance"`
-	CheckinMaxBalance             float64 `json:"checkin_max_balance"`
-	CheckinLuckEnabled            bool    `json:"checkin_luck_enabled"`
-	CheckinLuckMinMultiplier      float64 `json:"checkin_luck_min_multiplier"`
-	CheckinLuckMaxMultiplier      float64 `json:"checkin_luck_max_multiplier"`
-	CheckinBlindboxEnabled        bool    `json:"checkin_blindbox_enabled"`
-	CheckinBlindboxTriggerType    string  `json:"checkin_blindbox_trigger_type"`
-	CheckinBlindboxInterval       int     `json:"checkin_blindbox_interval"`
-	TransferEnabled               bool    `json:"transfer_enabled"`
-	TransferFeeRate               float64 `json:"transfer_fee_rate"`
-	TransferMinAmount             float64 `json:"transfer_min_amount"`
-	TransferMaxAmount             float64 `json:"transfer_max_amount"`
-	TransferDailyLimit            float64 `json:"transfer_daily_limit"`
-	TransferDailyCountLimit       int     `json:"transfer_daily_count_limit"`
-	TransferVIPFeeExempt          bool    `json:"transfer_vip_fee_exempt"`
-	RedPacketEnabled              bool    `json:"redpacket_enabled"`
-	RedPacketMaxCount             int     `json:"redpacket_max_count"`
-	RedPacketExpireHours          int     `json:"redpacket_expire_hours"`
-	UsageQueryEnabled             bool    `json:"usage_query_enabled"`
-	LeaderboardEnabled            bool    `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled     bool    `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled bool    `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled     bool    `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled    bool    `json:"leaderboard_transfer_enabled"`
-	LeaderboardIncludeAdmin       bool    `json:"leaderboard_include_admin"`
+	CodeFormatSettings            service.CodeFormatSettings `json:"code_format_settings"`
+	DefaultHomepage               string                     `json:"default_homepage"`
+	GameHallEnabled               bool                       `json:"game_hall_enabled"`
+	GameSlotsEnabled              bool                       `json:"game_slots_enabled"`
+	GameSlotsMinBet               float64                    `json:"game_slots_min_bet"`
+	GameSlotsMaxBet               float64                    `json:"game_slots_max_bet"`
+	GameExchangeMinAmount         float64                    `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount         float64                    `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit        float64                    `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance  bool                       `json:"game_exchange_allow_dg_to_balance"`
+	CheckinEnabled                bool                       `json:"checkin_enabled"`
+	CheckinMinBalance             float64                    `json:"checkin_min_balance"`
+	CheckinMaxBalance             float64                    `json:"checkin_max_balance"`
+	CheckinLuckEnabled            bool                       `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier      float64                    `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier      float64                    `json:"checkin_luck_max_multiplier"`
+	CheckinBlindboxEnabled        bool                       `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType    string                     `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval       int                        `json:"checkin_blindbox_interval"`
+	TransferEnabled               bool                       `json:"transfer_enabled"`
+	TransferFeeRate               float64                    `json:"transfer_fee_rate"`
+	TransferMinAmount             float64                    `json:"transfer_min_amount"`
+	TransferMaxAmount             float64                    `json:"transfer_max_amount"`
+	TransferDailyLimit            float64                    `json:"transfer_daily_limit"`
+	TransferDailyCountLimit       int                        `json:"transfer_daily_count_limit"`
+	TransferVIPFeeExempt          bool                       `json:"transfer_vip_fee_exempt"`
+	RedPacketEnabled              bool                       `json:"redpacket_enabled"`
+	RedPacketMaxCount             int                        `json:"redpacket_max_count"`
+	RedPacketExpireHours          int                        `json:"redpacket_expire_hours"`
+	UsageQueryEnabled             bool                       `json:"usage_query_enabled"`
+	LeaderboardEnabled            bool                       `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled     bool                       `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled bool                       `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled     bool                       `json:"leaderboard_checkin_enabled"`
+	LeaderboardTransferEnabled    bool                       `json:"leaderboard_transfer_enabled"`
+	LeaderboardIncludeAdmin       bool                       `json:"leaderboard_include_admin"`
 }
 
 // PublicCompatibility is the intentionally smaller public projection. Values
@@ -73,48 +76,49 @@ type PublicCompatibility struct {
 // Patch preserves the flat partial-update request contract. Applying it is the
 // one place that maps those keys back to module-owned configuration.
 type Patch struct {
-	DefaultHomepage               *string  `json:"default_homepage"`
-	GameHallEnabled               *bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled              *bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet               *float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet               *float64 `json:"game_slots_max_bet"`
-	GameExchangeMinAmount         *float64 `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount         *float64 `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit        *float64 `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance  *bool    `json:"game_exchange_allow_dg_to_balance"`
-	CheckinEnabled                *bool    `json:"checkin_enabled"`
-	CheckinMinBalance             *float64 `json:"checkin_min_balance"`
-	CheckinMaxBalance             *float64 `json:"checkin_max_balance"`
-	CheckinLuckEnabled            *bool    `json:"checkin_luck_enabled"`
-	CheckinLuckMinMultiplier      *float64 `json:"checkin_luck_min_multiplier"`
-	CheckinLuckMaxMultiplier      *float64 `json:"checkin_luck_max_multiplier"`
-	CheckinBlindboxEnabled        *bool    `json:"checkin_blindbox_enabled"`
-	CheckinBlindboxTriggerType    *string  `json:"checkin_blindbox_trigger_type"`
-	CheckinBlindboxInterval       *int     `json:"checkin_blindbox_interval"`
-	TransferEnabled               *bool    `json:"transfer_enabled"`
-	TransferFeeRate               *float64 `json:"transfer_fee_rate"`
-	TransferMinAmount             *float64 `json:"transfer_min_amount"`
-	TransferMaxAmount             *float64 `json:"transfer_max_amount"`
-	TransferDailyLimit            *float64 `json:"transfer_daily_limit"`
-	TransferDailyCountLimit       *int     `json:"transfer_daily_count_limit"`
-	TransferVIPFeeExempt          *bool    `json:"transfer_vip_fee_exempt"`
-	RedPacketEnabled              *bool    `json:"redpacket_enabled"`
-	RedPacketMaxCount             *int     `json:"redpacket_max_count"`
-	RedPacketExpireHours          *int     `json:"redpacket_expire_hours"`
-	UsageQueryEnabled             *bool    `json:"usage_query_enabled"`
-	LeaderboardEnabled            *bool    `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled     *bool    `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled *bool    `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled     *bool    `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled    *bool    `json:"leaderboard_transfer_enabled"`
-	LeaderboardIncludeAdmin       *bool    `json:"leaderboard_include_admin"`
+	CodeFormatSettings            *service.CodeFormatSettings `json:"code_format_settings"`
+	DefaultHomepage               *string                     `json:"default_homepage"`
+	GameHallEnabled               *bool                       `json:"game_hall_enabled"`
+	GameSlotsEnabled              *bool                       `json:"game_slots_enabled"`
+	GameSlotsMinBet               *float64                    `json:"game_slots_min_bet"`
+	GameSlotsMaxBet               *float64                    `json:"game_slots_max_bet"`
+	GameExchangeMinAmount         *float64                    `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount         *float64                    `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit        *float64                    `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance  *bool                       `json:"game_exchange_allow_dg_to_balance"`
+	CheckinEnabled                *bool                       `json:"checkin_enabled"`
+	CheckinMinBalance             *float64                    `json:"checkin_min_balance"`
+	CheckinMaxBalance             *float64                    `json:"checkin_max_balance"`
+	CheckinLuckEnabled            *bool                       `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier      *float64                    `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier      *float64                    `json:"checkin_luck_max_multiplier"`
+	CheckinBlindboxEnabled        *bool                       `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType    *string                     `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval       *int                        `json:"checkin_blindbox_interval"`
+	TransferEnabled               *bool                       `json:"transfer_enabled"`
+	TransferFeeRate               *float64                    `json:"transfer_fee_rate"`
+	TransferMinAmount             *float64                    `json:"transfer_min_amount"`
+	TransferMaxAmount             *float64                    `json:"transfer_max_amount"`
+	TransferDailyLimit            *float64                    `json:"transfer_daily_limit"`
+	TransferDailyCountLimit       *int                        `json:"transfer_daily_count_limit"`
+	TransferVIPFeeExempt          *bool                       `json:"transfer_vip_fee_exempt"`
+	RedPacketEnabled              *bool                       `json:"redpacket_enabled"`
+	RedPacketMaxCount             *int                        `json:"redpacket_max_count"`
+	RedPacketExpireHours          *int                        `json:"redpacket_expire_hours"`
+	UsageQueryEnabled             *bool                       `json:"usage_query_enabled"`
+	LeaderboardEnabled            *bool                       `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled     *bool                       `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled *bool                       `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled     *bool                       `json:"leaderboard_checkin_enabled"`
+	LeaderboardTransferEnabled    *bool                       `json:"leaderboard_transfer_enabled"`
+	LeaderboardIncludeAdmin       *bool                       `json:"leaderboard_include_admin"`
 }
 
 // HasChanges reports whether a request contains at least one Overlay-owned
 // setting. It lets the admin settings handler avoid unrelated writes to the
 // module store while keeping the flat JSON request contract.
 func (p Patch) HasChanges() bool {
-	return p.DefaultHomepage != nil || p.GameHallEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
+	return p.CodeFormatSettings != nil || p.DefaultHomepage != nil || p.GameHallEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
 		p.GameExchangeMinAmount != nil || p.GameExchangeMaxAmount != nil || p.GameExchangeDailyLimit != nil || p.GameExchangeAllowDGToBalance != nil ||
 		p.CheckinEnabled != nil || p.CheckinMinBalance != nil || p.CheckinMaxBalance != nil || p.CheckinLuckEnabled != nil ||
 		p.CheckinLuckMinMultiplier != nil || p.CheckinLuckMaxMultiplier != nil || p.CheckinBlindboxEnabled != nil ||
@@ -137,11 +141,13 @@ func (r *Registry) Compatibility(ctx context.Context) (Compatibility, error) {
 func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 	activity := snapshot.Activity
 	brandHome := snapshot.BrandHome
+	codeFormat := snapshot.CodeFormat
 	wallet := snapshot.WalletExtension
 	gameHall := snapshot.GameHall
 	return Compatibility{
-		DefaultHomepage: brandHome.DefaultHomepage,
-		GameHallEnabled: gameHall.Enabled, GameSlotsEnabled: gameHall.SlotsEnabled,
+		CodeFormatSettings: codeFormat,
+		DefaultHomepage:    brandHome.DefaultHomepage,
+		GameHallEnabled:    gameHall.Enabled, GameSlotsEnabled: gameHall.SlotsEnabled,
 		GameSlotsMinBet: gameHall.SlotsMinBet, GameSlotsMaxBet: gameHall.SlotsMaxBet,
 		GameExchangeMinAmount: gameHall.ExchangeMinAmount, GameExchangeMaxAmount: gameHall.ExchangeMaxAmount,
 		GameExchangeDailyLimit: gameHall.ExchangeDailyLimit, GameExchangeAllowDGToBalance: gameHall.ExchangeAllowDGToBalance,
@@ -179,8 +185,12 @@ func (c Compatibility) Public() PublicCompatibility {
 func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	activity := &snapshot.Activity
 	brandHome := &snapshot.BrandHome
+	codeFormat := &snapshot.CodeFormat
 	wallet := &snapshot.WalletExtension
 	gameHall := &snapshot.GameHall
+	if p.CodeFormatSettings != nil {
+		*codeFormat = *p.CodeFormatSettings
+	}
 	if p.DefaultHomepage != nil {
 		brandHome.DefaultHomepage = *p.DefaultHomepage
 	}

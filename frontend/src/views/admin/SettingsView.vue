@@ -6135,7 +6135,6 @@
 			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ localText('集中控制用户端入口、排行榜标签及其接口访问。', 'Control user entries, leaderboard tabs, and API access.') }}</p>
 		  </div>
 		  <div class="grid gap-x-8 gap-y-5 p-6 md:grid-cols-2">
-			<div class="flex items-center justify-between gap-4"><span class="text-sm font-medium">{{ localText('显示用量查询入口', 'Show usage query entry') }}</span><Toggle v-model="form.usage_query_enabled" /></div>
 			<component
 			  v-for="panel in customSettingsPanelsFor('entry-switches')"
 			  :is="panel.component"
@@ -8755,7 +8754,6 @@ const form = reactive<SettingsForm>({
   subscription_expiry_notify_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [] as NotifyEmailEntry[],
-	usage_query_enabled: true,
   // Channel Monitor feature switch
   channel_monitor_enabled: true,
   channel_monitor_default_interval_seconds: 60,
@@ -10306,7 +10304,6 @@ async function saveSettings() {
       account_quota_notify_emails: (
         form.account_quota_notify_emails || []
       ).filter((e) => e.email.trim() !== ""),
-      usage_query_enabled: form.usage_query_enabled,
       // Channel Monitor feature switch
       channel_monitor_enabled: form.channel_monitor_enabled,
       channel_monitor_default_interval_seconds:

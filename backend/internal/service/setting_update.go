@@ -433,8 +433,13 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 
 	updates[SettingKeyAllowUserViewErrorRequests] = strconv.FormatBool(settings.AllowUserViewErrorRequests)
-	if err := appendCodeFormatUpdates(updates, settings.CodeFormatSettings); err != nil {
-		return nil, infraerrors.BadRequest("INVALID_CODE_FORMAT_SETTINGS", err.Error())
+	// Code-format persistence is owned by the optional Overlay settings mount.
+	// Preserve existing values when this generic core update does not carry an
+	// explicit code-format payload.
+	if settings.CodeFormatSettings != (CodeFormatSettings{}) {
+		if err := appendCodeFormatUpdates(updates, settings.CodeFormatSettings); err != nil {
+			return nil, infraerrors.BadRequest("INVALID_CODE_FORMAT_SETTINGS", err.Error())
+		}
 	}
 
 	return updates, nil

@@ -4,8 +4,18 @@ import { activityNavigation } from '../navigation'
 import { activityRoutes } from '../routes'
 
 describe('activity module route and navigation contracts', () => {
-  it('owns the stable check-in, leaderboard, and red-packet URLs', () => {
+  it('owns the stable usage, check-in, leaderboard, and red-packet URLs', () => {
     expect(activityRoutes).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        path: '/key-usage',
+        name: 'KeyUsage',
+        meta: expect.objectContaining({ requiresAuth: false, requiresFeature: 'usage_query_enabled' }),
+      }),
+      expect.objectContaining({
+        path: '/usage',
+        name: 'Usage',
+        meta: expect.objectContaining({ requiresAuth: true, requiresFeature: 'usage_query_enabled' }),
+      }),
       expect.objectContaining({
         path: '/checkin',
         name: 'Checkin',
@@ -46,6 +56,7 @@ describe('activity module route and navigation contracts', () => {
 
   it('keeps the activity menu positions in the module contract', () => {
     expect(activityNavigation).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: '/usage', slot: 'after-batch-image' }),
       expect.objectContaining({ path: '/checkin', slot: 'after-affiliate' }),
       expect.objectContaining({ path: '/redpacket', slot: 'after-transfer' }),
       expect.objectContaining({ path: '/leaderboard', slot: 'after-transfer' }),

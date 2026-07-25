@@ -22,6 +22,7 @@ import zhLanding from '../locales/zh/landing'
 import zhMisc from '../locales/zh/misc'
 import en from '../locales/en'
 import zh from '../locales/zh'
+import { customAdminLocaleMessages } from '@/custom/locales'
 import { activityLocaleMessages } from '@/custom/modules/activity/locales'
 import { gameHallLocaleMessages } from '@/custom/modules/game-hall/locales'
 import { walletExtensionLocaleMessages } from '@/custom/modules/wallet-extension/locales'
@@ -109,6 +110,18 @@ describe.each(Object.keys(roots))('locale %s spread assembly', (locale) => {
     const walletExtension = walletExtensionLocaleMessages[locale as keyof typeof walletExtensionLocaleMessages]
 
     expect(messages).toMatchObject(walletExtension)
+  })
+
+  it('deeply assembles custom admin fragments without replacing upstream settings', () => {
+    const messages = locale === 'zh' ? zh : en
+    const fragments = customAdminLocaleMessages[locale as keyof typeof customAdminLocaleMessages]
+
+    expect(messages.admin).toMatchObject(fragments[0])
+    expect(messages.admin).toMatchObject(fragments[1])
+    expect(messages.admin.settings.tabs).toMatchObject({
+      general: locale === 'zh' ? '通用设置' : 'General',
+      balanceFeatures: locale === 'zh' ? '余额功能' : 'Balance Features',
+    })
   })
 
   it('admin modules have no overlapping top-level keys', () => {
