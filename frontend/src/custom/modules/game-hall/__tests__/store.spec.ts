@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { useGameHallStore } from '@/stores/gameHall'
-import { exchangeGameBalance, getGameHallStatus, playGame } from '@/api/gameHall'
+import { useGameHallStore } from '../store'
+import { exchangeGameBalance, getGameHallStatus, playGame } from '../api'
 
-vi.mock('@/api/gameHall', () => ({
+vi.mock('../api', () => ({
   createGameHallIdempotencyKey: vi.fn((scope: string) => `${scope}-stable-key`),
   getGameHallStatus: vi.fn(),
   exchangeGameBalance: vi.fn(),
