@@ -22,7 +22,11 @@ import zhCommon from '../locales/zh/common'
 import zhDashboard from '../locales/zh/dashboard'
 import zhLanding from '../locales/zh/landing'
 import zhMisc from '../locales/zh/misc'
+import en from '../locales/en'
+import zh from '../locales/zh'
+import { activityLocaleMessages } from '@/custom/modules/activity/locales'
 import { gameHallLocaleMessages } from '@/custom/modules/game-hall/locales'
+import { walletExtensionLocaleMessages } from '@/custom/modules/wallet-extension/locales'
 
 // locales/{zh,en}/index.ts 与 admin/index.ts 使用对象展开聚合各域模块，
 // 展开模块之间若出现同名顶层键会静默覆盖。本测试将该风险固化为显式失败。
@@ -51,7 +55,9 @@ const roots: Record<string, Modules> = {
     dashboard: zhDashboard,
     misc: zhMisc,
     balanceFeatures: zhBalanceFeatures,
+    activity: activityLocaleMessages.zh,
     gameHall: gameHallLocaleMessages.zh,
+    walletExtension: walletExtensionLocaleMessages.zh,
   },
   en: {
     landing: enLanding,
@@ -59,7 +65,9 @@ const roots: Record<string, Modules> = {
     dashboard: enDashboard,
     misc: enMisc,
     balanceFeatures: enBalanceFeatures,
+    activity: activityLocaleMessages.en,
     gameHall: gameHallLocaleMessages.en,
+    walletExtension: walletExtensionLocaleMessages.en,
   }
 }
 
@@ -91,6 +99,20 @@ describe.each(Object.keys(roots))('locale %s spread assembly', (locale) => {
     for (const [name, mod] of Object.entries(roots[locale])) {
       expect(Object.keys(mod), `module ${name} must not define "admin"`).not.toContain('admin')
     }
+  })
+
+  it('assembles the activity fragment at its existing translation paths', () => {
+    const messages = locale === 'zh' ? zh : en
+    const activity = activityLocaleMessages[locale as keyof typeof activityLocaleMessages]
+
+    expect(messages).toMatchObject(activity)
+  })
+
+  it('assembles the wallet extension fragment at its existing translation paths', () => {
+    const messages = locale === 'zh' ? zh : en
+    const walletExtension = walletExtensionLocaleMessages[locale as keyof typeof walletExtensionLocaleMessages]
+
+    expect(messages).toMatchObject(walletExtension)
   })
 
   it('admin modules have no overlapping top-level keys', () => {

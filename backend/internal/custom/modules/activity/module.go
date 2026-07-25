@@ -14,6 +14,8 @@ type Status string
 const (
 	// StatusContractOnly means the module exposes dependency contracts but no runtime behavior yet.
 	StatusContractOnly Status = "contract_only"
+	// StatusOperational means the module owns active routes and runtime workers.
+	StatusOperational Status = "operational"
 )
 
 // Dependency identifies a core capability required by an Overlay module.
@@ -42,7 +44,7 @@ type Manifest struct {
 var Metadata = Manifest{
 	ID:      ModuleID,
 	Version: ModuleVersion,
-	Status:  StatusContractOnly,
+	Status:  StatusOperational,
 	Dependencies: []Dependency{
 		DependencyAccount,
 		DependencyBalance,

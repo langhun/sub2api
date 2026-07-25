@@ -23,6 +23,7 @@ type AuditWriter interface {
 // InvitationCodeRequest describes an invitation reward generated for a blind-box delivery.
 type InvitationCodeRequest struct {
 	UserID         int64
+	Code           string
 	IdempotencyKey string
 	ExpiresAt      *time.Time
 }

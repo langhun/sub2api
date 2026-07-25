@@ -207,8 +207,8 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import RewardDeliveryOpsPanel from '@/components/admin/RewardDeliveryOpsPanel.vue'
-import { blindboxAPI, type PrizeItem } from '@/api/admin/blindbox'
+import RewardDeliveryOpsPanel from './RewardDeliveryOpsPanel.vue'
+import { blindboxAPI, type PrizeItem } from '@/custom/modules/activity/api/admin/blindbox'
 import * as groupAPI from '@/api/admin/groups'
 
 const props = defineProps<{

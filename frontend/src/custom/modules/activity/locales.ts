@@ -1,0 +1,66 @@
+export const activityLocaleMessages = {
+  en: {
+    checkin: {
+      title: 'Daily Check-in', checked: 'Checked in today', todayReward: 'Earned ${amount} today', streakDays: '{days}-day streak',
+      rangeHint: 'Reward range ${min} - ${max}', luckTitle: 'Lucky Check-in', luckButton: 'Confirm lucky check-in',
+      luckSuccess: '{multiplier}x multiplier, earned ${amount}', luckLoss: '{multiplier}x multiplier, lost ${amount}', luckEven: '1.00x multiplier, no gain or loss',
+      betAmount: 'Bet amount', betAmountPlaceholder: 'Enter an amount', multiplierRange: 'Multiplier range ${min}x - ${max}x',
+      success: 'Check-in successful!', statusLoadFailed: 'Could not load check-in status', actionFailed: 'Check-in failed. Review the error and try again.',
+      checkinType: 'Check-in type', normalCheckin: 'Normal check-in', luckCheckin: 'Lucky check-in',
+      blindboxCommon: 'Common', blindboxRare: 'Rare', blindboxEpic: 'Epic', blindboxLegendary: 'Legendary',
+      blindboxBalanceReward: 'Balance +${value}', blindboxConcurrencyReward: 'Concurrency +{value}', blindboxSubscriptionReward: '{days}-day subscription',
+      blindboxInvitationReward: 'Invitation code x1', blindboxInviteCode: 'Your invitation code', blindboxHistory: 'Blind-box prizes', blindboxHistoryDesc: 'Prizes earned from check-in blind boxes', blindboxDays: ' days',
+      page: {
+        description: 'Daily rewards, blind-box prizes, and account overview', balance: 'Balance', streak: 'Check-in streak', days: ' days', concurrency: 'Concurrency', blindboxCount: 'Blind boxes',
+        noBlindbox: 'No blind-box prizes yet', todayResult: "Today's check-in", todayReward: 'Reward', todayMultiplier: 'Multiplier', todayBlindbox: 'Blind box',
+        todayNormal: 'Normal check-in', todayLuck: 'Lucky check-in', todayNoResult: 'Not checked in today', rarityBreakdown: 'Rarity breakdown', blindboxInfo: 'Blind-box rules',
+        triggerType: 'Trigger', triggerTotal: 'Total check-ins', triggerStreak: 'Check-in streak', triggerInterval: 'Interval',
+        blindboxNextIn: '{days} days until the next blind box', blindboxNextCycle: 'Triggers every {interval} consecutive days', calendarTitle: 'Check-in calendar',
+      },
+    },
+    leaderboard: {
+      title: 'Leaderboard', subtitle: 'Explore site activity using consistent ranking rules', empty: 'No ranking data', streakDays: '{days} days', rank: 'Rank {rank}', daysValue: '{value} days', loadFailed: 'Could not load the leaderboard. Try again.', privacyNotice: 'Display names follow the site privacy policy. Rankings are for on-site activity only.',
+      balanceSubtitle: '{count} total check-ins', consumptionSubtitle: '{count} requests', checkinSubtitle: '{total} check-ins · Latest {date} · Earned ${reward}', transferSubtitle: '{count} successful transfers',
+      filterLabel: 'Leaderboard filters', periodFilterLabel: 'Ranking period', distributionTitle: '{board} distribution', distributionHint: 'Values and shares are calculated from the current page', pageTotal: 'Page total', listedUsers: 'Users', currentPageUsers: '{count} on this page', chartHint: 'Hover a chart segment to view its user, amount, and share', rankingTitle: 'Ranking details', currentPage: 'Page {page}', others: 'Other users', noBoards: 'No leaderboards available', noBoardsHint: 'No leaderboard has been enabled yet. Please check again later.',
+      distributionNames: { balance: 'Balance', consumption: 'Consumption', checkin: 'Check-in', transfer: 'Transfer' }, distributionHints: { balance: 'View the amount share of users on the balance leaderboard', consumption: 'View the amount share of all consumers in the current period', checkin: 'View the streak share of users on the check-in leaderboard', transfer: 'View the amount share of all senders in the current period' }, summaryHeaders: { balance: 'Amount', consumption: 'Total amount', checkin: 'Total days', transfer: 'Total amount' },
+      columns: { user: 'User', share: 'Share' }, activityHeaders: { balance: 'Check-ins', consumption: 'Requests', checkin: 'Total check-ins', transfer: 'Transfers' }, valueHeaders: { balance: 'Balance', consumption: 'Spend', checkin: 'Streak', transfer: 'Amount sent' },
+      tabs: { balance: 'Balance', consumption: 'Consumption', checkin: 'Check-in', transfer: 'Transfers' }, periods: { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' },
+    },
+    redpacket: {
+      title: 'Red Packet Center', description: 'Send, claim, and share the joy', create: 'Send packet', createHint: 'Send a balance packet to a friend', claim: 'Claim packet', claimHint: 'Enter a code to claim a packet', myPackets: 'My packets', sent: 'Sent', received: 'Claimed', sentHistoryHint: 'Review remaining portions, amounts, and expiry', totalAmount: 'Total amount', count: 'Portions', type: 'Distribution', equal: 'Equal packet', equalHint: 'Every portion has the same amount', random: 'Lucky packet', randomHint: 'The server randomly allocates each portion', memo: 'Message', memoPlaceholder: 'Best wishes', perPacket: 'Estimated per portion', confirmTitle: 'Confirm packet', confirmMessage: 'Send {count} portions totaling {amount}?', createdTitle: 'Packet created', shareHint: 'Share this code so another user can claim it.', createFailed: 'Could not create the packet. Check the amount and count.', claimTitle: 'Enter packet code', code: 'Packet code', codePlaceholder: 'Enter packet code', claimSuccess: 'Claimed successfully', claimFailed: 'Could not claim. Check the code and packet status.', historyFailed: 'Could not load packet history', detailFailed: 'Could not load packet details', claimRecords: 'Claims', bestLuck: 'Best luck', empty: 'No packet records', remaining: '{remaining}/{total} portions left', detailTitle: 'Packet details', remainingAmount: 'Remaining amount', expiresAt: 'Expires', progress: 'Claim progress', validUntil: 'Valid until {date}', status: { active: 'Active', expired: 'Expired', exhausted: 'Claimed' },
+    },
+    activityErrors: { featureDisabled: 'This feature is currently unavailable', insufficientBalance: 'Insufficient available balance', limitExceeded: 'The current amount or request limit was exceeded', transferDailyLimit: 'The daily transfer amount limit was exceeded', transferDailyCount: 'No transfers remain today', transferSelf: 'You cannot transfer to yourself', transferAmountInvalid: 'The transfer amount is outside the allowed range', receiverNotFound: 'No eligible recipient was found', alreadyClaimed: 'You already claimed this packet', redpacketExpired: 'This packet has expired', redpacketExhausted: 'This packet has been fully claimed', redpacketNotFound: 'Packet code not found', cannotClaimOwn: 'You cannot claim your own packet', duplicateRequest: 'This request is already processing or completed' },
+  },
+  zh: {
+    checkin: {
+      title: '每日签到', checked: '今日已签到', todayReward: '今日获得 ${amount}', streakDays: '连续 {days} 天',
+      rangeHint: '奖励范围 ${min} - ${max}', luckTitle: '运气签到', luckButton: '运气签到',
+      luckSuccess: '倍率 ${multiplier}x，获得 ${amount}', luckLoss: '倍率 ${multiplier}x，失去 ${amount}', luckEven: '倍率 1.00x，不赚不赔',
+      betAmount: '下注金额', betAmountPlaceholder: '输入下注金额', multiplierRange: '倍率范围 ${min}x - ${max}x',
+      success: '签到成功！', statusLoadFailed: '签到状态加载失败', actionFailed: '签到失败，请检查错误后重试',
+      checkinType: '签到类型', normalCheckin: '普通签到', luckCheckin: '运气签到',
+      blindboxCommon: '普通', blindboxRare: '稀有', blindboxEpic: '史诗', blindboxLegendary: '传说',
+      blindboxBalanceReward: '余额 +${value}', blindboxConcurrencyReward: '并发 +{value}', blindboxSubscriptionReward: '{days} 天订阅体验',
+      blindboxInvitationReward: '邀请码 x1', blindboxInviteCode: '您的邀请码', blindboxHistory: '盲盒奖品', blindboxHistoryDesc: '签到盲盒获得的历史奖品', blindboxDays: '天',
+      page: {
+        description: '每日签到奖励、盲盒奖品和账户概览', balance: '余额', streak: '连续签到', days: '天', concurrency: '并发', blindboxCount: '盲盒',
+        noBlindbox: '还没有盲盒奖品，坚持签到吧', todayResult: '今日签到', todayReward: '奖励', todayMultiplier: '倍率', todayBlindbox: '盲盒',
+        todayNormal: '普通签到', todayLuck: '运气签到', todayNoResult: '今日尚未签到', rarityBreakdown: '稀有度分布', blindboxInfo: '盲盒规则',
+        triggerType: '触发方式', triggerTotal: '累计签到', triggerStreak: '连续签到', triggerInterval: '触发间隔',
+        blindboxNextIn: '距离下次盲盒还需 {days} 天', blindboxNextCycle: '每 {interval} 天连续签到触发一次盲盒', calendarTitle: '签到日历',
+      },
+    },
+    leaderboard: {
+      title: '排行榜', subtitle: '按统一统计口径查看站内活跃排行', empty: '暂无榜单数据', streakDays: '{days} 天', rank: '第 {rank} 名', daysValue: '{value} 天', loadFailed: '排行榜加载失败，请重试', privacyNotice: '榜单昵称已按站点隐私规则处理，数据仅用于站内活动展示。',
+      balanceSubtitle: '累计签到 {count} 次', consumptionSubtitle: '{count} 次请求', checkinSubtitle: '累计 {total} 次 · 最近 {date} · 获得 ${reward}', transferSubtitle: '成功转账 {count} 次',
+      filterLabel: '榜单筛选', periodFilterLabel: '统计周期', distributionTitle: '{board}分布', distributionHint: '基于当前页上榜数据计算金额与占比', pageTotal: '当前页总值', listedUsers: '用户数', currentPageUsers: '当前页 {count} 人', chartHint: '悬停圆环切片可查看用户、金额和占比', rankingTitle: '排行明细', currentPage: '第 {page} 页', others: '其他用户', noBoards: '暂无可用榜单', noBoardsHint: '管理员尚未开放任何排行榜，请稍后再试。',
+      distributionNames: { balance: '余额', consumption: '消费', checkin: '签到', transfer: '转账' }, distributionHints: { balance: '查看余额排行用户的金额占比', consumption: '查看当前周期所有消费用户的金额占比', checkin: '查看签到排行用户的连续天数占比', transfer: '查看当前周期所有转账用户的金额占比' }, summaryHeaders: { balance: '金额', consumption: '总金额', checkin: '总天数', transfer: '总金额' },
+      columns: { user: '用户', share: '占比' }, activityHeaders: { balance: '签到', consumption: '请求', checkin: '累计签到', transfer: '转账' }, valueHeaders: { balance: '余额', consumption: '消费金额', checkin: '连续天数', transfer: '转出金额' },
+      tabs: { balance: '余额排行', consumption: '消耗排行', checkin: '签到排行', transfer: '转账排行' }, periods: { daily: '日榜', weekly: '周榜', monthly: '月榜' },
+    },
+    redpacket: {
+      title: '红包中心', description: '发红包，领红包，分享快乐', create: '发红包', createHint: '发送余额红包给好友', claim: '领红包', claimHint: '输入口令领取红包', myPackets: '我的红包', sent: '我发出的', received: '我领取的', sentHistoryHint: '查看红包剩余份数、金额和有效期', totalAmount: '总金额', count: '红包份数', type: '分配方式', equal: '等额红包', equalHint: '每份金额相同', random: '拼手气红包', randomHint: '由服务端随机分配每份金额', memo: '祝福语', memoPlaceholder: '恭喜发财', perPacket: '预计每份', confirmTitle: '确认发红包', confirmMessage: '将发出 {count} 份、共 {amount} 的红包，确认继续？', createdTitle: '红包已创建', shareHint: '分享以下红包口令，对方即可领取。', createFailed: '红包创建失败，请检查金额和份数', claimTitle: '输入红包口令', code: '红包口令', codePlaceholder: '输入红包口令', claimSuccess: '领取成功', claimFailed: '领取失败，请核对口令或红包状态', historyFailed: '红包记录加载失败', detailFailed: '红包详情加载失败', claimRecords: '领取记录', bestLuck: '手气最佳', empty: '暂无红包记录', remaining: '剩余 {remaining}/{total} 份', detailTitle: '红包详情', remainingAmount: '剩余金额', expiresAt: '过期时间', progress: '领取进度', validUntil: '有效期至 {date}', status: { active: '领取中', expired: '已过期', exhausted: '已领完' },
+    },
+    activityErrors: { featureDisabled: '该功能当前未开放', insufficientBalance: '可用余额不足', limitExceeded: '已超过当前额度或次数限制', transferDailyLimit: '已超过今日转账额度', transferDailyCount: '今日转账次数已用完', transferSelf: '不能向自己转账', transferAmountInvalid: '转账金额不符合当前限制', receiverNotFound: '未找到可转账的接收方', alreadyClaimed: '您已经领取过该红包', redpacketExpired: '红包已过期', redpacketExhausted: '红包已领完', redpacketNotFound: '红包口令不存在', cannotClaimOwn: '不能领取自己发出的红包', duplicateRequest: '请求正在处理或已提交，请勿重复操作' },
+  },
+} as const

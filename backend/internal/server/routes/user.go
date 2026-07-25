@@ -114,16 +114,6 @@ func RegisterUserRoutes(
 		}
 
 		// 用户订阅
-		checkin := authenticated.Group("/checkin")
-		{
-			checkin.POST("", h.Checkin.Checkin)
-			checkin.POST("/luck", h.Checkin.LuckCheckin)
-			checkin.GET("/status", h.Checkin.GetStatus)
-			checkin.GET("/calendar", h.Checkin.GetCalendar)
-			checkin.GET("/blindbox/records", h.Checkin.GetBlindboxRecords)
-		}
-
-		// 用户订阅
 		subscriptions := authenticated.Group("/subscriptions")
 		{
 			subscriptions.GET("", h.Subscription.List)
@@ -137,25 +127,6 @@ func RegisterUserRoutes(
 		{
 			monitors.GET("", h.ChannelMonitor.List)
 			monitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
-		}
-
-		transfer := authenticated.Group("/transfer")
-		{
-			transfer.POST("", h.Transfer.Transfer)
-			transfer.GET("/receiver", h.Transfer.ResolveReceiver)
-			transfer.GET("/receivers", h.Transfer.SearchReceivers)
-			transfer.POST("/validate", h.Transfer.ValidateTransfer)
-			transfer.GET("/history", h.Transfer.GetHistory)
-			transfer.GET("/stats", h.Transfer.GetStats)
-			transfer.GET("/leaderboard", h.Transfer.GetLeaderboard)
-		}
-
-		redpacket := authenticated.Group("/redpacket")
-		{
-			redpacket.POST("", h.Transfer.CreateRedPacket)
-			redpacket.POST("/claim", h.Transfer.ClaimRedPacket)
-			redpacket.GET("/my", h.Transfer.GetMyRedPackets)
-			redpacket.GET("/:id", h.Transfer.GetRedPacketDetail)
 		}
 
 	}

@@ -2,8 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
-import LeaderboardView from '@/views/LeaderboardView.vue'
-import type { LeaderboardData } from '@/api/leaderboard'
+import LeaderboardView from '@/custom/modules/activity/views/LeaderboardView.vue'
+import type { LeaderboardData } from '@/custom/modules/activity/api/leaderboard'
 
 const api = vi.hoisted(() => ({
   balance: vi.fn(),
@@ -25,7 +25,7 @@ const appStore = vi.hoisted(() => ({
   fetchPublicSettings: vi.fn(),
 }))
 
-vi.mock('@/api/leaderboard', () => ({
+vi.mock('@/custom/modules/activity/api/leaderboard', () => ({
   leaderboardAPI: {
     getBalanceLeaderboard: api.balance,
     getConsumptionLeaderboard: api.consumption,

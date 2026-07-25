@@ -7896,7 +7896,7 @@ import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
-import BlindboxPrizePoolCard from "@/components/admin/BlindboxPrizePoolCard.vue";
+import BlindboxPrizePoolCard from "@/custom/modules/activity/admin/components/BlindboxPrizePoolCard.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {

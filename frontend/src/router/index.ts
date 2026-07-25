@@ -178,24 +178,6 @@ const routes: RouteRecordRaw[] = [
       title: 'Legal Document'
     }
   },
-  {
-    path: '/leaderboard',
-    name: 'Leaderboard',
-    component: () => import('@/views/LeaderboardView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Leaderboard',
-	  titleKey: 'leaderboard.title',
-	  requiresFeature: 'leaderboard_enabled',
-	  requiresAnyFeatureGroups: [
-	    ['leaderboard_balance_enabled'],
-	    ['leaderboard_consumption_enabled'],
-	    ['leaderboard_checkin_enabled'],
-	    ['leaderboard_transfer_enabled', 'transfer_enabled']
-	  ]
-    }
-  },
-
   // ==================== User Routes ====================
   {
     path: '/dashboard',
@@ -269,42 +251,6 @@ const routes: RouteRecordRaw[] = [
       title: 'Affiliate',
       titleKey: 'affiliate.title',
       descriptionKey: 'affiliate.description'
-    }
-  },
-  {
-    path: '/transfer',
-    name: 'BalanceTransfer',
-    component: () => import('@/views/user/TransferView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Balance Transfer',
-	  titleKey: 'nav.transfer',
-	  requiresFeature: 'transfer_enabled'
-    }
-  },
-  {
-    path: '/transfer/leaderboard',
-    name: 'TransferLeaderboard',
-    component: () => import('@/views/LeaderboardView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Transfer Leaderboard',
-	  titleKey: 'nav.transferLeaderboard',
-	  requiresAllFeatures: ['transfer_enabled', 'leaderboard_enabled', 'leaderboard_transfer_enabled']
-    }
-  },
-  {
-    path: '/redpacket',
-    name: 'RedPacket',
-    component: () => import('@/views/user/RedPacketView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Red Packet',
-	  titleKey: 'nav.redpacket',
-	  requiresFeature: 'redpacket_enabled'
     }
   },
   {

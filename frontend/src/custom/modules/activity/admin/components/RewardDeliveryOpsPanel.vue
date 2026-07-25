@@ -143,7 +143,7 @@ import {
   rewardDeliveriesAPI,
   type RewardDelivery,
   type RewardDeliveryStatus,
-} from '@/api/admin/rewardDeliveries'
+} from '@/custom/modules/activity/api/admin/rewardDeliveries'
 
 const { t, locale } = useI18n()
 const deliveries = ref<RewardDelivery[]>([])

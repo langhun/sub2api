@@ -33,9 +33,9 @@ import adminPaymentAPI from './payment'
 import affiliatesAPI from './affiliates'
 import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
-import blindboxAPI from './blindbox'
+import blindboxAPI from '@/custom/modules/activity/api/admin/blindbox'
 import adminTransferAPI from './transfer'
-import rewardDeliveriesAPI from './rewardDeliveries'
+import rewardDeliveriesAPI from '@/custom/modules/activity/api/admin/rewardDeliveries'
 import auditAPI from './audit'
 
 /**
