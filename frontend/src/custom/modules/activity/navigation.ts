@@ -15,6 +15,17 @@ const CheckinIcon = {
   ),
 }
 
+const UsageIcon = {
+  render: () => h(
+    'svg',
+    { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+    [
+      h('path', { d: 'M4.5 19.5V4.5m0 15h15', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+      h('path', { d: 'm7.5 15 3-3 2.25 1.5L18 8.25', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+    ],
+  ),
+}
+
 const RedPacketIcon = {
   render: () => h(
     'svg',
@@ -45,6 +56,15 @@ function isLeaderboardEnabled() {
 }
 
 export const activityNavigation: readonly CustomNavigationItem[] = [
+  {
+    path: '/usage',
+    label: 'Usage',
+    labelKey: 'nav.usage',
+    icon: UsageIcon,
+    hideInSimpleMode: true,
+    slot: 'after-batch-image',
+    featureFlag: makeSidebarFlag(activityFeatureFlags.usageQuery),
+  },
   {
     path: '/checkin',
     label: 'Check-in',

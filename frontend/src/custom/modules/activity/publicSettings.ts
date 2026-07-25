@@ -1,4 +1,5 @@
 export const activityPublicSettingsDefaults = {
+  usage_query_enabled: true,
   checkin_enabled: false,
   checkin_luck_enabled: false,
   checkin_blindbox_enabled: false,

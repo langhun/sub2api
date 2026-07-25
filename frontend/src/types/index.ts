@@ -241,7 +241,6 @@ export interface PublicSettings {
   available_channels_enabled: boolean
   service_quota_enabled: boolean
 	affiliate_enabled: boolean
-	usage_query_enabled: boolean
   allow_user_view_error_requests?: boolean
 }
 

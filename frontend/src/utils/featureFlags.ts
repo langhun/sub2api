@@ -118,7 +118,6 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Affiliate',
   }),
-  usageQuery: defineFeatureFlag({ key: 'usage_query_enabled', mode: 'opt-out', label: 'Usage Query' }),
 } as const
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags
