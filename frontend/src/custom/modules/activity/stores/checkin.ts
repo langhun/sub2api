@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { checkinAPI, type CheckinStatus, type CheckinResult, type BlindboxResult } from '@/api/checkin'
-import { useAuthStore } from './auth'
+import { checkinAPI, type CheckinStatus, type CheckinResult, type BlindboxResult } from '@/custom/modules/activity/api/checkin'
+import { useAuthStore } from '@/stores/auth'
 
 export const useCheckinStore = defineStore('checkin', () => {
   const status = ref<CheckinStatus | null>(null)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCalendarDate, parseCalendarDate } from '@/utils/checkinCalendar'
+import { formatCalendarDate, parseCalendarDate } from '@/custom/modules/activity/utils/checkinCalendar'
 
 describe('check-in calendar local dates', () => {
   it('round-trips a date without converting it through UTC', () => {

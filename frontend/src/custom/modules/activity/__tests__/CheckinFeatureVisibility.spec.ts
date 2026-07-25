@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
-import CheckinView from '@/views/user/CheckinView.vue'
+import CheckinView from '@/custom/modules/activity/views/CheckinView.vue'
 
 const api = vi.hoisted(() => ({
   getBlindboxRecords: vi.fn(),
@@ -45,13 +45,13 @@ const checkinStore = vi.hoisted(() => ({
   clearActionError: vi.fn(),
 }))
 
-vi.mock('@/api/checkin', () => ({
+vi.mock('@/custom/modules/activity/api/checkin', () => ({
   getBlindboxRecords: api.getBlindboxRecords,
   getCheckinCalendar: api.getCheckinCalendar,
 }))
 vi.mock('@/stores/app', () => ({ useAppStore: () => appStore }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: { balance: 10, concurrency: 2 } }) }))
-vi.mock('@/stores/checkin', () => ({ useCheckinStore: () => checkinStore }))
+vi.mock('@/custom/modules/activity/stores/checkin', () => ({ useCheckinStore: () => checkinStore }))
 
 const AppLayoutStub = defineComponent({ template: '<main><slot /></main>' })
 const BaseDialogStub = defineComponent({

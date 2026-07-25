@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 import { customNavigation, customRoutes } from '../registry'
+import { activityNavigation } from '../modules/activity/navigation'
+import { activityRoutes } from '../modules/activity/routes'
 import { brandHomeRoutes } from '../modules/brand-home/routes'
 import { gameHallNavigation } from '../modules/game-hall/navigation'
 import { gameHallRoutes } from '../modules/game-hall/routes'
@@ -15,7 +17,9 @@ const sidebarSource = readFileSync(resolve(directory, '../../components/layout/A
 describe('custom overlay registry', () => {
   it('aggregates routes and navigation from custom modules', () => {
     expect(customRoutes).toEqual(expect.arrayContaining(brandHomeRoutes))
+    expect(customRoutes).toEqual(expect.arrayContaining(activityRoutes))
     expect(customRoutes).toEqual(expect.arrayContaining(gameHallRoutes))
+    expect(customNavigation).toEqual(expect.arrayContaining(activityNavigation))
     expect(customNavigation).toEqual(expect.arrayContaining(gameHallNavigation))
   })
 
@@ -25,7 +29,8 @@ describe('custom overlay registry', () => {
   })
 
   it('mounts custom navigation through the sidebar self-navigation builder', () => {
-    expect(sidebarSource).toContain('...customNavigation.map((item): NavItem => ({')
+    expect(sidebarSource).toContain('function buildCustomNavigationItems(')
+    expect(sidebarSource).toContain("...buildCustomNavigationItems('after-affiliate')")
     expect(sidebarSource).toContain('label: item.labelKey ? t(item.labelKey) : item.label')
   })
 })

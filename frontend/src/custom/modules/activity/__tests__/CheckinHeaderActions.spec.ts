@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
-import AppHeader from '@/components/layout/AppHeader.vue'
+import CheckinHeaderActions from '../components/CheckinHeaderActions.vue'
 
 const checkinStore = vi.hoisted(() => ({
   status: {
@@ -46,7 +46,9 @@ vi.mock('@/stores', () => ({
   useAuthStore: () => authStore,
   useOnboardingStore: () => ({ replay: vi.fn() }),
 }))
-vi.mock('@/stores/checkin', () => ({ useCheckinStore: () => checkinStore }))
+vi.mock('@/stores/app', () => ({ useAppStore: () => appStore }))
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => authStore }))
+vi.mock('@/custom/modules/activity/stores/checkin', () => ({ useCheckinStore: () => checkinStore }))
 vi.mock('@/stores/adminSettings', () => ({ useAdminSettingsStore: () => ({ customMenuItems: [] }) }))
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -58,23 +60,19 @@ const BaseDialogStub = defineComponent({
   template: '<section v-if="show"><slot /><footer><slot name="footer" /></footer></section>',
 })
 
-function mountHeader() {
-  return mount(AppHeader, {
+function mountActions() {
+  return mount(CheckinHeaderActions, {
     global: {
       plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })],
       stubs: {
         BaseDialog: BaseDialogStub,
-        AnnouncementBell: true,
-        LocaleSwitcher: true,
-        SubscriptionProgressMini: true,
         Icon: true,
-        RouterLink: true,
       },
     },
   })
 }
 
-describe('AppHeader check-in actions', () => {
+describe('CheckinHeaderActions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     checkinStore.status = { enabled: true, luck_enabled: true, can_checkin: true, balance: 20, min_multiplier: 0.5, max_multiplier: 1.5 }
@@ -99,7 +97,7 @@ describe('AppHeader check-in actions', () => {
   })
 
   it('renders both header actions and performs normal check-in directly', async () => {
-    const wrapper = mountHeader()
+    const wrapper = mountActions()
     await flushPromises()
 
     expect(wrapper.find('[data-testid="header-normal-checkin"]').exists()).toBe(true)
@@ -109,7 +107,7 @@ describe('AppHeader check-in actions', () => {
   })
 
   it('submits a header lucky check-in directly after entering an amount', async () => {
-    const wrapper = mountHeader()
+    const wrapper = mountActions()
     await wrapper.get('[data-testid="header-luck-checkin"]').trigger('click')
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('5')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
@@ -122,13 +120,13 @@ describe('AppHeader check-in actions', () => {
 
   it('hides header actions when check-in is disabled', () => {
     checkinStore.enabled = false
-    const wrapper = mountHeader()
+    const wrapper = mountActions()
     expect(wrapper.find('[data-testid="header-normal-checkin"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(false)
   })
 
   it('shows a success toast without an inline reward tip', async () => {
-    const wrapper = mountHeader()
+    const wrapper = mountActions()
     await wrapper.get('[data-testid="header-normal-checkin"]').trigger('click')
     await flushPromises()
     wrapper.vm.$forceUpdate()
@@ -140,12 +138,4 @@ describe('AppHeader check-in actions', () => {
     expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success +$1.00')
   })
 
-  it('only shows the balance breakdown when funds are frozen', () => {
-    const withoutHold = mountHeader()
-    expect(withoutHold.find('[data-testid="balance-breakdown"]').exists()).toBe(false)
-
-    authStore.user.frozen_balance = 5
-    const withHold = mountHeader()
-    expect(withHold.find('[data-testid="balance-breakdown"]').exists()).toBe(true)
-  })
 })

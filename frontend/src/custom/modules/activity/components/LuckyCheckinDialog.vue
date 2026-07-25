@@ -56,9 +56,9 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import { useCheckinStore } from '@/stores/checkin'
+import { useCheckinStore } from '@/custom/modules/activity/stores/checkin'
 import { extractApiErrorMessage } from '@/utils/apiError'
-import type { CheckinResult } from '@/api/checkin'
+import type { CheckinResult } from '@/custom/modules/activity/api/checkin'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{

@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useCheckinStore } from '@/stores/checkin'
+import { useCheckinStore } from '@/custom/modules/activity/stores/checkin'
 
 const api = vi.hoisted(() => ({
   getCheckinStatus: vi.fn(),
@@ -8,7 +8,7 @@ const api = vi.hoisted(() => ({
   luckCheckin: vi.fn(),
 }))
 
-vi.mock('@/api/checkin', () => ({
+vi.mock('@/custom/modules/activity/api/checkin', () => ({
   checkinAPI: api,
 }))
 
