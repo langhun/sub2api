@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
-import GameHallView from '@/views/user/GameHallView.vue'
+import GameHallView from '@/custom/modules/game-hall/GameHallView.vue'
 
 const api = vi.hoisted(() => ({
   getGameTransactions: vi.fn(),
@@ -51,8 +51,8 @@ const { gameStore } = vi.hoisted(() => {
   }
 })
 
-vi.mock('@/api/gameHall', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/api/gameHall')>()
+vi.mock('@/custom/modules/game-hall/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/custom/modules/game-hall/api')>()
   return {
     ...actual,
     getGameTransactions: api.getGameTransactions,
@@ -60,7 +60,7 @@ vi.mock('@/api/gameHall', async (importOriginal) => {
   }
 })
 vi.mock('@/stores/app', () => ({ useAppStore: () => appStore }))
-vi.mock('@/stores/gameHall', () => ({ useGameHallStore: () => gameStore }))
+vi.mock('@/custom/modules/game-hall/store', () => ({ useGameHallStore: () => gameStore }))
 
 const AppLayoutStub = defineComponent({ template: '<main><slot /></main>' })
 const ConfirmDialogStub = defineComponent({
