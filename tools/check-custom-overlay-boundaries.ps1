@@ -52,8 +52,10 @@ function Get-OverlayBucket {
     if ($Path -like 'frontend/src/custom/*' -or $Path -like 'frontend/public/custom/*') { return 'custom-frontend' }
     if ($Path -like 'backend/ent/*') { return 'ent-generated-or-schema' }
     if ($Path -like 'backend/migrations/*_custom_*.sql' -or $Path -like 'backend/migrations/*_custom_*_test.go') { return 'custom-migration' }
+    if ($script:PublishedHistoryAllowlist.Contains($Path)) { return 'published-history' }
     if ($Path -like 'docs/*') { return 'documentation' }
     if ($script:IntegrationAllowlist.Contains($Path)) { return 'fixed-integration' }
+    if ($script:CleanupAllowlist.Contains($Path)) { return 'shared-cleanup' }
     if ($Path -like 'tools/check-custom-overlay-boundaries.*') { return 'boundary-gate' }
     return 'shared'
 }
@@ -161,6 +163,9 @@ $script:IntegrationAllowlist = [System.Collections.Generic.HashSet[string]]::new
     'backend/internal/handler/admin/setting_handler_custom_settings_test.go',
     'backend/internal/handler/dto/settings.go',
     'backend/internal/handler/wire.go',
+    'backend/internal/handler/gateway_handler.go',
+    'backend/internal/handler/gateway_handler_usage_settings_test.go',
+    'backend/internal/service/setting_service.go',
     'frontend/src/components/layout/AppHeader.vue',
     'frontend/src/components/layout/AppSidebar.vue',
     'frontend/src/components/layout/__tests__/AppSidebar.spec.ts',
@@ -173,7 +178,30 @@ $script:IntegrationAllowlist = [System.Collections.Generic.HashSet[string]]::new
     'frontend/src/router/index.ts',
     'frontend/src/router/meta.d.ts',
     'frontend/src/stores/__tests__/app.spec.ts',
-    'frontend/src/stores/app.ts'
+    'frontend/src/stores/app.ts',
+    'frontend/src/api/admin/settings.ts',
+    'frontend/src/types/index.ts',
+    'frontend/src/utils/featureFlags.ts',
+    'frontend/src/views/admin/SettingsView.vue'
+))
+$script:PublishedHistoryAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
+    'backend/migrations/187_move_game_hall_user_access.sql',
+    'backend/migrations/game_hall_migrations_regression_test.go'
+))
+$script:CleanupAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
+    'backend/internal/handler/admin/user_handler.go',
+    'backend/internal/handler/dto/types.go',
+    'backend/internal/repository/user_repo.go',
+    'backend/internal/service/admin_service.go',
+    'backend/internal/service/code_format_settings.go',
+    'backend/internal/service/code_format_settings_test.go',
+    'backend/internal/service/setting_parse.go',
+    'backend/internal/service/setting_public.go',
+    'backend/internal/service/setting_service_backend_mode_test.go',
+    'backend/internal/service/setting_service_platform_quota_test.go',
+    'backend/internal/service/setting_service_update_test.go',
+    'backend/internal/service/settings_view.go',
+    'frontend/src/components/admin/user/UserEditModal.vue'
 ))
 
 # rev-parse produces exactly one line. Do not index the scalar result: in

@@ -22,10 +22,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/check-custom-overlay-b
 
 The gate allows code under `backend/internal/custom/**`,
 `frontend/src/custom/**`, generated Ent files, custom-named migrations,
-documentation, and the reviewed fixed integration allowlist. Existing history
-migrations are preserved outside this gate's added-path allowance. A shared file is
-allowed only when the selected diff is deletion-only cleanup; added lines in a
-non-allowlisted shared path fail the gate.
+documentation, reviewed fixed integration points, and an exact published-history
+set. The reviewed cleanup set exists only for files whose net change removes old
+Overlay behavior but whose formatting makes Git report replacement lines. Any new
+business path outside these categories fails the gate.
 
 When no commits exist after the selected baseline, the script prints that the
 committed audit is not applicable rather than claiming a full pass. The
