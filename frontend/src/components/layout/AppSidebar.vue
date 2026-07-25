@@ -684,7 +684,6 @@ const flagLeaderboard = () => isFeatureFlagEnabled(FeatureFlags.leaderboard) && 
   || isFeatureFlagEnabled(FeatureFlags.leaderboardCheckin)
   || (isFeatureFlagEnabled(FeatureFlags.leaderboardTransfer) && isFeatureFlagEnabled(FeatureFlags.transfer))
 )
-const flagGameHall = makeSidebarFlag(FeatureFlags.gameHall)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
@@ -713,10 +712,12 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/checkin', label: t('nav.checkin'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagCheckin },
     { path: '/transfer', label: t('nav.transfer'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagTransfer },
     { path: '/redpacket', label: t('nav.redpacket'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagRedpacket },
-    { path: '/game-hall', label: t('nav.gameHall'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagGameHall },
     { path: '/leaderboard', label: t('nav.leaderboard'), icon: ChartIcon, hideInSimpleMode: true, featureFlag: flagLeaderboard },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
-    ...customNavigation,
+    ...customNavigation.map((item): NavItem => ({
+      ...item,
+      label: item.labelKey ? t(item.labelKey) : item.label,
+    })),
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
       label: item.label,

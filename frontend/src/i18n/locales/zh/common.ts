@@ -198,7 +198,6 @@ export default {
     checkin: '签到中心',
     transfer: '余额转账',
     redpacket: '红包中心',
-    gameHall: '娱乐大厅',
     leaderboard: '排行中心',
     transferLeaderboard: '转账排行',
     transferManage: '转账管理',

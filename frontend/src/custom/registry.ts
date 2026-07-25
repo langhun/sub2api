@@ -1,9 +1,12 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { brandHomeRoutes } from './modules/brand-home/routes'
+import { gameHallNavigation } from './modules/game-hall/navigation'
+import { gameHallRoutes } from './modules/game-hall/routes'
 
 export interface CustomNavigationItem {
   path: string
   label: string
+  labelKey?: string
   icon: unknown
   iconSvg?: string
   hideInSimpleMode?: boolean
@@ -15,6 +18,9 @@ export interface CustomNavigationItem {
 
 export const customRoutes: readonly RouteRecordRaw[] = [
   ...brandHomeRoutes,
+  ...gameHallRoutes,
 ]
 
-export const customNavigation: readonly CustomNavigationItem[] = []
+export const customNavigation: readonly CustomNavigationItem[] = [
+  ...gameHallNavigation,
+]

@@ -8,7 +8,7 @@ import {
   type GameExchangeResult,
   type GameHallStatus,
   type GamePlayResult,
-} from '@/api/gameHall'
+} from './api'
 
 export const useGameHallStore = defineStore('gameHall', () => {
   const status = ref<GameHallStatus | null>(null)

@@ -6,6 +6,7 @@ import enAdminOps from '../locales/en/admin/ops'
 import enAdminOverview from '../locales/en/admin/overview'
 import enAdminResources from '../locales/en/admin/resources'
 import enAdminSettings from '../locales/en/admin/settings'
+import enBalanceFeatures from '../locales/en/balanceFeatures'
 import enCommon from '../locales/en/common'
 import enDashboard from '../locales/en/dashboard'
 import enLanding from '../locales/en/landing'
@@ -16,10 +17,12 @@ import zhAdminOps from '../locales/zh/admin/ops'
 import zhAdminOverview from '../locales/zh/admin/overview'
 import zhAdminResources from '../locales/zh/admin/resources'
 import zhAdminSettings from '../locales/zh/admin/settings'
+import zhBalanceFeatures from '../locales/zh/balanceFeatures'
 import zhCommon from '../locales/zh/common'
 import zhDashboard from '../locales/zh/dashboard'
 import zhLanding from '../locales/zh/landing'
 import zhMisc from '../locales/zh/misc'
+import { gameHallLocaleMessages } from '@/custom/modules/game-hall/locales'
 
 // locales/{zh,en}/index.ts 与 admin/index.ts 使用对象展开聚合各域模块，
 // 展开模块之间若出现同名顶层键会静默覆盖。本测试将该风险固化为显式失败。
@@ -42,8 +45,22 @@ function collisions(modules: Modules): string[] {
 }
 
 const roots: Record<string, Modules> = {
-  zh: { landing: zhLanding, common: zhCommon, dashboard: zhDashboard, misc: zhMisc },
-  en: { landing: enLanding, common: enCommon, dashboard: enDashboard, misc: enMisc }
+  zh: {
+    landing: zhLanding,
+    common: zhCommon,
+    dashboard: zhDashboard,
+    misc: zhMisc,
+    balanceFeatures: zhBalanceFeatures,
+    gameHall: gameHallLocaleMessages.zh,
+  },
+  en: {
+    landing: enLanding,
+    common: enCommon,
+    dashboard: enDashboard,
+    misc: enMisc,
+    balanceFeatures: enBalanceFeatures,
+    gameHall: gameHallLocaleMessages.en,
+  }
 }
 
 const admins: Record<string, Modules> = {

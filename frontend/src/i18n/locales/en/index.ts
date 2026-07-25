@@ -5,6 +5,7 @@ import batchImage from './batchImage'
 import admin from './admin'
 import misc from './misc'
 import balanceFeatures from './balanceFeatures'
+import { gameHallLocaleMessages } from '@/custom/modules/game-hall/locales'
 
 export default {
   ...landing,
@@ -14,4 +15,5 @@ export default {
   admin,
   ...misc,
   ...balanceFeatures,
+  ...gameHallLocaleMessages.en,
 }
