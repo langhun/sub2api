@@ -93,34 +93,7 @@
           </div>
         </div>
 
-        <div v-if="user && checkinStore.enabled" class="hidden items-center gap-2 sm:flex">
-          <template v-if="checkinStore.canCheckin">
-            <button
-              v-if="checkinStore.normalEnabled"
-              type="button"
-              data-testid="header-normal-checkin"
-              :disabled="checkinStore.loading"
-              class="flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
-              @click="submitHeaderNormalCheckin"
-            >
-              <Icon name="checkCircle" size="sm" />
-              {{ checkinStore.loading ? '...' : t('checkin.normalCheckin') }}
-            </button>
-            <button
-              v-if="checkinStore.luckEnabled"
-              type="button"
-              data-testid="header-luck-checkin"
-              :disabled="checkinStore.loading"
-              class="flex items-center gap-1.5 rounded-xl bg-purple-50 px-3 py-1.5 text-sm font-semibold text-purple-700 transition-colors hover:bg-purple-100 disabled:opacity-50 dark:bg-purple-900/20 dark:text-purple-300 dark:hover:bg-purple-900/30"
-              @click="openHeaderLuckDialog"
-            >
-              <Icon name="sparkles" size="sm" />
-              {{ t('checkin.luckCheckin') }}
-            </button>
-          </template>
-        </div>
-
-        <LuckyCheckinDialog :show="showHeaderLuckDialog" @close="showHeaderLuckDialog = false" @success="handleHeaderCheckinSuccess" />
+        <CheckinHeaderActions v-if="user" />
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
@@ -270,19 +243,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
-import { useCheckinStore } from '@/stores/checkin'
+import CheckinHeaderActions from '@/custom/modules/activity/components/CheckinHeaderActions.vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
-import LuckyCheckinDialog from '@/components/checkin/LuckyCheckinDialog.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
-import type { CheckinResult } from '@/api/checkin'
 import { userDisplayInitials, userDisplayName } from '@/utils/userDisplay'
 
 const router = useRouter()
@@ -292,7 +263,6 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
 const onboardingStore = useOnboardingStore()
-const checkinStore = useCheckinStore()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
@@ -307,7 +277,6 @@ const balanceAvailableText = computed(() => t('common.availableBalance') === 'co
 const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.frozenBalance' ? '冻结金额' : t('common.frozenBalance'))
 const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
 const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHeaderMoney(frozenBalance.value)}`)
-const showHeaderLuckDialog = ref(false)
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
@@ -379,43 +348,11 @@ function formatHeaderMoney(value: number) {
   return `$${value.toFixed(2)}`
 }
 
-async function submitHeaderNormalCheckin() {
-  const result = await checkinStore.doCheckin()
-  if (result) handleHeaderCheckinSuccess(result)
-}
-
-function openHeaderLuckDialog() {
-  showHeaderLuckDialog.value = true
-}
-
-function handleHeaderCheckinSuccess(result: CheckinResult) {
-  showHeaderLuckDialog.value = false
-  const reward = Number(result.reward_amount || 0)
-  const amount = Math.abs(reward).toFixed(2)
-  let detail = `${reward >= 0 ? '+' : '-'}$${amount}`
-
-  if (result.checkin_type === 'luck') {
-    const multiplier = Number(result.multiplier || 0).toFixed(2)
-    if (reward > 0) detail = t('checkin.luckSuccess', { multiplier, amount })
-    else if (reward < 0) detail = t('checkin.luckLoss', { multiplier, amount })
-    else detail = t('checkin.luckEven')
-  }
-
-  appStore.showSuccess(`${t('checkin.success')} ${detail}`)
-}
-
 function handleClickOutside(event: MouseEvent) {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
     closeDropdown()
   }
 }
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-  if (user.value && !checkinStore.status && !checkinStore.statusLoading) {
-    void checkinStore.fetchStatus()
-  }
-})
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)

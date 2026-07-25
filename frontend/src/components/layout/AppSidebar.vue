@@ -674,7 +674,6 @@ const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
-const flagCheckin = () => isFeatureFlagEnabled(FeatureFlags.checkin) || isFeatureFlagEnabled(FeatureFlags.checkinLuck)
 const flagTransfer = makeSidebarFlag(FeatureFlags.transfer)
 const flagRedpacket = makeSidebarFlag(FeatureFlags.redpacket)
 const flagUsageQuery = makeSidebarFlag(FeatureFlags.usageQuery)
@@ -693,6 +692,15 @@ const flagBatchImageAccess = () => canUseBatchImage.value
 //
 // 条目顺序：密钥 → 用量 → 可用渠道 → 渠道状态 → 订阅/支付 → 兑换/资料。
 // 可用渠道紧挨渠道状态之上，让用户"先看自己能用什么、再看对应状态"。
+function buildCustomNavigationItems(slot?: CustomNavigationItem['slot']): NavItem[] {
+  return customNavigation
+    .filter((item) => item.slot === slot)
+    .map((item): NavItem => ({
+      ...item,
+      label: item.labelKey ? t(item.labelKey) : item.label,
+    }))
+}
+
 function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   const items: NavItem[] = []
   if (withDashboard) {
@@ -709,15 +717,12 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
-    { path: '/checkin', label: t('nav.checkin'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagCheckin },
+    ...buildCustomNavigationItems('after-affiliate'),
     { path: '/transfer', label: t('nav.transfer'), icon: CreditCardIcon, hideInSimpleMode: true, featureFlag: flagTransfer },
     { path: '/redpacket', label: t('nav.redpacket'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagRedpacket },
     { path: '/leaderboard', label: t('nav.leaderboard'), icon: ChartIcon, hideInSimpleMode: true, featureFlag: flagLeaderboard },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
-    ...customNavigation.map((item): NavItem => ({
-      ...item,
-      label: item.labelKey ? t(item.labelKey) : item.label,
-    })),
+    ...buildCustomNavigationItems(),
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
       label: item.label,

@@ -1,12 +1,12 @@
 # 下游 Overlay 迁移现状清单
 
-> 基线：product/main 的 e19d49fad；代码冻结标签 baseline/v0.1.164-before-overlay 指向 1f9aab7c4。
+> 基线：product/main 的 70f8d7168；代码冻结标签 baseline/v0.1.164-before-overlay 指向 1f9aab7c4。
 >
-> 比对：origin/main...e19d49fad。本清单只描述当前已跟踪的下游差异，不包含未跟踪文件或工作区临时改动。
+> 比对：origin/main...70f8d7168。本清单只描述当前已跟踪的下游差异，不包含未跟踪文件或工作区临时改动。
 
 ## 1. 使用方式与边界
 
-当前差异共有 **352 个路径**：190 个新增、162 个修改。大量 backend/ent/** 是 schema 生成输出，不能按文件逐个迁移或手工解冲突；本清单按业务所有权和迁移动作聚合，列出的路径是每组关键入口和路径模式。
+当前差异共有 **373 个路径**：209 个新增、164 个修改。大量 backend/ent/** 是 schema 生成输出，不能按文件逐个迁移或手工解冲突；本清单按业务所有权和迁移动作聚合，列出的路径是每组关键入口和路径模式。
 
 一次模块迁移的目标不是重构上游，而是：
 
@@ -14,7 +14,7 @@
 2. 同一提交删除该能力对上游 Handler、Service、Repository、routes/*.go、页面和布局的直接改动。
 3. 只留下 custom 注册表、固定挂载点、追加式历史数据定义和重新生成的 Ent/Wire 输出。
 
-模块化前先完成 feature/custom-overlay-bootstrap。它只能创建空注册表和挂载调用，不能移动下列任何业务实现或改数据库结构。
+feature/custom-overlay-bootstrap、brand-home 主体和 game-hall 主体已完成。后续迁移只处理 activity、wallet-extension 及已标记的兼容债务；不得借迁移继续扩展娱乐大厅功能或改写已发布的数据结构。
 
 | 标记 | 含义 | 迁移处理 |
 | --- | --- | --- |
@@ -26,12 +26,12 @@
 
 ## 2. 模块总览
 
-| 模块 | 当前能力 | 顺序 | 主要风险 |
-| --- | --- | --- | --- |
-| brand-home | 根首页选择、/Dino、Chromium Dino 资源与运行器 | 1 | 仅前端；保留 /home 默认行为和 /Dino 大小写路径。 |
-| game-hall | DG 独立钱包、兑换、Slots、回合/流水、用户禁用和管理查询 | 2 | 余额事务、幂等、历史迁移和用户级开关。 |
-| activity | 签到、幸运签到、盲盒、奖励投递、红包、排行榜和管理配置 | 3 | 后台任务、幂等、并发和跨模块余额写入。 |
-| wallet-extension | 站内余额转账、收款方搜索、限额/手续费、管理和转账榜 | 4 | 直接改动核心余额、事务、审计和用户查询；最后迁移。 |
+| 模块 | 当前状态 | 当前能力 | 顺序 | 主要风险 |
+| --- | --- | --- | --- | --- |
+| brand-home | 主体已完成；设置片段待收口 | 根首页选择、/Dino、Chromium Dino 资源与运行器 | 已完成 | 保留 /home 默认行为和 /Dino 大小写路径。 |
+| game-hall | 主体已完成；用户禁用与设置为兼容债务 | DG 独立钱包、兑换、Slots、回合/流水、用户禁用和管理查询 | 已完成 | 余额事务、幂等、历史迁移和用户级开关。 |
+| activity | 待迁移 | 签到、幸运签到、盲盒、奖励投递、红包、排行榜和管理配置 | 1 | 后台任务、幂等、并发和跨模块余额写入。 |
+| wallet-extension | 待迁移 | 站内余额转账、收款方搜索、限额/手续费、管理和转账榜 | 2 | 直接改动核心余额、事务、审计和用户查询；最后迁移。 |
 
 activity 与 wallet-extension 共享 173 号历史迁移和部分设置/余额契约，但不能合为一个模块；两者只能经 custom/contract/ 的最小接口通信。
 
@@ -39,24 +39,22 @@ activity 与 wallet-extension 共享 173 号历史迁移和部分设置/余额�
 
 | 标记 | 路径/模式 | 说明 |
 | --- | --- | --- |
-| M | frontend/src/views/DaiGuaView.vue；frontend/src/components/game/ChromiumDinoRunner.vue | DaiGua 页面与运行器包装。 |
-| M | frontend/src/games/chromiumDino/**（19 个 TypeScript 文件） | Chromium 离线 Dino 实现。 |
-| M | frontend/public/dai-gua/**；frontend/src/assets/licenses/chromium-dino-LICENSE | 精灵图、音效与许可证；迁入后仍须按 Vite 静态资源规则引用。 |
-| M | frontend/src/views/RootHomeView.vue | 根据 default_homepage 在 /home 和 /Dino 间跳转。 |
-| R | frontend/src/router/index.ts | 当前直接定义 /Dino 和根路径 /；迁移后根路由只展开一次 customRoutes。 |
-| S | frontend/src/stores/app.ts；后端设置 DTO/公开设置链路 | default_homepage 是品牌入口设置，须由 Overlay 设置片段提供，不能继续在通用设置对象扩散。 |
+| M | frontend/src/custom/modules/brand-home/{DaiGuaView.vue,ChromiumDinoRunner.vue,RootHomeView.vue,chromiumDino/**,routes.ts} 与相邻测试 | 已迁入的 DaiGua 页面、运行器、根首页选择和 Chromium 离线 Dino 实现。 |
+| M | frontend/public/custom/brand-home/** | 已迁入的精灵图、音效与 Chromium 许可证；保持 Vite 静态资源 URL。 |
+| R | frontend/src/router/index.ts | 已删除具体 Dino 路由定义，仅展开一次 customRoutes。 |
+| S | frontend/src/stores/app.ts；后端设置 DTO/公开设置链路 | default_homepage 仍在通用设置对象中，是待收口的品牌入口设置兼容债务。 |
 
-迁移顺序：
+当前完成情况：
 
-1. 在 frontend/src/custom/modules/brand-home/ 创建 routes.ts，先导出保持原值的 /Dino 和根路径处理路由。
-2. 移入 DaiGua 页面、Runner、chromiumDino/**、资源和对应测试；保留静态资源 URL 与许可证。
-3. 将根首页选择提炼为 Overlay 设置读取；默认值仍跳转 /home，只有明确为 dino 时跳转 /Dino。
-4. 从根 router/index.ts 删除具体路由定义，只保留一次 ...customRoutes 挂载；不修改上游 /home 行为。
+1. 已由 frontend/src/custom/modules/brand-home/routes.ts 导出 /Dino 和根路径处理路由。
+2. 页面、Runner、chromiumDino/**、资源、许可证和测试均已迁入模块目录。
+3. 默认行为仍为 /home，只有公开设置明确为 dino 时才跳转 /Dino。
+4. 仅剩 default_homepage 的通用设置链路，后续作为设置片段收口；不修改上游 /home 行为。
 
 ~~~powershell
 Set-Location frontend
 pnpm typecheck
-pnpm test:run -- src/views/__tests__/RootHomeView.spec.ts
+pnpm test:run -- src/custom/modules/brand-home
 pnpm build
 ~~~
 
@@ -66,25 +64,23 @@ pnpm build
 
 | 标记 | 路径/模式 | 说明 |
 | --- | --- | --- |
-| M | backend/internal/{handler/game_hall_handler.go,handler/admin/game_hall_handler.go,service/game_hall_service.go,repository/game_hall_repo.go} 与相邻 *_test.go | 用户端、管理端、交易/回合业务和数据访问。 |
-| M | frontend/src/{api/gameHall.ts,stores/gameHall.ts,views/user/GameHallView.vue} 与相邻测试 | 游戏大厅 API、状态和页面。 |
-| M | frontend/src/components/admin/user/UserEditModal.vue；UserEditModal.gameHall.spec.ts | 用户级娱乐大厅禁用开关；应成为模块管理 UI。 |
-| R | backend/internal/server/routes/{user.go,admin.go} | 当前直接注册 /game-hall 和 /admin/game-hall；迁移后由模块注册。 |
-| R | backend/internal/{handler/wire.go,service/wire.go,repository/wire.go,handler/handler.go}；backend/cmd/server/wire.go | 当前将 GameHall 注入全局 Handlers 和清理流程；改为 custom.Runtime Provider 与模块生命周期。 |
-| R | backend/internal/{handler/admin/user_handler.go,service/admin_user.go,repository/user_repo.go}；backend/ent/schema/user.go | game_hall_disabled 当前写入核心用户模型；迁移时改为 Overlay 专属禁用表/读取契约，或留下经评审的最小兼容适配。 |
+| M | backend/internal/custom/modules/game-hall/{handler.go,module.go,repository.go,routes.go,service.go} 与相邻 *_test.go | 已迁入的用户端、管理端、交易/回合业务和数据访问。 |
+| M | frontend/src/custom/modules/game-hall/{api.ts,store.ts,GameHallView.vue,routes.ts,navigation.ts,locales.ts} 与相邻测试 | 已迁入的游戏大厅 API、状态、页面、路由、导航和翻译。 |
+| R | backend/internal/server/routes/{user.go,admin.go} | 游戏大厅路由已由模块 RegisterRoutes 注册；这里不再直接注册 /game-hall 和 /admin/game-hall。 |
+| R | backend/internal/{handler/wire.go,service/wire.go,repository/wire.go,handler/handler.go}；backend/cmd/server/wire.go | 主体装配已转入 custom.Runtime；全局 Wire/Handler 仅保留兼容或生成输出，不得恢复游戏业务。 |
+| S | backend/internal/{handler/admin/user_handler.go,handler/dto/{mappers.go,types.go},service/{admin_user.go,user.go}}；backend/ent/schema/user.go；frontend/src/components/admin/user/UserEditModal.vue | game_hall_disabled 仍写入核心用户模型和管理 UI，是待清理的兼容债务；后续以 Overlay 专属禁用表/读取契约承接。 |
 | H | backend/migrations/175_add_game_hall_dedicated_tables.sql；176_backfill_game_hall_dedicated_balances.sql；178_add_game_hall_rounds.sql；180_add_user_game_hall_disabled.sql | 已有 game_hall 钱包、流水、奖池、回合与用户禁用数据；原样保留。 |
 | H | backend/migrations/game_hall_migrations_regression_test.go；backend/internal/repository/game_hall_repo_integration_test.go | 保留为历史升级与事务回归门禁。 |
 | S | backend/internal/service/setting_balance_features.go、公开设置、前端 feature flags/i18n | game_hall_enabled 与兑换/Slots 限制应收口为模块设置适配器。 |
 
 当前游戏数据是原生 SQL 表，不是 Ent schema：game_hall_wallets、game_hall_wallet_transactions、game_hall_jackpots、game_hall_jackpot_transactions、game_hall_rounds、game_hall_main_balance_transactions。迁移服务代码时必须维持用户钱包、奖池与主余额在同一事务中的锁定与幂等语义。
 
-迁移顺序：
+当前完成情况与剩余债务：
 
-1. 在 custom/modules/game-hall/contract 定义主余额读写、用户身份、审计和设置接口；模块不依赖上游具体 Repository。
-2. 移入 Repository、Service 和事务/随机数测试，再由模块组装 Handler 与用户/管理路由。
-3. 移入前端 API、Store、页面、用户禁用管理 UI、翻译和测试。
-4. 从 routes/user.go、routes/admin.go、全局 Handlers 与 Wire Provider 删除游戏业务；只保留 custom.RegisterRoutes 和 custom.Runtime。
-5. 历史迁移保留原文件名；以后需要独立禁用表或配置表时，才追加 *_custom_game_hall_*.sql。
+1. Repository、Service、Handler、用户/管理路由、前端 API、Store、页面、导航、翻译和测试均已迁入模块目录。
+2. 模块路由经 custom.Runtime 注册；不得再把游戏路由或 Handler 字段加回上游 routes/Wire。
+3. 后续只处理最小 contract：主余额、用户身份、审计、设置和幂等能力不得继续直接扩散上游依赖。
+4. 用户禁用管理 UI 与 game_hall_disabled 仍是兼容债务；新表只能以新的 *_custom_game_hall_*.sql 迁移追加并回填，不能改写 180 号迁移。
 
 ~~~powershell
 Set-Location backend
@@ -99,6 +95,8 @@ pnpm test:run -- src/custom/modules/game-hall
 额外验证：兑换和游戏请求重放不重复扣款；用户禁用后用户路由、管理/公开设置和前端入口均受阻；迁移回归测试仍覆盖既有数据库。
 
 ## 5. activity
+
+状态：**待迁移**。当前业务实现仍位于上游 Handler、Service、Repository、routes、页面和布局目录；本模块尚未创建 custom/modules/activity 主体目录。
 
 | 标记 | 路径/模式 | 说明 |
 | --- | --- | --- |
@@ -138,6 +136,8 @@ pnpm test:run -- src/custom/modules/activity
 额外验证：模块/子开关关闭时，导航、直达页面、公共 API、管理 API、后台任务和 Service 都拒绝执行；签到与红包并发/重试保持幂等，奖励投递可重试且不重复发奖。
 
 ## 6. wallet-extension
+
+状态：**待迁移**。当前业务实现仍位于上游 Handler、Service、Repository、routes、页面和布局目录；本模块尚未创建 custom/modules/wallet-extension 主体目录。
 
 | 标记 | 路径/模式 | 说明 |
 | --- | --- | --- |
@@ -204,6 +204,8 @@ go generate ./cmd/server
 
 ### 7.3 历史迁移和 schema 兼容债务
 
+所有 H 标记的迁移及其回归测试都是已发布历史：**只保留原路径并参与回归，绝不移动到 custom 目录、拆分、改号、重命名或改写。** 模块化只允许追加新的模块命名迁移，并在新迁移中完成兼容回填。
+
 | 现状 | 规则 |
 | --- | --- |
 | 173_port_balance_features.sql 同时服务 activity 和 wallet-extension | 永不拆分、改号或重命名；新迁移按模块追加。 |
@@ -214,7 +216,7 @@ go generate ./cmd/server
 
 ## 8. 非模块业务改动的处置
 
-origin/main...e19d49fad 还包含用户展示、审计搜索、兑换码格式、用量查询开关、支付/后台页面细节和多次上游同步带来的修改。这些不属于四个 Overlay 模块的直接实现，不能悄悄塞进任一模块。
+origin/main...70f8d7168 还包含用户展示、审计搜索、兑换码格式、用量查询开关、支付/后台页面细节和多次上游同步带来的修改。这些不属于四个 Overlay 模块的直接实现，不能悄悄塞进任一模块。
 
 1. 能确定来自上游同步的改动，在下一次 sync/upstream-v* 复核并归还/保留，不与模块迁移混提交。
 2. 仅被某模块使用的改动，例如 userDisplay、红包兑换码格式，迁入对应模块或模块 Contract。
