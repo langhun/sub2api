@@ -321,18 +321,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/game-hall',
-    name: 'GameHall',
-    component: () => import('@/views/user/GameHallView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Game Hall',
-      titleKey: 'gameHall.title',
-      requiresFeature: 'game_hall_enabled'
-    }
-  },
-  {
     path: '/available-channels',
     name: 'UserAvailableChannels',
     component: () => import('@/views/user/AvailableChannelsView.vue'),

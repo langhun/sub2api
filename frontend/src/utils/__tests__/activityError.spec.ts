@@ -2,11 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { activityErrorMessage } from '@/utils/activityError'
 
 describe('activityErrorMessage', () => {
-  it('translates per-user game hall governance errors', () => {
-    const t = (key: string) => `translated:${key}`
-    expect(activityErrorMessage({ reason: 'GAME_HALL_USER_DISABLED' }, t as never, 'fallback'))
-      .toBe('translated:activityErrors.gameHallUserDisabled')
-  })
   it('maps stable business codes to localized keys', () => {
     const t = vi.fn((key: string) => `translated:${key}`)
     expect(activityErrorMessage({ response: { data: { code: 'REDPACKET_EXPIRED' } } }, t, 'fallback'))

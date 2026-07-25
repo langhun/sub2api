@@ -1,4 +1,4 @@
-import { apiClient } from './client'
+import { apiClient } from '../../../api/client'
 
 export interface GameHallGame {
   type: string
@@ -87,7 +87,7 @@ export function createGameHallIdempotencyKey(scope: string): string {
 }
 
 export async function getGameHallStatus(): Promise<GameHallStatus> {
-  const { data } = await apiClient.get<GameHallStatus>('/user/game-hall/status')
+  const { data } = await apiClient.get<GameHallStatus>('/game-hall/status')
   return data
 }
 
@@ -97,7 +97,7 @@ export async function exchangeGameBalance(
   requestKey?: string,
 ): Promise<GameExchangeResult> {
   const { data } = await apiClient.post<GameExchangeResult>(
-    '/user/game-hall/exchange',
+    '/game-hall/exchange',
     { direction, amount },
     { headers: { 'Idempotency-Key': requestKey || createGameHallIdempotencyKey('game-exchange') } },
   )
@@ -106,7 +106,7 @@ export async function exchangeGameBalance(
 
 export async function playGame(gameType: string, betAmount: number, requestKey?: string): Promise<GamePlayResult> {
   const { data } = await apiClient.post<GamePlayResult>(
-    '/user/game-hall/play',
+    '/game-hall/play',
     { game_type: gameType, bet_amount: betAmount },
     { headers: { 'Idempotency-Key': requestKey || createGameHallIdempotencyKey('game-play') } },
   )
@@ -114,12 +114,12 @@ export async function playGame(gameType: string, betAmount: number, requestKey?:
 }
 
 export async function getGameTransactions(page = 1, pageSize = 10): Promise<GameHallPage<GameWalletTransaction>> {
-  const { data } = await apiClient.get<GameHallPage<GameWalletTransaction>>('/user/game-hall/transactions', { params: { page, page_size: pageSize } })
+  const { data } = await apiClient.get<GameHallPage<GameWalletTransaction>>('/game-hall/transactions', { params: { page, page_size: pageSize } })
   return data
 }
 
 export async function getGameRounds(page = 1, pageSize = 10): Promise<GameHallPage<GameRound>> {
-  const { data } = await apiClient.get<GameHallPage<GameRound>>('/user/game-hall/rounds', { params: { page, page_size: pageSize } })
+  const { data } = await apiClient.get<GameHallPage<GameRound>>('/game-hall/rounds', { params: { page, page_size: pageSize } })
   return data
 }
 
