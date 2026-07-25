@@ -12,7 +12,6 @@ func firstNonEmpty(values ...string) string {
 }
 
 type SystemSettings struct {
-	BalanceFeatureSettings
 	CodeFormatSettings               CodeFormatSettings
 	RegistrationEnabled              bool
 	EmailVerifyEnabled               bool
@@ -140,7 +139,6 @@ type SystemSettings struct {
 	ContactInfo                 string
 	DocURL                      string
 	HomeContent                 string
-	DefaultHomepage             string
 	HideCcsImportButton         bool
 	PurchaseSubscriptionEnabled bool
 	PurchaseSubscriptionURL     string
@@ -301,7 +299,6 @@ type PublicSettings struct {
 	ContactInfo                      string
 	DocURL                           string
 	HomeContent                      string
-	DefaultHomepage                  string
 	HideCcsImportButton              bool
 
 	PurchaseSubscriptionEnabled bool
@@ -335,30 +332,10 @@ type PublicSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
 	// Available Channels feature (user-facing aggregate view)
-	AvailableChannelsEnabled     bool    `json:"available_channels_enabled"`
-	GameHallEnabled              bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled             bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet              float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet              float64 `json:"game_slots_max_bet"`
-	GameExchangeMinAmount        float64 `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount        float64 `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit       float64 `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance bool    `json:"game_exchange_allow_dg_to_balance"`
+	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
-	AffiliateEnabled              bool `json:"affiliate_enabled"`
-	CheckinEnabled                bool `json:"checkin_enabled"`
-	TransferEnabled               bool `json:"transfer_enabled"`
-	RedPacketEnabled              bool `json:"redpacket_enabled"`
-	CheckinLuckEnabled            bool `json:"checkin_luck_enabled"`
-	CheckinBlindboxEnabled        bool `json:"checkin_blindbox_enabled"`
-	UsageQueryEnabled             bool `json:"usage_query_enabled"`
-	LeaderboardEnabled            bool `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled     bool `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled bool `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled     bool `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled    bool `json:"leaderboard_transfer_enabled"`
-	LeaderboardIncludeAdmin       bool `json:"leaderboard_include_admin"`
+	AffiliateEnabled bool `json:"affiliate_enabled"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`

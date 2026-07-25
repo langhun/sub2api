@@ -375,12 +375,17 @@ func TestGameHallRepositoryRejectsDisabledUserAtCommitBoundary(t *testing.T) {
 	client := testEntClient(t)
 	repo := gamehall.NewGameHallRepository(client, integrationDB)
 	user := mustCreateUser(t, client, &service.User{
-		Email:            fmt.Sprintf("game-hall-disabled-%d@example.com", time.Now().UnixNano()),
-		PasswordHash:     "hash",
-		Balance:          100,
-		GameHallDisabled: true,
+		Email:        fmt.Sprintf("game-hall-disabled-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      100,
 	})
 	_, err := integrationDB.ExecContext(ctx, `
+INSERT INTO game_hall_user_access (user_id, disabled, created_at, updated_at)
+VALUES ($1, TRUE, NOW(), NOW())
+ON CONFLICT (user_id) DO UPDATE SET disabled = EXCLUDED.disabled, updated_at = NOW()
+`, user.ID)
+	require.NoError(t, err)
+	_, err = integrationDB.ExecContext(ctx, `
 INSERT INTO game_hall_wallets (user_id, dg_balance, created_at, updated_at)
 VALUES ($1, 100, NOW(), NOW())
 ON CONFLICT (user_id) DO UPDATE SET dg_balance = EXCLUDED.dg_balance, updated_at = NOW()

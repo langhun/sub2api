@@ -27,7 +27,6 @@ type CustomEndpoint struct {
 
 // SystemSettings represents the admin settings API response payload.
 type SystemSettings struct {
-	BalanceFeatureSettings
 	CodeFormatSettings               service.CodeFormatSettings `json:"code_format_settings"`
 	RegistrationEnabled              bool                       `json:"registration_enabled"`
 	EmailVerifyEnabled               bool                       `json:"email_verify_enabled"`
@@ -140,7 +139,6 @@ type SystemSettings struct {
 	ContactInfo                 string           `json:"contact_info"`
 	DocURL                      string           `json:"doc_url"`
 	HomeContent                 string           `json:"home_content"`
-	DefaultHomepage             string           `json:"default_homepage"`
 	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
@@ -309,43 +307,6 @@ type SystemSettings struct {
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
 }
 
-type BalanceFeatureSettings struct {
-	GameHallEnabled               bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled              bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet               float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet               float64 `json:"game_slots_max_bet"`
-	GameExchangeMinAmount         float64 `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount         float64 `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit        float64 `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance  bool    `json:"game_exchange_allow_dg_to_balance"`
-	CheckinEnabled                bool    `json:"checkin_enabled"`
-	CheckinMinBalance             float64 `json:"checkin_min_balance"`
-	CheckinMaxBalance             float64 `json:"checkin_max_balance"`
-	CheckinLuckEnabled            bool    `json:"checkin_luck_enabled"`
-	CheckinLuckMinMultiplier      float64 `json:"checkin_luck_min_multiplier"`
-	CheckinLuckMaxMultiplier      float64 `json:"checkin_luck_max_multiplier"`
-	CheckinBlindboxEnabled        bool    `json:"checkin_blindbox_enabled"`
-	CheckinBlindboxTriggerType    string  `json:"checkin_blindbox_trigger_type"`
-	CheckinBlindboxInterval       int     `json:"checkin_blindbox_interval"`
-	TransferEnabled               bool    `json:"transfer_enabled"`
-	TransferFeeRate               float64 `json:"transfer_fee_rate"`
-	TransferMinAmount             float64 `json:"transfer_min_amount"`
-	TransferMaxAmount             float64 `json:"transfer_max_amount"`
-	TransferDailyLimit            float64 `json:"transfer_daily_limit"`
-	TransferDailyCountLimit       int     `json:"transfer_daily_count_limit"`
-	TransferVIPFeeExempt          bool    `json:"transfer_vip_fee_exempt"`
-	RedPacketEnabled              bool    `json:"redpacket_enabled"`
-	RedPacketMaxCount             int     `json:"redpacket_max_count"`
-	RedPacketExpireHours          int     `json:"redpacket_expire_hours"`
-	UsageQueryEnabled             bool    `json:"usage_query_enabled"`
-	LeaderboardEnabled            bool    `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled     bool    `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled bool    `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled     bool    `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled    bool    `json:"leaderboard_transfer_enabled"`
-	LeaderboardIncludeAdmin       bool    `json:"leaderboard_include_admin"`
-}
-
 type DefaultSubscriptionSetting struct {
 	GroupID      int64 `json:"group_id"`
 	ValidityDays int   `json:"validity_days"`
@@ -374,7 +335,6 @@ type PublicSettings struct {
 	ContactInfo                      string                   `json:"contact_info"`
 	DocURL                           string                   `json:"doc_url"`
 	HomeContent                      string                   `json:"home_content"`
-	DefaultHomepage                  string                   `json:"default_homepage"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string                   `json:"purchase_subscription_url"`
@@ -408,29 +368,8 @@ type PublicSettings struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
-	AvailableChannelsEnabled     bool    `json:"available_channels_enabled"`
-	GameHallEnabled              bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled             bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet              float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet              float64 `json:"game_slots_max_bet"`
-	GameExchangeMinAmount        float64 `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount        float64 `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit       float64 `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance bool    `json:"game_exchange_allow_dg_to_balance"`
-
-	AffiliateEnabled              bool `json:"affiliate_enabled"`
-	CheckinEnabled                bool `json:"checkin_enabled"`
-	TransferEnabled               bool `json:"transfer_enabled"`
-	RedPacketEnabled              bool `json:"redpacket_enabled"`
-	CheckinLuckEnabled            bool `json:"checkin_luck_enabled"`
-	CheckinBlindboxEnabled        bool `json:"checkin_blindbox_enabled"`
-	UsageQueryEnabled             bool `json:"usage_query_enabled"`
-	LeaderboardEnabled            bool `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled     bool `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled bool `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled     bool `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled    bool `json:"leaderboard_transfer_enabled"`
-	LeaderboardIncludeAdmin       bool `json:"leaderboard_include_admin"`
+	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+	AffiliateEnabled         bool `json:"affiliate_enabled"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 

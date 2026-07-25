@@ -13,6 +13,10 @@ type AuditEntry struct {
 	ReferenceID    string
 	IdempotencyKey string
 	OccurredAt     time.Time
+	CodeType       string
+	Notes          string
+	GroupID        *int64
+	ValidityDays   int
 }
 
 // AuditWriter records activity adjustments within the caller's transaction context.

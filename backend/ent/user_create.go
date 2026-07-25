@@ -357,20 +357,6 @@ func (_c *UserCreate) SetNillableRpmLimit(v *int) *UserCreate {
 	return _c
 }
 
-// SetGameHallDisabled sets the "game_hall_disabled" field.
-func (_c *UserCreate) SetGameHallDisabled(v bool) *UserCreate {
-	_c.mutation.SetGameHallDisabled(v)
-	return _c
-}
-
-// SetNillableGameHallDisabled sets the "game_hall_disabled" field if the given value is not nil.
-func (_c *UserCreate) SetNillableGameHallDisabled(v *bool) *UserCreate {
-	if v != nil {
-		_c.SetGameHallDisabled(*v)
-	}
-	return _c
-}
-
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by IDs.
 func (_c *UserCreate) AddAPIKeyIDs(ids ...int64) *UserCreate {
 	_c.mutation.AddAPIKeyIDs(ids...)
@@ -733,10 +719,6 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultRpmLimit
 		_c.mutation.SetRpmLimit(v)
 	}
-	if _, ok := _c.mutation.GameHallDisabled(); !ok {
-		v := user.DefaultGameHallDisabled
-		_c.mutation.SetGameHallDisabled(v)
-	}
 	return nil
 }
 
@@ -825,9 +807,6 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.RpmLimit(); !ok {
 		return &ValidationError{Name: "rpm_limit", err: errors.New(`ent: missing required field "User.rpm_limit"`)}
-	}
-	if _, ok := _c.mutation.GameHallDisabled(); !ok {
-		return &ValidationError{Name: "game_hall_disabled", err: errors.New(`ent: missing required field "User.game_hall_disabled"`)}
 	}
 	return nil
 }
@@ -951,10 +930,6 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RpmLimit(); ok {
 		_spec.SetField(user.FieldRpmLimit, field.TypeInt, value)
 		_node.RpmLimit = value
-	}
-	if value, ok := _c.mutation.GameHallDisabled(); ok {
-		_spec.SetField(user.FieldGameHallDisabled, field.TypeBool, value)
-		_node.GameHallDisabled = value
 	}
 	if nodes := _c.mutation.APIKeysIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -1632,18 +1607,6 @@ func (u *UserUpsert) AddRpmLimit(v int) *UserUpsert {
 	return u
 }
 
-// SetGameHallDisabled sets the "game_hall_disabled" field.
-func (u *UserUpsert) SetGameHallDisabled(v bool) *UserUpsert {
-	u.Set(user.FieldGameHallDisabled, v)
-	return u
-}
-
-// UpdateGameHallDisabled sets the "game_hall_disabled" field to the value that was provided on create.
-func (u *UserUpsert) UpdateGameHallDisabled() *UserUpsert {
-	u.SetExcluded(user.FieldGameHallDisabled)
-	return u
-}
-
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -2092,20 +2055,6 @@ func (u *UserUpsertOne) AddRpmLimit(v int) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateRpmLimit() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateRpmLimit()
-	})
-}
-
-// SetGameHallDisabled sets the "game_hall_disabled" field.
-func (u *UserUpsertOne) SetGameHallDisabled(v bool) *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.SetGameHallDisabled(v)
-	})
-}
-
-// UpdateGameHallDisabled sets the "game_hall_disabled" field to the value that was provided on create.
-func (u *UserUpsertOne) UpdateGameHallDisabled() *UserUpsertOne {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateGameHallDisabled()
 	})
 }
 
@@ -2723,20 +2672,6 @@ func (u *UserUpsertBulk) AddRpmLimit(v int) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateRpmLimit() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateRpmLimit()
-	})
-}
-
-// SetGameHallDisabled sets the "game_hall_disabled" field.
-func (u *UserUpsertBulk) SetGameHallDisabled(v bool) *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.SetGameHallDisabled(v)
-	})
-}
-
-// UpdateGameHallDisabled sets the "game_hall_disabled" field to the value that was provided on create.
-func (u *UserUpsertBulk) UpdateGameHallDisabled() *UserUpsertBulk {
-	return u.Update(func(s *UserUpsert) {
-		s.UpdateGameHallDisabled()
 	})
 }
 

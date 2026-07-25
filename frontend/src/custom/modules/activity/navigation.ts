@@ -1,6 +1,8 @@
 import { h } from 'vue'
-import { FeatureFlags, isFeatureFlagEnabled, makeSidebarFlag } from '@/utils/featureFlags'
+import { isFeatureFlagEnabled, makeSidebarFlag } from '@/utils/featureFlags'
 import type { CustomNavigationItem } from '../../registry'
+import { activityFeatureFlags } from './settings'
+import { walletExtensionFeatureFlags } from '../wallet-extension/settings'
 
 const CheckinIcon = {
   render: () => h(
@@ -34,11 +36,11 @@ const LeaderboardIcon = {
 }
 
 function isLeaderboardEnabled() {
-  return isFeatureFlagEnabled(FeatureFlags.leaderboard) && (
-    isFeatureFlagEnabled(FeatureFlags.leaderboardBalance)
-    || isFeatureFlagEnabled(FeatureFlags.leaderboardConsumption)
-    || isFeatureFlagEnabled(FeatureFlags.leaderboardCheckin)
-    || (isFeatureFlagEnabled(FeatureFlags.leaderboardTransfer) && isFeatureFlagEnabled(FeatureFlags.transfer))
+  return isFeatureFlagEnabled(activityFeatureFlags.leaderboard) && (
+    isFeatureFlagEnabled(activityFeatureFlags.leaderboardBalance)
+    || isFeatureFlagEnabled(activityFeatureFlags.leaderboardConsumption)
+    || isFeatureFlagEnabled(activityFeatureFlags.leaderboardCheckin)
+    || (isFeatureFlagEnabled(activityFeatureFlags.leaderboardTransfer) && isFeatureFlagEnabled(walletExtensionFeatureFlags.transfer))
   )
 }
 
@@ -51,8 +53,8 @@ export const activityNavigation: readonly CustomNavigationItem[] = [
     hideInSimpleMode: true,
     slot: 'after-affiliate',
     featureFlag: () => (
-      isFeatureFlagEnabled(FeatureFlags.checkin)
-      || isFeatureFlagEnabled(FeatureFlags.checkinLuck)
+      isFeatureFlagEnabled(activityFeatureFlags.checkin)
+      || isFeatureFlagEnabled(activityFeatureFlags.checkinLuck)
     ),
   },
   {
@@ -62,7 +64,7 @@ export const activityNavigation: readonly CustomNavigationItem[] = [
     icon: RedPacketIcon,
     hideInSimpleMode: true,
     slot: 'after-transfer',
-    featureFlag: makeSidebarFlag(FeatureFlags.redpacket),
+    featureFlag: makeSidebarFlag(walletExtensionFeatureFlags.redpacket),
   },
   {
     path: '/leaderboard',

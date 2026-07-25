@@ -73,6 +73,24 @@ type SettingService struct {
 	openAIQuotaAutoPauseSettingsSF    singleflight.Group
 }
 
+// SetMultiple exposes the generic setting store to narrowly-scoped Overlay
+// adapters. Business-specific setting ownership must remain outside this type.
+func (s *SettingService) SetMultiple(ctx context.Context, values map[string]string) error {
+	if s == nil || s.settingRepo == nil {
+		return errors.New("setting service is not initialized")
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	if err := s.settingRepo.SetMultiple(ctx, values); err != nil {
+		return err
+	}
+	if s.onUpdate != nil {
+		s.onUpdate()
+	}
+	return nil
+}
+
 // DefaultPlatformQuotaSetting 单 platform 三档限额（nil = 沿用上层；0 = 显式禁用；>0 = 上限）
 type DefaultPlatformQuotaSetting struct {
 	DailyLimitUSD   *float64 `json:"daily"`
@@ -277,6 +295,12 @@ func (s *SettingService) LoadForwardedClientIPSettings(ctx context.Context) erro
 
 	s.cfg.SetForwardedClientIPSettings(enabled, headers)
 	return headersErr
+}
+
+// GetMultiple provides the narrow persistence boundary consumed by Overlay
+// modules without exposing the setting repository implementation.
+func (s *SettingService) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	return s.settingRepo.GetMultiple(ctx, keys)
 }
 
 // GetAllSettings 获取所有系统设置

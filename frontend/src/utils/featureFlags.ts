@@ -69,22 +69,21 @@
  * `AppSidebar.NavItem.featureFlag`, where `false` hides the menu entry.
  */
 
-import { useAppStore } from '@/stores/app'
 import type { PublicSettings } from '@/types'
 
 export type FeatureFlagMode = 'opt-in' | 'opt-out'
 
 export interface FeatureFlagDefinition {
   /** Public-settings key used for lookup. */
-  readonly key: keyof PublicSettings
+  readonly key: string
   /** Resolution mode when the key is missing/undefined. */
   readonly mode: FeatureFlagMode
   /** Short human label for logs and debug tooling. */
   readonly label: string
 }
 
-function defineFlag<K extends keyof PublicSettings>(
-  def: { key: K; mode: FeatureFlagMode; label: string },
+export function defineFeatureFlag(
+  def: { key: string; mode: FeatureFlagMode; label: string },
 ): FeatureFlagDefinition {
   return def
 }
@@ -94,46 +93,58 @@ function defineFlag<K extends keyof PublicSettings>(
  * public-settings-driven switch; see the "Adding a new flag" checklist above.
  */
 export const FeatureFlags = {
-  channelMonitor: defineFlag({
+  channelMonitor: defineFeatureFlag({
     key: 'channel_monitor_enabled',
     mode: 'opt-out',
     label: 'Channel Monitor',
   }),
-  availableChannels: defineFlag({
+  availableChannels: defineFeatureFlag({
     key: 'available_channels_enabled',
     mode: 'opt-in',
     label: 'Available Channels',
   }),
-  payment: defineFlag({
+  payment: defineFeatureFlag({
     key: 'payment_enabled',
     mode: 'opt-out',
     label: 'Payment',
   }),
-  riskControl: defineFlag({
+  riskControl: defineFeatureFlag({
     key: 'risk_control_enabled',
     mode: 'opt-in',
     label: 'Risk Control',
   }),
-	affiliate: defineFlag({
+  affiliate: defineFeatureFlag({
     key: 'affiliate_enabled',
     mode: 'opt-in',
     label: 'Affiliate',
-	}),
-	gameHall: defineFlag({ key: 'game_hall_enabled', mode: 'opt-in', label: 'Game Hall' }),
-	checkin: defineFlag({ key: 'checkin_enabled', mode: 'opt-in', label: 'Check-in' }),
-	checkinLuck: defineFlag({ key: 'checkin_luck_enabled', mode: 'opt-in', label: 'Lucky Check-in' }),
-	checkinBlindbox: defineFlag({ key: 'checkin_blindbox_enabled', mode: 'opt-in', label: 'Check-in Blind Box' }),
-	transfer: defineFlag({ key: 'transfer_enabled', mode: 'opt-in', label: 'Balance Transfer' }),
-	redpacket: defineFlag({ key: 'redpacket_enabled', mode: 'opt-in', label: 'Red Packet' }),
-	usageQuery: defineFlag({ key: 'usage_query_enabled', mode: 'opt-out', label: 'Usage Query' }),
-	leaderboard: defineFlag({ key: 'leaderboard_enabled', mode: 'opt-out', label: 'Leaderboard' }),
-	leaderboardBalance: defineFlag({ key: 'leaderboard_balance_enabled', mode: 'opt-out', label: 'Balance Leaderboard' }),
-	leaderboardConsumption: defineFlag({ key: 'leaderboard_consumption_enabled', mode: 'opt-out', label: 'Consumption Leaderboard' }),
-	leaderboardCheckin: defineFlag({ key: 'leaderboard_checkin_enabled', mode: 'opt-out', label: 'Check-in Leaderboard' }),
-	leaderboardTransfer: defineFlag({ key: 'leaderboard_transfer_enabled', mode: 'opt-in', label: 'Transfer Leaderboard' }),
+  }),
+  usageQuery: defineFeatureFlag({ key: 'usage_query_enabled', mode: 'opt-out', label: 'Usage Query' }),
 } as const
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags
+
+const registeredFlagsByKey = new Map<string, FeatureFlagDefinition>(
+  Object.values(FeatureFlags).map((flag) => [flag.key, flag]),
+)
+
+let getPublicSettings: (() => Partial<PublicSettings> | null | undefined) | null = null
+
+/**
+ * Connect the flag registry to the active application's public settings.
+ * Keeping this as an injected reader prevents the custom overlay registry
+ * from creating an app-store import cycle during module initialization.
+ */
+export function registerFeatureFlagSettingsSource(
+  source: () => Partial<PublicSettings> | null | undefined,
+): void {
+  getPublicSettings = source
+}
+
+export function registerFeatureFlags(flags: readonly FeatureFlagDefinition[]): void {
+  for (const flag of flags) {
+    registeredFlagsByKey.set(flag.key, flag)
+  }
+}
 
 export function resolveFeatureFlagValue(
   flag: FeatureFlagDefinition,
@@ -145,10 +156,10 @@ export function resolveFeatureFlagValue(
 }
 
 export function resolveFeatureFlagKey(
-  key: keyof PublicSettings,
+  key: string,
   settings: Partial<PublicSettings> | null | undefined,
 ): boolean {
-  const flag = Object.values(FeatureFlags).find((item) => item.key === key)
+  const flag = registeredFlagsByKey.get(key)
   if (flag) return resolveFeatureFlagValue(flag, settings)
 
   const raw = settings?.[key]
@@ -161,8 +172,7 @@ export function resolveFeatureFlagKey(
  * `false` → the feature is disabled (menu/route should hide).
  */
 export function isFeatureFlagEnabled(flag: FeatureFlagDefinition): boolean {
-  const appStore = useAppStore()
-  return resolveFeatureFlagValue(flag, appStore.cachedPublicSettings)
+  return resolveFeatureFlagValue(flag, getPublicSettings?.())
 }
 
 /**

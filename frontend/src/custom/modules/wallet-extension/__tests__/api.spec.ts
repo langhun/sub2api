@@ -12,10 +12,6 @@ import {
   submitDirectTransfer,
   validateDirectTransfer,
 } from '../api'
-import {
-  transferBalance as legacyTransferBalance,
-  validateTransfer as legacyValidateTransfer,
-} from '@/api/transfer'
 
 describe('wallet extension direct-transfer API', () => {
   beforeEach(() => {
@@ -69,8 +65,4 @@ describe('wallet extension direct-transfer API', () => {
     ])
   })
 
-  it('keeps the legacy direct-transfer exports as compatibility aliases', () => {
-    expect(legacyTransferBalance).toBe(submitDirectTransfer)
-    expect(legacyValidateTransfer).toBe(validateDirectTransfer)
-  })
 })

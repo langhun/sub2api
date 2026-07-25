@@ -1,6 +1,9 @@
 package leaderboard
 
 import (
+	"database/sql"
+
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/contract"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +16,18 @@ type Module struct {
 
 func NewModule(settings contract.LeaderboardSettingsReader, readers Readers) *Module {
 	return &Module{Handler: NewHandler(NewService(settings, readers))}
+}
+
+// NewDatabaseModule constructs the operational activity leaderboard without a
+// dependency on the legacy leaderboard or settings services.
+func NewDatabaseModule(client *dbent.Client, db *sql.DB) *Module {
+	repository := NewRepository(client, db)
+	return NewModule(NewSettingsReader(NewSettingsStore(client)), Readers{
+		Balance:     repository,
+		Consumption: repository,
+		Checkin:     repository,
+		Transfer:    repository,
+	})
 }
 
 // RegisterRoutes preserves the existing public endpoint paths. It does not add

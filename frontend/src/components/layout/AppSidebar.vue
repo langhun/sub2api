@@ -686,7 +686,16 @@ const flagBatchImageAccess = () => canUseBatchImage.value
 // 可用渠道紧挨渠道状态之上，让用户"先看自己能用什么、再看对应状态"。
 function buildCustomNavigationItems(slot?: CustomNavigationItem['slot']): NavItem[] {
   return customNavigation
-    .filter((item) => item.slot === slot)
+    .filter((item) => (item.section ?? 'self') === 'self' && item.slot === slot)
+    .map((item): NavItem => ({
+      ...item,
+      label: item.labelKey ? t(item.labelKey) : item.label,
+    }))
+}
+
+function buildCustomAdminNavigationItems(): NavItem[] {
+  return customNavigation
+    .filter((item) => item.section === 'admin')
     .map((item): NavItem => ({
       ...item,
       label: item.labelKey ? t(item.labelKey) : item.label,
@@ -786,7 +795,7 @@ const adminNavItems = computed((): NavItem[] => {
       ],
     },
     { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
-    { path: '/admin/transfer', label: t('nav.transferManage'), icon: CreditCardIcon, hideInSimpleMode: true },
+    ...buildCustomAdminNavigationItems(),
     { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
     {
       path: '/admin/affiliates',

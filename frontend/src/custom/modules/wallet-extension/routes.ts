@@ -13,4 +13,15 @@ export const walletExtensionRoutes: readonly RouteRecordRaw[] = [
       requiresFeature: 'transfer_enabled',
     },
   },
+  {
+    path: '/admin/transfer',
+    name: 'AdminBalanceTransfer',
+    component: () => import('./views/TransferManageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Transfer Management',
+      titleKey: 'nav.transferManage',
+    },
+  },
 ]

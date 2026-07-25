@@ -9,11 +9,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/wallet-extension/contract"
+	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
-const directTransferReceiverSearchLimit = 8
+const (
+	directTransferReceiverSearchLimit = 8
+	accountStatusActive               = "active"
+)
 
 var (
 	ErrTransferDisabled             = infraerrors.Forbidden("TRANSFER_DISABLED", "transfer feature is disabled")
@@ -25,6 +28,10 @@ var (
 	ErrTransferReceiverNotFound     = infraerrors.NotFound("RECEIVER_NOT_FOUND", "receiver not found")
 	ErrTransferReceiverQueryInvalid = infraerrors.BadRequest("RECEIVER_QUERY_INVALID", "receiver query must be a positive user ID or at least 2 characters")
 	ErrTransferReceiverAmbiguous    = infraerrors.Conflict("RECEIVER_AMBIGUOUS", "receiver query matches multiple users; use a user ID or exact email")
+	ErrTransferLeaderboardDisabled  = infraerrors.NotFound("TRANSFER_LEADERBOARD_DISABLED", "transfer leaderboard is disabled")
+	ErrTransferNotFound             = infraerrors.NotFound("TRANSFER_NOT_FOUND", "transfer not found")
+	ErrTransferAlreadyFrozen        = infraerrors.BadRequest("TRANSFER_ALREADY_FROZEN", "transfer already frozen")
+	ErrTransferAlreadyRevoked       = infraerrors.BadRequest("TRANSFER_ALREADY_REVOKED", "transfer already revoked")
 )
 
 // DirectTransferCommitPlan is the fully validated atomic write requested from the repository.
@@ -40,69 +47,31 @@ type DirectTransferCommitPlan struct {
 	DailyCountLimit int
 }
 
-type legacyRecipientResolver interface {
-	ResolveActiveTransferReceiver(ctx context.Context, query string, numericID *int64) (*service.User, error)
-	SearchActiveTransferReceivers(ctx context.Context, query string, requesterID int64, limit int) ([]*service.User, error)
-}
-
-type directTransferUserReader interface {
-	GetByID(ctx context.Context, id int64) (*service.User, error)
-}
-
-type activeSubscriptionReader interface {
-	ListActiveUserSubscriptions(ctx context.Context, userID int64) ([]service.UserSubscription, error)
-}
-
-type balanceCacheInvalidator interface {
-	InvalidateUserBalance(ctx context.Context, userID int64) error
-}
-
-// SettingsAdapter narrows the legacy setting service to wallet-extension's direct-transfer policy.
-type SettingsAdapter struct{ legacy *service.SettingService }
-
-// NewSettingsAdapter adapts the shared setting service without moving its ownership.
-func NewSettingsAdapter(legacy *service.SettingService) *SettingsAdapter {
-	return &SettingsAdapter{legacy: legacy}
-}
-
-// GetWalletExtensionSettings returns only direct-transfer settings.
-func (a *SettingsAdapter) GetWalletExtensionSettings(ctx context.Context) (contract.Settings, error) {
-	if a == nil || a.legacy == nil {
-		return contract.Settings{}, nil
-	}
-	settings, err := a.legacy.GetAllSettings(ctx)
-	if err != nil {
-		return contract.Settings{}, err
-	}
-	return contract.Settings{DirectTransfer: contract.DirectTransferSettings{
-		Enabled:         settings.TransferEnabled,
-		FeeRate:         settings.TransferFeeRate,
-		MinimumAmount:   settings.TransferMinAmount,
-		MaximumAmount:   settings.TransferMaxAmount,
-		DailyLimit:      settings.TransferDailyLimit,
-		DailyCountLimit: settings.TransferDailyCountLimit,
-		VIPFeeExempt:    settings.TransferVIPFeeExempt,
-	}}, nil
-}
-
-// Service implements the direct-transfer slice without depending on BalanceTransferService.
+// Service implements the direct-transfer slice through wallet-owned ports.
 type Service struct {
 	repository    DirectTransferRepository
 	settings      contract.SettingsReader
-	users         directTransferUserReader
-	subscriptions activeSubscriptionReader
-	cache         balanceCacheInvalidator
+	accounts      contract.AccountReader
+	recipients    contract.RecipientResolver
+	subscriptions contract.ActiveSubscriptionReader
+	balances      contract.BalanceWriter
+	cache         contract.BalanceCacheInvalidator
 }
 
-// NewService constructs the direct-transfer service from narrow core adapters.
+// NewService constructs the direct-transfer service from narrow platform adapters.
 func NewService(
 	repository DirectTransferRepository,
 	settings contract.SettingsReader,
-	users directTransferUserReader,
-	subscriptions activeSubscriptionReader,
-	cache balanceCacheInvalidator,
+	accounts contract.AccountReader,
+	recipients contract.RecipientResolver,
+	subscriptions contract.ActiveSubscriptionReader,
+	balances contract.BalanceWriter,
+	cache contract.BalanceCacheInvalidator,
 ) *Service {
-	return &Service{repository: repository, settings: settings, users: users, subscriptions: subscriptions, cache: cache}
+	return &Service{
+		repository: repository, settings: settings, accounts: accounts, recipients: recipients,
+		subscriptions: subscriptions, balances: balances, cache: cache,
+	}
 }
 
 // Transfer validates and commits one direct transfer.
@@ -177,29 +146,22 @@ func (s *Service) ResolveRecipient(ctx context.Context, requesterID int64, rawQu
 		return contract.Recipient{}, err
 	}
 	query := strings.TrimSpace(rawQuery)
-	var numericID *int64
 	if query != "" {
-		if id, err := strconv.ParseInt(query, 10, 64); err == nil && id > 0 {
-			numericID = &id
+		if id, err := strconv.ParseInt(query, 10, 64); err == nil {
+			if id <= 0 {
+				return contract.Recipient{}, ErrTransferReceiverQueryInvalid
+			}
 		} else if isASCIIDigits(query) {
 			return contract.Recipient{}, ErrTransferReceiverQueryInvalid
 		}
 	}
-	if numericID == nil && utf8.RuneCountInString(query) < 2 {
+	if !isASCIIDigits(query) && utf8.RuneCountInString(query) < 2 {
 		return contract.Recipient{}, ErrTransferReceiverQueryInvalid
 	}
-	resolver, ok := s.users.(legacyRecipientResolver)
-	if !ok {
+	if s.recipients == nil {
 		return contract.Recipient{}, ErrTransferReceiverNotFound
 	}
-	user, err := resolver.ResolveActiveTransferReceiver(ctx, query, numericID)
-	if err != nil {
-		return contract.Recipient{}, err
-	}
-	if user == nil || user.ID == requesterID || user.Status != service.StatusActive {
-		return contract.Recipient{}, ErrTransferReceiverNotFound
-	}
-	return recipientFromUser(user), nil
+	return s.recipients.ResolveDirectTransferRecipient(ctx, requesterID, query)
 }
 
 // SearchRecipients returns eligible recipient hints without exposing raw identities.
@@ -211,31 +173,10 @@ func (s *Service) SearchRecipients(ctx context.Context, requesterID int64, rawQu
 	if utf8.RuneCountInString(query) < 2 && !isASCIIDigits(query) {
 		return nil, ErrTransferReceiverQueryInvalid
 	}
-	resolver, ok := s.users.(legacyRecipientResolver)
-	if !ok {
+	if s.recipients == nil {
 		return []contract.RecipientCandidate{}, nil
 	}
-	users, err := resolver.SearchActiveTransferReceivers(ctx, query, requesterID, directTransferReceiverSearchLimit)
-	if err != nil {
-		return nil, err
-	}
-	results := make([]contract.RecipientCandidate, 0, min(len(users), directTransferReceiverSearchLimit))
-	for _, user := range users {
-		if user == nil || user.ID == requesterID || user.Status != service.StatusActive {
-			continue
-		}
-		username := strings.TrimSpace(user.Username)
-		email := maskRecipientEmail(user.Email)
-		display := username
-		if display == "" {
-			display = email
-		}
-		results = append(results, contract.RecipientCandidate{AccountID: user.ID, DisplayName: display, Username: username, Email: email})
-		if len(results) == directTransferReceiverSearchLimit {
-			break
-		}
-	}
-	return results, nil
+	return s.recipients.SearchDirectTransferRecipients(ctx, requesterID, query, directTransferReceiverSearchLimit)
 }
 
 // ListHistory returns an account's direct-transfer history.
@@ -255,14 +196,14 @@ func (s *Service) GetStats(ctx context.Context, accountID int64) (DirectTransfer
 }
 
 func (s *Service) activeRecipient(ctx context.Context, accountID int64) (contract.Recipient, error) {
-	if s.users == nil {
+	if s.accounts == nil {
 		return contract.Recipient{}, ErrTransferReceiverNotFound
 	}
-	user, err := s.users.GetByID(ctx, accountID)
-	if err != nil || user == nil || user.Status != service.StatusActive {
+	account, err := s.accounts.GetAccount(ctx, accountID)
+	if err != nil || account.ID == 0 || account.Status != accountStatusActive {
 		return contract.Recipient{}, ErrTransferReceiverNotFound
 	}
-	return recipientFromUser(user), nil
+	return recipientFromAccount(account), nil
 }
 
 func (s *Service) directTransferSettings(ctx context.Context) (contract.DirectTransferSettings, error) {
@@ -287,8 +228,8 @@ func (s *Service) feeRate(ctx context.Context, senderID int64, settings contract
 	if !settings.VIPFeeExempt || s.subscriptions == nil {
 		return settings.FeeRate
 	}
-	items, err := s.subscriptions.ListActiveUserSubscriptions(ctx, senderID)
-	if err == nil && len(items) > 0 {
+	hasActive, err := s.subscriptions.HasActiveSubscription(ctx, senderID)
+	if err == nil && hasActive {
 		return 0
 	}
 	return settings.FeeRate
@@ -298,9 +239,9 @@ func (s *Service) invalidateBalances(ctx context.Context, senderID, receiverID i
 	if s.cache == nil {
 		return
 	}
-	_ = s.cache.InvalidateUserBalance(ctx, senderID)
+	_ = s.cache.InvalidateBalance(ctx, senderID)
 	if receiverID != senderID {
-		_ = s.cache.InvalidateUserBalance(ctx, receiverID)
+		_ = s.cache.InvalidateBalance(ctx, receiverID)
 	}
 }
 
@@ -317,15 +258,15 @@ func validateDirectTransfer(senderID, receiverID int64, amount float64, settings
 
 func roundTransferAmount(amount float64) float64 { return math.Round(amount*1e8) / 1e8 }
 
-func recipientFromUser(user *service.User) contract.Recipient {
-	display := strings.TrimSpace(user.Username)
+func recipientFromAccount(account contract.Account) contract.Recipient {
+	display := strings.TrimSpace(account.Username)
 	if display == "" {
-		display = maskRecipientEmail(user.Email)
+		display = maskRecipientEmail(account.Email)
 	}
 	if display == "" {
-		display = service.UserDisplayName("", "", user.ID)
+		display = platform.UserDisplayName("", "", account.ID)
 	}
-	return contract.Recipient{Account: contract.Account{ID: user.ID, Role: user.Role, Status: user.Status, Balance: user.Balance, FrozenBalance: user.FrozenBalance}, DisplayName: display}
+	return contract.Recipient{Account: account, DisplayName: display}
 }
 
 func isASCIIDigits(value string) bool {

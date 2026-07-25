@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/contract"
 )
@@ -18,6 +19,7 @@ type DeliveryProcessor struct {
 	invitation   contract.InvitationCodeIssuer
 	audit        contract.AuditWriter
 	history      BlindboxRecordWriter
+	cache        contract.BalanceCacheInvalidator
 }
 
 type ProcessorDependencies struct {
@@ -27,6 +29,7 @@ type ProcessorDependencies struct {
 	Invitation   contract.InvitationCodeIssuer
 	Audit        contract.AuditWriter
 	History      BlindboxRecordWriter
+	Cache        contract.BalanceCacheInvalidator
 }
 
 func NewDeliveryProcessor(deps ProcessorDependencies) *DeliveryProcessor {
@@ -37,6 +40,7 @@ func NewDeliveryProcessor(deps ProcessorDependencies) *DeliveryProcessor {
 		invitation:   deps.Invitation,
 		audit:        deps.Audit,
 		history:      deps.History,
+		cache:        deps.Cache,
 	}
 }
 
@@ -75,6 +79,10 @@ func (p *DeliveryProcessor) ProcessDelivery(ctx context.Context, delivery Delive
 		Amount:         auditAmount,
 		ReferenceID:    deliveryKey(delivery.SourceType, delivery.SourceID),
 		IdempotencyKey: delivery.IdempotencyKey,
+		CodeType:       string(snapshot.RewardType),
+		Notes:          fmt.Sprintf("%s · %s · %s", snapshot.PrizeName, readableRarity(snapshot.Rarity), readableRewardType(snapshot.RewardType)),
+		GroupID:        snapshot.SubscriptionID,
+		ValidityDays:   snapshot.SubscriptionDays,
 	}); err != nil {
 		return "", fmt.Errorf("write blind-box audit: %w", err)
 	}
@@ -86,7 +94,44 @@ func (p *DeliveryProcessor) ProcessDelivery(ctx context.Context, delivery Delive
 	}); err != nil {
 		return "", fmt.Errorf("record blind-box delivery: %w", err)
 	}
+	if p.cache != nil {
+		go func(userID int64) {
+			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = p.cache.InvalidateBalance(cacheCtx, userID)
+		}(delivery.UserID)
+	}
 	return detail, nil
+}
+
+func readableRarity(rarity Rarity) string {
+	switch rarity {
+	case RarityCommon:
+		return "Common"
+	case RarityRare:
+		return "Rare"
+	case RarityEpic:
+		return "Epic"
+	case RarityLegendary:
+		return "Legendary"
+	default:
+		return string(rarity)
+	}
+}
+
+func readableRewardType(rewardType RewardType) string {
+	switch rewardType {
+	case RewardTypeBalance:
+		return "Balance"
+	case RewardTypeConcurrency:
+		return "Concurrency"
+	case RewardTypeSubscription:
+		return "Subscription"
+	case RewardTypeInvitationCode:
+		return "Invitation Code"
+	default:
+		return string(rewardType)
+	}
 }
 
 func (p *DeliveryProcessor) applySnapshot(ctx context.Context, userID int64, idempotencyKey string, snapshot Snapshot) (string, error) {

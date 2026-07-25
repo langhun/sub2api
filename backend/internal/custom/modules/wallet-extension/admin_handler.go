@@ -5,26 +5,25 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
-// AdminHandler serves the transfer-only administrative compatibility API.
-type AdminHandler struct{ compatibility *LegacyCompatibility }
+// AdminHandler serves transfer administration from wallet-extension's service.
+type AdminHandler struct{ service *Service }
 
 // NewAdminHandler constructs the transfer administration adapter.
-func NewAdminHandler(compatibility *LegacyCompatibility) *AdminHandler {
-	return &AdminHandler{compatibility: compatibility}
+func NewAdminHandler(walletService *Service) *AdminHandler {
+	return &AdminHandler{service: walletService}
 }
 
 // ListTransfers preserves the existing paginated transfer management response.
 func (h *AdminHandler) ListTransfers(c *gin.Context) {
-	if h == nil || h.compatibility == nil || h.compatibility.legacy == nil {
+	if h == nil || h.service == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "transfer administration is unavailable"})
 		return
 	}
 	page, pageSize := adminTransferPage(c)
-	filter := &service.TransferFilter{Status: c.DefaultQuery("status", ""), TransferType: c.DefaultQuery("transfer_type", "")}
+	filter := TransferFilter{Status: c.DefaultQuery("status", ""), TransferType: c.DefaultQuery("transfer_type", "")}
 	if value := c.Query("user_id"); value != "" {
 		if userID, err := strconv.ParseInt(value, 10, 64); err == nil && userID > 0 {
 			filter.UserID = &userID
@@ -40,7 +39,7 @@ func (h *AdminHandler) ListTransfers(c *gin.Context) {
 			filter.EndTime = timestamp
 		}
 	}
-	items, total, err := h.compatibility.legacy.GetAllTransfers(c.Request.Context(), filter, page, pageSize)
+	items, total, err := h.service.ListTransfers(c.Request.Context(), filter, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -50,7 +49,7 @@ func (h *AdminHandler) ListTransfers(c *gin.Context) {
 
 // FeeStats preserves the existing 30-day default transfer-fee report.
 func (h *AdminHandler) FeeStats(c *gin.Context) {
-	if h == nil || h.compatibility == nil || h.compatibility.legacy == nil {
+	if h == nil || h.service == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "transfer administration is unavailable"})
 		return
 	}
@@ -66,7 +65,7 @@ func (h *AdminHandler) FeeStats(c *gin.Context) {
 			endTime = timestamp
 		}
 	}
-	result, err := h.compatibility.legacy.GetFeeStats(c.Request.Context(), startTime, endTime)
+	result, err := h.service.GetFeeStats(c.Request.Context(), startTime, endTime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -76,7 +75,7 @@ func (h *AdminHandler) FeeStats(c *gin.Context) {
 
 // FreezeTransfer preserves the existing transfer freeze semantics.
 func (h *AdminHandler) FreezeTransfer(c *gin.Context) {
-	if h == nil || h.compatibility == nil || h.compatibility.legacy == nil {
+	if h == nil || h.service == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "transfer administration is unavailable"})
 		return
 	}
@@ -88,7 +87,7 @@ func (h *AdminHandler) FreezeTransfer(c *gin.Context) {
 		Reason string `json:"reason"`
 	}
 	_ = c.ShouldBindJSON(&request)
-	if err := h.compatibility.legacy.FreezeTransfer(c.Request.Context(), directTransferUserID(c), transferID); err != nil {
+	if err := h.service.FreezeTransfer(c.Request.Context(), directTransferUserID(c), transferID); err != nil {
 		writeDirectTransferError(c, err)
 		return
 	}
@@ -97,7 +96,7 @@ func (h *AdminHandler) FreezeTransfer(c *gin.Context) {
 
 // RevokeTransfer preserves the existing transfer revocation semantics.
 func (h *AdminHandler) RevokeTransfer(c *gin.Context) {
-	if h == nil || h.compatibility == nil || h.compatibility.legacy == nil {
+	if h == nil || h.service == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "transfer administration is unavailable"})
 		return
 	}
@@ -109,7 +108,7 @@ func (h *AdminHandler) RevokeTransfer(c *gin.Context) {
 		Reason string `json:"reason"`
 	}
 	_ = c.ShouldBindJSON(&request)
-	if err := h.compatibility.legacy.RevokeTransfer(c.Request.Context(), directTransferUserID(c), transferID, request.Reason); err != nil {
+	if err := h.service.RevokeTransfer(c.Request.Context(), directTransferUserID(c), transferID, request.Reason); err != nil {
 		writeDirectTransferError(c, err)
 		return
 	}
@@ -118,19 +117,19 @@ func (h *AdminHandler) RevokeTransfer(c *gin.Context) {
 
 // BatchDistribute preserves the existing administrator-authorized distribution API.
 func (h *AdminHandler) BatchDistribute(c *gin.Context) {
-	if h == nil || h.compatibility == nil || h.compatibility.legacy == nil {
+	if h == nil || h.service == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "transfer administration is unavailable"})
 		return
 	}
 	var request struct {
-		Targets []service.BatchDistributeTarget `json:"targets" binding:"required"`
-		Memo    *string                         `json:"memo"`
+		Targets []BatchDistributeTarget `json:"targets" binding:"required"`
+		Memo    *string                 `json:"memo"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	items, err := h.compatibility.legacy.BatchDistribute(c.Request.Context(), directTransferUserID(c), request.Targets, request.Memo)
+	items, err := h.service.BatchDistribute(c.Request.Context(), directTransferUserID(c), request.Targets, request.Memo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

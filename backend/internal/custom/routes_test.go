@@ -4,6 +4,12 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/custom"
+	activitycheckin "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/checkin"
+	activityleaderboard "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/leaderboard"
+	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
+	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
+	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
+	walletextension "github.com/Wei-Shaw/sub2api/internal/custom/modules/wallet-extension"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -23,7 +29,14 @@ func TestRegisterRoutesMountsGameHallModule(t *testing.T) {
 
 	custom.RegisterRoutes(
 		router,
-		custom.NewRuntime(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil),
+		&custom.Runtime{
+			ActivityCheckin:     activitycheckin.NewModule(nil, nil),
+			ActivityLeaderboard: activityleaderboard.NewModule(nil, activityleaderboard.Readers{}),
+			ActivityRedPacket:   activityredpacket.NewModule(nil, nil),
+			ActivityRewardsHTTP: activityrewards.NewModule(routeHandlerStub{}),
+			GameHall:            gamehall.NewModule(nil),
+			WalletExtension:     walletextension.NewModule(nil),
+		},
 		middleware.JWTAuthMiddleware(passthrough),
 		middleware.AdminAuthMiddleware(passthrough),
 		middleware.AuditLogMiddleware(passthrough),
@@ -56,3 +69,14 @@ func TestRegisterRoutesMountsGameHallModule(t *testing.T) {
 	_, exists = routes["GET /api/v1/admin/blindbox/prize-items"]
 	require.True(t, exists)
 }
+
+type routeHandlerStub struct{}
+
+func (routeHandlerStub) ListPrizeItems(*gin.Context)           {}
+func (routeHandlerStub) CreatePrizeItem(*gin.Context)          {}
+func (routeHandlerStub) UpdatePrizeItem(*gin.Context)          {}
+func (routeHandlerStub) DeletePrizeItem(*gin.Context)          {}
+func (routeHandlerStub) GetStats(*gin.Context)                 {}
+func (routeHandlerStub) ListRewardDeliveries(*gin.Context)     {}
+func (routeHandlerStub) RetryRewardDelivery(*gin.Context)      {}
+func (routeHandlerStub) CompensateRewardDelivery(*gin.Context) {}

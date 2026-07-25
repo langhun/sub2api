@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -181,61 +180,6 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*service
 	return out, nil
 }
 
-func (r *userRepository) ResolveActiveTransferReceiver(ctx context.Context, query string, numericID *int64) (*service.User, error) {
-	predicates := []predicate.User{dbuser.StatusEQ(service.StatusActive)}
-	if numericID != nil {
-		predicates = append(predicates, dbuser.IDEQ(*numericID))
-	} else {
-		predicates = append(predicates, dbuser.Or(
-			dbuser.EmailEqualFold(query),
-			dbuser.UsernameEqualFold(query),
-		))
-	}
-	users, err := r.client.User.Query().Where(predicates...).Order(dbent.Asc(dbuser.FieldID)).Limit(2).All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("resolve active transfer receiver: %w", err)
-	}
-	if len(users) == 0 {
-		return nil, service.ErrTransferReceiverNotFound
-	}
-	if len(users) > 1 {
-		return nil, service.ErrTransferReceiverAmbiguous
-	}
-	return userEntityToService(users[0]), nil
-}
-
-func (r *userRepository) SearchActiveTransferReceivers(ctx context.Context, query string, requesterID int64, limit int) ([]*service.User, error) {
-	if limit <= 0 {
-		return []*service.User{}, nil
-	}
-	var identityPredicate predicate.User
-	if numericID, err := strconv.ParseInt(query, 10, 64); err == nil && numericID > 0 {
-		identityPredicate = dbuser.IDEQ(numericID)
-	} else {
-		identityPredicate = dbuser.Or(
-			dbuser.EmailContainsFold(query),
-			dbuser.UsernameContainsFold(query),
-		)
-	}
-	users, err := r.client.User.Query().
-		Where(
-			dbuser.StatusEQ(service.StatusActive),
-			dbuser.IDNEQ(requesterID),
-			identityPredicate,
-		).
-		Order(dbent.Asc(dbuser.FieldID)).
-		Limit(limit).
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("search active transfer receivers: %w", err)
-	}
-	results := make([]*service.User, len(users))
-	for i, entity := range users {
-		results[i] = userEntityToService(entity)
-	}
-	return results, nil
-}
-
 func (r *userRepository) Update(ctx context.Context, userIn *service.User) error {
 	if userIn == nil {
 		return nil
@@ -297,8 +241,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetNillableBalanceNotifyThreshold(userIn.BalanceNotifyThreshold).
 		SetBalanceNotifyExtraEmails(marshalExtraEmails(userIn.BalanceNotifyExtraEmails)).
 		SetTotalRecharged(userIn.TotalRecharged).
-		SetRpmLimit(userIn.RPMLimit).
-		SetGameHallDisabled(userIn.GameHallDisabled)
+		SetRpmLimit(userIn.RPMLimit)
 	if userIn.SignupSource != "" {
 		updateOp = updateOp.SetSignupSource(userIn.SignupSource)
 	}

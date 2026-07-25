@@ -93,7 +93,13 @@
           </div>
         </div>
 
-        <CheckinHeaderActions v-if="user" />
+        <template v-if="user">
+          <component
+            :is="action.component"
+            v-for="action in customHeaderActions"
+            :key="action.id"
+          />
+        </template>
 
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
@@ -248,7 +254,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
-import CheckinHeaderActions from '@/custom/modules/activity/components/CheckinHeaderActions.vue'
+import { customHeaderActions } from '@/custom/registry'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'

@@ -7,19 +7,27 @@ import (
 	"strconv"
 	"time"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
 // Handler is route-neutral. Runtime binds these methods under the existing
 // authenticated /redpacket prefix, preserving the legacy public endpoints.
-type Handler struct{ service Service }
+type Handler struct {
+	service     Service
+	idempotency platform.IdempotencyCoordinator
+}
 
 func NewHandler(service Service) *Handler { return &Handler{service: service} }
+
+// NewHandlerWithIdempotency injects the generic platform idempotency port.
+// Supplying nil preserves the established fallback when no coordinator exists.
+func NewHandlerWithIdempotency(service Service, coordinator platform.IdempotencyCoordinator) *Handler {
+	return &Handler{service: service, idempotency: coordinator}
+}
 
 func (h *Handler) Create(c *gin.Context) {
 	userID, ok := activityUserID(c)
@@ -40,7 +48,7 @@ func (h *Handler) Create(c *gin.Context) {
 	if request.Type == "" {
 		request.Type = TypeEqual
 	}
-	executeRedPacketIdempotent(c, "redpacket_create", request, func(ctx context.Context) (any, error) {
+	executeRedPacketIdempotent(c, h.idempotency, "redpacket_create", request, func(ctx context.Context) (any, error) {
 		return h.ready().Create(ctx, CreateRequest{SenderID: userID, TotalAmount: request.TotalAmount,
 			Count: request.Count, Type: request.Type, Memo: request.Memo, IdempotencyKey: c.GetHeader("Idempotency-Key")})
 	})
@@ -59,7 +67,7 @@ func (h *Handler) Claim(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	executeRedPacketIdempotent(c, "redpacket_claim", request, func(ctx context.Context) (any, error) {
+	executeRedPacketIdempotent(c, h.idempotency, "redpacket_claim", request, func(ctx context.Context) (any, error) {
 		return h.ready().Claim(ctx, ClaimRequest{UserID: userID, Code: request.Code, IdempotencyKey: c.GetHeader("Idempotency-Key")})
 	})
 }
@@ -175,9 +183,8 @@ func writeHTTPError(c *gin.Context, err error) {
 	c.JSON(status, gin.H{"error": err.Error()})
 }
 
-func executeRedPacketIdempotent(c *gin.Context, scope string, payload any, execute func(context.Context) (any, error)) {
-	coordinator := service.DefaultIdempotencyCoordinator()
-	if coordinator == nil {
+func executeRedPacketIdempotent(c *gin.Context, coordinator platform.IdempotencyCoordinator, scope string, payload any, execute func(context.Context) (any, error)) {
+	if coordinator == nil || !coordinator.Available() {
 		result, err := execute(c.Request.Context())
 		if err != nil {
 			writeHTTPError(c, err)
@@ -190,16 +197,16 @@ func executeRedPacketIdempotent(c *gin.Context, scope string, payload any, execu
 	if subject, ok := servermiddleware.GetAuthSubjectFromContext(c); ok {
 		actorScope = "user:" + strconv.FormatInt(subject.UserID, 10)
 	}
-	result, err := coordinator.Execute(c.Request.Context(), service.IdempotencyExecuteOptions{
+	result, err := coordinator.Execute(c.Request.Context(), platform.IdempotencyOptions{
 		Scope: scope, ActorScope: actorScope, Method: c.Request.Method, Route: c.FullPath(),
 		IdempotencyKey: c.GetHeader("Idempotency-Key"), Payload: payload, RequireKey: true, TTL: 24 * time.Hour,
 	}, execute)
 	if err != nil {
-		if infraerrors.Code(err) == infraerrors.Code(service.ErrIdempotencyStoreUnavail) {
-			service.RecordIdempotencyStoreUnavailable(c.FullPath(), scope, "handler_fail_close")
+		if coordinator.IsStoreUnavailable(err) {
+			coordinator.RecordStoreUnavailable(c.FullPath(), scope, "handler_fail_close")
 			logger.LegacyPrintf("activity.redpacket.idempotency", "red-packet idempotency store unavailable: route=%s", c.FullPath())
 		}
-		if retryAfter := service.RetryAfterSecondsFromError(err); retryAfter > 0 {
+		if retryAfter := coordinator.RetryAfterSeconds(err); retryAfter > 0 {
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
 		}
 		if isRedPacketError(err) {

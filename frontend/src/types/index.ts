@@ -89,7 +89,6 @@ export interface User {
   frozen_balance?: number // Balance currently held by async batch jobs
   concurrency: number // Allowed concurrent requests
   rpm_limit?: number // User-level RPM cap (0 = unlimited); effective as fallback when group has no rpm_limit
-  game_hall_disabled?: boolean // Per-user game hall risk-control switch
   status: 'active' | 'disabled' // Account status
   allowed_groups: number[] | null // Allowed group IDs (null = all non-exclusive groups)
   balance_notify_enabled: boolean
@@ -189,6 +188,7 @@ export interface LoginAgreementDocument {
 }
 
 export interface PublicSettings {
+  [key: string]: unknown
   registration_enabled: boolean
   email_verify_enabled: boolean
   force_email_on_third_party_signup: boolean
@@ -210,7 +210,6 @@ export interface PublicSettings {
   contact_info: string
   doc_url: string
   home_content: string
-  default_homepage: 'default' | 'dino'
   hide_ccs_import_button: boolean
   payment_enabled: boolean
   risk_control_enabled: boolean
@@ -242,20 +241,7 @@ export interface PublicSettings {
   available_channels_enabled: boolean
   service_quota_enabled: boolean
 	affiliate_enabled: boolean
-	game_hall_enabled?: boolean
-	game_slots_enabled?: boolean
-	checkin_enabled: boolean
-	checkin_luck_enabled: boolean
-	checkin_blindbox_enabled: boolean
-	transfer_enabled: boolean
-	redpacket_enabled: boolean
 	usage_query_enabled: boolean
-	leaderboard_enabled: boolean
-	leaderboard_balance_enabled: boolean
-	leaderboard_consumption_enabled: boolean
-	leaderboard_checkin_enabled: boolean
-	leaderboard_transfer_enabled?: boolean
-	leaderboard_include_admin: boolean
   allow_user_view_error_requests?: boolean
 }
 
@@ -1334,7 +1320,6 @@ export interface CreateAccountRequest {
   proxy_id?: number | null
   concurrency?: number
   rpm_limit?: number
-  game_hall_disabled?: boolean
   load_factor?: number | null
   priority?: number
   rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)

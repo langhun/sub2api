@@ -7,13 +7,12 @@ import (
 	"log/slog"
 	"math"
 	"math/big"
-	"strconv"
-	"strings"
 	"time"
 
+	gamehallsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall/settings"
+	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/google/uuid"
 )
 
@@ -23,17 +22,6 @@ const (
 
 	GameExchangeBalanceToDG = "balance_to_dg"
 	GameExchangeDGToBalance = "dg_to_balance"
-
-	// Legacy setting keys remain a read-only compatibility contract until the
-	// game-hall settings endpoint is migrated into this module.
-	SettingKeyGameHallEnabled              = "game_hall_enabled"
-	SettingKeyGameSlotsEnabled             = "game_slots_enabled"
-	SettingKeyGameSlotsMinBet              = "game_slots_min_bet"
-	SettingKeyGameSlotsMaxBet              = "game_slots_max_bet"
-	SettingKeyGameExchangeMinAmount        = "game_exchange_min_amount"
-	SettingKeyGameExchangeMaxAmount        = "game_exchange_max_amount"
-	SettingKeyGameExchangeDailyLimit       = "game_exchange_daily_limit"
-	SettingKeyGameExchangeAllowDGToBalance = "game_exchange_allow_dg_to_balance"
 )
 
 var (
@@ -77,11 +65,13 @@ var slotTotalWeight = sumSlotWeights(slotSymbolTable)
 const slotRuleVersion = "slots-v1"
 
 type GameHallSettingsReader interface {
-	GetMultiple(ctx context.Context, keys []string) (map[string]string, error)
+	Read(ctx context.Context) (gamehallsettings.Config, error)
 }
 
 type GameHallStore interface {
 	GetSnapshot(ctx context.Context, userID int64) (*GameWalletSnapshot, error)
+	GetUserAccess(ctx context.Context, userID int64) (*GameHallUserAccess, error)
+	SetUserAccessDisabled(ctx context.Context, userID int64, disabled bool) (*GameHallUserAccess, error)
 	CommitExchange(ctx context.Context, plan GameExchangePlan) (*GameExchangeResult, error)
 	GetDailyExchangeTotal(ctx context.Context, userID int64, start, end time.Time) (float64, error)
 	CommitSlotRound(ctx context.Context, plan GameSlotRoundPlan) (*GamePlayResult, error)
@@ -106,6 +96,13 @@ type GameWalletSnapshot struct {
 	MainBalance      float64
 	DGBalance        float64
 	JackpotBalance   float64
+}
+
+// GameHallUserAccess is the module-owned per-user access decision.
+type GameHallUserAccess struct {
+	UserID    int64     `json:"user_id"`
+	Disabled  bool      `json:"disabled"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type GameInfo struct {
@@ -257,6 +254,20 @@ func (s *GameHallService) SetSlotRoller(roller func() (float64, []string, string
 	if roller != nil {
 		s.rollSlot = roller
 	}
+}
+
+func (s *GameHallService) GetUserAccess(ctx context.Context, userID int64) (*GameHallUserAccess, error) {
+	if s == nil || s.store == nil {
+		return nil, ErrGameHallDisabled
+	}
+	return s.store.GetUserAccess(ctx, userID)
+}
+
+func (s *GameHallService) SetUserAccessDisabled(ctx context.Context, userID int64, disabled bool) (*GameHallUserAccess, error) {
+	if s == nil || s.store == nil {
+		return nil, ErrGameHallDisabled
+	}
+	return s.store.SetUserAccessDisabled(ctx, userID, disabled)
 }
 
 func (s *GameHallService) GetHallStatus(ctx context.Context, userID int64) (*GameHallStatus, error) {
@@ -490,31 +501,28 @@ func (s *GameHallService) readSettings(ctx context.Context) (gameHallRuntimeSett
 	if s.store == nil {
 		return gameHallRuntimeSettings{}, ErrGameHallDisabled
 	}
-	values, err := s.settings.GetMultiple(ctx, []string{
-		SettingKeyGameHallEnabled, SettingKeyGameSlotsEnabled, SettingKeyGameSlotsMinBet, SettingKeyGameSlotsMaxBet,
-		SettingKeyGameExchangeMinAmount, SettingKeyGameExchangeMaxAmount, SettingKeyGameExchangeDailyLimit, SettingKeyGameExchangeAllowDGToBalance,
-	})
+	config, err := s.settings.Read(ctx)
 	if err != nil {
 		return gameHallRuntimeSettings{}, err
 	}
-	if values[SettingKeyGameHallEnabled] != "true" {
+	if !config.Enabled {
 		return gameHallRuntimeSettings{}, ErrGameHallDisabled
 	}
-	minBet := parseBalanceFeatureFloat(values[SettingKeyGameSlotsMinBet], 0.01)
-	maxBet := parseBalanceFeatureFloat(values[SettingKeyGameSlotsMaxBet], 1000)
+	minBet := config.SlotsMinBet
+	maxBet := config.SlotsMaxBet
 	if minBet <= 0 || maxBet < minBet {
 		return gameHallRuntimeSettings{}, infraerrors.InternalServer("GAME_SETTINGS_INVALID", "game hall bet range is invalid")
 	}
-	exchangeMinAmount := parseBalanceFeatureFloat(values[SettingKeyGameExchangeMinAmount], 0.01)
-	exchangeMaxAmount := parseBalanceFeatureFloat(values[SettingKeyGameExchangeMaxAmount], 1000)
-	exchangeDailyLimit := parseBalanceFeatureFloat(values[SettingKeyGameExchangeDailyLimit], 1000)
+	exchangeMinAmount := config.ExchangeMinAmount
+	exchangeMaxAmount := config.ExchangeMaxAmount
+	exchangeDailyLimit := config.ExchangeDailyLimit
 	if exchangeMinAmount <= 0 || (exchangeMaxAmount > 0 && exchangeMaxAmount < exchangeMinAmount) {
 		return gameHallRuntimeSettings{}, infraerrors.InternalServer("GAME_SETTINGS_INVALID", "game hall exchange range is invalid")
 	}
 	return gameHallRuntimeSettings{
-		slotsEnabled: values[SettingKeyGameSlotsEnabled] == "true", minBet: minBet, maxBet: maxBet,
+		slotsEnabled: config.SlotsEnabled, minBet: minBet, maxBet: maxBet,
 		exchangeMinAmount: exchangeMinAmount, exchangeMaxAmount: exchangeMaxAmount, exchangeDailyLimit: exchangeDailyLimit,
-		exchangeAllowDGToBalance: values[SettingKeyGameExchangeAllowDGToBalance] != "false",
+		exchangeAllowDGToBalance: config.ExchangeAllowDGToBalance,
 	}, nil
 }
 
@@ -574,7 +582,7 @@ func roundGameAmount(value float64) float64 {
 }
 
 func normalizeGameHallIdempotencyKey(raw string) (string, error) {
-	key, err := service.NormalizeIdempotencyKey(raw)
+	key, err := platform.NormalizeIdempotencyKey(raw)
 	if err != nil {
 		return "", err
 	}
@@ -585,14 +593,6 @@ func normalizeGameHallIdempotencyKey(raw string) (string, error) {
 		return uuid.NewString(), nil
 	}
 	return key, nil
-}
-
-func parseBalanceFeatureFloat(raw string, fallback float64) float64 {
-	value, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
-	if err != nil || value < 0 || math.IsNaN(value) || math.IsInf(value, 0) {
-		return fallback
-	}
-	return value
 }
 
 func resolveGameOutcome(netAmount float64) string {

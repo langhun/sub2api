@@ -10,10 +10,12 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/custom"
+	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/websearch"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/web"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
@@ -23,9 +25,16 @@ import (
 
 // ProviderSet 提供服务器层的依赖
 var ProviderSet = wire.NewSet(
+	ProvidePublicSettingsInjectionProvider,
 	ProvideRouter,
 	ProvideHTTPServer,
 )
+
+// ProvidePublicSettingsInjectionProvider composes upstream public settings
+// with the Overlay-owned projection before the embedded SPA receives it.
+func ProvidePublicSettingsInjectionProvider(settingService *service.SettingService, customSettingsRegistry *customsettings.Registry) web.PublicSettingsProvider {
+	return customsettings.NewInjectionProvider(settingService, customSettingsRegistry)
+}
 
 // ProvideRouter 提供路由器
 func ProvideRouter(
@@ -40,6 +49,7 @@ func ProvideRouter(
 	subscriptionService *service.SubscriptionService,
 	opsService *service.OpsService,
 	settingService *service.SettingService,
+	publicSettingsProvider web.PublicSettingsProvider,
 	compositeResolver *service.CompositeRouteResolver,
 	redisClient *redis.Client,
 	customRuntime *custom.Runtime,
@@ -88,7 +98,7 @@ func ProvideRouter(
 		service.SetWebSearchManager(websearch.NewManager(configs, redisClient))
 	})
 
-	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient, customRuntime)
+	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, publicSettingsProvider, compositeResolver, cfg, redisClient, customRuntime)
 }
 
 func configureTrustedProxies(r *gin.Engine, cfg config.ServerConfig) {

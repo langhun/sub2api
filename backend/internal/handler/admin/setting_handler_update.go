@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -140,7 +141,6 @@ type UpdateSettingsRequest struct {
 	ContactInfo                 string                `json:"contact_info"`
 	DocURL                      string                `json:"doc_url"`
 	HomeContent                 string                `json:"home_content"`
-	DefaultHomepage             string                `json:"default_homepage"`
 	HideCcsImportButton         bool                  `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled *bool                 `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL     *string               `json:"purchase_subscription_url"`
@@ -310,44 +310,9 @@ type UpdateSettingsRequest struct {
 	ChannelMonitorDefaultIntervalSeconds *int  `json:"channel_monitor_default_interval_seconds"`
 
 	// Available Channels feature switch (user-facing)
-	AvailableChannelsEnabled     *bool    `json:"available_channels_enabled"`
-	GameHallEnabled              *bool    `json:"game_hall_enabled"`
-	GameSlotsEnabled             *bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet              *float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet              *float64 `json:"game_slots_max_bet"`
-	GameExchangeMinAmount        *float64 `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount        *float64 `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit       *float64 `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance *bool    `json:"game_exchange_allow_dg_to_balance"`
-
+	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
 	// Affiliate (邀请返利) feature switch
-	AffiliateEnabled              *bool    `json:"affiliate_enabled"`
-	CheckinEnabled                *bool    `json:"checkin_enabled"`
-	CheckinMinBalance             *float64 `json:"checkin_min_balance"`
-	CheckinMaxBalance             *float64 `json:"checkin_max_balance"`
-	CheckinLuckEnabled            *bool    `json:"checkin_luck_enabled"`
-	CheckinLuckMinMultiplier      *float64 `json:"checkin_luck_min_multiplier"`
-	CheckinLuckMaxMultiplier      *float64 `json:"checkin_luck_max_multiplier"`
-	CheckinBlindboxEnabled        *bool    `json:"checkin_blindbox_enabled"`
-	CheckinBlindboxTriggerType    *string  `json:"checkin_blindbox_trigger_type"`
-	CheckinBlindboxInterval       *int     `json:"checkin_blindbox_interval"`
-	TransferEnabled               *bool    `json:"transfer_enabled"`
-	TransferFeeRate               *float64 `json:"transfer_fee_rate"`
-	TransferMinAmount             *float64 `json:"transfer_min_amount"`
-	TransferMaxAmount             *float64 `json:"transfer_max_amount"`
-	TransferDailyLimit            *float64 `json:"transfer_daily_limit"`
-	TransferDailyCountLimit       *int     `json:"transfer_daily_count_limit"`
-	TransferVIPFeeExempt          *bool    `json:"transfer_vip_fee_exempt"`
-	RedPacketEnabled              *bool    `json:"redpacket_enabled"`
-	RedPacketMaxCount             *int     `json:"redpacket_max_count"`
-	RedPacketExpireHours          *int     `json:"redpacket_expire_hours"`
-	UsageQueryEnabled             *bool    `json:"usage_query_enabled"`
-	LeaderboardEnabled            *bool    `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled     *bool    `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled *bool    `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled     *bool    `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled    *bool    `json:"leaderboard_transfer_enabled"`
-	LeaderboardIncludeAdmin       *bool    `json:"leaderboard_include_admin"`
+	AffiliateEnabled *bool `json:"affiliate_enabled"`
 
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
@@ -413,7 +378,12 @@ func (h *SettingHandler) ensureActorTotpForStepUp(c *gin.Context) bool {
 
 func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	var req UpdateSettingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	rawPayload, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := json.Unmarshal(rawPayload, &req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
@@ -421,6 +391,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	previousSettings, err := h.settingService.GetAllSettings(c.Request.Context())
 	if err != nil {
 		response.ErrorFrom(c, err)
+		return
+	}
+	hasSettingsExtensionChanges, err := h.settingsMount.ValidateUpdate(c.Request.Context(), rawPayload)
+	if err != nil {
+		response.BadRequest(c, err.Error())
 		return
 	}
 	previousAuthSourceDefaults, err := h.settingService.GetAuthSourceDefaultSettings(c.Request.Context())
@@ -1278,8 +1253,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 
 	settings := &service.SystemSettings{
-		BalanceFeatureSettings: mergeBalanceFeatureSettings(previousSettings.BalanceFeatureSettings, req),
-		CodeFormatSettings:     previousSettings.CodeFormatSettings,
+		CodeFormatSettings: previousSettings.CodeFormatSettings,
 		// 系统全局 platform quota 默认值（整体替换语义）
 		DefaultPlatformQuotas: req.DefaultPlatformQuotas,
 
@@ -1390,7 +1364,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ContactInfo:                            req.ContactInfo,
 		DocURL:                                 req.DocURL,
 		HomeContent:                            req.HomeContent,
-		DefaultHomepage:                        req.DefaultHomepage,
 		HideCcsImportButton:                    req.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:            purchaseEnabled,
 		PurchaseSubscriptionURL:                purchaseURL,
@@ -1742,6 +1715,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if hasSettingsExtensionChanges {
+		if err := h.settingsMount.ApplyUpdate(c.Request.Context(), rawPayload); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
 	if h.opsService != nil {
 		h.opsService.SetMonitoringEnabled(settings.OpsMonitoringEnabled)
 	}
@@ -1801,6 +1780,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		return
 	}
 	h.ensureDingTalkSyncAttributes(c.Request.Context(), updatedSettings)
+	updatedExtension, err := h.settingsMount.Admin(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	updatedAuthSourceDefaults, err := h.settingService.GetAuthSourceDefaultSettings(c.Request.Context())
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -1824,7 +1808,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 
 	payload := dto.SystemSettings{
-		BalanceFeatureSettings:                                 balanceFeatureSettingsToDTO(updatedSettings.BalanceFeatureSettings),
 		CodeFormatSettings:                                     updatedSettings.CodeFormatSettings,
 		RegistrationEnabled:                                    updatedSettings.RegistrationEnabled,
 		EmailVerifyEnabled:                                     updatedSettings.EmailVerifyEnabled,
@@ -1929,7 +1912,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ContactInfo:                                            updatedSettings.ContactInfo,
 		DocURL:                                                 updatedSettings.DocURL,
 		HomeContent:                                            updatedSettings.HomeContent,
-		DefaultHomepage:                                        updatedSettings.DefaultHomepage,
 		HideCcsImportButton:                                    updatedSettings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:                            updatedSettings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                                updatedSettings.PurchaseSubscriptionURL,
@@ -2063,114 +2045,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	} else {
 		payload.DefaultPlatformQuotas = platformQuotas
 	}
-	response.Success(c, systemSettingsResponseData(payload, updatedAuthSourceDefaults))
-}
-
-func mergeBalanceFeatureSettings(previous service.BalanceFeatureSettings, req UpdateSettingsRequest) service.BalanceFeatureSettings {
-	next := previous
-	if req.GameHallEnabled != nil {
-		next.GameHallEnabled = *req.GameHallEnabled
+	data, err := systemSettingsResponseData(payload, updatedAuthSourceDefaults, updatedExtension)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
 	}
-	if req.GameSlotsEnabled != nil {
-		next.GameSlotsEnabled = *req.GameSlotsEnabled
-	}
-	if req.GameSlotsMinBet != nil {
-		next.GameSlotsMinBet = *req.GameSlotsMinBet
-	}
-	if req.GameSlotsMaxBet != nil {
-		next.GameSlotsMaxBet = *req.GameSlotsMaxBet
-	}
-	if req.GameExchangeMinAmount != nil {
-		next.GameExchangeMinAmount = *req.GameExchangeMinAmount
-	}
-	if req.GameExchangeMaxAmount != nil {
-		next.GameExchangeMaxAmount = *req.GameExchangeMaxAmount
-	}
-	if req.GameExchangeDailyLimit != nil {
-		next.GameExchangeDailyLimit = *req.GameExchangeDailyLimit
-	}
-	if req.GameExchangeAllowDGToBalance != nil {
-		next.GameExchangeAllowDGToBalance = *req.GameExchangeAllowDGToBalance
-	}
-	if req.CheckinEnabled != nil {
-		next.CheckinEnabled = *req.CheckinEnabled
-	}
-	if req.CheckinMinBalance != nil {
-		next.CheckinMinBalance = *req.CheckinMinBalance
-	}
-	if req.CheckinMaxBalance != nil {
-		next.CheckinMaxBalance = *req.CheckinMaxBalance
-	}
-	if req.CheckinLuckEnabled != nil {
-		next.CheckinLuckEnabled = *req.CheckinLuckEnabled
-	}
-	if req.CheckinLuckMinMultiplier != nil {
-		next.CheckinLuckMinMultiplier = *req.CheckinLuckMinMultiplier
-	}
-	if req.CheckinLuckMaxMultiplier != nil {
-		next.CheckinLuckMaxMultiplier = *req.CheckinLuckMaxMultiplier
-	}
-	if req.CheckinBlindboxEnabled != nil {
-		next.CheckinBlindboxEnabled = *req.CheckinBlindboxEnabled
-	}
-	if req.CheckinBlindboxTriggerType != nil {
-		next.CheckinBlindboxTriggerType = *req.CheckinBlindboxTriggerType
-	}
-	if req.CheckinBlindboxInterval != nil {
-		next.CheckinBlindboxInterval = *req.CheckinBlindboxInterval
-	}
-	if req.TransferEnabled != nil {
-		next.TransferEnabled = *req.TransferEnabled
-	}
-	if req.TransferFeeRate != nil {
-		next.TransferFeeRate = *req.TransferFeeRate
-	}
-	if req.TransferMinAmount != nil {
-		next.TransferMinAmount = *req.TransferMinAmount
-	}
-	if req.TransferMaxAmount != nil {
-		next.TransferMaxAmount = *req.TransferMaxAmount
-	}
-	if req.TransferDailyLimit != nil {
-		next.TransferDailyLimit = *req.TransferDailyLimit
-	}
-	if req.TransferDailyCountLimit != nil {
-		next.TransferDailyCountLimit = *req.TransferDailyCountLimit
-	}
-	if req.TransferVIPFeeExempt != nil {
-		next.TransferVIPFeeExempt = *req.TransferVIPFeeExempt
-	}
-	if req.RedPacketEnabled != nil {
-		next.RedPacketEnabled = *req.RedPacketEnabled
-	}
-	if req.RedPacketMaxCount != nil {
-		next.RedPacketMaxCount = *req.RedPacketMaxCount
-	}
-	if req.RedPacketExpireHours != nil {
-		next.RedPacketExpireHours = *req.RedPacketExpireHours
-	}
-	if req.UsageQueryEnabled != nil {
-		next.UsageQueryEnabled = *req.UsageQueryEnabled
-	}
-	if req.LeaderboardEnabled != nil {
-		next.LeaderboardEnabled = *req.LeaderboardEnabled
-	}
-	if req.LeaderboardBalanceEnabled != nil {
-		next.LeaderboardBalanceEnabled = *req.LeaderboardBalanceEnabled
-	}
-	if req.LeaderboardConsumptionEnabled != nil {
-		next.LeaderboardConsumptionEnabled = *req.LeaderboardConsumptionEnabled
-	}
-	if req.LeaderboardCheckinEnabled != nil {
-		next.LeaderboardCheckinEnabled = *req.LeaderboardCheckinEnabled
-	}
-	if req.LeaderboardTransferEnabled != nil {
-		next.LeaderboardTransferEnabled = *req.LeaderboardTransferEnabled
-	}
-	if req.LeaderboardIncludeAdmin != nil {
-		next.LeaderboardIncludeAdmin = *req.LeaderboardIncludeAdmin
-	}
-	return next
+	response.Success(c, data)
 }
 
 // hasPaymentFields returns true if any payment-related field was explicitly provided.

@@ -19,7 +19,14 @@ onMounted(async () => {
     }
   }
 
-  const target = appStore.cachedPublicSettings?.default_homepage === 'dino' ? '/Dino' : '/home'
+  const target = getDefaultHomepage(appStore.cachedPublicSettings) === 'dino' ? '/Dino' : '/home'
   await router.replace(target)
 })
+
+function getDefaultHomepage(settings: unknown): 'default' | 'dino' {
+  if (typeof settings !== 'object' || settings === null) return 'default'
+  return (settings as { default_homepage?: unknown }).default_homepage === 'dino'
+    ? 'dino'
+    : 'default'
+}
 </script>

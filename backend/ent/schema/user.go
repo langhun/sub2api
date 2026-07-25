@@ -115,9 +115,6 @@ func (User) Fields() []ent.Field {
 		// 用户级每分钟请求数上限（0 = 不限制）。仅当所在分组未设置 rpm_limit 时作为兜底生效。
 		field.Int("rpm_limit").
 			Default(0),
-		// 管理员可按用户禁用娱乐大厅，不影响该用户的其他站点功能。
-		field.Bool("game_hall_disabled").
-			Default(false),
 	}
 }
 

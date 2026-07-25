@@ -21,9 +21,6 @@ export * as batchImageAPI from './batchImage'
 export { totpAPI } from './totp'
 export { default as announcementsAPI } from './announcements'
 export { channelMonitorUserAPI } from './channelMonitor'
-export { leaderboardAPI } from '@/custom/modules/activity/api/leaderboard'
-export { transferAPI } from './transfer'
-
 // Admin APIs
 export { adminAPI } from './admin'
 

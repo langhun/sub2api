@@ -128,29 +128,30 @@ type MigrationPlan struct {
 	Steps                []MigrationStep
 }
 
-// DirectTransferMigrationPlan is the authoritative, direct-transfer-only extraction plan.
+// DirectTransferMigrationPlan records the complete transfer-ledger extraction
+// owned by wallet-extension. Red-packet and blind-box lifecycles remain activity-owned.
 var DirectTransferMigrationPlan = MigrationPlan{
-	Name:                 "direct-transfer",
-	IncludedCapabilities: []string{"recipient resolution", "preview", "point-to-point transfer", "history", "user stats"},
-	ExcludedCapabilities: []string{"red packet", "blind box", "leaderboard"},
+	Name:                 "wallet-extension-transfer-ledger",
+	IncludedCapabilities: []string{"recipient resolution", "preview", "point-to-point transfer", "history", "user stats", "transfer leaderboard", "transfer administration", "batch distribution"},
+	ExcludedCapabilities: []string{"red packet", "blind box"},
 	Steps: []MigrationStep{
 		{
 			Layer:        MigrationLayerRepository,
 			LegacySource: legacyDirectTransferRepositoryPath,
 			Target:       "backend/internal/custom/modules/wallet-extension/direct_transfer_repository.go",
-			Scope:        []string{"direct transfer record", "daily usage", "history", "user stats"},
+			Scope:        []string{"transfer ledger", "daily usage", "history", "user stats", "leaderboard", "administrative queries"},
 		},
 		{
 			Layer:        MigrationLayerService,
 			LegacySource: legacyDirectTransferServicePath,
 			Target:       "backend/internal/custom/modules/wallet-extension/direct_transfer_service.go",
-			Scope:        []string{"validation", "fee calculation", "atomic debit and credit", "audit"},
+			Scope:        []string{"validation", "fee calculation", "atomic debit and credit", "revocation", "batch distribution"},
 		},
 		{
 			Layer:        MigrationLayerHandler,
 			LegacySource: legacyDirectTransferHandlerPath,
 			Target:       "backend/internal/custom/modules/wallet-extension/direct_transfer_handler.go",
-			Scope:        []string{"transfer", "preview", "recipient lookup", "history", "stats"},
+			Scope:        []string{"transfer", "preview", "recipient lookup", "history", "stats", "leaderboard", "administration"},
 		},
 	},
 }

@@ -562,17 +562,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/admin/transfer',
-    name: 'AdminBalanceTransfer',
-    component: () => import('@/views/admin/TransferManageView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: 'Transfer Management',
-      titleKey: 'nav.transferManage'
-    }
-  },
-  {
     path: '/admin/settings',
     name: 'AdminSettings',
     component: () => import('@/views/admin/SettingsView.vue'),

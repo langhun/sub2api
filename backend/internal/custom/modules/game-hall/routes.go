@@ -43,5 +43,7 @@ func (m *Module) RegisterRoutes(
 		gameHall := admin.Group("/game-hall")
 		gameHall.GET("/transactions", m.Admin.Transactions)
 		gameHall.GET("/rounds", m.Admin.Rounds)
+		gameHall.GET("/users/:user_id/access", m.Admin.UserAccess)
+		gameHall.PUT("/users/:user_id/access", m.Admin.UpdateUserAccess)
 	}
 }

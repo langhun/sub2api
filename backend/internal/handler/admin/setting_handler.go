@@ -3,13 +3,13 @@ package admin
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"regexp"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/handler/settingsext"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -59,6 +59,7 @@ type SettingHandler struct {
 	paymentService           *service.PaymentService
 	userAttributeService     *service.UserAttributeService
 	notificationEmailService *service.NotificationEmailService
+	settingsMount            settingsext.Mount
 	totpService              *service.TotpService
 	userService              *service.UserService
 }
@@ -73,6 +74,7 @@ func NewSettingHandler(settingService *service.SettingService, emailService *ser
 		paymentConfigService: paymentConfigService,
 		paymentService:       paymentService,
 		userAttributeService: userAttributeService,
+		settingsMount:        settingsext.EmptyMount{},
 	}
 }
 
@@ -80,6 +82,16 @@ func NewSettingHandler(settingService *service.SettingService, emailService *ser
 // the constructor signature used by existing unit tests.
 func (h *SettingHandler) SetNotificationEmailService(notificationEmailService *service.NotificationEmailService) {
 	h.notificationEmailService = notificationEmailService
+}
+
+// SetSettingsMount attaches an optional settings extension without exposing
+// extension-owned fields or persistence rules to this core handler.
+func (h *SettingHandler) SetSettingsMount(mount settingsext.Mount) {
+	if mount == nil {
+		h.settingsMount = settingsext.EmptyMount{}
+		return
+	}
+	h.settingsMount = mount
 }
 
 // SetStepUpDeps attaches the services backing the step-up switch preconditions
@@ -95,6 +107,11 @@ func (h *SettingHandler) SetStepUpDeps(totpService *service.TotpService, userSer
 // GET /api/v1/admin/settings
 func (h *SettingHandler) GetSettings(c *gin.Context) {
 	settings, err := h.settingService.GetAllSettings(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	extension, err := h.settingsMount.Admin(c.Request.Context())
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -125,7 +142,6 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 	}
 
 	payload := dto.SystemSettings{
-		BalanceFeatureSettings:                                 balanceFeatureSettingsToDTO(settings.BalanceFeatureSettings),
 		CodeFormatSettings:                                     settings.CodeFormatSettings,
 		RegistrationEnabled:                                    settings.RegistrationEnabled,
 		EmailVerifyEnabled:                                     settings.EmailVerifyEnabled,
@@ -230,7 +246,6 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		ContactInfo:                                            settings.ContactInfo,
 		DocURL:                                                 settings.DocURL,
 		HomeContent:                                            settings.HomeContent,
-		DefaultHomepage:                                        settings.DefaultHomepage,
 		HideCcsImportButton:                                    settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:                            settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:                                settings.PurchaseSubscriptionURL,
@@ -368,7 +383,12 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		payload.DefaultPlatformQuotas = platformQuotas
 	}
 
-	response.Success(c, systemSettingsResponseData(payload, authSourceDefaults))
+	data, err := systemSettingsResponseData(payload, authSourceDefaults, extension)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, data)
 }
 
 // openaiFastPolicySettingsToDTO converts service -> dto for OpenAI fast policy.
@@ -417,31 +437,6 @@ func loginAgreementDocumentsToDTO(items []service.LoginAgreementDocument) []dto.
 	return result
 }
 
-func balanceFeatureSettingsToDTO(settings service.BalanceFeatureSettings) dto.BalanceFeatureSettings {
-	return dto.BalanceFeatureSettings{
-		GameHallEnabled: settings.GameHallEnabled, GameSlotsEnabled: settings.GameSlotsEnabled,
-		GameSlotsMinBet: settings.GameSlotsMinBet, GameSlotsMaxBet: settings.GameSlotsMaxBet,
-		GameExchangeMinAmount: settings.GameExchangeMinAmount, GameExchangeMaxAmount: settings.GameExchangeMaxAmount,
-		GameExchangeDailyLimit: settings.GameExchangeDailyLimit, GameExchangeAllowDGToBalance: settings.GameExchangeAllowDGToBalance,
-		CheckinEnabled: settings.CheckinEnabled, CheckinMinBalance: settings.CheckinMinBalance,
-		CheckinMaxBalance: settings.CheckinMaxBalance, CheckinLuckEnabled: settings.CheckinLuckEnabled,
-		CheckinLuckMinMultiplier: settings.CheckinLuckMinMultiplier, CheckinLuckMaxMultiplier: settings.CheckinLuckMaxMultiplier,
-		CheckinBlindboxEnabled: settings.CheckinBlindboxEnabled, CheckinBlindboxTriggerType: settings.CheckinBlindboxTriggerType,
-		CheckinBlindboxInterval: settings.CheckinBlindboxInterval, TransferEnabled: settings.TransferEnabled,
-		TransferFeeRate: settings.TransferFeeRate, TransferMinAmount: settings.TransferMinAmount,
-		TransferMaxAmount: settings.TransferMaxAmount, TransferDailyLimit: settings.TransferDailyLimit,
-		TransferDailyCountLimit: settings.TransferDailyCountLimit, TransferVIPFeeExempt: settings.TransferVIPFeeExempt,
-		RedPacketEnabled: settings.RedPacketEnabled, RedPacketMaxCount: settings.RedPacketMaxCount,
-		RedPacketExpireHours: settings.RedPacketExpireHours,
-		UsageQueryEnabled:    settings.UsageQueryEnabled, LeaderboardEnabled: settings.LeaderboardEnabled,
-		LeaderboardBalanceEnabled:     settings.LeaderboardBalanceEnabled,
-		LeaderboardConsumptionEnabled: settings.LeaderboardConsumptionEnabled,
-		LeaderboardCheckinEnabled:     settings.LeaderboardCheckinEnabled,
-		LeaderboardTransferEnabled:    settings.LeaderboardTransferEnabled,
-		LeaderboardIncludeAdmin:       settings.LeaderboardIncludeAdmin,
-	}
-}
-
 func loginAgreementDocumentsToService(items []dto.LoginAgreementDocument) []service.LoginAgreementDocument {
 	result := make([]service.LoginAgreementDocument, 0, len(items))
 	for _, item := range items {
@@ -459,11 +454,10 @@ func loginAgreementDocumentsToService(items []dto.LoginAgreementDocument) []serv
 	return result
 }
 
-func systemSettingsResponseData(settings dto.SystemSettings, authSourceDefaults *service.AuthSourceDefaultSettings) map[string]any {
-	data := make(map[string]any)
-	raw, err := json.Marshal(settings)
-	if err == nil {
-		_ = json.Unmarshal(raw, &data)
+func systemSettingsResponseData(settings dto.SystemSettings, authSourceDefaults *service.AuthSourceDefaultSettings, extension map[string]any) (map[string]any, error) {
+	data, err := settingsext.Merge(settings, extension)
+	if err != nil {
+		return nil, err
 	}
 	if authSourceDefaults == nil {
 		authSourceDefaults = &service.AuthSourceDefaultSettings{}
@@ -513,5 +507,5 @@ func systemSettingsResponseData(settings dto.SystemSettings, authSourceDefaults 
 	data["auth_source_default_dingtalk_platform_quotas"] = authSourceDefaults.DingTalk.PlatformQuotas
 	data["force_email_on_third_party_signup"] = authSourceDefaults.ForceEmailOnThirdPartySignup
 
-	return data
+	return data, nil
 }

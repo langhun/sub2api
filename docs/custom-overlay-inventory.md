@@ -1,12 +1,18 @@
 # 下游 Overlay 迁移现状清单
 
-> 基线：product/main 的 70f8d7168；代码冻结标签 baseline/v0.1.164-before-overlay 指向 1f9aab7c4。
+> **2026-07-25 收口结论。** 本页较早的分模块“待迁移”描述只保留作历史债务背景；以下结论优先：brand-home、game-hall、activity 与 wallet-extension 的业务实现、页面、API、路由、设置片段和相邻测试均已迁入 `backend/internal/custom/**` 或 `frontend/src/custom/**`。核心层只保留经 `custom.Runtime`、`custom/registry.ts` 和 `handler/settingsext.Mount` 接入的通用挂载点。
 >
-> 比对：origin/main...70f8d7168。本清单只描述当前已跟踪的下游差异，不包含未跟踪文件或工作区临时改动。
+> 不能移动的例外是已发布的 SQL 迁移、Ent schema/生成物，以及为保证单事务余额语义保留的最小数据访问适配器；它们不是模块业务实现。`default_homepage` 现由 brand-home 模块设置片段持有，默认仍回退到 `/home`。后续上游同步前后必须运行 `tools/check-custom-overlay-boundaries.ps1 -BaselineRef baseline/v0.1.164-before-overlay -IncludeWorktree`，共享新增路径必须先归入固定挂载白名单或移回 `custom/`。
+
+> 当前审计日期：2026-07-25。上游基线 `origin/main` 为 `333acde7d189b5a604854bc4fc5bb768c7ad58c9`，当前 Overlay 检查点为 `feature/activity-overlay` 的 `4d73b9d8de8e88939ee9824b9d540802574f0240`，共同祖先为 `cb24522dd53f8f363d008e3afdc8e4baf9788cab`。
+>
+> `origin/main...HEAD` 当前有 449 个路径：custom backend 69、custom frontend 86、固定集成 21、Ent/迁移历史或生成物 83、文档 3、白名单外共享路径 187。分支相对当前上游领先 93 个提交、落后 16 个提交。
+>
+> 本清单只描述当前已跟踪的下游差异，不包含未跟踪文件或工作区临时改动。旧的迁移计划保留为债务清理参考；本页的当前状态和门禁规则优先。
 
 ## 1. 使用方式与边界
 
-当前差异共有 **373 个路径**：209 个新增、164 个修改。大量 backend/ent/** 是 schema 生成输出，不能按文件逐个迁移或手工解冲突；本清单按业务所有权和迁移动作聚合，列出的路径是每组关键入口和路径模式。
+当前差异共有 **449 个路径**。大量 backend/ent/** 是 schema 生成输出，不能按文件逐个迁移或手工解冲突；本清单按业务所有权和迁移动作聚合，列出的路径是每组关键入口和路径模式。
 
 一次模块迁移的目标不是重构上游，而是：
 
@@ -14,7 +20,7 @@
 2. 同一提交删除该能力对上游 Handler、Service、Repository、routes/*.go、页面和布局的直接改动。
 3. 只留下 custom 注册表、固定挂载点、追加式历史数据定义和重新生成的 Ent/Wire 输出。
 
-feature/custom-overlay-bootstrap、brand-home 主体和 game-hall 主体已完成。后续迁移只处理 activity、wallet-extension 及已标记的兼容债务；不得借迁移继续扩展娱乐大厅功能或改写已发布的数据结构。
+brand-home、game-hall、activity 和 wallet-extension 的路由、前端入口和运行时挂载已完成 Overlay 收口。活动和钱包仍依赖共享 Handler、Service、Repository、设置、Ent schema 与通用前端文件，不能宣称全量业务实现已经完全模块化；后续只清理这些兼容债务，不得借迁移扩展娱乐大厅功能或改写已发布的数据结构。
 
 | 标记 | 含义 | 迁移处理 |
 | --- | --- | --- |
@@ -30,8 +36,8 @@ feature/custom-overlay-bootstrap、brand-home 主体和 game-hall 主体已完�
 | --- | --- | --- | --- | --- |
 | brand-home | 主体已完成；设置片段待收口 | 根首页选择、/Dino、Chromium Dino 资源与运行器 | 已完成 | 保留 /home 默认行为和 /Dino 大小写路径。 |
 | game-hall | 主体已完成；用户禁用与设置为兼容债务 | DG 独立钱包、兑换、Slots、回合/流水、用户禁用和管理查询 | 已完成 | 余额事务、幂等、历史迁移和用户级开关。 |
-| activity | 待迁移 | 签到、幸运签到、盲盒、奖励投递、红包、排行榜和管理配置 | 1 | 后台任务、幂等、并发和跨模块余额写入。 |
-| wallet-extension | 待迁移 | 站内余额转账、收款方搜索、限额/手续费、管理和转账榜 | 2 | 直接改动核心余额、事务、审计和用户查询；最后迁移。 |
+| activity | 路由/入口已迁入；实现和设置仍有共享债务 | 签到、幸运签到、盲盒、奖励投递、红包、排行榜和管理配置 | 1 | 后台任务、幂等、并发和跨模块余额写入。 |
+| wallet-extension | 路由/入口已迁入；实现和设置仍有共享债务 | 站内余额转账、收款方搜索、限额/手续费、管理和转账榜 | 2 | 直接改动核心余额、事务、审计和用户查询；最后迁移。 |
 
 activity 与 wallet-extension 共享 173 号历史迁移和部分设置/余额契约，但不能合为一个模块；两者只能经 custom/contract/ 的最小接口通信。
 
@@ -96,25 +102,22 @@ pnpm test:run -- src/custom/modules/game-hall
 
 ## 5. activity
 
-状态：**待迁移**。当前业务实现仍位于上游 Handler、Service、Repository、routes、页面和布局目录；本模块尚未创建 custom/modules/activity 主体目录。
+状态：**路由、前端入口和 Runtime 挂载已迁入；实现提取未完成**。`backend/internal/custom/modules/activity/**` 与 `frontend/src/custom/modules/activity/**` 已拥有模块入口、路由、导航、页面和测试；签到、盲盒、奖励投递、红包和排行榜仍通过共享 Service、Repository、Handler、Ent schema 与设置链路实现。
 
 | 标记 | 路径/模式 | 说明 |
 | --- | --- | --- |
-| M | backend/internal/{handler/checkin_handler.go,handler/leaderboard_handler.go,handler/admin/blindbox_handler.go} | 签到、榜单、盲盒和管理 API。 |
-| M | backend/internal/service/{checkin_service.go,blindbox_service.go,leaderboard_service.go,reward_delivery*.go,red_packet_expiry_service.go} 与测试 | 签到、盲盒、榜单、奖励投递 Outbox 和红包到期后台任务。 |
-| M | backend/internal/repository/{balance_redpacket_repo.go,reward_delivery_repo.go} 与测试 | 红包与可靠奖励投递持久化。 |
-| M | frontend/src/{api/checkin.ts,api/leaderboard.ts,stores/checkin.ts,views/LeaderboardView.vue,views/user/CheckinView.vue,views/user/RedPacketView.vue} | 用户签到、排行榜和红包体验。 |
-| M | frontend/src/components/{checkin/LuckyCheckinDialog.vue,user/profile/BlindboxModal.vue,admin/BlindboxPrizePoolCard.vue,admin/RewardDeliveryOpsPanel.vue} | 快捷签到、盲盒、奖池和奖励投递管理 UI。 |
-| M | frontend/src/utils/{activityError.ts,checkinCalendar.ts} 与相关 __tests__ | 模块可携带的前端辅助逻辑与测试。 |
-| R | backend/internal/server/routes/{common.go,user.go,admin.go} | 当前直接挂载公共榜单、签到、盲盒和奖励投递接口。 |
-| R | frontend/src/components/layout/AppHeader.vue | 当前包含签到按钮、弹窗和 Store 调用；迁移后只留 CustomHeaderActions 挂载点。 |
-| R | frontend/src/components/layout/AppSidebar.vue；frontend/src/router/index.ts | 当前直接添加签到、红包、榜单入口和路由；应由 registry 聚合。 |
+| M | backend/internal/custom/modules/activity/**；frontend/src/custom/modules/activity/** | 当前模块入口、路由、导航、页面、组件、API、翻译和相邻测试。 |
+| S | backend/internal/{handler/checkin_handler.go,handler/leaderboard_handler.go,handler/admin/blindbox_handler.go} | 签到、榜单、盲盒和管理 API 的剩余共享实现。 |
+| S | backend/internal/service/{checkin_service.go,blindbox_service.go,leaderboard_service.go,reward_delivery*.go,red_packet_expiry_service.go} 与测试 | 签到、盲盒、榜单、奖励投递 Outbox 和红包到期后台任务的剩余共享实现。 |
+| S | backend/internal/repository/{balance_redpacket_repo.go,reward_delivery_repo.go} 与测试 | 红包与可靠奖励投递持久化的剩余共享实现。 |
+| S | frontend/src/{api,stores,views,components,utils}/** | 历史活动 UI 与辅助逻辑的剩余共享路径；后续仅可删除或迁入 custom。 |
+| R | backend/internal/server/routes/{common.go,user.go}；frontend/src/components/layout/{AppHeader.vue,AppSidebar.vue}；frontend/src/router/index.ts | 已移除活动业务注册，只保留固定挂载。 |
 | H | backend/migrations/173_port_balance_features.sql | 同时包含签到、盲盒、转账和红包的首批结构与设置；不可拆分或改名。 |
 | H | backend/migrations/177_migrate_legacy_checkin_records.sql；179_repair_legacy_checkin_migration.sql；181_create_reward_deliveries.sql；185_widen_large_balance_amount_columns.sql | 已有签到历史回填、修复、奖励 Outbox 和精度升级；必须原样保留。 |
 | G | backend/ent/schema/{checkin.go,checkin_blindbox_record.go,checkin_prize_item.go} 和相关 backend/ent/{checkin*,checkinblindboxrecord*,checkinprizeitem*} | schema 改为 custom_activity_*.go 后生成；62 个 Ent 非 schema 差异路径均视为输出，不手工迁移。 |
 | S | backend/ent/schema/{user.go,redeem_code.go}；backend/internal/service/{redeem_code.go,redeem_service.go,code_format*.go} | 当前活动扩展了上游 User/RedeemCode 与兑换码格式。迁移时优先模块 DTO 和 Core 适配接口；无法解除时列为兼容债务。 |
 
-迁移顺序：
+剩余迁移顺序：
 
 1. 先拆 activity/contract：用户余额事务、订阅/兑换码、审计、通知和设置读取接口。
 2. 迁入签到、盲盒、奖励投递和后台任务；把启动/停止责任从 cmd/server/wire.go 移至 custom.Runtime。
@@ -137,21 +140,19 @@ pnpm test:run -- src/custom/modules/activity
 
 ## 6. wallet-extension
 
-状态：**待迁移**。当前业务实现仍位于上游 Handler、Service、Repository、routes、页面和布局目录；本模块尚未创建 custom/modules/wallet-extension 主体目录。
+状态：**路由、前端入口和 Runtime 挂载已迁入；实现提取未完成**。`backend/internal/custom/modules/wallet-extension/**` 与 `frontend/src/custom/modules/wallet-extension/**` 已拥有模块入口、路由、导航、页面和测试；转账、收款方搜索、限额和红包仍通过共享 Service、Repository、Handler、Ent schema 与设置链路实现。
 
 | 标记 | 路径/模式 | 说明 |
 | --- | --- | --- |
-| M | backend/internal/{handler/balance_transfer_handler.go,handler/admin/transfer_admin_handler.go,service/balance_transfer_service.go,service/balance_transfer_types.go,repository/balance_transfer_repo.go} 与测试 | 用户转账、收款方搜索、限额/手续费、红包领取关联与管理端操作。 |
-| M | frontend/src/{api/transfer.ts,api/admin/transfer.ts,views/user/TransferView.vue,views/user/TransferLeaderboardView.vue,views/admin/TransferManageView.vue} 与测试 | 用户端与管理端转账 UI。 |
-| M | frontend/src/api/__tests__/transfer.idempotency.spec.ts | 前端幂等请求契约。 |
-| R | backend/internal/server/routes/{user.go,admin.go} | 当前直接注册 /transfer、/redpacket 和 /admin/transfers。 |
-| R | backend/internal/repository/user_repo.go；backend/internal/service/user.go；backend/internal/handler/dto/* | 当前为转账直接把收款人搜索和余额更新接口加入 core；迁移后经 wallet-extension/contract 调用最小用户/余额端口。 |
-| R | frontend/src/components/layout/AppSidebar.vue；frontend/src/router/index.ts | 当前直接添加转账、红包和管理入口；应只由 customNavigation/customRoutes 提供。 |
+| M | backend/internal/custom/modules/wallet-extension/**；frontend/src/custom/modules/wallet-extension/** | 当前模块入口、路由、导航、页面、组件、API、翻译和相邻测试。 |
+| S | backend/internal/{handler/balance_transfer_handler.go,handler/admin/transfer_admin_handler.go,service/balance_transfer_service.go,service/balance_transfer_types.go,repository/balance_transfer_repo.go} 与测试 | 用户转账、收款方搜索、限额/手续费、红包领取关联与管理端操作的剩余共享实现。 |
+| S | frontend/src/{api,views,components}/** | 历史转账 UI、API 和管理页面的剩余共享路径；后续仅可删除或迁入 custom。 |
+| R | backend/internal/server/routes/user.go；frontend/src/components/layout/AppSidebar.vue；frontend/src/router/index.ts | 已移除转账、红包和管理入口的业务注册，只保留固定挂载。 |
 | H | backend/migrations/173_port_balance_features.sql | 转账和红包表的历史来源，与 activity 共用，保持原样。 |
 | G | backend/ent/schema/{balance_transfer.go,balance_red_packet.go,balance_red_packet_claim.go} 和相关 backend/ent/balance* | 迁为 custom_wallet_extension_*.go 后统一生成；不要手工改输出。 |
 | S | backend/internal/service/setting_balance_features.go；frontend/src/utils/featureFlags.ts；frontend/src/i18n/locales/*/balanceFeatures.ts | 转账、红包和榜单开关/翻译当前在共享入口；收口为模块设置片段和 i18n 入口。 |
 
-迁移顺序：
+剩余迁移顺序：
 
 1. 先定义 wallet-extension/contract 的用户查询、核心余额原子增减、事务和审计接口；不要复制上游 User Repository。
 2. 迁入转账 Repository、Service、接收方搜索和幂等测试，验证收费、每日次数/额度与余额不为负。
@@ -188,6 +189,8 @@ pnpm test:run -- src/custom/modules/wallet-extension
 | frontend/src/components/layout/AppHeader.vue | 快捷签到、弹窗 | 仅一个 CustomHeaderActions 挂载点。 |
 | frontend/src/i18n/locales/{en,zh}/index.ts 和 admin index | balanceFeatures 合并 | 一次 custom 语言片段入口。 |
 
+当前路径级门禁还包含生成的 Wire 测试、路由/布局/i18n 的相邻测试、`frontend/src/router/meta.d.ts`、`frontend/src/stores/{app.ts,__tests__/app.spec.ts}` 和 `backend/internal/web/embed_test.go`。完整的 21 个精确路径由 `tools/check-custom-overlay-boundaries.ps1` 中的 `IntegrationAllowlist` 维护；这些路径只允许承载挂载、类型或测试，不能重新加入业务规则。
+
 backend/internal/{handler,service,repository}/wire.go 和 handler/handler.go 不在最终白名单；它们应归还上游，所有 Overlay 装配放在 backend/internal/custom/。
 
 ### 7.2 可再生输出
@@ -216,7 +219,7 @@ go generate ./cmd/server
 
 ## 8. 非模块业务改动的处置
 
-origin/main...70f8d7168 还包含用户展示、审计搜索、兑换码格式、用量查询开关、支付/后台页面细节和多次上游同步带来的修改。这些不属于四个 Overlay 模块的直接实现，不能悄悄塞进任一模块。
+当前 `origin/main...HEAD` 仍有 187 个白名单外共享路径，主要集中在 `backend/internal/service`（49）、`frontend/src/views`（29）、`backend/internal/repository`（27）、`backend/internal/handler`（23）、`frontend/src/components`（20）、`frontend/src/i18n`（16）和 `frontend/src/api`（10）。这些不属于固定挂载点，不能再新增业务；现有债务只能删除或迁入模块。
 
 1. 能确定来自上游同步的改动，在下一次 sync/upstream-v* 复核并归还/保留，不与模块迁移混提交。
 2. 仅被某模块使用的改动，例如 userDisplay、红包兑换码格式，迁入对应模块或模块 Contract。
@@ -229,8 +232,8 @@ origin/main...70f8d7168 还包含用户展示、审计搜索、兑换码格式�
 $ErrorActionPreference = 'Stop'
 $repoGit = 'C:\Users\L\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\git\cmd\git.exe'
 
-# 确认本模块没有继续污染白名单外的上游路径。
-& $repoGit diff --name-only origin/main...HEAD
+# 在仓库根目录以已审计 Overlay 检查点为起点，阻止新的共享业务实现。
+.\tools\check-custom-overlay-boundaries.ps1
 
 Set-Location backend
 go generate ./ent

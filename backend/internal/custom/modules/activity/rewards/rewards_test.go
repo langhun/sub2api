@@ -159,10 +159,19 @@ type prizeCatalogStub struct{ enabled []Prize }
 
 func (s *prizeCatalogStub) ListEnabled(context.Context) ([]Prize, error) { return s.enabled, nil }
 func (s *prizeCatalogStub) List(context.Context) ([]Prize, error)        { return s.enabled, nil }
+func (s *prizeCatalogStub) Get(_ context.Context, prizeID int64) (*Prize, error) {
+	for index := range s.enabled {
+		if s.enabled[index].ID == prizeID {
+			return &s.enabled[index], nil
+		}
+	}
+	return nil, nil
+}
 func (s *prizeCatalogStub) Save(_ context.Context, prize Prize) (Prize, error) {
 	return prize, nil
 }
-func (s *prizeCatalogStub) Archive(context.Context, int64) error { return nil }
+func (s *prizeCatalogStub) Archive(context.Context, int64) error      { return nil }
+func (s *prizeCatalogStub) Stats(context.Context) (PrizeStats, error) { return PrizeStats{}, nil }
 
 type randomStub struct {
 	intN  int

@@ -9,6 +9,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/contract"
+	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	coreservice "github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -100,62 +101,67 @@ func (w entClaimLedger) RecordRedPacketClaim(ctx context.Context, redPacketID, s
 	return saved.ID, nil
 }
 
-// SettingsAdapter reads only red-packet flags from the existing core settings
-// service. It never delegates a business operation to BalanceTransferService.
-type SettingsAdapter struct{ settings *coreservice.SettingService }
+// RegistrySettingsAdapter reads red-packet policy from the Overlay registry.
+// It never delegates a business operation to a legacy settings or transfer service.
+type RegistrySettingsAdapter struct{ registry *customsettings.Registry }
 
-func NewSettingsAdapter(settings *coreservice.SettingService) *SettingsAdapter {
-	return &SettingsAdapter{settings: settings}
+func NewRegistrySettingsAdapter(registry *customsettings.Registry) *RegistrySettingsAdapter {
+	return &RegistrySettingsAdapter{registry: registry}
 }
 
-func (a *SettingsAdapter) GetActivityRedPacketSettings(ctx context.Context) (contract.RedPacketSettings, error) {
-	if a == nil || a.settings == nil {
-		return contract.RedPacketSettings{}, fmt.Errorf("settings service is required")
+func (a *RegistrySettingsAdapter) GetActivityRedPacketSettings(ctx context.Context) (contract.RedPacketSettings, error) {
+	if a == nil || a.registry == nil {
+		return contract.RedPacketSettings{}, fmt.Errorf("custom settings registry is required")
 	}
-	settings, err := a.settings.GetAllSettings(ctx)
+	snapshot, err := a.registry.Read(ctx)
 	if err != nil {
-		return contract.RedPacketSettings{}, err
+		return contract.RedPacketSettings{}, fmt.Errorf("read custom activity settings: %w", err)
 	}
+	settings := snapshot.Activity
 	return contract.RedPacketSettings{Enabled: settings.RedPacketEnabled, MaximumCount: settings.RedPacketMaxCount, ExpireHours: settings.RedPacketExpireHours}, nil
 }
 
-// SettingsCodeGenerator keeps the configured code shape while making the
-// generator an Activity dependency rather than a transfer-service helper.
-type SettingsCodeGenerator struct{ settings *coreservice.SettingService }
+// CodeFormatSettingsSource is the narrow platform capability Activity needs
+// to create a red-packet code. It intentionally exposes no settings object.
+type CodeFormatSettingsSource interface {
+	GenerateRedPacketCode(context.Context) (string, error)
+}
 
-func NewSettingsCodeGenerator(settings *coreservice.SettingService) SettingsCodeGenerator {
+type SettingsCodeGenerator struct{ settings CodeFormatSettingsSource }
+
+func NewSettingsCodeGenerator(settings CodeFormatSettingsSource) SettingsCodeGenerator {
 	return SettingsCodeGenerator{settings: settings}
 }
 
 func (g SettingsCodeGenerator) GenerateRedPacketCode(ctx context.Context) (string, error) {
-	formats := coreservice.DefaultCodeFormatSettings()
-	if g.settings != nil {
-		formats = g.settings.GetCodeFormatSettings(ctx)
+	if g.settings == nil {
+		return "", fmt.Errorf("red-packet code generator is unavailable")
 	}
-	return formats.RedPacket.Generate()
+	return g.settings.GenerateRedPacketCode(ctx)
 }
 
 // FeeAdapter preserves the existing transfer-fee and VIP exemption policy as a
 // narrow pricing dependency. It does not use BalanceTransferService.
 type FeeAdapter struct {
-	settings      *coreservice.SettingService
+	registry      *customsettings.Registry
 	subscriptions *coreservice.SubscriptionService
 }
 
-func NewFeeAdapter(settings *coreservice.SettingService, subscriptions *coreservice.SubscriptionService) *FeeAdapter {
-	return &FeeAdapter{settings: settings, subscriptions: subscriptions}
+func NewRegistryFeeAdapter(registry *customsettings.Registry, subscriptions *coreservice.SubscriptionService) *FeeAdapter {
+	return &FeeAdapter{registry: registry, subscriptions: subscriptions}
 }
 
 func (a *FeeAdapter) QuoteRedPacketFee(ctx context.Context, senderID int64, totalAmount float64) (FeeQuote, error) {
-	if a == nil || a.settings == nil || senderID <= 0 || !validAmount(totalAmount) {
+	if a == nil || a.registry == nil || senderID <= 0 || !validAmount(totalAmount) {
 		return FeeQuote{}, fmt.Errorf("invalid red-packet fee request")
 	}
-	settings, err := a.settings.GetAllSettings(ctx)
+	snapshot, err := a.registry.Read(ctx)
 	if err != nil {
-		return FeeQuote{}, err
+		return FeeQuote{}, fmt.Errorf("read custom wallet settings: %w", err)
 	}
-	rate := settings.TransferFeeRate
-	if settings.TransferVIPFeeExempt && a.subscriptions != nil {
+	wallet := snapshot.WalletExtension
+	rate := wallet.DirectTransferFeeRate
+	if wallet.DirectTransferVIPFeeExempt && a.subscriptions != nil {
 		subscriptions, listErr := a.subscriptions.ListActiveUserSubscriptions(ctx, senderID)
 		if listErr == nil && len(subscriptions) > 0 {
 			rate = 0

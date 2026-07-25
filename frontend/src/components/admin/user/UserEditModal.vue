@@ -56,13 +56,6 @@
         />
         <p class="input-hint">{{ t('admin.users.form.rpmLimitHint') }}</p>
       </div>
-      <div class="flex items-start justify-between gap-4 border-t border-gray-100 pt-4 dark:border-dark-700">
-        <div>
-          <p class="text-sm font-medium text-gray-900 dark:text-white">{{ localText('禁用娱乐大厅', 'Disable game hall') }}</p>
-          <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ localText('禁止该用户查看大厅、兑换和下注。已有 DG 不会自动清算，管理员仍可审计流水。', 'Blocks this user from viewing the hall, exchanging, or playing. Existing DG is not settled automatically and remains available for admin audit.') }}</p>
-        </div>
-        <Toggle v-model="form.game_hall_disabled" data-testid="user-game-hall-disabled" />
-      </div>
       <UserAttributeForm v-model="form.customAttributes" :user-id="user?.id" />
     </form>
     <template #footer>
@@ -89,20 +82,19 @@ import type { AdminUser, UserAttributeValuesMap } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import UserAttributeForm from '@/components/user/UserAttributeForm.vue'
 import Icon from '@/components/icons/Icon.vue'
-import Toggle from '@/components/common/Toggle.vue'
 import { useStepUp, isStepUpBlocked, isStepUpCancelled, stepUpBlockReason } from '@/composables/useStepUp'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 
 const props = defineProps<{ show: boolean, user: AdminUser | null }>()
 const emit = defineEmits(['close', 'success'])
-const { t, locale } = useI18n(); const appStore = useAppStore(); const { copyToClipboard } = useClipboard()
+const { t } = useI18n(); const appStore = useAppStore(); const { copyToClipboard } = useClipboard()
 
 const submitting = ref(false); const passwordCopied = ref(false)
-const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user', concurrency: 1, rpm_limit: 0, game_hall_disabled: false, customAttributes: {} as UserAttributeValuesMap })
+const form = reactive({ email: '', password: '', username: '', notes: '', role: 'user', concurrency: 1, rpm_limit: 0, customAttributes: {} as UserAttributeValuesMap })
 
 watch(() => props.user, (u) => {
   if (u) {
-    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', role: u.role || 'user', concurrency: u.concurrency, rpm_limit: u.rpm_limit ?? 0, game_hall_disabled: u.game_hall_disabled ?? false, customAttributes: {} })
+    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', role: u.role || 'user', concurrency: u.concurrency, rpm_limit: u.rpm_limit ?? 0, customAttributes: {} })
     passwordCopied.value = false
   }
 }, { immediate: true })
@@ -132,7 +124,7 @@ const handleUpdateUser = async () => {
   const userId = props.user.id
   submitting.value = true
   try {
-    const data: any = { email: form.email, username: form.username, notes: form.notes, role: form.role, concurrency: form.concurrency, rpm_limit: form.rpm_limit, game_hall_disabled: form.game_hall_disabled }
+    const data: any = { email: form.email, username: form.username, notes: form.notes, role: form.role, concurrency: form.concurrency, rpm_limit: form.rpm_limit }
     if (form.password.trim()) data.password = form.password.trim()
     // 提升为管理员属敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 验证并重试
     await stepUp.run(() => adminAPI.users.update(userId, data))
@@ -154,7 +146,4 @@ const handleUpdateUser = async () => {
   } finally { submitting.value = false }
 }
 
-function localText(zh: string, en: string): string {
-  return locale.value.startsWith('zh') ? zh : en
-}
 </script>
