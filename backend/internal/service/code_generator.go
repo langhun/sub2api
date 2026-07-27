@@ -3,62 +3,58 @@ package service
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
-	"io"
+	"encoding/hex"
 	"strings"
 )
 
-// CodeGenerator is the only formatting capability required by core services.
-// Its implementation is supplied by the Overlay composition root.
+// CodeGenerator is the narrow formatting port that an Overlay may configure at
+// application startup. Core services remain functional without one.
 type CodeGenerator interface {
 	GenerateCode(context.Context, string) (string, error)
 	GenerateDefaultRedeemCode(context.Context) (string, error)
 }
 
-// defaultCodeGenerator preserves the legacy behavior for direct service
-// construction outside the application composition root. It deliberately owns
-// only the two historical fallback shapes; configured formats stay in custom.
+// defaultCodeGenerator preserves the upstream behavior when no Overlay is
+// configured. Configured formats are owned by custom.
 type defaultCodeGenerator struct{}
 
 func (defaultCodeGenerator) GenerateCode(context.Context, string) (string, error) {
-	return generateDefaultCode(32, 1, "")
+	return generateCompactRedeemCode()
 }
 
 func (defaultCodeGenerator) GenerateDefaultRedeemCode(context.Context) (string, error) {
-	return generateDefaultCode(8, 4, "-")
+	code, err := generateCompactRedeemCode()
+	if err != nil {
+		return "", err
+	}
+	code = strings.ToUpper(code)
+	return strings.Join([]string{
+		code[0:8],
+		code[8:16],
+		code[16:24],
+		code[24:32],
+	}, "-"), nil
 }
 
-const defaultCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-
-func generateDefaultCode(groupLength, groupCount int, separator string) (string, error) {
-	groups := make([]string, groupCount)
-	for i := range groups {
-		group, err := generateDefaultCodeCharacters(rand.Reader, groupLength)
-		if err != nil {
-			return "", fmt.Errorf("generate secure code: %w", err)
-		}
-		groups[i] = group
+func generateCompactRedeemCode() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
 	}
-	return strings.Join(groups, separator), nil
+	return hex.EncodeToString(b), nil
 }
 
-func generateDefaultCodeCharacters(reader io.Reader, length int) (string, error) {
-	limit := 256 - (256 % len(defaultCodeAlphabet))
-	result := make([]byte, 0, length)
-	buffer := make([]byte, length*2+1)
-	for len(result) < length {
-		if _, err := io.ReadFull(reader, buffer); err != nil {
-			return "", err
-		}
-		for _, value := range buffer {
-			if int(value) >= limit {
-				continue
-			}
-			result = append(result, defaultCodeAlphabet[int(value)%len(defaultCodeAlphabet)])
-			if len(result) == length {
-				break
-			}
-		}
+// ConfigureCodeGenerator mounts an optional implementation during application
+// composition. It intentionally depends only on the core port, never on a
+// custom package.
+func ConfigureCodeGenerator(redeem *RedeemService, admin AdminService, generator CodeGenerator) {
+	if generator == nil {
+		return
 	}
-	return string(result), nil
+	if redeem != nil {
+		redeem.SetCodeGenerator(generator)
+	}
+	if configurable, ok := admin.(interface{ setCodeGenerator(CodeGenerator) }); ok {
+		configurable.setCodeGenerator(generator)
+	}
 }

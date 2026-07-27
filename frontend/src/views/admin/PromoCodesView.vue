@@ -338,7 +338,7 @@
             </div>
             <div>
               <p class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ userDisplayName(usage.user, t('admin.promo.userPrefix', { id: usage.user_id })) }}
+                {{ usage.user?.email || t('admin.promo.userPrefix', { id: usage.user_id }) }}
               </p>
               <p class="text-xs text-gray-500 dark:text-gray-400">
                 {{ formatDateTime(usage.used_at) }}
@@ -393,7 +393,6 @@ import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
 import { formatDateTime, formatDateTimeLocalInput } from '@/utils/format'
-import { userDisplayName } from '@/utils/userDisplay'
 import type { PromoCode, PromoCodeUsage } from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'

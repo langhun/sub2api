@@ -145,7 +145,7 @@ func TestAdminService_UpdateUserBalance_UsesLegacyDefaultWhenGeneratorIsMissing(
 
 	require.NoError(t, err)
 	require.Len(t, redeemRepo.created, 1)
-	require.Regexp(t, `^[A-HJ-NP-Z2-9]{32}$`, redeemRepo.created[0].Code)
+	require.Regexp(t, `^[0-9a-f]{32}$`, redeemRepo.created[0].Code)
 }
 
 func TestAdminService_UpdateUserBalance_AdminRechargeAffiliateRebate(t *testing.T) {

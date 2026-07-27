@@ -417,7 +417,7 @@ func (_u *BalanceRedPacketUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.SenderCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balanceredpacket.SenderTable,
 			Columns: []string{balanceredpacket.SenderColumn},
 			Bidi:    false,
@@ -430,7 +430,7 @@ func (_u *BalanceRedPacketUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if nodes := _u.mutation.SenderIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balanceredpacket.SenderTable,
 			Columns: []string{balanceredpacket.SenderColumn},
 			Bidi:    false,
@@ -925,7 +925,7 @@ func (_u *BalanceRedPacketUpdateOne) sqlSave(ctx context.Context) (_node *Balanc
 	if _u.mutation.SenderCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balanceredpacket.SenderTable,
 			Columns: []string{balanceredpacket.SenderColumn},
 			Bidi:    false,
@@ -938,7 +938,7 @@ func (_u *BalanceRedPacketUpdateOne) sqlSave(ctx context.Context) (_node *Balanc
 	if nodes := _u.mutation.SenderIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balanceredpacket.SenderTable,
 			Columns: []string{balanceredpacket.SenderColumn},
 			Bidi:    false,

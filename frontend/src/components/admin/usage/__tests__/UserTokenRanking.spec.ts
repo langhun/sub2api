@@ -22,7 +22,6 @@ vi.mock('vue-i18n', async () => {
 const item = (id: number, tokens: number) => ({
   user_id: id,
   email: `u${id}@test.com`,
-  username: id === 1 ? 'First User' : '',
   requests: 1,
   input_tokens: tokens,
   output_tokens: 0,
@@ -48,7 +47,7 @@ describe('UserTokenRanking', () => {
     getUserBreakdown.mockResolvedValue({ users: [item(1, 100), item(2, 50)] })
   })
 
-  it('loads on mount and emits the username-first display label on row click', async () => {
+  it('loads on mount with shared filters and emits select-user with id + email on row click', async () => {
     const wrapper = mountRanking({ filters: { group_id: 3 }, model: 'claude-fable-5' })
     await flushPromises()
 
@@ -63,11 +62,9 @@ describe('UserTokenRanking', () => {
 
     const rows = wrapper.findAll('tbody tr')
     expect(rows).toHaveLength(2)
-    expect(rows[0].text()).toContain('First User')
-    expect(rows[0].text()).not.toContain('u1@test.com')
 
     await rows[0].trigger('click')
-    expect(wrapper.emitted('select-user')![0]).toEqual([1, 'First User'])
+    expect(wrapper.emitted('select-user')![0]).toEqual([1, 'u1@test.com'])
   })
 
   it('reloads when shared filters change', async () => {

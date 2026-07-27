@@ -58,7 +58,7 @@
                   @click="selectFilterUser(user)"
                   class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-dark-700"
                 >
-                  <span class="font-medium text-gray-900 dark:text-white">{{ userDisplayName(user) }}</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ user.email }}</span>
                   <span class="ml-2 text-gray-500 dark:text-gray-400">#{{ user.id }}</span>
                 </button>
               </div>
@@ -119,6 +119,26 @@
                 class="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-700 dark:bg-dark-800"
               >
                 <div class="p-2">
+                  <!-- User column mode selection -->
+                  <div class="mb-2 border-b border-gray-200 pb-2 dark:border-dark-700">
+                    <div class="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      {{ t('admin.subscriptions.columns.user') }}
+                    </div>
+                    <button
+                      @click="setUserColumnMode('email')"
+                      class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
+                    >
+                      <span>{{ t('admin.users.columns.email') }}</span>
+                      <Icon v-if="userColumnMode === 'email'" name="check" size="sm" class="text-primary-500" />
+                    </button>
+                    <button
+                      @click="setUserColumnMode('username')"
+                      class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
+                    >
+                      <span>{{ t('admin.users.columns.username') }}</span>
+                      <Icon v-if="userColumnMode === 'username'" name="check" size="sm" class="text-primary-500" />
+                    </button>
+                  </div>
                   <!-- Other columns toggle -->
                   <button
                     v-for="col in toggleableColumns"
@@ -164,11 +184,17 @@
                 class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30"
               >
                 <span class="text-sm font-medium text-primary-700 dark:text-primary-300">
-                  {{ userDisplayInitials(row.user, '?') }}
+                  {{ userColumnMode === 'email'
+                    ? (row.user?.email?.charAt(0).toUpperCase() || '?')
+                    : (row.user?.username?.charAt(0).toUpperCase() || '?')
+                  }}
                 </span>
               </div>
               <span class="font-medium text-gray-900 dark:text-white">
-                {{ userDisplayName(row.user, t('admin.redeem.userPrefix', { id: row.user_id })) }}
+                {{ userColumnMode === 'email'
+                  ? (row.user?.email || t('admin.redeem.userPrefix', { id: row.user_id }))
+                  : (row.user?.username || '-')
+                }}
               </span>
             </div>
           </template>
@@ -468,7 +494,7 @@
                 @click="selectUser(user)"
                 class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-dark-700"
               >
-                <span class="font-medium text-gray-900 dark:text-white">{{ userDisplayName(user) }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ user.email }}</span>
                 <span class="ml-2 text-gray-500 dark:text-gray-400">#{{ user.id }}</span>
               </button>
             </div>
@@ -564,7 +590,7 @@
           <p class="text-sm text-gray-600 dark:text-gray-400">
             {{ t('admin.subscriptions.adjustingFor') }}
             <span class="font-medium text-gray-900 dark:text-white">{{
-              userDisplayName(extendingSubscription.user)
+              extendingSubscription.user?.email
             }}</span>
           </p>
           <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -619,7 +645,7 @@
     <ConfirmDialog
       :show="showRevokeDialog"
       :title="t('admin.subscriptions.revokeSubscription')"
-      :message="t('admin.subscriptions.revokeConfirm', { user: userDisplayName(revokingSubscription?.user) })"
+      :message="t('admin.subscriptions.revokeConfirm', { user: revokingSubscription?.user?.email })"
       :confirm-text="t('admin.subscriptions.revoke')"
       :cancel-text="t('common.cancel')"
       :danger="true"
@@ -631,7 +657,7 @@
     <ConfirmDialog
       :show="showRestoreDialog"
       :title="t('admin.subscriptions.restoreSubscription')"
-      :message="t('admin.subscriptions.restoreConfirm', { user: userDisplayName(restoringSubscription?.user) })"
+      :message="t('admin.subscriptions.restoreConfirm', { user: restoringSubscription?.user?.email })"
       :confirm-text="t('admin.subscriptions.restore')"
       :cancel-text="t('common.cancel')"
       @confirm="confirmRestore"
@@ -642,7 +668,7 @@
     <ConfirmDialog
       :show="showResetQuotaConfirm"
       :title="t('admin.subscriptions.resetQuotaTitle')"
-      :message="t('admin.subscriptions.resetQuotaConfirm', { user: userDisplayName(resettingSubscription?.user) })"
+      :message="t('admin.subscriptions.resetQuotaConfirm', { user: resettingSubscription?.user?.email })"
       :confirm-text="t('admin.subscriptions.resetQuota')"
       :cancel-text="t('common.cancel')"
       @confirm="confirmResetQuota"
@@ -738,7 +764,6 @@ import { adminAPI } from '@/api/admin'
 import type { UserSubscription, Group, GroupPlatform, SubscriptionType } from '@/types'
 import type { SimpleUser } from '@/api/admin/usage'
 import type { Column } from '@/components/common/types'
-import { userDisplayInitials, userDisplayName } from '@/utils/userDisplay'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -775,11 +800,41 @@ const guideActionRows = computed(() => [
   { action: t('admin.subscriptions.guide.actions.revoke'), desc: t('admin.subscriptions.guide.actions.revokeDesc') }
 ])
 
+// User column display mode: 'email' or 'username'
+const userColumnMode = ref<'email' | 'username'>('email')
+const USER_COLUMN_MODE_KEY = 'subscription-user-column-mode'
+
+const loadUserColumnMode = () => {
+  try {
+    const saved = localStorage.getItem(USER_COLUMN_MODE_KEY)
+    if (saved === 'email' || saved === 'username') {
+      userColumnMode.value = saved
+    }
+  } catch (e) {
+    console.error('Failed to load user column mode:', e)
+  }
+}
+
+const saveUserColumnMode = () => {
+  try {
+    localStorage.setItem(USER_COLUMN_MODE_KEY, userColumnMode.value)
+  } catch (e) {
+    console.error('Failed to save user column mode:', e)
+  }
+}
+
+const setUserColumnMode = (mode: 'email' | 'username') => {
+  userColumnMode.value = mode
+  saveUserColumnMode()
+}
+
 // All available columns
 const allColumns = computed<Column[]>(() => [
   {
     key: 'user',
-    label: t('admin.subscriptions.columns.user'),
+    label: userColumnMode.value === 'email'
+      ? t('admin.subscriptions.columns.user')
+      : t('admin.users.columns.username'),
     sortable: false
   },
   { key: 'group', label: t('admin.subscriptions.columns.group'), sortable: false },
@@ -1019,7 +1074,7 @@ const searchFilterUsers = async () => {
   const keyword = filterUserKeyword.value.trim()
 
   // Clear active user filter if user modified the search keyword
-  if (selectedFilterUser.value && keyword !== userDisplayName(selectedFilterUser.value)) {
+  if (selectedFilterUser.value && keyword !== selectedFilterUser.value.email) {
     selectedFilterUser.value = null
     filters.user_id = null
     applyFilters()
@@ -1043,7 +1098,7 @@ const searchFilterUsers = async () => {
 
 const selectFilterUser = (user: SimpleUser) => {
   selectedFilterUser.value = user
-  filterUserKeyword.value = userDisplayName(user)
+  filterUserKeyword.value = user.email
   showFilterUserDropdown.value = false
   filters.user_id = user.id
   applyFilters()
@@ -1070,7 +1125,7 @@ const searchUsers = async () => {
   const keyword = userSearchKeyword.value.trim()
 
   // Clear selection if user modified the search keyword
-  if (selectedUser.value && keyword !== userDisplayName(selectedUser.value)) {
+  if (selectedUser.value && keyword !== selectedUser.value.email) {
     selectedUser.value = null
     assignForm.user_id = null
   }
@@ -1093,7 +1148,7 @@ const searchUsers = async () => {
 
 const selectUser = (user: SimpleUser) => {
   selectedUser.value = user
-  userSearchKeyword.value = userDisplayName(user)
+  userSearchKeyword.value = user.email
   showUserDropdown.value = false
   assignForm.user_id = user.id
 }
@@ -1370,6 +1425,7 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 onMounted(() => {
+  loadUserColumnMode()
   loadSavedColumns()
   loadSubscriptions()
   loadGroups()

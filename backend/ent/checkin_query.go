@@ -76,7 +76,7 @@ func (_q *CheckinQuery) QueryUser() *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(checkin.Table, checkin.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, checkin.UserTable, checkin.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, checkin.UserTable, checkin.UserColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil

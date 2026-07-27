@@ -200,16 +200,17 @@ func (w entBalanceWriter) DebitIfSufficient(ctx context.Context, operation contr
 // EntCheckinLedger persists compatibility audit rows while hiding RedeemCode
 // from the business service. Code creation is supplied as a narrow platform port.
 type EntCheckinLedger struct {
-	client *dbent.Client
-	codes  CheckinCodeGenerator
+	client   *dbent.Client
+	codes    CheckinCodeGenerator
+	metadata RedeemMetadataStore
 }
 
 func NewEntCheckinLedger(client *dbent.Client, codes CheckinCodeGenerator) *EntCheckinLedger {
-	return &EntCheckinLedger{client: client, codes: codes}
+	return &EntCheckinLedger{client: client, codes: codes, metadata: NewRedeemMetadataStore(client)}
 }
 
 func (l *EntCheckinLedger) RecordCheckinAdjustment(ctx context.Context, entry CheckinAuditEntry) error {
-	if l == nil || l.client == nil || l.codes == nil || entry.UserID <= 0 || entry.Type == "" || !validFinite(entry.Amount) {
+	if l == nil || l.client == nil || l.codes == nil || l.metadata == nil || entry.UserID <= 0 || entry.Type == "" || !validFinite(entry.Amount) {
 		return fmt.Errorf("invalid checkin audit entry")
 	}
 	code, err := l.codes.GenerateCheckinCode(ctx, entry.Type)
@@ -220,17 +221,18 @@ func (l *EntCheckinLedger) RecordCheckinAdjustment(ctx context.Context, entry Ch
 	if usedAt.IsZero() {
 		usedAt = time.Now()
 	}
-	_, err = entClient(ctx, l.client).RedeemCode.Create().
+	saved, err := entClient(ctx, l.client).RedeemCode.Create().
 		SetCode(code).
 		SetType(entry.Type).
 		SetValue(entry.Amount).
 		SetStatus("used").
 		SetUsedBy(entry.UserID).
 		SetUsedAt(usedAt).
-		SetMultiplier(entry.Multiplier).
-		SetBetAmount(entry.BetAmount).
 		Save(ctx)
-	return err
+	if err != nil {
+		return err
+	}
+	return l.metadata.Store(ctx, saved.ID, entry.Multiplier, entry.BetAmount)
 }
 
 // NewEntBlindboxRecordsReader replaces the check-in route's dependency on the

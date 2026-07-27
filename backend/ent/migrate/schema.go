@@ -459,7 +459,7 @@ var (
 		PrimaryKey: []*schema.Column{BalanceRedpacketsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "balance_redpackets_users_redpackets",
+				Symbol:     "balance_redpackets_users_sender",
 				Columns:    []*schema.Column{BalanceRedpacketsColumns[13]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
@@ -548,13 +548,13 @@ var (
 		PrimaryKey: []*schema.Column{BalanceTransfersColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "balance_transfers_users_sent_transfers",
+				Symbol:     "balance_transfers_users_sender",
 				Columns:    []*schema.Column{BalanceTransfersColumns[13]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
-				Symbol:     "balance_transfers_users_received_transfers",
+				Symbol:     "balance_transfers_users_receiver",
 				Columns:    []*schema.Column{BalanceTransfersColumns[14]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
@@ -975,10 +975,10 @@ var (
 		PrimaryKey: []*schema.Column{CheckinsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "checkins_users_checkins",
+				Symbol:     "checkins_users_user",
 				Columns:    []*schema.Column{CheckinsColumns[8]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
-				OnDelete:   schema.Cascade,
+				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
@@ -1702,8 +1702,6 @@ var (
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "expires_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "validity_days", Type: field.TypeInt, Default: 30},
-		{Name: "multiplier", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
-		{Name: "bet_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(38,18)"}},
 		{Name: "group_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "used_by", Type: field.TypeInt64, Nullable: true},
 	}
@@ -1715,13 +1713,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "redeem_codes_groups_redeem_codes",
-				Columns:    []*schema.Column{RedeemCodesColumns[12]},
+				Columns:    []*schema.Column{RedeemCodesColumns[10]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "redeem_codes_users_redeem_codes",
-				Columns:    []*schema.Column{RedeemCodesColumns[13]},
+				Columns:    []*schema.Column{RedeemCodesColumns[11]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -1735,12 +1733,12 @@ var (
 			{
 				Name:    "redeemcode_used_by",
 				Unique:  false,
-				Columns: []*schema.Column{RedeemCodesColumns[13]},
+				Columns: []*schema.Column{RedeemCodesColumns[11]},
 			},
 			{
 				Name:    "redeemcode_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{RedeemCodesColumns[12]},
+				Columns: []*schema.Column{RedeemCodesColumns[10]},
 			},
 			{
 				Name:    "redeemcode_expires_at",

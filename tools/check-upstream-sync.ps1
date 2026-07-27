@@ -65,7 +65,7 @@ function Read-BoundaryReport {
     if ($report.BaseCommit -ne $ExpectedBase -or $report.TargetCommit -ne $ExpectedTarget) {
         throw "Boundary report refs do not match the sync inputs: $Path"
     }
-    return @($report.Violations | Where-Object { $_.Bucket -eq 'shared' } | ForEach-Object { $_.Path } | Sort-Object -Unique)
+    return @($report.Violations | Where-Object { $_.Bucket -in @('shared', 'immutable-migration-change') } | ForEach-Object { $_.Path } | Sort-Object -Unique)
 }
 
 $script:GitExecutable = Resolve-GitPath -RequestedPath $GitPath

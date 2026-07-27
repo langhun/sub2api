@@ -800,7 +800,7 @@ func HasSender() predicate.BalanceTransfer {
 	return predicate.BalanceTransfer(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, SenderTable, SenderColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, SenderTable, SenderColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
@@ -823,7 +823,7 @@ func HasReceiver() predicate.BalanceTransfer {
 	return predicate.BalanceTransfer(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, ReceiverTable, ReceiverColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, ReceiverTable, ReceiverColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})

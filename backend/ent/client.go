@@ -1873,7 +1873,7 @@ func (c *BalanceRedPacketClient) QuerySender(_m *BalanceRedPacket) *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(balanceredpacket.Table, balanceredpacket.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, balanceredpacket.SenderTable, balanceredpacket.SenderColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, balanceredpacket.SenderTable, balanceredpacket.SenderColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -2187,7 +2187,7 @@ func (c *BalanceTransferClient) QuerySender(_m *BalanceTransfer) *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(balancetransfer.Table, balancetransfer.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, balancetransfer.SenderTable, balancetransfer.SenderColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, balancetransfer.SenderTable, balancetransfer.SenderColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -2203,7 +2203,7 @@ func (c *BalanceTransferClient) QueryReceiver(_m *BalanceTransfer) *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(balancetransfer.Table, balancetransfer.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, balancetransfer.ReceiverTable, balancetransfer.ReceiverColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, balancetransfer.ReceiverTable, balancetransfer.ReceiverColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3379,7 +3379,7 @@ func (c *CheckinClient) QueryUser(_m *Checkin) *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(checkin.Table, checkin.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, checkin.UserTable, checkin.UserColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, checkin.UserTable, checkin.UserColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -6888,70 +6888,6 @@ func (c *UserClient) QueryPaymentOrders(_m *User) *PaymentOrderQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(paymentorder.Table, paymentorder.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PaymentOrdersTable, user.PaymentOrdersColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryCheckins queries the checkins edge of a User.
-func (c *UserClient) QueryCheckins(_m *User) *CheckinQuery {
-	query := (&CheckinClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(checkin.Table, checkin.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.CheckinsTable, user.CheckinsColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QuerySentTransfers queries the sent_transfers edge of a User.
-func (c *UserClient) QuerySentTransfers(_m *User) *BalanceTransferQuery {
-	query := (&BalanceTransferClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.SentTransfersTable, user.SentTransfersColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryReceivedTransfers queries the received_transfers edge of a User.
-func (c *UserClient) QueryReceivedTransfers(_m *User) *BalanceTransferQuery {
-	query := (&BalanceTransferClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(balancetransfer.Table, balancetransfer.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.ReceivedTransfersTable, user.ReceivedTransfersColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryRedpackets queries the redpackets edge of a User.
-func (c *UserClient) QueryRedpackets(_m *User) *BalanceRedPacketQuery {
-	query := (&BalanceRedPacketClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(balanceredpacket.Table, balanceredpacket.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.RedpacketsTable, user.RedpacketsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil

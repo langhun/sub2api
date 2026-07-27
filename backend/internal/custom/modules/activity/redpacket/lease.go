@@ -8,17 +8,23 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/contract"
-	coreservice "github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 // LeaseCoordinator adapts the existing leader-lock cache and a PostgreSQL
 // advisory-lock fallback to the Activity worker contract.
 type LeaseCoordinator struct {
-	cache coreservice.LeaderLockCache
+	cache LeaderLockCache
 	db    *sql.DB
 }
 
-func NewLeaseCoordinator(cache coreservice.LeaderLockCache, db *sql.DB) *LeaseCoordinator {
+// LeaderLockCache is the narrow distributed-lock capability required by the
+// module-owned expiry worker.
+type LeaderLockCache interface {
+	TryAcquireLeaderLock(ctx context.Context, key, owner string, ttl time.Duration) (bool, error)
+	ReleaseLeaderLock(ctx context.Context, key, owner string) error
+}
+
+func NewLeaseCoordinator(cache LeaderLockCache, db *sql.DB) *LeaseCoordinator {
 	return &LeaseCoordinator{cache: cache, db: db}
 }
 
@@ -45,7 +51,7 @@ func (c *LeaseCoordinator) AcquireSingletonLease(ctx context.Context, key, owner
 }
 
 type cacheLease struct {
-	cache coreservice.LeaderLockCache
+	cache LeaderLockCache
 	key   string
 	owner string
 }

@@ -68,7 +68,6 @@ export default {
             resetMessage: 'Reset all custom settings for {email}?\n• The exclusive rebate rate will be cleared (fall back to the global rate)\n• The invite code will be regenerated as a new system code (previously shared links will stop working)',
             totalLabel: '{total} total',
             col: {
-              user: 'User',
               email: 'Email',
               username: 'Username',
               code: 'Invite Code',

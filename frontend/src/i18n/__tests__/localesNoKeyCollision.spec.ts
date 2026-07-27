@@ -12,11 +12,8 @@ import zhAdminOps from '../locales/zh/admin/ops'
 import zhAdminOverview from '../locales/zh/admin/overview'
 import zhAdminResources from '../locales/zh/admin/resources'
 import zhAdminSettings from '../locales/zh/admin/settings'
-import en from '../locales/en'
-import zh from '../locales/zh'
-import { customAdminLocaleMessages, customLocaleMessages } from '@/custom/locales'
-
-// 根语言包和 admin 语言包使用受控深合并；同名顶层键必须经过合并测试，不能依赖对象展开的覆盖顺序。
+// Core admin modules use object spread assembly. Custom locale integration is
+// covered under src/custom so this upstream-facing test remains domain-neutral.
 type Modules = Record<string, Record<string, unknown>>
 
 function collisions(modules: Modules): string[] {
@@ -54,34 +51,7 @@ const admins: Record<string, Modules> = {
   }
 }
 
-describe.each(['zh', 'en'] as const)('locale %s overlay assembly', (locale) => {
-  it('deeply assembles custom root fragments without replacing upstream navigation', () => {
-    const messages = locale === 'zh' ? zh : en
-    const fragments = customLocaleMessages[locale as keyof typeof customLocaleMessages]
-
-    expect(messages).toMatchObject(fragments[0])
-    expect(messages).toMatchObject(fragments[1])
-    expect(messages).toMatchObject(fragments[2])
-    expect(messages.nav).toMatchObject({
-      dashboard: locale === 'zh' ? '系统概览' : 'Dashboard',
-      checkin: locale === 'zh' ? '签到中心' : 'Check-in',
-      transfer: locale === 'zh' ? '余额转账' : 'Balance Transfer',
-    })
-  })
-
-  it('deeply assembles custom admin fragments without replacing upstream settings', () => {
-    const messages = locale === 'zh' ? zh : en
-    const fragments = customAdminLocaleMessages[locale as keyof typeof customAdminLocaleMessages]
-
-    expect(messages.admin).toMatchObject(fragments[0])
-    expect(messages.admin).toMatchObject(fragments[1])
-    expect(messages.admin).toMatchObject(fragments[2])
-    expect(messages.admin.settings.tabs).toMatchObject({
-      general: locale === 'zh' ? '通用设置' : 'General',
-      balanceFeatures: locale === 'zh' ? '余额功能' : 'Balance Features',
-    })
-  })
-
+describe.each(['zh', 'en'] as const)('locale %s admin assembly', (locale) => {
   it('admin modules have no overlapping top-level keys', () => {
     expect(collisions(admins[locale])).toEqual([])
   })

@@ -353,7 +353,7 @@ func (_c *BalanceTransferCreate) createSpec() (*BalanceTransfer, *sqlgraph.Creat
 	if nodes := _c.mutation.SenderIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.SenderTable,
 			Columns: []string{balancetransfer.SenderColumn},
 			Bidi:    false,
@@ -370,7 +370,7 @@ func (_c *BalanceTransferCreate) createSpec() (*BalanceTransfer, *sqlgraph.Creat
 	if nodes := _c.mutation.ReceiverIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.ReceiverTable,
 			Columns: []string{balancetransfer.ReceiverColumn},
 			Bidi:    false,

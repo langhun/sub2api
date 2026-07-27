@@ -72,8 +72,6 @@
             {{ balanceFrozenLabel }}
           </span>
           <div
-            v-if="frozenBalance > 0"
-            data-testid="balance-breakdown"
             class="pointer-events-none absolute right-0 top-full mt-2 hidden w-56 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg group-hover:block dark:border-dark-700 dark:bg-dark-800"
           >
             <div class="flex items-center justify-between">
@@ -136,6 +134,7 @@
                 <div class="text-sm font-medium text-gray-900 dark:text-white">
                   {{ displayName }}
                 </div>
+                <div class="text-xs text-gray-500 dark:text-dark-400">{{ user.email }}</div>
               </div>
 
               <!-- Balance (mobile only) -->
@@ -260,7 +259,6 @@ import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMi
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
-import { userDisplayInitials, userDisplayName } from '@/utils/userDisplay'
 
 const router = useRouter()
 const route = useRoute()
@@ -290,11 +288,22 @@ const showOnboardingButton = computed(() => {
 })
 
 const userInitials = computed(() => {
-  return user.value ? userDisplayInitials(user.value, '') : ''
+  if (!user.value) return ''
+  // Prefer username, fallback to email
+  if (user.value.username) {
+    return user.value.username.substring(0, 2).toUpperCase()
+  }
+  if (user.value.email) {
+    // Get the part before @ and take first 2 chars
+    const localPart = user.value.email.split('@')[0]
+    return localPart.substring(0, 2).toUpperCase()
+  }
+  return ''
 })
 
 const displayName = computed(() => {
-  return userDisplayName(user.value)
+  if (!user.value) return ''
+  return user.value.username || user.value.email?.split('@')[0] || ''
 })
 
 const pageTitle = computed(() => {

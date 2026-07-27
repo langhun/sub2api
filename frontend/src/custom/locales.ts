@@ -7,6 +7,33 @@ import { walletExtensionLocaleMessages } from './modules/wallet-extension/locale
 
 type LocaleTree = Record<string, unknown>
 
+// Shared custom copy is mounted with the Overlay. It keeps custom modules from
+// adding generic labels or brand wording to upstream locale source files.
+const customSharedLocaleMessages = {
+  en: {
+    common: {
+      loadMore: 'Load more',
+      retry: 'Retry',
+    },
+  },
+  zh: {
+    common: {
+      loadMore: '加载更多',
+      retry: '重试',
+    },
+    nav: {
+      dashboard: '系统概览',
+      announcements: '通知公告',
+      redeem: '兑换中心',
+      proxies: '代理管理',
+      redeemCodes: '兑换管理',
+      promoCodes: '优惠管理',
+      buySubscription: '充值订阅',
+      docs: '帮助文档',
+    },
+  },
+} as const
+
 function isLocaleTree(value: unknown): value is LocaleTree {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -30,8 +57,8 @@ export const customAdminLocaleMessages = {
 } as const
 
 export const customLocaleMessages = {
-  en: [activityLocaleMessages.en, gameHallLocaleMessages.en, walletExtensionLocaleMessages.en],
-  zh: [activityLocaleMessages.zh, gameHallLocaleMessages.zh, walletExtensionLocaleMessages.zh],
+  en: [customSharedLocaleMessages.en, activityLocaleMessages.en, gameHallLocaleMessages.en, walletExtensionLocaleMessages.en],
+  zh: [customSharedLocaleMessages.zh, activityLocaleMessages.zh, gameHallLocaleMessages.zh, walletExtensionLocaleMessages.zh],
 } as const
 
 export function mergeCustomLocale<T extends LocaleTree>(

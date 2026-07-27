@@ -158,7 +158,7 @@
 
           <template #cell-used_by="{ value, row }">
             <span class="text-sm text-gray-500 dark:text-dark-400">
-              {{ userDisplayName(row.user, value ? t('admin.redeem.userPrefix', { id: value }) : '-') }}
+              {{ row.user?.email || (value ? t('admin.redeem.userPrefix', { id: value }) : '-') }}
             </span>
           </template>
 
@@ -616,7 +616,6 @@ import { useTableSelection } from '@/composables/useTableSelection'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
 import { formatDateTime } from '@/utils/format'
-import { userDisplayName } from '@/utils/userDisplay'
 import type {
   RedeemCode,
   RedeemCodeType,

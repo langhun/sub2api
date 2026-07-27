@@ -189,7 +189,6 @@ import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'; import { adminAPI } from '@/api/admin'; import { adminUsageAPI } from '@/api/admin/usage'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatReasoningEffort } from '@/utils/format'
-import { userDisplayName } from '@/utils/userDisplay'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
 import AppLayout from '@/components/layout/AppLayout.vue'; import Pagination from '@/components/common/Pagination.vue'; import Select from '@/components/common/Select.vue'; import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'; import UsageFilters from '@/components/admin/usage/UsageFilters.vue'
@@ -265,9 +264,9 @@ const handleUserClick = async (userId: number) => {
 
 // Drill down from the per-user token ranking: scope the whole usage view to
 // that user and jump to the usage-detail tab so the drill-down is visible.
-const handleRankingSelectUser = (userId: number, label: string) => {
+const handleRankingSelectUser = (userId: number, email: string) => {
   filters.value = { ...filters.value, user_id: userId }
-  usageFiltersRef.value?.setUserKeyword?.(label || '')
+  usageFiltersRef.value?.setUserKeyword?.(email || '')
   activeTab.value = 'usage'
   applyFilters()
 }
@@ -573,7 +572,7 @@ const exportToExcel = async () => {
       )
       if (c.signal.aborted) break; if (p === 1) { total = res.total; exportProgress.total = total }
       const rows = (res.items || []).map((log: AdminUsageLog) => [
-        log.created_at, userDisplayName(log.user), log.api_key?.name || '', log.account?.name || '', log.model,
+        log.created_at, log.user?.email || '', log.api_key?.name || '', log.account?.name || '', log.model,
         log.upstream_model || '', formatReasoningEffort(log.reasoning_effort), log.group?.name || '',
         log.inbound_endpoint || '', log.upstream_endpoint || '', getRequestTypeLabel(log),
         log.input_tokens, log.output_tokens, log.cache_read_tokens, log.cache_creation_tokens,

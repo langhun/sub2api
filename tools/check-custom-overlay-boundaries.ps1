@@ -1,12 +1,13 @@
 [CmdletBinding()]
 param(
-    # HistoricalAudit keeps the original product-freeze audit. OverlayBoundary
-    # compares a product commit to one reviewed, immutable upstream commit.
-    [ValidateSet('HistoricalAudit', 'OverlayBoundary')]
-    [string]$Mode = 'HistoricalAudit',
-    # This is the named Overlay freeze point, not origin/main. Pass a later
-    # reviewed checkpoint explicitly when auditing an incremental migration.
-    [string]$BaselineRef = 'baseline/v0.1.164-before-overlay',
+    # IncrementalOverlay audits the reviewed product checkpoint. HistoricalAudit
+    # keeps the original product-freeze inventory. OverlayBoundary compares a
+    # product commit to one reviewed, immutable upstream commit.
+    [ValidateSet('IncrementalOverlay', 'HistoricalAudit', 'OverlayBoundary')]
+    [string]$Mode = 'IncrementalOverlay',
+    # Optional for non-upstream modes. When omitted, the mode-specific immutable
+    # baseline is selected below; do not pass a floating origin/main ref here.
+    [string]$BaselineRef,
     # Required by OverlayBoundary. Pass a resolved commit SHA, never a floating
     # remote-tracking branch such as origin/main.
     [string]$UpstreamRef,
@@ -20,6 +21,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# These are review checkpoints, not moving branch names. Keep the historical
+# inventory separate from the current migration gate so identity/admin debt
+# inherited before c27d12376 is not reported as a new Overlay regression.
+$script:HistoricalBaselineRef = 'baseline/v0.1.164-before-overlay'
+$script:IncrementalBaselineRef = 'c27d1237628cac3e41a8586c3fb5c9dcbd2bc19c'
 
 function Resolve-GitPath {
     param([string]$RequestedPath)
@@ -70,18 +77,33 @@ function Test-GitAncestor {
     throw "git merge-base --is-ancestor failed with exit code $LASTEXITCODE"
 }
 
-function Get-OverlayBucket {
+function Test-VerificationPath {
     param([string]$Path)
 
+    return $Path -match '(_test\.go$|\.(spec|test)\.[cm]?[jt]sx?$)'
+}
+
+function Get-OverlayBucket {
+    param(
+        [string]$Path,
+        [string]$ChangeKind
+    )
+
+    if ($script:PublishedImmutableMigrationPaths.Contains($Path)) {
+        if ($ChangeKind -eq 'A') { return 'published-immutable-migration' }
+        return 'immutable-migration-change'
+    }
+    if (Test-VerificationPath -Path $Path) { return 'verification-test' }
     if ($Path -like 'backend/internal/custom/*') { return 'custom-backend' }
     if ($Path -like 'frontend/src/custom/*' -or $Path -like 'frontend/public/custom/*') { return 'custom-frontend' }
     if ($Path -like 'backend/ent/*') { return 'ent-generated-or-schema' }
     if ($Path -like 'backend/migrations/*_custom_*.sql' -or $Path -like 'backend/migrations/*_custom_*_test.go') { return 'custom-migration' }
-    if ($script:PublishedHistoryAllowlist.Contains($Path)) { return 'published-history' }
     if ($Path -like 'docs/*') { return 'documentation' }
-    if ($script:IntegrationAllowlist.Contains($Path)) { return 'fixed-integration' }
-    if ($script:CleanupAllowlist.Contains($Path)) { return 'shared-cleanup' }
+    if ($script:FixedMountAllowlist.Contains($Path)) { return 'fixed-mount' }
+    if ($script:CompositionRootAllowlist.Contains($Path)) { return 'composition-root' }
+    if ($script:RestrictedPlatformPortAllowlist.Contains($Path)) { return 'restricted-platform-port' }
     if ($Path -like 'tools/check-custom-overlay-boundaries.*') { return 'boundary-gate' }
+    if ($Path -eq 'tools/check-upstream-sync.ps1') { return 'boundary-gate' }
     return 'shared'
 }
 
@@ -105,19 +127,100 @@ function Get-AddedLineCount {
     return $added
 }
 
+function Test-ApprovedCleanupTransformation {
+    param(
+        [string[]]$Arguments,
+        [string]$Path
+    )
+
+    # c27 removes the no-longer-used handler argument from the common route
+    # registrar. Git necessarily represents the shortened declaration as one
+    # added line. This is an exact cleanup proof, not a path allowlist: any
+    # second added line or a different signature remains a shared violation.
+    $patch = Invoke-Git ($Arguments + @('--no-color', '--unified=0', '--', $Path))
+    $addedLines = @($patch | Where-Object { $_.StartsWith('+') -and -not $_.StartsWith('+++') })
+    if ($Path -eq 'backend/internal/server/routes/common.go') {
+        return $addedLines.Count -eq 1 -and $addedLines[0] -eq '+func RegisterCommonRoutes(r *gin.Engine) {'
+    }
+
+    # Removing activity-only redeem metadata leaves one syntactic replacement
+    # at the end of the fluent update chain. The exact patch shape prevents a
+    # broad repository allowlist from masking later feature additions.
+    if ($Path -eq 'backend/internal/repository/redeem_code_repo.go') {
+        return $addedLines.Count -eq 1 -and $addedLines[0] -eq '+		SetValidityDays(code.ValidityDays)'
+    }
+
+    if ($Path -eq 'backend/internal/service/redeem_code.go') {
+        return $addedLines.Count -eq 1 -and $addedLines[0] -eq '+import "time"'
+    }
+
+    return $false
+}
+
+function Test-ExactHistoricalUpstreamRevert {
+    param(
+        [string]$Path,
+        [bool]$AgainstWorktree
+    )
+
+    # This proof applies only to the currently reviewed incremental baseline.
+    # It accepts a shared path only when its final content is byte-for-byte the
+    # same as that immutable upstream commit, so it cannot mask new logic.
+    if ($Mode -ne 'IncrementalOverlay') {
+        return $false
+    }
+
+    if ($AgainstWorktree) {
+        & $script:GitExecutable diff --quiet $script:HistoricalUpstreamCommit -- $Path
+    } else {
+        & $script:GitExecutable diff --quiet $script:HistoricalUpstreamCommit $script:TargetCommit -- $Path
+    }
+
+    if ($LASTEXITCODE -eq 0) {
+        return $true
+    }
+    if ($LASTEXITCODE -eq 1) {
+        return $false
+    }
+    throw "Cannot compare $Path with approved historical upstream $($script:HistoricalUpstreamCommit)."
+}
+
 function Get-ChangedRows {
     param(
         [string]$Scope,
         [string[]]$DiffArguments
     )
 
-    $paths = Invoke-Git ($DiffArguments + @('--name-only', '--diff-filter=ACMR', '--find-renames'))
-    foreach ($path in $paths | Where-Object { $_ }) {
-        $bucket = Get-OverlayBucket -Path $path
+    $changes = Invoke-Git ($DiffArguments + @('--name-status', '--diff-filter=ACMRD', '--find-renames'))
+    foreach ($change in $changes | Where-Object { $_ }) {
+        $parts = $change -split "`t"
+        $changeKind = $parts[0]
+        if ($parts.Count -lt 2) {
+            throw "Unexpected git name-status row: $change"
+        }
+
+        # A rename away from a published migration must fail just like an edit.
+        # The destination remains the audited row for all ordinary renames.
+        if ($changeKind -match '^R' -and $parts.Count -ge 3 -and $script:PublishedImmutableMigrationPaths.Contains($parts[1])) {
+            [pscustomobject]@{
+                Scope  = $Scope
+                Bucket = 'immutable-migration-change'
+                Path   = $parts[1]
+            }
+        }
+
+        $path = if ($changeKind -match '^[RC]') { $parts[$parts.Count - 1] } else { $parts[1] }
+        $bucket = Get-OverlayBucket -Path $path -ChangeKind $changeKind
         if ($bucket -eq 'shared') {
-            $addedLines = Get-AddedLineCount -Arguments ($DiffArguments + @('--numstat', '--find-renames')) -Path $path
-            if ($null -ne $addedLines -and $addedLines -eq 0) {
+            if (Test-ExactHistoricalUpstreamRevert -Path $path -AgainstWorktree ($Scope -eq 'worktree-tracked')) {
+                $bucket = 'historical-upstream-revert'
+            } elseif ($changeKind -eq 'D') {
                 $bucket = 'shared-cleanup'
+            } else {
+                $addedLines = Get-AddedLineCount -Arguments ($DiffArguments + @('--numstat', '--find-renames')) -Path $path
+                if (($null -ne $addedLines -and $addedLines -eq 0) -or (Test-ApprovedCleanupTransformation -Arguments $DiffArguments -Path $path)) {
+                    $bucket = 'shared-cleanup'
+                }
             }
         }
 
@@ -136,7 +239,7 @@ function Get-UntrackedWorktreeRows {
         # deletion-only cleanup merely because it has no numstat entry yet.
         [pscustomobject]@{
             Scope  = 'worktree-untracked'
-            Bucket = Get-OverlayBucket -Path $path
+            Bucket = Get-OverlayBucket -Path $path -ChangeKind 'A'
             Path   = $path
         }
     }
@@ -157,13 +260,13 @@ function Write-AuditResult {
         Write-Host ("{0}: {1}" -f $_.Name, $_.Count)
     }
 
-    $violations = @($Rows | Where-Object { $_.Bucket -eq 'shared' })
+    $violations = @($Rows | Where-Object { $_.Bucket -in @('shared', 'immutable-migration-change') })
     if ($violations.Count -eq 0) {
         Write-Host "${Scope}: boundary classification passed."
         return @()
     }
 
-    Write-Host "${Scope}: boundary classification failed. Added shared paths:"
+    Write-Host "${Scope}: boundary classification failed. Disallowed paths:"
     $violations | Select-Object -ExpandProperty Path | Sort-Object -Unique | ForEach-Object {
         Write-Host "  $_"
     }
@@ -171,68 +274,59 @@ function Write-AuditResult {
 }
 
 $script:GitExecutable = Resolve-GitPath -RequestedPath $GitPath
-$script:IntegrationAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
-    'backend/cmd/server/wire.go',
-    'backend/cmd/server/wire_gen.go',
-    'backend/cmd/server/wire_gen_test.go',
+$script:HistoricalUpstreamCommit = '43d4bae2464387817560a1aeb0b023cd0c9b22ee'
+$script:FixedMountAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
     'backend/internal/server/http.go',
     'backend/internal/server/router.go',
-    'backend/internal/server/routes/common.go',
-    'backend/internal/server/routes/user.go',
-    'backend/internal/web/embed_test.go',
     'backend/internal/handler/settingsext/mount.go',
-    'backend/internal/handler/settingsext/mount_test.go',
     'backend/internal/handler/setting_handler.go',
     'backend/internal/handler/admin/setting_handler.go',
     'backend/internal/handler/admin/setting_handler_update.go',
-    'backend/internal/handler/admin/setting_handler_custom_settings_test.go',
     'backend/internal/handler/dto/settings.go',
-    'backend/internal/handler/wire.go',
-    'backend/internal/handler/gateway_handler.go',
-    'backend/internal/handler/gateway_handler_usage_settings_test.go',
-    'backend/internal/service/setting_service.go',
     'frontend/src/components/layout/AppHeader.vue',
     'frontend/src/components/layout/AppSidebar.vue',
-    'frontend/src/components/layout/__tests__/AppSidebar.spec.ts',
-    'frontend/src/i18n/__tests__/localesNoKeyCollision.spec.ts',
     'frontend/src/i18n/locales/en/admin/index.ts',
     'frontend/src/i18n/locales/en/index.ts',
     'frontend/src/i18n/locales/zh/admin/index.ts',
     'frontend/src/i18n/locales/zh/index.ts',
-    'frontend/src/router/__tests__/feature-access.spec.ts',
     'frontend/src/router/index.ts',
     'frontend/src/router/meta.d.ts',
-    'frontend/src/stores/__tests__/app.spec.ts',
     'frontend/src/stores/app.ts',
     'frontend/src/api/admin/settings.ts',
     'frontend/src/types/index.ts',
     'frontend/src/utils/featureFlags.ts',
     'frontend/src/views/admin/SettingsView.vue'
 ))
-$script:PublishedHistoryAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
-    'backend/migrations/187_move_game_hall_user_access.sql',
-    'backend/migrations/game_hall_migrations_regression_test.go'
+$script:CompositionRootAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
+    'backend/cmd/server/wire.go',
+    'backend/cmd/server/wire_gen.go',
+    'backend/internal/handler/wire.go',
+    'backend/internal/service/wire.go'
 ))
-$script:CleanupAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
-    'backend/internal/handler/admin/user_handler.go',
-    'backend/internal/handler/dto/types.go',
-    'backend/internal/repository/user_repo.go',
+$script:RestrictedPlatformPortAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
+    'backend/internal/service/setting_service.go',
     'backend/internal/service/admin_service.go',
-    'backend/internal/service/code_format_settings.go',
-    'backend/internal/service/code_format_settings_test.go',
-    'backend/internal/service/setting_parse.go',
-    'backend/internal/service/setting_public.go',
-    'backend/internal/service/setting_service_backend_mode_test.go',
-    'backend/internal/service/setting_service_platform_quota_test.go',
-    'backend/internal/service/setting_service_update_test.go',
-    'backend/internal/service/settings_view.go',
-    'frontend/src/components/admin/user/UserEditModal.vue'
+    'backend/internal/service/admin_user.go',
+    'backend/internal/service/code_generator.go',
+    'backend/internal/service/redeem_service.go'
+))
+$script:PublishedImmutableMigrationPaths = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
+    'backend/migrations/173_port_balance_features.sql',
+    'backend/migrations/174_add_entry_feature_switches.sql',
+    'backend/migrations/175_add_game_hall_dedicated_tables.sql',
+    'backend/migrations/176_backfill_game_hall_dedicated_balances.sql',
+    'backend/migrations/177_migrate_legacy_checkin_records.sql',
+    'backend/migrations/178_add_game_hall_rounds.sql',
+    'backend/migrations/179_repair_legacy_checkin_migration.sql',
+    'backend/migrations/180_add_user_game_hall_disabled.sql',
+    'backend/migrations/181_create_reward_deliveries.sql',
+    'backend/migrations/185_widen_large_balance_amount_columns.sql',
+    'backend/migrations/187_move_game_hall_user_access.sql'
 ))
 
 # rev-parse produces exactly one line. Do not index the scalar result: in
 # PowerShell that would select the first character of the SHA.
 $targetCommit = [string](Invoke-Git @('rev-parse', '--verify', "$TargetRef^{commit}"))
-$auditBaseLabel = $BaselineRef
 if ($Mode -eq 'OverlayBoundary') {
     if (-not $UpstreamRef) {
         throw 'OverlayBoundary requires -UpstreamRef with a reviewed upstream commit SHA.'
@@ -246,7 +340,11 @@ if ($Mode -eq 'OverlayBoundary') {
     }
     $auditBaseLabel = "reviewed upstream $baselineCommit"
 } else {
+    if ([string]::IsNullOrWhiteSpace($BaselineRef)) {
+        $BaselineRef = if ($Mode -eq 'HistoricalAudit') { $script:HistoricalBaselineRef } else { $script:IncrementalBaselineRef }
+    }
     $baselineCommit = [string](Invoke-Git @('rev-parse', '--verify', "$BaselineRef^{commit}"))
+    $auditBaseLabel = "reviewed $Mode baseline $baselineCommit"
 }
 
 $range = "$baselineCommit..$targetCommit"
@@ -280,7 +378,7 @@ if (($committedViolations.Count + $worktreeViolations.Count) -gt 0) {
         if ($reportDirectory) { New-Item -ItemType Directory -Force -Path $reportDirectory | Out-Null }
         $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportPath -Encoding UTF8
     }
-    Write-Host 'Move business code into custom/, keep shared changes deletion-only for debt cleanup, or obtain a reviewed allowlist change.'
+    Write-Host 'Move business code into custom/, restore immutable migrations, or obtain a reviewed mount, composition-root, or platform-port allowlist change.'
     exit 1
 }
 

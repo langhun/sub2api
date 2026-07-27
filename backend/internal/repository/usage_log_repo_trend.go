@@ -150,20 +150,18 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 			SELECT
 				u.user_id,
 				COALESCE(us.email, '') as email,
-				COALESCE(us.username, '') as username,
 				COALESCE(SUM(u.actual_cost), 0) as actual_cost,
 				COUNT(*) as requests,
 				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) as tokens
 			FROM usage_logs u
 			LEFT JOIN users us ON u.user_id = us.id
 			WHERE u.created_at >= $1 AND u.created_at < $2
-			GROUP BY u.user_id, us.email, us.username
+			GROUP BY u.user_id, us.email
 		),
 		ranked AS (
 			SELECT
 				user_id,
 				email,
-				username,
 				actual_cost,
 				requests,
 				tokens,
@@ -177,7 +175,6 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 		SELECT
 			user_id,
 			email,
-			username,
 			actual_cost,
 			requests,
 			tokens,
@@ -205,7 +202,7 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 	totalTokens := int64(0)
 	for rows.Next() {
 		var row UserSpendingRankingItem
-		if err = rows.Scan(&row.UserID, &row.Email, &row.Username, &row.ActualCost, &row.Requests, &row.Tokens, &totalActualCost, &totalRequests, &totalTokens); err != nil {
+		if err = rows.Scan(&row.UserID, &row.Email, &row.ActualCost, &row.Requests, &row.Tokens, &totalActualCost, &totalRequests, &totalTokens); err != nil {
 			return nil, err
 		}
 		ranking = append(ranking, row)
@@ -605,7 +602,6 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 		SELECT
 			COALESCE(ul.user_id, 0) as user_id,
 			COALESCE(u.email, '') as email,
-			COALESCE(u.username, '') as username,
 			COUNT(*) as requests,
 			COALESCE(SUM(ul.input_tokens), 0) as input_tokens,
 			COALESCE(SUM(ul.output_tokens), 0) as output_tokens,
@@ -665,7 +661,7 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 	case "total_tokens", "input_tokens", "output_tokens", "cache_tokens", "requests", "cost", "actual_cost":
 		orderBy = dim.SortBy
 	}
-	query += " GROUP BY ul.user_id, u.email, u.username ORDER BY " + orderBy + " DESC"
+	query += " GROUP BY ul.user_id, u.email ORDER BY " + orderBy + " DESC"
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", limit)
 	}
@@ -687,7 +683,6 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 		if err := rows.Scan(
 			&row.UserID,
 			&row.Email,
-			&row.Username,
 			&row.Requests,
 			&row.InputTokens,
 			&row.OutputTokens,

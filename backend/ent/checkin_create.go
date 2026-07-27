@@ -260,7 +260,7 @@ func (_c *CheckinCreate) createSpec() (*Checkin, *sqlgraph.CreateSpec) {
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   checkin.UserTable,
 			Columns: []string{checkin.UserColumn},
 			Bidi:    false,

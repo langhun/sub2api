@@ -124,10 +124,8 @@ func buildTopUsers(orders []*dbent.PaymentOrder) []TopUserStat {
 	for _, o := range orders {
 		us, ok := userMap[o.UserID]
 		if !ok {
-			us = &TopUserStat{UserID: o.UserID, Email: o.UserEmail, Username: o.UserName}
+			us = &TopUserStat{UserID: o.UserID, Email: o.UserEmail}
 			userMap[o.UserID] = us
-		} else if us.Username == "" && o.UserName != "" {
-			us.Username = o.UserName
 		}
 		us.Amount += o.PayAmount
 	}

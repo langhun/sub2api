@@ -11,12 +11,22 @@ export const activityAdminLocaleMessages = {
     settings: {
       tabs: { balanceFeatures: 'Balance Features' },
       balanceFeatures: {
+        entrySwitchesTitle: 'Entry and activity switches', entrySwitchesDescription: 'Control user entries, leaderboard tabs, and API access.',
         checkinTitle: 'Check-in Settings', checkinDescription: 'Configure normal and lucky check-in rewards', normalCheckin: 'Enable normal check-in', luckCheckin: 'Enable lucky check-in',
         minReward: 'Minimum reward', maxReward: 'Maximum reward', minMultiplier: 'Minimum multiplier', maxMultiplier: 'Maximum multiplier',
       },
       checkin: {
         blindboxTitle: 'Check-in Blind Box', blindboxDescription: 'Configure triggers and maintain the prize pool', blindboxTriggerType: 'Trigger type', blindboxTriggerStreak: 'Consecutive check-ins',
         blindboxTriggerTotal: 'Total check-ins', blindboxInterval: 'Trigger interval', blindboxIntervalHint: 'Open a blind box after the configured number of check-ins',
+      },
+    },
+    resources: {
+      redeem: {
+        types: {
+          checkin: 'Check-in',
+          checkin_luck: 'Lucky check-in',
+          checkin_blindbox: 'Blind box check-in',
+        },
       },
     },
     blindbox: {
@@ -47,12 +57,22 @@ export const activityAdminLocaleMessages = {
     settings: {
       tabs: { balanceFeatures: '余额功能' },
       balanceFeatures: {
+        entrySwitchesTitle: '入口与活动开关', entrySwitchesDescription: '集中控制用户端入口、排行榜标签及其接口访问。',
         checkinTitle: '签到设置', checkinDescription: '配置普通签到和运气签到奖励', normalCheckin: '启用普通签到', luckCheckin: '启用运气签到',
         minReward: '最小奖励', maxReward: '最大奖励', minMultiplier: '最小倍率', maxMultiplier: '最大倍率',
       },
       checkin: {
         blindboxTitle: '签到盲盒', blindboxDescription: '配置触发规则并维护盲盒奖池', blindboxTriggerType: '触发方式', blindboxTriggerStreak: '连续签到',
         blindboxTriggerTotal: '累计签到', blindboxInterval: '触发间隔', blindboxIntervalHint: '达到指定签到天数时触发盲盒',
+      },
+    },
+    resources: {
+      redeem: {
+        types: {
+          checkin: '签到',
+          checkin_luck: '运气签到',
+          checkin_blindbox: '盲盒签到',
+        },
       },
     },
     blindbox: {

@@ -201,13 +201,13 @@ func newSenderStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SenderInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, true, SenderTable, SenderColumn),
+		sqlgraph.Edge(sqlgraph.M2O, false, SenderTable, SenderColumn),
 	)
 }
 func newReceiverStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ReceiverInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.M2O, true, ReceiverTable, ReceiverColumn),
+		sqlgraph.Edge(sqlgraph.M2O, false, ReceiverTable, ReceiverColumn),
 	)
 }

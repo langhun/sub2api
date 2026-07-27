@@ -96,9 +96,6 @@ const (
 const (
 	AdjustmentTypeAdminBalance     = domain.AdjustmentTypeAdminBalance     // 管理员调整余额
 	AdjustmentTypeAdminConcurrency = domain.AdjustmentTypeAdminConcurrency // 管理员调整并发数
-	AdjustmentTypeCheckin          = domain.AdjustmentTypeCheckin
-	AdjustmentTypeCheckinLuck      = domain.AdjustmentTypeCheckinLuck
-	AdjustmentTypeCheckinBlindbox  = domain.AdjustmentTypeCheckinBlindbox
 )
 
 // Group subscription type constants
@@ -528,7 +525,6 @@ const (
 
 	// Web Search Emulation
 	SettingKeyWebSearchEmulationConfig = "web_search_emulation_config" // JSON 配置
-
 )
 
 // SettingKeyDefaultPlatformQuotas —— 系统全局：每用户 × 平台日/周/月 USD 上限（JSON）。

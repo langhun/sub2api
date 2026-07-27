@@ -70,10 +70,8 @@ export default {
     noGroupsAvailable: 'No groups available',
     unknownError: 'Unknown error occurred',
     saving: 'Saving...',
-    loadMore: 'Load more',
     selectedCount: '({count} selected)',
     refresh: 'Refresh',
-    retry: 'Retry',
     autoRefresh: {
       title: 'Auto Refresh',
       enable: 'Enable auto refresh',

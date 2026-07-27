@@ -257,9 +257,6 @@ export default {
         concurrency: '并发数',
         subscription: '订阅',
         invitation: '邀请码',
-        checkin: '签到',
-        checkin_luck: '运气签到',
-        checkin_blindbox: '盲盒签到',
         // 管理员在用户管理页面调整余额/并发时产生的记录
         admin_balance: '余额（管理员）',
         admin_concurrency: '并发数（管理员）'

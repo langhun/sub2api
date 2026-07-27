@@ -10,7 +10,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/contract"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
-	coreservice "github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 // NewTransactionRunner adapts Ent transactions to the Activity contract.
@@ -144,10 +143,16 @@ func (g SettingsCodeGenerator) GenerateRedPacketCode(ctx context.Context) (strin
 // narrow pricing dependency. It does not use BalanceTransferService.
 type FeeAdapter struct {
 	registry      *customsettings.Registry
-	subscriptions *coreservice.SubscriptionService
+	subscriptions ActiveSubscriptionReader
 }
 
-func NewRegistryFeeAdapter(registry *customsettings.Registry, subscriptions *coreservice.SubscriptionService) *FeeAdapter {
+// ActiveSubscriptionReader answers the only subscription question needed to
+// determine a red-packet VIP fee exemption.
+type ActiveSubscriptionReader interface {
+	HasActiveSubscription(ctx context.Context, userID int64) (bool, error)
+}
+
+func NewRegistryFeeAdapter(registry *customsettings.Registry, subscriptions ActiveSubscriptionReader) *FeeAdapter {
 	return &FeeAdapter{registry: registry, subscriptions: subscriptions}
 }
 
@@ -162,8 +167,8 @@ func (a *FeeAdapter) QuoteRedPacketFee(ctx context.Context, senderID int64, tota
 	wallet := snapshot.WalletExtension
 	rate := wallet.DirectTransferFeeRate
 	if wallet.DirectTransferVIPFeeExempt && a.subscriptions != nil {
-		subscriptions, listErr := a.subscriptions.ListActiveUserSubscriptions(ctx, senderID)
-		if listErr == nil && len(subscriptions) > 0 {
+		hasActiveSubscription, listErr := a.subscriptions.HasActiveSubscription(ctx, senderID)
+		if listErr == nil && hasActiveSubscription {
 			rate = 0
 		}
 	}

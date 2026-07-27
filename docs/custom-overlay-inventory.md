@@ -2,7 +2,7 @@
 
 > **2026-07-25 收口结论。** 本页较早的分模块“待迁移”描述只保留作历史债务背景；以下结论优先：brand-home、game-hall、activity 与 wallet-extension 的业务实现、页面、API、路由、设置片段和相邻测试均已迁入 `backend/internal/custom/**` 或 `frontend/src/custom/**`。核心层只保留经 `custom.Runtime`、`custom/registry.ts` 和 `handler/settingsext.Mount` 接入的通用挂载点。
 >
-> 不能移动的例外是已发布的 SQL 迁移、Ent schema/生成物，以及为保证单事务余额语义保留的最小数据访问适配器；它们不是模块业务实现。`default_homepage` 现由 brand-home 模块设置片段持有，默认仍回退到 `/home`。后续上游同步前后必须运行 `tools/check-custom-overlay-boundaries.ps1 -BaselineRef baseline/v0.1.164-before-overlay -IncludeWorktree`，共享新增路径必须先归入固定挂载白名单或移回 `custom/`。
+> 不能移动的例外是已发布的 SQL 迁移、Ent schema/生成物，以及为保证单事务余额语义保留的最小数据访问适配器；它们不是模块业务实现。`default_homepage` 现由 brand-home 模块设置片段持有，默认仍回退到 `/home`。当前增量门禁以最后一次上游同步后的审核检查点 `c27d1237628cac3e41a8586c3fb5c9dcbd2bc19c` 为准；历史身份/管理路径库存仍可通过 `HistoricalAudit` 单独盘点，但不应误报为本轮模块迁移新增问题。
 
 > 当前审计日期：2026-07-25。上游基线 `origin/main` 为 `333acde7d189b5a604854bc4fc5bb768c7ad58c9`，当前 Overlay 检查点为 `feature/activity-overlay` 的 `4d73b9d8de8e88939ee9824b9d540802574f0240`，共同祖先为 `cb24522dd53f8f363d008e3afdc8e4baf9788cab`。
 >
@@ -35,7 +35,7 @@ brand-home、game-hall、activity 和 wallet-extension 的路由、前端入口�
 | 模块 | 当前状态 | 当前能力 | 顺序 | 主要风险 |
 | --- | --- | --- | --- | --- |
 | brand-home | 主体已完成；设置片段待收口 | 根首页选择、/Dino、Chromium Dino 资源与运行器 | 已完成 | 保留 /home 默认行为和 /Dino 大小写路径。 |
-| game-hall | 主体已完成；用户禁用与设置为兼容债务 | DG 独立钱包、兑换、Slots、回合/流水、用户禁用和管理查询 | 已完成 | 余额事务、幂等、历史迁移和用户级开关。 |
+| game-hall | 已完成 | DG 独立钱包、兑换、Slots、回合/流水、用户访问控制和模块管理入口 | 已完成 | 余额事务、幂等、历史迁移和用户级开关。 |
 | activity | 路由/入口已迁入；实现和设置仍有共享债务 | 签到、幸运签到、盲盒、奖励投递、红包、排行榜和管理配置 | 1 | 后台任务、幂等、并发和跨模块余额写入。 |
 | wallet-extension | 路由/入口已迁入；实现和设置仍有共享债务 | 站内余额转账、收款方搜索、限额/手续费、管理和转账榜 | 2 | 直接改动核心余额、事务、审计和用户查询；最后迁移。 |
 
@@ -71,11 +71,11 @@ pnpm build
 | 标记 | 路径/模式 | 说明 |
 | --- | --- | --- |
 | M | backend/internal/custom/modules/game-hall/{handler.go,module.go,repository.go,routes.go,service.go} 与相邻 *_test.go | 已迁入的用户端、管理端、交易/回合业务和数据访问。 |
-| M | frontend/src/custom/modules/game-hall/{api.ts,store.ts,GameHallView.vue,routes.ts,navigation.ts,locales.ts} 与相邻测试 | 已迁入的游戏大厅 API、状态、页面、路由、导航和翻译。 |
+| M | frontend/src/custom/modules/game-hall/{api.ts,api/admin.ts,store.ts,GameHallView.vue,admin/GameHallSettingsPanel.vue,routes.ts,navigation.ts,locales.ts} 与相邻测试 | 已迁入的游戏大厅 API、状态、页面、用户访问控制、路由、导航和翻译。 |
 | R | backend/internal/server/routes/{user.go,admin.go} | 游戏大厅路由已由模块 RegisterRoutes 注册；这里不再直接注册 /game-hall 和 /admin/game-hall。 |
 | R | backend/internal/{handler/wire.go,service/wire.go,repository/wire.go,handler/handler.go}；backend/cmd/server/wire.go | 主体装配已转入 custom.Runtime；全局 Wire/Handler 仅保留兼容或生成输出，不得恢复游戏业务。 |
-| S | backend/internal/{handler/admin/user_handler.go,handler/dto/{mappers.go,types.go},service/{admin_user.go,user.go}}；backend/ent/schema/user.go；frontend/src/components/admin/user/UserEditModal.vue | game_hall_disabled 仍写入核心用户模型和管理 UI，是待清理的兼容债务；后续以 Overlay 专属禁用表/读取契约承接。 |
-| H | backend/migrations/175_add_game_hall_dedicated_tables.sql；176_backfill_game_hall_dedicated_balances.sql；178_add_game_hall_rounds.sql；180_add_user_game_hall_disabled.sql | 已有 game_hall 钱包、流水、奖池、回合与用户禁用数据；原样保留。 |
+| R | backend/internal/{handler/admin/user_handler.go,handler/dto/{mappers.go,types.go},service/{admin_user.go,user.go}}；backend/ent/schema/user.go；frontend/src/components/admin/user/UserEditModal.vue | `game_hall_disabled` 已从通用用户模型、DTO 和编辑页移除；上游用户能力不再承载游戏大厅业务。 |
+| H | backend/migrations/175_add_game_hall_dedicated_tables.sql；176_backfill_game_hall_dedicated_balances.sql；178_add_game_hall_rounds.sql；180_add_user_game_hall_disabled.sql；187_move_game_hall_user_access.sql | 已有 game_hall 钱包、流水、奖池、回合与用户禁用数据；187 已回填访问决策到 `game_hall_user_access` 并移除旧用户列，所有迁移原样保留。 |
 | H | backend/migrations/game_hall_migrations_regression_test.go；backend/internal/repository/game_hall_repo_integration_test.go | 保留为历史升级与事务回归门禁。 |
 | S | backend/internal/service/setting_balance_features.go、公开设置、前端 feature flags/i18n | game_hall_enabled 与兑换/Slots 限制应收口为模块设置适配器。 |
 
@@ -86,7 +86,7 @@ pnpm build
 1. Repository、Service、Handler、用户/管理路由、前端 API、Store、页面、导航、翻译和测试均已迁入模块目录。
 2. 模块路由经 custom.Runtime 注册；不得再把游戏路由或 Handler 字段加回上游 routes/Wire。
 3. 后续只处理最小 contract：主余额、用户身份、审计、设置和幂等能力不得继续直接扩散上游依赖。
-4. 用户禁用管理 UI 与 game_hall_disabled 仍是兼容债务；新表只能以新的 *_custom_game_hall_*.sql 迁移追加并回填，不能改写 180 号迁移。
+4. 用户禁用已由模块专属 `game_hall_user_access` 承接；管理员仅经 `/api/v1/admin/game-hall/users/:user_id/access` 和游戏大厅设置面板操作，不能将开关加回通用用户 API 或 `UserEditModal`。
 
 ~~~powershell
 Set-Location backend
@@ -189,7 +189,7 @@ pnpm test:run -- src/custom/modules/wallet-extension
 | frontend/src/components/layout/AppHeader.vue | 快捷签到、弹窗 | 仅一个 CustomHeaderActions 挂载点。 |
 | frontend/src/i18n/locales/{en,zh}/index.ts 和 admin index | balanceFeatures 合并 | 一次 custom 语言片段入口。 |
 
-当前路径级门禁还包含生成的 Wire 测试、路由/布局/i18n 的相邻测试、`frontend/src/router/meta.d.ts`、`frontend/src/stores/{app.ts,__tests__/app.spec.ts}` 和 `backend/internal/web/embed_test.go`。完整的 21 个精确路径由 `tools/check-custom-overlay-boundaries.ps1` 中的 `IntegrationAllowlist` 维护；这些路径只允许承载挂载、类型或测试，不能重新加入业务规则。
+路径级门禁按五类维护：固定挂载、composition root、受限平台端口、验证测试和已发布不可变迁移。精确路径由 `tools/check-custom-overlay-boundaries.ps1` 中的独立集合维护；固定挂载只允许一次注册/聚合，composition root 只负责构造，平台端口只能是通用小接口且不得导入 `custom` 业务。测试不承载生产规则；173--181、185、187 号迁移一旦在当前基线之后被修改、删除或重命名即失败。
 
 backend/internal/{handler,service,repository}/wire.go 和 handler/handler.go 不在最终白名单；它们应归还上游，所有 Overlay 装配放在 backend/internal/custom/。
 
@@ -207,13 +207,13 @@ go generate ./cmd/server
 
 ### 7.3 历史迁移和 schema 兼容债务
 
-所有 H 标记的迁移及其回归测试都是已发布历史：**只保留原路径并参与回归，绝不移动到 custom 目录、拆分、改号、重命名或改写。** 模块化只允许追加新的模块命名迁移，并在新迁移中完成兼容回填。
+所有 H 标记的迁移及其回归测试都是已发布历史：**只保留原路径并参与回归，绝不移动到 custom 目录、拆分、改号、重命名或改写。** 模块化只允许追加新的模块命名迁移，并在新迁移中完成兼容回填。门禁将相对旧基线已存在的这些文件标为 `published-immutable-migration`，但任何当前修改、删除或重命名都标为失败的 `immutable-migration-change`。
 
 | 现状 | 规则 |
 | --- | --- |
 | 173_port_balance_features.sql 同时服务 activity 和 wallet-extension | 永不拆分、改号或重命名；新迁移按模块追加。 |
 | 175 到 181 与 185 | 已发布数据升级步骤必须原样保留，相关 regression/integration test 不删除。 |
-| backend/ent/schema/user.go | 当前包含余额精度、game_hall_disabled 和 activity/wallet 反向 edge；这是需要逐步归还的核心污染区。 |
+| backend/ent/schema/user.go | 当前包含余额精度和 activity/wallet 反向 edge；`game_hall_disabled` 已由 187 号迁移移出，不能重新加入用户 schema。 |
 | backend/ent/schema/redeem_code.go | 当前增加幸运签到下注/倍率字段并扩大精度；迁移时以兼容 DTO 或模块表承接，不能直接丢字段。 |
 | backend/internal/service/setting_balance_features.go、DTO、公开设置和前端 flags | 是四个模块的共享开关债务。先保留兼容读取，再逐模块迁出并最终由 custom 设置注册表聚合。 |
 
@@ -232,7 +232,7 @@ go generate ./cmd/server
 $ErrorActionPreference = 'Stop'
 $repoGit = 'C:\Users\L\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\git\cmd\git.exe'
 
-# 在仓库根目录以已审计 Overlay 检查点为起点，阻止新的共享业务实现。
+# 在仓库根目录以 c27d12376 审核检查点为起点，阻止本轮新增共享业务实现。
 .\tools\check-custom-overlay-boundaries.ps1
 
 Set-Location backend

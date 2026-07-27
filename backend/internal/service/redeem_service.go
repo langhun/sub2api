@@ -153,13 +153,8 @@ func NewRedeemService(
 	entClient *dbent.Client,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
 	affiliateService *AffiliateService,
-	codeGenerators ...CodeGenerator,
 ) *RedeemService {
 	redeemUserRepo, _ := userRepo.(RedeemUserAdjustmentRepository)
-	var codeGenerator CodeGenerator = defaultCodeGenerator{}
-	if len(codeGenerators) > 0 && codeGenerators[0] != nil {
-		codeGenerator = codeGenerators[0]
-	}
 	return &RedeemService{
 		redeemRepo:           redeemRepo,
 		userRepo:             userRepo,
@@ -170,16 +165,22 @@ func NewRedeemService(
 		entClient:            entClient,
 		authCacheInvalidator: authCacheInvalidator,
 		affiliateService:     affiliateService,
-		codeGenerator:        codeGenerator,
+	}
+}
+
+// SetCodeGenerator mounts an optional formatting implementation during startup.
+func (s *RedeemService) SetCodeGenerator(generator CodeGenerator) {
+	if s != nil {
+		s.codeGenerator = generator
 	}
 }
 
 // GenerateRandomCode 生成随机兑换码
 func (s *RedeemService) GenerateRandomCode() (string, error) {
-	if s == nil || s.codeGenerator == nil {
-		return "", errors.New("code generator is not configured")
+	if s != nil && s.codeGenerator != nil {
+		return s.codeGenerator.GenerateDefaultRedeemCode(context.Background())
 	}
-	return s.codeGenerator.GenerateDefaultRedeemCode(context.Background())
+	return defaultCodeGenerator{}.GenerateDefaultRedeemCode(context.Background())
 }
 
 // GenerateCodes 批量生成兑换码
@@ -210,10 +211,15 @@ func (s *RedeemService) GenerateCodes(ctx context.Context, req GenerateCodesRequ
 
 	codes := make([]RedeemCode, 0, req.Count)
 	for i := 0; i < req.Count; i++ {
-		if s.codeGenerator == nil {
-			return nil, errors.New("code generator is not configured")
+		var (
+			code string
+			err  error
+		)
+		if s == nil || s.codeGenerator == nil {
+			code, err = defaultCodeGenerator{}.GenerateDefaultRedeemCode(ctx)
+		} else {
+			code, err = s.codeGenerator.GenerateCode(ctx, codeType)
 		}
-		code, err := s.codeGenerator.GenerateCode(ctx, codeType)
 		if err != nil {
 			return nil, fmt.Errorf("generate code: %w", err)
 		}
