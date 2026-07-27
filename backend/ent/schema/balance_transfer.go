@@ -65,13 +65,11 @@ func (BalanceTransfer) Fields() []ent.Field {
 
 func (BalanceTransfer) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("sender", User.Type).
-			Ref("sent_transfers").
+		edge.To("sender", User.Type).
 			Field("sender_id").
 			Unique().
 			Required(),
-		edge.From("receiver", User.Type).
-			Ref("received_transfers").
+		edge.To("receiver", User.Type).
 			Field("receiver_id").
 			Unique().
 			Required(),

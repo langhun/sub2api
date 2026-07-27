@@ -1,8 +1,7 @@
 import { defineFeatureFlag } from '@/utils/featureFlags'
 import type { CustomSettingsPanel, CustomSettingsValues } from '../../registry'
-import ActivityLeaderboardSettingsPanel from './admin/ActivityLeaderboardSettingsPanel.vue'
+import ActivityEntrySwitchesPanel from './admin/ActivityEntrySwitchesPanel.vue'
 import ActivitySettingsPanel from './admin/ActivitySettingsPanel.vue'
-import ActivityUsageSettingsPanel from './admin/ActivityUsageSettingsPanel.vue'
 export { activityPublicSettingsDefaults } from './publicSettings'
 
 export type CodeCharacterSet = 'uppercase' | 'numeric' | 'alphanumeric'
@@ -45,6 +44,8 @@ interface ActivityUsageSettings {
   usage_query_enabled: boolean
 }
 
+type ActivityEntrySwitchesSettings = ActivityUsageSettings & ActivityLeaderboardSettings
+
 interface ActivitySettings {
   checkin_enabled: boolean
   checkin_min_balance: number
@@ -80,6 +81,11 @@ const defaultActivityUsageSettings = (): ActivityUsageSettings => ({
   usage_query_enabled: true,
 })
 
+const defaultActivityEntrySwitchesSettings = (): ActivityEntrySwitchesSettings => ({
+  ...defaultActivityUsageSettings(),
+  ...defaultLeaderboardSettings(),
+})
+
 const defaultActivitySettings = (): ActivitySettings => ({
   checkin_enabled: false,
   checkin_min_balance: 0.1,
@@ -109,29 +115,17 @@ function readSettings<T extends object>(defaults: T, settings: CustomSettingsVal
 
 export const activitySettingsPanels: readonly CustomSettingsPanel[] = [
   {
-    id: 'activity-usage-query',
+    id: 'activity-entry-switches',
     placement: 'entry-switches',
     order: 10,
-    component: ActivityUsageSettingsPanel,
-    settingKeys: Object.keys(defaultActivityUsageSettings()),
-    createForm: defaultActivityUsageSettings,
-    fromSettings: (settings) => readSettings(defaultActivityUsageSettings(), settings),
-    toPayload: (form) => ({
-      usage_query_enabled: (form as unknown as ActivityUsageSettings).usage_query_enabled,
-    }),
-    validate: () => '',
-  },
-  {
-    id: 'activity-leaderboard',
-    placement: 'entry-switches',
-    order: 20,
-    component: ActivityLeaderboardSettingsPanel,
-    settingKeys: Object.keys(defaultLeaderboardSettings()),
-    createForm: () => defaultLeaderboardSettings(),
-    fromSettings: (settings) => readSettings(defaultLeaderboardSettings(), settings),
+    component: ActivityEntrySwitchesPanel,
+    settingKeys: Object.keys(defaultActivityEntrySwitchesSettings()),
+    createForm: defaultActivityEntrySwitchesSettings,
+    fromSettings: (settings) => readSettings(defaultActivityEntrySwitchesSettings(), settings),
     toPayload: (form) => {
-      const settings = form as unknown as ActivityLeaderboardSettings
+      const settings = form as unknown as ActivityEntrySwitchesSettings
       return {
+        usage_query_enabled: settings.usage_query_enabled,
         leaderboard_enabled: settings.leaderboard_enabled,
         leaderboard_balance_enabled: settings.leaderboard_balance_enabled,
         leaderboard_consumption_enabled: settings.leaderboard_consumption_enabled,
@@ -141,7 +135,7 @@ export const activitySettingsPanels: readonly CustomSettingsPanel[] = [
       }
     },
     validate: (form, allForms) => {
-      const settings = form as unknown as ActivityLeaderboardSettings
+      const settings = form as unknown as ActivityEntrySwitchesSettings
       const wallet = allForms['wallet-extension'] as { transfer_enabled?: boolean } | undefined
       if (settings.leaderboard_enabled && !settings.leaderboard_balance_enabled && !settings.leaderboard_consumption_enabled && !settings.leaderboard_checkin_enabled && !settings.leaderboard_transfer_enabled) {
         return '开启排行榜时至少启用一个榜单标签'

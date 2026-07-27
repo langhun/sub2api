@@ -251,7 +251,7 @@ func (_u *CheckinUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   checkin.UserTable,
 			Columns: []string{checkin.UserColumn},
 			Bidi:    false,
@@ -264,7 +264,7 @@ func (_u *CheckinUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   checkin.UserTable,
 			Columns: []string{checkin.UserColumn},
 			Bidi:    false,
@@ -549,7 +549,7 @@ func (_u *CheckinUpdateOne) sqlSave(ctx context.Context) (_node *Checkin, err er
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   checkin.UserTable,
 			Columns: []string{checkin.UserColumn},
 			Bidi:    false,
@@ -562,7 +562,7 @@ func (_u *CheckinUpdateOne) sqlSave(ctx context.Context) (_node *Checkin, err er
 	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   checkin.UserTable,
 			Columns: []string{checkin.UserColumn},
 			Bidi:    false,

@@ -337,7 +337,7 @@ func (_c *BalanceRedPacketCreate) createSpec() (*BalanceRedPacket, *sqlgraph.Cre
 	if nodes := _c.mutation.SenderIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balanceredpacket.SenderTable,
 			Columns: []string{balanceredpacket.SenderColumn},
 			Bidi:    false,

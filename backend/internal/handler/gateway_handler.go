@@ -37,12 +37,6 @@ const gatewayCompatibilityMetricsLogInterval = 1024
 
 var gatewayCompatibilityMetricsLogCounter atomic.Uint64
 
-// UsageQueryGate is the narrow Overlay-owned setting consumed by the generic
-// gateway usage endpoint. Its implementation is injected at composition time.
-type UsageQueryGate interface {
-	UsageQueryEnabled(context.Context) (bool, error)
-}
-
 // GatewayHandler handles API gateway requests
 type GatewayHandler struct {
 	gatewayService            *service.GatewayService
@@ -63,12 +57,6 @@ type GatewayHandler struct {
 	maxAccountSwitchesGemini  int
 	cfg                       *config.Config
 	settingService            *service.SettingService
-	usageQueryGate            UsageQueryGate
-}
-
-// SetUsageQueryGate injects the activity settings port used by Usage.
-func (h *GatewayHandler) SetUsageQueryGate(gate UsageQueryGate) {
-	h.usageQueryGate = gate
 }
 
 // NewGatewayHandler creates a new GatewayHandler
@@ -1392,19 +1380,6 @@ func cloneAPIKeyWithGroup(apiKey *service.APIKey, group *service.Group) *service
 //   - quota_limited: API Key has quota or rate limits configured. Returns key-level limits/usage.
 //   - unrestricted:  No key-level limits. Returns subscription or wallet balance info.
 func (h *GatewayHandler) Usage(c *gin.Context) {
-	if h.usageQueryGate == nil {
-		h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "Usage query settings are unavailable")
-		return
-	}
-	enabled, err := h.usageQueryGate.UsageQueryEnabled(c.Request.Context())
-	if err != nil {
-		h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "Usage query settings are unavailable")
-		return
-	}
-	if !enabled {
-		h.errorResponse(c, http.StatusForbidden, "permission_error", "Usage query is disabled")
-		return
-	}
 	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
 	if !ok {
 		h.errorResponse(c, http.StatusUnauthorized, "authentication_error", "Invalid API key")

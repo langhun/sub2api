@@ -7,22 +7,29 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
 // UserHandler serves the direct-transfer user API.
 type UserHandler struct {
-	service *Service
+	service     *Service
+	idempotency platform.IdempotencyCoordinator
 }
 
 // NewUserHandler constructs the direct-transfer HTTP adapter.
 func NewUserHandler(directTransferService *Service) *UserHandler {
-	return &UserHandler{service: directTransferService}
+	return NewUserHandlerWithIdempotency(directTransferService, nil)
+}
+
+// NewUserHandlerWithIdempotency injects the generic platform coordinator used
+// by direct-transfer mutations.
+func NewUserHandlerWithIdempotency(directTransferService *Service, coordinator platform.IdempotencyCoordinator) *UserHandler {
+	return &UserHandler{service: directTransferService, idempotency: coordinator}
 }
 
 type directTransferRequest struct {
@@ -47,7 +54,7 @@ func (h *UserHandler) Transfer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	executeDirectTransferIdempotent(c, request, func(ctx context.Context) (DirectTransferRecord, error) {
+	executeDirectTransferIdempotent(c, h.idempotency, request, func(ctx context.Context) (DirectTransferRecord, error) {
 		return h.service.Transfer(ctx, senderID, DirectTransferRequest{
 			ReceiverID: request.ReceiverID, Amount: request.Amount, Memo: request.Memo, IdempotencyKey: c.GetHeader("Idempotency-Key"),
 		})
@@ -177,9 +184,8 @@ func (h *UserHandler) Leaderboard(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-func executeDirectTransferIdempotent(c *gin.Context, payload directTransferRequest, execute func(context.Context) (DirectTransferRecord, error)) {
-	coordinator := service.DefaultIdempotencyCoordinator()
-	if coordinator == nil {
+func executeDirectTransferIdempotent(c *gin.Context, coordinator platform.IdempotencyCoordinator, payload directTransferRequest, execute func(context.Context) (DirectTransferRecord, error)) {
+	if coordinator == nil || !coordinator.Available() {
 		result, err := execute(c.Request.Context())
 		if err != nil {
 			response.ErrorFrom(c, err)
@@ -193,18 +199,18 @@ func executeDirectTransferIdempotent(c *gin.Context, payload directTransferReque
 	if subject, ok := servermiddleware.GetAuthSubjectFromContext(c); ok {
 		actorScope = "user:" + strconv.FormatInt(subject.UserID, 10)
 	}
-	result, err := coordinator.Execute(c.Request.Context(), service.IdempotencyExecuteOptions{
+	result, err := coordinator.Execute(c.Request.Context(), platform.IdempotencyOptions{
 		Scope: "balance_transfer", ActorScope: actorScope, Method: c.Request.Method, Route: c.FullPath(),
 		IdempotencyKey: c.GetHeader("Idempotency-Key"), Payload: payload, RequireKey: true, TTL: 24 * time.Hour,
 	}, func(ctx context.Context) (any, error) {
 		return execute(ctx)
 	})
 	if err != nil {
-		if infraerrors.Code(err) == infraerrors.Code(service.ErrIdempotencyStoreUnavail) {
-			service.RecordIdempotencyStoreUnavailable(c.FullPath(), "balance_transfer", "handler_fail_close")
+		if coordinator.IsStoreUnavailable(err) {
+			coordinator.RecordStoreUnavailable(c.FullPath(), "balance_transfer", "handler_fail_close")
 			logger.LegacyPrintf("wallet-extension.idempotency", "direct transfer idempotency store unavailable: route=%s", c.FullPath())
 		}
-		if retryAfter := service.RetryAfterSecondsFromError(err); retryAfter > 0 {
+		if retryAfter := coordinator.RetryAfterSeconds(err); retryAfter > 0 {
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
 		}
 		response.ErrorFrom(c, err)

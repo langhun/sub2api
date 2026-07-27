@@ -439,7 +439,7 @@ func (_u *BalanceTransferUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if _u.mutation.SenderCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.SenderTable,
 			Columns: []string{balancetransfer.SenderColumn},
 			Bidi:    false,
@@ -452,7 +452,7 @@ func (_u *BalanceTransferUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if nodes := _u.mutation.SenderIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.SenderTable,
 			Columns: []string{balancetransfer.SenderColumn},
 			Bidi:    false,
@@ -468,7 +468,7 @@ func (_u *BalanceTransferUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if _u.mutation.ReceiverCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.ReceiverTable,
 			Columns: []string{balancetransfer.ReceiverColumn},
 			Bidi:    false,
@@ -481,7 +481,7 @@ func (_u *BalanceTransferUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if nodes := _u.mutation.ReceiverIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.ReceiverTable,
 			Columns: []string{balancetransfer.ReceiverColumn},
 			Bidi:    false,
@@ -954,7 +954,7 @@ func (_u *BalanceTransferUpdateOne) sqlSave(ctx context.Context) (_node *Balance
 	if _u.mutation.SenderCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.SenderTable,
 			Columns: []string{balancetransfer.SenderColumn},
 			Bidi:    false,
@@ -967,7 +967,7 @@ func (_u *BalanceTransferUpdateOne) sqlSave(ctx context.Context) (_node *Balance
 	if nodes := _u.mutation.SenderIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.SenderTable,
 			Columns: []string{balancetransfer.SenderColumn},
 			Bidi:    false,
@@ -983,7 +983,7 @@ func (_u *BalanceTransferUpdateOne) sqlSave(ctx context.Context) (_node *Balance
 	if _u.mutation.ReceiverCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.ReceiverTable,
 			Columns: []string{balancetransfer.ReceiverColumn},
 			Bidi:    false,
@@ -996,7 +996,7 @@ func (_u *BalanceTransferUpdateOne) sqlSave(ctx context.Context) (_node *Balance
 	if nodes := _u.mutation.ReceiverIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
-			Inverse: true,
+			Inverse: false,
 			Table:   balancetransfer.ReceiverTable,
 			Columns: []string{balancetransfer.ReceiverColumn},
 			Bidi:    false,

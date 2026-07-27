@@ -81,8 +81,6 @@ var migrationChecksumCompatibilityRules = map[string]migrationChecksumCompatibil
 	"123_fix_legacy_auth_source_grant_on_signup_defaults.sql": newMigrationChecksumCompatibilityRule("2ce43c2cd89e9f9e1febd34a407ed9e84d177386c5544b6f02c1f58a21129f57", "6cd33422f215dcd1f486ab6f35c0ea5805d9ca69bb25906d94bc649156657145"),
 	"159_batch_image_foundation.sql":                          newMigrationChecksumCompatibilityRule("d902b70982025ec519749faf058aab7631e82c3f48167b9a4ae4db718eb72cce", "82da85b5d98e67a0507647b873a40373e84538e4adafdeed6767c0ac8b6570b2"),
 	"161_batch_image_pricing_snapshot.sql":                    newMigrationChecksumCompatibilityRule("4012af3e43636cb6af22e0176d59d1fcc70615c0f310194329461ae462c4fbd6", "96d915c9b7a6941ae99039e0ff3f1a61481eb9bddd933d11c6fadb2274554e87"),
-	"177_migrate_legacy_checkin_records.sql":                  newMigrationChecksumCompatibilityRule("e2418fb16e4ba277ff48ca03f2da78255642671d4edbf8d5cf69a851d8ad7c9c", "5e4dd7852287cc4bef04f2f4e6e7e8713eb40c317481a0f7b7de76e117c381e6"),
-	"181_create_reward_deliveries.sql":                        newMigrationChecksumCompatibilityRule("035e5bcc6e27dbb238368f8378791caa2472429fa3938e12e0287aa47298bcb7", "1dab0fb2a621919f9b67538f3decb43e89a510801bf01978e0e436051eddaef8"),
 }
 
 // ApplyMigrations 将嵌入的 SQL 迁移文件应用到指定的数据库。

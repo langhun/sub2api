@@ -7,15 +7,6 @@ import (
 )
 
 func TestIsMigrationChecksumCompatible(t *testing.T) {
-	t.Run("181历史checksum可兼容", func(t *testing.T) {
-		ok := isMigrationChecksumCompatible(
-			"181_create_reward_deliveries.sql",
-			"1dab0fb2a621919f9b67538f3decb43e89a510801bf01978e0e436051eddaef8",
-			"035e5bcc6e27dbb238368f8378791caa2472429fa3938e12e0287aa47298bcb7",
-		)
-		require.True(t, ok)
-	})
-
 	t.Run("054历史checksum可兼容", func(t *testing.T) {
 		ok := isMigrationChecksumCompatible(
 			"054_drop_legacy_cache_columns.sql",
@@ -167,24 +158,6 @@ func TestIsMigrationChecksumCompatible(t *testing.T) {
 			"119_enforce_payment_orders_out_trade_no_unique.sql",
 			"ebd2c67cce0116393fb4f1b5d5116a67c6aceb73820dfb5133d1ff6f36d72d34",
 			"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-		)
-		require.False(t, ok)
-	})
-
-	t.Run("177提交前已应用版本兼容正式迁移", func(t *testing.T) {
-		ok := isMigrationChecksumCompatible(
-			"177_migrate_legacy_checkin_records.sql",
-			"5e4dd7852287cc4bef04f2f4e6e7e8713eb40c317481a0f7b7de76e117c381e6",
-			"e2418fb16e4ba277ff48ca03f2da78255642671d4edbf8d5cf69a851d8ad7c9c",
-		)
-		require.True(t, ok)
-	})
-
-	t.Run("177未知数据库checksum不兼容", func(t *testing.T) {
-		ok := isMigrationChecksumCompatible(
-			"177_migrate_legacy_checkin_records.sql",
-			"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-			"e2418fb16e4ba277ff48ca03f2da78255642671d4edbf8d5cf69a851d8ad7c9c",
 		)
 		require.False(t, ok)
 	})

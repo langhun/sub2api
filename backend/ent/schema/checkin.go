@@ -53,8 +53,7 @@ func (Checkin) Fields() []ent.Field {
 
 func (Checkin) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("user", User.Type).
-			Ref("checkins").
+		edge.To("user", User.Type).
 			Field("user_id").
 			Unique().
 			Required(),

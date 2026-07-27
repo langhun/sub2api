@@ -1,6 +1,10 @@
 package custom_test
 
 import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/custom"
@@ -14,6 +18,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+type usageQuerySettingsStub struct {
+	enabled bool
+	err     error
+}
+
+func (s usageQuerySettingsStub) UsageQueryEnabled(context.Context) (bool, error) {
+	return s.enabled, s.err
+}
 
 func TestRegisterRoutesDoesNotAddRoutesWithoutRuntime(t *testing.T) {
 	router := gin.New()
@@ -68,6 +81,75 @@ func TestRegisterRoutesMountsGameHallModule(t *testing.T) {
 	require.True(t, exists)
 	_, exists = routes["GET /api/v1/admin/blindbox/prize-items"]
 	require.True(t, exists)
+}
+
+func TestRegisterRoutesUsageQueryGateOnlyControlsUsageEndpoints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name       string
+		settings   usageQuerySettingsStub
+		method     string
+		path       string
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "disabled v1 usage",
+			settings:   usageQuerySettingsStub{enabled: false},
+			method:     http.MethodGet,
+			path:       "/v1/usage",
+			wantStatus: http.StatusForbidden,
+			wantBody:   `{"type":"error","error":{"type":"permission_error","message":"Usage query is disabled"}}`,
+		},
+		{
+			name:       "disabled antigravity usage",
+			settings:   usageQuerySettingsStub{enabled: false},
+			method:     http.MethodGet,
+			path:       "/antigravity/v1/usage",
+			wantStatus: http.StatusForbidden,
+			wantBody:   `{"type":"error","error":{"type":"permission_error","message":"Usage query is disabled"}}`,
+		},
+		{
+			name:       "settings unavailable",
+			settings:   usageQuerySettingsStub{err: errors.New("store unavailable")},
+			method:     http.MethodGet,
+			path:       "/v1/usage",
+			wantStatus: http.StatusServiceUnavailable,
+			wantBody:   `{"type":"error","error":{"type":"api_error","message":"Usage query settings are unavailable"}}`,
+		},
+		{
+			name:       "enabled reaches upstream usage handler",
+			settings:   usageQuerySettingsStub{enabled: true},
+			method:     http.MethodGet,
+			path:       "/v1/usage",
+			wantStatus: http.StatusOK,
+			wantBody:   `{"route":"v1 usage"}`,
+		},
+		{
+			name:       "other route bypasses disabled gate",
+			settings:   usageQuerySettingsStub{enabled: false},
+			method:     http.MethodGet,
+			path:       "/v1/models",
+			wantStatus: http.StatusOK,
+			wantBody:   `{"route":"models"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.New()
+			custom.RegisterRoutes(router, &custom.Runtime{UsageQuerySettings: tt.settings}, nil, nil, nil, nil)
+			router.GET("/v1/usage", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"route": "v1 usage"}) })
+			router.GET("/antigravity/v1/usage", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"route": "antigravity usage"}) })
+			router.GET("/v1/models", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"route": "models"}) })
+
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequest(tt.method, tt.path, nil))
+
+			require.Equal(t, tt.wantStatus, recorder.Code)
+			require.JSONEq(t, tt.wantBody, recorder.Body.String())
+		})
+	}
 }
 
 type routeHandlerStub struct{}

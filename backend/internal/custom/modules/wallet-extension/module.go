@@ -1,6 +1,8 @@
 // Package walletextension owns the wallet-extension Overlay boundary.
 package walletextension
 
+import "github.com/Wei-Shaw/sub2api/internal/custom/platform"
+
 const (
 	// ModuleID is the stable registry identifier for the wallet-extension Overlay.
 	ModuleID = "wallet_extension"
@@ -60,8 +62,14 @@ type Module struct {
 // NewModule constructs wallet-extension's HTTP module from its module-owned
 // service. The service obtains only the narrow platform adapters it needs.
 func NewModule(directTransferService *Service) *Module {
+	return NewModuleWithIdempotency(directTransferService, nil)
+}
+
+// NewModuleWithIdempotency composes the Wallet overlay with the generic
+// idempotency port without exposing core coordination types to the module.
+func NewModuleWithIdempotency(directTransferService *Service, coordinator platform.IdempotencyCoordinator) *Module {
 	return &Module{
-		User:  NewUserHandler(directTransferService),
+		User:  NewUserHandlerWithIdempotency(directTransferService, coordinator),
 		Admin: NewAdminHandler(directTransferService),
 	}
 }

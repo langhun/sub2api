@@ -13,7 +13,7 @@
         {{ t('admin.users.platformQuota.subscriptionWarning') }}
       </div>
       <p class="text-sm text-gray-600 dark:text-gray-400">
-        {{ t('admin.users.platformQuota.subtitle', { email: userDisplayName(user) }) }}
+        {{ t('admin.users.platformQuota.subtitle', { email: user.email }) }}
       </p>
       <div v-if="loading" class="py-10 text-center text-gray-500">{{ t('common.loading') }}</div>
       <div v-else class="overflow-x-auto">
@@ -121,7 +121,6 @@ import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, PlatformQuotaItem, PlatformQuotaPlatform, PlatformQuotaWindow } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import { userDisplayName } from '@/utils/userDisplay'
 
 const props = defineProps<{ show: boolean; user: AdminUser | null }>()
 const emit = defineEmits(['close', 'success'])

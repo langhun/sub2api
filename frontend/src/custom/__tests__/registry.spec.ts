@@ -76,8 +76,7 @@ describe('custom overlay registry', () => {
     expect(customSettingsPanels.map((panel) => panel.id)).toEqual([
       'brand-home',
       'game-hall',
-      'activity-usage-query',
-      'activity-leaderboard',
+      'activity-entry-switches',
       'activity',
       'wallet-extension',
     ])

@@ -169,7 +169,6 @@ export interface ContentModerationLog {
   id: number
   request_id: string
   user_id: number | null
-  username: string
   user_email: string
   api_key_id: number | null
   api_key_name: string

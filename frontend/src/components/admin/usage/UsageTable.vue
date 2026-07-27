@@ -29,12 +29,12 @@
         <template #cell-user="{ row }">
           <div class="text-sm">
             <button
-              v-if="userDisplayName(row.user)"
+              v-if="row.user?.email"
               class="font-medium text-primary-600 underline decoration-dashed underline-offset-2 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-              @click="$emit('userClick', row.user_id, userDisplayName(row.user))"
+              @click="$emit('userClick', row.user_id, row.user?.email)"
               :title="t('admin.usage.clickToViewBalance')"
             >
-              {{ userDisplayName(row.user) }}
+              {{ row.user.email }}
             </button>
             <span v-else class="font-medium text-gray-900 dark:text-white">-</span>
             <span v-if="row.user?.deleted_at" class="ml-1 inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30">
@@ -513,7 +513,6 @@ import Icon from '@/components/icons/Icon.vue'
 import { fetchBatch, getEntry } from '@/utils/ipGeoLookup'
 import type { AdminUsageLog } from '@/types'
 import type { Column } from '@/components/common/types'
-import { userDisplayName } from '@/utils/userDisplay'
 
 interface Props {
   data: AdminUsageLog[]
@@ -538,7 +537,7 @@ const props = withDefaults(defineProps<Props>(), {
   flat: false
 })
 const emit = defineEmits<{
-  userClick: [userID: number, label?: string]
+  userClick: [userID: number, email?: string]
   sort: [key: string, order: 'asc' | 'desc']
   ipGeoBatchFailed: []
 }>()

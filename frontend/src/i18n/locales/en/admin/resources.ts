@@ -316,9 +316,6 @@ export default {
         concurrency: 'Concurrency',
         subscription: 'Subscription',
         invitation: 'Invitation',
-        checkin: 'Check-in',
-        checkin_luck: 'Lucky check-in',
-        checkin_blindbox: 'Blind box check-in',
         // Admin adjustment types (created when admin modifies user balance/concurrency)
         admin_balance: 'Balance (Admin)',
         admin_concurrency: 'Concurrency (Admin)'

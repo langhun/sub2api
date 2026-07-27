@@ -669,11 +669,7 @@ func NewAdminService(
 	affiliateService *AffiliateService,
 	compositeRouteRepo CompositeModelRouteRepository,
 	compositeResolver *CompositeRouteResolver,
-	codeGenerator CodeGenerator,
 ) AdminService {
-	if codeGenerator == nil {
-		codeGenerator = defaultCodeGenerator{}
-	}
 	return &adminServiceImpl{
 		userRepo:             userRepo,
 		groupRepo:            groupRepo,
@@ -698,7 +694,13 @@ func NewAdminService(
 		affiliateService:     affiliateService,
 		compositeRouteRepo:   compositeRouteRepo,
 		compositeResolver:    compositeResolver,
-		codeGenerator:        codeGenerator,
+		codeGenerator:        defaultCodeGenerator{},
+	}
+}
+
+func (s *adminServiceImpl) setCodeGenerator(generator CodeGenerator) {
+	if s != nil {
+		s.codeGenerator = generator
 	}
 }
 

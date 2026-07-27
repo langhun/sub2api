@@ -77,7 +77,7 @@ func (_q *BalanceTransferQuery) QuerySender() *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(balancetransfer.Table, balancetransfer.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, balancetransfer.SenderTable, balancetransfer.SenderColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, balancetransfer.SenderTable, balancetransfer.SenderColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -99,7 +99,7 @@ func (_q *BalanceTransferQuery) QueryReceiver() *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(balancetransfer.Table, balancetransfer.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, balancetransfer.ReceiverTable, balancetransfer.ReceiverColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, balancetransfer.ReceiverTable, balancetransfer.ReceiverColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil

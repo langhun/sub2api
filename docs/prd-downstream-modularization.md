@@ -230,7 +230,7 @@ frontend/src/custom/
 | 前端页头扩展 | 仅当确有需求时，`AppHeader.vue` 增加一个 `CustomHeaderActions` 挂载点；签到等下游 UI 必须迁入该组件。 |
 | 国际化 | `frontend/src/i18n` 只追加一次 `custom` 语言片段入口；模块语言文件保留在 `frontend/src/custom/`。 |
 
-每个白名单文件最多保留一次导入和一次注册调用。新增下游需求不得扩大白名单；若确实无法避免，必须在 PR 中说明原因、替代方案和预期合并影响。当前精确白名单由 `tools/check-custom-overlay-boundaries.ps1` 维护：Wire 源/生成物、后端 HTTP/Router/遗留路由卸载点、前端 Router、布局、i18n 入口、品牌首页 Store 与其相邻测试，以及 embed 测试，共 21 个路径。
+每个固定挂载文件最多保留一次导入和一次注册调用。新增下游需求不得扩大白名单；若确实无法避免，必须在 PR 中说明原因、替代方案和预期合并影响。当前精确路径由 `tools/check-custom-overlay-boundaries.ps1` 分为固定挂载、composition root、受限平台端口、验证测试和已发布不可变迁移五组维护。composition root 只构造 `custom` Provider；受限平台端口只能定义通用小接口，不能 import 或命名下游业务模块。
 
 ### 7.4 上游文件归还规则
 
@@ -244,15 +244,16 @@ frontend/src/custom/
 
 ### 7.5 白名单与 diff 检查
 
-白名单分为三类：
+白名单和边界分类分为五类：
 
 | 类别 | 允许路径 | 规则 |
 | --- | --- | --- |
 | Overlay 自有代码 | `backend/internal/custom/**`、`frontend/src/custom/**` | 可自由新增和修改，必须有模块归属与测试。 |
-| 新增数据定义 | `backend/ent/**`、`backend/migrations/*_custom_*.sql` 及相邻迁移测试 | Ent 输出可再生；迁移只新增，历史迁移不可回写或改号。 |
-| 固定挂载/生成输出 | 脚本中列出的 21 个精确路径，包括 `backend/cmd/server/wire.go`、`backend/internal/server/{http.go,router.go}`、`frontend/src/router/index.ts`、`frontend/src/components/layout/{AppSidebar.vue,AppHeader.vue}`、i18n 入口和 Ent/Wire 生成文件 | 仅允许表 7.3 定义的挂载调用、类型或测试，禁止混入业务规则。 |
+| 固定挂载 | 脚本中列出的 Router、设置、前端 Router/布局/i18n 入口等精确路径 | 仅允许表 7.3 定义的一次挂载、聚合或类型适配，禁止业务规则。 |
+| Composition root 与受限平台端口 | `backend/cmd/server/wire*.go` 等构造点，以及脚本单列的通用接口文件 | 前者只装配依赖；后者只能提供不依赖 `custom` 的小接口和兼容默认值。 |
+| 验证与不可变历史 | `*_test.go`、`*.spec.ts`、`*.test.ts`；以及 173--181、185、187 号发布迁移 | 测试不承载生产逻辑。历史迁移可作为旧基线的已发布记录，但当前修改、删除或重命名一律失败。 |
 
-除以上三类外，任何新增行都默认视为不合规。`tools/check-custom-overlay-boundaries.ps1` 以审计检查点 `4d73b9d` 对比目标提交：共享路径仅允许零新增行的删除，以便归还既有债务；新增或修改后的共享业务实现会失败。上游同步或重新设定检查点必须先重新执行全量分类，并在单独评审提交中更新脚本默认值和清单，不能为了通过门禁直接前移基线。
+除以上类别外，任何新增生产行都默认视为不合规。`tools/check-custom-overlay-boundaries.ps1` 默认以审核检查点 `c27d12376` 对比目标提交；共享路径仅在本次 diff 的新增行数为零时才会标为 cleanup。唯一的机械例外是移除 `RegisterCommonRoutes` 未使用参数时的单一精确替换签名，不是可扩展的路径白名单。当前增量基线中，若共享路径逐字回归固定上游 SHA `43d4bae24`，门禁可将其标为 `historical-upstream-revert`；这证明文件已归还上游，不是可扩展的路径白名单，也不适用于真正的上游同步审计。`HistoricalAudit` 用于盘点更早的身份/管理库存，不能代替本轮验收；实际同步上游时必须用不可变旧/新 upstream SHA 生成 pre/post 报告，不能为了通过门禁直接前移基线。
 
 `go.mod`、`go.sum`、`package.json` 与锁文件在本次迁移中不应变更；Overlay 必须优先复用现有依赖。若后续模块确需新增依赖，必须单独评审，不得与业务迁移混在同一提交。
 

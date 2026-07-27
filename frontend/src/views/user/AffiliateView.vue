@@ -113,7 +113,8 @@
             <table class="w-full min-w-[560px] text-left text-sm">
               <thead>
                 <tr class="border-b border-gray-200 text-gray-500 dark:border-dark-700 dark:text-dark-400">
-                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.user') }}</th>
+                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.email') }}</th>
+                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.username') }}</th>
                   <th class="px-3 py-2 font-medium text-right">{{ t('affiliate.invitees.columns.rebate') }}</th>
                   <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.joinedAt') }}</th>
                 </tr>
@@ -124,7 +125,8 @@
                   :key="item.user_id"
                   class="border-b border-gray-100 last:border-b-0 dark:border-dark-800"
                 >
-                  <td class="px-3 py-3 text-gray-900 dark:text-white">{{ userDisplayName(item, '-') }}</td>
+                  <td class="px-3 py-3 text-gray-900 dark:text-white">{{ item.email || '-' }}</td>
+                  <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ item.username || '-' }}</td>
                   <td class="px-3 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{{ formatCurrency(item.total_rebate) }}</td>
                   <td class="px-3 py-3 text-gray-700 dark:text-gray-300">{{ formatDateTime(item.created_at) || '-' }}</td>
                 </tr>
@@ -149,7 +151,6 @@ import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
 import { formatCurrency, formatDateTime } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
-import { userDisplayName } from '@/utils/userDisplay'
 
 const { t } = useI18n()
 const appStore = useAppStore()

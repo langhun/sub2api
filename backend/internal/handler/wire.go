@@ -2,7 +2,6 @@ package handler
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
-	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/handler/settingsext"
 	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
@@ -107,13 +106,11 @@ func ProvideGatewayHandler(
 	cfg *config.Config,
 	settingService *service.SettingService,
 	coordinator *securityaudit.Coordinator,
-	customSettingsRegistry *customsettings.Registry,
 ) *GatewayHandler {
 	h := NewGatewayHandler(gatewayService, openAIGatewayService, geminiCompatService, antigravityGatewayService,
 		userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool,
 		errorPassthroughService, contentModerationService, userMsgQueueService, cfg, settingService)
 	h.securityAuditCoordinator = coordinator
-	h.SetUsageQueryGate(customSettingsRegistry)
 	return h
 }
 

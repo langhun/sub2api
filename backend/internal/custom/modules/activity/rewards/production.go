@@ -8,9 +8,9 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/contract"
+	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 // ProductionDependencies are the narrow core ports required to assemble the
@@ -20,10 +20,10 @@ type ProductionDependencies struct {
 	DB            *sql.DB
 	Settings      *customsettings.Registry
 	CodeGenerator CodeGenerator
-	Users         service.UserRepository
-	Subscriptions *service.SubscriptionService
-	RedeemCodes   service.RedeemCodeRepository
-	BillingCache  *service.BillingCacheService
+	Concurrency   platform.UserConcurrencyWriter
+	Subscriptions platform.SubscriptionManager
+	RedeemRecords platform.RedeemRecordWriter
+	BalanceCache  platform.BalanceCacheInvalidator
 }
 
 // NewProduction returns the activity-owned HTTP module and worker lifecycle.
@@ -34,12 +34,12 @@ func NewProduction(deps ProductionDependencies, options WorkerOptions) (*Module,
 	outbox := NewOutboxRepository(deps.Client, deps.DB)
 	processor := NewDeliveryProcessor(ProcessorDependencies{
 		Balance:      NewEntBalanceWriter(deps.Client),
-		Concurrency:  coreConcurrencyGranter{users: deps.Users},
-		Subscription: coreSubscriptionGranter{service: deps.Subscriptions},
-		Invitation:   coreInvitationIssuer{codes: deps.RedeemCodes},
-		Audit:        coreAuditWriter{codeGenerator: deps.CodeGenerator, codes: deps.RedeemCodes},
+		Concurrency:  platformConcurrencyGranter{writer: deps.Concurrency},
+		Subscription: platformSubscriptionGranter{manager: deps.Subscriptions},
+		Invitation:   platformInvitationIssuer{writer: deps.RedeemRecords},
+		Audit:        platformAuditWriter{codeGenerator: deps.CodeGenerator, writer: deps.RedeemRecords},
 		History:      entHistoryWriter{client: deps.Client},
-		Cache:        coreBalanceCacheInvalidator{cache: deps.BillingCache},
+		Cache:        platformBalanceCacheInvalidator{cache: deps.BalanceCache},
 	})
 	worker := NewWorker(outbox, processor, options)
 	module := NewModule(NewHandler(NewAdminService(prizes, outbox, worker)))
@@ -140,48 +140,49 @@ func (c checkinCounter) CountCheckins(ctx context.Context, userID int64) (int, e
 	return total, nil
 }
 
-type coreConcurrencyGranter struct{ users service.UserRepository }
-
-func (g coreConcurrencyGranter) GrantConcurrency(ctx context.Context, grant contract.ConcurrencyGrant) error {
-	if g.users == nil || grant.UserID <= 0 || grant.Slots < 0 {
-		return ErrUnavailable
-	}
-	return g.users.UpdateConcurrency(ctx, grant.UserID, grant.Slots)
+type platformConcurrencyGranter struct {
+	writer platform.UserConcurrencyWriter
 }
 
-type coreSubscriptionGranter struct{ service *service.SubscriptionService }
-
-func (g coreSubscriptionGranter) GrantOrExtendSubscription(ctx context.Context, grant contract.SubscriptionGrant) error {
-	if g.service == nil {
+func (g platformConcurrencyGranter) GrantConcurrency(ctx context.Context, grant contract.ConcurrencyGrant) error {
+	if g.writer == nil || grant.UserID <= 0 || grant.Slots < 0 {
 		return ErrUnavailable
 	}
-	_, _, err := g.service.AssignOrExtendSubscription(ctx, &service.AssignSubscriptionInput{
-		UserID: grant.UserID, GroupID: grant.SubscriptionID, ValidityDays: grant.Days, Notes: grant.Note,
+	return g.writer.UpdateConcurrency(ctx, grant.UserID, grant.Slots)
+}
+
+type platformSubscriptionGranter struct{ manager platform.SubscriptionManager }
+
+func (g platformSubscriptionGranter) GrantOrExtendSubscription(ctx context.Context, grant contract.SubscriptionGrant) error {
+	if g.manager == nil {
+		return ErrUnavailable
+	}
+	return g.manager.AssignOrExtendSubscription(ctx, platform.SubscriptionGrant{
+		UserID: grant.UserID, GroupID: grant.SubscriptionID, Days: grant.Days, Note: grant.Note,
 	})
-	return err
 }
 
-type coreInvitationIssuer struct{ codes service.RedeemCodeRepository }
+type platformInvitationIssuer struct{ writer platform.RedeemRecordWriter }
 
-func (i coreInvitationIssuer) IssueInvitationCode(ctx context.Context, request contract.InvitationCodeRequest) (string, error) {
-	if i.codes == nil || request.UserID <= 0 || request.Code == "" {
+func (i platformInvitationIssuer) IssueInvitationCode(ctx context.Context, request contract.InvitationCodeRequest) (string, error) {
+	if i.writer == nil || request.UserID <= 0 || request.Code == "" {
 		return "", ErrUnavailable
 	}
-	if err := i.codes.Create(ctx, &service.RedeemCode{
-		Code: request.Code, Type: domain.RedeemTypeInvitation, Value: 0, Status: service.StatusUnused, ExpiresAt: request.ExpiresAt,
+	if err := i.writer.CreateRedeemRecord(ctx, platform.RedeemRecord{
+		Code: request.Code, Type: domain.RedeemTypeInvitation, Value: 0, Status: platform.RedeemRecordStatusUnused, ExpiresAt: request.ExpiresAt,
 	}); err != nil {
 		return "", err
 	}
 	return request.Code, nil
 }
 
-type coreAuditWriter struct {
+type platformAuditWriter struct {
 	codeGenerator CodeGenerator
-	codes         service.RedeemCodeRepository
+	writer        platform.RedeemRecordWriter
 }
 
-func (w coreAuditWriter) WriteActivityAudit(ctx context.Context, entry contract.AuditEntry) error {
-	if w.codes == nil || entry.UserID <= 0 {
+func (w platformAuditWriter) WriteActivityAudit(ctx context.Context, entry contract.AuditEntry) error {
+	if w.writer == nil || entry.UserID <= 0 {
 		return ErrUnavailable
 	}
 	codeType := entry.CodeType
@@ -196,8 +197,8 @@ func (w coreAuditWriter) WriteActivityAudit(ctx context.Context, entry contract.
 		return err
 	}
 	now := time.Now()
-	return w.codes.Create(ctx, &service.RedeemCode{
-		Code: code, Type: SourceCheckinBlindbox, Value: entry.Amount, Status: service.StatusUsed,
+	return w.writer.CreateRedeemRecord(ctx, platform.RedeemRecord{
+		Code: code, Type: SourceCheckinBlindbox, Value: entry.Amount, Status: platform.RedeemRecordStatusUsed,
 		UsedBy: &entry.UserID, UsedAt: &now, Notes: entry.Notes,
 		GroupID: entry.GroupID, ValidityDays: entry.ValidityDays,
 	})
@@ -226,9 +227,11 @@ func (w entHistoryWriter) RecordBlindboxDelivery(ctx context.Context, record Bli
 	return err
 }
 
-type coreBalanceCacheInvalidator struct{ cache *service.BillingCacheService }
+type platformBalanceCacheInvalidator struct {
+	cache platform.BalanceCacheInvalidator
+}
 
-func (i coreBalanceCacheInvalidator) InvalidateBalance(ctx context.Context, userID int64) error {
+func (i platformBalanceCacheInvalidator) InvalidateBalance(ctx context.Context, userID int64) error {
 	if i.cache == nil {
 		return nil
 	}
@@ -238,10 +241,10 @@ func (i coreBalanceCacheInvalidator) InvalidateBalance(ctx context.Context, user
 var (
 	_ contract.SettingsReader          = registrySettingsAdapter{}
 	_ CheckinCounter                   = checkinCounter{}
-	_ contract.ConcurrencyGranter      = coreConcurrencyGranter{}
-	_ contract.SubscriptionGranter     = coreSubscriptionGranter{}
-	_ contract.InvitationCodeIssuer    = coreInvitationIssuer{}
-	_ contract.AuditWriter             = coreAuditWriter{}
+	_ contract.ConcurrencyGranter      = platformConcurrencyGranter{}
+	_ contract.SubscriptionGranter     = platformSubscriptionGranter{}
+	_ contract.InvitationCodeIssuer    = platformInvitationIssuer{}
+	_ contract.AuditWriter             = platformAuditWriter{}
 	_ BlindboxRecordWriter             = entHistoryWriter{}
-	_ contract.BalanceCacheInvalidator = coreBalanceCacheInvalidator{}
+	_ contract.BalanceCacheInvalidator = platformBalanceCacheInvalidator{}
 )

@@ -15,7 +15,7 @@ describe('custom locale overlay', () => {
       checkin: 'Check-in',
       transfer: 'Balance Transfer',
     })
-    expect(merged.common).toEqual({ retry: 'Retry' })
+    expect(merged.common).toEqual({ retry: 'Retry', loadMore: 'Load more' })
     expect(base.nav).toEqual({ dashboard: 'Dashboard' })
   })
 })

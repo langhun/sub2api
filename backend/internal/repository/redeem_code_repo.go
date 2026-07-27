@@ -23,16 +23,13 @@ func NewRedeemCodeRepository(client *dbent.Client) service.RedeemCodeRepository 
 }
 
 func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemCode) error {
-	client := clientFromContext(ctx, r.client)
-	created, err := client.RedeemCode.Create().
+	created, err := r.client.RedeemCode.Create().
 		SetCode(code.Code).
 		SetType(code.Type).
 		SetValue(code.Value).
 		SetStatus(code.Status).
 		SetNotes(code.Notes).
 		SetValidityDays(code.ValidityDays).
-		SetMultiplier(code.Multiplier).
-		SetBetAmount(code.BetAmount).
 		SetNillableExpiresAt(code.ExpiresAt).
 		SetNillableUsedBy(code.UsedBy).
 		SetNillableUsedAt(code.UsedAt).
@@ -60,8 +57,6 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 			SetStatus(c.Status).
 			SetNotes(c.Notes).
 			SetValidityDays(c.ValidityDays).
-			SetMultiplier(c.Multiplier).
-			SetBetAmount(c.BetAmount).
 			SetNillableExpiresAt(c.ExpiresAt).
 			SetNillableUsedBy(c.UsedBy).
 			SetNillableUsedAt(c.UsedAt).
@@ -207,9 +202,7 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 		SetValue(code.Value).
 		SetStatus(code.Status).
 		SetNotes(code.Notes).
-		SetValidityDays(code.ValidityDays).
-		SetMultiplier(code.Multiplier).
-		SetBetAmount(code.BetAmount)
+		SetValidityDays(code.ValidityDays)
 
 	if code.UsedBy != nil {
 		up.SetUsedBy(*code.UsedBy)
@@ -432,8 +425,6 @@ func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
 		ExpiresAt:    m.ExpiresAt,
 		GroupID:      m.GroupID,
 		ValidityDays: m.ValidityDays,
-		Multiplier:   m.Multiplier,
-		BetAmount:    m.BetAmount,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)

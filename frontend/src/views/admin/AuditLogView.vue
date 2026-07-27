@@ -27,13 +27,7 @@
 
               <div class="w-full sm:w-auto sm:min-w-[200px]">
                 <label class="input-label">{{ t('admin.audit.filters.actorEmail') }}</label>
-                <input
-                  v-model.trim="filters.actor"
-                  type="text"
-                  class="input"
-                  :placeholder="t('admin.audit.filters.actorPlaceholder')"
-                  @keyup.enter="search"
-                />
+                <input v-model.trim="filters.actor_email" type="text" class="input" @keyup.enter="search" />
               </div>
 
               <div class="w-full sm:w-auto sm:min-w-[180px]">
@@ -97,19 +91,19 @@
 
           <template #cell-actor="{ row }">
             <div class="min-w-0 max-w-[220px]">
-              <div class="truncate font-medium text-gray-900 dark:text-white" :title="actorDisplayName(row)">
-                {{ actorDisplayName(row) || '—' }}
+              <div class="truncate font-medium text-gray-900 dark:text-white" :title="row.actor_email">
+                {{ row.actor_email || '—' }}
               </div>
               <div class="mt-0.5 truncate text-xs text-gray-400">
-                {{ actorRoleLabel(row.actor_role) }}<span v-if="row.auth_method"> · {{ authMethodLabel(row.auth_method) }}</span>
+                {{ row.actor_role }}<span v-if="row.auth_method"> · {{ authMethodLabel(row.auth_method) }}</span>
               </div>
             </div>
           </template>
 
           <template #cell-action="{ row }">
             <div class="min-w-0 max-w-xs">
-              <div class="truncate text-sm text-gray-800 dark:text-gray-200" :title="row.action">
-                {{ actionLabel(row.action) }}
+              <div class="truncate font-mono text-sm text-gray-800 dark:text-gray-200" :title="row.action">
+                {{ row.action }}
               </div>
               <div class="mt-0.5 truncate font-mono text-xs text-gray-400" :title="`${row.method} ${row.path}`">
                 {{ row.method }} {{ row.path }}
@@ -189,7 +183,7 @@
               {{ detail.status_code }} {{ statusText(detail.status_code) }}
             </span>
             <span class="break-all font-mono text-base font-semibold text-gray-900 dark:text-white">
-              {{ actionLabel(detail.action) }}
+              {{ detail.action }}
             </span>
           </div>
 
@@ -220,9 +214,9 @@
               {{ t('admin.audit.columns.actor') }}
             </div>
             <div class="mt-1 break-all text-sm font-medium text-gray-900 dark:text-white">
-              {{ actorDisplayName(detail) || '—' }}
+              {{ detail.actor_email || '—' }}
             </div>
-            <div class="mt-0.5 text-xs text-gray-400">{{ actorRoleLabel(detail.actor_role) }}</div>
+            <div class="mt-0.5 text-xs text-gray-400">{{ detail.actor_role }}</div>
           </div>
 
           <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-900">
@@ -372,10 +366,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores'
-import { userDisplayName } from '@/utils/userDisplay'
-import { formatAuditAction, formatAuditActorRole } from './auditLogActionLabel'
 
-const { t, te } = useI18n()
+const { t } = useI18n()
 const appStore = useAppStore()
 
 const loading = ref(false)
@@ -386,7 +378,7 @@ const pageSize = ref(20)
 
 const filters = reactive({
   q: '',
-  actor: '',
+  actor_email: '',
   action: '',
   client_ip: '',
   method: '',
@@ -507,18 +499,6 @@ function authMethodLabel(method: string): string {
   return found && found.value ? found.label : method
 }
 
-function actionLabel(action: string): string {
-  return formatAuditAction(action, (key) => t(key), (key) => te(key))
-}
-
-function actorRoleLabel(role: string): string {
-  return formatAuditActorRole(role, (key) => t(key), (key) => te(key))
-}
-
-function actorDisplayName(actor: AuditLog): string {
-  return userDisplayName({ username: actor.actor_username, email: actor.actor_email })
-}
-
 function toRFC3339(local: string): string | undefined {
   if (!local) return undefined
   const d = new Date(local)
@@ -543,7 +523,7 @@ function buildQuery() {
     page: page.value,
     page_size: pageSize.value,
     q: filters.q || undefined,
-    actor: filters.actor || undefined,
+    actor_email: filters.actor_email || undefined,
     action: filters.action || undefined,
     client_ip: filters.client_ip || undefined,
     method: filters.method || undefined,
@@ -573,7 +553,7 @@ function search() {
 
 function resetFilters() {
   filters.q = ''
-  filters.actor = ''
+  filters.actor_email = ''
   filters.action = ''
   filters.client_ip = ''
   filters.method = ''

@@ -35,7 +35,7 @@
               @click="selectUser(u)"
               class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-700"
             >
-              <span>{{ userDisplayName(u) }}<span v-if="u.deleted" class="ml-1 text-xs text-gray-400">（{{ t('admin.usage.userDeletedBadge') }}）</span></span>
+              <span>{{ u.email }}<span v-if="u.deleted" class="ml-1 text-xs text-gray-400">（{{ t('admin.usage.userDeletedBadge') }}）</span></span>
               <span class="ml-2 text-xs text-gray-400">#{{ u.id }}</span>
             </button>
           </div>
@@ -194,7 +194,6 @@ import { adminAPI } from '@/api/admin'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import { COMMON_ERROR_STATUS_CODES } from '@/utils/errorBadges'
 import type { SimpleApiKey, SimpleUser } from '@/api/admin/usage'
-import { userDisplayName } from '@/utils/userDisplay'
 
 type ModelValue = Record<string, any>
 
@@ -358,7 +357,7 @@ const debounceApiKeySearch = () => {
 
 const selectUser = async (u: SimpleUser) => {
   clearPendingUserSearch()
-  userKeyword.value = userDisplayName(u)
+  userKeyword.value = u.email
   showUserDropdown.value = false
   filters.value.user_id = u.id
   clearApiKey()
@@ -516,10 +515,10 @@ onUnmounted(() => {
   document.removeEventListener('click', onDocumentClick)
 })
 
-// 供外部(如用户排行下钻)在程序化设置 user_id 后回显选中的用户标识
-const setUserKeyword = (label: string) => {
+// 供外部(如用户排行下钻)在程序化设置 user_id 后回显选中的用户邮箱
+const setUserKeyword = (email: string) => {
   clearPendingUserSearch()
-  userKeyword.value = label
+  userKeyword.value = email
   userResults.value = []
   showUserDropdown.value = false
 }

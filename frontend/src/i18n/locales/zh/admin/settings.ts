@@ -68,7 +68,6 @@ export default {
             resetMessage: '确认将 {email} 的专属配置全部重置为默认？\n• 专属返利比例将清除（沿用全局）\n• 邀请码将重新生成为系统随机码（已分发的旧邀请链接将失效）',
             totalLabel: '共 {total} 条',
             col: {
-              user: '用户',
               email: '邮箱',
               username: '用户名',
               code: '邀请码',

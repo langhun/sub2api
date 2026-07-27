@@ -37,10 +37,7 @@
               {{ detail.account_name || (detail.account_id != null ? String(detail.account_id) : '—') }}
             </template>
             <template v-else>
-              {{ userDisplayName(
-                { username: detail.username, email: detail.user_email },
-                detail.user_id != null ? String(detail.user_id) : '—'
-              ) }}
+              {{ detail.user_email || (detail.user_id != null ? String(detail.user_id) : '—') }}
             </template>
           </div>
         </div>
@@ -206,7 +203,6 @@ import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores'
 import { opsAPI, type OpsErrorDetail } from '@/api/admin/ops'
 import { formatDateTime } from '@/utils/format'
-import { userDisplayName } from '@/utils/userDisplay'
 import { resolvePrimaryResponseBody, resolveUpstreamPayload } from '../utils/errorDetailResponse'
 
 interface Props {

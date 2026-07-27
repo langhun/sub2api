@@ -411,7 +411,6 @@ import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
-import { userDisplayInitials } from '@/utils/userDisplay'
 
 const { t } = useI18n()
 
@@ -442,7 +441,9 @@ const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
 const dashboardPath = computed(() => isAdmin.value ? '/admin/dashboard' : '/dashboard')
 const userInitial = computed(() => {
-  return userDisplayInitials(authStore.user, '')
+  const user = authStore.user
+  if (!user || !user.email) return ''
+  return user.email.charAt(0).toUpperCase()
 })
 
 // Current year for footer

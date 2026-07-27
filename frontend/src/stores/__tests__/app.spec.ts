@@ -56,18 +56,6 @@ function createPublicSettings(overrides: Partial<PublicSettings> = {}): PublicSe
     available_channels_enabled: false,
     service_quota_enabled: false,
     affiliate_enabled: false,
-	checkin_enabled: false,
-	checkin_luck_enabled: false,
-	checkin_blindbox_enabled: false,
-	transfer_enabled: false,
-	redpacket_enabled: false,
-	usage_query_enabled: true,
-	leaderboard_enabled: true,
-	leaderboard_balance_enabled: true,
-	leaderboard_consumption_enabled: true,
-	leaderboard_checkin_enabled: true,
-	leaderboard_transfer_enabled: false,
-	leaderboard_include_admin: false,
     ...overrides,
   }
 }

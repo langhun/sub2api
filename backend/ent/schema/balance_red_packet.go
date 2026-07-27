@@ -58,8 +58,7 @@ func (BalanceRedPacket) Fields() []ent.Field {
 
 func (BalanceRedPacket) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("sender", User.Type).
-			Ref("redpackets").
+		edge.To("sender", User.Type).
 			Field("sender_id").
 			Unique().
 			Required(),

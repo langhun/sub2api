@@ -30,7 +30,7 @@ func TestBuildOpsErrorLogsWhere_QueryUsesQualifiedColumns(t *testing.T) {
 	}
 }
 
-func TestBuildOpsErrorLogsWhere_UserQueryMatchesUsernameOrEmail(t *testing.T) {
+func TestBuildOpsErrorLogsWhere_UserQueryUsesExistsSubquery(t *testing.T) {
 	filter := &service.OpsErrorLogFilter{
 		UserQuery: "admin@",
 	}
@@ -42,8 +42,7 @@ func TestBuildOpsErrorLogsWhere_UserQueryMatchesUsernameOrEmail(t *testing.T) {
 	if len(args) != 1 {
 		t.Fatalf("args len = %d, want 1", len(args))
 	}
-	if !strings.Contains(where, "EXISTS (SELECT 1 FROM users u WHERE u.id = e.user_id AND (u.username ILIKE $") ||
-		!strings.Contains(where, "OR u.email ILIKE $") {
-		t.Fatalf("where should include EXISTS username or email condition: %s", where)
+	if !strings.Contains(where, "EXISTS (SELECT 1 FROM users u WHERE u.id = e.user_id AND u.email ILIKE $") {
+		t.Fatalf("where should include EXISTS user email condition: %s", where)
 	}
 }

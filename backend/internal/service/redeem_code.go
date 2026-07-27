@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"time"
 )
 
@@ -18,8 +20,6 @@ type RedeemCode struct {
 
 	GroupID      *int64
 	ValidityDays int
-	Multiplier   float64
-	BetAmount    float64
 
 	User  *User
 	Group *Group
@@ -45,4 +45,12 @@ func (r *RedeemCode) IsExpiredAt(now time.Time) bool {
 
 func (r *RedeemCode) CanUse() bool {
 	return r.Status == StatusUnused && !r.IsExpired()
+}
+
+func GenerateRedeemCode() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

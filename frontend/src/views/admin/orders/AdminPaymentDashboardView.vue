@@ -55,7 +55,7 @@
               <div v-for="(user, idx) in stats.top_users" :key="user.user_id" class="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-dark-700">
                 <div class="flex items-center gap-3">
                   <span :class="['flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold', rankClass(idx)]">{{ idx + 1 }}</span>
-                  <span class="text-sm text-gray-700 dark:text-gray-300">{{ userDisplayName(user, `User #${user.user_id}`) }}</span>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">{{ user.email }}</span>
                 </div>
                 <span class="text-sm font-medium text-gray-900 dark:text-white">&yen;{{ user.amount.toFixed(2) }}</span>
               </div>
@@ -79,7 +79,6 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OrderStatsCards from '@/components/admin/payment/OrderStatsCards.vue'
 import DailyRevenueChart from '@/components/admin/payment/DailyRevenueChart.vue'
-import { userDisplayName } from '@/utils/userDisplay'
 
 const { t } = useI18n()
 const appStore = useAppStore()

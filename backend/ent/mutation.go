@@ -43827,10 +43827,6 @@ type RedeemCodeMutation struct {
 	expires_at       *time.Time
 	validity_days    *int
 	addvalidity_days *int
-	multiplier       *float64
-	addmultiplier    *float64
-	bet_amount       *float64
-	addbet_amount    *float64
 	clearedFields    map[string]struct{}
 	user             *int64
 	cleareduser      bool
@@ -44440,118 +44436,6 @@ func (m *RedeemCodeMutation) ResetValidityDays() {
 	m.addvalidity_days = nil
 }
 
-// SetMultiplier sets the "multiplier" field.
-func (m *RedeemCodeMutation) SetMultiplier(f float64) {
-	m.multiplier = &f
-	m.addmultiplier = nil
-}
-
-// Multiplier returns the value of the "multiplier" field in the mutation.
-func (m *RedeemCodeMutation) Multiplier() (r float64, exists bool) {
-	v := m.multiplier
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldMultiplier returns the old "multiplier" field's value of the RedeemCode entity.
-// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *RedeemCodeMutation) OldMultiplier(ctx context.Context) (v float64, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldMultiplier is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldMultiplier requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldMultiplier: %w", err)
-	}
-	return oldValue.Multiplier, nil
-}
-
-// AddMultiplier adds f to the "multiplier" field.
-func (m *RedeemCodeMutation) AddMultiplier(f float64) {
-	if m.addmultiplier != nil {
-		*m.addmultiplier += f
-	} else {
-		m.addmultiplier = &f
-	}
-}
-
-// AddedMultiplier returns the value that was added to the "multiplier" field in this mutation.
-func (m *RedeemCodeMutation) AddedMultiplier() (r float64, exists bool) {
-	v := m.addmultiplier
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// ResetMultiplier resets all changes to the "multiplier" field.
-func (m *RedeemCodeMutation) ResetMultiplier() {
-	m.multiplier = nil
-	m.addmultiplier = nil
-}
-
-// SetBetAmount sets the "bet_amount" field.
-func (m *RedeemCodeMutation) SetBetAmount(f float64) {
-	m.bet_amount = &f
-	m.addbet_amount = nil
-}
-
-// BetAmount returns the value of the "bet_amount" field in the mutation.
-func (m *RedeemCodeMutation) BetAmount() (r float64, exists bool) {
-	v := m.bet_amount
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldBetAmount returns the old "bet_amount" field's value of the RedeemCode entity.
-// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *RedeemCodeMutation) OldBetAmount(ctx context.Context) (v float64, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldBetAmount is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldBetAmount requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldBetAmount: %w", err)
-	}
-	return oldValue.BetAmount, nil
-}
-
-// AddBetAmount adds f to the "bet_amount" field.
-func (m *RedeemCodeMutation) AddBetAmount(f float64) {
-	if m.addbet_amount != nil {
-		*m.addbet_amount += f
-	} else {
-		m.addbet_amount = &f
-	}
-}
-
-// AddedBetAmount returns the value that was added to the "bet_amount" field in this mutation.
-func (m *RedeemCodeMutation) AddedBetAmount() (r float64, exists bool) {
-	v := m.addbet_amount
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// ResetBetAmount resets all changes to the "bet_amount" field.
-func (m *RedeemCodeMutation) ResetBetAmount() {
-	m.bet_amount = nil
-	m.addbet_amount = nil
-}
-
 // SetUserID sets the "user" edge to the User entity by id.
 func (m *RedeemCodeMutation) SetUserID(id int64) {
 	m.user = &id
@@ -44653,7 +44537,7 @@ func (m *RedeemCodeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RedeemCodeMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 11)
 	if m.code != nil {
 		fields = append(fields, redeemcode.FieldCode)
 	}
@@ -44687,12 +44571,6 @@ func (m *RedeemCodeMutation) Fields() []string {
 	if m.validity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
 	}
-	if m.multiplier != nil {
-		fields = append(fields, redeemcode.FieldMultiplier)
-	}
-	if m.bet_amount != nil {
-		fields = append(fields, redeemcode.FieldBetAmount)
-	}
 	return fields
 }
 
@@ -44723,10 +44601,6 @@ func (m *RedeemCodeMutation) Field(name string) (ent.Value, bool) {
 		return m.GroupID()
 	case redeemcode.FieldValidityDays:
 		return m.ValidityDays()
-	case redeemcode.FieldMultiplier:
-		return m.Multiplier()
-	case redeemcode.FieldBetAmount:
-		return m.BetAmount()
 	}
 	return nil, false
 }
@@ -44758,10 +44632,6 @@ func (m *RedeemCodeMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldGroupID(ctx)
 	case redeemcode.FieldValidityDays:
 		return m.OldValidityDays(ctx)
-	case redeemcode.FieldMultiplier:
-		return m.OldMultiplier(ctx)
-	case redeemcode.FieldBetAmount:
-		return m.OldBetAmount(ctx)
 	}
 	return nil, fmt.Errorf("unknown RedeemCode field %s", name)
 }
@@ -44848,20 +44718,6 @@ func (m *RedeemCodeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetValidityDays(v)
 		return nil
-	case redeemcode.FieldMultiplier:
-		v, ok := value.(float64)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetMultiplier(v)
-		return nil
-	case redeemcode.FieldBetAmount:
-		v, ok := value.(float64)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetBetAmount(v)
-		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode field %s", name)
 }
@@ -44876,12 +44732,6 @@ func (m *RedeemCodeMutation) AddedFields() []string {
 	if m.addvalidity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
 	}
-	if m.addmultiplier != nil {
-		fields = append(fields, redeemcode.FieldMultiplier)
-	}
-	if m.addbet_amount != nil {
-		fields = append(fields, redeemcode.FieldBetAmount)
-	}
 	return fields
 }
 
@@ -44894,10 +44744,6 @@ func (m *RedeemCodeMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedValue()
 	case redeemcode.FieldValidityDays:
 		return m.AddedValidityDays()
-	case redeemcode.FieldMultiplier:
-		return m.AddedMultiplier()
-	case redeemcode.FieldBetAmount:
-		return m.AddedBetAmount()
 	}
 	return nil, false
 }
@@ -44920,20 +44766,6 @@ func (m *RedeemCodeMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddValidityDays(v)
-		return nil
-	case redeemcode.FieldMultiplier:
-		v, ok := value.(float64)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddMultiplier(v)
-		return nil
-	case redeemcode.FieldBetAmount:
-		v, ok := value.(float64)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddBetAmount(v)
 		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode numeric field %s", name)
@@ -45027,12 +44859,6 @@ func (m *RedeemCodeMutation) ResetField(name string) error {
 		return nil
 	case redeemcode.FieldValidityDays:
 		m.ResetValidityDays()
-		return nil
-	case redeemcode.FieldMultiplier:
-		m.ResetMultiplier()
-		return nil
-	case redeemcode.FieldBetAmount:
-		m.ResetBetAmount()
 		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode field %s", name)
@@ -53819,18 +53645,6 @@ type UserMutation struct {
 	payment_orders                map[int64]struct{}
 	removedpayment_orders         map[int64]struct{}
 	clearedpayment_orders         bool
-	checkins                      map[int64]struct{}
-	removedcheckins               map[int64]struct{}
-	clearedcheckins               bool
-	sent_transfers                map[int64]struct{}
-	removedsent_transfers         map[int64]struct{}
-	clearedsent_transfers         bool
-	received_transfers            map[int64]struct{}
-	removedreceived_transfers     map[int64]struct{}
-	clearedreceived_transfers     bool
-	redpackets                    map[int64]struct{}
-	removedredpackets             map[int64]struct{}
-	clearedredpackets             bool
 	auth_identities               map[int64]struct{}
 	removedauth_identities        map[int64]struct{}
 	clearedauth_identities        bool
@@ -55546,222 +55360,6 @@ func (m *UserMutation) ResetPaymentOrders() {
 	m.removedpayment_orders = nil
 }
 
-// AddCheckinIDs adds the "checkins" edge to the Checkin entity by ids.
-func (m *UserMutation) AddCheckinIDs(ids ...int64) {
-	if m.checkins == nil {
-		m.checkins = make(map[int64]struct{})
-	}
-	for i := range ids {
-		m.checkins[ids[i]] = struct{}{}
-	}
-}
-
-// ClearCheckins clears the "checkins" edge to the Checkin entity.
-func (m *UserMutation) ClearCheckins() {
-	m.clearedcheckins = true
-}
-
-// CheckinsCleared reports if the "checkins" edge to the Checkin entity was cleared.
-func (m *UserMutation) CheckinsCleared() bool {
-	return m.clearedcheckins
-}
-
-// RemoveCheckinIDs removes the "checkins" edge to the Checkin entity by IDs.
-func (m *UserMutation) RemoveCheckinIDs(ids ...int64) {
-	if m.removedcheckins == nil {
-		m.removedcheckins = make(map[int64]struct{})
-	}
-	for i := range ids {
-		delete(m.checkins, ids[i])
-		m.removedcheckins[ids[i]] = struct{}{}
-	}
-}
-
-// RemovedCheckins returns the removed IDs of the "checkins" edge to the Checkin entity.
-func (m *UserMutation) RemovedCheckinsIDs() (ids []int64) {
-	for id := range m.removedcheckins {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// CheckinsIDs returns the "checkins" edge IDs in the mutation.
-func (m *UserMutation) CheckinsIDs() (ids []int64) {
-	for id := range m.checkins {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// ResetCheckins resets all changes to the "checkins" edge.
-func (m *UserMutation) ResetCheckins() {
-	m.checkins = nil
-	m.clearedcheckins = false
-	m.removedcheckins = nil
-}
-
-// AddSentTransferIDs adds the "sent_transfers" edge to the BalanceTransfer entity by ids.
-func (m *UserMutation) AddSentTransferIDs(ids ...int64) {
-	if m.sent_transfers == nil {
-		m.sent_transfers = make(map[int64]struct{})
-	}
-	for i := range ids {
-		m.sent_transfers[ids[i]] = struct{}{}
-	}
-}
-
-// ClearSentTransfers clears the "sent_transfers" edge to the BalanceTransfer entity.
-func (m *UserMutation) ClearSentTransfers() {
-	m.clearedsent_transfers = true
-}
-
-// SentTransfersCleared reports if the "sent_transfers" edge to the BalanceTransfer entity was cleared.
-func (m *UserMutation) SentTransfersCleared() bool {
-	return m.clearedsent_transfers
-}
-
-// RemoveSentTransferIDs removes the "sent_transfers" edge to the BalanceTransfer entity by IDs.
-func (m *UserMutation) RemoveSentTransferIDs(ids ...int64) {
-	if m.removedsent_transfers == nil {
-		m.removedsent_transfers = make(map[int64]struct{})
-	}
-	for i := range ids {
-		delete(m.sent_transfers, ids[i])
-		m.removedsent_transfers[ids[i]] = struct{}{}
-	}
-}
-
-// RemovedSentTransfers returns the removed IDs of the "sent_transfers" edge to the BalanceTransfer entity.
-func (m *UserMutation) RemovedSentTransfersIDs() (ids []int64) {
-	for id := range m.removedsent_transfers {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// SentTransfersIDs returns the "sent_transfers" edge IDs in the mutation.
-func (m *UserMutation) SentTransfersIDs() (ids []int64) {
-	for id := range m.sent_transfers {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// ResetSentTransfers resets all changes to the "sent_transfers" edge.
-func (m *UserMutation) ResetSentTransfers() {
-	m.sent_transfers = nil
-	m.clearedsent_transfers = false
-	m.removedsent_transfers = nil
-}
-
-// AddReceivedTransferIDs adds the "received_transfers" edge to the BalanceTransfer entity by ids.
-func (m *UserMutation) AddReceivedTransferIDs(ids ...int64) {
-	if m.received_transfers == nil {
-		m.received_transfers = make(map[int64]struct{})
-	}
-	for i := range ids {
-		m.received_transfers[ids[i]] = struct{}{}
-	}
-}
-
-// ClearReceivedTransfers clears the "received_transfers" edge to the BalanceTransfer entity.
-func (m *UserMutation) ClearReceivedTransfers() {
-	m.clearedreceived_transfers = true
-}
-
-// ReceivedTransfersCleared reports if the "received_transfers" edge to the BalanceTransfer entity was cleared.
-func (m *UserMutation) ReceivedTransfersCleared() bool {
-	return m.clearedreceived_transfers
-}
-
-// RemoveReceivedTransferIDs removes the "received_transfers" edge to the BalanceTransfer entity by IDs.
-func (m *UserMutation) RemoveReceivedTransferIDs(ids ...int64) {
-	if m.removedreceived_transfers == nil {
-		m.removedreceived_transfers = make(map[int64]struct{})
-	}
-	for i := range ids {
-		delete(m.received_transfers, ids[i])
-		m.removedreceived_transfers[ids[i]] = struct{}{}
-	}
-}
-
-// RemovedReceivedTransfers returns the removed IDs of the "received_transfers" edge to the BalanceTransfer entity.
-func (m *UserMutation) RemovedReceivedTransfersIDs() (ids []int64) {
-	for id := range m.removedreceived_transfers {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// ReceivedTransfersIDs returns the "received_transfers" edge IDs in the mutation.
-func (m *UserMutation) ReceivedTransfersIDs() (ids []int64) {
-	for id := range m.received_transfers {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// ResetReceivedTransfers resets all changes to the "received_transfers" edge.
-func (m *UserMutation) ResetReceivedTransfers() {
-	m.received_transfers = nil
-	m.clearedreceived_transfers = false
-	m.removedreceived_transfers = nil
-}
-
-// AddRedpacketIDs adds the "redpackets" edge to the BalanceRedPacket entity by ids.
-func (m *UserMutation) AddRedpacketIDs(ids ...int64) {
-	if m.redpackets == nil {
-		m.redpackets = make(map[int64]struct{})
-	}
-	for i := range ids {
-		m.redpackets[ids[i]] = struct{}{}
-	}
-}
-
-// ClearRedpackets clears the "redpackets" edge to the BalanceRedPacket entity.
-func (m *UserMutation) ClearRedpackets() {
-	m.clearedredpackets = true
-}
-
-// RedpacketsCleared reports if the "redpackets" edge to the BalanceRedPacket entity was cleared.
-func (m *UserMutation) RedpacketsCleared() bool {
-	return m.clearedredpackets
-}
-
-// RemoveRedpacketIDs removes the "redpackets" edge to the BalanceRedPacket entity by IDs.
-func (m *UserMutation) RemoveRedpacketIDs(ids ...int64) {
-	if m.removedredpackets == nil {
-		m.removedredpackets = make(map[int64]struct{})
-	}
-	for i := range ids {
-		delete(m.redpackets, ids[i])
-		m.removedredpackets[ids[i]] = struct{}{}
-	}
-}
-
-// RemovedRedpackets returns the removed IDs of the "redpackets" edge to the BalanceRedPacket entity.
-func (m *UserMutation) RemovedRedpacketsIDs() (ids []int64) {
-	for id := range m.removedredpackets {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// RedpacketsIDs returns the "redpackets" edge IDs in the mutation.
-func (m *UserMutation) RedpacketsIDs() (ids []int64) {
-	for id := range m.redpackets {
-		ids = append(ids, id)
-	}
-	return
-}
-
-// ResetRedpackets resets all changes to the "redpackets" edge.
-func (m *UserMutation) ResetRedpackets() {
-	m.redpackets = nil
-	m.clearedredpackets = false
-	m.removedredpackets = nil
-}
-
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by ids.
 func (m *UserMutation) AddAuthIdentityIDs(ids ...int64) {
 	if m.auth_identities == nil {
@@ -56562,7 +56160,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 17)
+	edges := make([]string, 0, 13)
 	if m.api_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -56592,18 +56190,6 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.payment_orders != nil {
 		edges = append(edges, user.EdgePaymentOrders)
-	}
-	if m.checkins != nil {
-		edges = append(edges, user.EdgeCheckins)
-	}
-	if m.sent_transfers != nil {
-		edges = append(edges, user.EdgeSentTransfers)
-	}
-	if m.received_transfers != nil {
-		edges = append(edges, user.EdgeReceivedTransfers)
-	}
-	if m.redpackets != nil {
-		edges = append(edges, user.EdgeRedpackets)
 	}
 	if m.auth_identities != nil {
 		edges = append(edges, user.EdgeAuthIdentities)
@@ -56681,30 +56267,6 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgeCheckins:
-		ids := make([]ent.Value, 0, len(m.checkins))
-		for id := range m.checkins {
-			ids = append(ids, id)
-		}
-		return ids
-	case user.EdgeSentTransfers:
-		ids := make([]ent.Value, 0, len(m.sent_transfers))
-		for id := range m.sent_transfers {
-			ids = append(ids, id)
-		}
-		return ids
-	case user.EdgeReceivedTransfers:
-		ids := make([]ent.Value, 0, len(m.received_transfers))
-		for id := range m.received_transfers {
-			ids = append(ids, id)
-		}
-		return ids
-	case user.EdgeRedpackets:
-		ids := make([]ent.Value, 0, len(m.redpackets))
-		for id := range m.redpackets {
-			ids = append(ids, id)
-		}
-		return ids
 	case user.EdgeAuthIdentities:
 		ids := make([]ent.Value, 0, len(m.auth_identities))
 		for id := range m.auth_identities {
@@ -56729,7 +56291,7 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 17)
+	edges := make([]string, 0, 13)
 	if m.removedapi_keys != nil {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -56759,18 +56321,6 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedpayment_orders != nil {
 		edges = append(edges, user.EdgePaymentOrders)
-	}
-	if m.removedcheckins != nil {
-		edges = append(edges, user.EdgeCheckins)
-	}
-	if m.removedsent_transfers != nil {
-		edges = append(edges, user.EdgeSentTransfers)
-	}
-	if m.removedreceived_transfers != nil {
-		edges = append(edges, user.EdgeReceivedTransfers)
-	}
-	if m.removedredpackets != nil {
-		edges = append(edges, user.EdgeRedpackets)
 	}
 	if m.removedauth_identities != nil {
 		edges = append(edges, user.EdgeAuthIdentities)
@@ -56848,30 +56398,6 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
-	case user.EdgeCheckins:
-		ids := make([]ent.Value, 0, len(m.removedcheckins))
-		for id := range m.removedcheckins {
-			ids = append(ids, id)
-		}
-		return ids
-	case user.EdgeSentTransfers:
-		ids := make([]ent.Value, 0, len(m.removedsent_transfers))
-		for id := range m.removedsent_transfers {
-			ids = append(ids, id)
-		}
-		return ids
-	case user.EdgeReceivedTransfers:
-		ids := make([]ent.Value, 0, len(m.removedreceived_transfers))
-		for id := range m.removedreceived_transfers {
-			ids = append(ids, id)
-		}
-		return ids
-	case user.EdgeRedpackets:
-		ids := make([]ent.Value, 0, len(m.removedredpackets))
-		for id := range m.removedredpackets {
-			ids = append(ids, id)
-		}
-		return ids
 	case user.EdgeAuthIdentities:
 		ids := make([]ent.Value, 0, len(m.removedauth_identities))
 		for id := range m.removedauth_identities {
@@ -56896,7 +56422,7 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 17)
+	edges := make([]string, 0, 13)
 	if m.clearedapi_keys {
 		edges = append(edges, user.EdgeAPIKeys)
 	}
@@ -56926,18 +56452,6 @@ func (m *UserMutation) ClearedEdges() []string {
 	}
 	if m.clearedpayment_orders {
 		edges = append(edges, user.EdgePaymentOrders)
-	}
-	if m.clearedcheckins {
-		edges = append(edges, user.EdgeCheckins)
-	}
-	if m.clearedsent_transfers {
-		edges = append(edges, user.EdgeSentTransfers)
-	}
-	if m.clearedreceived_transfers {
-		edges = append(edges, user.EdgeReceivedTransfers)
-	}
-	if m.clearedredpackets {
-		edges = append(edges, user.EdgeRedpackets)
 	}
 	if m.clearedauth_identities {
 		edges = append(edges, user.EdgeAuthIdentities)
@@ -56975,14 +56489,6 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedpromo_code_usages
 	case user.EdgePaymentOrders:
 		return m.clearedpayment_orders
-	case user.EdgeCheckins:
-		return m.clearedcheckins
-	case user.EdgeSentTransfers:
-		return m.clearedsent_transfers
-	case user.EdgeReceivedTransfers:
-		return m.clearedreceived_transfers
-	case user.EdgeRedpackets:
-		return m.clearedredpackets
 	case user.EdgeAuthIdentities:
 		return m.clearedauth_identities
 	case user.EdgePendingAuthSessions:
@@ -57034,18 +56540,6 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgePaymentOrders:
 		m.ResetPaymentOrders()
-		return nil
-	case user.EdgeCheckins:
-		m.ResetCheckins()
-		return nil
-	case user.EdgeSentTransfers:
-		m.ResetSentTransfers()
-		return nil
-	case user.EdgeReceivedTransfers:
-		m.ResetReceivedTransfers()
-		return nil
-	case user.EdgeRedpackets:
-		m.ResetRedpackets()
 		return nil
 	case user.EdgeAuthIdentities:
 		m.ResetAuthIdentities()

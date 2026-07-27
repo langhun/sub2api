@@ -54,7 +54,6 @@ type OpsErrorLog struct {
 
 	UserID      *int64 `json:"user_id"`
 	UserEmail   string `json:"user_email"`
-	Username    string `json:"username"`
 	APIKeyID    *int64 `json:"api_key_id"`
 	AccountID   *int64 `json:"account_id"`
 	AccountName string `json:"account_name"`
@@ -117,7 +116,7 @@ type OpsErrorLogFilter struct {
 	Source           string
 	Resolved         *bool
 	Query            string
-	UserQuery        string // Search by username or email
+	UserQuery        string // Search by user email
 
 	// Optional correlation keys for exact matching.
 	RequestID       string

@@ -735,7 +735,7 @@ func HasSender() predicate.BalanceRedPacket {
 	return predicate.BalanceRedPacket(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, SenderTable, SenderColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, SenderTable, SenderColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})

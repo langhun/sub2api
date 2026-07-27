@@ -557,8 +557,7 @@ export default {
       title: '已邀请用户',
       empty: '暂无邀请记录',
       columns: {
-        user: '用户',
-        email: '用户',
+        email: '邮箱',
         username: '用户名',
         rebate: '返利明细',
         joinedAt: '注册时间'

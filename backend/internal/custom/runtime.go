@@ -2,9 +2,11 @@
 package custom
 
 import (
+	"context"
 	"database/sql"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	custommigrations "github.com/Wei-Shaw/sub2api/internal/custom/migrations"
 	activitycheckin "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/checkin"
 	activityleaderboard "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/leaderboard"
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
@@ -21,9 +23,8 @@ import (
 // ProviderSet constructs the Overlay runtime at the composition root.
 var ProviderSet = wire.NewSet(
 	customsettings.ProviderSet,
+	platform.ProvideActivityWalletCapabilities,
 	codeformat.NewGenerator,
-	wire.Bind(new(service.CodeGenerator), new(*codeformat.Generator)),
-	ProvideRedeemService,
 	ProvideRuntime,
 )
 
@@ -35,6 +36,7 @@ type Runtime struct {
 	ActivityRewards     *activityrewards.Runtime
 	ActivityRewardsHTTP *activityrewards.Module
 	GameHall            *gamehall.Module
+	UsageQuerySettings  UsageQuerySettings
 	WalletExtension     *walletextension.Module
 }
 
@@ -42,18 +44,35 @@ type Runtime struct {
 func NewRuntime(
 	client *dbent.Client,
 	db *sql.DB,
-	billingCache *service.BillingCacheService,
-	userRepository service.UserRepository,
-	subscriptionService *service.SubscriptionService,
-	redeemCodeRepository service.RedeemCodeRepository,
+	activityWalletCapabilities *platform.ActivityWalletCapabilities,
+	redeemService *service.RedeemService,
+	adminService service.AdminService,
 	customSettingsRegistry *customsettings.Registry,
-	leaderLockCache service.LeaderLockCache,
 	codeGenerator *codeformat.Generator,
 ) (*Runtime, error) {
+	if err := custommigrations.Apply(context.Background(), db); err != nil {
+		return nil, err
+	}
+	service.ConfigureCodeGenerator(redeemService, adminService, codeGenerator)
+	var (
+		balanceCache  platform.BalanceCacheInvalidator
+		concurrency   platform.UserConcurrencyWriter
+		subscriptions platform.SubscriptionManager
+		redeemRecords platform.RedeemRecordWriter
+		leaderLocks   platform.LeaderLockCache
+	)
+	if activityWalletCapabilities != nil {
+		balanceCache = activityWalletCapabilities.BalanceCache
+		concurrency = activityWalletCapabilities.Concurrency
+		subscriptions = activityWalletCapabilities.Subscriptions
+		redeemRecords = activityWalletCapabilities.RedeemRecords
+		leaderLocks = activityWalletCapabilities.LeaderLocks
+	}
+
 	gameHallService := gamehall.NewGameHallService(
 		gamehall.NewGameHallRepository(client, db),
 		gamehall.NewRegistrySettingsAdapter(customSettingsRegistry),
-		billingCache,
+		balanceCache,
 	)
 	activityRedPacketService := activityredpacket.NewService(activityredpacket.Dependencies{
 		Repository:   activityredpacket.NewRepository(client),
@@ -61,14 +80,14 @@ func NewRuntime(
 		Balance:      activityredpacket.NewBalanceWriter(client),
 		Settings:     activityredpacket.NewRegistrySettingsAdapter(customSettingsRegistry),
 		Code:         activityredpacket.NewSettingsCodeGenerator(codeGenerator),
-		Fees:         activityredpacket.NewRegistryFeeAdapter(customSettingsRegistry, subscriptionService),
+		Fees:         activityredpacket.NewRegistryFeeAdapter(customSettingsRegistry, subscriptions),
 		Ledger:       activityredpacket.NewClaimLedger(client),
 	})
 	activityRedPacket := activityredpacket.NewModuleWithIdempotency(
 		activityRedPacketService,
 		activityredpacket.NewExpiryWorker(activityredpacket.ExpiryWorkerDependencies{
 			Expire: activityRedPacketService,
-			Leases: activityredpacket.NewLeaseCoordinator(leaderLockCache, db),
+			Leases: activityredpacket.NewLeaseCoordinator(leaderLocks, db),
 		}),
 		platform.DefaultIdempotencyCoordinator(),
 	)
@@ -77,10 +96,10 @@ func NewRuntime(
 		DB:            db,
 		Settings:      customSettingsRegistry,
 		CodeGenerator: codeGenerator,
-		Users:         userRepository,
-		Subscriptions: subscriptionService,
-		RedeemCodes:   redeemCodeRepository,
-		BillingCache:  billingCache,
+		Concurrency:   concurrency,
+		Subscriptions: subscriptions,
+		RedeemRecords: redeemRecords,
+		BalanceCache:  balanceCache,
 	}, activityrewards.WorkerOptions{})
 	activityCheckin, err := activitycheckin.NewOperationalModule(activitycheckin.Dependencies{
 		Repository:   activitycheckin.NewRepository(client),
@@ -89,7 +108,7 @@ func NewRuntime(
 		Balance:      activitycheckin.NewEntBalanceWriter(client),
 		Ledger:       activitycheckin.NewEntCheckinLedger(client, activitycheckin.NewCodeFormatGenerator(codeGenerator)),
 		Settings:     activitycheckin.NewRegistrySettingsAdapter(customSettingsRegistry),
-		Cache:        activitycheckin.NewBalanceCacheInvalidator(billingCache),
+		Cache:        activitycheckin.NewBalanceCacheInvalidator(balanceCache),
 		Blindbox: activitycheckin.NewRewardsBlindboxDelivery(
 			activityRewardsHTTP.Rewards,
 			activityRewardsHTTP.Runner,
@@ -106,7 +125,7 @@ func NewRuntime(
 		walletextension.NewEntRecipientResolver(client),
 		walletextension.NewEntActiveSubscriptionReader(client),
 		walletextension.NewEntBalanceWriter(client),
-		walletextension.NewBalanceCacheInvalidator(billingCache),
+		walletextension.NewBalanceCacheInvalidator(balanceCache),
 	)
 	return &Runtime{
 		ActivityCheckin:     activityCheckin,
@@ -115,25 +134,7 @@ func NewRuntime(
 		ActivityRewards:     activityRewards,
 		ActivityRewardsHTTP: activityRewardsHTTP,
 		GameHall:            gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
-		WalletExtension:     walletextension.NewModule(walletService),
+		UsageQuerySettings:  customSettingsRegistry,
+		WalletExtension:     walletextension.NewModuleWithIdempotency(walletService, platform.DefaultIdempotencyCoordinator()),
 	}, nil
-}
-
-// ProvideRedeemService makes the core redemption workflow depend only on the
-// Overlay-provided code-generation port.
-func ProvideRedeemService(
-	redeemRepo service.RedeemCodeRepository,
-	userRepo service.UserRepository,
-	subscriptionService *service.SubscriptionService,
-	cache service.RedeemCache,
-	billingCache *service.BillingCacheService,
-	client *dbent.Client,
-	authCacheInvalidator service.APIKeyAuthCacheInvalidator,
-	affiliateService *service.AffiliateService,
-	codeGenerator service.CodeGenerator,
-) *service.RedeemService {
-	return service.NewRedeemService(
-		redeemRepo, userRepo, subscriptionService, cache, billingCache, client,
-		authCacheInvalidator, affiliateService, codeGenerator,
-	)
 }

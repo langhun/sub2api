@@ -48,7 +48,8 @@ func (r *redeemGenerateRepo) CreateBatch(_ context.Context, codes []RedeemCode) 
 func TestRedeemGenerateCodesUsesConfiguredFormat(t *testing.T) {
 	repo := &redeemGenerateRepo{}
 	generator := redeemGenerateCodeGenerator{code: "BAL-00-00"}
-	service := NewRedeemService(repo, nil, nil, nil, nil, nil, nil, nil, generator)
+	service := NewRedeemService(repo, nil, nil, nil, nil, nil, nil, nil)
+	service.SetCodeGenerator(generator)
 
 	_, err := service.GenerateCodes(context.Background(), GenerateCodesRequest{Count: 1, Type: RedeemTypeBalance, Value: 5})
 

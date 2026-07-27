@@ -79,7 +79,7 @@ func (_q *BalanceRedPacketQuery) QuerySender() *UserQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(balanceredpacket.Table, balanceredpacket.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, balanceredpacket.SenderTable, balanceredpacket.SenderColumn),
+			sqlgraph.Edge(sqlgraph.M2O, false, balanceredpacket.SenderTable, balanceredpacket.SenderColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
