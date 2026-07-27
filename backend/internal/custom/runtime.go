@@ -2,7 +2,6 @@
 package custom
 
 import (
-	"context"
 	"database/sql"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -10,6 +9,7 @@ import (
 	activityleaderboard "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/leaderboard"
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
+	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
 	walletextension "github.com/Wei-Shaw/sub2api/internal/custom/modules/wallet-extension"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
@@ -19,7 +19,13 @@ import (
 )
 
 // ProviderSet constructs the Overlay runtime at the composition root.
-var ProviderSet = wire.NewSet(customsettings.ProviderSet, ProvideRuntime)
+var ProviderSet = wire.NewSet(
+	customsettings.ProviderSet,
+	codeformat.NewGenerator,
+	wire.Bind(new(service.CodeGenerator), new(*codeformat.Generator)),
+	ProvideRedeemService,
+	ProvideRuntime,
+)
 
 // Runtime owns dependencies shared by custom modules as they are introduced.
 type Runtime struct {
@@ -36,13 +42,13 @@ type Runtime struct {
 func NewRuntime(
 	client *dbent.Client,
 	db *sql.DB,
-	settingService *service.SettingService,
 	billingCache *service.BillingCacheService,
 	userRepository service.UserRepository,
 	subscriptionService *service.SubscriptionService,
 	redeemCodeRepository service.RedeemCodeRepository,
 	customSettingsRegistry *customsettings.Registry,
 	leaderLockCache service.LeaderLockCache,
+	codeGenerator *codeformat.Generator,
 ) (*Runtime, error) {
 	gameHallService := gamehall.NewGameHallService(
 		gamehall.NewGameHallRepository(client, db),
@@ -54,7 +60,7 @@ func NewRuntime(
 		Transactions: activityredpacket.NewTransactionRunner(client),
 		Balance:      activityredpacket.NewBalanceWriter(client),
 		Settings:     activityredpacket.NewRegistrySettingsAdapter(customSettingsRegistry),
-		Code:         activityredpacket.NewSettingsCodeGenerator(activityRedPacketCodeGenerator{settings: settingService}),
+		Code:         activityredpacket.NewSettingsCodeGenerator(codeGenerator),
 		Fees:         activityredpacket.NewRegistryFeeAdapter(customSettingsRegistry, subscriptionService),
 		Ledger:       activityredpacket.NewClaimLedger(client),
 	})
@@ -70,7 +76,7 @@ func NewRuntime(
 		Client:        client,
 		DB:            db,
 		Settings:      customSettingsRegistry,
-		CodeGenerator: settingService,
+		CodeGenerator: codeGenerator,
 		Users:         userRepository,
 		Subscriptions: subscriptionService,
 		RedeemCodes:   redeemCodeRepository,
@@ -81,7 +87,7 @@ func NewRuntime(
 		Transactions: activitycheckin.NewTransactionRunner(client),
 		Accounts:     activitycheckin.NewEntAccountReader(client),
 		Balance:      activitycheckin.NewEntBalanceWriter(client),
-		Ledger:       activitycheckin.NewEntCheckinLedger(client, activitycheckin.NewCodeFormatGenerator(settingService)),
+		Ledger:       activitycheckin.NewEntCheckinLedger(client, activitycheckin.NewCodeFormatGenerator(codeGenerator)),
 		Settings:     activitycheckin.NewRegistrySettingsAdapter(customSettingsRegistry),
 		Cache:        activitycheckin.NewBalanceCacheInvalidator(billingCache),
 		Blindbox: activitycheckin.NewRewardsBlindboxDelivery(
@@ -113,16 +119,21 @@ func NewRuntime(
 	}, nil
 }
 
-// activityRedPacketCodeGenerator keeps the legacy configurable code format at
-// the composition root. Activity receives only the one code-generation port.
-type activityRedPacketCodeGenerator struct {
-	settings *service.SettingService
-}
-
-func (g activityRedPacketCodeGenerator) GenerateRedPacketCode(ctx context.Context) (string, error) {
-	formats := service.DefaultCodeFormatSettings()
-	if g.settings != nil {
-		formats = g.settings.GetCodeFormatSettings(ctx)
-	}
-	return formats.RedPacket.Generate()
+// ProvideRedeemService makes the core redemption workflow depend only on the
+// Overlay-provided code-generation port.
+func ProvideRedeemService(
+	redeemRepo service.RedeemCodeRepository,
+	userRepo service.UserRepository,
+	subscriptionService *service.SubscriptionService,
+	cache service.RedeemCache,
+	billingCache *service.BillingCacheService,
+	client *dbent.Client,
+	authCacheInvalidator service.APIKeyAuthCacheInvalidator,
+	affiliateService *service.AffiliateService,
+	codeGenerator service.CodeGenerator,
+) *service.RedeemService {
+	return service.NewRedeemService(
+		redeemRepo, userRepo, subscriptionService, cache, billingCache, client,
+		authCacheInvalidator, affiliateService, codeGenerator,
+	)
 }

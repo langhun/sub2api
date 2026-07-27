@@ -954,13 +954,6 @@ func TestAPIContracts(t *testing.T) {
 					"channel_monitor_enabled": true,
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
-					"code_format_settings": {
-						"balance": {"prefix": "", "group_count": 1, "group_length": 32, "separator": "", "character_set": "alphanumeric"},
-						"concurrency": {"prefix": "", "group_count": 1, "group_length": 32, "separator": "", "character_set": "alphanumeric"},
-						"subscription": {"prefix": "", "group_count": 1, "group_length": 32, "separator": "", "character_set": "alphanumeric"},
-						"invitation": {"prefix": "", "group_count": 1, "group_length": 32, "separator": "", "character_set": "alphanumeric"},
-						"redpacket": {"prefix": "", "group_count": 1, "group_length": 24, "separator": "", "character_set": "alphanumeric"}
-					},
 					"risk_control_enabled": false,
 					"cyber_session_block_enabled": false,
 					"cyber_session_block_ttl_seconds": 3600,
@@ -1241,13 +1234,6 @@ func TestAPIContracts(t *testing.T) {
 					"channel_monitor_enabled": true,
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
-					"code_format_settings": {
-						"balance": {"prefix": "", "group_count": 1, "group_length": 32, "separator": "", "character_set": "alphanumeric"},
-						"concurrency": {"prefix": "", "group_count": 1, "group_length": 32, "separator": "", "character_set": "alphanumeric"},
-						"subscription": {"prefix": "", "group_count": 1, "group_length": 32, "separator": "", "character_set": "alphanumeric"},
-						"invitation": {"prefix": "", "group_count": 1, "group_length": 32, "separator": "", "character_set": "alphanumeric"},
-						"redpacket": {"prefix": "", "group_count": 1, "group_length": 24, "separator": "", "character_set": "alphanumeric"}
-					},
 					"risk_control_enabled": false,
 					"cyber_session_block_enabled": false,
 					"cyber_session_block_ttl_seconds": 3600,
@@ -1413,7 +1399,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
 
-	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService, nil, nil)

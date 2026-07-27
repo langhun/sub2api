@@ -31,9 +31,11 @@ const defaultGameHallSettings = (): GameHallSettings => ({
 
 function readSettings(settings: CustomSettingsValues): GameHallSettings {
   const defaults = defaultGameHallSettings()
+  const values = settings as Record<string, unknown>
+  const result = defaults as unknown as Record<string, unknown>
   for (const key of Object.keys(defaults) as Array<keyof GameHallSettings>) {
-    const value = settings[key]
-    if (value !== null && value !== undefined) defaults[key] = value as GameHallSettings[typeof key]
+    const value = values[key]
+    if (value !== null && value !== undefined) result[key] = value
   }
   return defaults
 }

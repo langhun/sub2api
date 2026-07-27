@@ -36,9 +36,11 @@ const defaultWalletExtensionSettings = (): WalletExtensionSettings => ({
 
 function readSettings(settings: CustomSettingsValues): WalletExtensionSettings {
   const defaults = defaultWalletExtensionSettings()
+  const values = settings as Record<string, unknown>
+  const result = defaults as unknown as Record<string, unknown>
   for (const key of Object.keys(defaults) as Array<keyof WalletExtensionSettings>) {
-    const value = settings[key]
-    if (value !== null && value !== undefined) defaults[key] = value as WalletExtensionSettings[typeof key]
+    const value = values[key]
+    if (value !== null && value !== undefined) result[key] = value
   }
   return defaults
 }

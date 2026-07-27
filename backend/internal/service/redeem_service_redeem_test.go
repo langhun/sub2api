@@ -47,16 +47,24 @@ func (r *redeemGenerateRepo) CreateBatch(_ context.Context, codes []RedeemCode) 
 
 func TestRedeemGenerateCodesUsesConfiguredFormat(t *testing.T) {
 	repo := &redeemGenerateRepo{}
-	settings := NewSettingService(&redeemGenerateSettingRepo{values: map[string]string{
-		SettingKeyCodeFormatBalance: `{"prefix":"BAL","character_set":"numeric","separator":"-","group_length":2,"group_count":2}`,
-	}}, nil)
-	service := NewRedeemService(repo, nil, nil, nil, nil, nil, nil, nil, settings)
+	generator := redeemGenerateCodeGenerator{code: "BAL-00-00"}
+	service := NewRedeemService(repo, nil, nil, nil, nil, nil, nil, nil, generator)
 
 	_, err := service.GenerateCodes(context.Background(), GenerateCodesRequest{Count: 1, Type: RedeemTypeBalance, Value: 5})
 
 	require.NoError(t, err)
 	require.Len(t, repo.created, 1)
-	require.Regexp(t, `^BAL-[0-9]{2}-[0-9]{2}$`, repo.created[0].Code)
+	require.Equal(t, "BAL-00-00", repo.created[0].Code)
+}
+
+type redeemGenerateCodeGenerator struct{ code string }
+
+func (g redeemGenerateCodeGenerator) GenerateCode(context.Context, string) (string, error) {
+	return g.code, nil
+}
+
+func (g redeemGenerateCodeGenerator) GenerateDefaultRedeemCode(context.Context) (string, error) {
+	return g.code, nil
 }
 
 type redeemRejectRepo struct {

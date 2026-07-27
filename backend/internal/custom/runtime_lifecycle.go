@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
@@ -13,24 +14,24 @@ import (
 func ProvideRuntime(
 	client *dbent.Client,
 	db *sql.DB,
-	settingService *service.SettingService,
 	billingCache *service.BillingCacheService,
 	userRepository service.UserRepository,
 	subscriptionService *service.SubscriptionService,
 	redeemCodeRepository service.RedeemCodeRepository,
 	customSettingsRegistry *customsettings.Registry,
 	leaderLockCache service.LeaderLockCache,
+	codeGenerator *codeformat.Generator,
 ) (*Runtime, error) {
 	runtime, err := NewRuntime(
 		client,
 		db,
-		settingService,
 		billingCache,
 		userRepository,
 		subscriptionService,
 		redeemCodeRepository,
 		customSettingsRegistry,
 		leaderLockCache,
+		codeGenerator,
 	)
 	if err != nil {
 		return nil, err

@@ -140,7 +140,7 @@ type RedeemService struct {
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	affiliateService     *AffiliateService
-	settingService       *SettingService
+	codeGenerator        CodeGenerator
 }
 
 // NewRedeemService 创建兑换码服务实例
@@ -153,12 +153,12 @@ func NewRedeemService(
 	entClient *dbent.Client,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
 	affiliateService *AffiliateService,
-	settingServices ...*SettingService,
+	codeGenerators ...CodeGenerator,
 ) *RedeemService {
 	redeemUserRepo, _ := userRepo.(RedeemUserAdjustmentRepository)
-	var settingService *SettingService
-	if len(settingServices) > 0 {
-		settingService = settingServices[0]
+	var codeGenerator CodeGenerator = defaultCodeGenerator{}
+	if len(codeGenerators) > 0 && codeGenerators[0] != nil {
+		codeGenerator = codeGenerators[0]
 	}
 	return &RedeemService{
 		redeemRepo:           redeemRepo,
@@ -170,39 +170,16 @@ func NewRedeemService(
 		entClient:            entClient,
 		authCacheInvalidator: authCacheInvalidator,
 		affiliateService:     affiliateService,
-		settingService:       settingService,
+		codeGenerator:        codeGenerator,
 	}
-}
-
-// ProvideRedeemService supplies the configurable code formatter to Wire while
-// keeping the variadic constructor compatible with focused service tests.
-func ProvideRedeemService(
-	redeemRepo RedeemCodeRepository,
-	userRepo UserRepository,
-	subscriptionService *SubscriptionService,
-	cache RedeemCache,
-	billingCacheService *BillingCacheService,
-	entClient *dbent.Client,
-	authCacheInvalidator APIKeyAuthCacheInvalidator,
-	affiliateService *AffiliateService,
-	settingService *SettingService,
-) *RedeemService {
-	return NewRedeemService(
-		redeemRepo,
-		userRepo,
-		subscriptionService,
-		cache,
-		billingCacheService,
-		entClient,
-		authCacheInvalidator,
-		affiliateService,
-		settingService,
-	)
 }
 
 // GenerateRandomCode 生成随机兑换码
 func (s *RedeemService) GenerateRandomCode() (string, error) {
-	return DefaultRedeemCodeFormat().Generate()
+	if s == nil || s.codeGenerator == nil {
+		return "", errors.New("code generator is not configured")
+	}
+	return s.codeGenerator.GenerateDefaultRedeemCode(context.Background())
 }
 
 // GenerateCodes 批量生成兑换码
@@ -233,7 +210,10 @@ func (s *RedeemService) GenerateCodes(ctx context.Context, req GenerateCodesRequ
 
 	codes := make([]RedeemCode, 0, req.Count)
 	for i := 0; i < req.Count; i++ {
-		code, err := s.settingService.GenerateCode(ctx, codeType)
+		if s.codeGenerator == nil {
+			return nil, errors.New("code generator is not configured")
+		}
+		code, err := s.codeGenerator.GenerateCode(ctx, codeType)
 		if err != nil {
 			return nil, fmt.Errorf("generate code: %w", err)
 		}

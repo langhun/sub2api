@@ -94,11 +94,15 @@ const defaultActivitySettings = (): ActivitySettings => ({
   code_format_settings_valid: true,
 })
 
-function readSettings<T extends Record<string, unknown>>(defaults: T, settings: CustomSettingsValues): T {
+function readSettings<T extends object>(defaults: T, settings: CustomSettingsValues): T {
   const result = { ...defaults }
-  for (const key of Object.keys(defaults)) {
-    const value = settings[key]
-    if (value !== null && value !== undefined) result[key as keyof T] = value as T[keyof T]
+  const target = result as Record<string, unknown>
+  const values = settings as Record<string, unknown>
+  for (const key of Object.keys(defaults) as Array<keyof T>) {
+    const value = values[key as string]
+    if (value !== null && value !== undefined) {
+      target[key as string] = value
+    }
   }
   return result
 }
@@ -157,7 +161,8 @@ export const activitySettingsPanels: readonly CustomSettingsPanel[] = [
     createForm: () => defaultActivitySettings(),
     fromSettings: (settings) => {
       const values = readSettings(defaultActivitySettings(), settings)
-      values.code_format_settings = settings.code_format_settings as CodeFormatSettings ?? values.code_format_settings
+      const source = settings as Record<string, unknown>
+      values.code_format_settings = source.code_format_settings as CodeFormatSettings ?? values.code_format_settings
       values.code_format_settings_valid = true
       return values
     },

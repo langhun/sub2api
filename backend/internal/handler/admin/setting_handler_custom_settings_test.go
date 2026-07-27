@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,7 @@ func TestSettingHandler_UpdateSettingsWritesOverlaySettingsThroughRegistry(t *te
 	handler := NewSettingHandler(settingsService, nil, nil, nil, nil, nil, nil)
 	handler.SetSettingsMount(customsettings.NewHandlerMount(customsettings.ProvideRegistry(settingsService)))
 
-	formats := service.DefaultCodeFormatSettings()
+	formats := codeformatsettings.Default()
 	formats.RedPacket.Prefix = "RP"
 	body, err := json.Marshal(map[string]any{
 		"checkin_enabled":      true,
@@ -43,5 +44,5 @@ func TestSettingHandler_UpdateSettingsWritesOverlaySettingsThroughRegistry(t *te
 	require.Equal(t, "true", repo.values["checkin_enabled"])
 	require.Equal(t, "true", repo.values["transfer_enabled"])
 	require.Equal(t, "true", repo.values["game_hall_enabled"])
-	require.Equal(t, formats, settingsService.GetCodeFormatSettings(ctx))
+	require.Equal(t, formats, codeformatsettings.FromValues(repo.values))
 }

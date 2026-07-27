@@ -36,6 +36,18 @@ type balanceRedeemRepoStub struct {
 	created []*RedeemCode
 }
 
+type balanceCodeGeneratorStub struct {
+	code string
+}
+
+func (s balanceCodeGeneratorStub) GenerateCode(context.Context, string) (string, error) {
+	return s.code, nil
+}
+
+func (s balanceCodeGeneratorStub) GenerateDefaultRedeemCode(context.Context) (string, error) {
+	return s.code, nil
+}
+
 func (s *balanceRedeemRepoStub) Create(ctx context.Context, code *RedeemCode) error {
 	if code == nil {
 		return nil
@@ -96,6 +108,7 @@ func TestAdminService_UpdateUserBalance_InvalidatesAuthCache(t *testing.T) {
 		userRepo:             repo,
 		redeemCodeRepo:       redeemRepo,
 		authCacheInvalidator: invalidator,
+		codeGenerator:        balanceCodeGeneratorStub{code: "BALANCE-ADJUSTMENT"},
 	}
 
 	_, err := svc.UpdateUserBalance(context.Background(), 7, 5, "add", "")
@@ -113,12 +126,26 @@ func TestAdminService_UpdateUserBalance_NoChangeNoInvalidate(t *testing.T) {
 		userRepo:             repo,
 		redeemCodeRepo:       redeemRepo,
 		authCacheInvalidator: invalidator,
+		codeGenerator:        balanceCodeGeneratorStub{code: "BALANCE-ADJUSTMENT"},
 	}
 
 	_, err := svc.UpdateUserBalance(context.Background(), 7, 10, "set", "")
 	require.NoError(t, err)
 	require.Empty(t, invalidator.userIDs)
 	require.Empty(t, redeemRepo.created)
+}
+
+func TestAdminService_UpdateUserBalance_UsesLegacyDefaultWhenGeneratorIsMissing(t *testing.T) {
+	baseRepo := &userRepoStub{user: &User{ID: 7, Balance: 10}}
+	repo := &balanceUserRepoStub{userRepoStub: baseRepo}
+	redeemRepo := &balanceRedeemRepoStub{redeemRepoStub: &redeemRepoStub{}}
+	svc := &adminServiceImpl{userRepo: repo, redeemCodeRepo: redeemRepo}
+
+	_, err := svc.UpdateUserBalance(context.Background(), 7, 5, "add", "")
+
+	require.NoError(t, err)
+	require.Len(t, redeemRepo.created, 1)
+	require.Regexp(t, `^[A-HJ-NP-Z2-9]{32}$`, redeemRepo.created[0].Code)
 }
 
 func TestAdminService_UpdateUserBalance_AdminRechargeAffiliateRebate(t *testing.T) {
@@ -166,6 +193,7 @@ func TestAdminService_UpdateUserBalance_AdminRechargeAffiliateRebate(t *testing.
 				redeemCodeRepo:   redeemRepo,
 				settingService:   adminRechargeSettingService(tt.enabled),
 				affiliateService: affiliate,
+				codeGenerator:    balanceCodeGeneratorStub{code: "BALANCE-ADJUSTMENT"},
 			}
 
 			_, err := svc.UpdateUserBalance(context.Background(), 7, tt.amount, tt.operation, "")
@@ -185,6 +213,7 @@ func TestAdminService_UpdateUserBalance_AffiliateFailureDoesNotRollbackRecharge(
 		redeemCodeRepo:   redeemRepo,
 		settingService:   adminRechargeSettingService(true),
 		affiliateService: affiliate,
+		codeGenerator:    balanceCodeGeneratorStub{code: "BALANCE-ADJUSTMENT"},
 	}
 
 	user, err := svc.UpdateUserBalance(context.Background(), 7, 5, "add", "")
