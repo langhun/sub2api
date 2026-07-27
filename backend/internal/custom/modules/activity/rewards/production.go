@@ -33,7 +33,7 @@ func NewProduction(deps ProductionDependencies, options WorkerOptions) (*Module,
 	prizes := NewEntPrizeCatalog(deps.Client)
 	outbox := NewOutboxRepository(deps.Client, deps.DB)
 	processor := NewDeliveryProcessor(ProcessorDependencies{
-		Balance:      coreBalanceWriter{users: deps.Users},
+		Balance:      NewEntBalanceWriter(deps.Client),
 		Concurrency:  coreConcurrencyGranter{users: deps.Users},
 		Subscription: coreSubscriptionGranter{service: deps.Subscriptions},
 		Invitation:   coreInvitationIssuer{codes: deps.RedeemCodes},
@@ -140,26 +140,6 @@ func (c checkinCounter) CountCheckins(ctx context.Context, userID int64) (int, e
 	return total, nil
 }
 
-type nonRechargeBalanceUpdater interface {
-	UpdateBalanceWithoutRecharge(context.Context, int64, float64) error
-}
-
-type coreBalanceWriter struct{ users service.UserRepository }
-
-func (w coreBalanceWriter) Credit(ctx context.Context, operation contract.BalanceOperation) error {
-	if w.users == nil || operation.UserID <= 0 || operation.Amount < 0 {
-		return ErrUnavailable
-	}
-	if updater, ok := w.users.(nonRechargeBalanceUpdater); ok {
-		return updater.UpdateBalanceWithoutRecharge(ctx, operation.UserID, operation.Amount)
-	}
-	return w.users.UpdateBalance(ctx, operation.UserID, operation.Amount)
-}
-
-func (w coreBalanceWriter) DebitIfSufficient(context.Context, contract.BalanceOperation) (bool, error) {
-	return false, fmt.Errorf("reward balance writer does not debit")
-}
-
 type coreConcurrencyGranter struct{ users service.UserRepository }
 
 func (g coreConcurrencyGranter) GrantConcurrency(ctx context.Context, grant contract.ConcurrencyGrant) error {
@@ -258,7 +238,6 @@ func (i coreBalanceCacheInvalidator) InvalidateBalance(ctx context.Context, user
 var (
 	_ contract.SettingsReader          = registrySettingsAdapter{}
 	_ CheckinCounter                   = checkinCounter{}
-	_ contract.BalanceWriter           = coreBalanceWriter{}
 	_ contract.ConcurrencyGranter      = coreConcurrencyGranter{}
 	_ contract.SubscriptionGranter     = coreSubscriptionGranter{}
 	_ contract.InvitationCodeIssuer    = coreInvitationIssuer{}
