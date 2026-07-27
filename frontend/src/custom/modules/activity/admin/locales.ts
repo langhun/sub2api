@@ -1,5 +1,13 @@
 export const activityAdminLocaleMessages = {
   en: {
+    audit: {
+      actionSegments: {
+        blindbox: 'Blind box',
+        redpacket: 'Red packet',
+        checkin: 'Check-in',
+        leaderboard: 'Leaderboard',
+      },
+    },
     settings: {
       tabs: { balanceFeatures: 'Balance Features' },
       balanceFeatures: {
@@ -28,6 +36,14 @@ export const activityAdminLocaleMessages = {
     },
   },
   zh: {
+    audit: {
+      actionSegments: {
+        blindbox: '盲盒',
+        redpacket: '红包',
+        checkin: '签到',
+        leaderboard: '排行榜',
+      },
+    },
     settings: {
       tabs: { balanceFeatures: '余额功能' },
       balanceFeatures: {

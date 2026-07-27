@@ -6,29 +6,17 @@ import enAdminOps from '../locales/en/admin/ops'
 import enAdminOverview from '../locales/en/admin/overview'
 import enAdminResources from '../locales/en/admin/resources'
 import enAdminSettings from '../locales/en/admin/settings'
-import enCommon from '../locales/en/common'
-import enDashboard from '../locales/en/dashboard'
-import enLanding from '../locales/en/landing'
-import enMisc from '../locales/en/misc'
 import zhAdminAccounts from '../locales/zh/admin/accounts'
 import zhAdminChannels from '../locales/zh/admin/channels'
 import zhAdminOps from '../locales/zh/admin/ops'
 import zhAdminOverview from '../locales/zh/admin/overview'
 import zhAdminResources from '../locales/zh/admin/resources'
 import zhAdminSettings from '../locales/zh/admin/settings'
-import zhCommon from '../locales/zh/common'
-import zhDashboard from '../locales/zh/dashboard'
-import zhLanding from '../locales/zh/landing'
-import zhMisc from '../locales/zh/misc'
 import en from '../locales/en'
 import zh from '../locales/zh'
-import { customAdminLocaleMessages } from '@/custom/locales'
-import { activityLocaleMessages } from '@/custom/modules/activity/locales'
-import { gameHallLocaleMessages } from '@/custom/modules/game-hall/locales'
-import { walletExtensionLocaleMessages } from '@/custom/modules/wallet-extension/locales'
+import { customAdminLocaleMessages, customLocaleMessages } from '@/custom/locales'
 
-// locales/{zh,en}/index.ts 与 admin/index.ts 使用对象展开聚合各域模块，
-// 展开模块之间若出现同名顶层键会静默覆盖。本测试将该风险固化为显式失败。
+// 根语言包和 admin 语言包使用受控深合并；同名顶层键必须经过合并测试，不能依赖对象展开的覆盖顺序。
 type Modules = Record<string, Record<string, unknown>>
 
 function collisions(modules: Modules): string[] {
@@ -45,27 +33,6 @@ function collisions(modules: Modules): string[] {
     }
   }
   return out
-}
-
-const roots: Record<string, Modules> = {
-  zh: {
-    landing: zhLanding,
-    common: zhCommon,
-    dashboard: zhDashboard,
-    misc: zhMisc,
-    activity: activityLocaleMessages.zh,
-    gameHall: gameHallLocaleMessages.zh,
-    walletExtension: walletExtensionLocaleMessages.zh,
-  },
-  en: {
-    landing: enLanding,
-    common: enCommon,
-    dashboard: enDashboard,
-    misc: enMisc,
-    activity: activityLocaleMessages.en,
-    gameHall: gameHallLocaleMessages.en,
-    walletExtension: walletExtensionLocaleMessages.en,
-  }
 }
 
 const admins: Record<string, Modules> = {
@@ -87,29 +54,19 @@ const admins: Record<string, Modules> = {
   }
 }
 
-describe.each(Object.keys(roots))('locale %s spread assembly', (locale) => {
-  it('root modules have no overlapping top-level keys', () => {
-    expect(collisions(roots[locale])).toEqual([])
-  })
-
-  it('root modules do not shadow the explicit "admin" namespace', () => {
-    for (const [name, mod] of Object.entries(roots[locale])) {
-      expect(Object.keys(mod), `module ${name} must not define "admin"`).not.toContain('admin')
-    }
-  })
-
-  it('assembles the activity fragment at its existing translation paths', () => {
+describe.each(['zh', 'en'] as const)('locale %s overlay assembly', (locale) => {
+  it('deeply assembles custom root fragments without replacing upstream navigation', () => {
     const messages = locale === 'zh' ? zh : en
-    const activity = activityLocaleMessages[locale as keyof typeof activityLocaleMessages]
+    const fragments = customLocaleMessages[locale as keyof typeof customLocaleMessages]
 
-    expect(messages).toMatchObject(activity)
-  })
-
-  it('assembles the wallet extension fragment at its existing translation paths', () => {
-    const messages = locale === 'zh' ? zh : en
-    const walletExtension = walletExtensionLocaleMessages[locale as keyof typeof walletExtensionLocaleMessages]
-
-    expect(messages).toMatchObject(walletExtension)
+    expect(messages).toMatchObject(fragments[0])
+    expect(messages).toMatchObject(fragments[1])
+    expect(messages).toMatchObject(fragments[2])
+    expect(messages.nav).toMatchObject({
+      dashboard: locale === 'zh' ? '系统概览' : 'Dashboard',
+      checkin: locale === 'zh' ? '签到中心' : 'Check-in',
+      transfer: locale === 'zh' ? '余额转账' : 'Balance Transfer',
+    })
   })
 
   it('deeply assembles custom admin fragments without replacing upstream settings', () => {
@@ -118,6 +75,7 @@ describe.each(Object.keys(roots))('locale %s spread assembly', (locale) => {
 
     expect(messages.admin).toMatchObject(fragments[0])
     expect(messages.admin).toMatchObject(fragments[1])
+    expect(messages.admin).toMatchObject(fragments[2])
     expect(messages.admin.settings.tabs).toMatchObject({
       general: locale === 'zh' ? '通用设置' : 'General',
       balanceFeatures: locale === 'zh' ? '余额功能' : 'Balance Features',

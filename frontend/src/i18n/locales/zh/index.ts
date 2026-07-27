@@ -4,18 +4,13 @@ import dashboard from './dashboard'
 import batchImage from './batchImage'
 import admin from './admin'
 import misc from './misc'
-import { activityLocaleMessages } from '@/custom/modules/activity/locales'
-import { gameHallLocaleMessages } from '@/custom/modules/game-hall/locales'
-import { walletExtensionLocaleMessages } from '@/custom/modules/wallet-extension/locales'
+import { mergeCustomLocale } from '@/custom/locales'
 
-export default {
+export default mergeCustomLocale({
   ...landing,
   ...common,
   ...dashboard,
   ...batchImage,
   admin,
   ...misc,
-  ...activityLocaleMessages.zh,
-  ...gameHallLocaleMessages.zh,
-  ...walletExtensionLocaleMessages.zh,
-}
+}, 'zh')

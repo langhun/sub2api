@@ -1,5 +1,9 @@
 export const walletExtensionLocaleMessages = {
   en: {
+    nav: {
+      transfer: 'Balance Transfer',
+      transferManage: 'Transfer Management',
+    },
     transfer: {
       title: 'Balance Transfer',
       description: 'Verify the recipient and fees before sending site balance',
@@ -47,6 +51,10 @@ export const walletExtensionLocaleMessages = {
     },
   },
   zh: {
+    nav: {
+      transfer: '余额转账',
+      transferManage: '转账管理',
+    },
     transfer: {
       title: '余额转账',
       description: '核对接收方与费用后完成站内余额转账',
