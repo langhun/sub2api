@@ -97,6 +97,36 @@ func TestDeliveryProcessorUsesCorePortsWithDeliveryKey(t *testing.T) {
 	}
 }
 
+func TestDeliveryProcessorForwardsDeliveryTransactionContextToBalanceWriter(t *testing.T) {
+	snapshot := Snapshot{
+		PrizeID: 27, PrizeName: "Balance", Rarity: RarityRare, RewardType: RewardTypeBalance,
+		RewardValue: 3.5, StreakDays: 2,
+	}
+	payload, err := jsonMarshalSnapshot(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	balance := &balanceWriterStub{}
+	processor := NewDeliveryProcessor(ProcessorDependencies{
+		Balance: balance, Audit: &auditWriterStub{}, History: &historyWriterStub{},
+	})
+	key := deliveryTransactionContextKey{}
+	ctx := context.WithValue(context.Background(), key, "outbox-transaction")
+
+	_, err = processor.ProcessDelivery(ctx, Delivery{
+		ID: 27, SourceType: SourceCheckinBlindbox, SourceID: 37, UserID: 47, PrizeID: int64Pointer(27),
+		RewardSnapshot: payload, RewardType: RewardTypeBalance, RewardValue: 3.5,
+		RuleVersion: CheckinBlindboxRuleV1, IdempotencyKey: "checkin_blindbox:37",
+	})
+
+	if err != nil {
+		t.Fatalf("process delivery: %v", err)
+	}
+	if balance.ctx == nil || balance.ctx.Value(key) != "outbox-transaction" {
+		t.Fatalf("balance writer did not receive delivery transaction context: %#v", balance.ctx)
+	}
+}
+
 func TestDeliveryProcessorDoesNotWriteZeroBalanceReward(t *testing.T) {
 	snapshot := Snapshot{
 		PrizeID: 13, PrizeName: "Zero", Rarity: RarityCommon, RewardType: RewardTypeBalance,
@@ -206,9 +236,13 @@ func (s *counterStub) CountCheckins(_ context.Context, userID int64) (int, error
 	return s.count, nil
 }
 
-type balanceWriterStub struct{ operation contract.BalanceOperation }
+type balanceWriterStub struct {
+	operation contract.BalanceOperation
+	ctx       context.Context
+}
 
-func (s *balanceWriterStub) Credit(_ context.Context, operation contract.BalanceOperation) error {
+func (s *balanceWriterStub) Credit(ctx context.Context, operation contract.BalanceOperation) error {
+	s.ctx = ctx
 	s.operation = operation
 	return nil
 }
@@ -229,6 +263,8 @@ func (s *historyWriterStub) RecordBlindboxDelivery(_ context.Context, record Bli
 	s.record = record
 	return nil
 }
+
+type deliveryTransactionContextKey struct{}
 
 type processorStub struct{ err error }
 

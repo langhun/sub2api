@@ -74,10 +74,6 @@ type transferLeaderboardSettingsReader interface {
 	GetWalletTransferLeaderboardSettings(context.Context) (TransferLeaderboardSettings, error)
 }
 
-type nonRechargeBalanceUpdater interface {
-	UpdateBalanceWithoutRecharge(context.Context, int64, float64) error
-}
-
 // TransferAdministrationRepository is the module-owned adapter for the
 // transfer-ledger operations outside point-to-point transfer execution.
 type TransferAdministrationRepository interface {
