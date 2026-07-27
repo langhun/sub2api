@@ -1,5 +1,11 @@
 export const activityLocaleMessages = {
   en: {
+    nav: {
+      checkin: 'Check-in',
+      redpacket: 'Red Packets',
+      leaderboard: 'Leaderboard',
+      transferLeaderboard: 'Transfer Leaderboard',
+    },
     checkin: {
       title: 'Daily Check-in', checked: 'Checked in today', todayReward: 'Earned ${amount} today', streakDays: '{days}-day streak',
       rangeHint: 'Reward range ${min} - ${max}', luckTitle: 'Lucky Check-in', luckButton: 'Confirm lucky check-in',
@@ -32,6 +38,12 @@ export const activityLocaleMessages = {
     activityErrors: { featureDisabled: 'This feature is currently unavailable', insufficientBalance: 'Insufficient available balance', limitExceeded: 'The current amount or request limit was exceeded', transferDailyLimit: 'The daily transfer amount limit was exceeded', transferDailyCount: 'No transfers remain today', transferSelf: 'You cannot transfer to yourself', transferAmountInvalid: 'The transfer amount is outside the allowed range', receiverNotFound: 'No eligible recipient was found', alreadyClaimed: 'You already claimed this packet', redpacketExpired: 'This packet has expired', redpacketExhausted: 'This packet has been fully claimed', redpacketNotFound: 'Packet code not found', cannotClaimOwn: 'You cannot claim your own packet', duplicateRequest: 'This request is already processing or completed' },
   },
   zh: {
+    nav: {
+      checkin: '签到中心',
+      redpacket: '红包中心',
+      leaderboard: '排行中心',
+      transferLeaderboard: '转账排行',
+    },
     checkin: {
       title: '每日签到', checked: '今日已签到', todayReward: '今日获得 ${amount}', streakDays: '连续 {days} 天',
       rangeHint: '奖励范围 ${min} - ${max}', luckTitle: '运气签到', luckButton: '运气签到',

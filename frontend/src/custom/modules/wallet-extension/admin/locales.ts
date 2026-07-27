@@ -1,5 +1,8 @@
 export const walletExtensionAdminLocaleMessages = {
   en: {
+    audit: {
+      actionSegments: { transfer: 'Transfer' },
+    },
     settings: {
       balanceFeatures: {
         transferTitle: 'Transfers and Red Packets', transferDescription: 'Configure balance transfer limits and red-packet rules', transferEnabled: 'Enable balance transfers', feeRate: 'Fee rate',
@@ -9,6 +12,9 @@ export const walletExtensionAdminLocaleMessages = {
     },
   },
   zh: {
+    audit: {
+      actionSegments: { transfer: '转账' },
+    },
     settings: {
       balanceFeatures: {
         transferTitle: '转账与红包', transferDescription: '配置用户余额流转限制与红包规则', transferEnabled: '启用余额转账', feeRate: '手续费率',
