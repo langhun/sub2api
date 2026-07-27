@@ -46,7 +46,3 @@ func (r *RedeemCode) IsExpiredAt(now time.Time) bool {
 func (r *RedeemCode) CanUse() bool {
 	return r.Status == StatusUnused && !r.IsExpired()
 }
-
-func GenerateRedeemCode() (string, error) {
-	return DefaultCompactRedeemCodeFormat().Generate()
-}

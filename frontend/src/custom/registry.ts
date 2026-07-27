@@ -44,7 +44,10 @@ export interface CustomHeaderAction {
   component: Component
 }
 
-export type CustomSettingsValues = Record<string, unknown>
+// This must stay structural rather than a string index signature. Intersecting
+// the latter with the upstream settings form turns every upstream field into
+// unknown in Vue's template type checker.
+export type CustomSettingsValues = object
 
 export interface CustomSettingsPanel {
   id: string

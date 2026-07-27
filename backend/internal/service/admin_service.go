@@ -635,6 +635,7 @@ type adminServiceImpl struct {
 	affiliateService     adminRechargeAffiliateAccruer
 	compositeRouteRepo   CompositeModelRouteRepository
 	compositeResolver    *CompositeRouteResolver
+	codeGenerator        CodeGenerator
 }
 
 type adminRechargeAffiliateAccruer interface {
@@ -668,7 +669,11 @@ func NewAdminService(
 	affiliateService *AffiliateService,
 	compositeRouteRepo CompositeModelRouteRepository,
 	compositeResolver *CompositeRouteResolver,
+	codeGenerator CodeGenerator,
 ) AdminService {
+	if codeGenerator == nil {
+		codeGenerator = defaultCodeGenerator{}
+	}
 	return &adminServiceImpl{
 		userRepo:             userRepo,
 		groupRepo:            groupRepo,
@@ -693,5 +698,13 @@ func NewAdminService(
 		affiliateService:     affiliateService,
 		compositeRouteRepo:   compositeRouteRepo,
 		compositeResolver:    compositeResolver,
+		codeGenerator:        codeGenerator,
 	}
+}
+
+func (s *adminServiceImpl) codeGeneratorOrDefault() CodeGenerator {
+	if s == nil || s.codeGenerator == nil {
+		return defaultCodeGenerator{}
+	}
+	return s.codeGenerator
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +25,7 @@ func TestHandlerMountProjectsAndAppliesCustomSettingsWithoutCoreFieldKnowledge(t
 	require.Equal(t, "default", public["default_homepage"])
 	require.NotContains(t, public, "checkin_min_balance")
 
-	formats := service.DefaultCodeFormatSettings()
+	formats := codeformatsettings.Default()
 	formats.RedPacket.Prefix = "RP"
 	payload, err := json.Marshal(map[string]any{
 		"default_homepage":     "dino",
@@ -39,7 +39,7 @@ func TestHandlerMountProjectsAndAppliesCustomSettingsWithoutCoreFieldKnowledge(t
 	require.NoError(t, mount.ApplyUpdate(context.Background(), payload))
 	require.Equal(t, "dino", store.values["default_homepage"])
 	require.Equal(t, "true", store.values["transfer_enabled"])
-	require.Equal(t, formats, service.ParseCodeFormatSettings(store.values))
+	require.Equal(t, formats, codeformatsettings.FromValues(store.values))
 	admin, err = mount.Admin(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, formats, decodeCodeFormatSettings(t, admin["code_format_settings"]))
@@ -52,11 +52,11 @@ func TestHandlerMountRejectsInvalidCodeFormatSettings(t *testing.T) {
 	require.Error(t, err)
 }
 
-func decodeCodeFormatSettings(t *testing.T, value any) service.CodeFormatSettings {
+func decodeCodeFormatSettings(t *testing.T, value any) codeformatsettings.Config {
 	t.Helper()
 	encoded, err := json.Marshal(value)
 	require.NoError(t, err)
-	var settings service.CodeFormatSettings
+	var settings codeformatsettings.Config
 	require.NoError(t, json.Unmarshal(encoded, &settings))
 	return settings
 }

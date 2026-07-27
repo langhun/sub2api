@@ -293,7 +293,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 
 	concurrencyDiff := user.Concurrency - oldConcurrency
 	if concurrencyDiff != 0 {
-		code, err := s.settingService.GenerateCode(ctx, AdjustmentTypeAdminConcurrency)
+		code, err := s.codeGeneratorOrDefault().GenerateCode(ctx, AdjustmentTypeAdminConcurrency)
 		if err != nil {
 			logger.LegacyPrintf("service.admin", "failed to generate adjustment redeem code: %v", err)
 			return user, nil
@@ -533,7 +533,7 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 	}
 
 	if balanceDiff != 0 {
-		code, err := s.settingService.GenerateCode(ctx, AdjustmentTypeAdminBalance)
+		code, err := s.codeGeneratorOrDefault().GenerateCode(ctx, AdjustmentTypeAdminBalance)
 		if err != nil {
 			logger.LegacyPrintf("service.admin", "failed to generate adjustment redeem code: %v", err)
 			return user, nil
@@ -1248,13 +1248,11 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 	}
 
 	codes := make([]RedeemCode, 0, input.Count)
-	formatSettings := DefaultCodeFormatSettings()
-	if s.settingService != nil {
-		formatSettings = s.settingService.GetCodeFormatSettings(ctx)
+	if s.codeGenerator == nil {
+		return nil, errors.New("code generator is not configured")
 	}
-	codeFormat := formatSettings.RedeemFormat(input.Type)
 	for i := 0; i < input.Count; i++ {
-		codeValue, err := codeFormat.Generate()
+		codeValue, err := s.codeGenerator.GenerateCode(ctx, input.Type)
 		if err != nil {
 			return nil, err
 		}

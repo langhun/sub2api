@@ -10,7 +10,8 @@ const defaultBrandHomeSettings = (): BrandHomeSettings => ({
 })
 
 function readSettings(settings: CustomSettingsValues): BrandHomeSettings {
-  return settings.default_homepage === 'dino'
+  const values = settings as Record<string, unknown>
+  return values.default_homepage === 'dino'
     ? { default_homepage: 'dino' }
     : defaultBrandHomeSettings()
 }

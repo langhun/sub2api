@@ -70,6 +70,21 @@ function cloneSettings(value: ActivitySettings): ActivitySettings {
 
 const form = reactive<ActivitySettings>(cloneSettings(props.modelValue))
 
-watch(() => props.modelValue, (value) => Object.assign(form, cloneSettings(value)), { deep: true })
-watch(form, (value) => emit('update:modelValue', cloneSettings(value)), { deep: true })
+function hasSameSettings(left: ActivitySettings, right: ActivitySettings): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+watch(() => props.modelValue, (value) => {
+  const next = cloneSettings(value)
+  if (!hasSameSettings(form, next)) {
+    Object.assign(form, next)
+  }
+}, { deep: true })
+
+watch(form, (value) => {
+  const next = cloneSettings(value)
+  if (!hasSameSettings(next, props.modelValue)) {
+    emit('update:modelValue', next)
+  }
+}, { deep: true })
 </script>
