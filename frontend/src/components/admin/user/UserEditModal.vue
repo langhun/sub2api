@@ -145,5 +145,4 @@ const handleUpdateUser = async () => {
     }
   } finally { submitting.value = false }
 }
-
 </script>
