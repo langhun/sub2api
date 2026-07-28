@@ -28,6 +28,7 @@ describe('custom admin locale overlay', () => {
         features: { channelMonitor: 'Channel Monitor' },
       },
       audit: { title: 'Audit Logs' },
+      redeem: { types: { balance: 'Balance' } },
     }
 
     const merged = mergeCustomAdminLocale(base, 'en')
@@ -45,6 +46,17 @@ describe('custom admin locale overlay', () => {
       checkinTitle: 'Check-in Settings',
       transferTitle: 'Transfers and Red Packets',
     })
+    expect(merged).toMatchObject({
+      redeem: {
+        types: {
+          balance: 'Balance',
+          checkin: 'Check-in',
+          checkin_luck: 'Lucky check-in',
+          checkin_blindbox: 'Blind box check-in',
+        },
+      },
+    })
+    expect(merged).not.toHaveProperty('resources.redeem')
     expect(base.settings.tabs).toEqual({ general: 'General' })
   })
 })
