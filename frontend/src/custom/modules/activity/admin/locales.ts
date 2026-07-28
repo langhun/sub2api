@@ -20,13 +20,11 @@ export const activityAdminLocaleMessages = {
         blindboxTriggerTotal: 'Total check-ins', blindboxInterval: 'Trigger interval', blindboxIntervalHint: 'Open a blind box after the configured number of check-ins',
       },
     },
-    resources: {
-      redeem: {
-        types: {
-          checkin: 'Check-in',
-          checkin_luck: 'Lucky check-in',
-          checkin_blindbox: 'Blind box check-in',
-        },
+    redeem: {
+      types: {
+        checkin: 'Check-in',
+        checkin_luck: 'Lucky check-in',
+        checkin_blindbox: 'Blind box check-in',
       },
     },
     blindbox: {
@@ -66,13 +64,11 @@ export const activityAdminLocaleMessages = {
         blindboxTriggerTotal: '累计签到', blindboxInterval: '触发间隔', blindboxIntervalHint: '达到指定签到天数时触发盲盒',
       },
     },
-    resources: {
-      redeem: {
-        types: {
-          checkin: '签到',
-          checkin_luck: '运气签到',
-          checkin_blindbox: '盲盒签到',
-        },
+    redeem: {
+      types: {
+        checkin: '签到',
+        checkin_luck: '运气签到',
+        checkin_blindbox: '盲盒签到',
       },
     },
     blindbox: {
