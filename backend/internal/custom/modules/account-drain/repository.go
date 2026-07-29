@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -49,50 +48,122 @@ ORDER BY p.created_at DESC, p.id DESC`
 	return plans, nil
 }
 
-func (r *Repository) Create(ctx context.Context, input CreatePlanInput) (*Plan, error) {
+func (r *Repository) IsAccountTargeted(ctx context.Context, accountID int64) (bool, error) {
 	if r == nil || r.db == nil {
-		return nil, errors.New("account drain repository is unavailable")
+		return false, errors.New("account drain repository is unavailable")
+	}
+	var targeted bool
+	err := r.db.QueryRowContext(ctx, `
+SELECT EXISTS (
+    SELECT 1
+    FROM custom_account_drain_plan_accounts pa
+    JOIN custom_account_drain_plans p ON p.id = pa.plan_id
+    WHERE pa.account_id = $1
+      AND p.status = $2
+      AND (p.expires_at IS NULL OR p.expires_at > NOW())
+)`, accountID, StatusActive).Scan(&targeted)
+	if err != nil {
+		return false, fmt.Errorf("check account drain target: %w", err)
+	}
+	return targeted, nil
+}
+
+// EnableAccount creates a private, single-account plan when the account is not
+// already targeted. The advisory lock makes repeated menu clicks idempotent.
+func (r *Repository) EnableAccount(ctx context.Context, accountID int64) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, errors.New("account drain repository is unavailable")
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("begin account drain plan: %w", err)
+		return false, fmt.Errorf("begin account drain target: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	plan := &Plan{Name: input.Name, Status: StatusActive, ExpiresAt: input.ExpiresAt}
-	err = tx.QueryRowContext(ctx, `
-INSERT INTO custom_account_drain_plans (name, status, expires_at)
-VALUES ($1, $2, $3)
-RETURNING id, created_at, updated_at`, input.Name, StatusActive, input.ExpiresAt).Scan(&plan.ID, &plan.CreatedAt, &plan.UpdatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("create account drain plan: %w", err)
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, accountID); err != nil {
+		return false, fmt.Errorf("lock account drain target: %w", err)
 	}
-	for _, accountID := range input.AccountIDs {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO custom_account_drain_plan_accounts (plan_id, account_id) VALUES ($1, $2)`, plan.ID, accountID); err != nil {
-			return nil, fmt.Errorf("add account %d to account drain plan: %w", accountID, err)
+	var platform string
+	if err := tx.QueryRowContext(ctx, `SELECT platform FROM accounts WHERE id = $1`, accountID).Scan(&platform); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, err
 		}
+		return false, fmt.Errorf("load account drain target: %w", err)
+	}
+	if platform != "openai" {
+		return false, fmt.Errorf("only OpenAI accounts support directed consumption")
+	}
+	var alreadyActive bool
+	if err := tx.QueryRowContext(ctx, `
+SELECT EXISTS (
+    SELECT 1
+    FROM custom_account_drain_plan_accounts pa
+    JOIN custom_account_drain_plans p ON p.id = pa.plan_id
+    WHERE pa.account_id = $1
+      AND p.status = $2
+      AND (p.expires_at IS NULL OR p.expires_at > NOW())
+)`, accountID, StatusActive).Scan(&alreadyActive); err != nil {
+		return false, fmt.Errorf("check account drain target: %w", err)
+	}
+	if alreadyActive {
+		if err := tx.Commit(); err != nil {
+			return false, fmt.Errorf("commit account drain target: %w", err)
+		}
+		return false, nil
+	}
+
+	var planID int64
+	if err := tx.QueryRowContext(ctx, `
+INSERT INTO custom_account_drain_plans (name, status)
+VALUES ($1, $2)
+RETURNING id`, fmt.Sprintf("account-target-%d", accountID), StatusActive).Scan(&planID); err != nil {
+		return false, fmt.Errorf("create account drain target: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO custom_account_drain_plan_accounts (plan_id, account_id)
+VALUES ($1, $2)`, planID, accountID); err != nil {
+		return false, fmt.Errorf("add account drain target: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit account drain plan: %w", err)
+		return false, fmt.Errorf("commit account drain target: %w", err)
 	}
-	plan.AccountIDs = append([]int64(nil), input.AccountIDs...)
-	return plan, nil
+	return true, nil
 }
 
-func (r *Repository) Stop(ctx context.Context, id int64) error {
+// DisableAccount removes the account from every active plan. Plans made empty
+// by that removal are stopped, while other accounts in a multi-account plan
+// keep their directed-consumption setting.
+func (r *Repository) DisableAccount(ctx context.Context, accountID int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("account drain repository is unavailable")
 	}
-	result, err := r.db.ExecContext(ctx, `UPDATE custom_account_drain_plans SET status = $2, updated_at = NOW() WHERE id = $1 AND status = $3`, id, StatusStopped, StatusActive)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("stop account drain plan: %w", err)
+		return fmt.Errorf("begin account drain removal: %w", err)
 	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("read account drain stop result: %w", err)
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, accountID); err != nil {
+		return fmt.Errorf("lock account drain target: %w", err)
 	}
-	if affected == 0 {
-		return sql.ErrNoRows
+	if _, err := tx.ExecContext(ctx, `
+WITH removed AS (
+    DELETE FROM custom_account_drain_plan_accounts pa
+    USING custom_account_drain_plans p
+    WHERE pa.plan_id = p.id AND pa.account_id = $1 AND p.status = $2
+    RETURNING pa.plan_id
+)
+UPDATE custom_account_drain_plans p
+SET status = $3, updated_at = NOW()
+WHERE p.id IN (SELECT plan_id FROM removed)
+  AND p.status = $2
+  AND NOT EXISTS (
+      SELECT 1 FROM custom_account_drain_plan_accounts pa WHERE pa.plan_id = p.id
+  )`, accountID, StatusActive, StatusStopped); err != nil {
+		return fmt.Errorf("remove account drain target: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit account drain removal: %w", err)
 	}
 	return nil
 }
@@ -114,31 +185,4 @@ func scanPlan(row rowScanner) (Plan, error) {
 		plan.Status = StatusExpired
 	}
 	return plan, nil
-}
-
-func normalizeCreateInput(input CreatePlanInput) (CreatePlanInput, error) {
-	input.Name = strings.TrimSpace(input.Name)
-	if input.Name == "" {
-		return input, errors.New("plan name is required")
-	}
-	if len(input.AccountIDs) == 0 {
-		return input, errors.New("at least one target account is required")
-	}
-	seen := make(map[int64]struct{}, len(input.AccountIDs))
-	unique := make([]int64, 0, len(input.AccountIDs))
-	for _, accountID := range input.AccountIDs {
-		if accountID <= 0 {
-			return input, errors.New("account IDs must be positive")
-		}
-		if _, exists := seen[accountID]; exists {
-			continue
-		}
-		seen[accountID] = struct{}{}
-		unique = append(unique, accountID)
-	}
-	input.AccountIDs = unique
-	if input.ExpiresAt != nil && !input.ExpiresAt.After(time.Now().UTC()) {
-		return input, errors.New("expiry must be in the future")
-	}
-	return input, nil
 }

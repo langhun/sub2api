@@ -1,8 +1,7 @@
 import type { Component } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { registerFeatureFlags, type FeatureFlagDefinition } from '@/utils/featureFlags'
-import { accountDrainNavigation } from './modules/account-drain/navigation'
-import { accountDrainRoutes } from './modules/account-drain/routes'
+import { accountDrainMenuActions } from './modules/account-drain/menuActions'
 import { activityHeaderActions } from './modules/activity/headerActions'
 import { activityNavigation } from './modules/activity/navigation'
 import { activityRoutes } from './modules/activity/routes'
@@ -46,6 +45,13 @@ export interface CustomHeaderAction {
   component: Component
 }
 
+// Account-management hooks remain intentionally small: custom modules own
+// both their component and all business behavior behind it.
+export interface CustomAccountMenuAction {
+  id: string
+  component: Component
+}
+
 // This must stay structural rather than a string index signature. Intersecting
 // the latter with the upstream settings form turns every upstream field into
 // unknown in Vue's template type checker.
@@ -64,7 +70,6 @@ export interface CustomSettingsPanel {
 }
 
 export const customRoutes: readonly RouteRecordRaw[] = [
-	...accountDrainRoutes,
   ...brandHomeRoutes,
   ...activityRoutes,
   ...gameHallRoutes,
@@ -72,7 +77,6 @@ export const customRoutes: readonly RouteRecordRaw[] = [
 ]
 
 export const customNavigation: readonly CustomNavigationItem[] = [
-	...accountDrainNavigation,
   ...activityNavigation,
   ...gameHallNavigation,
   ...walletExtensionNavigation,
@@ -80,6 +84,10 @@ export const customNavigation: readonly CustomNavigationItem[] = [
 
 export const customHeaderActions: readonly CustomHeaderAction[] = [
   ...activityHeaderActions,
+]
+
+export const customAccountMenuActions: readonly CustomAccountMenuAction[] = [
+  ...accountDrainMenuActions,
 ]
 
 export const customSettingsPanels: readonly CustomSettingsPanel[] = [

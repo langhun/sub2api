@@ -54,6 +54,14 @@
               <Icon name="refresh" size="sm" />
               {{ t('admin.accounts.resetQuota') }}
             </button>
+            <component
+              :is="action.component"
+              v-for="action in customAccountMenuActions"
+              :key="action.id"
+              :account="account"
+              :show="show"
+              @close="emit('close')"
+            />
           </template>
         </div>
       </div>
@@ -65,6 +73,7 @@
 import { computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@/components/icons'
+import { customAccountMenuActions } from '@/custom/registry'
 import type { Account } from '@/types'
 
 const props = defineProps<{ show: boolean; account: Account | null; position: { top: number; left: number } | null }>()

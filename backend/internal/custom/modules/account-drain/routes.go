@@ -14,8 +14,8 @@ func (m *Module) RegisterRoutes(r *gin.Engine, adminAuth middleware.AdminAuthMid
 	admin.Use(gin.HandlerFunc(adminAuth))
 	admin.Use(gin.HandlerFunc(auditLog))
 	admin.Use(middleware.AdminComplianceGuard(settingService))
-	plans := admin.Group("/account-drain/plans")
-	plans.GET("", m.Handler.List)
-	plans.POST("", m.Handler.Create)
-	plans.POST("/:id/stop", m.Handler.Stop)
+	accounts := admin.Group("/account-drain/accounts")
+	accounts.GET("/:accountID/status", m.Handler.AccountStatus)
+	accounts.PUT("/:accountID/target", m.Handler.EnableAccount)
+	accounts.DELETE("/:accountID/target", m.Handler.DisableAccount)
 }

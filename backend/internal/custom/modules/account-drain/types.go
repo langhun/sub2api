@@ -18,8 +18,9 @@ type Plan struct {
 	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
-type CreatePlanInput struct {
-	Name       string     `json:"name" binding:"required,max=120"`
-	AccountIDs []int64    `json:"account_ids" binding:"required,min=1,max=50"`
-	ExpiresAt  *time.Time `json:"expires_at"`
+// AccountTargetStatus is the account-management view of the internal plans.
+// Plan names and grouping are deliberately not part of this API surface.
+type AccountTargetStatus struct {
+	AccountID int64 `json:"account_id"`
+	Active    bool  `json:"active"`
 }
