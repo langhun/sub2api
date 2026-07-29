@@ -113,4 +113,20 @@ describe('AffiliateView', () => {
       'affiliate.linkCopied',
     )
   })
+
+  it('uses the compact dollar symbol for rebate amounts', async () => {
+    const wrapper = mount(AffiliateView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<main><slot /></main>' },
+          Icon: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('$0.00')
+    expect(wrapper.text()).not.toContain('US$')
+  })
 })
