@@ -352,7 +352,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTime } from '@/utils/format'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const subscriptionStore = useSubscriptionStore()
@@ -379,7 +379,7 @@ const contactInfo = ref('')
 
 // Helper functions for history display
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'admin_balance'
+  return type === 'balance' || type === 'admin_balance' || te(`redeem.activityBalanceTypes.${type}`)
 }
 
 const isSubscriptionType = (type: string) => {
@@ -402,6 +402,12 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
   } else if (item.type === 'subscription') {
     return t('redeem.subscriptionAssigned')
   }
+
+  const customTypeKey = `redeem.activityHistoryTypes.${item.type}`
+  if (te(customTypeKey)) {
+    return t(customTypeKey)
+  }
+
   return t('common.unknown')
 }
 

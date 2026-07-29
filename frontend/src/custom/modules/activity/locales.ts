@@ -24,6 +24,18 @@ export const activityLocaleMessages = {
         blindboxNextIn: '{days} days until the next blind box', blindboxNextCycle: 'Triggers every {interval} consecutive days', calendarTitle: 'Check-in calendar',
       },
     },
+    redeem: {
+      activityHistoryTypes: {
+        checkin: 'Check-in',
+        checkin_luck: 'Lucky check-in',
+        checkin_blindbox: 'Blind-box check-in',
+      },
+      activityBalanceTypes: {
+        checkin: true,
+        checkin_luck: true,
+        checkin_blindbox: true,
+      },
+    },
     leaderboard: {
       title: 'Leaderboard', subtitle: 'Explore site activity using consistent ranking rules', empty: 'No ranking data', streakDays: '{days} days', rank: 'Rank {rank}', daysValue: '{value} days', loadFailed: 'Could not load the leaderboard. Try again.', privacyNotice: 'Display names follow the site privacy policy. Rankings are for on-site activity only.',
       balanceSubtitle: '{count} total check-ins', consumptionSubtitle: '{count} requests', checkinSubtitle: '{total} check-ins · Latest {date} · Earned ${reward}', transferSubtitle: '{count} successful transfers',
@@ -60,6 +72,18 @@ export const activityLocaleMessages = {
         todayNormal: '普通签到', todayLuck: '运气签到', todayNoResult: '今日尚未签到', rarityBreakdown: '稀有度分布', blindboxInfo: '盲盒规则',
         triggerType: '触发方式', triggerTotal: '累计签到', triggerStreak: '连续签到', triggerInterval: '触发间隔',
         blindboxNextIn: '距离下次盲盒还需 {days} 天', blindboxNextCycle: '每 {interval} 天连续签到触发一次盲盒', calendarTitle: '签到日历',
+      },
+    },
+    redeem: {
+      activityHistoryTypes: {
+        checkin: '签到',
+        checkin_luck: '运气签到',
+        checkin_blindbox: '盲盒签到',
+      },
+      activityBalanceTypes: {
+        checkin: true,
+        checkin_luck: true,
+        checkin_blindbox: true,
       },
     },
     leaderboard: {

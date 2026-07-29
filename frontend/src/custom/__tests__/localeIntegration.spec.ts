@@ -23,6 +23,8 @@ describe.each([
       expect(messages).toMatchObject(fragment)
     }
     expect(messages.nav).toMatchObject({ dashboard, checkin, transfer })
+    expect(messages.redeem.activityHistoryTypes).toMatchObject({ checkin: locale === 'zh' ? '签到' : 'Check-in', checkin_luck: locale === 'zh' ? '运气签到' : 'Lucky check-in' })
+    expect(messages.redeem.activityBalanceTypes.checkin_luck).toBe(true)
   })
 
   it('deeply assembles admin fragments without replacing upstream settings', () => {
