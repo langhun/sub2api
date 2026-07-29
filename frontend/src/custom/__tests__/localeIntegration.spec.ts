@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createI18n } from 'vue-i18n'
 
 import en from '@/i18n/locales/en'
 import zh from '@/i18n/locales/zh'
@@ -24,7 +25,10 @@ describe.each([
     }
     expect(messages.nav).toMatchObject({ dashboard, checkin, transfer })
     expect(messages.redeem.activityHistoryTypes).toMatchObject({ checkin: locale === 'zh' ? '签到' : 'Check-in', checkin_luck: locale === 'zh' ? '运气签到' : 'Lucky check-in' })
-    expect(messages.redeem.activityBalanceTypes.checkin_luck).toBe(true)
+    expect(messages.redeem.activityBalanceTypes.checkin_luck).toBe('balance')
+
+    const i18n = createI18n({ legacy: false, locale, messages: { [locale]: messages } })
+    expect(i18n.global.te('redeem.activityBalanceTypes.checkin_luck')).toBe(true)
   })
 
   it('deeply assembles admin fragments without replacing upstream settings', () => {

@@ -31,9 +31,9 @@ export const activityLocaleMessages = {
         checkin_blindbox: 'Blind-box check-in',
       },
       activityBalanceTypes: {
-        checkin: true,
-        checkin_luck: true,
-        checkin_blindbox: true,
+        checkin: 'balance',
+        checkin_luck: 'balance',
+        checkin_blindbox: 'balance',
       },
     },
     leaderboard: {
@@ -81,9 +81,9 @@ export const activityLocaleMessages = {
         checkin_blindbox: '盲盒签到',
       },
       activityBalanceTypes: {
-        checkin: true,
-        checkin_luck: true,
-        checkin_blindbox: true,
+        checkin: 'balance',
+        checkin_luck: 'balance',
+        checkin_blindbox: 'balance',
       },
     },
     leaderboard: {
