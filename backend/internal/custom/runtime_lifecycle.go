@@ -20,6 +20,7 @@ func ProvideRuntime(
 	adminService service.AdminService,
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
+	openAIGateway *service.OpenAIGatewayService,
 ) (*Runtime, error) {
 	runtime, err := NewRuntime(
 		client,
@@ -29,6 +30,7 @@ func ProvideRuntime(
 		adminService,
 		customSettingsRegistry,
 		codeGenerator,
+		openAIGateway,
 	)
 	if err != nil {
 		return nil, err
