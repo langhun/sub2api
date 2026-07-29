@@ -413,6 +413,9 @@ type OpenAIGatewayService struct {
 	userPlatformQuotaRepo UserPlatformQuotaRepository
 	liveAttestation       liveattestation.Provider
 	liveAttestationCipher SecretEncryptor
+	// openAIAccountSchedulingPolicy is an optional composition-root policy.
+	// The gateway retains its normal scheduling semantics when it is nil.
+	openAIAccountSchedulingPolicy OpenAIAccountSchedulingPolicy
 
 	openaiWSPoolOnce              sync.Once
 	openaiWSStateStoreOnce        sync.Once

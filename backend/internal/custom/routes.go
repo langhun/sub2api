@@ -35,6 +35,9 @@ func RegisterRoutes(
 	if runtime.UsageQuerySettings != nil {
 		r.Use(activityUsageQueryGate(runtime.UsageQuerySettings))
 	}
+	if runtime.AccountDrain != nil {
+		runtime.AccountDrain.RegisterRoutes(r, adminAuth, auditLog, settingService)
+	}
 	if runtime.GameHall != nil {
 		runtime.GameHall.RegisterRoutes(r, jwtAuth, adminAuth, auditLog, settingService)
 	}

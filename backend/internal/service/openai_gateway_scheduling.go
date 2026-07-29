@@ -799,6 +799,9 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 		if requireCompact && compactTiers[a.ID] != compactTiers[b.ID] {
 			return compactTiers[a.ID] > compactTiers[b.ID]
 		}
+		if aPreferred, bPreferred := s.prefersOpenAIAccount(ctx, groupID, requestedModel, a.ID), s.prefersOpenAIAccount(ctx, groupID, requestedModel, b.ID); aPreferred != bPreferred {
+			return aPreferred
+		}
 		if rateCmp := rateOrder.compare(a, b); rateCmp != 0 {
 			return rateCmp < 0
 		}
@@ -1033,6 +1036,9 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 
 		sort.SliceStable(available, func(i, j int) bool {
 			a, b := available[i], available[j]
+			if aPreferred, bPreferred := s.prefersOpenAIAccount(ctx, groupID, requestedModel, a.account.ID), s.prefersOpenAIAccount(ctx, groupID, requestedModel, b.account.ID); aPreferred != bPreferred {
+				return aPreferred
+			}
 			if a.account.Priority != b.account.Priority {
 				return a.account.Priority < b.account.Priority
 			}
@@ -1053,6 +1059,9 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 		shuffleWithinSortGroups(available)
 		if rateOrder.enabled {
 			sort.SliceStable(available, func(i, j int) bool {
+				if aPreferred, bPreferred := s.prefersOpenAIAccount(ctx, groupID, requestedModel, available[i].account.ID), s.prefersOpenAIAccount(ctx, groupID, requestedModel, available[j].account.ID); aPreferred != bPreferred {
+					return aPreferred
+				}
 				return rateOrder.compare(available[i].account, available[j].account) < 0
 			})
 		}
@@ -1107,8 +1116,14 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	if err != nil {
 		ordered := append([]*Account(nil), candidates...)
 		sortAccountsByPriorityAndLastUsed(ordered, false)
+		sort.SliceStable(ordered, func(i, j int) bool {
+			return s.prefersOpenAIAccount(ctx, groupID, requestedModel, ordered[i].ID) && !s.prefersOpenAIAccount(ctx, groupID, requestedModel, ordered[j].ID)
+		})
 		if rateOrder.enabled {
 			sort.SliceStable(ordered, func(i, j int) bool {
+				if aPreferred, bPreferred := s.prefersOpenAIAccount(ctx, groupID, requestedModel, ordered[i].ID), s.prefersOpenAIAccount(ctx, groupID, requestedModel, ordered[j].ID); aPreferred != bPreferred {
+					return aPreferred
+				}
 				return rateOrder.compare(ordered[i], ordered[j]) < 0
 			})
 		}
@@ -1157,8 +1172,14 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 
 	// ============ Layer 3: Fallback wait ============
 	sortAccountsByPriorityAndLastUsed(candidates, false)
+	sort.SliceStable(candidates, func(i, j int) bool {
+		return s.prefersOpenAIAccount(ctx, groupID, requestedModel, candidates[i].ID) && !s.prefersOpenAIAccount(ctx, groupID, requestedModel, candidates[j].ID)
+	})
 	if rateOrder.enabled {
 		sort.SliceStable(candidates, func(i, j int) bool {
+			if aPreferred, bPreferred := s.prefersOpenAIAccount(ctx, groupID, requestedModel, candidates[i].ID), s.prefersOpenAIAccount(ctx, groupID, requestedModel, candidates[j].ID); aPreferred != bPreferred {
+				return aPreferred
+			}
 			return rateOrder.compare(candidates[i], candidates[j]) < 0
 		})
 	}
