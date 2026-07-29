@@ -16,34 +16,35 @@ func NewService(repository *Repository) *Service {
 
 func (s *Service) Policy() *Policy { return s.policy }
 
-func (s *Service) List(ctx context.Context) ([]Plan, error) {
-	plans, err := s.repository.List(ctx)
-	if err != nil {
-		return nil, err
+func (s *Service) AccountStatus(ctx context.Context, accountID int64) (AccountTargetStatus, error) {
+	if accountID <= 0 {
+		return AccountTargetStatus{}, fmt.Errorf("invalid account ID")
 	}
-	return plans, nil
+	active, err := s.repository.IsAccountTargeted(ctx, accountID)
+	if err != nil {
+		return AccountTargetStatus{}, err
+	}
+	return AccountTargetStatus{AccountID: accountID, Active: active}, nil
 }
 
-func (s *Service) Create(ctx context.Context, input CreatePlanInput) (*Plan, error) {
-	input, err := normalizeCreateInput(input)
-	if err != nil {
-		return nil, err
+func (s *Service) EnableAccount(ctx context.Context, accountID int64) (AccountTargetStatus, error) {
+	if accountID <= 0 {
+		return AccountTargetStatus{}, fmt.Errorf("invalid account ID")
 	}
-	plan, err := s.repository.Create(ctx, input)
-	if err != nil {
-		return nil, err
+	if _, err := s.repository.EnableAccount(ctx, accountID); err != nil {
+		return AccountTargetStatus{}, err
 	}
 	if err := s.RefreshPolicy(ctx); err != nil {
-		return nil, fmt.Errorf("refresh account drain policy: %w", err)
+		return AccountTargetStatus{}, fmt.Errorf("refresh account drain policy: %w", err)
 	}
-	return plan, nil
+	return AccountTargetStatus{AccountID: accountID, Active: true}, nil
 }
 
-func (s *Service) Stop(ctx context.Context, id int64) error {
-	if id <= 0 {
-		return fmt.Errorf("invalid plan ID")
+func (s *Service) DisableAccount(ctx context.Context, accountID int64) error {
+	if accountID <= 0 {
+		return fmt.Errorf("invalid account ID")
 	}
-	if err := s.repository.Stop(ctx, id); err != nil {
+	if err := s.repository.DisableAccount(ctx, accountID); err != nil {
 		return err
 	}
 	return s.RefreshPolicy(ctx)

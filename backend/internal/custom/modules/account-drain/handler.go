@@ -17,42 +17,53 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) List(c *gin.Context) {
-	plans, err := h.service.List(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list account drain plans"})
+func (h *Handler) AccountStatus(c *gin.Context) {
+	accountID, ok := parseAccountID(c)
+	if !ok {
 		return
 	}
-	c.JSON(http.StatusOK, plans)
+	status, err := h.service.AccountStatus(c.Request.Context(), accountID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get account directed-consumption status"})
+		return
+	}
+	c.JSON(http.StatusOK, status)
 }
 
-func (h *Handler) Create(c *gin.Context) {
-	var input CreatePlanInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account drain plan"})
+func (h *Handler) EnableAccount(c *gin.Context) {
+	accountID, ok := parseAccountID(c)
+	if !ok {
 		return
 	}
-	plan, err := h.service.Create(c.Request.Context(), input)
+	status, err := h.service.EnableAccount(c.Request.Context(), accountID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Account not found"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, plan)
+	c.JSON(http.StatusOK, status)
 }
 
-func (h *Handler) Stop(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account drain plan ID"})
+func (h *Handler) DisableAccount(c *gin.Context) {
+	accountID, ok := parseAccountID(c)
+	if !ok {
 		return
 	}
-	if err := h.service.Stop(c.Request.Context(), id); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Account drain plan is not active"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stop account drain plan"})
+	if err := h.service.DisableAccount(c.Request.Context(), accountID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stop account directed consumption"})
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func parseAccountID(c *gin.Context) (int64, bool) {
+	accountID, err := strconv.ParseInt(c.Param("accountID"), 10, 64)
+	if err != nil || accountID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account ID"})
+		return 0, false
+	}
+	return accountID, true
 }
