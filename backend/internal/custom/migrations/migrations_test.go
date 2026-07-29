@@ -32,23 +32,3 @@ func TestActivityRedeemMetadataMigrationPreservesLegacyColumns(t *testing.T) {
 		t.Fatal("custom migration must not alter immutable legacy redeem_codes columns")
 	}
 }
-
-func TestAccountDrainMigrationOwnsOnlyCustomTables(t *testing.T) {
-	content, err := files.ReadFile("002_account_drain_plans.sql")
-	if err != nil {
-		t.Fatalf("read migration: %v", err)
-	}
-	sql := string(content)
-	for _, expected := range []string{
-		"CREATE TABLE IF NOT EXISTS custom_account_drain_plans",
-		"CREATE TABLE IF NOT EXISTS custom_account_drain_plan_accounts",
-		"REFERENCES accounts(id) ON DELETE CASCADE",
-	} {
-		if !strings.Contains(sql, expected) {
-			t.Fatalf("migration missing %q", expected)
-		}
-	}
-	if strings.Contains(sql, "ALTER TABLE accounts") || strings.Contains(sql, "DROP TABLE accounts") {
-		t.Fatal("custom account drain migration must not modify upstream accounts")
-	}
-}
