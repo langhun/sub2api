@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   customHeaderActions,
-  customAccountMenuActions,
   customNavigation,
   customRoutes,
   customSettingsPanels,
@@ -24,7 +23,6 @@ const routerSource = readFileSync(resolve(directory, '../../router/index.ts'), '
 const sidebarSource = readFileSync(resolve(directory, '../../components/layout/AppSidebar.vue'), 'utf8')
 const headerSource = readFileSync(resolve(directory, '../../components/layout/AppHeader.vue'), 'utf8')
 const settingsSource = readFileSync(resolve(directory, '../../views/admin/SettingsView.vue'), 'utf8')
-const accountMenuSource = readFileSync(resolve(directory, '../../components/admin/account/AccountActionMenu.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
   it('aggregates routes and navigation from custom modules', () => {
@@ -72,13 +70,6 @@ describe('custom overlay registry', () => {
     expect(headerSource).toContain("import { customHeaderActions } from '@/custom/registry'")
     expect(headerSource).toContain('v-for="action in customHeaderActions"')
     expect(headerSource).not.toContain("@/custom/modules/activity/components/CheckinHeaderActions.vue")
-  })
-
-  it('mounts custom account actions through the account menu', () => {
-    expect(customAccountMenuActions.map((action) => action.id)).toContain('account-drain-target')
-    expect(accountMenuSource).toContain("import { customAccountMenuActions } from '@/custom/registry'")
-    expect(accountMenuSource).toContain('v-for="action in customAccountMenuActions"')
-    expect(accountMenuSource).not.toContain("@/custom/modules/account-drain/components/AccountDrainMenuAction.vue")
   })
 
   it('owns custom setting panels through the registry rather than the shared form', () => {

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/custom"
-	accountdrain "github.com/Wei-Shaw/sub2api/internal/custom/modules/account-drain"
 	activitycheckin "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/checkin"
 	activityleaderboard "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/leaderboard"
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
@@ -44,7 +43,6 @@ func TestRegisterRoutesMountsGameHallModule(t *testing.T) {
 	custom.RegisterRoutes(
 		router,
 		&custom.Runtime{
-			AccountDrain:        &accountdrain.Module{Handler: accountdrain.NewHandler(nil)},
 			ActivityCheckin:     activitycheckin.NewModule(nil, nil),
 			ActivityLeaderboard: activityleaderboard.NewModule(nil, activityleaderboard.Readers{}),
 			ActivityRedPacket:   activityredpacket.NewModule(nil, nil),
@@ -64,12 +62,6 @@ func TestRegisterRoutesMountsGameHallModule(t *testing.T) {
 	}
 
 	_, exists := routes["POST /api/v1/game-hall/play"]
-	require.True(t, exists)
-	_, exists = routes["GET /api/v1/admin/account-drain/accounts/:accountID/status"]
-	require.True(t, exists)
-	_, exists = routes["PUT /api/v1/admin/account-drain/accounts/:accountID/target"]
-	require.True(t, exists)
-	_, exists = routes["DELETE /api/v1/admin/account-drain/accounts/:accountID/target"]
 	require.True(t, exists)
 	_, exists = routes["GET /api/v1/admin/game-hall/rounds"]
 	require.True(t, exists)
