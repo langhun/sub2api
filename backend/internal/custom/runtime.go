@@ -7,7 +7,6 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	custommigrations "github.com/Wei-Shaw/sub2api/internal/custom/migrations"
-	accountdrain "github.com/Wei-Shaw/sub2api/internal/custom/modules/account-drain"
 	activitycheckin "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/checkin"
 	activityleaderboard "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/leaderboard"
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
@@ -31,7 +30,6 @@ var ProviderSet = wire.NewSet(
 
 // Runtime owns dependencies shared by custom modules as they are introduced.
 type Runtime struct {
-	AccountDrain        *accountdrain.Module
 	ActivityCheckin     *activitycheckin.Module
 	ActivityLeaderboard *activityleaderboard.Module
 	ActivityRedPacket   *activityredpacket.Module
@@ -51,7 +49,6 @@ func NewRuntime(
 	adminService service.AdminService,
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
-	openAIGateway *service.OpenAIGatewayService,
 ) (*Runtime, error) {
 	if err := custommigrations.Apply(context.Background(), db); err != nil {
 		return nil, err
@@ -130,12 +127,7 @@ func NewRuntime(
 		walletextension.NewEntBalanceWriter(client),
 		walletextension.NewBalanceCacheInvalidator(balanceCache),
 	)
-	accountDrain, err := accountdrain.NewModule(context.Background(), db, openAIGateway)
-	if err != nil {
-		return nil, err
-	}
 	return &Runtime{
-		AccountDrain:        accountDrain,
 		ActivityCheckin:     activityCheckin,
 		ActivityLeaderboard: activityleaderboard.NewDatabaseModule(client, db),
 		ActivityRedPacket:   activityRedPacket,
