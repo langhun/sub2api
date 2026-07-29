@@ -98,7 +98,7 @@ func ProvideRouter(
 		service.SetWebSearchManager(websearch.NewManager(configs, redisClient))
 	})
 
-	return SetupRouter(r, handlers, jwtAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, publicSettingsProvider, compositeResolver, cfg, redisClient, customRuntime)
+	return SetupRouter(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, publicSettingsProvider, compositeResolver, cfg, redisClient, customRuntime)
 }
 
 func configureTrustedProxies(r *gin.Engine, cfg config.ServerConfig) {

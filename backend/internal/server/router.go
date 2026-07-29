@@ -74,7 +74,7 @@ func SetupRouter(
 
 	// Serve embedded frontend with settings injection if available
 	if web.HasEmbeddedFrontend() {
-		frontendServer, err := web.NewFrontendServer(publicSettingsProvider)
+		frontendServer, err := web.NewFrontendServer(publicSettingsProvider) //nolint:staticcheck // embed builds can return nil
 		if err != nil {
 			log.Printf("Warning: Failed to create frontend server with settings injection: %v, using legacy mode", err)
 			r.Use(web.ServeEmbeddedFrontend())
@@ -93,7 +93,7 @@ func SetupRouter(
 
 	// 注册路由
 	custom.RegisterRoutes(r, customRuntime, jwtAuth, adminAuth, auditLog, settingService)
-	registerRoutes(r, handlers, jwtAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient)
+	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient)
 
 	return r
 }
