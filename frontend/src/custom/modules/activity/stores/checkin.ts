@@ -50,12 +50,10 @@ export const useCheckinStore = defineStore('checkin', () => {
         status.value.streak_days = result.streak_days
         status.value.today_reward = result.reward_amount
         status.value.today_checkin_type = result.checkin_type
-        status.value.balance += result.reward_amount
       }
 
       const authStore = useAuthStore()
-      applyBalanceReward(authStore, result.reward_amount)
-      await refreshUserBalance(authStore)
+      await authStore.refreshUser()
 
       return result
     } catch (cause) {
@@ -80,15 +78,13 @@ export const useCheckinStore = defineStore('checkin', () => {
         status.value.streak_days = result.streak_days
         status.value.today_reward = result.reward_amount
         status.value.today_checkin_type = result.checkin_type
-        status.value.balance += result.reward_amount
         if (result.multiplier !== undefined) {
           status.value.today_multiplier = result.multiplier
         }
       }
 
       const authStore = useAuthStore()
-      applyBalanceReward(authStore, result.reward_amount)
-      await refreshUserBalance(authStore)
+      await authStore.refreshUser()
 
       return result
     } catch (cause) {
@@ -101,21 +97,6 @@ export const useCheckinStore = defineStore('checkin', () => {
 
   function clearBlindboxResult() {
     blindboxResult.value = null
-  }
-
-  function applyBalanceReward(authStore: ReturnType<typeof useAuthStore>, rewardAmount: number): void {
-    if (!authStore.user || !Number.isFinite(rewardAmount)) return
-    authStore.user.balance += rewardAmount
-  }
-
-  async function refreshUserBalance(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
-    try {
-      await authStore.refreshUser()
-    } catch (error) {
-      // The completed check-in is authoritative. The next background refresh
-      // will reconcile the profile if this best-effort display refresh fails.
-      console.warn('Failed to refresh user balance after check-in:', error)
-    }
   }
 
   function clearActionError() {
