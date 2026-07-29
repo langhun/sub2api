@@ -103,6 +103,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Available Channels',
   }),
+  modelPlaza: defineFeatureFlag({
+    key: 'model_plaza_enabled',
+    mode: 'opt-in',
+    label: 'Model Plaza',
+  }),
   payment: defineFeatureFlag({
     key: 'payment_enabled',
     mode: 'opt-out',
