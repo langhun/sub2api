@@ -183,7 +183,7 @@ import Icon from '@/components/icons/Icon.vue'
 
 const props = defineProps<{ show: boolean; user: AdminUser | null; hideActions?: boolean }>()
 const emit = defineEmits(['close', 'deposit', 'withdraw'])
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const history = ref<BalanceHistoryItem[]>([])
 const loading = ref(false)
@@ -239,7 +239,9 @@ const loadHistory = async (page: number) => {
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'
 
 // Helper: check if balance type (includes admin_balance)
-const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance'
+const isBalanceType = (type: string) => {
+  return type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance' || te(`redeem.activityBalanceTypes.${type}`)
+}
 
 // Helper: check if subscription type
 const isSubscriptionType = (type: string) => type === 'subscription'
@@ -305,9 +307,10 @@ const getItemTitle = (item: BalanceHistoryItem) => {
       return item.value >= 0 ? t('redeem.concurrencyAddedAdmin') : t('redeem.concurrencyReducedAdmin')
     case 'subscription':
       return t('redeem.subscriptionAssigned')
-    default:
-      return t('common.unknown')
   }
+
+  const customTypeKey = `redeem.activityHistoryTypes.${item.type}`
+  return te(customTypeKey) ? t(customTypeKey) : t('common.unknown')
 }
 
 // Format display value
