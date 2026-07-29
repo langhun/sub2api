@@ -65,3 +65,32 @@ func TestUpdateSettingsSMTPFromAliasIsWritable(t *testing.T) {
 
 	require.Equal(t, "new@example.com", repo.values[service.SettingKeySMTPFrom])
 }
+
+func TestUpdateSettingsModelPlazaSwitchesPersist(t *testing.T) {
+	h, repo := newStepUpSwitchTestHandler(t, map[string]string{
+		service.SettingKeyModelPlazaEnabled:     "false",
+		service.SettingKeyModelPlazaRequireAuth: "false",
+		service.SettingKeyModelPlazaDescription: "old description",
+	})
+
+	rec := doUpdateSettings(t, h, map[string]any{
+		"model_plaza_enabled":      true,
+		"model_plaza_require_auth": true,
+		"model_plaza_description":  "new description",
+	}, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	require.Equal(t, "true", repo.values[service.SettingKeyModelPlazaEnabled])
+	require.Equal(t, "true", repo.values[service.SettingKeyModelPlazaRequireAuth])
+	require.Equal(t, "new description", repo.values[service.SettingKeyModelPlazaDescription])
+	require.Contains(t, rec.Body.String(), `"model_plaza_enabled":true`)
+	require.Contains(t, rec.Body.String(), `"model_plaza_require_auth":true`)
+	require.Contains(t, rec.Body.String(), `"model_plaza_description":"new description"`)
+
+	// A later partial save must retain the previously enabled Plaza settings.
+	rec = doUpdateSettings(t, h, map[string]any{"registration_enabled": true}, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "true", repo.values[service.SettingKeyModelPlazaEnabled])
+	require.Equal(t, "true", repo.values[service.SettingKeyModelPlazaRequireAuth])
+	require.Equal(t, "new description", repo.values[service.SettingKeyModelPlazaDescription])
+}
