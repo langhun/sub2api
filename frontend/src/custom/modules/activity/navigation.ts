@@ -84,7 +84,7 @@ export const activityNavigation: readonly CustomNavigationItem[] = [
     icon: RedPacketIcon,
     hideInSimpleMode: true,
     slot: 'after-transfer',
-    featureFlag: makeSidebarFlag(walletExtensionFeatureFlags.redpacket),
+    featureFlag: makeSidebarFlag(activityFeatureFlags.redpacket),
   },
   {
     path: '/leaderboard',

@@ -64,8 +64,9 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-function mountView(locale = 'en') {
+function mountView(locale = 'en', initialTab?: 'balance' | 'consumption' | 'checkin' | 'transfer') {
   return mount(LeaderboardView, {
+    props: { initialTab },
     global: {
       plugins: [createI18n({ legacy: false, locale, missingWarn: false, fallbackWarn: false, messages: { en: {}, 'zh-CN': {} } })],
       stubs: {
@@ -104,6 +105,15 @@ describe('LeaderboardView', () => {
     expect(wrapper.text()).toContain('Balance user')
     expect(wrapper.text()).not.toContain('🥇')
     expect(wrapper.find('icon-stub[name="badge"]').exists()).toBe(true)
+  })
+
+  it('loads the transfer board when opened from the transfer leaderboard route', async () => {
+    const wrapper = mountView('en', 'transfer')
+    await flushPromises()
+
+    expect(api.transfer).toHaveBeenCalledWith('daily', 1, 100)
+    expect(api.balance).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Transfer user')
   })
 
   it('renders complete usernames but never raw fallback emails', async () => {

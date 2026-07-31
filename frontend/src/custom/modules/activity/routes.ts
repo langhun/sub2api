@@ -58,6 +58,7 @@ export const activityRoutes: readonly RouteRecordRaw[] = [
     path: '/transfer/leaderboard',
     name: 'TransferLeaderboard',
     component: () => import('./views/LeaderboardView.vue'),
+    props: { initialTab: 'transfer' },
     meta: {
       requiresAuth: true,
       requiresAdmin: false,

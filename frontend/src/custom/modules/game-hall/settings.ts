@@ -37,7 +37,7 @@ function readSettings(settings: CustomSettingsValues): GameHallSettings {
     const value = values[key]
     if (value !== null && value !== undefined) result[key] = value
   }
-  return defaults
+  return result as GameHallSettings
 }
 
 export const gameHallSettingsPanels: readonly CustomSettingsPanel[] = [

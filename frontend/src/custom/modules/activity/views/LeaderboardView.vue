@@ -234,6 +234,8 @@ ChartJS.register(ArcElement, Tooltip)
 type TabKey = 'balance' | 'consumption' | 'checkin' | 'transfer'
 type PeriodKey = 'daily' | 'weekly' | 'monthly'
 
+const props = defineProps<{ initialTab?: TabKey }>()
+
 const chartColors = [
   '#3b82f6',
   '#10b981',
@@ -250,7 +252,7 @@ const remainderColor = '#94a3b8'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
-const activeTab = ref<TabKey>('balance')
+const activeTab = ref<TabKey>(props.initialTab ?? 'balance')
 const activePeriod = ref<PeriodKey>('daily')
 const entries = ref<LeaderboardEntry[]>([])
 const loading = ref(false)
