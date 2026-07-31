@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { registerFeatureFlags, type FeatureFlagDefinition } from '@/utils/featureFlags'
 import { activityHeaderActions } from './modules/activity/headerActions'
+import { activityHistoryTypeKey, isActivityBalanceType } from './modules/activity/ledger'
 import { activityNavigation } from './modules/activity/navigation'
 import { activityRoutes } from './modules/activity/routes'
 import {
@@ -43,6 +44,11 @@ export interface CustomHeaderAction {
   id: string
   component: Component
 }
+
+export const customLedgerDisplay = {
+  isBalanceType: isActivityBalanceType,
+  historyTypeKey: activityHistoryTypeKey,
+} as const
 
 // This must stay structural rather than a string index signature. Intersecting
 // the latter with the upstream settings form turns every upstream field into

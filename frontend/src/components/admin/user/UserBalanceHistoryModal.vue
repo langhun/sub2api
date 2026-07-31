@@ -174,6 +174,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { customLedgerDisplay } from '@/custom/registry'
 import { adminAPI, type BalanceHistoryItem } from '@/api/admin'
 import { formatDateTime } from '@/utils/format'
 import type { AdminUser } from '@/types'
@@ -240,7 +241,7 @@ const isAdminType = (type: string) => type === 'admin_balance' || type === 'admi
 
 // Helper: check if balance type (includes admin_balance)
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance' || te(`redeem.activityBalanceTypes.${type}`)
+  return type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance' || customLedgerDisplay.isBalanceType(type)
 }
 
 // Helper: check if subscription type
@@ -309,8 +310,8 @@ const getItemTitle = (item: BalanceHistoryItem) => {
       return t('redeem.subscriptionAssigned')
   }
 
-  const customTypeKey = `redeem.activityHistoryTypes.${item.type}`
-  return te(customTypeKey) ? t(customTypeKey) : t('common.unknown')
+  const customTypeKey = customLedgerDisplay.historyTypeKey(item.type)
+  return customTypeKey && te(customTypeKey) ? t(customTypeKey) : t('common.unknown')
 }
 
 // Format display value

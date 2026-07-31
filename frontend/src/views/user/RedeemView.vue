@@ -344,6 +344,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { customLedgerDisplay } from '@/custom/registry'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useSubscriptionStore } from '@/stores/subscriptions'
@@ -379,7 +380,7 @@ const contactInfo = ref('')
 
 // Helper functions for history display
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'admin_balance' || te(`redeem.activityBalanceTypes.${type}`)
+  return type === 'balance' || type === 'admin_balance' || customLedgerDisplay.isBalanceType(type)
 }
 
 const isSubscriptionType = (type: string) => {
@@ -403,8 +404,8 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
     return t('redeem.subscriptionAssigned')
   }
 
-  const customTypeKey = `redeem.activityHistoryTypes.${item.type}`
-  if (te(customTypeKey)) {
+  const customTypeKey = customLedgerDisplay.historyTypeKey(item.type)
+  if (customTypeKey && te(customTypeKey)) {
     return t(customTypeKey)
   }
 
