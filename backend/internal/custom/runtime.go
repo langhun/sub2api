@@ -13,6 +13,7 @@ import (
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
+	upstreamcost "github.com/Wei-Shaw/sub2api/internal/custom/modules/upstream-cost"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -116,6 +117,10 @@ func NewRuntime(
 	if err != nil {
 		return nil, err
 	}
+	// This is the only runtime mount for per-Key upstream-cost accounting.
+	// Core billing receives just the resolved multiplier through its small port.
+	service.SetAccountUsageMultiplierResolver(upstreamcost.NewResolver())
+
 	return &Runtime{
 		ActivityCheckin:     activityCheckin,
 		ActivityLeaderboard: activityleaderboard.NewDatabaseModule(client, db),
