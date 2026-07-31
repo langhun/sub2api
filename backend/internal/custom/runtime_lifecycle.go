@@ -55,6 +55,7 @@ func (r *Runtime) Stop() {
 	if r == nil {
 		return
 	}
+	service.SetAccountUsageMultiplierResolver(nil)
 	if r.ActivityRewards != nil {
 		r.ActivityRewards.Stop()
 	}
