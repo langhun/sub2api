@@ -34,19 +34,9 @@ describe('activity module route and navigation contracts', () => {
             ['leaderboard_balance_enabled'],
             ['leaderboard_consumption_enabled'],
             ['leaderboard_checkin_enabled'],
-            ['leaderboard_transfer_enabled', 'transfer_enabled'],
-          ],
-        }),
-      }),
-      expect.objectContaining({
-        path: '/transfer/leaderboard',
-        name: 'TransferLeaderboard',
-        props: { initialTab: 'transfer' },
-        meta: expect.objectContaining({
-          requiresAuth: true,
-          requiresAllFeatures: ['transfer_enabled', 'leaderboard_enabled', 'leaderboard_transfer_enabled'],
-        }),
-      }),
+		  ],
+		}),
+	  }),
       expect.objectContaining({
         path: '/redpacket',
         name: 'RedPacket',

@@ -3,7 +3,6 @@ package redpacket
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -139,43 +138,17 @@ func (g SettingsCodeGenerator) GenerateRedPacketCode(ctx context.Context) (strin
 	return g.settings.GenerateRedPacketCode(ctx)
 }
 
-// FeeAdapter preserves the existing transfer-fee and VIP exemption policy as a
-// narrow pricing dependency. It does not use BalanceTransferService.
-type FeeAdapter struct {
-	registry      *customsettings.Registry
-	subscriptions ActiveSubscriptionReader
-}
+// ZeroFeeAdapter keeps red-packet pricing independent of the removed balance
+// transfer module. Existing packets and ledgers retain their historical fees.
+type ZeroFeeAdapter struct{}
 
-// ActiveSubscriptionReader answers the only subscription question needed to
-// determine a red-packet VIP fee exemption.
-type ActiveSubscriptionReader interface {
-	HasActiveSubscription(ctx context.Context, userID int64) (bool, error)
-}
+func NewZeroFeeAdapter() ZeroFeeAdapter { return ZeroFeeAdapter{} }
 
-func NewRegistryFeeAdapter(registry *customsettings.Registry, subscriptions ActiveSubscriptionReader) *FeeAdapter {
-	return &FeeAdapter{registry: registry, subscriptions: subscriptions}
-}
-
-func (a *FeeAdapter) QuoteRedPacketFee(ctx context.Context, senderID int64, totalAmount float64) (FeeQuote, error) {
-	if a == nil || a.registry == nil || senderID <= 0 || !validAmount(totalAmount) {
+func (ZeroFeeAdapter) QuoteRedPacketFee(_ context.Context, senderID int64, totalAmount float64) (FeeQuote, error) {
+	if senderID <= 0 || !validAmount(totalAmount) {
 		return FeeQuote{}, fmt.Errorf("invalid red-packet fee request")
 	}
-	snapshot, err := a.registry.Read(ctx)
-	if err != nil {
-		return FeeQuote{}, fmt.Errorf("read custom wallet settings: %w", err)
-	}
-	wallet := snapshot.WalletExtension
-	rate := wallet.DirectTransferFeeRate
-	if wallet.DirectTransferVIPFeeExempt && a.subscriptions != nil {
-		hasActiveSubscription, listErr := a.subscriptions.HasActiveSubscription(ctx, senderID)
-		if listErr == nil && hasActiveSubscription {
-			rate = 0
-		}
-	}
-	if math.IsNaN(rate) || math.IsInf(rate, 0) || rate < 0 {
-		return FeeQuote{}, fmt.Errorf("invalid red-packet fee rate")
-	}
-	return FeeQuote{Rate: rate, Amount: roundAmount(totalAmount * rate)}, nil
+	return FeeQuote{}, nil
 }
 
 func entClient(ctx context.Context, client *dbent.Client) *dbent.Client {

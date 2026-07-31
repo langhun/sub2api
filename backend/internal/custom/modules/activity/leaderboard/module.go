@@ -26,7 +26,6 @@ func NewDatabaseModule(client *dbent.Client, db *sql.DB) *Module {
 		Balance:     repository,
 		Consumption: repository,
 		Checkin:     repository,
-		Transfer:    repository,
 	})
 }
 
@@ -40,5 +39,4 @@ func (m *Module) RegisterRoutes(r *gin.Engine) {
 	leaderboard.GET("/balance", m.Handler.Balance)
 	leaderboard.GET("/consumption", m.Handler.Consumption)
 	leaderboard.GET("/checkin", m.Handler.Checkin)
-	leaderboard.GET("/transfer", m.Handler.Transfer)
 }

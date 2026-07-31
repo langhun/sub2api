@@ -24,7 +24,6 @@ type Readers struct {
 	Balance     contract.BalanceLeaderboardReader
 	Consumption contract.ConsumptionLeaderboardReader
 	Checkin     contract.CheckinLeaderboardReader
-	Transfer    contract.TransferLeaderboardReader
 }
 
 // Service enforces activity feature policy before delegating to a read model.
@@ -72,11 +71,6 @@ func (s *Service) List(ctx context.Context, kind contract.LeaderboardKind, query
 			return contract.LeaderboardPage{}, ErrUnavailable
 		}
 		return s.readers.Checkin.ListCheckinLeaderboard(ctx, query)
-	case contract.LeaderboardTransfer:
-		if s.readers.Transfer == nil {
-			return contract.LeaderboardPage{}, ErrUnavailable
-		}
-		return s.readers.Transfer.ListTransferLeaderboard(ctx, query)
 	default:
 		return contract.LeaderboardPage{}, ErrUnsupportedKind
 	}
@@ -93,8 +87,6 @@ func enabled(settings contract.LeaderboardFeatureSettings, kind contract.Leaderb
 		return settings.ConsumptionEnabled
 	case contract.LeaderboardCheckin:
 		return settings.CheckinEnabled
-	case contract.LeaderboardTransfer:
-		return settings.TransferEnabled && settings.TransferBoardEnabled
 	default:
 		return false
 	}
@@ -110,7 +102,7 @@ func validateQuery(kind contract.LeaderboardKind, query *contract.LeaderboardQue
 		if query.Period != "" {
 			return ErrInvalidPeriod
 		}
-	case contract.LeaderboardConsumption, contract.LeaderboardTransfer:
+	case contract.LeaderboardConsumption:
 		if query.Period == "" {
 			query.Period = contract.LeaderboardPeriodDaily
 		}

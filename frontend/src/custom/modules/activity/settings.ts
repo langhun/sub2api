@@ -29,7 +29,6 @@ export const activityFeatureFlags = {
   leaderboardBalance: defineFeatureFlag({ key: 'leaderboard_balance_enabled', mode: 'opt-out', label: 'Balance Leaderboard' }),
   leaderboardConsumption: defineFeatureFlag({ key: 'leaderboard_consumption_enabled', mode: 'opt-out', label: 'Consumption Leaderboard' }),
   leaderboardCheckin: defineFeatureFlag({ key: 'leaderboard_checkin_enabled', mode: 'opt-out', label: 'Check-in Leaderboard' }),
-  leaderboardTransfer: defineFeatureFlag({ key: 'leaderboard_transfer_enabled', mode: 'opt-in', label: 'Transfer Leaderboard' }),
 } as const
 
 interface ActivityLeaderboardSettings {
@@ -37,7 +36,6 @@ interface ActivityLeaderboardSettings {
   leaderboard_balance_enabled: boolean
   leaderboard_consumption_enabled: boolean
   leaderboard_checkin_enabled: boolean
-  leaderboard_transfer_enabled: boolean
   leaderboard_include_admin: boolean
 }
 
@@ -77,7 +75,6 @@ const defaultLeaderboardSettings = (): ActivityLeaderboardSettings => ({
   leaderboard_balance_enabled: true,
   leaderboard_consumption_enabled: true,
   leaderboard_checkin_enabled: true,
-  leaderboard_transfer_enabled: false,
   leaderboard_include_admin: false,
 })
 
@@ -137,18 +134,13 @@ export const activitySettingsPanels: readonly CustomSettingsPanel[] = [
         leaderboard_balance_enabled: settings.leaderboard_balance_enabled,
         leaderboard_consumption_enabled: settings.leaderboard_consumption_enabled,
         leaderboard_checkin_enabled: settings.leaderboard_checkin_enabled,
-        leaderboard_transfer_enabled: settings.leaderboard_transfer_enabled,
         leaderboard_include_admin: settings.leaderboard_include_admin,
       }
     },
-    validate: (form, allForms) => {
+    validate: (form) => {
       const settings = form as unknown as ActivityEntrySwitchesSettings
-      const wallet = allForms['wallet-extension'] as { transfer_enabled?: boolean } | undefined
-      if (settings.leaderboard_enabled && !settings.leaderboard_balance_enabled && !settings.leaderboard_consumption_enabled && !settings.leaderboard_checkin_enabled && !settings.leaderboard_transfer_enabled) {
+      if (settings.leaderboard_enabled && !settings.leaderboard_balance_enabled && !settings.leaderboard_consumption_enabled && !settings.leaderboard_checkin_enabled) {
         return '开启排行榜时至少启用一个榜单标签'
-      }
-      if (settings.leaderboard_transfer_enabled && !wallet?.transfer_enabled) {
-        return '转账排行榜依赖余额转账功能'
       }
       return ''
     },

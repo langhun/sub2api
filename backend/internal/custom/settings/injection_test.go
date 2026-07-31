@@ -19,13 +19,11 @@ func (s publicSettingsSourceStub) GetPublicSettingsForInjection(context.Context)
 func TestInjectionProviderProjectsOverlaySettingsFromRegistry(t *testing.T) {
 	registry := NewRegistry(&memoryStore{values: map[string]string{
 		"checkin_enabled":   "true",
-		"transfer_enabled":  "true",
 		"game_hall_enabled": "true",
 	}})
 	provider := NewInjectionProvider(publicSettingsSourceStub{value: map[string]any{
 		"site_name":         "Sub2API",
 		"checkin_enabled":   false,
-		"transfer_enabled":  false,
 		"game_hall_enabled": false,
 	}}, registry)
 
@@ -35,6 +33,6 @@ func TestInjectionProviderProjectsOverlaySettingsFromRegistry(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "Sub2API", settings["site_name"])
 	require.Equal(t, true, settings["checkin_enabled"])
-	require.Equal(t, true, settings["transfer_enabled"])
+	require.NotContains(t, settings, "transfer_enabled")
 	require.Equal(t, true, settings["game_hall_enabled"])
 }

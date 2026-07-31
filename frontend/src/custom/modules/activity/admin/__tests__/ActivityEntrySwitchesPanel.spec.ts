@@ -10,7 +10,6 @@ const initialSettings = {
   leaderboard_balance_enabled: true,
   leaderboard_consumption_enabled: true,
   leaderboard_checkin_enabled: true,
-  leaderboard_transfer_enabled: false,
   leaderboard_include_admin: false,
 }
 
@@ -23,7 +22,7 @@ const UsagePanelStub = {
 const LeaderboardPanelStub = {
   props: ['modelValue'],
   emits: ['update:modelValue'],
-  template: '<button data-testid="leaderboard" @click="$emit(\'update:modelValue\', { ...modelValue, leaderboard_transfer_enabled: true })">leaderboard</button>',
+	template: '<button data-testid="leaderboard" @click="$emit(\'update:modelValue\', { ...modelValue, leaderboard_checkin_enabled: false })">leaderboard</button>',
 }
 
 function mountPanel() {
@@ -64,7 +63,7 @@ describe('ActivityEntrySwitchesPanel', () => {
 
     expect(wrapper.emitted('update:modelValue')).toEqual([
       [{ ...initialSettings, usage_query_enabled: false }],
-      [{ ...initialSettings, usage_query_enabled: false, leaderboard_transfer_enabled: true }],
+		[{ ...initialSettings, usage_query_enabled: false, leaderboard_checkin_enabled: false }],
     ])
   })
 })

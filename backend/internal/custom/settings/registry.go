@@ -10,7 +10,6 @@ import (
 	brandhomesettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/brand-home/settings"
 	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
 	gamehallsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall/settings"
-	walletsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/wallet-extension/settings"
 	"github.com/Wei-Shaw/sub2api/internal/custom/settings/contract"
 	"github.com/Wei-Shaw/sub2api/internal/handler/settingsext"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -23,11 +22,10 @@ var ProviderSet = wire.NewSet(ProvideRegistry, ProvideHandlerSettingsMount)
 
 // Snapshot is the complete typed configuration owned by Overlay modules.
 type Snapshot struct {
-	Activity        activitysettings.Config
-	BrandHome       brandhomesettings.Config
-	CodeFormat      codeformatsettings.Config
-	WalletExtension walletsettings.Config
-	GameHall        gamehallsettings.Config
+	Activity   activitysettings.Config
+	BrandHome  brandhomesettings.Config
+	CodeFormat codeformatsettings.Config
+	GameHall   gamehallsettings.Config
 }
 
 // Registry is the sole aggregate for Overlay settings. Core settings code can
@@ -65,15 +63,11 @@ func (r *Registry) Read(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
-	walletConfig, err := walletsettings.New(r.store).Read(ctx)
-	if err != nil {
-		return Snapshot{}, err
-	}
 	gameHallConfig, err := gamehallsettings.New(r.store).Read(ctx)
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return Snapshot{Activity: activityConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, WalletExtension: walletConfig, GameHall: gameHallConfig}, nil
+	return Snapshot{Activity: activityConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig}, nil
 }
 
 func (r *Registry) Validate(snapshot Snapshot) error {
@@ -84,9 +78,6 @@ func (r *Registry) Validate(snapshot Snapshot) error {
 		return err
 	}
 	if err := codeformatsettings.Validate(snapshot.CodeFormat); err != nil {
-		return err
-	}
-	if err := walletsettings.Validate(snapshot.WalletExtension); err != nil {
 		return err
 	}
 	if err := gamehallsettings.Validate(snapshot.GameHall); err != nil {
@@ -143,22 +134,17 @@ func Values(snapshot Snapshot) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	walletValues, err := walletsettings.Values(snapshot.WalletExtension)
-	if err != nil {
-		return nil, err
-	}
 	gameHallValues, err := gamehallsettings.Values(snapshot.GameHall)
 	if err != nil {
 		return nil, err
 	}
-	return mergeStringValues(activityValues, brandHomeValues, codeFormatValues, walletValues, gameHallValues)
+	return mergeStringValues(activityValues, brandHomeValues, codeFormatValues, gameHallValues)
 }
 
 func Public(snapshot Snapshot) map[string]any {
 	values, err := mergePublicValues(
 		activitysettings.Public(snapshot.Activity),
 		brandhomesettings.Public(snapshot.BrandHome),
-		walletsettings.Public(snapshot.WalletExtension),
 		gamehallsettings.Public(snapshot.GameHall),
 	)
 	if err != nil {

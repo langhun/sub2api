@@ -2,7 +2,6 @@ import { h } from 'vue'
 import { isFeatureFlagEnabled, makeSidebarFlag } from '@/utils/featureFlags'
 import type { CustomNavigationItem } from '../../registry'
 import { activityFeatureFlags } from './settings'
-import { walletExtensionFeatureFlags } from '../wallet-extension/settings'
 
 const CheckinIcon = {
   render: () => h(
@@ -51,7 +50,6 @@ function isLeaderboardEnabled() {
     isFeatureFlagEnabled(activityFeatureFlags.leaderboardBalance)
     || isFeatureFlagEnabled(activityFeatureFlags.leaderboardConsumption)
     || isFeatureFlagEnabled(activityFeatureFlags.leaderboardCheckin)
-    || (isFeatureFlagEnabled(activityFeatureFlags.leaderboardTransfer) && isFeatureFlagEnabled(walletExtensionFeatureFlags.transfer))
   )
 }
 

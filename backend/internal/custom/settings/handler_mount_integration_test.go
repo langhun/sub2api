@@ -29,7 +29,6 @@ func TestOverlaySettingsMountWritesOnlyOverlayOwnedValues(t *testing.T) {
 	formats.RedPacket.Prefix = "RP"
 	body, err := json.Marshal(map[string]any{
 		"checkin_enabled":      true,
-		"transfer_enabled":     true,
 		"game_hall_enabled":    true,
 		"code_format_settings": formats,
 	})
@@ -44,7 +43,7 @@ func TestOverlaySettingsMountWritesOnlyOverlayOwnedValues(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Equal(t, "true", repo.values["checkin_enabled"])
-	require.Equal(t, "true", repo.values["transfer_enabled"])
+	require.NotContains(t, repo.values, "transfer_enabled")
 	require.Equal(t, "true", repo.values["game_hall_enabled"])
 	require.Equal(t, formats, codeformatsettings.FromValues(repo.values))
 }

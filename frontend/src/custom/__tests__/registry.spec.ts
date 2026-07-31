@@ -15,8 +15,6 @@ import { activityRoutes } from '../modules/activity/routes'
 import { brandHomeRoutes } from '../modules/brand-home/routes'
 import { gameHallNavigation } from '../modules/game-hall/navigation'
 import { gameHallRoutes } from '../modules/game-hall/routes'
-import { walletExtensionNavigation } from '../modules/wallet-extension/navigation'
-import { walletExtensionRoutes } from '../modules/wallet-extension/routes'
 
 const directory = dirname(fileURLToPath(import.meta.url))
 const routerSource = readFileSync(resolve(directory, '../../router/index.ts'), 'utf8')
@@ -29,10 +27,8 @@ describe('custom overlay registry', () => {
     expect(customRoutes).toEqual(expect.arrayContaining(brandHomeRoutes))
     expect(customRoutes).toEqual(expect.arrayContaining(activityRoutes))
     expect(customRoutes).toEqual(expect.arrayContaining(gameHallRoutes))
-    expect(customRoutes).toEqual(expect.arrayContaining(walletExtensionRoutes))
     expect(customNavigation).toEqual(expect.arrayContaining(activityNavigation))
     expect(customNavigation).toEqual(expect.arrayContaining(gameHallNavigation))
-    expect(customNavigation).toEqual(expect.arrayContaining(walletExtensionNavigation))
     expect(customHeaderActions).toEqual(expect.arrayContaining(activityHeaderActions))
   })
 
@@ -41,11 +37,11 @@ describe('custom overlay registry', () => {
     expect(routerSource.indexOf('...customRoutes')).toBeLessThan(routerSource.indexOf("path: '/:pathMatch(.*)*'"))
   })
 
-  it('leaves the direct-transfer URL to the wallet extension', () => {
-    expect(routerSource).not.toContain("path: '/transfer'")
-    expect(sidebarSource).not.toContain("{ path: '/transfer'")
-    expect(customRoutes.filter((route) => route.path === '/transfer')).toHaveLength(1)
-    expect(customNavigation.filter((item) => item.path === '/transfer')).toHaveLength(1)
+	it('does not register removed transfer routes or navigation', () => {
+		expect(routerSource).not.toContain("path: '/transfer'")
+		expect(sidebarSource).not.toContain("{ path: '/transfer'")
+		expect(customRoutes.filter((route) => route.path === '/transfer')).toHaveLength(0)
+		expect(customNavigation.filter((item) => item.path === '/transfer')).toHaveLength(0)
   })
 
   it('leaves usage routes and the sidebar entry to the activity module', () => {
@@ -75,10 +71,9 @@ describe('custom overlay registry', () => {
   it('owns custom setting panels through the registry rather than the shared form', () => {
     expect(customSettingsPanels.map((panel) => panel.id)).toEqual([
       'brand-home',
-      'game-hall',
-      'activity-entry-switches',
-      'activity',
-      'wallet-extension',
+		'game-hall',
+		'activity-entry-switches',
+		'activity',
     ])
     expect(settingsSource).toContain("customSettingsPanelsFor('site')")
     expect(settingsSource).toContain("customSettingsPanelsFor('entry-switches')")

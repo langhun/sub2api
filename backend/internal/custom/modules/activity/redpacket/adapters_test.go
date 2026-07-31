@@ -23,17 +23,12 @@ func TestRegistrySettingsAdapterProjectsActivityRedPacketSettings(t *testing.T) 
 	require.Equal(t, 48, settings.ExpireHours)
 }
 
-func TestRegistryFeeAdapterProjectsWalletFeePolicy(t *testing.T) {
-	registry := customsettings.NewRegistry(redPacketSettingsStore{values: map[string]string{
-		"transfer_fee_rate":       "0.025",
-		"transfer_vip_fee_exempt": "true",
-	}})
-
-	quote, err := NewRegistryFeeAdapter(registry, nil).QuoteRedPacketFee(context.Background(), 7, 10)
+func TestZeroFeeAdapterKeepsRedPacketsFree(t *testing.T) {
+	quote, err := NewZeroFeeAdapter().QuoteRedPacketFee(context.Background(), 7, 10)
 
 	require.NoError(t, err)
-	require.Equal(t, 0.025, quote.Rate)
-	require.Equal(t, 0.25, quote.Amount)
+	require.Zero(t, quote.Rate)
+	require.Zero(t, quote.Amount)
 }
 
 func TestSettingsCodeGeneratorUsesOnlyTheCodeGenerationPort(t *testing.T) {

@@ -45,15 +45,6 @@ func (r *checkinReaderStub) ListCheckinLeaderboard(_ context.Context, query cont
 	return contract.LeaderboardPage{}, nil
 }
 
-type transferReaderStub struct {
-	queries []contract.LeaderboardQuery
-}
-
-func (r *transferReaderStub) ListTransferLeaderboard(_ context.Context, query contract.LeaderboardQuery) (contract.LeaderboardPage, error) {
-	r.queries = append(r.queries, query)
-	return contract.LeaderboardPage{}, nil
-}
-
 func TestServiceListAppliesTrustedSettingsToBalanceReader(t *testing.T) {
 	reader := &balanceReaderStub{}
 	service := NewService(leaderboardSettingsStub{settings: contract.LeaderboardFeatureSettings{
@@ -110,16 +101,6 @@ func TestServiceListRejectsDisabledBoardsWithoutReading(t *testing.T) {
 			settings: contract.LeaderboardFeatureSettings{Enabled: true},
 			readers:  Readers{Checkin: &checkinReaderStub{}},
 		},
-		{
-			name: "transfer board", kind: contract.LeaderboardTransfer,
-			settings: contract.LeaderboardFeatureSettings{Enabled: true, TransferEnabled: true},
-			readers:  Readers{Transfer: &transferReaderStub{}},
-		},
-		{
-			name: "transfer feature", kind: contract.LeaderboardTransfer,
-			settings: contract.LeaderboardFeatureSettings{Enabled: true, TransferBoardEnabled: true},
-			readers:  Readers{Transfer: &transferReaderStub{}},
-		},
 	}
 
 	for _, test := range tests {
@@ -145,16 +126,6 @@ func TestServiceListRejectsInvalidQueriesBeforeReadingSettings(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidPeriod)
 }
 
-func TestServiceListRequiresPublicTransferReader(t *testing.T) {
-	service := NewService(leaderboardSettingsStub{settings: contract.LeaderboardFeatureSettings{
-		Enabled: true, TransferEnabled: true, TransferBoardEnabled: true,
-	}}, Readers{})
-
-	_, err := service.List(context.Background(), contract.LeaderboardTransfer, contract.LeaderboardQuery{Page: 1, PageSize: 20})
-
-	require.ErrorIs(t, err, ErrUnavailable)
-}
-
 func assertNoLeaderboardReaderCall(t *testing.T, readers Readers) {
 	t.Helper()
 	if reader, ok := readers.Balance.(*balanceReaderStub); ok {
@@ -164,9 +135,6 @@ func assertNoLeaderboardReaderCall(t *testing.T, readers Readers) {
 		require.Empty(t, reader.queries)
 	}
 	if reader, ok := readers.Checkin.(*checkinReaderStub); ok {
-		require.Empty(t, reader.queries)
-	}
-	if reader, ok := readers.Transfer.(*transferReaderStub); ok {
 		require.Empty(t, reader.queries)
 	}
 }

@@ -33,7 +33,6 @@ interface ActivityEntrySwitchesSettings {
   leaderboard_balance_enabled: boolean
   leaderboard_consumption_enabled: boolean
   leaderboard_checkin_enabled: boolean
-  leaderboard_transfer_enabled: boolean
   leaderboard_include_admin: boolean
 }
 
@@ -54,7 +53,6 @@ const leaderboardSettings = computed<ActivityLeaderboardSettings>(() => ({
   leaderboard_balance_enabled: form.leaderboard_balance_enabled,
   leaderboard_consumption_enabled: form.leaderboard_consumption_enabled,
   leaderboard_checkin_enabled: form.leaderboard_checkin_enabled,
-  leaderboard_transfer_enabled: form.leaderboard_transfer_enabled,
   leaderboard_include_admin: form.leaderboard_include_admin,
 }))
 

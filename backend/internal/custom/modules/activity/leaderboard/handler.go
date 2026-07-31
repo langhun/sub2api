@@ -30,10 +30,6 @@ func (h *Handler) Checkin(c *gin.Context) {
 	h.list(c, contract.LeaderboardCheckin)
 }
 
-func (h *Handler) Transfer(c *gin.Context) {
-	h.list(c, contract.LeaderboardTransfer)
-}
-
 func (h *Handler) list(c *gin.Context, kind contract.LeaderboardKind) {
 	if h == nil || h.service == nil {
 		response.Error(c, http.StatusServiceUnavailable, "activity leaderboard is unavailable")
