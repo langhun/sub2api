@@ -5,7 +5,6 @@ export { walletExtensionPublicSettingsDefaults } from './publicSettings'
 
 export const walletExtensionFeatureFlags = {
   transfer: defineFeatureFlag({ key: 'transfer_enabled', mode: 'opt-in', label: 'Balance Transfer' }),
-  redpacket: defineFeatureFlag({ key: 'redpacket_enabled', mode: 'opt-in', label: 'Red Packet' }),
 } as const
 
 interface WalletExtensionSettings {
@@ -16,9 +15,6 @@ interface WalletExtensionSettings {
   transfer_daily_limit: number
   transfer_daily_count_limit: number
   transfer_vip_fee_exempt: boolean
-  redpacket_enabled: boolean
-  redpacket_max_count: number
-  redpacket_expire_hours: number
 }
 
 const defaultWalletExtensionSettings = (): WalletExtensionSettings => ({
@@ -29,9 +25,6 @@ const defaultWalletExtensionSettings = (): WalletExtensionSettings => ({
   transfer_daily_limit: 1000,
   transfer_daily_count_limit: 50,
   transfer_vip_fee_exempt: false,
-  redpacket_enabled: false,
-  redpacket_max_count: 100,
-  redpacket_expire_hours: 24,
 })
 
 function readSettings(settings: CustomSettingsValues): WalletExtensionSettings {
@@ -42,7 +35,7 @@ function readSettings(settings: CustomSettingsValues): WalletExtensionSettings {
     const value = values[key]
     if (value !== null && value !== undefined) result[key] = value
   }
-  return defaults
+  return result as WalletExtensionSettings
 }
 
 export const walletExtensionSettingsPanels: readonly CustomSettingsPanel[] = [
@@ -64,9 +57,6 @@ export const walletExtensionSettingsPanels: readonly CustomSettingsPanel[] = [
         transfer_daily_limit: Number(settings.transfer_daily_limit) || 0,
         transfer_daily_count_limit: Number(settings.transfer_daily_count_limit) || 0,
         transfer_vip_fee_exempt: settings.transfer_vip_fee_exempt,
-        redpacket_enabled: settings.redpacket_enabled,
-        redpacket_max_count: Number(settings.redpacket_max_count) || 1,
-        redpacket_expire_hours: Number(settings.redpacket_expire_hours) || 1,
       }
     },
     validate: (form) => {

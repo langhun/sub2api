@@ -14,11 +14,6 @@
         <label class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.settings.balanceFeatures.dailyCount') }}<input v-model.number="form.transfer_daily_count_limit" type="number" min="0" class="input mt-1" /></label>
         <label class="flex items-center gap-3 pt-6 text-sm text-gray-600 dark:text-gray-300"><Toggle v-model="form.transfer_vip_fee_exempt" />{{ t('admin.settings.balanceFeatures.vipExempt') }}</label>
       </div>
-      <div class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"><span class="font-medium text-gray-900 dark:text-white">{{ t('admin.settings.balanceFeatures.redpacketEnabled') }}</span><Toggle v-model="form.redpacket_enabled" /></div>
-      <div v-if="form.redpacket_enabled" class="grid gap-4 md:grid-cols-2">
-        <label class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.settings.balanceFeatures.redpacketMaxCount') }}<input v-model.number="form.redpacket_max_count" type="number" min="1" class="input mt-1" /></label>
-        <label class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.settings.balanceFeatures.redpacketExpireHours') }}<input v-model.number="form.redpacket_expire_hours" type="number" min="1" class="input mt-1" /></label>
-      </div>
     </div>
   </div>
 </template>
@@ -36,9 +31,6 @@ interface WalletExtensionSettings {
   transfer_daily_limit: number
   transfer_daily_count_limit: number
   transfer_vip_fee_exempt: boolean
-  redpacket_enabled: boolean
-  redpacket_max_count: number
-  redpacket_expire_hours: number
 }
 
 const props = defineProps<{ modelValue: WalletExtensionSettings }>()

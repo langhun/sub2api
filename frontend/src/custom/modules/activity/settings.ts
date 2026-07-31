@@ -24,6 +24,7 @@ export const activityFeatureFlags = {
   checkin: defineFeatureFlag({ key: 'checkin_enabled', mode: 'opt-in', label: 'Check-in' }),
   checkinLuck: defineFeatureFlag({ key: 'checkin_luck_enabled', mode: 'opt-in', label: 'Lucky Check-in' }),
   checkinBlindbox: defineFeatureFlag({ key: 'checkin_blindbox_enabled', mode: 'opt-in', label: 'Check-in Blind Box' }),
+  redpacket: defineFeatureFlag({ key: 'redpacket_enabled', mode: 'opt-in', label: 'Red Packet' }),
   leaderboard: defineFeatureFlag({ key: 'leaderboard_enabled', mode: 'opt-out', label: 'Leaderboard' }),
   leaderboardBalance: defineFeatureFlag({ key: 'leaderboard_balance_enabled', mode: 'opt-out', label: 'Balance Leaderboard' }),
   leaderboardConsumption: defineFeatureFlag({ key: 'leaderboard_consumption_enabled', mode: 'opt-out', label: 'Consumption Leaderboard' }),
@@ -56,6 +57,9 @@ interface ActivitySettings {
   checkin_blindbox_enabled: boolean
   checkin_blindbox_trigger_type: string
   checkin_blindbox_interval: number
+  redpacket_enabled: boolean
+  redpacket_max_count: number
+  redpacket_expire_hours: number
   code_format_settings: CodeFormatSettings
   code_format_settings_valid: boolean
 }
@@ -96,6 +100,9 @@ const defaultActivitySettings = (): ActivitySettings => ({
   checkin_blindbox_enabled: false,
   checkin_blindbox_trigger_type: 'streak',
   checkin_blindbox_interval: 7,
+  redpacket_enabled: false,
+  redpacket_max_count: 100,
+  redpacket_expire_hours: 24,
   code_format_settings: defaultCodeFormatSettings(),
   code_format_settings_valid: true,
 })
@@ -172,6 +179,9 @@ export const activitySettingsPanels: readonly CustomSettingsPanel[] = [
         checkin_blindbox_enabled: settings.checkin_blindbox_enabled,
         checkin_blindbox_trigger_type: settings.checkin_blindbox_trigger_type,
         checkin_blindbox_interval: Number(settings.checkin_blindbox_interval) || 1,
+        redpacket_enabled: settings.redpacket_enabled,
+        redpacket_max_count: Number(settings.redpacket_max_count) || 1,
+        redpacket_expire_hours: Number(settings.redpacket_expire_hours) || 1,
         code_format_settings: settings.code_format_settings,
       }
     },

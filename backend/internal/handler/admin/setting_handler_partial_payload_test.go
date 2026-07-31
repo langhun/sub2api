@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/stretchr/testify/require"
@@ -93,4 +94,36 @@ func TestUpdateSettingsModelPlazaSwitchesPersist(t *testing.T) {
 	require.Equal(t, "true", repo.values[service.SettingKeyModelPlazaEnabled])
 	require.Equal(t, "true", repo.values[service.SettingKeyModelPlazaRequireAuth])
 	require.Equal(t, "new description", repo.values[service.SettingKeyModelPlazaDescription])
+}
+
+func TestUpdateSettingsOmittedPasskeyPreservesStoredValueAndEchoesIt(t *testing.T) {
+	repo := &settingHandlerRepoStub{values: map[string]string{
+		service.SettingKeyPasskeyEnabled: "true",
+	}}
+	cfg := &config.Config{
+		Default: config.DefaultConfig{UserConcurrency: 5},
+		WebAuthn: config.WebAuthnConfig{
+			Enabled:   true,
+			RPID:      "example.com",
+			RPOrigins: []string{"https://example.com"},
+		},
+	}
+	svc := service.NewSettingService(repo, cfg)
+	h := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
+
+	rec := doUpdateSettings(t, h, map[string]any{"registration_enabled": true}, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "true", repo.values[service.SettingKeyPasskeyEnabled])
+	require.Contains(t, rec.Body.String(), `"passkey_enabled":true`)
+}
+
+func TestUpdateSettingsPasskeyEnableRequiresWebAuthnConfiguration(t *testing.T) {
+	h, repo := newStepUpSwitchTestHandler(t, map[string]string{
+		service.SettingKeyPasskeyEnabled: "false",
+	})
+
+	rec := doUpdateSettings(t, h, map[string]any{"passkey_enabled": true}, nil)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "valid WebAuthn RP ID")
+	require.Equal(t, "false", repo.values[service.SettingKeyPasskeyEnabled])
 }
