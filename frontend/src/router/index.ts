@@ -178,6 +178,15 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'modelPlaza.title'
     }
   },
+  {
+    path: '/key-usage',
+    name: 'KeyUsage',
+    component: () => import('@/views/KeyUsageView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Key Usage'
+    }
+  },
   // ==================== User Routes ====================
   {
     path: '/dashboard',
@@ -214,6 +223,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Batch Image Guide',
       titleKey: 'batchImageGuide.title',
       descriptionKey: 'batchImageGuide.description'
+    }
+  },
+  {
+    path: '/usage',
+    name: 'Usage',
+    component: () => import('@/views/user/UsageView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Usage Records',
+      titleKey: 'usage.title',
+      descriptionKey: 'usage.description'
     }
   },
   {

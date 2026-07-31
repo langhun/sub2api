@@ -44,16 +44,13 @@ describe('custom overlay registry', () => {
 		expect(customNavigation.filter((item) => item.path === '/transfer')).toHaveLength(0)
   })
 
-  it('leaves usage routes and the sidebar entry to the activity module', () => {
-    expect(routerSource).not.toContain("path: '/usage'")
-    expect(routerSource).not.toContain("path: '/key-usage'")
-    expect(sidebarSource).toContain("...buildCustomNavigationItems('after-batch-image')")
-    expect(sidebarSource).not.toContain("{ path: '/usage'")
-    expect(customRoutes.filter((route) => route.path === '/usage')).toHaveLength(1)
-    expect(customRoutes.filter((route) => route.path === '/key-usage')).toHaveLength(1)
-    expect(customNavigation).toEqual(expect.arrayContaining([
-      expect.objectContaining({ path: '/usage', slot: 'after-batch-image' }),
-    ]))
+  it('keeps upstream usage routes and sidebar entry outside custom modules', () => {
+    expect(routerSource).toContain("path: '/usage'")
+    expect(routerSource).toContain("path: '/key-usage'")
+    expect(sidebarSource).toContain("{ path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true }")
+    expect(customRoutes.filter((route) => route.path === '/usage')).toHaveLength(0)
+    expect(customRoutes.filter((route) => route.path === '/key-usage')).toHaveLength(0)
+    expect(customNavigation.filter((item) => item.path === '/usage')).toHaveLength(0)
   })
 
   it('mounts custom navigation through the sidebar self-navigation builder', () => {
