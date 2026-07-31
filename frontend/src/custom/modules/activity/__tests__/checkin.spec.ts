@@ -50,4 +50,35 @@ describe('checkin store errors', () => {
     store.clearActionError()
     expect(store.actionError).toBeNull()
   })
+
+  it('keeps a committed lucky check-in successful when profile refresh fails', async () => {
+    const store = useCheckinStore()
+    store.status = {
+      enabled: true,
+      luck_enabled: true,
+      blindbox_enabled: false,
+      can_checkin: true,
+      streak_days: 3,
+      today_reward: null,
+      min_reward: 1,
+      max_reward: 5,
+      min_multiplier: 0.1,
+      max_multiplier: 1.7,
+      balance: 10,
+    }
+    const result = {
+      reward_amount: -2.5,
+      streak_days: 4,
+      checked_at: '2026-07-31',
+      checkin_type: 'luck',
+      bet_amount: 10,
+      multiplier: 0.75,
+    }
+    api.luckCheckin.mockResolvedValueOnce(result)
+
+    await expect(store.doLuckCheckin(10, true)).resolves.toEqual(result)
+    expect(store.actionError).toBeNull()
+    expect(store.status?.can_checkin).toBe(false)
+    expect(store.status?.balance).toBe(7.5)
+  })
 })

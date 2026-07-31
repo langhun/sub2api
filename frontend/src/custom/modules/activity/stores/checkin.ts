@@ -50,10 +50,12 @@ export const useCheckinStore = defineStore('checkin', () => {
         status.value.streak_days = result.streak_days
         status.value.today_reward = result.reward_amount
         status.value.today_checkin_type = result.checkin_type
+        applyBalanceDelta(status.value, result.reward_amount)
       }
 
       const authStore = useAuthStore()
-      await authStore.refreshUser()
+      applyUserBalanceDelta(authStore, result.reward_amount)
+      await refreshUserAfterCheckin(authStore)
 
       return result
     } catch (cause) {
@@ -78,13 +80,15 @@ export const useCheckinStore = defineStore('checkin', () => {
         status.value.streak_days = result.streak_days
         status.value.today_reward = result.reward_amount
         status.value.today_checkin_type = result.checkin_type
+        applyBalanceDelta(status.value, result.reward_amount)
         if (result.multiplier !== undefined) {
           status.value.today_multiplier = result.multiplier
         }
       }
 
       const authStore = useAuthStore()
-      await authStore.refreshUser()
+      applyUserBalanceDelta(authStore, result.reward_amount)
+      await refreshUserAfterCheckin(authStore)
 
       return result
     } catch (cause) {
@@ -97,6 +101,27 @@ export const useCheckinStore = defineStore('checkin', () => {
 
   function clearBlindboxResult() {
     blindboxResult.value = null
+  }
+
+  function applyBalanceDelta(currentStatus: CheckinStatus, rewardAmount: number): void {
+    if (Number.isFinite(currentStatus.balance) && Number.isFinite(rewardAmount)) {
+      currentStatus.balance += rewardAmount
+    }
+  }
+
+  function applyUserBalanceDelta(authStore: ReturnType<typeof useAuthStore>, rewardAmount: number): void {
+    if (!authStore.user || !Number.isFinite(authStore.user.balance) || !Number.isFinite(rewardAmount)) return
+    authStore.user.balance += rewardAmount
+  }
+
+  async function refreshUserAfterCheckin(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
+    try {
+      await authStore.refreshUser()
+    } catch (error) {
+      // The check-in response is authoritative. A transient profile refresh
+      // failure must not turn a committed reward into a visible action error.
+      console.warn('Failed to refresh user balance after check-in:', error)
+    }
   }
 
   function clearActionError() {
