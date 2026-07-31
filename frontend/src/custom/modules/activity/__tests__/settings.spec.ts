@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { activityPublicSettingsDefaults } from '../publicSettings'
 import { activityFeatureFlags, activitySettingsPanels } from '../settings'
+import { activityHistoryTypeKey, isActivityBalanceType } from '../ledger'
 
 describe('activity settings ownership', () => {
   it('owns red-packet settings through the activity panel', () => {
@@ -37,5 +38,12 @@ describe('activity settings ownership', () => {
       mode: 'opt-in',
     })
     expect(activityPublicSettingsDefaults.redpacket_enabled).toBe(false)
+  })
+
+  it('exposes ledger display rules through the activity adapter', () => {
+    expect(isActivityBalanceType('checkin_luck')).toBe(true)
+    expect(isActivityBalanceType('balance')).toBe(false)
+    expect(activityHistoryTypeKey('checkin_blindbox')).toBe('redeem.activityHistoryTypes.checkin_blindbox')
+    expect(activityHistoryTypeKey('balance')).toBeUndefined()
   })
 })
