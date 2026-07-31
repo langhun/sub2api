@@ -479,6 +479,8 @@ async function fetchData() {
       result = await leaderboardAPI.getConsumptionLeaderboard(activePeriod.value, page.value, pageSize)
     } else if (activeTab.value === 'checkin') {
       result = await leaderboardAPI.getCheckinLeaderboard(page.value, pageSize)
+    } else {
+      return
     }
 
     if (requestId !== requestSequence) return
