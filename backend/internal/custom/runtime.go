@@ -44,6 +44,7 @@ func NewRuntime(
 	client *dbent.Client,
 	db *sql.DB,
 	activityWalletCapabilities *platform.ActivityWalletCapabilities,
+	accountRepository service.AccountRepository,
 	redeemService *service.RedeemService,
 	adminService service.AdminService,
 	customSettingsRegistry *customsettings.Registry,
@@ -118,8 +119,8 @@ func NewRuntime(
 		return nil, err
 	}
 	// This is the only runtime mount for per-Key upstream-cost accounting.
-	// Core billing receives just the resolved multiplier through its small port.
-	service.SetAccountUsageMultiplierResolver(upstreamcost.NewResolver())
+	// The adapter updates the existing account multiplier after a validated probe.
+	service.SetUpstreamBillingProbeSuccessObserver(upstreamcost.NewRateSyncer(accountRepository))
 
 	return &Runtime{
 		ActivityCheckin:     activityCheckin,

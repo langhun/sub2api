@@ -626,6 +626,9 @@ func (s *UpstreamBillingProbeService) probeLoadedAccount(ctx context.Context, ac
 	if err := s.updateSnapshot(ctx, account, snapshot); err != nil {
 		return nil, err
 	}
+	if err := notifyUpstreamBillingProbeSuccess(ctx, account, snapshot); err != nil {
+		return nil, err
+	}
 	return snapshot, nil
 }
 

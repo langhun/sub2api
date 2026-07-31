@@ -16,6 +16,7 @@ func ProvideRuntime(
 	client *dbent.Client,
 	db *sql.DB,
 	activityWalletCapabilities *platform.ActivityWalletCapabilities,
+	accountRepository service.AccountRepository,
 	redeemService *service.RedeemService,
 	adminService service.AdminService,
 	customSettingsRegistry *customsettings.Registry,
@@ -25,6 +26,7 @@ func ProvideRuntime(
 		client,
 		db,
 		activityWalletCapabilities,
+		accountRepository,
 		redeemService,
 		adminService,
 		customSettingsRegistry,
@@ -55,7 +57,7 @@ func (r *Runtime) Stop() {
 	if r == nil {
 		return
 	}
-	service.SetAccountUsageMultiplierResolver(nil)
+	service.SetUpstreamBillingProbeSuccessObserver(nil)
 	if r.ActivityRewards != nil {
 		r.ActivityRewards.Stop()
 	}
