@@ -227,11 +227,10 @@ import { leaderboardAPI, type LeaderboardData, type LeaderboardEntry } from '@/c
 import { useAppStore } from '@/stores/app'
 import { resolveFeatureFlagValue } from '@/utils/featureFlags'
 import { activityFeatureFlags } from '../settings'
-import { walletExtensionFeatureFlags } from '../../wallet-extension/settings'
 
 ChartJS.register(ArcElement, Tooltip)
 
-type TabKey = 'balance' | 'consumption' | 'checkin' | 'transfer'
+type TabKey = 'balance' | 'consumption' | 'checkin'
 type PeriodKey = 'daily' | 'weekly' | 'monthly'
 
 const props = defineProps<{ initialTab?: TabKey }>()
@@ -282,12 +281,6 @@ const tabs = computed(() => {
       label: t('leaderboard.tabs.checkin'),
       enabled: resolveFeatureFlagValue(activityFeatureFlags.leaderboardCheckin, settings),
     },
-    {
-      key: 'transfer' as const,
-      label: t('leaderboard.tabs.transfer'),
-      enabled: resolveFeatureFlagValue(activityFeatureFlags.leaderboardTransfer, settings)
-        && resolveFeatureFlagValue(walletExtensionFeatureFlags.transfer, settings),
-    },
   ].filter((item) => item.enabled)
 })
 
@@ -297,7 +290,7 @@ const periods = computed(() => [
   { key: 'monthly' as const, label: t('leaderboard.periods.monthly') },
 ])
 
-const periodic = computed(() => activeTab.value === 'consumption' || activeTab.value === 'transfer')
+const periodic = computed(() => activeTab.value === 'consumption')
 const summaryValue = computed(() => entries.value.reduce((sum, entry) => sum + finiteNumber(entry.value), 0))
 const compactSummaryValue = computed(() => formatCompactValue(summaryValue.value))
 const distributionName = computed(() => t(`leaderboard.distributionNames.${activeTab.value}`))
@@ -377,7 +370,7 @@ function formatCurrency(value: number, compact = false): string {
   const formatted = numberFormatter({
     notation: 'standard',
     minimumFractionDigits: 2,
-    maximumFractionDigits: activeTab.value === 'transfer' ? 4 : 2,
+    maximumFractionDigits: 2,
   }).format(Math.abs(safeValue))
   return `${safeValue < 0 ? '-' : ''}$${formatted}`
 }
@@ -463,7 +456,7 @@ function detailLabel(entry: LeaderboardEntry) {
       reward: finiteNumber(entry.extra_float).toFixed(2),
     })
   }
-  return t('leaderboard.transferSubtitle', { count: entry.extra_int ?? 0 })
+  return ''
 }
 
 function percentageLabel(entry: LeaderboardEntry) {
@@ -486,8 +479,6 @@ async function fetchData() {
       result = await leaderboardAPI.getConsumptionLeaderboard(activePeriod.value, page.value, pageSize)
     } else if (activeTab.value === 'checkin') {
       result = await leaderboardAPI.getCheckinLeaderboard(page.value, pageSize)
-    } else {
-      result = await leaderboardAPI.getTransferLeaderboard(activePeriod.value, page.value, pageSize)
     }
 
     if (requestId !== requestSequence) return

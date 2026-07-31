@@ -13,7 +13,6 @@ import (
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
-	walletextension "github.com/Wei-Shaw/sub2api/internal/custom/modules/wallet-extension"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -37,7 +36,6 @@ type Runtime struct {
 	ActivityRewardsHTTP *activityrewards.Module
 	GameHall            *gamehall.Module
 	UsageQuerySettings  UsageQuerySettings
-	WalletExtension     *walletextension.Module
 }
 
 // NewRuntime constructs the enabled custom modules at the composition root.
@@ -80,7 +78,7 @@ func NewRuntime(
 		Balance:      activityredpacket.NewBalanceWriter(client),
 		Settings:     activityredpacket.NewRegistrySettingsAdapter(customSettingsRegistry),
 		Code:         activityredpacket.NewSettingsCodeGenerator(codeGenerator),
-		Fees:         activityredpacket.NewRegistryFeeAdapter(customSettingsRegistry, subscriptions),
+		Fees:         activityredpacket.NewZeroFeeAdapter(),
 		Ledger:       activityredpacket.NewClaimLedger(client),
 	})
 	activityRedPacket := activityredpacket.NewModuleWithIdempotency(
@@ -118,15 +116,6 @@ func NewRuntime(
 	if err != nil {
 		return nil, err
 	}
-	walletService := walletextension.NewService(
-		walletextension.NewDirectTransferRepository(client),
-		walletextension.NewRegistrySettingsAdapter(customSettingsRegistry),
-		walletextension.NewEntAccountReader(client),
-		walletextension.NewEntRecipientResolver(client),
-		walletextension.NewEntActiveSubscriptionReader(client),
-		walletextension.NewEntBalanceWriter(client),
-		walletextension.NewBalanceCacheInvalidator(balanceCache),
-	)
 	return &Runtime{
 		ActivityCheckin:     activityCheckin,
 		ActivityLeaderboard: activityleaderboard.NewDatabaseModule(client, db),
@@ -135,6 +124,5 @@ func NewRuntime(
 		ActivityRewardsHTTP: activityRewardsHTTP,
 		GameHall:            gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
 		UsageQuerySettings:  customSettingsRegistry,
-		WalletExtension:     walletextension.NewModuleWithIdempotency(walletService, platform.DefaultIdempotencyCoordinator()),
 	}, nil
 }

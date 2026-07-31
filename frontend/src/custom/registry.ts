@@ -17,12 +17,6 @@ import {
   gameHallFeatureFlags,
   gameHallSettingsPanels,
 } from './modules/game-hall/settings'
-import { walletExtensionNavigation } from './modules/wallet-extension/navigation'
-import { walletExtensionRoutes } from './modules/wallet-extension/routes'
-import {
-  walletExtensionFeatureFlags,
-  walletExtensionSettingsPanels,
-} from './modules/wallet-extension/settings'
 export { customPublicSettingsDefaults } from './publicSettings'
 
 export interface CustomNavigationItem {
@@ -71,13 +65,11 @@ export const customRoutes: readonly RouteRecordRaw[] = [
   ...brandHomeRoutes,
   ...activityRoutes,
   ...gameHallRoutes,
-  ...walletExtensionRoutes,
 ]
 
 export const customNavigation: readonly CustomNavigationItem[] = [
   ...activityNavigation,
   ...gameHallNavigation,
-  ...walletExtensionNavigation,
 ]
 
 export const customHeaderActions: readonly CustomHeaderAction[] = [
@@ -88,13 +80,11 @@ export const customSettingsPanels: readonly CustomSettingsPanel[] = [
   ...brandHomeSettingsPanels,
   ...gameHallSettingsPanels,
   ...activitySettingsPanels,
-  ...walletExtensionSettingsPanels,
 ].sort((left, right) => left.order - right.order)
 
 export const customFeatureFlags: readonly FeatureFlagDefinition[] = [
   ...Object.values(activityFeatureFlags),
   ...Object.values(gameHallFeatureFlags),
-  ...Object.values(walletExtensionFeatureFlags),
 ]
 
 registerFeatureFlags(customFeatureFlags)

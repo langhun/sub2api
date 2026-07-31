@@ -18,7 +18,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,9 +28,7 @@ import (
 	custommigrations "github.com/Wei-Shaw/sub2api/internal/custom/migrations"
 	activitycontract "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/contract"
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
-	walletextension "github.com/Wei-Shaw/sub2api/internal/custom/modules/wallet-extension"
 	"github.com/Wei-Shaw/sub2api/internal/repository"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -221,83 +218,6 @@ func TestRemoteDatabaseOverlayVerification(t *testing.T) {
 		}
 	})
 
-	t.Run("wallet_transactions_idempotency_and_concurrency", func(t *testing.T) {
-		directRepository := walletextension.NewDirectTransferRepository(client)
-		idempotentSender := createUser(t, ctx, client, "wallet-idempotent-sender", 100)
-		idempotentReceiver := createUser(t, ctx, client, "wallet-idempotent-receiver", 0)
-		idempotentPlan := walletextension.DirectTransferCommitPlan{
-			SenderID: idempotentSender.ID, ReceiverID: idempotentReceiver.ID,
-			Amount: 10, Fee: 0, FeeRate: 0, GrossAmount: 10, DailyLimit: 100, DailyCountLimit: 20,
-		}
-		coordinator := service.NewIdempotencyCoordinator(repository.NewIdempotencyRepository(client, db), service.DefaultIdempotencyConfig())
-		options := service.IdempotencyExecuteOptions{
-			Scope: "remoteverify.wallet", ActorScope: fmt.Sprintf("user:%d", idempotentSender.ID),
-			Method: "POST", Route: "/api/v1/transfer", IdempotencyKey: "remoteverify-wallet-key",
-			Payload: map[string]any{"receiver_id": idempotentReceiver.ID, "amount": 10}, RequireKey: true, TTL: time.Hour,
-		}
-		var executions atomic.Int32
-		execute := func(context.Context) (any, error) {
-			executions.Add(1)
-			return directRepository.CommitDirectTransfer(ctx, idempotentPlan)
-		}
-		first, err := coordinator.Execute(ctx, options, execute)
-		if err != nil || first == nil || first.Replayed {
-			t.Fatalf("first wallet idempotency execution: result=%#v err=%v", first, err)
-		}
-		second, err := coordinator.Execute(ctx, options, execute)
-		if err != nil || second == nil || !second.Replayed {
-			t.Fatalf("replayed wallet idempotency execution: result=%#v err=%v", second, err)
-		}
-		if executions.Load() != 1 {
-			t.Fatalf("wallet idempotency executed %d times, want once", executions.Load())
-		}
-		assertBalance(t, ctx, client, idempotentSender.ID, 90)
-		assertBalance(t, ctx, client, idempotentReceiver.ID, 10)
-		assertDirectTransferCount(t, ctx, db, idempotentSender.ID, 1)
-
-		concurrentSender := createUser(t, ctx, client, "wallet-concurrent-sender", 100)
-		concurrentReceiver := createUser(t, ctx, client, "wallet-concurrent-receiver", 0)
-		concurrentPlan := walletextension.DirectTransferCommitPlan{
-			SenderID: concurrentSender.ID, ReceiverID: concurrentReceiver.ID,
-			Amount: 11, Fee: 1, FeeRate: 1.0 / 11.0, GrossAmount: 12, DailyLimit: 60, DailyCountLimit: 20,
-		}
-		const transferWorkers = 8
-		transferErrs := make(chan error, transferWorkers)
-		var transferWorkersGroup sync.WaitGroup
-		for range transferWorkers {
-			transferWorkersGroup.Add(1)
-			go func() {
-				defer transferWorkersGroup.Done()
-				_, transferErr := directRepository.CommitDirectTransfer(ctx, concurrentPlan)
-				transferErrs <- transferErr
-			}()
-		}
-		transferWorkersGroup.Wait()
-		close(transferErrs)
-		successfulTransfers := 0
-		for transferErr := range transferErrs {
-			if transferErr == nil {
-				successfulTransfers++
-				continue
-			}
-			if !errors.Is(transferErr, walletextension.ErrTransferDailyLimit) {
-				t.Fatalf("concurrent direct transfer returned unexpected error: %v", transferErr)
-			}
-		}
-		if successfulTransfers != 5 {
-			t.Fatalf("concurrent direct transfers succeeded %d times, want 5", successfulTransfers)
-		}
-		assertBalance(t, ctx, client, concurrentSender.ID, 40)
-		assertBalance(t, ctx, client, concurrentReceiver.ID, 55)
-		assertDirectTransferCount(t, ctx, db, concurrentSender.ID, successfulTransfers)
-		var fees float64
-		if err := db.QueryRowContext(ctx, `SELECT COALESCE(SUM(fee), 0) FROM balance_transfers WHERE sender_id = $1 AND transfer_type = 'direct'`, concurrentSender.ID).Scan(&fees); err != nil {
-			t.Fatalf("sum direct transfer fees: %v", err)
-		}
-		if math.Abs((40+55+fees)-100) > 1e-8 {
-			t.Fatalf("direct-transfer value conservation failed: sender=40 receiver=55 fees=%v", fees)
-		}
-	})
 }
 
 type ledgerRow struct {
@@ -485,16 +405,5 @@ func assertBalance(t *testing.T, ctx context.Context, client *dbent.Client, user
 	}
 	if math.Abs(item.Balance-want) > 1e-8 {
 		t.Fatalf("user %d balance = %.8f, want %.8f", userID, item.Balance, want)
-	}
-}
-
-func assertDirectTransferCount(t *testing.T, ctx context.Context, db *sql.DB, senderID int64, want int) {
-	t.Helper()
-	var got int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM balance_transfers WHERE sender_id = $1 AND transfer_type = 'direct'`, senderID).Scan(&got); err != nil {
-		t.Fatalf("count direct transfers: %v", err)
-	}
-	if got != want {
-		t.Fatalf("direct transfer count for sender %d = %d, want %d", senderID, got, want)
 	}
 }

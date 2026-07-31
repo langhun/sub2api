@@ -27,7 +27,6 @@ const (
 	keyLeaderboardBalanceEnabled = "leaderboard_balance_enabled"
 	keyLeaderboardConsumeEnabled = "leaderboard_consumption_enabled"
 	keyLeaderboardCheckinEnabled = "leaderboard_checkin_enabled"
-	keyLeaderboardTransferEnable = "leaderboard_transfer_enabled"
 	keyLeaderboardIncludeAdmin   = "leaderboard_include_admin"
 )
 
@@ -51,7 +50,6 @@ type Config struct {
 	LeaderboardBalanceEnabled     bool
 	LeaderboardConsumptionEnabled bool
 	LeaderboardCheckinEnabled     bool
-	LeaderboardTransferEnabled    bool
 	LeaderboardIncludeAdmin       bool
 }
 
@@ -106,7 +104,7 @@ func Keys() []string {
 		keyCheckinBlindboxEnabled, keyCheckinBlindboxTrigger, keyCheckinBlindboxInterval,
 		keyRedPacketEnabled, keyRedPacketMaxCount, keyRedPacketExpireHours,
 		keyUsageQueryEnabled, keyLeaderboardEnabled, keyLeaderboardBalanceEnabled,
-		keyLeaderboardConsumeEnabled, keyLeaderboardCheckinEnabled, keyLeaderboardTransferEnable,
+		keyLeaderboardConsumeEnabled, keyLeaderboardCheckinEnabled,
 		keyLeaderboardIncludeAdmin,
 	}
 }
@@ -131,7 +129,6 @@ func FromValues(values map[string]string) Config {
 		LeaderboardBalanceEnabled:     contract.Bool(values, keyLeaderboardBalanceEnabled, defaults.LeaderboardBalanceEnabled),
 		LeaderboardConsumptionEnabled: contract.Bool(values, keyLeaderboardConsumeEnabled, defaults.LeaderboardConsumptionEnabled),
 		LeaderboardCheckinEnabled:     contract.Bool(values, keyLeaderboardCheckinEnabled, defaults.LeaderboardCheckinEnabled),
-		LeaderboardTransferEnabled:    contract.Bool(values, keyLeaderboardTransferEnable, false),
 		LeaderboardIncludeAdmin:       contract.Bool(values, keyLeaderboardIncludeAdmin, false),
 	}
 }
@@ -158,7 +155,6 @@ func Values(config Config) (map[string]string, error) {
 		keyLeaderboardBalanceEnabled: fmt.Sprintf("%t", config.LeaderboardBalanceEnabled),
 		keyLeaderboardConsumeEnabled: fmt.Sprintf("%t", config.LeaderboardConsumptionEnabled),
 		keyLeaderboardCheckinEnabled: fmt.Sprintf("%t", config.LeaderboardCheckinEnabled),
-		keyLeaderboardTransferEnable: fmt.Sprintf("%t", config.LeaderboardTransferEnabled),
 		keyLeaderboardIncludeAdmin:   fmt.Sprintf("%t", config.LeaderboardIncludeAdmin),
 	}, nil
 }
@@ -190,7 +186,6 @@ func Public(config Config) map[string]any {
 		keyLeaderboardBalanceEnabled: config.LeaderboardBalanceEnabled,
 		keyLeaderboardConsumeEnabled: config.LeaderboardConsumptionEnabled,
 		keyLeaderboardCheckinEnabled: config.LeaderboardCheckinEnabled,
-		keyLeaderboardTransferEnable: config.LeaderboardTransferEnabled,
 		keyLeaderboardIncludeAdmin:   config.LeaderboardIncludeAdmin,
 	}
 }

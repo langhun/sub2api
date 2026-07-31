@@ -50,21 +50,7 @@ export const activityRoutes: readonly RouteRecordRaw[] = [
         ['leaderboard_balance_enabled'],
         ['leaderboard_consumption_enabled'],
         ['leaderboard_checkin_enabled'],
-        ['leaderboard_transfer_enabled', 'transfer_enabled'],
       ],
-    },
-  },
-  {
-    path: '/transfer/leaderboard',
-    name: 'TransferLeaderboard',
-    component: () => import('./views/LeaderboardView.vue'),
-    props: { initialTab: 'transfer' },
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Transfer Leaderboard',
-      titleKey: 'nav.transferLeaderboard',
-      requiresAllFeatures: ['transfer_enabled', 'leaderboard_enabled', 'leaderboard_transfer_enabled'],
     },
   },
   {

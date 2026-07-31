@@ -10,7 +10,6 @@ const (
 	LeaderboardBalance     LeaderboardKind = "balance"
 	LeaderboardConsumption LeaderboardKind = "consumption"
 	LeaderboardCheckin     LeaderboardKind = "checkin"
-	LeaderboardTransfer    LeaderboardKind = "transfer"
 )
 
 // LeaderboardPeriod limits time-based leaderboards.
@@ -51,16 +50,12 @@ type LeaderboardPage struct {
 }
 
 // LeaderboardFeatureSettings owns the flags activity needs to expose a board.
-// TransferEnabled is a public capability flag, not a dependency on any wallet
-// implementation.
 type LeaderboardFeatureSettings struct {
-	Enabled              bool
-	BalanceEnabled       bool
-	ConsumptionEnabled   bool
-	CheckinEnabled       bool
-	TransferEnabled      bool
-	TransferBoardEnabled bool
-	IncludeAdmin         bool
+	Enabled            bool
+	BalanceEnabled     bool
+	ConsumptionEnabled bool
+	CheckinEnabled     bool
+	IncludeAdmin       bool
 }
 
 // LeaderboardSettingsReader supplies effective activity flags for the request.
@@ -82,10 +77,4 @@ type ConsumptionLeaderboardReader interface {
 // CheckinLeaderboardReader reads the activity check-in ranking.
 type CheckinLeaderboardReader interface {
 	ListCheckinLeaderboard(ctx context.Context, query LeaderboardQuery) (LeaderboardPage, error)
-}
-
-// TransferLeaderboardReader reads completed-transfer ranking data through a
-// public read model. It must not be implemented by importing wallet internals.
-type TransferLeaderboardReader interface {
-	ListTransferLeaderboard(ctx context.Context, query LeaderboardQuery) (LeaderboardPage, error)
 }

@@ -14,9 +14,7 @@ const (
 	settingKeyLeaderboardBalanceEnabled     = "leaderboard_balance_enabled"
 	settingKeyLeaderboardConsumptionEnabled = "leaderboard_consumption_enabled"
 	settingKeyLeaderboardCheckinEnabled     = "leaderboard_checkin_enabled"
-	settingKeyLeaderboardTransferEnabled    = "leaderboard_transfer_enabled"
 	settingKeyLeaderboardIncludeAdmin       = "leaderboard_include_admin"
-	settingKeyTransferEnabled               = "transfer_enabled"
 )
 
 var leaderboardSettingKeys = []string{
@@ -24,9 +22,7 @@ var leaderboardSettingKeys = []string{
 	settingKeyLeaderboardBalanceEnabled,
 	settingKeyLeaderboardConsumptionEnabled,
 	settingKeyLeaderboardCheckinEnabled,
-	settingKeyLeaderboardTransferEnabled,
 	settingKeyLeaderboardIncludeAdmin,
-	settingKeyTransferEnabled,
 }
 
 // SettingsStore is the narrow persistence boundary for activity leaderboard
@@ -83,12 +79,10 @@ func (s *entSettingsStore) ReadActivityLeaderboardSettings(ctx context.Context) 
 
 func defaultLeaderboardFeatureSettings(values map[string]string) contract.LeaderboardFeatureSettings {
 	return contract.LeaderboardFeatureSettings{
-		Enabled:              values[settingKeyLeaderboardEnabled] != "false",
-		BalanceEnabled:       values[settingKeyLeaderboardBalanceEnabled] != "false",
-		ConsumptionEnabled:   values[settingKeyLeaderboardConsumptionEnabled] != "false",
-		CheckinEnabled:       values[settingKeyLeaderboardCheckinEnabled] != "false",
-		TransferEnabled:      values[settingKeyTransferEnabled] == "true",
-		TransferBoardEnabled: values[settingKeyLeaderboardTransferEnabled] == "true",
-		IncludeAdmin:         values[settingKeyLeaderboardIncludeAdmin] == "true",
+		Enabled:            values[settingKeyLeaderboardEnabled] != "false",
+		BalanceEnabled:     values[settingKeyLeaderboardBalanceEnabled] != "false",
+		ConsumptionEnabled: values[settingKeyLeaderboardConsumptionEnabled] != "false",
+		CheckinEnabled:     values[settingKeyLeaderboardCheckinEnabled] != "false",
+		IncludeAdmin:       values[settingKeyLeaderboardIncludeAdmin] == "true",
 	}
 }

@@ -6,14 +6,13 @@ import zh from '@/i18n/locales/zh'
 import { customAdminLocaleMessages, customLocaleMessages } from '../locales'
 
 describe.each([
-  ['en', en, 'Dashboard', 'Check-in', 'Balance Transfer', 'General', 'Balance Features'],
-  ['zh', zh, '系统概览', '签到中心', '余额转账', '通用设置', '余额功能'],
+	['en', en, 'Dashboard', 'Check-in', 'General', 'Balance Features'],
+	['zh', zh, '系统概览', '签到中心', '通用设置', '余额功能'],
 ] as const)('custom %s locale integration', (
   locale,
   messages,
   dashboard,
   checkin,
-  transfer,
   general,
   balanceFeatures,
 ) => {
@@ -23,7 +22,7 @@ describe.each([
     for (const fragment of fragments) {
       expect(messages).toMatchObject(fragment)
     }
-    expect(messages.nav).toMatchObject({ dashboard, checkin, transfer })
+	expect(messages.nav).toMatchObject({ dashboard, checkin })
     expect(messages.redeem.activityHistoryTypes).toMatchObject({ checkin: locale === 'zh' ? '签到' : 'Check-in', checkin_luck: locale === 'zh' ? '运气签到' : 'Lucky check-in' })
     expect(messages.redeem.activityBalanceTypes.checkin_luck).toBe('balance')
 

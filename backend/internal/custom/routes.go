@@ -60,9 +60,6 @@ func RegisterRoutes(
 		admin.Use(middleware.AdminComplianceGuard(settingService))
 		runtime.ActivityRewardsHTTP.RegisterRoutes(admin)
 	}
-	if runtime.WalletExtension != nil {
-		runtime.WalletExtension.RegisterRoutes(r, jwtAuth, adminAuth, auditLog, settingService)
-	}
 }
 
 func activityUsageQueryGate(settings UsageQuerySettings) gin.HandlerFunc {

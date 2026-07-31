@@ -2,8 +2,6 @@ import { activityAdminLocaleMessages } from './modules/activity/admin/locales'
 import { activityLocaleMessages } from './modules/activity/locales'
 import { gameHallAdminLocaleMessages } from './modules/game-hall/admin/locales'
 import { gameHallLocaleMessages } from './modules/game-hall/locales'
-import { walletExtensionAdminLocaleMessages } from './modules/wallet-extension/admin/locales'
-import { walletExtensionLocaleMessages } from './modules/wallet-extension/locales'
 
 type LocaleTree = Record<string, unknown>
 
@@ -52,13 +50,13 @@ function mergeLocaleTrees(base: LocaleTree, extension: LocaleTree): LocaleTree {
 }
 
 export const customAdminLocaleMessages = {
-  en: [activityAdminLocaleMessages.en, gameHallAdminLocaleMessages.en, walletExtensionAdminLocaleMessages.en],
-  zh: [activityAdminLocaleMessages.zh, gameHallAdminLocaleMessages.zh, walletExtensionAdminLocaleMessages.zh],
+  en: [activityAdminLocaleMessages.en, gameHallAdminLocaleMessages.en],
+  zh: [activityAdminLocaleMessages.zh, gameHallAdminLocaleMessages.zh],
 } as const
 
 export const customLocaleMessages = {
-  en: [customSharedLocaleMessages.en, activityLocaleMessages.en, gameHallLocaleMessages.en, walletExtensionLocaleMessages.en],
-  zh: [customSharedLocaleMessages.zh, activityLocaleMessages.zh, gameHallLocaleMessages.zh, walletExtensionLocaleMessages.zh],
+  en: [customSharedLocaleMessages.en, activityLocaleMessages.en, gameHallLocaleMessages.en],
+  zh: [customSharedLocaleMessages.zh, activityLocaleMessages.zh, gameHallLocaleMessages.zh],
 } as const
 
 export function mergeCustomLocale<T extends LocaleTree>(

@@ -29,7 +29,6 @@ func TestHandlerMountProjectsAndAppliesCustomSettingsWithoutCoreFieldKnowledge(t
 	formats.RedPacket.Prefix = "RP"
 	payload, err := json.Marshal(map[string]any{
 		"default_homepage":     "dino",
-		"transfer_enabled":     true,
 		"code_format_settings": formats,
 	})
 	require.NoError(t, err)
@@ -38,7 +37,7 @@ func TestHandlerMountProjectsAndAppliesCustomSettingsWithoutCoreFieldKnowledge(t
 	require.True(t, changed)
 	require.NoError(t, mount.ApplyUpdate(context.Background(), payload))
 	require.Equal(t, "dino", store.values["default_homepage"])
-	require.Equal(t, "true", store.values["transfer_enabled"])
+	require.NotContains(t, store.values, "transfer_enabled")
 	require.Equal(t, formats, codeformatsettings.FromValues(store.values))
 	admin, err = mount.Admin(context.Background())
 	require.NoError(t, err)

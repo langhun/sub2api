@@ -7,7 +7,6 @@
     <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示余额排行标签', 'Show balance ranking') }}</span><Toggle v-model="form.leaderboard_balance_enabled" /></div>
     <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示消费排行标签', 'Show consumption ranking') }}</span><Toggle v-model="form.leaderboard_consumption_enabled" /></div>
     <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示签到排行标签', 'Show check-in ranking') }}</span><Toggle v-model="form.leaderboard_checkin_enabled" /></div>
-    <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('显示转账排行标签', 'Show transfer ranking') }}</span><Toggle v-model="form.leaderboard_transfer_enabled" /></div>
     <div class="flex items-center justify-between gap-4"><span class="text-sm">{{ localText('排行榜包含管理员', 'Include administrators') }}</span><Toggle v-model="form.leaderboard_include_admin" /></div>
   </template>
 </template>
@@ -22,7 +21,6 @@ interface LeaderboardSettings {
   leaderboard_balance_enabled: boolean
   leaderboard_consumption_enabled: boolean
   leaderboard_checkin_enabled: boolean
-  leaderboard_transfer_enabled: boolean
   leaderboard_include_admin: boolean
 }
 

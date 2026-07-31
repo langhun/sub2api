@@ -28,13 +28,6 @@ type Compatibility struct {
 	CheckinBlindboxEnabled        bool                      `json:"checkin_blindbox_enabled"`
 	CheckinBlindboxTriggerType    string                    `json:"checkin_blindbox_trigger_type"`
 	CheckinBlindboxInterval       int                       `json:"checkin_blindbox_interval"`
-	TransferEnabled               bool                      `json:"transfer_enabled"`
-	TransferFeeRate               float64                   `json:"transfer_fee_rate"`
-	TransferMinAmount             float64                   `json:"transfer_min_amount"`
-	TransferMaxAmount             float64                   `json:"transfer_max_amount"`
-	TransferDailyLimit            float64                   `json:"transfer_daily_limit"`
-	TransferDailyCountLimit       int                       `json:"transfer_daily_count_limit"`
-	TransferVIPFeeExempt          bool                      `json:"transfer_vip_fee_exempt"`
 	RedPacketEnabled              bool                      `json:"redpacket_enabled"`
 	RedPacketMaxCount             int                       `json:"redpacket_max_count"`
 	RedPacketExpireHours          int                       `json:"redpacket_expire_hours"`
@@ -43,7 +36,6 @@ type Compatibility struct {
 	LeaderboardBalanceEnabled     bool                      `json:"leaderboard_balance_enabled"`
 	LeaderboardConsumptionEnabled bool                      `json:"leaderboard_consumption_enabled"`
 	LeaderboardCheckinEnabled     bool                      `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled    bool                      `json:"leaderboard_transfer_enabled"`
 	LeaderboardIncludeAdmin       bool                      `json:"leaderboard_include_admin"`
 }
 
@@ -62,14 +54,12 @@ type PublicCompatibility struct {
 	CheckinEnabled                bool    `json:"checkin_enabled"`
 	CheckinLuckEnabled            bool    `json:"checkin_luck_enabled"`
 	CheckinBlindboxEnabled        bool    `json:"checkin_blindbox_enabled"`
-	TransferEnabled               bool    `json:"transfer_enabled"`
 	RedPacketEnabled              bool    `json:"redpacket_enabled"`
 	UsageQueryEnabled             bool    `json:"usage_query_enabled"`
 	LeaderboardEnabled            bool    `json:"leaderboard_enabled"`
 	LeaderboardBalanceEnabled     bool    `json:"leaderboard_balance_enabled"`
 	LeaderboardConsumptionEnabled bool    `json:"leaderboard_consumption_enabled"`
 	LeaderboardCheckinEnabled     bool    `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled    bool    `json:"leaderboard_transfer_enabled"`
 	LeaderboardIncludeAdmin       bool    `json:"leaderboard_include_admin"`
 }
 
@@ -95,13 +85,6 @@ type Patch struct {
 	CheckinBlindboxEnabled        *bool                      `json:"checkin_blindbox_enabled"`
 	CheckinBlindboxTriggerType    *string                    `json:"checkin_blindbox_trigger_type"`
 	CheckinBlindboxInterval       *int                       `json:"checkin_blindbox_interval"`
-	TransferEnabled               *bool                      `json:"transfer_enabled"`
-	TransferFeeRate               *float64                   `json:"transfer_fee_rate"`
-	TransferMinAmount             *float64                   `json:"transfer_min_amount"`
-	TransferMaxAmount             *float64                   `json:"transfer_max_amount"`
-	TransferDailyLimit            *float64                   `json:"transfer_daily_limit"`
-	TransferDailyCountLimit       *int                       `json:"transfer_daily_count_limit"`
-	TransferVIPFeeExempt          *bool                      `json:"transfer_vip_fee_exempt"`
 	RedPacketEnabled              *bool                      `json:"redpacket_enabled"`
 	RedPacketMaxCount             *int                       `json:"redpacket_max_count"`
 	RedPacketExpireHours          *int                       `json:"redpacket_expire_hours"`
@@ -110,7 +93,6 @@ type Patch struct {
 	LeaderboardBalanceEnabled     *bool                      `json:"leaderboard_balance_enabled"`
 	LeaderboardConsumptionEnabled *bool                      `json:"leaderboard_consumption_enabled"`
 	LeaderboardCheckinEnabled     *bool                      `json:"leaderboard_checkin_enabled"`
-	LeaderboardTransferEnabled    *bool                      `json:"leaderboard_transfer_enabled"`
 	LeaderboardIncludeAdmin       *bool                      `json:"leaderboard_include_admin"`
 }
 
@@ -122,12 +104,10 @@ func (p Patch) HasChanges() bool {
 		p.GameExchangeMinAmount != nil || p.GameExchangeMaxAmount != nil || p.GameExchangeDailyLimit != nil || p.GameExchangeAllowDGToBalance != nil ||
 		p.CheckinEnabled != nil || p.CheckinMinBalance != nil || p.CheckinMaxBalance != nil || p.CheckinLuckEnabled != nil ||
 		p.CheckinLuckMinMultiplier != nil || p.CheckinLuckMaxMultiplier != nil || p.CheckinBlindboxEnabled != nil ||
-		p.CheckinBlindboxTriggerType != nil || p.CheckinBlindboxInterval != nil || p.TransferEnabled != nil ||
-		p.TransferFeeRate != nil || p.TransferMinAmount != nil || p.TransferMaxAmount != nil || p.TransferDailyLimit != nil ||
-		p.TransferDailyCountLimit != nil || p.TransferVIPFeeExempt != nil || p.RedPacketEnabled != nil ||
+		p.CheckinBlindboxTriggerType != nil || p.CheckinBlindboxInterval != nil || p.RedPacketEnabled != nil ||
 		p.RedPacketMaxCount != nil || p.RedPacketExpireHours != nil || p.UsageQueryEnabled != nil || p.LeaderboardEnabled != nil ||
 		p.LeaderboardBalanceEnabled != nil || p.LeaderboardConsumptionEnabled != nil || p.LeaderboardCheckinEnabled != nil ||
-		p.LeaderboardTransferEnabled != nil || p.LeaderboardIncludeAdmin != nil
+		p.LeaderboardIncludeAdmin != nil
 }
 
 func (r *Registry) Compatibility(ctx context.Context) (Compatibility, error) {
@@ -142,7 +122,6 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 	activity := snapshot.Activity
 	brandHome := snapshot.BrandHome
 	codeFormat := snapshot.CodeFormat
-	wallet := snapshot.WalletExtension
 	gameHall := snapshot.GameHall
 	return Compatibility{
 		CodeFormatSettings: codeFormat,
@@ -155,15 +134,11 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 		CheckinLuckEnabled: activity.CheckinLuckEnabled, CheckinLuckMinMultiplier: activity.CheckinLuckMinMultiplier,
 		CheckinLuckMaxMultiplier: activity.CheckinLuckMaxMultiplier, CheckinBlindboxEnabled: activity.CheckinBlindboxEnabled,
 		CheckinBlindboxTriggerType: activity.CheckinBlindboxTriggerType, CheckinBlindboxInterval: activity.CheckinBlindboxInterval,
-		TransferEnabled: wallet.DirectTransferEnabled, TransferFeeRate: wallet.DirectTransferFeeRate,
-		TransferMinAmount: wallet.DirectTransferMinAmount, TransferMaxAmount: wallet.DirectTransferMaxAmount,
-		TransferDailyLimit: wallet.DirectTransferDailyLimit, TransferDailyCountLimit: wallet.DirectTransferDailyCountLimit,
-		TransferVIPFeeExempt: wallet.DirectTransferVIPFeeExempt,
-		RedPacketEnabled:     activity.RedPacketEnabled, RedPacketMaxCount: activity.RedPacketMaxCount, RedPacketExpireHours: activity.RedPacketExpireHours,
+		RedPacketEnabled: activity.RedPacketEnabled, RedPacketMaxCount: activity.RedPacketMaxCount, RedPacketExpireHours: activity.RedPacketExpireHours,
 		UsageQueryEnabled: activity.UsageQueryEnabled, LeaderboardEnabled: activity.LeaderboardEnabled,
 		LeaderboardBalanceEnabled: activity.LeaderboardBalanceEnabled, LeaderboardConsumptionEnabled: activity.LeaderboardConsumptionEnabled,
-		LeaderboardCheckinEnabled: activity.LeaderboardCheckinEnabled, LeaderboardTransferEnabled: activity.LeaderboardTransferEnabled,
-		LeaderboardIncludeAdmin: activity.LeaderboardIncludeAdmin,
+		LeaderboardCheckinEnabled: activity.LeaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:   activity.LeaderboardIncludeAdmin,
 	}
 }
 
@@ -175,10 +150,10 @@ func (c Compatibility) Public() PublicCompatibility {
 		GameExchangeMinAmount: c.GameExchangeMinAmount, GameExchangeMaxAmount: c.GameExchangeMaxAmount,
 		GameExchangeDailyLimit: c.GameExchangeDailyLimit, GameExchangeAllowDGToBalance: c.GameExchangeAllowDGToBalance,
 		CheckinEnabled: c.CheckinEnabled, CheckinLuckEnabled: c.CheckinLuckEnabled, CheckinBlindboxEnabled: c.CheckinBlindboxEnabled,
-		TransferEnabled: c.TransferEnabled, RedPacketEnabled: c.RedPacketEnabled, UsageQueryEnabled: c.UsageQueryEnabled,
+		RedPacketEnabled: c.RedPacketEnabled, UsageQueryEnabled: c.UsageQueryEnabled,
 		LeaderboardEnabled: c.LeaderboardEnabled, LeaderboardBalanceEnabled: c.LeaderboardBalanceEnabled,
 		LeaderboardConsumptionEnabled: c.LeaderboardConsumptionEnabled, LeaderboardCheckinEnabled: c.LeaderboardCheckinEnabled,
-		LeaderboardTransferEnabled: c.LeaderboardTransferEnabled, LeaderboardIncludeAdmin: c.LeaderboardIncludeAdmin,
+		LeaderboardIncludeAdmin: c.LeaderboardIncludeAdmin,
 	}
 }
 
@@ -186,7 +161,6 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	activity := &snapshot.Activity
 	brandHome := &snapshot.BrandHome
 	codeFormat := &snapshot.CodeFormat
-	wallet := &snapshot.WalletExtension
 	gameHall := &snapshot.GameHall
 	if p.CodeFormatSettings != nil {
 		*codeFormat = *p.CodeFormatSettings
@@ -245,27 +219,6 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	if p.CheckinBlindboxInterval != nil {
 		activity.CheckinBlindboxInterval = *p.CheckinBlindboxInterval
 	}
-	if p.TransferEnabled != nil {
-		wallet.DirectTransferEnabled = *p.TransferEnabled
-	}
-	if p.TransferFeeRate != nil {
-		wallet.DirectTransferFeeRate = *p.TransferFeeRate
-	}
-	if p.TransferMinAmount != nil {
-		wallet.DirectTransferMinAmount = *p.TransferMinAmount
-	}
-	if p.TransferMaxAmount != nil {
-		wallet.DirectTransferMaxAmount = *p.TransferMaxAmount
-	}
-	if p.TransferDailyLimit != nil {
-		wallet.DirectTransferDailyLimit = *p.TransferDailyLimit
-	}
-	if p.TransferDailyCountLimit != nil {
-		wallet.DirectTransferDailyCountLimit = *p.TransferDailyCountLimit
-	}
-	if p.TransferVIPFeeExempt != nil {
-		wallet.DirectTransferVIPFeeExempt = *p.TransferVIPFeeExempt
-	}
 	if p.RedPacketEnabled != nil {
 		activity.RedPacketEnabled = *p.RedPacketEnabled
 	}
@@ -289,9 +242,6 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	}
 	if p.LeaderboardCheckinEnabled != nil {
 		activity.LeaderboardCheckinEnabled = *p.LeaderboardCheckinEnabled
-	}
-	if p.LeaderboardTransferEnabled != nil {
-		activity.LeaderboardTransferEnabled = *p.LeaderboardTransferEnabled
 	}
 	if p.LeaderboardIncludeAdmin != nil {
 		activity.LeaderboardIncludeAdmin = *p.LeaderboardIncludeAdmin

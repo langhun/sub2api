@@ -13,7 +13,6 @@ describe('custom locale overlay', () => {
     expect(merged.nav).toMatchObject({
       dashboard: 'Dashboard',
       checkin: 'Check-in',
-      transfer: 'Balance Transfer',
     })
     expect(merged.common).toEqual({ retry: 'Retry', loadMore: 'Load more' })
     expect(base.nav).toEqual({ dashboard: 'Dashboard' })
@@ -40,11 +39,10 @@ describe('custom admin locale overlay', () => {
     expect(merged.settings.features).toEqual({ channelMonitor: 'Channel Monitor' })
     expect(merged.audit).toMatchObject({
       title: 'Audit Logs',
-      actionSegments: { checkin: 'Check-in', transfer: 'Transfer' },
+		actionSegments: { checkin: 'Check-in' },
     })
     expect(merged.settings.balanceFeatures).toMatchObject({
       checkinTitle: 'Check-in Settings',
-      transferTitle: 'Transfers and Red Packets',
     })
     expect(merged).toMatchObject({
       redeem: {

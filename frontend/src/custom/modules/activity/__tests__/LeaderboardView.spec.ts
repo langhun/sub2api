@@ -9,7 +9,6 @@ const api = vi.hoisted(() => ({
   balance: vi.fn(),
   consumption: vi.fn(),
   checkin: vi.fn(),
-  transfer: vi.fn(),
 }))
 
 const appStore = vi.hoisted(() => ({
@@ -19,8 +18,6 @@ const appStore = vi.hoisted(() => ({
     leaderboard_balance_enabled: true,
     leaderboard_consumption_enabled: true,
     leaderboard_checkin_enabled: true,
-    leaderboard_transfer_enabled: true,
-    transfer_enabled: true,
   } as Record<string, boolean>,
   fetchPublicSettings: vi.fn(),
 }))
@@ -30,7 +27,6 @@ vi.mock('@/custom/modules/activity/api/leaderboard', () => ({
     getBalanceLeaderboard: api.balance,
     getConsumptionLeaderboard: api.consumption,
     getCheckinLeaderboard: api.checkin,
-    getTransferLeaderboard: api.transfer,
   },
 }))
 
@@ -64,7 +60,7 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-function mountView(locale = 'en', initialTab?: 'balance' | 'consumption' | 'checkin' | 'transfer') {
+function mountView(locale = 'en', initialTab?: 'balance' | 'consumption' | 'checkin') {
   return mount(LeaderboardView, {
     props: { initialTab },
     global: {
@@ -88,13 +84,10 @@ describe('LeaderboardView', () => {
       leaderboard_balance_enabled: true,
       leaderboard_consumption_enabled: true,
       leaderboard_checkin_enabled: true,
-      leaderboard_transfer_enabled: true,
-      transfer_enabled: true,
     }
     api.balance.mockResolvedValue(page('Balance user'))
     api.consumption.mockResolvedValue(page('Consumption user'))
     api.checkin.mockResolvedValue(page('Check-in user'))
-    api.transfer.mockResolvedValue(page('Transfer user'))
   })
 
   it('loads the balance board on mount', async () => {
@@ -105,15 +98,6 @@ describe('LeaderboardView', () => {
     expect(wrapper.text()).toContain('Balance user')
     expect(wrapper.text()).not.toContain('🥇')
     expect(wrapper.find('icon-stub[name="badge"]').exists()).toBe(true)
-  })
-
-  it('loads the transfer board when opened from the transfer leaderboard route', async () => {
-    const wrapper = mountView('en', 'transfer')
-    await flushPromises()
-
-    expect(api.transfer).toHaveBeenCalledWith('daily', 1, 100)
-    expect(api.balance).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Transfer user')
   })
 
   it('renders complete usernames but never raw fallback emails', async () => {
@@ -161,7 +145,7 @@ describe('LeaderboardView', () => {
     const wrapper = mountView()
     await flushPromises()
     const tabs = wrapper.findAll('button[role="tab"]')
-    expect(tabs).toHaveLength(4)
+	expect(tabs).toHaveLength(3)
     await tabs[1].trigger('click')
     await flushPromises()
 
@@ -179,8 +163,6 @@ describe('LeaderboardView', () => {
       leaderboard_balance_enabled: false,
       leaderboard_consumption_enabled: false,
       leaderboard_checkin_enabled: false,
-      leaderboard_transfer_enabled: false,
-      transfer_enabled: false,
     }
 
     const wrapper = mountView()
@@ -191,34 +173,12 @@ describe('LeaderboardView', () => {
     expect(wrapper.text()).toContain('leaderboard.noBoards')
   })
 
-  it('hides the transfer board when either transfer switch is disabled or missing', async () => {
-    appStore.cachedPublicSettings.leaderboard_transfer_enabled = false
-    let wrapper = mountView()
-    await flushPromises()
-    expect(wrapper.findAll('button[role="tab"]')).toHaveLength(3)
-    expect(api.transfer).not.toHaveBeenCalled()
-
-    wrapper.unmount()
-    appStore.cachedPublicSettings = {
-      leaderboard_enabled: true,
-      leaderboard_balance_enabled: true,
-      leaderboard_consumption_enabled: true,
-      leaderboard_checkin_enabled: true,
-      transfer_enabled: true,
-    }
-    wrapper = mountView()
-    await flushPromises()
-    expect(wrapper.findAll('button[role="tab"]')).toHaveLength(3)
-  })
-
   it('honors the leaderboard master switch and makes no requests', async () => {
     appStore.cachedPublicSettings = {
       leaderboard_enabled: false,
       leaderboard_balance_enabled: true,
       leaderboard_consumption_enabled: true,
       leaderboard_checkin_enabled: true,
-      leaderboard_transfer_enabled: true,
-      transfer_enabled: true,
     }
 
     const wrapper = mountView()
@@ -228,7 +188,6 @@ describe('LeaderboardView', () => {
     expect(api.balance).not.toHaveBeenCalled()
     expect(api.consumption).not.toHaveBeenCalled()
     expect(api.checkin).not.toHaveBeenCalled()
-    expect(api.transfer).not.toHaveBeenCalled()
   })
 
   it('does not let an older response overwrite a newly selected board', async () => {

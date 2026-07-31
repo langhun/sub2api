@@ -26,22 +26,18 @@ func TestSettingsReaderMapsOnlyActivityLeaderboardSwitches(t *testing.T) {
 		settingKeyLeaderboardBalanceEnabled:     "false",
 		settingKeyLeaderboardConsumptionEnabled: "true",
 		settingKeyLeaderboardCheckinEnabled:     "false",
-		settingKeyLeaderboardTransferEnabled:    "true",
 		settingKeyLeaderboardIncludeAdmin:       "true",
-		settingKeyTransferEnabled:               "true",
 	}}
 
 	settings, err := NewSettingsReader(store).GetActivityLeaderboardSettings(context.Background())
 
 	require.NoError(t, err)
 	require.Equal(t, contract.LeaderboardFeatureSettings{
-		Enabled:              true,
-		BalanceEnabled:       false,
-		ConsumptionEnabled:   true,
-		CheckinEnabled:       false,
-		TransferEnabled:      true,
-		TransferBoardEnabled: true,
-		IncludeAdmin:         true,
+		Enabled:            true,
+		BalanceEnabled:     false,
+		ConsumptionEnabled: true,
+		CheckinEnabled:     false,
+		IncludeAdmin:       true,
 	}, settings)
 	require.Equal(t, 1, store.calls)
 }
@@ -56,12 +52,4 @@ func TestSettingsReaderPreservesLegacyDefaultsWhenStorageFails(t *testing.T) {
 		ConsumptionEnabled: true,
 		CheckinEnabled:     true,
 	}, settings)
-}
-
-func TestSettingsReaderKeepsTransferLeaderboardDisabledByDefault(t *testing.T) {
-	settings, err := NewSettingsReader(&settingsStoreStub{}).GetActivityLeaderboardSettings(context.Background())
-
-	require.NoError(t, err)
-	require.False(t, settings.TransferEnabled)
-	require.False(t, settings.TransferBoardEnabled)
 }

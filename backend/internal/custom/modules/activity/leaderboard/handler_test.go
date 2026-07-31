@@ -46,12 +46,10 @@ func TestModuleRegistersLegacyCompatiblePublicRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	module := NewModule(leaderboardSettingsStub{settings: contract.LeaderboardFeatureSettings{
 		Enabled: true, BalanceEnabled: true, ConsumptionEnabled: true, CheckinEnabled: true,
-		TransferEnabled: true, TransferBoardEnabled: true,
 	}}, Readers{
 		Balance:     &balanceReaderStub{},
 		Consumption: &consumptionReaderStub{},
 		Checkin:     &checkinReaderStub{},
-		Transfer:    &transferReaderStub{},
 	})
 	router := gin.New()
 	module.RegisterRoutes(router)
@@ -60,7 +58,6 @@ func TestModuleRegistersLegacyCompatiblePublicRoutes(t *testing.T) {
 		"/api/v1/public/leaderboard/balance",
 		"/api/v1/public/leaderboard/consumption",
 		"/api/v1/public/leaderboard/checkin",
-		"/api/v1/public/leaderboard/transfer",
 	} {
 		t.Run(path, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, path, nil)
