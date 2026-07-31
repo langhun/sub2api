@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
@@ -31,6 +32,7 @@ func (s *RateSyncer) OnUpstreamBillingProbeSuccess(ctx context.Context, account 
 	}
 	multiplier, ok := snapshotMultiplier(snapshot)
 	if !ok {
+		logger.LegacyPrintf("custom.upstream_cost", "skip_sync: account_id=%d reason=invalid_snapshot", account.ID)
 		return nil
 	}
 
@@ -38,11 +40,14 @@ func (s *RateSyncer) OnUpstreamBillingProbeSuccess(ctx context.Context, account 
 		RateMultiplier: &multiplier,
 	})
 	if err != nil {
+		logger.LegacyPrintf("custom.upstream_cost", "sync_failed: account_id=%d multiplier=%g err=%v", account.ID, multiplier, err)
 		return fmt.Errorf("sync account rate multiplier: %w", err)
 	}
 	if updated != 1 {
+		logger.LegacyPrintf("custom.upstream_cost", "sync_failed: account_id=%d multiplier=%g updated=%d", account.ID, multiplier, updated)
 		return fmt.Errorf("sync account rate multiplier: account %d was not updated", account.ID)
 	}
+	logger.LegacyPrintf("custom.upstream_cost", "sync_succeeded: account_id=%d multiplier=%g", account.ID, multiplier)
 	return nil
 }
 

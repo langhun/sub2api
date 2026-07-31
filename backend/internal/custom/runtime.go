@@ -16,6 +16,7 @@ import (
 	upstreamcost "github.com/Wei-Shaw/sub2api/internal/custom/modules/upstream-cost"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/google/wire"
 )
@@ -121,6 +122,7 @@ func NewRuntime(
 	// This is the only runtime mount for per-Key upstream-cost accounting.
 	// The adapter updates the existing account multiplier after a validated probe.
 	service.SetUpstreamBillingProbeSuccessObserver(upstreamcost.NewRateSyncer(accountRepository))
+	logger.LegacyPrintf("custom.upstream_cost", "observer_mounted")
 
 	return &Runtime{
 		ActivityCheckin:     activityCheckin,
