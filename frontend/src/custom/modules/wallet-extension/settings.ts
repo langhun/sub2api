@@ -35,7 +35,7 @@ function readSettings(settings: CustomSettingsValues): WalletExtensionSettings {
     const value = values[key]
     if (value !== null && value !== undefined) result[key] = value
   }
-  return result as WalletExtensionSettings
+  return result as unknown as WalletExtensionSettings
 }
 
 export const walletExtensionSettingsPanels: readonly CustomSettingsPanel[] = [
