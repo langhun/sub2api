@@ -1831,8 +1831,6 @@ const handleScroll = () => {
   closeActionMenu()
 }
 
-let usersRefreshInterval: ReturnType<typeof setInterval> | null = null
-
 onMounted(async () => {
   await loadAttributeDefinitions()
   loadSavedFilters()
@@ -1846,18 +1844,12 @@ onMounted(async () => {
   }
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('scroll', handleScroll, true)
-  usersRefreshInterval = setInterval(() => {
-    if (document.visibilityState === 'visible' && !loading.value) {
-      void loadUsers()
-    }
-  }, 60_000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('scroll', handleScroll, true)
   clearTimeout(searchTimeout)
-  if (usersRefreshInterval) clearInterval(usersRefreshInterval)
   abortController?.abort()
 })
 </script>
