@@ -13,6 +13,12 @@
       </p>
     </div>
 
+    <div data-testid="luck-risk-notice" class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-900/20">
+      <p class="text-xs leading-5 text-amber-800 dark:text-amber-200">
+        {{ t('checkin.luckRiskNotice') }}
+      </p>
+    </div>
+
     <div class="space-y-4">
       <label class="block">
         <span class="input-label">{{ t('checkin.betAmount') }}</span>
