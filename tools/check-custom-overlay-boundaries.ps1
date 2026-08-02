@@ -295,7 +295,12 @@ $script:FixedMountAllowlist = [System.Collections.Generic.HashSet[string]]::new(
     'frontend/src/api/admin/settings.ts',
     'frontend/src/types/index.ts',
     'frontend/src/utils/featureFlags.ts',
-    'frontend/src/views/admin/SettingsView.vue'
+    'frontend/src/views/admin/SettingsView.vue',
+    # Presentation-only Overlay adapters. They delegate display classification
+    # or formatting to frontend/src/custom and must not contain custom rules.
+    'frontend/src/components/admin/user/UserBalanceHistoryModal.vue',
+    'frontend/src/views/user/AffiliateView.vue',
+    'frontend/src/views/user/RedeemView.vue'
 ))
 $script:CompositionRootAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
     'backend/cmd/server/wire.go',
@@ -321,7 +326,10 @@ $script:PublishedImmutableMigrationPaths = [System.Collections.Generic.HashSet[s
     'backend/migrations/180_add_user_game_hall_disabled.sql',
     'backend/migrations/181_create_reward_deliveries.sql',
     'backend/migrations/185_widen_large_balance_amount_columns.sql',
-    'backend/migrations/187_move_game_hall_user_access.sql'
+    'backend/migrations/187_move_game_hall_user_access.sql',
+    # Historical repair migration. It is keyed by full filename in
+    # schema_migrations and must stay byte-for-byte immutable after release.
+    'backend/migrations/192_restore_ops_monitoring_schema.sql'
 ))
 
 # rev-parse produces exactly one line. Do not index the scalar result: in
