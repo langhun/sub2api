@@ -30,7 +30,7 @@ func (s usageQuerySettingsStub) UsageQueryEnabled(context.Context) (bool, error)
 func TestRegisterRoutesDoesNotAddRoutesWithoutRuntime(t *testing.T) {
 	router := gin.New()
 
-	custom.RegisterRoutes(router, nil, nil, nil, nil, nil)
+	custom.RegisterRoutes(router, nil, nil, nil, nil, nil, nil)
 
 	require.Empty(t, router.Routes())
 }
@@ -51,6 +51,7 @@ func TestRegisterRoutesMountsGameHallModule(t *testing.T) {
 		middleware.JWTAuthMiddleware(passthrough),
 		middleware.AdminAuthMiddleware(passthrough),
 		middleware.AuditLogMiddleware(passthrough),
+		nil,
 		nil,
 	)
 
@@ -134,7 +135,7 @@ func TestRegisterRoutesUsageQueryGateOnlyControlsUsageEndpoints(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			custom.RegisterRoutes(router, &custom.Runtime{UsageQuerySettings: tt.settings}, nil, nil, nil, nil)
+			custom.RegisterRoutes(router, &custom.Runtime{UsageQuerySettings: tt.settings}, nil, nil, nil, nil, nil)
 			router.GET("/v1/usage", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"route": "v1 usage"}) })
 			router.GET("/antigravity/v1/usage", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"route": "antigravity usage"}) })
 			router.GET("/v1/models", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"route": "models"}) })

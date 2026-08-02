@@ -28,6 +28,7 @@ func RegisterRoutes(
 	adminAuth middleware.AdminAuthMiddleware,
 	auditLog middleware.AuditLogMiddleware,
 	settingService *service.SettingService,
+	panelRateLimiter *middleware.PanelRateLimiter,
 ) {
 	if runtime == nil {
 		return
@@ -37,6 +38,9 @@ func RegisterRoutes(
 	}
 	if runtime.GameHall != nil {
 		runtime.GameHall.RegisterRoutes(r, jwtAuth, adminAuth, auditLog, settingService)
+	}
+	if runtime.SupportTickets != nil {
+		runtime.SupportTickets.RegisterRoutes(r, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
 	}
 	if runtime.ActivityCheckin != nil {
 		v1 := r.Group("/api/v1")

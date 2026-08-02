@@ -152,6 +152,45 @@ func TestPasskeyLoginAuditUsesCanonicalLoginActionAndOmitsCredentialBody(t *test
 	require.Contains(t, auditBodyOmittedRoutes, route)
 }
 
+func TestSupportTicketMutationsOmitCustomerText(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repository := &auditCaptureRepository{}
+	auditService := service.NewAuditLogService(repository, nil)
+	auditService.Start()
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set(string(ContextKeyUser), AuthSubject{UserID: 77})
+		c.Next()
+	})
+	router.Use(gin.HandlerFunc(NewAuditLogMiddleware(auditService)))
+	router.POST("/api/v1/support/tickets", func(c *gin.Context) { c.Status(http.StatusCreated) })
+	router.POST("/api/v1/support/tickets/:public_id/messages", func(c *gin.Context) { c.Status(http.StatusOK) })
+	router.POST("/api/v1/admin/support/tickets/:public_id/messages", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	for _, path := range []string{
+		"/api/v1/support/tickets",
+		"/api/v1/support/tickets/SUP-0123456789ABCDEF/messages",
+		"/api/v1/admin/support/tickets/SUP-0123456789ABCDEF/messages",
+	} {
+		request := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{"subject":"audit-canary","body":"sk-audit-canary"}`))
+		request.Header.Set("Content-Type", "application/json")
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, request)
+	}
+	auditService.Stop()
+
+	repository.mu.Lock()
+	logs := append([]*service.AuditLog(nil), repository.logs...)
+	repository.mu.Unlock()
+	require.Len(t, logs, 3)
+	for _, entry := range logs {
+		require.Equal(t, "<credential-bearing body omitted>", entry.RequestBody)
+		require.NotContains(t, entry.RequestBody, "audit-canary")
+		require.Equal(t, int64(77), *entry.ActorUserID)
+	}
+}
+
 // Ollama 会话保存的请求体整体就是浏览器 Cookie 明文，键级脱敏清单曾漏掉裸键
 // "session"，必须走整体不入库路径，防止会话凭证长期留存在 audit_logs。
 func TestOllamaCloudUsageSessionRouteOmitsAuditBody(t *testing.T) {

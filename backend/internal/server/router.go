@@ -92,9 +92,12 @@ func SetupRouter(
 		settingService.SetOnUpdateCallback(refreshFrameOrigins)
 	}
 
+	// 面板 API 限流器由标准与 Overlay 管理面共享，保证自定义路由不会绕过按用户限流。
+	panelRateLimiter := middleware2.NewPanelRateLimiter(redisClient, settingService)
+
 	// 注册路由
-	custom.RegisterRoutes(r, customRuntime, jwtAuth, adminAuth, auditLog, settingService)
-	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient)
+	custom.RegisterRoutes(r, customRuntime, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
+	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient, panelRateLimiter)
 
 	return r
 }
@@ -116,16 +119,13 @@ func registerRoutes(
 	compositeResolver *service.CompositeRouteResolver,
 	cfg *config.Config,
 	redisClient *redis.Client,
+	panelRateLimiter *middleware2.PanelRateLimiter,
 ) {
 	// 通用路由（健康检查、状态等）
 	routes.RegisterCommonRoutes(r)
 
 	// API v1
 	v1 := r.Group("/api/v1")
-
-	// 面板 API 限流器：认证接口按用户 ID、公开接口按安全客户端 IP，
-	// 防止高频刷管理面接口打爆数据库（阈值可在系统设置中调整）。
-	panelRateLimiter := middleware2.NewPanelRateLimiter(redisClient, settingService)
 
 	// 注册各模块路由
 	routes.RegisterAuthRoutes(v1, h, jwtAuth, auditLog, redisClient, settingService, panelRateLimiter)

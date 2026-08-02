@@ -10,6 +10,7 @@ import (
 	brandhomesettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/brand-home/settings"
 	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
 	gamehallsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall/settings"
+	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/settings/contract"
 	"github.com/Wei-Shaw/sub2api/internal/handler/settingsext"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -22,10 +23,11 @@ var ProviderSet = wire.NewSet(ProvideRegistry, ProvideHandlerSettingsMount)
 
 // Snapshot is the complete typed configuration owned by Overlay modules.
 type Snapshot struct {
-	Activity   activitysettings.Config
-	BrandHome  brandhomesettings.Config
-	CodeFormat codeformatsettings.Config
-	GameHall   gamehallsettings.Config
+	Activity       activitysettings.Config
+	BrandHome      brandhomesettings.Config
+	CodeFormat     codeformatsettings.Config
+	GameHall       gamehallsettings.Config
+	SupportTickets supporttickets.Settings
 }
 
 // Registry is the sole aggregate for Overlay settings. Core settings code can
@@ -67,7 +69,11 @@ func (r *Registry) Read(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return Snapshot{Activity: activityConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig}, nil
+	supportTicketValues, err := r.store.GetMultiple(ctx, supporttickets.SettingsKeys())
+	if err != nil {
+		return Snapshot{}, fmt.Errorf("read support ticket settings: %w", err)
+	}
+	return Snapshot{Activity: activityConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig, SupportTickets: supporttickets.SettingsFromValues(supportTicketValues)}, nil
 }
 
 func (r *Registry) Validate(snapshot Snapshot) error {
@@ -81,6 +87,9 @@ func (r *Registry) Validate(snapshot Snapshot) error {
 		return err
 	}
 	if err := gamehallsettings.Validate(snapshot.GameHall); err != nil {
+		return err
+	}
+	if err := supporttickets.ValidateSettings(snapshot.SupportTickets); err != nil {
 		return err
 	}
 	return nil
@@ -138,7 +147,11 @@ func Values(snapshot Snapshot) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mergeStringValues(activityValues, brandHomeValues, codeFormatValues, gameHallValues)
+	supportTicketValues, err := supporttickets.SettingsValues(snapshot.SupportTickets)
+	if err != nil {
+		return nil, err
+	}
+	return mergeStringValues(activityValues, brandHomeValues, codeFormatValues, gameHallValues, supportTicketValues)
 }
 
 func Public(snapshot Snapshot) map[string]any {
@@ -146,11 +159,21 @@ func Public(snapshot Snapshot) map[string]any {
 		activitysettings.Public(snapshot.Activity),
 		brandhomesettings.Public(snapshot.BrandHome),
 		gamehallsettings.Public(snapshot.GameHall),
+		map[string]any{supporttickets.KeyEnabled: snapshot.SupportTickets.Enabled},
 	)
 	if err != nil {
 		panic(err)
 	}
 	return values
+}
+
+// ReadSupportTickets satisfies the support-ticket module's narrow settings contract.
+func (r *Registry) ReadSupportTickets(ctx context.Context) (supporttickets.Settings, error) {
+	snapshot, err := r.Read(ctx)
+	if err != nil {
+		return supporttickets.Settings{}, err
+	}
+	return snapshot.SupportTickets, nil
 }
 
 func mergeStringValues(groups ...map[string]string) (map[string]string, error) {

@@ -13,6 +13,7 @@ import (
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
+	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -35,6 +36,7 @@ type Runtime struct {
 	ActivityRewards     *activityrewards.Runtime
 	ActivityRewardsHTTP *activityrewards.Module
 	GameHall            *gamehall.Module
+	SupportTickets      *supporttickets.Module
 	UsageQuerySettings  UsageQuerySettings
 }
 
@@ -123,6 +125,7 @@ func NewRuntime(
 		ActivityRewards:     activityRewards,
 		ActivityRewardsHTTP: activityRewardsHTTP,
 		GameHall:            gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
+		SupportTickets:      supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
 		UsageQuerySettings:  customSettingsRegistry,
 	}, nil
 }

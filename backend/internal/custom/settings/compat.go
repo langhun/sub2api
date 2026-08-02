@@ -12,6 +12,7 @@ type Compatibility struct {
 	CodeFormatSettings            codeformatsettings.Config `json:"code_format_settings"`
 	DefaultHomepage               string                    `json:"default_homepage"`
 	GameHallEnabled               bool                      `json:"game_hall_enabled"`
+	SupportTicketEnabled          bool                      `json:"support_ticket_enabled"`
 	GameSlotsEnabled              bool                      `json:"game_slots_enabled"`
 	GameSlotsMinBet               float64                   `json:"game_slots_min_bet"`
 	GameSlotsMaxBet               float64                   `json:"game_slots_max_bet"`
@@ -44,6 +45,7 @@ type Compatibility struct {
 type PublicCompatibility struct {
 	DefaultHomepage               string  `json:"default_homepage"`
 	GameHallEnabled               bool    `json:"game_hall_enabled"`
+	SupportTicketEnabled          bool    `json:"support_ticket_enabled"`
 	GameSlotsEnabled              bool    `json:"game_slots_enabled"`
 	GameSlotsMinBet               float64 `json:"game_slots_min_bet"`
 	GameSlotsMaxBet               float64 `json:"game_slots_max_bet"`
@@ -69,6 +71,7 @@ type Patch struct {
 	CodeFormatSettings            *codeformatsettings.Config `json:"code_format_settings"`
 	DefaultHomepage               *string                    `json:"default_homepage"`
 	GameHallEnabled               *bool                      `json:"game_hall_enabled"`
+	SupportTicketEnabled          *bool                      `json:"support_ticket_enabled"`
 	GameSlotsEnabled              *bool                      `json:"game_slots_enabled"`
 	GameSlotsMinBet               *float64                   `json:"game_slots_min_bet"`
 	GameSlotsMaxBet               *float64                   `json:"game_slots_max_bet"`
@@ -100,7 +103,7 @@ type Patch struct {
 // setting. It lets the admin settings handler avoid unrelated writes to the
 // module store while keeping the flat JSON request contract.
 func (p Patch) HasChanges() bool {
-	return p.CodeFormatSettings != nil || p.DefaultHomepage != nil || p.GameHallEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
+	return p.CodeFormatSettings != nil || p.DefaultHomepage != nil || p.GameHallEnabled != nil || p.SupportTicketEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
 		p.GameExchangeMinAmount != nil || p.GameExchangeMaxAmount != nil || p.GameExchangeDailyLimit != nil || p.GameExchangeAllowDGToBalance != nil ||
 		p.CheckinEnabled != nil || p.CheckinMinBalance != nil || p.CheckinMaxBalance != nil || p.CheckinLuckEnabled != nil ||
 		p.CheckinLuckMinMultiplier != nil || p.CheckinLuckMaxMultiplier != nil || p.CheckinBlindboxEnabled != nil ||
@@ -123,11 +126,13 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 	brandHome := snapshot.BrandHome
 	codeFormat := snapshot.CodeFormat
 	gameHall := snapshot.GameHall
+	supportTickets := snapshot.SupportTickets
 	return Compatibility{
 		CodeFormatSettings: codeFormat,
 		DefaultHomepage:    brandHome.DefaultHomepage,
 		GameHallEnabled:    gameHall.Enabled, GameSlotsEnabled: gameHall.SlotsEnabled,
-		GameSlotsMinBet: gameHall.SlotsMinBet, GameSlotsMaxBet: gameHall.SlotsMaxBet,
+		SupportTicketEnabled: supportTickets.Enabled,
+		GameSlotsMinBet:      gameHall.SlotsMinBet, GameSlotsMaxBet: gameHall.SlotsMaxBet,
 		GameExchangeMinAmount: gameHall.ExchangeMinAmount, GameExchangeMaxAmount: gameHall.ExchangeMaxAmount,
 		GameExchangeDailyLimit: gameHall.ExchangeDailyLimit, GameExchangeAllowDGToBalance: gameHall.ExchangeAllowDGToBalance,
 		CheckinEnabled: activity.CheckinEnabled, CheckinMinBalance: activity.CheckinMinBalance, CheckinMaxBalance: activity.CheckinMaxBalance,
@@ -146,7 +151,8 @@ func (c Compatibility) Public() PublicCompatibility {
 	return PublicCompatibility{
 		DefaultHomepage: c.DefaultHomepage,
 		GameHallEnabled: c.GameHallEnabled, GameSlotsEnabled: c.GameSlotsEnabled,
-		GameSlotsMinBet: c.GameSlotsMinBet, GameSlotsMaxBet: c.GameSlotsMaxBet,
+		SupportTicketEnabled: c.SupportTicketEnabled,
+		GameSlotsMinBet:      c.GameSlotsMinBet, GameSlotsMaxBet: c.GameSlotsMaxBet,
 		GameExchangeMinAmount: c.GameExchangeMinAmount, GameExchangeMaxAmount: c.GameExchangeMaxAmount,
 		GameExchangeDailyLimit: c.GameExchangeDailyLimit, GameExchangeAllowDGToBalance: c.GameExchangeAllowDGToBalance,
 		CheckinEnabled: c.CheckinEnabled, CheckinLuckEnabled: c.CheckinLuckEnabled, CheckinBlindboxEnabled: c.CheckinBlindboxEnabled,
@@ -162,6 +168,7 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	brandHome := &snapshot.BrandHome
 	codeFormat := &snapshot.CodeFormat
 	gameHall := &snapshot.GameHall
+	supportTickets := &snapshot.SupportTickets
 	if p.CodeFormatSettings != nil {
 		*codeFormat = *p.CodeFormatSettings
 	}
@@ -170,6 +177,9 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	}
 	if p.GameHallEnabled != nil {
 		gameHall.Enabled = *p.GameHallEnabled
+	}
+	if p.SupportTicketEnabled != nil {
+		supportTickets.Enabled = *p.SupportTicketEnabled
 	}
 	if p.GameSlotsEnabled != nil {
 		gameHall.SlotsEnabled = *p.GameSlotsEnabled

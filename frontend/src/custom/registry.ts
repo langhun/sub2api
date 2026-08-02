@@ -13,6 +13,9 @@ import { brandHomeRoutes } from './modules/brand-home/routes'
 import { brandHomeSettingsPanels } from './modules/brand-home/settings'
 import { gameHallNavigation } from './modules/game-hall/navigation'
 import { gameHallRoutes } from './modules/game-hall/routes'
+import { supportTicketNavigation } from './modules/support-tickets/navigation'
+import { supportTicketFeatureFlag } from './modules/support-tickets/navigation'
+import { supportTicketRoutes } from './modules/support-tickets/routes'
 import {
   gameHallFeatureFlags,
   gameHallSettingsPanels,
@@ -65,11 +68,13 @@ export const customRoutes: readonly RouteRecordRaw[] = [
   ...brandHomeRoutes,
   ...activityRoutes,
   ...gameHallRoutes,
+  ...supportTicketRoutes,
 ]
 
 export const customNavigation: readonly CustomNavigationItem[] = [
   ...activityNavigation,
   ...gameHallNavigation,
+  ...supportTicketNavigation,
 ]
 
 export const customHeaderActions: readonly CustomHeaderAction[] = [
@@ -85,6 +90,7 @@ export const customSettingsPanels: readonly CustomSettingsPanel[] = [
 export const customFeatureFlags: readonly FeatureFlagDefinition[] = [
   ...Object.values(activityFeatureFlags),
   ...Object.values(gameHallFeatureFlags),
+  supportTicketFeatureFlag,
 ]
 
 registerFeatureFlags(customFeatureFlags)
