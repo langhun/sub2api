@@ -13,10 +13,8 @@ import (
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
-	upstreamcost "github.com/Wei-Shaw/sub2api/internal/custom/modules/upstream-cost"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/google/wire"
 )
@@ -45,7 +43,6 @@ func NewRuntime(
 	client *dbent.Client,
 	db *sql.DB,
 	activityWalletCapabilities *platform.ActivityWalletCapabilities,
-	accountRepository service.AccountRepository,
 	redeemService *service.RedeemService,
 	adminService service.AdminService,
 	customSettingsRegistry *customsettings.Registry,
@@ -119,11 +116,6 @@ func NewRuntime(
 	if err != nil {
 		return nil, err
 	}
-	// This is the only runtime mount for per-Key upstream-cost accounting.
-	// The adapter updates the existing account multiplier after a validated probe.
-	service.SetUpstreamBillingProbeSuccessObserver(upstreamcost.NewRateSyncer(accountRepository))
-	logger.LegacyPrintf("custom.upstream_cost", "observer_mounted")
-
 	return &Runtime{
 		ActivityCheckin:     activityCheckin,
 		ActivityLeaderboard: activityleaderboard.NewDatabaseModule(client, db),
