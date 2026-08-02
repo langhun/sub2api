@@ -12,6 +12,28 @@ func TestApplyRejectsNilDatabase(t *testing.T) {
 	}
 }
 
+func TestMigrationChecksumsTreatLineEndingsAsEquivalent(t *testing.T) {
+	lf := "CREATE TABLE example (id BIGINT);\nSELECT 1;"
+	crlf := strings.ReplaceAll(lf, "\n", "\r\n")
+	canonicalLF, compatibleLF := migrationChecksums(lf)
+	canonicalCRLF, compatibleCRLF := migrationChecksums(crlf)
+
+	if canonicalLF != canonicalCRLF {
+		t.Fatalf("canonical checksums differ: LF=%s CRLF=%s", canonicalLF, canonicalCRLF)
+	}
+	for _, checksum := range []string{migrationChecksum(lf), migrationChecksum(crlf)} {
+		if _, ok := compatibleLF[checksum]; !ok {
+			t.Fatalf("LF compatibility set missing %s", checksum)
+		}
+		if _, ok := compatibleCRLF[checksum]; !ok {
+			t.Fatalf("CRLF compatibility set missing %s", checksum)
+		}
+	}
+	if mutated, _ := migrationChecksums(lf + "\nSELECT 2;"); mutated == canonicalLF {
+		t.Fatal("semantic migration change must alter the checksum")
+	}
+}
+
 func TestActivityRedeemMetadataMigrationPreservesLegacyColumns(t *testing.T) {
 	content, err := files.ReadFile("001_activity_redeem_metadata.sql")
 	if err != nil {

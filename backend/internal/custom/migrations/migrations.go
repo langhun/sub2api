@@ -69,13 +69,12 @@ func Apply(ctx context.Context, db *sql.DB) error {
 		if content == "" {
 			continue
 		}
-		sum := sha256.Sum256([]byte(content))
-		checksum := hex.EncodeToString(sum[:])
+		checksum, compatibleChecksums := migrationChecksums(content)
 
 		var existing string
 		err = conn.QueryRowContext(ctx, "SELECT checksum FROM custom_schema_migrations WHERE filename = $1", name).Scan(&existing)
 		if err == nil {
-			if existing != checksum {
+			if _, compatible := compatibleChecksums[existing]; !compatible {
 				return fmt.Errorf("custom migration %s checksum mismatch", name)
 			}
 			continue
@@ -102,4 +101,19 @@ func Apply(ctx context.Context, db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func migrationChecksums(content string) (string, map[string]struct{}) {
+	lf := strings.ReplaceAll(strings.TrimSpace(content), "\r\n", "\n")
+	crlf := strings.ReplaceAll(lf, "\n", "\r\n")
+	canonical := migrationChecksum(lf)
+	return canonical, map[string]struct{}{
+		canonical:               {},
+		migrationChecksum(crlf): {},
+	}
+}
+
+func migrationChecksum(content string) string {
+	sum := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(sum[:])
 }
