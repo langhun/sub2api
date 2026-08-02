@@ -259,7 +259,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	channelMonitorRequestTemplateHandler := admin.NewChannelMonitorRequestTemplateHandler(channelMonitorRequestTemplateService)
 	contentModerationRepository := repository.NewContentModerationRepository(db)
 	contentModerationHashCache := repository.NewContentModerationHashCache(redisClient)
-	contentModerationService := service.NewContentModerationService(settingRepository, contentModerationRepository, contentModerationHashCache, groupRepository, userRepository, apiKeyAuthCacheInvalidator, emailService)
+	contentModerationService := service.NewContentModerationService(settingRepository, contentModerationRepository, contentModerationHashCache, groupRepository, userRepository, proxyRepository, apiKeyAuthCacheInvalidator, emailService)
 	contentModerationHandler := admin.NewContentModerationHandler(contentModerationService)
 	configManager := securityaudit.NewConfigManager(db, settingRepository, redisClient, secretEncryptor, configConfig)
 	postgreSQLRepository := securityaudit.NewPostgreSQLRepository(db)
@@ -320,7 +320,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	publicSettingsProvider := server.ProvidePublicSettingsInjectionProvider(settingService, settingsRegistry)
 	activityWalletCapabilities := platform.ProvideActivityWalletCapabilities(billingCacheService, userRepository, subscriptionService, client, leaderLockCache)
 	generator := codeformat.NewGenerator(settingsRegistry)
-	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, accountRepository, redeemService, adminService, settingsRegistry, generator)
+	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, settingsRegistry, generator)
 	if err != nil {
 		return nil, err
 	}
