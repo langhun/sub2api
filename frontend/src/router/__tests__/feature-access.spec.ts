@@ -244,59 +244,19 @@ describe('feature route guard', () => {
 		expect(next).toHaveBeenCalledWith()
 	})
 
-	it.each([
-		['transfer disabled', { transfer_enabled: false, leaderboard_enabled: true, leaderboard_transfer_enabled: true }],
-		['leaderboard disabled', { transfer_enabled: true, leaderboard_enabled: false, leaderboard_transfer_enabled: true }],
-		['transfer leaderboard disabled', { transfer_enabled: true, leaderboard_enabled: true, leaderboard_transfer_enabled: false }],
-		['transfer leaderboard missing', { transfer_enabled: true, leaderboard_enabled: true }],
-	])('blocks a direct transfer leaderboard route when %s', async (_name, settings) => {
-		appStore.cachedPublicSettings = settings
-		appStore.publicSettingsLoaded = true
-
-		const { navigation, next } = runGuard({
-			requiresAllFeatures: ['transfer_enabled', 'leaderboard_enabled', 'leaderboard_transfer_enabled'],
-		}, '/transfer/leaderboard')
-		await navigation
-
-		expect(next).toHaveBeenCalledWith('/dashboard')
-	})
-
-	it('allows the transfer leaderboard route only when all switches are enabled', async () => {
-		appStore.cachedPublicSettings = {
-			transfer_enabled: true,
-			leaderboard_enabled: true,
-			leaderboard_transfer_enabled: true,
-		}
-		appStore.publicSettingsLoaded = true
-
-		const { navigation, next } = runGuard({
-			requiresAllFeatures: ['transfer_enabled', 'leaderboard_enabled', 'leaderboard_transfer_enabled'],
-		}, '/transfer/leaderboard')
-		await navigation
-
-		expect(next).toHaveBeenCalledWith()
-	})
-
 	it('wires the real leaderboard routes to the effective switch groups', () => {
 		const leaderboard = routerHarness.routes.find((route) => route.path === '/leaderboard')
-		const transferLeaderboard = routerHarness.routes.find((route) => route.path === '/transfer/leaderboard')
 
 		expect(leaderboard?.meta?.requiresFeature).toBe('leaderboard_enabled')
 		expect(leaderboard?.meta?.requiresAnyFeatureGroups).toEqual([
 			['leaderboard_balance_enabled'],
 			['leaderboard_consumption_enabled'],
 			['leaderboard_checkin_enabled'],
-			['leaderboard_transfer_enabled', 'transfer_enabled'],
-		])
-		expect(transferLeaderboard?.meta?.requiresAllFeatures).toEqual([
-			'transfer_enabled',
-			'leaderboard_enabled',
-			'leaderboard_transfer_enabled',
 		])
 	})
 
 	it('registers every activity URL exactly once through the module registry', () => {
-		for (const path of ['/checkin', '/leaderboard', '/transfer/leaderboard', '/redpacket']) {
+		for (const path of ['/checkin', '/leaderboard', '/redpacket']) {
 			expect(routerHarness.routes.filter((route) => route.path === path)).toHaveLength(1)
 		}
 	})
@@ -307,8 +267,6 @@ describe('feature route guard', () => {
 			leaderboard_balance_enabled: false,
 			leaderboard_consumption_enabled: false,
 			leaderboard_checkin_enabled: false,
-			leaderboard_transfer_enabled: true,
-			transfer_enabled: false,
 		}
 		appStore.publicSettingsLoaded = true
 
@@ -318,7 +276,6 @@ describe('feature route guard', () => {
 				['leaderboard_balance_enabled'],
 				['leaderboard_consumption_enabled'],
 				['leaderboard_checkin_enabled'],
-				['leaderboard_transfer_enabled', 'transfer_enabled'],
 			],
 		}, '/leaderboard')
 		await navigation
