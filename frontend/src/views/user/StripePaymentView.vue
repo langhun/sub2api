@@ -281,18 +281,27 @@ async function handleGenericPay() {
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollInFlight = false
 
 function startPolling() {
   const orderId = Number(route.query.order_id)
-  if (!orderId) return
+  if (!orderId || pollTimer) return
   pollTimer = setInterval(async () => {
-    const o = await paymentStore.pollOrderStatus(orderId)
-    if (!o) return
-    if (o.status === 'COMPLETED' || o.status === 'PAID') {
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-      stripeSuccess.value = true
-      wechatQrUrl.value = ''
-      scheduleClose()
+    if (pollInFlight || stripeSuccess.value) return
+    pollInFlight = true
+    try {
+      const o = await paymentStore.pollOrderStatus(orderId)
+      if (!o) return
+      if (o.status === 'COMPLETED' || o.status === 'PAID') {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+        stripeSuccess.value = true
+        wechatQrUrl.value = ''
+        scheduleClose()
+      }
+    } catch {
+      // A transient status check failure should not surface an unhandled rejection.
+    } finally {
+      pollInFlight = false
     }
   }, 3000)
 }
@@ -310,5 +319,6 @@ function scheduleClose() {
 onUnmounted(() => {
   if (redirectTimer) clearTimeout(redirectTimer)
   if (pollTimer) clearInterval(pollTimer)
+  pollInFlight = false
 })
 </script>
