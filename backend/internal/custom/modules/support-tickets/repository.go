@@ -9,9 +9,11 @@ import (
 )
 
 var (
-	ErrNotFound          = errors.New("support ticket not found")
-	ErrTicketInactive    = errors.New("support ticket must be reopened before replying")
-	ErrInvalidTransition = errors.New("ticket status transition is not allowed")
+	ErrNotFound           = errors.New("support ticket not found")
+	ErrTicketInactive     = errors.New("support ticket must be reopened before replying")
+	ErrTicketMessageLimit = errors.New("support ticket message limit reached")
+	ErrTicketLimit        = errors.New("support ticket limit reached")
+	ErrInvalidTransition  = errors.New("ticket status transition is not allowed")
 )
 
 type Repository struct{ db *sql.DB }
@@ -27,6 +29,13 @@ func (r *Repository) Create(ctx context.Context, ticket Ticket, body string) (*T
 		return nil, fmt.Errorf("begin support ticket: %w", err)
 	}
 	defer tx.Rollback()
+	var activeTickets int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM custom_support_tickets WHERE user_id = $1 AND status <> 'closed'`, ticket.UserID).Scan(&activeTickets); err != nil {
+		return nil, fmt.Errorf("count user support tickets: %w", err)
+	}
+	if activeTickets >= MaxActiveTicketsPerUser {
+		return nil, ErrTicketLimit
+	}
 	row := tx.QueryRowContext(ctx, `INSERT INTO custom_support_tickets (public_id, user_id, category, subject, status, priority, last_reply_by, user_last_read_at, last_activity_at, created_at, updated_at) VALUES ($1,$2,$3,$4,'open','normal','user',NOW(),NOW(),NOW(),NOW()) RETURNING id, last_activity_at, created_at, updated_at`, ticket.PublicID, ticket.UserID, ticket.Category, ticket.Subject)
 	if err := row.Scan(&ticket.ID, &ticket.LastActivityAt, &ticket.CreatedAt, &ticket.UpdatedAt); err != nil {
 		return nil, fmt.Errorf("insert support ticket: %w", err)
@@ -118,7 +127,7 @@ func (r *Repository) Detail(ctx context.Context, publicID string, userID *int64,
 	if !includeInternal {
 		messageWhere += " AND message_type = 'reply'"
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, author_type, author_user_id, message_type, body, created_at FROM custom_support_ticket_messages WHERE `+messageWhere+` ORDER BY created_at ASC, id ASC`, result.ID)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, author_type, author_user_id, message_type, body, created_at FROM custom_support_ticket_messages WHERE `+messageWhere+` ORDER BY created_at ASC, id ASC LIMIT 100`, result.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list ticket messages: %w", err)
 	}
@@ -161,6 +170,13 @@ func (r *Repository) AddReply(ctx context.Context, input ReplyInput) (*Ticket, e
 	if input.ActorType == "admin" && !input.Internal && (ticket.Status == StatusResolved || ticket.Status == StatusClosed) {
 		return nil, ErrTicketInactive
 	}
+	var messageCount int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM custom_support_ticket_messages WHERE ticket_id = $1`, ticket.ID).Scan(&messageCount); err != nil {
+		return nil, fmt.Errorf("count ticket messages: %w", err)
+	}
+	if messageCount >= MaxMessagesPerTicket {
+		return nil, ErrTicketMessageLimit
+	}
 	author := input.ActorType
 	kind := "reply"
 	if input.Internal {
@@ -184,15 +200,19 @@ func (r *Repository) AddReply(ctx context.Context, input ReplyInput) (*Ticket, e
 		resolvedAt = nil
 		closedAt = nil
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE custom_support_tickets SET status=$1,last_reply_by=$2::text,last_activity_at=NOW(),updated_at=NOW(),user_last_read_at=CASE WHEN $2::text='user' THEN NOW() ELSE user_last_read_at END,admin_last_read_at=CASE WHEN $2::text='admin' THEN NOW() ELSE admin_last_read_at END,resolved_at=$3,closed_at=$4 WHERE id=$5`, status, author, resolvedAt, closedAt, ticket.ID); err != nil {
-		return nil, fmt.Errorf("update ticket reply: %w", err)
+	if !input.Internal {
+		if _, err := tx.ExecContext(ctx, `UPDATE custom_support_tickets SET status=$1,last_reply_by=$2::text,last_activity_at=NOW(),updated_at=NOW(),user_last_read_at=CASE WHEN $2::text='user' THEN NOW() ELSE user_last_read_at END,admin_last_read_at=CASE WHEN $2::text='admin' THEN NOW() ELSE admin_last_read_at END,resolved_at=$3,closed_at=$4 WHERE id=$5`, status, author, resolvedAt, closedAt, ticket.ID); err != nil {
+			return nil, fmt.Errorf("update ticket reply: %w", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit ticket reply: %w", err)
 	}
-	ticket.Status = status
-	ticket.LastReplyBy = author
-	ticket.LastActivityAt = time.Now().UTC()
+	if !input.Internal {
+		ticket.Status = status
+		ticket.LastReplyBy = author
+		ticket.LastActivityAt = time.Now().UTC()
+	}
 	return &ticket, nil
 }
 
@@ -255,7 +275,24 @@ func (r *Repository) update(ctx context.Context, publicID string, actorID int64,
 	} else {
 		t.Priority = value
 	}
-	t.LastActivityAt = time.Now().UTC()
+	now := time.Now().UTC()
+	t.LastActivityAt = now
+	t.UpdatedAt = now
+	if field == "status" {
+		switch value {
+		case StatusResolved:
+			t.ResolvedAt = &now
+			t.ClosedAt = nil
+		case StatusClosed:
+			t.ClosedAt = &now
+			if old != StatusResolved {
+				t.ResolvedAt = nil
+			}
+		default:
+			t.ResolvedAt = nil
+			t.ClosedAt = nil
+		}
+	}
 	return &t, nil
 }
 

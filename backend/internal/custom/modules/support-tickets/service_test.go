@@ -7,10 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateCreateRejectsCredentialsAndInvalidCategory(t *testing.T) {
+func TestValidateCreateRejectsInvalidCategoryAndControlCharacters(t *testing.T) {
 	require.Error(t, validateCreate(CreateInput{UserID: 1, Category: "unknown", Subject: "Need help", Body: "hello"}))
-	require.Error(t, validateCreate(CreateInput{UserID: 1, Category: "api", Subject: "Need help", Body: "Authorization: Bearer secret"}))
+	require.NoError(t, validateCreate(CreateInput{UserID: 1, Category: "api", Subject: "Need help", Body: "password reset does not work"}))
 	require.NoError(t, validateCreate(CreateInput{UserID: 1, Category: "api", Subject: "Need help", Body: "request id: abc"}))
+	require.Error(t, validateCreate(CreateInput{UserID: 1, Category: "api", Subject: "Need help", Body: "line\rbreak"}))
 }
 
 func TestPublicIDShape(t *testing.T) {

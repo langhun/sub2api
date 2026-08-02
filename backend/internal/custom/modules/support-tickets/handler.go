@@ -249,7 +249,7 @@ func respondTicketError(c *gin.Context, err error) {
 		response.NotFound(c, "support ticket not found")
 		return
 	}
-	if errors.Is(err, ErrTicketInactive) || errors.Is(err, ErrInvalidTransition) {
+	if errors.Is(err, ErrTicketInactive) || errors.Is(err, ErrInvalidTransition) || errors.Is(err, ErrTicketMessageLimit) || errors.Is(err, ErrTicketLimit) {
 		response.BadRequest(c, err.Error())
 		return
 	}

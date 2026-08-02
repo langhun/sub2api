@@ -169,11 +169,14 @@ func Public(snapshot Snapshot) map[string]any {
 
 // ReadSupportTickets satisfies the support-ticket module's narrow settings contract.
 func (r *Registry) ReadSupportTickets(ctx context.Context) (supporttickets.Settings, error) {
-	snapshot, err := r.Read(ctx)
+	if r == nil || r.store == nil {
+		return supporttickets.Settings{}, fmt.Errorf("custom settings store is required")
+	}
+	values, err := r.store.GetMultiple(ctx, supporttickets.SettingsKeys())
 	if err != nil {
 		return supporttickets.Settings{}, err
 	}
-	return snapshot.SupportTickets, nil
+	return supporttickets.SettingsFromValues(values), nil
 }
 
 func mergeStringValues(groups ...map[string]string) (map[string]string, error) {

@@ -6,6 +6,11 @@ import "time"
 const ModuleID = "support_tickets"
 
 const (
+	MaxMessagesPerTicket    = 100
+	MaxActiveTicketsPerUser = 20
+)
+
+const (
 	StatusOpen        = "open"
 	StatusWaitingUser = "waiting_user"
 	StatusResolved    = "resolved"
@@ -38,7 +43,7 @@ type Ticket struct {
 type Message struct {
 	ID           int64     `json:"id"`
 	AuthorType   string    `json:"author_type"`
-	AuthorUserID int64     `json:"author_user_id"`
+	AuthorUserID int64     `json:"-"`
 	MessageType  string    `json:"message_type"`
 	Body         string    `json:"body"`
 	CreatedAt    time.Time `json:"created_at"`

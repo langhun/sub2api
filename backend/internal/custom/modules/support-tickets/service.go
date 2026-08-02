@@ -147,11 +147,6 @@ func plainText(value string, min, max int, name string) error {
 	if strings.ContainsAny(value, "\x00\r") {
 		return fmt.Errorf("%s contains unsupported characters", name)
 	}
-	for _, marker := range []string{"sk-", "Bearer ", "Authorization:", "api_key", "password", "passwd", "secret"} {
-		if strings.Contains(strings.ToLower(value), strings.ToLower(marker)) {
-			return fmt.Errorf("%s must not contain credentials", name)
-		}
-	}
 	return nil
 }
 func validCategory(v string) bool {

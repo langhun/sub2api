@@ -2,6 +2,7 @@ package supporttickets
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -42,6 +43,9 @@ func TestAdminReplyUsesOneExplicitTextParameterType(t *testing.T) {
 	mock.ExpectQuery(`FROM custom_support_tickets WHERE public_id = \$1 FOR UPDATE`).
 		WithArgs("SUP-0123456789ABCDEF").
 		WillReturnRows(sqlmock.NewRows(columns).AddRow(int64(1), "SUP-0123456789ABCDEF", int64(7), "api", "Help", StatusOpen, PriorityNormal, "user", now, nil, nil, now, now))
+	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM custom_support_ticket_messages WHERE ticket_id = \$1`).
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 	mock.ExpectExec(`INSERT INTO custom_support_ticket_messages`).
 		WithArgs(int64(1), "admin", int64(9), "reply", "response").
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -62,5 +66,72 @@ func TestAdminReplyUsesOneExplicitTextParameterType(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, StatusWaitingUser, ticket.Status)
 	require.Equal(t, "admin", ticket.LastReplyBy)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCreateRejectsWhenActiveTicketLimitReached(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM custom_support_tickets WHERE user_id = \$1 AND status <> 'closed'`).
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(MaxActiveTicketsPerUser))
+	mock.ExpectRollback()
+
+	_, err = NewRepository(db).Create(context.Background(), Ticket{PublicID: "SUP-0123456789ABCDEF", UserID: 7, Category: "api", Subject: "Help"}, "message")
+	require.True(t, errors.Is(err, ErrTicketLimit))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestReplyRejectsWhenMessageLimitReached(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	now := time.Now().UTC()
+	columns := []string{"id", "public_id", "user_id", "category", "subject", "status", "priority", "last_reply_by", "last_activity_at", "resolved_at", "closed_at", "created_at", "updated_at"}
+	mock.ExpectBegin()
+	mock.ExpectQuery(`FROM custom_support_tickets WHERE public_id = \$1 FOR UPDATE`).
+		WithArgs("SUP-0123456789ABCDEF").
+		WillReturnRows(sqlmock.NewRows(columns).AddRow(int64(1), "SUP-0123456789ABCDEF", int64(7), "api", "Help", StatusOpen, PriorityNormal, "user", now, nil, nil, now, now))
+	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM custom_support_ticket_messages WHERE ticket_id = \$1`).
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(MaxMessagesPerTicket))
+	mock.ExpectRollback()
+
+	_, err = NewRepository(db).AddReply(context.Background(), ReplyInput{PublicID: "SUP-0123456789ABCDEF", UserID: 7, ActorType: "user", Body: "response"})
+	require.True(t, errors.Is(err, ErrTicketMessageLimit))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestInternalNotePreservesUserVisibleTicketMetadata(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	now := time.Now().UTC()
+	columns := []string{"id", "public_id", "user_id", "category", "subject", "status", "priority", "last_reply_by", "last_activity_at", "resolved_at", "closed_at", "created_at", "updated_at"}
+	mock.ExpectBegin()
+	mock.ExpectQuery(`FROM custom_support_tickets WHERE public_id = \$1 FOR UPDATE`).
+		WithArgs("SUP-0123456789ABCDEF").
+		WillReturnRows(sqlmock.NewRows(columns).AddRow(int64(1), "SUP-0123456789ABCDEF", int64(7), "api", "Help", StatusOpen, PriorityNormal, "user", now, nil, nil, now, now))
+	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM custom_support_ticket_messages WHERE ticket_id = \$1`).
+		WithArgs(int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectExec(`INSERT INTO custom_support_ticket_messages`).
+		WithArgs(int64(1), "admin", int64(9), "internal_note", "private note").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(`INSERT INTO custom_support_ticket_events`).
+		WithArgs(int64(1), "admin", int64(9), "internal_note_added", "internal_note").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	ticket, err := NewRepository(db).AddReply(context.Background(), ReplyInput{PublicID: "SUP-0123456789ABCDEF", UserID: 9, ActorType: "admin", Body: "private note", Internal: true})
+	require.NoError(t, err)
+	require.Equal(t, StatusOpen, ticket.Status)
+	require.Equal(t, "user", ticket.LastReplyBy)
+	require.Equal(t, now, ticket.LastActivityAt)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
