@@ -184,7 +184,7 @@ func (r *Repository) AddReply(ctx context.Context, input ReplyInput) (*Ticket, e
 		resolvedAt = nil
 		closedAt = nil
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE custom_support_tickets SET status=$1,last_reply_by=$2,last_activity_at=NOW(),updated_at=NOW(),user_last_read_at=CASE WHEN $2='user' THEN NOW() ELSE user_last_read_at END,admin_last_read_at=CASE WHEN $2='admin' THEN NOW() ELSE admin_last_read_at END,resolved_at=$3,closed_at=$4 WHERE id=$5`, status, author, resolvedAt, closedAt, ticket.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE custom_support_tickets SET status=$1,last_reply_by=$2::text,last_activity_at=NOW(),updated_at=NOW(),user_last_read_at=CASE WHEN $2::text='user' THEN NOW() ELSE user_last_read_at END,admin_last_read_at=CASE WHEN $2::text='admin' THEN NOW() ELSE admin_last_read_at END,resolved_at=$3,closed_at=$4 WHERE id=$5`, status, author, resolvedAt, closedAt, ticket.ID); err != nil {
 		return nil, fmt.Errorf("update ticket reply: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
