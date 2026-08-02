@@ -155,7 +155,7 @@ func (r *Repository) AddReply(ctx context.Context, input ReplyInput) (*Ticket, e
 	if input.ActorType == "user" && ticket.UserID != input.UserID {
 		return nil, ErrNotFound
 	}
-	if input.ActorType == "user" && (ticket.Status == StatusResolved || ticket.Status == StatusClosed) {
+	if input.ActorType == "user" && !isAllowedUserReply(ticket.Status) {
 		return nil, ErrTicketInactive
 	}
 	if input.ActorType == "admin" && !input.Internal && (ticket.Status == StatusResolved || ticket.Status == StatusClosed) {
@@ -225,7 +225,7 @@ func (r *Repository) update(ctx context.Context, publicID string, actorID int64,
 	}
 	if field == "status" {
 		if actorType == "user" {
-			if t.Status != StatusResolved || value != StatusOpen {
+			if !isAllowedUserStatusTransition(t.Status, value) {
 				return nil, ErrInvalidTransition
 			}
 		} else if !isAllowedAdminStatusTransition(t.Status, value) {
@@ -238,13 +238,7 @@ func (r *Repository) update(ctx context.Context, publicID string, actorID int64,
 	}
 	query := "UPDATE custom_support_tickets SET " + field + "=$1, last_activity_at=NOW(), updated_at=NOW()"
 	if field == "status" {
-		if value == StatusResolved {
-			query += ", resolved_at=NOW(), closed_at=NULL"
-		} else if value == StatusClosed {
-			query += ", closed_at=NOW()"
-		} else {
-			query += ", resolved_at=NULL, closed_at=NULL"
-		}
+		query += statusTimestampAssignments(t.Status, value)
 	}
 	query += " WHERE id=$2"
 	if _, err := tx.ExecContext(ctx, query, value, t.ID); err != nil {
@@ -276,6 +270,33 @@ func isAllowedAdminStatusTransition(from, to string) bool {
 		return to == StatusOpen || to == StatusClosed
 	default:
 		return false
+	}
+}
+
+// A user may add a message only while the ticket is actively being handled.
+// Resolved tickets must first take the explicit resolved -> open path.
+func isAllowedUserReply(status string) bool {
+	return status == StatusOpen || status == StatusWaitingUser
+}
+
+func isAllowedUserStatusTransition(from, to string) bool {
+	return from == StatusResolved && to == StatusOpen
+}
+
+// Timestamp values are derived from the transition, rather than inferred from
+// a previous row. This keeps terminal state metadata coherent after every
+// allowed transition, including legacy rows with stale timestamp columns.
+func statusTimestampAssignments(from, to string) string {
+	switch to {
+	case StatusResolved:
+		return ", resolved_at=NOW(), closed_at=NULL"
+	case StatusClosed:
+		if from == StatusResolved {
+			return ", closed_at=NOW()"
+		}
+		return ", resolved_at=NULL, closed_at=NOW()"
+	default:
+		return ", resolved_at=NULL, closed_at=NULL"
 	}
 }
 

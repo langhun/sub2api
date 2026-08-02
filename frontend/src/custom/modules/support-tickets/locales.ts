@@ -13,13 +13,13 @@ export const supportTicketLocaleMessages = {
 
 export const supportTicketAdminLocaleMessages = {
   en: {
-    admin: { supportTickets: {
+    supportTickets: {
       title: 'Support tickets', description: 'Review customer requests and maintain an auditable conversation.', allStatuses: 'All statuses', allCategories: 'All categories', allPriorities: 'All priorities', user: 'User', requester: 'Requester', internalNote: 'Internal note', internalNotePlaceholder: 'Only administrators can see this note', update: 'Update', updateSuccess: 'Ticket updated', details: 'Ticket details', replyToUser: 'Reply to user', noTickets: 'No tickets match these filters',
-    } },
+    },
   },
   zh: {
-    admin: { supportTickets: {
+    supportTickets: {
       title: '工单管理', description: '集中处理客户请求，并保留可追溯的完整沟通记录。', allStatuses: '全部状态', allCategories: '全部分类', allPriorities: '全部优先级', user: '用户', requester: '提交人', internalNote: '内部备注', internalNotePlaceholder: '仅管理员可见，不会发送给用户', update: '更新工单', updateSuccess: '工单已更新', details: '工单信息', replyToUser: '回复用户', noTickets: '当前筛选条件下没有工单',
-    } },
+    },
   },
 } as const

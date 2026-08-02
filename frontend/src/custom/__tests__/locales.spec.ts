@@ -44,6 +44,11 @@ describe('custom admin locale overlay', () => {
     expect(merged.settings.balanceFeatures).toMatchObject({
       checkinTitle: 'Check-in Settings',
     })
+    expect(merged.supportTickets).toMatchObject({
+      title: 'Support tickets',
+      internalNote: 'Internal note',
+    })
+    expect(merged).not.toHaveProperty('admin.supportTickets')
     expect(merged).toMatchObject({
       redeem: {
         types: {

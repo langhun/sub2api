@@ -2,6 +2,7 @@ package supporttickets
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -261,6 +262,7 @@ func respondTicketError(c *gin.Context, err error) {
 		response.BadRequest(c, message)
 		return
 	}
+	slog.Error("support ticket request failed", "error", err)
 	response.Error(c, http.StatusInternalServerError, "support ticket request failed")
 }
 func stringsHasPrefix(value, prefix string) bool {
