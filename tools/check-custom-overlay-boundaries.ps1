@@ -96,6 +96,9 @@ function Get-OverlayBucket {
     if (Test-VerificationPath -Path $Path) { return 'verification-test' }
     if ($Path -like 'backend/internal/custom/*') { return 'custom-backend' }
     if ($Path -like 'frontend/src/custom/*' -or $Path -like 'frontend/public/custom/*') { return 'custom-frontend' }
+    # go.sum is a Go toolchain lock file. It may change when Ent/Wire generation
+    # resolves its own command dependencies, without adding product behavior.
+    if ($Path -eq 'backend/go.sum') { return 'build-metadata' }
     if ($Path -like 'backend/ent/*') { return 'ent-generated-or-schema' }
     if ($Path -like 'backend/migrations/*_custom_*.sql' -or $Path -like 'backend/migrations/*_custom_*_test.go') { return 'custom-migration' }
     if ($Path -like 'docs/*') { return 'documentation' }
