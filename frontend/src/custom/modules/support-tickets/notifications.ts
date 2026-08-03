@@ -12,6 +12,7 @@ export interface SupportTicketNotificationCopy {
 export interface SupportTicketBrowserNotificationOptions {
   role: SupportTicketNotificationRole
   fetchTickets: () => Promise<SupportTicketList>
+  fetchAttentionCount?: () => Promise<number>
   fetchTicket: (publicID: string) => Promise<SupportTicket>
   getTicketPath: (ticket: SupportTicket) => string
   getCopy: (ticket: SupportTicket, isNewTicket: boolean) => SupportTicketNotificationCopy
@@ -90,6 +91,13 @@ export function hasNewExternalReplySince(
   return old ? latest !== comparisonActivity : latest === comparisonActivity
 }
 
+const permissionChangedEvent = 'support-ticket-notification-permission-changed'
+
+interface SupportTicketNotificationPermissionChange {
+  permission: SupportTicketNotificationPermission
+  enableByDefault: boolean
+}
+
 function notificationConstructor(): typeof Notification | undefined {
   if (typeof window === 'undefined' || typeof window.Notification === 'undefined') return undefined
   return window.Notification
@@ -111,6 +119,28 @@ function writeEnabled(storageKey: string, enabled: boolean) {
   }
 }
 
+export async function requestSupportTicketNotificationPermission(): Promise<SupportTicketNotificationPermission> {
+  const current = notificationConstructor()
+  if (!current) return 'unsupported'
+
+  const previous = current.permission
+  let next: SupportTicketNotificationPermission = current.permission
+  if (next === 'default') {
+    try {
+      next = await current.requestPermission()
+    } catch {
+      next = current.permission
+    }
+  }
+  window.dispatchEvent(new CustomEvent<SupportTicketNotificationPermissionChange>(permissionChangedEvent, {
+    detail: {
+      permission: next,
+      enableByDefault: previous === 'default' && next === 'granted',
+    },
+  }))
+  return next
+}
+
 export function useSupportTicketBrowserNotifications(
   options: SupportTicketBrowserNotificationOptions,
 ): {
@@ -118,6 +148,7 @@ export function useSupportTicketBrowserNotifications(
   permission: Readonly<Ref<SupportTicketNotificationPermission>>
   enabled: Readonly<Ref<boolean>>
   canNotify: Readonly<Ref<boolean>>
+  attentionCount: Readonly<Ref<number>>
   requestPermission: () => Promise<SupportTicketNotificationPermission>
   toggle: () => Promise<SupportTicketNotificationPermission>
   pollNow: () => Promise<void>
@@ -129,6 +160,7 @@ export function useSupportTicketBrowserNotifications(
   const permission = ref<SupportTicketNotificationPermission>(Constructor ? Constructor.permission : 'unsupported')
   const enabled = ref(readEnabled(storageKey))
   const canNotify = computed(() => supported.value && permission.value === 'granted' && enabled.value)
+  const attentionCount = ref(0)
   const previous = new Map<string, SupportTicketSnapshot>()
   const initialized = ref(false)
   let pollTimer: ReturnType<typeof setInterval> | undefined
@@ -140,23 +172,9 @@ export function useSupportTicketBrowserNotifications(
   }
 
   async function requestPermission(): Promise<SupportTicketNotificationPermission> {
-    const current = notificationConstructor()
-    if (!current) {
-      supported.value = false
-      permission.value = 'unsupported'
-      return permission.value
-    }
-
-    permission.value = current.permission
-    if (permission.value === 'denied') return permission.value
-    if (permission.value === 'granted') {
-      enabled.value = true
-      writeEnabled(storageKey, true)
-      return permission.value
-    }
-
-    const next = await current.requestPermission()
+    const next = await requestSupportTicketNotificationPermission()
     permission.value = next
+    supported.value = next !== 'unsupported'
     if (next === 'granted') {
       enabled.value = true
       writeEnabled(storageKey, true)
@@ -191,10 +209,18 @@ export function useSupportTicketBrowserNotifications(
   }
 
   async function pollNow(): Promise<void> {
-    if (polling || options.shouldPoll?.() === false || !supported.value) return
+    if (polling || options.shouldPoll?.() === false) return
     polling = true
     try {
-      const result = await options.fetchTickets()
+      const [result, nextAttentionCount] = await Promise.all([
+        options.fetchTickets(),
+        options.fetchAttentionCount?.(),
+      ])
+      if (typeof nextAttentionCount === 'number') attentionCount.value = nextAttentionCount
+
+      const current = notificationConstructor()
+      supported.value = Boolean(current)
+      permission.value = current?.permission ?? 'unsupported'
       const activities = initialized.value
         ? findSupportTicketActivities(previous, result.items, options.role)
         : []
@@ -223,15 +249,27 @@ export function useSupportTicketBrowserNotifications(
     if (document.visibilityState === 'hidden') void pollNow()
   }
 
+  function onPermissionChanged(event: Event) {
+    const detail = (event as CustomEvent<SupportTicketNotificationPermissionChange>).detail
+    permission.value = detail.permission
+    supported.value = detail.permission !== 'unsupported'
+    if (detail.enableByDefault) {
+      enabled.value = true
+      writeEnabled(storageKey, true)
+    }
+  }
+
   onMounted(() => {
     void pollNow()
     pollTimer = setInterval(() => void pollNow(), options.intervalMs ?? 30_000)
     document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener(permissionChangedEvent, onPermissionChanged)
   })
 
   onBeforeUnmount(() => {
     if (pollTimer) clearInterval(pollTimer)
     document.removeEventListener('visibilitychange', onVisibilityChange)
+    window.removeEventListener(permissionChangedEvent, onPermissionChanged)
   })
 
   return {
@@ -239,6 +277,7 @@ export function useSupportTicketBrowserNotifications(
     permission,
     enabled,
     canNotify,
+    attentionCount,
     requestPermission,
     toggle,
     pollNow,

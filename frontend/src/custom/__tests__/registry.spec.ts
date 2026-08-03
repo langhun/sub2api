@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   customHeaderActions,
   customNavigation,
+  customNotificationCenterExtensions,
   customRoutes,
   customSettingsPanels,
 } from '../registry'
@@ -15,11 +16,13 @@ import { activityRoutes } from '../modules/activity/routes'
 import { brandHomeRoutes } from '../modules/brand-home/routes'
 import { gameHallNavigation } from '../modules/game-hall/navigation'
 import { gameHallRoutes } from '../modules/game-hall/routes'
+import { supportTicketNotificationCenterExtensions } from '../modules/support-tickets/notificationCenter'
 
 const directory = dirname(fileURLToPath(import.meta.url))
 const routerSource = readFileSync(resolve(directory, '../../router/index.ts'), 'utf8')
 const sidebarSource = readFileSync(resolve(directory, '../../components/layout/AppSidebar.vue'), 'utf8')
 const headerSource = readFileSync(resolve(directory, '../../components/layout/AppHeader.vue'), 'utf8')
+const announcementBellSource = readFileSync(resolve(directory, '../../components/common/AnnouncementBell.vue'), 'utf8')
 const settingsSource = readFileSync(resolve(directory, '../../views/admin/SettingsView.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
@@ -30,6 +33,7 @@ describe('custom overlay registry', () => {
     expect(customNavigation).toEqual(expect.arrayContaining(activityNavigation))
     expect(customNavigation).toEqual(expect.arrayContaining(gameHallNavigation))
     expect(customHeaderActions).toEqual(expect.arrayContaining(activityHeaderActions))
+    expect(customNotificationCenterExtensions).toEqual(expect.arrayContaining(supportTicketNotificationCenterExtensions))
   })
 
   it('mounts custom routes before the catch-all route', () => {
@@ -63,6 +67,17 @@ describe('custom overlay registry', () => {
     expect(headerSource).toContain("import { customHeaderActions } from '@/custom/registry'")
     expect(headerSource).toContain('v-for="action in customHeaderActions"')
     expect(headerSource).not.toContain("@/custom/modules/activity/components/CheckinHeaderActions.vue")
+  })
+
+  it('mounts notification center extensions through a generic upstream adapter', () => {
+    expect(announcementBellSource).toContain("import { customNotificationCenterExtensions } from '@/custom/registry'")
+    expect(announcementBellSource).toContain('v-for="extension in customNotificationCenterExtensions"')
+    expect(announcementBellSource).not.toContain('@/custom/modules/support-tickets')
+    expect(sidebarSource).toContain('item.onActivate')
+    expect(sidebarSource).not.toContain('requestSupportTicketNotificationPermission')
+    expect(announcementBellSource.indexOf('await nextTick()')).toBeLessThan(
+      announcementBellSource.indexOf('extensionsOpen.value = true'),
+    )
   })
 
   it('owns custom setting panels through the registry rather than the shared form', () => {

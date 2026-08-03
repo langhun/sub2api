@@ -16,7 +16,7 @@ import { gameHallRoutes } from './modules/game-hall/routes'
 import { supportTicketNavigation } from './modules/support-tickets/navigation'
 import { supportTicketFeatureFlag } from './modules/support-tickets/navigation'
 import { supportTicketRoutes } from './modules/support-tickets/routes'
-import { supportTicketHeaderActions } from './modules/support-tickets/headerActions'
+import { supportTicketNotificationCenterExtensions } from './modules/support-tickets/notificationCenter'
 import {
   gameHallFeatureFlags,
   gameHallSettingsPanels,
@@ -36,9 +36,15 @@ export interface CustomNavigationItem {
    * `false` hides the item. `undefined` keeps it visible while settings load.
    */
   featureFlag?: () => boolean | undefined
+  onActivate?: () => unknown | Promise<unknown>
 }
 
 export interface CustomHeaderAction {
+  id: string
+  component: Component
+}
+
+export interface CustomNotificationCenterExtension {
   id: string
   component: Component
 }
@@ -80,7 +86,10 @@ export const customNavigation: readonly CustomNavigationItem[] = [
 
 export const customHeaderActions: readonly CustomHeaderAction[] = [
   ...activityHeaderActions,
-  ...supportTicketHeaderActions,
+]
+
+export const customNotificationCenterExtensions: readonly CustomNotificationCenterExtension[] = [
+  ...supportTicketNotificationCenterExtensions,
 ]
 
 export const customSettingsPanels: readonly CustomSettingsPanel[] = [

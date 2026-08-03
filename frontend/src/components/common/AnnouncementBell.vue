@@ -4,13 +4,13 @@
     <button
       @click="openModal"
       class="relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition-all hover:bg-gray-100 hover:scale-105 dark:text-gray-400 dark:hover:bg-dark-800"
-      :class="{ 'text-blue-600 dark:text-blue-400': unreadCount > 0 }"
+      :class="{ 'text-blue-600 dark:text-blue-400': totalUnreadCount > 0 }"
       :aria-label="t('announcements.title')"
     >
       <Icon name="bell" size="md" />
       <!-- 未读红点 -->
       <span
-        v-if="unreadCount > 0"
+        v-if="totalUnreadCount > 0"
         class="absolute right-1 top-1 flex h-2 w-2"
       >
         <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"></span>
@@ -42,8 +42,8 @@
                       {{ t('announcements.title') }}
                     </h2>
                   </div>
-                  <p v-if="unreadCount > 0" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    <span class="font-medium text-blue-600 dark:text-blue-400">{{ unreadCount }}</span>
+                  <p v-if="totalUnreadCount > 0" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    <span class="font-medium text-blue-600 dark:text-blue-400">{{ totalUnreadCount }}</span>
                     {{ t('announcements.unread') }}
                   </p>
                 </div>
@@ -71,6 +71,8 @@
 
             <!-- Body -->
             <div class="max-h-[65vh] overflow-y-auto">
+              <div id="custom-notification-center-extensions"></div>
+
               <!-- Loading -->
               <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="relative">
@@ -308,11 +310,20 @@
         </div>
       </Transition>
     </Teleport>
+
+    <component
+      :is="extension.component"
+      v-for="extension in customNotificationCenterExtensions"
+      :key="extension.id"
+      :open="extensionsOpen"
+      @close="closeModal"
+      @attention-change="setCustomAttention(extension.id, $event)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { marked } from 'marked'
@@ -322,6 +333,7 @@ import { useAnnouncementStore } from '@/stores/announcements'
 import { formatRelativeTime, formatRelativeWithDateTime } from '@/utils/format'
 import type { UserAnnouncement } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
+import { customNotificationCenterExtensions } from '@/custom/registry'
 import '@/styles/announcement-markdown.css'
 
 const { t } = useI18n()
@@ -337,9 +349,12 @@ marked.setOptions({
 // Use store state (storeToRefs for reactivity)
 const { announcements, loading } = storeToRefs(announcementStore)
 const unreadCount = computed(() => announcementStore.unreadCount)
+const customAttentionCounts = ref<Record<string, number>>({})
+const totalUnreadCount = computed(() => unreadCount.value + Object.values(customAttentionCounts.value).reduce((sum, count) => sum + count, 0))
 
 // Local modal state
 const isModalOpen = ref(false)
+const extensionsOpen = ref(false)
 const detailModalOpen = ref(false)
 const selectedAnnouncement = ref<UserAnnouncement | null>(null)
 
@@ -350,12 +365,19 @@ function renderMarkdown(content: string): string {
   return DOMPurify.sanitize(html)
 }
 
-function openModal() {
+async function openModal() {
   isModalOpen.value = true
+  await nextTick()
+  extensionsOpen.value = true
 }
 
 function closeModal() {
+  extensionsOpen.value = false
   isModalOpen.value = false
+}
+
+function setCustomAttention(id: string, count: number) {
+  customAttentionCounts.value = { ...customAttentionCounts.value, [id]: Math.max(0, count) }
 }
 
 function openDetail(announcement: UserAnnouncement) {
