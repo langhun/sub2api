@@ -16,6 +16,7 @@ export interface SupportTicketBrowserNotificationOptions {
   fetchTicket: (publicID: string) => Promise<SupportTicket>
   getTicketPath: (ticket: SupportTicket) => string
   getCopy: (ticket: SupportTicket, isNewTicket: boolean) => SupportTicketNotificationCopy
+  getEnabledCopy?: () => SupportTicketNotificationCopy
   shouldPoll?: () => boolean
   intervalMs?: number
 }
@@ -184,28 +185,42 @@ export function useSupportTicketBrowserNotifications(
 
   async function toggle(): Promise<SupportTicketNotificationPermission> {
     if (permission.value !== 'granted') return requestPermission()
+    const wasEnabled = canNotify.value
     enabled.value = !enabled.value
     writeEnabled(storageKey, enabled.value)
+    if (!wasEnabled && canNotify.value) showEnabledNotification()
     return permission.value
   }
 
-  function showNotification(ticket: SupportTicket, isNewTicket: boolean) {
+  function showBrowserNotification(copy: SupportTicketNotificationCopy, tag: string, onClick?: () => void) {
     const current = notificationConstructor()
-    if (!current || !canNotify.value || document.visibilityState !== 'hidden') return
+    if (!current || !canNotify.value) return
     try {
-      const copy = options.getCopy(ticket, isNewTicket)
       const notification = new current(copy.title, {
         body: copy.body,
-        tag: `support-ticket-${ticket.public_id}`,
+        tag,
       })
       notification.onclick = () => {
         notification.close()
         window.focus()
-        window.location.assign(options.getTicketPath(ticket))
+        onClick?.()
       }
     } catch {
       // Browser notification constructors may fail when permission changes between polling and display.
     }
+  }
+
+  function showEnabledNotification() {
+    if (!options.getEnabledCopy) return
+    showBrowserNotification(options.getEnabledCopy(), 'support-ticket-notifications-enabled')
+  }
+
+  function showNotification(ticket: SupportTicket, isNewTicket: boolean) {
+    showBrowserNotification(
+      options.getCopy(ticket, isNewTicket),
+      `support-ticket-${ticket.public_id}`,
+      () => window.location.assign(options.getTicketPath(ticket)),
+    )
   }
 
   async function pollNow(): Promise<void> {
@@ -221,13 +236,19 @@ export function useSupportTicketBrowserNotifications(
       const current = notificationConstructor()
       supported.value = Boolean(current)
       permission.value = current?.permission ?? 'unsupported'
-      const activities = initialized.value
-        ? findSupportTicketActivities(previous, result.items, options.role)
-        : []
-      const oldSnapshots = new Map(previous)
-      sync(result.items)
+      if (!initialized.value) {
+        sync(result.items)
+        return
+      }
 
-      if (!canNotify.value || document.visibilityState !== 'hidden') return
+      const activities = findSupportTicketActivities(previous, result.items, options.role)
+      const oldSnapshots = new Map(previous)
+      const nextSnapshots = snapshotMap(result.items)
+
+      if (!canNotify.value) {
+        sync(result.items)
+        return
+      }
       for (const activity of activities) {
         try {
           const detail = await options.fetchTicket(activity.public_id)
@@ -235,9 +256,14 @@ export function useSupportTicketBrowserNotifications(
             showNotification(detail, !oldSnapshots.has(activity.public_id) && isNewTicketActivity(detail, options.role))
           }
         } catch {
-          // A transient detail request failure must not break the polling loop.
+          const old = oldSnapshots.get(activity.public_id)
+          if (old) nextSnapshots.set(activity.public_id, old)
+          else nextSnapshots.delete(activity.public_id)
         }
       }
+
+      previous.clear()
+      for (const [id, item] of nextSnapshots) previous.set(id, item)
     } catch {
       // Polling is best-effort and must never replace the page's own load/error state.
     } finally {
@@ -256,6 +282,7 @@ export function useSupportTicketBrowserNotifications(
     if (detail.enableByDefault) {
       enabled.value = true
       writeEnabled(storageKey, true)
+      showEnabledNotification()
     }
   }
 

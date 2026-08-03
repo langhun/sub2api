@@ -1,7 +1,7 @@
 <template>
   <Teleport v-if="open && featureEnabled" to="#custom-notification-center-extensions">
-    <section class="border-b border-gray-100 bg-gray-50/70 px-6 py-4 dark:border-dark-700 dark:bg-dark-900/30">
-      <div class="flex items-center justify-between gap-4">
+    <section class="overflow-hidden border-b border-gray-100 bg-gray-50/70 px-6 py-4 dark:border-dark-700 dark:bg-dark-900/30">
+      <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
         <router-link
           :to="ticketPath"
           class="group flex min-w-0 flex-1 items-center gap-3"
@@ -33,7 +33,7 @@
           v-if="notificationsSupported"
           type="button"
           role="switch"
-          class="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+          class="relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors"
           :class="browserNotificationsOn ? 'bg-primary-600' : 'bg-gray-300 dark:bg-dark-600'"
           :aria-checked="browserNotificationsOn"
           :aria-label="notificationLabel"
@@ -41,8 +41,8 @@
           @click="toggleNotifications"
         >
           <span
-            class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
-            :class="browserNotificationsOn ? 'translate-x-5' : 'translate-x-0.5'"
+            class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
+            :class="browserNotificationsOn ? 'translate-x-5' : 'translate-x-0'"
           />
         </button>
       </div>
@@ -98,6 +98,10 @@ const notifications = useSupportTicketBrowserNotifications({
         title: t('supportTickets.browserNotificationReplyTitle'),
         body: t('supportTickets.browserNotificationReplyBody', { subject: item.subject }),
       },
+  getEnabledCopy: () => ({
+    title: t('supportTickets.browserNotificationTestTitle'),
+    body: t('supportTickets.browserNotificationTestBody'),
+  }),
 })
 
 const notificationsSupported = notifications.supported

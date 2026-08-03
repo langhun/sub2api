@@ -7,6 +7,7 @@ import {
   hasNewExternalReplySince,
   latestExternalReplyAt,
   requestSupportTicketNotificationPermission,
+  type SupportTicketBrowserNotificationOptions,
   type SupportTicketSnapshot,
   useSupportTicketBrowserNotifications,
 } from '../notifications'
@@ -16,7 +17,7 @@ afterEach(() => {
   localStorage.clear()
 })
 
-function notificationHarness() {
+function notificationHarness(overrides: Partial<SupportTicketBrowserNotificationOptions> = {}) {
   return defineComponent({
     setup() {
       return useSupportTicketBrowserNotifications({
@@ -25,6 +26,8 @@ function notificationHarness() {
         fetchTicket: async () => ticket(),
         getTicketPath: (item) => `/tickets/${item.public_id}`,
         getCopy: () => ({ title: 'Ticket reply', body: 'Support replied' }),
+        getEnabledCopy: () => ({ title: 'Notifications enabled', body: 'Ticket alerts are ready' }),
+        ...overrides,
       })
     },
     template: '<div />',
@@ -72,6 +75,7 @@ describe('support ticket browser notification activity detection', () => {
 
   it('enables notifications by default after navigation permission is granted', async () => {
     localStorage.setItem('support-ticket-browser-notifications:user', 'disabled')
+    const shown: Array<{ title: string; options?: NotificationOptions }> = []
     const requestPermission = vi.fn().mockImplementation(async () => {
       NotificationStub.permission = 'granted'
       return 'granted'
@@ -79,6 +83,14 @@ describe('support ticket browser notification activity detection', () => {
     class NotificationStub {
       static permission: NotificationPermission = 'default'
       static requestPermission = requestPermission
+
+      onclick: (() => void) | null = null
+
+      constructor(title: string, options?: NotificationOptions) {
+        shown.push({ title, options })
+      }
+
+      close() {}
     }
     vi.stubGlobal('Notification', NotificationStub)
 
@@ -89,6 +101,36 @@ describe('support ticket browser notification activity detection', () => {
     expect(wrapper.vm.enabled).toBe(true)
     expect(wrapper.vm.canNotify).toBe(true)
     expect(localStorage.getItem('support-ticket-browser-notifications:user')).toBe('enabled')
+    expect(shown).toEqual([{
+      title: 'Notifications enabled',
+      options: expect.objectContaining({ body: 'Ticket alerts are ready' }),
+    }])
+    wrapper.unmount()
+  })
+
+  it('shows a confirmation notification when an existing permission is switched on', async () => {
+    localStorage.setItem('support-ticket-browser-notifications:user', 'disabled')
+    const shown: string[] = []
+    class NotificationStub {
+      static permission: NotificationPermission = 'granted'
+      static requestPermission = vi.fn()
+
+      onclick: (() => void) | null = null
+
+      constructor(title: string) {
+        shown.push(title)
+      }
+
+      close() {}
+    }
+    vi.stubGlobal('Notification', NotificationStub)
+
+    const wrapper = mount(notificationHarness())
+    await flushPromises()
+    await wrapper.vm.toggle()
+
+    expect(wrapper.vm.canNotify).toBe(true)
+    expect(shown).toEqual(['Notifications enabled'])
     wrapper.unmount()
   })
 
@@ -120,6 +162,92 @@ describe('support ticket browser notification activity detection', () => {
 
     await expect(requestSupportTicketNotificationPermission()).resolves.toBe('denied')
     expect(requestPermission).not.toHaveBeenCalled()
+  })
+
+  it('shows a new reply notification while the page is visible', async () => {
+    const shown: string[] = []
+    class NotificationStub {
+      static permission: NotificationPermission = 'granted'
+      static requestPermission = vi.fn()
+
+      onclick: (() => void) | null = null
+
+      constructor(title: string) {
+        shown.push(title)
+      }
+
+      close() {}
+    }
+    vi.stubGlobal('Notification', NotificationStub)
+
+    const old = ticket()
+    const current = ticket({
+      last_reply_by: 'admin',
+      last_activity_at: '2026-08-03T03:00:00Z',
+    })
+    const detail = ticket({
+      last_reply_by: 'admin',
+      last_activity_at: '2026-08-03T03:00:00Z',
+      messages: [message({ author_type: 'admin', created_at: '2026-08-03T03:00:00Z' })],
+    })
+    let items = [old]
+    const wrapper = mount(notificationHarness({
+      fetchTickets: async () => ({ items, total: items.length, page: 1, page_size: 20 }),
+      fetchTicket: async () => detail,
+    }))
+    await flushPromises()
+    items = [current]
+
+    await wrapper.vm.pollNow()
+
+    expect(document.visibilityState).toBe('visible')
+    expect(shown).toEqual(['Ticket reply'])
+    wrapper.unmount()
+  })
+
+  it('retries a changed ticket when its detail request fails', async () => {
+    const shown: string[] = []
+    class NotificationStub {
+      static permission: NotificationPermission = 'granted'
+      static requestPermission = vi.fn()
+
+      onclick: (() => void) | null = null
+
+      constructor(title: string) {
+        shown.push(title)
+      }
+
+      close() {}
+    }
+    vi.stubGlobal('Notification', NotificationStub)
+
+    const old = ticket()
+    const current = ticket({
+      last_reply_by: 'admin',
+      last_activity_at: '2026-08-03T03:00:00Z',
+    })
+    const detail = ticket({
+      last_reply_by: 'admin',
+      last_activity_at: '2026-08-03T03:00:00Z',
+      messages: [message({ author_type: 'admin', created_at: '2026-08-03T03:00:00Z' })],
+    })
+    let items = [old]
+    const fetchTicket = vi.fn()
+      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockResolvedValue(detail)
+    const wrapper = mount(notificationHarness({
+      fetchTickets: async () => ({ items, total: items.length, page: 1, page_size: 20 }),
+      fetchTicket,
+    }))
+    await flushPromises()
+    items = [current]
+
+    await wrapper.vm.pollNow()
+    await wrapper.vm.pollNow()
+
+    expect(fetchTicket).toHaveBeenCalledTimes(2)
+    expect(shown).toEqual(['Ticket reply'])
+    wrapper.unmount()
   })
 
   it('only treats a changed reply from the other side as notification activity', () => {
