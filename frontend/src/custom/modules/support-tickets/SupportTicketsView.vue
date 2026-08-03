@@ -25,7 +25,7 @@
                 <p class="text-xs font-medium text-gray-500 dark:text-dark-400">{{ t('supportTickets.ticketNumber', { number: ticket.public_id }) }}</p>
                 <h2 class="mt-1 break-words text-lg font-semibold text-gray-900 dark:text-white">{{ ticket.subject }}</h2>
               </div>
-              <span :class="['badge', ticketStatusClass(ticket.status)]">{{ statusLabel(ticket.status) }}</span>
+              <span :class="['badge', ticketStatusClass(ticket.status)]" :aria-label="statusLabel(ticket.status)">{{ statusLabel(ticket.status) }}</span>
             </div>
           </div>
           <div class="space-y-4 p-5">
@@ -60,9 +60,9 @@
           <p class="mt-3 text-sm text-gray-500 dark:text-dark-400">{{ t('supportTickets.empty') }}</p>
           <button class="btn btn-primary mt-4" type="button" @click="showCreate = true">{{ t('supportTickets.newTicket') }}</button>
         </div>
-        <button v-for="item in tickets" v-else :key="item.public_id" type="button" class="block w-full border-b border-gray-100 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-800" @click="openTicket(item.public_id)">
+        <button v-for="item in tickets" v-else :key="item.public_id" type="button" class="block w-full border-b border-l-2 border-b-gray-100 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-b-dark-700 dark:hover:bg-dark-800" :class="item.status === 'waiting_user' ? 'border-l-primary-500 bg-primary-50/30 dark:bg-primary-900/10' : 'border-l-transparent'" @click="openTicket(item.public_id)">
           <div class="flex flex-wrap items-start justify-between gap-3">
-            <div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="text-xs text-gray-500 dark:text-dark-400">{{ item.public_id }}</span><span :class="['badge', ticketStatusClass(item.status)]">{{ statusLabel(item.status) }}</span></div><p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ item.subject }}</p><p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ categoryLabel(item.category) }}</p></div>
+            <div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs text-gray-500 dark:text-dark-400">{{ item.public_id }}</span><span :class="['badge', ticketStatusClass(item.status)]" :aria-label="statusLabel(item.status)">{{ statusLabel(item.status) }}</span></div><p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ item.subject }}</p><p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ categoryLabel(item.category) }}</p></div>
             <time class="shrink-0 text-xs text-gray-500 dark:text-dark-400">{{ formatDateTimeToMinute(item.last_activity_at) }}</time>
           </div>
         </button>
@@ -93,7 +93,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useAppStore } from '@/stores/app'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { addSupportTicketMessage, createSupportTicket, getSupportTicket, listSupportTickets, reopenSupportTicket, type SupportTicket, type SupportTicketCategory, type SupportTicketPriority, type SupportTicketSenderType, type SupportTicketStatus } from './api'
-import { ticketCategories, ticketPriorityClass, ticketStatusClass } from './presentation'
+import { ticketCategories, ticketPriorityClass, ticketStatusClass, ticketStatusLocaleKey } from './presentation'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -113,7 +113,7 @@ const createForm = reactive({ subject: '', category: 'other' as SupportTicketCat
 const canReply = computed(() => ticket.value?.status === 'open' || ticket.value?.status === 'waiting_user')
 
 function errorMessage(error: unknown) { return (error as { message?: string })?.message || t('supportTickets.loadFailed') }
-function statusLabel(value: SupportTicketStatus) { return t(`supportTickets.statuses.${value}`) }
+function statusLabel(value: SupportTicketStatus) { return t(ticketStatusLocaleKey(value, 'user')) }
 function categoryLabel(value: SupportTicketCategory) { return t(`supportTickets.categories.${value}`) }
 function priorityLabel(value: SupportTicketPriority) { return t(`supportTickets.priorities.${value}`) }
 function senderLabel(value: SupportTicketSenderType) { return t(`supportTickets.sender.${value}`) }

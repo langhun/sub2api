@@ -12,7 +12,7 @@
 
       <section v-else-if="ticket" class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div class="card overflow-hidden p-0">
-          <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700"><div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0"><p class="text-xs font-medium text-gray-500 dark:text-dark-400">{{ t('supportTickets.ticketNumber', { number: ticket.public_id }) }}</p><h2 class="mt-1 break-words text-lg font-semibold text-gray-900 dark:text-white">{{ ticket.subject }}</h2><p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('admin.supportTickets.requester') }}: #{{ ticket.user_id }}</p></div><span :class="['badge', ticketStatusClass(ticket.status)]">{{ statusLabel(ticket.status) }}</span></div></div>
+          <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700"><div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0"><p class="font-mono text-xs font-medium text-gray-500 dark:text-dark-400">{{ t('supportTickets.ticketNumber', { number: ticket.public_id }) }}</p><h2 class="mt-1 break-words text-lg font-semibold text-gray-900 dark:text-white">{{ ticket.subject }}</h2><p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('admin.supportTickets.requester') }}: #{{ ticket.user_id }}</p></div><span :class="['badge', ticketStatusClass(ticket.status)]" :aria-label="statusLabel(ticket.status)">{{ statusLabel(ticket.status) }}</span></div></div>
           <div class="space-y-4 p-5">
             <div v-if="!ticket.messages?.length" class="py-8 text-center text-sm text-gray-500 dark:text-dark-400">{{ t('supportTickets.noMessages') }}</div>
             <article v-for="message in ticket.messages" :key="message.id" class="flex" :class="message.message_type === 'internal_note' ? 'justify-center' : message.author_type === 'admin' ? 'justify-end' : 'justify-start'">
@@ -34,7 +34,7 @@
       <section v-else class="card overflow-hidden p-0">
         <div class="grid gap-3 border-b border-gray-100 p-4 sm:grid-cols-2 dark:border-dark-700"><select v-model="filters.status" class="input" @change="applyFilters"><option value="">{{ t('admin.supportTickets.allStatuses') }}</option><option v-for="status in ticketStatuses" :key="status" :value="status">{{ statusLabel(status) }}</option></select><select v-model="filters.priority" class="input" @change="applyFilters"><option value="">{{ t('admin.supportTickets.allPriorities') }}</option><option v-for="priority in ticketPriorities" :key="priority" :value="priority">{{ priorityLabel(priority) }}</option></select></div>
         <div v-if="tickets.length === 0" class="py-16 text-center text-sm text-gray-500 dark:text-dark-400">{{ t('admin.supportTickets.noTickets') }}</div>
-        <button v-for="item in tickets" v-else :key="item.public_id" type="button" class="block w-full border-b border-gray-100 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-800" @click="openTicket(item.public_id)"><div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="text-xs text-gray-500 dark:text-dark-400">{{ item.public_id }}</span><span :class="['badge', ticketStatusClass(item.status)]">{{ statusLabel(item.status) }}</span><span :class="['badge', ticketPriorityClass(item.priority)]">{{ priorityLabel(item.priority) }}</span></div><p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ item.subject }}</p><p class="mt-1 text-xs text-gray-500 dark:text-dark-400">#{{ item.user_id }} · {{ categoryLabel(item.category) }}</p></div><time class="shrink-0 text-xs text-gray-500 dark:text-dark-400">{{ formatDateTimeToMinute(item.last_activity_at) }}</time></div></button>
+        <button v-for="item in tickets" v-else :key="item.public_id" type="button" class="block w-full border-b border-l-2 border-b-gray-100 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-b-dark-700 dark:hover:bg-dark-800" :class="item.status === 'open' ? 'border-l-amber-500 bg-amber-50/40 dark:bg-amber-900/10' : 'border-l-transparent'" @click="openTicket(item.public_id)"><div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs text-gray-500 dark:text-dark-400">{{ item.public_id }}</span><span :class="['badge', ticketStatusClass(item.status)]" :aria-label="statusLabel(item.status)">{{ statusLabel(item.status) }}</span><span :class="['badge', ticketPriorityClass(item.priority)]">{{ priorityLabel(item.priority) }}</span></div><p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ item.subject }}</p><p class="mt-1 text-xs text-gray-500 dark:text-dark-400">#{{ item.user_id }} · {{ categoryLabel(item.category) }}</p></div><time class="shrink-0 text-xs text-gray-500 dark:text-dark-400">{{ formatDateTimeToMinute(item.last_activity_at) }}</time></div></button>
         <div v-if="total > tickets.length" class="border-t border-gray-100 p-4 text-center dark:border-dark-700"><button class="btn btn-secondary btn-sm" type="button" :disabled="loadingMore" @click="loadMore">{{ t('common.loadMore') }}</button><p class="mt-2 text-xs text-gray-500 dark:text-dark-400">{{ t('supportTickets.pagination', { count: tickets.length, total }) }}</p></div>
       </section>
     </div>
@@ -51,7 +51,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useAppStore } from '@/stores/app'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { addAdminSupportTicketMessage, getAdminSupportTicket, listAdminSupportTickets, updateAdminSupportTicket, type SupportTicket, type SupportTicketCategory, type SupportTicketPriority, type SupportTicketSenderType, type SupportTicketStatus } from '../api'
-import { ticketPriorities, ticketPriorityClass, ticketStatuses, ticketStatusClass } from '../presentation'
+import { ticketPriorities, ticketPriorityClass, ticketStatuses, ticketStatusClass, ticketStatusLocaleKey } from '../presentation'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -71,7 +71,7 @@ const filters = reactive({ status: '' as SupportTicketStatus | '', priority: '' 
 const editForm = reactive({ status: 'open' as SupportTicketStatus, priority: 'normal' as SupportTicketPriority })
 
 function errorMessage(error: unknown) { return (error as { message?: string })?.message || t('supportTickets.loadFailed') }
-function statusLabel(value: SupportTicketStatus) { return t(`supportTickets.statuses.${value}`) }
+function statusLabel(value: SupportTicketStatus) { return t(ticketStatusLocaleKey(value, 'admin')) }
 function categoryLabel(value: SupportTicketCategory) { return t(`supportTickets.categories.${value}`) }
 function priorityLabel(value: SupportTicketPriority) { return t(`supportTickets.priorities.${value}`) }
 function senderLabel(value: SupportTicketSenderType) { return t(`supportTickets.sender.${value}`) }

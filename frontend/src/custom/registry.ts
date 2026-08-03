@@ -16,6 +16,7 @@ import { gameHallRoutes } from './modules/game-hall/routes'
 import { supportTicketNavigation } from './modules/support-tickets/navigation'
 import { supportTicketFeatureFlag } from './modules/support-tickets/navigation'
 import { supportTicketRoutes } from './modules/support-tickets/routes'
+import { supportTicketHeaderActions } from './modules/support-tickets/headerActions'
 import {
   gameHallFeatureFlags,
   gameHallSettingsPanels,
@@ -79,6 +80,7 @@ export const customNavigation: readonly CustomNavigationItem[] = [
 
 export const customHeaderActions: readonly CustomHeaderAction[] = [
   ...activityHeaderActions,
+  ...supportTicketHeaderActions,
 ]
 
 export const customSettingsPanels: readonly CustomSettingsPanel[] = [
