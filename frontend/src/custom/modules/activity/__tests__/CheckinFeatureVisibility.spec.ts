@@ -157,6 +157,7 @@ describe('CheckinView feature visibility', () => {
 
     await wrapper.get('[data-testid="luck-checkin-open"]').trigger('click')
     expect(wrapper.get('[data-testid="luck-risk-notice"]').text()).toContain('checkin.luckRiskNotice')
+    expect(wrapper.get('[data-testid="luck-risk-balance"]').text()).toContain('checkin.luckRiskBalance')
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('4')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledOnce()

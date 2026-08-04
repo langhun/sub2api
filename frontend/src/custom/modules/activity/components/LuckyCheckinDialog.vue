@@ -17,6 +17,9 @@
       <p class="text-xs leading-5 text-amber-800 dark:text-amber-200">
         {{ t('checkin.luckRiskNotice') }}
       </p>
+      <p data-testid="luck-risk-balance" class="mt-2 rounded-md bg-amber-100 px-2.5 py-2 text-sm font-bold text-amber-950 dark:bg-amber-900/60 dark:text-amber-100">
+        {{ t('checkin.luckRiskBalance') }}
+      </p>
     </div>
 
     <div class="space-y-4">
