@@ -108,16 +108,16 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]Ticket, int
 		args = append(args, value)
 	}
 	if filter.UserID != nil {
-		add("user_id", *filter.UserID)
+		add("t.user_id", *filter.UserID)
 	}
 	if filter.Status != "" {
-		add("status", filter.Status)
+		add("t.status", filter.Status)
 	}
 	if filter.Priority != "" {
-		add("priority", filter.Priority)
+		add("t.priority", filter.Priority)
 	}
 	var total int64
-	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM custom_support_tickets "+where, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM custom_support_tickets t "+where, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count support tickets: %w", err)
 	}
 	n++
@@ -126,7 +126,7 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]Ticket, int
 	n++
 	offsetArg := n
 	args = append(args, (filter.Page-1)*filter.PageSize)
-	rows, err := r.db.QueryContext(ctx, `SELECT id, public_id, user_id, category, subject, status, priority, last_reply_by, last_activity_at, resolved_at, closed_at, created_at, updated_at FROM custom_support_tickets `+where+fmt.Sprintf(" ORDER BY last_activity_at DESC, id DESC LIMIT $%d OFFSET $%d", limitArg, offsetArg), args...)
+	rows, err := r.db.QueryContext(ctx, `SELECT t.id, t.public_id, t.user_id, t.category, t.subject, t.status, t.priority, t.last_reply_by, t.last_activity_at, t.resolved_at, t.closed_at, t.created_at, t.updated_at, COALESCE(u.username, '') FROM custom_support_tickets t LEFT JOIN users u ON u.id = t.user_id `+where+fmt.Sprintf(" ORDER BY t.last_activity_at DESC, t.id DESC LIMIT $%d OFFSET $%d", limitArg, offsetArg), args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list support tickets: %w", err)
 	}
@@ -134,7 +134,7 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]Ticket, int
 	items := make([]Ticket, 0)
 	for rows.Next() {
 		var item Ticket
-		if err := scanTicket(rows, &item); err != nil {
+		if err := scanTicketWithUser(rows, &item); err != nil {
 			return nil, 0, err
 		}
 		items = append(items, item)
@@ -150,13 +150,13 @@ func (r *Repository) Detail(ctx context.Context, publicID string, userID *int64,
 		return nil, errors.New("support ticket database is unavailable")
 	}
 	args := []any{publicID}
-	clause := "public_id = $1"
+	clause := "t.public_id = $1"
 	if userID != nil {
 		args = append(args, *userID)
-		clause += " AND user_id = $2"
+		clause += " AND t.user_id = $2"
 	}
 	var result TicketDetail
-	err := scanTicket(r.db.QueryRowContext(ctx, `SELECT id, public_id, user_id, category, subject, status, priority, last_reply_by, last_activity_at, resolved_at, closed_at, created_at, updated_at FROM custom_support_tickets WHERE `+clause, args...), &result.Ticket)
+	err := scanTicketWithUser(r.db.QueryRowContext(ctx, `SELECT t.id, t.public_id, t.user_id, t.category, t.subject, t.status, t.priority, t.last_reply_by, t.last_activity_at, t.resolved_at, t.closed_at, t.created_at, t.updated_at, COALESCE(u.username, '') FROM custom_support_tickets t LEFT JOIN users u ON u.id = t.user_id WHERE `+clause, args...), &result.Ticket)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -381,4 +381,8 @@ type scanner interface{ Scan(...any) error }
 
 func scanTicket(row scanner, t *Ticket) error {
 	return row.Scan(&t.ID, &t.PublicID, &t.UserID, &t.Category, &t.Subject, &t.Status, &t.Priority, &t.LastReplyBy, &t.LastActivityAt, &t.ResolvedAt, &t.ClosedAt, &t.CreatedAt, &t.UpdatedAt)
+}
+
+func scanTicketWithUser(row scanner, t *Ticket) error {
+	return row.Scan(&t.ID, &t.PublicID, &t.UserID, &t.Category, &t.Subject, &t.Status, &t.Priority, &t.LastReplyBy, &t.LastActivityAt, &t.ResolvedAt, &t.ClosedAt, &t.CreatedAt, &t.UpdatedAt, &t.UserName)
 }

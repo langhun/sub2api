@@ -6,7 +6,7 @@ export type SupportTicketPriority = 'low' | 'normal' | 'high' | 'urgent'
 export type SupportTicketAuthorType = 'user' | 'admin' | 'system'
 export type SupportTicketSenderType = SupportTicketAuthorType
 export interface SupportTicketMessage { id: number; author_type: SupportTicketAuthorType; message_type: 'reply' | 'internal_note' | 'system'; body: string; created_at: string }
-export interface SupportTicket { public_id: string; user_id: number; category: SupportTicketCategory; subject: string; status: SupportTicketStatus; priority: SupportTicketPriority; last_reply_by: SupportTicketAuthorType; last_activity_at: string; created_at: string; updated_at: string; resolved_at?: string | null; closed_at?: string | null; messages?: SupportTicketMessage[] }
+export interface SupportTicket { public_id: string; user_id: number; user_name?: string; category: SupportTicketCategory; subject: string; status: SupportTicketStatus; priority: SupportTicketPriority; last_reply_by: SupportTicketAuthorType; last_activity_at: string; created_at: string; updated_at: string; resolved_at?: string | null; closed_at?: string | null; messages?: SupportTicketMessage[] }
 export interface SupportTicketList { items: SupportTicket[]; total: number; page: number; page_size: number }
 export interface SupportTicketListParams { page?: number; page_size?: number; status?: SupportTicketStatus; priority?: SupportTicketPriority }
 export interface CreateSupportTicketPayload { subject: string; category: SupportTicketCategory; body: string }
