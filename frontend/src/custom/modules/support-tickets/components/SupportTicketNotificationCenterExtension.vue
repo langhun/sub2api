@@ -57,6 +57,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { useAppStore, useAuthStore } from '@/stores'
 import { isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { getAdminSupportTicket, getSupportTicket, listAdminSupportTickets, listSupportTickets } from '../api'
+import { playSupportTicketAlertSound } from '../alertSound'
 import { supportTicketFeatureFlag } from '../navigation'
 import { useSupportTicketBrowserNotifications } from '../notifications'
 
@@ -102,6 +103,7 @@ const notifications = useSupportTicketBrowserNotifications({
     title: t('supportTickets.browserNotificationTestTitle'),
     body: t('supportTickets.browserNotificationTestBody'),
   }),
+  playSound: playSupportTicketAlertSound,
 })
 
 const notificationsSupported = notifications.supported

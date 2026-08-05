@@ -17,6 +17,7 @@ export interface SupportTicketBrowserNotificationOptions {
   getTicketPath: (ticket: SupportTicket) => string
   getCopy: (ticket: SupportTicket, isNewTicket: boolean) => SupportTicketNotificationCopy
   getEnabledCopy?: () => SupportTicketNotificationCopy
+  playSound?: () => void | Promise<void>
   shouldPoll?: () => boolean
   intervalMs?: number
 }
@@ -223,6 +224,12 @@ export function useSupportTicketBrowserNotifications(
     )
   }
 
+  function playAlertSound() {
+    void Promise.resolve(options.playSound?.()).catch(() => {
+      // Audio playback is best-effort because browsers can enforce autoplay policies.
+    })
+  }
+
   async function pollNow(): Promise<void> {
     if (polling || options.shouldPoll?.() === false) return
     polling = true
@@ -245,7 +252,7 @@ export function useSupportTicketBrowserNotifications(
       const oldSnapshots = new Map(previous)
       const nextSnapshots = snapshotMap(result.items)
 
-      if (!canNotify.value) {
+      if (!canNotify.value && !options.playSound) {
         sync(result.items)
         return
       }
@@ -253,7 +260,9 @@ export function useSupportTicketBrowserNotifications(
         try {
           const detail = await options.fetchTicket(activity.public_id)
           if (hasNewExternalReplySince(detail, oldSnapshots.get(activity.public_id), options.role)) {
-            showNotification(detail, !oldSnapshots.has(activity.public_id) && isNewTicketActivity(detail, options.role))
+            const isNewTicket = !oldSnapshots.has(activity.public_id) && isNewTicketActivity(detail, options.role)
+            showNotification(detail, isNewTicket)
+            playAlertSound()
           }
         } catch {
           const old = oldSnapshots.get(activity.public_id)

@@ -205,6 +205,42 @@ describe('support ticket browser notification activity detection', () => {
     wrapper.unmount()
   })
 
+  it('plays an alert sound for a new reply even when browser notifications are off', async () => {
+    localStorage.setItem('support-ticket-browser-notifications:user', 'disabled')
+    const playSound = vi.fn()
+    class NotificationStub {
+      static permission: NotificationPermission = 'granted'
+      static requestPermission = vi.fn()
+
+      constructor() {}
+    }
+    vi.stubGlobal('Notification', NotificationStub)
+
+    const old = ticket()
+    const current = ticket({
+      last_reply_by: 'admin',
+      last_activity_at: '2026-08-03T03:00:00Z',
+    })
+    const detail = ticket({
+      last_reply_by: 'admin',
+      last_activity_at: '2026-08-03T03:00:00Z',
+      messages: [message({ author_type: 'admin', created_at: '2026-08-03T03:00:00Z' })],
+    })
+    let items = [old]
+    const wrapper = mount(notificationHarness({
+      fetchTickets: async () => ({ items, total: items.length, page: 1, page_size: 20 }),
+      fetchTicket: async () => detail,
+      playSound,
+    }))
+    await flushPromises()
+    items = [current]
+
+    await wrapper.vm.pollNow()
+
+    expect(playSound).toHaveBeenCalledOnce()
+    wrapper.unmount()
+  })
+
   it('retries a changed ticket when its detail request fails', async () => {
     const shown: string[] = []
     class NotificationStub {
