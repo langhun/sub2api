@@ -27,7 +27,7 @@ function playFrogCroak(context: AudioContext, startAt: number) {
   highGain.gain.setValueAtTime(0.3, startAt)
 
   gain.gain.setValueAtTime(0.0001, startAt)
-  gain.gain.exponentialRampToValueAtTime(0.12, startAt + 0.018)
+  gain.gain.exponentialRampToValueAtTime(0.18, startAt + 0.018)
   gain.gain.exponentialRampToValueAtTime(0.0001, endAt)
 
   low.connect(gain)

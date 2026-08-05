@@ -29,22 +29,33 @@
           <Icon name="chevronRight" size="sm" class="ml-auto shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5" />
         </router-link>
 
-        <button
-          v-if="notificationsSupported"
-          type="button"
-          role="switch"
-          class="relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors"
-          :class="browserNotificationsOn ? 'bg-primary-600' : 'bg-gray-300 dark:bg-dark-600'"
-          :aria-checked="browserNotificationsOn"
-          :aria-label="notificationLabel"
-          :title="notificationLabel"
-          @click="toggleNotifications"
-        >
-          <span
-            class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
-            :class="browserNotificationsOn ? 'translate-x-5' : 'translate-x-0'"
-          />
-        </button>
+        <div class="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-200 hover:text-primary-700 dark:text-dark-300 dark:hover:bg-dark-700 dark:hover:text-primary-300"
+            :aria-label="alertSoundLabel"
+            :title="alertSoundLabel"
+            @click="previewAlertSound"
+          >
+            <Icon name="play" size="sm" />
+          </button>
+          <button
+            v-if="notificationsSupported"
+            type="button"
+            role="switch"
+            class="relative h-6 w-11 overflow-hidden rounded-full transition-colors"
+            :class="browserNotificationsOn ? 'bg-primary-600' : 'bg-gray-300 dark:bg-dark-600'"
+            :aria-checked="browserNotificationsOn"
+            :aria-label="notificationLabel"
+            :title="notificationLabel"
+            @click="toggleNotifications"
+          >
+            <span
+              class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
+              :class="browserNotificationsOn ? 'translate-x-5' : 'translate-x-0'"
+            />
+          </button>
+        </div>
       </div>
     </section>
   </Teleport>
@@ -114,6 +125,7 @@ const notificationLabel = computed(() => {
   if (notificationPermission.value === 'denied') return t('supportTickets.browserNotificationsDenied')
   return t(browserNotificationsOn.value ? 'supportTickets.disableBrowserNotifications' : 'supportTickets.enableBrowserNotifications')
 })
+const alertSoundLabel = computed(() => t('supportTickets.previewAlertSound'))
 const notificationStatus = computed(() => {
   if (!notificationsSupported.value) return t('supportTickets.browserNotificationsUnsupported')
   if (notificationPermission.value === 'denied') return t('supportTickets.browserNotificationsDenied')
@@ -130,5 +142,9 @@ async function toggleNotifications() {
   } else if (permission === 'granted' && browserNotificationsOn.value) {
     appStore.showSuccess(t('supportTickets.browserNotificationsEnabled'))
   }
+}
+
+function previewAlertSound() {
+  void playSupportTicketAlertSound()
 }
 </script>
