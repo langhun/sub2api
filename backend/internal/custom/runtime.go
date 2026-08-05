@@ -13,7 +13,6 @@ import (
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
-	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
@@ -38,7 +37,6 @@ type Runtime struct {
 	ActivityRewardsHTTP *activityrewards.Module
 	GameHall            *gamehall.Module
 	SupportTickets      *supporttickets.Module
-	RechargePromotions  *rechargepromotions.Calculator
 	UsageQuerySettings  UsageQuerySettings
 }
 
@@ -51,7 +49,6 @@ func NewRuntime(
 	adminService service.AdminService,
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
-	paymentService *service.PaymentService,
 ) (*Runtime, error) {
 	if err := custommigrations.Apply(context.Background(), db); err != nil {
 		return nil, err
@@ -121,14 +118,6 @@ func NewRuntime(
 	if err != nil {
 		return nil, err
 	}
-	rechargePromotions := rechargepromotions.NewCalculator(
-		customSettingsRegistry,
-		db,
-	)
-	if paymentService != nil {
-		paymentService.SetBalanceCreditAdjuster(rechargePromotions)
-		paymentService.SetAffiliateRebateBaseResolver(rechargePromotions)
-	}
 	return &Runtime{
 		ActivityCheckin:     activityCheckin,
 		ActivityLeaderboard: activityleaderboard.NewDatabaseModule(client, db),
@@ -137,7 +126,6 @@ func NewRuntime(
 		ActivityRewardsHTTP: activityRewardsHTTP,
 		GameHall:            gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
 		SupportTickets:      supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
-		RechargePromotions:  rechargePromotions,
 		UsageQuerySettings:  customSettingsRegistry,
 	}, nil
 }

@@ -198,8 +198,6 @@ type PaymentService struct {
 	resumeService            *PaymentResumeService
 	affiliateService         *AffiliateService
 	notificationEmailService *NotificationEmailService
-	balanceCreditAdjuster    BalanceCreditAdjuster
-	affiliateRebateResolver  AffiliateRebateBaseResolver
 }
 
 func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService) *PaymentService {
@@ -210,16 +208,6 @@ func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, load
 
 func (s *PaymentService) SetNotificationEmailService(notificationEmailService *NotificationEmailService) {
 	s.notificationEmailService = notificationEmailService
-}
-
-// SetBalanceCreditAdjuster installs an optional Overlay extension. A nil
-// value restores the upstream balance-recharge behavior.
-func (s *PaymentService) SetBalanceCreditAdjuster(adjuster BalanceCreditAdjuster) {
-	s.balanceCreditAdjuster = adjuster
-}
-
-func (s *PaymentService) SetAffiliateRebateBaseResolver(resolver AffiliateRebateBaseResolver) {
-	s.affiliateRebateResolver = resolver
 }
 
 // --- Provider Registry ---

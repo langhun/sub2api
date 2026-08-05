@@ -79,13 +79,6 @@
                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
                   <span class="text-gray-900 dark:text-white">${{ creditedAmount.toFixed(2) }}</span>
                 </div>
-                <component
-                  v-for="extension in customRechargePreviewExtensions"
-                  :is="extension.component"
-                  :key="extension.id"
-                  :amount="validAmount"
-                  :credited-amount="creditedAmount"
-                />
                 <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
                   {{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}
                 </p>
@@ -299,7 +292,6 @@ import { planValiditySuffix as validitySuffixOf } from '@/components/payment/val
 import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSelector.vue'
 import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './paymentUx'
 import { hasWechatResumeQuery, parseWechatResumeRoute, stripWechatResumeQuery } from './paymentWechatResume'
-import { customRechargePreviewExtensions } from '@/custom/registry'
 
 const i18n = useI18n()
 const { t } = i18n

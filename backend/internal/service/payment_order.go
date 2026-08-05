@@ -61,15 +61,6 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	} else if req.OrderType == payment.OrderTypeBalance {
 		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
 	}
-	var balanceAdjustment BalanceCreditAdjustmentResult
-	if req.OrderType == payment.OrderTypeBalance && s.balanceCreditAdjuster != nil {
-		orderAmount, balanceAdjustment, err = applyBalanceCreditAdjustment(ctx, s.balanceCreditAdjuster, BalanceCreditAdjustmentInput{
-			UserID: req.UserID, PaymentAmount: req.Amount, BaseCredit: orderAmount, Now: time.Now().UTC(),
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
 	feeRate := cfg.RechargeFeeRate
 	methodCurrency := payment.DefaultPaymentCurrency
 	if s.configService != nil {
@@ -112,15 +103,6 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel)
 	if err != nil {
 		return nil, err
-	}
-	if req.OrderType == payment.OrderTypeBalance && s.balanceCreditAdjuster != nil {
-		if err := s.balanceCreditAdjuster.RecordBalanceCreditAdjustment(ctx, order.ID, BalanceCreditAdjustmentInput{
-			UserID: req.UserID, PaymentAmount: req.Amount, BaseCredit: calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier),
-			PayAmount: payAmount, Now: time.Now().UTC(),
-		}, balanceAdjustment); err != nil {
-			_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).SetStatus(OrderStatusFailed).Save(ctx)
-			return nil, fmt.Errorf("record balance credit adjustment: %w", err)
-		}
 	}
 	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, payAmountStr, payAmount, plan, sel)
 	if err != nil {

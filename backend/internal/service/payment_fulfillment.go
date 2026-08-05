@@ -618,10 +618,7 @@ func (s *PaymentService) hasAuditLog(ctx context.Context, orderID int64, action 
 }
 
 func (s *PaymentService) applyAffiliateRebateForOrder(ctx context.Context, o *dbent.PaymentOrder) error {
-	baseAmount, err := s.resolveAffiliateRebateBase(ctx, o)
-	if err != nil {
-		return fmt.Errorf("resolve affiliate rebate base: %w", err)
-	}
+	baseAmount := affiliateRebateBaseAmount(o)
 	if o == nil || baseAmount <= 0 {
 		return nil
 	}
@@ -707,16 +704,6 @@ func affiliateRebateBaseAmount(o *dbent.PaymentOrder) float64 {
 	default:
 		return 0
 	}
-}
-
-func (s *PaymentService) resolveAffiliateRebateBase(ctx context.Context, o *dbent.PaymentOrder) (float64, error) {
-	if o == nil {
-		return 0, nil
-	}
-	if s != nil && s.affiliateRebateResolver != nil {
-		return s.affiliateRebateResolver.ResolveAffiliateRebateBase(ctx, o)
-	}
-	return affiliateRebateBaseAmount(o), nil
 }
 
 func (s *PaymentService) tryClaimAffiliateRebateAudit(ctx context.Context, client *dbent.Client, orderID int64, baseAmount float64) (bool, error) {

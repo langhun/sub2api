@@ -43,7 +43,6 @@ func TestRegistryReadUsesLegacyDefaultsAndProjectsPublicValues(t *testing.T) {
 	require.Equal(t, "default", snapshot.BrandHome.DefaultHomepage)
 	require.True(t, snapshot.Activity.LeaderboardEnabled)
 	require.True(t, snapshot.GameHall.ExchangeAllowDGToBalance)
-	require.False(t, snapshot.RechargePromotions.Enabled)
 
 	public := Public(snapshot)
 	require.Equal(t, false, public["checkin_enabled"])
@@ -52,7 +51,6 @@ func TestRegistryReadUsesLegacyDefaultsAndProjectsPublicValues(t *testing.T) {
 	require.Equal(t, false, public["game_hall_enabled"])
 	require.Equal(t, "default", public["default_homepage"])
 	require.Equal(t, 0.01, public["game_exchange_min_amount"])
-	require.Equal(t, false, public["recharge_promotion_enabled"])
 }
 
 func TestRegistryWriteValidatesBeforeOneAggregatePersistence(t *testing.T) {
@@ -64,16 +62,12 @@ func TestRegistryWriteValidatesBeforeOneAggregatePersistence(t *testing.T) {
 	snapshot.Activity.CheckinEnabled = true
 	snapshot.BrandHome.DefaultHomepage = "dino"
 	snapshot.GameHall.Enabled = true
-	snapshot.RechargePromotions.Enabled = true
-	snapshot.RechargePromotions.BonusRate = 20
 	require.NoError(t, registry.Write(context.Background(), snapshot))
 	require.Equal(t, 1, store.writes)
 	require.Equal(t, "true", store.values["checkin_enabled"])
 	require.Equal(t, "dino", store.values["default_homepage"])
 	require.NotContains(t, store.values, "transfer_enabled")
 	require.Equal(t, "true", store.values["game_hall_enabled"])
-	require.Equal(t, "true", store.values["recharge_promotion_enabled"])
-	require.Equal(t, "20.00", store.values["recharge_promotion_bonus_rate"])
 }
 
 func TestRegistryWriteRejectsInvalidModuleValuesWithoutWriting(t *testing.T) {

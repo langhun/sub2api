@@ -10,7 +10,6 @@ import (
 	brandhomesettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/brand-home/settings"
 	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
 	gamehallsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall/settings"
-	rechargepromotionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions/settings"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/settings/contract"
 	"github.com/Wei-Shaw/sub2api/internal/handler/settingsext"
@@ -24,12 +23,11 @@ var ProviderSet = wire.NewSet(ProvideRegistry, ProvideHandlerSettingsMount)
 
 // Snapshot is the complete typed configuration owned by Overlay modules.
 type Snapshot struct {
-	Activity           activitysettings.Config
-	BrandHome          brandhomesettings.Config
-	CodeFormat         codeformatsettings.Config
-	GameHall           gamehallsettings.Config
-	RechargePromotions rechargepromotionsettings.Config
-	SupportTickets     supporttickets.Settings
+	Activity       activitysettings.Config
+	BrandHome      brandhomesettings.Config
+	CodeFormat     codeformatsettings.Config
+	GameHall       gamehallsettings.Config
+	SupportTickets supporttickets.Settings
 }
 
 // Registry is the sole aggregate for Overlay settings. Core settings code can
@@ -71,15 +69,11 @@ func (r *Registry) Read(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
-	rechargePromotionConfig, err := rechargepromotionsettings.New(r.store).Read(ctx)
-	if err != nil {
-		return Snapshot{}, err
-	}
 	supportTicketValues, err := r.store.GetMultiple(ctx, supporttickets.SettingsKeys())
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("read support ticket settings: %w", err)
 	}
-	return Snapshot{Activity: activityConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig, RechargePromotions: rechargePromotionConfig, SupportTickets: supporttickets.SettingsFromValues(supportTicketValues)}, nil
+	return Snapshot{Activity: activityConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig, SupportTickets: supporttickets.SettingsFromValues(supportTicketValues)}, nil
 }
 
 func (r *Registry) Validate(snapshot Snapshot) error {
@@ -93,9 +87,6 @@ func (r *Registry) Validate(snapshot Snapshot) error {
 		return err
 	}
 	if err := gamehallsettings.Validate(snapshot.GameHall); err != nil {
-		return err
-	}
-	if err := rechargepromotionsettings.Validate(snapshot.RechargePromotions); err != nil {
 		return err
 	}
 	if err := supporttickets.ValidateSettings(snapshot.SupportTickets); err != nil {
@@ -156,15 +147,11 @@ func Values(snapshot Snapshot) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	rechargePromotionValues, err := rechargepromotionsettings.Values(snapshot.RechargePromotions)
-	if err != nil {
-		return nil, err
-	}
 	supportTicketValues, err := supporttickets.SettingsValues(snapshot.SupportTickets)
 	if err != nil {
 		return nil, err
 	}
-	return mergeStringValues(activityValues, brandHomeValues, codeFormatValues, gameHallValues, rechargePromotionValues, supportTicketValues)
+	return mergeStringValues(activityValues, brandHomeValues, codeFormatValues, gameHallValues, supportTicketValues)
 }
 
 func Public(snapshot Snapshot) map[string]any {
@@ -172,7 +159,6 @@ func Public(snapshot Snapshot) map[string]any {
 		activitysettings.Public(snapshot.Activity),
 		brandhomesettings.Public(snapshot.BrandHome),
 		gamehallsettings.Public(snapshot.GameHall),
-		rechargepromotionsettings.Public(snapshot.RechargePromotions),
 		map[string]any{supporttickets.KeyEnabled: snapshot.SupportTickets.Enabled},
 	)
 	if err != nil {
@@ -191,16 +177,6 @@ func (r *Registry) ReadSupportTickets(ctx context.Context) (supporttickets.Setti
 		return supporttickets.Settings{}, err
 	}
 	return supporttickets.SettingsFromValues(values), nil
-}
-
-// ReadRechargePromotions exposes the one configuration slice consumed by the
-// payment Overlay adapter without leaking settings storage into payment core.
-func (r *Registry) ReadRechargePromotions(ctx context.Context) (rechargepromotionsettings.Config, error) {
-	snapshot, err := r.Read(ctx)
-	if err != nil {
-		return rechargepromotionsettings.Config{}, err
-	}
-	return snapshot.RechargePromotions, nil
 }
 
 func mergeStringValues(groups ...map[string]string) (map[string]string, error) {
