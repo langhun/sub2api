@@ -11,24 +11,36 @@ function getAudioContextConstructor(): AudioContextConstructor | undefined {
   return current.AudioContext ?? current.webkitAudioContext
 }
 
-function playTone(context: AudioContext, startAt: number, frequency: number) {
-  const oscillator = context.createOscillator()
+function playFrogCroak(context: AudioContext, startAt: number) {
+  const endAt = startAt + 0.24
   const gain = context.createGain()
-  const endAt = startAt + 0.09
+  const low = context.createOscillator()
+  const high = context.createOscillator()
+  const highGain = context.createGain()
 
-  oscillator.type = 'sine'
-  oscillator.frequency.setValueAtTime(frequency, startAt)
+  low.type = 'triangle'
+  low.frequency.setValueAtTime(190, startAt)
+  low.frequency.exponentialRampToValueAtTime(105, endAt)
+  high.type = 'sine'
+  high.frequency.setValueAtTime(380, startAt)
+  high.frequency.exponentialRampToValueAtTime(185, endAt)
+  highGain.gain.setValueAtTime(0.3, startAt)
+
   gain.gain.setValueAtTime(0.0001, startAt)
-  gain.gain.exponentialRampToValueAtTime(0.08, startAt + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.12, startAt + 0.018)
   gain.gain.exponentialRampToValueAtTime(0.0001, endAt)
 
-  oscillator.connect(gain)
+  low.connect(gain)
+  high.connect(highGain)
+  highGain.connect(gain)
   gain.connect(context.destination)
-  oscillator.start(startAt)
-  oscillator.stop(endAt)
+  low.start(startAt)
+  high.start(startAt)
+  low.stop(endAt)
+  high.stop(endAt)
 }
 
-/** Play a short in-page alert when a ticket receives a new external reply. */
+/** Play a short frog-like alert when a ticket receives a new external reply. */
 export async function playSupportTicketAlertSound(): Promise<void> {
   const Constructor = getAudioContextConstructor()
   if (!Constructor) return
@@ -41,9 +53,7 @@ export async function playSupportTicketAlertSound(): Promise<void> {
     if (audioContext.state === 'suspended') await audioContext.resume()
     if (audioContext.state !== 'running') return
 
-    const startAt = audioContext.currentTime + 0.01
-    playTone(audioContext, startAt, 740)
-    playTone(audioContext, startAt + 0.12, 920)
+    playFrogCroak(audioContext, audioContext.currentTime + 0.01)
   } catch {
     // Autoplay policies can block audio until the user has interacted with the page.
   }
