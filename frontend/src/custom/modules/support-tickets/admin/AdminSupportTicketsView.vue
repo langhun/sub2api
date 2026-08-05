@@ -26,9 +26,10 @@
           </div>
           <form class="border-t border-gray-100 p-5 dark:border-dark-700" @submit.prevent="sendMessage">
             <div class="flex flex-wrap items-center justify-between gap-3"><label class="input-label mb-0" for="admin-ticket-reply">{{ internalNote ? t('admin.supportTickets.internalNote') : t('admin.supportTickets.replyToUser') }}</label><label class="flex cursor-pointer items-center gap-2 text-sm text-gray-600 dark:text-dark-300"><input v-model="internalNote" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />{{ t('admin.supportTickets.internalNote') }}</label></div>
-            <textarea id="admin-ticket-reply" v-model.trim="messageBody" data-testid="admin-ticket-message" class="input mt-2 min-h-28 resize-y" :placeholder="internalNote ? t('admin.supportTickets.internalNotePlaceholder') : t('supportTickets.replyPlaceholder')" maxlength="5000" required />
+            <textarea id="admin-ticket-reply" v-model.trim="messageBody" data-testid="admin-ticket-message" class="input mt-2 min-h-28 resize-y" :disabled="!canSendMessage" :placeholder="internalNote ? t('admin.supportTickets.internalNotePlaceholder') : t('supportTickets.replyPlaceholder')" maxlength="5000" required />
+            <p v-if="!internalNote && !canSendMessage" class="input-hint mt-2 text-amber-700 dark:text-amber-300">{{ replyUnavailableHint }}</p>
             <p v-if="!internalNote" class="input-hint mt-2 text-amber-700 dark:text-amber-300">{{ t('supportTickets.sensitiveNotice') }}</p>
-            <div class="mt-3 flex justify-end"><button class="btn btn-primary" type="submit" :disabled="submitting || !messageBody">{{ submitting ? t('common.processing') : t('supportTickets.send') }}</button></div>
+            <div class="mt-3 flex justify-end"><button class="btn btn-primary" type="submit" :disabled="submitting || !messageBody || !canSendMessage">{{ submitting ? t('common.processing') : t('supportTickets.send') }}</button></div>
           </form>
         </div>
         <aside class="card h-fit p-5"><h2 class="font-semibold text-gray-900 dark:text-white">{{ t('admin.supportTickets.details') }}</h2><form class="mt-4 space-y-4" @submit.prevent="updateTicket"><label class="block"><span class="input-label">{{ t('supportTickets.status') }}</span><select v-model="editForm.status" class="input"><option v-for="status in ticketStatuses" :key="status" :value="status">{{ statusLabel(status) }}</option></select></label><label class="block"><span class="input-label">{{ t('supportTickets.priority') }}</span><select v-model="editForm.priority" class="input"><option v-for="priority in ticketPriorities" :key="priority" :value="priority">{{ priorityLabel(priority) }}</option></select></label><dl class="space-y-3 border-t border-gray-100 pt-4 text-sm dark:border-dark-700"><div><dt class="text-gray-500 dark:text-dark-400">{{ t('supportTickets.category') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ categoryLabel(ticket.category) }}</dd></div><div><dt class="text-gray-500 dark:text-dark-400">{{ t('supportTickets.latestActivity') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatDateTimeToMinute(ticket.last_activity_at) }}</dd></div></dl><button class="btn btn-secondary w-full" type="submit" :disabled="submitting">{{ t('admin.supportTickets.update') }}</button></form></aside>
@@ -68,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -106,6 +107,8 @@ const createForm = reactive({ category: 'account' as SupportTicketCategory, subj
 const filters = reactive({ status: '' as SupportTicketStatus | '', priority: '' as SupportTicketPriority | '' })
 const editForm = reactive({ status: 'open' as SupportTicketStatus, priority: 'normal' as SupportTicketPriority })
 const ticketCategories: SupportTicketCategory[] = ['account', 'billing', 'api', 'model', 'feature', 'other']
+const canSendMessage = computed(() => internalNote.value || ticket.value?.status === 'open' || ticket.value?.status === 'waiting_user')
+const replyUnavailableHint = computed(() => ticket.value?.status === 'resolved' ? t('admin.supportTickets.replyRequiresReopen') : t('admin.supportTickets.replyClosed'))
 let userSearchTimeout: ReturnType<typeof setTimeout> | null = null
 let userSearchRequest = 0
 
@@ -147,7 +150,7 @@ function loadCurrent() { const id = String(route.params.id || ''); return id ? l
 function loadMore() { return loadList(page.value + 1) }
 function applyFilters() { return loadList(1) }
 async function sendMessage() {
-  if (!ticket.value || !messageBody.value) return
+  if (!ticket.value || !messageBody.value || !canSendMessage.value) return
   try { submitting.value = true; await addAdminSupportTicketMessage(ticket.value.public_id, { body: messageBody.value, internal: internalNote.value }); messageBody.value = ''; internalNote.value = false; await loadTicket(ticket.value.public_id); appStore.showSuccess(t('supportTickets.sendSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
 }
 async function updateTicket() {
