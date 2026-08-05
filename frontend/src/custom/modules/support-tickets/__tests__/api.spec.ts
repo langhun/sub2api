@@ -6,6 +6,7 @@ vi.mock('@/api/client', () => ({ apiClient: { get, patch, post } }))
 
 import {
   addAdminSupportTicketMessage,
+  createAdminSupportTicket,
   addSupportTicketMessage,
   createSupportTicket,
   getAdminSupportTicket,
@@ -41,11 +42,13 @@ describe('support tickets API', () => {
   })
 
   it('uses the administrator paths for queue management and internal notes', async () => {
+    await createAdminSupportTicket({ user_id: 42, category: 'account', subject: 'Account notice', body: 'Please review this notice.' })
     await listAdminSupportTickets({ status: 'open', priority: 'urgent' })
     await getAdminSupportTicket('SUP-0123456789ABCDEF')
     await addAdminSupportTicketMessage('SUP-0123456789ABCDEF', { body: 'Investigating', internal: true })
     await updateAdminSupportTicket('SUP-0123456789ABCDEF', { status: 'waiting_user' })
 
+    expect(post).toHaveBeenNthCalledWith(1, '/admin/support/tickets', { user_id: 42, category: 'account', subject: 'Account notice', body: 'Please review this notice.' })
     expect(get).toHaveBeenNthCalledWith(1, '/admin/support/tickets', { params: { page: 1, page_size: 20, status: 'open', priority: 'urgent' } })
     expect(get).toHaveBeenNthCalledWith(2, '/admin/support/tickets/SUP-0123456789ABCDEF')
     expect(post).toHaveBeenCalledWith('/admin/support/tickets/SUP-0123456789ABCDEF/messages', { body: 'Investigating', internal: true })

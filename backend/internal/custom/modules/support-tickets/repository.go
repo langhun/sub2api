@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	ErrNotFound           = errors.New("support ticket not found")
-	ErrTicketInactive     = errors.New("support ticket must be reopened before replying")
-	ErrTicketMessageLimit = errors.New("support ticket message limit reached")
-	ErrTicketLimit        = errors.New("support ticket limit reached")
-	ErrInvalidTransition  = errors.New("ticket status transition is not allowed")
+	ErrNotFound              = errors.New("support ticket not found")
+	ErrTicketInactive        = errors.New("support ticket must be reopened before replying")
+	ErrTicketMessageLimit    = errors.New("support ticket message limit reached")
+	ErrTicketLimit           = errors.New("support ticket limit reached")
+	ErrInvalidTransition     = errors.New("ticket status transition is not allowed")
+	ErrTargetUserUnavailable = errors.New("target user not found or inactive")
 )
 
 type Repository struct{ db *sql.DB }
@@ -52,6 +53,45 @@ func (r *Repository) Create(ctx context.Context, ticket Ticket, body string) (*T
 	ticket.Status = StatusOpen
 	ticket.Priority = PriorityNormal
 	ticket.LastReplyBy = "user"
+	return &ticket, nil
+}
+
+// CreateAdmin starts an outbound conversation. The target has not read the
+// initial administrator reply, so user_last_read_at remains NULL.
+func (r *Repository) CreateAdmin(ctx context.Context, ticket Ticket, adminID int64, body string) (*Ticket, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("support ticket database is unavailable")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin admin support ticket: %w", err)
+	}
+	defer tx.Rollback()
+	var targetUserID int64
+	err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE id = $1 AND status = 'active' AND deleted_at IS NULL FOR UPDATE`, ticket.UserID).Scan(&targetUserID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrTargetUserUnavailable
+	}
+	if err != nil {
+		return nil, fmt.Errorf("validate support ticket target user: %w", err)
+	}
+	row := tx.QueryRowContext(ctx, `INSERT INTO custom_support_tickets (public_id, user_id, category, subject, status, priority, last_reply_by, admin_last_read_at, last_activity_at, created_at, updated_at) VALUES ($1,$2,$3,$4,'waiting_user','normal','admin',NOW(),NOW(),NOW(),NOW()) RETURNING id, last_activity_at, created_at, updated_at`, ticket.PublicID, targetUserID, ticket.Category, ticket.Subject)
+	if err := row.Scan(&ticket.ID, &ticket.LastActivityAt, &ticket.CreatedAt, &ticket.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("insert admin support ticket: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO custom_support_ticket_messages (ticket_id, author_type, author_user_id, message_type, body) VALUES ($1,'admin',$2,'reply',$3)`, ticket.ID, adminID, body); err != nil {
+		return nil, fmt.Errorf("insert admin support ticket message: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO custom_support_ticket_events (ticket_id, actor_type, actor_user_id, event_type, new_value) VALUES ($1,'admin',$2,'created','waiting_user')`, ticket.ID, adminID); err != nil {
+		return nil, fmt.Errorf("insert admin support ticket event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit admin support ticket: %w", err)
+	}
+	ticket.UserID = targetUserID
+	ticket.Status = StatusWaitingUser
+	ticket.Priority = PriorityNormal
+	ticket.LastReplyBy = "admin"
 	return &ticket, nil
 }
 

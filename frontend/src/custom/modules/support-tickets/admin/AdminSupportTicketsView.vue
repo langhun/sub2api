@@ -4,7 +4,10 @@
       <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div><h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('admin.supportTickets.title') }}</h1><p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('admin.supportTickets.description') }}</p></div>
         <button v-if="ticket" class="btn btn-secondary self-start" type="button" @click="goToList"><Icon name="arrowLeft" size="sm" />{{ t('supportTickets.backToList') }}</button>
-        <button v-else class="btn btn-secondary self-start" type="button" :disabled="loading" @click="() => loadList()"><Icon name="refresh" size="sm" />{{ t('common.refresh') }}</button>
+        <div v-else class="flex flex-wrap gap-2 self-start">
+          <button class="btn btn-secondary" type="button" :disabled="loading" @click="() => loadList()"><Icon name="refresh" size="sm" />{{ t('common.refresh') }}</button>
+          <button class="btn btn-primary" type="button" @click="openCreateDialog"><Icon name="plus" size="sm" />{{ t('admin.supportTickets.createOutbound') }}</button>
+        </div>
       </header>
 
       <div v-if="loading" class="card flex min-h-56 items-center justify-center"><LoadingSpinner /></div>
@@ -37,20 +40,45 @@
         <button v-for="item in tickets" v-else :key="item.public_id" type="button" class="block w-full border-b border-l-2 border-b-gray-100 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-b-dark-700 dark:hover:bg-dark-800" :class="item.status === 'open' ? 'border-l-amber-500 bg-amber-50/40 dark:bg-amber-900/10' : 'border-l-transparent'" @click="openTicket(item.public_id)"><div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs text-gray-500 dark:text-dark-400">{{ item.public_id }}</span><span :class="['badge', ticketStatusClass(item.status)]" :aria-label="statusLabel(item.status)">{{ statusLabel(item.status) }}</span><span :class="['badge', ticketPriorityClass(item.priority)]">{{ priorityLabel(item.priority) }}</span></div><p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ item.subject }}</p><p class="mt-1 text-xs text-gray-500 dark:text-dark-400">#{{ item.user_id }} · {{ categoryLabel(item.category) }}</p></div><time class="shrink-0 text-xs text-gray-500 dark:text-dark-400">{{ formatDateTimeToMinute(item.last_activity_at) }}</time></div></button>
         <div v-if="total > tickets.length" class="border-t border-gray-100 p-4 text-center dark:border-dark-700"><button class="btn btn-secondary btn-sm" type="button" :disabled="loadingMore" @click="loadMore">{{ t('common.loadMore') }}</button><p class="mt-2 text-xs text-gray-500 dark:text-dark-400">{{ t('supportTickets.pagination', { count: tickets.length, total }) }}</p></div>
       </section>
+
+      <BaseDialog :show="showCreateDialog" :title="t('admin.supportTickets.createOutboundTitle')" width="normal" @close="closeCreateDialog">
+        <form id="admin-create-support-ticket-form" class="space-y-4" @submit.prevent="createOutboundTicket">
+          <div>
+            <label class="input-label" for="admin-ticket-user-search">{{ t('admin.supportTickets.recipient') }}</label>
+            <div class="relative">
+              <input id="admin-ticket-user-search" v-model="userSearchKeyword" type="search" class="input pr-8" :placeholder="t('admin.supportTickets.recipientPlaceholder')" autocomplete="off" @input="onUserSearchInput" @focus="showUserResults = true" />
+              <button v-if="selectedUser" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-dark-300" type="button" :aria-label="t('admin.supportTickets.clearRecipient')" @click="clearSelectedUser"><Icon name="x" size="sm" /></button>
+              <div v-if="showUserResults && (userSearchLoading || userSearchResults.length || userSearchKeyword)" class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-700 dark:bg-dark-800">
+                <div v-if="userSearchLoading" class="px-4 py-3 text-sm text-gray-500 dark:text-dark-400">{{ t('common.loading') }}</div>
+                <div v-else-if="!userSearchResults.length" class="px-4 py-3 text-sm text-gray-500 dark:text-dark-400">{{ t('common.noOptionsFound') }}</div>
+                <button v-for="user in userSearchResults" v-else :key="user.id" class="block w-full px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-dark-700" type="button" @click="selectUser(user)"><span class="font-medium text-gray-900 dark:text-white">{{ user.email }}</span><span class="ml-2 text-gray-500 dark:text-dark-400">#{{ user.id }}</span></button>
+              </div>
+            </div>
+            <p v-if="selectedUser" class="input-hint mt-2">{{ t('admin.supportTickets.recipientSelected', { email: selectedUser.email, id: selectedUser.id }) }}</p>
+          </div>
+          <label class="block"><span class="input-label">{{ t('supportTickets.category') }}</span><select v-model="createForm.category" class="input"><option v-for="category in ticketCategories" :key="category" :value="category">{{ categoryLabel(category) }}</option></select></label>
+          <label class="block"><span class="input-label">{{ t('supportTickets.subject') }}</span><input v-model.trim="createForm.subject" class="input" type="text" maxlength="200" required :placeholder="t('supportTickets.subjectPlaceholder')" /></label>
+          <label class="block"><span class="input-label">{{ t('supportTickets.message') }}</span><textarea v-model.trim="createForm.body" class="input min-h-32 resize-y" maxlength="5000" required :placeholder="t('admin.supportTickets.outboundMessagePlaceholder')" /></label>
+          <p class="input-hint text-amber-700 dark:text-amber-300">{{ t('supportTickets.sensitiveNotice') }}</p>
+        </form>
+        <template #footer><div class="flex justify-end gap-3"><button class="btn btn-secondary" type="button" :disabled="creating" @click="closeCreateDialog">{{ t('common.cancel') }}</button><button class="btn btn-primary" type="submit" form="admin-create-support-ticket-form" :disabled="creating || !selectedUser || !createForm.subject || !createForm.body">{{ creating ? t('common.processing') : t('admin.supportTickets.createOutbound') }}</button></div></template>
+      </BaseDialog>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { searchUsers, type SimpleUser } from '@/api/admin/usage'
 import { useAppStore } from '@/stores/app'
 import { formatDateTimeToMinute } from '@/utils/format'
-import { addAdminSupportTicketMessage, getAdminSupportTicket, listAdminSupportTickets, updateAdminSupportTicket, type SupportTicket, type SupportTicketCategory, type SupportTicketPriority, type SupportTicketSenderType, type SupportTicketStatus } from '../api'
+import { addAdminSupportTicketMessage, createAdminSupportTicket, getAdminSupportTicket, listAdminSupportTickets, updateAdminSupportTicket, type SupportTicket, type SupportTicketCategory, type SupportTicketPriority, type SupportTicketSenderType, type SupportTicketStatus } from '../api'
 import { ticketPriorities, ticketPriorityClass, ticketStatuses, ticketStatusClass, ticketStatusLocaleKey } from '../presentation'
 
 const { t } = useI18n()
@@ -67,8 +95,19 @@ const submitting = ref(false)
 const loadError = ref('')
 const messageBody = ref('')
 const internalNote = ref(false)
+const showCreateDialog = ref(false)
+const creating = ref(false)
+const userSearchKeyword = ref('')
+const userSearchResults = ref<SimpleUser[]>([])
+const userSearchLoading = ref(false)
+const showUserResults = ref(false)
+const selectedUser = ref<SimpleUser | null>(null)
+const createForm = reactive({ category: 'account' as SupportTicketCategory, subject: '', body: '' })
 const filters = reactive({ status: '' as SupportTicketStatus | '', priority: '' as SupportTicketPriority | '' })
 const editForm = reactive({ status: 'open' as SupportTicketStatus, priority: 'normal' as SupportTicketPriority })
+const ticketCategories: SupportTicketCategory[] = ['account', 'billing', 'api', 'model', 'feature', 'other']
+let userSearchTimeout: ReturnType<typeof setTimeout> | null = null
+let userSearchRequest = 0
 
 function errorMessage(error: unknown) { return (error as { message?: string })?.message || t('supportTickets.loadFailed') }
 function statusLabel(value: SupportTicketStatus) { return t(ticketStatusLocaleKey(value, 'admin')) }
@@ -77,6 +116,24 @@ function priorityLabel(value: SupportTicketPriority) { return t(`supportTickets.
 function senderLabel(value: SupportTicketSenderType) { return t(`supportTickets.sender.${value}`) }
 function openTicket(publicID: string) { router.push({ name: 'AdminSupportTicketDetail', params: { id: publicID } }) }
 function goToList() { router.push({ name: 'AdminSupportTickets' }) }
+function resetCreateForm() { createForm.category = 'account'; createForm.subject = ''; createForm.body = ''; userSearchKeyword.value = ''; userSearchResults.value = []; userSearchLoading.value = false; showUserResults.value = false; selectedUser.value = null; userSearchRequest += 1 }
+function openCreateDialog() { resetCreateForm(); showCreateDialog.value = true }
+function closeCreateDialog() { if (!creating.value) { showCreateDialog.value = false; resetCreateForm() } }
+function clearSelectedUser() { selectedUser.value = null; userSearchKeyword.value = ''; userSearchResults.value = []; showUserResults.value = false; userSearchRequest += 1 }
+function selectUser(user: SimpleUser) { if (user.deleted) return; selectedUser.value = user; userSearchKeyword.value = user.email; userSearchResults.value = []; showUserResults.value = false }
+function onUserSearchInput() { if (selectedUser.value && userSearchKeyword.value !== selectedUser.value.email) selectedUser.value = null; showUserResults.value = true; debounceUserSearch() }
+function debounceUserSearch() { if (userSearchTimeout) clearTimeout(userSearchTimeout); userSearchTimeout = setTimeout(searchTicketUsers, 300) }
+async function searchTicketUsers() {
+  const keyword = userSearchKeyword.value.trim()
+  if (selectedUser.value && keyword !== selectedUser.value.email) selectedUser.value = null
+  if (!keyword) { userSearchResults.value = []; userSearchLoading.value = false; return }
+  const request = ++userSearchRequest
+  try { userSearchLoading.value = true; const users = await searchUsers(keyword); if (request === userSearchRequest) userSearchResults.value = users.filter((user) => !user.deleted) } catch { if (request === userSearchRequest) userSearchResults.value = [] } finally { if (request === userSearchRequest) userSearchLoading.value = false }
+}
+async function createOutboundTicket() {
+  if (!selectedUser.value) { appStore.showError(t('admin.supportTickets.recipientRequired')); return }
+  try { creating.value = true; const created = await createAdminSupportTicket({ user_id: selectedUser.value.id, category: createForm.category, subject: createForm.subject, body: createForm.body }); showCreateDialog.value = false; resetCreateForm(); appStore.showSuccess(t('admin.supportTickets.createOutboundSuccess')); await router.push({ name: 'AdminSupportTicketDetail', params: { id: created.public_id } }) } catch (error) { appStore.showError(errorMessage(error)) } finally { creating.value = false }
+}
 
 async function loadList(nextPage = 1) {
   const isMore = nextPage > 1
@@ -105,4 +162,5 @@ async function updateTicket() {
 
 watch(() => route.params.id, () => { ticket.value = null; messageBody.value = ''; loadCurrent() })
 onMounted(loadCurrent)
+onBeforeUnmount(() => { if (userSearchTimeout) clearTimeout(userSearchTimeout) })
 </script>

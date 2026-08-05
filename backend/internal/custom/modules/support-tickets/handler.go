@@ -132,6 +132,39 @@ type adminReplyRequest struct {
 	Internal bool   `json:"internal"`
 }
 
+type adminCreateTicketRequest struct {
+	UserID   int64  `json:"user_id"`
+	Category string `json:"category"`
+	Subject  string `json:"subject"`
+	Body     string `json:"body"`
+}
+
+func (h *AdminHandler) Create(c *gin.Context) {
+	if !h.available(c) {
+		return
+	}
+	adminID, ok := currentUser(c)
+	if !ok {
+		return
+	}
+	var req adminCreateTicketRequest
+	if !bindTicketJSON(c, &req) {
+		return
+	}
+	ticket, err := h.service.CreateAdmin(c.Request.Context(), AdminCreateInput{
+		AdminID:  adminID,
+		UserID:   req.UserID,
+		Category: req.Category,
+		Subject:  req.Subject,
+		Body:     req.Body,
+	})
+	if err != nil {
+		respondTicketError(c, err)
+		return
+	}
+	response.Created(c, ticket)
+}
+
 func (h *AdminHandler) Reply(c *gin.Context) {
 	if !h.available(c) {
 		return
@@ -249,7 +282,7 @@ func respondTicketError(c *gin.Context, err error) {
 		response.NotFound(c, "support ticket not found")
 		return
 	}
-	if errors.Is(err, ErrTicketInactive) || errors.Is(err, ErrInvalidTransition) || errors.Is(err, ErrTicketMessageLimit) || errors.Is(err, ErrTicketLimit) {
+	if errors.Is(err, ErrTicketInactive) || errors.Is(err, ErrInvalidTransition) || errors.Is(err, ErrTicketMessageLimit) || errors.Is(err, ErrTicketLimit) || errors.Is(err, ErrTargetUserUnavailable) {
 		response.BadRequest(c, err.Error())
 		return
 	}

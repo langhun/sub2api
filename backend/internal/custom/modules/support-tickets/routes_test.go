@@ -30,6 +30,7 @@ func TestModuleRegistersUserAndAdminRoutes(t *testing.T) {
 		"POST /api/v1/support/tickets/:public_id/messages",
 		"POST /api/v1/support/tickets/:public_id/reopen",
 		"GET /api/v1/admin/support/tickets",
+		"POST /api/v1/admin/support/tickets",
 		"GET /api/v1/admin/support/tickets/:public_id",
 		"POST /api/v1/admin/support/tickets/:public_id/messages",
 		"PATCH /api/v1/admin/support/tickets/:public_id",

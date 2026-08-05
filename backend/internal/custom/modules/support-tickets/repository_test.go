@@ -85,6 +85,51 @@ func TestCreateRejectsWhenActiveTicketLimitReached(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestCreateAdminCreatesUnreadOutboundTicketForActiveUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	now := time.Now().UTC()
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT id FROM users WHERE id = \$1 AND status = 'active' AND deleted_at IS NULL FOR UPDATE`).
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+	mock.ExpectQuery(`INSERT INTO custom_support_tickets .*'waiting_user'.*'admin'.*RETURNING id, last_activity_at, created_at, updated_at`).
+		WithArgs("SUP-0123456789ABCDEF", int64(7), "account", "Account notice").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "last_activity_at", "created_at", "updated_at"}).AddRow(int64(1), now, now, now))
+	mock.ExpectExec(`INSERT INTO custom_support_ticket_messages`).
+		WithArgs(int64(1), int64(9), "Please review this ticket.").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(`INSERT INTO custom_support_ticket_events`).
+		WithArgs(int64(1), int64(9)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	ticket, err := NewRepository(db).CreateAdmin(context.Background(), Ticket{PublicID: "SUP-0123456789ABCDEF", UserID: 7, Category: "account", Subject: "Account notice"}, 9, "Please review this ticket.")
+	require.NoError(t, err)
+	require.Equal(t, StatusWaitingUser, ticket.Status)
+	require.Equal(t, PriorityNormal, ticket.Priority)
+	require.Equal(t, "admin", ticket.LastReplyBy)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCreateAdminRejectsInactiveOrMissingTargetUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT id FROM users WHERE id = \$1 AND status = 'active' AND deleted_at IS NULL FOR UPDATE`).
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	mock.ExpectRollback()
+
+	_, err = NewRepository(db).CreateAdmin(context.Background(), Ticket{PublicID: "SUP-0123456789ABCDEF", UserID: 7, Category: "account", Subject: "Account notice"}, 9, "Please review this ticket.")
+	require.ErrorIs(t, err, ErrTargetUserUnavailable)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestReplyRejectsWhenMessageLimitReached(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

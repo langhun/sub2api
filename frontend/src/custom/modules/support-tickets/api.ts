@@ -10,6 +10,7 @@ export interface SupportTicket { public_id: string; user_id: number; category: S
 export interface SupportTicketList { items: SupportTicket[]; total: number; page: number; page_size: number }
 export interface SupportTicketListParams { page?: number; page_size?: number; status?: SupportTicketStatus; priority?: SupportTicketPriority }
 export interface CreateSupportTicketPayload { subject: string; category: SupportTicketCategory; body: string }
+export interface CreateAdminSupportTicketPayload extends CreateSupportTicketPayload { user_id: number }
 export interface AddSupportTicketMessagePayload { body: string; internal?: boolean }
 export interface UpdateSupportTicketPayload { status?: SupportTicketStatus; priority?: SupportTicketPriority }
 
@@ -20,6 +21,7 @@ export async function getSupportTicket(publicID: string) { const { data } = awai
 export async function addSupportTicketMessage(publicID: string, payload: AddSupportTicketMessagePayload) { const { data } = await apiClient.post<SupportTicket>(`/support/tickets/${publicID}/messages`, payload); return data }
 export async function reopenSupportTicket(publicID: string) { const { data } = await apiClient.post<SupportTicket>(`/support/tickets/${publicID}/reopen`); return data }
 export async function listAdminSupportTickets(value?: SupportTicketListParams) { const { data } = await apiClient.get<SupportTicketList>('/admin/support/tickets', { params: params(value) }); return data }
+export async function createAdminSupportTicket(payload: CreateAdminSupportTicketPayload) { const { data } = await apiClient.post<SupportTicket>('/admin/support/tickets', payload); return data }
 export async function getAdminSupportTicket(publicID: string) { const { data } = await apiClient.get<SupportTicket>(`/admin/support/tickets/${publicID}`); return data }
 export async function addAdminSupportTicketMessage(publicID: string, payload: AddSupportTicketMessagePayload) { const { data } = await apiClient.post<SupportTicket>(`/admin/support/tickets/${publicID}/messages`, payload); return data }
 export async function updateAdminSupportTicket(publicID: string, payload: UpdateSupportTicketPayload) { const { data } = await apiClient.patch<SupportTicket>(`/admin/support/tickets/${publicID}`, payload); return data }

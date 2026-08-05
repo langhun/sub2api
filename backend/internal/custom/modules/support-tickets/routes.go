@@ -30,6 +30,7 @@ func (m *Module) RegisterRoutes(r *gin.Engine, jwtAuth middleware.JWTAuthMiddlew
 		tickets := admin.Group("/support/tickets")
 		tickets.Use(middleware.RequestBodyLimit(supportTicketRequestBodyLimit), panelRateLimiter.Global(), gin.HandlerFunc(auditLog))
 		tickets.GET("", m.Admin.List)
+		tickets.POST("", panelRateLimiter.Heavy(), m.Admin.Create)
 		tickets.GET("/:public_id", m.Admin.Get)
 		tickets.POST("/:public_id/messages", m.Admin.Reply)
 		tickets.PATCH("/:public_id", m.Admin.Update)

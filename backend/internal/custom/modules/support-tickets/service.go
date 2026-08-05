@@ -58,6 +58,21 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Ticket, error
 	}
 	return s.store.Create(ctx, Ticket{PublicID: id, UserID: input.UserID, Category: input.Category, Subject: input.Subject}, input.Body)
 }
+func (s *Service) CreateAdmin(ctx context.Context, input AdminCreateInput) (*Ticket, error) {
+	if s == nil || s.store == nil {
+		return nil, errors.New("support tickets are unavailable")
+	}
+	if err := validateAdminCreate(input); err != nil {
+		return nil, err
+	}
+	input.Subject = strings.TrimSpace(input.Subject)
+	input.Body = strings.TrimSpace(input.Body)
+	id, err := newPublicID()
+	if err != nil {
+		return nil, err
+	}
+	return s.store.CreateAdmin(ctx, Ticket{PublicID: id, UserID: input.UserID, Category: input.Category, Subject: input.Subject}, input.AdminID, input.Body)
+}
 func (s *Service) ReplyUser(ctx context.Context, input ReplyInput) (*Ticket, error) {
 	if err := s.enabled(ctx); err != nil {
 		return nil, err
@@ -132,6 +147,12 @@ func validateCreate(input CreateInput) error {
 		return err
 	}
 	return plainText(input.Body, 1, 5000, "message")
+}
+func validateAdminCreate(input AdminCreateInput) error {
+	if input.AdminID <= 0 {
+		return errors.New("invalid admin")
+	}
+	return validateCreate(CreateInput{UserID: input.UserID, Category: input.Category, Subject: input.Subject, Body: input.Body})
 }
 func validateReply(input ReplyInput) error {
 	if input.UserID <= 0 || !validPublicID(input.PublicID) {

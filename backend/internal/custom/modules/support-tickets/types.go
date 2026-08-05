@@ -68,6 +68,10 @@ type CreateInput struct {
 	UserID                  int64
 	Category, Subject, Body string
 }
+type AdminCreateInput struct {
+	AdminID, UserID         int64
+	Category, Subject, Body string
+}
 type ReplyInput struct {
 	UserID                    int64
 	PublicID, Body, ActorType string
