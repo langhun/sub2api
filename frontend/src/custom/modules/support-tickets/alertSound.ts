@@ -1,6 +1,16 @@
 import frogCroakUrl from './assets/frog-croak.oga?url'
 
 let frogCroak: HTMLAudioElement | undefined
+let stopTimer: ReturnType<typeof setTimeout> | undefined
+
+function stopAfterSingleCroak(audio: HTMLAudioElement) {
+  if (stopTimer) clearTimeout(stopTimer)
+  stopTimer = setTimeout(() => {
+    stopTimer = undefined
+    audio.pause()
+    audio.currentTime = 0
+  }, 900)
+}
 
 function getFrogCroak(): HTMLAudioElement | undefined {
   if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined
@@ -18,9 +28,11 @@ export async function playSupportTicketAlertSound(): Promise<void> {
   if (!audio) return
 
   try {
+    if (stopTimer) clearTimeout(stopTimer)
     audio.pause()
     audio.currentTime = 0
     await audio.play()
+    stopAfterSingleCroak(audio)
   } catch {
     // Browsers can block sound until the user has clicked the preview control once.
   }
