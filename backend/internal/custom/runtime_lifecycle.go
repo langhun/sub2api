@@ -20,6 +20,7 @@ func ProvideRuntime(
 	adminService service.AdminService,
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
+	paymentService *service.PaymentService,
 ) (*Runtime, error) {
 	runtime, err := NewRuntime(
 		client,
@@ -29,6 +30,7 @@ func ProvideRuntime(
 		adminService,
 		customSettingsRegistry,
 		codeGenerator,
+		paymentService,
 	)
 	if err != nil {
 		return nil, err

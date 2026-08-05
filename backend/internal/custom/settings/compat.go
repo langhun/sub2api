@@ -1,9 +1,14 @@
 package settings
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
 	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
+	rechargepromotionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions/settings"
 )
 
 // Compatibility preserves the established flat admin settings contract while
@@ -20,6 +25,12 @@ type Compatibility struct {
 	GameExchangeMaxAmount         float64                   `json:"game_exchange_max_amount"`
 	GameExchangeDailyLimit        float64                   `json:"game_exchange_daily_limit"`
 	GameExchangeAllowDGToBalance  bool                      `json:"game_exchange_allow_dg_to_balance"`
+	RechargePromotionEnabled      bool                      `json:"recharge_promotion_enabled"`
+	RechargePromotionBonusRate    float64                   `json:"recharge_promotion_bonus_rate"`
+	RechargePromotionMinAmount    float64                   `json:"recharge_promotion_min_amount"`
+	RechargePromotionMaxBonus     float64                   `json:"recharge_promotion_max_bonus"`
+	RechargePromotionStartAt      string                    `json:"recharge_promotion_start_at"`
+	RechargePromotionEndAt        string                    `json:"recharge_promotion_end_at"`
 	CheckinEnabled                bool                      `json:"checkin_enabled"`
 	CheckinMinBalance             float64                   `json:"checkin_min_balance"`
 	CheckinMaxBalance             float64                   `json:"checkin_max_balance"`
@@ -53,6 +64,12 @@ type PublicCompatibility struct {
 	GameExchangeMaxAmount         float64 `json:"game_exchange_max_amount"`
 	GameExchangeDailyLimit        float64 `json:"game_exchange_daily_limit"`
 	GameExchangeAllowDGToBalance  bool    `json:"game_exchange_allow_dg_to_balance"`
+	RechargePromotionEnabled      bool    `json:"recharge_promotion_enabled"`
+	RechargePromotionBonusRate    float64 `json:"recharge_promotion_bonus_rate"`
+	RechargePromotionMinAmount    float64 `json:"recharge_promotion_min_amount"`
+	RechargePromotionMaxBonus     float64 `json:"recharge_promotion_max_bonus"`
+	RechargePromotionStartAt      string  `json:"recharge_promotion_start_at"`
+	RechargePromotionEndAt        string  `json:"recharge_promotion_end_at"`
 	CheckinEnabled                bool    `json:"checkin_enabled"`
 	CheckinLuckEnabled            bool    `json:"checkin_luck_enabled"`
 	CheckinBlindboxEnabled        bool    `json:"checkin_blindbox_enabled"`
@@ -79,6 +96,12 @@ type Patch struct {
 	GameExchangeMaxAmount         *float64                   `json:"game_exchange_max_amount"`
 	GameExchangeDailyLimit        *float64                   `json:"game_exchange_daily_limit"`
 	GameExchangeAllowDGToBalance  *bool                      `json:"game_exchange_allow_dg_to_balance"`
+	RechargePromotionEnabled      *bool                      `json:"recharge_promotion_enabled"`
+	RechargePromotionBonusRate    *float64                   `json:"recharge_promotion_bonus_rate"`
+	RechargePromotionMinAmount    *float64                   `json:"recharge_promotion_min_amount"`
+	RechargePromotionMaxBonus     *float64                   `json:"recharge_promotion_max_bonus"`
+	RechargePromotionStartAt      campaignTimePatch          `json:"recharge_promotion_start_at"`
+	RechargePromotionEndAt        campaignTimePatch          `json:"recharge_promotion_end_at"`
 	CheckinEnabled                *bool                      `json:"checkin_enabled"`
 	CheckinMinBalance             *float64                   `json:"checkin_min_balance"`
 	CheckinMaxBalance             *float64                   `json:"checkin_max_balance"`
@@ -105,6 +128,7 @@ type Patch struct {
 func (p Patch) HasChanges() bool {
 	return p.CodeFormatSettings != nil || p.DefaultHomepage != nil || p.GameHallEnabled != nil || p.SupportTicketEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
 		p.GameExchangeMinAmount != nil || p.GameExchangeMaxAmount != nil || p.GameExchangeDailyLimit != nil || p.GameExchangeAllowDGToBalance != nil ||
+		p.RechargePromotionEnabled != nil || p.RechargePromotionBonusRate != nil || p.RechargePromotionMinAmount != nil || p.RechargePromotionMaxBonus != nil || p.RechargePromotionStartAt.present || p.RechargePromotionEndAt.present ||
 		p.CheckinEnabled != nil || p.CheckinMinBalance != nil || p.CheckinMaxBalance != nil || p.CheckinLuckEnabled != nil ||
 		p.CheckinLuckMinMultiplier != nil || p.CheckinLuckMaxMultiplier != nil || p.CheckinBlindboxEnabled != nil ||
 		p.CheckinBlindboxTriggerType != nil || p.CheckinBlindboxInterval != nil || p.RedPacketEnabled != nil ||
@@ -126,6 +150,7 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 	brandHome := snapshot.BrandHome
 	codeFormat := snapshot.CodeFormat
 	gameHall := snapshot.GameHall
+	rechargePromotions := snapshot.RechargePromotions
 	supportTickets := snapshot.SupportTickets
 	return Compatibility{
 		CodeFormatSettings: codeFormat,
@@ -135,6 +160,9 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 		GameSlotsMinBet:      gameHall.SlotsMinBet, GameSlotsMaxBet: gameHall.SlotsMaxBet,
 		GameExchangeMinAmount: gameHall.ExchangeMinAmount, GameExchangeMaxAmount: gameHall.ExchangeMaxAmount,
 		GameExchangeDailyLimit: gameHall.ExchangeDailyLimit, GameExchangeAllowDGToBalance: gameHall.ExchangeAllowDGToBalance,
+		RechargePromotionEnabled: rechargePromotions.Enabled, RechargePromotionBonusRate: rechargePromotions.BonusRate,
+		RechargePromotionMinAmount: rechargePromotions.MinAmount, RechargePromotionMaxBonus: rechargePromotions.MaxBonus,
+		RechargePromotionStartAt: rechargepromotionsettings.FormatTime(rechargePromotions.StartAt), RechargePromotionEndAt: rechargepromotionsettings.FormatTime(rechargePromotions.EndAt),
 		CheckinEnabled: activity.CheckinEnabled, CheckinMinBalance: activity.CheckinMinBalance, CheckinMaxBalance: activity.CheckinMaxBalance,
 		CheckinLuckEnabled: activity.CheckinLuckEnabled, CheckinLuckMinMultiplier: activity.CheckinLuckMinMultiplier,
 		CheckinLuckMaxMultiplier: activity.CheckinLuckMaxMultiplier, CheckinBlindboxEnabled: activity.CheckinBlindboxEnabled,
@@ -155,6 +183,9 @@ func (c Compatibility) Public() PublicCompatibility {
 		GameSlotsMinBet:      c.GameSlotsMinBet, GameSlotsMaxBet: c.GameSlotsMaxBet,
 		GameExchangeMinAmount: c.GameExchangeMinAmount, GameExchangeMaxAmount: c.GameExchangeMaxAmount,
 		GameExchangeDailyLimit: c.GameExchangeDailyLimit, GameExchangeAllowDGToBalance: c.GameExchangeAllowDGToBalance,
+		RechargePromotionEnabled: c.RechargePromotionEnabled, RechargePromotionBonusRate: c.RechargePromotionBonusRate,
+		RechargePromotionMinAmount: c.RechargePromotionMinAmount, RechargePromotionMaxBonus: c.RechargePromotionMaxBonus,
+		RechargePromotionStartAt: c.RechargePromotionStartAt, RechargePromotionEndAt: c.RechargePromotionEndAt,
 		CheckinEnabled: c.CheckinEnabled, CheckinLuckEnabled: c.CheckinLuckEnabled, CheckinBlindboxEnabled: c.CheckinBlindboxEnabled,
 		RedPacketEnabled: c.RedPacketEnabled, UsageQueryEnabled: c.UsageQueryEnabled,
 		LeaderboardEnabled: c.LeaderboardEnabled, LeaderboardBalanceEnabled: c.LeaderboardBalanceEnabled,
@@ -168,6 +199,7 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	brandHome := &snapshot.BrandHome
 	codeFormat := &snapshot.CodeFormat
 	gameHall := &snapshot.GameHall
+	rechargePromotions := &snapshot.RechargePromotions
 	supportTickets := &snapshot.SupportTickets
 	if p.CodeFormatSettings != nil {
 		*codeFormat = *p.CodeFormatSettings
@@ -201,6 +233,24 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	}
 	if p.GameExchangeAllowDGToBalance != nil {
 		gameHall.ExchangeAllowDGToBalance = *p.GameExchangeAllowDGToBalance
+	}
+	if p.RechargePromotionEnabled != nil {
+		rechargePromotions.Enabled = *p.RechargePromotionEnabled
+	}
+	if p.RechargePromotionBonusRate != nil {
+		rechargePromotions.BonusRate = *p.RechargePromotionBonusRate
+	}
+	if p.RechargePromotionMinAmount != nil {
+		rechargePromotions.MinAmount = *p.RechargePromotionMinAmount
+	}
+	if p.RechargePromotionMaxBonus != nil {
+		rechargePromotions.MaxBonus = *p.RechargePromotionMaxBonus
+	}
+	if p.RechargePromotionStartAt.present {
+		rechargePromotions.StartAt = p.RechargePromotionStartAt.value
+	}
+	if p.RechargePromotionEndAt.present {
+		rechargePromotions.EndAt = p.RechargePromotionEndAt.value
 	}
 	if p.CheckinEnabled != nil {
 		activity.CheckinEnabled = *p.CheckinEnabled
@@ -257,4 +307,29 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 		activity.LeaderboardIncludeAdmin = *p.LeaderboardIncludeAdmin
 	}
 	return snapshot
+}
+
+// campaignTimePatch distinguishes an omitted field from an explicit empty
+// string, allowing the admin panel to clear a campaign boundary safely.
+type campaignTimePatch struct {
+	present bool
+	value   time.Time
+}
+
+func (p *campaignTimePatch) UnmarshalJSON(raw []byte) error {
+	p.present = true
+	if bytes.Equal(bytes.TrimSpace(raw), []byte(`null`)) {
+		p.value = time.Time{}
+		return nil
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return fmt.Errorf("campaign boundary must be an RFC3339 string or null: %w", err)
+	}
+	parsed, err := rechargepromotionsettings.ParseTime(value)
+	if err != nil {
+		return err
+	}
+	p.value = parsed
+	return nil
 }

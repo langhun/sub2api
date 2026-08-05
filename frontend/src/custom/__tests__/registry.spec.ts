@@ -7,6 +7,7 @@ import {
   customHeaderActions,
   customNavigation,
   customNotificationCenterExtensions,
+  customRechargePreviewExtensions,
   customRoutes,
   customSettingsPanels,
 } from '../registry'
@@ -24,6 +25,7 @@ const sidebarSource = readFileSync(resolve(directory, '../../components/layout/A
 const headerSource = readFileSync(resolve(directory, '../../components/layout/AppHeader.vue'), 'utf8')
 const announcementBellSource = readFileSync(resolve(directory, '../../components/common/AnnouncementBell.vue'), 'utf8')
 const settingsSource = readFileSync(resolve(directory, '../../views/admin/SettingsView.vue'), 'utf8')
+const paymentViewSource = readFileSync(resolve(directory, '../../views/user/PaymentView.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
   it('aggregates routes and navigation from custom modules', () => {
@@ -34,6 +36,7 @@ describe('custom overlay registry', () => {
     expect(customNavigation).toEqual(expect.arrayContaining(gameHallNavigation))
     expect(customHeaderActions).toEqual(expect.arrayContaining(activityHeaderActions))
     expect(customNotificationCenterExtensions).toEqual(expect.arrayContaining(supportTicketNotificationCenterExtensions))
+    expect(customRechargePreviewExtensions.map((extension) => extension.id)).toContain('recharge-promotion')
   })
 
   it('mounts custom routes before the catch-all route', () => {
@@ -86,6 +89,7 @@ describe('custom overlay registry', () => {
 		'game-hall',
 		'activity-entry-switches',
 		'activity',
+      'recharge-promotion',
     ])
     expect(settingsSource).toContain("customSettingsPanelsFor('site')")
     expect(settingsSource).toContain("customSettingsPanelsFor('entry-switches')")
@@ -95,5 +99,11 @@ describe('custom overlay registry', () => {
     expect(settingsSource).not.toContain('form.checkin_enabled')
     expect(settingsSource).not.toContain('form.transfer_enabled')
     expect(settingsSource).not.toContain('form.default_homepage')
+  })
+
+  it('mounts recharge previews through the generic payment extension point', () => {
+    expect(paymentViewSource).toContain("import { customRechargePreviewExtensions } from '@/custom/registry'")
+    expect(paymentViewSource).toContain('v-for="extension in customRechargePreviewExtensions"')
+    expect(paymentViewSource).not.toContain('@/custom/modules/recharge-promotions')
   })
 })

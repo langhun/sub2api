@@ -21,6 +21,8 @@ import {
   gameHallFeatureFlags,
   gameHallSettingsPanels,
 } from './modules/game-hall/settings'
+import RechargeBonusPreview from './modules/recharge-promotions/RechargeBonusPreview.vue'
+import { rechargePromotionSettingsPanels } from './modules/recharge-promotions/settings'
 export { customPublicSettingsDefaults } from './publicSettings'
 
 export interface CustomNavigationItem {
@@ -45,6 +47,11 @@ export interface CustomHeaderAction {
 }
 
 export interface CustomNotificationCenterExtension {
+  id: string
+  component: Component
+}
+
+export interface CustomRechargePreviewExtension {
   id: string
   component: Component
 }
@@ -92,10 +99,15 @@ export const customNotificationCenterExtensions: readonly CustomNotificationCent
   ...supportTicketNotificationCenterExtensions,
 ]
 
+export const customRechargePreviewExtensions: readonly CustomRechargePreviewExtension[] = [
+  { id: 'recharge-promotion', component: RechargeBonusPreview },
+]
+
 export const customSettingsPanels: readonly CustomSettingsPanel[] = [
   ...brandHomeSettingsPanels,
   ...gameHallSettingsPanels,
   ...activitySettingsPanels,
+  ...rechargePromotionSettingsPanels,
 ].sort((left, right) => left.order - right.order)
 
 export const customFeatureFlags: readonly FeatureFlagDefinition[] = [

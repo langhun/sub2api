@@ -79,9 +79,12 @@ func TestRemoteDatabaseOverlayVerification(t *testing.T) {
 		if exists := relationExists(t, ctx, db, "custom_activity_redeem_metadata"); !exists {
 			t.Fatal("custom_activity_redeem_metadata was not created")
 		}
+		if exists := relationExists(t, ctx, db, "custom_recharge_promotion_orders"); !exists {
+			t.Fatal("custom_recharge_promotion_orders was not created")
+		}
 
 		customLedger := migrationLedger(t, ctx, db, "custom_schema_migrations")
-		if len(customLedger) != 1 || customLedger[0].Filename != "001_activity_redeem_metadata.sql" {
+		if len(customLedger) != 3 || customLedger[0].Filename != "001_activity_redeem_metadata.sql" || customLedger[1].Filename != "002_support_tickets.sql" || customLedger[2].Filename != "003_recharge_promotions.sql" {
 			t.Fatalf("unexpected custom migration ledger: %#v", customLedger)
 		}
 		var leaked int
