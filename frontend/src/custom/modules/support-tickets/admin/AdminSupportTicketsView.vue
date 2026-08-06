@@ -20,7 +20,7 @@
             <div v-if="!ticket.messages?.length" class="py-8 text-center text-sm text-gray-500 dark:text-dark-400">{{ t('supportTickets.noMessages') }}</div>
             <article v-for="message in ticket.messages" :key="message.id" class="flex" :class="message.message_type === 'internal_note' ? 'justify-center' : message.author_type === 'admin' ? 'justify-end' : 'justify-start'">
               <div class="max-w-[88%] rounded-lg px-4 py-3 text-sm" :class="message.message_type === 'internal_note' ? 'border border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-100' : message.author_type === 'admin' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800 dark:bg-dark-800 dark:text-dark-100'">
-                <div class="mb-1 flex items-center justify-between gap-4 text-xs opacity-75"><span>{{ message.message_type === 'internal_note' ? t('admin.supportTickets.internalNote') : senderLabel(message.author_type) }}</span><time>{{ formatDateTimeToMinute(message.created_at) }}</time></div><p class="whitespace-pre-wrap break-words">{{ message.body }}</p>
+                <div class="mb-1 flex items-center justify-between gap-4 text-xs opacity-75"><span>{{ message.message_type === 'internal_note' ? t('admin.supportTickets.internalNote') : message.author_type === 'user' ? requesterLabel(ticket) : senderLabel(message.author_type) }}</span><time>{{ formatDateTimeToMinute(message.created_at) }}</time></div><p class="whitespace-pre-wrap break-words">{{ message.body }}</p>
               </div>
             </article>
           </div>
