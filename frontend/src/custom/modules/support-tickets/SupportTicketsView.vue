@@ -1,72 +1,142 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-6xl space-y-6">
-      <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('supportTickets.title') }}</h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('supportTickets.description') }}</p>
+    <div class="mx-auto max-w-7xl space-y-5">
+      <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-3">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 ring-1 ring-primary-100 dark:bg-primary-900/20 dark:text-primary-300 dark:ring-primary-900/60">
+            <Icon name="inbox" size="lg" />
+          </span>
+          <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ t('supportTickets.title') }}</h1>
         </div>
-        <button v-if="!ticket" class="btn btn-primary self-start" type="button" @click="showCreate = true"><Icon name="plus" size="sm" />{{ t('supportTickets.newTicket') }}</button>
-        <button v-else class="btn btn-secondary self-start" type="button" @click="goToList"><Icon name="arrowLeft" size="sm" />{{ t('supportTickets.backToList') }}</button>
+        <button v-if="!ticket" class="btn btn-primary self-start sm:self-auto" type="button" @click="showCreate = true">
+          <Icon name="plus" size="sm" />
+          {{ t('supportTickets.newTicket') }}
+        </button>
+        <button v-else class="btn btn-secondary self-start sm:self-auto" type="button" @click="goToList">
+          <Icon name="arrowLeft" size="sm" />
+          {{ t('supportTickets.backToList') }}
+        </button>
       </header>
 
-      <div v-if="loading" class="card flex min-h-56 items-center justify-center"><LoadingSpinner /></div>
-      <div v-else-if="loadError" class="card py-12 text-center">
+      <div v-if="loading" class="flex min-h-64 items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900">
+        <LoadingSpinner />
+      </div>
+      <div v-else-if="loadError" class="rounded-lg border border-red-200 bg-white py-12 text-center dark:border-red-900/60 dark:bg-dark-900">
         <Icon name="exclamationCircle" size="xl" class="mx-auto text-red-500" />
         <p class="mt-3 text-sm text-gray-600 dark:text-dark-300">{{ loadError }}</p>
         <button class="btn btn-secondary mt-4" type="button" @click="loadCurrent">{{ t('common.retry') }}</button>
       </div>
 
-      <section v-else-if="ticket" class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-        <div class="card overflow-hidden p-0">
-          <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-xs font-medium text-gray-500 dark:text-dark-400">{{ t('supportTickets.ticketNumber', { number: ticket.public_id }) }}</p>
-                <h2 class="mt-1 break-words text-lg font-semibold text-gray-900 dark:text-white">{{ ticket.subject }}</h2>
-              </div>
-              <span :class="['badge', ticketStatusClass(ticket.status)]" :aria-label="statusLabel(ticket.status)">{{ statusLabel(ticket.status) }}</span>
-            </div>
+      <section v-else-if="ticket" class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
+        <div class="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+          <div class="min-w-0">
+            <p class="break-all font-mono text-xs text-gray-400 dark:text-dark-500">{{ ticket.public_id }}</p>
+            <h2 class="mt-1 break-words text-lg font-semibold text-gray-900 dark:text-white">{{ ticket.subject }}</h2>
           </div>
-          <div class="space-y-4 p-5">
-            <div v-if="!ticket.messages?.length" class="py-8 text-center text-sm text-gray-500 dark:text-dark-400">{{ t('supportTickets.noMessages') }}</div>
-            <article v-for="message in ticket.messages" :key="message.id" class="flex gap-3" :class="message.author_type === 'user' ? 'justify-end' : 'justify-start'">
-              <div class="max-w-[88%] rounded-lg px-4 py-3 text-sm" :class="message.author_type === 'user' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-800 dark:bg-dark-800 dark:text-dark-100'">
-                <div class="mb-1 flex items-center justify-between gap-4 text-xs opacity-75"><span>{{ senderLabel(message.author_type) }}</span><time>{{ formatDateTimeToMinute(message.created_at) }}</time></div>
-                <p class="whitespace-pre-wrap break-words">{{ message.body }}</p>
-              </div>
-            </article>
-          </div>
-          <form v-if="canReply" class="border-t border-gray-100 p-5 dark:border-dark-700" @submit.prevent="sendReply">
-            <label class="input-label" for="ticket-reply">{{ t('supportTickets.reply') }}</label>
-            <textarea id="ticket-reply" v-model.trim="replyBody" data-testid="ticket-reply" class="input min-h-28 resize-y" :placeholder="t('supportTickets.replyPlaceholder')" maxlength="5000" required />
-            <p class="input-hint mt-2 text-amber-700 dark:text-amber-300">{{ t('supportTickets.sensitiveNotice') }}</p>
-            <div class="mt-3 flex justify-end"><button class="btn btn-primary" type="submit" :disabled="submitting || !replyBody">{{ submitting ? t('common.processing') : t('supportTickets.send') }}</button></div>
-          </form>
+          <span :class="['badge shrink-0', ticketPriorityClass(ticket.priority)]">{{ priorityLabel(ticket.priority) }}</span>
         </div>
-        <aside class="card h-fit p-5">
-          <dl class="space-y-4 text-sm">
-            <div><dt class="text-gray-500 dark:text-dark-400">{{ t('supportTickets.category') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ categoryLabel(ticket.category) }}</dd></div>
-            <div><dt class="text-gray-500 dark:text-dark-400">{{ t('supportTickets.priority') }}</dt><dd class="mt-1"><span :class="['badge', ticketPriorityClass(ticket.priority)]">{{ priorityLabel(ticket.priority) }}</span></dd></div>
-            <div><dt class="text-gray-500 dark:text-dark-400">{{ t('supportTickets.latestActivity') }}</dt><dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatDateTimeToMinute(ticket.last_activity_at) }}</dd></div>
-          </dl>
-          <button v-if="ticket.status === 'resolved'" class="btn btn-secondary mt-6 w-full" type="button" :disabled="submitting" @click="reopen">{{ t('supportTickets.reopen') }}</button>
-        </aside>
+
+        <div :class="['flex items-center gap-2 border-y px-5 py-3 text-sm sm:px-6', ticketStatusBannerClass(ticket.status, 'user')]">
+          <Icon :name="statusIcon(ticket.status)" size="sm" class="shrink-0" />
+          <span class="font-medium">{{ statusLabel(ticket.status) }}</span>
+        </div>
+
+        <div class="grid xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div class="min-w-0 xl:border-r xl:border-gray-200 dark:xl:border-dark-700">
+            <TicketConversation
+              :messages="ticket.messages ?? []"
+              own-author="user"
+              :user-label="senderLabel('user')"
+              :admin-label="senderLabel('admin')"
+              :system-label="senderLabel('system')"
+              :internal-note-label="senderLabel('system')"
+              :empty-label="t('supportTickets.noMessages')"
+            />
+
+            <form v-if="canReply" class="border-t border-gray-200 bg-white p-4 sm:p-5 dark:border-dark-700 dark:bg-dark-900" @submit.prevent="sendReply">
+              <label class="input-label" for="ticket-reply">{{ t('supportTickets.reply') }}</label>
+              <textarea id="ticket-reply" v-model.trim="replyBody" data-testid="ticket-reply" class="input min-h-28 resize-y" :placeholder="t('supportTickets.replyPlaceholder')" maxlength="5000" required />
+              <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p class="input-hint text-amber-700 dark:text-amber-300">{{ t('supportTickets.sensitiveNotice') }}</p>
+                <button class="btn btn-primary shrink-0" type="submit" :disabled="submitting || !replyBody">
+                  {{ submitting ? t('common.processing') : t('supportTickets.send') }}
+                  <Icon name="arrowRight" size="sm" />
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <aside class="order-first border-b border-gray-200 p-5 xl:order-last xl:border-b-0 dark:border-dark-700">
+            <dl class="grid gap-4 text-sm sm:grid-cols-3 xl:grid-cols-1">
+              <div>
+                <dt class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-dark-400"><Icon name="inbox" size="xs" />{{ t('supportTickets.category') }}</dt>
+                <dd class="mt-1.5 font-medium text-gray-900 dark:text-white">{{ categoryLabel(ticket.category) }}</dd>
+              </div>
+              <div>
+                <dt class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-dark-400"><Icon name="clock" size="xs" />{{ t('supportTickets.latestActivity') }}</dt>
+                <dd class="mt-1.5 font-medium text-gray-900 dark:text-white"><time :datetime="ticket.last_activity_at">{{ formatDateTimeToMinute(ticket.last_activity_at) }}</time></dd>
+              </div>
+              <div>
+                <dt class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-dark-400"><Icon name="badge" size="xs" />{{ t('supportTickets.priority') }}</dt>
+                <dd class="mt-1.5 font-medium text-gray-900 dark:text-white">{{ priorityLabel(ticket.priority) }}</dd>
+              </div>
+            </dl>
+            <button v-if="ticket.status === 'resolved'" class="btn btn-secondary mt-5 w-full" type="button" :disabled="submitting" @click="reopen">
+              <Icon name="refresh" size="sm" />
+              {{ t('supportTickets.reopen') }}
+            </button>
+          </aside>
+        </div>
       </section>
 
-      <section v-else class="card overflow-hidden p-0">
-        <div v-if="tickets.length === 0" class="py-16 text-center">
-          <Icon name="chatBubble" size="xl" class="mx-auto text-gray-400" />
-          <p class="mt-3 text-sm text-gray-500 dark:text-dark-400">{{ t('supportTickets.empty') }}</p>
-          <button class="btn btn-primary mt-4" type="button" @click="showCreate = true">{{ t('supportTickets.newTicket') }}</button>
-        </div>
-        <button v-for="item in tickets" v-else :key="item.public_id" type="button" class="block w-full border-b border-l-2 border-b-gray-100 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-b-dark-700 dark:hover:bg-dark-800" :class="item.status === 'waiting_user' ? 'border-l-primary-500 bg-primary-50/30 dark:bg-primary-900/10' : 'border-l-transparent'" @click="openTicket(item.public_id)">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="font-mono text-xs text-gray-500 dark:text-dark-400">{{ item.public_id }}</span><span :class="['badge', ticketStatusClass(item.status)]" :aria-label="statusLabel(item.status)">{{ statusLabel(item.status) }}</span></div><p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ item.subject }}</p><p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ categoryLabel(item.category) }}</p></div>
-            <time class="shrink-0 text-xs text-gray-500 dark:text-dark-400">{{ formatDateTimeToMinute(item.last_activity_at) }}</time>
+      <section v-else class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
+        <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-dark-700">
+          <div class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-dark-200">
+            <Icon name="inbox" size="sm" />
+            <span>{{ t('supportTickets.title') }}</span>
           </div>
+          <span v-if="total > 0" class="text-xs tabular-nums text-gray-400 dark:text-dark-500">{{ tickets.length }} / {{ total }}</span>
+        </div>
+
+        <div v-if="tickets.length === 0" class="py-16 text-center">
+          <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-dark-800 dark:text-dark-500"><Icon name="chat" size="lg" /></span>
+          <p class="mt-3 text-sm text-gray-500 dark:text-dark-400">{{ t('supportTickets.empty') }}</p>
+          <button class="btn btn-primary mt-4" type="button" @click="showCreate = true">
+            <Icon name="plus" size="sm" />
+            {{ t('supportTickets.newTicket') }}
+          </button>
+        </div>
+
+        <button
+          v-for="item in tickets"
+          v-else
+          :key="item.public_id"
+          type="button"
+          class="group grid w-full grid-cols-[2.5rem_minmax(0,1fr)_1rem] items-center gap-3 border-b border-gray-100 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-gray-50 sm:grid-cols-[2.75rem_minmax(0,1fr)_auto_1.25rem] sm:gap-4 sm:px-5 dark:border-dark-800 dark:hover:bg-dark-800/70"
+          @click="openTicket(item.public_id)"
+        >
+          <span :class="['flex h-10 w-10 items-center justify-center rounded-lg ring-1 sm:h-11 sm:w-11', ticketStatusIconClass(item.status, 'user')]"><Icon name="chat" size="sm" /></span>
+          <span class="min-w-0">
+            <span class="block break-words text-sm font-medium text-gray-900 dark:text-white">{{ item.subject }}</span>
+            <span class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-dark-400">
+              <span class="break-all font-mono text-gray-400 dark:text-dark-500">{{ item.public_id }}</span>
+              <span aria-hidden="true">·</span>
+              <span>{{ categoryLabel(item.category) }}</span>
+              <span :class="['badge sm:hidden', ticketStatusClass(item.status, 'user')]">{{ statusLabel(item.status) }}</span>
+              <time :datetime="item.last_activity_at" class="sm:hidden">{{ formatDateTimeToMinute(item.last_activity_at) }}</time>
+            </span>
+          </span>
+          <span class="hidden items-end text-right sm:flex sm:flex-col">
+            <span :class="['badge', ticketStatusClass(item.status, 'user')]">{{ statusLabel(item.status) }}</span>
+            <time :datetime="item.last_activity_at" class="mt-1.5 text-xs text-gray-400 dark:text-dark-500">{{ formatDateTimeToMinute(item.last_activity_at) }}</time>
+          </span>
+          <Icon name="chevronRight" size="sm" class="text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-gray-500 dark:text-dark-600 dark:group-hover:text-dark-300" />
         </button>
-        <div v-if="total > tickets.length" class="border-t border-gray-100 p-4 text-center dark:border-dark-700"><button class="btn btn-secondary btn-sm" type="button" :disabled="loadingMore" @click="loadMore">{{ t('common.loadMore') }}</button><p class="mt-2 text-xs text-gray-500 dark:text-dark-400">{{ t('supportTickets.pagination', { count: tickets.length, total }) }}</p></div>
+
+        <div v-if="total > tickets.length" class="border-t border-gray-200 p-4 text-center dark:border-dark-700">
+          <button class="btn btn-secondary btn-sm" type="button" :disabled="loadingMore" @click="loadMore">{{ t('common.loadMore') }}</button>
+          <p class="mt-2 text-xs text-gray-500 dark:text-dark-400">{{ t('supportTickets.pagination', { count: tickets.length, total }) }}</p>
+        </div>
       </section>
     </div>
 
@@ -77,7 +147,12 @@
         <label class="block"><span class="input-label">{{ t('supportTickets.message') }}</span><textarea v-model.trim="createForm.body" class="input min-h-36 resize-y" maxlength="5000" :placeholder="t('supportTickets.messagePlaceholder')" required /></label>
         <p class="input-hint text-amber-700 dark:text-amber-300">{{ t('supportTickets.sensitiveNotice') }}</p>
       </form>
-      <template #footer><div class="flex justify-end gap-3"><button class="btn btn-secondary" type="button" @click="showCreate = false">{{ t('common.cancel') }}</button><button class="btn btn-primary" type="submit" form="create-ticket-form" :disabled="submitting || !createForm.subject || !createForm.body">{{ submitting ? t('common.processing') : t('supportTickets.create') }}</button></div></template>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button class="btn btn-secondary" type="button" @click="showCreate = false">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary" type="submit" form="create-ticket-form" :disabled="submitting || !createForm.subject || !createForm.body">{{ submitting ? t('common.processing') : t('supportTickets.create') }}</button>
+        </div>
+      </template>
     </BaseDialog>
   </AppLayout>
 </template>
@@ -93,7 +168,8 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useAppStore } from '@/stores/app'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { addSupportTicketMessage, createSupportTicket, getSupportTicket, listSupportTickets, reopenSupportTicket, type SupportTicket, type SupportTicketCategory, type SupportTicketPriority, type SupportTicketSenderType, type SupportTicketStatus } from './api'
-import { ticketCategories, ticketPriorityClass, ticketStatusClass, ticketStatusLocaleKey } from './presentation'
+import TicketConversation from './components/TicketConversation.vue'
+import { ticketCategories, ticketPriorityClass, ticketStatusBannerClass, ticketStatusClass, ticketStatusIconClass, ticketStatusLocaleKey } from './presentation'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -117,6 +193,7 @@ function statusLabel(value: SupportTicketStatus) { return t(ticketStatusLocaleKe
 function categoryLabel(value: SupportTicketCategory) { return t(`supportTickets.categories.${value}`) }
 function priorityLabel(value: SupportTicketPriority) { return t(`supportTickets.priorities.${value}`) }
 function senderLabel(value: SupportTicketSenderType) { return t(`supportTickets.sender.${value}`) }
+function statusIcon(value: SupportTicketStatus): 'clock' | 'checkCircle' | 'xCircle' { return value === 'resolved' ? 'checkCircle' : value === 'closed' ? 'xCircle' : 'clock' }
 function openTicket(publicID: string) { router.push({ name: 'SupportTicketDetail', params: { id: publicID } }) }
 function goToList() { router.push({ name: 'SupportTickets' }) }
 

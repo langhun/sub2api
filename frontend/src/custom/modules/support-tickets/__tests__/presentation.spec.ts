@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { ticketCategories, ticketPriorityClass, ticketStatusClass, ticketStatusLocaleKey } from '../presentation'
+import { ticketCategories, ticketPriorityClass, ticketStatusBannerClass, ticketStatusClass, ticketStatusIconClass, ticketStatusLocaleKey } from '../presentation'
 import { supportTicketAdminLocaleMessages, supportTicketLocaleMessages } from '../locales'
 
 describe('support ticket presentation', () => {
   it('covers the complete backend category enum and visually distinguishes work states', () => {
     expect(ticketCategories).toContain('model')
-    expect(ticketStatusClass('open')).toBe('badge-warning')
-    expect(ticketStatusClass('waiting_user')).toBe('badge-primary')
+    expect(ticketStatusClass('open', 'admin')).toBe('badge-warning')
+    expect(ticketStatusClass('waiting_user', 'admin')).toBe('badge-primary')
+    expect(ticketStatusClass('open', 'user')).toBe('badge-primary')
+    expect(ticketStatusClass('waiting_user', 'user')).toBe('badge-warning')
     expect(ticketStatusClass('resolved')).toBe('badge-success')
+    expect(ticketStatusIconClass('open')).toContain('amber')
+    expect(ticketStatusIconClass('waiting_user')).toContain('primary')
+    expect(ticketStatusIconClass('open', 'user')).toContain('primary')
+    expect(ticketStatusIconClass('waiting_user', 'user')).toContain('amber')
+    expect(ticketStatusIconClass('resolved')).toContain('emerald')
+    expect(ticketStatusBannerClass('waiting_user', 'user')).toContain('amber')
+    expect(ticketStatusBannerClass('waiting_user', 'admin')).toContain('primary')
+    expect(ticketStatusBannerClass('open', 'admin')).toContain('amber')
     expect(ticketPriorityClass('urgent')).toBe('badge-danger')
   })
 
