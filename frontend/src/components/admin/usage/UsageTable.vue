@@ -34,10 +34,7 @@
               @click="$emit('userClick', row.user_id, row.user?.email)"
               :title="`${formatUsageUserDisplay(row.user).title} - ${t('admin.usage.clickToViewBalance')}`"
             >
-              <span class="block max-w-[220px] truncate">{{ formatUsageUserDisplay(row.user).primary }}</span>
-              <span v-if="formatUsageUserDisplay(row.user).secondary" class="block max-w-[220px] truncate text-xs font-normal text-gray-500 no-underline dark:text-gray-400">
-                {{ formatUsageUserDisplay(row.user).secondary }}
-              </span>
+              {{ formatUsageUserDisplay(row.user).label }}
             </button>
             <span v-else class="font-medium text-gray-900 dark:text-white">-</span>
             <span v-if="row.user?.deleted_at" class="ml-1 inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30">
