@@ -126,7 +126,7 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]Ticket, int
 	n++
 	offsetArg := n
 	args = append(args, (filter.Page-1)*filter.PageSize)
-	rows, err := r.db.QueryContext(ctx, `SELECT t.id, t.public_id, t.user_id, t.category, t.subject, t.status, t.priority, t.last_reply_by, t.last_activity_at, t.resolved_at, t.closed_at, t.created_at, t.updated_at, COALESCE(u.username, '') FROM custom_support_tickets t LEFT JOIN users u ON u.id = t.user_id `+where+fmt.Sprintf(" ORDER BY t.last_activity_at DESC, t.id DESC LIMIT $%d OFFSET $%d", limitArg, offsetArg), args...)
+	rows, err := r.db.QueryContext(ctx, `SELECT t.id, t.public_id, t.user_id, t.category, t.subject, t.status, t.priority, t.last_reply_by, t.last_activity_at, t.resolved_at, t.closed_at, t.created_at, t.updated_at, COALESCE(u.username, ''), COALESCE(u.email, '') FROM custom_support_tickets t LEFT JOIN users u ON u.id = t.user_id `+where+fmt.Sprintf(" ORDER BY t.last_activity_at DESC, t.id DESC LIMIT $%d OFFSET $%d", limitArg, offsetArg), args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list support tickets: %w", err)
 	}
@@ -156,7 +156,7 @@ func (r *Repository) Detail(ctx context.Context, publicID string, userID *int64,
 		clause += " AND t.user_id = $2"
 	}
 	var result TicketDetail
-	err := scanTicketWithUser(r.db.QueryRowContext(ctx, `SELECT t.id, t.public_id, t.user_id, t.category, t.subject, t.status, t.priority, t.last_reply_by, t.last_activity_at, t.resolved_at, t.closed_at, t.created_at, t.updated_at, COALESCE(u.username, '') FROM custom_support_tickets t LEFT JOIN users u ON u.id = t.user_id WHERE `+clause, args...), &result.Ticket)
+	err := scanTicketWithUser(r.db.QueryRowContext(ctx, `SELECT t.id, t.public_id, t.user_id, t.category, t.subject, t.status, t.priority, t.last_reply_by, t.last_activity_at, t.resolved_at, t.closed_at, t.created_at, t.updated_at, COALESCE(u.username, ''), COALESCE(u.email, '') FROM custom_support_tickets t LEFT JOIN users u ON u.id = t.user_id WHERE `+clause, args...), &result.Ticket)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -384,5 +384,5 @@ func scanTicket(row scanner, t *Ticket) error {
 }
 
 func scanTicketWithUser(row scanner, t *Ticket) error {
-	return row.Scan(&t.ID, &t.PublicID, &t.UserID, &t.Category, &t.Subject, &t.Status, &t.Priority, &t.LastReplyBy, &t.LastActivityAt, &t.ResolvedAt, &t.ClosedAt, &t.CreatedAt, &t.UpdatedAt, &t.UserName)
+	return row.Scan(&t.ID, &t.PublicID, &t.UserID, &t.Category, &t.Subject, &t.Status, &t.Priority, &t.LastReplyBy, &t.LastActivityAt, &t.ResolvedAt, &t.ClosedAt, &t.CreatedAt, &t.UpdatedAt, &t.UserName, &t.UserEmail)
 }

@@ -117,7 +117,7 @@ function statusLabel(value: SupportTicketStatus) { return t(ticketStatusLocaleKe
 function categoryLabel(value: SupportTicketCategory) { return t(`supportTickets.categories.${value}`) }
 function priorityLabel(value: SupportTicketPriority) { return t(`supportTickets.priorities.${value}`) }
 function senderLabel(value: SupportTicketSenderType) { return t(`supportTickets.sender.${value}`) }
-function requesterLabel(value: Pick<SupportTicket, 'user_id' | 'user_name'>) { return value.user_name?.trim() ? `${value.user_name} · #${value.user_id}` : `#${value.user_id}` }
+function requesterLabel(value: Pick<SupportTicket, 'user_id' | 'user_name' | 'user_email'>) { const userDisplay = value.user_name?.trim() || value.user_email?.trim(); return userDisplay ? `#${value.user_id} · ${userDisplay}` : `#${value.user_id}` }
 function openTicket(publicID: string) { router.push({ name: 'AdminSupportTicketDetail', params: { id: publicID } }) }
 function goToList() { router.push({ name: 'AdminSupportTickets' }) }
 function resetCreateForm() { createForm.category = 'account'; createForm.subject = ''; createForm.body = ''; userSearchKeyword.value = ''; userSearchResults.value = []; userSearchLoading.value = false; showUserResults.value = false; selectedUser.value = null; userSearchRequest += 1 }

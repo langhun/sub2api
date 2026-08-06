@@ -29,6 +29,7 @@ type Ticket struct {
 	PublicID       string     `json:"public_id"`
 	UserID         int64      `json:"user_id"`
 	UserName       string     `json:"user_name,omitempty"`
+	UserEmail      string     `json:"user_email,omitempty"`
 	Category       string     `json:"category"`
 	Subject        string     `json:"subject"`
 	Status         string     `json:"status"`

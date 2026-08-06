@@ -16,10 +16,10 @@ func TestDetailScopesTicketToOwnerAndHidesInternalNotes(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 
 	now := time.Now().UTC()
-	columns := []string{"id", "public_id", "user_id", "category", "subject", "status", "priority", "last_reply_by", "last_activity_at", "resolved_at", "closed_at", "created_at", "updated_at", "username"}
+	columns := []string{"id", "public_id", "user_id", "category", "subject", "status", "priority", "last_reply_by", "last_activity_at", "resolved_at", "closed_at", "created_at", "updated_at", "username", "email"}
 	mock.ExpectQuery(`FROM custom_support_tickets t LEFT JOIN users u ON u.id = t.user_id WHERE t.public_id = \$1 AND t.user_id = \$2`).
 		WithArgs("SUP-0123456789ABCDEF", int64(7)).
-		WillReturnRows(sqlmock.NewRows(columns).AddRow(int64(1), "SUP-0123456789ABCDEF", int64(7), "api", "Help", StatusOpen, PriorityNormal, "user", now, nil, nil, now, now, "alice"))
+		WillReturnRows(sqlmock.NewRows(columns).AddRow(int64(1), "SUP-0123456789ABCDEF", int64(7), "api", "Help", StatusOpen, PriorityNormal, "user", now, nil, nil, now, now, "alice", "alice@example.com"))
 	mock.ExpectQuery(`FROM custom_support_ticket_messages WHERE ticket_id = \$1 AND message_type = 'reply'`).
 		WithArgs(int64(1)).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "author_type", "author_user_id", "message_type", "body", "created_at"}).AddRow(int64(2), "user", int64(7), "reply", "message", now))
@@ -30,28 +30,30 @@ func TestDetailScopesTicketToOwnerAndHidesInternalNotes(t *testing.T) {
 	require.Len(t, detail.Messages, 1)
 	require.Equal(t, "reply", detail.Messages[0].MessageType)
 	require.Equal(t, "alice", detail.UserName)
+	require.Equal(t, "alice@example.com", detail.UserEmail)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestListIncludesRequesterUsername(t *testing.T) {
+func TestListIncludesRequesterIdentity(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
 	now := time.Now().UTC()
-	columns := []string{"id", "public_id", "user_id", "category", "subject", "status", "priority", "last_reply_by", "last_activity_at", "resolved_at", "closed_at", "created_at", "updated_at", "username"}
+	columns := []string{"id", "public_id", "user_id", "category", "subject", "status", "priority", "last_reply_by", "last_activity_at", "resolved_at", "closed_at", "created_at", "updated_at", "username", "email"}
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM custom_support_tickets t WHERE 1=1 AND t.status = \$1`).
 		WithArgs(StatusOpen).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	mock.ExpectQuery(`FROM custom_support_tickets t LEFT JOIN users u ON u.id = t.user_id WHERE 1=1 AND t.status = \$1 ORDER BY t.last_activity_at DESC, t.id DESC LIMIT \$2 OFFSET \$3`).
 		WithArgs(StatusOpen, 20, 0).
-		WillReturnRows(sqlmock.NewRows(columns).AddRow(int64(1), "SUP-0123456789ABCDEF", int64(7), "api", "Help", StatusOpen, PriorityNormal, "user", now, nil, nil, now, now, "alice"))
+		WillReturnRows(sqlmock.NewRows(columns).AddRow(int64(1), "SUP-0123456789ABCDEF", int64(7), "api", "Help", StatusOpen, PriorityNormal, "user", now, nil, nil, now, now, "alice", "alice@example.com"))
 
 	items, total, err := NewRepository(db).List(context.Background(), ListFilter{Page: 1, PageSize: 20, Status: StatusOpen})
 	require.NoError(t, err)
 	require.EqualValues(t, 1, total)
 	require.Len(t, items, 1)
 	require.Equal(t, "alice", items[0].UserName)
+	require.Equal(t, "alice@example.com", items[0].UserEmail)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
