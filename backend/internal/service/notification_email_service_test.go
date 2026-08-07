@@ -47,6 +47,7 @@ func TestNotificationEmailTemplateOverrideAndRestore(t *testing.T) {
 	official, err := svc.GetTemplate(ctx, NotificationEmailEventBalanceRechargeSuccess, "en")
 	require.NoError(t, err)
 	require.False(t, official.IsCustom)
+	require.Contains(t, official.HTML, "Order No.:")
 
 	updated, err := svc.UpdateTemplate(
 		ctx,
@@ -65,6 +66,7 @@ func TestNotificationEmailTemplateOverrideAndRestore(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, restored.IsCustom)
 	require.NotEqual(t, updated.Subject, restored.Subject)
+	require.Contains(t, restored.HTML, "订单编号：")
 	_, err = repo.GetValue(ctx, notificationEmailTemplateKey(NotificationEmailEventBalanceRechargeSuccess, "zh"))
 	require.ErrorIs(t, err, ErrSettingNotFound)
 }

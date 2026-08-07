@@ -15,7 +15,7 @@
       </div>
 
       <!-- Table -->
-      <OrderTable :orders="orders" :loading="loading">
+      <OrderTable :orders="orders" :loading="loading" :show-order-id="false">
         <template #actions="{ row }">
           <div class="flex items-center gap-2">
             <button v-if="row.status === 'PENDING'" @click="handleCancel(row.id)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20">
@@ -57,10 +57,6 @@
       <div v-if="refundTarget" class="space-y-4">
         <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-800">
           <div class="flex justify-between text-sm">
-            <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
-            <span class="font-mono text-gray-900 dark:text-white">#{{ refundTarget.id }}</span>
-          </div>
-          <div class="mt-2 flex justify-between text-sm">
             <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
             <span class="text-gray-900 dark:text-white">${{ refundTarget.amount.toFixed(2) }}</span>
           </div>

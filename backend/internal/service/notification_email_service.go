@@ -1225,7 +1225,7 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 <p>Hello {{recipient_name}},</p>
 <p>Your subscription for <strong>{{subscription_group}}</strong> has been activated for <strong>{{subscription_days}}</strong> days.</p>
 <p>Expiry time: <strong>{{expiry_time}}</strong></p>
-<p>Order ID: {{order_id}}</p>`),
+<p>Order No.: {{order_id}}</p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 订阅购买成功",
@@ -1233,7 +1233,7 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 <p>{{recipient_name}}，您好：</p>
 <p>您的 <strong>{{subscription_group}}</strong> 订阅已成功开通，有效期 <strong>{{subscription_days}}</strong> 天。</p>
 <p>到期时间：<strong>{{expiry_time}}</strong></p>
-<p>订单号：{{order_id}}</p>`),
+<p>订单编号：{{order_id}}</p>`),
 		},
 	},
 	NotificationEmailEventSubscriptionExpiryReminder: {
@@ -1281,7 +1281,7 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 <p>Hello {{recipient_name}},</p>
 <p>Your balance recharge of <strong>${{recharge_amount}}</strong> has been completed.</p>
 <p>Current balance: <strong>${{current_balance}}</strong></p>
-<p>Order ID: {{order_id}}</p>`),
+<p>Order No.: {{order_id}}</p>`),
 		},
 		notificationEmailLocaleChinese: {
 			Subject: "[{{site_name}}] 余额充值成功",
@@ -1289,7 +1289,7 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 <p>{{recipient_name}}，您好：</p>
 <p>您的余额充值 <strong>${{recharge_amount}}</strong> 已完成。</p>
 <p>当前余额：<strong>${{current_balance}}</strong></p>
-			<p>订单号：{{order_id}}</p>`),
+			<p>订单编号：{{order_id}}</p>`),
 		},
 	},
 	NotificationEmailEventAccountQuotaAlert: {

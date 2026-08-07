@@ -49,11 +49,15 @@ import { currencySymbol } from '@/components/payment/currency'
 
 const { t } = useI18n()
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   orders: PaymentOrder[]
   loading: boolean
   showUser?: boolean
-}>()
+  /** Keep internal order IDs available to admin views, but allow user views to hide them. */
+  showOrderId?: boolean
+}>(), {
+  showOrderId: true,
+})
 
 function formatDate(dateStr: string) { return new Date(dateStr).toLocaleString() }
 
@@ -65,9 +69,11 @@ function paymentAmountSymbol(order: PaymentOrder): string {
 
 const columns = computed((): Column[] => {
   const cols: Column[] = [
-    { key: 'id', label: t('payment.orders.orderId') },
     { key: 'out_trade_no', label: t('payment.orders.orderNo') },
   ]
+  if (props.showOrderId !== false) {
+    cols.unshift({ key: 'id', label: t('payment.orders.orderId') })
+  }
   if (props.showUser) {
     cols.push({ key: 'user_email', label: t('payment.admin.colUser') })
   }

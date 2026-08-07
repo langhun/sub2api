@@ -426,7 +426,9 @@ func (s *PaymentService) sendBalanceRechargeSuccessNotification(ctx context.Cont
 		Variables: map[string]string{
 			"recharge_amount": fmt.Sprintf("%.2f", o.Amount),
 			"current_balance": currentBalance,
-			"order_id":        strconv.FormatInt(o.ID, 10),
+			// Keep the historical placeholder name for template compatibility, but
+			// expose the public order number instead of the internal database ID.
+			"order_id": paymentOrderExternalNumber(o),
 		},
 	})
 }
@@ -436,7 +438,9 @@ func (s *PaymentService) sendSubscriptionPurchaseSuccessNotification(ctx context
 		"subscription_group": "Subscription",
 		"subscription_days":  "",
 		"expiry_time":        "",
-		"order_id":           strconv.FormatInt(o.ID, 10),
+		// Keep the historical placeholder name for template compatibility, but
+		// expose the public order number instead of the internal database ID.
+		"order_id": paymentOrderExternalNumber(o),
 	}
 	if o.SubscriptionDays != nil {
 		variables["subscription_days"] = strconv.Itoa(*o.SubscriptionDays)
@@ -462,6 +466,13 @@ func (s *PaymentService) sendSubscriptionPurchaseSuccessNotification(ctx context
 		SourceID:       strconv.FormatInt(o.ID, 10),
 		Variables:      variables,
 	})
+}
+
+func paymentOrderExternalNumber(o *dbent.PaymentOrder) string {
+	if o == nil {
+		return ""
+	}
+	return strings.TrimSpace(o.OutTradeNo)
 }
 
 func (s *PaymentService) ExecuteSubscriptionFulfillment(ctx context.Context, oid int64) error {
