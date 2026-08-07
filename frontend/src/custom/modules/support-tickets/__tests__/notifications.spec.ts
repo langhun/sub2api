@@ -6,7 +6,9 @@ import {
   findSupportTicketActivities,
   hasNewExternalReplySince,
   latestExternalReplyAt,
+  markSupportTicketSeen,
   requestSupportTicketNotificationPermission,
+  supportTicketNeedsAttention,
   type SupportTicketBrowserNotificationOptions,
   type SupportTicketSnapshot,
   useSupportTicketBrowserNotifications,
@@ -360,5 +362,41 @@ describe('support ticket browser notification activity detection', () => {
     expect(hasNewExternalReplySince(reply, previous, 'user')).toBe(true)
     expect(hasNewExternalReplySince(statusOnly, undefined, 'user')).toBe(false)
     expect(hasNewExternalReplySince(reply, undefined, 'user')).toBe(true)
+  })
+
+  it('clears attention after viewing and restores it only for newer activity', () => {
+    const waitingUser = ticket({ status: 'waiting_user', last_reply_by: 'admin' })
+    const waitingAdmin = ticket({ public_id: 'SUP-ADMIN', status: 'open', last_reply_by: 'user' })
+
+    expect(supportTicketNeedsAttention('user', waitingUser)).toBe(true)
+    expect(supportTicketNeedsAttention('admin', waitingAdmin)).toBe(true)
+
+    markSupportTicketSeen('user', waitingUser)
+    markSupportTicketSeen('admin', waitingAdmin)
+
+    expect(supportTicketNeedsAttention('user', waitingUser)).toBe(false)
+    expect(supportTicketNeedsAttention('admin', waitingAdmin)).toBe(false)
+    expect(supportTicketNeedsAttention('admin', waitingUser)).toBe(false)
+
+    expect(supportTicketNeedsAttention('user', {
+      ...waitingUser,
+      last_activity_at: '2026-08-03T03:00:00Z',
+    })).toBe(true)
+  })
+
+  it('refreshes the attention count immediately when a ticket is viewed', async () => {
+    const pending = ticket({ status: 'waiting_user', last_reply_by: 'admin' })
+    const wrapper = mount(notificationHarness({
+      fetchTickets: async () => ({ items: [pending], total: 1, page: 1, page_size: 100 }),
+      getAttentionCount: (tickets) => tickets.filter((item) => supportTicketNeedsAttention('user', item)).length,
+    }))
+    await flushPromises()
+    expect(wrapper.vm.attentionCount).toBe(1)
+
+    markSupportTicketSeen('user', pending)
+    await flushPromises()
+
+    expect(wrapper.vm.attentionCount).toBe(0)
+    wrapper.unmount()
   })
 })

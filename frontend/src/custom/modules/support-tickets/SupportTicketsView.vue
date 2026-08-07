@@ -169,6 +169,7 @@ import { useAppStore } from '@/stores/app'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { addSupportTicketMessage, createSupportTicket, getSupportTicket, listSupportTickets, reopenSupportTicket, type SupportTicket, type SupportTicketCategory, type SupportTicketPriority, type SupportTicketSenderType, type SupportTicketStatus } from './api'
 import TicketConversation from './components/TicketConversation.vue'
+import { markSupportTicketSeen } from './notifications'
 import { ticketCategories, ticketPriorityClass, ticketStatusBannerClass, ticketStatusClass, ticketStatusIconClass, ticketStatusLocaleKey } from './presentation'
 
 const { t } = useI18n()
@@ -209,7 +210,7 @@ async function loadList(nextPage = 1) {
   } catch (error) { loadError.value = errorMessage(error) } finally { loading.value = false; loadingMore.value = false }
 }
 async function loadTicket(id: string) {
-  try { loading.value = true; ticket.value = await getSupportTicket(id); loadError.value = '' } catch (error) { loadError.value = errorMessage(error) } finally { loading.value = false }
+  try { loading.value = true; ticket.value = await getSupportTicket(id); markSupportTicketSeen('user', ticket.value); loadError.value = '' } catch (error) { loadError.value = errorMessage(error) } finally { loading.value = false }
 }
 function loadCurrent() { const id = String(route.params.id || ''); return id ? loadTicket(id) : loadList() }
 function loadMore() { return loadList(page.value + 1) }

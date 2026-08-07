@@ -244,6 +244,7 @@ import { useAppStore } from '@/stores/app'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { addAdminSupportTicketMessage, createAdminSupportTicket, getAdminSupportTicket, listAdminSupportTickets, updateAdminSupportTicket, type SupportTicket, type SupportTicketCategory, type SupportTicketPriority, type SupportTicketSenderType, type SupportTicketStatus } from '../api'
 import TicketConversation from '../components/TicketConversation.vue'
+import { markSupportTicketSeen } from '../notifications'
 import { ticketPriorities, ticketPriorityClass, ticketStatusBannerClass, ticketStatuses, ticketStatusClass, ticketStatusIconClass, ticketStatusLocaleKey } from '../presentation'
 
 const { t } = useI18n()
@@ -313,7 +314,7 @@ async function loadList(nextPage = 1) {
   try { isMore ? loadingMore.value = true : loading.value = true; const result = await listAdminSupportTickets({ page: nextPage, page_size: 20, ...(filters.status ? { status: filters.status } : {}), ...(filters.priority ? { priority: filters.priority } : {}) }); tickets.value = isMore ? [...tickets.value, ...result.items] : result.items; total.value = result.total; page.value = result.page; loadError.value = '' } catch (error) { loadError.value = errorMessage(error) } finally { loading.value = false; loadingMore.value = false }
 }
 async function loadTicket(id: string) {
-  try { loading.value = true; ticket.value = await getAdminSupportTicket(id); editForm.status = ticket.value.status; editForm.priority = ticket.value.priority; loadError.value = '' } catch (error) { loadError.value = errorMessage(error) } finally { loading.value = false }
+  try { loading.value = true; ticket.value = await getAdminSupportTicket(id); markSupportTicketSeen('admin', ticket.value); editForm.status = ticket.value.status; editForm.priority = ticket.value.priority; loadError.value = '' } catch (error) { loadError.value = errorMessage(error) } finally { loading.value = false }
 }
 function loadCurrent() { const id = String(route.params.id || ''); return id ? loadTicket(id) : loadList() }
 function loadMore() { return loadList(page.value + 1) }

@@ -13,6 +13,7 @@ export interface SupportTicketBrowserNotificationOptions {
   role: SupportTicketNotificationRole
   fetchTickets: () => Promise<SupportTicketList>
   fetchAttentionCount?: () => Promise<number>
+  getAttentionCount?: (tickets: readonly SupportTicket[]) => number
   fetchTicket: (publicID: string) => Promise<SupportTicket>
   getTicketPath: (ticket: SupportTicket) => string
   getCopy: (ticket: SupportTicket, isNewTicket: boolean) => SupportTicketNotificationCopy
@@ -94,6 +95,36 @@ export function hasNewExternalReplySince(
 }
 
 const permissionChangedEvent = 'support-ticket-notification-permission-changed'
+const ticketSeenEvent = 'support-ticket-seen'
+
+function seenStorageKey(role: SupportTicketNotificationRole) { return `support-ticket-seen:${role}` }
+function readSeen(role: SupportTicketNotificationRole): Record<string, string> {
+  try {
+    const value = JSON.parse(localStorage.getItem(seenStorageKey(role)) || '{}')
+    return value && typeof value === 'object' ? value as Record<string, string> : {}
+  } catch { return {} }
+}
+function writeSeen(role: SupportTicketNotificationRole, value: Record<string, string>) {
+  try { localStorage.setItem(seenStorageKey(role), JSON.stringify(value)) } catch { /* best effort */ }
+}
+function isSeen(role: SupportTicketNotificationRole, ticket: SupportTicket): boolean {
+  const seenAt = readSeen(role)[ticket.public_id]
+  if (!seenAt) return false
+  const seenTime = Date.parse(seenAt)
+  const activityTime = Date.parse(ticket.last_activity_at)
+  return !Number.isNaN(seenTime) && !Number.isNaN(activityTime) ? seenTime >= activityTime : seenAt >= ticket.last_activity_at
+}
+export function markSupportTicketSeen(role: SupportTicketNotificationRole, ticket: SupportTicket) {
+  const seen = readSeen(role)
+  if (!seen[ticket.public_id] || Date.parse(ticket.last_activity_at) >= Date.parse(seen[ticket.public_id])) {
+    seen[ticket.public_id] = ticket.last_activity_at
+    writeSeen(role, seen)
+    window.dispatchEvent(new CustomEvent(ticketSeenEvent, { detail: { role } }))
+  }
+}
+export function supportTicketNeedsAttention(role: SupportTicketNotificationRole, ticket: SupportTicket): boolean {
+  return (role === 'admin' ? ticket.status === 'open' : ticket.status === 'waiting_user') && !isSeen(role, ticket)
+}
 
 interface SupportTicketNotificationPermissionChange {
   permission: SupportTicketNotificationPermission
@@ -167,6 +198,7 @@ export function useSupportTicketBrowserNotifications(
   const initialized = ref(false)
   let pollTimer: ReturnType<typeof setInterval> | undefined
   let polling = false
+  let pollAgain = false
 
   function sync(tickets: readonly SupportTicket[]) {
     for (const [id, item] of snapshotMap(tickets)) previous.set(id, item)
@@ -231,14 +263,16 @@ export function useSupportTicketBrowserNotifications(
   }
 
   async function pollNow(): Promise<void> {
-    if (polling || options.shouldPoll?.() === false) return
+    if (polling) { pollAgain = true; return }
+    if (options.shouldPoll?.() === false) return
     polling = true
     try {
       const [result, nextAttentionCount] = await Promise.all([
         options.fetchTickets(),
         options.fetchAttentionCount?.(),
       ])
-      if (typeof nextAttentionCount === 'number') attentionCount.value = nextAttentionCount
+      if (options.getAttentionCount) attentionCount.value = options.getAttentionCount(result.items)
+      else if (typeof nextAttentionCount === 'number') attentionCount.value = nextAttentionCount
 
       const current = notificationConstructor()
       supported.value = Boolean(current)
@@ -277,6 +311,10 @@ export function useSupportTicketBrowserNotifications(
       // Polling is best-effort and must never replace the page's own load/error state.
     } finally {
       polling = false
+      if (pollAgain) {
+        pollAgain = false
+        void pollNow()
+      }
     }
   }
 
@@ -294,18 +332,24 @@ export function useSupportTicketBrowserNotifications(
       showEnabledNotification()
     }
   }
+  function onTicketSeen(event: Event) {
+    const detail = (event as CustomEvent<{ role?: SupportTicketNotificationRole }>).detail
+    if (detail?.role === options.role) void pollNow()
+  }
 
   onMounted(() => {
     void pollNow()
     pollTimer = setInterval(() => void pollNow(), options.intervalMs ?? 30_000)
     document.addEventListener('visibilitychange', onVisibilityChange)
     window.addEventListener(permissionChangedEvent, onPermissionChanged)
+    window.addEventListener(ticketSeenEvent, onTicketSeen)
   })
 
   onBeforeUnmount(() => {
     if (pollTimer) clearInterval(pollTimer)
     document.removeEventListener('visibilitychange', onVisibilityChange)
     window.removeEventListener(permissionChangedEvent, onPermissionChanged)
+    window.removeEventListener(ticketSeenEvent, onTicketSeen)
   })
 
   return {

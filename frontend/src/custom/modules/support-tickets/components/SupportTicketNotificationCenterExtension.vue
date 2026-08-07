@@ -70,7 +70,7 @@ import { isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { getAdminSupportTicket, getSupportTicket, listAdminSupportTickets, listSupportTickets } from '../api'
 import { playSupportTicketAlertSound } from '../alertSound'
 import { supportTicketFeatureFlag } from '../navigation'
-import { useSupportTicketBrowserNotifications } from '../notifications'
+import { supportTicketNeedsAttention, useSupportTicketBrowserNotifications } from '../notifications'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{
@@ -89,14 +89,9 @@ const notifications = useSupportTicketBrowserNotifications({
   role,
   shouldPoll: () => featureEnabled.value,
   fetchTickets: () => role === 'admin'
-    ? listAdminSupportTickets({ page: 1, page_size: 20 })
-    : listSupportTickets({ page: 1, page_size: 20 }),
-  fetchAttentionCount: async () => {
-    const result = role === 'admin'
-      ? await listAdminSupportTickets({ page: 1, page_size: 1, status: 'open' })
-      : await listSupportTickets({ page: 1, page_size: 1, status: 'waiting_user' })
-    return result.total
-  },
+    ? listAdminSupportTickets({ page: 1, page_size: 100 })
+    : listSupportTickets({ page: 1, page_size: 100 }),
+  getAttentionCount: (tickets) => tickets.filter((ticket) => supportTicketNeedsAttention(role, ticket)).length,
   fetchTicket: role === 'admin' ? getAdminSupportTicket : getSupportTicket,
   getTicketPath: (item) => role === 'admin'
     ? `/admin/support/tickets/${item.public_id}`
