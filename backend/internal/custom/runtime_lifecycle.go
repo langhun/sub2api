@@ -18,6 +18,8 @@ func ProvideRuntime(
 	activityWalletCapabilities *platform.ActivityWalletCapabilities,
 	redeemService *service.RedeemService,
 	adminService service.AdminService,
+	openaiOAuthService *service.OpenAIOAuthService,
+	tokenCacheInvalidator service.TokenCacheInvalidator,
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
 ) (*Runtime, error) {
@@ -27,6 +29,8 @@ func ProvideRuntime(
 		activityWalletCapabilities,
 		redeemService,
 		adminService,
+		openaiOAuthService,
+		tokenCacheInvalidator,
 		customSettingsRegistry,
 		codeGenerator,
 	)

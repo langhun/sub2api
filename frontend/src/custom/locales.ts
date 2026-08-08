@@ -2,6 +2,7 @@ import { activityAdminLocaleMessages } from './modules/activity/admin/locales'
 import { activityLocaleMessages } from './modules/activity/locales'
 import { gameHallAdminLocaleMessages } from './modules/game-hall/admin/locales'
 import { gameHallLocaleMessages } from './modules/game-hall/locales'
+import { openAIATAdminLocaleMessages } from './modules/openai-at/locales'
 import { supportTicketAdminLocaleMessages, supportTicketLocaleMessages } from './modules/support-tickets/locales'
 
 type LocaleTree = Record<string, unknown>
@@ -51,8 +52,8 @@ function mergeLocaleTrees(base: LocaleTree, extension: LocaleTree): LocaleTree {
 }
 
 export const customAdminLocaleMessages = {
-  en: [activityAdminLocaleMessages.en, gameHallAdminLocaleMessages.en, supportTicketAdminLocaleMessages.en],
-  zh: [activityAdminLocaleMessages.zh, gameHallAdminLocaleMessages.zh, supportTicketAdminLocaleMessages.zh],
+  en: [activityAdminLocaleMessages.en, gameHallAdminLocaleMessages.en, openAIATAdminLocaleMessages.en, supportTicketAdminLocaleMessages.en],
+  zh: [activityAdminLocaleMessages.zh, gameHallAdminLocaleMessages.zh, openAIATAdminLocaleMessages.zh, supportTicketAdminLocaleMessages.zh],
 } as const
 
 export const customLocaleMessages = {

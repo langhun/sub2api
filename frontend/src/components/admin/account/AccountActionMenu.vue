@@ -26,6 +26,15 @@
               <Icon name="copy" size="sm" class="text-sky-500" />
               {{ t('admin.accounts.duplicateAccount') }}
             </button>
+            <button
+              v-for="action in visibleCustomActions"
+              :key="action.id"
+              @click="$emit('custom-action', action.id, account); $emit('close')"
+              class="flex w-full items-center gap-2 px-4 py-2 text-sm text-sky-600 hover:bg-gray-100 dark:hover:bg-dark-700"
+            >
+              <Icon :name="action.icon" size="sm" />
+              {{ t(action.labelKey) }}
+            </button>
             <!-- 影子账号不持凭据:重授权/刷新 token 对其无效(后端拒绝),故隐藏(外审 G4)。 -->
             <template v-if="(account.type === 'oauth' || account.type === 'setup-token') && !isShadow">
               <button @click="$emit('reauth', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-gray-100 dark:hover:bg-dark-700">
@@ -66,13 +75,18 @@ import { computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@/components/icons'
 import type { Account } from '@/types'
+import { customAccountActions } from '@/custom/registry'
 
 const props = defineProps<{ show: boolean; account: Account | null; position: { top: number; left: number } | null }>()
-const emit = defineEmits(['close', 'test', 'stats', 'schedule', 'duplicate', 'reauth', 'refresh-token', 'recover-state', 'reset-quota', 'set-privacy', 'create-spark-shadow'])
+const emit = defineEmits(['close', 'test', 'stats', 'schedule', 'duplicate', 'reauth', 'refresh-token', 'recover-state', 'reset-quota', 'set-privacy', 'create-spark-shadow', 'custom-action'])
 const { t } = useI18n()
 const canDuplicate = computed(() => {
   if (!props.account || props.account.parent_account_id != null) return false
   return ['apikey', 'upstream', 'bedrock', 'service_account'].includes(props.account.type)
+})
+const visibleCustomActions = computed(() => {
+  if (!props.account) return []
+  return customAccountActions.filter(action => action.visible(props.account!))
 })
 const isRateLimited = computed(() => {
   if (props.account?.rate_limit_reset_at && new Date(props.account.rate_limit_reset_at) > new Date()) {

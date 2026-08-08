@@ -21,6 +21,7 @@ import {
   gameHallFeatureFlags,
   gameHallSettingsPanels,
 } from './modules/game-hall/settings'
+import { openAIAccountActions, type CustomAccountAction } from './modules/openai-at/accountActions'
 export { customPublicSettingsDefaults } from './publicSettings'
 
 export interface CustomNavigationItem {
@@ -48,6 +49,12 @@ export interface CustomNotificationCenterExtension {
   id: string
   component: Component
 }
+
+export interface CustomAccountActionDefinition extends CustomAccountAction {}
+
+export const customAccountActions: readonly CustomAccountActionDefinition[] = [
+  ...openAIAccountActions,
+]
 
 export const customLedgerDisplay = {
   isBalanceType: isActivityBalanceType,
