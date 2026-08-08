@@ -7,6 +7,7 @@ import {
   customHeaderActions,
   customNavigation,
   customNotificationCenterExtensions,
+  customAccountActions,
   customRoutes,
   customSettingsPanels,
 } from '../registry'
@@ -24,6 +25,8 @@ const sidebarSource = readFileSync(resolve(directory, '../../components/layout/A
 const headerSource = readFileSync(resolve(directory, '../../components/layout/AppHeader.vue'), 'utf8')
 const announcementBellSource = readFileSync(resolve(directory, '../../components/common/AnnouncementBell.vue'), 'utf8')
 const settingsSource = readFileSync(resolve(directory, '../../views/admin/SettingsView.vue'), 'utf8')
+const accountActionMenuSource = readFileSync(resolve(directory, '../../components/admin/account/AccountActionMenu.vue'), 'utf8')
+const accountsViewSource = readFileSync(resolve(directory, '../../views/admin/AccountsView.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
   it('aggregates routes and navigation from custom modules', () => {
@@ -95,5 +98,13 @@ describe('custom overlay registry', () => {
     expect(settingsSource).not.toContain('form.checkin_enabled')
     expect(settingsSource).not.toContain('form.transfer_enabled')
     expect(settingsSource).not.toContain('form.default_homepage')
+  })
+
+  it('mounts the OpenAI AT action through generic account adapters', () => {
+    expect(customAccountActions.map((action) => action.id)).toContain('openai-at')
+    expect(accountActionMenuSource).toContain("import { customAccountActions } from '@/custom/registry'")
+    expect(accountActionMenuSource).toContain("$emit('custom-action', action.id, account)")
+    expect(accountsViewSource).toContain("import OpenAIATModal from '@/custom/modules/openai-at/OpenAIATModal.vue'")
+    expect(accountsViewSource).toContain('@custom-action="handleCustomAccountAction"')
   })
 })
