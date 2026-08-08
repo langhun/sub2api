@@ -163,3 +163,22 @@ func TestPATRouteRejectsNonPATAccount(t *testing.T) {
 	testRouter(module).ServeHTTP(resp, req)
 	require.Equal(t, http.StatusBadRequest, resp.Code)
 }
+
+func TestPATRouteRejectsCredentialShadowAccount(t *testing.T) {
+	parentID := int64(8)
+	account := &service.Account{
+		ID:              5,
+		Platform:        service.PlatformOpenAI,
+		Type:            service.AccountTypeOAuth,
+		ParentAccountID: &parentID,
+		Credentials: map[string]any{
+			"access_token": "at-shadow-secret",
+			"auth_mode":    "personalAccessToken",
+		},
+	}
+	module := NewModule(&accountStoreStub{account: account}, &patServiceStub{}, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/custom/admin/openai/accounts/5/access-token", nil)
+	resp := httptest.NewRecorder()
+	testRouter(module).ServeHTTP(resp, req)
+	require.Equal(t, http.StatusBadRequest, resp.Code)
+}
