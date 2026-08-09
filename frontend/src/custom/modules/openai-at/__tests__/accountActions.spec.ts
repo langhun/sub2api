@@ -15,12 +15,19 @@ const account = (overrides: Partial<Account> = {}): Account => ({
 })
 
 describe('OpenAI AT account action', () => {
-  it('is visible only for non-shadow OpenAI PAT OAuth accounts', () => {
+  it('recognizes all supported PAT mode spellings', () => {
     const action = openAIAccountActions[0]
     expect(action.visible(account())).toBe(true)
     expect(action.visible(account({ credentials: { auth_mode: 'personalAccessToken' } }))).toBe(true)
+    expect(action.visible(account({ credentials: { auth_mode: 'PERSONAL_ACCESS_TOKEN' } }))).toBe(true)
+    expect(action.visible(account({ credentials: { openai_auth_mode: ' Personal-Access-Token ' } }))).toBe(true)
+  })
+
+  it('is visible only for non-shadow OpenAI PAT OAuth accounts', () => {
+    const action = openAIAccountActions[0]
     expect(action.visible(account({ type: 'apikey' }))).toBe(false)
     expect(action.visible(account({ platform: 'anthropic' }))).toBe(false)
     expect(action.visible(account({ parent_account_id: 9 }))).toBe(false)
+    expect(action.visible(account({ credentials: { auth_mode: 'oauth' } }))).toBe(false)
   })
 })

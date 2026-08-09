@@ -58,6 +58,25 @@ func TestAccountFromServiceShallow_RedactsSensitiveCredentials(t *testing.T) {
 	require.Equal(t, "rt-secret", src.Credentials["refresh_token"])
 }
 
+func TestAccountFromServiceShallow_PreservesOpenAIPATModeMarkers(t *testing.T) {
+	src := &service.Account{
+		ID:       43,
+		Platform: service.PlatformOpenAI,
+		Type:     service.AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token":     "at-secret",
+			"auth_mode":        service.OpenAIAuthModePersonalAccessToken,
+			"openai_auth_mode": "personal_access_token",
+		},
+	}
+
+	got := AccountFromServiceShallow(src)
+	require.Equal(t, service.OpenAIAuthModePersonalAccessToken, got.Credentials["auth_mode"])
+	require.Equal(t, "personal_access_token", got.Credentials["openai_auth_mode"])
+	require.True(t, got.CredentialsStatus["has_access_token"])
+	require.NotContains(t, got.Credentials, "access_token")
+}
+
 func TestAccountFromServiceShallow_RedactsOllamaCloudManagedExtra(t *testing.T) {
 	snapshot := map[string]any{
 		"status":          service.OllamaCloudUsageStatusOK,
