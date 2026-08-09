@@ -1274,7 +1274,8 @@ func (a *Account) IsOpenAIPersonalAccessToken() bool {
 		return false
 	}
 	return isOpenAIPersonalAccessTokenAuthMode(a.GetCredential(openAIAuthModeCredentialKey)) ||
-		isOpenAIPersonalAccessTokenAuthMode(a.GetCredential(openAIAuthModeLegacyCredentialKey))
+		isOpenAIPersonalAccessTokenAuthMode(a.GetCredential(openAIAuthModeLegacyCredentialKey)) ||
+		strings.HasPrefix(strings.TrimSpace(a.GetCredential("access_token")), "at-")
 }
 
 func (a *Account) IsOpenAIApiKey() bool {

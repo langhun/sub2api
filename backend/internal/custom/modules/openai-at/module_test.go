@@ -107,8 +107,8 @@ func TestReplaceAccessTokenValidatesBeforeUpdatingAndPreservesSettings(t *testin
 		Platform: service.PlatformOpenAI,
 		Type:     service.AccountTypeOAuth,
 		Credentials: map[string]any{
-			"access_token": "at-old-secret",
-			"auth_mode":    "personalAccessToken",
+			"access_token":  "at-old-secret",
+			"auth_mode":     "personalAccessToken",
 			"model_mapping": map[string]string{"gpt": "gpt-4"},
 		},
 	}
@@ -162,6 +162,22 @@ func TestPATRouteRejectsNonPATAccount(t *testing.T) {
 	resp := httptest.NewRecorder()
 	testRouter(module).ServeHTTP(resp, req)
 	require.Equal(t, http.StatusBadRequest, resp.Code)
+}
+
+func TestPATRouteAcceptsLegacyATAccountWithoutModeMarker(t *testing.T) {
+	account := &service.Account{
+		ID:       41,
+		Platform: service.PlatformOpenAI,
+		Type:     service.AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "at-legacy-secret",
+		},
+	}
+	module := NewModule(&accountStoreStub{account: account}, &patServiceStub{}, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/custom/admin/openai/accounts/41/access-token", nil)
+	resp := httptest.NewRecorder()
+	testRouter(module).ServeHTTP(resp, req)
+	require.Equal(t, http.StatusOK, resp.Code)
 }
 
 func TestPATRouteRejectsCredentialShadowAccount(t *testing.T) {

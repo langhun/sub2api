@@ -77,6 +77,26 @@ func TestAccountFromServiceShallow_PreservesOpenAIPATModeMarkers(t *testing.T) {
 	require.NotContains(t, got.Credentials, "access_token")
 }
 
+func TestAccountFromServiceShallow_AddsModeMarkersForLegacyOpenAIPAT(t *testing.T) {
+	src := &service.Account{
+		ID:       44,
+		Platform: service.PlatformOpenAI,
+		Type:     service.AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "at-legacy-secret",
+		},
+	}
+
+	got := AccountFromServiceShallow(src)
+	require.Equal(t, service.OpenAIAuthModePersonalAccessToken, got.Credentials["auth_mode"])
+	require.Equal(t, "personal_access_token", got.Credentials["openai_auth_mode"])
+	require.True(t, got.CredentialsStatus["has_access_token"])
+	require.NotContains(t, got.Credentials, "access_token")
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+	require.NotContains(t, string(raw), "at-legacy-secret")
+}
+
 func TestAccountFromServiceShallow_RedactsOllamaCloudManagedExtra(t *testing.T) {
 	snapshot := map[string]any{
 		"status":          service.OllamaCloudUsageStatusOK,

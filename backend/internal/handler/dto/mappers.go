@@ -228,6 +228,12 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		return nil
 	}
 	redactedCreds, credsStatus := RedactCredentials(a.Credentials)
+	if a.IsOpenAIPersonalAccessToken() && redactedCreds != nil {
+		// Legacy AT imports may only have the sensitive access_token. Preserve
+		// the non-sensitive mode marker so the admin UI can expose its manager.
+		redactedCreds["auth_mode"] = service.OpenAIAuthModePersonalAccessToken
+		redactedCreds["openai_auth_mode"] = "personal_access_token"
+	}
 	extra := redactAccountManagedExtra(a.Extra)
 	var ollamaCloudUsage *service.OllamaCloudUsageState
 	if state := service.OllamaCloudUsageStateFromAccount(a); state.Eligible {
