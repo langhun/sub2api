@@ -3,7 +3,7 @@
     <!-- Custom Amount Input -->
     <div>
       <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-        {{ t('payment.customAmount') }}
+        {{ t('payment.amountLabel') }}
       </label>
       <div class="relative">
         <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg font-medium text-gray-400 dark:text-dark-400">
@@ -29,14 +29,14 @@
       <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
         {{ t('payment.quickAmounts') }}
       </label>
-      <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+      <div class="grid grid-cols-3 gap-2 sm:grid-cols-6">
         <button
           v-for="amt in filteredAmounts"
           :key="amt"
           type="button"
           :data-testid="`quick-amount-${amt}`"
           :class="[
-            'h-11 rounded-md border px-2 text-center text-sm font-semibold tabular-nums transition-colors',
+            'h-10 rounded-md border px-2 text-center text-sm font-semibold tabular-nums transition-colors',
             modelValue === amt
               ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-300'
               : 'border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:text-primary-700 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-primary-700 dark:hover:text-primary-300',

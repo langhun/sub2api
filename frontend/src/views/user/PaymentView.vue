@@ -9,10 +9,10 @@
         <div
           v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan"
           data-testid="payment-tabs"
-          class="flex border-b border-gray-200 dark:border-dark-700"
+          class="flex w-fit gap-8 px-1"
         >
           <button v-for="tab in tabs" :key="tab.key"
-            class="relative flex min-h-12 flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors after:absolute after:inset-x-5 after:bottom-[-1px] after:h-0.5 after:transition-colors"
+            class="relative flex min-h-10 items-center justify-center px-3 py-2 text-sm font-medium transition-colors after:absolute after:bottom-0 after:left-1/2 after:h-0.5 after:w-7 after:-translate-x-1/2 after:transition-colors"
             :class="activeTab === tab.key ? 'text-primary-700 after:bg-primary-500 dark:text-primary-300' : 'text-gray-500 after:bg-transparent hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
             @click="activeTab = tab.key">{{ tab.label }}</button>
         </div>
@@ -43,26 +43,15 @@
               <p class="text-gray-500 dark:text-gray-400">{{ t('payment.notAvailable') }}</p>
             </div>
             <section v-else class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-card dark:border-dark-700 dark:bg-dark-800/80">
-              <header class="flex flex-col gap-5 border-b border-gray-200 px-5 py-6 dark:border-dark-700 sm:flex-row sm:items-start sm:justify-between sm:px-7">
-                <div>
-                  <h2 class="text-2xl font-bold text-gray-950 dark:text-white">{{ t('payment.rechargeTitle') }}</h2>
-                  <p class="mt-1.5 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('payment.rechargeSubtitle') }}</p>
-                </div>
-                <div class="grid shrink-0 grid-cols-2 gap-x-8 gap-y-1 sm:text-right">
-                  <p class="text-xs font-medium text-gray-400 dark:text-gray-500">{{ t('payment.rechargeAccount') }}</p>
-                  <p class="text-xs font-medium text-gray-400 dark:text-gray-500">{{ t('payment.currentBalance') }}</p>
-                  <p class="min-w-0 truncate text-sm font-semibold text-gray-900 dark:text-white">{{ user?.username || '' }}</p>
-                  <p class="text-sm font-semibold tabular-nums text-primary-700 dark:text-primary-300">${{ user?.balance?.toFixed(2) || '0.00' }}</p>
-                </div>
+              <header class="px-5 pb-7 pt-8 sm:px-10 lg:px-11">
+                <h2 class="text-2xl font-bold text-gray-950 dark:text-white">{{ t('payment.rechargeTitle') }}</h2>
+                <p class="mt-1.5 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('payment.rechargeSubtitle') }}</p>
               </header>
+              <div class="mx-5 border-t border-gray-200 dark:border-dark-700 sm:mx-10 lg:mx-11"></div>
 
-              <div class="recharge-workspace">
-                <section class="recharge-amount px-5 py-6 sm:px-7">
-                  <div class="mb-5 flex items-center gap-3">
-                    <span class="text-xs font-bold tabular-nums text-primary-600 dark:text-primary-400">01</span>
-                    <span class="h-px w-6 bg-primary-300 dark:bg-primary-700"></span>
-                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.amountLabel') }}</h3>
-                  </div>
+              <div class="px-5 py-8 sm:px-10 lg:px-11">
+                <div class="recharge-workspace">
+                  <div class="recharge-fields space-y-10">
                   <AmountInput
                     v-model="amount"
                     :amounts="[10, 20, 50, 100, 200, 500]"
@@ -71,23 +60,14 @@
                     :currency="selectedCurrency"
                   />
                   <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
-                </section>
-
-                <section class="recharge-method border-t border-gray-200 px-5 py-6 dark:border-dark-700 sm:px-7">
-                  <div class="mb-5 flex items-center gap-3">
-                    <span class="text-xs font-bold tabular-nums text-primary-600 dark:text-primary-400">02</span>
-                    <span class="h-px w-6 bg-primary-300 dark:bg-primary-700"></span>
-                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.paymentMethod') }}</h3>
-                  </div>
                   <PaymentMethodSelector
                     :methods="methodOptions"
                     :selected="selectedMethod"
-                    :show-label="false"
                     @select="selectedMethod = $event"
                   />
-                </section>
+                  </div>
 
-                <aside data-testid="recharge-summary" class="recharge-summary border-t border-gray-200 bg-gray-50/80 px-5 py-6 dark:border-dark-700 dark:bg-dark-900/35 sm:px-7 lg:border-l lg:border-t-0">
+                  <aside data-testid="recharge-summary" class="recharge-summary rounded-lg border border-gray-200 bg-gray-50/80 px-5 py-6 dark:border-dark-700 dark:bg-dark-900/35 sm:px-7 sm:py-7">
                   <div class="flex items-center gap-2">
                     <Icon name="creditCard" size="sm" class="text-primary-600 dark:text-primary-400" />
                     <h3 class="text-base font-semibold text-gray-950 dark:text-white">{{ t('payment.orderSummary') }}</h3>
@@ -115,12 +95,9 @@
                     </div>
                   </div>
 
-                  <div v-if="balanceRechargeMultiplier !== 1" class="mt-6 border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-xs leading-5 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-                    {{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}
-                  </div>
-                </aside>
+                  </aside>
 
-                <div class="recharge-action border-t border-gray-200 px-5 py-5 dark:border-dark-700 sm:px-7">
+                  <div class="recharge-action">
                   <button
                     data-testid="recharge-submit"
                     :class="['btn w-full rounded-md py-3.5 text-base font-semibold', paymentButtonClass]"
@@ -136,6 +113,12 @@
                       <Icon name="arrowRight" size="sm" />
                     </span>
                   </button>
+                  </div>
+                </div>
+
+                <div v-if="balanceRechargeMultiplier !== 1" class="mt-9 border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100 sm:px-7">
+                  <p class="text-sm font-semibold">{{ t('payment.rechargeRateTitle') }}</p>
+                  <p class="mt-1 text-xs leading-5 text-emerald-800 dark:text-emerald-200">{{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}</p>
                 </div>
               </div>
             </section>
@@ -1219,18 +1202,14 @@ onMounted(async () => {
 .recharge-workspace {
   display: grid;
   grid-template-areas:
-    'amount'
-    'method'
+    'fields'
     'summary'
     'action';
+  gap: 2rem;
 }
 
-.recharge-amount {
-  grid-area: amount;
-}
-
-.recharge-method {
-  grid-area: method;
+.recharge-fields {
+  grid-area: fields;
 }
 
 .recharge-summary {
@@ -1243,11 +1222,12 @@ onMounted(async () => {
 
 @media (min-width: 1024px) {
   .recharge-workspace {
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 45%);
     grid-template-areas:
-      'amount summary'
-      'method summary'
+      'fields summary'
       'action summary';
+    column-gap: 3rem;
+    row-gap: 2.25rem;
   }
 }
 </style>

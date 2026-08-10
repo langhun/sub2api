@@ -5,7 +5,7 @@
     </label>
     <div
       data-testid="payment-method-grid"
-      class="grid grid-cols-2 gap-3 xl:grid-cols-3"
+      class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
     >
       <button
         v-for="method in sortedMethods"

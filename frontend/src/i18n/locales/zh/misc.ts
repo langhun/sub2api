@@ -318,6 +318,7 @@ export default {
     subscriptionCheckoutSubtitle: '核对套餐、支付方式与实付金额后提交订单。',
     orderSummary: '到账明细',
     summaryAccount: '充值账户：{username}',
+    rechargeRateTitle: '当前充值汇率',
     amountLabel: '充值金额',
     paymentAmount: '支付金额',
     creditedBalance: '到账余额',

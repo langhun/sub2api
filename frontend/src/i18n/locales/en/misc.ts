@@ -294,6 +294,7 @@ export default {
     subscriptionCheckoutSubtitle: 'Review the plan, payment method, and total before submitting the order.',
     orderSummary: 'Credit Summary',
     summaryAccount: 'Account: {username}',
+    rechargeRateTitle: 'Current Top-Up Rate',
     amountLabel: 'Amount',
     paymentAmount: 'Payment Amount',
     creditedBalance: 'Credited Balance',
