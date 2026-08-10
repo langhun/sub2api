@@ -13,7 +13,7 @@ import (
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
-	openaiat "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-at"
+	openairt "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-rt"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
@@ -38,7 +38,7 @@ type Runtime struct {
 	ActivityRewardsHTTP *activityrewards.Module
 	GameHall            *gamehall.Module
 	SupportTickets      *supporttickets.Module
-	OpenAIAT            *openaiat.Module
+	OpenAIRT            *openairt.Module
 	UsageQuerySettings  UsageQuerySettings
 }
 
@@ -130,7 +130,7 @@ func NewRuntime(
 		ActivityRewardsHTTP: activityRewardsHTTP,
 		GameHall:            gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
 		SupportTickets:      supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
-		OpenAIAT:            openaiat.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
+		OpenAIRT:            openairt.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
 		UsageQuerySettings:  customSettingsRegistry,
 	}, nil
 }

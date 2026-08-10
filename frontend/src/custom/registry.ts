@@ -21,7 +21,7 @@ import {
   gameHallFeatureFlags,
   gameHallSettingsPanels,
 } from './modules/game-hall/settings'
-import { openAIAccountActions, type CustomAccountAction } from './modules/openai-at/accountActions'
+import { openAIAccountActions, type CustomAccountAction } from './modules/openai-rt/accountActions'
 export { customPublicSettingsDefaults } from './publicSettings'
 
 export interface CustomNavigationItem {

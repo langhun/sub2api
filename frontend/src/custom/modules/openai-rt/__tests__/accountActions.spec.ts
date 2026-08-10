@@ -4,30 +4,30 @@ import type { Account } from '@/types'
 
 const account = (overrides: Partial<Account> = {}): Account => ({
   id: 1,
-  name: 'OpenAI PAT',
+  name: 'OpenAI OAuth',
   platform: 'openai',
   type: 'oauth',
-  credentials: { openai_auth_mode: 'personal_access_token' },
+  credentials: { auth_mode: 'oauth' },
+  credentials_status: { has_refresh_token: true },
   proxy_id: null,
   concurrency: 3,
   status: 'active',
   ...overrides,
 })
 
-describe('OpenAI AT account action', () => {
-  it('recognizes all supported PAT mode spellings', () => {
+describe('OpenAI RT account action', () => {
+  it('is visible for a normal OpenAI OAuth account with a refresh token', () => {
     const action = openAIAccountActions[0]
     expect(action.visible(account())).toBe(true)
-    expect(action.visible(account({ credentials: { auth_mode: 'personalAccessToken' } }))).toBe(true)
-    expect(action.visible(account({ credentials: { auth_mode: 'PERSONAL_ACCESS_TOKEN' } }))).toBe(true)
-    expect(action.visible(account({ credentials: { openai_auth_mode: ' Personal-Access-Token ' } }))).toBe(true)
   })
 
-  it('is visible only for non-shadow OpenAI PAT OAuth accounts', () => {
+  it('hides the action for PAT, API key, missing RT, and shadow accounts', () => {
     const action = openAIAccountActions[0]
     expect(action.visible(account({ type: 'apikey' }))).toBe(false)
     expect(action.visible(account({ platform: 'anthropic' }))).toBe(false)
     expect(action.visible(account({ parent_account_id: 9 }))).toBe(false)
-    expect(action.visible(account({ credentials: { auth_mode: 'oauth' } }))).toBe(false)
+    expect(action.visible(account({ credentials_status: { has_refresh_token: false } }))).toBe(false)
+    expect(action.visible(account({ credentials: { auth_mode: 'personalAccessToken' } }))).toBe(false)
+    expect(action.visible(account({ credentials: { openai_auth_mode: 'PERSONAL_ACCESS_TOKEN' } }))).toBe(false)
   })
 })

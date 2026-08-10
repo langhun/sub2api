@@ -42,13 +42,13 @@ func RegisterRoutes(
 	if runtime.SupportTickets != nil {
 		runtime.SupportTickets.RegisterRoutes(r, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
 	}
-	if runtime.OpenAIAT != nil {
+	if runtime.OpenAIRT != nil {
 		v1 := r.Group("/api/v1")
 		admin := v1.Group("/custom/admin")
 		admin.Use(gin.HandlerFunc(adminAuth))
 		admin.Use(gin.HandlerFunc(auditLog))
 		admin.Use(middleware.AdminComplianceGuard(settingService))
-		runtime.OpenAIAT.RegisterRoutes(admin)
+		runtime.OpenAIRT.RegisterRoutes(admin)
 	}
 	if runtime.ActivityCheckin != nil {
 		v1 := r.Group("/api/v1")

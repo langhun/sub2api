@@ -101,10 +101,10 @@ describe('custom overlay registry', () => {
   })
 
   it('mounts the OpenAI AT action through generic account adapters', () => {
-    expect(customAccountActions.map((action) => action.id)).toContain('openai-at')
+    expect(customAccountActions.map((action) => action.id)).toContain('openai-rt')
     expect(accountActionMenuSource).toContain("import { customAccountActions } from '@/custom/registry'")
     expect(accountActionMenuSource).toContain("$emit('custom-action', action.id, account)")
-    expect(accountsViewSource).toContain("import OpenAIATModal from '@/custom/modules/openai-at/OpenAIATModal.vue'")
+    expect(accountsViewSource).toContain("import OpenAIRTModal from '@/custom/modules/openai-rt/OpenAIRTModal.vue'")
     expect(accountsViewSource).toContain('@custom-action="handleCustomAccountAction"')
   })
 })

@@ -7,10 +7,11 @@ export interface CustomAccountAction {
   visible: (account: Account) => boolean
 }
 
-const isOpenAIPAT = (account: Account) => {
+const isOpenAIRT = (account: Account) => {
   if (account.platform !== 'openai' || account.type !== 'oauth' || account.parent_account_id != null) return false
   const credentials = account.credentials as Record<string, unknown> | undefined
-  return [credentials?.openai_auth_mode, credentials?.auth_mode].some(isPersonalAccessTokenMode)
+  const hasRefreshToken = account.credentials_status?.has_refresh_token === true
+  return hasRefreshToken && ![credentials?.openai_auth_mode, credentials?.auth_mode].some(isPersonalAccessTokenMode)
 }
 
 // The backend accepts both the legacy snake_case marker and the current
@@ -22,5 +23,5 @@ const isPersonalAccessTokenMode = (value: unknown): boolean => {
 }
 
 export const openAIAccountActions: readonly CustomAccountAction[] = [
-  { id: 'openai-at', labelKey: 'admin.openaiAt.manage', icon: 'key', visible: isOpenAIPAT }
+  { id: 'openai-rt', labelKey: 'admin.openaiRt.manage', icon: 'key', visible: isOpenAIRT }
 ]

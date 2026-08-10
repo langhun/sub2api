@@ -1,6 +1,6 @@
-// Package openaiat provides the isolated administrator workflow for viewing
-// and rotating OpenAI Codex personal access tokens.
-package openaiat
+// Package openairt provides the isolated administrator workflow for viewing
+// and rotating OpenAI OAuth refresh tokens.
+package openairt
 
 import (
 	"context"
@@ -24,23 +24,23 @@ type AccountStore interface {
 	ClearAccountError(context.Context, int64) (*service.Account, error)
 }
 
-type PATService interface {
-	ValidateCodexPersonalAccessToken(context.Context, string, string) (*service.OpenAITokenInfo, error)
+type OAuthService interface {
+	RefreshTokenWithClientID(context.Context, string, string, string) (*service.OpenAITokenInfo, error)
 	BuildAccountCredentials(*service.OpenAITokenInfo) map[string]any
 }
 
 type Module struct {
-	accounts    AccountStore
-	patService  PATService
-	invalidator service.TokenCacheInvalidator
+	accounts     AccountStore
+	oauthService OAuthService
+	invalidator  service.TokenCacheInvalidator
 }
 
-func NewModule(accounts AccountStore, patService PATService, invalidator service.TokenCacheInvalidator) *Module {
-	return &Module{accounts: accounts, patService: patService, invalidator: invalidator}
+func NewModule(accounts AccountStore, oauthService OAuthService, invalidator service.TokenCacheInvalidator) *Module {
+	return &Module{accounts: accounts, oauthService: oauthService, invalidator: invalidator}
 }
 
 type replaceRequest struct {
-	AccessToken string `json:"access_token" binding:"required"`
+	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
 // RegisterRoutes mounts only this module's administrator endpoints.
@@ -49,53 +49,53 @@ func (m *Module) RegisterRoutes(admin *gin.RouterGroup) {
 		return
 	}
 	group := admin.Group("/openai/accounts")
-	group.GET("/:id/access-token", m.getAccessToken)
-	group.POST("/:id/access-token", m.replaceAccessToken)
+	group.GET("/:id/refresh-token", m.getRefreshToken)
+	group.POST("/:id/refresh-token", m.replaceRefreshToken)
 }
 
-func (m *Module) getAccessToken(c *gin.Context) {
+func (m *Module) getRefreshToken(c *gin.Context) {
 	account, ok := m.accountFromRequest(c)
 	if !ok {
 		return
 	}
-	if !isPATAccount(account) {
-		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_PAT_REQUIRED", "account is not an OpenAI personal access token account"))
+	if !isRTAccount(account) {
+		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_RT_REQUIRED", "account is not an OpenAI OAuth refresh token account"))
 		return
 	}
 
-	token := credentialString(account, "access_token")
+	token := credentialString(account, "refresh_token")
 	if token == "" {
-		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_PAT_MISSING", "account access token is not configured"))
+		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_RT_MISSING", "account refresh token is not configured"))
 		return
 	}
 
 	c.Header("Cache-Control", "no-store")
 	c.Header("Pragma", "no-cache")
 	response.Success(c, gin.H{
-		"account_id":          account.ID,
-		"access_token":        token,
-		"masked_access_token": maskToken(token),
+		"account_id":           account.ID,
+		"refresh_token":        token,
+		"masked_refresh_token": maskToken(token),
 	})
 }
 
-func (m *Module) replaceAccessToken(c *gin.Context) {
+func (m *Module) replaceRefreshToken(c *gin.Context) {
 	account, ok := m.accountFromRequest(c)
 	if !ok {
 		return
 	}
-	if !isPATAccount(account) {
-		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_PAT_REQUIRED", "account is not an OpenAI personal access token account"))
+	if !isRTAccount(account) {
+		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_RT_REQUIRED", "account is not an OpenAI OAuth refresh token account"))
 		return
 	}
 
 	var req replaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_PAT_REQUIRED", "access token is required"))
+		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_RT_REQUIRED", "refresh token is required"))
 		return
 	}
-	token := strings.TrimSpace(req.AccessToken)
+	token := strings.TrimSpace(req.RefreshToken)
 	if token == "" {
-		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_PAT_REQUIRED", "access token is required"))
+		response.ErrorFrom(c, infraerrors.BadRequest("OPENAI_RT_REQUIRED", "refresh token is required"))
 		return
 	}
 
@@ -103,20 +103,23 @@ func (m *Module) replaceAccessToken(c *gin.Context) {
 	if !ok {
 		return
 	}
-	tokenInfo, err := m.patService.ValidateCodexPersonalAccessToken(c.Request.Context(), token, proxyURL)
+	tokenInfo, err := m.oauthService.RefreshTokenWithClientID(c.Request.Context(), token, proxyURL, credentialString(account, "client_id"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	credentials := m.patService.BuildAccountCredentials(tokenInfo)
+	credentials := m.oauthService.BuildAccountCredentials(tokenInfo)
+	// Some OAuth servers do not rotate the RT. The submitted, validated RT must
+	// still replace the old one instead of being overwritten during the merge.
+	if credentialStringFromMap(credentials, "refresh_token") == "" {
+		credentials["refresh_token"] = token
+	}
 	for key, value := range account.Credentials {
 		if _, exists := credentials[key]; !exists {
 			credentials[key] = value
 		}
 	}
-	credentials = service.NormalizeOpenAIPersonalAccessTokenCredentials(account, tokenInfo, credentials)
-
 	updated, err := m.accounts.UpdateAccount(c.Request.Context(), account.ID, &service.UpdateAccountInput{Credentials: credentials})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -131,8 +134,8 @@ func (m *Module) replaceAccessToken(c *gin.Context) {
 
 	c.Header("Cache-Control", "no-store")
 	response.Success(c, gin.H{
-		"account":             dto.AccountFromService(updated),
-		"masked_access_token": maskToken(token),
+		"account":              dto.AccountFromService(updated),
+		"masked_refresh_token": maskToken(credentialString(updated, "refresh_token")),
 	})
 }
 
@@ -168,8 +171,13 @@ func (m *Module) proxyURL(c *gin.Context, account *service.Account) (string, boo
 	return proxy.URL(), true
 }
 
-func isPATAccount(account *service.Account) bool {
-	return account != nil && account.Platform == service.PlatformOpenAI && account.IsOpenAIPersonalAccessToken() && !account.IsCredentialShadow()
+func isRTAccount(account *service.Account) bool {
+	return account != nil &&
+		account.Platform == service.PlatformOpenAI &&
+		account.Type == service.AccountTypeOAuth &&
+		!account.IsOpenAIPersonalAccessToken() &&
+		!account.IsCredentialShadow() &&
+		credentialString(account, "refresh_token") != ""
 }
 
 func credentialString(account *service.Account, key string) string {
@@ -177,6 +185,11 @@ func credentialString(account *service.Account, key string) string {
 		return ""
 	}
 	value, _ := account.Credentials[key].(string)
+	return strings.TrimSpace(value)
+}
+
+func credentialStringFromMap(credentials map[string]any, key string) string {
+	value, _ := credentials[key].(string)
 	return strings.TrimSpace(value)
 }
 
