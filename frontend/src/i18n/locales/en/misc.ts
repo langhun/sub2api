@@ -286,6 +286,14 @@ export default {
   // Payment System
   payment: {
     title: 'Recharge / Subscription',
+    rechargeTitle: 'Balance Top-Up',
+    rechargeSubtitle: 'Choose an amount and complete payment. Your balance will be credited automatically after payment succeeds.',
+    subscriptionTitle: 'Subscription Plans',
+    subscriptionSubtitle: 'Choose a plan and review its benefits and validity before subscribing.',
+    subscriptionCheckoutTitle: 'Confirm Subscription',
+    subscriptionCheckoutSubtitle: 'Review the plan, payment method, and total before submitting the order.',
+    orderSummary: 'Credit Summary',
+    summaryAccount: 'Account: {username}',
     amountLabel: 'Amount',
     paymentAmount: 'Payment Amount',
     creditedBalance: 'Credited Balance',
