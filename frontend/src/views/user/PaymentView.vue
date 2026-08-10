@@ -116,10 +116,6 @@
                   </div>
                 </div>
 
-                <div v-if="balanceRechargeMultiplier !== 1" class="mt-9 border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100 sm:px-7">
-                  <p class="text-sm font-semibold">{{ t('payment.rechargeRateTitle') }}</p>
-                  <p class="mt-1 text-xs leading-5 text-emerald-800 dark:text-emerald-200">{{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}</p>
-                </div>
               </div>
             </section>
           </template>

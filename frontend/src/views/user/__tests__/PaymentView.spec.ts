@@ -345,7 +345,8 @@ describe('PaymentView recharge workspace', () => {
     expect(wrapper.get('[data-testid="summary-credited-amount"]').text()).toBe('$14.00')
     expect(wrapper.get('[data-testid="summary-total-amount"]').text()).toBe(formatPaymentAmount(102.5, 'CNY'))
     expect(wrapper.get('[data-testid="recharge-submit"]').attributes('disabled')).toBeUndefined()
-    expect(wrapper.text()).toContain('payment.rechargeRatePreview')
+    expect(wrapper.text()).not.toContain('payment.rechargeRatePreview')
+    expect(wrapper.text()).not.toContain('payment.rechargeRateTitle')
   })
 })
 
