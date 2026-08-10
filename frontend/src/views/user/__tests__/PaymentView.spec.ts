@@ -328,6 +328,7 @@ describe('PaymentView recharge workspace', () => {
     expect(wrapper.get('[data-testid="summary-credited-amount"]').text()).toBe('$0.00')
     expect(wrapper.get('[data-testid="recharge-submit"]').attributes('disabled')).toBeDefined()
     expect(wrapper.getComponent(AmountInput).props('currency')).toBe('CNY')
+    expect(wrapper.getComponent(AmountInput).props('amounts')).toEqual([10, 20, 50, 100, 200, 500])
   })
 
   it('updates payment, fee, credited balance, and total from the selected amount', async () => {
