@@ -96,7 +96,10 @@ describe('OpenAIRTModal', () => {
   })
 
   it('shows a localized message when OpenAI invalidates the RT', async () => {
-    replaceOpenAIRTMock.mockRejectedValue({ response: { data: { reason: 'OPENAI_RT_INVALID' } } })
+    replaceOpenAIRTMock.mockRejectedValue({
+      reason: 'OPENAI_RT_INVALID',
+      message: 'refresh token is invalid or expired; sign in again and provide a new RT',
+    })
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     const wrapper = mount(OpenAIRTModal, {
       props: { show: true, account },
