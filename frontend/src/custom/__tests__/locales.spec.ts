@@ -62,4 +62,14 @@ describe('custom admin locale overlay', () => {
     expect(merged).not.toHaveProperty('resources.redeem')
     expect(base.settings.tabs).toEqual({ general: 'General' })
   })
+
+  it('mounts OpenAI RT labels at the admin namespace root', async () => {
+    const { default: enAdmin } = await import('@/i18n/locales/en/admin')
+    const { default: zhAdmin } = await import('@/i18n/locales/zh/admin')
+
+    expect(enAdmin.openaiRt.title).toBe('OpenAI refresh token')
+    expect(zhAdmin.openaiRt.title).toBe('OpenAI 刷新令牌')
+    expect(enAdmin).not.toHaveProperty('admin')
+    expect(zhAdmin).not.toHaveProperty('admin')
+  })
 })

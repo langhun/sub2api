@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -175,6 +176,31 @@ func TestReplaceRefreshTokenDoesNotWriteWhenValidationFails(t *testing.T) {
 	testRouter(module).ServeHTTP(resp, req)
 
 	require.Equal(t, http.StatusInternalServerError, resp.Code)
+	require.Nil(t, store.updatedInput)
+	require.Equal(t, "rt-old-secret", account.Credentials["refresh_token"])
+}
+
+func TestReplaceRefreshTokenMapsInvalidatedTokenToBadRequest(t *testing.T) {
+	account := &service.Account{
+		ID:          7,
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Credentials: map[string]any{"refresh_token": "rt-old-secret", "auth_mode": "oauth"},
+	}
+	store := &accountStoreStub{account: account}
+	oauth := &oauthServiceStub{err: infraerrors.Newf(
+		http.StatusBadGateway,
+		"OPENAI_OAUTH_TOKEN_REFRESH_FAILED",
+		"token refresh failed: status 401, body: refresh_token_invalidated",
+	)}
+	module := NewModule(store, oauth, nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/custom/admin/openai/accounts/7/refresh-token", strings.NewReader(`{"refresh_token":"rt-invalid"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	testRouter(module).ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusBadRequest, resp.Code)
+	require.Contains(t, resp.Body.String(), `"reason":"OPENAI_RT_INVALID"`)
 	require.Nil(t, store.updatedInput)
 	require.Equal(t, "rt-old-secret", account.Credentials["refresh_token"])
 }

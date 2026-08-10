@@ -132,7 +132,9 @@ const replaceToken = async () => {
     emit('updated', result.account)
     handleClose()
   } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || error?.message || t('admin.openaiRt.replaceFailed')
+    errorMessage.value = error?.response?.data?.reason === 'OPENAI_RT_INVALID'
+      ? t('admin.openaiRt.invalidToken')
+      : error?.response?.data?.message || error?.message || t('admin.openaiRt.replaceFailed')
   } finally {
     replacing.value = false
   }

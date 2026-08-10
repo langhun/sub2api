@@ -105,7 +105,7 @@ func (m *Module) replaceRefreshToken(c *gin.Context) {
 	}
 	tokenInfo, err := m.oauthService.RefreshTokenWithClientID(c.Request.Context(), token, proxyURL, credentialString(account, "client_id"))
 	if err != nil {
-		response.ErrorFrom(c, err)
+		writeRefreshTokenError(c, err)
 		return
 	}
 
@@ -137,6 +137,22 @@ func (m *Module) replaceRefreshToken(c *gin.Context) {
 		"account":              dto.AccountFromService(updated),
 		"masked_refresh_token": maskToken(credentialString(updated, "refresh_token")),
 	})
+}
+
+func writeRefreshTokenError(c *gin.Context, err error) {
+	if infraerrors.Reason(err) == "OPENAI_OAUTH_TOKEN_REFRESH_FAILED" {
+		message := strings.ToLower(infraerrors.Message(err))
+		if strings.Contains(message, "refresh_token_invalidated") ||
+			strings.Contains(message, "session has ended") ||
+			strings.Contains(message, "status 401") {
+			response.ErrorFrom(c, infraerrors.BadRequest(
+				"OPENAI_RT_INVALID",
+				"refresh token is invalid or expired; sign in again and provide a new RT",
+			))
+			return
+		}
+	}
+	response.ErrorFrom(c, err)
 }
 
 func (m *Module) accountFromRequest(c *gin.Context) (*service.Account, bool) {

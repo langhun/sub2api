@@ -23,7 +23,8 @@ export async function getOpenAIRT(accountID: number): Promise<OpenAIRTRevealResp
 export async function replaceOpenAIRT(accountID: number, refreshToken: string): Promise<OpenAIRTReplaceResponse> {
   const { data } = await apiClient.post<OpenAIRTReplaceResponse>(
     `/custom/admin/openai/accounts/${accountID}/refresh-token`,
-    { refresh_token: refreshToken }
+    { refresh_token: refreshToken },
+    { timeout: 90_000 }
   )
   return data
 }

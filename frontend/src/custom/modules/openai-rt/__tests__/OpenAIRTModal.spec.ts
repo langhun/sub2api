@@ -94,4 +94,21 @@ describe('OpenAIRTModal', () => {
     expect(wrapper.emitted('updated')).toEqual([[account]])
     expect(wrapper.get<HTMLInputElement>('[data-testid="openai-rt-old-token"]').element.value).toBe('')
   })
+
+  it('shows a localized message when OpenAI invalidates the RT', async () => {
+    replaceOpenAIRTMock.mockRejectedValue({ response: { data: { reason: 'OPENAI_RT_INVALID' } } })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mount(OpenAIRTModal, {
+      props: { show: true, account },
+      global: { stubs: { BaseDialog: BaseDialogStub } },
+    })
+    await flushPromises()
+
+    await wrapper.get<HTMLInputElement>('[data-testid="openai-rt-new-token"]').setValue('rt-invalid')
+    await wrapper.get('button.btn-primary').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.openaiRt.invalidToken')
+    expect(wrapper.emitted('updated')).toBeUndefined()
+  })
 })
