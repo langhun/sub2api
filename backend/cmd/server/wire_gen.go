@@ -327,7 +327,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	publicSettingsProvider := server.ProvidePublicSettingsInjectionProvider(settingService, settingsRegistry)
 	activityWalletCapabilities := platform.ProvideActivityWalletCapabilities(billingCacheService, userRepository, subscriptionService, client, leaderLockCache)
 	generator := codeformat.NewGenerator(settingsRegistry)
-	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator)
+	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator, paymentService)
 	if err != nil {
 		return nil, err
 	}

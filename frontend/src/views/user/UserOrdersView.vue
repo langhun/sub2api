@@ -18,6 +18,10 @@
       <OrderTable :orders="orders" :loading="loading" :show-order-id="false">
         <template #actions="{ row }">
           <div class="flex items-center gap-2">
+            <button @click="openOrderDetail(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-600">
+              <Icon name="eye" size="sm" />
+              <span>{{ t('common.view') }}</span>
+            </button>
             <button v-if="row.status === 'PENDING'" @click="handleCancel(row.id)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-yellow-600 hover:bg-yellow-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20">
               <Icon name="x" size="sm" />
               <span>{{ t('payment.orders.cancel') }}</span>
@@ -73,6 +77,23 @@
         </div>
       </template>
     </BaseDialog>
+
+    <BaseDialog :show="selectedOrder !== null" :title="t('payment.orders.orderDetail')" width="normal" @close="selectedOrder = null">
+      <div v-if="selectedOrder" class="space-y-4">
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderNo') }}</p><p class="font-medium text-gray-900 dark:text-white">{{ selectedOrder.out_trade_no }}</p></div>
+          <div><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.status') }}</p><p class="font-medium text-gray-900 dark:text-white">{{ t('payment.status.' + selectedOrder.status.toLowerCase()) }}</p></div>
+          <div><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</p><p class="font-medium text-gray-900 dark:text-white">${{ selectedOrder.pay_amount.toFixed(2) }}</p></div>
+          <div><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</p><p class="font-medium text-gray-900 dark:text-white">${{ selectedOrder.amount.toFixed(2) }}</p></div>
+        </div>
+        <component
+          v-for="extension in customPaymentOrderDetailExtensions"
+          :is="extension.component"
+          :key="extension.id"
+          :order-id="selectedOrder.id"
+        />
+      </div>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -90,6 +111,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OrderTable from '@/components/payment/OrderTable.vue'
+import { customPaymentOrderDetailExtensions } from '@/custom/registry'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -103,6 +125,7 @@ const currentFilter = ref('')
 const cancelTargetId = ref<number | null>(null)
 const refundTarget = ref<PaymentOrder | null>(null)
 const refundReason = ref('')
+const selectedOrder = ref<PaymentOrder | null>(null)
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
 
 const statusFilters = computed(() => [
@@ -134,6 +157,7 @@ function handlePageChange(page: number) { pagination.page = page; fetchOrders() 
 function handlePageSizeChange(size: number) { pagination.page_size = size; pagination.page = 1; fetchOrders() }
 
 function handleCancel(orderId: number) { cancelTargetId.value = orderId }
+function openOrderDetail(order: PaymentOrder) { selectedOrder.value = order }
 
 async function confirmCancel() {
   if (!cancelTargetId.value) return

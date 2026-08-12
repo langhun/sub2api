@@ -14,6 +14,7 @@ import (
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
 	openairt "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-rt"
+	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
@@ -39,6 +40,7 @@ type Runtime struct {
 	GameHall            *gamehall.Module
 	SupportTickets      *supporttickets.Module
 	OpenAIRT            *openairt.Module
+	RechargePromotions  *rechargepromotions.Module
 	UsageQuerySettings  UsageQuerySettings
 }
 
@@ -53,6 +55,7 @@ func NewRuntime(
 	tokenCacheInvalidator service.TokenCacheInvalidator,
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
+	paymentService *service.PaymentService,
 ) (*Runtime, error) {
 	if err := custommigrations.Apply(context.Background(), db); err != nil {
 		return nil, err
@@ -122,6 +125,10 @@ func NewRuntime(
 	if err != nil {
 		return nil, err
 	}
+	rechargePromotions := rechargepromotions.NewModule(customSettingsRegistry, db)
+	if paymentService != nil {
+		paymentService.SetBalanceOrderExtension(rechargePromotions)
+	}
 	return &Runtime{
 		ActivityCheckin:     activityCheckin,
 		ActivityLeaderboard: activityleaderboard.NewDatabaseModule(client, db),
@@ -131,6 +138,7 @@ func NewRuntime(
 		GameHall:            gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
 		SupportTickets:      supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
 		OpenAIRT:            openairt.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
+		RechargePromotions:  rechargePromotions,
 		UsageQuerySettings:  customSettingsRegistry,
 	}, nil
 }

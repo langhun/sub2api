@@ -8,6 +8,8 @@ import {
   customNavigation,
   customNotificationCenterExtensions,
   customAccountActions,
+  customPaymentOrderDetailExtensions,
+  customRechargeSummaryExtensions,
   customRoutes,
   customSettingsPanels,
 } from '../registry'
@@ -27,6 +29,9 @@ const announcementBellSource = readFileSync(resolve(directory, '../../components
 const settingsSource = readFileSync(resolve(directory, '../../views/admin/SettingsView.vue'), 'utf8')
 const accountActionMenuSource = readFileSync(resolve(directory, '../../components/admin/account/AccountActionMenu.vue'), 'utf8')
 const accountsViewSource = readFileSync(resolve(directory, '../../views/admin/AccountsView.vue'), 'utf8')
+const paymentViewSource = readFileSync(resolve(directory, '../../views/user/PaymentView.vue'), 'utf8')
+const userOrdersViewSource = readFileSync(resolve(directory, '../../views/user/UserOrdersView.vue'), 'utf8')
+const adminOrdersViewSource = readFileSync(resolve(directory, '../../views/admin/orders/AdminOrdersView.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
   it('aggregates routes and navigation from custom modules', () => {
@@ -86,9 +91,10 @@ describe('custom overlay registry', () => {
   it('owns custom setting panels through the registry rather than the shared form', () => {
     expect(customSettingsPanels.map((panel) => panel.id)).toEqual([
       'brand-home',
-		'game-hall',
-		'activity-entry-switches',
-		'activity',
+      'game-hall',
+      'activity-entry-switches',
+      'activity',
+      'recharge-promotions',
     ])
     expect(settingsSource).toContain("customSettingsPanelsFor('site')")
     expect(settingsSource).toContain("customSettingsPanelsFor('entry-switches')")
@@ -106,5 +112,15 @@ describe('custom overlay registry', () => {
     expect(accountActionMenuSource).toContain("$emit('custom-action', action.id, account)")
     expect(accountsViewSource).toContain("import OpenAIRTModal from '@/custom/modules/openai-rt/OpenAIRTModal.vue'")
     expect(accountsViewSource).toContain('@custom-action="handleCustomAccountAction"')
+  })
+
+  it('mounts recharge overlays through generic checkout and order detail adapters', () => {
+    expect(customRechargeSummaryExtensions.map((extension) => extension.id)).toContain('recharge-promotions')
+    expect(customPaymentOrderDetailExtensions.map((extension) => extension.id)).toContain('recharge-promotions')
+    expect(paymentViewSource).toContain("import { customRechargeSummaryExtensions } from '@/custom/registry'")
+    expect(paymentViewSource).toContain('v-for="extension in customRechargeSummaryExtensions"')
+    expect(paymentViewSource).not.toContain('@/custom/modules/recharge-promotions/RechargePromotionSummary.vue')
+    expect(userOrdersViewSource).toContain("import { customPaymentOrderDetailExtensions } from '@/custom/registry'")
+    expect(adminOrdersViewSource).toContain("import { customPaymentOrderDetailExtensions } from '@/custom/registry'")
   })
 })

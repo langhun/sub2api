@@ -4,99 +4,124 @@ import (
 	"context"
 
 	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
+	rechargepromotionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions/settings"
 )
 
 // Compatibility preserves the established flat admin settings contract while
 // keeping the actual configuration split by Overlay module in Snapshot.
 type Compatibility struct {
-	CodeFormatSettings            codeformatsettings.Config `json:"code_format_settings"`
-	DefaultHomepage               string                    `json:"default_homepage"`
-	GameHallEnabled               bool                      `json:"game_hall_enabled"`
-	SupportTicketEnabled          bool                      `json:"support_ticket_enabled"`
-	GameSlotsEnabled              bool                      `json:"game_slots_enabled"`
-	GameSlotsMinBet               float64                   `json:"game_slots_min_bet"`
-	GameSlotsMaxBet               float64                   `json:"game_slots_max_bet"`
-	GameExchangeMinAmount         float64                   `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount         float64                   `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit        float64                   `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance  bool                      `json:"game_exchange_allow_dg_to_balance"`
-	CheckinEnabled                bool                      `json:"checkin_enabled"`
-	CheckinMinBalance             float64                   `json:"checkin_min_balance"`
-	CheckinMaxBalance             float64                   `json:"checkin_max_balance"`
-	CheckinLuckEnabled            bool                      `json:"checkin_luck_enabled"`
-	CheckinLuckMinMultiplier      float64                   `json:"checkin_luck_min_multiplier"`
-	CheckinLuckMaxMultiplier      float64                   `json:"checkin_luck_max_multiplier"`
-	CheckinBlindboxEnabled        bool                      `json:"checkin_blindbox_enabled"`
-	CheckinBlindboxTriggerType    string                    `json:"checkin_blindbox_trigger_type"`
-	CheckinBlindboxInterval       int                       `json:"checkin_blindbox_interval"`
-	RedPacketEnabled              bool                      `json:"redpacket_enabled"`
-	RedPacketMaxCount             int                       `json:"redpacket_max_count"`
-	RedPacketExpireHours          int                       `json:"redpacket_expire_hours"`
-	UsageQueryEnabled             bool                      `json:"usage_query_enabled"`
-	LeaderboardEnabled            bool                      `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled     bool                      `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled bool                      `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled     bool                      `json:"leaderboard_checkin_enabled"`
-	LeaderboardIncludeAdmin       bool                      `json:"leaderboard_include_admin"`
+	CodeFormatSettings              codeformatsettings.Config            `json:"code_format_settings"`
+	DefaultHomepage                 string                               `json:"default_homepage"`
+	GameHallEnabled                 bool                                 `json:"game_hall_enabled"`
+	SupportTicketEnabled            bool                                 `json:"support_ticket_enabled"`
+	GameSlotsEnabled                bool                                 `json:"game_slots_enabled"`
+	GameSlotsMinBet                 float64                              `json:"game_slots_min_bet"`
+	GameSlotsMaxBet                 float64                              `json:"game_slots_max_bet"`
+	GameExchangeMinAmount           float64                              `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount           float64                              `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit          float64                              `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance    bool                                 `json:"game_exchange_allow_dg_to_balance"`
+	CheckinEnabled                  bool                                 `json:"checkin_enabled"`
+	CheckinMinBalance               float64                              `json:"checkin_min_balance"`
+	CheckinMaxBalance               float64                              `json:"checkin_max_balance"`
+	CheckinLuckEnabled              bool                                 `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier        float64                              `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier        float64                              `json:"checkin_luck_max_multiplier"`
+	CheckinBlindboxEnabled          bool                                 `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType      string                               `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval         int                                  `json:"checkin_blindbox_interval"`
+	RedPacketEnabled                bool                                 `json:"redpacket_enabled"`
+	RedPacketMaxCount               int                                  `json:"redpacket_max_count"`
+	RedPacketExpireHours            int                                  `json:"redpacket_expire_hours"`
+	UsageQueryEnabled               bool                                 `json:"usage_query_enabled"`
+	LeaderboardEnabled              bool                                 `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled       bool                                 `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled   bool                                 `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled       bool                                 `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin         bool                                 `json:"leaderboard_include_admin"`
+	RechargePromotionEnabled        bool                                 `json:"recharge_promotion_enabled"`
+	RechargePromotionMode           string                               `json:"recharge_promotion_mode"`
+	RechargePromotionPercentageRate float64                              `json:"recharge_promotion_percentage_rate"`
+	RechargePromotionMinimumAmount  float64                              `json:"recharge_promotion_minimum_amount"`
+	RechargePromotionMaximumBonus   float64                              `json:"recharge_promotion_maximum_bonus"`
+	RechargePromotionTierRules      []rechargepromotionsettings.TierRule `json:"recharge_promotion_tier_rules"`
+	RechargePromotionStartAt        string                               `json:"recharge_promotion_start_at"`
+	RechargePromotionEndAt          string                               `json:"recharge_promotion_end_at"`
 }
 
 // PublicCompatibility is the intentionally smaller public projection. Values
 // such as transfer limits and check-in amounts remain administrator-only.
 type PublicCompatibility struct {
-	DefaultHomepage               string  `json:"default_homepage"`
-	GameHallEnabled               bool    `json:"game_hall_enabled"`
-	SupportTicketEnabled          bool    `json:"support_ticket_enabled"`
-	GameSlotsEnabled              bool    `json:"game_slots_enabled"`
-	GameSlotsMinBet               float64 `json:"game_slots_min_bet"`
-	GameSlotsMaxBet               float64 `json:"game_slots_max_bet"`
-	GameExchangeMinAmount         float64 `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount         float64 `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit        float64 `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance  bool    `json:"game_exchange_allow_dg_to_balance"`
-	CheckinEnabled                bool    `json:"checkin_enabled"`
-	CheckinLuckEnabled            bool    `json:"checkin_luck_enabled"`
-	CheckinBlindboxEnabled        bool    `json:"checkin_blindbox_enabled"`
-	RedPacketEnabled              bool    `json:"redpacket_enabled"`
-	UsageQueryEnabled             bool    `json:"usage_query_enabled"`
-	LeaderboardEnabled            bool    `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled     bool    `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled bool    `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled     bool    `json:"leaderboard_checkin_enabled"`
-	LeaderboardIncludeAdmin       bool    `json:"leaderboard_include_admin"`
+	DefaultHomepage                 string                               `json:"default_homepage"`
+	GameHallEnabled                 bool                                 `json:"game_hall_enabled"`
+	SupportTicketEnabled            bool                                 `json:"support_ticket_enabled"`
+	GameSlotsEnabled                bool                                 `json:"game_slots_enabled"`
+	GameSlotsMinBet                 float64                              `json:"game_slots_min_bet"`
+	GameSlotsMaxBet                 float64                              `json:"game_slots_max_bet"`
+	GameExchangeMinAmount           float64                              `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount           float64                              `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit          float64                              `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance    bool                                 `json:"game_exchange_allow_dg_to_balance"`
+	CheckinEnabled                  bool                                 `json:"checkin_enabled"`
+	CheckinLuckEnabled              bool                                 `json:"checkin_luck_enabled"`
+	CheckinBlindboxEnabled          bool                                 `json:"checkin_blindbox_enabled"`
+	RedPacketEnabled                bool                                 `json:"redpacket_enabled"`
+	UsageQueryEnabled               bool                                 `json:"usage_query_enabled"`
+	LeaderboardEnabled              bool                                 `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled       bool                                 `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled   bool                                 `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled       bool                                 `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin         bool                                 `json:"leaderboard_include_admin"`
+	RechargePromotionEnabled        bool                                 `json:"recharge_promotion_enabled"`
+	RechargePromotionMode           string                               `json:"recharge_promotion_mode"`
+	RechargePromotionPercentageRate float64                              `json:"recharge_promotion_percentage_rate"`
+	RechargePromotionMinimumAmount  float64                              `json:"recharge_promotion_minimum_amount"`
+	RechargePromotionMaximumBonus   float64                              `json:"recharge_promotion_maximum_bonus"`
+	RechargePromotionTierRules      []rechargepromotionsettings.TierRule `json:"recharge_promotion_tier_rules"`
+	RechargePromotionStartAt        string                               `json:"recharge_promotion_start_at"`
+	RechargePromotionEndAt          string                               `json:"recharge_promotion_end_at"`
 }
 
 // Patch preserves the flat partial-update request contract. Applying it is the
 // one place that maps those keys back to module-owned configuration.
 type Patch struct {
-	CodeFormatSettings            *codeformatsettings.Config `json:"code_format_settings"`
-	DefaultHomepage               *string                    `json:"default_homepage"`
-	GameHallEnabled               *bool                      `json:"game_hall_enabled"`
-	SupportTicketEnabled          *bool                      `json:"support_ticket_enabled"`
-	GameSlotsEnabled              *bool                      `json:"game_slots_enabled"`
-	GameSlotsMinBet               *float64                   `json:"game_slots_min_bet"`
-	GameSlotsMaxBet               *float64                   `json:"game_slots_max_bet"`
-	GameExchangeMinAmount         *float64                   `json:"game_exchange_min_amount"`
-	GameExchangeMaxAmount         *float64                   `json:"game_exchange_max_amount"`
-	GameExchangeDailyLimit        *float64                   `json:"game_exchange_daily_limit"`
-	GameExchangeAllowDGToBalance  *bool                      `json:"game_exchange_allow_dg_to_balance"`
-	CheckinEnabled                *bool                      `json:"checkin_enabled"`
-	CheckinMinBalance             *float64                   `json:"checkin_min_balance"`
-	CheckinMaxBalance             *float64                   `json:"checkin_max_balance"`
-	CheckinLuckEnabled            *bool                      `json:"checkin_luck_enabled"`
-	CheckinLuckMinMultiplier      *float64                   `json:"checkin_luck_min_multiplier"`
-	CheckinLuckMaxMultiplier      *float64                   `json:"checkin_luck_max_multiplier"`
-	CheckinBlindboxEnabled        *bool                      `json:"checkin_blindbox_enabled"`
-	CheckinBlindboxTriggerType    *string                    `json:"checkin_blindbox_trigger_type"`
-	CheckinBlindboxInterval       *int                       `json:"checkin_blindbox_interval"`
-	RedPacketEnabled              *bool                      `json:"redpacket_enabled"`
-	RedPacketMaxCount             *int                       `json:"redpacket_max_count"`
-	RedPacketExpireHours          *int                       `json:"redpacket_expire_hours"`
-	UsageQueryEnabled             *bool                      `json:"usage_query_enabled"`
-	LeaderboardEnabled            *bool                      `json:"leaderboard_enabled"`
-	LeaderboardBalanceEnabled     *bool                      `json:"leaderboard_balance_enabled"`
-	LeaderboardConsumptionEnabled *bool                      `json:"leaderboard_consumption_enabled"`
-	LeaderboardCheckinEnabled     *bool                      `json:"leaderboard_checkin_enabled"`
-	LeaderboardIncludeAdmin       *bool                      `json:"leaderboard_include_admin"`
+	CodeFormatSettings              *codeformatsettings.Config            `json:"code_format_settings"`
+	DefaultHomepage                 *string                               `json:"default_homepage"`
+	GameHallEnabled                 *bool                                 `json:"game_hall_enabled"`
+	SupportTicketEnabled            *bool                                 `json:"support_ticket_enabled"`
+	GameSlotsEnabled                *bool                                 `json:"game_slots_enabled"`
+	GameSlotsMinBet                 *float64                              `json:"game_slots_min_bet"`
+	GameSlotsMaxBet                 *float64                              `json:"game_slots_max_bet"`
+	GameExchangeMinAmount           *float64                              `json:"game_exchange_min_amount"`
+	GameExchangeMaxAmount           *float64                              `json:"game_exchange_max_amount"`
+	GameExchangeDailyLimit          *float64                              `json:"game_exchange_daily_limit"`
+	GameExchangeAllowDGToBalance    *bool                                 `json:"game_exchange_allow_dg_to_balance"`
+	CheckinEnabled                  *bool                                 `json:"checkin_enabled"`
+	CheckinMinBalance               *float64                              `json:"checkin_min_balance"`
+	CheckinMaxBalance               *float64                              `json:"checkin_max_balance"`
+	CheckinLuckEnabled              *bool                                 `json:"checkin_luck_enabled"`
+	CheckinLuckMinMultiplier        *float64                              `json:"checkin_luck_min_multiplier"`
+	CheckinLuckMaxMultiplier        *float64                              `json:"checkin_luck_max_multiplier"`
+	CheckinBlindboxEnabled          *bool                                 `json:"checkin_blindbox_enabled"`
+	CheckinBlindboxTriggerType      *string                               `json:"checkin_blindbox_trigger_type"`
+	CheckinBlindboxInterval         *int                                  `json:"checkin_blindbox_interval"`
+	RedPacketEnabled                *bool                                 `json:"redpacket_enabled"`
+	RedPacketMaxCount               *int                                  `json:"redpacket_max_count"`
+	RedPacketExpireHours            *int                                  `json:"redpacket_expire_hours"`
+	UsageQueryEnabled               *bool                                 `json:"usage_query_enabled"`
+	LeaderboardEnabled              *bool                                 `json:"leaderboard_enabled"`
+	LeaderboardBalanceEnabled       *bool                                 `json:"leaderboard_balance_enabled"`
+	LeaderboardConsumptionEnabled   *bool                                 `json:"leaderboard_consumption_enabled"`
+	LeaderboardCheckinEnabled       *bool                                 `json:"leaderboard_checkin_enabled"`
+	LeaderboardIncludeAdmin         *bool                                 `json:"leaderboard_include_admin"`
+	RechargePromotionEnabled        *bool                                 `json:"recharge_promotion_enabled"`
+	RechargePromotionMode           *string                               `json:"recharge_promotion_mode"`
+	RechargePromotionPercentageRate *float64                              `json:"recharge_promotion_percentage_rate"`
+	RechargePromotionMinimumAmount  *float64                              `json:"recharge_promotion_minimum_amount"`
+	RechargePromotionMaximumBonus   *float64                              `json:"recharge_promotion_maximum_bonus"`
+	RechargePromotionTierRules      *[]rechargepromotionsettings.TierRule `json:"recharge_promotion_tier_rules"`
+	RechargePromotionStartAt        *string                               `json:"recharge_promotion_start_at"`
+	RechargePromotionEndAt          *string                               `json:"recharge_promotion_end_at"`
 }
 
 // HasChanges reports whether a request contains at least one Overlay-owned
@@ -110,7 +135,26 @@ func (p Patch) HasChanges() bool {
 		p.CheckinBlindboxTriggerType != nil || p.CheckinBlindboxInterval != nil || p.RedPacketEnabled != nil ||
 		p.RedPacketMaxCount != nil || p.RedPacketExpireHours != nil || p.UsageQueryEnabled != nil || p.LeaderboardEnabled != nil ||
 		p.LeaderboardBalanceEnabled != nil || p.LeaderboardConsumptionEnabled != nil || p.LeaderboardCheckinEnabled != nil ||
-		p.LeaderboardIncludeAdmin != nil
+		p.LeaderboardIncludeAdmin != nil || p.RechargePromotionEnabled != nil || p.RechargePromotionMode != nil ||
+		p.RechargePromotionPercentageRate != nil || p.RechargePromotionMinimumAmount != nil || p.RechargePromotionMaximumBonus != nil ||
+		p.RechargePromotionTierRules != nil || p.RechargePromotionStartAt != nil || p.RechargePromotionEndAt != nil
+}
+
+// Validate checks syntax that cannot be represented in a typed Config until
+// after partial patches are applied. It keeps invalid time input from being
+// silently ignored by the compatibility adapter.
+func (p Patch) Validate() error {
+	if p.RechargePromotionStartAt != nil {
+		if _, err := rechargepromotionsettings.ParseTime(*p.RechargePromotionStartAt); err != nil {
+			return err
+		}
+	}
+	if p.RechargePromotionEndAt != nil {
+		if _, err := rechargepromotionsettings.ParseTime(*p.RechargePromotionEndAt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Registry) Compatibility(ctx context.Context) (Compatibility, error) {
@@ -127,6 +171,7 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 	codeFormat := snapshot.CodeFormat
 	gameHall := snapshot.GameHall
 	supportTickets := snapshot.SupportTickets
+	rechargePromotions := snapshot.RechargePromotions
 	return Compatibility{
 		CodeFormatSettings: codeFormat,
 		DefaultHomepage:    brandHome.DefaultHomepage,
@@ -142,8 +187,16 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 		RedPacketEnabled: activity.RedPacketEnabled, RedPacketMaxCount: activity.RedPacketMaxCount, RedPacketExpireHours: activity.RedPacketExpireHours,
 		UsageQueryEnabled: activity.UsageQueryEnabled, LeaderboardEnabled: activity.LeaderboardEnabled,
 		LeaderboardBalanceEnabled: activity.LeaderboardBalanceEnabled, LeaderboardConsumptionEnabled: activity.LeaderboardConsumptionEnabled,
-		LeaderboardCheckinEnabled: activity.LeaderboardCheckinEnabled,
-		LeaderboardIncludeAdmin:   activity.LeaderboardIncludeAdmin,
+		LeaderboardCheckinEnabled:       activity.LeaderboardCheckinEnabled,
+		LeaderboardIncludeAdmin:         activity.LeaderboardIncludeAdmin,
+		RechargePromotionEnabled:        rechargePromotions.Enabled,
+		RechargePromotionMode:           rechargePromotions.Mode,
+		RechargePromotionPercentageRate: rechargePromotions.PercentageRate,
+		RechargePromotionMinimumAmount:  rechargePromotions.MinimumAmount,
+		RechargePromotionMaximumBonus:   rechargePromotions.MaximumBonus,
+		RechargePromotionTierRules:      rechargePromotions.TierRules,
+		RechargePromotionStartAt:        rechargepromotionsettings.FormatTime(rechargePromotions.StartAt),
+		RechargePromotionEndAt:          rechargepromotionsettings.FormatTime(rechargePromotions.EndAt),
 	}
 }
 
@@ -159,7 +212,15 @@ func (c Compatibility) Public() PublicCompatibility {
 		RedPacketEnabled: c.RedPacketEnabled, UsageQueryEnabled: c.UsageQueryEnabled,
 		LeaderboardEnabled: c.LeaderboardEnabled, LeaderboardBalanceEnabled: c.LeaderboardBalanceEnabled,
 		LeaderboardConsumptionEnabled: c.LeaderboardConsumptionEnabled, LeaderboardCheckinEnabled: c.LeaderboardCheckinEnabled,
-		LeaderboardIncludeAdmin: c.LeaderboardIncludeAdmin,
+		LeaderboardIncludeAdmin:         c.LeaderboardIncludeAdmin,
+		RechargePromotionEnabled:        c.RechargePromotionEnabled,
+		RechargePromotionMode:           c.RechargePromotionMode,
+		RechargePromotionPercentageRate: c.RechargePromotionPercentageRate,
+		RechargePromotionMinimumAmount:  c.RechargePromotionMinimumAmount,
+		RechargePromotionMaximumBonus:   c.RechargePromotionMaximumBonus,
+		RechargePromotionTierRules:      c.RechargePromotionTierRules,
+		RechargePromotionStartAt:        c.RechargePromotionStartAt,
+		RechargePromotionEndAt:          c.RechargePromotionEndAt,
 	}
 }
 
@@ -169,6 +230,7 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	codeFormat := &snapshot.CodeFormat
 	gameHall := &snapshot.GameHall
 	supportTickets := &snapshot.SupportTickets
+	rechargePromotions := &snapshot.RechargePromotions
 	if p.CodeFormatSettings != nil {
 		*codeFormat = *p.CodeFormatSettings
 	}
@@ -255,6 +317,36 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	}
 	if p.LeaderboardIncludeAdmin != nil {
 		activity.LeaderboardIncludeAdmin = *p.LeaderboardIncludeAdmin
+	}
+	if p.RechargePromotionEnabled != nil {
+		rechargePromotions.Enabled = *p.RechargePromotionEnabled
+	}
+	if p.RechargePromotionMode != nil {
+		rechargePromotions.Mode = *p.RechargePromotionMode
+	}
+	if p.RechargePromotionPercentageRate != nil {
+		rechargePromotions.PercentageRate = *p.RechargePromotionPercentageRate
+	}
+	if p.RechargePromotionMinimumAmount != nil {
+		rechargePromotions.MinimumAmount = *p.RechargePromotionMinimumAmount
+	}
+	if p.RechargePromotionMaximumBonus != nil {
+		rechargePromotions.MaximumBonus = *p.RechargePromotionMaximumBonus
+	}
+	if p.RechargePromotionTierRules != nil {
+		rechargePromotions.TierRules = append([]rechargepromotionsettings.TierRule(nil), (*p.RechargePromotionTierRules)...)
+	}
+	if p.RechargePromotionStartAt != nil {
+		parsed, err := rechargepromotionsettings.ParseTime(*p.RechargePromotionStartAt)
+		if err == nil {
+			rechargePromotions.StartAt = parsed
+		}
+	}
+	if p.RechargePromotionEndAt != nil {
+		parsed, err := rechargepromotionsettings.ParseTime(*p.RechargePromotionEndAt)
+		if err == nil {
+			rechargePromotions.EndAt = parsed
+		}
 	}
 	return snapshot
 }

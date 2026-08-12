@@ -87,6 +87,13 @@
                       <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
                       <span data-testid="summary-credited-amount" class="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">${{ creditedAmount.toFixed(2) }}</span>
                     </div>
+                    <component
+                      v-for="extension in customRechargeSummaryExtensions"
+                      :is="extension.component"
+                      :key="extension.id"
+                      :amount="validAmount"
+                      :base-credit="creditedAmount"
+                    />
                     <div class="border-t border-gray-200 pt-4 dark:border-dark-700">
                       <div class="flex items-end justify-between gap-4">
                         <span class="font-semibold text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
@@ -327,6 +334,7 @@ import { planValiditySuffix as validitySuffixOf } from '@/components/payment/val
 import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSelector.vue'
 import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './paymentUx'
 import { hasWechatResumeQuery, parseWechatResumeRoute, stripWechatResumeQuery } from './paymentWechatResume'
+import { customRechargeSummaryExtensions } from '@/custom/registry'
 
 const i18n = useI18n()
 const { t } = i18n

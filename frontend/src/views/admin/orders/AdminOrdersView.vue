@@ -108,6 +108,13 @@
             </div>
           </div>
         </div>
+        <component
+          v-for="extension in customPaymentOrderDetailExtensions"
+          :is="extension.component"
+          :key="extension.id"
+          :order-id="selectedOrder.id"
+          admin
+        />
       </div>
     </BaseDialog>
 
@@ -132,6 +139,7 @@ import AdminRefundDialog from '@/components/admin/payment/AdminRefundDialog.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import OrderTable from '@/components/payment/OrderTable.vue'
 import { currencySymbol } from '@/components/payment/currency'
+import { customPaymentOrderDetailExtensions } from '@/custom/registry'
 
 interface AuditLog {
   id: number
