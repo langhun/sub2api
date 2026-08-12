@@ -6,14 +6,28 @@ import (
 )
 
 func TestRechargePromotionsMigrationOwnsOnlyCustomTables(t *testing.T) {
-	content, err := files.ReadFile("003_recharge_promotions.sql")
+	base, err := files.ReadFile("003_recharge_promotions.sql")
 	if err != nil {
-		t.Fatalf("read migration: %v", err)
+		t.Fatalf("read base migration: %v", err)
 	}
-	sql := string(content)
+	canonical, compatible := migrationChecksums(string(base))
+	const productionChecksum = "fd089a8d525e32c7368d0e4e585c922b87a2cd90b6b482becbe19b5166b5b707"
+	if canonical != productionChecksum {
+		t.Fatalf("base migration checksum = %s, want production checksum %s", canonical, productionChecksum)
+	}
+	if _, ok := compatible[productionChecksum]; !ok {
+		t.Fatal("base migration no longer accepts the production checksum")
+	}
+
+	upgrade, err := files.ReadFile("004_recharge_promotions_upgrade.sql")
+	if err != nil {
+		t.Fatalf("read upgrade migration: %v", err)
+	}
+	sql := string(base) + "\n" + string(upgrade)
 	for _, expected := range []string{
 		"CREATE TABLE IF NOT EXISTS custom_recharge_promotion_orders",
-		"payment_order_id BIGINT NOT NULL UNIQUE REFERENCES payment_orders(id)",
+		"RENAME COLUMN bonus_rate TO percentage_rate",
+		"FOREIGN KEY (payment_order_id) REFERENCES payment_orders(id)",
 		"tier_rules JSONB NOT NULL",
 		"refunded_bonus_credit",
 		"refunded_credit = refunded_base_credit + refunded_bonus_credit",
@@ -23,7 +37,7 @@ func TestRechargePromotionsMigrationOwnsOnlyCustomTables(t *testing.T) {
 			t.Fatalf("migration missing %q", expected)
 		}
 	}
-	if strings.Contains(sql, "ALTER TABLE payment_orders") || strings.Contains(sql, "DROP TABLE") {
+	if strings.Contains(sql, "ALTER TABLE payment_orders") || strings.Contains(sql, "DROP TABLE") || strings.Contains(sql, "DELETE FROM") {
 		t.Fatal("recharge promotions migration must not mutate upstream tables")
 	}
 }
