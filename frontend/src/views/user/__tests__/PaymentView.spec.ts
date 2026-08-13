@@ -42,7 +42,11 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key,
+      t: (key: string, params?: Record<string, string>) => {
+        if (key === 'payment.minimumToUse') return `最低充值 ${params?.amount ?? ''} 可使用`
+        if (key === 'payment.maximumToUse') return `最高充值 ${params?.amount ?? ''} 可使用`
+        return key
+      },
     }),
   }
 })
@@ -291,11 +295,12 @@ async function mountRecharge(checkout: Partial<CheckoutInfoResponse> = {}, metho
   showError.mockReset()
   showInfo.mockReset()
   showWarning.mockReset()
+  const defaultMethod = checkoutInfoFixture().data.methods.wxpay
   getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({
     ...checkout,
-    methods: {
+    methods: checkout.methods ?? {
       wxpay: {
-        ...checkoutInfoFixture().data.methods.wxpay,
+        ...defaultMethod,
         ...method,
       },
     },
@@ -365,6 +370,39 @@ describe('PaymentView recharge workspace', () => {
       currency: 'CNY',
     })
     expect(wrapper.get('[data-testid="recharge-submit"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('shows a concrete minimum instead of a generic unavailable message', async () => {
+    const wrapper = await mountRecharge({
+      methods: {
+        wxpay: {
+          daily_limit: 0,
+          daily_used: 0,
+          daily_remaining: 0,
+          single_min: 20,
+          single_max: 0,
+          fee_rate: 0,
+          available: true,
+          currency: 'CNY',
+          display_name: 'WeChat Pay',
+        },
+      },
+    })
+
+    wrapper.getComponent(AmountInput).vm.$emit('update:modelValue', 10)
+    await flushPromises()
+
+    const selector = wrapper.getComponent({ name: 'PaymentMethodSelector' })
+    expect(selector.props('methods')).toEqual([expect.objectContaining({
+      type: 'wxpay',
+      display_name: 'WeChat Pay',
+      available: false,
+      unavailable_reason: 'minimum',
+      minimum_amount: 20,
+      currency: 'CNY',
+    })])
+    expect(wrapper.text()).toContain('最低充值 ¥20.00 可使用')
+    expect(wrapper.text()).not.toContain('payment.amountNoMethod')
   })
 })
 

@@ -688,19 +688,23 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
 
 const amountError = computed(() => {
   if (validAmount.value <= 0) return ''
-  // No method can handle this amount
+  // Prefer a concrete limit over the generic no-method message. The method
+  // card stays visible so users can see exactly how much is required.
+  const ml = selectedLimit.value
+  if (ml) {
+    if (ml.single_min > 0 && totalAmount.value < ml.single_min) {
+      return t('payment.minimumToUse', { amount: formatSelectedPaymentAmount(ml.single_min) })
+    }
+    if (ml.single_max > 0 && totalAmount.value > ml.single_max) {
+      return t('payment.maximumToUse', { amount: formatSelectedPaymentAmount(ml.single_max) })
+    }
+  }
   if (!enabledMethods.value.some((m) => {
     const currency = normalizePaymentCurrency(visibleMethods.value[m]?.currency)
     const payAmount = rechargeAmountsForCurrency(validAmount.value, currency).total
     return amountFitsMethod(payAmount, m)
   })) {
     return t('payment.amountNoMethod')
-  }
-  // Selected method can't handle this amount (but others can)
-  const ml = selectedLimit.value
-  if (ml) {
-    if (ml.single_min > 0 && totalAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
-    if (ml.single_max > 0 && totalAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
   }
   return ''
 })

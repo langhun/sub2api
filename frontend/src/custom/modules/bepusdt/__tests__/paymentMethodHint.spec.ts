@@ -2,7 +2,6 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
-import { bepusdtLocaleMessages } from '../locales'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -15,7 +14,7 @@ vi.mock('vue-i18n', () => ({
 }))
 
 describe('BEpusdt payment method hint', () => {
-  it('shows the configured minimum instead of only marking USDT unavailable', () => {
+  it('shows the configured minimum and becomes selectable once the amount qualifies', async () => {
     const wrapper = mount(PaymentMethodSelector, {
       props: {
         selected: '',
@@ -34,6 +33,19 @@ describe('BEpusdt payment method hint', () => {
     expect(wrapper.get('button').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="payment-method-label"]').text()).toBe('USDT')
     expect(wrapper.get('[data-testid="payment-method-limit-hint"]').text()).toBe('最低充值 ¥20.00 可使用')
-    expect(bepusdtLocaleMessages.zh.payment.minimumToUse).toContain('{amount}')
+
+    await wrapper.setProps({
+      methods: [{
+        type: 'bepusdt',
+        display_name: 'USDT',
+        fee_rate: 0,
+        available: true,
+        minimum_amount: 20,
+        currency: 'CNY',
+      }],
+    })
+
+    expect(wrapper.get('button').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('[data-testid="payment-method-limit-hint"]').exists()).toBe(false)
   })
 })

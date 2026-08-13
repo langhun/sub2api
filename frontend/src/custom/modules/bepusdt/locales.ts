@@ -2,15 +2,11 @@ export const bepusdtLocaleMessages = {
   en: {
     payment: {
       methods: { bepusdt: 'USDT' },
-      minimumToUse: 'Minimum top-up {amount} to use',
-      maximumToUse: 'Maximum top-up {amount} to use',
     },
   },
   zh: {
     payment: {
       methods: { bepusdt: 'USDT' },
-      minimumToUse: '最低充值 {amount} 可使用',
-      maximumToUse: '最高充值 {amount} 可使用',
     },
   },
 } as const
