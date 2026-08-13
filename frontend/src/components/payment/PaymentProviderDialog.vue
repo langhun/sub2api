@@ -425,9 +425,19 @@ function webhookHintKey(providerKey: string): string {
   return providerWebhookHintMap[providerKey] || customPaymentDefinition(providerKey)?.webhookHintKey || ''
 }
 
+function buildCallbackUrl(baseUrl: string, path: string): string {
+  return baseUrl.replace(/\/+$/, '') + path
+}
+
 const providerWebhookUrl = computed(() => {
   const path = getWebhookPath(form.provider_key)
-  return webhookHintKey(form.provider_key) && path ? defaultBaseUrl + path : ''
+  if (!webhookHintKey(form.provider_key) || !path) return ''
+
+  const paths = getProviderCallbackPaths(form.provider_key)
+  const baseUrl = paths?.notifyUrl === path
+    ? notifyBaseUrl.value.trim() || defaultBaseUrl
+    : defaultBaseUrl
+  return buildCallbackUrl(baseUrl, path)
 })
 
 const providerWebhookHint = computed(() =>
@@ -714,8 +724,8 @@ function handleSave() {
     const returnBase = returnBaseUrl.value.trim() || defaultBaseUrl
     notifyBaseUrl.value = notifyBase
     returnBaseUrl.value = returnBase
-    if (paths.notifyUrl) filteredConfig['notifyUrl'] = notifyBase + paths.notifyUrl
-    if (paths.returnUrl) filteredConfig['returnUrl'] = returnBase + paths.returnUrl
+    if (paths.notifyUrl) filteredConfig['notifyUrl'] = buildCallbackUrl(notifyBase, paths.notifyUrl)
+    if (paths.returnUrl) filteredConfig['returnUrl'] = buildCallbackUrl(returnBase, paths.returnUrl)
   }
 
   emit('save', {
