@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 )
@@ -8,7 +9,7 @@ import (
 var upstreamModelNotFoundKeywords = []string{"model not found", "unknown model", "not found"}
 
 func isUpstreamModelNotFoundError(statusCode int, body []byte) bool {
-	if statusCode != http.StatusNotFound {
+	if statusCode != http.StatusNotFound && !isExplicitBadRequestModelNotFound(statusCode, body) {
 		return false
 	}
 	normalized := normalizeModelNotFoundBody(body)
@@ -16,6 +17,25 @@ func isUpstreamModelNotFoundError(statusCode int, body []byte) bool {
 		return false
 	}
 	return containsModelNotFoundKeyword(normalized)
+}
+
+// isExplicitBadRequestModelNotFound recognizes OpenAI-compatible upstreams
+// which return a 400, rather than a 404, for a model lookup failure. Requiring
+// the structured model_not_found code avoids treating arbitrary validation
+// errors as account/model capability failures.
+func isExplicitBadRequestModelNotFound(statusCode int, body []byte) bool {
+	if statusCode != http.StatusBadRequest || len(body) == 0 {
+		return false
+	}
+	var payload struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(payload.Error.Code), "model_not_found")
 }
 
 func isModelNotFoundError(statusCode int, body []byte) bool {

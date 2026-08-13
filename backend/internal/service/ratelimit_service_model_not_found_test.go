@@ -69,6 +69,28 @@ func TestRateLimitService_HandleUpstreamError_ModelNotFoundUsesModelRateLimit(t 
 	require.WithinDuration(t, time.Now().Add(upstreamModelNotFoundCooldown), call.resetAt, 5*time.Second)
 }
 
+func TestRateLimitService_HandleUpstreamError_BadRequestModelNotFoundUsesModelRateLimit(t *testing.T) {
+	repo := &modelNotFoundAccountRepoStub{}
+	svc := &RateLimitService{accountRepo: repo}
+	account := openAIModelNotFoundTempAccount()
+
+	handled := svc.HandleUpstreamError(
+		context.Background(),
+		account,
+		http.StatusBadRequest,
+		http.Header{},
+		[]byte(`{"error":{"code":"model_not_found","message":"unknown provider for model gpt-5.6-terra"}}`),
+		"gpt-5.6-terra",
+	)
+
+	require.True(t, handled)
+	require.Zero(t, repo.tempCalls)
+	require.Len(t, repo.modelRateLimitCalls, 1)
+	call := repo.modelRateLimitCalls[0]
+	require.Equal(t, "gpt-5.6-terra", call.scope)
+	require.Equal(t, upstreamModelNotFoundReason, call.reason)
+}
+
 func TestRateLimitService_HandleUpstreamError_ModelNotFoundWriteFailureDoesNotTempUnschedule(t *testing.T) {
 	repo := &modelNotFoundAccountRepoStub{modelRateLimitErr: errors.New("write failed")}
 	svc := &RateLimitService{accountRepo: repo}
