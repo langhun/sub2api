@@ -27,6 +27,14 @@ func TestRechargePromotionsMigrationOwnsOnlyCustomTables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read tiered percentage migration: %v", err)
 	}
+	_, tieredPercentageCompatible := migrationChecksums(string(tieredPercentage))
+	for _, checksum := range historicalMigrationChecksums["005_recharge_promotions_tiered_percentage.sql"] {
+		tieredPercentageCompatible[checksum] = struct{}{}
+	}
+	const deployedTieredPercentageChecksum = "7ecb972b0cef7ba126c2b933385ef8b80ce5820121bacd61d899ee96656224ff"
+	if _, ok := tieredPercentageCompatible[deployedTieredPercentageChecksum]; !ok {
+		t.Fatal("tiered percentage migration no longer accepts the deployed checksum")
+	}
 	sql := string(base) + "\n" + string(upgrade) + "\n" + string(tieredPercentage)
 	for _, expected := range []string{
 		"CREATE TABLE IF NOT EXISTS custom_recharge_promotion_orders",

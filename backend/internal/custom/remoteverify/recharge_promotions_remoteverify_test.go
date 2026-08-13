@@ -77,6 +77,8 @@ func TestRemoteDatabaseRechargePromotionVerification(t *testing.T) {
 			"001_activity_redeem_metadata.sql",
 			"002_support_tickets.sql",
 			"003_recharge_promotions.sql",
+			"004_recharge_promotions_upgrade.sql",
+			"005_recharge_promotions_tiered_percentage.sql",
 		}
 		if len(customLedger) != len(wantCustomMigrations) {
 			t.Fatalf("unexpected custom migration ledger: %#v", customLedger)
@@ -372,7 +374,8 @@ CREATE TABLE payment_orders (
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     out_trade_no TEXT NOT NULL UNIQUE,
     amount NUMERIC(20, 8) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ
 );`)
 	if err != nil {
 		t.Fatalf("prepare minimal upstream schema for Overlay verification: %v", err)

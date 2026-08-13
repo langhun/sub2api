@@ -18,6 +18,15 @@ import (
 //go:embed *.sql
 var files embed.FS
 
+var historicalMigrationChecksums = map[string][]string{
+	// This checksum was recorded by the first production candidate that applied
+	// 005 before the final release artifact was built. Keep the migration file
+	// immutable and accept only that known deployed revision.
+	"005_recharge_promotions_tiered_percentage.sql": {
+		"7ecb972b0cef7ba126c2b933385ef8b80ce5820121bacd61d899ee96656224ff",
+	},
+}
+
 const customMigrationsAdvisoryLockID int64 = 694208311321144028
 
 const customSchemaMigrationsTableDDL = `
@@ -70,6 +79,9 @@ func Apply(ctx context.Context, db *sql.DB) error {
 			continue
 		}
 		checksum, compatibleChecksums := migrationChecksums(content)
+		for _, historicalChecksum := range historicalMigrationChecksums[name] {
+			compatibleChecksums[historicalChecksum] = struct{}{}
+		}
 
 		var existing string
 		err = conn.QueryRowContext(ctx, "SELECT checksum FROM custom_schema_migrations WHERE filename = $1", name).Scan(&existing)
