@@ -198,6 +198,21 @@ func TestPcGroupByPaymentType(t *testing.T) {
 			t.Fatalf("stripe with empty types should still be in stripe group, got %v", groups)
 		}
 	})
+
+	t.Run("external provider with no supported types uses registered visible method", func(t *testing.T) {
+		const providerKey = "external-limit-test"
+		payment.RegisterExternalProviderDefinition(payment.ExternalProviderDefinition{
+			ProviderKey:    providerKey,
+			VisibleMethods: []payment.PaymentType{providerKey},
+		})
+		inst := makeInstance(1, providerKey, "", "")
+
+		groups := pcGroupByPaymentType([]*dbent.PaymentProviderInstance{inst})
+
+		if len(groups[providerKey]) != 1 || groups[providerKey][0].ID != inst.ID {
+			t.Fatalf("external provider group should contain the registered visible method, got %v", groups)
+		}
+	})
 }
 
 func TestPcAggregateMethodCurrency(t *testing.T) {
