@@ -42,13 +42,28 @@ func RegisterRoutes(
 	if runtime.SupportTickets != nil {
 		runtime.SupportTickets.RegisterRoutes(r, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
 	}
-	if runtime.OpenAIAT != nil {
+	if runtime.OpenAIRT != nil {
 		v1 := r.Group("/api/v1")
 		admin := v1.Group("/custom/admin")
 		admin.Use(gin.HandlerFunc(adminAuth))
 		admin.Use(gin.HandlerFunc(auditLog))
 		admin.Use(middleware.AdminComplianceGuard(settingService))
-		runtime.OpenAIAT.RegisterRoutes(admin)
+		runtime.OpenAIRT.RegisterRoutes(admin)
+	}
+	if runtime.RechargePromotions != nil {
+		v1 := r.Group("/api/v1")
+		preview := v1.Group("")
+		preview.Use(gin.HandlerFunc(jwtAuth))
+		preview.Use(middleware.BackendModeUserGuard(settingService))
+		authenticated := v1.Group("")
+		authenticated.Use(gin.HandlerFunc(jwtAuth))
+		authenticated.Use(middleware.BackendModeUserGuard(settingService))
+		authenticated.Use(gin.HandlerFunc(auditLog))
+		admin := v1.Group("/custom/admin")
+		admin.Use(gin.HandlerFunc(adminAuth))
+		admin.Use(gin.HandlerFunc(auditLog))
+		admin.Use(middleware.AdminComplianceGuard(settingService))
+		runtime.RechargePromotions.RegisterRoutes(admin, preview, authenticated)
 	}
 	if runtime.ActivityCheckin != nil {
 		v1 := r.Group("/api/v1")

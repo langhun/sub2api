@@ -629,7 +629,10 @@ func (s *PaymentService) hasAuditLog(ctx context.Context, orderID int64, action 
 }
 
 func (s *PaymentService) applyAffiliateRebateForOrder(ctx context.Context, o *dbent.PaymentOrder) error {
-	baseAmount := affiliateRebateBaseAmount(o)
+	baseAmount, err := s.resolveAffiliateRebateBase(ctx, o)
+	if err != nil {
+		return fmt.Errorf("resolve affiliate rebate base: %w", err)
+	}
 	if o == nil || baseAmount <= 0 {
 		return nil
 	}

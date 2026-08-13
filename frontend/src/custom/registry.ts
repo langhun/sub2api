@@ -21,7 +21,10 @@ import {
   gameHallFeatureFlags,
   gameHallSettingsPanels,
 } from './modules/game-hall/settings'
-import { openAIAccountActions, type CustomAccountAction } from './modules/openai-at/accountActions'
+import { openAIAccountActions, type CustomAccountAction } from './modules/openai-rt/accountActions'
+import RechargePromotionOrderBreakdown from './modules/recharge-promotions/RechargePromotionOrderBreakdown.vue'
+import RechargePromotionSummary from './modules/recharge-promotions/RechargePromotionSummary.vue'
+import { rechargePromotionSettingsPanels } from './modules/recharge-promotions/settings'
 export { customPublicSettingsDefaults } from './publicSettings'
 
 export interface CustomNavigationItem {
@@ -52,8 +55,28 @@ export interface CustomNotificationCenterExtension {
 
 export interface CustomAccountActionDefinition extends CustomAccountAction {}
 
+export interface CustomRechargeSummaryExtension {
+  id: string
+  component: Component
+}
+
+export interface CustomPaymentOrderDetailExtension {
+  id: string
+  component: Component
+}
+
 export const customAccountActions: readonly CustomAccountActionDefinition[] = [
   ...openAIAccountActions,
+]
+
+// Core checkout and order pages render these components through the fixed
+// generic mount points. They do not import feature implementations directly.
+export const customRechargeSummaryExtensions: readonly CustomRechargeSummaryExtension[] = [
+  { id: 'recharge-promotions', component: RechargePromotionSummary },
+]
+
+export const customPaymentOrderDetailExtensions: readonly CustomPaymentOrderDetailExtension[] = [
+  { id: 'recharge-promotions', component: RechargePromotionOrderBreakdown },
 ]
 
 export const customLedgerDisplay = {
@@ -103,6 +126,7 @@ export const customSettingsPanels: readonly CustomSettingsPanel[] = [
   ...brandHomeSettingsPanels,
   ...gameHallSettingsPanels,
   ...activitySettingsPanels,
+  ...rechargePromotionSettingsPanels,
 ].sort((left, right) => left.order - right.order)
 
 export const customFeatureFlags: readonly FeatureFlagDefinition[] = [

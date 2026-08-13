@@ -84,6 +84,26 @@ func TestOpenAIOAuthService_BuildAccountCredentialsForPAT(t *testing.T) {
 	require.NotContains(t, credentials, "id_token")
 }
 
+func TestAccountIsOpenAIPersonalAccessTokenRecognizesLegacyATToken(t *testing.T) {
+	legacyPAT := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "at-legacy-token",
+		},
+	}
+	nonPAT := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "oauth-access-token",
+		},
+	}
+
+	require.True(t, legacyPAT.IsOpenAIPersonalAccessToken())
+	require.False(t, nonPAT.IsOpenAIPersonalAccessToken())
+}
+
 func TestNormalizeOpenAIPersonalAccessTokenCredentialsRemovesOAuthFields(t *testing.T) {
 	account := &Account{
 		Platform: PlatformOpenAI,

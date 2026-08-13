@@ -50,6 +50,9 @@ func (m *HandlerMount) ValidateUpdate(ctx context.Context, payload json.RawMessa
 	if !patch.HasChanges() {
 		return false, nil
 	}
+	if err := patch.Validate(); err != nil {
+		return true, err
+	}
 	previous, err := m.snapshot(ctx)
 	if err != nil {
 		return false, err
@@ -64,6 +67,9 @@ func (m *HandlerMount) ApplyUpdate(ctx context.Context, payload json.RawMessage)
 	}
 	if !patch.HasChanges() {
 		return nil
+	}
+	if err := patch.Validate(); err != nil {
+		return err
 	}
 	previous, err := m.snapshot(ctx)
 	if err != nil {

@@ -1,6 +1,7 @@
 package custom_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
+	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
+	rechargepromotionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions/settings"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -78,6 +81,35 @@ func TestRegisterRoutesMountsGameHallModule(t *testing.T) {
 	require.True(t, exists)
 	_, exists = routes["GET /api/v1/admin/blindbox/prize-items"]
 	require.True(t, exists)
+}
+
+func TestRechargePromotionPreviewDoesNotEnterAuditMiddleware(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	auditCalls := 0
+	passthrough := func(c *gin.Context) { c.Next() }
+	audit := func(c *gin.Context) {
+		auditCalls++
+		c.Next()
+	}
+
+	custom.RegisterRoutes(
+		router,
+		&custom.Runtime{RechargePromotions: rechargepromotions.NewModule(rechargePromotionSettingsStub{}, nil)},
+		middleware.JWTAuthMiddleware(passthrough),
+		middleware.AdminAuthMiddleware(passthrough),
+		middleware.AuditLogMiddleware(audit),
+		nil,
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/recharge-promotions/preview", bytes.NewBufferString(`{"amount":10,"base_credit":10}`))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Zero(t, auditCalls)
 }
 
 func TestRegisterRoutesUsageQueryGateOnlyControlsUsageEndpoints(t *testing.T) {
@@ -150,6 +182,12 @@ func TestRegisterRoutesUsageQueryGateOnlyControlsUsageEndpoints(t *testing.T) {
 }
 
 type routeHandlerStub struct{}
+
+type rechargePromotionSettingsStub struct{}
+
+func (rechargePromotionSettingsStub) ReadRechargePromotions(context.Context) (rechargepromotionsettings.Config, error) {
+	return rechargepromotionsettings.Config{Enabled: true, Mode: rechargepromotionsettings.ModePercentage, PercentageRate: 10}, nil
+}
 
 func (routeHandlerStub) ListPrizeItems(*gin.Context)           {}
 func (routeHandlerStub) CreatePrizeItem(*gin.Context)          {}

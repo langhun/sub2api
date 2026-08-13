@@ -310,6 +310,14 @@ export default {
   // Payment System
   payment: {
     title: '充值/订阅',
+    rechargeTitle: '余额充值',
+    rechargeSubtitle: '选择充值金额并完成支付，支付成功后余额将自动到账。',
+    subscriptionTitle: '订阅套餐',
+    subscriptionSubtitle: '选择适合的套餐，确认权益和有效期后完成订阅。',
+    subscriptionCheckoutTitle: '确认订阅',
+    subscriptionCheckoutSubtitle: '核对套餐、支付方式与实付金额后提交订单。',
+    orderSummary: '到账明细',
+    summaryAccount: '充值账户：{username}',
     amountLabel: '充值金额',
     paymentAmount: '支付金额',
     creditedBalance: '到账余额',
@@ -415,7 +423,6 @@ export default {
     amountTooLow: '最低金额为 {min}',
     amountTooHigh: '最高金额为 {max}',
     amountNoMethod: '该金额没有可用的支付方式',
-    rechargeRatePreview: '当前倍率：1 CNY = {usd} USD',
     refundReason: '退款原因',
     refundReasonPlaceholder: '请描述您的退款原因',
     stripeLoadFailed: '支付组件加载失败，请刷新页面重试',

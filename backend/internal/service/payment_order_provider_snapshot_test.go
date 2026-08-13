@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"testing"
 
@@ -86,6 +87,7 @@ func TestCreateOrderInTx_WritesProviderSnapshot(t *testing.T) {
 		},
 		88,
 		88,
+		88,
 		0,
 		88,
 		&payment.InstanceSelection{
@@ -109,6 +111,30 @@ func TestCreateOrderInTx_WritesProviderSnapshot(t *testing.T) {
 	require.NotContains(t, order.ProviderSnapshot, "secretKey")
 	require.NotContains(t, order.ProviderSnapshot, "supported_types")
 	require.NotContains(t, order.ProviderSnapshot, "instance_name")
+}
+
+func TestCreateOrderInTx_RollsBackWhenBalanceExtensionSnapshotFails(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	user, err := client.User.Create().
+		SetEmail("promotion-rollback@example.com").
+		SetPasswordHash("hash").
+		SetUsername("promotion-rollback").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{
+		entClient: client,
+		balanceOrderExtension: balanceOrderExtensionStub{
+			result:     BalanceOrderExtensionResult{CreditedAmount: 12},
+			persistErr: errors.New("snapshot write failed"),
+		},
+	}
+	_, err = svc.createOrderInTx(ctx, CreateOrderRequest{UserID: user.ID, PaymentType: payment.TypeAlipay, OrderType: payment.OrderTypeBalance}, &User{ID: user.ID, Email: user.Email, Username: user.Username}, nil, &PaymentConfig{MaxPendingOrders: 3, OrderTimeoutMin: 30}, 12, 12, 12, 0, 12, nil)
+	require.ErrorContains(t, err, "snapshot write failed")
+	count, err := client.PaymentOrder.Query().Count(ctx)
+	require.NoError(t, err)
+	require.Zero(t, count)
 }
 
 func TestBuildPaymentOrderProviderSnapshot_UsesWxpayJSAPIAppIDForOpenIDOrders(t *testing.T) {

@@ -14,7 +14,8 @@ import (
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	bepusdt "github.com/Wei-Shaw/sub2api/internal/custom/modules/bepusdt"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
-	openaiat "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-at"
+	openairt "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-rt"
+	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
@@ -39,7 +40,8 @@ type Runtime struct {
 	ActivityRewardsHTTP *activityrewards.Module
 	GameHall            *gamehall.Module
 	SupportTickets      *supporttickets.Module
-	OpenAIAT            *openaiat.Module
+	OpenAIRT            *openairt.Module
+	RechargePromotions  *rechargepromotions.Module
 	UsageQuerySettings  UsageQuerySettings
 }
 
@@ -54,6 +56,7 @@ func NewRuntime(
 	tokenCacheInvalidator service.TokenCacheInvalidator,
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
+	paymentService *service.PaymentService,
 ) (*Runtime, error) {
 	bepusdt.Register()
 	if err := custommigrations.Apply(context.Background(), db); err != nil {
@@ -124,6 +127,10 @@ func NewRuntime(
 	if err != nil {
 		return nil, err
 	}
+	rechargePromotions := rechargepromotions.NewModule(customSettingsRegistry, db)
+	if paymentService != nil {
+		paymentService.SetBalanceOrderExtension(rechargePromotions)
+	}
 	return &Runtime{
 		ActivityCheckin:     activityCheckin,
 		ActivityLeaderboard: activityleaderboard.NewDatabaseModule(client, db),
@@ -132,7 +139,8 @@ func NewRuntime(
 		ActivityRewardsHTTP: activityRewardsHTTP,
 		GameHall:            gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
 		SupportTickets:      supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
-		OpenAIAT:            openaiat.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
+		OpenAIRT:            openairt.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
+		RechargePromotions:  rechargePromotions,
 		UsageQuerySettings:  customSettingsRegistry,
 	}, nil
 }

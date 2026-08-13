@@ -3,6 +3,7 @@ import { flushPromises, shallowMount } from '@vue/test-utils'
 import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
+import AmountInput from '@/components/payment/AmountInput.vue'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import type { CheckoutInfoResponse, MethodLimit, SubscriptionPlan } from '@/types/payment'
 
@@ -276,6 +277,78 @@ async function mountSubscriptionPlanList(planCount: number) {
   await flushPromises()
   return wrapper
 }
+
+async function mountRecharge(checkout: Partial<CheckoutInfoResponse> = {}, method: Partial<MethodLimit> = {}) {
+  vi.useRealTimers()
+  routeState.path = '/purchase'
+  routeState.query = {}
+  routerReplace.mockReset().mockResolvedValue(undefined)
+  routerPush.mockReset().mockResolvedValue(undefined)
+  routerResolve.mockClear()
+  createOrder.mockReset()
+  refreshUser.mockReset()
+  fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+  showError.mockReset()
+  showInfo.mockReset()
+  showWarning.mockReset()
+  getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({
+    ...checkout,
+    methods: {
+      wxpay: {
+        ...checkoutInfoFixture().data.methods.wxpay,
+        ...method,
+      },
+    },
+  }))
+  bridgeInvoke.mockReset()
+  window.localStorage.clear()
+  ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
+
+  const wrapper = shallowMount(PaymentView, {
+    global: {
+      stubs: {
+        AppLayout: {
+          template: '<div><slot /></div>',
+        },
+        Teleport: true,
+        Transition: false,
+      },
+    },
+  })
+  await flushPromises()
+  await flushPromises()
+  return wrapper
+}
+
+describe('PaymentView recharge workspace', () => {
+  it('shows a zero-value summary and keeps checkout disabled until an amount is selected', async () => {
+    const wrapper = await mountRecharge({}, { currency: 'CNY' })
+
+    expect(wrapper.get('[data-testid="summary-payment-amount"]').text()).toBe(formatPaymentAmount(0, 'CNY'))
+    expect(wrapper.get('[data-testid="summary-credited-amount"]').text()).toBe('$0.00')
+    expect(wrapper.get('[data-testid="recharge-submit"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.getComponent(AmountInput).props('currency')).toBe('CNY')
+    expect(wrapper.getComponent(AmountInput).props('amounts')).toEqual([10, 20, 50, 100, 200, 500])
+  })
+
+  it('updates payment, fee, credited balance, and total from the selected amount', async () => {
+    const wrapper = await mountRecharge({
+      balance_recharge_multiplier: 0.14,
+      recharge_fee_rate: 2.5,
+    }, { currency: 'CNY' })
+
+    wrapper.getComponent(AmountInput).vm.$emit('update:modelValue', 100)
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="summary-payment-amount"]').text()).toBe(formatPaymentAmount(100, 'CNY'))
+    expect(wrapper.get('[data-testid="summary-fee-amount"]').text()).toBe(formatPaymentAmount(2.5, 'CNY'))
+    expect(wrapper.get('[data-testid="summary-credited-amount"]').text()).toBe('$14.00')
+    expect(wrapper.get('[data-testid="summary-total-amount"]').text()).toBe(formatPaymentAmount(102.5, 'CNY'))
+    expect(wrapper.get('[data-testid="recharge-submit"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.text()).not.toContain('payment.rechargeRatePreview')
+    expect(wrapper.text()).not.toContain('payment.rechargeRateTitle')
+  })
+})
 
 describe('PaymentView subscription plan grid', () => {
   it.each([3, 4, 6])('keeps %i plans on the existing mobile/tablet/desktop grid', async (planCount) => {

@@ -14,6 +14,7 @@ export const activityAdminLocaleMessages = {
         entrySwitchesTitle: 'Entry and activity switches', entrySwitchesDescription: 'Control user entries, leaderboard tabs, and API access.',
         checkinTitle: 'Check-in Settings', checkinDescription: 'Configure normal and lucky check-in rewards', normalCheckin: 'Enable normal check-in', luckCheckin: 'Enable lucky check-in',
         minReward: 'Minimum reward', maxReward: 'Maximum reward', minMultiplier: 'Minimum multiplier', maxMultiplier: 'Maximum multiplier',
+        redpacketEnabled: 'Enable red packets', redpacketMaxCount: 'Maximum red packets', redpacketExpireHours: 'Expiration time (hours)',
       },
       checkin: {
         blindboxTitle: 'Check-in Blind Box', blindboxDescription: 'Configure triggers and maintain the prize pool', blindboxTriggerType: 'Trigger type', blindboxTriggerStreak: 'Consecutive check-ins',
@@ -58,6 +59,7 @@ export const activityAdminLocaleMessages = {
         entrySwitchesTitle: '入口与活动开关', entrySwitchesDescription: '集中控制用户端入口、排行榜标签及其接口访问。',
         checkinTitle: '签到设置', checkinDescription: '配置普通签到和运气签到奖励', normalCheckin: '启用普通签到', luckCheckin: '启用运气签到',
         minReward: '最小奖励', maxReward: '最大奖励', minMultiplier: '最小倍率', maxMultiplier: '最大倍率',
+        redpacketEnabled: '启用红包功能', redpacketMaxCount: '红包最大份数', redpacketExpireHours: '红包过期时间（小时）',
       },
       checkin: {
         blindboxTitle: '签到盲盒', blindboxDescription: '配置触发规则并维护盲盒奖池', blindboxTriggerType: '触发方式', blindboxTriggerStreak: '连续签到',

@@ -286,6 +286,14 @@ export default {
   // Payment System
   payment: {
     title: 'Recharge / Subscription',
+    rechargeTitle: 'Balance Top-Up',
+    rechargeSubtitle: 'Choose an amount and complete payment. Your balance will be credited automatically after payment succeeds.',
+    subscriptionTitle: 'Subscription Plans',
+    subscriptionSubtitle: 'Choose a plan and review its benefits and validity before subscribing.',
+    subscriptionCheckoutTitle: 'Confirm Subscription',
+    subscriptionCheckoutSubtitle: 'Review the plan, payment method, and total before submitting the order.',
+    orderSummary: 'Credit Summary',
+    summaryAccount: 'Account: {username}',
     amountLabel: 'Amount',
     paymentAmount: 'Payment Amount',
     creditedBalance: 'Credited Balance',
@@ -391,7 +399,6 @@ export default {
     amountTooLow: 'Minimum amount is {min}',
     amountTooHigh: 'Maximum amount is {max}',
     amountNoMethod: 'No payment method available for this amount',
-    rechargeRatePreview: 'Current rate: 1 CNY = {usd} USD',
     refundReason: 'Refund Reason',
     refundReasonPlaceholder: 'Please describe your refund reason',
     stripeLoadFailed: 'Failed to load payment component. Please refresh and try again.',
