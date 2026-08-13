@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	rechargepromotionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions/settings"
 	"github.com/stretchr/testify/require"
 )
 
@@ -85,4 +86,21 @@ func TestRegistryWriteRejectsInvalidModuleValuesWithoutWriting(t *testing.T) {
 func TestMergePublicValuesRejectsOverlappingOwnership(t *testing.T) {
 	_, err := mergePublicValues(map[string]any{"shared": true}, map[string]any{"shared": false})
 	require.EqualError(t, err, fmt.Sprintf("duplicate custom public setting key %q", "shared"))
+}
+
+func TestRechargePromotionTieredPercentageCompatibility(t *testing.T) {
+	rules := []rechargepromotionsettings.TieredPercentageRule{
+		{MinimumAmount: 10, MaximumAmount: 50, PercentageRate: 5},
+		{MinimumAmount: 50, MaximumAmount: 0, PercentageRate: 8},
+	}
+	snapshot := Snapshot{RechargePromotions: rechargepromotionsettings.Default()}
+	mode := rechargepromotionsettings.ModeTieredPercentage
+	patch := Patch{RechargePromotionMode: &mode, RechargePromotionRateTiers: &rules}
+	require.True(t, patch.HasChanges())
+
+	updated := patch.Apply(snapshot)
+	require.Equal(t, rules, updated.RechargePromotions.TieredPercentageRules)
+	compatibility := CompatibilityFromSnapshot(updated)
+	require.Equal(t, rules, compatibility.RechargePromotionRateTiers)
+	require.Equal(t, rules, compatibility.Public().RechargePromotionRateTiers)
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   PAYMENT_CURRENCY_OPTIONS,
-  PROVIDER_CONFIG_FIELDS,
+  getProviderConfigFields,
   isBuiltInAlipayMethod,
   isBuiltInWxpayMethod,
   parseEasyPayCustomMethods,
@@ -9,7 +9,7 @@ import {
 } from '@/components/payment/providerConfig'
 
 function findField(providerKey: string, key: string) {
-  const fields = PROVIDER_CONFIG_FIELDS[providerKey] || []
+  const fields = getProviderConfigFields(providerKey)
   return fields.find(field => field.key === key)
 }
 

@@ -2,6 +2,8 @@
  * Shared constants and types for payment provider management.
  */
 
+import { customPaymentDefinition, customPaymentTypeDefinition } from '@/custom/payments'
+
 // --- Types ---
 
 export interface ConfigFieldDef {
@@ -36,20 +38,31 @@ export interface CallbackPaths {
 // --- Constants ---
 
 /** Maps provider key → available payment types. */
-export const PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
+export const BUILT_IN_PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
   easypay: ['alipay', 'wxpay'],
   alipay: ['alipay'],
   wxpay: ['wxpay'],
   stripe: ['card', 'alipay', 'wxpay', 'link'],
   airwallex: ['airwallex'],
-  bepusdt: ['bepusdt'],
+}
+
+export function getProviderSupportedTypes(providerKey: string): string[] {
+  return BUILT_IN_PROVIDER_SUPPORTED_TYPES[providerKey]
+    || customPaymentDefinition(providerKey)?.supportedTypes.slice()
+    || []
 }
 
 /** Available payment modes for EasyPay providers. */
 export const EASYPAY_PAYMENT_MODES = ['qrcode', 'popup'] as const
 
 /** Fixed display order for user-facing payment methods */
-export const METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'stripe', 'airwallex', 'bepusdt'] as const
+const BUILT_IN_METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'stripe', 'airwallex'] as const
+
+export function paymentMethodOrder(type: string): number {
+  const builtIn = (BUILT_IN_METHOD_ORDER as readonly string[]).indexOf(type)
+  if (builtIn >= 0) return builtIn * 10
+  return customPaymentTypeDefinition(type)?.methodOrder ?? 999
+}
 
 export function isBuiltInAlipayMethod(type: string): boolean {
   return type === 'alipay' || type === 'alipay_direct'
@@ -111,7 +124,10 @@ export const WEBHOOK_PATHS: Record<string, string> = {
   wxpay: '/api/v1/payment/webhook/wxpay',
   stripe: '/api/v1/payment/webhook/stripe',
   airwallex: '/api/v1/payment/webhook/airwallex',
-  bepusdt: '/api/v1/payment/webhook/bepusdt',
+}
+
+export function getWebhookPath(providerKey: string): string {
+  return WEBHOOK_PATHS[providerKey] || customPaymentDefinition(providerKey)?.callbackPaths?.notifyUrl || ''
 }
 
 export const RETURN_PATH = '/payment/result'
@@ -121,9 +137,12 @@ export const PROVIDER_CALLBACK_PATHS: Record<string, CallbackPaths> = {
   easypay: { notifyUrl: WEBHOOK_PATHS.easypay, returnUrl: RETURN_PATH },
   alipay: { notifyUrl: WEBHOOK_PATHS.alipay, returnUrl: RETURN_PATH },
   wxpay: { notifyUrl: WEBHOOK_PATHS.wxpay },
-  bepusdt: { notifyUrl: WEBHOOK_PATHS.bepusdt, returnUrl: RETURN_PATH },
   // stripe: 不需要回调 URL 配置，Webhook 单独配置。
   // airwallex: 不需要回调 URL 配置，Webhook 在空中云汇后台配置。
+}
+
+export function getProviderCallbackPaths(providerKey: string): CallbackPaths | null {
+  return PROVIDER_CALLBACK_PATHS[providerKey] || customPaymentDefinition(providerKey)?.callbackPaths || null
 }
 
 /** Per-provider config fields (excludes notifyUrl/returnUrl which are handled separately). */
@@ -164,14 +183,10 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
     { key: 'currency', label: '', sensitive: false, defaultValue: 'CNY', hintKey: 'admin.settings.payment.field_paymentCurrencyHint', options: PAYMENT_CURRENCY_OPTIONS },
     { key: 'accountId', label: '', sensitive: false, optional: true, clearable: true, hintKey: 'admin.settings.payment.field_accountIdHint' },
   ],
-  bepusdt: [
-    { key: 'apiBase', label: '', sensitive: false, defaultValue: 'https://example.com', hintKey: 'admin.settings.payment.field_bepusdtApiBaseHint' },
-    { key: 'apiToken', label: '', sensitive: true },
-    { key: 'fiat', label: '', sensitive: false, defaultValue: 'CNY' },
-    { key: 'currencies', label: '', sensitive: false, defaultValue: 'USDT' },
-    { key: 'timeout', label: '', sensitive: false, defaultValue: '600' },
-    { key: 'reselect', label: '', sensitive: false, defaultValue: 'true' },
-  ],
+}
+
+export function getProviderConfigFields(providerKey: string): readonly ConfigFieldDef[] {
+  return PROVIDER_CONFIG_FIELDS[providerKey] || customPaymentDefinition(providerKey)?.configFields || []
 }
 
 // --- Helpers ---
@@ -192,7 +207,7 @@ export function getAvailableTypes(
   allTypes: TypeOption[],
   redirectLabel: string,
 ): TypeOption[] {
-  const types = PROVIDER_SUPPORTED_TYPES[providerKey] || []
+  const types = getProviderSupportedTypes(providerKey)
   return types.map(t => resolveTypeLabel(t, providerKey, allTypes, redirectLabel))
 }
 

@@ -14,17 +14,19 @@ import (
 )
 
 const (
-	KeyEnabled        = "recharge_promotion_enabled"
-	KeyMode           = "recharge_promotion_mode"
-	KeyPercentageRate = "recharge_promotion_percentage_rate"
-	KeyMinimumAmount  = "recharge_promotion_minimum_amount"
-	KeyMaximumBonus   = "recharge_promotion_maximum_bonus"
-	KeyTierRules      = "recharge_promotion_tier_rules"
-	KeyStartAt        = "recharge_promotion_start_at"
-	KeyEndAt          = "recharge_promotion_end_at"
+	KeyEnabled               = "recharge_promotion_enabled"
+	KeyMode                  = "recharge_promotion_mode"
+	KeyPercentageRate        = "recharge_promotion_percentage_rate"
+	KeyMinimumAmount         = "recharge_promotion_minimum_amount"
+	KeyMaximumBonus          = "recharge_promotion_maximum_bonus"
+	KeyTierRules             = "recharge_promotion_tier_rules"
+	KeyTieredPercentageRules = "recharge_promotion_tiered_percentage_rules"
+	KeyStartAt               = "recharge_promotion_start_at"
+	KeyEndAt                 = "recharge_promotion_end_at"
 
-	ModePercentage = "percentage"
-	ModeTiered     = "tiered"
+	ModePercentage       = "percentage"
+	ModeTiered           = "tiered"
+	ModeTieredPercentage = "tiered_percentage"
 )
 
 type TierRule struct {
@@ -32,19 +34,28 @@ type TierRule struct {
 	BonusCredit   float64 `json:"bonus_credit"`
 }
 
-// Config contains one global campaign. Zero campaign boundaries are open-ended.
-type Config struct {
-	Enabled        bool
-	Mode           string
-	PercentageRate float64
-	MinimumAmount  float64
-	MaximumBonus   float64
-	TierRules      []TierRule
-	StartAt        time.Time
-	EndAt          time.Time
+type TieredPercentageRule struct {
+	MinimumAmount  float64 `json:"minimum_amount"`
+	MaximumAmount  float64 `json:"maximum_amount"`
+	PercentageRate float64 `json:"percentage_rate"`
 }
 
-func Default() Config { return Config{Mode: ModePercentage, TierRules: []TierRule{}} }
+// Config contains one global campaign. Zero campaign boundaries are open-ended.
+type Config struct {
+	Enabled               bool
+	Mode                  string
+	PercentageRate        float64
+	MinimumAmount         float64
+	MaximumBonus          float64
+	TierRules             []TierRule
+	TieredPercentageRules []TieredPercentageRule
+	StartAt               time.Time
+	EndAt                 time.Time
+}
+
+func Default() Config {
+	return Config{Mode: ModePercentage, TierRules: []TierRule{}, TieredPercentageRules: []TieredPercentageRule{}}
+}
 
 type Reader struct{ store contract.Store }
 
@@ -73,23 +84,27 @@ func (r *Reader) Write(ctx context.Context, config Config) error {
 }
 
 func Keys() []string {
-	return []string{KeyEnabled, KeyMode, KeyPercentageRate, KeyMinimumAmount, KeyMaximumBonus, KeyTierRules, KeyStartAt, KeyEndAt}
+	return []string{KeyEnabled, KeyMode, KeyPercentageRate, KeyMinimumAmount, KeyMaximumBonus, KeyTierRules, KeyTieredPercentageRules, KeyStartAt, KeyEndAt}
 }
 
 func FromValues(values map[string]string) Config {
 	defaults := Default()
 	config := Config{
-		Enabled:        contract.Bool(values, KeyEnabled, defaults.Enabled),
-		Mode:           normalizeMode(values[KeyMode]),
-		PercentageRate: contract.Float(values, KeyPercentageRate, defaults.PercentageRate),
-		MinimumAmount:  contract.Float(values, KeyMinimumAmount, defaults.MinimumAmount),
-		MaximumBonus:   contract.Float(values, KeyMaximumBonus, defaults.MaximumBonus),
-		TierRules:      parseTierRules(values[KeyTierRules]),
-		StartAt:        parseStoredTime(values[KeyStartAt]),
-		EndAt:          parseStoredTime(values[KeyEndAt]),
+		Enabled:               contract.Bool(values, KeyEnabled, defaults.Enabled),
+		Mode:                  normalizeMode(values[KeyMode]),
+		PercentageRate:        contract.Float(values, KeyPercentageRate, defaults.PercentageRate),
+		MinimumAmount:         contract.Float(values, KeyMinimumAmount, defaults.MinimumAmount),
+		MaximumBonus:          contract.Float(values, KeyMaximumBonus, defaults.MaximumBonus),
+		TierRules:             parseTierRules(values[KeyTierRules]),
+		TieredPercentageRules: parseTieredPercentageRules(values[KeyTieredPercentageRules]),
+		StartAt:               parseStoredTime(values[KeyStartAt]),
+		EndAt:                 parseStoredTime(values[KeyEndAt]),
 	}
 	if config.TierRules == nil {
 		config.TierRules = []TierRule{}
+	}
+	if config.TieredPercentageRules == nil {
+		config.TieredPercentageRules = []TieredPercentageRule{}
 	}
 	return config
 }
@@ -97,6 +112,7 @@ func FromValues(values map[string]string) Config {
 func Values(config Config) (map[string]string, error) {
 	config.Mode = normalizeMode(config.Mode)
 	config.TierRules = normalizeTierRules(config.TierRules)
+	config.TieredPercentageRules = normalizeTieredPercentageRules(config.TieredPercentageRules)
 	if err := Validate(config); err != nil {
 		return nil, err
 	}
@@ -104,21 +120,26 @@ func Values(config Config) (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("encode recharge promotion tier rules: %w", err)
 	}
+	tieredPercentages, err := json.Marshal(normalizeTieredPercentageRules(config.TieredPercentageRules))
+	if err != nil {
+		return nil, fmt.Errorf("encode recharge promotion tiered percentage rules: %w", err)
+	}
 	return map[string]string{
-		KeyEnabled:        fmt.Sprintf("%t", config.Enabled),
-		KeyMode:           normalizeMode(config.Mode),
-		KeyPercentageRate: contract.FormatFloat(config.PercentageRate, 2),
-		KeyMinimumAmount:  contract.FormatFloat(config.MinimumAmount, 2),
-		KeyMaximumBonus:   contract.FormatFloat(config.MaximumBonus, 2),
-		KeyTierRules:      string(tiers),
-		KeyStartAt:        FormatTime(config.StartAt),
-		KeyEndAt:          FormatTime(config.EndAt),
+		KeyEnabled:               fmt.Sprintf("%t", config.Enabled),
+		KeyMode:                  normalizeMode(config.Mode),
+		KeyPercentageRate:        contract.FormatFloat(config.PercentageRate, 2),
+		KeyMinimumAmount:         contract.FormatFloat(config.MinimumAmount, 2),
+		KeyMaximumBonus:          contract.FormatFloat(config.MaximumBonus, 2),
+		KeyTierRules:             string(tiers),
+		KeyTieredPercentageRules: string(tieredPercentages),
+		KeyStartAt:               FormatTime(config.StartAt),
+		KeyEndAt:                 FormatTime(config.EndAt),
 	}, nil
 }
 
 func Validate(config Config) error {
 	if normalizeMode(config.Mode) != config.Mode && config.Mode != "" {
-		return fmt.Errorf("%s must be %q or %q", KeyMode, ModePercentage, ModeTiered)
+		return fmt.Errorf("%s must be %q, %q, or %q", KeyMode, ModePercentage, ModeTiered, ModeTieredPercentage)
 	}
 	if !finiteNonnegative(config.PercentageRate) || config.PercentageRate > 100 || !twoDecimal(config.PercentageRate) {
 		return fmt.Errorf("%s must be between 0 and 100 with at most two decimal places", KeyPercentageRate)
@@ -151,19 +172,54 @@ func Validate(config Config) error {
 			}
 		}
 	}
+	if mode == ModeTieredPercentage {
+		rules := config.TieredPercentageRules
+		if len(rules) == 0 && config.Enabled {
+			return fmt.Errorf("%s requires at least one rule when tiered percentage promotion is enabled", KeyTieredPercentageRules)
+		}
+		for index, rule := range rules {
+			if !finitePositive(rule.MinimumAmount) || !twoDecimal(rule.MinimumAmount) {
+				return fmt.Errorf("%s entries require positive two-decimal minimum_amount", KeyTieredPercentageRules)
+			}
+			if !finiteNonnegative(rule.MaximumAmount) || !twoDecimal(rule.MaximumAmount) {
+				return fmt.Errorf("%s entries require nonnegative two-decimal maximum_amount", KeyTieredPercentageRules)
+			}
+			if !finitePositive(rule.PercentageRate) || rule.PercentageRate > 100 || !twoDecimal(rule.PercentageRate) {
+				return fmt.Errorf("%s entries require percentage_rate between 0 and 100 with at most two decimal places", KeyTieredPercentageRules)
+			}
+			last := index == len(rules)-1
+			if last {
+				if rule.MaximumAmount != 0 {
+					return fmt.Errorf("%s final maximum_amount must be 0", KeyTieredPercentageRules)
+				}
+			} else {
+				if rule.MaximumAmount <= rule.MinimumAmount {
+					return fmt.Errorf("%s maximum_amount must be greater than minimum_amount", KeyTieredPercentageRules)
+				}
+				next := rules[index+1]
+				if rule.MaximumAmount != next.MinimumAmount {
+					return fmt.Errorf("%s intervals must be continuous and non-overlapping", KeyTieredPercentageRules)
+				}
+				if rule.PercentageRate > next.PercentageRate {
+					return fmt.Errorf("%s percentage rates must be nondecreasing", KeyTieredPercentageRules)
+				}
+			}
+		}
+	}
 	return nil
 }
 
 func Public(config Config) map[string]any {
 	return map[string]any{
-		KeyEnabled:        config.Enabled,
-		KeyMode:           normalizeMode(config.Mode),
-		KeyPercentageRate: config.PercentageRate,
-		KeyMinimumAmount:  config.MinimumAmount,
-		KeyMaximumBonus:   config.MaximumBonus,
-		KeyTierRules:      normalizeTierRules(config.TierRules),
-		KeyStartAt:        FormatTime(config.StartAt),
-		KeyEndAt:          FormatTime(config.EndAt),
+		KeyEnabled:               config.Enabled,
+		KeyMode:                  normalizeMode(config.Mode),
+		KeyPercentageRate:        config.PercentageRate,
+		KeyMinimumAmount:         config.MinimumAmount,
+		KeyMaximumBonus:          config.MaximumBonus,
+		KeyTierRules:             normalizeTierRules(config.TierRules),
+		KeyTieredPercentageRules: normalizeTieredPercentageRules(config.TieredPercentageRules),
+		KeyStartAt:               FormatTime(config.StartAt),
+		KeyEndAt:                 FormatTime(config.EndAt),
 	}
 }
 
@@ -187,10 +243,30 @@ func FormatTime(value time.Time) string {
 }
 
 func normalizeMode(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), ModeTieredPercentage) {
+		return ModeTieredPercentage
+	}
 	if strings.EqualFold(strings.TrimSpace(value), ModeTiered) {
 		return ModeTiered
 	}
 	return ModePercentage
+}
+
+func parseTieredPercentageRules(value string) []TieredPercentageRule {
+	var rules []TieredPercentageRule
+	if strings.TrimSpace(value) == "" || json.Unmarshal([]byte(value), &rules) != nil {
+		return []TieredPercentageRule{}
+	}
+	return normalizeTieredPercentageRules(rules)
+}
+
+func normalizeTieredPercentageRules(rules []TieredPercentageRule) []TieredPercentageRule {
+	result := append([]TieredPercentageRule(nil), rules...)
+	sort.Slice(result, func(i, j int) bool { return result[i].MinimumAmount < result[j].MinimumAmount })
+	if result == nil {
+		return []TieredPercentageRule{}
+	}
+	return result
 }
 
 func parseStoredTime(value string) time.Time {

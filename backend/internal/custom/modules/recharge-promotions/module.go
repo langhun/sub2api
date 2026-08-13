@@ -36,13 +36,16 @@ func NewModule(config settingsReader, db *sql.DB) *Module {
 }
 
 type calculation struct {
-	Mode         string
-	BaseCredit   decimal.Decimal
-	BonusCredit  decimal.Decimal
-	FinalCredit  decimal.Decimal
-	Config       settings.Config
-	Eligible     bool
-	IneligibleBy string
+	Mode                  string
+	BaseCredit            decimal.Decimal
+	BonusCredit           decimal.Decimal
+	FinalCredit           decimal.Decimal
+	Config                settings.Config
+	Eligible              bool
+	IneligibleBy          string
+	MatchedMinimumAmount  decimal.Decimal
+	MatchedMaximumAmount  decimal.Decimal
+	AppliedPercentageRate decimal.Decimal
 }
 
 func (m *Module) PrepareBalanceOrder(ctx context.Context, input service.BalanceOrderExtensionInput) (service.BalanceOrderExtensionResult, error) {
@@ -68,12 +71,19 @@ func (m *Module) PersistBalanceOrder(ctx context.Context, client *dbent.Client, 
 	if err != nil {
 		return fmt.Errorf("encode promotion tier rules: %w", err)
 	}
+	tieredPercentageRules, err := json.Marshal(settingsTieredPercentageRules(calculated.Config.TieredPercentageRules))
+	if err != nil {
+		return fmt.Errorf("encode promotion tiered percentage rules: %w", err)
+	}
 	_, err = client.ExecContext(ctx, `
 INSERT INTO custom_recharge_promotion_orders
     (payment_order_id, user_id, mode, payment_amount, pay_amount, base_credit, bonus_credit, final_credit,
-     percentage_rate, minimum_amount, maximum_bonus, tier_rules, campaign_started_at, campaign_ended_at, created_at, updated_at)
+     percentage_rate, minimum_amount, maximum_bonus, tier_rules, tiered_percentage_rules,
+     matched_minimum_amount, matched_maximum_amount, applied_percentage_rate,
+     campaign_started_at, campaign_ended_at, created_at, updated_at)
 VALUES
-    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, NULLIF($13, '')::timestamptz, NULLIF($14, '')::timestamptz, NOW(), NOW())`,
+    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb,
+     $14, $15, $16, NULLIF($17, '')::timestamptz, NULLIF($18, '')::timestamptz, NOW(), NOW())`,
 		order.ID,
 		input.UserID,
 		calculated.Mode,
@@ -86,6 +96,10 @@ VALUES
 		decimalAmount(calculated.Config.MinimumAmount),
 		decimalAmount(calculated.Config.MaximumBonus),
 		string(tierRules),
+		string(tieredPercentageRules),
+		calculated.MatchedMinimumAmount.StringFixed(2),
+		calculated.MatchedMaximumAmount.StringFixed(2),
+		calculated.AppliedPercentageRate.StringFixed(2),
 		settings.FormatTime(calculated.Config.StartAt),
 		settings.FormatTime(calculated.Config.EndAt),
 	)
@@ -247,6 +261,31 @@ func (m *Module) calculate(ctx context.Context, paymentAmount, baseCredit float6
 			return result, nil
 		}
 		bonus = base.Mul(decimal.NewFromFloat(config.PercentageRate)).Div(decimal.NewFromInt(100)).Round(2)
+		result.MatchedMinimumAmount = minimum
+		result.AppliedPercentageRate = decimal.NewFromFloat(config.PercentageRate).Round(2)
+		if config.MaximumBonus > 0 {
+			cap := decimal.NewFromFloat(config.MaximumBonus).Round(2)
+			if bonus.GreaterThan(cap) {
+				bonus = cap
+			}
+		}
+	case settings.ModeTieredPercentage:
+		for _, tier := range config.TieredPercentageRules {
+			minimum := decimal.NewFromFloat(tier.MinimumAmount).Round(2)
+			maximum := decimal.NewFromFloat(tier.MaximumAmount).Round(2)
+			if payment.LessThan(minimum) || (!maximum.IsZero() && !payment.LessThan(maximum)) {
+				continue
+			}
+			result.MatchedMinimumAmount = minimum
+			result.MatchedMaximumAmount = maximum
+			result.AppliedPercentageRate = decimal.NewFromFloat(tier.PercentageRate).Round(2)
+			bonus = base.Mul(result.AppliedPercentageRate).Div(decimal.NewFromInt(100)).Round(2)
+			break
+		}
+		if result.AppliedPercentageRate.IsZero() {
+			result.IneligibleBy = "minimum_amount"
+			return result, nil
+		}
 		if config.MaximumBonus > 0 {
 			cap := decimal.NewFromFloat(config.MaximumBonus).Round(2)
 			if bonus.GreaterThan(cap) {
@@ -309,41 +348,57 @@ func (m *Module) preview(c *gin.Context) {
 
 func previewFromCalculation(calculated calculation) gin.H {
 	return gin.H{
-		"active":              calculated.Eligible,
-		"mode":                calculated.Mode,
-		"base_credit":         calculated.BaseCredit.InexactFloat64(),
-		"bonus_credit":        calculated.BonusCredit.InexactFloat64(),
-		"final_credit":        calculated.FinalCredit.InexactFloat64(),
-		"ineligible_reason":   calculated.IneligibleBy,
-		"minimum_amount":      calculated.minimumAmount(),
-		"percentage_rate":     calculated.Config.PercentageRate,
-		"maximum_bonus":       calculated.Config.MaximumBonus,
-		"tier_rules":          settingsTierRules(calculated.Config.TierRules),
-		"campaign_started_at": settings.FormatTime(calculated.Config.StartAt),
-		"campaign_ended_at":   settings.FormatTime(calculated.Config.EndAt),
+		"active":                  calculated.Eligible,
+		"mode":                    calculated.Mode,
+		"base_credit":             calculated.BaseCredit.InexactFloat64(),
+		"bonus_credit":            calculated.BonusCredit.InexactFloat64(),
+		"final_credit":            calculated.FinalCredit.InexactFloat64(),
+		"ineligible_reason":       calculated.IneligibleBy,
+		"minimum_amount":          calculated.minimumAmount(),
+		"percentage_rate":         calculated.Config.PercentageRate,
+		"maximum_bonus":           calculated.Config.MaximumBonus,
+		"tier_rules":              settingsTierRules(calculated.Config.TierRules),
+		"tiered_percentage_rules": settingsTieredPercentageRules(calculated.Config.TieredPercentageRules),
+		"matched_minimum_amount":  calculated.MatchedMinimumAmount.InexactFloat64(),
+		"matched_maximum_amount":  calculated.MatchedMaximumAmount.InexactFloat64(),
+		"applied_percentage_rate": calculated.AppliedPercentageRate.InexactFloat64(),
+		"campaign_started_at":     settings.FormatTime(calculated.Config.StartAt),
+		"campaign_ended_at":       settings.FormatTime(calculated.Config.EndAt),
 	}
 }
 
 func (c calculation) minimumAmount() float64 {
-	if c.Mode != settings.ModeTiered || len(c.Config.TierRules) == 0 {
-		return c.Config.MinimumAmount
+	if c.Mode == settings.ModeTiered && len(c.Config.TierRules) > 0 {
+		return c.Config.TierRules[0].MinimumAmount
 	}
-	return c.Config.TierRules[0].MinimumAmount
+	if c.Mode == settings.ModeTieredPercentage && len(c.Config.TieredPercentageRules) > 0 {
+		return c.Config.TieredPercentageRules[0].MinimumAmount
+	}
+	return c.Config.MinimumAmount
 }
 
 type promotionOrder struct {
-	PaymentOrderID      int64     `json:"payment_order_id"`
-	UserID              int64     `json:"user_id"`
-	Mode                string    `json:"mode"`
-	PaymentAmount       float64   `json:"payment_amount"`
-	PayAmount           float64   `json:"pay_amount"`
-	BaseCredit          float64   `json:"base_credit"`
-	BonusCredit         float64   `json:"bonus_credit"`
-	FinalCredit         float64   `json:"final_credit"`
-	RefundedCredit      float64   `json:"refunded_credit"`
-	RefundedBaseCredit  float64   `json:"refunded_base_credit"`
-	RefundedBonusCredit float64   `json:"refunded_bonus_credit"`
-	CreatedAt           time.Time `json:"created_at"`
+	PaymentOrderID        int64           `json:"payment_order_id"`
+	UserID                int64           `json:"user_id"`
+	Mode                  string          `json:"mode"`
+	PaymentAmount         float64         `json:"payment_amount"`
+	PayAmount             float64         `json:"pay_amount"`
+	BaseCredit            float64         `json:"base_credit"`
+	BonusCredit           float64         `json:"bonus_credit"`
+	FinalCredit           float64         `json:"final_credit"`
+	RefundedCredit        float64         `json:"refunded_credit"`
+	RefundedBaseCredit    float64         `json:"refunded_base_credit"`
+	RefundedBonusCredit   float64         `json:"refunded_bonus_credit"`
+	PercentageRate        float64         `json:"percentage_rate"`
+	MinimumAmount         float64         `json:"minimum_amount"`
+	MaximumBonus          float64         `json:"maximum_bonus"`
+	TierRules             json.RawMessage `json:"tier_rules"`
+	TieredPercentageRules json.RawMessage `json:"tiered_percentage_rules"`
+	MatchedMinimumAmount  float64         `json:"matched_minimum_amount"`
+	MatchedMaximumAmount  float64         `json:"matched_maximum_amount"`
+	AppliedPercentageRate float64         `json:"applied_percentage_rate"`
+	CreatedAt             time.Time       `json:"created_at"`
+	CompletedAt           time.Time       `json:"completed_at"`
 }
 
 func (m *Module) getUserOrder(c *gin.Context) {
@@ -391,8 +446,10 @@ func (m *Module) summary(c *gin.Context) {
 	var totalOrders int64
 	var totalBonus, totalFinal, totalRefunded float64
 	err := m.db.QueryRowContext(c.Request.Context(), `
-SELECT COUNT(*), COALESCE(SUM(bonus_credit), 0), COALESCE(SUM(final_credit), 0), COALESCE(SUM(refunded_bonus_credit), 0)
-FROM custom_recharge_promotion_orders`).Scan(&totalOrders, &totalBonus, &totalFinal, &totalRefunded)
+SELECT COUNT(*), COALESCE(SUM(promotion.bonus_credit), 0), COALESCE(SUM(promotion.final_credit), 0), COALESCE(SUM(promotion.refunded_bonus_credit), 0)
+FROM custom_recharge_promotion_orders promotion
+JOIN payment_orders payment ON payment.id = promotion.payment_order_id
+WHERE payment.completed_at IS NOT NULL`).Scan(&totalOrders, &totalBonus, &totalFinal, &totalRefunded)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -412,22 +469,29 @@ func (m *Module) listOrders(c *gin.Context) {
 	page, pageSize := pagination(c)
 	offset := (page - 1) * pageSize
 	args := []any{}
-	where := ""
-	if mode := strings.TrimSpace(c.Query("mode")); mode == settings.ModePercentage || mode == settings.ModeTiered {
+	where := " WHERE payment.completed_at IS NOT NULL"
+	if mode := strings.TrimSpace(c.Query("mode")); mode == settings.ModePercentage || mode == settings.ModeTiered || mode == settings.ModeTieredPercentage {
 		args = append(args, mode)
-		where = " WHERE mode = $1"
+		where += " AND promotion.mode = $1"
 	}
 	var total int64
-	if err := m.db.QueryRowContext(c.Request.Context(), "SELECT COUNT(*) FROM custom_recharge_promotion_orders"+where, args...).Scan(&total); err != nil {
+	if err := m.db.QueryRowContext(c.Request.Context(), "SELECT COUNT(*) FROM custom_recharge_promotion_orders promotion JOIN payment_orders payment ON payment.id = promotion.payment_order_id"+where, args...).Scan(&total); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	args = append(args, pageSize, offset)
 	limitParam, offsetParam := len(args)-1, len(args)
 	rows, err := m.db.QueryContext(c.Request.Context(), fmt.Sprintf(`
-SELECT payment_order_id, user_id, mode, payment_amount::float8, pay_amount::float8, base_credit::float8, bonus_credit::float8, final_credit::float8,
-       refunded_credit::float8, refunded_base_credit::float8, refunded_bonus_credit::float8, created_at
-FROM custom_recharge_promotion_orders%s ORDER BY created_at DESC, payment_order_id DESC LIMIT $%d OFFSET $%d`, where, limitParam, offsetParam), args...)
+SELECT promotion.payment_order_id, promotion.user_id, promotion.mode, promotion.payment_amount::float8, promotion.pay_amount::float8,
+       promotion.base_credit::float8, promotion.bonus_credit::float8, promotion.final_credit::float8,
+       promotion.refunded_credit::float8, promotion.refunded_base_credit::float8, promotion.refunded_bonus_credit::float8,
+       promotion.percentage_rate::float8, promotion.minimum_amount::float8, promotion.maximum_bonus::float8,
+       promotion.tier_rules, promotion.tiered_percentage_rules, promotion.matched_minimum_amount::float8,
+       promotion.matched_maximum_amount::float8, promotion.applied_percentage_rate::float8,
+       promotion.created_at, payment.completed_at
+FROM custom_recharge_promotion_orders promotion
+JOIN payment_orders payment ON payment.id = promotion.payment_order_id%s
+ORDER BY payment.completed_at DESC, promotion.payment_order_id DESC LIMIT $%d OFFSET $%d`, where, limitParam, offsetParam), args...)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -454,13 +518,20 @@ func (m *Module) readOrder(ctx context.Context, paymentOrderID int64, userID *in
 		return promotionOrder{}, false, fmt.Errorf("recharge promotion database is required")
 	}
 	args := []any{paymentOrderID}
-	where := "payment_order_id = $1"
+	where := "promotion.payment_order_id = $1 AND payment.completed_at IS NOT NULL"
 	if userID != nil {
 		args = append(args, *userID)
-		where += " AND user_id = $2"
+		where += " AND promotion.user_id = $2"
 	}
-	row := m.db.QueryRowContext(ctx, `SELECT payment_order_id, user_id, mode, payment_amount::float8, pay_amount::float8, base_credit::float8, bonus_credit::float8, final_credit::float8,
-refunded_credit::float8, refunded_base_credit::float8, refunded_bonus_credit::float8, created_at FROM custom_recharge_promotion_orders WHERE `+where, args...)
+	row := m.db.QueryRowContext(ctx, `SELECT promotion.payment_order_id, promotion.user_id, promotion.mode, promotion.payment_amount::float8,
+promotion.pay_amount::float8, promotion.base_credit::float8, promotion.bonus_credit::float8, promotion.final_credit::float8,
+promotion.refunded_credit::float8, promotion.refunded_base_credit::float8, promotion.refunded_bonus_credit::float8,
+promotion.percentage_rate::float8, promotion.minimum_amount::float8, promotion.maximum_bonus::float8,
+promotion.tier_rules, promotion.tiered_percentage_rules, promotion.matched_minimum_amount::float8,
+promotion.matched_maximum_amount::float8, promotion.applied_percentage_rate::float8,
+promotion.created_at, payment.completed_at
+FROM custom_recharge_promotion_orders promotion
+JOIN payment_orders payment ON payment.id = promotion.payment_order_id WHERE `+where, args...)
 	item, err := scanPromotionOrder(row)
 	if err == sql.ErrNoRows {
 		return promotionOrder{}, false, nil
@@ -475,7 +546,10 @@ type rowScanner interface{ Scan(...any) error }
 
 func scanPromotionOrder(scanner rowScanner) (promotionOrder, error) {
 	var item promotionOrder
-	err := scanner.Scan(&item.PaymentOrderID, &item.UserID, &item.Mode, &item.PaymentAmount, &item.PayAmount, &item.BaseCredit, &item.BonusCredit, &item.FinalCredit, &item.RefundedCredit, &item.RefundedBaseCredit, &item.RefundedBonusCredit, &item.CreatedAt)
+	err := scanner.Scan(&item.PaymentOrderID, &item.UserID, &item.Mode, &item.PaymentAmount, &item.PayAmount, &item.BaseCredit, &item.BonusCredit, &item.FinalCredit,
+		&item.RefundedCredit, &item.RefundedBaseCredit, &item.RefundedBonusCredit, &item.PercentageRate, &item.MinimumAmount, &item.MaximumBonus,
+		&item.TierRules, &item.TieredPercentageRules, &item.MatchedMinimumAmount, &item.MatchedMaximumAmount, &item.AppliedPercentageRate,
+		&item.CreatedAt, &item.CompletedAt)
 	return item, err
 }
 
@@ -484,6 +558,13 @@ func settingsTierRules(rules []settings.TierRule) []settings.TierRule {
 		return []settings.TierRule{}
 	}
 	return append([]settings.TierRule(nil), rules...)
+}
+
+func settingsTieredPercentageRules(rules []settings.TieredPercentageRule) []settings.TieredPercentageRule {
+	if rules == nil {
+		return []settings.TieredPercentageRule{}
+	}
+	return append([]settings.TieredPercentageRule(nil), rules...)
 }
 
 func decimalAmount(value float64) string { return decimal.NewFromFloat(value).Round(2).StringFixed(2) }

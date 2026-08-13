@@ -4,6 +4,7 @@ import { gameHallAdminLocaleMessages } from './modules/game-hall/admin/locales'
 import { gameHallLocaleMessages } from './modules/game-hall/locales'
 import { openAIRTAdminLocaleMessages } from './modules/openai-rt/locales'
 import { rechargePromotionAdminLocaleMessages, rechargePromotionLocaleMessages } from './modules/recharge-promotions/locales'
+import { bepusdtAdminLocaleMessages, bepusdtLocaleMessages } from './modules/bepusdt/locales'
 import { supportTicketAdminLocaleMessages, supportTicketLocaleMessages } from './modules/support-tickets/locales'
 
 type LocaleTree = Record<string, unknown>
@@ -53,13 +54,13 @@ function mergeLocaleTrees(base: LocaleTree, extension: LocaleTree): LocaleTree {
 }
 
 export const customAdminLocaleMessages = {
-  en: [activityAdminLocaleMessages.en, gameHallAdminLocaleMessages.en, openAIRTAdminLocaleMessages.en, rechargePromotionAdminLocaleMessages.en, supportTicketAdminLocaleMessages.en],
-  zh: [activityAdminLocaleMessages.zh, gameHallAdminLocaleMessages.zh, openAIRTAdminLocaleMessages.zh, rechargePromotionAdminLocaleMessages.zh, supportTicketAdminLocaleMessages.zh],
+  en: [activityAdminLocaleMessages.en, bepusdtAdminLocaleMessages.en, gameHallAdminLocaleMessages.en, openAIRTAdminLocaleMessages.en, rechargePromotionAdminLocaleMessages.en, supportTicketAdminLocaleMessages.en],
+  zh: [activityAdminLocaleMessages.zh, bepusdtAdminLocaleMessages.zh, gameHallAdminLocaleMessages.zh, openAIRTAdminLocaleMessages.zh, rechargePromotionAdminLocaleMessages.zh, supportTicketAdminLocaleMessages.zh],
 } as const
 
 export const customLocaleMessages = {
-  en: [customSharedLocaleMessages.en, activityLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en],
-  zh: [customSharedLocaleMessages.zh, activityLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh],
+  en: [customSharedLocaleMessages.en, activityLocaleMessages.en, bepusdtLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en],
+  zh: [customSharedLocaleMessages.zh, activityLocaleMessages.zh, bepusdtLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh],
 } as const
 
 export function mergeCustomLocale<T extends LocaleTree>(

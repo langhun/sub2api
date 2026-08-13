@@ -6,6 +6,7 @@ import type {
   WechatJSAPIPayload,
   WechatOAuthInfo,
 } from '@/types/payment'
+import { customPaymentTypeDefinition } from '@/custom/payments'
 
 export const PAYMENT_RECOVERY_STORAGE_KEY = 'payment.recovery.current'
 
@@ -16,10 +17,9 @@ const VISIBLE_METHOD_ALIASES = {
   wxpay_direct: 'wxpay',
   stripe: 'stripe',
   airwallex: 'airwallex',
-  bepusdt: 'bepusdt',
 } as const
 
-export type VisiblePaymentMethod = 'alipay' | 'wxpay' | 'stripe' | 'airwallex' | 'bepusdt'
+export type VisiblePaymentMethod = string
 export type StripeVisibleMethod = 'alipay' | 'wechat_pay'
 export type PaymentLaunchKind =
   | 'qr_waiting'
@@ -98,8 +98,10 @@ type CreateOrderFlowResult = CreateOrderResult & {
 type StorageWriter = Pick<Storage, 'removeItem' | 'setItem'>
 
 export function normalizeVisibleMethod(method: string): VisiblePaymentMethod | '' {
-  const normalized = VISIBLE_METHOD_ALIASES[method.trim() as keyof typeof VISIBLE_METHOD_ALIASES]
-  return normalized ?? ''
+  const trimmed = method.trim()
+  const normalized = VISIBLE_METHOD_ALIASES[trimmed as keyof typeof VISIBLE_METHOD_ALIASES]
+  if (normalized) return normalized
+  return customPaymentTypeDefinition(trimmed) ? trimmed : ''
 }
 
 export function getVisibleMethods(methods: Record<string, MethodLimit>): Record<string, MethodLimit> {

@@ -25,6 +25,14 @@ import { openAIAccountActions, type CustomAccountAction } from './modules/openai
 import RechargePromotionOrderBreakdown from './modules/recharge-promotions/RechargePromotionOrderBreakdown.vue'
 import RechargePromotionSummary from './modules/recharge-promotions/RechargePromotionSummary.vue'
 import { rechargePromotionSettingsPanels } from './modules/recharge-promotions/settings'
+import './payments'
+export {
+  customPaymentDefinition,
+  customPaymentDefinitions,
+  customPaymentTypeDefinition,
+  customPaymentTypeOptions,
+  customProviderKeyOptions,
+} from './paymentExtensions'
 export { customPublicSettingsDefaults } from './publicSettings'
 
 export interface CustomNavigationItem {

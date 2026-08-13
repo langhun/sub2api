@@ -29,12 +29,12 @@ describe('recharge promotion API', () => {
   it('uses separate user and administrator order routes', () => {
     rechargePromotionsAPI.getUserOrder(18)
     rechargePromotionsAPI.getAdminOrder(18)
-    rechargePromotionsAPI.getAdminOrders({ page: 2, page_size: 10, mode: 'tiered' })
+    rechargePromotionsAPI.getAdminOrders({ page: 2, page_size: 10, mode: 'tiered_percentage' })
 
     expect(getMock).toHaveBeenNthCalledWith(1, '/recharge-promotions/orders/18')
     expect(getMock).toHaveBeenNthCalledWith(2, '/custom/admin/recharge-promotions/orders/18')
     expect(getMock).toHaveBeenNthCalledWith(3, '/custom/admin/recharge-promotions/orders', {
-      params: { page: 2, page_size: 10, mode: 'tiered' },
+      params: { page: 2, page_size: 10, mode: 'tiered_percentage' },
     })
   })
 })

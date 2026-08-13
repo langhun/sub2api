@@ -315,10 +315,10 @@ import ToggleSwitch from './ToggleSwitch.vue'
 import type { ProviderInstance } from '@/types/payment'
 import type { EasyPayCustomMethod, TypeOption } from './providerConfig'
 import {
-  PROVIDER_CONFIG_FIELDS,
-  PROVIDER_SUPPORTED_TYPES,
-  PROVIDER_CALLBACK_PATHS,
-  WEBHOOK_PATHS,
+  getProviderConfigFields,
+  getProviderSupportedTypes,
+  getProviderCallbackPaths,
+  getWebhookPath,
   PAYMENT_MODE_QRCODE,
   PAYMENT_MODE_POPUP,
   PAYMENT_MODE_REDIRECT,
@@ -328,6 +328,7 @@ import {
   parseEasyPayCustomMethods,
   serializeEasyPayCustomMethods,
 } from './providerConfig'
+import { customPaymentDefinition } from '@/custom/payments'
 
 /** Default payment_mode per provider key — "" means "no preference, use
  * provider's built-in default behavior". */
@@ -418,19 +419,22 @@ const defaultBaseUrl = typeof window !== 'undefined' ? window.location.origin : 
 const providerWebhookHintMap: Record<string, string> = {
   stripe: 'admin.settings.payment.stripeWebhookHint',
   airwallex: 'admin.settings.payment.airwallexWebhookHint',
-  bepusdt: 'admin.settings.payment.bepusdtWebhookHint',
+}
+
+function webhookHintKey(providerKey: string): string {
+  return providerWebhookHintMap[providerKey] || customPaymentDefinition(providerKey)?.webhookHintKey || ''
 }
 
 const providerWebhookUrl = computed(() => {
-  const path = WEBHOOK_PATHS[form.provider_key]
-  return providerWebhookHintMap[form.provider_key] && path ? defaultBaseUrl + path : ''
+  const path = getWebhookPath(form.provider_key)
+  return webhookHintKey(form.provider_key) && path ? defaultBaseUrl + path : ''
 })
 
 const providerWebhookHint = computed(() =>
-  providerWebhookHintMap[form.provider_key] || 'admin.settings.payment.stripeWebhookHint',
+  webhookHintKey(form.provider_key) || 'admin.settings.payment.stripeWebhookHint',
 )
 
-const callbackPaths = computed(() => PROVIDER_CALLBACK_PATHS[form.provider_key] || null)
+const callbackPaths = computed(() => getProviderCallbackPaths(form.provider_key))
 
 const supportsPaymentMode = computed(() => providerSupportsPaymentMode(form.provider_key))
 
@@ -470,7 +474,7 @@ const availableTypes = computed(() => {
 })
 
 const resolvedFields = computed(() => {
-  const fields = PROVIDER_CONFIG_FIELDS[form.provider_key] || []
+  const fields = getProviderConfigFields(form.provider_key)
   return fields.map(f => ({
     ...f,
     label: f.label || t(`admin.settings.payment.field_${f.key}`),
@@ -590,7 +594,7 @@ function removeEasyPayCustomMethod(index: number) {
 }
 
 function onKeyChange() {
-  form.supported_types = [...(PROVIDER_SUPPORTED_TYPES[form.provider_key] || [])]
+  form.supported_types = getProviderSupportedTypes(form.provider_key)
   form.payment_mode = defaultPaymentMode(form.provider_key)
   clearConfig()
   applyDefaults()
@@ -607,7 +611,7 @@ function clearConfig() {
 }
 
 function applyDefaults() {
-  for (const f of PROVIDER_CONFIG_FIELDS[form.provider_key] || []) {
+  for (const f of getProviderConfigFields(form.provider_key)) {
     if (f.defaultValue && !config[f.key]) config[f.key] = f.defaultValue
   }
 }
@@ -672,7 +676,7 @@ function handleSave() {
   // Validate required config fields — all non-optional fields must be filled.
   // In edit mode, sensitive fields may be left blank to preserve the stored
   // value (backend merges blanks by preserving the existing secret).
-  for (const f of PROVIDER_CONFIG_FIELDS[form.provider_key] || []) {
+  for (const f of getProviderConfigFields(form.provider_key)) {
     if (f.optional) continue
     if (props.editing && f.sensitive) continue
     const val = (config[f.key] || '').trim()
@@ -684,7 +688,7 @@ function handleSave() {
   }
 
   const clearableConfigKeys = new Set(
-    (PROVIDER_CONFIG_FIELDS[form.provider_key] || [])
+    getProviderConfigFields(form.provider_key)
       .filter(field => field.clearable)
       .map(field => field.key),
   )
@@ -704,7 +708,7 @@ function handleSave() {
 
   // Inject computed callback URLs (each URL = independent base + fixed path)
   // If base URL is empty, auto-fill with current domain
-  const paths = PROVIDER_CALLBACK_PATHS[form.provider_key]
+  const paths = getProviderCallbackPaths(form.provider_key)
   if (paths) {
     const notifyBase = notifyBaseUrl.value.trim() || defaultBaseUrl
     const returnBase = returnBaseUrl.value.trim() || defaultBaseUrl
@@ -729,7 +733,7 @@ function handleSave() {
 
 function syncEasyPayCustomMethods(): string[] {
   if (form.provider_key !== 'easypay') return []
-  const baseTypes = new Set(PROVIDER_SUPPORTED_TYPES.easypay || [])
+  const baseTypes = new Set(getProviderSupportedTypes('easypay'))
   const customTypes: string[] = []
   const seen = new Set<string>()
   for (const method of normalizedEasyPayCustomMethods()) {
@@ -763,7 +767,7 @@ function validateEasyPayCustomMethods(): string | null {
     if (!/^[a-z0-9_-]+$/.test(method.upstreamType)) {
       return t('admin.settings.payment.validationEasyPayCustomMethodUpstreamTypeInvalid')
     }
-    if ((PROVIDER_SUPPORTED_TYPES.easypay || []).includes(method.type)) {
+    if (getProviderSupportedTypes('easypay').includes(method.type)) {
       return t('admin.settings.payment.validationEasyPayCustomMethodReserved')
     }
     if (method.type.startsWith('alipay') || method.type.startsWith('wxpay')) {
@@ -787,7 +791,7 @@ function emitValidationError(msg: string) {
 function reset(defaultKey: string) {
   form.name = ''
   form.provider_key = defaultKey
-  form.supported_types = [...(PROVIDER_SUPPORTED_TYPES[defaultKey] || [])]
+  form.supported_types = getProviderSupportedTypes(defaultKey)
   form.enabled = true
   form.payment_mode = defaultPaymentMode(defaultKey)
   form.refund_enabled = false
@@ -825,7 +829,7 @@ function loadProvider(provider: ProviderInstance) {
       config[k] = v
     }
     // Extract base URLs from existing callback URLs
-    const paths = PROVIDER_CALLBACK_PATHS[provider.provider_key]
+    const paths = getProviderCallbackPaths(provider.provider_key)
     if (paths?.notifyUrl && provider.config['notifyUrl']) {
       notifyBaseUrl.value = extractBaseUrl(provider.config['notifyUrl'], paths.notifyUrl)
     }

@@ -12,6 +12,7 @@ import {
   customRechargeSummaryExtensions,
   customRoutes,
   customSettingsPanels,
+  customPaymentDefinition,
 } from '../registry'
 import { activityHeaderActions } from '../modules/activity/headerActions'
 import { activityNavigation } from '../modules/activity/navigation'
@@ -122,5 +123,11 @@ describe('custom overlay registry', () => {
     expect(paymentViewSource).not.toContain('@/custom/modules/recharge-promotions/RechargePromotionSummary.vue')
     expect(userOrdersViewSource).toContain("import { customPaymentOrderDetailExtensions } from '@/custom/registry'")
     expect(adminOrdersViewSource).toContain("import { customPaymentOrderDetailExtensions } from '@/custom/registry'")
+  })
+
+  it('registers custom payment business outside shared payment components', () => {
+    expect(customPaymentDefinition('bepusdt')?.supportedTypes).toEqual(['bepusdt'])
+    expect(customPaymentDefinition('bepusdt')?.callbackPaths?.notifyUrl).toBe('/api/v1/payment/webhook/bepusdt')
+    expect(paymentViewSource).not.toContain("m === 'bepusdt'")
   })
 })

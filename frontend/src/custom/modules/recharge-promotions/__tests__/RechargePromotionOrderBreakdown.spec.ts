@@ -40,6 +40,7 @@ const record = {
   refunded_base_credit: 60,
   refunded_bonus_credit: 6,
   created_at: '2026-08-12T00:00:00Z',
+  completed_at: '2026-08-12T00:01:00Z',
 }
 
 describe('RechargePromotionOrderBreakdown', () => {

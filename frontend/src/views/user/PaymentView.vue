@@ -313,7 +313,7 @@ import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderTy
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
-import { METHOD_ORDER, getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
+import { paymentMethodOrder, getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
 import {
   PAYMENT_RECOVERY_STORAGE_KEY,
   buildCreateOrderPayload,
@@ -335,6 +335,7 @@ import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSele
 import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './paymentUx'
 import { hasWechatResumeQuery, parseWechatResumeRoute, stripWechatResumeQuery } from './paymentWechatResume'
 import { customRechargeSummaryExtensions } from '@/custom/registry'
+import { customPaymentTypeDefinition } from '@/custom/payments'
 
 const i18n = useI18n()
 const { t } = i18n
@@ -586,6 +587,14 @@ function amountFitsMethod(amt: number, methodType: string): boolean {
   return true
 }
 
+function paymentMethodAvailability(amt: number, methodType: string): Pick<PaymentMethodOption, 'available' | 'unavailable_reason'> {
+  const limit = visibleMethods.value[methodType]
+  if (!limit || limit.available === false) return { available: false, unavailable_reason: 'provider' }
+  if (amt > 0 && limit.single_min > 0 && amt < limit.single_min) return { available: false, unavailable_reason: 'minimum' }
+  if (amt > 0 && limit.single_max > 0 && amt > limit.single_max) return { available: false, unavailable_reason: 'maximum' }
+  return { available: true }
+}
+
 // Visible methods decide the amount range shown to users.
 const globalMinAmount = computed(() => {
   const limits = Object.values(visibleMethods.value)
@@ -649,48 +658,56 @@ function formatSelectedSubscriptionPaymentAmount(value: number): string {
   return formatSelectedPaymentAmount(subscriptionPaymentAmountForCurrency(value, selectedCurrency.value))
 }
 
+const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
+function rechargeAmountsForCurrency(value: number, currency: string): { fee: number; total: number } {
+  if (feeRate.value <= 0 || value <= 0) return { fee: 0, total: roundPaymentAmount(value, currency) }
+  const fee = ceilPaymentAmount((value * feeRate.value) / 100, currency)
+  return { fee, total: roundPaymentAmount(value + fee, currency) }
+}
+
+const selectedRechargeAmounts = computed(() => rechargeAmountsForCurrency(validAmount.value, selectedCurrency.value))
+const feeAmount = computed(() => selectedRechargeAmounts.value.fee)
+const totalAmount = computed(() => selectedRechargeAmounts.value.total)
+
 const methodOptions = computed<PaymentMethodOption[]>(() =>
   enabledMethods.value.map((type) => {
     const ml = visibleMethods.value[type]
+    const currency = normalizePaymentCurrency(ml?.currency)
+    const payAmount = rechargeAmountsForCurrency(validAmount.value, currency).total
     return {
       type,
       display_name: ml?.display_name,
       fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(validAmount.value, type),
+      ...paymentMethodAvailability(payAmount, type),
+      minimum_amount: ml?.single_min,
+      maximum_amount: ml?.single_max,
+      currency,
     }
   })
-)
-
-const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
-const feeAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.ceil(((validAmount.value * feeRate.value) / 100) * 100) / 100
-    : 0
-)
-const totalAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.round((validAmount.value + feeAmount.value) * 100) / 100
-    : validAmount.value
 )
 
 const amountError = computed(() => {
   if (validAmount.value <= 0) return ''
   // No method can handle this amount
-  if (!enabledMethods.value.some((m) => amountFitsMethod(validAmount.value, m))) {
+  if (!enabledMethods.value.some((m) => {
+    const currency = normalizePaymentCurrency(visibleMethods.value[m]?.currency)
+    const payAmount = rechargeAmountsForCurrency(validAmount.value, currency).total
+    return amountFitsMethod(payAmount, m)
+  })) {
     return t('payment.amountNoMethod')
   }
   // Selected method can't handle this amount (but others can)
   const ml = selectedLimit.value
   if (ml) {
-    if (ml.single_min > 0 && validAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
-    if (ml.single_max > 0 && validAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
+    if (ml.single_min > 0 && totalAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
+    if (ml.single_max > 0 && totalAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
   }
   return ''
 })
 
 const canSubmit = computed(() =>
   validAmount.value > 0
-    && amountFitsMethod(validAmount.value, selectedMethod.value)
+    && amountFitsMethod(totalAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
 
@@ -722,11 +739,15 @@ const subMethodOptions = computed<PaymentMethodOption[]>(() => {
   return enabledMethods.value.map((type) => {
     const ml = visibleMethods.value[type]
     const currency = normalizePaymentCurrency(ml?.currency)
+    const payAmount = subscriptionTotalAmountForCurrency(price, currency)
     return {
       type,
       display_name: ml?.display_name,
       fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(subscriptionTotalAmountForCurrency(price, currency), type),
+      ...paymentMethodAvailability(payAmount, type),
+      minimum_amount: ml?.single_min,
+      maximum_amount: ml?.single_max,
+      currency,
     }
   })
 })
@@ -738,9 +759,12 @@ const canSubmitSubscription = computed(() =>
 )
 
 // Auto-switch to first available method when current selection can't handle the amount
-watch(() => [validAmount.value, selectedMethod.value] as const, ([amt, method]) => {
+watch(() => [totalAmount.value, selectedMethod.value] as const, ([amt, method]) => {
   if (amt <= 0 || amountFitsMethod(amt, method)) return
-  const available = enabledMethods.value.find((m) => amountFitsMethod(amt, m))
+  const available = enabledMethods.value.find((m) => {
+    const currency = normalizePaymentCurrency(visibleMethods.value[m]?.currency)
+    return amountFitsMethod(rechargeAmountsForCurrency(validAmount.value, currency).total, m)
+  })
   if (available) selectedMethod.value = available
 })
 
@@ -752,7 +776,8 @@ const paymentButtonClass = computed(() => {
   if (isBuiltInWxpayMethod(m)) return 'btn-wxpay'
   if (m === 'stripe') return 'btn-stripe'
   if (m === 'airwallex') return 'btn-airwallex'
-  if (m === 'bepusdt') return 'btn-primary'
+  const customClass = customPaymentTypeDefinition(m)?.buttonClass
+  if (customClass) return customClass
   return 'btn-primary'
 })
 
@@ -1145,12 +1170,7 @@ onMounted(async () => {
     const res = await paymentAPI.getCheckoutInfo()
     checkout.value = res.data
     if (enabledMethods.value.length) {
-      const order: readonly string[] = METHOD_ORDER
-      const sorted = [...enabledMethods.value].sort((a, b) => {
-        const ai = order.indexOf(a)
-        const bi = order.indexOf(b)
-        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
-      })
+      const sorted = [...enabledMethods.value].sort((a, b) => paymentMethodOrder(a) - paymentMethodOrder(b))
       selectedMethod.value = sorted[0]
     }
     if (typeof window !== 'undefined') {

@@ -1,11 +1,17 @@
 import type { BasePaginationResponse } from '@/types'
 import { apiClient } from '@/api/client'
 
-export type RechargePromotionMode = 'percentage' | 'tiered'
+export type RechargePromotionMode = 'percentage' | 'tiered' | 'tiered_percentage'
 
 export interface RechargePromotionTierRule {
   minimum_amount: number
   bonus_credit: number
+}
+
+export interface RechargePromotionTieredPercentageRule {
+  minimum_amount: number
+  maximum_amount: number
+  percentage_rate: number
 }
 
 export interface RechargePromotionPreview {
@@ -19,6 +25,10 @@ export interface RechargePromotionPreview {
   percentage_rate: number
   maximum_bonus: number
   tier_rules: RechargePromotionTierRule[]
+  tiered_percentage_rules: RechargePromotionTieredPercentageRule[]
+  matched_minimum_amount: number
+  matched_maximum_amount: number
+  applied_percentage_rate: number
   campaign_started_at: string
   campaign_ended_at: string
 }
@@ -36,6 +46,7 @@ export interface RechargePromotionOrder {
   refunded_base_credit: number
   refunded_bonus_credit: number
   created_at: string
+  completed_at: string
 }
 
 export interface RechargePromotionSummary {

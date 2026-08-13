@@ -348,6 +348,24 @@ describe('PaymentView recharge workspace', () => {
     expect(wrapper.text()).not.toContain('payment.rechargeRatePreview')
     expect(wrapper.text()).not.toContain('payment.rechargeRateTitle')
   })
+
+  it('uses final gateway pay amount when evaluating a method minimum', async () => {
+    const wrapper = await mountRecharge({ recharge_fee_rate: 5 }, {
+      currency: 'CNY',
+      single_min: 20,
+    })
+
+    wrapper.getComponent(AmountInput).vm.$emit('update:modelValue', 19.05)
+    await flushPromises()
+
+    const selector = wrapper.getComponent({ name: 'PaymentMethodSelector' })
+    expect(selector.props('methods')[0]).toMatchObject({
+      available: true,
+      minimum_amount: 20,
+      currency: 'CNY',
+    })
+    expect(wrapper.get('[data-testid="recharge-submit"]').attributes('disabled')).toBeUndefined()
+  })
 })
 
 describe('PaymentView subscription plan grid', () => {

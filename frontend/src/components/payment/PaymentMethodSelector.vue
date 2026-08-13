@@ -14,7 +14,7 @@
         :title="methodLabel(method)"
         :disabled="!method.available"
         :class="[
-          'relative flex h-16 min-w-0 items-center justify-start rounded-md border px-3.5 text-left transition-colors',
+          'relative flex min-h-20 min-w-0 items-center justify-start rounded-md border px-3.5 py-2.5 text-left transition-colors',
           !method.available
             ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-50 dark:border-dark-700 dark:bg-dark-800/50'
             : selected === method.type
@@ -35,6 +35,20 @@
             >
               {{ t('payment.fee') }} {{ method.fee_rate }}%
             </span>
+            <span
+              v-if="!method.available && method.unavailable_reason === 'minimum' && method.minimum_amount != null"
+              data-testid="payment-method-limit-hint"
+              class="mt-1 block w-full text-xs leading-4 text-amber-700 dark:text-amber-300"
+            >
+              {{ t('payment.minimumToUse', { amount: formatPaymentAmount(method.minimum_amount, method.currency) }) }}
+            </span>
+            <span
+              v-else-if="!method.available && method.unavailable_reason === 'maximum' && method.maximum_amount != null"
+              data-testid="payment-method-limit-hint"
+              class="mt-1 block w-full text-xs leading-4 text-amber-700 dark:text-amber-300"
+            >
+              {{ t('payment.maximumToUse', { amount: formatPaymentAmount(method.maximum_amount, method.currency) }) }}
+            </span>
           </span>
         </span>
         <span
@@ -53,18 +67,24 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
-import { METHOD_ORDER, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from './providerConfig'
+import { paymentMethodOrder, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from './providerConfig'
+import { customPaymentTypeDefinition } from '@/custom/payments'
 import alipayIcon from '@/assets/icons/alipay.svg'
 import wxpayIcon from '@/assets/icons/wxpay.svg'
 import stripeIcon from '@/assets/icons/stripe.svg'
 import airwallexIcon from '@/assets/icons/airwallex.svg'
 import paymentIcon from '@/assets/icons/payment.svg'
+import { formatPaymentAmount as formatCurrencyAmount, normalizePaymentCurrency } from './currency'
 
 export interface PaymentMethodOption {
   type: string
   display_name?: string
   fee_rate: number
   available: boolean
+  unavailable_reason?: 'minimum' | 'maximum' | 'provider'
+  minimum_amount?: number
+  maximum_amount?: number
+  currency?: string
 }
 
 const props = withDefaults(defineProps<{
@@ -86,24 +106,19 @@ const METHOD_ICONS: Record<string, string> = {
   wxpay: wxpayIcon,
   stripe: stripeIcon,
   airwallex: airwallexIcon,
-  bepusdt: paymentIcon,
   credit_card: paymentIcon,
 }
 
 const sortedMethods = computed(() => {
-  const order: readonly string[] = METHOD_ORDER
-  return [...props.methods].sort((a, b) => {
-    const ai = order.indexOf(a.type)
-    const bi = order.indexOf(b.type)
-    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
-  })
+  return [...props.methods].sort((a, b) => paymentMethodOrder(a.type) - paymentMethodOrder(b.type))
 })
 
 function methodIcon(type: string): string {
   if (isBuiltInAlipayMethod(type)) return METHOD_ICONS.alipay
   if (isBuiltInWxpayMethod(type)) return METHOD_ICONS.wxpay
   if (type === 'airwallex') return METHOD_ICONS.airwallex
-  if (type === 'bepusdt') return METHOD_ICONS.bepusdt
+  const customIcon = customPaymentTypeDefinition(type)?.methodIcon
+  if (customIcon) return customIcon
   return METHOD_ICONS[type] || paymentIcon
 }
 
@@ -111,12 +126,17 @@ function methodLabel(method: PaymentMethodOption): string {
   return method.display_name || t(`payment.methods.${method.type}`, method.type)
 }
 
+function formatPaymentAmount(value: number, currency?: string): string {
+  return formatCurrencyAmount(value, normalizePaymentCurrency(currency))
+}
+
 function methodSelectedClass(type: string): string {
   if (isBuiltInAlipayMethod(type)) return 'border-[#02A9F1] bg-blue-50 text-gray-900 shadow-sm dark:bg-blue-950 dark:text-gray-100'
   if (isBuiltInWxpayMethod(type)) return 'border-[#09BB07] bg-green-50 text-gray-900 shadow-sm dark:bg-green-950 dark:text-gray-100'
   if (type === 'stripe') return 'border-[#676BE5] bg-indigo-50 text-gray-900 shadow-sm dark:bg-indigo-950 dark:text-gray-100'
   if (type === 'airwallex') return 'border-[#FF6B3D] bg-orange-50 text-gray-900 shadow-sm dark:border-[#FF8E3C] dark:bg-orange-950 dark:text-gray-100'
-  if (type === 'bepusdt') return 'border-[#26A17B] bg-green-50 text-gray-900 shadow-sm dark:bg-green-950 dark:text-gray-100'
+  const customClass = customPaymentTypeDefinition(type)?.selectedClass
+  if (customClass) return customClass
   return 'border-primary-500 bg-primary-50 text-gray-900 shadow-sm dark:bg-primary-950 dark:text-gray-100'
 }
 </script>

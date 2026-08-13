@@ -73,4 +73,24 @@ describe('PaymentMethodSelector', () => {
     expect(button.classes()).toContain('border-primary-500')
     expect(button.classes()).not.toContain('border-[#02A9F1]')
   })
+
+  it('keeps a method visible and explains its minimum amount when disabled', () => {
+    const wrapper = mount(PaymentMethodSelector, {
+      props: {
+        selected: 'alipay',
+        methods: [{
+          type: 'minimum-limited',
+          display_name: 'Limited Pay',
+          fee_rate: 0,
+          available: false,
+          unavailable_reason: 'minimum',
+          minimum_amount: 20,
+          currency: 'CNY',
+        }],
+      },
+    })
+
+    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="payment-method-limit-hint"]').text()).toContain('¥20.00')
+  })
 })

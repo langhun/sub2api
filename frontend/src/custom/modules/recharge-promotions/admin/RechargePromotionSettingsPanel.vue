@@ -14,6 +14,7 @@
           <select v-model="form.recharge_promotion_mode" class="input mt-1">
             <option value="percentage">{{ t('admin.rechargePromotion.percentage') }}</option>
             <option value="tiered">{{ t('admin.rechargePromotion.tiered') }}</option>
+            <option value="tiered_percentage">{{ t('admin.rechargePromotion.tieredPercentage') }}</option>
           </select>
         </label>
       </div>
@@ -24,13 +25,30 @@
         <label class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.rechargePromotion.maximumBonus') }}<input v-model.number="form.recharge_promotion_maximum_bonus" type="number" min="0" step="0.01" class="input mt-1" /><span class="mt-1 block text-xs text-gray-400">{{ t('admin.rechargePromotion.noCap') }}</span></label>
       </div>
 
-      <div v-else class="space-y-3 border-t border-gray-100 pt-4 dark:border-dark-700">
+      <div v-else-if="form.recharge_promotion_mode === 'tiered'" class="space-y-3 border-t border-gray-100 pt-4 dark:border-dark-700">
         <div class="flex items-center justify-between gap-4"><span class="font-medium text-gray-900 dark:text-white">{{ t('admin.rechargePromotion.tiers') }}</span><button type="button" class="btn btn-secondary btn-sm" @click="addTier">{{ t('admin.rechargePromotion.addTier') }}</button></div>
         <div v-for="(tier, index) in form.recharge_promotion_tier_rules" :key="index" class="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
           <label class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.rechargePromotion.tierMinimum') }}<input v-model.number="tier.minimum_amount" type="number" min="0.01" step="0.01" class="input mt-1" /></label>
           <label class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.rechargePromotion.tierBonus') }}<input v-model.number="tier.bonus_credit" type="number" min="0.01" step="0.01" class="input mt-1" /></label>
           <button type="button" class="btn btn-secondary self-end text-red-600 dark:text-red-300" @click="removeTier(index)">{{ t('admin.rechargePromotion.removeTier') }}</button>
         </div>
+      </div>
+
+      <div v-else class="space-y-4 border-t border-gray-100 pt-4 dark:border-dark-700">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span class="font-medium text-gray-900 dark:text-white">{{ t('admin.rechargePromotion.tieredPercentageRules') }}</span>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.rechargePromotion.tieredPercentageHint') }}</p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" @click="addTieredPercentageRule">{{ t('admin.rechargePromotion.addTier') }}</button>
+        </div>
+        <div v-for="(tier, index) in form.recharge_promotion_tiered_percentage_rules" :key="index" class="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+          <label class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.rechargePromotion.tierMinimum') }}<input v-model.number="tier.minimum_amount" type="number" min="0.01" step="0.01" class="input mt-1" /></label>
+          <label class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.rechargePromotion.tierMaximum') }}<input v-model.number="tier.maximum_amount" type="number" min="0" step="0.01" class="input mt-1" :readonly="index === form.recharge_promotion_tiered_percentage_rules.length - 1" /><span v-if="index === form.recharge_promotion_tiered_percentage_rules.length - 1" class="mt-1 block text-xs text-gray-400">{{ t('admin.rechargePromotion.unlimitedMaximum') }}</span></label>
+          <label class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.rechargePromotion.percentageRate') }}<input v-model.number="tier.percentage_rate" type="number" min="0.01" max="100" step="0.01" class="input mt-1" /></label>
+          <button type="button" class="btn btn-secondary self-end text-red-600 dark:text-red-300" @click="removeTieredPercentageRule(index)">{{ t('admin.rechargePromotion.removeTier') }}</button>
+        </div>
+        <label class="block max-w-sm text-sm text-gray-600 dark:text-gray-300">{{ t('admin.rechargePromotion.maximumBonus') }}<input v-model.number="form.recharge_promotion_maximum_bonus" type="number" min="0" step="0.01" class="input mt-1" /><span class="mt-1 block text-xs text-gray-400">{{ t('admin.rechargePromotion.noCap') }}</span></label>
       </div>
 
       <div class="grid gap-4 border-t border-gray-100 pt-4 dark:border-dark-700 md:grid-cols-2">
@@ -49,7 +67,7 @@ import { reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Toggle from '@/components/common/Toggle.vue'
 import RechargePromotionAdminPanel from './RechargePromotionAdminPanel.vue'
-import type { RechargePromotionMode, RechargePromotionTierRule } from '../api'
+import type { RechargePromotionMode, RechargePromotionTieredPercentageRule, RechargePromotionTierRule } from '../api'
 
 interface Settings {
   recharge_promotion_enabled: boolean
@@ -58,6 +76,7 @@ interface Settings {
   recharge_promotion_minimum_amount: number
   recharge_promotion_maximum_bonus: number
   recharge_promotion_tier_rules: RechargePromotionTierRule[]
+  recharge_promotion_tiered_percentage_rules: RechargePromotionTieredPercentageRule[]
   recharge_promotion_start_at: string
   recharge_promotion_end_at: string
 }
@@ -84,12 +103,19 @@ function clone(value: Settings): Settings {
     recharge_promotion_start_at: normalizeDate(value.recharge_promotion_start_at),
     recharge_promotion_end_at: normalizeDate(value.recharge_promotion_end_at),
     recharge_promotion_tier_rules: value.recharge_promotion_tier_rules.map((tier) => ({ ...tier })),
+    recharge_promotion_tiered_percentage_rules: value.recharge_promotion_tiered_percentage_rules.map((tier) => ({ ...tier })),
   }
 }
 
 function payload(value: Settings): Settings {
   const toIso = (text: string) => text ? new Date(text).toISOString().replace('.000Z', 'Z') : ''
-  return { ...value, recharge_promotion_start_at: toIso(value.recharge_promotion_start_at), recharge_promotion_end_at: toIso(value.recharge_promotion_end_at), recharge_promotion_tier_rules: value.recharge_promotion_tier_rules.map((tier) => ({ ...tier })) }
+  return {
+    ...value,
+    recharge_promotion_start_at: toIso(value.recharge_promotion_start_at),
+    recharge_promotion_end_at: toIso(value.recharge_promotion_end_at),
+    recharge_promotion_tier_rules: value.recharge_promotion_tier_rules.map((tier) => ({ ...tier })),
+    recharge_promotion_tiered_percentage_rules: value.recharge_promotion_tiered_percentage_rules.map((tier) => ({ ...tier })),
+  }
 }
 
 function sameSettings(left: Settings, right: Settings): boolean {
@@ -104,6 +130,12 @@ function sameSettings(left: Settings, right: Settings): boolean {
     left.recharge_promotion_tier_rules.every((tier, index) =>
       tier.minimum_amount === right.recharge_promotion_tier_rules[index]?.minimum_amount &&
       tier.bonus_credit === right.recharge_promotion_tier_rules[index]?.bonus_credit,
+    ) &&
+    left.recharge_promotion_tiered_percentage_rules.length === right.recharge_promotion_tiered_percentage_rules.length &&
+    left.recharge_promotion_tiered_percentage_rules.every((tier, index) =>
+      tier.minimum_amount === right.recharge_promotion_tiered_percentage_rules[index]?.minimum_amount &&
+      tier.maximum_amount === right.recharge_promotion_tiered_percentage_rules[index]?.maximum_amount &&
+      tier.percentage_rate === right.recharge_promotion_tiered_percentage_rules[index]?.percentage_rate,
     )
 }
 
@@ -119,4 +151,20 @@ watch(form, (value) => {
 }, { deep: true })
 function addTier() { form.recharge_promotion_tier_rules.push({ minimum_amount: 10, bonus_credit: 1 }) }
 function removeTier(index: number) { form.recharge_promotion_tier_rules.splice(index, 1) }
+function addTieredPercentageRule() {
+  const previous = form.recharge_promotion_tiered_percentage_rules.at(-1)
+  const minimum = previous
+    ? previous.maximum_amount > previous.minimum_amount
+      ? previous.maximum_amount
+      : Math.round((previous.minimum_amount + 10) * 100) / 100
+    : 10
+  if (previous) previous.maximum_amount = minimum
+  form.recharge_promotion_tiered_percentage_rules.push({ minimum_amount: minimum, maximum_amount: 0, percentage_rate: previous?.percentage_rate || 1 })
+}
+function removeTieredPercentageRule(index: number) {
+  form.recharge_promotion_tiered_percentage_rules.splice(index, 1)
+  form.recharge_promotion_tiered_percentage_rules.forEach((rule, ruleIndex, rules) => {
+    rule.maximum_amount = ruleIndex === rules.length - 1 ? 0 : rules[ruleIndex + 1].minimum_amount
+  })
+}
 </script>

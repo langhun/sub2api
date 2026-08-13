@@ -19,17 +19,18 @@
     <div class="border-t border-gray-100 pt-5 dark:border-dark-700">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h3 class="font-medium text-gray-900 dark:text-white">{{ t('admin.rechargePromotion.details') }}</h3>
-        <select v-model="mode" class="input w-36" @change="loadOrders">
+        <select v-model="mode" data-testid="recharge-promotion-mode-filter" class="input w-44" @change="handleModeChange">
           <option value="">{{ t('admin.rechargePromotion.allModes') }}</option>
           <option value="percentage">{{ t('admin.rechargePromotion.percentageMode') }}</option>
           <option value="tiered">{{ t('admin.rechargePromotion.tieredMode') }}</option>
+          <option value="tiered_percentage">{{ t('admin.rechargePromotion.tieredPercentageMode') }}</option>
         </select>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full min-w-[680px] text-left text-sm">
-          <thead class="border-b border-gray-200 text-xs text-gray-500 dark:border-dark-700 dark:text-gray-400"><tr><th class="py-2 pr-3">{{ t('admin.rechargePromotion.order') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.user') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.baseCredit') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.bonusCredit') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.finalCredit') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.refundedCredit') }}</th><th class="py-2">{{ t('admin.rechargePromotion.createdAt') }}</th></tr></thead>
+          <thead class="border-b border-gray-200 text-xs text-gray-500 dark:border-dark-700 dark:text-gray-400"><tr><th class="py-2 pr-3">{{ t('admin.rechargePromotion.order') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.user') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.baseCredit') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.bonusCredit') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.finalCredit') }}</th><th class="py-2 pr-3">{{ t('admin.rechargePromotion.refundedCredit') }}</th><th class="py-2">{{ t('admin.rechargePromotion.completedAt') }}</th></tr></thead>
           <tbody>
-            <tr v-for="item in items" :key="item.payment_order_id" class="border-b border-gray-100 dark:border-dark-700"><td class="py-2 pr-3 font-mono">#{{ item.payment_order_id }}</td><td class="py-2 pr-3">#{{ item.user_id }}</td><td class="py-2 pr-3 tabular-nums">${{ item.base_credit.toFixed(2) }}</td><td class="py-2 pr-3 tabular-nums text-emerald-700 dark:text-emerald-300">+${{ item.bonus_credit.toFixed(2) }}</td><td class="py-2 pr-3 tabular-nums">${{ item.final_credit.toFixed(2) }}</td><td class="py-2 pr-3 tabular-nums text-red-600 dark:text-red-300">${{ item.refunded_credit.toFixed(2) }}</td><td class="py-2 text-xs text-gray-500">{{ formatDate(item.created_at) }}</td></tr>
+            <tr v-for="item in items" :key="item.payment_order_id" class="border-b border-gray-100 dark:border-dark-700"><td class="py-2 pr-3 font-mono">#{{ item.payment_order_id }}</td><td class="py-2 pr-3">#{{ item.user_id }}</td><td class="py-2 pr-3 tabular-nums">${{ item.base_credit.toFixed(2) }}</td><td class="py-2 pr-3 tabular-nums text-emerald-700 dark:text-emerald-300">+${{ item.bonus_credit.toFixed(2) }}</td><td class="py-2 pr-3 tabular-nums">${{ item.final_credit.toFixed(2) }}</td><td class="py-2 pr-3 tabular-nums text-red-600 dark:text-red-300">${{ item.refunded_credit.toFixed(2) }}</td><td class="py-2 text-xs text-gray-500">{{ formatDate(item.completed_at) }}</td></tr>
             <tr v-if="!loading && items.length === 0"><td colspan="7" class="py-5 text-center text-gray-500 dark:text-gray-400">-</td></tr>
           </tbody>
         </table>
@@ -76,6 +77,10 @@ async function loadOrders() {
     total.value = 0
     loadFailed.value = true
   } finally { loading.value = false }
+}
+function handleModeChange() {
+  page.value = 1
+  void loadOrders()
 }
 async function load() {
   loading.value = true

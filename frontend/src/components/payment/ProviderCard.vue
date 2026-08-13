@@ -70,6 +70,7 @@ import ToggleSwitch from './ToggleSwitch.vue'
 import type { ProviderInstance } from '@/types/payment'
 import type { TypeOption } from './providerConfig'
 import { PAYMENT_MODE_QRCODE, PAYMENT_MODE_POPUP, PAYMENT_MODE_REDIRECT } from './providerConfig'
+import { customPaymentDefinition } from '@/custom/payments'
 
 const PROVIDER_KEY_LABELS: Record<string, string> = {
   easypay: 'admin.settings.payment.providerEasypay',
@@ -77,7 +78,6 @@ const PROVIDER_KEY_LABELS: Record<string, string> = {
   wxpay: 'admin.settings.payment.providerWxpay',
   stripe: 'admin.settings.payment.providerStripe',
   airwallex: 'admin.settings.payment.providerAirwallex',
-  bepusdt: 'admin.settings.payment.providerBepusdt',
 }
 
 const props = defineProps<{
@@ -95,7 +95,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const keyLabel = computed(() => t(PROVIDER_KEY_LABELS[props.provider.provider_key] || props.provider.provider_key))
+const keyLabel = computed(() => t(
+  PROVIDER_KEY_LABELS[props.provider.provider_key]
+    || customPaymentDefinition(props.provider.provider_key)?.providerLabelKey
+    || props.provider.provider_key,
+))
 
 const modeLabel = computed(() => {
   if (props.provider.payment_mode === PAYMENT_MODE_QRCODE) return t('admin.settings.payment.modeQRCode')

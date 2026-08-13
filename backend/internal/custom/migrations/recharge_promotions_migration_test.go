@@ -23,7 +23,11 @@ func TestRechargePromotionsMigrationOwnsOnlyCustomTables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read upgrade migration: %v", err)
 	}
-	sql := string(base) + "\n" + string(upgrade)
+	tieredPercentage, err := files.ReadFile("005_recharge_promotions_tiered_percentage.sql")
+	if err != nil {
+		t.Fatalf("read tiered percentage migration: %v", err)
+	}
+	sql := string(base) + "\n" + string(upgrade) + "\n" + string(tieredPercentage)
 	for _, expected := range []string{
 		"CREATE TABLE IF NOT EXISTS custom_recharge_promotion_orders",
 		"RENAME COLUMN bonus_rate TO percentage_rate",
@@ -32,6 +36,11 @@ func TestRechargePromotionsMigrationOwnsOnlyCustomTables(t *testing.T) {
 		"refunded_bonus_credit",
 		"refunded_credit = refunded_base_credit + refunded_bonus_credit",
 		"custom_recharge_promotion_orders_user_created_idx",
+		"tiered_percentage_rules JSONB NOT NULL",
+		"matched_minimum_amount",
+		"matched_maximum_amount",
+		"applied_percentage_rate",
+		"'tiered_percentage'",
 	} {
 		if !strings.Contains(sql, expected) {
 			t.Fatalf("migration missing %q", expected)

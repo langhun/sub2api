@@ -8727,7 +8727,12 @@ import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
-import { customSettingsPanels, type CustomSettingsValues } from "@/custom/registry";
+import {
+  customPaymentTypeOptions,
+  customProviderKeyOptions,
+  customSettingsPanels,
+  type CustomSettingsValues,
+} from "@/custom/registry";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {
@@ -12118,7 +12123,10 @@ const allPaymentTypes = computed(() => [
   { value: "wxpay", label: t("payment.methods.wxpay") },
   { value: "stripe", label: t("payment.methods.stripe") },
   { value: "airwallex", label: t("payment.methods.airwallex") },
-  { value: "bepusdt", label: t("payment.methods.bepusdt") },
+  ...customPaymentTypeOptions().map((option) => ({
+    value: option.value,
+    label: t(option.label, option.value),
+  })),
 ]);
 
 function isPaymentTypeEnabled(type: string): boolean {
@@ -12176,7 +12184,10 @@ const providerKeyOptions = computed(() => [
   { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
   { value: "stripe", label: t("admin.settings.payment.providerStripe") },
   { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
-  { value: "bepusdt", label: t("admin.settings.payment.providerBepusdt") },
+  ...customProviderKeyOptions().map((option) => ({
+    value: option.value,
+    label: t(option.label, option.value),
+  })),
 ]);
 
 const enabledProviderKeyOptions = computed(() => {
