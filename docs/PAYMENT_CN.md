@@ -25,6 +25,7 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 | **支付宝官方** | 桌面二维码扫码、移动端支付宝跳转或当面付唤起 | 直接对接支付宝开放平台；移动端默认 WAP，也可选择当面付二维码唤起支付宝 |
 | **微信官方** | Native 扫码、H5、公众号/JSAPI 支付 | 直接对接微信支付 APIv3，按终端环境自动分流 |
 | **Stripe** | 银行卡、支付宝、微信支付、Link 等 | 国际支付，支持多币种 |
+| **BEpusdt** | USDT 收银台 | 通过 BEpusdt 收银台选择 BEP20、TRC20 等网络 |
 
 > 支付宝官方 / 微信官方与易支付可以同时作为后台服务商实例存在，但前台始终只展示 `支付宝`、`微信支付` 两个可见按钮。管理员需要分别为这两个按钮选择唯一支付来源：官方或易支付。官方渠道直接对接 API，资金直达商户账户，手续费更低；易支付通过第三方平台聚合，接入门槛更低。
 
@@ -161,6 +162,30 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 | **Secret Key** | Stripe 密钥（`sk_live_...` 或 `sk_test_...`） | 是 |
 | **Publishable Key** | Stripe 可公开密钥（`pk_live_...` 或 `pk_test_...`） | 是 |
 | **Webhook Secret** | Stripe Webhook 签名密钥（`whsec_...`） | 是 |
+
+### BEpusdt（Overlay）
+
+BEpusdt 作为 Overlay 支付模块接入，Sub2API 前台只展示一个 **USDT** 入口。
+系统调用 BEpusdt 的 `create-order` 收银台接口，并限制 `currencies=USDT`；用户在
+BEpusdt 收银台选择已启用的网络（例如 BEP20 或 TRC20）。
+
+| 参数 | 说明 | 必填 |
+|------|------|------|
+| **API Base URL** | BEpusdt 服务地址，例如 `https://pay.example.com` | 是 |
+| **API Token** | BEpusdt 后台“系统管理 → 基本设置 → API 设置 → 对接令牌” | 是 |
+| **Fiat** | 计价法币，默认 `CNY` | 否 |
+| **Currencies** | 允许的加密货币，默认 `USDT` | 否 |
+| **Timeout** | BEpusdt 订单超时秒数，至少 180，默认 600 | 否 |
+
+回调地址：
+
+```text
+https://your-domain.com/api/v1/payment/webhook/bepusdt
+```
+
+BEpusdt 回调使用 ASCII 排序、追加 API Token 后 MD5 签名。Sub2API 仅接受签名正确且
+`status=2` 的通知，并严格校验回调 `amount` 与订单应付 CNY 金额；重复通知不会重复入账。
+BEpusdt 当前模块不提供退款和主动订单查询，支付状态以回调为准。
 
 ---
 

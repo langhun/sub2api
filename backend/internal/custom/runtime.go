@@ -12,6 +12,7 @@ import (
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
+	bepusdt "github.com/Wei-Shaw/sub2api/internal/custom/modules/bepusdt"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
 	openaiat "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-at"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
@@ -54,6 +55,7 @@ func NewRuntime(
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
 ) (*Runtime, error) {
+	bepusdt.Register()
 	if err := custommigrations.Apply(context.Background(), db); err != nil {
 		return nil, err
 	}

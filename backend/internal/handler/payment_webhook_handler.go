@@ -144,6 +144,12 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 	writeSuccessResponse(c, resolvedProviderKey)
 }
 
+// HandleNotify exposes the generic notification pipeline to Overlay route
+// registrations without giving core handlers provider-specific knowledge.
+func (h *PaymentWebhookHandler) HandleNotify(c *gin.Context, providerKey string) {
+	h.handleNotify(c, providerKey)
+}
+
 // extractOutTradeNo parses the webhook body to find the out_trade_no.
 // This allows looking up the correct provider instance before verification.
 func extractOutTradeNo(rawBody, providerKey string) string {
@@ -164,6 +170,9 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
 			return strings.TrimSpace(payload.Data.Object.MerchantOrderID)
 		}
+	}
+	if definition, ok := payment.ExternalProviderDefinitionFor(providerKey); ok && definition.WebhookOrderID != nil {
+		return definition.WebhookOrderID(rawBody)
 	}
 	// For other providers (Stripe, Alipay direct, WxPay direct), the registry
 	// typically has only one instance, so no instance lookup is needed.

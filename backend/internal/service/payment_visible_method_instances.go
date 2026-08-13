@@ -48,6 +48,14 @@ func enabledVisibleMethodsForProvider(providerKey, supportedTypes string) []stri
 		for _, supportedType := range splitTypes(supportedTypes) {
 			addMethod(supportedType)
 		}
+	default:
+		if definition, ok := payment.ExternalProviderDefinitionFor(providerKey); ok {
+			for _, method := range definition.VisibleMethods {
+				if strings.TrimSpace(supportedTypes) == "" || payment.InstanceSupportsType(supportedTypes, method) {
+					addMethod(method)
+				}
+			}
+		}
 	}
 
 	methods := make([]string, 0, len(methodSet))
@@ -62,6 +70,15 @@ func enabledVisibleMethodsForProvider(providerKey, supportedTypes string) []stri
 		if _, ok := methodSet[method]; ok {
 			methods = append(methods, method)
 			delete(methodSet, method)
+		}
+	}
+	for _, definition := range payment.ExternalProviderDefinitions() {
+		for _, method := range definition.VisibleMethods {
+			method = NormalizeVisibleMethod(method)
+			if _, ok := methodSet[method]; ok {
+				methods = append(methods, method)
+				delete(methodSet, method)
+			}
 		}
 	}
 	return methods

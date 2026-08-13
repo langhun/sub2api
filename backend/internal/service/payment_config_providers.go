@@ -132,19 +132,37 @@ var providerPendingOrderProtectedConfigFields = map[string]map[string]struct{}{
 
 func isSensitiveProviderConfigField(providerKey, fieldName string) bool {
 	fields, ok := providerSensitiveConfigFields[providerKey]
+	if ok {
+		_, found := fields[strings.ToLower(fieldName)]
+		return found
+	}
+	definition, ok := payment.ExternalProviderDefinitionFor(providerKey)
 	if !ok {
 		return false
 	}
-	_, found := fields[strings.ToLower(fieldName)]
-	return found
+	for _, field := range definition.SensitiveConfigFields {
+		if strings.EqualFold(field, fieldName) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasPendingOrderProtectedConfigChange(providerKey string, currentConfig, nextConfig map[string]string) bool {
 	fields, ok := providerPendingOrderProtectedConfigFields[providerKey]
+	if ok {
+		for fieldName := range fields {
+			if providerConfigFieldValue(currentConfig, fieldName) != providerConfigFieldValue(nextConfig, fieldName) {
+				return true
+			}
+		}
+		return false
+	}
+	definition, ok := payment.ExternalProviderDefinitionFor(providerKey)
 	if !ok {
 		return false
 	}
-	for fieldName := range fields {
+	for _, fieldName := range definition.PendingOrderProtectedConfigFields {
 		if providerConfigFieldValue(currentConfig, fieldName) != providerConfigFieldValue(nextConfig, fieldName) {
 			return true
 		}
@@ -216,7 +234,7 @@ func validateProviderRequest(providerKey, name, supportedTypes string) error {
 	if strings.TrimSpace(name) == "" {
 		return infraerrors.BadRequest("VALIDATION_ERROR", "provider name is required")
 	}
-	if !validProviderKeys[providerKey] {
+	if !validProviderKeys[providerKey] && !payment.IsExternalProvider(providerKey) {
 		return infraerrors.BadRequest("VALIDATION_ERROR", fmt.Sprintf("invalid provider key: %s", providerKey))
 	}
 	// supported_types can be empty (provider accepts no payment types until configured)

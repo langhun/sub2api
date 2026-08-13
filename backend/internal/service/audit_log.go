@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/payment"
+
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 )
@@ -162,6 +164,13 @@ func isAuditSensitiveBodyKey(key string) bool {
 	k := auditNormalizeBodyKey(key)
 	if _, ok := auditBodySensitiveExactKeys[k]; ok {
 		return true
+	}
+	for _, definition := range payment.ExternalProviderDefinitions() {
+		for _, field := range definition.SensitiveConfigFields {
+			if k == auditNormalizeBodyKey(field) {
+				return true
+			}
+		}
 	}
 	for _, sub := range auditBodySensitiveSubstrings {
 		if strings.Contains(k, sub) {

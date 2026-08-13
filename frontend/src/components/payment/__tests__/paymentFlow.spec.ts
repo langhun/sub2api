@@ -71,6 +71,16 @@ describe('getVisibleMethods', () => {
       usdt_trc20: methodLimit({ fee_rate: 1 }),
     })
   })
+
+  it('keeps BEpusdt as the single USDT payment method', () => {
+    const visible = getVisibleMethods({
+      bepusdt: methodLimit({ single_min: 20, single_max: 500 }),
+    })
+
+    expect(visible).toEqual({
+      bepusdt: methodLimit({ single_min: 20, single_max: 500 }),
+    })
+  })
 })
 
 describe('decidePaymentLaunch', () => {
@@ -158,6 +168,23 @@ describe('decidePaymentLaunch', () => {
     expect(decision.recovery.paymentMode).toBe('popup')
     expect(decision.recovery.outTradeNo).toBe('sub2_abc')
     expect(decision.recovery.resumeToken).toBe('resume-2')
+  })
+
+  it('redirects BEpusdt checkout URLs and preserves recovery state', () => {
+    const decision = decidePaymentLaunch(createOrderResult({
+      pay_url: 'https://pay.example.com/cashier/trade-1',
+      out_trade_no: 'sub2_bepusdt_1',
+      resume_token: 'resume-usdt',
+    }), {
+      visibleMethod: 'bepusdt',
+      orderType: 'balance',
+      isMobile: true,
+    })
+
+    expect(decision.kind).toBe('redirect_waiting')
+    expect(decision.paymentState.paymentType).toBe('bepusdt')
+    expect(decision.recovery.outTradeNo).toBe('sub2_bepusdt_1')
+    expect(decision.recovery.resumeToken).toBe('resume-usdt')
   })
 
   it('prefers redirect on mobile when both pay_url and qr_code are present', () => {

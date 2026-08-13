@@ -15,6 +15,15 @@ func paymentProviderConfigCurrency(providerKey string, cfg map[string]string) st
 			return currency
 		}
 	}
+	if definition, ok := payment.ExternalProviderDefinitionFor(providerKey); ok {
+		currency, err := payment.NormalizePaymentCurrency(cfg[definition.CurrencyConfigKey])
+		if err == nil {
+			return currency
+		}
+		if currency, err := payment.NormalizePaymentCurrency(definition.DefaultCurrency); err == nil {
+			return currency
+		}
+	}
 	return payment.DefaultPaymentCurrency
 }
 

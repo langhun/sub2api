@@ -58,6 +58,15 @@ describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
   })
 })
 
+describe('PROVIDER_CONFIG_FIELDS.bepusdt', () => {
+  it('keeps the API token sensitive and uses fixed CNY and USDT defaults', () => {
+    expect(findField('bepusdt', 'apiToken')?.sensitive).toBe(true)
+    expect(findField('bepusdt', 'fiat')?.defaultValue).toBe('CNY')
+    expect(findField('bepusdt', 'currencies')?.defaultValue).toBe('USDT')
+    expect(findField('bepusdt', 'timeout')?.defaultValue).toBe('600')
+  })
+})
+
 describe('EasyPay custom methods config', () => {
   it('parses customMethods from the JSON string stored in provider config', () => {
     expect(parseEasyPayCustomMethods(

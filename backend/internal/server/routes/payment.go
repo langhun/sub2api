@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
+	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -66,6 +67,15 @@ func RegisterPaymentRoutes(
 		webhook.POST("/wxpay", webhookHandler.WxpayNotify)
 		webhook.POST("/stripe", webhookHandler.StripeWebhook)
 		webhook.POST("/airwallex", webhookHandler.AirwallexWebhook)
+		for _, definition := range payment.ExternalProviderDefinitions() {
+			definition := definition
+			if definition.WebhookPath == "" {
+				continue
+			}
+			webhook.POST("/"+definition.WebhookPath, func(c *gin.Context) {
+				webhookHandler.HandleNotify(c, definition.ProviderKey)
+			})
+		}
 	}
 
 	// --- Admin payment endpoints (admin auth) ---
