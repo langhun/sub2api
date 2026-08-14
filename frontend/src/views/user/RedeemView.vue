@@ -182,7 +182,14 @@
               >
                 <li>{{ t('redeem.codeRule1') }}</li>
                 <li>{{ t('redeem.codeRule2') }}</li>
-                <li>
+                <component
+                  v-for="entry in customSupportContactEntries"
+                  :is="entry.component"
+                  :key="entry.id"
+                  placement="redeem"
+                  :legacy-contact-info="contactInfo"
+                />
+                <li v-if="customSupportContactEntries.length === 0">
                   {{ t('redeem.codeRule3') }}
                   <span
                     v-if="contactInfo"
@@ -346,6 +353,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { customLedgerDisplay } from '@/custom/registry'
 import { useAuthStore } from '@/stores/auth'
+import { customSupportContactEntries } from '@/custom/registry'
 import { useAppStore } from '@/stores/app'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { redeemAPI, authAPI, type RedeemHistoryItem } from '@/api'

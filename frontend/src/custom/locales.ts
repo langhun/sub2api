@@ -6,6 +6,7 @@ import { openAIRTAdminLocaleMessages } from './modules/openai-rt/locales'
 import { rechargePromotionAdminLocaleMessages, rechargePromotionLocaleMessages } from './modules/recharge-promotions/locales'
 import { bepusdtAdminLocaleMessages, bepusdtLocaleMessages } from './modules/bepusdt/locales'
 import { supportTicketAdminLocaleMessages, supportTicketLocaleMessages } from './modules/support-tickets/locales'
+import { supportContactsLocaleMessages } from './modules/support-contacts/locales'
 
 type LocaleTree = Record<string, unknown>
 
@@ -59,8 +60,8 @@ export const customAdminLocaleMessages = {
 } as const
 
 export const customLocaleMessages = {
-  en: [customSharedLocaleMessages.en, activityLocaleMessages.en, bepusdtLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en],
-  zh: [customSharedLocaleMessages.zh, activityLocaleMessages.zh, bepusdtLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh],
+  en: [customSharedLocaleMessages.en, activityLocaleMessages.en, bepusdtLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en, supportContactsLocaleMessages.en],
+  zh: [customSharedLocaleMessages.zh, activityLocaleMessages.zh, bepusdtLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh, supportContactsLocaleMessages.zh],
 } as const
 
 export function mergeCustomLocale<T extends LocaleTree>(

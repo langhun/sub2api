@@ -192,8 +192,15 @@
               </div>
 
               <!-- Contact Support (only show if configured) -->
+              <component
+                v-for="entry in customSupportContactEntries"
+                :is="entry.component"
+                :key="entry.id"
+                placement="header"
+                :legacy-contact-info="contactInfo"
+              />
               <div
-                v-if="contactInfo"
+                v-if="customSupportContactEntries.length === 0 && contactInfo"
                 class="border-t border-gray-100 px-4 py-2.5 dark:border-dark-700"
               >
                 <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -264,6 +271,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { customHeaderActions } from '@/custom/registry'
+import { customSupportContactEntries } from '@/custom/registry'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'

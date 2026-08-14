@@ -65,6 +65,15 @@ func RegisterRoutes(
 		admin.Use(middleware.AdminComplianceGuard(settingService))
 		runtime.RechargePromotions.RegisterRoutes(admin, preview, authenticated)
 	}
+	if runtime.SupportContacts != nil {
+		v1 := r.Group("/api/v1")
+		public := v1.Group("")
+		admin := v1.Group("/custom/admin")
+		admin.Use(gin.HandlerFunc(adminAuth))
+		admin.Use(gin.HandlerFunc(auditLog))
+		admin.Use(middleware.AdminComplianceGuard(settingService))
+		runtime.SupportContacts.RegisterRoutes(admin, public)
+	}
 	if runtime.ActivityCheckin != nil {
 		v1 := r.Group("/api/v1")
 		authenticated := v1.Group("")

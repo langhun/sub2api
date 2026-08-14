@@ -15,8 +15,15 @@
         :wechat-mp-enabled="wechatOAuthMPEnabled"
       />
 
+      <component
+        v-for="entry in customSupportContactEntries"
+        :is="entry.component"
+        :key="entry.id"
+        placement="profile"
+        :legacy-contact-info="contactInfo"
+      />
       <div
-        v-if="contactInfo"
+        v-if="customSupportContactEntries.length === 0 && contactInfo"
         class="card border-primary-200 bg-primary-50 p-6 dark:bg-primary-900/20"
       >
         <div class="flex items-center gap-4">
@@ -62,6 +69,7 @@ import ProfilePasskeyCard from '@/components/user/profile/ProfilePasskeyCard.vue
 import { isWeChatWebOAuthEnabled } from '@/api/auth'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import { customSupportContactEntries } from '@/custom/registry'
 
 const { t } = useI18n()
 const appStore = useAppStore()

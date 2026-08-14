@@ -38,6 +38,7 @@ describe.each([
     }
     expect(messages.admin.settings.tabs).toMatchObject({ general, balanceFeatures })
     expect(messages.admin.supportTickets.title).toBe(locale === 'zh' ? '工单管理' : 'Support tickets')
+    expect(messages.admin.supportContacts.title).toBe(locale === 'zh' ? '客服资料' : 'Customer support contacts')
     expect(messages.admin).not.toHaveProperty('admin.supportTickets')
   })
 })

@@ -25,6 +25,8 @@ import { openAIAccountActions, type CustomAccountAction } from './modules/openai
 import RechargePromotionOrderBreakdown from './modules/recharge-promotions/RechargePromotionOrderBreakdown.vue'
 import RechargePromotionSummary from './modules/recharge-promotions/RechargePromotionSummary.vue'
 import { rechargePromotionSettingsPanels } from './modules/recharge-promotions/settings'
+import SupportContactEntry from './modules/support-contacts/SupportContactEntry.vue'
+import { supportContactsSettingsPanels } from './modules/support-contacts/settings'
 import './payments'
 export {
   customPaymentDefinition,
@@ -72,6 +74,15 @@ export interface CustomPaymentOrderDetailExtension {
   id: string
   component: Component
 }
+
+export interface CustomSupportContactEntry {
+  id: string
+  component: Component
+}
+
+export const customSupportContactEntries: readonly CustomSupportContactEntry[] = [
+  { id: 'support-contacts', component: SupportContactEntry },
+]
 
 export const customAccountActions: readonly CustomAccountActionDefinition[] = [
   ...openAIAccountActions,
@@ -135,6 +146,7 @@ export const customSettingsPanels: readonly CustomSettingsPanel[] = [
   ...gameHallSettingsPanels,
   ...activitySettingsPanels,
   ...rechargePromotionSettingsPanels,
+  ...supportContactsSettingsPanels,
 ].sort((left, right) => left.order - right.order)
 
 export const customFeatureFlags: readonly FeatureFlagDefinition[] = [

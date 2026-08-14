@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   customHeaderActions,
+  customSupportContactEntries,
   customNavigation,
   customNotificationCenterExtensions,
   customAccountActions,
@@ -33,6 +34,8 @@ const accountsViewSource = readFileSync(resolve(directory, '../../views/admin/Ac
 const paymentViewSource = readFileSync(resolve(directory, '../../views/user/PaymentView.vue'), 'utf8')
 const userOrdersViewSource = readFileSync(resolve(directory, '../../views/user/UserOrdersView.vue'), 'utf8')
 const adminOrdersViewSource = readFileSync(resolve(directory, '../../views/admin/orders/AdminOrdersView.vue'), 'utf8')
+const profileSource = readFileSync(resolve(directory, '../../views/user/ProfileView.vue'), 'utf8')
+const redeemSource = readFileSync(resolve(directory, '../../views/user/RedeemView.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
   it('aggregates routes and navigation from custom modules', () => {
@@ -96,6 +99,7 @@ describe('custom overlay registry', () => {
       'activity-entry-switches',
       'activity',
       'recharge-promotions',
+      'support-contacts',
     ])
     expect(settingsSource).toContain("customSettingsPanelsFor('site')")
     expect(settingsSource).toContain("customSettingsPanelsFor('entry-switches')")
@@ -105,6 +109,15 @@ describe('custom overlay registry', () => {
     expect(settingsSource).not.toContain('form.checkin_enabled')
     expect(settingsSource).not.toContain('form.transfer_enabled')
     expect(settingsSource).not.toContain('form.default_homepage')
+  })
+
+  it('mounts customer support contacts through generic entries without importing the module into pages', () => {
+    expect(customSupportContactEntries.map((entry) => entry.id)).toContain('support-contacts')
+    for (const source of [headerSource, profileSource, redeemSource]) {
+      expect(source).toContain("import { customSupportContactEntries } from '@/custom/registry'")
+      expect(source).toContain('v-for="entry in customSupportContactEntries"')
+      expect(source).not.toContain('@/custom/modules/support-contacts')
+    }
   })
 
   it('mounts the OpenAI AT action through generic account adapters', () => {

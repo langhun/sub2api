@@ -11,11 +11,12 @@ import (
 	activityleaderboard "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/leaderboard"
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
-	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	bepusdt "github.com/Wei-Shaw/sub2api/internal/custom/modules/bepusdt"
+	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
 	openairt "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-rt"
 	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
+	supportcontacts "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-contacts"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
@@ -42,6 +43,7 @@ type Runtime struct {
 	SupportTickets      *supporttickets.Module
 	OpenAIRT            *openairt.Module
 	RechargePromotions  *rechargepromotions.Module
+	SupportContacts     *supportcontacts.Module
 	UsageQuerySettings  UsageQuerySettings
 }
 
@@ -141,6 +143,7 @@ func NewRuntime(
 		SupportTickets:      supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
 		OpenAIRT:            openairt.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
 		RechargePromotions:  rechargePromotions,
+		SupportContacts:     supportcontacts.NewModule(db),
 		UsageQuerySettings:  customSettingsRegistry,
 	}, nil
 }
