@@ -55,15 +55,31 @@
                 {{ t('docs.updated') }} {{ selectedEntry.updatedAt }} · {{ selectedEntry.clientVersion }}
               </p>
             </div>
-            <div class="docs-view-switch" role="tablist" :aria-label="t('docs.pageTitle')">
-              <button type="button" role="tab" :aria-selected="viewMode === 'beginner'" :class="{ active: viewMode === 'beginner' }" @click="viewMode = 'beginner'">
-                {{ t('docs.beginner') }}
-              </button>
-              <button type="button" role="tab" :aria-selected="viewMode === 'reference'" :class="{ active: viewMode === 'reference' }" @click="viewMode = 'reference'">
-                {{ t('docs.reference') }}
-              </button>
+            <div class="docs-article-actions">
+              <div v-if="authStore.isAuthenticated" class="docs-revision-actions">
+                <button type="button" class="docs-action-button" :title="t('docs.edit')" @click="openEditor">
+                  <Icon name="edit" size="sm" />
+                  <span>{{ t('docs.edit') }}</span>
+                </button>
+                <button type="button" class="docs-action-button" :title="t('docs.history')" @click="openHistory">
+                  <Icon name="clock" size="sm" />
+                  <span>{{ t('docs.history') }}</span>
+                </button>
+              </div>
+              <div class="docs-view-switch" role="tablist" :aria-label="t('docs.pageTitle')">
+                <button type="button" role="tab" :aria-selected="viewMode === 'beginner'" :class="{ active: viewMode === 'beginner' }" @click="viewMode = 'beginner'">
+                  {{ t('docs.beginner') }}
+                </button>
+                <button type="button" role="tab" :aria-selected="viewMode === 'reference'" :class="{ active: viewMode === 'reference' }" @click="viewMode = 'reference'">
+                  {{ t('docs.reference') }}
+                </button>
+              </div>
             </div>
           </div>
+
+          <p v-if="revisionStatus" class="docs-revision-status" :class="`docs-revision-status-${revisionStatus}`" role="status">
+            {{ revisionStatus === 'saved' ? t('docs.saved') : revisionStatus === 'conflict' ? t('docs.conflict') : t('docs.saveFailed') }}
+          </p>
 
           <article
             ref="articleElement"
@@ -123,6 +139,26 @@
           </figure>
         </div>
       </Teleport>
+
+      <DocsRevisionDialog
+        :show="editorOpen"
+        :title="`${t('docs.editTitle')}：${selectedEntry.title[locale]}`"
+        :initial-content="editorContent"
+        :initial-summary="editorSummary"
+        :saving="savingRevision"
+        @close="editorOpen = false"
+        @save="saveRevision"
+      />
+      <DocsHistoryDialog
+        :show="historyOpen"
+        :title="`${t('docs.historyTitle')}：${selectedEntry.title[locale]}`"
+        :history="revisionState.history"
+        :current-revision-id="currentRevision?.id || null"
+        :can-revert="authStore.isAdmin"
+        :reverting-id="revertingRevisionId"
+        @close="historyOpen = false"
+        @revert="revertRevision"
+      />
     </div>
   </AppLayout>
 </template>
@@ -136,6 +172,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { useAuthStore } from '@/stores/auth'
 import {
   docsCatalog,
   getDocsEntry,
@@ -144,6 +181,9 @@ import {
   type DocsEntry,
   type DocsLocale,
 } from './catalog'
+import { docsAPI, type DocsRevision, type DocsRevisionState } from './api'
+import DocsHistoryDialog from './DocsHistoryDialog.vue'
+import DocsRevisionDialog from './DocsRevisionDialog.vue'
 
 type DocsViewMode = 'beginner' | 'reference'
 interface TocItem { id: string; text: string; level: number }
@@ -153,6 +193,7 @@ const categoryOrder: readonly DocsCategory[] = ['start', 'api', 'sdk', 'clients'
 const route = useRoute()
 const router = useRouter()
 const { locale: i18nLocale, t } = useI18n()
+const authStore = useAuthStore()
 
 const search = ref('')
 const viewMode = ref<DocsViewMode>('beginner')
@@ -160,6 +201,16 @@ const mobileMenuOpen = ref(false)
 const articleElement = ref<HTMLElement | null>(null)
 const previewImage = ref<PreviewImage | null>(null)
 const previewCloseButton = ref<HTMLButtonElement | null>(null)
+const revisionState = ref<DocsRevisionState>({ current: null, history: [] })
+const revisionScope = ref('')
+const revisionStatus = ref<'saved' | 'conflict' | 'error' | null>(null)
+const editorOpen = ref(false)
+const historyOpen = ref(false)
+const savingRevision = ref(false)
+const revertingRevisionId = ref<number | null>(null)
+const editorContent = ref('')
+const editorSummary = ref('')
+let revisionRequestId = 0
 let previewTrigger: HTMLElement | null = null
 const allowedImageUrls = new Set(docsCatalog
   .flatMap((entry) => entry.screenshots.map((item) => resolveDocsAsset(item.asset)))
@@ -168,6 +219,9 @@ const allowedImageUrls = new Set(docsCatalog
 const locale = computed<DocsLocale>(() => i18nLocale.value.toLowerCase().startsWith('zh') ? 'zh' : 'en')
 const requestedSlug = computed(() => typeof route.params.topic === 'string' ? route.params.topic : 'quick-start')
 const selectedEntry = computed(() => getDocsEntry(requestedSlug.value) || docsCatalog[0])
+const revisionKey = computed(() => `${requestedSlug.value}:${locale.value}`)
+const currentRevision = computed(() => revisionScope.value === revisionKey.value ? revisionState.value.current : null)
+const documentContent = computed(() => currentRevision.value?.content || selectedEntry.value.body[locale.value])
 
 const filteredEntries = computed(() => {
   const query = search.value.toLocaleLowerCase()
@@ -186,7 +240,101 @@ const relatedEntries = computed(() => selectedEntry.value.related
 
 const visibleSources = computed(() => selectedEntry.value.sources)
 
-const renderedDocument = computed(() => renderMarkdown(modeContent(selectedEntry.value.body[locale.value], viewMode.value)))
+const renderedDocument = computed(() => renderMarkdown(modeContent(documentContent.value, viewMode.value)))
+
+function errorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const value = error as { status?: unknown; response?: { status?: unknown } }
+  return typeof value.status === 'number' ? value.status : typeof value.response?.status === 'number' ? value.response.status : undefined
+}
+
+async function loadRevisions() {
+  const slug = requestedSlug.value
+  const currentLocale = locale.value
+  if (!getDocsEntry(slug) || !authStore.isAuthenticated) {
+    revisionScope.value = ''
+    revisionState.value = { current: null, history: [] }
+    return
+  }
+
+  const requestId = ++revisionRequestId
+  const key = `${slug}:${currentLocale}`
+  revisionScope.value = ''
+  revisionState.value = { current: null, history: [] }
+  try {
+    const state = await docsAPI.listRevisions(slug, currentLocale)
+    if (requestId !== revisionRequestId) return
+    revisionState.value = state
+    revisionScope.value = key
+    revisionStatus.value = null
+  } catch {
+    if (requestId !== revisionRequestId) return
+    revisionStatus.value = null
+    revisionScope.value = key
+  }
+}
+
+function openEditor() {
+  editorContent.value = documentContent.value
+  editorSummary.value = ''
+  editorOpen.value = true
+}
+
+function openHistory() {
+  historyOpen.value = true
+  if (revisionScope.value !== revisionKey.value) void loadRevisions()
+}
+
+async function saveRevision(payload: { content: string; editSummary: string }) {
+  if (!authStore.isAuthenticated || savingRevision.value) return
+  savingRevision.value = true
+  revisionStatus.value = null
+  try {
+    const created = await docsAPI.createRevision({
+      slug: requestedSlug.value,
+      locale: locale.value,
+      content: payload.content,
+      editSummary: payload.editSummary,
+      baseRevisionId: currentRevision.value?.id ?? null,
+    })
+    if (revisionScope.value === revisionKey.value) {
+      revisionState.value = {
+        current: created,
+        history: [created, ...revisionState.value.history.filter((revision) => revision.id !== created.id)].slice(0, 50),
+      }
+    } else {
+      revisionState.value = { current: created, history: [created] }
+      revisionScope.value = revisionKey.value
+    }
+    editorOpen.value = false
+    revisionStatus.value = 'saved'
+  } catch (error) {
+    if (errorStatus(error) === 409) {
+      await loadRevisions()
+      revisionStatus.value = 'conflict'
+    } else {
+      revisionStatus.value = 'error'
+    }
+  } finally {
+    savingRevision.value = false
+  }
+}
+
+async function revertRevision(revision: DocsRevision) {
+  if (!authStore.isAdmin || revertingRevisionId.value !== null) return
+  if (!window.confirm(t('docs.revertConfirm', { id: revision.id }))) return
+  revertingRevisionId.value = revision.id
+  revisionStatus.value = null
+  try {
+    await docsAPI.revertRevision(requestedSlug.value, locale.value, revision.id)
+    await loadRevisions()
+    revisionStatus.value = 'saved'
+  } catch {
+    revisionStatus.value = 'error'
+  } finally {
+    revertingRevisionId.value = null
+  }
+}
 
 function safeExternalUrl(value?: string): string {
   if (!value) return ''
@@ -359,6 +507,13 @@ watch(requestedSlug, async (slug) => {
   if (!getDocsEntry(slug)) await router.replace('/docs/quick-start')
 })
 
+watch([requestedSlug, locale], () => {
+  editorOpen.value = false
+  historyOpen.value = false
+  revisionStatus.value = null
+  void loadRevisions()
+}, { immediate: true })
+
 onMounted(async () => {
   window.addEventListener('keydown', handleEscape)
   if (!route.params.topic || !getDocsEntry(requestedSlug.value)) await router.replace('/docs/quick-start')
@@ -391,6 +546,12 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 
 .docs-main { @apply min-w-0 px-4 py-6 sm:px-7 lg:px-9; }
 .docs-article-header { @apply mb-6 flex flex-col gap-4 border-b border-gray-200 pb-5 sm:flex-row sm:items-start sm:justify-between dark:border-dark-700; }
+.docs-article-actions { @apply flex flex-wrap items-center gap-2; }
+.docs-revision-actions { @apply flex flex-wrap items-center gap-2; }
+.docs-action-button { @apply inline-flex min-h-9 items-center gap-1.5 border border-gray-300 px-2.5 py-1.5 text-sm font-medium text-gray-700 hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:text-dark-200 dark:hover:border-primary-500 dark:hover:text-primary-400; border-radius: 6px; }
+.docs-revision-status { @apply mb-5 border px-3 py-2 text-sm; border-radius: 6px; }
+.docs-revision-status-saved { @apply border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300; }
+.docs-revision-status-conflict, .docs-revision-status-error { @apply border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300; }
 .docs-view-switch { @apply inline-flex shrink-0 border border-gray-300 bg-gray-50 p-0.5 dark:border-dark-600 dark:bg-dark-800; border-radius: 6px; }
 .docs-view-switch button { @apply px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-dark-300; border-radius: 4px; }
 .docs-view-switch button.active { @apply bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white; }
@@ -434,5 +595,13 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 @media (max-width: 1023px) {
   .docs-workspace { min-height: auto; }
   .docs-navigation { max-height: 60vh; overflow-y: auto; }
+}
+
+@media (max-width: 639px) {
+  .docs-article-actions { @apply items-stretch; }
+  .docs-revision-actions { @apply w-full; }
+  .docs-action-button { @apply flex-1 justify-center; }
+  .docs-view-switch { @apply w-full; }
+  .docs-view-switch button { @apply flex-1; }
 }
 </style>

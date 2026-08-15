@@ -13,6 +13,7 @@ import (
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
 	bepusdt "github.com/Wei-Shaw/sub2api/internal/custom/modules/bepusdt"
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
+	docsmodule "github.com/Wei-Shaw/sub2api/internal/custom/modules/docs"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
 	openairt "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-rt"
 	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
@@ -41,6 +42,7 @@ type Runtime struct {
 	ActivityRewardsHTTP *activityrewards.Module
 	GameHall            *gamehall.Module
 	SupportTickets      *supporttickets.Module
+	Docs                *docsmodule.Module
 	OpenAIRT            *openairt.Module
 	RechargePromotions  *rechargepromotions.Module
 	SupportContacts     *supportcontacts.Module
@@ -141,6 +143,7 @@ func NewRuntime(
 		ActivityRewardsHTTP: activityRewardsHTTP,
 		GameHall:            gamehall.NewModuleWithIdempotency(gameHallService, platform.DefaultIdempotencyCoordinator()),
 		SupportTickets:      supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
+		Docs:                docsmodule.NewModule(docsmodule.NewService(docsmodule.NewRepository(db))),
 		OpenAIRT:            openairt.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
 		RechargePromotions:  rechargePromotions,
 		SupportContacts:     supportcontacts.NewModule(db),

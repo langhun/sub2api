@@ -13,6 +13,7 @@ import (
 	activityleaderboard "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/leaderboard"
 	activityredpacket "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/redpacket"
 	activityrewards "github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/rewards"
+	docsmodule "github.com/Wei-Shaw/sub2api/internal/custom/modules/docs"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
 	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
 	rechargepromotionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions/settings"
@@ -36,6 +37,33 @@ func TestRegisterRoutesDoesNotAddRoutesWithoutRuntime(t *testing.T) {
 	custom.RegisterRoutes(router, nil, nil, nil, nil, nil, nil)
 
 	require.Empty(t, router.Routes())
+}
+
+func TestRegisterRoutesMountsDocsModule(t *testing.T) {
+	router := gin.New()
+	passthrough := func(c *gin.Context) { c.Next() }
+	custom.RegisterRoutes(
+		router,
+		&custom.Runtime{Docs: docsmodule.NewModule(nil)},
+		middleware.JWTAuthMiddleware(passthrough),
+		middleware.AdminAuthMiddleware(passthrough),
+		middleware.AuditLogMiddleware(passthrough),
+		nil,
+		nil,
+	)
+	routes := make(map[string]struct{})
+	for _, route := range router.Routes() {
+		routes[route.Method+" "+route.Path] = struct{}{}
+	}
+	for _, route := range []string{
+		"GET /api/v1/docs/:slug",
+		"GET /api/v1/docs/:slug/history",
+		"POST /api/v1/docs/:slug/revisions",
+		"POST /api/v1/admin/docs/:slug/revisions/:revision_id/revert",
+	} {
+		_, ok := routes[route]
+		require.Truef(t, ok, "missing route %s", route)
+	}
 }
 
 func TestRegisterRoutesMountsGameHallModule(t *testing.T) {

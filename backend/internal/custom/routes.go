@@ -42,6 +42,9 @@ func RegisterRoutes(
 	if runtime.SupportTickets != nil {
 		runtime.SupportTickets.RegisterRoutes(r, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
 	}
+	if runtime.Docs != nil {
+		runtime.Docs.RegisterRoutes(r, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
+	}
 	if runtime.OpenAIRT != nil {
 		v1 := r.Group("/api/v1")
 		admin := v1.Group("/custom/admin")
