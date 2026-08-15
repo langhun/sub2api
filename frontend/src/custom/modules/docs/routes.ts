@@ -10,6 +10,7 @@ export const docsRoutes: readonly RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Help documentation',
       titleKey: 'docs.pageTitle',
+      hideHeaderTitle: true,
     },
   },
   {
@@ -21,6 +22,7 @@ export const docsRoutes: readonly RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Help documentation',
       titleKey: 'docs.pageTitle',
+      hideHeaderTitle: true,
     },
   },
 ]

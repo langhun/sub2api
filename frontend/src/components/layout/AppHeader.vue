@@ -11,7 +11,7 @@
           <Icon name="menu" size="md" />
         </button>
 
-        <div class="hidden lg:block">
+        <div v-if="!hideHeaderTitle" class="hidden lg:block">
           <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ pageTitle }}
           </h1>
@@ -341,6 +341,8 @@ const pageTitle = computed(() => {
   }
   return (route.meta.title as string) || ''
 })
+
+const hideHeaderTitle = computed(() => route.meta.hideHeaderTitle === true)
 
 const pageDescription = computed(() => {
   const descKey = route.meta.descriptionKey as string

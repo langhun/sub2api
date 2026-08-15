@@ -16,6 +16,7 @@ describe('documentation overlay integration', () => {
   it('registers authenticated topic routes and user navigation', () => {
     expect(docsRoutes.map((route) => route.path)).toEqual(['/docs', '/docs/:topic'])
     expect(docsRoutes.every((route) => route.meta?.requiresAuth === true)).toBe(true)
+    expect(docsRoutes.every((route) => route.meta?.hideHeaderTitle === true)).toBe(true)
     expect(customRoutes).toEqual(expect.arrayContaining(docsRoutes))
     expect(customNavigation).toEqual(expect.arrayContaining(docsNavigation))
     expect(docsNavigation[0]).toMatchObject({ path: '/docs', labelKey: 'nav.helpDocs', slot: 'after-affiliate' })
