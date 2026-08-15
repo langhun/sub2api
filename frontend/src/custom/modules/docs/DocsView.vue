@@ -1,17 +1,7 @@
 <template>
   <AppLayout>
-    <div class="docs-page">
-      <header class="docs-page-header">
-        <div class="flex items-center gap-3">
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 ring-1 ring-primary-100 dark:bg-primary-900/20 dark:text-primary-300 dark:ring-primary-900/60">
-            <Icon name="book" size="lg" />
-          </span>
-          <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ t('docs.pageTitle') }}</h1>
-        </div>
-      </header>
-
-      <div class="docs-shell">
-        <header class="docs-header">
+    <div class="docs-shell">
+      <header class="docs-header">
         <div class="min-w-0">
           <p class="max-w-2xl text-sm text-gray-500 dark:text-dark-400">
             {{ selectedEntry.summary[locale] }}
@@ -29,7 +19,7 @@
             {{ t('docs.menu') }}
           </button>
         </div>
-        </header>
+      </header>
 
       <div class="docs-workspace">
         <aside :class="['docs-navigation', { 'docs-navigation-open': mobileMenuOpen }]">
@@ -168,7 +158,6 @@
         @revert="revertRevision"
         @review="reviewRevision"
       />
-      </div>
     </div>
   </AppLayout>
 </template>
@@ -558,8 +547,6 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 </script>
 
 <style scoped>
-.docs-page { @apply mx-auto w-full min-w-0 max-w-[1600px] space-y-5; }
-.docs-page-header { @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between; }
 .docs-shell { @apply mx-auto w-full min-w-0 max-w-[1600px] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card dark:border-dark-700/50 dark:bg-dark-800/50; }
 
 .docs-header {
