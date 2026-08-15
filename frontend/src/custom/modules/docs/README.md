@@ -33,7 +33,7 @@ Keep protocol differences, advanced parameters, and raw JSON in the reference vi
 ## Screenshot workflow
 
 - Crop to the fields required for the step and annotate them with red boxes, arrows, and numbered markers.
-- Replace every credential with `sk-demo-...` and every private host with `api.example.com`.
+- Replace every credential with `sk-demo-...`. Official generic illustrations use the public `https://api.daigua.icu` address as a DaiGua authenticity marker; private hosts are never allowed.
 - Remove accounts, email addresses, cookies, tokens, private domains, character conversations, and browser profile data.
 - Record the client name, generic-interface capture method, version, capture date, and topic slug in `catalog.ts`.
 - Write a complete Markdown alt value and a useful image title; the title becomes the visible caption.

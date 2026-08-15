@@ -83,7 +83,7 @@ Save-Canvas $canvas 'assets/common/api-key-create.png'
 $canvas = New-Canvas 'Grok API 接入' '通用界面示意图 - 客户端会自动拼接接口路径'
 $g = $canvas.Graphics
 Draw-Panel $g 170 124 1100 700
-Draw-Field $g 'Base URL' 'https://api.example.com/v1' 250 185 720
+Draw-Field $g 'Base URL' 'https://api.daigua.icu/v1' 250 185 720
 Draw-Field $g 'API Key' 'sk-demo-replace-me' 250 315 720
 Draw-Field $g 'Model' 'select an ID returned by /models' 250 445 720
 Draw-Button $g '测试请求' 790 635 180 '#087A5B'
@@ -97,7 +97,7 @@ $canvas = New-Canvas 'Grok CLI 配置' 'config.toml 通用示意图 - 仅写入�
 $g = $canvas.Graphics
 Draw-Panel $g 140 120 1160 710
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#111827')), 190, 170, 800, 600)
-$lines = @('[model."site-grok"]','model = "<grok-model-id>"','base_url = "https://api.example.com/v1"','name = "Site Grok"','env_key = "XAI_API_KEY"','api_backend = "responses"','','[models]','default = "site-grok"')
+$lines = @('[model."site-grok"]','model = "<grok-model-id>"','base_url = "https://api.daigua.icu/v1"','name = "Site Grok"','env_key = "XAI_API_KEY"','api_backend = "responses"','','[models]','default = "site-grok"')
 for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 14), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#E5E7EB')), 220, 205 + ($i * 50)) }
 Draw-Step $g 1 205 290 770 48 '填写完整 Base URL'
 Draw-Step $g 2 205 390 770 48 'Key 从环境变量读取'
@@ -108,7 +108,7 @@ $canvas = New-Canvas 'Codex 自定义 Provider' 'config.toml 通用示意图 - �
 $g = $canvas.Graphics
 Draw-Panel $g 140 120 1160 710
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#111827')), 190, 170, 800, 600)
-$lines = @('model_provider = "site-grok"','model = "<grok-model-id>"','','[model_providers.site-grok]','base_url = "https://api.example.com/v1"','env_key = "SUB2API_API_KEY"','wire_api = "responses"','requires_openai_auth = false','supports_websockets = false')
+$lines = @('model_provider = "site-grok"','model = "<grok-model-id>"','','[model_providers.site-grok]','base_url = "https://api.daigua.icu/v1"','env_key = "SUB2API_API_KEY"','wire_api = "responses"','requires_openai_auth = false','supports_websockets = false')
 for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 13), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#E5E7EB')), 220, 195 + ($i * 56)) }
 Draw-Step $g 1 205 405 770 48 '复制本站 api_base_url'
 Draw-Step $g 2 205 461 770 48 '从环境变量读取 Key'
@@ -119,7 +119,7 @@ $canvas = New-Canvas 'Claude Code 网关变量' '终端通用示意图 - 使用 
 $g = $canvas.Graphics
 Draw-Panel $g 140 120 1160 710
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#111827')), 190, 170, 850, 500)
-$lines = @('$env:ANTHROPIC_BASE_URL="https://api.example.com"','$env:ANTHROPIC_AUTH_TOKEN="sk-demo-replace-me"','$env:ANTHROPIC_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_SONNET_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_HAIKU_MODEL="<grok-model-id>"','claude --model <grok-model-id> -p "Reply only OK"')
+$lines = @('$env:ANTHROPIC_BASE_URL="https://api.daigua.icu"','$env:ANTHROPIC_AUTH_TOKEN="sk-demo-replace-me"','$env:ANTHROPIC_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_SONNET_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_HAIKU_MODEL="<grok-model-id>"','claude --model <grok-model-id> -p "Reply only OK"')
 for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 12), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#E5E7EB')), 220, 205 + ($i * 68)) }
 Draw-Step $g 1 205 190 820 58 '使用不带 /v1 的站点根地址'
 Draw-Step $g 2 205 258 820 58 '使用专用 Bearer Token'
@@ -131,7 +131,7 @@ $canvas = New-Canvas 'OpenCode Provider 配置' 'opencode.json 通用示意图 -
 $g = $canvas.Graphics
 Draw-Panel $g 140 120 1160 710
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#111827')), 190, 155, 850, 620)
-$lines = @('{','  "provider": {','    "site": {','      "npm": "@ai-sdk/openai",','      "options": {','        "baseURL": "https://api.example.com/v1",','        "apiKey": "{env:SUB2API_API_KEY}"','      },','      "models": { "<grok-model-id>": {} }','    }','  }','}')
+$lines = @('{','  "provider": {','    "site": {','      "npm": "@ai-sdk/openai",','      "options": {','        "baseURL": "https://api.daigua.icu/v1",','        "apiKey": "{env:SUB2API_API_KEY}"','      },','      "models": { "<grok-model-id>": {} }','    }','  }','}')
 for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 12), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#E5E7EB')), 220, 180 + ($i * 45)) }
 Draw-Step $g 1 205 315 820 48 '选择 Responses Provider 包'
 Draw-Step $g 2 205 405 820 93 '填写 Base URL 和环境变量 Key'
@@ -143,7 +143,7 @@ $g = $canvas.Graphics
 Draw-Panel $g 150 112 1140 730
 Draw-Field $g 'API Type' 'Chat Completion' 225 165 760
 Draw-Field $g 'Chat Completion Source' 'Custom (OpenAI-compatible)' 225 270 760
-Draw-Field $g 'Custom Endpoint (Base URL)' 'https://api.example.com/v1' 225 375 760
+Draw-Field $g 'Custom Endpoint (Base URL)' 'https://api.daigua.icu/v1' 225 375 760
 Draw-Field $g 'Custom API Key' 'sk-demo-replace-me' 225 480 760
 Draw-Field $g 'Enter a Model ID' 'select an ID returned by /models' 225 585 760
 Draw-Button $g 'Connect' 1025 627 120 '#087A5B'
@@ -159,7 +159,7 @@ $canvas = New-Canvas 'TavernAI 兼容客户端' '通用字段对照图 - 不同�
 $g = $canvas.Graphics
 Draw-Panel $g 170 118 1100 720
 Draw-Field $g 'Provider / Backend' 'Custom OpenAI-compatible or Reverse Proxy' 245 175 730
-Draw-Field $g 'Base URL / Proxy URL' 'https://api.example.com/v1' 245 295 730
+Draw-Field $g 'Base URL / Proxy URL' 'https://api.daigua.icu/v1' 245 295 730
 Draw-Field $g 'API Key / Token / Password' 'sk-demo-replace-me' 245 415 730
 Draw-Field $g 'Model / Custom model' 'select an ID returned by /models' 245 535 730
 Draw-Button $g 'Test' 805 695 170 '#6941C6'

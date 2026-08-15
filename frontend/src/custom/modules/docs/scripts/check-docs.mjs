@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 const moduleRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const catalogSource = readFileSync(join(moduleRoot, 'catalog.ts'), 'utf8')
+const assetGeneratorSource = readFileSync(join(moduleRoot, 'scripts', 'generate-generic-assets.ps1'), 'utf8')
 const slugs = [
   'quick-start', 'install-guide', 'api-keys', 'authentication', 'chat-completions', 'messages', 'embeddings', 'streaming',
   'sdk-openai', 'sdk-anthropic', 'sdk-gemini', 'new-api', 'billing', 'errors', 'grok', 'grok-cli', 'sillytavern',
@@ -18,6 +19,10 @@ const dangerousMarkdown = /<\s*(?:script|iframe|object|embed|form|img|video|audi
 const externalImage = /!\[[^\]]*\]\((?!asset:)[^)]+\)/gi
 const assetReference = /asset:([A-Za-z0-9/_-]+\.(?:png|webp))/g
 const documentedAsset = /!\[([^\]]+)\]\(asset:([A-Za-z0-9/_-]+\.(?:png|webp))\s+["']([^"']+)["']\)/g
+
+const brandedApiAddresses = assetGeneratorSource.match(/https:\/\/api\.daigua\.icu(?:\/v1)?/g) || []
+if (brandedApiAddresses.length !== 7) errors.push('generic illustrations must contain seven DaiGua public API addresses')
+if (/api\.example\.com/i.test(assetGeneratorSource)) errors.push('generic illustrations still contain the placeholder API domain')
 
 const verifiedAtMatch = catalogSource.match(/const verifiedAt = '(\d{4}-\d{2}-\d{2})'/)
 if (!verifiedAtMatch) errors.push('catalog is missing a valid verification date')
