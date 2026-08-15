@@ -106,7 +106,7 @@ describe('DocsView', () => {
     const { wrapper } = await mountView()
     expect(wrapper.text()).toContain('步骤 1：准备 SillyTavern 和本站账号')
     expect(wrapper.text()).not.toContain('部分旧版本出现')
-    expect(wrapper.text()).toContain('Sub2API gateway and frontend implementation')
+    expect(wrapper.text()).toContain('DaiGua gateway and frontend implementation')
 
     const tabs = wrapper.findAll('[role="tab"]')
     await tabs[1].trigger('click')

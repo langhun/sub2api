@@ -551,10 +551,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 </script>
 
 <style scoped>
-.docs-shell {
-  @apply mx-auto max-w-[1600px] overflow-hidden border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900;
-  border-radius: 8px;
-}
+.docs-shell { @apply mx-auto w-full min-w-0 max-w-[1600px] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card dark:border-dark-700/50 dark:bg-dark-800/50; }
 
 .docs-header {
   @apply flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between dark:border-dark-700;

@@ -57,7 +57,7 @@ export function resolveDocsAsset(path: string): string {
 
 const verifiedAt = '2026-08-15'
 const repositorySource: DocsSource = {
-  label: 'Sub2API gateway and frontend implementation',
+  label: 'DaiGua gateway and frontend implementation',
   verifiedAt,
 }
 
