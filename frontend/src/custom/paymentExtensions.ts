@@ -5,6 +5,8 @@ export interface CustomPaymentDefinition {
   providerLabelKey: string
   supportedTypes: readonly string[]
   paymentTypes: readonly TypeOption[]
+  displayNameConfigKey?: string
+  defaultDisplayName?: string
   methodOrder?: number
   configFields: readonly ConfigFieldDef[]
   callbackPaths?: CallbackPaths
@@ -35,6 +37,18 @@ export function customPaymentTypeDefinition(type: string): CustomPaymentDefiniti
   return customPaymentDefinitions().find(definition =>
     definition.paymentTypes.some(option => option.value === normalized),
   )
+}
+
+export function customPaymentDisplayName(
+  providerKey: string,
+  paymentType: string,
+  config?: Record<string, string>,
+): string {
+  const definition = customPaymentDefinition(providerKey)
+  if (!definition?.displayNameConfigKey || !definition.paymentTypes.some(type => type.value === paymentType)) {
+    return ''
+  }
+  return config?.[definition.displayNameConfigKey]?.trim() || definition.defaultDisplayName || ''
 }
 
 export function customPaymentTypeOptions(): TypeOption[] {

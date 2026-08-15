@@ -21,6 +21,8 @@ func Register() {
 		SensitiveConfigFields:             []string{"apiToken"},
 		PendingOrderProtectedConfigFields: []string{"apiToken", "apiBase", "fiat", "currencies"},
 		VisibleMethods:                    []payment.PaymentType{ProviderKey},
+		DisplayNameConfigKey:              "displayName",
+		DefaultDisplayName:                "USDT",
 		CurrencyConfigKey:                 "fiat",
 		DefaultCurrency:                   "CNY",
 		WebhookPath:                       "bepusdt",

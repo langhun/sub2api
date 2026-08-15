@@ -61,7 +61,7 @@
             <ProviderCard
               :provider="p"
               :enabled="isEnabled(p.provider_key)"
-              :available-types="getTypes(p.provider_key)"
+              :available-types="getTypes(p)"
               @toggle-field="(field) => emit('toggleField', p, field)"
               @toggle-type="(type) => emit('toggleType', p, type)"
               @edit="emit('edit', p)"
@@ -100,6 +100,7 @@ import ProviderCard from './ProviderCard.vue'
 import type { ProviderInstance } from '@/types/payment'
 import type { TypeOption } from './providerConfig'
 import { getAvailableTypes } from './providerConfig'
+import { customPaymentDisplayName } from '@/custom/payments'
 
 const props = defineProps<{
   providers: ProviderInstance[]
@@ -140,10 +141,14 @@ function isEnabled(providerKey: string): boolean {
   return props.enabledPaymentTypes.includes(providerKey)
 }
 
-function getTypes(providerKey: string): TypeOption[] {
-  return getAvailableTypes(providerKey, props.allPaymentTypes, props.redirectLabel)
+function getTypes(provider: ProviderInstance): TypeOption[] {
+  return getAvailableTypes(provider.provider_key, props.allPaymentTypes, props.redirectLabel)
     .map(opt => opt.label === opt.value
       ? { ...opt, label: t(`payment.methods.${opt.value}`, opt.value) }
+      : opt,
+    )
+    .map(opt => customPaymentDisplayName(provider.provider_key, opt.value, provider.config)
+      ? { ...opt, label: customPaymentDisplayName(provider.provider_key, opt.value, provider.config) }
       : opt,
     )
 }

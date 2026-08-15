@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { aiApiPayBaselineSlugs, docsCatalog, resolveDocsAsset } from '../catalog'
+import { baselineTopicSlugs, docsCatalog, resolveDocsAsset } from '../catalog'
 
 describe('documentation catalog', () => {
-  it('locks the fourteen AI API Pay baseline topics', () => {
-    expect(aiApiPayBaselineSlugs).toHaveLength(14)
-    expect(docsCatalog.map((entry) => entry.slug)).toEqual(expect.arrayContaining([...aiApiPayBaselineSlugs]))
+  it('locks the fourteen core baseline topics', () => {
+    expect(baselineTopicSlugs).toHaveLength(14)
+    expect(docsCatalog.map((entry) => entry.slug)).toEqual(expect.arrayContaining([...baselineTopicSlugs]))
   })
 
   it('contains exactly twenty-one complete bilingual topics', () => {
@@ -64,7 +64,7 @@ describe('documentation catalog', () => {
     for (const entry of docsCatalog) {
       for (const body of Object.values(entry.body)) {
         expect(body).not.toMatch(/!\[[^\]]*\]\((?!asset:)[^)]+\)/i)
-        expect(body).not.toMatch(/api\.your-domain\.com|old\.aiapipay\.com/i)
+        expect(body).not.toMatch(/api\.your-domain\.com|old\.aiapipay\.com|aiapipay\.com/i)
         expect(body).not.toMatch(/\bsk-(?!demo-)[A-Za-z0-9_-]{12,}\b/)
         expect(body).not.toMatch(/<\s*(?:script|iframe|object|embed|form|img|video|audio|source|picture)\b|\bon(?:error|load|click)\s*=|(?:javascript|vbscript|data:text\/html)\s*:/i)
         expect(body).not.toMatch(/\b(?:xai-[A-Za-z0-9_-]{12,}|eyJ[A-Za-z0-9_-]{16,}\.)\b/)

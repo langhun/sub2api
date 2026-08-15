@@ -5,11 +5,11 @@ import { fileURLToPath } from 'node:url'
 const moduleRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const catalogSource = readFileSync(join(moduleRoot, 'catalog.ts'), 'utf8')
 const assetGeneratorSource = readFileSync(join(moduleRoot, 'scripts', 'generate-generic-assets.ps1'), 'utf8')
-const slugs = [
+const baselineSlugs = [
   'quick-start', 'install-guide', 'api-keys', 'authentication', 'chat-completions', 'messages', 'embeddings', 'streaming',
-  'sdk-openai', 'sdk-anthropic', 'sdk-gemini', 'new-api', 'billing', 'errors', 'grok', 'grok-cli', 'sillytavern',
-  'tavernai', 'models', 'troubleshooting', 'security',
+  'sdk-openai', 'sdk-anthropic', 'sdk-gemini', 'new-api', 'billing', 'errors',
 ]
+const slugs = [...baselineSlugs, 'grok', 'grok-cli', 'sillytavern', 'tavernai', 'models', 'troubleshooting', 'security']
 
 const errors = []
 const suspiciousKey = /\bsk-(?!demo-)[A-Za-z0-9_-]{12,}\b/g
@@ -19,6 +19,7 @@ const dangerousMarkdown = /<\s*(?:script|iframe|object|embed|form|img|video|audi
 const externalImage = /!\[[^\]]*\]\((?!asset:)[^)]+\)/gi
 const assetReference = /asset:([A-Za-z0-9/_-]+\.(?:png|webp))/g
 const documentedAsset = /!\[([^\]]+)\]\(asset:([A-Za-z0-9/_-]+\.(?:png|webp))\s+["']([^"']+)["']\)/g
+const forbiddenSourceDomain = /(?:aiapipay|old\.aiapipay)\.com|api\.your-domain\.com/gi
 
 const brandedApiAddresses = assetGeneratorSource.match(/https:\/\/api\.daigua\.icu(?:\/v1)?/g) || []
 if (brandedApiAddresses.length !== 7) errors.push('generic illustrations must contain seven DaiGua public API addresses')
@@ -26,6 +27,8 @@ if (/api\.example\.com/i.test(assetGeneratorSource)) errors.push('generic illust
 
 const verifiedAtMatch = catalogSource.match(/const verifiedAt = '(\d{4}-\d{2}-\d{2})'/)
 if (!verifiedAtMatch) errors.push('catalog is missing a valid verification date')
+if (baselineSlugs.length !== 14) errors.push('baseline topic list must contain fourteen slugs')
+if (forbiddenSourceDomain.test(catalogSource)) errors.push('catalog contains a retired or placeholder source domain')
 
 const sourceUrls = [
   ...catalogSource.matchAll(/\burl:\s*'(https?:\/\/[^']+)'/g),
@@ -36,6 +39,9 @@ for (const url of sourceUrls) {
   if (!url.startsWith('https://')) errors.push(`source URL must use HTTPS: ${url}`)
   if (/\.(?:png|webp)(?:$|[?#])/i.test(url)) errors.push(`source URL points to an image: ${url}`)
 }
+
+const readmeSource = readFileSync(join(moduleRoot, 'README.md'), 'utf8')
+if (forbiddenSourceDomain.test(readmeSource)) errors.push('README contains a retired or placeholder source domain')
 
 for (const slug of slugs) {
   if (!catalogSource.includes(`slug: '${slug}'`)) errors.push(`catalog is missing ${slug}`)
@@ -59,7 +65,7 @@ for (const slug of slugs) {
     exposedEmail.lastIndex = 0
     if (dangerousMarkdown.test(content)) errors.push(`${locale}/${slug}.md contains dangerous Markdown or HTML`)
     dangerousMarkdown.lastIndex = 0
-    if (/api\.your-domain\.com|old\.aiapipay\.com/i.test(content)) errors.push(`${locale}/${slug}.md contains an old placeholder domain`)
+    if (/api\.your-domain\.com|old\.aiapipay\.com|aiapipay\.com/i.test(content)) errors.push(`${locale}/${slug}.md contains a retired or placeholder domain`)
     const registeredAssets = new Set()
     for (const match of content.matchAll(assetReference)) {
       if (!existsSync(join(moduleRoot, 'assets', match[1]))) errors.push(`${locale}/${slug}.md references missing asset ${match[1]}`)

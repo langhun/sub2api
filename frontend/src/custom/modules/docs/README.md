@@ -49,7 +49,7 @@ Regeneration is appropriate only for generic illustrations. Real client screensh
 
 ## Source and verification policy
 
-- `https://aiapipay.com/docs` is a baseline, not copy-ready text. The 14 baseline topics are locked by tests.
+- The initial 14 core topics are a coverage baseline, not copy-ready text. Their slugs are locked by tests.
 - Repository behavior takes priority for gateway endpoints, API-key fields, errors, quotas, and model filtering.
 - Third-party client fields and install commands must use official sources and carry a verification date.
 - Do not promise storage, billing, retry, model, or protocol behavior that is not enforced by this repository or current service policy.

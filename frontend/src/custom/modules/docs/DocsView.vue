@@ -184,15 +184,7 @@ const relatedEntries = computed(() => selectedEntry.value.related
   .map((slug) => getDocsEntry(slug))
   .filter((entry): entry is DocsEntry => entry !== null))
 
-const visibleSources = computed(() => selectedEntry.value.sources.filter((source) => {
-  if (!source.url) return true
-  try {
-    const hostname = new URL(source.url).hostname.toLowerCase()
-    return hostname !== 'aiapipay.com' && !hostname.endsWith('.aiapipay.com')
-  } catch {
-    return false
-  }
-}))
+const visibleSources = computed(() => selectedEntry.value.sources)
 
 const renderedDocument = computed(() => renderMarkdown(modeContent(selectedEntry.value.body[locale.value], viewMode.value)))
 

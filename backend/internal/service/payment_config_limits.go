@@ -181,6 +181,36 @@ func (s *PaymentConfigService) pcAggregateMethodDisplayName(pt string, instances
 		if displayName != "" {
 			return displayName
 		}
+		displayName = s.pcInstanceExternalMethodDisplayName(inst, pt)
+		if displayName != "" {
+			return displayName
+		}
+	}
+	return ""
+}
+
+func (s *PaymentConfigService) pcInstanceExternalMethodDisplayName(inst *dbent.PaymentProviderInstance, pt string) string {
+	if inst == nil {
+		return ""
+	}
+	definition, ok := payment.ExternalProviderDefinitionFor(inst.ProviderKey)
+	if !ok || strings.TrimSpace(definition.DisplayNameConfigKey) == "" {
+		return ""
+	}
+	for _, visibleType := range definition.VisibleMethods {
+		if strings.TrimSpace(string(visibleType)) == pt {
+			cfg := map[string]string{}
+			if s != nil {
+				decrypted, err := s.decryptConfig(inst.Config)
+				if err == nil && decrypted != nil {
+					cfg = decrypted
+				}
+			}
+			if displayName := strings.TrimSpace(cfg[definition.DisplayNameConfigKey]); displayName != "" {
+				return displayName
+			}
+			return strings.TrimSpace(definition.DefaultDisplayName)
+		}
 	}
 	return ""
 }

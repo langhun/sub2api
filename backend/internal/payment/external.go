@@ -12,6 +12,8 @@ type ExternalProviderDefinition struct {
 	SensitiveConfigFields             []string
 	PendingOrderProtectedConfigFields []string
 	VisibleMethods                    []PaymentType
+	DisplayNameConfigKey              string
+	DefaultDisplayName                string
 	CurrencyConfigKey                 string
 	DefaultCurrency                   string
 	WebhookPath                       string

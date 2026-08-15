@@ -8,8 +8,11 @@ registerCustomPaymentDefinition({
   providerLabelKey: 'admin.settings.payment.providerBepusdt',
   supportedTypes: [bepusdtProviderKey],
   paymentTypes: [{ value: bepusdtProviderKey, label: 'payment.methods.bepusdt' }],
+  displayNameConfigKey: 'displayName',
+  defaultDisplayName: 'USDT',
   methodOrder: 70,
   configFields: [
+    { key: 'displayName', label: '', sensitive: false, optional: true, clearable: true, defaultValue: 'USDT' },
     { key: 'apiBase', label: '', sensitive: false, defaultValue: 'https://example.com', hintKey: 'admin.settings.payment.field_bepusdtApiBaseHint' },
     { key: 'apiToken', label: '', sensitive: true },
     { key: 'fiat', label: '', sensitive: false, defaultValue: 'CNY' },

@@ -149,6 +149,24 @@ func TestPcAggregateMethodLimits(t *testing.T) {
 	})
 }
 
+func TestPcAggregateMethodDisplayNameUsesExternalProviderMetadata(t *testing.T) {
+	const providerKey payment.PaymentType = "display-name-test"
+	payment.RegisterExternalProviderDefinition(payment.ExternalProviderDefinition{
+		ProviderKey:          string(providerKey),
+		VisibleMethods:       []payment.PaymentType{providerKey},
+		DisplayNameConfigKey: "displayName",
+		DefaultDisplayName:   "Default payment",
+	})
+
+	service := &PaymentConfigService{}
+	configured := makeInstance(1, string(providerKey), string(providerKey), "")
+	configured.Config = `{"displayName":" 链上支付 "}`
+	require.Equal(t, "链上支付", service.pcAggregateMethodDisplayName(string(providerKey), []*dbent.PaymentProviderInstance{configured}))
+
+	legacy := makeInstance(2, string(providerKey), string(providerKey), "")
+	require.Equal(t, "Default payment", service.pcAggregateMethodDisplayName(string(providerKey), []*dbent.PaymentProviderInstance{legacy}))
+}
+
 func TestPcGroupByPaymentType(t *testing.T) {
 	t.Parallel()
 

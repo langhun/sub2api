@@ -56,12 +56,6 @@ export function resolveDocsAsset(path: string): string {
 }
 
 const verifiedAt = '2026-08-15'
-const aiApiPaySource: DocsSource = {
-  label: 'AI API Pay documentation baseline',
-  url: 'https://aiapipay.com/docs',
-  verifiedAt,
-}
-
 const repositorySource: DocsSource = {
   label: 'Sub2API gateway and frontend implementation',
   verifiedAt,
@@ -94,7 +88,7 @@ const entries: Omit<DocsEntry, 'body'>[] = [
     slug: 'quick-start', category: 'start', audience: 'user', order: 10,
     title: { zh: '第一次调用', en: 'Your first request' },
     summary: { zh: '从创建 API Key 到收到第一条响应。', en: 'Create a key and receive your first response.' },
-    updatedAt: verifiedAt, clientVersion: '本站网页 2026-08', sources: [aiApiPaySource, repositorySource],
+    updatedAt: verifiedAt, clientVersion: '本站网页 2026-08', sources: [repositorySource],
     screenshots: [screenshot('quick-start', 'common/api-key-create.png', '本站 API 密钥页面', '2026-08', '创建 API Key 时需要填写的四个关键位置', 'The four key fields when creating an API key')],
     related: ['api-keys', 'authentication', 'chat-completions'],
   },
@@ -103,14 +97,14 @@ const entries: Omit<DocsEntry, 'body'>[] = [
     title: { zh: '客户端安装指南', en: 'Client installation' },
     summary: { zh: '安装常用命令行客户端并确认环境可用。', en: 'Install common command-line clients and verify the environment.' },
     updatedAt: verifiedAt, clientVersion: 'Codex/Claude Code/Gemini CLI 2026-08',
-    sources: [aiApiPaySource, official('OpenAI Codex', 'https://developers.openai.com/codex/cli'), official('Claude Code', 'https://code.claude.com/docs/en/setup'), official('Gemini CLI', 'https://github.com/google-gemini/gemini-cli')],
+    sources: [official('OpenAI Codex', 'https://developers.openai.com/codex/cli'), official('Claude Code', 'https://code.claude.com/docs/en/setup'), official('Gemini CLI', 'https://github.com/google-gemini/gemini-cli')],
     screenshots: [], related: ['sdk-openai', 'sdk-anthropic', 'sdk-gemini'],
   },
   {
     slug: 'api-keys', category: 'start', audience: 'user', order: 30,
     title: { zh: 'API Key 与分组', en: 'API keys and groups' },
     summary: { zh: '配置分组、额度、有效期和 IP 限制。', en: 'Configure groups, quotas, expiration, and IP restrictions.' },
-    updatedAt: verifiedAt, clientVersion: '本站网页 2026-08', sources: [aiApiPaySource, repositorySource],
+    updatedAt: verifiedAt, clientVersion: '本站网页 2026-08', sources: [repositorySource],
     screenshots: [screenshot('api-keys', 'common/api-key-create.png', '本站 API 密钥页面', '2026-08', 'API Key 创建与分组设置示意图', 'API key creation and group settings')],
     related: ['quick-start', 'authentication', 'models'],
   },
@@ -118,77 +112,77 @@ const entries: Omit<DocsEntry, 'body'>[] = [
     slug: 'authentication', category: 'start', audience: 'user', order: 40,
     title: { zh: '鉴权与 Base URL', en: 'Authentication and Base URL' },
     summary: { zh: '按 OpenAI、Anthropic 和 Gemini 协议正确传递密钥。', en: 'Send credentials correctly for OpenAI, Anthropic, and Gemini protocols.' },
-    updatedAt: verifiedAt, clientVersion: 'Gateway 2026-08', sources: [aiApiPaySource, repositorySource], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'Gateway 2026-08', sources: [repositorySource], screenshots: [],
     related: ['api-keys', 'errors', 'security'],
   },
   {
     slug: 'chat-completions', category: 'api', audience: 'user', order: 50,
     title: { zh: 'Chat Completions', en: 'Chat Completions' },
     summary: { zh: '调用 OpenAI 兼容的对话接口。', en: 'Call the OpenAI-compatible chat endpoint.' },
-    updatedAt: verifiedAt, clientVersion: 'OpenAI-compatible 2026-08', sources: [aiApiPaySource, repositorySource], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'OpenAI-compatible 2026-08', sources: [repositorySource], screenshots: [],
     related: ['streaming', 'sdk-openai', 'grok'],
   },
   {
     slug: 'messages', category: 'api', audience: 'user', order: 60,
     title: { zh: 'Anthropic Messages', en: 'Anthropic Messages' },
     summary: { zh: '使用 /v1/messages 与 Anthropic SDK。', en: 'Use /v1/messages and the Anthropic SDK.' },
-    updatedAt: verifiedAt, clientVersion: 'Anthropic API 2023-06-01', sources: [aiApiPaySource, official('Anthropic Messages API', 'https://docs.anthropic.com/en/api/messages'), repositorySource], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'Anthropic API 2023-06-01', sources: [official('Anthropic Messages API', 'https://docs.anthropic.com/en/api/messages'), repositorySource], screenshots: [],
     related: ['sdk-anthropic', 'streaming', 'authentication'],
   },
   {
     slug: 'embeddings', category: 'api', audience: 'user', order: 70,
     title: { zh: 'Embeddings', en: 'Embeddings' },
     summary: { zh: '生成向量并了解上游相关限制。', en: 'Generate embeddings and understand upstream-specific limits.' },
-    updatedAt: verifiedAt, clientVersion: 'OpenAI-compatible 2026-08', sources: [aiApiPaySource, repositorySource], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'OpenAI-compatible 2026-08', sources: [repositorySource], screenshots: [],
     related: ['authentication', 'models', 'errors'],
   },
   {
     slug: 'streaming', category: 'api', audience: 'user', order: 80,
     title: { zh: '流式响应', en: 'Streaming responses' },
     summary: { zh: '区分 Chat、Messages 与 Responses 的 SSE 事件。', en: 'Distinguish Chat, Messages, and Responses SSE events.' },
-    updatedAt: verifiedAt, clientVersion: 'Gateway 2026-08', sources: [aiApiPaySource, repositorySource], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'Gateway 2026-08', sources: [repositorySource], screenshots: [],
     related: ['chat-completions', 'messages', 'grok'],
   },
   {
     slug: 'sdk-openai', category: 'sdk', audience: 'user', order: 90,
     title: { zh: 'OpenAI SDK 与 Codex', en: 'OpenAI SDK and Codex' },
     summary: { zh: '配置 Python、Node.js 和 Codex。', en: 'Configure Python, Node.js, and Codex.' },
-    updatedAt: verifiedAt, clientVersion: 'OpenAI SDK/Codex 2026-08', sources: [aiApiPaySource, official('OpenAI Responses guide', 'https://developers.openai.com/api/docs/guides/responses-vs-chat-completions'), official('OpenAI Codex configuration', 'https://developers.openai.com/codex/config-file/config-reference')], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'OpenAI SDK/Codex 2026-08', sources: [official('OpenAI Responses guide', 'https://developers.openai.com/api/docs/guides/responses-vs-chat-completions'), official('OpenAI Codex configuration', 'https://developers.openai.com/codex/config-file/config-reference')], screenshots: [],
     related: ['install-guide', 'chat-completions', 'grok-cli'],
   },
   {
     slug: 'sdk-anthropic', category: 'sdk', audience: 'user', order: 100,
     title: { zh: 'Anthropic SDK 与 Claude Code', en: 'Anthropic SDK and Claude Code' },
     summary: { zh: '配置 Anthropic SDK 和 Claude Code 网关。', en: 'Configure the Anthropic SDK and Claude Code gateway.' },
-    updatedAt: verifiedAt, clientVersion: 'Anthropic SDK/Claude Code 2026-08', sources: [aiApiPaySource, official('Claude Code LLM gateway', 'https://code.claude.com/docs/en/llm-gateway')], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'Anthropic SDK/Claude Code 2026-08', sources: [official('Claude Code LLM gateway', 'https://code.claude.com/docs/en/llm-gateway')], screenshots: [],
     related: ['install-guide', 'messages', 'grok-cli'],
   },
   {
     slug: 'sdk-gemini', category: 'sdk', audience: 'user', order: 110,
     title: { zh: 'Gemini SDK 与 CLI', en: 'Gemini SDK and CLI' },
     summary: { zh: '配置 Google GenAI SDK 和兼容端点。', en: 'Configure the Google GenAI SDK and compatible endpoints.' },
-    updatedAt: verifiedAt, clientVersion: 'google-genai 2.18.1 / Gemini CLI 2026-08', sources: [aiApiPaySource, official('Gemini API', 'https://ai.google.dev/api/generate-content'), official('Google Gen AI Python SDK', 'https://github.com/googleapis/python-genai')], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'google-genai 2.18.1 / Gemini CLI 2026-08', sources: [official('Gemini API', 'https://ai.google.dev/api/generate-content'), official('Google Gen AI Python SDK', 'https://github.com/googleapis/python-genai')], screenshots: [],
     related: ['install-guide', 'authentication', 'models'],
   },
   {
     slug: 'new-api', category: 'sdk', audience: 'admin', order: 120,
     title: { zh: 'New API 上游配置', en: 'New API upstream setup' },
     summary: { zh: '把本站作为 New API 的 OpenAI 兼容上游。', en: 'Use this site as an OpenAI-compatible upstream in New API.' },
-    updatedAt: verifiedAt, clientVersion: 'New API 2026-08', sources: [aiApiPaySource, repositorySource], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'New API 2026-08', sources: [repositorySource], screenshots: [],
     related: ['authentication', 'chat-completions', 'grok'],
   },
   {
     slug: 'billing', category: 'account', audience: 'user', order: 130,
     title: { zh: '余额、额度与用量', en: 'Balance, quota, and usage' },
     summary: { zh: '区分账户余额、Key 额度、订阅窗口和用量记录。', en: 'Distinguish account balance, key quota, subscription windows, and usage records.' },
-    updatedAt: verifiedAt, clientVersion: '本站网页 2026-08', sources: [aiApiPaySource, repositorySource], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: '本站网页 2026-08', sources: [repositorySource], screenshots: [],
     related: ['api-keys', 'errors', 'troubleshooting'],
   },
   {
     slug: 'errors', category: 'support', audience: 'user', order: 140,
     title: { zh: '错误码', en: 'Error codes' },
     summary: { zh: '按协议识别鉴权、额度、限流和上游错误。', en: 'Identify authentication, quota, rate-limit, and upstream errors by protocol.' },
-    updatedAt: verifiedAt, clientVersion: 'Gateway 2026-08', sources: [aiApiPaySource, repositorySource], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'Gateway 2026-08', sources: [repositorySource], screenshots: [],
     related: ['authentication', 'billing', 'troubleshooting'],
   },
   {
@@ -251,7 +245,7 @@ const entries: Omit<DocsEntry, 'body'>[] = [
   },
 ]
 
-export const aiApiPayBaselineSlugs = [
+export const baselineTopicSlugs = [
   'quick-start', 'api-keys', 'authentication', 'chat-completions', 'messages', 'embeddings', 'streaming',
   'sdk-openai', 'sdk-anthropic', 'sdk-gemini', 'new-api', 'billing', 'errors', 'install-guide',
 ] as const

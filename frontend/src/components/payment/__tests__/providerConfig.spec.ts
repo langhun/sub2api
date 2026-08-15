@@ -60,6 +60,9 @@ describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
 
 describe('PROVIDER_CONFIG_FIELDS.bepusdt', () => {
   it('keeps the API token sensitive and uses fixed CNY and USDT defaults', () => {
+    expect(findField('bepusdt', 'displayName')?.optional).toBe(true)
+    expect(findField('bepusdt', 'displayName')?.clearable).toBe(true)
+    expect(findField('bepusdt', 'displayName')?.defaultValue).toBe('USDT')
     expect(findField('bepusdt', 'apiToken')?.sensitive).toBe(true)
     expect(findField('bepusdt', 'fiat')?.defaultValue).toBe('CNY')
     expect(findField('bepusdt', 'currencies')?.defaultValue).toBe('USDT')

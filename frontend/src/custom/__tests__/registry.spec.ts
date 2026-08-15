@@ -15,6 +15,7 @@ import {
   customSettingsPanels,
   customPaymentDefinition,
 } from '../registry'
+import { customPaymentDisplayName } from '../paymentExtensions'
 import { activityHeaderActions } from '../modules/activity/headerActions'
 import { activityNavigation } from '../modules/activity/navigation'
 import { activityRoutes } from '../modules/activity/routes'
@@ -140,6 +141,8 @@ describe('custom overlay registry', () => {
 
   it('registers custom payment business outside shared payment components', () => {
     expect(customPaymentDefinition('bepusdt')?.supportedTypes).toEqual(['bepusdt'])
+    expect(customPaymentDisplayName('bepusdt', 'bepusdt', { displayName: ' 数字货币 ' })).toBe('数字货币')
+    expect(customPaymentDisplayName('bepusdt', 'bepusdt', {})).toBe('USDT')
     expect(customPaymentDefinition('bepusdt')?.callbackPaths?.notifyUrl).toBe('/api/v1/payment/webhook/bepusdt')
     expect(paymentViewSource).not.toContain("m === 'bepusdt'")
   })
