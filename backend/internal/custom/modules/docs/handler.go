@@ -21,13 +21,18 @@ type createRevisionRequest struct {
 	BaseRevisionID *int64 `json:"base_revision_id"`
 }
 
+type reviewRevisionRequest struct {
+	Decision   string `json:"decision"`
+	ReviewNote string `json:"review_note"`
+}
+
 func (h *Handler) List(c *gin.Context) {
 	userID, ok := currentUser(c)
 	if !ok || h == nil || h.service == nil {
 		return
 	}
-	_ = userID
-	result, err := h.service.List(c.Request.Context(), c.Param("slug"), normalizeLocale(c.Query("locale")))
+	role, _ := servermiddleware.GetUserRoleFromContext(c)
+	result, err := h.service.List(c.Request.Context(), c.Param("slug"), normalizeLocale(c.Query("locale")), userID, role == "admin")
 	if err != nil {
 		respondError(c, err)
 		return
@@ -67,6 +72,32 @@ func (h *Handler) Revert(c *gin.Context) {
 		return
 	}
 	revision, err := h.service.Revert(c.Request.Context(), c.Param("slug"), normalizeLocale(c.Query("locale")), revisionID, userID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	response.Success(c, revision)
+}
+
+func (h *Handler) Review(c *gin.Context) {
+	userID, ok := currentUser(c)
+	if !ok || h == nil || h.service == nil {
+		return
+	}
+	var req reviewRevisionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid revision review")
+		return
+	}
+	revisionID, err := strconv.ParseInt(c.Param("revision_id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "invalid revision")
+		return
+	}
+	revision, err := h.service.Review(c.Request.Context(), ReviewInput{
+		Slug: c.Param("slug"), Locale: normalizeLocale(c.Query("locale")), Decision: req.Decision,
+		ReviewNote: req.ReviewNote, RevisionID: revisionID, ReviewerUserID: userID,
+	})
 	if err != nil {
 		respondError(c, err)
 		return

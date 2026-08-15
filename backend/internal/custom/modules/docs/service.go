@@ -16,11 +16,14 @@ type Service struct{ repository *Repository }
 
 func NewService(repository *Repository) *Service { return &Service{repository: repository} }
 
-func (s *Service) List(ctx context.Context, slug, locale string) (*Revisions, error) {
+func (s *Service) List(ctx context.Context, slug, locale string, viewerUserID int64, includeAll bool) (*Revisions, error) {
 	if err := validatePath(slug, locale); err != nil {
 		return nil, err
 	}
-	return s.repository.List(ctx, slug, locale)
+	if viewerUserID <= 0 {
+		return nil, errors.New("invalid viewer")
+	}
+	return s.repository.List(ctx, slug, locale, viewerUserID, includeAll)
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*Revision, error) {
@@ -55,6 +58,23 @@ func (s *Service) Revert(ctx context.Context, slug, locale string, revisionID, a
 		return nil, errors.New("invalid revision")
 	}
 	return s.repository.Revert(ctx, slug, locale, revisionID, authorUserID)
+}
+
+func (s *Service) Review(ctx context.Context, input ReviewInput) (*Revision, error) {
+	if err := validatePath(input.Slug, input.Locale); err != nil {
+		return nil, err
+	}
+	if input.RevisionID <= 0 || input.ReviewerUserID <= 0 {
+		return nil, errors.New("invalid revision review")
+	}
+	if input.Decision != "approve" && input.Decision != "reject" {
+		return nil, errors.New("invalid revision review decision")
+	}
+	input.ReviewNote = strings.TrimSpace(input.ReviewNote)
+	if utf8.RuneCountInString(input.ReviewNote) > MaxReviewNoteRunes {
+		return nil, fmt.Errorf("review note must be at most %d characters", MaxReviewNoteRunes)
+	}
+	return s.repository.Review(ctx, input)
 }
 
 func validatePath(slug, locale string) error {

@@ -9,6 +9,7 @@ const docsApiMock = vi.hoisted(() => ({
   listRevisions: vi.fn(),
   createRevision: vi.fn(),
   revertRevision: vi.fn(),
+  reviewRevision: vi.fn(),
 }))
 const authStoreMock = vi.hoisted(() => ({ isAuthenticated: true, isAdmin: true }))
 
@@ -30,6 +31,8 @@ vi.mock('vue-i18n', async (importOriginal) => {
         'docs.editTitle': '编辑文档',
         'docs.historyTitle': '修订历史',
         'docs.saved': '修订已发布',
+        'docs.reviewed': '修订已通过审核并发布',
+        'docs.rejected': '修订已驳回',
         'docs.conflict': '文档在编辑期间发生了变化，请重新加载最新修订后再保存。',
         'docs.saveFailed': '修订发布失败，请检查网络后重试。',
         'docs.loadFailed': '暂时无法读取用户修订',
@@ -43,6 +46,14 @@ vi.mock('vue-i18n', async (importOriginal) => {
         'docs.markdownHint': '仅支持 Markdown',
         'docs.revisionBy': '作者：{author}',
         'docs.current': '当前版本',
+        'docs.pending': '待审核',
+        'docs.approved': '已通过',
+        'docs.rejectedStatus': '已驳回',
+        'docs.approve': '通过',
+        'docs.reject': '驳回',
+        'docs.reviewConfirm': '确定通过修订 #{id} 并发布吗？',
+        'docs.rejectConfirm': '确定驳回修订 #{id} 吗？',
+        'docs.reviewNotePrompt': '可选：填写审核备注',
         'docs.viewRevision': '查看修订内容',
         'docs.revert': '回滚',
         'docs.revertConfirm': '确定将文档回滚到修订 #{id} 吗？',
@@ -78,6 +89,7 @@ afterEach(() => {
   docsApiMock.listRevisions.mockReset()
   docsApiMock.createRevision.mockReset()
   docsApiMock.revertRevision.mockReset()
+  docsApiMock.reviewRevision.mockReset()
   docsApiMock.listRevisions.mockResolvedValue({ current: null, history: [] })
   authStoreMock.isAuthenticated = true
   authStoreMock.isAdmin = true
@@ -162,10 +174,10 @@ describe('DocsView', () => {
 
   it('publishes a revision with the current revision as the concurrency base', async () => {
     docsApiMock.listRevisions.mockResolvedValue({
-      current: { id: 7, slug: 'quick-start', locale: 'zh', content: '# 旧版', edit_summary: '旧', author_name: 'Alice', created_at: '2026-08-15T00:00:00Z' },
-      history: [{ id: 7, slug: 'quick-start', locale: 'zh', content: '# 旧版', edit_summary: '旧', author_name: 'Alice', created_at: '2026-08-15T00:00:00Z' }],
+      current: { id: 7, slug: 'quick-start', locale: 'zh', content: '# 旧版', edit_summary: '旧', author_name: 'Alice', created_at: '2026-08-15T00:00:00Z', status: 'approved' },
+      history: [{ id: 7, slug: 'quick-start', locale: 'zh', content: '# 旧版', edit_summary: '旧', author_name: 'Alice', created_at: '2026-08-15T00:00:00Z', status: 'approved' }],
     })
-    docsApiMock.createRevision.mockResolvedValue({ id: 8, slug: 'quick-start', locale: 'zh', content: '# 新版', edit_summary: '修正步骤', author_name: 'Bob', created_at: '2026-08-15T01:00:00Z' })
+    docsApiMock.createRevision.mockResolvedValue({ id: 8, slug: 'quick-start', locale: 'zh', content: '# 新版', edit_summary: '修正步骤', author_name: 'Bob', created_at: '2026-08-15T01:00:00Z', status: 'pending' })
     const { wrapper } = await mountView('/docs/quick-start')
     await wrapper.get('button[title="编辑"]').trigger('click')
     await flushPromises()
@@ -175,14 +187,38 @@ describe('DocsView', () => {
     await flushPromises()
     expect(docsApiMock.createRevision).toHaveBeenCalledWith(expect.objectContaining({ baseRevisionId: 7, content: '# 新版', editSummary: '修正步骤' }))
     expect(wrapper.text()).toContain('修订已发布')
+    expect(wrapper.find('[data-testid="docs-content"]').text()).toContain('旧版')
+    expect(wrapper.find('[data-testid="docs-content"]').text()).not.toContain('新版')
+  })
+
+  it('publishes a pending revision only after an administrator approves it', async () => {
+    docsApiMock.listRevisions
+      .mockResolvedValueOnce({
+        current: { id: 7, slug: 'quick-start', locale: 'zh', content: '# 旧版', edit_summary: '', author_name: 'Alice', created_at: '2026-08-15T00:00:00Z', status: 'approved' },
+        history: [{ id: 8, slug: 'quick-start', locale: 'zh', content: '# 新版', edit_summary: '修正', author_name: 'Bob', created_at: '2026-08-15T01:00:00Z', status: 'pending' }],
+      })
+      .mockResolvedValueOnce({
+        current: { id: 8, slug: 'quick-start', locale: 'zh', content: '# 新版', edit_summary: '修正', author_name: 'Bob', created_at: '2026-08-15T01:00:00Z', status: 'approved', reviewer_name: 'Admin' },
+        history: [{ id: 8, slug: 'quick-start', locale: 'zh', content: '# 新版', edit_summary: '修正', author_name: 'Bob', created_at: '2026-08-15T01:00:00Z', status: 'approved', reviewer_name: 'Admin' }],
+      })
+    docsApiMock.reviewRevision.mockResolvedValue({ id: 8, status: 'approved' })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { wrapper } = await mountView('/docs/quick-start')
+    await wrapper.get('button[title="历史"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('.docs-history-approve').trigger('click')
+    await flushPromises()
+    expect(confirm).toHaveBeenCalled()
+    expect(docsApiMock.reviewRevision).toHaveBeenCalledWith(expect.objectContaining({ revisionId: 8, decision: 'approve' }))
     expect(wrapper.find('[data-testid="docs-content"]').text()).toContain('新版')
+    expect(wrapper.text()).toContain('修订已通过审核并发布')
   })
 
   it('reloads the latest revision after an optimistic concurrency conflict', async () => {
     docsApiMock.createRevision.mockRejectedValue({ status: 409 })
     docsApiMock.listRevisions
       .mockResolvedValueOnce({ current: null, history: [] })
-      .mockResolvedValueOnce({ current: { id: 9, slug: 'quick-start', locale: 'zh', content: '# 最新版', edit_summary: '', author_name: 'Alice', created_at: '2026-08-15T00:00:00Z' }, history: [] })
+      .mockResolvedValueOnce({ current: { id: 9, slug: 'quick-start', locale: 'zh', content: '# 最新版', edit_summary: '', author_name: 'Alice', created_at: '2026-08-15T00:00:00Z', status: 'approved' }, history: [] })
     const { wrapper } = await mountView('/docs/quick-start')
     await wrapper.get('button[title="编辑"]').trigger('click')
     await wrapper.get('#docs-editor-content').setValue('# 本地修改')

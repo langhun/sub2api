@@ -44,11 +44,42 @@ func TestCreateRejectsUnsafeOrOversizedMarkdown(t *testing.T) {
 }
 
 func TestContainsUnsafeMarkdown(t *testing.T) {
-	if containsUnsafeMarkdown("Use `<script>` as an example in a code block") == false {
+	if !containsUnsafeMarkdown("Use `<script>` as an example in a code block") {
 		t.Fatal("unsafe marker should be rejected consistently")
 	}
 	if containsUnsafeMarkdown("# Safe\n\nUse **markdown**") {
 		t.Fatal("safe markdown was rejected")
+	}
+}
+
+func TestServiceReviewRequiresAnExplicitDecision(t *testing.T) {
+	service := NewService(nil)
+	_, err := service.Review(context.Background(), ReviewInput{
+		Slug: "quick-start", Locale: "zh", RevisionID: 1, ReviewerUserID: 2, Decision: "publish",
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid revision review decision") {
+		t.Fatalf("expected invalid decision error, got %v", err)
+	}
+}
+
+func TestServiceReviewRejectsOversizedReviewNote(t *testing.T) {
+	service := NewService(nil)
+	_, err := service.Review(context.Background(), ReviewInput{
+		Slug: "quick-start", Locale: "zh", RevisionID: 1, ReviewerUserID: 2, Decision: "reject",
+		ReviewNote: strings.Repeat("x", MaxReviewNoteRunes+1),
+	})
+	if err == nil || !strings.Contains(err.Error(), "review note must be at most") {
+		t.Fatalf("expected review note limit error, got %v", err)
+	}
+}
+
+func TestServiceReviewRejectsInvalidIdentity(t *testing.T) {
+	service := NewService(nil)
+	_, err := service.Review(context.Background(), ReviewInput{
+		Slug: "quick-start", Locale: "zh", RevisionID: 0, ReviewerUserID: 2, Decision: "approve",
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid revision review") {
+		t.Fatalf("expected invalid revision review error, got %v", err)
 	}
 }
 

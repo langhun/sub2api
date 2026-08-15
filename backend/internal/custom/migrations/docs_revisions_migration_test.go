@@ -25,3 +25,21 @@ func TestDocsRevisionsMigrationCreatesImmutableRevisionLedger(t *testing.T) {
 		t.Fatal("docs migration must not alter upstream tables")
 	}
 }
+
+func TestDocsRevisionReviewMigrationAddsApprovalState(t *testing.T) {
+	content, err := files.ReadFile("008_docs_revision_review.sql")
+	if err != nil {
+		t.Fatalf("read review migration: %v", err)
+	}
+	sql := string(content)
+	for _, expected := range []string{
+		"ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved'",
+		"reviewed_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL",
+		"CHECK (status IN ('pending', 'approved', 'rejected'))",
+		"custom_docs_revisions_review_idx",
+	} {
+		if !strings.Contains(sql, expected) {
+			t.Fatalf("review migration missing %q", expected)
+		}
+	}
+}

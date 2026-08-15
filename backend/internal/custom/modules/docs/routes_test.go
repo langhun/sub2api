@@ -27,6 +27,7 @@ func TestModuleRegistersUserAndAdminRoutes(t *testing.T) {
 		"GET /api/v1/docs/:slug/history",
 		"POST /api/v1/docs/:slug/revisions",
 		"POST /api/v1/admin/docs/:slug/revisions/:revision_id/revert",
+		"POST /api/v1/admin/docs/:slug/revisions/:revision_id/review",
 	} {
 		_, ok := routes[route]
 		require.Truef(t, ok, "missing route %s", route)

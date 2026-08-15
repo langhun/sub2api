@@ -78,7 +78,7 @@
           </div>
 
           <p v-if="revisionStatus" class="docs-revision-status" :class="`docs-revision-status-${revisionStatus}`" role="status">
-            {{ revisionStatus === 'saved' ? t('docs.saved') : revisionStatus === 'conflict' ? t('docs.conflict') : t('docs.saveFailed') }}
+            {{ revisionStatus === 'submitted' ? t('docs.saved') : revisionStatus === 'reviewed' ? t('docs.reviewed') : revisionStatus === 'rejected' ? t('docs.rejected') : revisionStatus === 'conflict' ? t('docs.conflict') : t('docs.saveFailed') }}
           </p>
 
           <article
@@ -156,8 +156,11 @@
         :current-revision-id="currentRevision?.id || null"
         :can-revert="authStore.isAdmin"
         :reverting-id="revertingRevisionId"
+        :can-review="authStore.isAdmin"
+        :reviewing-id="reviewingRevisionId"
         @close="historyOpen = false"
         @revert="revertRevision"
+        @review="reviewRevision"
       />
     </div>
   </AppLayout>
@@ -203,11 +206,12 @@ const previewImage = ref<PreviewImage | null>(null)
 const previewCloseButton = ref<HTMLButtonElement | null>(null)
 const revisionState = ref<DocsRevisionState>({ current: null, history: [] })
 const revisionScope = ref('')
-const revisionStatus = ref<'saved' | 'conflict' | 'error' | null>(null)
+const revisionStatus = ref<'submitted' | 'reviewed' | 'rejected' | 'conflict' | 'error' | null>(null)
 const editorOpen = ref(false)
 const historyOpen = ref(false)
 const savingRevision = ref(false)
 const revertingRevisionId = ref<number | null>(null)
+const reviewingRevisionId = ref<number | null>(null)
 const editorContent = ref('')
 const editorSummary = ref('')
 let revisionRequestId = 0
@@ -299,15 +303,15 @@ async function saveRevision(payload: { content: string; editSummary: string }) {
     })
     if (revisionScope.value === revisionKey.value) {
       revisionState.value = {
-        current: created,
+        current: created.status === 'approved' ? created : revisionState.value.current,
         history: [created, ...revisionState.value.history.filter((revision) => revision.id !== created.id)].slice(0, 50),
       }
     } else {
-      revisionState.value = { current: created, history: [created] }
+      revisionState.value = { current: created.status === 'approved' ? created : null, history: [created] }
       revisionScope.value = revisionKey.value
     }
     editorOpen.value = false
-    revisionStatus.value = 'saved'
+    revisionStatus.value = 'submitted'
   } catch (error) {
     if (errorStatus(error) === 409) {
       await loadRevisions()
@@ -320,6 +324,30 @@ async function saveRevision(payload: { content: string; editSummary: string }) {
   }
 }
 
+async function reviewRevision(revision: DocsRevision, decision: 'approve' | 'reject') {
+  if (!authStore.isAdmin || reviewingRevisionId.value !== null || revision.status !== 'pending') return
+  const messageKey = decision === 'approve' ? 'docs.reviewConfirm' : 'docs.rejectConfirm'
+  if (!window.confirm(t(messageKey, { id: revision.id }))) return
+  const reviewNote = decision === 'reject' ? (window.prompt(t('docs.reviewNotePrompt')) || '') : ''
+  reviewingRevisionId.value = revision.id
+  revisionStatus.value = null
+  try {
+    await docsAPI.reviewRevision({
+      slug: requestedSlug.value,
+      locale: locale.value,
+      revisionId: revision.id,
+      decision,
+      reviewNote,
+    })
+    await loadRevisions()
+    revisionStatus.value = decision === 'approve' ? 'reviewed' : 'rejected'
+  } catch {
+    revisionStatus.value = 'error'
+  } finally {
+    reviewingRevisionId.value = null
+  }
+}
+
 async function revertRevision(revision: DocsRevision) {
   if (!authStore.isAdmin || revertingRevisionId.value !== null) return
   if (!window.confirm(t('docs.revertConfirm', { id: revision.id }))) return
@@ -328,7 +356,7 @@ async function revertRevision(revision: DocsRevision) {
   try {
     await docsAPI.revertRevision(requestedSlug.value, locale.value, revision.id)
     await loadRevisions()
-    revisionStatus.value = 'saved'
+    revisionStatus.value = 'reviewed'
   } catch {
     revisionStatus.value = 'error'
   } finally {
@@ -568,7 +596,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 .docs-related-links { @apply mt-3 flex flex-wrap gap-2; }
 .docs-related-links button { @apply inline-flex items-center gap-1 border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:text-dark-200 dark:hover:text-primary-400; border-radius: 6px; }
 
-.docs-markdown { @apply min-w-0 max-w-none text-[15px] leading-7 text-gray-700 dark:text-dark-200; }
+.docs-markdown { @apply min-w-0 max-w-none overflow-x-hidden text-[15px] leading-7 text-gray-700 dark:text-dark-200; }
 .docs-markdown :deep(h2) { @apply mb-3 mt-8 scroll-mt-24 text-lg font-semibold text-gray-900 first:mt-0 dark:text-white; }
 .docs-markdown :deep(h3) { @apply mb-2 mt-6 scroll-mt-24 text-base font-semibold text-gray-900 dark:text-white; }
 .docs-markdown :deep(p) { @apply my-3 break-words; }

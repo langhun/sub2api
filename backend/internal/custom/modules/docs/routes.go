@@ -26,4 +26,5 @@ func (m *Module) RegisterRoutes(r *gin.Engine, jwtAuth middleware.JWTAuthMiddlew
 	admin.Use(middleware.RequestBodyLimit(docsRequestBodyLimit), panelRateLimiter.Global())
 	adminDocs := admin.Group("/docs/:slug")
 	adminDocs.POST("/revisions/:revision_id/revert", panelRateLimiter.Heavy(), m.Handler.Revert)
+	adminDocs.POST("/revisions/:revision_id/review", panelRateLimiter.Heavy(), m.Handler.Review)
 }

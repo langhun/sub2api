@@ -9,6 +9,10 @@ export interface DocsRevision {
   edit_summary: string
   author_name: string
   created_at: string
+  status: 'pending' | 'approved' | 'rejected'
+  reviewer_name?: string
+  reviewed_at?: string
+  review_note?: string
 }
 
 export interface DocsRevisionState {
@@ -43,6 +47,21 @@ export const docsAPI = {
       `/admin/docs/${encodeURIComponent(slug)}/revisions/${revisionId}/revert`,
       null,
       { params: { locale } },
+    )
+    return data
+  },
+
+  async reviewRevision(input: {
+    slug: string
+    locale: DocsLocale
+    revisionId: number
+    decision: 'approve' | 'reject'
+    reviewNote?: string
+  }): Promise<DocsRevision> {
+    const { data } = await apiClient.post<DocsRevision>(
+      `/admin/docs/${encodeURIComponent(input.slug)}/revisions/${input.revisionId}/review`,
+      { decision: input.decision, review_note: input.reviewNote || '' },
+      { params: { locale: input.locale } },
     )
     return data
   },

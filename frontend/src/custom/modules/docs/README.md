@@ -13,11 +13,11 @@ This Overlay module owns the authenticated help center at `/docs`. It does not c
 
 Routes and sidebar components do not need editing for a new topic.
 
-## Wiki-style user editing
+## Wiki-style user editing and review
 
-The page is a static Markdown fallback plus a database-backed revision layer. Authenticated users can publish a revision from the `编辑` action; the revision becomes the current page immediately and is kept with its author, timestamp, and edit summary. The editor sends the current revision ID, so a stale tab receives a conflict instead of overwriting a newer edit. The backend keeps the newest 50 revisions per topic and locale.
+The page is a static Markdown fallback plus a database-backed revision layer. Authenticated users can submit a revision from the `编辑` action; every new submission is marked `pending` and does not change the page shown to readers. It is kept with its author, timestamp, edit summary, and optional review note. The editor sends the current approved revision ID, so a stale tab receives a conflict instead of overwriting a newer edit. The backend keeps the newest 50 visible revisions per topic and locale.
 
-Administrators can open `历史` and roll back an older revision. A rollback is stored as a new revision, which keeps the audit trail intact. When the API or database is unavailable, the page continues to render the bundled Markdown and does not write user content back into `content/`.
+Administrators can open `历史`, inspect the full Markdown, and `通过` or `驳回` pending revisions. Approval creates the new current version; rejection keeps the previous approved content active. Administrators can also roll back an older approved revision. A rollback is stored as a new approved revision, which keeps the audit trail intact. When the API or database is unavailable, the page continues to render the bundled Markdown and does not write user content back into `content/`.
 
 When changing the revision contract, update `api.ts`, the two dialog components, `DocsView.vue`, and the corresponding Vitest cases. Keep all server routes under the docs Overlay module and preserve the 200,000-byte Markdown limit and unsafe-markup checks.
 
