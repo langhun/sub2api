@@ -13,6 +13,8 @@ import { brandHomeRoutes } from './modules/brand-home/routes'
 import { brandHomeSettingsPanels } from './modules/brand-home/settings'
 import { gameHallNavigation } from './modules/game-hall/navigation'
 import { gameHallRoutes } from './modules/game-hall/routes'
+import { docsNavigation } from './modules/docs/navigation'
+import { docsRoutes } from './modules/docs/routes'
 import { supportTicketNavigation } from './modules/support-tickets/navigation'
 import { supportTicketFeatureFlag } from './modules/support-tickets/navigation'
 import { supportTicketRoutes } from './modules/support-tickets/routes'
@@ -122,6 +124,7 @@ export interface CustomSettingsPanel {
 
 export const customRoutes: readonly RouteRecordRaw[] = [
   ...brandHomeRoutes,
+  ...docsRoutes,
   ...activityRoutes,
   ...gameHallRoutes,
   ...supportTicketRoutes,
@@ -129,6 +132,7 @@ export const customRoutes: readonly RouteRecordRaw[] = [
 
 export const customNavigation: readonly CustomNavigationItem[] = [
   ...activityNavigation,
+  ...docsNavigation,
   ...gameHallNavigation,
   ...supportTicketNavigation,
 ]
