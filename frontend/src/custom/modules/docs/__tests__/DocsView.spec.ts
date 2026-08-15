@@ -53,10 +53,19 @@ describe('DocsView', () => {
     const { wrapper } = await mountView()
     expect(wrapper.text()).toContain('步骤 1：准备 SillyTavern 和本站账号')
     expect(wrapper.text()).not.toContain('部分旧版本出现')
+    expect(wrapper.text()).not.toContain('AI API Pay documentation baseline')
+    expect(wrapper.text()).toContain('Sub2API gateway and frontend implementation')
 
     const tabs = wrapper.findAll('[role="tab"]')
     await tabs[1].trigger('click')
     expect(wrapper.text()).toContain('部分旧版本出现')
+  })
+
+  it('keeps official sources while hiding the AI API Pay baseline URL', async () => {
+    const { wrapper } = await mountView('/docs/grok')
+    expect(wrapper.text()).toContain('xAI developer documentation')
+    expect(wrapper.text()).not.toContain('AI API Pay documentation baseline')
+    expect(wrapper.find('a[href*="aiapipay.com"]').exists()).toBe(false)
   })
 
   it('searches topic bodies and navigates to a result', async () => {

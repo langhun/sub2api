@@ -74,10 +74,10 @@
             @keydown="handleArticleKeydown"
           />
 
-          <section class="docs-sources" :aria-label="t('docs.sources')">
+          <section v-if="visibleSources.length" class="docs-sources" :aria-label="t('docs.sources')">
             <h2>{{ t('docs.sources') }}</h2>
             <ul>
-              <li v-for="source in selectedEntry.sources" :key="`${source.label}-${source.url || ''}`">
+              <li v-for="source in visibleSources" :key="`${source.label}-${source.url || ''}`">
                 <a v-if="safeExternalUrl(source.url)" :href="safeExternalUrl(source.url)" target="_blank" rel="noopener noreferrer">{{ source.label }}</a>
                 <span v-else>{{ source.label }}</span>
                 <time :datetime="source.verifiedAt">{{ source.verifiedAt }}</time>
@@ -183,6 +183,16 @@ const navigationGroups = computed(() => categoryOrder
 const relatedEntries = computed(() => selectedEntry.value.related
   .map((slug) => getDocsEntry(slug))
   .filter((entry): entry is DocsEntry => entry !== null))
+
+const visibleSources = computed(() => selectedEntry.value.sources.filter((source) => {
+  if (!source.url) return true
+  try {
+    const hostname = new URL(source.url).hostname.toLowerCase()
+    return hostname !== 'aiapipay.com' && !hostname.endsWith('.aiapipay.com')
+  } catch {
+    return false
+  }
+}))
 
 const renderedDocument = computed(() => renderMarkdown(modeContent(selectedEntry.value.body[locale.value], viewMode.value)))
 
