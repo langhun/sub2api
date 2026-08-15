@@ -3,11 +3,7 @@
     <div class="docs-shell">
       <header class="docs-header">
         <div class="min-w-0">
-          <div class="flex items-center gap-2.5">
-            <Icon name="book" size="lg" class="shrink-0 text-primary-600 dark:text-primary-400" />
-            <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ t('docs.pageTitle') }}</h1>
-          </div>
-          <p class="mt-1.5 max-w-2xl text-sm text-gray-500 dark:text-dark-400">
+          <p class="max-w-2xl text-sm text-gray-500 dark:text-dark-400">
             {{ selectedEntry.summary[locale] }}
           </p>
         </div>
