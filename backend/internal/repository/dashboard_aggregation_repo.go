@@ -133,28 +133,35 @@ func (r *dashboardAggregationRepository) RecomputeRange(ctx context.Context, sta
 
 	// 尽量使用事务保证范围内的一致性（允许在非 *sql.DB 的情况下退化为非事务执行）。
 	if db, ok := r.sql.(*sql.DB); ok {
-		tx, err := db.BeginTx(ctx, nil)
+		invalidateTx, err := db.BeginTx(ctx, nil)
 		if err != nil {
 			return err
 		}
-		if err := lockGroupUsageRollupState(ctx, tx); err != nil {
-			_ = tx.Rollback()
+		if err := lockGroupUsageRollupState(ctx, invalidateTx); err != nil {
+			_ = invalidateTx.Rollback()
 			return err
 		}
-		if err := invalidateGroupUsageRollupsAt(ctx, tx, start); err != nil {
-			_ = tx.Rollback()
+		if err := invalidateGroupUsageRollupsAt(ctx, invalidateTx, start); err != nil {
+			_ = invalidateTx.Rollback()
 			return err
 		}
-		txRepo := newDashboardAggregationRepositoryWithSQL(tx)
+		if err := invalidateTx.Commit(); err != nil {
+			return err
+		}
+
+		recomputeTx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		txRepo := newDashboardAggregationRepositoryWithSQL(recomputeTx)
 		if err := txRepo.recomputeRangeInTx(ctx, hourStart, hourEnd, dayStart, dayEnd); err != nil {
-			_ = tx.Rollback()
+			_ = recomputeTx.Rollback()
 			return err
 		}
-		if err := txRepo.syncGroupUsageRollupsInTx(ctx, service.GroupUsageTodayStart(r.now())); err != nil {
-			_ = tx.Rollback()
+		if err := recomputeTx.Commit(); err != nil {
 			return err
 		}
-		return tx.Commit()
+		return r.SyncGroupUsageRollups(ctx, service.GroupUsageTodayStart(r.now()))
 	}
 	return r.recomputeRangeInTx(ctx, hourStart, hourEnd, dayStart, dayEnd)
 }

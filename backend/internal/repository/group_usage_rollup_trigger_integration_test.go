@@ -53,31 +53,41 @@ func TestGroupUsageRollupTriggerInvalidatesCascadedHistoricalDelete(t *testing.T
 func TestGroupUsageRollupTriggerSerializesLateHistoricalInsertWithPublish(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	useGroupUsageRepositoryTestTimezone(t, "Asia/Shanghai")
 
 	schema := createGroupUsageRollupTriggerTestSchema(t, ctx, false)
+	todayStart := time.Date(2020, 1, 3, 16, 0, 0, 0, time.UTC)
 	seedTx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
 	_, err := seedTx.ExecContext(ctx, `
+		SET LOCAL TIME ZONE 'Asia/Shanghai';
 		INSERT INTO groups (id) VALUES (10);
 		INSERT INTO users (id) VALUES (1);
-		UPDATE usage_group_rollup_state
-		SET closed_before = DATE '2020-01-02'
-		WHERE id = 1;
+		INSERT INTO usage_logs (id, user_id, group_id, actual_cost, created_at)
+		VALUES (1, 1, 10, 1.00, TIMESTAMPTZ '2020-01-02 08:00:00+08');
 	`)
 	require.NoError(t, err)
 	require.NoError(t, seedTx.Commit())
 
 	syncTx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
 	defer func() { _ = syncTx.Rollback() }()
-	var stateID int16
+	_, err = syncTx.ExecContext(ctx, "SET LOCAL TIME ZONE 'Asia/Shanghai'")
+	require.NoError(t, err)
+	done, err := newDashboardAggregationRepositoryWithSQL(syncTx).syncNextGroupUsageRollupInTx(ctx, todayStart)
+	require.NoError(t, err)
+	require.False(t, done)
+
+	var publishedBefore string
 	require.NoError(t, syncTx.QueryRowContext(ctx, `
-		SELECT id
+		SELECT closed_before::text
 		FROM usage_group_rollup_state
 		WHERE id = 1
-		FOR UPDATE
-	`).Scan(&stateID))
+	`).Scan(&publishedBefore))
+	require.Equal(t, "2020-01-03", publishedBefore)
 
 	lateTx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
 	defer func() { _ = lateTx.Rollback() }()
+	_, err = lateTx.ExecContext(ctx, "SET LOCAL TIME ZONE 'Asia/Shanghai'")
+	require.NoError(t, err)
 	var lateBackendPID int
 	require.NoError(t, lateTx.QueryRowContext(ctx, "SELECT pg_backend_pid()").Scan(&lateBackendPID))
 
@@ -85,7 +95,7 @@ func TestGroupUsageRollupTriggerSerializesLateHistoricalInsertWithPublish(t *tes
 	go func() {
 		_, insertErr := lateTx.ExecContext(ctx, `
 			INSERT INTO usage_logs (id, user_id, group_id, actual_cost, created_at)
-			VALUES (1, 1, 10, 1.25, TIMESTAMPTZ '2020-01-02 09:00:00+08')
+			VALUES (2, 1, 10, 1.25, TIMESTAMPTZ '2020-01-02 09:00:00+08')
 		`)
 		insertResult <- insertErr
 	}()
@@ -98,12 +108,6 @@ func TestGroupUsageRollupTriggerSerializesLateHistoricalInsertWithPublish(t *tes
 		require.True(t, blocked, "迟到写入必须等待正在发布水位的事务")
 	}
 
-	_, err = syncTx.ExecContext(ctx, `
-		UPDATE usage_group_rollup_state
-		SET closed_before = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date
-		WHERE id = 1
-	`)
-	require.NoError(t, err)
 	require.NoError(t, syncTx.Commit())
 
 	select {
@@ -121,6 +125,119 @@ func TestGroupUsageRollupTriggerSerializesLateHistoricalInsertWithPublish(t *tes
 	)).Scan(&closedBefore)
 	require.NoError(t, err)
 	require.Equal(t, "2020-01-02", closedBefore)
+
+	repairTx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
+	defer func() { _ = repairTx.Rollback() }()
+	_, err = repairTx.ExecContext(ctx, "SET LOCAL TIME ZONE 'Asia/Shanghai'")
+	require.NoError(t, err)
+	done, err = newDashboardAggregationRepositoryWithSQL(repairTx).syncNextGroupUsageRollupInTx(ctx, todayStart)
+	require.NoError(t, err)
+	require.False(t, done)
+	require.NoError(t, repairTx.Commit())
+
+	var repairedCost float64
+	err = integrationDB.QueryRowContext(ctx, fmt.Sprintf(`
+		SELECT actual_cost
+		FROM %s.usage_group_daily_rollups
+		WHERE bucket_date = DATE '2020-01-02' AND group_id = 10
+	`, pq.QuoteIdentifier(schema))).Scan(&repairedCost)
+	require.NoError(t, err)
+	require.InDelta(t, 2.25, repairedCost, 0.0000001)
+}
+
+func TestGroupUsageRollupSyncReleasesWritersBetweenDailyBuckets(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	useGroupUsageRepositoryTestTimezone(t, "Asia/Shanghai")
+
+	schema := createGroupUsageRollupTriggerTestSchema(t, ctx, false)
+	todayStart := time.Date(2026, 8, 14, 16, 0, 0, 0, time.UTC)
+	seedTx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
+	_, err := seedTx.ExecContext(ctx, `
+		SET LOCAL TIME ZONE 'Asia/Shanghai';
+		INSERT INTO groups (id) VALUES (10);
+		INSERT INTO users (id) VALUES (1);
+		INSERT INTO usage_logs (id, user_id, group_id, actual_cost, created_at) VALUES
+			(1, 1, 10, 1.00, TIMESTAMPTZ '2026-08-10 12:00:00+08'),
+			(2, 1, 10, 2.00, TIMESTAMPTZ '2026-08-11 12:00:00+08'),
+			(3, 1, 10, 3.00, TIMESTAMPTZ '2026-08-12 12:00:00+08');
+	`)
+	require.NoError(t, err)
+	require.NoError(t, seedTx.Commit())
+
+	firstBucketTx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
+	defer func() { _ = firstBucketTx.Rollback() }()
+	_, err = firstBucketTx.ExecContext(ctx, "SET LOCAL TIME ZONE 'Asia/Shanghai'")
+	require.NoError(t, err)
+	done, err := newDashboardAggregationRepositoryWithSQL(firstBucketTx).syncNextGroupUsageRollupInTx(ctx, todayStart)
+	require.NoError(t, err)
+	require.False(t, done)
+
+	writerTx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
+	defer func() { _ = writerTx.Rollback() }()
+	_, err = writerTx.ExecContext(ctx, "SET LOCAL TIME ZONE 'Asia/Shanghai'")
+	require.NoError(t, err)
+	var writerBackendPID int
+	require.NoError(t, writerTx.QueryRowContext(ctx, "SELECT pg_backend_pid()").Scan(&writerBackendPID))
+
+	insertResult := make(chan error, 1)
+	go func() {
+		_, insertErr := writerTx.ExecContext(ctx, `
+			INSERT INTO usage_logs (id, user_id, group_id, actual_cost, created_at)
+			VALUES (4, 1, 10, 4.00, TIMESTAMPTZ '2026-08-15 12:00:00+08')
+		`)
+		insertResult <- insertErr
+	}()
+
+	blocked, err := waitForGroupUsageRollupStateLock(ctx, writerBackendPID, insertResult)
+	if err != nil || !blocked {
+		_ = firstBucketTx.Rollback()
+		_ = writerTx.Rollback()
+		require.NoError(t, err)
+		require.True(t, blocked, "写入必须等待当前日桶事务")
+	}
+	require.NoError(t, firstBucketTx.Commit())
+
+	select {
+	case err = <-insertResult:
+		require.NoError(t, err)
+	case <-ctx.Done():
+		t.Fatal("写入等待首个日桶事务完成后仍未恢复")
+	}
+	require.NoError(t, writerTx.Commit())
+
+	quotedSchema := pq.QuoteIdentifier(schema)
+	var closedBefore string
+	err = integrationDB.QueryRowContext(ctx, fmt.Sprintf(
+		"SELECT closed_before::text FROM %s.usage_group_rollup_state WHERE id = 1",
+		quotedSchema,
+	)).Scan(&closedBefore)
+	require.NoError(t, err)
+	require.Equal(t, "2026-08-11", closedBefore, "写入放行时后续日桶应仍待回填")
+
+	var rollupCount int
+	err = integrationDB.QueryRowContext(ctx, fmt.Sprintf(
+		"SELECT COUNT(*) FROM %s.usage_group_daily_rollups",
+		quotedSchema,
+	)).Scan(&rollupCount)
+	require.NoError(t, err)
+	require.Equal(t, 1, rollupCount)
+
+	secondBucketTx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
+	defer func() { _ = secondBucketTx.Rollback() }()
+	_, err = secondBucketTx.ExecContext(ctx, "SET LOCAL TIME ZONE 'Asia/Shanghai'")
+	require.NoError(t, err)
+	done, err = newDashboardAggregationRepositoryWithSQL(secondBucketTx).syncNextGroupUsageRollupInTx(ctx, todayStart)
+	require.NoError(t, err)
+	require.False(t, done)
+	require.NoError(t, secondBucketTx.Commit())
+
+	err = integrationDB.QueryRowContext(ctx, fmt.Sprintf(
+		"SELECT closed_before::text FROM %s.usage_group_rollup_state WHERE id = 1",
+		quotedSchema,
+	)).Scan(&closedBefore)
+	require.NoError(t, err)
+	require.Equal(t, "2026-08-12", closedBefore)
 }
 
 func TestGroupUsageRollupTriggerSerializesInsertTransactionAcrossMidnight(t *testing.T) {
