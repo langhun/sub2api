@@ -216,6 +216,11 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('$5.0000 / 1M tokens')
     expect(text).toContain('$30.0000 / 1M tokens')
     expect(text).toContain('$0.069568')
+    const tooltip = wrapper.get('[data-testid="cost-detail-tooltip"]')
+    expect(tooltip.attributes('style')).toContain('left: 12px')
+    expect(tooltip.attributes('style')).toContain('top: 30px')
+    expect(tooltip.classes()).toContain('-translate-x-full')
+    expect(tooltip.find('.left-full').exists()).toBe(true)
   })
 
   it('shows requested and upstream models separately for admin rows', () => {
