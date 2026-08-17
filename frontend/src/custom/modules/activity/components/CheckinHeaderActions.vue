@@ -31,6 +31,11 @@
     @close="showLuckDialog = false"
     @success="handleCheckinSuccess"
   />
+  <NormalCheckinDialog
+    :show="showNormalDialog"
+    @close="showNormalDialog = false"
+    @success="handleCheckinSuccess"
+  />
 </template>
 
 <script setup lang="ts">
@@ -42,6 +47,7 @@ import Icon from '@/components/icons/Icon.vue'
 import type { CheckinResult } from '../api/checkin'
 import { useCheckinStore } from '../stores/checkin'
 import LuckyCheckinDialog from './LuckyCheckinDialog.vue'
+import NormalCheckinDialog from './NormalCheckinDialog.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -49,14 +55,25 @@ const authStore = useAuthStore()
 const checkinStore = useCheckinStore()
 const user = computed(() => authStore.user)
 const showLuckDialog = ref(false)
+const showNormalDialog = ref(false)
 
-async function submitNormalCheckin() {
-  const result = await checkinStore.doCheckin()
+function captchaEnabled(settings: Record<string, unknown> | null): boolean {
+  return settings?.turnstile_enabled === true || settings?.tencent_captcha_enabled === true || settings?.aliyun_captcha_enabled === true
+}
+
+async function submitNormalCheckin(): Promise<void> {
+  const settings = appStore.cachedPublicSettings ?? await appStore.fetchPublicSettings()
+  if (!settings || captchaEnabled(settings as Record<string, unknown>)) {
+    showNormalDialog.value = true
+    return
+  }
+  const result = await checkinStore.doCheckin({})
   if (result) handleCheckinSuccess(result)
 }
 
 function handleCheckinSuccess(result: CheckinResult) {
   showLuckDialog.value = false
+  showNormalDialog.value = false
   const reward = Number(result.reward_amount || 0)
   const amount = Math.abs(reward).toFixed(2)
   let detail = `${reward >= 0 ? '+' : '-'}$${amount}`

@@ -138,7 +138,7 @@
             </div>
           </div>
           <div
-            v-if="checkinStore.actionError && !showLuckModal"
+            v-if="checkinStore.actionError && !showLuckModal && !showNormalModal"
             class="mt-4 flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/60 dark:bg-red-900/20 sm:flex-row sm:items-center sm:justify-between"
             role="alert"
           >
@@ -150,6 +150,7 @@
         </div>
       </div>
 
+      <NormalCheckinDialog :show="showNormalModal" @close="showNormalModal = false" @success="handleNormalSuccess" />
       <LuckyCheckinDialog :show="showLuckModal" @close="showLuckModal = false" @success="handleLuckSuccess" />
 
       <!-- Check-in Calendar -->
@@ -322,6 +323,7 @@ import { useAppStore } from '@/stores/app'
 import { getBlindboxRecords, getCheckinCalendar, type BlindboxRecordItem, type BlindboxResult, type CheckinCalendarDay } from '@/custom/modules/activity/api/checkin'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LuckyCheckinDialog from '@/custom/modules/activity/components/LuckyCheckinDialog.vue'
+import NormalCheckinDialog from '@/custom/modules/activity/components/NormalCheckinDialog.vue'
 import { formatCalendarDate, parseCalendarDate } from '@/custom/modules/activity/utils/checkinCalendar'
 import { resolveFeatureFlagValue } from '@/utils/featureFlags'
 import { activityFeatureFlags } from '../settings'
@@ -338,6 +340,7 @@ const blindboxEnabled = computed(() => (
 ))
 
 const showLuckModal = ref(false)
+const showNormalModal = ref(false)
 const lastAction = ref<'normal' | 'luck'>('normal')
 
 const statusErrorMessage = computed(() => extractApiErrorMessage(checkinStore.statusError, t('checkin.statusLoadFailed')))
@@ -470,15 +473,29 @@ async function handleLuckSuccess() {
   await Promise.all(refreshes)
 }
 
-async function submitNormal() {
+async function handleNormalSuccess() {
   lastAction.value = 'normal'
-  const result = await checkinStore.doCheckin()
-  if (!result) return
+  showNormalModal.value = false
   appStore.showSuccess(t('checkin.success'))
   blindboxPage.value = 1
   const refreshes = [fetchCalendar()]
   if (blindboxEnabled.value) refreshes.push(fetchBlindboxRecords())
   await Promise.all(refreshes)
+}
+
+function captchaEnabled(settings: Record<string, unknown> | null): boolean {
+  return settings?.turnstile_enabled === true || settings?.tencent_captcha_enabled === true || settings?.aliyun_captcha_enabled === true
+}
+
+async function submitNormal() {
+  lastAction.value = 'normal'
+  const settings = appStore.cachedPublicSettings ?? await appStore.fetchPublicSettings()
+  if (!settings || captchaEnabled(settings as Record<string, unknown>)) {
+    showNormalModal.value = true
+    return
+  }
+  const result = await checkinStore.doCheckin({})
+  if (result) await handleNormalSuccess()
 }
 
 function openLuckDialog() {

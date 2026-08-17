@@ -1,10 +1,13 @@
 package checkin
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 
 	"github.com/Wei-Shaw/sub2api/internal/custom/modules/activity/contract"
+	ippkg "github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/gin-gonic/gin"
@@ -14,10 +17,21 @@ import (
 type Handler struct {
 	service        contract.CheckinService
 	blindboxReader contract.BlindboxRecordsReader
+	protector      CheckinProtector
 }
 
-func NewHandler(service contract.CheckinService, blindboxReader contract.BlindboxRecordsReader) *Handler {
-	return &Handler{service: service, blindboxReader: blindboxReader}
+func NewHandler(service contract.CheckinService, blindboxReader contract.BlindboxRecordsReader, protector ...CheckinProtector) *Handler {
+	var configured CheckinProtector
+	if len(protector) > 0 {
+		configured = protector[0]
+	}
+	return &Handler{service: service, blindboxReader: blindboxReader, protector: configured}
+}
+
+type captchaRequest struct {
+	TurnstileToken        string `json:"turnstile_token"`
+	TencentCaptchaTicket  string `json:"tencent_captcha_ticket"`
+	TencentCaptchaRandstr string `json:"tencent_captcha_randstr"`
 }
 
 func (h *Handler) Checkin(c *gin.Context) {
@@ -30,6 +44,15 @@ func (h *Handler) Checkin(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
+	var req captchaRequest
+	if err := bindOptionalJSON(c, &req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := h.verifyProtection(c, userID, req); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	result, err := h.service.Checkin(c.Request.Context(), userID)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -39,6 +62,7 @@ func (h *Handler) Checkin(c *gin.Context) {
 }
 
 type luckCheckinRequest struct {
+	captchaRequest
 	BetAmount     float64 `json:"bet_amount" binding:"required,gt=0"`
 	UseMaxBalance bool    `json:"use_max_balance"`
 }
@@ -58,12 +82,42 @@ func (h *Handler) LuckCheckin(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: bet_amount is required and must be greater than 0")
 		return
 	}
+	if err := h.verifyProtection(c, userID, req.captchaRequest); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	result, err := h.service.LuckCheckin(c.Request.Context(), userID, req.BetAmount, req.UseMaxBalance)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, result)
+}
+
+func (h *Handler) verifyProtection(c *gin.Context, userID int64, req captchaRequest) error {
+	if h.protector == nil {
+		return nil
+	}
+	err := h.protector.Verify(c.Request.Context(), userID, ippkg.GetTrustedClientIP(c), CaptchaProof{
+		TurnstileToken: req.TurnstileToken,
+		TencentTicket:  req.TencentCaptchaTicket,
+		TencentRandstr: req.TencentCaptchaRandstr,
+	})
+	if retryAfter, ok := retryAfterFromError(err); ok {
+		c.Header("Retry-After", strconv.FormatInt(roundedSeconds(retryAfter), 10))
+	}
+	return err
+}
+
+func bindOptionalJSON(c *gin.Context, target any) error {
+	if c.Request == nil || c.Request.Body == nil {
+		return nil
+	}
+	err := c.ShouldBindJSON(target)
+	if errors.Is(err, io.EOF) {
+		return nil
+	}
+	return err
 }
 
 func (h *Handler) GetStatus(c *gin.Context) {

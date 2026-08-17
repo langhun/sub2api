@@ -64,6 +64,33 @@ func TestVerifyCaptchaUsesTencentWhenEnabled(t *testing.T) {
 	require.Equal(t, 1, verifier.calls)
 }
 
+func TestVerifyCaptchaForActionRequiresMatchingTurnstileAction(t *testing.T) {
+	settings := map[string]string{
+		SettingKeyTurnstileEnabled:   "true",
+		SettingKeyTurnstileSecretKey: "turnstile-secret",
+	}
+	verifier := &turnstileVerifierSpy{result: &TurnstileVerifyResponse{Success: true, Action: "checkin"}}
+	svc := newAuthServiceForCaptchaTest(settings, false, verifier, nil)
+
+	err := svc.VerifyCaptchaForAction(context.Background(), CaptchaProof{TurnstileToken: "proof"}, "203.0.113.10", "checkin")
+
+	require.NoError(t, err)
+	require.Equal(t, 1, verifier.called)
+}
+
+func TestVerifyCaptchaForActionRejectsMismatchedTurnstileAction(t *testing.T) {
+	settings := map[string]string{
+		SettingKeyTurnstileEnabled:   "true",
+		SettingKeyTurnstileSecretKey: "turnstile-secret",
+	}
+	verifier := &turnstileVerifierSpy{result: &TurnstileVerifyResponse{Success: true, Action: "login"}}
+	svc := newAuthServiceForCaptchaTest(settings, false, verifier, nil)
+
+	err := svc.VerifyCaptchaForAction(context.Background(), CaptchaProof{TurnstileToken: "proof"}, "203.0.113.10", "checkin")
+
+	require.ErrorIs(t, err, ErrTurnstileVerificationFailed)
+}
+
 func TestVerifyCaptchaRejectsDirtyDoubleEnabledSettings(t *testing.T) {
 	settings := tencentCaptchaSettings()
 	settings[SettingKeyTurnstileEnabled] = "true"

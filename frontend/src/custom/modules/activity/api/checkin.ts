@@ -19,6 +19,12 @@ export interface CheckinResult {
   blindbox?: BlindboxResult
 }
 
+export interface CheckinCaptchaProof {
+  turnstile_token?: string
+  tencent_captcha_ticket?: string
+  tencent_captcha_randstr?: string
+}
+
 export interface CheckinStatus {
   enabled: boolean
   luck_enabled: boolean
@@ -37,15 +43,20 @@ export interface CheckinStatus {
   balance: number
 }
 
-export async function checkin(): Promise<CheckinResult> {
-  const { data } = await apiClient.post<CheckinResult>('/checkin')
+export async function checkin(proof: CheckinCaptchaProof = {}): Promise<CheckinResult> {
+  const { data } = await apiClient.post<CheckinResult>('/checkin', proof)
   return data
 }
 
-export async function luckCheckin(betAmount: number, useMaxBalance = false): Promise<CheckinResult> {
+export async function luckCheckin(
+  betAmount: number,
+  useMaxBalance = false,
+  proof: CheckinCaptchaProof = {},
+): Promise<CheckinResult> {
   const { data } = await apiClient.post<CheckinResult>('/checkin/luck', {
     bet_amount: betAmount,
     use_max_balance: useMaxBalance,
+    ...proof,
   })
   return data
 }

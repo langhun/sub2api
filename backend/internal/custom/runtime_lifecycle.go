@@ -9,6 +9,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/redis/go-redis/v9"
 )
 
 // ProvideRuntime starts module-owned background workers after composition.
@@ -23,6 +24,8 @@ func ProvideRuntime(
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
 	paymentService *service.PaymentService,
+	authService *service.AuthService,
+	redisClient *redis.Client,
 ) (*Runtime, error) {
 	runtime, err := NewRuntime(
 		client,
@@ -35,6 +38,8 @@ func ProvideRuntime(
 		customSettingsRegistry,
 		codeGenerator,
 		paymentService,
+		authService,
+		redisClient,
 	)
 	if err != nil {
 		return nil, err

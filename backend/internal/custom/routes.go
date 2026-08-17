@@ -82,6 +82,9 @@ func RegisterRoutes(
 		authenticated := v1.Group("")
 		authenticated.Use(gin.HandlerFunc(jwtAuth))
 		authenticated.Use(middleware.BackendModeUserGuard(settingService))
+		if panelRateLimiter != nil {
+			authenticated.Use(panelRateLimiter.Global())
+		}
 		authenticated.Use(gin.HandlerFunc(auditLog))
 		runtime.ActivityCheckin.RegisterRoutes(authenticated)
 	}

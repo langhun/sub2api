@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -57,6 +58,12 @@ func (s *TurnstileService) VerifyToken(ctx context.Context, token string, remote
 }
 
 func (s *TurnstileService) VerifyTokenWithSecret(ctx context.Context, secretKey, token, remoteIP string) error {
+	return s.VerifyTokenWithSecretForAction(ctx, secretKey, token, remoteIP, "")
+}
+
+// VerifyTokenWithSecretForAction verifies a token and, when expectedAction is
+// non-empty, binds it to the business action used when the widget was rendered.
+func (s *TurnstileService) VerifyTokenWithSecretForAction(ctx context.Context, secretKey, token, remoteIP, expectedAction string) error {
 	if secretKey == "" {
 		logger.LegacyPrintf("service.turnstile", "%s", "[Turnstile] Secret key not configured")
 		return ErrTurnstileNotConfigured
@@ -78,8 +85,17 @@ func (s *TurnstileService) VerifyTokenWithSecret(ctx context.Context, secretKey,
 		return fmt.Errorf("send request: %w", err)
 	}
 
+	if result == nil {
+		logger.LegacyPrintf("service.turnstile", "%s", "[Turnstile] Verification returned an empty response")
+		return ErrTurnstileVerificationFailed
+	}
 	if !result.Success {
 		logger.LegacyPrintf("service.turnstile", "[Turnstile] Verification failed, error codes: %v", result.ErrorCodes)
+		return ErrTurnstileVerificationFailed
+	}
+	expectedAction = strings.TrimSpace(expectedAction)
+	if expectedAction != "" && result.Action != expectedAction {
+		logger.LegacyPrintf("service.turnstile", "[Turnstile] Action mismatch: got=%q expected=%q", result.Action, expectedAction)
 		return ErrTurnstileVerificationFailed
 	}
 

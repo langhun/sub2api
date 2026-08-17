@@ -3,6 +3,7 @@
     v-if="turnstileEnabled && turnstileSiteKey"
     ref="turnstileRef"
     :site-key="turnstileSiteKey"
+    :action="action"
     @verify="(token) => emit('verify', token, '')"
     @expire="emit('expire')"
     @error="emit('error')"
@@ -49,6 +50,7 @@ const props = defineProps<{
   aliyunSceneId?: string
   aliyunPrefix?: string
   aliyunRegion?: string
+  action?: string
 }>()
 
 const emit = defineEmits<{

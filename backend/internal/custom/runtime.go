@@ -23,6 +23,7 @@ import (
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/google/wire"
+	"github.com/redis/go-redis/v9"
 )
 
 // ProviderSet constructs the Overlay runtime at the composition root.
@@ -61,6 +62,8 @@ func NewRuntime(
 	customSettingsRegistry *customsettings.Registry,
 	codeGenerator *codeformat.Generator,
 	paymentService *service.PaymentService,
+	authService *service.AuthService,
+	redisClient *redis.Client,
 ) (*Runtime, error) {
 	bepusdt.Register()
 	if err := custommigrations.Apply(context.Background(), db); err != nil {
@@ -114,6 +117,10 @@ func NewRuntime(
 		RedeemRecords: redeemRecords,
 		BalanceCache:  balanceCache,
 	}, activityrewards.WorkerOptions{})
+	checkinProtector, err := newCheckinProtector(authService, redisClient)
+	if err != nil {
+		return nil, err
+	}
 	activityCheckin, err := activitycheckin.NewOperationalModule(activitycheckin.Dependencies{
 		Repository:   activitycheckin.NewRepository(client),
 		Transactions: activitycheckin.NewTransactionRunner(client),
@@ -127,7 +134,7 @@ func NewRuntime(
 			activityRewardsHTTP.Runner,
 			activityRewardsHTTP.Outbox,
 		),
-	}, activitycheckin.NewEntBlindboxRecordsReader(client))
+	}, activitycheckin.NewEntBlindboxRecordsReader(client), checkinProtector)
 	if err != nil {
 		return nil, err
 	}

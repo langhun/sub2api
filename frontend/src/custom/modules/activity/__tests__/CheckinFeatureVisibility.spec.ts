@@ -143,6 +143,7 @@ describe('CheckinView feature visibility', () => {
     expect(wrapper.text()).toContain('normal check-in failed')
     await wrapper.get('[data-testid="checkin-action-retry"]').trigger('click')
     expect(checkinStore.doCheckin).toHaveBeenCalledTimes(1)
+    expect(checkinStore.doCheckin).toHaveBeenCalledWith({})
   })
 
   it('submits a lucky check-in directly after entering an amount', async () => {
@@ -161,7 +162,7 @@ describe('CheckinView feature visibility', () => {
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('4')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
     expect(checkinStore.doLuckCheckin).toHaveBeenCalledOnce()
-    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(4, false)
+    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(4, false, {})
     expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success')
   })
 
@@ -180,7 +181,7 @@ describe('CheckinView feature visibility', () => {
     await wrapper.get('[data-testid="luck-bet-max"]').trigger('click')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
 
-    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(81058106150981.25, true)
+    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(81058106150981.25, true, {})
   })
 
   it('returns to strict manual mode after editing a MAX amount', async () => {
@@ -199,7 +200,7 @@ describe('CheckinView feature visibility', () => {
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('42')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
 
-    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(42, false)
+    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(42, false, {})
   })
 
   it('shows the shared success toast after a normal check-in', async () => {

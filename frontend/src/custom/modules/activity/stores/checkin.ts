@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { checkinAPI, type CheckinStatus, type CheckinResult, type BlindboxResult } from '@/custom/modules/activity/api/checkin'
+import { checkinAPI, type CheckinStatus, type CheckinResult, type BlindboxResult, type CheckinCaptchaProof } from '@/custom/modules/activity/api/checkin'
 import { useAuthStore } from '@/stores/auth'
 
 export const useCheckinStore = defineStore('checkin', () => {
@@ -36,12 +36,12 @@ export const useCheckinStore = defineStore('checkin', () => {
     }
   }
 
-  async function doCheckin(): Promise<CheckinResult | null> {
+  async function doCheckin(proof: CheckinCaptchaProof = {}): Promise<CheckinResult | null> {
     if (loading.value) return null
     loading.value = true
     actionError.value = null
     try {
-      const result = await checkinAPI.checkin()
+      const result = await checkinAPI.checkin(proof)
       checkinResult.value = result
       blindboxResult.value = result.blindbox ?? null
 
@@ -66,12 +66,16 @@ export const useCheckinStore = defineStore('checkin', () => {
     }
   }
 
-  async function doLuckCheckin(betAmount: number, useMaxBalance = false): Promise<CheckinResult | null> {
+  async function doLuckCheckin(
+    betAmount: number,
+    useMaxBalance = false,
+    proof: CheckinCaptchaProof = {},
+  ): Promise<CheckinResult | null> {
     if (loading.value) return null
     loading.value = true
     actionError.value = null
     try {
-      const result = await checkinAPI.luckCheckin(betAmount, useMaxBalance)
+      const result = await checkinAPI.luckCheckin(betAmount, useMaxBalance, proof)
       checkinResult.value = result
       blindboxResult.value = result.blindbox ?? null
 

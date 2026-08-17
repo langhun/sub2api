@@ -408,6 +408,17 @@ func (s *AuthService) VerifyCaptchaForRegister(ctx context.Context, proof Captch
 }
 
 func (s *AuthService) VerifyCaptcha(ctx context.Context, proof CaptchaProof, remoteIP string) error {
+	return s.verifyCaptcha(ctx, proof, remoteIP, "")
+}
+
+// VerifyCaptchaForAction verifies the configured provider and binds Turnstile
+// proofs to an endpoint-specific action. Other providers retain their native
+// one-time proof semantics.
+func (s *AuthService) VerifyCaptchaForAction(ctx context.Context, proof CaptchaProof, remoteIP, expectedAction string) error {
+	return s.verifyCaptcha(ctx, proof, remoteIP, strings.TrimSpace(expectedAction))
+}
+
+func (s *AuthService) verifyCaptcha(ctx context.Context, proof CaptchaProof, remoteIP, expectedAction string) error {
 	required := s.cfg != nil && s.cfg.Server.Mode == "release" && s.cfg.Turnstile.Required
 	if s.settingService == nil {
 		if required {
@@ -443,7 +454,7 @@ func (s *AuthService) VerifyCaptcha(ctx context.Context, proof CaptchaProof, rem
 		if s.turnstileService == nil || strings.TrimSpace(providerConfig.TurnstileSecretKey) == "" {
 			return ErrTurnstileNotConfigured
 		}
-		return s.turnstileService.VerifyTokenWithSecret(ctx, providerConfig.TurnstileSecretKey, proof.TurnstileToken, remoteIP)
+		return s.turnstileService.VerifyTokenWithSecretForAction(ctx, providerConfig.TurnstileSecretKey, proof.TurnstileToken, remoteIP, expectedAction)
 	}
 	if required {
 		return ErrTurnstileNotConfigured

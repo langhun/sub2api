@@ -30,7 +30,8 @@ const checkinStore = vi.hoisted(() => ({
 const appStore = vi.hoisted(() => ({
   contactInfo: '',
   docUrl: '',
-  cachedPublicSettings: { custom_menu_items: [] },
+  cachedPublicSettings: { custom_menu_items: [] } as Record<string, unknown>,
+  fetchPublicSettings: vi.fn(),
   toggleMobileSidebar: vi.fn(),
   showSuccess: vi.fn(),
 }))
@@ -84,6 +85,7 @@ describe('CheckinHeaderActions', () => {
     checkinStore.loading = false
     checkinStore.actionError = null
     authStore.user.frozen_balance = 0
+    appStore.cachedPublicSettings = { custom_menu_items: [] }
     checkinStore.doCheckin.mockImplementation(async () => {
       checkinStore.canCheckin = false
       checkinStore.checkedInToday = true
@@ -96,7 +98,7 @@ describe('CheckinHeaderActions', () => {
     })
   })
 
-  it('renders both header actions and performs normal check-in directly', async () => {
+  it('renders both header actions and keeps normal check-in one-click when captcha is disabled', async () => {
     const wrapper = mountActions()
     await flushPromises()
 
@@ -104,6 +106,7 @@ describe('CheckinHeaderActions', () => {
     expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(true)
     await wrapper.get('[data-testid="header-normal-checkin"]').trigger('click')
     expect(checkinStore.doCheckin).toHaveBeenCalledOnce()
+    expect(checkinStore.doCheckin).toHaveBeenCalledWith({})
   })
 
   it('submits a header lucky check-in directly after entering an amount', async () => {
@@ -113,9 +116,23 @@ describe('CheckinHeaderActions', () => {
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
     await flushPromises()
 
-    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(5, false)
+    expect(checkinStore.doLuckCheckin).toHaveBeenCalledWith(5, false, {})
     expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success checkin.luckSuccess')
     expect(wrapper.find('[data-testid="header-checkin-tip"]').exists()).toBe(false)
+  })
+
+  it('opens verification instead of submitting when captcha is enabled', async () => {
+    appStore.cachedPublicSettings = {
+      custom_menu_items: [],
+      turnstile_enabled: true,
+      turnstile_site_key: 'site-key',
+    }
+    const wrapper = mountActions()
+
+    await wrapper.get('[data-testid="header-normal-checkin"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="normal-checkin-confirm"]').exists()).toBe(true)
+    expect(checkinStore.doCheckin).not.toHaveBeenCalled()
   })
 
   it('hides header actions when check-in is disabled', () => {

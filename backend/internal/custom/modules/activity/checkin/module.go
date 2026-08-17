@@ -18,15 +18,22 @@ func NewModule(service contract.CheckinService, blindboxReader contract.Blindbox
 	return &Module{Handler: NewHandler(service, blindboxReader)}
 }
 
+func NewModuleWithProtector(service contract.CheckinService, blindboxReader contract.BlindboxRecordsReader, protector CheckinProtector) *Module {
+	return &Module{Handler: NewHandler(service, blindboxReader, protector)}
+}
+
 // NewOperationalModule constructs the runnable check-in module from narrow
 // Activity/platform ports. It is the target composition API for root runtime
 // wiring and has no dependency on the legacy CheckinService or BlindBoxService.
-func NewOperationalModule(deps Dependencies, blindboxReader contract.BlindboxRecordsReader) (*Module, error) {
+func NewOperationalModule(deps Dependencies, blindboxReader contract.BlindboxRecordsReader, protector CheckinProtector) (*Module, error) {
+	if protector == nil {
+		return nil, fmt.Errorf("construct activity check-in protection: protector is required")
+	}
 	service, err := NewService(deps)
 	if err != nil {
 		return nil, fmt.Errorf("construct activity check-in service: %w", err)
 	}
-	return NewModule(service, blindboxReader), nil
+	return NewModuleWithProtector(service, blindboxReader, protector), nil
 }
 
 // RegisterRoutes attaches the established five check-in endpoints to an

@@ -167,7 +167,7 @@ function initCaptcha(): void {
     },
     onBizResultCallback: () => {},
     getInstance: () => {},
-    slideStyle: { width: 360, height: 40 },
+    slideStyle: { width: Math.max(0, Math.min(360, window.innerWidth - 48)), height: 40 },
     language: locale.value.toLowerCase().startsWith('zh') ? 'cn' : 'en'
   })
 }

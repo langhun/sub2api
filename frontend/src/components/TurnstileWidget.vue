@@ -14,6 +14,7 @@ interface TurnstileRenderOptions {
   'error-callback'?: () => void
   theme?: 'light' | 'dark' | 'auto'
   size?: 'normal' | 'compact' | 'flexible'
+  action?: string
 }
 
 interface TurnstileAPI {
@@ -34,6 +35,7 @@ const props = withDefaults(
     siteKey: string
     theme?: 'light' | 'dark' | 'auto'
     size?: 'normal' | 'compact' | 'flexible'
+    action?: string
   }>(),
   {
     theme: 'auto',
@@ -117,7 +119,8 @@ const renderWidget = () => {
       emit('error')
     },
     theme: props.theme,
-    size: props.size
+    size: props.size,
+    action: props.action || undefined
   })
 }
 

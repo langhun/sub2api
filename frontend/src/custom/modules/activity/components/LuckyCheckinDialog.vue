@@ -44,6 +44,13 @@
       </div>
     </div>
 
+    <CheckinCaptchaGate
+      ref="captchaRef"
+      class="mt-4"
+      :active="show"
+      @ready-change="captchaReady = $event"
+    />
+
     <div v-if="checkinStore.actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300" role="alert">
       {{ actionErrorMessage }}
     </div>
@@ -53,7 +60,7 @@
         <button type="button" class="btn btn-secondary" :disabled="checkinStore.loading" @click="closeDialog">
           {{ t('common.cancel') }}
         </button>
-        <button type="button" data-testid="luck-submit" :disabled="checkinStore.loading || !validBet" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50" @click="submit">
+        <button type="button" data-testid="luck-submit" :disabled="checkinStore.loading || !validBet || !captchaReady" class="rounded-xl bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-purple-600 disabled:opacity-50" @click="submit">
           {{ checkinStore.loading ? t('common.loading') : t('checkin.luckButton') }}
         </button>
       </div>
@@ -68,6 +75,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import { useCheckinStore } from '@/custom/modules/activity/stores/checkin'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import type { CheckinResult } from '@/custom/modules/activity/api/checkin'
+import CheckinCaptchaGate from './CheckinCaptchaGate.vue'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{
@@ -79,6 +87,8 @@ const { t } = useI18n()
 const checkinStore = useCheckinStore()
 const betAmount = ref(0)
 const useMaxBalance = ref(false)
+const captchaRef = ref<InstanceType<typeof CheckinCaptchaGate> | null>(null)
+const captchaReady = ref(false)
 
 const availableBalance = computed(() => checkinStore.status?.balance ?? 0)
 const validBet = computed(() => Number.isFinite(betAmount.value) && betAmount.value > 0 && betAmount.value <= availableBalance.value)
@@ -89,11 +99,15 @@ watch(() => props.show, (show) => {
   betAmount.value = 0
   useMaxBalance.value = false
   checkinStore.clearActionError()
+  captchaRef.value?.reset()
 })
 
 async function submit() {
-  if (!validBet.value || checkinStore.loading) return
-  const result = await checkinStore.doLuckCheckin(betAmount.value, useMaxBalance.value)
+  if (!validBet.value || checkinStore.loading || !captchaReady.value) return
+  const proof = await captchaRef.value?.resolveProof()
+  if (!proof) return
+  const result = await checkinStore.doLuckCheckin(betAmount.value, useMaxBalance.value, proof)
+  captchaRef.value?.reset()
   if (!result) return
   emit('success', result)
   emit('close')
@@ -109,6 +123,7 @@ function setMaxBet() {
 function closeDialog() {
   if (checkinStore.loading) return
   checkinStore.clearActionError()
+  captchaRef.value?.reset()
   emit('close')
 }
 

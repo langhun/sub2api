@@ -10,6 +10,7 @@ interface CapturedInitOptions {
   button: string
   captchaVerifyCallback: (param: string) => { captchaResult: boolean }
   language?: string
+  slideStyle?: { width: number; height: number }
 }
 
 const i18nStub = {
@@ -68,8 +69,22 @@ describe('AliyunCaptchaWidget', () => {
     expect(initOptions!.mode).toBe('popup')
     expect(initOptions!.SceneId).toBe('scene-1')
     expect(initOptions!.language).toBe('cn')
+    expect(initOptions!.slideStyle).toEqual({ width: Math.min(360, window.innerWidth - 48), height: 40 })
 
     wrapper.unmount()
+  })
+
+  it('在 320px 视口下收缩滑块宽度避免横向溢出', async () => {
+    const originalInnerWidth = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320 })
+    const wrapper = mountWidget()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(initOptions!.slideStyle).toEqual({ width: 272, height: 40 })
+
+    wrapper.unmount()
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalInnerWidth })
   })
 
   it('用户点击按钮进入验证中，验证完成后 emit verify 并置已通过', async () => {
