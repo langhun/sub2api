@@ -64,6 +64,7 @@ The gate reports the following ownership categories separately:
 | `verification-test` | Tests only; production behavior is still checked by the other categories. |
 | `published-immutable-migration` | A known migration that predates the chosen baseline. |
 | `historical-upstream-revert` | A shared path whose final content exactly matches the immutable upstream SHA for the current incremental baseline. |
+| `reviewed-upstream-hotfix` | A core fix pinned to one immutable upstream base and exact final Git blob hashes. Any later edit is rejected as shared. |
 
 Known migrations `173` through `181`, `185`, and `187` are immutable. Adding
 them from an older baseline is reported as historical data; modifying, deleting,

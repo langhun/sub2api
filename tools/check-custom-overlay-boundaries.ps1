@@ -188,6 +188,32 @@ function Test-ExactHistoricalUpstreamRevert {
     throw "Cannot compare $Path with approved historical upstream $($script:HistoricalUpstreamCommit)."
 }
 
+function Test-ExactReviewedUpstreamHotfix {
+    param(
+        [string]$Path,
+        [bool]$AgainstWorktree
+    )
+
+    # A reviewed core hotfix is accepted only for one immutable upstream base
+    # and one exact final blob per path. Any later edit returns to shared.
+    if ($Mode -ne 'OverlayBoundary' -or
+        $script:BaselineCommit -ne $script:ReviewedUpstreamHotfixBase -or
+        -not $script:ReviewedUpstreamHotfixBlobs.ContainsKey($Path)) {
+        return $false
+    }
+
+    if ($AgainstWorktree) {
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+            return $false
+        }
+        $actualBlob = [string](Invoke-Git @('hash-object', '--', $Path))
+    } else {
+        $actualBlob = [string](Invoke-Git @('rev-parse', "$($script:TargetCommit):$Path"))
+    }
+
+    return $actualBlob -eq $script:ReviewedUpstreamHotfixBlobs[$Path]
+}
+
 function Get-ChangedRows {
     param(
         [string]$Scope,
@@ -219,6 +245,8 @@ function Get-ChangedRows {
                 $bucket = 'historical-upstream-revert'
             } elseif ($changeKind -eq 'D') {
                 $bucket = 'shared-cleanup'
+            } elseif (Test-ExactReviewedUpstreamHotfix -Path $path -AgainstWorktree ($Scope -eq 'worktree-tracked')) {
+                $bucket = 'reviewed-upstream-hotfix'
             } else {
                 $addedLines = Get-AddedLineCount -Arguments ($DiffArguments + @('--numstat', '--find-renames')) -Path $path
                 if (($null -ne $addedLines -and $addedLines -eq 0) -or (Test-ApprovedCleanupTransformation -Arguments $DiffArguments -Path $path)) {
@@ -278,6 +306,11 @@ function Write-AuditResult {
 
 $script:GitExecutable = Resolve-GitPath -RequestedPath $GitPath
 $script:HistoricalUpstreamCommit = '43d4bae2464387817560a1aeb0b023cd0c9b22ee'
+$script:ReviewedUpstreamHotfixBase = '396a9d1130c9a8ab977e6a959a4fdd2d9f95dd27'
+$script:ReviewedUpstreamHotfixBlobs = @{
+    'backend/internal/repository/custom_group_usage_rollup_repo.go' = '1342478ab68e32dac4d1f8708a11decd6f31267a'
+    'backend/internal/repository/dashboard_aggregation_repo.go' = '5266aef6f6fa4346619e882feb116d1284757105'
+}
 $script:FixedMountAllowlist = [System.Collections.Generic.HashSet[string]]::new([string[]]@(
     'backend/internal/server/http.go',
     'backend/internal/server/router.go',
@@ -338,6 +371,7 @@ $script:PublishedImmutableMigrationPaths = [System.Collections.Generic.HashSet[s
 # rev-parse produces exactly one line. Do not index the scalar result: in
 # PowerShell that would select the first character of the SHA.
 $targetCommit = [string](Invoke-Git @('rev-parse', '--verify', "$TargetRef^{commit}"))
+$script:TargetCommit = $targetCommit
 if ($Mode -eq 'OverlayBoundary') {
     if (-not $UpstreamRef) {
         throw 'OverlayBoundary requires -UpstreamRef with a reviewed upstream commit SHA.'
@@ -357,6 +391,7 @@ if ($Mode -eq 'OverlayBoundary') {
     $baselineCommit = [string](Invoke-Git @('rev-parse', '--verify', "$BaselineRef^{commit}"))
     $auditBaseLabel = "reviewed $Mode baseline $baselineCommit"
 }
+$script:BaselineCommit = $baselineCommit
 
 $range = "$baselineCommit..$targetCommit"
 if ($baselineCommit -eq $targetCommit) {
