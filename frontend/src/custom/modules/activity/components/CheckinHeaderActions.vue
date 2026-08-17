@@ -62,7 +62,7 @@ function captchaEnabled(settings: Record<string, unknown> | null): boolean {
 }
 
 async function submitNormalCheckin(): Promise<void> {
-  const settings = appStore.cachedPublicSettings ?? await appStore.fetchPublicSettings()
+  const settings = await appStore.fetchPublicSettings(true)
   if (!settings || captchaEnabled(settings as Record<string, unknown>)) {
     showNormalDialog.value = true
     return

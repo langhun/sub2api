@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
 
 const appStore = vi.hoisted(() => ({
   cachedPublicSettings: { checkin_blindbox_enabled: false } as Record<string, boolean>,
+  fetchPublicSettings: vi.fn(),
   showSuccess: vi.fn(),
 }))
 
@@ -72,6 +73,7 @@ describe('CheckinView feature visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     appStore.cachedPublicSettings = { checkin_blindbox_enabled: false }
+    appStore.fetchPublicSettings.mockImplementation(async () => appStore.cachedPublicSettings)
     Object.assign(checkinStore.status, {
       enabled: true,
       luck_enabled: false,
@@ -142,6 +144,7 @@ describe('CheckinView feature visibility', () => {
 
     expect(wrapper.text()).toContain('normal check-in failed')
     await wrapper.get('[data-testid="checkin-action-retry"]').trigger('click')
+    await flushPromises()
     expect(checkinStore.doCheckin).toHaveBeenCalledTimes(1)
     expect(checkinStore.doCheckin).toHaveBeenCalledWith({})
   })
@@ -157,6 +160,7 @@ describe('CheckinView feature visibility', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="luck-checkin-open"]').trigger('click')
+    await flushPromises()
     expect(wrapper.get('[data-testid="luck-risk-notice"]').text()).toContain('checkin.luckRiskNotice')
     expect(wrapper.get('[data-testid="luck-risk-balance"]').text()).toContain('checkin.luckRiskBalance')
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('4')
@@ -178,6 +182,7 @@ describe('CheckinView feature visibility', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="luck-checkin-open"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="luck-bet-max"]').trigger('click')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
 
@@ -196,6 +201,7 @@ describe('CheckinView feature visibility', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="luck-checkin-open"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="luck-bet-max"]').trigger('click')
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('42')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
@@ -215,5 +221,30 @@ describe('CheckinView feature visibility', () => {
     await flushPromises()
 
     expect(appStore.showSuccess).toHaveBeenCalledWith('checkin.success')
+  })
+
+  it('refreshes stale settings before submitting a normal check-in', async () => {
+    appStore.cachedPublicSettings = {
+      checkin_blindbox_enabled: false,
+      turnstile_enabled: false,
+    }
+    appStore.fetchPublicSettings.mockImplementationOnce(async () => {
+      appStore.cachedPublicSettings = {
+        checkin_blindbox_enabled: false,
+        turnstile_enabled: true,
+      }
+      return appStore.cachedPublicSettings
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    const normalButton = wrapper.findAll('button').find((button) => button.text().includes('checkin.normalCheckin'))
+    expect(normalButton).toBeDefined()
+    await normalButton!.trigger('click')
+    await flushPromises()
+
+    expect(appStore.fetchPublicSettings).toHaveBeenCalledWith(true)
+    expect(checkinStore.doCheckin).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="normal-checkin-confirm"]').exists()).toBe(true)
   })
 })

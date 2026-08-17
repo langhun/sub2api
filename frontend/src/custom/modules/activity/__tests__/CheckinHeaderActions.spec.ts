@@ -86,6 +86,7 @@ describe('CheckinHeaderActions', () => {
     checkinStore.actionError = null
     authStore.user.frozen_balance = 0
     appStore.cachedPublicSettings = { custom_menu_items: [] }
+    appStore.fetchPublicSettings.mockImplementation(async () => appStore.cachedPublicSettings)
     checkinStore.doCheckin.mockImplementation(async () => {
       checkinStore.canCheckin = false
       checkinStore.checkedInToday = true
@@ -105,13 +106,16 @@ describe('CheckinHeaderActions', () => {
     expect(wrapper.find('[data-testid="header-normal-checkin"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="header-luck-checkin"]').exists()).toBe(true)
     await wrapper.get('[data-testid="header-normal-checkin"]').trigger('click')
+    await flushPromises()
     expect(checkinStore.doCheckin).toHaveBeenCalledOnce()
     expect(checkinStore.doCheckin).toHaveBeenCalledWith({})
+    expect(appStore.fetchPublicSettings).toHaveBeenCalledWith(true)
   })
 
   it('submits a header lucky check-in directly after entering an amount', async () => {
     const wrapper = mountActions()
     await wrapper.get('[data-testid="header-luck-checkin"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="luck-bet-input"]').setValue('5')
     await wrapper.get('[data-testid="luck-submit"]').trigger('click')
     await flushPromises()
@@ -130,7 +134,28 @@ describe('CheckinHeaderActions', () => {
     const wrapper = mountActions()
 
     await wrapper.get('[data-testid="header-normal-checkin"]').trigger('click')
+    await flushPromises()
 
+    expect(wrapper.find('[data-testid="normal-checkin-confirm"]').exists()).toBe(true)
+    expect(checkinStore.doCheckin).not.toHaveBeenCalled()
+  })
+
+  it('refreshes stale settings before deciding whether verification is required', async () => {
+    appStore.cachedPublicSettings = { custom_menu_items: [], turnstile_enabled: false }
+    appStore.fetchPublicSettings.mockImplementationOnce(async () => {
+      appStore.cachedPublicSettings = {
+        custom_menu_items: [],
+        turnstile_enabled: true,
+        turnstile_site_key: 'fresh-site-key',
+      }
+      return appStore.cachedPublicSettings
+    })
+    const wrapper = mountActions()
+
+    await wrapper.get('[data-testid="header-normal-checkin"]').trigger('click')
+    await flushPromises()
+
+    expect(appStore.fetchPublicSettings).toHaveBeenCalledWith(true)
     expect(wrapper.find('[data-testid="normal-checkin-confirm"]').exists()).toBe(true)
     expect(checkinStore.doCheckin).not.toHaveBeenCalled()
   })

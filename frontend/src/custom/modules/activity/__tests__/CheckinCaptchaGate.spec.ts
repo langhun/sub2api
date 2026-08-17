@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { defineComponent } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -57,6 +57,7 @@ describe('CheckinCaptchaGate', () => {
 
   it('binds Turnstile to the checkin action and returns a fresh proof', async () => {
     const wrapper = mountGate()
+    await flushPromises()
     const challenge = wrapper.getComponent(CaptchaChallengeStub)
 
     expect(challenge.props('action')).toBe('checkin')
@@ -69,22 +70,25 @@ describe('CheckinCaptchaGate', () => {
     })
   })
 
-  it('does not silently bypass an enabled provider with missing public configuration', () => {
+  it('does not silently bypass an enabled provider with missing public configuration', async () => {
     appStore.cachedPublicSettings = {
       turnstile_enabled: true,
       turnstile_site_key: '',
     }
     const wrapper = mountGate()
+    await flushPromises()
 
     expect(wrapper.get('[role="alert"]').text()).toContain('checkin.verificationUnavailable')
     expect(wrapper.emitted('readyChange')?.at(-1)).toEqual([false])
   })
 
-  it('waits for public settings before allowing a check-in', () => {
+  it('waits for public settings before allowing a check-in', async () => {
     appStore.cachedPublicSettings = null
     const wrapper = mountGate()
 
     expect(wrapper.emitted('readyChange')?.at(-1)).toEqual([false])
+    await flushPromises()
+    expect(appStore.fetchPublicSettings).toHaveBeenCalledWith(true)
   })
 
   it('shows retry when loading public settings fails', async () => {
@@ -97,5 +101,27 @@ describe('CheckinCaptchaGate', () => {
     expect(retry.text()).toContain('common.retry')
     await retry.trigger('click')
     expect(appStore.fetchPublicSettings).toHaveBeenLastCalledWith(true)
+  })
+
+  it('replaces stale disabled settings before allowing submission', async () => {
+    appStore.cachedPublicSettings = {
+      turnstile_enabled: false,
+      turnstile_site_key: '',
+    }
+    appStore.fetchPublicSettings.mockImplementationOnce(async () => {
+      appStore.cachedPublicSettings = {
+        turnstile_enabled: true,
+        turnstile_site_key: 'fresh-site-key',
+      }
+      return appStore.cachedPublicSettings
+    })
+
+    const wrapper = mountGate()
+    expect(wrapper.emitted('readyChange')?.at(-1)).toEqual([false])
+    await flushPromises()
+
+    expect(appStore.fetchPublicSettings).toHaveBeenCalledWith(true)
+    expect(wrapper.getComponent(CaptchaChallengeStub).props('turnstileEnabled')).toBe(true)
+    expect(wrapper.emitted('readyChange')?.at(-1)).toEqual([false])
   })
 })

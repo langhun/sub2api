@@ -1,7 +1,7 @@
 <template>
   <div data-testid="checkin-captcha-gate" class="space-y-2">
     <CaptchaChallenge
-      v-if="active && captchaEnabled && captchaConfigured"
+      v-if="active && settingsReady && captchaEnabled && captchaConfigured"
       ref="challengeRef"
       action="checkin"
       :turnstile-enabled="turnstileEnabled"
@@ -17,7 +17,7 @@
       @expire="handleExpired"
       @error="handleError"
     />
-    <p v-if="active && captchaEnabled && !captchaConfigured" class="text-sm text-red-600 dark:text-red-400" role="alert">
+    <p v-if="active && settingsReady && captchaEnabled && !captchaConfigured" class="text-sm text-red-600 dark:text-red-400" role="alert">
       {{ t('checkin.verificationUnavailable') }}
     </p>
     <div v-else-if="active && !settingsReady" class="space-y-2" role="status">
@@ -55,6 +55,8 @@ const challengeRef = ref<InstanceType<typeof CaptchaChallenge> | null>(null)
 const token = ref('')
 const randstr = ref('')
 const errorMessage = ref('')
+const settingsResolved = ref(false)
+let settingsRequestSequence = 0
 
 const settings = computed(() => appStore.cachedPublicSettings)
 const turnstileEnabled = computed(() => settings.value?.turnstile_enabled === true)
@@ -68,7 +70,7 @@ const aliyunPrefix = computed(() => String(settings.value?.aliyun_captcha_prefix
 const aliyunRegion = computed(() => String(settings.value?.aliyun_captcha_region || 'cn'))
 
 const captchaEnabled = computed(() => turnstileEnabled.value || tencentEnabled.value || aliyunEnabled.value)
-const settingsReady = computed(() => settings.value !== null)
+const settingsReady = computed(() => settingsResolved.value && settings.value !== null)
 const settingsLoading = ref(false)
 const captchaConfigured = computed(() => {
   if (turnstileEnabled.value) return Boolean(turnstileSiteKey.value)
@@ -89,9 +91,12 @@ watch(ready, (value) => emit('readyChange', value), { immediate: true })
 watch(() => props.active, (active) => {
   if (active) {
     reset()
-    void loadSettings(false)
+    void loadSettings(true)
     return
   }
+  settingsRequestSequence++
+  settingsResolved.value = false
+  settingsLoading.value = false
   token.value = ''
   randstr.value = ''
   errorMessage.value = ''
@@ -99,11 +104,17 @@ watch(() => props.active, (active) => {
 
 async function loadSettings(force: boolean): Promise<void> {
   if (!props.active || (settingsReady.value && !force)) return
+  const requestSequence = ++settingsRequestSequence
+  settingsResolved.value = false
   settingsLoading.value = true
   try {
-    await appStore.fetchPublicSettings(force)
+    const loaded = await appStore.fetchPublicSettings(force)
+    if (requestSequence !== settingsRequestSequence || !props.active) return
+    settingsResolved.value = loaded !== null && appStore.cachedPublicSettings !== null
   } finally {
-    settingsLoading.value = false
+    if (requestSequence === settingsRequestSequence) {
+      settingsLoading.value = false
+    }
   }
 }
 

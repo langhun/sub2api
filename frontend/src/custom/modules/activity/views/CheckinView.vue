@@ -489,7 +489,7 @@ function captchaEnabled(settings: Record<string, unknown> | null): boolean {
 
 async function submitNormal() {
   lastAction.value = 'normal'
-  const settings = appStore.cachedPublicSettings ?? await appStore.fetchPublicSettings()
+  const settings = await appStore.fetchPublicSettings(true)
   if (!settings || captchaEnabled(settings as Record<string, unknown>)) {
     showNormalModal.value = true
     return
