@@ -79,6 +79,19 @@ func (s *raceSafeUserRepo) Update(context.Context, *User, UserUpdateFields) erro
 	return nil
 }
 
+func (s *raceSafeUserRepo) SetBalance(_ context.Context, id int64, value float64) (BalanceChange, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, ok := s.byID[id]
+	if !ok {
+		return BalanceChange{}, ErrUserNotFound
+	}
+	previous := user.Balance
+	user.Balance = value
+	return BalanceChange{Old: previous, New: value}, nil
+}
+
 // raceSafeRedeemRepo 是并发安全的兑换码仓储桩：Use 以互斥锁 + 状态条件
 // 模拟数据库的条件更新（WHERE status='unused'），语义与线上实现一致。
 type raceSafeRedeemRepo struct {
@@ -182,6 +195,10 @@ func TestAuthService_Register_InvitationCodeSingleUseUnderConcurrency(t *testing
 	require.NoError(t, err)
 	require.Equal(t, StatusUsed, claimed.Status, "邀请码最终必须处于 used 状态")
 	require.NotNil(t, claimed.UsedBy, "used_by 必须记录实际注册用户")
+
+	registered, err := userRepo.GetByID(ctx, *claimed.UsedBy)
+	require.NoError(t, err)
+	require.Greater(t, registered.Balance, 0.0, "成功注册必须完整结算默认奖励")
 }
 
 // TestAuthService_Register_InvitationCodeRejectedWhenAlreadyUsed 顺序路径回归：
