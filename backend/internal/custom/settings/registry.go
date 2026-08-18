@@ -11,6 +11,7 @@ import (
 	codeformatsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format/settings"
 	gamehallsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall/settings"
 	rechargepromotionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions/settings"
+	registrationprotectionsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/registration-protection/settings"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/settings/contract"
 	"github.com/Wei-Shaw/sub2api/internal/handler/settingsext"
@@ -24,12 +25,13 @@ var ProviderSet = wire.NewSet(ProvideRegistry, ProvideHandlerSettingsMount)
 
 // Snapshot is the complete typed configuration owned by Overlay modules.
 type Snapshot struct {
-	Activity           activitysettings.Config
-	BrandHome          brandhomesettings.Config
-	CodeFormat         codeformatsettings.Config
-	GameHall           gamehallsettings.Config
-	SupportTickets     supporttickets.Settings
-	RechargePromotions rechargepromotionsettings.Config
+	Activity               activitysettings.Config
+	BrandHome              brandhomesettings.Config
+	CodeFormat             codeformatsettings.Config
+	GameHall               gamehallsettings.Config
+	RegistrationProtection registrationprotectionsettings.Config
+	SupportTickets         supporttickets.Settings
+	RechargePromotions     rechargepromotionsettings.Config
 }
 
 // Registry is the sole aggregate for Overlay settings. Core settings code can
@@ -71,6 +73,10 @@ func (r *Registry) Read(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
+	registrationProtectionConfig, err := registrationprotectionsettings.New(r.store).Read(ctx)
+	if err != nil {
+		return Snapshot{}, err
+	}
 	supportTicketValues, err := r.store.GetMultiple(ctx, supporttickets.SettingsKeys())
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("read support ticket settings: %w", err)
@@ -79,7 +85,7 @@ func (r *Registry) Read(ctx context.Context) (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("read recharge promotion settings: %w", err)
 	}
-	return Snapshot{Activity: activityConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig, SupportTickets: supporttickets.SettingsFromValues(supportTicketValues), RechargePromotions: rechargepromotionsettings.FromValues(rechargePromotionValues)}, nil
+	return Snapshot{Activity: activityConfig, BrandHome: brandHomeConfig, CodeFormat: codeFormatConfig, GameHall: gameHallConfig, RegistrationProtection: registrationProtectionConfig, SupportTickets: supporttickets.SettingsFromValues(supportTicketValues), RechargePromotions: rechargepromotionsettings.FromValues(rechargePromotionValues)}, nil
 }
 
 func (r *Registry) Validate(snapshot Snapshot) error {
@@ -93,6 +99,9 @@ func (r *Registry) Validate(snapshot Snapshot) error {
 		return err
 	}
 	if err := gamehallsettings.Validate(snapshot.GameHall); err != nil {
+		return err
+	}
+	if err := registrationprotectionsettings.Validate(snapshot.RegistrationProtection); err != nil {
 		return err
 	}
 	if err := supporttickets.ValidateSettings(snapshot.SupportTickets); err != nil {
@@ -156,6 +165,10 @@ func Values(snapshot Snapshot) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	registrationProtectionValues, err := registrationprotectionsettings.Values(snapshot.RegistrationProtection)
+	if err != nil {
+		return nil, err
+	}
 	supportTicketValues, err := supporttickets.SettingsValues(snapshot.SupportTickets)
 	if err != nil {
 		return nil, err
@@ -164,7 +177,7 @@ func Values(snapshot Snapshot) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mergeStringValues(activityValues, brandHomeValues, codeFormatValues, gameHallValues, supportTicketValues, rechargePromotionValues)
+	return mergeStringValues(activityValues, brandHomeValues, codeFormatValues, gameHallValues, registrationProtectionValues, supportTicketValues, rechargePromotionValues)
 }
 
 func Public(snapshot Snapshot) map[string]any {
@@ -204,6 +217,24 @@ func (r *Registry) ReadSupportTickets(ctx context.Context) (supporttickets.Setti
 		return supporttickets.Settings{}, err
 	}
 	return supporttickets.SettingsFromValues(values), nil
+}
+
+// GetMultiple and SetMultiple expose the narrow Overlay store contract to
+// modules that need live settings without taking ownership of the aggregate
+// snapshot. They intentionally remain a pass-through and do not bypass the
+// admin compatibility validation path for writes.
+func (r *Registry) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	if r == nil || r.store == nil {
+		return nil, fmt.Errorf("custom settings store is required")
+	}
+	return r.store.GetMultiple(ctx, keys)
+}
+
+func (r *Registry) SetMultiple(ctx context.Context, values map[string]string) error {
+	if r == nil || r.store == nil {
+		return fmt.Errorf("custom settings store is required")
+	}
+	return r.store.SetMultiple(ctx, values)
 }
 
 func mergeStringValues(groups ...map[string]string) (map[string]string, error) {

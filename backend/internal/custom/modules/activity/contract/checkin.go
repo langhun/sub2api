@@ -64,6 +64,15 @@ type CheckinService interface {
 	GetCalendar(ctx context.Context, userID int64) (*CheckinCalendar, error)
 }
 
+// RewardEligibility is the narrow policy port used by check-in mutations to
+// protect promotional rewards. Implementations may return a typed forbidden
+// error when an account is ineligible, or a typed service-unavailable error
+// when the protection backend cannot be consulted. Check-in propagates that
+// error before creating a record or changing the balance.
+type RewardEligibility interface {
+	CheckinRewardAllowed(ctx context.Context, userID int64) error
+}
+
 // BlindboxRecord is the check-in endpoint's read-only record representation.
 type BlindboxRecord struct {
 	ID               int64   `json:"id"`

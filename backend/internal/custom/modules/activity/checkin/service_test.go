@@ -2,6 +2,7 @@ package checkin
 
 import (
 	"context"
+	"errors"
 	"math"
 	"testing"
 	"time"
@@ -145,6 +146,81 @@ func (s checkinClockStub) Now() time.Time   { return s.now }
 type checkinRandomStub struct{ value float64 }
 
 func (s checkinRandomStub) Float64() (float64, error) { return s.value, nil }
+
+type checkinRewardEligibilityStub struct {
+	err   error
+	calls []int64
+}
+
+func (s *checkinRewardEligibilityStub) CheckinRewardAllowed(_ context.Context, userID int64) error {
+	s.calls = append(s.calls, userID)
+	return s.err
+}
+
+func TestServiceCheckinRejectsIneligibleRewardBeforeTransaction(t *testing.T) {
+	today := time.Date(2026, time.July, 25, 0, 0, 0, 0, time.Local)
+	eligibilityErr := errors.New("duplicate registration fingerprint")
+	repository := &checkinRepositoryStub{}
+	transactions := &checkinTransactionStub{}
+	balance := &checkinBalanceStub{}
+	ledger := &checkinLedgerStub{}
+	blindbox := &checkinBlindboxStub{}
+	eligibility := &checkinRewardEligibilityStub{err: eligibilityErr}
+	service, err := NewService(Dependencies{
+		Repository: repository, Transactions: transactions,
+		Accounts: checkinAccountStub{account: contract.Account{ID: 9, Status: accountStatusActive, Balance: 20}},
+		Balance:  balance, Ledger: ledger,
+		Settings: checkinSettingsStub{value: contract.Settings{Checkin: contract.CheckinSettings{
+			Enabled: true, MinimumReward: 1, MaximumReward: 5,
+		}}},
+		Blindbox: blindbox, Clock: checkinClockStub{now: today}, Random: checkinRandomStub{value: 0.5},
+		RewardEligibility: eligibility,
+	})
+	require.NoError(t, err)
+
+	_, err = service.Checkin(context.Background(), 9)
+
+	require.ErrorIs(t, err, eligibilityErr)
+	require.Equal(t, []int64{9}, eligibility.calls)
+	require.Equal(t, 0, transactions.calls)
+	require.Empty(t, repository.created)
+	require.Empty(t, balance.credits)
+	require.Empty(t, ledger.entries)
+	require.Equal(t, 0, blindbox.prepareCalls)
+}
+
+func TestServiceLuckCheckinRejectsIneligibleRewardBeforeTransaction(t *testing.T) {
+	today := time.Date(2026, time.July, 25, 0, 0, 0, 0, time.Local)
+	eligibilityErr := errors.New("check-in reward protection unavailable")
+	repository := &checkinRepositoryStub{lockedAccount: contract.Account{ID: 9, Status: accountStatusActive, Balance: 10}}
+	transactions := &checkinTransactionStub{}
+	balance := &checkinBalanceStub{}
+	ledger := &checkinLedgerStub{}
+	blindbox := &checkinBlindboxStub{}
+	eligibility := &checkinRewardEligibilityStub{err: eligibilityErr}
+	service, err := NewService(Dependencies{
+		Repository: repository, Transactions: transactions,
+		Accounts: checkinAccountStub{account: contract.Account{ID: 9, Status: accountStatusActive, Balance: 20}},
+		Balance:  balance, Ledger: ledger,
+		Settings: checkinSettingsStub{value: contract.Settings{Checkin: contract.CheckinSettings{
+			LuckEnabled: true, MinimumMultiplier: 1, MaximumMultiplier: 3,
+		}}},
+		Blindbox: blindbox, Clock: checkinClockStub{now: today}, Random: checkinRandomStub{value: 0.5},
+		RewardEligibility: eligibility,
+	})
+	require.NoError(t, err)
+
+	_, err = service.LuckCheckin(context.Background(), 9, 2, false)
+
+	require.ErrorIs(t, err, eligibilityErr)
+	require.Equal(t, []int64{9}, eligibility.calls)
+	require.Equal(t, 0, transactions.calls)
+	require.Empty(t, repository.created)
+	require.Empty(t, balance.credits)
+	require.Empty(t, balance.debits)
+	require.Empty(t, ledger.entries)
+	require.Equal(t, 0, blindbox.prepareCalls)
+}
 
 func TestServiceCheckinKeepsActivityMutationsInOneTransaction(t *testing.T) {
 	today := time.Date(2026, time.July, 25, 0, 0, 0, 0, time.Local)

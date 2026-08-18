@@ -38,6 +38,7 @@ var (
 	ErrRefreshTokenReused           = infraerrors.Unauthorized("REFRESH_TOKEN_REUSED", "refresh token has been reused")
 	ErrEmailVerifyRequired          = infraerrors.BadRequest("EMAIL_VERIFY_REQUIRED", "email verification is required")
 	ErrEmailSuffixNotAllowed        = infraerrors.BadRequest("EMAIL_SUFFIX_NOT_ALLOWED", "email suffix is not allowed")
+	ErrEmailAliasNotAllowed         = infraerrors.BadRequest("EMAIL_ALIAS_NOT_ALLOWED", "email aliases are not allowed for registration")
 	ErrEmailDomainRegistrationLimit = infraerrors.BadRequest(
 		"EMAIL_DOMAIN_REGISTRATION_LIMIT",
 		"this email domain cannot register another account; use a mainstream email or contact support to add the enterprise domain",
@@ -49,6 +50,8 @@ var (
 	ErrOAuthInvitationRequired = infraerrors.Forbidden("OAUTH_INVITATION_REQUIRED", "invitation code required to complete oauth registration")
 	ErrCaptchaProviderConflict = infraerrors.ServiceUnavailable("CAPTCHA_PROVIDER_CONFLICT", "multiple captcha providers are enabled")
 )
+
+const captchaActionRegister = "register"
 
 // maxTokenLength 限制 token 大小，避免超长 header 触发解析时的异常内存分配。
 const maxTokenLength = 8192
@@ -71,21 +74,77 @@ type JWTClaims struct {
 
 // AuthService 认证服务
 type AuthService struct {
-	entClient             *dbent.Client
-	userRepo              UserRepository
-	redeemRepo            RedeemCodeRepository
-	refreshTokenCache     RefreshTokenCache
-	cfg                   *config.Config
-	settingService        *SettingService
-	emailService          *EmailService
-	turnstileService      *TurnstileService
-	tencentCaptchaService *TencentCaptchaService
-	aliyunCaptchaService  *AliyunCaptchaService
-	emailQueueService     *EmailQueueService
-	promoService          *PromoService
-	affiliateService      *AffiliateService
-	defaultSubAssigner    DefaultSubscriptionAssigner
-	userPlatformQuotaRepo UserPlatformQuotaRepository
+	entClient               *dbent.Client
+	userRepo                UserRepository
+	redeemRepo              RedeemCodeRepository
+	refreshTokenCache       RefreshTokenCache
+	cfg                     *config.Config
+	settingService          *SettingService
+	emailService            *EmailService
+	turnstileService        *TurnstileService
+	tencentCaptchaService   *TencentCaptchaService
+	aliyunCaptchaService    *AliyunCaptchaService
+	emailQueueService       *EmailQueueService
+	promoService            *PromoService
+	affiliateService        *AffiliateService
+	defaultSubAssigner      DefaultSubscriptionAssigner
+	userPlatformQuotaRepo   UserPlatformQuotaRepository
+	registrationEmailPolicy RegistrationEmailPolicy
+	registrationRiskPolicy  RegistrationRiskPolicy
+}
+
+// RegistrationEmailPolicy is the narrow Overlay hook used to apply optional
+// registration email rules across every account-creation service path.
+type RegistrationEmailPolicy interface {
+	Validate(ctx context.Context, email string) error
+}
+
+// RegistrationClientMetadata is supplied by HTTP authentication handlers.
+// The risk module hashes these values before persistence; the core service
+// never stores the raw User-Agent or client address.
+type RegistrationClientMetadata struct {
+	ClientIP  string
+	UserAgent string
+}
+
+type registrationClientMetadataContextKey struct{}
+
+// WithRegistrationClientMetadata attaches request metadata used by the
+// optional registration reward protection module.
+func WithRegistrationClientMetadata(ctx context.Context, clientIP, userAgent string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, registrationClientMetadataContextKey{}, RegistrationClientMetadata{
+		ClientIP:  strings.TrimSpace(clientIP),
+		UserAgent: strings.TrimSpace(userAgent),
+	})
+}
+
+// RegistrationClientMetadataFromContext returns request metadata attached by
+// an authentication handler. Missing metadata is valid for non-HTTP callers.
+func RegistrationClientMetadataFromContext(ctx context.Context) RegistrationClientMetadata {
+	if ctx == nil {
+		return RegistrationClientMetadata{}
+	}
+	metadata, _ := ctx.Value(registrationClientMetadataContextKey{}).(RegistrationClientMetadata)
+	return metadata
+}
+
+// RegistrationRiskReservation is the lifecycle handle returned by the
+// optional Overlay registration risk policy. A reservation is committed only
+// after a new user is persisted, and aborted for failed/new-user races.
+type RegistrationRiskReservation interface {
+	RewardBlocked() bool
+	Commit(ctx context.Context, userID int64) error
+	Abort(ctx context.Context) error
+}
+
+// RegistrationRiskPolicy is intentionally narrow so the upstream service does
+// not depend on Overlay storage or schema details.
+type RegistrationRiskPolicy interface {
+	Begin(ctx context.Context, clientIP, userAgent, signupSource string) (RegistrationRiskReservation, error)
+	IsRewardBlocked(ctx context.Context, userID int64) (bool, error)
 }
 
 type CaptchaProof struct {
@@ -154,6 +213,115 @@ func (s *AuthService) SetAliyunCaptchaService(aliyunCaptchaService *AliyunCaptch
 	s.aliyunCaptchaService = aliyunCaptchaService
 }
 
+func (s *AuthService) SetRegistrationEmailPolicy(policy RegistrationEmailPolicy) {
+	if s != nil {
+		s.registrationEmailPolicy = policy
+	}
+}
+
+func (s *AuthService) SetRegistrationRiskPolicy(policy RegistrationRiskPolicy) {
+	if s != nil {
+		s.registrationRiskPolicy = policy
+	}
+}
+
+// beginRegistrationRisk keeps risk-storage failures fail-closed for signup
+// rewards while allowing the account itself to be created. This prevents a
+// temporary Overlay store outage from becoming a registration outage.
+func (s *AuthService) beginRegistrationRisk(ctx context.Context, signupSource string) (RegistrationRiskReservation, bool) {
+	if s == nil || s.registrationRiskPolicy == nil {
+		return nil, false
+	}
+	metadata := RegistrationClientMetadataFromContext(ctx)
+	reservation, err := s.registrationRiskPolicy.Begin(ctx, metadata.ClientIP, metadata.UserAgent, signupSource)
+	if err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Registration risk unavailable; suppressing signup rewards: %v", err)
+		return nil, true
+	}
+	if reservation == nil {
+		return nil, false
+	}
+	return reservation, reservation.RewardBlocked()
+}
+
+func (s *AuthService) commitRegistrationRisk(ctx context.Context, reservation RegistrationRiskReservation, userID int64) bool {
+	if reservation == nil || userID <= 0 {
+		return reservation == nil
+	}
+	if err := reservation.Commit(ctx, userID); err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to commit registration risk fingerprint: user_id=%d err=%v", userID, err)
+		return false
+	}
+	return true
+}
+
+func (s *AuthService) abortRegistrationRisk(ctx context.Context, reservation RegistrationRiskReservation) {
+	if reservation == nil {
+		return
+	}
+	if err := reservation.Abort(ctx); err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to release registration risk reservation: %v", err)
+	}
+}
+
+func (s *AuthService) rewardBlockedForUser(ctx context.Context, userID int64) bool {
+	if s == nil || s.registrationRiskPolicy == nil || userID <= 0 {
+		return false
+	}
+	blocked, err := s.registrationRiskPolicy.IsRewardBlocked(ctx, userID)
+	if err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Registration reward history unavailable; suppressing rewards: user_id=%d err=%v", userID, err)
+		return true
+	}
+	return blocked
+}
+
+func suppressSignupRewards(plan *signupGrantPlan) {
+	if plan == nil {
+		return
+	}
+	plan.Balance = 0
+	plan.Subscriptions = nil
+}
+
+// finalizeSignupRewards applies registration rewards only after the optional
+// fingerprint decision has been durably recorded. New users are always
+// created with a zero balance, avoiding a window where a later risk failure
+// could leave a persisted registration bonus behind.
+func (s *AuthService) finalizeSignupRewards(
+	ctx context.Context,
+	user *User,
+	plan *signupGrantPlan,
+	reservation RegistrationRiskReservation,
+	initiallyBlocked bool,
+) bool {
+	if user == nil || user.ID <= 0 || plan == nil {
+		return false
+	}
+	if initiallyBlocked || (reservation != nil && reservation.RewardBlocked()) {
+		suppressSignupRewards(plan)
+		user.Balance = 0
+		return false
+	}
+	if plan.Balance == 0 {
+		return true
+	}
+	if s == nil || s.userRepo == nil {
+		logger.LegacyPrintf("service.auth", "[Auth] User repository unavailable while applying signup balance: user_id=%d", user.ID)
+		suppressSignupRewards(plan)
+		user.Balance = 0
+		return false
+	}
+	if _, err := s.userRepo.SetBalance(ctx, user.ID, plan.Balance); err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to apply signup balance; suppressing signup rewards: user_id=%d err=%v", user.ID, err)
+		suppressSignupRewards(plan)
+		user.Balance = 0
+		return false
+	}
+	user.Balance = plan.Balance
+	return true
+}
+
 // Register 用户注册，返回token和用户
 func (s *AuthService) Register(ctx context.Context, email, password string) (string, *User, error) {
 	return s.RegisterWithVerification(ctx, email, password, "", "", "", "")
@@ -220,6 +388,14 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		return "", nil, err
 	}
 
+	riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, "email")
+	riskSettled := false
+	defer func() {
+		if !riskSettled {
+			s.abortRegistrationRisk(ctx, riskReservation)
+		}
+	}()
+
 	// 密码哈希
 	hashedPassword, err := s.HashPassword(password)
 	if err != nil {
@@ -239,7 +415,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		Email:        email,
 		PasswordHash: hashedPassword,
 		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
+		Balance:      0,
 		Concurrency:  grantPlan.Concurrency,
 		RPMLimit:     defaultRPMLimit,
 		Status:       StatusActive,
@@ -257,8 +433,12 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 			return "", nil, ErrServiceUnavailable
 		}
 	}
+	riskSettled = s.commitRegistrationRisk(ctx, riskReservation, user.ID)
+	rewardsAllowed := s.finalizeSignupRewards(ctx, user, &grantPlan, riskReservation, rewardBlocked || !riskSettled)
 	s.postAuthUserBootstrap(ctx, user, "email", true)
-	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+	if rewardsAllowed {
+		s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+	}
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 	if s.affiliateService != nil {
@@ -404,7 +584,7 @@ func (s *AuthService) VerifyCaptchaForRegister(ctx context.Context, proof Captch
 		logger.LegacyPrintf("service.auth", "%s", "[Auth] Email verify flow detected, skip duplicate captcha check on register")
 		return nil
 	}
-	return s.VerifyCaptcha(ctx, proof, remoteIP)
+	return s.VerifyCaptchaForAction(ctx, proof, remoteIP, captchaActionRegister)
 }
 
 func (s *AuthService) VerifyCaptcha(ctx context.Context, proof CaptchaProof, remoteIP string) error {
@@ -604,6 +784,23 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 				return "", nil, ErrRegDisabled
 			}
+			if err := s.validateRegistrationEmailAliasPolicy(ctx, email); err != nil {
+				return "", nil, err
+			}
+			if existsEmail, checkErr := s.existsByEmailOrAlias(ctx, email); checkErr != nil {
+				return "", nil, ErrServiceUnavailable
+			} else if existsEmail {
+				return "", nil, ErrEmailExists
+			}
+
+			signupSource := inferLegacySignupSource(email)
+			riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, signupSource)
+			riskSettled := false
+			defer func() {
+				if !riskSettled {
+					s.abortRegistrationRisk(ctx, riskReservation)
+				}
+			}()
 
 			randomPassword, err := randomHexString(32)
 			if err != nil {
@@ -615,7 +812,6 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				return "", nil, fmt.Errorf("hash password: %w", err)
 			}
 
-			signupSource := inferLegacySignupSource(email)
 			grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
 			var defaultRPMLimit int
 			if s.settingService != nil {
@@ -627,14 +823,14 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				Username:     username,
 				PasswordHash: hashedPassword,
 				Role:         RoleUser,
-				Balance:      grantPlan.Balance,
+				Balance:      0,
 				Concurrency:  grantPlan.Concurrency,
 				RPMLimit:     defaultRPMLimit,
 				Status:       StatusActive,
 				SignupSource: signupSource,
 			}
 
-			if err := s.userRepo.Create(ctx, newUser); err != nil {
+			if err := s.createUserWithRegistrationEmailGuard(ctx, newUser); err != nil {
 				if errors.Is(err, ErrEmailExists) {
 					// 并发场景：GetByEmail 与 Create 之间用户被创建。
 					user, err = s.userRepo.GetByEmail(ctx, email)
@@ -648,8 +844,12 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				}
 			} else {
 				user = newUser
+				riskSettled = s.commitRegistrationRisk(ctx, riskReservation, user.ID)
+				rewardsAllowed := s.finalizeSignupRewards(ctx, user, &grantPlan, riskReservation, rewardBlocked || !riskSettled)
 				s.postAuthUserBootstrap(ctx, user, signupSource, false)
-				s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+				if rewardsAllowed {
+					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+				}
 				// snapshot user × platform quota（fail-open）
 				_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 			}
@@ -733,6 +933,14 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			if s.settingService == nil || (!s.settingService.IsRegistrationEnabled(ctx) && !s.canBypassRegistrationDisabledForOAuth(ctx, signupSource)) {
 				return nil, nil, ErrRegDisabled
 			}
+			if err := s.validateRegistrationEmailAliasPolicy(ctx, email); err != nil {
+				return nil, nil, err
+			}
+			if existsEmail, checkErr := s.existsByEmailOrAlias(ctx, email); checkErr != nil {
+				return nil, nil, ErrServiceUnavailable
+			} else if existsEmail {
+				return nil, nil, ErrEmailExists
+			}
 
 			// 检查是否需要邀请码
 			var invitationRedeemCode *RedeemCode
@@ -750,6 +958,19 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				invitationRedeemCode = redeemCode
 			}
 
+			// 优先用 caller 显式传入的 signupSource（如 "dingtalk" / "linuxdo" / "oidc" / "wechat"），
+			// 否则才按邮箱后缀推断——避免有真实邮箱的 OAuth 用户被推断为 "email" 渠道，导致渠道授权错读。
+			if strings.TrimSpace(signupSource) == "" {
+				signupSource = inferLegacySignupSource(email)
+			}
+			riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, signupSource)
+			riskSettled := false
+			defer func() {
+				if !riskSettled {
+					s.abortRegistrationRisk(ctx, riskReservation)
+				}
+			}()
+
 			randomPassword, err := randomHexString(32)
 			if err != nil {
 				logger.LegacyPrintf("service.auth", "[Auth] Failed to generate random password for oauth signup: %v", err)
@@ -760,11 +981,6 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				return nil, nil, fmt.Errorf("hash password: %w", err)
 			}
 
-			// 优先用 caller 显式传入的 signupSource（如 "dingtalk" / "linuxdo" / "oidc" / "wechat"），
-			// 否则才按邮箱后缀推断——避免有真实邮箱的 OAuth 用户被推断为 "email" 渠道，导致渠道授权错读。
-			if strings.TrimSpace(signupSource) == "" {
-				signupSource = inferLegacySignupSource(email)
-			}
 			grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
 			var defaultRPMLimit int
 			if s.settingService != nil {
@@ -776,7 +992,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				Username:     username,
 				PasswordHash: hashedPassword,
 				Role:         RoleUser,
-				Balance:      grantPlan.Balance,
+				Balance:      0,
 				Concurrency:  grantPlan.Concurrency,
 				RPMLimit:     defaultRPMLimit,
 				Status:       StatusActive,
@@ -792,7 +1008,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				defer func() { _ = tx.Rollback() }()
 				txCtx := dbent.NewTxContext(ctx, tx)
 
-				if err := s.userRepo.Create(txCtx, newUser); err != nil {
+				if err := s.createUserWithRegistrationEmailGuard(txCtx, newUser); err != nil {
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -813,14 +1029,18 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					}
 					user = newUser
 					created = true
+					riskSettled = s.commitRegistrationRisk(ctx, riskReservation, user.ID)
+					rewardsAllowed := s.finalizeSignupRewards(ctx, user, &grantPlan, riskReservation, rewardBlocked || !riskSettled)
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)
-					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+					if rewardsAllowed {
+						s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+					}
 					// snapshot user × platform quota（fail-open）
 					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
 				}
 			} else {
-				if err := s.userRepo.Create(ctx, newUser); err != nil {
+				if err := s.createUserWithRegistrationEmailGuard(ctx, newUser); err != nil {
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -834,8 +1054,12 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				} else {
 					user = newUser
 					created = true
+					riskSettled = s.commitRegistrationRisk(ctx, riskReservation, user.ID)
+					rewardsAllowed := s.finalizeSignupRewards(ctx, user, &grantPlan, riskReservation, rewardBlocked || !riskSettled)
 					s.postAuthUserBootstrap(ctx, user, signupSource, false)
-					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+					if rewardsAllowed {
+						s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+					}
 					// snapshot user × platform quota（fail-open）
 					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
@@ -1221,6 +1445,9 @@ func (s *AuthService) validateRegistrationEmailPolicy(ctx context.Context, email
 // 非白名单域名默认直接拒绝（严格白名单模式）；仅当域名限量注册开关开启时，
 // 非白名单域名每个最多允许一个账户。
 func (s *AuthService) validateRegistrationEmailQuota(ctx context.Context, email string) error {
+	if err := s.validateRegistrationEmailAliasPolicy(ctx, email); err != nil {
+		return err
+	}
 	if s.settingService == nil {
 		return nil
 	}
@@ -1252,6 +1479,24 @@ func (s *AuthService) validateRegistrationEmailQuota(ctx context.Context, email 
 	}
 	if count > 0 {
 		return ErrEmailDomainRegistrationLimit
+	}
+	return nil
+}
+
+// validateRegistrationEmailAliasPolicy applies only the Overlay alias rule.
+// OAuth providers can use synthetic addresses that are intentionally exempt
+// from the local-email suffix quota, but their real email aliases must still
+// be rejected when a new account is created.
+func (s *AuthService) validateRegistrationEmailAliasPolicy(ctx context.Context, email string) error {
+	if s == nil || s.registrationEmailPolicy == nil {
+		return nil
+	}
+	if err := s.registrationEmailPolicy.Validate(ctx, email); err != nil {
+		if errors.Is(err, ErrEmailAliasNotAllowed) {
+			return err
+		}
+		logger.LegacyPrintf("service.auth", "[Auth] Registration email policy unavailable: %v", err)
+		return ErrServiceUnavailable
 	}
 	return nil
 }

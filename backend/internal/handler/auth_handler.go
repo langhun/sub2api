@@ -217,7 +217,8 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 	}
 
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
-	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
+	// 邮箱验证码是注册流程的一部分，必须校验注册 action，避免跨场景复用 Turnstile 票据。
+	if err := h.authService.VerifyCaptchaForAction(c.Request.Context(), proof, ip.GetClientIP(c), "register"); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}

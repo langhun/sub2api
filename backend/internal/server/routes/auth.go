@@ -5,6 +5,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/middleware"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	servermiddleware "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -30,6 +31,13 @@ func RegisterAuthRoutes(
 	auth.Use(servermiddleware.BackendModeAuthGuard(settingService))
 	// 认证事件（登录/注册/2FA/token 刷新失败）入审计
 	auth.Use(gin.HandlerFunc(auditLog))
+	// Keep registration risk metadata on the request context so every email and
+	// OAuth account-creation path shares the same trusted IP/UA input.
+	auth.Use(func(c *gin.Context) {
+		ctx := service.WithRegistrationClientMetadata(c.Request.Context(), ip.GetClientIP(c), c.GetHeader("User-Agent"))
+		c.Request = c.Request.WithContext(ctx)
+		c.Next()
+	})
 	{
 		// 注册/登录/2FA/验证码发送均属于高风险入口，增加服务端兜底限流（Redis 故障时 fail-close）
 		auth.POST("/register", rateLimiter.LimitWithOptions("auth-register", 5, time.Minute, middleware.RateLimitOptions{

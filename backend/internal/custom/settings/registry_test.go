@@ -44,6 +44,8 @@ func TestRegistryReadUsesLegacyDefaultsAndProjectsPublicValues(t *testing.T) {
 	require.Equal(t, "default", snapshot.BrandHome.DefaultHomepage)
 	require.True(t, snapshot.Activity.LeaderboardEnabled)
 	require.True(t, snapshot.GameHall.ExchangeAllowDGToBalance)
+	require.True(t, snapshot.RegistrationProtection.AliasEnabled)
+	require.True(t, snapshot.RegistrationProtection.FingerprintEnabled)
 
 	public := Public(snapshot)
 	require.Equal(t, false, public["checkin_enabled"])
@@ -52,6 +54,24 @@ func TestRegistryReadUsesLegacyDefaultsAndProjectsPublicValues(t *testing.T) {
 	require.Equal(t, false, public["game_hall_enabled"])
 	require.Equal(t, "default", public["default_homepage"])
 	require.Equal(t, 0.01, public["game_exchange_min_amount"])
+}
+
+func TestRegistryWritePersistsRegistrationProtectionSwitches(t *testing.T) {
+	store := &memoryStore{values: map[string]string{}}
+	registry := NewRegistry(store)
+	snapshot, err := registry.Read(context.Background())
+	require.NoError(t, err)
+	snapshot.RegistrationProtection.AliasEnabled = false
+	snapshot.RegistrationProtection.FingerprintEnabled = false
+
+	require.NoError(t, registry.Write(context.Background(), snapshot))
+	require.Equal(t, "false", store.values["registration_alias_protection_enabled"])
+	require.Equal(t, "false", store.values["registration_reward_fingerprint_protection_enabled"])
+
+	reloaded, err := registry.Read(context.Background())
+	require.NoError(t, err)
+	require.False(t, reloaded.RegistrationProtection.AliasEnabled)
+	require.False(t, reloaded.RegistrationProtection.FingerprintEnabled)
 }
 
 func TestRegistryWriteValidatesBeforeOneAggregatePersistence(t *testing.T) {

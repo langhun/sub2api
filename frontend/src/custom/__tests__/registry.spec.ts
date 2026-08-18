@@ -100,6 +100,7 @@ describe('custom overlay registry', () => {
       'activity-entry-switches',
       'activity',
       'recharge-promotions',
+      'registration-protection',
       'support-contacts',
     ])
     expect(settingsSource).toContain("customSettingsPanelsFor('site')")

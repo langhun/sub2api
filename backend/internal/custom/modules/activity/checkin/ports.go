@@ -101,19 +101,28 @@ type RandomSource interface {
 	Float64() (float64, error)
 }
 
+// RewardEligibility is re-exported from the activity contract so runtime
+// composition can depend on either the module or the shared activity ports.
+type RewardEligibility = contract.RewardEligibility
+
+// RewardGate is kept as an alias for callers that describe this dependency as
+// a gate rather than an eligibility policy.
+type RewardGate = RewardEligibility
+
 // Dependencies are the platform capabilities required by the operational
 // check-in module. None of these ports is a legacy check-in or blind-box service.
 type Dependencies struct {
-	Repository   Repository
-	Transactions contract.TransactionRunner
-	Accounts     contract.AccountReader
-	Balance      contract.BalanceWriter
-	Ledger       CheckinLedger
-	Settings     contract.SettingsReader
-	Cache        contract.BalanceCacheInvalidator
-	Blindbox     BlindboxDelivery
-	Clock        Clock
-	Random       RandomSource
+	Repository        Repository
+	Transactions      contract.TransactionRunner
+	Accounts          contract.AccountReader
+	Balance           contract.BalanceWriter
+	Ledger            CheckinLedger
+	Settings          contract.SettingsReader
+	Cache             contract.BalanceCacheInvalidator
+	Blindbox          BlindboxDelivery
+	Clock             Clock
+	Random            RandomSource
+	RewardEligibility RewardEligibility
 }
 
 func (d Dependencies) validate() error {

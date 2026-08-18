@@ -17,6 +17,7 @@ import (
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
 	openairt "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-rt"
 	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
+	registrationprotection "github.com/Wei-Shaw/sub2api/internal/custom/modules/registration-protection"
 	supportcontacts "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-contacts"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
@@ -70,6 +71,12 @@ func NewRuntime(
 		return nil, err
 	}
 	service.ConfigureCodeGenerator(redeemService, adminService, codeGenerator)
+	registrationRiskStore := registrationprotection.NewStore(db)
+	registrationPolicy := registrationprotection.NewPolicy(customSettingsRegistry, registrationRiskStore)
+	if authService != nil {
+		authService.SetRegistrationEmailPolicy(registrationPolicy)
+		authService.SetRegistrationRiskPolicy(registrationPolicy)
+	}
 	var (
 		balanceCache  platform.BalanceCacheInvalidator
 		concurrency   platform.UserConcurrencyWriter
@@ -134,6 +141,7 @@ func NewRuntime(
 			activityRewardsHTTP.Runner,
 			activityRewardsHTTP.Outbox,
 		),
+		RewardEligibility: registrationPolicy,
 	}, activitycheckin.NewEntBlindboxRecordsReader(client), checkinProtector)
 	if err != nil {
 		return nil, err

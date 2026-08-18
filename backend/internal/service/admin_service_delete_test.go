@@ -180,7 +180,12 @@ func (s *userRepoStub) AdjustBalance(ctx context.Context, id int64, delta float6
 }
 
 func (s *userRepoStub) SetBalance(ctx context.Context, id int64, value float64) (BalanceChange, error) {
-	panic("unexpected SetBalance call")
+	if s.user == nil || s.user.ID != id {
+		return BalanceChange{}, ErrUserNotFound
+	}
+	previous := s.user.Balance
+	s.user.Balance = value
+	return BalanceChange{Old: previous, New: value}, nil
 }
 
 func (s *userRepoStub) UpdateConcurrency(ctx context.Context, id int64, amount int) error {

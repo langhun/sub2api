@@ -158,6 +158,16 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return nil, ErrRegDisabled
 	}
+	if err := s.validateRegistrationEmailAliasPolicy(ctx, email); err != nil {
+		return nil, err
+	}
+	existsEmail, err := s.existsByEmailOrAlias(ctx, email)
+	if err != nil {
+		return nil, ErrServiceUnavailable
+	}
+	if existsEmail {
+		return nil, ErrEmailExists
+	}
 	invitationRedeemCode, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
 	if err != nil {
 		if errors.Is(err, ErrInvitationCodeRequired) {
@@ -165,6 +175,15 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		}
 		return nil, err
 	}
+
+	providerType = normalizeOAuthSignupSource(providerType)
+	riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, providerType)
+	riskSettled := false
+	defer func() {
+		if !riskSettled {
+			s.abortRegistrationRisk(ctx, riskReservation)
+		}
+	}()
 
 	randomPassword, err := randomHexString(32)
 	if err != nil {
@@ -184,13 +203,13 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		Username:     strings.TrimSpace(username),
 		PasswordHash: hashedPassword,
 		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
+		Balance:      0,
 		Concurrency:  grantPlan.Concurrency,
 		RPMLimit:     defaultRPMLimit,
 		Status:       StatusActive,
 		SignupSource: providerType,
 	}
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
 		if errors.Is(err, ErrEmailExists) {
 			existing, loadErr := s.userRepo.GetByEmail(ctx, email)
 			if loadErr != nil {
@@ -200,8 +219,12 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		}
 		return nil, ErrServiceUnavailable
 	}
+	riskSettled = s.commitRegistrationRisk(ctx, riskReservation, user.ID)
+	rewardsAllowed := s.finalizeSignupRewards(ctx, user, &grantPlan, riskReservation, rewardBlocked || !riskSettled)
 	s.postAuthUserBootstrap(ctx, user, providerType, false)
-	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+	if rewardsAllowed {
+		s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+	}
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)

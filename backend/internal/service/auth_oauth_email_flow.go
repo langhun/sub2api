@@ -145,19 +145,27 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 		return nil, nil, err
 	}
 
+	signupSource = normalizeOAuthSignupSource(signupSource)
+	riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, signupSource)
+	riskSettled := false
+	defer func() {
+		if !riskSettled {
+			s.abortRegistrationRisk(ctx, riskReservation)
+		}
+	}()
+
 	hashedPassword, err := s.HashPassword(password)
 	if err != nil {
 		return nil, nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	signupSource = normalizeOAuthSignupSource(signupSource)
 	grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
 
 	user := &User{
 		Email:        email,
 		PasswordHash: hashedPassword,
 		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
+		Balance:      0,
 		Concurrency:  grantPlan.Concurrency,
 		Status:       StatusActive,
 		SignupSource: signupSource,
@@ -180,6 +188,8 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 		_ = s.RollbackOAuthEmailAccountCreation(ctx, user.ID, "")
 		return nil, nil, fmt.Errorf("generate token pair: %w", err)
 	}
+	riskSettled = s.commitRegistrationRisk(ctx, riskReservation, user.ID)
+	_ = s.finalizeSignupRewards(ctx, user, &grantPlan, riskReservation, rewardBlocked || !riskSettled)
 	return tokenPair, user, nil
 }
 
@@ -228,12 +238,20 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 		return nil, nil, err
 	}
 
+	signupSource = normalizeOAuthSignupSource(signupSource)
+	riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, signupSource)
+	riskSettled := false
+	defer func() {
+		if !riskSettled {
+			s.abortRegistrationRisk(ctx, riskReservation)
+		}
+	}()
+
 	hashedPassword, err := s.HashPassword(password)
 	if err != nil {
 		return nil, nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	signupSource = normalizeOAuthSignupSource(signupSource)
 	grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
 	var defaultRPMLimit int
 	if s.settingService != nil {
@@ -243,7 +261,7 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 		Email:        email,
 		PasswordHash: hashedPassword,
 		Role:         RoleUser,
-		Balance:      grantPlan.Balance,
+		Balance:      0,
 		Concurrency:  grantPlan.Concurrency,
 		RPMLimit:     defaultRPMLimit,
 		Status:       StatusActive,
@@ -266,6 +284,8 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 		_ = s.RollbackOAuthEmailAccountCreation(ctx, user.ID, "")
 		return nil, nil, fmt.Errorf("generate token pair: %w", err)
 	}
+	riskSettled = s.commitRegistrationRisk(ctx, riskReservation, user.ID)
+	_ = s.finalizeSignupRewards(ctx, user, &grantPlan, riskReservation, rewardBlocked || !riskSettled)
 	return tokenPair, user, nil
 }
 
@@ -295,7 +315,9 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 
 	s.updateOAuthSignupSource(ctx, user.ID, signupSource)
 	grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
-	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+	if !s.rewardBlockedForUser(ctx, user.ID) {
+		s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
+	}
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)

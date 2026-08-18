@@ -29,6 +29,7 @@ import RechargePromotionSummary from './modules/recharge-promotions/RechargeProm
 import { rechargePromotionSettingsPanels } from './modules/recharge-promotions/settings'
 import SupportContactEntry from './modules/support-contacts/SupportContactEntry.vue'
 import { supportContactsSettingsPanels } from './modules/support-contacts/settings'
+import { registrationProtectionSettingsPanels } from './modules/registration-protection/settings'
 import './payments'
 export {
   customPaymentDefinition,
@@ -151,6 +152,7 @@ export const customSettingsPanels: readonly CustomSettingsPanel[] = [
   ...activitySettingsPanels,
   ...rechargePromotionSettingsPanels,
   ...supportContactsSettingsPanels,
+  ...registrationProtectionSettingsPanels,
 ].sort((left, right) => left.order - right.order)
 
 export const customFeatureFlags: readonly FeatureFlagDefinition[] = [

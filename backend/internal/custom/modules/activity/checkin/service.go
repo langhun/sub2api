@@ -26,16 +26,17 @@ var (
 // on narrow Activity and platform ports, never on the shared CheckinService or
 // BlindBoxService implementations.
 type Service struct {
-	repository   Repository
-	transactions contract.TransactionRunner
-	accounts     contract.AccountReader
-	balance      contract.BalanceWriter
-	ledger       CheckinLedger
-	settings     contract.SettingsReader
-	cache        contract.BalanceCacheInvalidator
-	blindbox     BlindboxDelivery
-	clock        Clock
-	random       RandomSource
+	repository        Repository
+	transactions      contract.TransactionRunner
+	accounts          contract.AccountReader
+	balance           contract.BalanceWriter
+	ledger            CheckinLedger
+	settings          contract.SettingsReader
+	cache             contract.BalanceCacheInvalidator
+	blindbox          BlindboxDelivery
+	clock             Clock
+	random            RandomSource
+	rewardEligibility RewardEligibility
 }
 
 var _ contract.CheckinService = (*Service)(nil)
@@ -53,16 +54,17 @@ func NewService(deps Dependencies) (*Service, error) {
 		random = cryptoRandomSource{}
 	}
 	return &Service{
-		repository:   deps.Repository,
-		transactions: deps.Transactions,
-		accounts:     deps.Accounts,
-		balance:      deps.Balance,
-		ledger:       deps.Ledger,
-		settings:     deps.Settings,
-		cache:        deps.Cache,
-		blindbox:     deps.Blindbox,
-		clock:        clock,
-		random:       random,
+		repository:        deps.Repository,
+		transactions:      deps.Transactions,
+		accounts:          deps.Accounts,
+		balance:           deps.Balance,
+		ledger:            deps.Ledger,
+		settings:          deps.Settings,
+		cache:             deps.Cache,
+		blindbox:          deps.Blindbox,
+		clock:             clock,
+		random:            random,
+		rewardEligibility: deps.RewardEligibility,
 	}, nil
 }
 
@@ -75,6 +77,9 @@ func (s *Service) Checkin(ctx context.Context, userID int64) (*contract.CheckinR
 		return nil, ErrCheckinDisabled
 	}
 	if _, err := s.activeAccount(ctx, userID); err != nil {
+		return nil, err
+	}
+	if err := s.checkRewardEligibility(ctx, userID); err != nil {
 		return nil, err
 	}
 
@@ -163,6 +168,9 @@ func (s *Service) LuckCheckin(ctx context.Context, userID int64, betAmount float
 		return nil, ErrCheckinLuckDisabled
 	}
 	if _, err := s.activeAccount(ctx, userID); err != nil {
+		return nil, err
+	}
+	if err := s.checkRewardEligibility(ctx, userID); err != nil {
 		return nil, err
 	}
 
@@ -356,6 +364,13 @@ func (s *Service) activeAccount(ctx context.Context, userID int64) (contract.Acc
 		return contract.Account{}, ErrCheckinNotAllowed
 	}
 	return account, nil
+}
+
+func (s *Service) checkRewardEligibility(ctx context.Context, userID int64) error {
+	if s.rewardEligibility == nil {
+		return nil
+	}
+	return s.rewardEligibility.CheckinRewardAllowed(ctx, userID)
 }
 
 func (s *Service) calculateStreak(ctx context.Context, userID int64, today time.Time) int {

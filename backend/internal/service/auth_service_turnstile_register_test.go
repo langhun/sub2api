@@ -26,7 +26,7 @@ func (s *turnstileVerifierSpy) VerifyToken(_ context.Context, _ string, token, _
 	if s.result != nil {
 		return s.result, nil
 	}
-	return &TurnstileVerifyResponse{Success: true}, nil
+	return &TurnstileVerifyResponse{Success: true, Action: "register"}, nil
 }
 
 func newAuthServiceForRegisterTurnstileTest(settings map[string]string, verifier TurnstileVerifier) *AuthService {
