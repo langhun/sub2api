@@ -10,7 +10,7 @@ import {
 
 describe('registration protection settings', () => {
   it('defaults both protections to enabled', () => {
-    expect(defaultRegistrationProtectionSettings()).toEqual({
+    expect(defaultRegistrationProtectionSettings()).toMatchObject({
       registration_alias_protection_enabled: true,
       registration_reward_fingerprint_protection_enabled: true,
     })
@@ -19,7 +19,7 @@ describe('registration protection settings', () => {
   it('keeps explicit values and applies defaults for missing values', () => {
     expect(readRegistrationProtectionSettings({
       registration_alias_protection_enabled: false,
-    })).toEqual({
+    })).toMatchObject({
       registration_alias_protection_enabled: false,
       registration_reward_fingerprint_protection_enabled: true,
     })
@@ -27,10 +27,12 @@ describe('registration protection settings', () => {
 
   it('serializes both settings for the admin settings API', () => {
     const panel = registrationProtectionSettingsPanels[0]
+    const defaults = defaultRegistrationProtectionSettings()
     expect(panel.toPayload({
+      ...defaults,
       registration_alias_protection_enabled: false,
       registration_reward_fingerprint_protection_enabled: true,
-    })).toEqual({
+    })).toMatchObject({
       registration_alias_protection_enabled: false,
       registration_reward_fingerprint_protection_enabled: true,
     })
@@ -40,6 +42,7 @@ describe('registration protection settings', () => {
     const wrapper = mount(RegistrationProtectionSettingsPanel, {
       props: {
         modelValue: {
+          ...defaultRegistrationProtectionSettings(),
           registration_alias_protection_enabled: true,
           registration_reward_fingerprint_protection_enabled: false,
         },
@@ -50,12 +53,12 @@ describe('registration protection settings', () => {
     })
 
     const switches = wrapper.findAll('[role="switch"]')
-    expect(switches).toHaveLength(2)
+    expect(switches).toHaveLength(6)
     expect(switches[0].attributes('aria-checked')).toBe('true')
     expect(switches[1].attributes('aria-checked')).toBe('false')
 
     await switches[1].trigger('click')
-    expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual({
+    expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toMatchObject({
       registration_alias_protection_enabled: true,
       registration_reward_fingerprint_protection_enabled: true,
     })

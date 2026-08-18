@@ -309,6 +309,24 @@ type APIKeyService struct {
 	authInvalidationFailures  atomic.Uint64
 	lastUsedTouchL1           sync.Map // keyID -> nextAllowedAt(time.Time)
 	lastUsedTouchSF           singleflight.Group
+	creationPolicy            APIKeyCreationPolicy
+	requestPolicy             APIRequestPolicy
+}
+
+// APIKeyCreationPolicy is an optional Overlay hook. It is evaluated before
+// creating a new key and does not affect existing keys or login.
+type APIKeyCreationPolicy interface {
+	AllowAPIKeyCreation(context.Context, int64) error
+}
+
+// APIRequestPolicy is evaluated after API-key authentication and before the
+// request reaches a gateway handler.
+type APIRequestPolicy interface {
+	AllowAPIRequest(context.Context, int64) error
+}
+
+type APIRequestLimitsPolicy interface {
+	EffectiveConcurrency(context.Context, int64, int) int
 }
 
 type APIKeyAuthLookupMetrics struct {
@@ -367,6 +385,36 @@ func (s *APIKeyService) SetRateLimitCacheInvalidator(inv RateLimitCacheInvalidat
 
 func (s *APIKeyService) SetConcurrencyService(concurrencyService *ConcurrencyService) {
 	s.concurrencyService = concurrencyService
+}
+
+func (s *APIKeyService) SetCreationPolicy(policy APIKeyCreationPolicy) {
+	if s != nil {
+		s.creationPolicy = policy
+	}
+}
+
+func (s *APIKeyService) SetRequestPolicy(policy APIRequestPolicy) {
+	if s != nil {
+		s.requestPolicy = policy
+	}
+}
+
+func (s *APIKeyService) AllowAPIRequest(ctx context.Context, userID int64) error {
+	if s == nil || s.requestPolicy == nil {
+		return nil
+	}
+	return s.requestPolicy.AllowAPIRequest(ctx, userID)
+}
+
+func (s *APIKeyService) EffectiveConcurrency(ctx context.Context, userID int64, current int) int {
+	if s == nil || s.requestPolicy == nil {
+		return current
+	}
+	policy, ok := s.requestPolicy.(APIRequestLimitsPolicy)
+	if !ok {
+		return current
+	}
+	return policy.EffectiveConcurrency(ctx, userID, current)
 }
 
 func (s *APIKeyService) compileAPIKeyIPRules(apiKey *APIKey) {
@@ -459,6 +507,11 @@ func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group 
 
 // Create 创建API Key
 func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIKeyRequest) (*APIKey, error) {
+	if s != nil && s.creationPolicy != nil {
+		if err := s.creationPolicy.AllowAPIKeyCreation(ctx, userID); err != nil {
+			return nil, err
+		}
+	}
 	if err := validateCreateAPIKeyRequest(req); err != nil {
 		return nil, err
 	}

@@ -25,6 +25,7 @@ func ProvideRuntime(
 	codeGenerator *codeformat.Generator,
 	paymentService *service.PaymentService,
 	authService *service.AuthService,
+	apiKeyService *service.APIKeyService,
 	redisClient *redis.Client,
 ) (*Runtime, error) {
 	runtime, err := NewRuntime(
@@ -39,6 +40,7 @@ func ProvideRuntime(
 		codeGenerator,
 		paymentService,
 		authService,
+		apiKeyService,
 		redisClient,
 	)
 	if err != nil {

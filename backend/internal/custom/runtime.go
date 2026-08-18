@@ -46,6 +46,7 @@ type Runtime struct {
 	SupportTickets      *supporttickets.Module
 	Docs                *docsmodule.Module
 	OpenAIRT            *openairt.Module
+	RegistrationRisk    *registrationprotection.Module
 	RechargePromotions  *rechargepromotions.Module
 	SupportContacts     *supportcontacts.Module
 	UsageQuerySettings  UsageQuerySettings
@@ -64,6 +65,7 @@ func NewRuntime(
 	codeGenerator *codeformat.Generator,
 	paymentService *service.PaymentService,
 	authService *service.AuthService,
+	apiKeyService *service.APIKeyService,
 	redisClient *redis.Client,
 ) (*Runtime, error) {
 	bepusdt.Register()
@@ -73,9 +75,17 @@ func NewRuntime(
 	service.ConfigureCodeGenerator(redeemService, adminService, codeGenerator)
 	registrationRiskStore := registrationprotection.NewStore(db)
 	registrationPolicy := registrationprotection.NewPolicy(customSettingsRegistry, registrationRiskStore)
+	registrationPolicy.SetRedis(redisClient)
+	registrationRiskStoreForAdmin := registrationprotection.NewRiskStore(db, customSettingsRegistry)
+	registrationRiskStoreForAdmin.SetRedis(redisClient)
+	registrationRiskModule := registrationprotection.NewModule(db, registrationRiskStoreForAdmin)
 	if authService != nil {
 		authService.SetRegistrationEmailPolicy(registrationPolicy)
 		authService.SetRegistrationRiskPolicy(registrationPolicy)
+	}
+	if apiKeyService != nil {
+		apiKeyService.SetCreationPolicy(registrationPolicy)
+		apiKeyService.SetRequestPolicy(registrationPolicy)
 	}
 	var (
 		balanceCache  platform.BalanceCacheInvalidator
@@ -160,6 +170,7 @@ func NewRuntime(
 		SupportTickets:      supporttickets.NewModule(supporttickets.NewService(supporttickets.NewRepository(db), customSettingsRegistry)),
 		Docs:                docsmodule.NewModule(docsmodule.NewService(docsmodule.NewRepository(db))),
 		OpenAIRT:            openairt.NewModule(adminService, openaiOAuthService, tokenCacheInvalidator),
+		RegistrationRisk:    registrationRiskModule,
 		RechargePromotions:  rechargePromotions,
 		SupportContacts:     supportcontacts.NewModule(db),
 		UsageQuerySettings:  customSettingsRegistry,

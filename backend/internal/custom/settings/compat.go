@@ -15,6 +15,19 @@ type Compatibility struct {
 	GameHallEnabled                                bool                                             `json:"game_hall_enabled"`
 	RegistrationAliasProtectionEnabled             bool                                             `json:"registration_alias_protection_enabled"`
 	RegistrationRewardFingerprintProtectionEnabled bool                                             `json:"registration_reward_fingerprint_protection_enabled"`
+	RegistrationClusterProtectionEnabled           bool                                             `json:"registration_cluster_protection_enabled"`
+	RegistrationClusterWindow6h                    int                                              `json:"registration_cluster_window_6h"`
+	RegistrationClusterWindow24h                   int                                              `json:"registration_cluster_window_24h"`
+	RegistrationClusterMediumThreshold             int                                              `json:"registration_cluster_medium_threshold"`
+	RegistrationClusterHighThreshold               int                                              `json:"registration_cluster_high_threshold"`
+	RegistrationAutoHighRiskLockEnabled            bool                                             `json:"registration_auto_high_risk_lock_enabled"`
+	RegistrationTrialEnabled                       bool                                             `json:"registration_trial_enabled"`
+	RegistrationTrialHours                         int                                              `json:"registration_trial_hours"`
+	RegistrationTrialCostLimit                     float64                                          `json:"registration_trial_cost_limit"`
+	RegistrationTrialRPMLimit                      int                                              `json:"registration_trial_rpm_limit"`
+	RegistrationTrialConcurrency                   int                                              `json:"registration_trial_concurrency"`
+	RegistrationPaymentUnlockEnabled               bool                                             `json:"registration_payment_unlock_enabled"`
+	RegistrationPaymentUnlockAmount                float64                                          `json:"registration_payment_unlock_amount"`
 	SupportTicketEnabled                           bool                                             `json:"support_ticket_enabled"`
 	GameSlotsEnabled                               bool                                             `json:"game_slots_enabled"`
 	GameSlotsMinBet                                float64                                          `json:"game_slots_min_bet"`
@@ -94,6 +107,19 @@ type Patch struct {
 	GameHallEnabled                                *bool                                             `json:"game_hall_enabled"`
 	RegistrationAliasProtectionEnabled             *bool                                             `json:"registration_alias_protection_enabled"`
 	RegistrationRewardFingerprintProtectionEnabled *bool                                             `json:"registration_reward_fingerprint_protection_enabled"`
+	RegistrationClusterProtectionEnabled           *bool                                             `json:"registration_cluster_protection_enabled"`
+	RegistrationClusterWindow6h                    *int                                              `json:"registration_cluster_window_6h"`
+	RegistrationClusterWindow24h                   *int                                              `json:"registration_cluster_window_24h"`
+	RegistrationClusterMediumThreshold             *int                                              `json:"registration_cluster_medium_threshold"`
+	RegistrationClusterHighThreshold               *int                                              `json:"registration_cluster_high_threshold"`
+	RegistrationAutoHighRiskLockEnabled            *bool                                             `json:"registration_auto_high_risk_lock_enabled"`
+	RegistrationTrialEnabled                       *bool                                             `json:"registration_trial_enabled"`
+	RegistrationTrialHours                         *int                                              `json:"registration_trial_hours"`
+	RegistrationTrialCostLimit                     *float64                                          `json:"registration_trial_cost_limit"`
+	RegistrationTrialRPMLimit                      *int                                              `json:"registration_trial_rpm_limit"`
+	RegistrationTrialConcurrency                   *int                                              `json:"registration_trial_concurrency"`
+	RegistrationPaymentUnlockEnabled               *bool                                             `json:"registration_payment_unlock_enabled"`
+	RegistrationPaymentUnlockAmount                *float64                                          `json:"registration_payment_unlock_amount"`
 	SupportTicketEnabled                           *bool                                             `json:"support_ticket_enabled"`
 	GameSlotsEnabled                               *bool                                             `json:"game_slots_enabled"`
 	GameSlotsMinBet                                *float64                                          `json:"game_slots_min_bet"`
@@ -135,7 +161,7 @@ type Patch struct {
 // setting. It lets the admin settings handler avoid unrelated writes to the
 // module store while keeping the flat JSON request contract.
 func (p Patch) HasChanges() bool {
-	return p.CodeFormatSettings != nil || p.DefaultHomepage != nil || p.GameHallEnabled != nil || p.RegistrationAliasProtectionEnabled != nil || p.RegistrationRewardFingerprintProtectionEnabled != nil || p.SupportTicketEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
+	return p.CodeFormatSettings != nil || p.DefaultHomepage != nil || p.GameHallEnabled != nil || p.RegistrationAliasProtectionEnabled != nil || p.RegistrationRewardFingerprintProtectionEnabled != nil || p.RegistrationClusterProtectionEnabled != nil || p.RegistrationClusterWindow6h != nil || p.RegistrationClusterWindow24h != nil || p.RegistrationClusterMediumThreshold != nil || p.RegistrationClusterHighThreshold != nil || p.RegistrationAutoHighRiskLockEnabled != nil || p.RegistrationTrialEnabled != nil || p.RegistrationTrialHours != nil || p.RegistrationTrialCostLimit != nil || p.RegistrationTrialRPMLimit != nil || p.RegistrationTrialConcurrency != nil || p.RegistrationPaymentUnlockEnabled != nil || p.RegistrationPaymentUnlockAmount != nil || p.SupportTicketEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
 		p.GameExchangeMinAmount != nil || p.GameExchangeMaxAmount != nil || p.GameExchangeDailyLimit != nil || p.GameExchangeAllowDGToBalance != nil ||
 		p.CheckinEnabled != nil || p.CheckinMinBalance != nil || p.CheckinMaxBalance != nil || p.CheckinLuckEnabled != nil ||
 		p.CheckinLuckMinMultiplier != nil || p.CheckinLuckMaxMultiplier != nil || p.CheckinBlindboxEnabled != nil ||
@@ -186,6 +212,19 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 		GameHallEnabled:    gameHall.Enabled, GameSlotsEnabled: gameHall.SlotsEnabled,
 		RegistrationAliasProtectionEnabled:             registrationProtection.AliasEnabled,
 		RegistrationRewardFingerprintProtectionEnabled: registrationProtection.FingerprintEnabled,
+		RegistrationClusterProtectionEnabled:           registrationProtection.ClusterEnabled,
+		RegistrationClusterWindow6h:                    registrationProtection.ClusterWindow6h,
+		RegistrationClusterWindow24h:                   registrationProtection.ClusterWindow24h,
+		RegistrationClusterMediumThreshold:             registrationProtection.ClusterMedium,
+		RegistrationClusterHighThreshold:               registrationProtection.ClusterHigh,
+		RegistrationAutoHighRiskLockEnabled:            registrationProtection.AutoHighLock,
+		RegistrationTrialEnabled:                       registrationProtection.TrialEnabled,
+		RegistrationTrialHours:                         registrationProtection.TrialHours,
+		RegistrationTrialCostLimit:                     registrationProtection.TrialCostLimit,
+		RegistrationTrialRPMLimit:                      registrationProtection.TrialRPM,
+		RegistrationTrialConcurrency:                   registrationProtection.TrialConcurrency,
+		RegistrationPaymentUnlockEnabled:               registrationProtection.PaymentUnlock,
+		RegistrationPaymentUnlockAmount:                registrationProtection.PaymentAmount,
 		SupportTicketEnabled:                           supportTickets.Enabled,
 		GameSlotsMinBet:                                gameHall.SlotsMinBet, GameSlotsMaxBet: gameHall.SlotsMaxBet,
 		GameExchangeMinAmount: gameHall.ExchangeMinAmount, GameExchangeMaxAmount: gameHall.ExchangeMaxAmount,
@@ -259,6 +298,19 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	if p.RegistrationRewardFingerprintProtectionEnabled != nil {
 		registrationProtection.FingerprintEnabled = *p.RegistrationRewardFingerprintProtectionEnabled
 	}
+	if p.RegistrationClusterProtectionEnabled != nil { registrationProtection.ClusterEnabled = *p.RegistrationClusterProtectionEnabled }
+	if p.RegistrationClusterWindow6h != nil { registrationProtection.ClusterWindow6h = *p.RegistrationClusterWindow6h }
+	if p.RegistrationClusterWindow24h != nil { registrationProtection.ClusterWindow24h = *p.RegistrationClusterWindow24h }
+	if p.RegistrationClusterMediumThreshold != nil { registrationProtection.ClusterMedium = *p.RegistrationClusterMediumThreshold }
+	if p.RegistrationClusterHighThreshold != nil { registrationProtection.ClusterHigh = *p.RegistrationClusterHighThreshold }
+	if p.RegistrationAutoHighRiskLockEnabled != nil { registrationProtection.AutoHighLock = *p.RegistrationAutoHighRiskLockEnabled }
+	if p.RegistrationTrialEnabled != nil { registrationProtection.TrialEnabled = *p.RegistrationTrialEnabled }
+	if p.RegistrationTrialHours != nil { registrationProtection.TrialHours = *p.RegistrationTrialHours }
+	if p.RegistrationTrialCostLimit != nil { registrationProtection.TrialCostLimit = *p.RegistrationTrialCostLimit }
+	if p.RegistrationTrialRPMLimit != nil { registrationProtection.TrialRPM = *p.RegistrationTrialRPMLimit }
+	if p.RegistrationTrialConcurrency != nil { registrationProtection.TrialConcurrency = *p.RegistrationTrialConcurrency }
+	if p.RegistrationPaymentUnlockEnabled != nil { registrationProtection.PaymentUnlock = *p.RegistrationPaymentUnlockEnabled }
+	if p.RegistrationPaymentUnlockAmount != nil { registrationProtection.PaymentAmount = *p.RegistrationPaymentUnlockAmount }
 	if p.SupportTicketEnabled != nil {
 		supportTickets.Enabled = *p.SupportTicketEnabled
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	pkgerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -157,6 +158,14 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			AbortWithError(c, 401, "USER_INACTIVE", "User account is not active")
 			return
 		}
+		if err := apiKeyService.AllowAPIRequest(c.Request.Context(), apiKey.User.ID); err != nil {
+			if apiErr, ok := err.(*pkgerrors.ApplicationError); ok {
+				AbortWithError(c, int(apiErr.Code), apiErr.Reason, apiErr.Message)
+			} else {
+				AbortWithError(c, http.StatusServiceUnavailable, "REGISTRATION_RISK_UNAVAILABLE", "Registration risk protection is temporarily unavailable")
+			}
+			return
+		}
 		if abortIfAPIKeyGroupUnavailable(c, apiKey) {
 			return
 		}
@@ -170,6 +179,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// authenticated key and must remain available after the completed
 		// generation consumes the key's remaining balance.
 		skipBilling := c.Request.URL.Path == "/v1/usage" || billingInfoRequest || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path)
+		effectiveConcurrency := apiKeyService.EffectiveConcurrency(c.Request.Context(), apiKey.User.ID, apiKey.User.Concurrency)
 
 		// ── 4. SimpleMode → early return ─────────────────────────────
 
@@ -177,7 +187,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			c.Set(string(ContextKeyAPIKey), apiKey)
 			c.Set(string(ContextKeyUser), AuthSubject{
 				UserID:      apiKey.User.ID,
-				Concurrency: apiKey.User.Concurrency,
+				Concurrency: effectiveConcurrency,
 			})
 			c.Set(string(ContextKeyUserRole), apiKey.User.Role)
 			setGroupContext(c, apiKey.Group)
@@ -275,7 +285,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		c.Set(string(ContextKeyAPIKey), apiKey)
 		c.Set(string(ContextKeyUser), AuthSubject{
 			UserID:      apiKey.User.ID,
-			Concurrency: apiKey.User.Concurrency,
+			Concurrency: effectiveConcurrency,
 		})
 		c.Set(string(ContextKeyUserRole), apiKey.User.Role)
 		setGroupContext(c, apiKey.Group)
