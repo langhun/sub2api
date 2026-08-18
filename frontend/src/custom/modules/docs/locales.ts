@@ -47,6 +47,11 @@ export const docsLocaleMessages = {
       markdownHint: 'Markdown only. Scripts, iframes, event handlers and data URLs are removed.',
       updated: 'Updated',
       sources: 'Sources',
+      sourceKinds: {
+        official: 'Official',
+        github: 'GitHub',
+        implementation: 'Site implementation',
+      },
       related: 'Related documentation',
       categories: {
         start: 'Getting started',
@@ -106,6 +111,11 @@ export const docsLocaleMessages = {
       markdownHint: '仅支持 Markdown；脚本、iframe、事件处理器和 data URL 会被移除。',
       updated: '更新于',
       sources: '来源与核验',
+      sourceKinds: {
+        official: '官方文档',
+        github: 'GitHub',
+        implementation: '本站实现',
+      },
       related: '相关文档',
       categories: {
         start: '开始使用',

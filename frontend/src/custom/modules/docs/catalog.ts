@@ -1,8 +1,10 @@
 export type DocsAudience = 'user' | 'admin'
 export type DocsCategory = 'start' | 'api' | 'sdk' | 'clients' | 'account' | 'support'
 export type DocsLocale = 'zh' | 'en'
+export type DocsSourceKind = 'official' | 'github' | 'implementation'
 
 export interface DocsSource {
+  kind: DocsSourceKind
   label: string
   url?: string
   verifiedAt: string
@@ -11,7 +13,7 @@ export interface DocsSource {
 export interface DocsScreenshot {
   asset: string
   client: string
-  capture: 'generic-ui'
+  capture: 'reference-layout'
   version: string
   capturedAt: string
   slug: string
@@ -55,13 +57,15 @@ export function resolveDocsAsset(path: string): string {
   return assetModules[`./assets/${normalized}`] || ''
 }
 
-const verifiedAt = '2026-08-15'
+const verifiedAt = '2026-08-18'
 const repositorySource: DocsSource = {
+  kind: 'implementation',
   label: 'DaiGua gateway and frontend implementation',
   verifiedAt,
 }
 
-const official = (label: string, url: string): DocsSource => ({ label, url, verifiedAt })
+const official = (label: string, url: string): DocsSource => ({ kind: 'official', label, url, verifiedAt })
+const github = (label: string, url: string): DocsSource => ({ kind: 'github', label, url, verifiedAt })
 
 function screenshot(
   slug: string,
@@ -74,7 +78,7 @@ function screenshot(
   return {
     asset,
     client,
-    capture: 'generic-ui',
+    capture: 'reference-layout',
     version,
     capturedAt: verifiedAt,
     slug,
@@ -97,7 +101,7 @@ const entries: Omit<DocsEntry, 'body'>[] = [
     title: { zh: '客户端安装指南', en: 'Client installation' },
     summary: { zh: '安装常用命令行客户端并确认环境可用。', en: 'Install common command-line clients and verify the environment.' },
     updatedAt: verifiedAt, clientVersion: 'Codex/Claude Code/Gemini CLI 2026-08',
-    sources: [official('OpenAI Codex', 'https://developers.openai.com/codex/cli'), official('Claude Code', 'https://code.claude.com/docs/en/setup'), official('Gemini CLI', 'https://github.com/google-gemini/gemini-cli')],
+    sources: [official('OpenAI Codex', 'https://developers.openai.com/codex/cli'), official('Claude Code setup', 'https://docs.anthropic.com/en/docs/claude-code/setup'), github('Gemini CLI repository', 'https://github.com/google-gemini/gemini-cli')],
     screenshots: [], related: ['sdk-openai', 'sdk-anthropic', 'sdk-gemini'],
   },
   {
@@ -154,21 +158,25 @@ const entries: Omit<DocsEntry, 'body'>[] = [
     slug: 'sdk-anthropic', category: 'sdk', audience: 'user', order: 100,
     title: { zh: 'Anthropic SDK 与 Claude Code', en: 'Anthropic SDK and Claude Code' },
     summary: { zh: '配置 Anthropic SDK 和 Claude Code 网关。', en: 'Configure the Anthropic SDK and Claude Code gateway.' },
-    updatedAt: verifiedAt, clientVersion: 'Anthropic SDK/Claude Code 2026-08', sources: [official('Claude Code LLM gateway', 'https://code.claude.com/docs/en/llm-gateway')], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'Anthropic SDK/Claude Code 2026-08',
+    sources: [official('Anthropic SDKs', 'https://docs.anthropic.com/en/api/client-sdks'), official('Anthropic Claude Code LLM gateway', 'https://docs.anthropic.com/en/docs/claude-code/llm-gateway'), official('Anthropic Claude Code authentication', 'https://docs.anthropic.com/en/docs/claude-code/authentication'), repositorySource],
+    screenshots: [],
     related: ['install-guide', 'messages', 'grok-cli'],
   },
   {
     slug: 'sdk-gemini', category: 'sdk', audience: 'user', order: 110,
     title: { zh: 'Gemini SDK 与 CLI', en: 'Gemini SDK and CLI' },
     summary: { zh: '配置 Google GenAI SDK 和兼容端点。', en: 'Configure the Google GenAI SDK and compatible endpoints.' },
-    updatedAt: verifiedAt, clientVersion: 'google-genai 2.18.1 / Gemini CLI 2026-08', sources: [official('Gemini API', 'https://ai.google.dev/api/generate-content'), official('Google Gen AI Python SDK', 'https://github.com/googleapis/python-genai')], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'google-genai 2.18.1 / Gemini CLI 2026-08', sources: [official('Gemini API', 'https://ai.google.dev/api/generate-content'), github('Google Gen AI Python SDK', 'https://github.com/googleapis/python-genai')], screenshots: [],
     related: ['install-guide', 'authentication', 'models'],
   },
   {
     slug: 'new-api', category: 'sdk', audience: 'admin', order: 120,
     title: { zh: 'New API 上游配置', en: 'New API upstream setup' },
     summary: { zh: '把本站作为 New API 的 OpenAI 兼容上游。', en: 'Use this site as an OpenAI-compatible upstream in New API.' },
-    updatedAt: verifiedAt, clientVersion: 'New API 2026-08', sources: [repositorySource], screenshots: [],
+    updatedAt: verifiedAt, clientVersion: 'New API 2026-08',
+    sources: [official('New API documentation', 'https://docs.newapi.pro'), github('New API repository', 'https://github.com/QuantumNous/new-api'), repositorySource],
+    screenshots: [],
     related: ['authentication', 'chat-completions', 'grok'],
   },
   {
@@ -189,7 +197,15 @@ const entries: Omit<DocsEntry, 'body'>[] = [
     slug: 'grok', category: 'api', audience: 'user', order: 150,
     title: { zh: 'Grok API 接入', en: 'Grok API integration' },
     summary: { zh: '使用本站 Key 调用 Grok 文本与媒体能力。', en: 'Call Grok text and media capabilities with a site key.' },
-    updatedAt: verifiedAt, clientVersion: 'xAI API 2026-08', sources: [official('xAI developer documentation', 'https://docs.x.ai/developers/quickstart'), repositorySource],
+    updatedAt: verifiedAt, clientVersion: 'xAI API 2026-08', sources: [
+      official('xAI developer quickstart', 'https://docs.x.ai/developers/quickstart'),
+      official('xAI image generation', 'https://docs.x.ai/developers/model-capabilities/images/generation'),
+      official('xAI video generation', 'https://docs.x.ai/developers/model-capabilities/video/generation'),
+      official('xAI text to speech', 'https://docs.x.ai/developers/model-capabilities/audio/text-to-speech'),
+      official('xAI speech to text', 'https://docs.x.ai/developers/model-capabilities/audio/speech-to-text'),
+      official('xAI voice and realtime', 'https://docs.x.ai/developers/model-capabilities/audio/voice'),
+      repositorySource,
+    ],
     screenshots: [screenshot('grok', 'grok/grok-api-fields.png', '本站 Grok 配置', '2026-08', 'Grok Base URL、API Key 和模型字段', 'Grok Base URL, API key, and model fields')],
     related: ['grok-cli', 'streaming', 'models'],
   },
@@ -197,12 +213,13 @@ const entries: Omit<DocsEntry, 'body'>[] = [
     slug: 'grok-cli', category: 'clients', audience: 'user', order: 160,
     title: { zh: 'Grok CLI 与编程客户端', en: 'Grok CLI and coding clients' },
     summary: { zh: '配置 Grok CLI、Codex、Claude Code 与 OpenCode。', en: 'Configure Grok CLI, Codex, Claude Code, and OpenCode.' },
-    updatedAt: verifiedAt, clientVersion: 'Grok Build/Codex/Claude Code/OpenCode 2026-08', sources: [official('Grok Build settings', 'https://docs.x.ai/build/settings'), official('OpenAI Codex configuration', 'https://developers.openai.com/codex/config-file/config-reference'), official('Claude Code LLM gateway', 'https://code.claude.com/docs/en/llm-gateway'), official('OpenCode providers', 'https://opencode.ai/docs/providers/'), repositorySource],
+    updatedAt: verifiedAt, clientVersion: 'Grok Build/Codex/Claude Code/OpenCode 2026-08',
+    sources: [official('xAI Grok Build settings', 'https://docs.x.ai/build/settings'), official('OpenAI Codex configuration', 'https://developers.openai.com/codex/config-file/config-reference'), official('Anthropic Claude Code LLM gateway', 'https://docs.anthropic.com/en/docs/claude-code/llm-gateway'), official('Anthropic Claude Code authentication', 'https://docs.anthropic.com/en/docs/claude-code/authentication'), official('OpenCode providers', 'https://opencode.ai/docs/providers/'), repositorySource],
     screenshots: [
-      screenshot('grok-cli', 'grok/grok-cli-config.png', 'Grok CLI 配置', '2026-08', 'Grok CLI responses 后端配置', 'Grok CLI responses backend configuration'),
-      screenshot('grok-cli', 'grok/codex-provider.png', 'Codex 配置', '2026-08', 'Codex 自定义 Responses Provider 配置字段', 'Codex custom Responses provider fields'),
-      screenshot('grok-cli', 'grok/claude-code-env.png', 'Claude Code 配置', '2026-08', 'Claude Code 网关环境变量与最小测试命令', 'Claude Code gateway variables and minimal test command'),
-      screenshot('grok-cli', 'grok/opencode-provider.png', 'OpenCode 配置', '2026-08', 'OpenCode Responses Provider、环境变量和模型字段', 'OpenCode Responses provider, environment key, and model fields'),
+      screenshot('grok-cli', 'grok/grok-cli-config.png', 'Grok Build CLI 配置参考', '2026-08', 'Grok Build CLI 的 DaiGua 脱敏 Responses 配置参考图', 'DaiGua redacted Responses configuration reference for Grok Build CLI'),
+      screenshot('grok-cli', 'grok/codex-provider.png', 'Codex 配置参考', '2026-08', 'Codex 自定义 Responses Provider 的 DaiGua 脱敏配置参考图', 'DaiGua redacted custom Responses provider reference for Codex'),
+      screenshot('grok-cli', 'grok/claude-code-env.png', 'Claude Code 配置参考', '2026-08', 'Claude Code 网关环境变量和最小测试的 DaiGua 脱敏配置参考图', 'DaiGua redacted Claude Code gateway variables and minimal test reference'),
+      screenshot('grok-cli', 'grok/opencode-provider.png', 'OpenCode 配置参考', '2026-08', 'OpenCode Chat 兼容 Provider 的 DaiGua 脱敏配置参考图', 'DaiGua redacted Chat-compatible provider reference for OpenCode'),
     ],
     related: ['grok', 'sdk-openai', 'troubleshooting'],
   },
@@ -210,16 +227,17 @@ const entries: Omit<DocsEntry, 'body'>[] = [
     slug: 'sillytavern', category: 'clients', audience: 'user', order: 170,
     title: { zh: 'SillyTavern 接入', en: 'SillyTavern integration' },
     summary: { zh: '通过 Custom OpenAI-compatible 连接酒馆。', en: 'Connect through Custom OpenAI-compatible.' },
-    updatedAt: verifiedAt, clientVersion: 'SillyTavern 1.18.0', sources: [official('SillyTavern OpenAI-compatible guide', 'https://docs.sillytavern.app/usage/api-connections/openai/'), repositorySource],
-    screenshots: [screenshot('sillytavern', 'sillytavern/custom-openai.png', 'SillyTavern', '1.18.0', 'SillyTavern Custom OpenAI-compatible 字段和测试按钮', 'SillyTavern Custom OpenAI-compatible fields and test button')],
+    updatedAt: verifiedAt, clientVersion: 'SillyTavern 1.18.0',
+    sources: [official('SillyTavern OpenAI-compatible guide', 'https://docs.sillytavern.app/usage/api-connections/openai/'), github('SillyTavern repository', 'https://github.com/SillyTavern/SillyTavern'), repositorySource],
+    screenshots: [screenshot('sillytavern', 'sillytavern/custom-openai.png', 'SillyTavern 字段布局参考', '1.18.0', 'SillyTavern Custom OpenAI-compatible 的 DaiGua 脱敏字段参考图', 'DaiGua redacted field reference for SillyTavern Custom OpenAI-compatible')],
     related: ['tavernai', 'chat-completions', 'troubleshooting'],
   },
   {
     slug: 'tavernai', category: 'clients', audience: 'user', order: 180,
     title: { zh: '酒馆 AI / TavernAI 兼容接入', en: 'TavernAI-compatible clients' },
     summary: { zh: '用字段对照表适配不同酒馆客户端。', en: 'Use a field map for different TavernAI-compatible clients.' },
-    updatedAt: verifiedAt, clientVersion: '通用 OpenAI-compatible 2026-08', sources: [official('TavernAI repository', 'https://github.com/TavernAI/TavernAI'), official('SillyTavern API connections', 'https://docs.sillytavern.app/usage/api-connections/'), repositorySource],
-    screenshots: [screenshot('tavernai', 'tavernai/field-map.png', '通用酒馆客户端', '2026-08', '不同客户端中的 Base URL、API Key、模型和流式字段', 'Base URL, API key, model, and streaming fields in compatible clients')],
+    updatedAt: verifiedAt, clientVersion: '通用 OpenAI-compatible 2026-08', sources: [github('TavernAI repository', 'https://github.com/TavernAI/TavernAI'), official('SillyTavern API connections', 'https://docs.sillytavern.app/usage/api-connections/'), repositorySource],
+    screenshots: [screenshot('tavernai', 'tavernai/field-map.png', '通用酒馆客户端字段参考', '2026-08', '酒馆兼容客户端中的 DaiGua Base URL、API Key、模型和流式字段参考图', 'DaiGua Base URL, API key, model, and streaming field reference for compatible Tavern clients')],
     related: ['sillytavern', 'authentication', 'troubleshooting'],
   },
   {

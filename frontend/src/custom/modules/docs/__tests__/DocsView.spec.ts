@@ -57,6 +57,9 @@ vi.mock('vue-i18n', async (importOriginal) => {
         'docs.viewRevision': '查看修订内容',
         'docs.revert': '回滚',
         'docs.revertConfirm': '确定将文档回滚到修订 #{id} 吗？',
+        'docs.sourceKinds.official': '官方文档',
+        'docs.sourceKinds.github': 'GitHub',
+        'docs.sourceKinds.implementation': '本站实现',
       })[key] || key,
     }),
   }
@@ -115,7 +118,8 @@ describe('DocsView', () => {
 
   it('keeps official sources without exposing retired source metadata', async () => {
     const { wrapper } = await mountView('/docs/grok')
-    expect(wrapper.text()).toContain('xAI developer documentation')
+    expect(wrapper.text()).toContain('xAI developer quickstart')
+    expect(wrapper.find('.docs-source-kind').text()).toBe('官方文档')
     expect(wrapper.text()).not.toMatch(/aiapipay\.com/i)
   })
 

@@ -102,6 +102,7 @@
               <li v-for="source in visibleSources" :key="`${source.label}-${source.url || ''}`">
                 <a v-if="safeExternalUrl(source.url)" :href="safeExternalUrl(source.url)" target="_blank" rel="noopener noreferrer">{{ source.label }}</a>
                 <span v-else>{{ source.label }}</span>
+                <span class="docs-source-kind">{{ t(`docs.sourceKinds.${source.kind}`) }}</span>
                 <time :datetime="source.verifiedAt">{{ source.verifiedAt }}</time>
               </li>
             </ul>
@@ -560,7 +561,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 <style scoped>
 .docs-page { @apply mx-auto w-full min-w-0 max-w-[1600px] space-y-5; }
 .docs-page-header { @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between; }
-.docs-shell { @apply mx-auto w-full min-w-0 max-w-[1600px] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card dark:border-dark-700/50 dark:bg-dark-800/50; }
+.docs-shell { @apply mx-auto w-full min-w-0 max-w-[1600px] overflow-hidden border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800; border-radius: 8px; }
 
 .docs-header {
   @apply flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between dark:border-dark-700;
@@ -597,8 +598,10 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 .docs-sources, .docs-related { @apply mt-10 border-t border-gray-200 pt-6 dark:border-dark-700; }
 .docs-sources h2, .docs-related h2 { @apply text-sm font-semibold text-gray-900 dark:text-white; }
 .docs-sources ul { @apply mt-3 space-y-2 text-xs text-gray-500 dark:text-dark-400; }
-.docs-sources li { @apply flex flex-wrap items-center justify-between gap-2; }
+.docs-sources li { @apply flex flex-wrap items-center gap-2; }
 .docs-sources a { @apply break-all text-primary-600 hover:underline dark:text-primary-400; }
+.docs-source-kind { @apply border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[11px] font-medium text-teal-700 dark:border-teal-800 dark:bg-teal-950/30 dark:text-teal-300; border-radius: 4px; }
+.docs-sources time { @apply ml-auto whitespace-nowrap; }
 .docs-related-links { @apply mt-3 flex flex-wrap gap-2; }
 .docs-related-links button { @apply inline-flex items-center gap-1 border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:text-dark-200 dark:hover:text-primary-400; border-radius: 6px; }
 

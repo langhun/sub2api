@@ -27,7 +27,7 @@ New API appends `/v1/models`, `/v1/chat/completions`, or `/v1/responses`, so the
 | SDK or client calling this site directly | Full `<api_base_url>`, normally ending in `/v1` |
 | New API upstream channel Base URL | `<site-root>` with the trailing `/v1` removed |
 
-For `api_base_url` `https://gateway.example/v1`, enter only `https://gateway.example` in the New API channel. Otherwise it may produce `/v1/v1/responses`.
+For the site's public example `api_base_url` `https://api.daigua.icu/v1`, enter only `https://api.daigua.icu` in the New API channel. Otherwise it may produce `/v1/v1/responses`. In a real deployment, use the value from the key's **Use key** dialog and remove only its final `/v1`.
 
 ## Step 5: Create an OpenAI upstream channel
 

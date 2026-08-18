@@ -40,20 +40,20 @@ Keep protocol differences, advanced parameters, and raw JSON in the reference vi
 
 ## Screenshot workflow
 
-- Crop to the fields required for the step and annotate them with red boxes, arrows, and numbered markers.
-- Replace every credential with `sk-demo-...`. Official generic illustrations use the public `https://api.daigua.icu` address as a DaiGua authenticity marker; private hosts are never allowed.
+- Crop to the fields required for the step and annotate them with restrained teal or blue outlines and numbered markers; avoid large red blocks or decorative arrows.
+- Replace every credential with `sk-demo-...`. DaiGua reference illustrations use the public `https://api.daigua.icu` address as an authenticity marker; private hosts are never allowed.
 - Remove accounts, email addresses, cookies, tokens, private domains, character conversations, and browser profile data.
-- Record the client name, generic-interface capture method, version, capture date, and topic slug in `catalog.ts`.
+- Record the client name, `reference-layout` capture method, version, capture date, and topic slug in `catalog.ts`. A reference layout must not be described as a vendor screenshot.
 - Write a complete Markdown alt value and a useful image title; the title becomes the visible caption.
 - Verify the image at narrow mobile width and in the click-to-zoom viewer.
 
-The eight generic illustrations can be regenerated on Windows with:
+The eight local reference illustrations can be regenerated on Windows with:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File src/custom/modules/docs/scripts/generate-generic-assets.ps1
 ```
 
-Regeneration is appropriate only for generic illustrations. Real client screenshots must be recaptured from the documented version and reviewed for secrets.
+Regeneration is appropriate only for reference layouts. Real client screenshots must be recaptured from the documented version, reviewed for secrets, and labeled as vendor screenshots only when the capture is genuinely from that client.
 
 ## Source and verification policy
 

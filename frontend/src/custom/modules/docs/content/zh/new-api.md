@@ -27,7 +27,7 @@ New API 会自行追加 `/v1/models`、`/v1/chat/completions` 或 `/v1/responses
 | SDK 或客户端直连本站 | 本站完整 `<api_base_url>`，通常以 `/v1` 结尾 |
 | New API 上游渠道 Base URL | `<site-root>`，必须去掉末尾 `/v1` |
 
-例如 `api_base_url` 是 `https://gateway.example/v1`，New API 渠道只填 `https://gateway.example`。否则可能产生 `/v1/v1/responses`。
+本站公开示例 `api_base_url` 为 `https://api.daigua.icu/v1`，因此 New API 渠道只填 `https://api.daigua.icu`。否则可能产生 `/v1/v1/responses`。实际部署请以 Key 的“使用方式”弹窗为准，只去掉末尾的 `/v1`。
 
 ## 步骤 5：创建 OpenAI 上游渠道
 

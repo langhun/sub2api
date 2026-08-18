@@ -26,12 +26,14 @@ curl "<api_base_url>/models" \
 
 从 Key 的 **使用方式** 弹窗复制 `api_base_url`。它通常已经以 `/v1` 结尾，后面的示例会在它后面追加 `/models` 或 `/responses`。
 
-例如弹窗给出 `https://gateway.example/v1` 时：
+为了让复制后的配置一眼可核验，下面用本站公开示例地址 `https://api.daigua.icu/v1`：
 
-- Base URL 填 `https://gateway.example/v1`；
-- Responses 请求地址是 `https://gateway.example/v1/responses`；
+- Base URL 填 `https://api.daigua.icu/v1`；
+- Responses 请求地址是 `https://api.daigua.icu/v1/responses`；
 - 不要再手动加一次 `/v1`；
 - 不要把 Base URL 填成 `/chat/completions` 或 `/responses` 的完整请求地址。
+
+实际使用时始终以 Key 的“使用方式”弹窗显示的 `api_base_url` 为准；如果管理员配置了其他入口，只替换这两个示例中的主机名。
 
 ## 步骤 5：填写调用字段
 

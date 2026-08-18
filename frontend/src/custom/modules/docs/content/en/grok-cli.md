@@ -21,19 +21,21 @@ Create a separate key under **API Keys** and name it after the client, such as "
 The key must be assigned to a Grok group. Query models with this exact key; do not use models visible only to an administrator or fixed names from an old tutorial:
 
 ```bash
-curl "<api_base_url>/models" \
+curl "https://api.daigua.icu/v1/models" \
   -H "Authorization: Bearer sk-demo-replace-me"
 ```
 
-Select one text model from `data[].id`. Codex and Grok CLI require Responses support from the group. Claude Code requires the site's Messages bridge. OpenCode uses Responses or Chat according to its npm provider.
+Select one text model from `data[].id`. Codex and Grok CLI require Responses support from the group. Claude Code requires the site's Messages bridge. Use OpenCode only with a group that has passed a minimal Chat Completions request.
 
 ## Step 4: Copy api_base_url and distinguish site-root
 
-Copy `api_base_url` from the key's **Use key** dialog rather than guessing from the domain. If it is `https://gateway.example/v1`:
+Copy `api_base_url` from the key's **Use key** dialog rather than guessing from the domain. The current public DaiGua example is `https://api.daigua.icu/v1`:
 
 - Grok CLI, Codex, and OpenCode use the full `<api_base_url>`;
-- Claude Code uses `<site-root>` for `ANTHROPIC_BASE_URL`, which is `https://gateway.example` after removing the final `/v1`;
+- Claude Code uses `<site-root>` for `ANTHROPIC_BASE_URL`, which is `https://api.daigua.icu` after removing the final `/v1`;
 - do not append `/responses`, `/messages`, or `/chat/completions` to a Base URL field.
+
+If the dialog shows a different address later, use that value. The address above is the current recognizable site example.
 
 ## Step 5: Fill in fields for the selected client
 
@@ -43,10 +45,10 @@ Field mapping:
 
 | Client | Base URL field | Key field | Protocol field |
 | --- | --- | --- | --- |
-| Grok CLI | `base_url = "<api_base_url>"` | `env_key = "XAI_API_KEY"` | `api_backend = "responses"` |
-| Codex | `base_url = "<api_base_url>"` | `env_key = "SUB2API_API_KEY"` | `wire_api = "responses"` |
-| Claude Code | `ANTHROPIC_BASE_URL=<site-root>` | `ANTHROPIC_AUTH_TOKEN=sk-demo-replace-me` | Always uses Messages |
-| OpenCode | `options.baseURL` | `options.apiKey = "{env:SUB2API_API_KEY}"` | The npm provider selects the protocol |
+| Grok CLI | `base_url = "https://api.daigua.icu/v1"` | `env_key = "XAI_API_KEY"` | `api_backend = "responses"` |
+| Codex | `base_url = "https://api.daigua.icu/v1"` | `env_key = "SUB2API_API_KEY"` | `wire_api = "responses"` |
+| Claude Code | `ANTHROPIC_BASE_URL=https://api.daigua.icu` | `ANTHROPIC_API_KEY=sk-demo-replace-me` | Always uses Messages |
+| OpenCode | `options.baseURL = "https://api.daigua.icu/v1"` | `options.apiKey = "{env:SUB2API_API_KEY}"` | Only verified Chat Completions |
 
 ### Grok Build CLI
 
@@ -55,7 +57,7 @@ Add this to the user-level `config.toml`:
 ```toml
 [model."site-grok"]
 model = "<grok-model-id>"
-base_url = "<api_base_url>"
+base_url = "https://api.daigua.icu/v1"
 name = "Site Grok"
 env_key = "XAI_API_KEY"
 api_backend = "responses"
@@ -90,7 +92,7 @@ model = "<grok-model-id>"
 
 [model_providers.site-grok]
 name = "Site Grok"
-base_url = "<api_base_url>"
+base_url = "https://api.daigua.icu/v1"
 env_key = "SUB2API_API_KEY"
 wire_api = "responses"
 requires_openai_auth = false
@@ -111,13 +113,13 @@ A Codex custom provider supports Responses only. Do not combine `env_key` with a
 
 ### Claude Code
 
-![Claude Code gateway variables and minimal test command](asset:grok/claude-code-env.png "Generic Claude Code Messages gateway configuration")
+![Redacted DaiGua configuration showing the Claude Code site root, API key, and model mappings](asset:grok/claude-code-env.png "DaiGua redacted configuration: Claude Code Messages gateway")
 
 Claude Code requests `/v1/messages` after `<site-root>`, so do not enter an `api_base_url` ending in `/v1` here:
 
 ```powershell
-$env:ANTHROPIC_BASE_URL="<site-root>"
-$env:ANTHROPIC_AUTH_TOKEN="sk-demo-replace-me"
+$env:ANTHROPIC_BASE_URL="https://api.daigua.icu"
+$env:ANTHROPIC_API_KEY="sk-demo-replace-me"
 $env:ANTHROPIC_MODEL="<grok-model-id>"
 $env:ANTHROPIC_DEFAULT_OPUS_MODEL="<grok-model-id>"
 $env:ANTHROPIC_DEFAULT_SONNET_MODEL="<grok-model-id>"
@@ -127,8 +129,8 @@ $env:CLAUDE_CODE_SUBAGENT_MODEL="<grok-model-id>"
 ```
 
 ```bash
-export ANTHROPIC_BASE_URL="<site-root>"
-export ANTHROPIC_AUTH_TOKEN="sk-demo-replace-me"
+export ANTHROPIC_BASE_URL="https://api.daigua.icu"
+export ANTHROPIC_API_KEY="sk-demo-replace-me"
 export ANTHROPIC_MODEL="<grok-model-id>"
 export ANTHROPIC_DEFAULT_OPUS_MODEL="<grok-model-id>"
 export ANTHROPIC_DEFAULT_SONNET_MODEL="<grok-model-id>"
@@ -137,13 +139,32 @@ export ANTHROPIC_DEFAULT_FABLE_MODEL="<grok-model-id>"
 export CLAUDE_CODE_SUBAGENT_MODEL="<grok-model-id>"
 ```
 
-Map every model family and the subagent model so background work does not fall back to a Claude model absent from the group. Set `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` when nonessential outbound traffic must be blocked, but note that it also disables gateway model discovery, so explicit mappings remain necessary.
+Map every model family and the subagent model so background work does not fall back to a Claude model absent from the group. Use `ANTHROPIC_API_KEY` by default and do not set `ANTHROPIC_AUTH_TOKEN` at the same time. Switch to the token only when an administrator explicitly says that this gateway accepts Bearer only, and remove the API-key variable first. Set `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` when nonessential outbound traffic must be blocked, but note that it also disables gateway model discovery, so explicit mappings remain necessary.
 
 ### OpenCode
 
-![OpenCode Responses provider, environment key, and model fields](asset:grok/opencode-provider.png "Generic OpenCode Responses provider configuration")
+![Redacted DaiGua OpenCode Chat Completions provider configuration with address, environment key, and model ID](asset:grok/opencode-provider.png "DaiGua redacted configuration: OpenCode Chat Completions provider")
 
-Use `@ai-sdk/openai` for a Responses-only group or a group where Responses is preferred:
+First set the environment variable that OpenCode reads in the same terminal:
+
+```powershell
+$env:SUB2API_API_KEY="sk-demo-replace-me"
+```
+
+```bash
+export SUB2API_API_KEY="sk-demo-replace-me"
+```
+
+Then pass a minimal Chat Completions request with the same key before using OpenCode's official OpenAI-compatible provider:
+
+```bash
+curl "https://api.daigua.icu/v1/chat/completions" \
+  -H "Authorization: Bearer sk-demo-replace-me" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"<grok-model-id>","messages":[{"role":"user","content":"Reply only OK"}]}'
+```
+
+On Windows PowerShell, write the command as `curl.exe`. Save the OpenCode configuration below only after it returns `OK`:
 
 ```json
 {
@@ -151,10 +172,10 @@ Use `@ai-sdk/openai` for a Responses-only group or a group where Responses is pr
   "model": "site/<grok-model-id>",
   "provider": {
     "site": {
-      "npm": "@ai-sdk/openai",
-      "name": "Site Grok Responses",
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "DaiGua Chat Completions",
       "options": {
-        "baseURL": "<api_base_url>",
+        "baseURL": "https://api.daigua.icu/v1",
         "apiKey": "{env:SUB2API_API_KEY}"
       },
       "models": {
@@ -165,7 +186,7 @@ Use `@ai-sdk/openai` for a Responses-only group or a group where Responses is pr
 }
 ```
 
-Change the npm provider to `@ai-sdk/openai-compatible` only for a group already proven by a minimal Chat request. It uses `/v1/chat/completions` and is not a substitute for Responses-only access.
+`@ai-sdk/openai-compatible` uses `/v1/chat/completions`, so it cannot connect to a Responses-only group. Use Grok Build CLI or Codex for a Responses-only group; do not assume that changing the npm package makes it compatible.
 
 ## Step 6: Select the model in the client
 
@@ -204,15 +225,15 @@ Do not enable MCP, images, tool plugins, long context, or automatic multi-agent 
 
 - Grok CLI: `grok inspect` shows the user config and `site-grok`, and the test returns `OK`.
 - Codex: the command exits with code `0`, does not request ChatGPT OAuth, and does not loop after a WebSocket failure.
-- Claude Code: `/status` in an interactive session shows the site `Anthropic base URL` and `ANTHROPIC_AUTH_TOKEN`, and the message returns `OK`.
-- OpenCode: `opencode debug config` shows the `site` provider, correct npm package, and Base URL, and the test returns `OK`.
+- Claude Code: `/status` in an interactive session shows the site `Anthropic base URL` and `ANTHROPIC_API_KEY`, and the message returns `OK`.
+- OpenCode: `opencode debug config` shows the `site` provider, `@ai-sdk/openai-compatible`, and the correct Base URL, and the test returns `OK`.
 
 These are four independent acceptance checks. One working client does not prove another protocol works.
 
 ## Step 9: Check these three items first
 
 1. **The environment variable reached the process:** variables may disappear after opening a new terminal; `env_key` in a config file is a variable name, not the key itself.
-2. **Protocol and Base URL match:** Codex requires Responses; Claude Code requires Messages and `<site-root>`; the OpenCode npm package must match Responses or Chat.
+2. **Protocol and Base URL match:** Codex requires Responses; Claude Code requires Messages and `https://api.daigua.icu`; OpenCode connects only to a verified Chat Completions group.
 3. **The model and group remain available:** query `/models` again, then check the key group, model allowlist, quota, and `Retry-After` on `429`.
 
 ## Step 10: Provide diagnostic information if it still fails
@@ -227,8 +248,7 @@ Provide the operating system, exact client version, config path, selected provid
 | Grok Build CLI | `/v1/responses` | Set `api_backend = "responses"` on every text model |
 | Codex | `/v1/responses` | `wire_api` supports only `responses` |
 | Claude Code | `/v1/messages` | Set `ANTHROPIC_BASE_URL` to the site root |
-| OpenCode with `@ai-sdk/openai` | `/v1/responses` | Recommended for Responses-only groups |
-| OpenCode with `@ai-sdk/openai-compatible` | `/v1/chat/completions` | Only for a verified Chat-compatible group |
+| OpenCode with `@ai-sdk/openai-compatible` | `/v1/chat/completions` | Only for a verified Chat Completions group; use Grok Build CLI or Codex for Responses-only access |
 
 Grok CLI currently documents `XAI_API_KEY`, `GROK_MODELS_BASE_URL`, `GROK_MODELS_LIST_URL`, and `GROK_XAI_API_BASE_URL`. User config supports per-model `model`, `base_url`, `name`, `env_key`, and `api_backend`. This guide uses per-model `base_url` and does not depend on older `[endpoints]` settings that may change by version.
 

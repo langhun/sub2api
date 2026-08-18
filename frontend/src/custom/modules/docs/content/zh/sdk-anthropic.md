@@ -6,8 +6,8 @@ import os
 from anthropic import Anthropic
 
 client = Anthropic(
-    api_key=os.environ["SUB2API_API_KEY"],
-    base_url="<site-root>",
+    api_key=os.environ["ANTHROPIC_API_KEY"],
+    base_url="https://api.daigua.icu",
 )
 message = client.messages.create(
     model="<model-id>", max_tokens=64,
@@ -18,15 +18,15 @@ print(message.content[0].text)
 
 ## 步骤 2：配置 Claude Code
 
-Bearer 网关使用：
+先在本站创建专用 Key；本站当前公开的 Messages 网关根地址为 `https://api.daigua.icu`。PowerShell 使用：
 
 ```powershell
-$env:ANTHROPIC_BASE_URL = "<site-root>"
-$env:ANTHROPIC_AUTH_TOKEN = "sk-demo-replace-me"
+$env:ANTHROPIC_BASE_URL = "https://api.daigua.icu"
+$env:ANTHROPIC_API_KEY = "sk-demo-replace-me"
 $env:ANTHROPIC_MODEL = "<model-id>"
 ```
 
-macOS/Linux 将 `$env:NAME =` 改为 `export NAME=`。Claude Code 会调用 `/v1/messages`，所以 `ANTHROPIC_BASE_URL` 一般不包含 `/v1`。
+macOS/Linux 使用 `export ANTHROPIC_BASE_URL="https://api.daigua.icu"` 和 `export ANTHROPIC_API_KEY="sk-demo-replace-me"`。Claude Code 会调用 `/v1/messages`，所以 `ANTHROPIC_BASE_URL` 不包含 `/v1`。将来 Key 弹窗显示的地址若有变化，以弹窗为准。
 
 ## 步骤 3：验证模型回落
 
@@ -35,4 +35,4 @@ macOS/Linux 将 `$env:NAME =` 改为 `export NAME=`。Claude Code 会调用 `/v1
 <!-- reference -->
 ## 凭据头
 
-`ANTHROPIC_AUTH_TOKEN` 发送 Bearer；`ANTHROPIC_API_KEY` 发送 `x-api-key`。按本站兼容路径选择一种，不要同时设置不同值。模型自动发现可能过滤不含 `claude` 或 `anthropic` 的 ID，Grok 等模型应显式设置 `ANTHROPIC_MODEL`。
+默认使用 `ANTHROPIC_API_KEY`，它通过 `x-api-key` 发送凭据。若管理员明确说明某个网关只接受 Bearer，才改用 `ANTHROPIC_AUTH_TOKEN`，并先移除 `ANTHROPIC_API_KEY`；两者不能同时设置。模型自动发现可能过滤不含 `claude` 或 `anthropic` 的 ID，Grok 等模型应显式设置 `ANTHROPIC_MODEL`。

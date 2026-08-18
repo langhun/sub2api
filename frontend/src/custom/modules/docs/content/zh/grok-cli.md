@@ -21,19 +21,21 @@
 Key 必须绑定 Grok 分组。用该 Key 查询模型，不能使用管理员账号看到的模型或旧教程中的固定名称：
 
 ```bash
-curl "<api_base_url>/models" \
+curl "https://api.daigua.icu/v1/models" \
   -H "Authorization: Bearer sk-demo-replace-me"
 ```
 
-从 `data[].id` 选择一个文本模型。Codex 和 Grok CLI 需要该分组支持 Responses；Claude Code 需要本站的 Messages 桥接；OpenCode 根据所选 npm provider 使用 Responses 或 Chat。
+从 `data[].id` 选择一个文本模型。Codex 和 Grok CLI 需要该分组支持 Responses；Claude Code 需要本站的 Messages 桥接；OpenCode 只用于已通过 Chat Completions 最小请求验证的分组。
 
 ## 步骤 4：复制 api_base_url 并区分 site-root
 
-从 Key 的 **使用方式** 弹窗复制 `api_base_url`，不要凭域名猜测。假设它是 `https://gateway.example/v1`：
+从 Key 的 **使用方式** 弹窗复制 `api_base_url`，不要凭域名猜测。本站当前公开示例为 `https://api.daigua.icu/v1`：
 
 - Grok CLI、Codex、OpenCode 使用完整 `<api_base_url>`；
-- Claude Code 的 `ANTHROPIC_BASE_URL` 使用 `<site-root>`，即去掉最后一个 `/v1` 后的 `https://gateway.example`；
+- Claude Code 的 `ANTHROPIC_BASE_URL` 使用 `<site-root>`，即去掉最后一个 `/v1` 后的 `https://api.daigua.icu`；
 - 不要把 `/responses`、`/messages` 或 `/chat/completions` 拼进 Base URL 字段。
+
+若弹窗给出的地址以后变化，优先使用弹窗值；上面的地址只作为本站当前的可识别示例。
 
 ## 步骤 5：按客户端填写字段
 
@@ -43,10 +45,10 @@ curl "<api_base_url>/models" \
 
 | 客户端 | Base URL 字段 | Key 字段 | 协议字段 |
 | --- | --- | --- | --- |
-| Grok CLI | `base_url = "<api_base_url>"` | `env_key = "XAI_API_KEY"` | `api_backend = "responses"` |
-| Codex | `base_url = "<api_base_url>"` | `env_key = "SUB2API_API_KEY"` | `wire_api = "responses"` |
-| Claude Code | `ANTHROPIC_BASE_URL=<site-root>` | `ANTHROPIC_AUTH_TOKEN=sk-demo-replace-me` | 固定使用 Messages |
-| OpenCode | `options.baseURL` | `options.apiKey = "{env:SUB2API_API_KEY}"` | npm provider 决定协议 |
+| Grok CLI | `base_url = "https://api.daigua.icu/v1"` | `env_key = "XAI_API_KEY"` | `api_backend = "responses"` |
+| Codex | `base_url = "https://api.daigua.icu/v1"` | `env_key = "SUB2API_API_KEY"` | `wire_api = "responses"` |
+| Claude Code | `ANTHROPIC_BASE_URL=https://api.daigua.icu` | `ANTHROPIC_API_KEY=sk-demo-replace-me` | 固定使用 Messages |
+| OpenCode | `options.baseURL = "https://api.daigua.icu/v1"` | `options.apiKey = "{env:SUB2API_API_KEY}"` | 仅使用已验证的 Chat Completions |
 
 ### Grok Build CLI
 
@@ -55,7 +57,7 @@ curl "<api_base_url>/models" \
 ```toml
 [model."site-grok"]
 model = "<grok-model-id>"
-base_url = "<api_base_url>"
+base_url = "https://api.daigua.icu/v1"
 name = "Site Grok"
 env_key = "XAI_API_KEY"
 api_backend = "responses"
@@ -90,7 +92,7 @@ model = "<grok-model-id>"
 
 [model_providers.site-grok]
 name = "Site Grok"
-base_url = "<api_base_url>"
+base_url = "https://api.daigua.icu/v1"
 env_key = "SUB2API_API_KEY"
 wire_api = "responses"
 requires_openai_auth = false
@@ -111,13 +113,13 @@ Codex 自定义 provider 只支持 Responses。不要同时设置 `env_key` 和�
 
 ### Claude Code
 
-![Claude Code 网关环境变量与最小测试命令](asset:grok/claude-code-env.png "Claude Code Messages 网关通用配置示意图")
+![Claude Code 使用 DaiGua 站点根地址、API Key 和模型映射的脱敏配置示意](asset:grok/claude-code-env.png "DaiGua 脱敏配置示意：Claude Code 的 Messages 网关")
 
 Claude Code 会在 `<site-root>` 后请求 `/v1/messages`，因此这里不能填带 `/v1` 的 `api_base_url`：
 
 ```powershell
-$env:ANTHROPIC_BASE_URL="<site-root>"
-$env:ANTHROPIC_AUTH_TOKEN="sk-demo-replace-me"
+$env:ANTHROPIC_BASE_URL="https://api.daigua.icu"
+$env:ANTHROPIC_API_KEY="sk-demo-replace-me"
 $env:ANTHROPIC_MODEL="<grok-model-id>"
 $env:ANTHROPIC_DEFAULT_OPUS_MODEL="<grok-model-id>"
 $env:ANTHROPIC_DEFAULT_SONNET_MODEL="<grok-model-id>"
@@ -127,8 +129,8 @@ $env:CLAUDE_CODE_SUBAGENT_MODEL="<grok-model-id>"
 ```
 
 ```bash
-export ANTHROPIC_BASE_URL="<site-root>"
-export ANTHROPIC_AUTH_TOKEN="sk-demo-replace-me"
+export ANTHROPIC_BASE_URL="https://api.daigua.icu"
+export ANTHROPIC_API_KEY="sk-demo-replace-me"
 export ANTHROPIC_MODEL="<grok-model-id>"
 export ANTHROPIC_DEFAULT_OPUS_MODEL="<grok-model-id>"
 export ANTHROPIC_DEFAULT_SONNET_MODEL="<grok-model-id>"
@@ -137,13 +139,32 @@ export ANTHROPIC_DEFAULT_FABLE_MODEL="<grok-model-id>"
 export CLAUDE_CODE_SUBAGENT_MODEL="<grok-model-id>"
 ```
 
-同时映射各模型族和子代理，避免 Claude Code 的后台任务回落到分组中不存在的 Claude 模型。需要阻止非必要外联时可设置 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`，但它也会关闭网关模型发现，因此仍要保留显式模型映射。
+同时映射各模型族和子代理，避免 Claude Code 的后台任务回落到分组中不存在的 Claude 模型。默认使用 `ANTHROPIC_API_KEY`，不要同时设置 `ANTHROPIC_AUTH_TOKEN`；只有管理员明确说明此网关只接受 Bearer 时，才改用后者并移除前者。需要阻止非必要外联时可设置 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`，但它也会关闭网关模型发现，因此仍要保留显式模型映射。
 
 ### OpenCode
 
-![OpenCode Responses Provider、环境变量和模型字段](asset:grok/opencode-provider.png "OpenCode Responses Provider 通用配置示意图")
+![OpenCode 使用 Chat Completions Provider、DaiGua 地址、环境变量 Key 和模型 ID 的脱敏配置示意](asset:grok/opencode-provider.png "DaiGua 脱敏配置示意：OpenCode Chat Completions Provider")
 
-Responses-only 或首选 Responses 的 Grok 分组使用 `@ai-sdk/openai`：
+先在同一终端设置 OpenCode 要读取的环境变量：
+
+```powershell
+$env:SUB2API_API_KEY="sk-demo-replace-me"
+```
+
+```bash
+export SUB2API_API_KEY="sk-demo-replace-me"
+```
+
+然后用同一 Key 完成一次 Chat Completions 最小请求，再在 OpenCode 使用官方 OpenAI-compatible provider：
+
+```bash
+curl "https://api.daigua.icu/v1/chat/completions" \
+  -H "Authorization: Bearer sk-demo-replace-me" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"<grok-model-id>","messages":[{"role":"user","content":"Reply only OK"}]}'
+```
+
+Windows PowerShell 请把命令名写成 `curl.exe`；返回 `OK` 后再保存以下 OpenCode 配置：
 
 ```json
 {
@@ -151,10 +172,10 @@ Responses-only 或首选 Responses 的 Grok 分组使用 `@ai-sdk/openai`：
   "model": "site/<grok-model-id>",
   "provider": {
     "site": {
-      "npm": "@ai-sdk/openai",
-      "name": "Site Grok Responses",
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "DaiGua Chat Completions",
       "options": {
-        "baseURL": "<api_base_url>",
+        "baseURL": "https://api.daigua.icu/v1",
         "apiKey": "{env:SUB2API_API_KEY}"
       },
       "models": {
@@ -165,7 +186,7 @@ Responses-only 或首选 Responses 的 Grok 分组使用 `@ai-sdk/openai`：
 }
 ```
 
-只有已经用最小 Chat 请求验证成功的分组，才把 npm provider 改为 `@ai-sdk/openai-compatible`。它使用 `/v1/chat/completions`，不能替代 Responses-only 接入。
+`@ai-sdk/openai-compatible` 使用 `/v1/chat/completions`，因此不能接入 Responses-only 分组。Responses-only 分组请改用 Grok Build CLI 或 Codex，不要猜测替换 npm 包后即可兼容。
 
 ## 步骤 6：在客户端选择模型
 
@@ -204,15 +225,15 @@ opencode run --model "site/<grok-model-id>" "Reply only OK"
 
 - Grok CLI：`grok inspect` 能看到用户配置和 `site-grok`，测试返回 `OK`。
 - Codex：命令退出码为 `0`，没有要求 ChatGPT OAuth 登录，也没有 WebSocket 连接失败后循环重试。
-- Claude Code：交互模式 `/status` 显示本站 `Anthropic base URL` 和 `ANTHROPIC_AUTH_TOKEN`，消息返回 `OK`。
-- OpenCode：`opencode debug config` 显示 `site` provider、正确 npm 包和 Base URL，测试返回 `OK`。
+- Claude Code：交互模式 `/status` 显示本站 `Anthropic base URL` 和 `ANTHROPIC_API_KEY`，消息返回 `OK`。
+- OpenCode：`opencode debug config` 显示 `site` provider、`@ai-sdk/openai-compatible` 和正确 Base URL，测试返回 `OK`。
 
 四个客户端是独立验收项；一个成功不代表其他协议也成功。
 
 ## 步骤 9：失败时先检查三项
 
 1. **环境变量是否进入当前进程**：重新打开终端后变量可能消失；配置文件中的 `env_key` 是变量名称，不是 Key 本身。
-2. **协议与 Base URL 是否匹配**：Codex 必须 Responses；Claude Code 必须 Messages 且使用 `<site-root>`；OpenCode npm 包必须与 Responses/Chat 对应。
+2. **协议与 Base URL 是否匹配**：Codex 必须 Responses；Claude Code 必须 Messages 且使用 `https://api.daigua.icu`；OpenCode 只连接已验证的 Chat Completions 分组。
 3. **模型和分组是否仍可用**：重新请求 `/models`，检查 Key 分组、模型白名单、额度，以及 `429` 的 `Retry-After`。
 
 ## 步骤 10：仍失败时提交诊断信息
@@ -227,8 +248,7 @@ opencode run --model "site/<grok-model-id>" "Reply only OK"
 | Grok Build CLI | `/v1/responses` | 每个文本模型设置 `api_backend = "responses"` |
 | Codex | `/v1/responses` | `wire_api` 只支持 `responses` |
 | Claude Code | `/v1/messages` | `ANTHROPIC_BASE_URL` 填站点根地址 |
-| OpenCode + `@ai-sdk/openai` | `/v1/responses` | 推荐用于 Responses-only 分组 |
-| OpenCode + `@ai-sdk/openai-compatible` | `/v1/chat/completions` | 仅用于已验证的 Chat 兼容分组 |
+| OpenCode + `@ai-sdk/openai-compatible` | `/v1/chat/completions` | 仅用于已验证的 Chat Completions 分组；Responses-only 请使用 Grok Build CLI 或 Codex |
 
 Grok CLI 当前官方列出 `XAI_API_KEY`、`GROK_MODELS_BASE_URL`、`GROK_MODELS_LIST_URL` 和 `GROK_XAI_API_BASE_URL`。用户配置支持每模型 `model`、`base_url`、`name`、`env_key`、`api_backend` 等字段。本文使用每模型 `base_url`，避免依赖版本可能变化的旧 `[endpoints]` 配置。
 

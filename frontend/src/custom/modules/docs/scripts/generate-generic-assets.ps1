@@ -37,14 +37,31 @@ function Draw-Field {
 
 function Draw-Step {
   param($Graphics, [int]$Number, [int]$X, [int]$Y, [int]$Width, [int]$Height, [string]$Text)
-  $red = [System.Drawing.ColorTranslator]::FromHtml('#D92D20')
-  $Graphics.DrawRectangle([System.Drawing.Pen]::new($red, 4), $X, $Y, $Width, $Height)
-  $Graphics.FillEllipse([System.Drawing.SolidBrush]::new($red), $X - 19, $Y - 19, 42, 42)
+  $accent = [System.Drawing.ColorTranslator]::FromHtml('#0F766E')
+  $Graphics.DrawRectangle([System.Drawing.Pen]::new($accent, 2), $X, $Y, $Width, $Height)
+  $Graphics.FillEllipse([System.Drawing.SolidBrush]::new($accent), $X - 19, $Y - 19, 42, 42)
   $format = [System.Drawing.StringFormat]::new()
   $format.Alignment = [System.Drawing.StringAlignment]::Center
   $format.LineAlignment = [System.Drawing.StringAlignment]::Center
   $Graphics.DrawString([string]$Number, [System.Drawing.Font]::new($fontFamily, 14, [System.Drawing.FontStyle]::Bold), [System.Drawing.Brushes]::White, [System.Drawing.RectangleF]::new($X - 19, $Y - 19, 42, 42), $format)
-  $Graphics.DrawString($Text, [System.Drawing.Font]::new($fontFamily, 11, [System.Drawing.FontStyle]::Bold), [System.Drawing.SolidBrush]::new($red), $X + $Width + 18, $Y + [Math]::Max(0, ($Height / 2) - 10))
+  $Graphics.DrawString($Text, [System.Drawing.Font]::new($fontFamily, 11, [System.Drawing.FontStyle]::Bold), [System.Drawing.SolidBrush]::new($accent), $X + $Width + 18, $Y + [Math]::Max(0, ($Height / 2) - 10))
+}
+
+function Draw-NumberedNote {
+  param($Graphics, [int]$Number, [int]$X, [int]$Y, [int]$Width, [string]$Title, [string]$Description)
+  $accent = [System.Drawing.ColorTranslator]::FromHtml('#0F766E')
+  $background = [System.Drawing.ColorTranslator]::FromHtml('#F0FDFA')
+  $border = [System.Drawing.ColorTranslator]::FromHtml('#99F6E4')
+  $text = [System.Drawing.ColorTranslator]::FromHtml('#134E4A')
+  $Graphics.FillRectangle([System.Drawing.SolidBrush]::new($background), $X, $Y, $Width, 94)
+  $Graphics.DrawRectangle([System.Drawing.Pen]::new($border, 1), $X, $Y, $Width, 94)
+  $Graphics.FillEllipse([System.Drawing.SolidBrush]::new($accent), $X + 16, $Y + 18, 34, 34)
+  $format = [System.Drawing.StringFormat]::new()
+  $format.Alignment = [System.Drawing.StringAlignment]::Center
+  $format.LineAlignment = [System.Drawing.StringAlignment]::Center
+  $Graphics.DrawString([string]$Number, [System.Drawing.Font]::new($fontFamily, 12, [System.Drawing.FontStyle]::Bold), [System.Drawing.Brushes]::White, [System.Drawing.RectangleF]::new($X + 16, $Y + 18, 34, 34), $format)
+  $Graphics.DrawString($Title, [System.Drawing.Font]::new($fontFamily, 12, [System.Drawing.FontStyle]::Bold), [System.Drawing.SolidBrush]::new($text), $X + 64, $Y + 18)
+  $Graphics.DrawString($Description, [System.Drawing.Font]::new($fontFamily, 10), [System.Drawing.SolidBrush]::new($text), $X + 64, $Y + 49)
 }
 
 function Draw-Button {
@@ -66,7 +83,7 @@ function Save-Canvas {
   $Canvas.Bitmap.Dispose()
 }
 
-$canvas = New-Canvas '创建 API Key' '通用界面示意图 - 示例值均已脱敏'
+$canvas = New-Canvas '创建 API Key' 'DaiGua 脱敏配置参考图 - 示例值均已脱敏'
 $g = $canvas.Graphics
 Draw-Panel $g 210 124 1020 700
 Draw-Field $g '名称' 'sillytavern-home' 290 190 650
@@ -80,7 +97,7 @@ Draw-Step $g 3 280 410 680 94 '设置消费额度'
 Draw-Step $g 4 280 525 680 94 '首次测试可留空'
 Save-Canvas $canvas 'assets/common/api-key-create.png'
 
-$canvas = New-Canvas 'Grok API 接入' '通用界面示意图 - 客户端会自动拼接接口路径'
+$canvas = New-Canvas 'Grok API 接入' 'DaiGua 脱敏配置参考图 - 客户端会自动拼接接口路径'
 $g = $canvas.Graphics
 Draw-Panel $g 170 124 1100 700
 Draw-Field $g 'Base URL' 'https://api.daigua.icu/v1' 250 185 720
@@ -93,7 +110,7 @@ Draw-Step $g 3 240 435 750 94 '选择可见模型 ID'
 Draw-Step $g 4 780 625 200 72 '返回 OK 即成功'
 Save-Canvas $canvas 'assets/grok/grok-api-fields.png'
 
-$canvas = New-Canvas 'Grok CLI 配置' 'config.toml 通用示意图 - 仅写入用户配置'
+$canvas = New-Canvas 'Grok CLI 配置' 'DaiGua 脱敏配置参考图 - 仅写入用户配置'
 $g = $canvas.Graphics
 Draw-Panel $g 140 120 1160 710
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#111827')), 190, 170, 800, 600)
@@ -104,7 +121,7 @@ Draw-Step $g 2 205 390 770 48 'Key 从环境变量读取'
 Draw-Step $g 3 205 440 770 48 '保持 Responses 协议'
 Save-Canvas $canvas 'assets/grok/grok-cli-config.png'
 
-$canvas = New-Canvas 'Codex 自定义 Provider' 'config.toml 通用示意图 - 使用 Responses'
+$canvas = New-Canvas 'Codex 自定义 Provider' 'DaiGua 脱敏配置参考图 - 使用 Responses'
 $g = $canvas.Graphics
 Draw-Panel $g 140 120 1160 710
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#111827')), 190, 170, 800, 600)
@@ -115,30 +132,35 @@ Draw-Step $g 2 205 461 770 48 '从环境变量读取 Key'
 Draw-Step $g 3 205 517 770 48 '保持 Responses 协议'
 Save-Canvas $canvas 'assets/grok/codex-provider.png'
 
-$canvas = New-Canvas 'Claude Code 网关变量' '终端通用示意图 - 使用 Messages 协议'
+$canvas = New-Canvas 'Claude Code 配置' 'DaiGua 脱敏配置示意图 - 使用 Messages 协议'
 $g = $canvas.Graphics
 Draw-Panel $g 140 120 1160 710
-$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#111827')), 190, 170, 850, 500)
-$lines = @('$env:ANTHROPIC_BASE_URL="https://api.daigua.icu"','$env:ANTHROPIC_AUTH_TOKEN="sk-demo-replace-me"','$env:ANTHROPIC_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_SONNET_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_HAIKU_MODEL="<grok-model-id>"','claude --model <grok-model-id> -p "Reply only OK"')
-for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 12), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#E5E7EB')), 220, 205 + ($i * 68)) }
-Draw-Step $g 1 205 190 820 58 '使用不带 /v1 的站点根地址'
-Draw-Step $g 2 205 258 820 58 '使用专用 Bearer Token'
-Draw-Step $g 3 205 326 820 58 '映射可见模型 ID'
-Draw-Step $g 4 205 530 820 58 '发送最小测试'
+$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#F8FAFC')), 190, 170, 760, 590)
+$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#0F766E')), 190, 170, 8, 590)
+$g.DrawString('PowerShell', [System.Drawing.Font]::new($fontFamily, 12, [System.Drawing.FontStyle]::Bold), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#0F766E')), 224, 198)
+$lines = @('$env:ANTHROPIC_BASE_URL="https://api.daigua.icu"','$env:ANTHROPIC_API_KEY="sk-demo-replace-me"','$env:ANTHROPIC_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_SONNET_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_HAIKU_MODEL="<grok-model-id>"','claude --model <grok-model-id> -p "Reply only OK"')
+for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 12), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#172B4D')), 224, 252 + ($i * 68)) }
+Draw-NumberedNote $g 1 990 185 260 '站点根地址' '这里不要带 /v1'
+Draw-NumberedNote $g 2 990 300 260 '优先 API Key' '不要同时设置 Token'
+Draw-NumberedNote $g 3 990 415 260 '模型映射' '填写 /models 返回的 ID'
+Draw-NumberedNote $g 4 990 530 260 '最小测试' '先确认返回 OK'
 Save-Canvas $canvas 'assets/grok/claude-code-env.png'
 
-$canvas = New-Canvas 'OpenCode Provider 配置' 'opencode.json 通用示意图 - 使用 Responses'
+$canvas = New-Canvas 'OpenCode Provider 配置' 'DaiGua 脱敏配置示意图 - 仅用于 Chat Completions'
 $g = $canvas.Graphics
 Draw-Panel $g 140 120 1160 710
-$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#111827')), 190, 155, 850, 620)
-$lines = @('{','  "provider": {','    "site": {','      "npm": "@ai-sdk/openai",','      "options": {','        "baseURL": "https://api.daigua.icu/v1",','        "apiKey": "{env:SUB2API_API_KEY}"','      },','      "models": { "<grok-model-id>": {} }','    }','  }','}')
-for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 12), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#E5E7EB')), 220, 180 + ($i * 45)) }
-Draw-Step $g 1 205 315 820 48 '选择 Responses Provider 包'
-Draw-Step $g 2 205 405 820 93 '填写 Base URL 和环境变量 Key'
-Draw-Step $g 3 205 540 820 48 '填写精确模型 ID'
+$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#F8FAFC')), 190, 170, 760, 590)
+$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#2563EB')), 190, 170, 8, 590)
+$g.DrawString('opencode.json', [System.Drawing.Font]::new($fontFamily, 12, [System.Drawing.FontStyle]::Bold), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#1D4ED8')), 224, 198)
+$lines = @('{','  "provider": {','    "site": {','      "npm": "@ai-sdk/openai-compatible",','      "options": {','        "baseURL": "https://api.daigua.icu/v1",','        "apiKey": "{env:SUB2API_API_KEY}"','      },','      "models": { "<grok-model-id>": {} }','    }','  }','}')
+for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 11), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#172B4D')), 224, 244 + ($i * 39)) }
+Draw-NumberedNote $g 1 990 190 260 '兼容 Provider' '选择 openai-compatible'
+Draw-NumberedNote $g 2 990 305 260 '完整 Base URL' '使用本站 /v1 地址'
+Draw-NumberedNote $g 3 990 420 260 '环境变量 Key' '不要写入配置文件'
+Draw-NumberedNote $g 4 990 535 260 '模型 ID' '先通过 Chat 最小测试'
 Save-Canvas $canvas 'assets/grok/opencode-provider.png'
 
-$canvas = New-Canvas 'SillyTavern API 连接' 'SillyTavern 1.18 通用连接界面'
+$canvas = New-Canvas 'SillyTavern API 连接' 'DaiGua 脱敏字段布局参考图 - SillyTavern 1.18'
 $g = $canvas.Graphics
 Draw-Panel $g 150 112 1140 730
 Draw-Field $g 'API Type' 'Chat Completion' 225 165 760
@@ -155,7 +177,7 @@ Draw-Step $g 4 215 470 790 92 '填写专用 Key'
 Draw-Step $g 5 215 575 790 92 '填写精确模型 ID'
 Save-Canvas $canvas 'assets/sillytavern/custom-openai.png'
 
-$canvas = New-Canvas 'TavernAI 兼容客户端' '通用字段对照图 - 不同版本的字段名称可能不同'
+$canvas = New-Canvas 'TavernAI 兼容客户端' 'DaiGua 脱敏字段布局参考图 - 不同版本名称可能不同'
 $g = $canvas.Graphics
 Draw-Panel $g 170 118 1100 720
 Draw-Field $g 'Provider / Backend' 'Custom OpenAI-compatible or Reverse Proxy' 245 175 730

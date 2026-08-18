@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { baselineTopicSlugs, docsCatalog, resolveDocsAsset } from '../catalog'
+import { baselineTopicSlugs, docsCatalog, resolveDocsAsset, type DocsSourceKind } from '../catalog'
 
 describe('documentation catalog', () => {
   it('locks the fourteen core baseline topics', () => {
@@ -23,7 +23,43 @@ describe('documentation catalog', () => {
       expect(entry.sources.length).toBeGreaterThan(0)
       expect(entry.sources.every((source) => /^\d{4}-\d{2}-\d{2}$/.test(source.verifiedAt))).toBe(true)
       expect(entry.sources.every((source) => source.url === undefined || source.url.startsWith('https://'))).toBe(true)
+      expect(entry.sources.every((source) => ['official', 'github', 'implementation'].includes(source.kind))).toBe(true)
+      expect(entry.sources.every((source) => source.kind === 'implementation' || Boolean(source.url))).toBe(true)
       expect(entry.related.every((slug) => docsCatalog.some((related) => related.slug === slug))).toBe(true)
+    }
+  })
+
+  it('uses typed, recently verified sources for third-party integrations', () => {
+    const expectedSources: Record<string, Array<{ kind: DocsSourceKind; url: string }>> = {
+      grok: [{ kind: 'official', url: 'https://docs.x.ai/developers/quickstart' }],
+      'grok-cli': [
+        { kind: 'official', url: 'https://docs.x.ai/build/settings' },
+        { kind: 'official', url: 'https://docs.anthropic.com/en/docs/claude-code/authentication' },
+        { kind: 'official', url: 'https://opencode.ai/docs/providers/' },
+      ],
+      'sdk-anthropic': [
+        { kind: 'official', url: 'https://docs.anthropic.com/en/api/client-sdks' },
+        { kind: 'official', url: 'https://docs.anthropic.com/en/docs/claude-code/llm-gateway' },
+      ],
+      sillytavern: [
+        { kind: 'official', url: 'https://docs.sillytavern.app/usage/api-connections/openai/' },
+        { kind: 'github', url: 'https://github.com/SillyTavern/SillyTavern' },
+      ],
+      tavernai: [{ kind: 'github', url: 'https://github.com/TavernAI/TavernAI' }],
+      'new-api': [
+        { kind: 'official', url: 'https://docs.newapi.pro' },
+        { kind: 'github', url: 'https://github.com/QuantumNous/new-api' },
+      ],
+    }
+
+    for (const [slug, sources] of Object.entries(expectedSources)) {
+      const entry = docsCatalog.find((item) => item.slug === slug)
+      expect(entry).toBeTruthy()
+      expect(entry!.updatedAt).toBe('2026-08-18')
+
+      for (const expected of sources) {
+        expect(entry!.sources).toContainEqual(expect.objectContaining({ ...expected, verifiedAt: '2026-08-18' }))
+      }
     }
   })
 
@@ -36,7 +72,7 @@ describe('documentation catalog', () => {
 
     for (const screenshot of screenshots) {
       expect(resolveDocsAsset(screenshot.asset)).toBeTruthy()
-      expect(screenshot.capture).toBe('generic-ui')
+      expect(screenshot.capture).toBe('reference-layout')
       expect(screenshot.slug).toBe(docsCatalog.find((entry) => entry.screenshots.includes(screenshot))?.slug)
       expect(screenshot.capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/)
       expect(screenshot.version).not.toHaveLength(0)
@@ -64,7 +100,7 @@ describe('documentation catalog', () => {
     for (const entry of docsCatalog) {
       for (const body of Object.values(entry.body)) {
         expect(body).not.toMatch(/!\[[^\]]*\]\((?!asset:)[^)]+\)/i)
-        expect(body).not.toMatch(/api\.your-domain\.com|old\.aiapipay\.com|aiapipay\.com/i)
+        expect(body).not.toMatch(/api\.your-domain\.com|gateway\.example|old\.aiapipay\.com|aiapipay\.com/i)
         expect(body).not.toMatch(/\bsk-(?!demo-)[A-Za-z0-9_-]{12,}\b/)
         expect(body).not.toMatch(/<\s*(?:script|iframe|object|embed|form|img|video|audio|source|picture)\b|\bon(?:error|load|click)\s*=|(?:javascript|vbscript|data:text\/html)\s*:/i)
         expect(body).not.toMatch(/\b(?:xai-[A-Za-z0-9_-]{12,}|eyJ[A-Za-z0-9_-]{16,}\.)\b/)

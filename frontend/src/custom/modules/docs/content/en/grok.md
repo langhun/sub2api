@@ -26,12 +26,14 @@ Only an ID in `data[].id` is safe to enter as the model. Do not guess `grok-4.5`
 
 Copy `api_base_url` from the key's **Use key** dialog. It normally already ends in `/v1`; the examples append `/models` or `/responses` to it.
 
-If the dialog shows `https://gateway.example/v1`:
+To make a copied configuration easy to verify, the examples below use the site's public example address `https://api.daigua.icu/v1`:
 
-- enter `https://gateway.example/v1` as the Base URL;
-- the Responses request URL is `https://gateway.example/v1/responses`;
+- enter `https://api.daigua.icu/v1` as the Base URL;
+- the Responses request URL is `https://api.daigua.icu/v1/responses`;
 - do not add a second `/v1`;
 - do not enter a full `/chat/completions` or `/responses` request URL as the Base URL.
+
+For a real request, always use the `api_base_url` shown in the key's **Use key** dialog. If an administrator configured another entry point, replace only the host in these examples.
 
 ## Step 5: Fill in each field
 

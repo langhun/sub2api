@@ -19,7 +19,7 @@ const dangerousMarkdown = /<\s*(?:script|iframe|object|embed|form|img|video|audi
 const externalImage = /!\[[^\]]*\]\((?!asset:)[^)]+\)/gi
 const assetReference = /asset:([A-Za-z0-9/_-]+\.(?:png|webp))/g
 const documentedAsset = /!\[([^\]]+)\]\(asset:([A-Za-z0-9/_-]+\.(?:png|webp))\s+["']([^"']+)["']\)/g
-const forbiddenSourceDomain = /(?:aiapipay|old\.aiapipay)\.com|api\.your-domain\.com/gi
+const forbiddenSourceDomain = /(?:aiapipay|old\.aiapipay)\.com|api\.your-domain\.com|gateway\.example/gi
 
 const brandedApiAddresses = assetGeneratorSource.match(/https:\/\/api\.daigua\.icu(?:\/v1)?/g) || []
 if (brandedApiAddresses.length !== 7) errors.push('generic illustrations must contain seven DaiGua public API addresses')
@@ -32,7 +32,7 @@ if (forbiddenSourceDomain.test(catalogSource)) errors.push('catalog contains a r
 
 const sourceUrls = [
   ...catalogSource.matchAll(/\burl:\s*'(https?:\/\/[^']+)'/g),
-  ...catalogSource.matchAll(/\bofficial\([^,]+,\s*'(https?:\/\/[^']+)'\)/g),
+  ...catalogSource.matchAll(/\b(?:official|github)\([^,]+,\s*'(https?:\/\/[^']+)'\)/g),
 ].map((match) => match[1])
 if (!sourceUrls.length) errors.push('catalog is missing source URLs')
 for (const url of sourceUrls) {
@@ -65,7 +65,7 @@ for (const slug of slugs) {
     exposedEmail.lastIndex = 0
     if (dangerousMarkdown.test(content)) errors.push(`${locale}/${slug}.md contains dangerous Markdown or HTML`)
     dangerousMarkdown.lastIndex = 0
-    if (/api\.your-domain\.com|old\.aiapipay\.com|aiapipay\.com/i.test(content)) errors.push(`${locale}/${slug}.md contains a retired or placeholder domain`)
+    if (/api\.your-domain\.com|gateway\.example|old\.aiapipay\.com|aiapipay\.com/i.test(content)) errors.push(`${locale}/${slug}.md contains a retired or placeholder domain`)
     const registeredAssets = new Set()
     for (const match of content.matchAll(assetReference)) {
       if (!existsSync(join(moduleRoot, 'assets', match[1]))) errors.push(`${locale}/${slug}.md references missing asset ${match[1]}`)
