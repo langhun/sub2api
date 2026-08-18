@@ -297,6 +297,21 @@ func TestAcquireUserSlotWithWait_ImmediateAcquireSkipsWaitQueue(t *testing.T) {
 	require.Equal(t, 1, cache.userReleaseCalls)
 }
 
+func TestAcquireUserSlotWithWait_NegativeConcurrencyRejectsImmediately(t *testing.T) {
+	cache := &helperConcurrencyCacheStub{}
+	concurrency := service.NewConcurrencyService(cache)
+	helper := NewConcurrencyHelper(concurrency, SSEPingFormatNone, 5*time.Millisecond)
+	c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")
+	streamStarted := false
+
+	release, err := helper.acquireUserSlotWithWaitTimeout(c, 202, -1, time.Second, false, &streamStarted)
+	require.Nil(t, release)
+	require.ErrorIs(t, err, service.ErrUserConcurrencyDisabled)
+	require.Equal(t, 0, cache.userAcquireCalls)
+	require.Equal(t, 0, cache.waitIncrementCalls)
+	require.Equal(t, 0, cache.waitDecrementCalls)
+}
+
 func TestAcquireUserSlotWithWait_TracksAPIKeySlot(t *testing.T) {
 	cache := &helperConcurrencyCacheStub{
 		userSeq: []bool{true},

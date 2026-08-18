@@ -612,10 +612,11 @@ func (h *UserHandler) BatchUpdateConcurrency(c *gin.Context) {
 // BatchUpdateLimits overwrites concurrency and/or RPM limits for multiple users.
 // POST /api/v1/admin/users/batch-limits
 type BatchUpdateLimitsRequest struct {
-	UserIDs     []int64 `json:"user_ids"`
-	All         bool    `json:"all"`
-	Concurrency *int    `json:"concurrency" binding:"omitempty,min=0"`
-	RPMLimit    *int    `json:"rpm_limit" binding:"omitempty,min=0"`
+	UserIDs []int64 `json:"user_ids"`
+	All     bool    `json:"all"`
+	// -1 explicitly disables API access; 0 keeps the historical unlimited value.
+	Concurrency *int `json:"concurrency" binding:"omitempty"`
+	RPMLimit    *int `json:"rpm_limit" binding:"omitempty,min=0"`
 }
 
 func (h *UserHandler) BatchUpdateLimits(c *gin.Context) {

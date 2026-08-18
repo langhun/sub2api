@@ -261,12 +261,21 @@ func TestAcquireUserSlot_IndependentFromAccount(t *testing.T) {
 	require.NotNil(t, result.ReleaseFunc)
 }
 
-func TestAcquireUserSlot_UnlimitedConcurrency(t *testing.T) {
+func TestAcquireUserSlot_ZeroRemainsUnlimited(t *testing.T) {
 	svc := NewConcurrencyService(&stubConcurrencyCacheForTest{})
 
 	result, err := svc.AcquireUserSlot(context.Background(), 1, 0)
 	require.NoError(t, err)
 	require.True(t, result.Acquired)
+	require.NotNil(t, result.ReleaseFunc)
+}
+
+func TestAcquireUserSlot_NegativeDisablesConcurrency(t *testing.T) {
+	svc := NewConcurrencyService(&stubConcurrencyCacheForTest{})
+
+	result, err := svc.AcquireUserSlot(context.Background(), 1, -1)
+	require.ErrorIs(t, err, ErrUserConcurrencyDisabled)
+	require.Nil(t, result)
 }
 
 func TestTrackAPIKeySlot_ReleaseDecrements(t *testing.T) {

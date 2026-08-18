@@ -27,11 +27,14 @@
             id="bulk-concurrency"
             v-model="concurrencyValue"
             type="number"
-            min="0"
+            min="-1"
             step="1"
             class="input"
             data-test="concurrency-input"
           />
+          <p v-if="parsedConcurrency === -1" class="input-hint">
+            {{ t('admin.users.bulkLimits.concurrencyDisabled') }}
+          </p>
         </div>
 
         <div class="space-y-3 py-4">
@@ -117,16 +120,28 @@ const rpmLimitValue = ref<string | number>('')
 const submitting = ref(false)
 const MAX_BATCH_USER_IDS = 500
 
-const parseLimit = (value: string | number): number | null | undefined => {
+const parseInteger = (value: string | number): number | null | undefined => {
   const trimmed = String(value).trim()
   if (!trimmed) return undefined
   const parsed = Number(trimmed)
-  if (!Number.isInteger(parsed) || parsed < 0) return null
+  if (!Number.isInteger(parsed)) return null
   return parsed
 }
 
+const parseLimit = (value: string | number): number | null | undefined => {
+  const parsed = parseInteger(value)
+  if (parsed === null || parsed === undefined) return parsed
+  return parsed < 0 ? null : parsed
+}
+
+const parseConcurrency = (value: string | number): number | null | undefined => {
+  const parsed = parseInteger(value)
+  if (parsed === null || parsed === undefined) return parsed
+  return parsed >= -1 ? parsed : null
+}
+
 const parsedConcurrency = computed(() =>
-  enableConcurrency.value ? parseLimit(concurrencyValue.value) : undefined
+  enableConcurrency.value ? parseConcurrency(concurrencyValue.value) : undefined
 )
 const parsedRPMLimit = computed(() =>
   enableRPMLimit.value ? parseLimit(rpmLimitValue.value) : undefined

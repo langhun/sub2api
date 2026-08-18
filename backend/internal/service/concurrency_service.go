@@ -18,6 +18,11 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+// ErrUserConcurrencyDisabled indicates that API access is disabled for a user
+// by setting the user's concurrency limit to a negative value. Zero retains
+// the historical unlimited-concurrency meaning for registration defaults.
+var ErrUserConcurrencyDisabled = errors.New("user concurrency is disabled")
+
 // ConcurrencyCache 定义并发控制的缓存接口
 // 使用有序集合存储槽位，按时间戳清理过期条目
 type ConcurrencyCache interface {
@@ -379,8 +384,13 @@ func (s *ConcurrencyService) AcquireAccountSlot(ctx context.Context, accountID i
 // If the user is at max concurrency, it waits until a slot is available or timeout.
 // Returns a release function that MUST be called when the request completes.
 func (s *ConcurrencyService) AcquireUserSlot(ctx context.Context, userID int64, maxConcurrency int) (*AcquireResult, error) {
-	// If maxConcurrency is 0 or negative, no limit
-	if maxConcurrency <= 0 {
+	// A negative user concurrency is an explicit API access lock. Return before
+	// touching Redis so callers do not enqueue or wait for a slot.
+	if maxConcurrency < 0 {
+		return nil, ErrUserConcurrencyDisabled
+	}
+	// Zero retains the existing unlimited behavior used by registration defaults.
+	if maxConcurrency == 0 {
 		return &AcquireResult{
 			Acquired:    true,
 			ReleaseFunc: func() {}, // no-op

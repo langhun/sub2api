@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,6 +26,14 @@ func TestConcurrencyErrorResponse(t *testing.T) {
 			wantStatus:  http.StatusTooManyRequests,
 			wantType:    "rate_limit_error",
 			wantMessage: "Concurrency limit exceeded for account, please retry later",
+		},
+		{
+			name:        "disabled user access is forbidden",
+			err:         service.ErrUserConcurrencyDisabled,
+			slotType:    "user",
+			wantStatus:  http.StatusForbidden,
+			wantType:    "access_denied",
+			wantMessage: "API access is disabled for this user",
 		},
 		{
 			name:        "client cancellation is not classified as concurrency limit",

@@ -102,6 +102,23 @@ describe('BulkEditUserModal', () => {
     expect(wrapper.emitted('success')).toEqual([[2]])
   })
 
+  it('allows -1 to disable API access for selected users', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-test="enable-concurrency"]').trigger('click')
+    await wrapper.get('[data-test="concurrency-input"]').setValue('-1')
+    expect(wrapper.text()).toContain('admin.users.bulkLimits.concurrencyDisabled')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(batchUpdateLimits).toHaveBeenCalledWith({
+      user_ids: [4, 7],
+      all: false,
+      concurrency: -1
+    })
+  })
+
   it('omits disabled fields from the request', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     const wrapper = mountModal()

@@ -42,7 +42,7 @@
       </div>
       <div>
         <label class="input-label">{{ t('admin.users.columns.concurrency') }}</label>
-        <input v-model.number="form.concurrency" type="number" class="input" />
+        <input v-model.number="form.concurrency" type="number" min="-1" step="1" class="input" />
       </div>
       <div>
         <label class="input-label">{{ t('admin.users.form.rpmLimit') }}</label>
@@ -117,7 +117,7 @@ const handleUpdateUser = async () => {
     appStore.showError(t('admin.users.emailRequired'))
     return
   }
-  if (form.concurrency < 1) {
+  if (!Number.isInteger(form.concurrency) || form.concurrency < -1) {
     appStore.showError(t('admin.users.concurrencyMin'))
     return
   }

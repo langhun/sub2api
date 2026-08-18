@@ -5,11 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 const statusClientClosedRequest = 499
 
 func concurrencyErrorResponse(err error, slotType string) (int, string, string) {
+	if errors.Is(err, service.ErrUserConcurrencyDisabled) {
+		return http.StatusForbidden, "access_denied", "API access is disabled for this user"
+	}
+
 	var waitQueueFullErr *WaitQueueFullError
 	if errors.As(err, &waitQueueFullErr) {
 		return http.StatusTooManyRequests, "rate_limit_error",
