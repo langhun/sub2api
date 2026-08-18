@@ -237,6 +237,24 @@ func (s *UserRepoSuite) TestBatchUpdateLimitsUpdatesBothFieldsToZero() {
 	s.Zero(updated.RPMLimit)
 }
 
+func (s *UserRepoSuite) TestBatchUpdateLimitsPreservesNegativeConcurrencyLock() {
+	user := s.mustCreateUser(&service.User{
+		Email:       "batch-limits-disabled@test.com",
+		Concurrency: 4,
+		RPMLimit:    20,
+	})
+	disabled := -1
+
+	affected, err := s.repo.BatchUpdateLimits(s.ctx, []int64{user.ID}, &disabled, nil)
+	s.Require().NoError(err)
+	s.Equal(1, affected)
+
+	updated, err := s.repo.GetByID(s.ctx, user.ID)
+	s.Require().NoError(err)
+	s.Equal(-1, updated.Concurrency)
+	s.Equal(20, updated.RPMLimit)
+}
+
 func (s *UserRepoSuite) TestBatchUpdateLimitsIgnoresDeletedUsersAndReturnsAffectedRows() {
 	active := s.mustCreateUser(&service.User{Email: "batch-limits-active@test.com", RPMLimit: 10})
 	deleted := s.mustCreateUser(&service.User{Email: "batch-limits-deleted@test.com", RPMLimit: 10})
