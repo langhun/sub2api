@@ -137,7 +137,7 @@
                 {{ t('redeem.adminAdjustment') }}
               </p>
               <p
-                v-else
+                v-else-if="item.type !== 'signup_bonus'"
                 class="font-mono text-xs text-gray-400 dark:text-dark-500"
               >
                 {{ item.code.slice(0, 8) }}...
@@ -200,6 +200,7 @@ const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
 const typeOptions = computed(() => [
   { value: '', label: t('admin.users.allTypes') },
   { value: 'balance', label: t('admin.users.typeBalance') },
+  { value: 'signup_bonus', label: t('redeem.signupBonus') },
   { value: 'affiliate_balance', label: t('admin.users.typeAffiliateBalance') },
   { value: 'admin_balance', label: t('admin.users.typeAdminBalance') },
   { value: 'concurrency', label: t('admin.users.typeConcurrency') },
@@ -298,6 +299,8 @@ const getItemTitle = (item: BalanceHistoryItem) => {
   switch (item.type) {
     case 'balance':
       return t('redeem.balanceAddedRedeem')
+    case 'signup_bonus':
+      return t('redeem.signupBonus')
     case 'affiliate_balance':
       return t('redeem.balanceAddedAffiliate')
     case 'admin_balance':

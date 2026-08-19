@@ -670,6 +670,7 @@ type adminServiceImpl struct {
 	codeGenerator        CodeGenerator
 	// 分组平台变更后用来失效渠道缓存；可为 nil（缓存会在 TTL 到期后自然重建）
 	channelCacheInvalidator ChannelCacheInvalidator
+	signupBalanceHistory    SignupBalanceHistoryProvider
 }
 
 // ChannelCacheInvalidator 失效渠道缓存。
@@ -684,6 +685,13 @@ type adminRechargeAffiliateAccruer interface {
 
 type userGroupRateBatchReader interface {
 	GetByUserIDs(ctx context.Context, userIDs []int64) (map[int64]map[int64]float64, error)
+}
+
+// SignupBalanceHistoryProvider lets the Overlay add immutable signup grants
+// to the administrator's balance history without coupling this service to an
+// Overlay table or migration.
+type SignupBalanceHistoryProvider interface {
+	ListSignupBalanceHistory(ctx context.Context, userID int64, page, pageSize int) ([]RedeemCode, int64, error)
 }
 
 // NewAdminService creates a new AdminService
@@ -744,6 +752,12 @@ func NewAdminService(
 func (s *adminServiceImpl) setCodeGenerator(generator CodeGenerator) {
 	if s != nil {
 		s.codeGenerator = generator
+	}
+}
+
+func (s *adminServiceImpl) SetSignupBalanceHistoryProvider(provider SignupBalanceHistoryProvider) {
+	if s != nil {
+		s.signupBalanceHistory = provider
 	}
 }
 

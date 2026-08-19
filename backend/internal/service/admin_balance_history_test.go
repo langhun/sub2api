@@ -84,3 +84,17 @@ func TestMergeBalanceHistoryCodesPaginatesAfterCombiningSources(t *testing.T) {
 	require.Equal(t, RedeemTypeConcurrency, got[0].Type)
 	require.Equal(t, int64(-4), got[1].ID)
 }
+
+func TestMergeBalanceHistorySourcesIncludesSignupBonus(t *testing.T) {
+	t.Parallel()
+
+	usedBy := int64(10)
+	now := time.Date(2026, 8, 19, 8, 0, 0, 0, time.UTC)
+	got := mergeBalanceHistorySources(pagination.PaginationParams{Page: 1, PageSize: 10},
+		[]RedeemCode{{ID: 1, Type: RedeemTypeBalance, UsedBy: &usedBy, CreatedAt: now.Add(-time.Minute)}},
+		[]RedeemCode{{ID: -1_000_000_000_000_001, Type: SignupBalanceHistoryType, Value: 1, UsedBy: &usedBy, CreatedAt: now}},
+	)
+
+	require.Len(t, got, 2)
+	require.Equal(t, SignupBalanceHistoryType, got[0].Type)
+}

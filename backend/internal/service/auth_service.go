@@ -91,6 +91,7 @@ type AuthService struct {
 	userPlatformQuotaRepo   UserPlatformQuotaRepository
 	registrationEmailPolicy RegistrationEmailPolicy
 	registrationRiskPolicy  RegistrationRiskPolicy
+	signupBalanceLedger     SignupBalanceLedger
 }
 
 // RegistrationEmailPolicy is the narrow Overlay hook used to apply optional
@@ -145,6 +146,14 @@ type RegistrationRiskReservation interface {
 type RegistrationRiskPolicy interface {
 	Begin(ctx context.Context, clientIP, userAgent, signupSource string) (RegistrationRiskReservation, error)
 	IsRewardBlocked(ctx context.Context, userID int64) (bool, error)
+}
+
+// SignupBalanceLedger is an optional, narrowly-scoped audit hook for the
+// default balance granted to a newly registered user. The Overlay owns its
+// persistence and supplies it at the composition root.
+type SignupBalanceLedger interface {
+	RecordSignupBalance(ctx context.Context, userID int64, amount float64, signupSource string) error
+	DeleteSignupBalance(ctx context.Context, userID int64, amount float64, signupSource string) error
 }
 
 type CaptchaProof struct {
@@ -222,6 +231,12 @@ func (s *AuthService) SetRegistrationEmailPolicy(policy RegistrationEmailPolicy)
 func (s *AuthService) SetRegistrationRiskPolicy(policy RegistrationRiskPolicy) {
 	if s != nil {
 		s.registrationRiskPolicy = policy
+	}
+}
+
+func (s *AuthService) SetSignupBalanceLedger(ledger SignupBalanceLedger) {
+	if s != nil {
+		s.signupBalanceLedger = ledger
 	}
 }
 
@@ -312,7 +327,20 @@ func (s *AuthService) finalizeSignupRewards(
 		user.Balance = 0
 		return false
 	}
+	if s.signupBalanceLedger != nil {
+		if err := s.signupBalanceLedger.RecordSignupBalance(ctx, user.ID, plan.Balance, user.SignupSource); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to record signup balance ledger; suppressing signup rewards: user_id=%d err=%v", user.ID, err)
+			suppressSignupRewards(plan)
+			user.Balance = 0
+			return false
+		}
+	}
 	if _, err := s.userRepo.SetBalance(ctx, user.ID, plan.Balance); err != nil {
+		if s.signupBalanceLedger != nil {
+			if cleanupErr := s.signupBalanceLedger.DeleteSignupBalance(ctx, user.ID, plan.Balance, user.SignupSource); cleanupErr != nil {
+				logger.LegacyPrintf("service.auth", "[Auth] Failed to remove uncredited signup balance ledger: user_id=%d err=%v", user.ID, cleanupErr)
+			}
+		}
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to apply signup balance; suppressing signup rewards: user_id=%d err=%v", user.ID, err)
 		suppressSignupRewards(plan)
 		user.Balance = 0
@@ -419,6 +447,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		Concurrency:  grantPlan.Concurrency,
 		RPMLimit:     defaultRPMLimit,
 		Status:       StatusActive,
+		SignupSource: "email",
 	}
 
 	if err := s.createUserAndClaimInvitation(ctx, user, invitationRedeemCode); err != nil {

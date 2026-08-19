@@ -8,6 +8,7 @@ import { bepusdtAdminLocaleMessages, bepusdtLocaleMessages } from './modules/bep
 import { supportTicketAdminLocaleMessages, supportTicketLocaleMessages } from './modules/support-tickets/locales'
 import { supportContactsLocaleMessages } from './modules/support-contacts/locales'
 import { docsLocaleMessages } from './modules/docs/locales'
+import { registrationProtectionLocaleMessages } from './modules/registration-protection/locales'
 
 type LocaleTree = Record<string, unknown>
 
@@ -61,8 +62,8 @@ export const customAdminLocaleMessages = {
 } as const
 
 export const customLocaleMessages = {
-  en: [customSharedLocaleMessages.en, docsLocaleMessages.en, activityLocaleMessages.en, bepusdtLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en, supportContactsLocaleMessages.en],
-  zh: [customSharedLocaleMessages.zh, docsLocaleMessages.zh, activityLocaleMessages.zh, bepusdtLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh, supportContactsLocaleMessages.zh],
+  en: [customSharedLocaleMessages.en, docsLocaleMessages.en, activityLocaleMessages.en, bepusdtLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en, supportContactsLocaleMessages.en, registrationProtectionLocaleMessages.en],
+  zh: [customSharedLocaleMessages.zh, docsLocaleMessages.zh, activityLocaleMessages.zh, bepusdtLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh, supportContactsLocaleMessages.zh, registrationProtectionLocaleMessages.zh],
 } as const
 
 export function mergeCustomLocale<T extends LocaleTree>(

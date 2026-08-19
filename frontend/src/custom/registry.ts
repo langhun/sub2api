@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import { registerFeatureFlags, type FeatureFlagDefinition } from '@/utils/featureFlags'
 import { activityHeaderActions } from './modules/activity/headerActions'
 import { activityHistoryTypeKey, isActivityBalanceType } from './modules/activity/ledger'
+import { registrationHistoryTypeKey, isRegistrationBalanceType } from './modules/registration-protection/ledger'
 import { activityNavigation } from './modules/activity/navigation'
 import { activityRoutes } from './modules/activity/routes'
 import {
@@ -102,8 +103,8 @@ export const customPaymentOrderDetailExtensions: readonly CustomPaymentOrderDeta
 ]
 
 export const customLedgerDisplay = {
-  isBalanceType: isActivityBalanceType,
-  historyTypeKey: activityHistoryTypeKey,
+  isBalanceType: (type: string) => isActivityBalanceType(type) || isRegistrationBalanceType(type),
+  historyTypeKey: (type: string) => activityHistoryTypeKey(type) ?? registrationHistoryTypeKey(type),
 } as const
 
 // This must stay structural rather than a string index signature. Intersecting

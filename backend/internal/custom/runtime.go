@@ -79,9 +79,16 @@ func NewRuntime(
 	registrationRiskStoreForAdmin := registrationprotection.NewRiskStore(db, customSettingsRegistry)
 	registrationRiskStoreForAdmin.SetRedis(redisClient)
 	registrationRiskModule := registrationprotection.NewModule(db, registrationRiskStoreForAdmin)
+	signupBalanceLedger := registrationprotection.NewSignupBalanceLedger(db)
 	if authService != nil {
 		authService.SetRegistrationEmailPolicy(registrationPolicy)
 		authService.SetRegistrationRiskPolicy(registrationPolicy)
+		authService.SetSignupBalanceLedger(signupBalanceLedger)
+	}
+	if historyRegistrar, ok := adminService.(interface {
+		SetSignupBalanceHistoryProvider(service.SignupBalanceHistoryProvider)
+	}); ok {
+		historyRegistrar.SetSignupBalanceHistoryProvider(signupBalanceLedger)
 	}
 	if apiKeyService != nil {
 		apiKeyService.SetCreationPolicy(registrationPolicy)
