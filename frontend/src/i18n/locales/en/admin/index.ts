@@ -6,6 +6,7 @@ import ops from './ops'
 import settings from './settings'
 import audit from './audit'
 import promptAudit from './promptAudit'
+import registrationRisk from './registrationRisk'
 import { mergeCustomAdminLocale } from '@/custom/locales'
 
 const base = {
@@ -17,6 +18,7 @@ const base = {
   ...settings,
   ...audit,
   ...promptAudit,
+  ...registrationRisk,
 }
 
 export default mergeCustomAdminLocale(base, 'en')

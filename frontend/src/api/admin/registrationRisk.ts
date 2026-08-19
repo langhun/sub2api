@@ -1,0 +1,53 @@
+import { apiClient } from '../client'
+
+export type RegistrationRiskAction = 'none' | 'medium' | 'high' | 'manual_lock' | 'manual_unlock'
+
+export interface RegistrationRiskItem {
+  user_id: number
+  email: string
+  score: number
+  action: RegistrationRiskAction | string
+  signals: string[]
+  expires_at: string | null
+  payment_unlocked: boolean
+}
+
+export interface RegistrationRiskListResponse {
+  items: RegistrationRiskItem[]
+}
+
+export interface RegistrationRiskOverrideResponse {
+  user_id: number
+  action: RegistrationRiskAction | string
+}
+
+export async function listRegistrationRisk(limit = 100): Promise<RegistrationRiskListResponse> {
+  const { data } = await apiClient.get<RegistrationRiskListResponse>('/custom/admin/registration-risk', {
+    params: { limit },
+  })
+  return data
+}
+
+export async function unlockRegistrationRisk(userID: number, reason: string): Promise<RegistrationRiskOverrideResponse> {
+  const { data } = await apiClient.post<RegistrationRiskOverrideResponse>(
+    `/custom/admin/registration-risk/${userID}/unlock`,
+    { reason },
+  )
+  return data
+}
+
+export async function lockRegistrationRisk(userID: number, reason: string): Promise<RegistrationRiskOverrideResponse> {
+  const { data } = await apiClient.post<RegistrationRiskOverrideResponse>(
+    `/custom/admin/registration-risk/${userID}/lock`,
+    { reason },
+  )
+  return data
+}
+
+const registrationRiskAPI = {
+  list: listRegistrationRisk,
+  unlock: unlockRegistrationRisk,
+  lock: lockRegistrationRisk,
+}
+
+export default registrationRiskAPI
