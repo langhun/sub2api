@@ -25,6 +25,16 @@ describe('registration protection settings', () => {
     })
   })
 
+  it('preserves string booleans returned by the settings store', () => {
+    expect(readRegistrationProtectionSettings({
+      registration_trial_enabled: 'false',
+      registration_cluster_protection_enabled: 'false',
+    })).toMatchObject({
+      registration_trial_enabled: false,
+      registration_cluster_protection_enabled: false,
+    })
+  })
+
   it('serializes both settings for the admin settings API', () => {
     const panel = registrationProtectionSettingsPanels[0]
     const defaults = defaultRegistrationProtectionSettings()
