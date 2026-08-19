@@ -81,7 +81,30 @@ func (r *Reader) Write(ctx context.Context, config Config) error {
 	return r.store.SetMultiple(ctx, values)
 }
 
-func Keys() []string { return []string{KeyAliasEnabled, KeyFingerprintEnabled} }
+// Keys is the complete set of settings consumed by the registration
+// protection module. Keeping this list complete is important: the admin
+// settings endpoint persists the flat keys, while every runtime policy read
+// uses this list to load them back. Omitting a key silently restores its
+// default value on the next read.
+func Keys() []string {
+	return []string{
+		KeyAliasEnabled,
+		KeyFingerprintEnabled,
+		KeyClusterEnabled,
+		KeyClusterWindow6h,
+		KeyClusterWindow24h,
+		KeyClusterMedium,
+		KeyClusterHigh,
+		KeyAutoHighLock,
+		KeyTrialEnabled,
+		KeyTrialHours,
+		KeyTrialCostLimit,
+		KeyTrialRPM,
+		KeyTrialConcurrency,
+		KeyPaymentUnlock,
+		KeyPaymentAmount,
+	}
+}
 
 func FromValues(values map[string]string) Config {
 	defaults := Default()
@@ -108,7 +131,7 @@ func Values(config Config) (map[string]string, error) {
 	return map[string]string{
 		KeyAliasEnabled:       fmt.Sprintf("%t", config.AliasEnabled),
 		KeyFingerprintEnabled: fmt.Sprintf("%t", config.FingerprintEnabled),
-		KeyClusterEnabled: fmt.Sprintf("%t", config.ClusterEnabled), KeyClusterWindow6h: fmt.Sprintf("%d", config.ClusterWindow6h),
+		KeyClusterEnabled:     fmt.Sprintf("%t", config.ClusterEnabled), KeyClusterWindow6h: fmt.Sprintf("%d", config.ClusterWindow6h),
 		KeyClusterWindow24h: fmt.Sprintf("%d", config.ClusterWindow24h), KeyClusterMedium: fmt.Sprintf("%d", config.ClusterMedium),
 		KeyClusterHigh: fmt.Sprintf("%d", config.ClusterHigh), KeyAutoHighLock: fmt.Sprintf("%t", config.AutoHighLock),
 		KeyTrialEnabled: fmt.Sprintf("%t", config.TrialEnabled), KeyTrialHours: fmt.Sprintf("%d", config.TrialHours),
@@ -132,7 +155,7 @@ func Public(config Config) map[string]any {
 	return map[string]any{
 		KeyAliasEnabled:       config.AliasEnabled,
 		KeyFingerprintEnabled: config.FingerprintEnabled,
-		KeyClusterEnabled: config.ClusterEnabled, KeyClusterWindow6h: config.ClusterWindow6h, KeyClusterWindow24h: config.ClusterWindow24h,
+		KeyClusterEnabled:     config.ClusterEnabled, KeyClusterWindow6h: config.ClusterWindow6h, KeyClusterWindow24h: config.ClusterWindow24h,
 		KeyClusterMedium: config.ClusterMedium, KeyClusterHigh: config.ClusterHigh, KeyAutoHighLock: config.AutoHighLock,
 		KeyTrialEnabled: config.TrialEnabled, KeyTrialHours: config.TrialHours, KeyTrialCostLimit: config.TrialCostLimit,
 		KeyTrialRPM: config.TrialRPM, KeyTrialConcurrency: config.TrialConcurrency, KeyPaymentUnlock: config.PaymentUnlock,
