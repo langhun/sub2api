@@ -34,7 +34,7 @@ func TestCreatePaymentSignsAndReturnsCheckoutURL(t *testing.T) {
 func TestVerifyNotification(t *testing.T) {
 	provider, err := New("12", map[string]string{"apiBase": "https://pay.example", "apiToken": "secret"})
 	require.NoError(t, err)
-	body := map[string]any{"trade_id": "trade-1", "order_id": "sub2_1", "amount": 12.34, "actual_amount": 1.7, "token": "0xabc", "block_transaction_id": "tx-1", "status": 2}
+	body := map[string]any{"trade_id": "trade-1", "order_id": "sub2_1", "amount": 12.34, "actual_amount": "1.7", "token": "0xabc", "block_transaction_id": "tx-1", "status": 2}
 	body["signature"] = signMap(body, "secret")
 	raw, err := json.Marshal(body)
 	require.NoError(t, err)
@@ -43,6 +43,7 @@ func TestVerifyNotification(t *testing.T) {
 	require.Equal(t, payment.NotificationStatusSuccess, notification.Status)
 	require.Equal(t, "sub2_1", notification.OrderID)
 	require.Equal(t, "tx-1", notification.Metadata["block_transaction_id"])
+	require.Equal(t, "1.7", notification.Metadata["actual_amount"])
 
 	body["signature"] = "invalid"
 	raw, err = json.Marshal(body)
@@ -55,7 +56,7 @@ func TestVerifyNotificationRequiresSuccessFieldsAndIgnoresPending(t *testing.T) 
 	provider, err := New("12", map[string]string{"apiBase": "https://pay.example", "apiToken": "secret"})
 	require.NoError(t, err)
 
-	pending := map[string]any{"trade_id": "trade-1", "order_id": "sub2_1", "amount": 12.34, "actual_amount": 1.7, "token": "0xabc", "block_transaction_id": "tx-1", "status": 1}
+	pending := map[string]any{"trade_id": "trade-1", "order_id": "sub2_1", "amount": 12.34, "actual_amount": "1.7", "token": "0xabc", "block_transaction_id": "tx-1", "status": 1}
 	pending["signature"] = signMap(pending, "secret")
 	raw, err := json.Marshal(pending)
 	require.NoError(t, err)
@@ -63,14 +64,14 @@ func TestVerifyNotificationRequiresSuccessFieldsAndIgnoresPending(t *testing.T) 
 	require.NoError(t, err)
 	require.Nil(t, notification)
 
-	missingTradeID := map[string]any{"order_id": "sub2_1", "amount": 12.34, "actual_amount": 1.7, "token": "0xabc", "block_transaction_id": "tx-1", "status": 2}
+	missingTradeID := map[string]any{"order_id": "sub2_1", "amount": 12.34, "actual_amount": "1.7", "token": "0xabc", "block_transaction_id": "tx-1", "status": 2}
 	missingTradeID["signature"] = signMap(missingTradeID, "secret")
 	raw, err = json.Marshal(missingTradeID)
 	require.NoError(t, err)
 	_, err = provider.VerifyNotification(context.Background(), string(raw), nil)
 	require.ErrorContains(t, err, "missing required payment fields")
 
-	zeroAmount := map[string]any{"trade_id": "trade-1", "order_id": "sub2_1", "amount": 0, "actual_amount": 0, "token": "0xabc", "block_transaction_id": "tx-1", "status": 2}
+	zeroAmount := map[string]any{"trade_id": "trade-1", "order_id": "sub2_1", "amount": 0, "actual_amount": "0", "token": "0xabc", "block_transaction_id": "tx-1", "status": 2}
 	zeroAmount["signature"] = signMap(zeroAmount, "secret")
 	raw, err = json.Marshal(zeroAmount)
 	require.NoError(t, err)

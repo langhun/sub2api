@@ -170,7 +170,7 @@ type notification struct {
 	TradeID      string  `json:"trade_id"`
 	OrderID      string  `json:"order_id"`
 	Amount       float64 `json:"amount"`
-	ActualAmount float64 `json:"actual_amount"`
+	ActualAmount string  `json:"actual_amount"`
 	Token        string  `json:"token"`
 	BlockTx      string  `json:"block_transaction_id"`
 	Signature    string  `json:"signature"`
@@ -201,7 +201,7 @@ func (p *Provider) VerifyNotification(_ context.Context, raw string, _ map[strin
 	if strings.TrimSpace(n.TradeID) == "" || strings.TrimSpace(n.OrderID) == "" || n.Amount <= 0 {
 		return nil, fmt.Errorf("bepusdt notification is missing required payment fields")
 	}
-	return &payment.PaymentNotification{TradeNo: n.TradeID, OrderID: n.OrderID, Amount: n.Amount, Status: payment.NotificationStatusSuccess, RawData: raw, Metadata: map[string]string{"fiat": strings.ToUpper(p.config["fiat"]), "actual_amount": fmt.Sprintf("%g", n.ActualAmount), "token": n.Token, "block_transaction_id": n.BlockTx}}, nil
+	return &payment.PaymentNotification{TradeNo: n.TradeID, OrderID: n.OrderID, Amount: n.Amount, Status: payment.NotificationStatusSuccess, RawData: raw, Metadata: map[string]string{"fiat": strings.ToUpper(p.config["fiat"]), "actual_amount": n.ActualAmount, "token": n.Token, "block_transaction_id": n.BlockTx}}, nil
 }
 
 func parseAmount(v string) (float64, error) {
