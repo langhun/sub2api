@@ -10,7 +10,8 @@ import ChannelMonitorView from '@/views/admin/ChannelMonitorView.vue'
 
 const { listMonitors } = vi.hoisted(() => ({ listMonitors: vi.fn() }))
 
-vi.mock('@/utils/featureFlags', () => ({
+vi.mock('@/utils/featureFlags', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/featureFlags')>()),
   isChannelMonitorV1Mode: () => true,
   isChannelMonitorV2Mode: () => false,
   getChannelMonitorMode: () => 'v1' as const,
