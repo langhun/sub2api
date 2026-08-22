@@ -30,6 +30,7 @@ func TestCreatePaymentUsesGMPayEPayMAPI(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "trade-1", result.TradeNo)
 	require.Equal(t, "https://gmpay.example/checkout/1", result.PayURL)
+	require.Empty(t, result.QRCode, "GMPay must open its hosted cashier instead of rendering the URL as a QR code")
 	require.Equal(t, "1001", received.Get("pid"))
 	require.Empty(t, received.Get("type"))
 	require.Equal(t, sign(valuesToStringMap(received), "secret"), received.Get("sign"))

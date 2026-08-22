@@ -140,7 +140,12 @@ func (p *Provider) CreatePayment(ctx context.Context, req payment.CreatePaymentR
 	if payURL == "" {
 		return nil, fmt.Errorf("gmpay edge create response missing payment URL")
 	}
-	return &payment.CreatePaymentResponse{TradeNo: response.TradeNo, PayURL: payURL, QRCode: response.QRCode}, nil
+	// GMPay's qrcode field points at the same hosted cashier URL. Passing it
+	// through would make the generic desktop flow render that URL as a QR code
+	// instead of opening the GMPay cashier popup. The cashier URL is the only
+	// launch surface for this Overlay; GMPay lets the user choose the asset and
+	// network after it opens.
+	return &payment.CreatePaymentResponse{TradeNo: response.TradeNo, PayURL: payURL}, nil
 }
 
 func (p *Provider) QueryOrder(ctx context.Context, tradeNo string) (*payment.QueryOrderResponse, error) {

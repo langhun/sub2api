@@ -187,6 +187,21 @@ describe('decidePaymentLaunch', () => {
     expect(decision.recovery.resumeToken).toBe('resume-usdt')
   })
 
+  it('opens the GMPay Edge cashier by default on desktop', () => {
+    const decision = decidePaymentLaunch(createOrderResult({
+      pay_url: 'https://pay.example.com/cashier/trade-gmpay',
+      out_trade_no: 'sub2_gmpay_1',
+    }), {
+      visibleMethod: 'gmpay_edge',
+      orderType: 'balance',
+      isMobile: false,
+    })
+
+    expect(decision.kind).toBe('redirect_waiting')
+    expect(decision.paymentState.payUrl).toBe('https://pay.example.com/cashier/trade-gmpay')
+    expect(decision.paymentState.qrCode).toBe('')
+  })
+
   it('prefers redirect on mobile when both pay_url and qr_code are present', () => {
     const decision = decidePaymentLaunch(createOrderResult({
       pay_url: 'https://pay.example.com/mobile/session',
