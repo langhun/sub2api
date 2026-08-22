@@ -187,6 +187,26 @@ BEpusdt 回调使用 ASCII 排序、追加 API Token 后 MD5 签名。Sub2API �
 `status=2` 的通知，并严格校验回调 `amount` 与订单应付 CNY 金额；重复通知不会重复入账。
 BEpusdt 当前模块不提供退款和主动订单查询，支付状态以回调为准。
 
+### GMPay Edge（Overlay）
+
+GMPay Edge 提供标准 EPay 兼容接口。Sub2API 通过独立 Overlay Provider 创建一个统一的加密货币订单，用户进入 GMPay Edge 收银台后选择 USDT、USDC 及链网络。
+
+| 参数 | 说明 | 必填 |
+|------|------|------|
+| **PID** | GMPay Edge API 凭证 PID | 是 |
+| **API Secret** | GMPay Edge API 凭证 Secret；保存后后台不会再次显示 | 是 |
+| **API Base URL** | 例如 `https://pay.example.com/payments/epay/v1/order/create-transaction` | 是 |
+
+GMPay Edge API 凭证需要同时具备 `orders:create` 和 `orders:read` 权限。Sub2API 会自动调用 `/mapi.php` 创建订单和 `/api.php` 查询订单，不传 `type`，由 GMPay Edge 收银台选择可用资产和网络。
+
+回调地址：
+
+```text
+https://your-domain.com/api/v1/payment/webhook/gmpay_edge
+```
+
+请在 GMPay Edge 的 EPay 配置中填写该地址。GMPay Edge 回调使用 EPay MD5 签名，Sub2API 验签成功后返回纯文本 `ok`。GMPay Edge 必须先配置并启用至少一个 receiving method，否则会返回收款方式不可用。
+
 ---
 
 ## 服务商实例管理

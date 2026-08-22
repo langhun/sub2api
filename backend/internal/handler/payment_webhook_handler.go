@@ -220,6 +220,10 @@ func writeSuccessResponse(c *gin.Context, providerKey string) {
 	case payment.TypeStripe, payment.TypeAirwallex:
 		c.String(http.StatusOK, "")
 	default:
+		if definition, ok := payment.ExternalProviderDefinitionFor(providerKey); ok && definition.WebhookAck != "" {
+			c.String(http.StatusOK, definition.WebhookAck)
+			return
+		}
 		c.String(http.StatusOK, "success")
 	}
 }

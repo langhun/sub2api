@@ -5,6 +5,7 @@ import { gameHallLocaleMessages } from './modules/game-hall/locales'
 import { openAIRTAdminLocaleMessages } from './modules/openai-rt/locales'
 import { rechargePromotionAdminLocaleMessages, rechargePromotionLocaleMessages } from './modules/recharge-promotions/locales'
 import { bepusdtAdminLocaleMessages, bepusdtLocaleMessages } from './modules/bepusdt/locales'
+import { gmpayEdgeAdminLocaleMessages, gmpayEdgeLocaleMessages } from './modules/gmpay-edge/locales'
 import { supportTicketAdminLocaleMessages, supportTicketLocaleMessages } from './modules/support-tickets/locales'
 import { supportContactsLocaleMessages } from './modules/support-contacts/locales'
 import { docsLocaleMessages } from './modules/docs/locales'
@@ -57,13 +58,13 @@ function mergeLocaleTrees(base: LocaleTree, extension: LocaleTree): LocaleTree {
 }
 
 export const customAdminLocaleMessages = {
-  en: [activityAdminLocaleMessages.en, bepusdtAdminLocaleMessages.en, gameHallAdminLocaleMessages.en, openAIRTAdminLocaleMessages.en, rechargePromotionAdminLocaleMessages.en, supportTicketAdminLocaleMessages.en],
-  zh: [activityAdminLocaleMessages.zh, bepusdtAdminLocaleMessages.zh, gameHallAdminLocaleMessages.zh, openAIRTAdminLocaleMessages.zh, rechargePromotionAdminLocaleMessages.zh, supportTicketAdminLocaleMessages.zh],
+  en: [activityAdminLocaleMessages.en, bepusdtAdminLocaleMessages.en, gmpayEdgeAdminLocaleMessages.en, gameHallAdminLocaleMessages.en, openAIRTAdminLocaleMessages.en, rechargePromotionAdminLocaleMessages.en, supportTicketAdminLocaleMessages.en],
+  zh: [activityAdminLocaleMessages.zh, bepusdtAdminLocaleMessages.zh, gmpayEdgeAdminLocaleMessages.zh, gameHallAdminLocaleMessages.zh, openAIRTAdminLocaleMessages.zh, rechargePromotionAdminLocaleMessages.zh, supportTicketAdminLocaleMessages.zh],
 } as const
 
 export const customLocaleMessages = {
-  en: [customSharedLocaleMessages.en, docsLocaleMessages.en, activityLocaleMessages.en, bepusdtLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en, supportContactsLocaleMessages.en, registrationProtectionLocaleMessages.en],
-  zh: [customSharedLocaleMessages.zh, docsLocaleMessages.zh, activityLocaleMessages.zh, bepusdtLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh, supportContactsLocaleMessages.zh, registrationProtectionLocaleMessages.zh],
+  en: [customSharedLocaleMessages.en, docsLocaleMessages.en, activityLocaleMessages.en, bepusdtLocaleMessages.en, gmpayEdgeLocaleMessages.en, gameHallLocaleMessages.en, rechargePromotionLocaleMessages.en, supportTicketLocaleMessages.en, supportContactsLocaleMessages.en, registrationProtectionLocaleMessages.en],
+  zh: [customSharedLocaleMessages.zh, docsLocaleMessages.zh, activityLocaleMessages.zh, bepusdtLocaleMessages.zh, gmpayEdgeLocaleMessages.zh, gameHallLocaleMessages.zh, rechargePromotionLocaleMessages.zh, supportTicketLocaleMessages.zh, supportContactsLocaleMessages.zh, registrationProtectionLocaleMessages.zh],
 } as const
 
 export function mergeCustomLocale<T extends LocaleTree>(

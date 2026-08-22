@@ -70,6 +70,14 @@ describe('PROVIDER_CONFIG_FIELDS.bepusdt', () => {
   })
 })
 
+describe('PROVIDER_CONFIG_FIELDS.gmpay_edge', () => {
+  it('keeps the API secret sensitive and points to the EPay transaction base', () => {
+    expect(findField('gmpay_edge', 'apiSecret')?.sensitive).toBe(true)
+    expect(findField('gmpay_edge', 'apiBase')?.hintKey).toBe('admin.settings.payment.field_gmpayEdgeApiBaseHint')
+    expect(findField('gmpay_edge', 'displayName')?.defaultValue).toBe('USDT / USDC')
+  })
+})
+
 describe('EasyPay custom methods config', () => {
   it('parses customMethods from the JSON string stored in provider config', () => {
     expect(parseEasyPayCustomMethods(

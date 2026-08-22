@@ -146,5 +146,8 @@ describe('custom overlay registry', () => {
     expect(customPaymentDisplayName('bepusdt', 'bepusdt', {})).toBe('USDT')
     expect(customPaymentDefinition('bepusdt')?.callbackPaths?.notifyUrl).toBe('/api/v1/payment/webhook/bepusdt')
     expect(paymentViewSource).not.toContain("m === 'bepusdt'")
+    expect(customPaymentDefinition('gmpay_edge')?.supportedTypes).toEqual(['gmpay_edge'])
+    expect(customPaymentDisplayName('gmpay_edge', 'gmpay_edge', {})).toBe('USDT / USDC')
+    expect(customPaymentDefinition('gmpay_edge')?.callbackPaths?.notifyUrl).toBe('/api/v1/payment/webhook/gmpay_edge')
   })
 })

@@ -75,6 +75,9 @@ func RegisterPaymentRoutes(
 			webhook.POST("/"+definition.WebhookPath, func(c *gin.Context) {
 				webhookHandler.HandleNotify(c, definition.ProviderKey)
 			})
+			webhook.GET("/"+definition.WebhookPath, func(c *gin.Context) {
+				webhookHandler.HandleNotify(c, definition.ProviderKey)
+			})
 		}
 	}
 

@@ -15,6 +15,7 @@ import (
 	codeformat "github.com/Wei-Shaw/sub2api/internal/custom/modules/code-format"
 	docsmodule "github.com/Wei-Shaw/sub2api/internal/custom/modules/docs"
 	gamehall "github.com/Wei-Shaw/sub2api/internal/custom/modules/game-hall"
+	gmpayedge "github.com/Wei-Shaw/sub2api/internal/custom/modules/gmpay-edge"
 	openairt "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-rt"
 	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
 	registrationprotection "github.com/Wei-Shaw/sub2api/internal/custom/modules/registration-protection"
@@ -69,6 +70,7 @@ func NewRuntime(
 	redisClient *redis.Client,
 ) (*Runtime, error) {
 	bepusdt.Register()
+	gmpayedge.Register()
 	if err := custommigrations.Apply(context.Background(), db); err != nil {
 		return nil, err
 	}

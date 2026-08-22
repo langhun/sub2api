@@ -18,6 +18,9 @@ type ExternalProviderDefinition struct {
 	DefaultCurrency                   string
 	WebhookPath                       string
 	WebhookOrderID                    func(rawBody string) string
+	// WebhookAck is the plain-text acknowledgement body required by the
+	// external gateway. Empty keeps the shared default response.
+	WebhookAck string
 }
 
 var externalProviderDefinitions = struct {
