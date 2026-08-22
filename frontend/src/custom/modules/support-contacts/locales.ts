@@ -1,7 +1,7 @@
 export const supportContactsLocaleMessages = {
   en: {
     supportContacts: {
-      openHint: 'View contact methods and QR codes', dialogHint: 'Choose a contact method, then copy the account or scan its QR code.', copy: 'Copy', open: 'Open link', copied: 'Copied to clipboard',
+      openHint: 'View contact methods and QR codes', dialogHint: 'Choose a contact method, then copy the account or scan its QR code.', notConfigured: 'Customer support contacts are not configured yet. Please contact an administrator.', copy: 'Copy', open: 'Open link', copied: 'Copied to clipboard',
       channels: { wechat: 'WeChat', qq: 'QQ', telegram: 'Telegram', email: 'Email', link: 'Link' },
     },
     admin: { supportContacts: {
@@ -10,7 +10,7 @@ export const supportContactsLocaleMessages = {
   },
   zh: {
     supportContacts: {
-      openHint: '查看联系方式和二维码', dialogHint: '选择联系方式后复制账号，或扫描对应二维码添加客服。', copy: '复制账号', open: '打开链接', copied: '已复制到剪贴板',
+      openHint: '查看联系方式和二维码', dialogHint: '选择联系方式后复制账号，或扫描对应二维码添加客服。', notConfigured: '暂未配置客服联系方式，请联系管理员。', copy: '复制账号', open: '打开链接', copied: '已复制到剪贴板',
       channels: { wechat: '微信', qq: 'QQ', telegram: 'Telegram', email: '邮箱', link: '链接' },
     },
     admin: { supportContacts: {

@@ -37,6 +37,7 @@ const userOrdersViewSource = readFileSync(resolve(directory, '../../views/user/U
 const adminOrdersViewSource = readFileSync(resolve(directory, '../../views/admin/orders/AdminOrdersView.vue'), 'utf8')
 const profileSource = readFileSync(resolve(directory, '../../views/user/ProfileView.vue'), 'utf8')
 const redeemSource = readFileSync(resolve(directory, '../../views/user/RedeemView.vue'), 'utf8')
+const docsSource = readFileSync(resolve(directory, '../modules/docs/DocsView.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
   it('aggregates routes and navigation from custom modules', () => {
@@ -115,7 +116,7 @@ describe('custom overlay registry', () => {
 
   it('mounts customer support contacts through generic entries without importing the module into pages', () => {
     expect(customSupportContactEntries.map((entry) => entry.id)).toContain('support-contacts')
-    for (const source of [headerSource, profileSource, redeemSource]) {
+    for (const source of [headerSource, profileSource, redeemSource, docsSource]) {
       expect(source).toContain("import { customSupportContactEntries } from '@/custom/registry'")
       expect(source).toContain('v-for="entry in customSupportContactEntries"')
       expect(source).not.toContain('@/custom/modules/support-contacts')

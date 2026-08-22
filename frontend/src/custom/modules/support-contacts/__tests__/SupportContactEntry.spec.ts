@@ -36,4 +36,23 @@ describe('SupportContactEntry', () => {
     expect(wrapper.text()).toContain('supportContacts.channels.wechat')
     expect(wrapper.text()).toContain('why')
   })
+
+  it('keeps the docs support button visible and explains when contacts are missing', async () => {
+    listPublic.mockResolvedValue({ data: [] })
+    const wrapper = mount(SupportContactEntry, { props: { placement: 'docs', legacyContactInfo: '' }, global: { stubs: { BaseDialog, Icon } } })
+    await flushPromises()
+    const button = wrapper.get('button')
+    expect(button.text()).toContain('common.contactSupport')
+    await button.trigger('click')
+    expect(wrapper.text()).toContain('supportContacts.notConfigured')
+  })
+
+  it('opens configured contacts from the docs support button', async () => {
+    listPublic.mockResolvedValue({ data: [{ id: '1', channel: 'email', display_name: '客服', contact: 'support@example.com', link: '', qr_image_url: '', has_qr_image: false, enabled: true, sort_order: 0 }] })
+    const wrapper = mount(SupportContactEntry, { props: { placement: 'docs', legacyContactInfo: '' }, global: { stubs: { BaseDialog, Icon } } })
+    await flushPromises()
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.text()).toContain('supportContacts.channels.email')
+    expect(wrapper.text()).toContain('support@example.com')
+  })
 })

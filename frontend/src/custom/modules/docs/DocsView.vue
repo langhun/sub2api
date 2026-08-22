@@ -8,6 +8,15 @@
           </span>
           <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ t('docs.pageTitle') }}</h1>
         </div>
+        <div class="docs-page-header-actions">
+          <component
+            v-for="entry in customSupportContactEntries"
+            :key="entry.id"
+            :is="entry.component"
+            placement="docs"
+            legacy-contact-info=""
+          />
+        </div>
       </header>
 
       <div class="docs-shell">
@@ -183,6 +192,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { customSupportContactEntries } from '@/custom/registry'
 import { useAuthStore } from '@/stores/auth'
 import {
   docsCatalog,
@@ -561,6 +571,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleEscape))
 <style scoped>
 .docs-page { @apply mx-auto w-full min-w-0 max-w-[1600px] space-y-5; }
 .docs-page-header { @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between; }
+.docs-page-header-actions { @apply flex flex-wrap items-center gap-2; }
 .docs-shell { @apply mx-auto w-full min-w-0 max-w-[1600px] overflow-hidden border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800; border-radius: 8px; }
 
 .docs-header {

@@ -15,6 +15,9 @@ const authStoreMock = vi.hoisted(() => ({ isAuthenticated: true, isAdmin: true }
 
 vi.mock('../api', () => ({ docsAPI: docsApiMock }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => authStoreMock }))
+vi.mock('@/custom/registry', () => ({
+  customSupportContactEntries: [{ id: 'support-contacts', component: { template: '<button data-testid="docs-support-stub">联系客服</button>' } }],
+}))
 
 vi.mock('vue-i18n', async (importOriginal) => {
   const original = await importOriginal<typeof import('vue-i18n')>()
@@ -114,6 +117,12 @@ describe('DocsView', () => {
     const tabs = wrapper.findAll('[role="tab"]')
     await tabs[1].trigger('click')
     expect(wrapper.text()).toContain('部分旧版本出现')
+  })
+
+  it('renders one customer support entry in the help center header', async () => {
+    const { wrapper } = await mountView()
+    expect(wrapper.findAll('.docs-page-header [data-testid="docs-support-stub"]')).toHaveLength(1)
+    expect(wrapper.findAll('.docs-article-actions [data-testid="docs-support-stub"]')).toHaveLength(0)
   })
 
   it('keeps official sources without exposing retired source metadata', async () => {

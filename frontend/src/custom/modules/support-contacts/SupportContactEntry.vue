@@ -23,6 +23,13 @@
     </div>
   </template>
 
+  <div v-else-if="placement === 'docs'" class="docs-support-entry">
+    <button type="button" class="btn btn-secondary btn-sm inline-flex items-center gap-1.5" :title="t('common.contactSupport')" @click="visible = true">
+      <Icon name="chat" size="sm" />
+      <span>{{ t('common.contactSupport') }}</span>
+    </button>
+  </div>
+
   <li v-else-if="hasContacts">
     {{ t('redeem.codeRule3') }}
     <button type="button" class="ml-1.5 inline-flex items-center rounded-md bg-primary-200/50 px-2 py-0.5 text-xs font-medium text-primary-800 hover:bg-primary-200 dark:bg-primary-800/40 dark:text-primary-200" @click="visible = true">{{ t('common.contactSupport') }}</button>
@@ -31,7 +38,7 @@
 
   <BaseDialog :show="visible" :title="t('common.contactSupport')" width="wide" @close="visible = false">
     <div class="space-y-3">
-      <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('supportContacts.dialogHint') }}</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">{{ contacts.length ? t('supportContacts.dialogHint') : t('supportContacts.notConfigured') }}</p>
       <article v-for="contact in contacts" :key="contact.id" class="grid gap-4 rounded-lg border border-gray-200 p-4 dark:border-dark-600 sm:grid-cols-[1fr_148px]">
         <div class="min-w-0 space-y-3">
           <div>
@@ -60,7 +67,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import { supportContactsAPI, type SupportContact } from './api'
 
-defineProps<{ placement: 'header' | 'profile' | 'redeem'; legacyContactInfo: string }>()
+defineProps<{ placement: 'header' | 'profile' | 'redeem' | 'docs'; legacyContactInfo: string }>()
 const { t } = useI18n()
 const appStore = useAppStore()
 const contacts = ref<SupportContact[]>([])
