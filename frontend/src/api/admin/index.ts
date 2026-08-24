@@ -36,6 +36,7 @@ import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
 import registrationRiskAPI from './registrationRisk'
+import pluginsAPI from './plugins'
 
 /**
  * Unified admin API object for convenient access
@@ -73,7 +74,8 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   audit: auditAPI,
-  registrationRisk: registrationRiskAPI
+  registrationRisk: registrationRiskAPI,
+  plugins: pluginsAPI
 }
 
 export {
@@ -109,7 +111,8 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   auditAPI,
-  registrationRiskAPI
+  registrationRiskAPI,
+  pluginsAPI
 }
 
 export default adminAPI
@@ -122,3 +125,4 @@ export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
 export type { ContentModerationConfig, ContentModerationLog, ModerationMode } from './riskControl'
 export type { RegistrationRiskItem, RegistrationRiskListResponse, RegistrationRiskOverrideResponse } from './registrationRisk'
+export type { PluginInstallation, PluginCompatibility, PluginUISession, PluginTestResult } from './plugins'

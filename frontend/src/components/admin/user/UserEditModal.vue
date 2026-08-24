@@ -43,7 +43,16 @@
       </div>
       <div>
         <label class="input-label">{{ t('admin.users.columns.concurrency') }}</label>
-        <input v-model.number="form.concurrency" type="number" min="-1" step="1" class="input" />
+        <input
+          v-model.number="form.concurrency"
+          type="number"
+          min="-1"
+          step="1"
+          class="input"
+          :placeholder="t('admin.users.form.concurrencyPlaceholder')"
+          data-test="concurrency-input"
+        />
+        <p class="input-hint">{{ t('admin.users.form.concurrencyHint') }}</p>
       </div>
       <div>
         <label class="input-label">{{ t('admin.users.form.rpmLimit') }}</label>
