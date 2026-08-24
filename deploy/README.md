@@ -484,7 +484,21 @@ If you need to use AI Studio OAuth for Gemini accounts, add the OAuth client cre
 
 #### Application Configuration
 
-The main config file is at `/etc/sub2api/config.yaml` (created by Setup Wizard).
+The main config file is `<DATA_DIR>/config.yaml` (created by Setup Wizard;
+the production instance in this guide uses `/app/data/config.yaml`).
+
+For systemd binary installations, this YAML file is the primary application
+configuration source. The service unit normally injects only process-level
+overrides such as `DATA_DIR`, `SERVER_HOST`, `SERVER_PORT`, `GIN_MODE`, and
+runtime limits. The variables in `.env.example` are primarily for Docker/
+Apple-container initialization; they are not automatically injected into a
+systemd process unless explicitly added to the unit. Keep database, Redis,
+gateway, security, and logging values in one deliberate source and verify the
+effective configuration after upgrades.
+
+Keep configuration files containing credentials readable only by the service
+owner or root (`chmod 600`). Do not print JWT, TOTP, database, Redis, OAuth, or
+provider credentials in support logs or deployment reports.
 
 ### Prerequisites
 
