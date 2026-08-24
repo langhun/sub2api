@@ -613,6 +613,31 @@ get_current_version() {
     fi
 }
 
+# Keep only the newest rollback binaries after a successful release.
+# This deliberately matches binary backup names only; config and database
+# backups live outside INSTALL_DIR and must not be pruned here.
+prune_old_binary_backups() {
+    local retention="${SUB2API_BACKUP_RETENTION:-2}"
+
+    if ! [[ "$retention" =~ ^[1-9][0-9]*$ ]]; then
+        print_warning "Invalid SUB2API_BACKUP_RETENTION='$retention'; keeping existing backups"
+        return 0
+    fi
+
+    local old_backup
+    while IFS= read -r old_backup; do
+        [ -n "$old_backup" ] || continue
+        rm -f -- "$old_backup"
+        print_info "Removed old binary backup: $old_backup"
+    done < <(
+        find "$INSTALL_DIR" -maxdepth 1 -type f \
+            \( -name 'sub2api.backup' -o -name 'sub2api.backup.*' -o -name 'sub2api.before-*' -o -name 'sub2api.rollback-*' \) \
+            -printf '%T@ %p\n' |
+            sort -nr |
+            awk -v keep="$retention" 'NR > keep { sub(/^[^ ]+ /, ""); print }'
+    )
+}
+
 # Download and extract
 download_and_extract() {
     local version_num=${LATEST_VERSION#v}
@@ -887,6 +912,8 @@ upgrade() {
     print_info "$(msg 'starting_service')"
     systemctl start sub2api
 
+    prune_old_binary_backups
+
     print_success "$(msg 'upgrade_complete')"
 }
 
@@ -949,6 +976,7 @@ install_version() {
     print_info "$(msg 'starting_service')"
     if systemctl start sub2api; then
         print_success "$(msg 'service_started')"
+        prune_old_binary_backups
     else
         print_error "$(msg 'service_start_failed')"
         print_info "sudo journalctl -u sub2api -n 50"

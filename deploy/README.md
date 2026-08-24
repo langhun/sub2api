@@ -401,6 +401,9 @@ sudo ./install.sh
 # Upgrade
 sudo ./install.sh upgrade
 
+# Keep two rollback binaries (default; run after custom releases too)
+sudo SUB2API_BACKUP_RETENTION=2 ./deploy/prune-sub2api-backups.sh
+
 # Uninstall
 sudo ./install.sh uninstall
 ```
