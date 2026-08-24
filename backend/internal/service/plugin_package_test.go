@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -21,6 +22,9 @@ import (
 )
 
 func TestPluginPackageInstallerInstallUnsignedDevelopmentPackage(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose executable permission bits")
+	}
 	cfg := testPluginConfig(t.TempDir(), true)
 	installer := NewPluginPackageInstaller(cfg, PluginHostInfo{Version: "0.1.179", BuildType: "release"})
 	archive := buildTestPluginArchive(t, nil, "")

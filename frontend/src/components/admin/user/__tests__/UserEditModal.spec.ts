@@ -77,14 +77,14 @@ describe('UserEditModal concurrency', () => {
     expect(wrapper.emitted('success')).toBeTruthy()
   })
 
-  it('still rejects a negative concurrency', async () => {
+  it('rejects values below the custom disabled sentinel', async () => {
     const wrapper = mountModal(3)
 
-    await wrapper.get('[data-test="concurrency-input"]').setValue('-1')
+    await wrapper.get('[data-test="concurrency-input"]').setValue('-2')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(showError).toHaveBeenCalledWith('admin.users.concurrencyNonNegative')
+    expect(showError).toHaveBeenCalledWith('admin.users.concurrencyMin')
     expect(update).not.toHaveBeenCalled()
   })
 })

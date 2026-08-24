@@ -137,8 +137,16 @@ func (i *PluginPackageInstaller) Install(ctx context.Context, reader io.Reader, 
 	if err := i.extractArchive(ctx, &archive.Reader, manifest, extractPath); err != nil {
 		return nil, err
 	}
+	// Close the ZIP handle before renaming the uploaded artifact. Windows keeps
+	// the archive file locked while zip.ReadCloser is open.
+	if err := archive.Close(); err != nil {
+		return nil, fmt.Errorf("关闭插件包: %w", err)
+	}
 	if err := os.Rename(extractPath, installPath); err != nil {
 		return nil, fmt.Errorf("提交插件安装目录: %w", err)
+	}
+	if err := os.Chmod(filepath.Join(installPath, filepath.FromSlash(manifest.Runtimes[manifest.RuntimeKey()].Path)), 0o700); err != nil {
+		return nil, fmt.Errorf("设置插件运行文件权限: %w", err)
 	}
 	extracted = true
 
