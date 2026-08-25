@@ -2120,7 +2120,7 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 }
 
 func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *int64, sessionHash, requestedModel string, excludedIDs map[int64]struct{}) *int64 {
-	if s == nil || s.smartRoutingResolver == nil || s.channelService == nil || groupID == nil {
+	if s == nil || s.smartRoutingResolver == nil || s.channelService == nil || s.channelService.groupRepo == nil || groupID == nil {
 		return groupID
 	}
 	apiKey, ok := APIKeyFromContext(ctx)
