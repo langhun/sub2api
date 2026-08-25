@@ -21,6 +21,20 @@ var gmailDomains = map[string]struct{}{
 	"googlemail.com": {},
 }
 
+// Keep the built-in list deliberately small and high-confidence. It blocks
+// the disposable providers most commonly used for reward farming without
+// treating arbitrary custom domains as disposable (which would risk denying
+// legitimate enterprise customers). OAuth synthetic domains are not in this
+// list and remain available to their provider-specific flows.
+var disposableEmailDomains = map[string]struct{}{
+	"10minutemail.com": {}, "dispostable.com": {}, "emailondeck.com": {},
+	"fakeinbox.com": {}, "getnada.com": {}, "guerrillamail.com": {},
+	"maildrop.cc": {}, "mailinator.com": {}, "minuteinbox.com": {},
+	"mohmal.com": {}, "sharklasers.com": {}, "temp-mail.io": {},
+	"temp-mail.org": {}, "throwawaymail.com": {}, "trashmail.com": {},
+	"yopmail.com": {},
+}
+
 type Policy struct {
 	store       contract.Store
 	fingerprint *Store
@@ -53,11 +67,14 @@ func (p *Policy) Validate(ctx context.Context, email string) error {
 	if err != nil {
 		return fmt.Errorf("read registration protection settings: %w", err)
 	}
-	if !aliasEnabled(values) {
-		return nil
-	}
 	local, domain, ok := splitEmail(email)
 	if !ok {
+		return nil
+	}
+	if _, disposable := disposableEmailDomains[domain]; disposable {
+		return service.ErrEmailDomainRegistrationLimit
+	}
+	if !aliasEnabled(values) {
 		return nil
 	}
 	if strings.Contains(local, "+") {
@@ -247,7 +264,8 @@ type riskReservation struct {
 }
 
 func (r *riskReservation) RewardBlocked() bool {
-	return (r.reservation != nil && r.reservation.RewardBlocked()) || r.decision.Action == RiskActionHigh
+	return (r.reservation != nil && r.reservation.RewardBlocked()) ||
+		r.decision.Action == RiskActionMedium || r.decision.Action == RiskActionHigh
 }
 
 func (r *riskReservation) BlockRegistration() bool {

@@ -30,11 +30,19 @@ func TestHashValueDoesNotExposeInput(t *testing.T) {
 func TestScoreRiskDecisionIncludesCurrentRegistration(t *testing.T) {
 	config := registrationsettings.Default()
 	decision := scoreRiskDecision(config, "network", "ua", "203.0.113.0/24", 3, 5, false)
-	if decision.Action != RiskActionHigh {
-		t.Fatalf("expected high risk at both cluster thresholds, got %q (%d)", decision.Action, decision.Score)
+	if decision.Action != RiskActionMedium {
+		t.Fatalf("cluster-only activity must remain observable instead of blocking, got %q (%d)", decision.Action, decision.Score)
 	}
 	if len(decision.Signals) != 2 {
 		t.Fatalf("expected both cluster signals, got %#v", decision.Signals)
+	}
+}
+
+func TestScoreRiskDecisionSharedNetworkDoesNotBlockWithoutExactRepeat(t *testing.T) {
+	config := registrationsettings.Default()
+	decision := scoreRiskDecision(config, "network", "ua", "203.0.113.0/24", 20, 40, false)
+	if decision.Action == RiskActionHigh {
+		t.Fatalf("shared network activity must not trigger high-risk registration rejection")
 	}
 }
 

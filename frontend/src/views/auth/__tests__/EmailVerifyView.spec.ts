@@ -842,7 +842,7 @@ describe('EmailVerifyView', () => {
     expect(pushMock).toHaveBeenCalledWith('/dashboard')
   })
 
-  it('does not require another Tencent proof for final email registration', async () => {
+  it('acquires a fresh Tencent proof for final email registration', async () => {
     getPublicSettingsMock.mockResolvedValue({
       turnstile_enabled: false,
       turnstile_site_key: '',
@@ -861,6 +861,7 @@ describe('EmailVerifyView', () => {
       })
     )
     registerMock.mockResolvedValue({})
+    verifyActionMock.mockResolvedValue({ token: 'final-ticket', randstr: '@final-rand' })
 
     const wrapper = mount(EmailVerifyView, {
       global: {
@@ -870,6 +871,7 @@ describe('EmailVerifyView', () => {
           TurnstileWidget: {
             template: '<span />',
             methods: {
+              verifyAction: verifyActionMock,
               reset: createTurnstileResetMock,
             },
           },
@@ -892,11 +894,12 @@ describe('EmailVerifyView', () => {
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
 
+    expect(verifyActionMock).toHaveBeenCalledTimes(1)
     expect(registerMock).toHaveBeenCalledWith(expect.objectContaining({
       email: 'normal@example.com',
       verify_code: '654321',
-      tencent_captcha_ticket: undefined,
-      tencent_captcha_randstr: undefined,
+      tencent_captcha_ticket: 'final-ticket',
+      tencent_captcha_randstr: '@final-rand',
     }))
   })
 })

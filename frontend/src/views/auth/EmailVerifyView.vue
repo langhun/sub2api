@@ -67,7 +67,7 @@
         </div>
 
         <!-- Turnstile Widget for Resend -->
-        <div v-if="actionCaptchaEnabled || (turnstileEnabled && showResendTurnstile)">
+        <div v-if="!isPendingOAuthFlow() && (captchaEnabled || (turnstileEnabled && showResendTurnstile))">
           <TurnstileWidget
             ref="turnstileRef"
             :site-key="turnstileSiteKey"
@@ -422,49 +422,75 @@ function startCountdown(seconds: number): void {
 function onTurnstileVerify(token: string, randstr = ''): void {
   resendTurnstileToken.value = token
   resendTencentCaptchaRandstr.value = randstr
+  if (!isPendingOAuthFlow()) {
+    createAccountTurnstileToken.value = token
+    createAccountTencentCaptchaRandstr.value = randstr
+  }
   errors.value.turnstile = ''
 }
 
 function onTurnstileExpire(): void {
   resendTurnstileToken.value = ''
   resendTencentCaptchaRandstr.value = ''
+  if (!isPendingOAuthFlow()) {
+    createAccountTurnstileToken.value = ''
+    createAccountTencentCaptchaRandstr.value = ''
+  }
   errors.value.turnstile = t('auth.turnstileExpired')
 }
 
 function onTurnstileError(): void {
   resendTurnstileToken.value = ''
   resendTencentCaptchaRandstr.value = ''
+  if (!isPendingOAuthFlow()) {
+    createAccountTurnstileToken.value = ''
+    createAccountTencentCaptchaRandstr.value = ''
+  }
   errors.value.turnstile = t('auth.turnstileFailed')
 }
 
 function onCreateAccountTurnstileVerify(token: string, randstr = ''): void {
   createAccountTurnstileToken.value = token
   createAccountTencentCaptchaRandstr.value = randstr
+  if (isPendingOAuthFlow()) {
+    resendTurnstileToken.value = token
+    resendTencentCaptchaRandstr.value = randstr
+  }
   errors.value.turnstile = ''
 }
 
 function onCreateAccountTurnstileExpire(): void {
   createAccountTurnstileToken.value = ''
   createAccountTencentCaptchaRandstr.value = ''
+  if (isPendingOAuthFlow()) {
+    resendTurnstileToken.value = ''
+    resendTencentCaptchaRandstr.value = ''
+  }
   errors.value.turnstile = t('auth.turnstileExpired')
 }
 
 function onCreateAccountTurnstileError(): void {
   createAccountTurnstileToken.value = ''
   createAccountTencentCaptchaRandstr.value = ''
+  if (isPendingOAuthFlow()) {
+    resendTurnstileToken.value = ''
+    resendTencentCaptchaRandstr.value = ''
+  }
   errors.value.turnstile = t('auth.turnstileFailed')
 }
 
 function resetCreateAccountTurnstile(): void {
   createAccountTurnstileToken.value = ''
   createAccountTencentCaptchaRandstr.value = ''
-  createAccountTurnstileRef.value?.reset()
+  createAccountTurnstileRef.value?.reset?.()
 }
 
 async function acquireResendActionProof(): Promise<boolean> {
   if (!actionCaptchaEnabled.value) return true
 
-  const proof = await turnstileRef.value?.verifyAction()
+  const proof = await (isPendingOAuthFlow()
+    ? createAccountTurnstileRef.value?.verifyAction?.()
+    : turnstileRef.value?.verifyAction?.())
   if (!proof) return false
 
   resendTurnstileToken.value = proof.token
@@ -473,13 +499,23 @@ async function acquireResendActionProof(): Promise<boolean> {
 }
 
 async function acquireCreateAccountActionProof(): Promise<boolean> {
-  if (!isPendingOAuthFlow() || !actionCaptchaEnabled.value) return true
+  if (!captchaEnabled.value) return true
 
-  const proof = await createAccountTurnstileRef.value?.verifyAction()
-  if (!proof) return false
+  if (actionCaptchaEnabled.value) {
+    const proof = await (isPendingOAuthFlow()
+      ? createAccountTurnstileRef.value?.verifyAction?.()
+      : turnstileRef.value?.verifyAction?.())
+    if (!proof) return false
 
-  createAccountTurnstileToken.value = proof.token
-  createAccountTencentCaptchaRandstr.value = proof.randstr
+    createAccountTurnstileToken.value = proof.token
+    createAccountTencentCaptchaRandstr.value = proof.randstr
+    return true
+  }
+
+  if (!createAccountTurnstileToken.value) {
+    errors.value.turnstile = t('auth.completeVerification')
+    return false
+  }
   return true
 }
 
@@ -594,7 +630,7 @@ async function sendCode(): Promise<void> {
       initialTencentCaptchaRandstr.value = ''
       resendTurnstileToken.value = ''
       resendTencentCaptchaRandstr.value = ''
-      turnstileRef.value?.reset()
+      turnstileRef.value?.reset?.()
       if (!requestSucceeded && turnstileEnabled.value) {
         showResendTurnstile.value = true
       }

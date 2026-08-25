@@ -13,7 +13,6 @@ import (
 
 	registrationsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/registration-protection/settings"
 	"github.com/Wei-Shaw/sub2api/internal/custom/settings/contract"
-	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -88,7 +87,12 @@ func scoreRiskDecision(config registrationsettings.Config, networkHash, uaHash, 
 		signals = append(signals, "exact_fingerprint_repeat")
 	}
 	action := RiskActionNone
-	if score >= config.ClusterHigh || (exactRepeat && score >= config.ClusterMedium) {
+	// Network/UA cluster counts are intentionally observation-only by
+	// themselves. Shared NATs, offices, schools, and mobile carriers can
+	// legitimately produce many registrations with the same normalized UA;
+	// require an exact fingerprint repeat before taking the irreversible
+	// high-risk registration path.
+	if exactRepeat && score >= config.ClusterHigh {
 		action = RiskActionHigh
 	} else if score >= config.ClusterMedium {
 		action = RiskActionMedium
@@ -337,37 +341,20 @@ func (s *RiskStore) AllowTrialCost(ctx context.Context, userID int64) error {
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, userID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM custom_registration_trial_cost_reservations WHERE user_id = $1 AND expires_at <= NOW()`, userID); err != nil {
-		return err
-	}
-	var used, reserved float64
+	// Usage is written by the gateway after this admission check. Do not add a
+	// synthetic reservation here: without a request-lifecycle settlement hook,
+	// reservations would accumulate and deny legitimate low-cost users. The
+	// advisory lock serializes checks; RPM and concurrency limits cover the
+	// short interval before the eventual usage row is committed.
+	var used float64
 	if err := tx.QueryRowContext(ctx, `
 		SELECT COALESCE(SUM(total_cost), 0)
 		FROM usage_logs
 		WHERE user_id = $1 AND created_at >= NOW() - ($2 * INTERVAL '1 hour')`, userID, config.TrialHours).Scan(&used); err != nil {
 		return err
 	}
-	if err := tx.QueryRowContext(ctx, `
-		SELECT COALESCE(SUM(reserved_cost), 0)
-		FROM custom_registration_trial_cost_reservations
-		WHERE user_id = $1 AND expires_at > NOW() AND settled_at IS NULL AND released_at IS NULL`, userID).Scan(&reserved); err != nil {
-		return err
-	}
-	// Reserve one RPM-sized slice of the configured budget. The reservation is
-	// short-lived and conservative, preventing concurrent requests from all
-	// passing the same aggregate-cost check before usage logs are written.
-	reserve := config.TrialCostLimit / float64(config.TrialRPM)
-	if reserve < 0.01 {
-		reserve = 0.01
-	}
-	if used+reserved+reserve > config.TrialCostLimit {
+	if used >= config.TrialCostLimit {
 		return ErrTrialCostLimit
-	}
-	requestHash := hashValue(fmt.Sprintf("%d:%s", userID, uuid.NewString()))
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO custom_registration_trial_cost_reservations (user_id, request_hash, reserved_cost, expires_at)
-		VALUES ($1, $2, $3, NOW() + INTERVAL '2 minutes')`, userID, requestHash, reserve); err != nil {
-		return err
 	}
 	return tx.Commit()
 }
