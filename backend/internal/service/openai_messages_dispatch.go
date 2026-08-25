@@ -1,10 +1,47 @@
 package service
 
 import (
+	"context"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
+
+// openAIMessagesDispatchContextKey marks the OpenAI-compatible Anthropic
+// Messages path. The scheduler uses it to resolve the dispatch model from the
+// group selected for this request, rather than leaking the primary group's
+// mapping into a smart-routed candidate.
+type openAIMessagesDispatchContextKey struct{}
+
+// WithOpenAIMessagesDispatch marks ctx as an Anthropic Messages dispatch
+// request. It is intentionally explicit so normal Chat/Responses requests do
+// not inherit Messages-specific group model aliases.
+func WithOpenAIMessagesDispatch(ctx context.Context, enabled bool) context.Context {
+	if !enabled {
+		return ctx
+	}
+	return context.WithValue(ctx, openAIMessagesDispatchContextKey{}, true)
+}
+
+func isOpenAIMessagesDispatch(ctx context.Context) bool {
+	enabled, _ := ctx.Value(openAIMessagesDispatchContextKey{}).(bool)
+	return enabled
+}
+
+func (s *OpenAIGatewayService) selectedMessagesDispatchModel(ctx context.Context, requestedModel string) string {
+	requestedModel = NormalizeOpenAICompatRequestedModel(strings.TrimSpace(requestedModel))
+	if !isOpenAIMessagesDispatch(ctx) {
+		return requestedModel
+	}
+	apiKey, ok := APIKeyFromContext(ctx)
+	if !ok || apiKey == nil || apiKey.Group == nil {
+		return requestedModel
+	}
+	if mapped := strings.TrimSpace(apiKey.Group.ResolveMessagesDispatchModel(requestedModel)); mapped != "" {
+		return mapped
+	}
+	return requestedModel
+}
 
 const (
 	defaultOpenAIMessagesDispatchOpusMappedModel   = "gpt-5.4"

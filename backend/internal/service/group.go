@@ -302,6 +302,11 @@ func (g *Group) PeakMultiplierAt(now time.Time) float64 {
 	if g == nil || !g.IsSubscriptionType() || !g.PeakRateEnabled || g.PeakStart == "" || g.PeakEnd == "" {
 		return 1.0
 	}
+	// Treat corrupted persisted values as an invalid peak configuration.  A
+	// non-finite multiplier must never reach billing or routing arithmetic.
+	if math.IsNaN(g.PeakRateMultiplier) || math.IsInf(g.PeakRateMultiplier, 0) || g.PeakRateMultiplier < 0 {
+		return 1.0
+	}
 	start, ok1 := parseMinutes(g.PeakStart)
 	end, ok2 := parseMinutes(g.PeakEnd)
 	if !ok1 || !ok2 || start >= end {
@@ -340,8 +345,8 @@ func ValidatePeakRateConfig(subscriptionType string, enabled bool, start, end st
 	if st >= en {
 		return errors.New("peak_end 必须大于 peak_start（不支持跨天区间，如 22:00-02:00）")
 	}
-	if multiplier < 0 {
-		return errors.New("peak_rate_multiplier 不能为负")
+	if math.IsNaN(multiplier) || math.IsInf(multiplier, 0) || multiplier < 0 {
+		return errors.New("peak_rate_multiplier 必须为有限的非负数")
 	}
 	return nil
 }

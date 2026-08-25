@@ -111,12 +111,6 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		return
 	}
 
-	// 解析渠道级模型映射
-	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
-	if channelMapping.Mapped {
-		c.Request = c.Request.WithContext(service.WithOpenAIForwardModel(c.Request.Context(), channelMapping.MappedModel, false))
-	}
-
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
 	}
@@ -159,11 +153,16 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	// 分组利润控制：chat completions 文本入口请求级装门并固定 pricingAt。
 	ccPricingCtx, pricingAt := h.gatewayService.WithOpenAIRequestPricingContext(c.Request.Context(), apiKey.GroupID)
 	c.Request = c.Request.WithContext(ccPricingCtx)
+	var channelMapping service.ChannelMappingResult
 
 	for {
 		if failoverClientGone(c) {
 			return
 		}
+		// The selected group may have changed during the previous attempt. Reset
+		// the routing model before asking the resolver again so a stale mapping
+		// from the previous group cannot affect candidate eligibility.
+		c.Request = c.Request.WithContext(service.WithOpenAIForwardModel(c.Request.Context(), reqModel, false))
 		reqLog.Debug("openai_chat_completions.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
 			c.Request.Context(),
@@ -189,6 +188,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
 			if len(failedAccountIDs) == 0 {
+				if service.ShouldRetrySmartRoutingGroup(c.Request.Context()) {
+					continue
+				}
 				cls := classifyOpenAICompatibleNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel)
 				cls = classifySelectionFailureError(err, cls)
 				if !cls.ModelNotFound {
@@ -214,6 +216,22 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			return
 		}
 		account := selection.Account
+		// Smart routing mutates the request-local API key after selecting a
+		// candidate. Re-publish that group and reinstall its profit gate while
+		// preserving the request-level pricing timestamp, then resolve channel
+		// mapping against the actual group used for this attempt.
+		if apiKey.Group != nil {
+			selectedCtx := service.WithGroupContext(c.Request.Context(), apiKey.Group)
+			selectedCtx = h.gatewayService.WithOpenAIGroupPricingContext(selectedCtx, apiKey.GroupID, pricingAt)
+			channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(selectedCtx, apiKey.GroupID, reqModel)
+			forwardModel := reqModel
+			if channelMapping.Mapped {
+				forwardModel = channelMapping.MappedModel
+			}
+			selectedCtx = service.WithOpenAIForwardModel(selectedCtx, forwardModel, false)
+			c.Request = c.Request.WithContext(selectedCtx)
+		}
+		attemptChannelMapping := channelMapping
 		sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 		reqLog.Debug("openai_chat_completions.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 		_ = scheduleDecision
@@ -236,8 +254,15 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		forwardStart := time.Now()
 
 		forwardBody := body
-		if channelMapping.Mapped {
-			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
+		if attemptChannelMapping.Mapped {
+			forwardBody = h.gatewayService.ReplaceModelInBody(body, attemptChannelMapping.MappedModel)
+		}
+		// Reasoning-effort ceilings belong to the selected group. The primary
+		// group was checked before routing, but a candidate may impose a stricter
+		// ceiling; reapply it to the attempt body after the candidate context is
+		// installed so routing cannot bypass that policy.
+		if cappedBody, changed := applyOpenAIReasoningEffortPolicyForRequest(c, apiKey, forwardBody); changed {
+			forwardBody = cappedBody
 		}
 		writerSizeBeforeForward := c.Writer.Size()
 		result, err := func() (*service.OpenAIForwardResult, error) {
@@ -252,7 +277,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		if service.GetOpsCyberPolicy(c) != nil {
 			cyberBlockBodyChat = body
 		}
-		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockBodyChat, clientRequestedUsageFields(c, channelMapping, reqModel, ""), service.HashUsageRequestPayload(body))
+		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockBodyChat, clientRequestedUsageFields(c, attemptChannelMapping, reqModel, ""), service.HashUsageRequestPayload(body))
 
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
@@ -277,13 +302,16 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
 			sessionID := service.ExtractClientSessionID(c)
 			cyberBlocked := service.GetOpsCyberPolicy(c) != nil
+			usageAPIKey := snapshotAPIKeyForUsage(apiKey)
+			usageSubscription := snapshotSubscriptionForUsage(subscription)
+			usageAccount := snapshotAccountForUsage(account)
 			h.submitOpenAIUsageRecordTask(c.Request.Context(), res, func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 					Result:             res,
-					APIKey:             apiKey,
-					User:               apiKey.User,
-					Account:            account,
-					Subscription:       subscription,
+					APIKey:             usageAPIKey,
+					User:               usageAPIKey.User,
+					Account:            usageAccount,
+					Subscription:       usageSubscription,
 					InboundEndpoint:    inboundEndpoint,
 					UpstreamEndpoint:   upstreamEndpoint,
 					UserAgent:          userAgent,
@@ -291,7 +319,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					APIKeyService:      h.apiKeyService,
 					QuotaPlatform:      quotaPlatform,
 					SessionID:          sessionID,
-					ChannelUsageFields: clientRequestedUsageFields(c, channelMapping, reqModel, res.UpstreamModel),
+					ChannelUsageFields: clientRequestedUsageFields(c, attemptChannelMapping, reqModel, res.UpstreamModel),
 					PricingAt:          pricingAt,
 					CyberBlocked:       cyberBlocked,
 				}); err != nil {

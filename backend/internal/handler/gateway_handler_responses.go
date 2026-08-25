@@ -76,6 +76,13 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
+	// A previous_response_id represents an existing conversation owner. Keep
+	// compatibility Responses requests on the authenticated primary group so
+	// smart routing cannot silently replay the chain against a different
+	// subscription or upstream account pool.
+	if state := service.SmartRoutingStateFromContext(c.Request.Context()); state != nil {
+		state.ContinuityLocked = strings.TrimSpace(gjson.GetBytes(body, "previous_response_id").String()) != ""
+	}
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
 	if !compositeTargetPlatformResolved(c, apiKey, reqModel) {
 		h.responsesErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by composite groups")
@@ -175,6 +182,9 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(requestCtx, apiKey.GroupID, sessionHash, reqModel, fs.FailedAccountIDs, "", int64(0))
 		if err != nil {
 			if len(fs.FailedAccountIDs) == 0 {
+				if service.ShouldRetrySmartRoutingGroup(requestCtx) {
+					continue
+				}
 				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel, effectiveAPIKeyPlatform(c, apiKey))
 				cls = classifySelectionFailureError(err, cls)
 				if !cls.ModelNotFound {
@@ -202,6 +212,18 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				}
 				return
 			}
+		}
+		// Re-publish the selected group context and frozen pricing basis before
+		// resolving its mapping. This prevents primary-group endpoint/config data
+		// from leaking into a smart-routed candidate or later failover attempt.
+		attemptChannelMapping := channelMapping
+		if apiKey.Group != nil {
+			selectedCtx := service.WithGroupContext(requestCtx, apiKey.Group)
+			selectedCtx = h.gatewayService.WithGatewayGroupPricingContext(selectedCtx, apiKey.GroupID, pricingAt)
+			attemptChannelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(selectedCtx, apiKey.GroupID, reqModel)
+			requestCtx = selectedCtx
+			c.Request = c.Request.WithContext(selectedCtx)
+			parsedReq.GroupID = apiKey.GroupID
 		}
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
@@ -247,18 +269,19 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		}
 		account = latest
 		selection.Account = latest
-		if selection.ProfitGateActive() {
-			if err := h.gatewayService.BindStickySessionAfterProfitAdmission(admissionCtx, apiKey.GroupID, sessionHash, account.ID); err != nil {
-				reqLog.Warn("gateway.responses.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
-			}
+		// Commit group affinity only after the account passed slot and profit
+		// admission. This also covers the no-profit-gate path so smart routing
+		// sessions remain sticky after their first successful request.
+		if err := h.gatewayService.BindStickySessionAfterProfitAdmission(admissionCtx, apiKey.GroupID, sessionHash, account.ID); err != nil {
+			reqLog.Warn("gateway.responses.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		}
 		accountReleaseFunc = wrapReleaseOnDone(c.Request.Context(), accountReleaseFunc)
 
 		// 5. Forward request
 		writerSizeBeforeForward := c.Writer.Size()
 		forwardBody := body
-		if channelMapping.Mapped {
-			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
+		if attemptChannelMapping.Mapped {
+			forwardBody = h.gatewayService.ReplaceModelInBody(body, attemptChannelMapping.MappedModel)
 		}
 		var result *service.ForwardResult
 		setActualUpstreamEndpoint(c, "")
@@ -323,14 +346,17 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 
 		quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
 		sessionID := service.ExtractClientSessionID(c)
+		usageAPIKey := snapshotAPIKeyForUsage(apiKey)
+		usageSubscription := snapshotSubscriptionForUsage(subscription)
+		usageAccount := snapshotAccountForUsage(account)
 		h.submitUsageRecordTask(c.Request.Context(), func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
 				Result:             result,
 				QuotaPlatform:      quotaPlatform,
-				APIKey:             apiKey,
-				User:               apiKey.User,
-				Account:            account,
-				Subscription:       subscription,
+				APIKey:             usageAPIKey,
+				User:               usageAPIKey.User,
+				Account:            usageAccount,
+				Subscription:       usageSubscription,
 				PricingAt:          pricingAt,
 				InboundEndpoint:    inboundEndpoint,
 				UpstreamEndpoint:   upstreamEndpoint,
@@ -339,7 +365,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				RequestPayloadHash: requestPayloadHash,
 				APIKeyService:      h.apiKeyService,
 				SessionID:          sessionID,
-				ChannelUsageFields: clientRequestedUsageFields(c, channelMapping, reqModel, result.UpstreamModel),
+				ChannelUsageFields: clientRequestedUsageFields(c, attemptChannelMapping, reqModel, result.UpstreamModel),
 			}); err != nil {
 				reqLog.Error("gateway.responses.record_usage_failed",
 					zap.Int64("account_id", account.ID),

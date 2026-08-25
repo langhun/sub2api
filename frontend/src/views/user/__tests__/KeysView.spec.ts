@@ -11,6 +11,7 @@ const {
   getDashboardApiKeysUsage,
   getAvailableGroups,
   getUserGroupRates,
+  getSmartRouting,
   showError,
   showSuccess,
   copyToClipboard,
@@ -22,6 +23,7 @@ const {
   getDashboardApiKeysUsage: vi.fn(),
   getAvailableGroups: vi.fn(),
   getUserGroupRates: vi.fn(),
+  getSmartRouting: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   copyToClipboard: vi.fn(),
@@ -42,6 +44,14 @@ const messages: Record<string, string> = {
   'keys.created': 'Created',
   'keys.expiresAt': 'Expires',
   'keys.group': 'Group',
+  'keys.routingListLabel': 'Routing',
+  'keys.routingSummaryUnavailable': 'Unavailable',
+  'keys.routingSummaryLoading': 'Loading',
+  'keys.routingCandidateCountSuffix': ' selected',
+  'keys.routingStatusActive': 'Running',
+  'keys.routingStatusDisabled': 'Disabled',
+  'keys.smartRouting': 'Smart routing',
+  'keys.singleGroup': 'Single group',
   'keys.id': 'ID',
   'keys.currentConcurrency': 'Current Concurrency',
   'keys.lastUsedAt': 'Last Used',
@@ -93,6 +103,12 @@ vi.mock('@/composables/useClipboard', () => ({
   useClipboard: () => ({
     copyToClipboard,
   }),
+}))
+
+vi.mock('@/custom/modules/smart-routing/api', () => ({
+  getSmartRouting,
+  updateSmartRouting: vi.fn(),
+  previewSmartRouting: vi.fn(),
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -170,6 +186,9 @@ const DataTableStub = {
           <slot name="cell-id" :value="row.id" :row="row" />
         </div>
         <slot name="cell-name" :value="row.name" :row="row" />
+        <div v-if="columns.some((col) => col.key === 'routing')" data-test="routing-summary">
+          <slot name="cell-routing" :row="row" />
+        </div>
         <div data-test="current-concurrency">
           <slot name="cell-current_concurrency" :value="row.current_concurrency" :row="row" />
         </div>
@@ -265,6 +284,7 @@ describe('user KeysView column settings', () => {
     getDashboardApiKeysUsage.mockReset()
     getAvailableGroups.mockReset()
     getUserGroupRates.mockReset()
+    getSmartRouting.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
     copyToClipboard.mockReset()
@@ -282,6 +302,19 @@ describe('user KeysView column settings', () => {
     getDashboardApiKeysUsage.mockResolvedValue({ stats: {} })
     getAvailableGroups.mockResolvedValue([])
     getUserGroupRates.mockResolvedValue({})
+    getSmartRouting.mockResolvedValue({
+      api_key_id: 1,
+      enabled: false,
+      mode: 'single',
+      strategy: 'auto',
+      price_weight: 40,
+      speed_weight: 30,
+      success_weight: 30,
+      sticky_ttl_seconds: 1800,
+      exploration_rate: 0.05,
+      version: 1,
+      groups: [],
+    })
     isCurrentStep.mockReturnValue(false)
   })
 
@@ -292,6 +325,7 @@ describe('user KeysView column settings', () => {
       'name',
       'key',
       'group',
+      'routing',
       'current_concurrency',
       'usage',
       'expires_at',
@@ -358,6 +392,7 @@ describe('user KeysView column settings', () => {
     expect(visibleColumnKeys(wrapper)).toEqual([
       'name',
       'key',
+      'routing',
       'current_concurrency',
       'usage',
       'rate_limit',
@@ -392,6 +427,41 @@ describe('user KeysView column settings', () => {
     const wrapper = await mountView()
 
     expect(wrapper.get('[data-test="current-concurrency"]').text()).toBe('3')
+  })
+
+  it('renders smart routing mode and enabled candidate count in the list', async () => {
+    getSmartRouting.mockResolvedValueOnce({
+      api_key_id: 1,
+      enabled: true,
+      mode: 'smart',
+      strategy: 'auto',
+      price_weight: 40,
+      speed_weight: 30,
+      success_weight: 30,
+      sticky_ttl_seconds: 1800,
+      exploration_rate: 0.05,
+      version: 2,
+      groups: [
+        { group_id: 11, sort_order: 0, enabled: true },
+        { group_id: 12, sort_order: 1, enabled: false },
+        { group_id: 13, sort_order: 2, enabled: true },
+      ],
+    })
+
+    const wrapper = await mountView()
+
+    expect(wrapper.get('[data-test="routing-summary"]').text()).toContain('Smart routing')
+    expect(wrapper.get('[data-test="routing-summary"]').text()).toContain('2 selected')
+    expect(wrapper.get('[data-test="routing-summary"]').text()).toContain('Running')
+  })
+
+  it('does not mislabel a routing profile load failure as single-group mode', async () => {
+    getSmartRouting.mockRejectedValueOnce(new Error('routing unavailable'))
+
+    const wrapper = await mountView()
+
+    expect(wrapper.get('[data-test="routing-summary"]').text()).toContain('Unavailable')
+    expect(wrapper.get('[data-test="routing-summary"]').text()).not.toContain('Single group')
   })
 
   it('marks current concurrency as sortable', async () => {

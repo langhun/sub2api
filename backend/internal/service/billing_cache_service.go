@@ -464,9 +464,15 @@ func (s *BillingCacheService) convertToPortsData(data *subscriptionCacheData) *S
 
 // getSubscriptionFromDB 从数据库获取订阅数据
 func (s *BillingCacheService) getSubscriptionFromDB(ctx context.Context, userID, groupID int64) (*subscriptionCacheData, error) {
+	if s == nil || s.subRepo == nil {
+		return nil, ErrBillingServiceUnavailable
+	}
 	sub, err := s.subRepo.GetActiveByUserIDAndGroupID(ctx, userID, groupID)
 	if err != nil {
 		return nil, fmt.Errorf("get subscription: %w", err)
+	}
+	if sub == nil {
+		return nil, ErrSubscriptionInvalid
 	}
 
 	return &subscriptionCacheData{

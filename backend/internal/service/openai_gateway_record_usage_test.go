@@ -168,6 +168,21 @@ type openAIRecordUsageSubRepoStub struct {
 	incrementCalls int
 	incrementErr   error
 	lastCtxErr     error
+	active         *UserSubscription
+	activeErr      error
+	activeCalls    int
+	activeUserID   int64
+	activeGroupID  int64
+}
+
+func (s *openAIRecordUsageSubRepoStub) GetActiveByUserIDAndGroupID(_ context.Context, userID, groupID int64) (*UserSubscription, error) {
+	s.activeCalls++
+	s.activeUserID = userID
+	s.activeGroupID = groupID
+	if s.activeErr != nil {
+		return nil, s.activeErr
+	}
+	return s.active, nil
 }
 
 func (s *openAIRecordUsageSubRepoStub) IncrementUsage(ctx context.Context, id int64, costUSD float64) error {
@@ -271,6 +286,120 @@ func newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo UsageLogReposit
 	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, rateRepo)
 	svc.usageBillingRepo = billingRepo
 	return svc
+}
+
+func TestOpenAIGatewayServiceRecordUsage_SelectedSubscriptionRefreshFailureFailsClosed(t *testing.T) {
+	primaryGroupID := int64(101)
+	selectedGroupID := int64(202)
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	subRepo := &openAIRecordUsageSubRepoStub{activeErr: errors.New("subscription repository unavailable")}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "openai_selected_subscription_refresh_error",
+			Model:     "gpt-5.1",
+			Usage:     OpenAIUsage{InputTokens: 10, OutputTokens: 5},
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      601,
+			UserID:  701,
+			GroupID: &selectedGroupID,
+			Group: &Group{
+				ID:               selectedGroupID,
+				Platform:         PlatformOpenAI,
+				SubscriptionType: SubscriptionTypeSubscription,
+				RateMultiplier:   1,
+			},
+		},
+		User:         &User{ID: 701},
+		Account:      &Account{ID: 801, Type: AccountTypeAPIKey, Platform: PlatformOpenAI},
+		Subscription: &UserSubscription{ID: 901, UserID: 701, GroupID: primaryGroupID},
+	})
+
+	require.ErrorContains(t, err, "refresh subscription for selected group 202")
+	require.Equal(t, 1, subRepo.activeCalls)
+	require.Zero(t, billingRepo.calls, "a failed subscription refresh must not reach billing")
+	require.Zero(t, usageRepo.calls, "a failed subscription refresh must not persist usage")
+}
+
+func TestOpenAIGatewayServiceRecordUsage_UsesSelectedSubscriptionAfterRefresh(t *testing.T) {
+	primaryGroupID := int64(101)
+	selectedGroupID := int64(202)
+	selectedSubscriptionID := int64(902)
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	subRepo := &openAIRecordUsageSubRepoStub{active: &UserSubscription{ID: selectedSubscriptionID, UserID: 701, GroupID: selectedGroupID}}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "openai_selected_subscription_refresh_success",
+			Model:     "gpt-5.1",
+			Usage:     OpenAIUsage{InputTokens: 10, OutputTokens: 5},
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      602,
+			UserID:  701,
+			GroupID: &selectedGroupID,
+			Group: &Group{
+				ID:               selectedGroupID,
+				Platform:         PlatformOpenAI,
+				SubscriptionType: SubscriptionTypeSubscription,
+				RateMultiplier:   1,
+			},
+		},
+		User:         &User{ID: 701},
+		Account:      &Account{ID: 802, Type: AccountTypeAPIKey, Platform: PlatformOpenAI},
+		Subscription: &UserSubscription{ID: 903, UserID: 701, GroupID: primaryGroupID},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, subRepo.activeCalls)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.NotNil(t, billingRepo.lastCmd.SubscriptionID)
+	require.Equal(t, selectedSubscriptionID, *billingRepo.lastCmd.SubscriptionID)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.SubscriptionID)
+	require.Equal(t, selectedSubscriptionID, *usageRepo.lastLog.SubscriptionID)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_RejectsMissingSelectedSubscription(t *testing.T) {
+	selectedGroupID := int64(202)
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "openai_selected_subscription_missing",
+			Model:     "gpt-5.1",
+			Usage:     OpenAIUsage{InputTokens: 10, OutputTokens: 5},
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      603,
+			UserID:  701,
+			GroupID: &selectedGroupID,
+			Group: &Group{
+				ID:               selectedGroupID,
+				Platform:         PlatformOpenAI,
+				SubscriptionType: SubscriptionTypeSubscription,
+				RateMultiplier:   1,
+			},
+		},
+		User:         &User{ID: 701},
+		Account:      &Account{ID: 803, Type: AccountTypeAPIKey, Platform: PlatformOpenAI},
+		Subscription: &UserSubscription{ID: 904, UserID: 701, GroupID: 101},
+	})
+
+	require.ErrorContains(t, err, "active subscription for selected group 202 is unavailable")
+	require.Zero(t, billingRepo.calls)
+	require.Zero(t, usageRepo.calls)
 }
 
 func expectedOpenAICost(t *testing.T, svc *OpenAIGatewayService, model string, usage OpenAIUsage, multiplier float64) *CostBreakdown {

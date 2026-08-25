@@ -146,7 +146,26 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	// Smart routing may select another same-type subscription group after the
 	// auth middleware loaded the primary group's subscription. Refresh the
 	// billing subscription by the actual selected group before charging.
-	if subscription != nil && subscription.GroupID > 0 && apiKey != nil && apiKey.GroupID != nil && subscription.GroupID != *apiKey.GroupID && s.userSubRepo != nil {
+	selectedSubscriptionMismatch := subscription != nil && subscription.GroupID > 0 && apiKey != nil && apiKey.GroupID != nil && subscription.GroupID != *apiKey.GroupID
+	if apiKey != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType() && (IsSmartRoutingCandidateSelected(ctx, apiKey) || selectedSubscriptionMismatch) {
+		if apiKey.GroupID == nil || user == nil {
+			return errors.New("cannot verify subscription for selected group")
+		}
+		selectedGroupID := *apiKey.GroupID
+		if subscription == nil || subscription.GroupID != selectedGroupID {
+			if s.userSubRepo == nil {
+				return fmt.Errorf("cannot verify subscription for selected group %d", selectedGroupID)
+			}
+			refreshed, refreshErr := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, selectedGroupID)
+			if refreshErr != nil {
+				return fmt.Errorf("refresh subscription for selected group %d: %w", selectedGroupID, refreshErr)
+			}
+			if refreshed == nil || refreshed.GroupID != selectedGroupID {
+				return fmt.Errorf("active subscription for selected group %d is unavailable", selectedGroupID)
+			}
+			subscription = refreshed
+		}
+	} else if selectedSubscriptionMismatch && s.userSubRepo != nil {
 		if refreshed, refreshErr := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, *apiKey.GroupID); refreshErr == nil && refreshed != nil {
 			subscription = refreshed
 		}

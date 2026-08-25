@@ -185,10 +185,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 		if cfg.RunMode == config.RunModeSimple {
 			c.Request = c.Request.WithContext(service.WithAPIKeyContext(c.Request.Context(), apiKey))
-			state := &service.SmartRoutingRequestState{TriedGroups: map[int64]struct{}{}, EndpointType: smartRoutingEndpoint(c.Request.URL.Path), MaxGroupSwitches: 2}
-			if apiKey.GroupID != nil {
-				state.MainGroupID, state.CurrentGroupID = *apiKey.GroupID, *apiKey.GroupID
-			}
+			state := newSmartRoutingRequestState(apiKey, smartRoutingEndpoint(c.Request.URL.Path))
 			c.Request = c.Request.WithContext(service.WithSmartRoutingState(c.Request.Context(), state))
 			c.Set(string(ContextKeyAPIKey), apiKey)
 			c.Set(string(ContextKeyUser), AuthSubject{
@@ -289,10 +286,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			c.Set(string(ContextKeySubscription), subscription)
 		}
 		c.Request = c.Request.WithContext(service.WithAPIKeyContext(c.Request.Context(), apiKey))
-		state := &service.SmartRoutingRequestState{TriedGroups: map[int64]struct{}{}, EndpointType: smartRoutingEndpoint(c.Request.URL.Path), MaxGroupSwitches: 2}
-		if apiKey.GroupID != nil {
-			state.MainGroupID, state.CurrentGroupID = *apiKey.GroupID, *apiKey.GroupID
-		}
+		state := newSmartRoutingRequestState(apiKey, smartRoutingEndpoint(c.Request.URL.Path))
 		c.Request = c.Request.WithContext(service.WithSmartRoutingState(c.Request.Context(), state))
 		c.Set(string(ContextKeyAPIKey), apiKey)
 		c.Set(string(ContextKeyUser), AuthSubject{
@@ -329,6 +323,28 @@ func smartRoutingEndpoint(path string) string {
 	default:
 		return "unsupported"
 	}
+}
+
+// newSmartRoutingRequestState freezes the authenticated primary group before
+// any gateway scheduler can replace apiKey.Group with a routed candidate.
+// Restoring only the primary ID is unsafe: pricing, model mapping and
+// subscription checks read the Group pointer as well. A value copy keeps the
+// request-local snapshot independent from later candidate assignments.
+func newSmartRoutingRequestState(apiKey *service.APIKey, endpoint string) *service.SmartRoutingRequestState {
+	state := &service.SmartRoutingRequestState{
+		TriedGroups:      map[int64]struct{}{},
+		EndpointType:     endpoint,
+		MaxGroupSwitches: 2,
+	}
+	if apiKey == nil || apiKey.GroupID == nil {
+		return state
+	}
+	state.MainGroupID, state.CurrentGroupID = *apiKey.GroupID, *apiKey.GroupID
+	if apiKey.Group != nil && apiKey.Group.ID == *apiKey.GroupID {
+		snapshot := *apiKey.Group
+		state.PrimaryGroupSnapshot = &snapshot
+	}
+	return state
 }
 
 func hasAPIKeyCredentialInput(c *gin.Context) bool {

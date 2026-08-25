@@ -392,13 +392,16 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 			upstreamModel = result.UpstreamModel
 		}
 		sessionID := service.ExtractClientSessionID(c)
+		usageAPIKey := snapshotAPIKeyForUsage(apiKey)
+		usageSubscription := snapshotSubscriptionForUsage(subscription)
+		usageAccount := snapshotAccountForUsage(account)
 		h.submitMandatoryUsageRecordTask(c.Request.Context(), func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 				Result:             result,
-				APIKey:             apiKey,
-				User:               apiKey.User,
-				Account:            account,
-				Subscription:       subscription,
+				APIKey:             usageAPIKey,
+				User:               usageAPIKey.User,
+				Account:            usageAccount,
+				Subscription:       usageSubscription,
 				InboundEndpoint:    inboundEndpoint,
 				UpstreamEndpoint:   upstreamEndpoint,
 				UserAgent:          userAgent,

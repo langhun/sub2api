@@ -370,6 +370,9 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, modelName, fs.FailedAccountIDs, "", int64(0)) // Gemini 不使用会话限制
 		if err != nil {
 			if len(fs.FailedAccountIDs) == 0 {
+				if service.ShouldRetrySmartRoutingGroup(c.Request.Context()) {
+					continue
+				}
 				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, modelName, modelName, service.PlatformGemini)
 				if !cls.ModelNotFound {
 					markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
@@ -569,6 +572,9 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		forceCacheBilling := fs.ForceCacheBilling
 		quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
 		sessionID := service.ExtractClientSessionID(c)
+		usageAPIKey := snapshotAPIKeyForUsage(apiKey)
+		usageSubscription := snapshotSubscriptionForUsage(subscription)
+		usageAccount := snapshotAccountForUsage(account)
 		// 长上下文规则由计费服务统一持有（模型广场展示同源），入口只负责声明自己适用该规则。
 		var longContextThreshold int
 		var longContextMultiplier float64
@@ -580,10 +586,10 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
 				Result:                result,
 				QuotaPlatform:         quotaPlatform,
-				APIKey:                apiKey,
-				User:                  apiKey.User,
-				Account:               account,
-				Subscription:          subscription,
+				APIKey:                usageAPIKey,
+				User:                  usageAPIKey.User,
+				Account:               usageAccount,
+				Subscription:          usageSubscription,
 				PricingAt:             pricingAt,
 				InboundEndpoint:       inboundEndpoint,
 				UpstreamEndpoint:      upstreamEndpoint,

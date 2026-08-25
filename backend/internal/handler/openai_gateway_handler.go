@@ -449,6 +449,13 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// Codex 在所有请求中被动声明 image_gen namespace，宽泛检测会导致禁了生图的
 	// 分组中所有 Codex 请求被 403（#4447），并误占生图并发槽位。
 	imageIntent := service.IsExplicitImageGenerationIntent("/v1/responses", reqModel, body)
+	if state := service.SmartRoutingStateFromContext(c.Request.Context()); state != nil {
+		state.ImageGenerationIntent = imageIntent
+	}
+	// Preserve the primary group's hard permission gate before any account or
+	// smart-routing work. Image generation is outside the MVP routing scope;
+	// a disabled primary group must continue to return the stable 403 instead
+	// of entering an unconfigured scheduler and surfacing a misleading 502.
 	if imageIntent && !service.GroupAllowsImageGeneration(apiKey.Group) {
 		h.errorResponse(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
 		return
@@ -465,19 +472,12 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		}
 	}
 
-	// 解析渠道级模型映射
-	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
-	forwardBody := openAIModelMappedBody(body, channelMapping.Mapped, channelMapping.MappedModel, h.gatewayService.ReplaceModelInBody)
-	seedOpenAIForwardImageIntentHint(c, channelMapping.Mapped, imageIntent)
-	forwardModel := reqModel
-	if channelMapping.Mapped {
-		forwardModel = channelMapping.MappedModel
-	}
-	c.Request = c.Request.WithContext(service.WithOpenAIForwardModel(
-		c.Request.Context(),
-		forwardModel,
-		legacyCompact,
-	))
+	// Channel mapping is group-specific. Do not publish the primary group's
+	// mapped model before smart routing has selected the attempt group, or the
+	// resolver may rank candidates using stale mapping data.
+	var channelMapping service.ChannelMappingResult
+	seedOpenAIForwardImageIntentHint(c, false, imageIntent)
+	c.Request = c.Request.WithContext(service.WithOpenAIForwardModel(c.Request.Context(), reqModel, legacyCompact))
 
 	// 提前校验 function_call_output 是否具备可关联上下文，避免上游 400。
 	if !h.validateFunctionCallOutputRequest(c, body, reqLog) {
@@ -558,6 +558,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if !openAIRequestAllowsFailoverReplay(c) {
 			return
 		}
+		// Reset any mapping from the previous attempt before resolving the next
+		// candidate group.
+		c.Request = c.Request.WithContext(service.WithOpenAIForwardModel(c.Request.Context(), reqModel, legacyCompact))
 		// Select account supporting the requested model
 		reqLog.Debug("openai.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
@@ -584,6 +587,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
 			if len(failedAccountIDs) == 0 {
+				if service.ShouldRetrySmartRoutingGroup(c.Request.Context()) {
+					continue
+				}
 				if legacyCompact && errors.Is(err, service.ErrNoAvailableCompactAccounts) {
 					markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
 					h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "compact_not_supported", "No available accounts support /responses/compact", streamStarted)
@@ -625,6 +631,29 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			zap.Float64("load_skew", scheduleDecision.LoadSkew),
 		)
 		account := selection.Account
+		forwardModel := reqModel
+		// Smart routing mutates the request-local key to the selected group.
+		// Publish that group, preserve the frozen pricing instant, and resolve
+		// mapping/endpoint permissions against this attempt's group.
+		if apiKey.Group != nil {
+			selectedCtx := service.WithGroupContext(c.Request.Context(), apiKey.Group)
+			selectedCtx = h.gatewayService.WithOpenAIGroupPricingContext(selectedCtx, apiKey.GroupID, pricingAt)
+			channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(selectedCtx, apiKey.GroupID, reqModel)
+			if channelMapping.Mapped {
+				forwardModel = channelMapping.MappedModel
+			}
+			selectedCtx = service.WithOpenAIForwardModel(selectedCtx, forwardModel, legacyCompact)
+			seedOpenAIForwardImageIntentHint(c, channelMapping.Mapped, imageIntent)
+			c.Request = c.Request.WithContext(selectedCtx)
+		}
+		if imageIntent && !service.GroupAllowsImageGeneration(apiKey.Group) {
+			if selection.Acquired && selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			h.errorResponse(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
+			return
+		}
+		attemptChannelMapping := channelMapping
 		if previousResponseID != "" && requestPlatform == service.PlatformOpenAI && !account.IsOpenAIApiKey() {
 			// The public Responses HTTP API supports previous_response_id on API-key
 			// accounts. OAuth/SetupToken upstreams do not, so keep searching instead
@@ -675,7 +704,14 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		// 跨 passthrough 边界的 failover：从 Kiro 等透传账号切到 Bedrock 等非透传账号前，
 		// 从不可变的 canonical forwardBody 派生本次尝试 body 并整块剔除上游私有的加密
 		// reasoning item（含耦合的 id/summary），避免非透传上游 400 拒绝 Kiro reasoning 形态。
-		attemptBody := h.deriveOpenAIForwardAttemptBody(reqLog, forwardBody, account, &passthroughFailoverState)
+		attemptForwardBody := openAIModelMappedBody(body, attemptChannelMapping.Mapped, attemptChannelMapping.MappedModel, h.gatewayService.ReplaceModelInBody)
+		// Reapply the selected group's reasoning ceiling after smart routing. The
+		// primary group was validated before selection, but candidates may impose
+		// a stricter policy and must not receive an uncapped attempt body.
+		if cappedBody, changed := applyOpenAIReasoningEffortPolicyForRequest(c, apiKey, attemptForwardBody); changed {
+			attemptForwardBody = cappedBody
+		}
+		attemptBody := h.deriveOpenAIForwardAttemptBody(reqLog, attemptForwardBody, account, &passthroughFailoverState)
 		result, err := func() (*service.OpenAIForwardResult, error) {
 			defer func() {
 				if accountReleaseFunc != nil {
@@ -688,7 +724,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if service.GetOpsCyberPolicy(c) != nil {
 			cyberBlockBodyHTTP = sessionHashBody
 		}
-		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockBodyHTTP, clientRequestedUsageFields(c, channelMapping, reqModel, ""), service.HashUsageRequestPayload(body))
+		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockBodyHTTP, clientRequestedUsageFields(c, attemptChannelMapping, reqModel, ""), service.HashUsageRequestPayload(body))
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
 		responseLatencyMs := forwardDurationMs
@@ -713,13 +749,16 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
 			sessionID := service.ExtractClientSessionID(c)
 			cyberBlocked := service.GetOpsCyberPolicy(c) != nil
+			usageAPIKey := snapshotAPIKeyForUsage(apiKey)
+			usageSubscription := snapshotSubscriptionForUsage(subscription)
+			usageAccount := snapshotAccountForUsage(account)
 			h.submitOpenAIUsageRecordTask(c.Request.Context(), res, func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 					Result:             res,
-					APIKey:             apiKey,
-					User:               apiKey.User,
-					Account:            account,
-					Subscription:       subscription,
+					APIKey:             usageAPIKey,
+					User:               usageAPIKey.User,
+					Account:            usageAccount,
+					Subscription:       usageSubscription,
 					InboundEndpoint:    inboundEndpoint,
 					UpstreamEndpoint:   upstreamEndpoint,
 					UserAgent:          userAgent,
@@ -728,7 +767,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					APIKeyService:      h.apiKeyService,
 					QuotaPlatform:      quotaPlatform,
 					SessionID:          sessionID,
-					ChannelUsageFields: clientRequestedUsageFields(c, channelMapping, reqModel, res.UpstreamModel),
+					ChannelUsageFields: clientRequestedUsageFields(c, attemptChannelMapping, reqModel, res.UpstreamModel),
 					PricingAt:          pricingAt,
 					CyberBlocked:       cyberBlocked,
 				}); err != nil {
@@ -1044,8 +1083,13 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		zap.Any("group_id", apiKey.GroupID),
 	)
 
-	// 检查分组是否允许 /v1/messages 调度
-	if !allowOpenAICompatibleMessagesDispatch(c, apiKey) {
+	// Calls that bypass API-key middleware do not carry the request-local
+	// routing state used by the scheduler. Preserve the historical permission
+	// gate for those direct/legacy invocations before dependency checks. Normal
+	// requests always receive routing state from the middleware and are gated
+	// again after each scheduler attempt, once the actual candidate group is
+	// known.
+	if service.SmartRoutingStateFromContext(c.Request.Context()) == nil && !allowOpenAICompatibleMessagesDispatch(c, apiKey) {
 		h.anthropicErrorResponse(c, http.StatusForbidden, "permission_error",
 			"This group does not allow /v1/messages dispatch")
 		return
@@ -1081,6 +1125,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
+	// The dispatch model is group-specific. Mark the context before the
+	// scheduler runs so smart routing can resolve the alias after it selects a
+	// candidate group.
+	c.Request = c.Request.WithContext(service.WithOpenAIMessagesDispatch(c.Request.Context(), true))
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
 	if !openAICompatibleTextTargetAllowed(c, apiKey, reqModel) {
 		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by this OpenAI-compatible endpoint for composite groups")
@@ -1088,7 +1136,6 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	}
 	bindOpenAIReasoningEffortPolicyForMessagesRequest(c, apiKey, body)
 	routingModel := service.NormalizeOpenAICompatRequestedModel(reqModel)
-	preferredMappedModel := resolveOpenAIMessagesDispatchMappedModel(c, apiKey, reqModel)
 	reqStream := gjson.GetBytes(body, "stream").Bool()
 
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
@@ -1101,8 +1148,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		return
 	}
 
-	// 解析渠道级模型映射
-	channelMappingMsg, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
+	// Channel mapping is group-specific and is resolved after each scheduler
+	// attempt selects the actual candidate group.
+	var channelMappingMsg service.ChannelMappingResult
 	mappedBodyForMessages := newOpenAIModelMappedBodyCache(body, h.gatewayService.ReplaceModelInBody)
 
 	// 绑定错误透传服务，允许 service 层在非 failover 错误场景复用规则。
@@ -1148,7 +1196,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
-	effectiveMappedModel := preferredMappedModel
+	// Recomputed after each scheduler call because smart routing can mutate the
+	// request-local API key to a different candidate group.
+	effectiveMappedModel := ""
 
 	// 分组利润控制：Messages 文本入口同样请求级装门并固定 pricingAt。
 	msgPricingCtx, pricingAt := h.gatewayService.WithOpenAIRequestPricingContext(c.Request.Context(), apiKey.GroupID)
@@ -1158,10 +1208,8 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		if failoverClientGone(c) {
 			return
 		}
+		c.Request = c.Request.WithContext(service.WithOpenAIForwardModel(c.Request.Context(), routingModel, false))
 		currentRoutingModel := routingModel
-		if effectiveMappedModel != "" {
-			currentRoutingModel = effectiveMappedModel
-		}
 		reqLog.Debug("openai_messages.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
 			c.Request.Context(),
@@ -1187,6 +1235,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
 			if len(failedAccountIDs) == 0 {
+				if service.ShouldRetrySmartRoutingGroup(c.Request.Context()) {
+					continue
+				}
 				if err != nil {
 					cls := classifyOpenAICompatibleNoAccountErrorFromGin(c, h.gatewayService, apiKey, currentRoutingModel, reqModel)
 					if !cls.ModelNotFound {
@@ -1210,6 +1261,31 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				markOpsRoutingCapacityLimited(c)
 			}
 			h.anthropicStreamingAwareError(c, cls.Status, cls.ErrType, cls.Message, streamStarted)
+			return
+		}
+		// Refresh every group-dependent dispatch value after selection. The
+		// primary group's mapping must never be reused for a smart-routed
+		// candidate or a later cross-group failover attempt.
+		if apiKey.Group != nil {
+			selectedCtx := service.WithGroupContext(c.Request.Context(), apiKey.Group)
+			selectedCtx = h.gatewayService.WithOpenAIGroupPricingContext(selectedCtx, apiKey.GroupID, pricingAt)
+			channelMappingMsg, _ = h.gatewayService.ResolveChannelMappingAndRestrict(selectedCtx, apiKey.GroupID, reqModel)
+			effectiveMappedModel = resolveOpenAIMessagesDispatchMappedModel(c, apiKey, reqModel)
+			forwardModel := routingModel
+			if effectiveMappedModel != "" {
+				forwardModel = effectiveMappedModel
+			}
+			selectedCtx = service.WithOpenAIForwardModel(selectedCtx, forwardModel, false)
+			c.Request = c.Request.WithContext(selectedCtx)
+			bindOpenAIReasoningEffortPolicyForMessagesRequest(c, apiKey, body)
+		}
+		attemptChannelMappingMsg := channelMappingMsg
+		if !allowOpenAICompatibleMessagesDispatch(c, apiKey) {
+			if selection.Acquired && selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			h.anthropicErrorResponse(c, http.StatusForbidden, "permission_error",
+				"This group does not allow /v1/messages dispatch")
 			return
 		}
 		account := selection.Account
@@ -1237,7 +1313,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 		defaultMappedModel := strings.TrimSpace(effectiveMappedModel)
 		// 应用渠道模型映射到请求体
-		forwardBody := mappedBodyForMessages(channelMappingMsg.Mapped, channelMappingMsg.MappedModel)
+		forwardBody := mappedBodyForMessages(attemptChannelMappingMsg.Mapped, attemptChannelMappingMsg.MappedModel)
 		writerSizeBeforeForward := c.Writer.Size()
 		result, err := func() (*service.OpenAIForwardResult, error) {
 			defer func() {
@@ -1251,7 +1327,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		if service.GetOpsCyberPolicy(c) != nil {
 			cyberBlockBodyMsg = body
 		}
-		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockBodyMsg, clientRequestedUsageFields(c, channelMappingMsg, reqModel, ""), service.HashUsageRequestPayload(body))
+		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockBodyMsg, clientRequestedUsageFields(c, attemptChannelMappingMsg, reqModel, ""), service.HashUsageRequestPayload(body))
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
 		responseLatencyMs := forwardDurationMs
@@ -1277,13 +1353,16 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
 			sessionID := service.ExtractClientSessionID(c)
 			cyberBlocked := service.GetOpsCyberPolicy(c) != nil
+			usageAPIKey := snapshotAPIKeyForUsage(apiKey)
+			usageSubscription := snapshotSubscriptionForUsage(subscription)
+			usageAccount := snapshotAccountForUsage(account)
 			h.submitOpenAIUsageRecordTask(c.Request.Context(), res, func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 					Result:             res,
-					APIKey:             apiKey,
-					User:               apiKey.User,
-					Account:            account,
-					Subscription:       subscription,
+					APIKey:             usageAPIKey,
+					User:               usageAPIKey.User,
+					Account:            usageAccount,
+					Subscription:       usageSubscription,
 					InboundEndpoint:    inboundEndpoint,
 					UpstreamEndpoint:   upstreamEndpoint,
 					UserAgent:          userAgent,
@@ -1292,7 +1371,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					APIKeyService:      h.apiKeyService,
 					QuotaPlatform:      quotaPlatform,
 					SessionID:          sessionID,
-					ChannelUsageFields: clientRequestedUsageFields(c, channelMappingMsg, reqModel, res.UpstreamModel),
+					ChannelUsageFields: clientRequestedUsageFields(c, attemptChannelMappingMsg, reqModel, res.UpstreamModel),
 					PricingAt:          pricingAt,
 					CyberBlocked:       cyberBlocked,
 				}); err != nil {
@@ -1663,12 +1742,11 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		}
 		account = latest
 		selection.Account = latest
-		// 调度器已抢槽路径无门时由选号内部完成 eager 绑定；门下选号内部
-		// 推迟绑定，这里在终检通过后补准入后绑定。
-		if selection.ProfitGateActive() {
-			if err := h.gatewayService.BindStickySessionAfterProfitAdmission(ctx, groupID, sessionHash, account.ID); err != nil {
-				reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
-			}
+		// The account has passed the terminal admission check. Commit both the
+		// legacy account sticky binding and the smart-routing group binding;
+		// the helper is intentionally safe when no profit gate is active.
+		if err := h.gatewayService.BindStickySessionAfterProfitAdmission(ctx, groupID, sessionHash, account.ID); err != nil {
+			reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		}
 		return wrapReleaseOnDone(ctx, selection.ReleaseFunc), openAISlotAcquireOK
 	}
@@ -1917,6 +1995,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	}
 
 	imageIntent := service.IsExplicitImageGenerationIntent("/v1/responses", reqModel, firstMessage)
+	if state := service.SmartRoutingStateFromContext(c.Request.Context()); state != nil {
+		// Candidate filtering must see the same explicit image-generation intent
+		// before the scheduler evaluates any smart-routed group.
+		state.ImageGenerationIntent = imageIntent
+	}
 	if imageIntent && !service.GroupAllowsImageGeneration(apiKey.Group) {
 		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, service.ImageGenerationPermissionMessage())
 		return
@@ -2101,7 +2184,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	// 并按最新门复核当前账号（准入与计费同源），峰前建连保活不能让后续 turn
 	// 继续按建连时刻的谷价计费。生图意图只影响能力路由与图片计费，不关门。
 	// 建连时刻只用于选号/准入，不作为任何 turn 的计费定价时刻。
-	wsPricingCtx, _ := h.gatewayService.WithOpenAIRequestPricingContext(ctx, apiKey.GroupID)
+	wsPricingCtx, wsPricingAt := h.gatewayService.WithOpenAIRequestPricingContext(ctx, apiKey.GroupID)
 	ctx = wsPricingCtx
 
 	for {
@@ -2145,6 +2228,30 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 
 		account := selection.Account
+		// Smart routing mutates the request-local key after the scheduler has
+		// chosen a candidate group. Publish that group before constructing the
+		// WebSocket hooks; otherwise the first turn keeps the primary group's
+		// mapping and every later turn resolves against a stale ctxkey.Group.
+		if apiKey.Group != nil {
+			selectedCtx := service.WithGroupContext(ctx, apiKey.Group)
+			selectedCtx = h.gatewayService.WithOpenAIGroupPricingContext(selectedCtx, apiKey.GroupID, wsPricingAt)
+			channelMappingWS, _ = h.gatewayService.ResolveChannelMappingAndRestrict(selectedCtx, apiKey.GroupID, reqModel)
+			wsForwardModel = reqModel
+			if channelMappingWS.Mapped && strings.TrimSpace(channelMappingWS.MappedModel) != "" {
+				wsForwardModel = strings.TrimSpace(channelMappingWS.MappedModel)
+			}
+			selectedCtx = service.WithOpenAIForwardModel(selectedCtx, wsForwardModel, false)
+			ctx = selectedCtx
+			c.Request = c.Request.WithContext(selectedCtx)
+			seedOpenAIForwardImageIntentHint(c, channelMappingWS.Mapped, imageIntent)
+		}
+		if imageIntent && !service.GroupAllowsImageGeneration(apiKey.Group) {
+			if selection.Acquired && selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, service.ImageGenerationPermissionMessage())
+			return
+		}
 		accountMaxConcurrency := account.Concurrency
 		if selection.WaitPlan != nil && selection.WaitPlan.MaxConcurrency > 0 {
 			accountMaxConcurrency = selection.WaitPlan.MaxConcurrency
@@ -2435,13 +2542,16 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				sessionID := service.ExtractClientSessionID(c)
 				turnRecordPricingAt := turnPricing.currentOr(turnStart)
 				cyberBlocked := service.GetOpsCyberPolicy(c) != nil
+				usageAPIKey := snapshotAPIKeyForUsage(apiKey)
+				usageSubscription := snapshotSubscriptionForUsage(subscription)
+				usageAccount := snapshotAccountForUsage(account)
 				h.submitOpenAIUsageRecordTask(ctx, result, func(taskCtx context.Context) {
 					if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
 						Result:             result,
-						APIKey:             apiKey,
-						User:               apiKey.User,
-						Account:            account,
-						Subscription:       subscription,
+						APIKey:             usageAPIKey,
+						User:               usageAPIKey.User,
+						Account:            usageAccount,
+						Subscription:       usageSubscription,
 						InboundEndpoint:    inboundEndpoint,
 						UpstreamEndpoint:   upstreamEndpoint,
 						UserAgent:          userAgent,
@@ -3616,6 +3726,9 @@ func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey 
 	if apiKey != nil {
 		apiKeyPrefix = keyPrefix(apiKey.Key, 8)
 	}
+	usageAPIKey := snapshotAPIKeyForUsage(apiKey)
+	usageAccount := snapshotAccountForUsage(account)
+	usageSubscription := snapshotSubscriptionForUsage(subscription)
 	opsMeta := cyberPolicyOpsErrorMeta{
 		RequestID:       requestID,
 		ClientRequestID: clientRequestID,
@@ -3664,9 +3777,9 @@ func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey 
 		}
 		if forwardErrored && gwSvc != nil {
 			gwSvc.RecordCyberPolicyUsageLog(ctx, service.CyberPolicyUsageInput{
-				APIKey:             apiKey,
-				Account:            account,
-				Subscription:       subscription,
+				APIKey:             usageAPIKey,
+				Account:            usageAccount,
+				Subscription:       usageSubscription,
 				RequestID:          requestID,
 				Model:              model,
 				Stream:             stream,

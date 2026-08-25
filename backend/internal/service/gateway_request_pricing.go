@@ -28,6 +28,27 @@ func WithGatewayTokenRequestPricing(ctx context.Context) (context.Context, time.
 	return ctx, pricingAt
 }
 
+// WithGatewayGroupPricingContext reapplies a shared-gateway request's frozen
+// pricing instant after smart routing selects a candidate group. The explicit
+// billing-group snapshot is refreshed from ctxkey.Group so the candidate's
+// multiplier is used by the profit gate without changing the request's
+// original pricing timestamp.
+func (s *GatewayService) WithGatewayGroupPricingContext(ctx context.Context, groupID *int64, pricingAt time.Time) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if pricingAt.IsZero() {
+		pricingAt = timezone.Now()
+	}
+	ctx = context.WithValue(ctx, gatewayTokenRequestPricingAtCtxKey{}, pricingAt)
+	if groupID != nil {
+		if group, ok := ctx.Value(ctxkey.Group).(*Group); ok && IsGroupContextValid(group) && group.ID == *groupID {
+			ctx = context.WithValue(ctx, gatewayTokenRequestBillingGroupCtxKey{}, group)
+		}
+	}
+	return s.withGatewayProfitControlGate(ctx, groupID)
+}
+
 func gatewayTokenRequestPricingAtFromContext(ctx context.Context) (time.Time, bool) {
 	if ctx == nil {
 		return time.Time{}, false

@@ -117,6 +117,115 @@ func TestGatewayServiceRecordUsage_BillingUsesDetachedContext(t *testing.T) {
 	require.NoError(t, quotaSvc.lastQuotaCtxErr)
 }
 
+func TestGatewayServiceRecordUsage_SelectedSubscriptionRefreshFailureFailsClosed(t *testing.T) {
+	primaryGroupID := int64(101)
+	selectedGroupID := int64(202)
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	subRepo := &openAIRecordUsageSubRepoStub{activeErr: errors.New("subscription repository unavailable")}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, subRepo)
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_selected_subscription_refresh_error",
+			Model:     "claude-sonnet-4",
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      501,
+			UserID:  601,
+			GroupID: &selectedGroupID,
+			Group: &Group{
+				ID:               selectedGroupID,
+				Platform:         PlatformAnthropic,
+				SubscriptionType: SubscriptionTypeSubscription,
+				RateMultiplier:   1,
+			},
+		},
+		User:         &User{ID: 601},
+		Account:      &Account{ID: 701, Type: AccountTypeAPIKey, Platform: PlatformAnthropic},
+		Subscription: &UserSubscription{ID: 801, UserID: 601, GroupID: primaryGroupID},
+	})
+
+	require.ErrorContains(t, err, "refresh subscription for selected group 202")
+	require.Equal(t, 1, subRepo.activeCalls)
+	require.Equal(t, int64(601), subRepo.activeUserID)
+	require.Equal(t, selectedGroupID, subRepo.activeGroupID)
+	require.Zero(t, billingRepo.calls, "a failed subscription refresh must not reach billing")
+	require.Zero(t, usageRepo.calls, "a failed subscription refresh must not persist usage")
+}
+
+func TestGatewayServiceRecordUsage_UsesSelectedSubscriptionAfterRefresh(t *testing.T) {
+	primaryGroupID := int64(101)
+	selectedGroupID := int64(202)
+	selectedSubscriptionID := int64(902)
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	subRepo := &openAIRecordUsageSubRepoStub{active: &UserSubscription{ID: selectedSubscriptionID, UserID: 601, GroupID: selectedGroupID}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, subRepo)
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_selected_subscription_refresh_success",
+			Model:     "claude-sonnet-4",
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      502,
+			UserID:  601,
+			GroupID: &selectedGroupID,
+			Group: &Group{
+				ID:               selectedGroupID,
+				Platform:         PlatformAnthropic,
+				SubscriptionType: SubscriptionTypeSubscription,
+				RateMultiplier:   1,
+			},
+		},
+		User:         &User{ID: 601},
+		Account:      &Account{ID: 702, Type: AccountTypeAPIKey, Platform: PlatformAnthropic},
+		Subscription: &UserSubscription{ID: 802, UserID: 601, GroupID: primaryGroupID},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, subRepo.activeCalls)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.NotNil(t, billingRepo.lastCmd.SubscriptionID)
+	require.Equal(t, selectedSubscriptionID, *billingRepo.lastCmd.SubscriptionID)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.SubscriptionID)
+	require.Equal(t, selectedSubscriptionID, *usageRepo.lastLog.SubscriptionID)
+}
+
+func TestGatewayServiceRecordUsage_RejectsSubscriptionFromWrongSelectedGroup(t *testing.T) {
+	selectedGroupID := int64(202)
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	subRepo := &openAIRecordUsageSubRepoStub{active: &UserSubscription{ID: 903, UserID: 601, GroupID: 303}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, subRepo)
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{RequestID: "gateway_selected_subscription_wrong_group", Model: "claude-sonnet-4", Duration: time.Second},
+		APIKey: &APIKey{
+			ID:      503,
+			UserID:  601,
+			GroupID: &selectedGroupID,
+			Group: &Group{
+				ID:               selectedGroupID,
+				Platform:         PlatformAnthropic,
+				SubscriptionType: SubscriptionTypeSubscription,
+				RateMultiplier:   1,
+			},
+		},
+		User:         &User{ID: 601},
+		Account:      &Account{ID: 703, Type: AccountTypeAPIKey, Platform: PlatformAnthropic},
+		Subscription: &UserSubscription{ID: 804, UserID: 601, GroupID: 101},
+	})
+
+	require.ErrorContains(t, err, "active subscription for selected group 202 is unavailable")
+	require.Zero(t, billingRepo.calls)
+	require.Zero(t, usageRepo.calls)
+}
+
 func TestGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{}
 	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}

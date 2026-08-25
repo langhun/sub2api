@@ -788,7 +788,7 @@ type GatewayService struct {
 	tlsFPProfileService   *TLSFingerprintProfileService
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
-	smartRoutingResolver SmartRoutingResolver
+	smartRoutingResolver  SmartRoutingResolver
 }
 
 // SetSmartRoutingResolver attaches the optional Overlay resolver. Nil keeps
@@ -975,22 +975,38 @@ func (s *GatewayService) bindGatewayStickySessionDuringSelection(ctx context.Con
 // account remains bound and automatically becomes eligible again if its
 // account rate recovers.
 func (s *GatewayService) BindStickySessionAfterProfitAdmission(ctx context.Context, groupID *int64, sessionHash string, accountID int64) error {
-	if sessionHash == "" || accountID <= 0 || s.cache == nil {
+	if accountID <= 0 {
+		return nil
+	}
+	commitAdmission := func(bindErr error) error {
+		if bindErr == nil {
+			CommitSmartRoutingAdmission(ctx, s.smartRoutingResolver, groupID, sessionHash, accountID)
+		}
+		return bindErr
+	}
+	if sessionHash == "" || s.cache == nil {
+		// There may be no account-level sticky store (for example in a unit
+		// test or during a cache incident), but account admission still proves
+		// that the selected route was actually usable. Record the route audit
+		// and let the Overlay decide whether its own sticky store is available.
+		CommitSmartRoutingAdmission(ctx, s.smartRoutingResolver, groupID, sessionHash, accountID)
 		return nil
 	}
 	if !gatewayProfitControlGateActive(ctx) {
-		return s.BindStickySession(ctx, groupID, sessionHash, accountID)
+		return commitAdmission(s.BindStickySession(ctx, groupID, sessionHash, accountID))
 	}
 	existingAccountID, err := s.cache.GetSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
 	if err != nil && !errors.Is(err, ErrStickySessionNotFound) {
 		// 读失败时无法判断既有绑定，保守跳过而不是冒着覆盖健康绑定的风险写入。
 		slog.Warn("profit_control_sticky_binding_read_failed", "group_id", derefGroupID(groupID), "account_id", accountID, "error", err)
+		CommitSmartRoutingAdmission(ctx, s.smartRoutingResolver, groupID, sessionHash, accountID)
 		return nil
 	}
 	if existingAccountID > 0 && existingAccountID != accountID {
+		CommitSmartRoutingAdmission(ctx, s.smartRoutingResolver, groupID, sessionHash, accountID)
 		return nil
 	}
-	return s.BindStickySession(ctx, groupID, sessionHash, accountID)
+	return commitAdmission(s.BindStickySession(ctx, groupID, sessionHash, accountID))
 }
 
 // GetCachedSessionAccountID retrieves the account ID bound to a sticky session.

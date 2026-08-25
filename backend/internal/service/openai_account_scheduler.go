@@ -2110,8 +2110,23 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 	previousResponseCanMove bool,
 	useUpstreamTokenCost bool,
 	platformOverride ...string,
-) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+) (selection *AccountSelectionResult, decision OpenAIAccountScheduleDecision, err error) {
+	defer func() {
+		if errors.Is(err, ErrNoAvailableAccounts) || errors.Is(err, ErrNoAvailableCompactAccounts) {
+			MarkSmartRoutingGroupExhausted(ctx)
+		}
+	}()
+	if state := SmartRoutingStateFromContext(ctx); state != nil {
+		state.RequiredOpenAICapability = requiredCapability
+		state.RequiredOpenAIImageCapability = ""
+		state.RequiredOpenAITransport = requiredTransport
+		state.RequireCompact = requireCompact
+	}
 	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
+	// Messages dispatch aliases belong to the selected group. Resolve this only
+	// after smart routing has mutated the request-local API key; otherwise a
+	// candidate group is filtered using the primary group's mapped model.
+	requestedModel = s.selectedMessagesDispatchModel(ctx, requestedModel)
 	platform := PlatformOpenAI
 	if len(platformOverride) > 0 {
 		platform = platformOverride[0]
@@ -2127,28 +2142,135 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 	if !ok || apiKey == nil || apiKey.ID <= 0 {
 		return groupID
 	}
-	decision, err := s.smartRoutingResolver.Resolve(ctx, apiKey, requestedModel, sessionHash, excludedIDs)
-	if err != nil || decision == nil || decision.GroupID <= 0 || decision.GroupID == *groupID {
-		return groupID
+	primaryGroupID := *groupID
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.MainGroupID > 0 {
+		primaryGroupID = state.MainGroupID
 	}
-	group, err := s.channelService.groupRepo.GetByIDLite(ctx, decision.GroupID)
-	if err != nil || group == nil {
-		return groupID
-	}
-	resolved := decision.GroupID
-	apiKey.GroupID = &resolved
-	apiKey.Group = group
+	// Preserve the authenticated primary snapshot in case restoring the
+	// candidate fails while the group repository is unavailable. Keeping a
+	// candidate Group pointer next to a primary GroupID would leak the wrong
+	// pricing/subscription context into the next attempt.
+	primaryGroupSnapshot := apiKey.Group
 	if state := SmartRoutingStateFromContext(ctx); state != nil {
-		if state.CurrentGroupID > 0 && state.CurrentGroupID != resolved {
-			state.GroupSwitches++
+		if state.PrimaryGroupSnapshot != nil && state.PrimaryGroupSnapshot.ID == primaryGroupID {
+			primaryGroupSnapshot = state.PrimaryGroupSnapshot
+		} else if primaryGroupSnapshot != nil && primaryGroupSnapshot.ID == primaryGroupID {
+			// Capture the authenticated snapshot before this call can mutate the
+			// API key to a candidate. Later failover attempts must not mistake the
+			// previous candidate pointer for the primary group.
+			state.PrimaryGroupSnapshot = primaryGroupSnapshot
 		}
-		state.CurrentGroupID = resolved
-		if state.TriedGroups == nil {
-			state.TriedGroups = map[int64]struct{}{}
-		}
-		state.TriedGroups[resolved] = struct{}{}
 	}
-	return &resolved
+	restorePrimary := func() *int64 {
+		resolved := primaryGroupID
+		// Do not leave a billing-rejected candidate on the mutable API key. The
+		// group object is restored with the ID so usage recording retains the
+		// primary subscription context during a later async callback.
+		if s.channelService != nil && s.channelService.groupRepo != nil {
+			if primary, err := s.channelService.groupRepo.GetByIDLite(ctx, primaryGroupID); err == nil && primary != nil {
+				apiKey.Group = primary
+			} else if primaryGroupSnapshot != nil && primaryGroupSnapshot.ID == primaryGroupID {
+				apiKey.Group = primaryGroupSnapshot
+			}
+		} else if primaryGroupSnapshot != nil && primaryGroupSnapshot.ID == primaryGroupID {
+			apiKey.Group = primaryGroupSnapshot
+		}
+		// A retry may pass the primary ID while apiKey.Group still references a
+		// previously selected candidate. Never leave those fields divergent.
+		if apiKey.Group == nil || apiKey.Group.ID != primaryGroupID {
+			apiKey.Group = nil
+		}
+		apiKey.GroupID = &resolved
+		if state := SmartRoutingStateFromContext(ctx); state != nil {
+			state.CurrentGroupID = primaryGroupID
+		}
+		return &resolved
+	}
+	for attempts := 0; attempts < 10; attempts++ {
+		decision, err := s.smartRoutingResolver.Resolve(ctx, apiKey, requestedModel, sessionHash, excludedIDs)
+		if err != nil || decision == nil || decision.GroupID <= 0 {
+			return restorePrimary()
+		}
+		// A current-group decision is a valid account-level retry signal. Do not
+		// restore the primary group merely because the selected candidate remains
+		// the same; doing so would bypass the existing group's remaining accounts
+		// and can change the request's billing group.
+		if decision.GroupID == *groupID {
+			return groupID
+		}
+		group, err := s.channelService.groupRepo.GetByIDLite(ctx, decision.GroupID)
+		if err != nil || group == nil {
+			// Do not return an unhydrated candidate ID. The request-local key may
+			// still carry a previous candidate snapshot, so restoring the primary
+			// keeps pricing, permissions, and model mapping coherent.
+			return restorePrimary()
+		}
+		if !s.checkSmartRoutingCandidateBilling(ctx, apiKey, group) {
+			continue
+		}
+		resolved := decision.GroupID
+		apiKey.GroupID = &resolved
+		apiKey.Group = group
+		if state := SmartRoutingStateFromContext(ctx); state != nil {
+			if state.CurrentGroupID > 0 && state.CurrentGroupID != resolved {
+				state.GroupSwitches++
+			}
+			state.CurrentGroupID = resolved
+			if state.TriedGroups == nil {
+				state.TriedGroups = map[int64]struct{}{}
+			}
+			state.TriedGroups[resolved] = struct{}{}
+		}
+		MarkSmartRoutingCandidateSelected(ctx, resolved)
+		return &resolved
+	}
+	return restorePrimary()
+}
+
+// CommitSmartRoutingGroup records the selected group after account admission.
+// Group resolution itself must remain side-effect free until the handler has
+// passed its final slot and profit checks.
+func (s *OpenAIGatewayService) CommitSmartRoutingGroup(ctx context.Context, apiKey *APIKey, groupID *int64, sessionHash string) {
+	if s == nil || s.smartRoutingResolver == nil || apiKey == nil || groupID == nil || *groupID <= 0 {
+		return
+	}
+	if committer, ok := s.smartRoutingResolver.(SmartRoutingStickyCommitter); ok {
+		committer.CommitSticky(ctx, apiKey.ID, *groupID, sessionHash)
+	}
+}
+
+func (s *OpenAIGatewayService) checkSmartRoutingCandidateBilling(ctx context.Context, apiKey *APIKey, group *Group) bool {
+	if s == nil || apiKey == nil || group == nil {
+		return true
+	}
+	if s.billingCacheService == nil {
+		// Do not let a missing billing dependency turn into an unmetered
+		// candidate route; the caller can retain the primary group instead.
+		return false
+	}
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || apiKey.GroupID == nil || group.ID == *apiKey.GroupID || group.ID == state.MainGroupID {
+		return true
+	}
+	if state.BillingRejectedGroups == nil {
+		state.BillingRejectedGroups = make(map[int64]struct{})
+	}
+	if _, rejected := state.BillingRejectedGroups[group.ID]; rejected {
+		return false
+	}
+	if state.BillingCheckedGroups == nil {
+		state.BillingCheckedGroups = make(map[int64]struct{})
+	}
+	if _, checked := state.BillingCheckedGroups[group.ID]; checked {
+		return true
+	}
+	if err := s.billingCacheService.CheckSmartRoutingGroupEligibility(ctx, apiKey.User, apiKey, group); err != nil {
+		state.BillingRejectedGroups[group.ID] = struct{}{}
+		slog.Warn("smart_routing.candidate_billing_rejected", "api_key_id", apiKey.ID, "group_id", group.ID, "error", err)
+		return false
+	}
+	state.BillingCheckedGroups[group.ID] = struct{}{}
+	return true
 }
 
 func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImages(

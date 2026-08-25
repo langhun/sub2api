@@ -523,6 +523,51 @@ func (s *ChannelService) GetChannelModelPricing(ctx context.Context, groupID int
 	return &cp
 }
 
+// CheckSmartRoutingPricingComparable reports whether a group's effective
+// token price can be compared using the group multiplier alone.  Channel
+// model pricing and channel model mappings can replace the billing model or
+// price at request time, so smart routing must exclude those candidates unless
+// it has an explicit cross-group comparison.  Cache/database failures are
+// returned to let callers fail closed instead of silently treating an unknown
+// channel configuration as safe.
+func (s *ChannelService) CheckSmartRoutingPricingComparable(ctx context.Context, groupID int64, model string) (bool, error) {
+	if s == nil || groupID <= 0 {
+		return true, nil
+	}
+	lk, err := s.lookupGroupChannel(ctx, groupID)
+	if err != nil {
+		return false, err
+	}
+	if lk == nil {
+		return true, nil
+	}
+	model = strings.TrimSpace(model)
+	if model == "" {
+		// Without a requested model we cannot prove that a configured wildcard
+		// pricing/mapping entry will not apply.
+		if len(lk.channel.ModelPricing) > 0 || len(lk.channel.ModelMapping) > 0 {
+			return false, nil
+		}
+		return true, nil
+	}
+	// A channel-level model allow-list is a hard group capability gate. If the
+	// candidate would be selected here but the scheduler later rejects the same
+	// model, the handler may terminate before it gets a chance to try another
+	// group. Apply the same precheck for request/mapped billing sources; an
+	// upstream-sourced channel still requires the existing per-account check.
+	billingModel := billingModelForRestriction(lk.channel.BillingModelSource, model, resolveMapping(lk, groupID, model).MappedModel)
+	if billingModel != "" && lk.channel.RestrictModels && checkRestricted(lk, groupID, billingModel) {
+		return false, nil
+	}
+	if lookupPricingAcrossPlatforms(lk.cache, groupID, lk.platform, model) != nil {
+		return false, nil
+	}
+	if resolveMapping(lk, groupID, model).Mapped {
+		return false, nil
+	}
+	return true, nil
+}
+
 // ResolveChannelMapping 解析渠道级模型映射（热路径 O(1)）
 // 返回映射结果，包含映射后的模型名、渠道 ID、计费模型来源。
 func (s *ChannelService) ResolveChannelMapping(ctx context.Context, groupID int64, model string) ChannelMappingResult {

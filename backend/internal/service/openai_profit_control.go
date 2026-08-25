@@ -137,6 +137,21 @@ func (s *OpenAIGatewayService) WithOpenAIRequestPricingContext(ctx context.Conte
 	return s.withOpenAIProfitControlGate(ctx, groupID), pricingAt
 }
 
+// WithOpenAIGroupPricingContext reapplies the request's already-frozen pricing
+// instant to the group selected by smart routing. A request must not get a new
+// peak-pricing timestamp when it switches groups, but the profit-control gate
+// must never continue using the primary group's threshold.
+func (s *OpenAIGatewayService) WithOpenAIGroupPricingContext(ctx context.Context, groupID *int64, pricingAt time.Time) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if pricingAt.IsZero() {
+		pricingAt = timezone.Now()
+	}
+	ctx = context.WithValue(ctx, openAIPricingAtCtxKey{}, pricingAt)
+	return s.withOpenAIProfitControlGate(ctx, groupID)
+}
+
 // WithOpenAIProfitControlSuppressed 标记本请求在利润门范围之外（独立图片/视频
 // 端点、Grok 媒体、count_tokens、live）。所有装门点（含 service 层防御性装门）
 // 都尊重该标记；它只关闭利润准入过滤，不影响定价上下文与计费。
@@ -362,24 +377,40 @@ func (s *OpenAIGatewayService) bindOpenAIStickySessionDuringSelection(ctx contex
 // remains sticky and becomes eligible again automatically after its rate
 // recovers.
 func (s *OpenAIGatewayService) BindStickySessionAfterProfitAdmission(ctx context.Context, groupID *int64, sessionHash string, accountID int64) error {
-	if sessionHash == "" || accountID <= 0 {
+	if accountID <= 0 {
+		return nil
+	}
+	commitAdmission := func(bindErr error) error {
+		if bindErr == nil {
+			CommitSmartRoutingAdmission(ctx, s.smartRoutingResolver, groupID, sessionHash, accountID)
+		}
+		return bindErr
+	}
+	if sessionHash == "" || s.cache == nil {
+		// Route auditing and group sticky state are independent of the account
+		// sticky cache. Preserve the admitted route even when that cache is not
+		// wired or temporarily unavailable.
+		CommitSmartRoutingAdmission(ctx, s.smartRoutingResolver, groupID, sessionHash, accountID)
 		return nil
 	}
 	if preserveOpenAIGuardianParentBinding(ctx, sessionHash) {
+		CommitSmartRoutingAdmission(ctx, s.smartRoutingResolver, groupID, sessionHash, accountID)
 		return nil
 	}
 	if !gatewayProfitControlGateActive(ctx) {
-		return s.BindStickySession(ctx, groupID, sessionHash, accountID)
+		return commitAdmission(s.BindStickySession(ctx, groupID, sessionHash, accountID))
 	}
 	existingAccountID, err := s.getStickySessionAccountID(ctx, groupID, sessionHash)
 	if err != nil && !errors.Is(err, ErrStickySessionNotFound) {
 		slog.Warn("profit_control_sticky_binding_read_failed", "group_id", derefGroupID(groupID), "account_id", accountID, "error", err)
+		CommitSmartRoutingAdmission(ctx, s.smartRoutingResolver, groupID, sessionHash, accountID)
 		return nil
 	}
 	if existingAccountID > 0 && existingAccountID != accountID {
+		CommitSmartRoutingAdmission(ctx, s.smartRoutingResolver, groupID, sessionHash, accountID)
 		return nil
 	}
-	return s.BindStickySession(ctx, groupID, sessionHash, accountID)
+	return commitAdmission(s.BindStickySession(ctx, groupID, sessionHash, accountID))
 }
 
 // ---- 可观测性：按分组累计计数 + 采样日志（无逐请求输出） ----

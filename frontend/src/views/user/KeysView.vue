@@ -73,7 +73,7 @@
               </button>
             </div>
           </div>
-          <button @click="showCreateModal = true" class="btn btn-primary" data-tour="keys-create-btn">
+          <button @click="openCreateModal" class="btn btn-primary" data-tour="keys-create-btn">
             <Icon name="plus" size="md" class="mr-2" />
             {{ t('keys.createKey') }}
           </button>
@@ -171,6 +171,35 @@
                   />
                 </svg>
               </button>
+            </div>
+          </template>
+
+          <template #cell-routing="{ row }">
+            <div class="key-routing-cell" :aria-label="t('keys.routingListLabel')">
+              <template v-if="routingListSummaries[row.id]?.loading">
+                <span class="key-routing-badge key-routing-badge-muted">{{ t('keys.routingSummaryLoading') }}</span>
+              </template>
+              <template v-else-if="routingListSummaries[row.id]?.error">
+                <span class="key-routing-badge key-routing-badge-muted">{{ t('keys.routingSummaryUnavailable') }}</span>
+              </template>
+              <template v-else>
+                <span
+                  class="key-routing-badge"
+                  :class="routingListSummaryIsSmart(routingListSummaries[row.id])
+                    ? 'key-routing-badge-smart'
+                    : 'key-routing-badge-single'"
+                >
+                  <Icon :name="routingListSummaryIsSmart(routingListSummaries[row.id]) ? 'sparkles' : 'server'" size="xs" />
+                  {{ routingListSummaryIsSmart(routingListSummaries[row.id]) ? t('keys.smartRouting') : t('keys.singleGroup') }}
+                </span>
+                <span v-if="routingListSummaryIsSmart(routingListSummaries[row.id])" class="key-routing-count">
+                  {{ routingListSummaryCandidateCount(routingListSummaries[row.id]) }}{{ t('keys.routingCandidateCountSuffix') }}
+                </span>
+                <span class="key-routing-status" :class="routingListSummaryStatusClass(routingListSummaries[row.id])">
+                  <span class="key-routing-status-dot" aria-hidden="true" />
+                  {{ routingListSummaryStatusLabel(routingListSummaries[row.id]) }}
+                </span>
+              </template>
             </div>
           </template>
 
@@ -426,7 +455,7 @@
               :title="t('keys.noKeysYet')"
               :description="t('keys.createFirstKey')"
               :action-text="t('keys.createKey')"
-              @action="showCreateModal = true"
+              @action="openCreateModal"
             />
           </template>
         </DataTable>
@@ -448,7 +477,7 @@
     <BaseDialog
       :show="showCreateModal || showEditModal"
       :title="showEditModal ? t('keys.editKey') : t('keys.createKey')"
-      width="normal"
+      width="key-form"
       @close="closeModals"
     >
       <form id="key-form" @submit.prevent="handleSubmit" class="space-y-5">
@@ -469,6 +498,7 @@
           <Select
             v-model="formData.group_id"
             :options="groupOptions"
+            :disabled="routingLoading"
             :placeholder="t('keys.selectGroup')"
             :searchable="true"
             :search-placeholder="t('keys.searchGroup')"
@@ -507,65 +537,85 @@
           </Select>
         </div>
 
-        <section v-if="showEditModal || showCreateModal" class="routing-panel border-t border-gray-200 pt-5 dark:border-dark-600">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <label class="input-label mb-0">{{ t('keys.routingMode') }}</label>
-              <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('keys.routingModeHint') }}</p>
-            </div>
+        <section v-if="showEditModal || showCreateModal" class="routing-panel border-t border-gray-200 pt-4 dark:border-dark-600">
+          <div class="routing-panel-header">
+            <label class="input-label mb-0">{{ t('keys.routingMode') }}</label>
             <div class="routing-segmented" role="tablist" :aria-label="t('keys.routingMode')">
-              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'single'" :class="{ active: formData.routing_mode === 'single' }" @click="formData.routing_mode = 'single'">{{ t('keys.singleGroup') }}</button>
-              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'smart'" :class="{ active: formData.routing_mode === 'smart' }" @click="formData.routing_mode = 'smart'">{{ t('keys.smartRouting') }}</button>
+              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'single'" :tabindex="formData.routing_mode === 'single' ? 0 : -1" data-routing-mode="single" :class="{ active: formData.routing_mode === 'single' }" :disabled="routingLoading" @click="formData.routing_mode = 'single'" @keydown="handleRoutingModeKeydown($event, 'single')">{{ t('keys.singleGroup') }}</button>
+              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'smart'" :tabindex="formData.routing_mode === 'smart' ? 0 : -1" data-routing-mode="smart" :class="{ active: formData.routing_mode === 'smart' }" :disabled="routingLoading" @click="formData.routing_mode = 'smart'" @keydown="handleRoutingModeKeydown($event, 'smart')">{{ t('keys.smartRouting') }}</button>
             </div>
           </div>
+          <p class="routing-mode-hint"><Icon name="infoCircle" size="xs" /> {{ formData.routing_mode === 'smart' ? t('keys.routingSmartModeHint') : t('keys.routingSingleModeHint') }}</p>
+          <div v-if="routingProfileLoadError" class="routing-profile-error" role="alert">
+            <span class="routing-error-copy"><Icon name="exclamationTriangle" size="sm" /><span>{{ t('keys.routingLoadFailed') }}</span></span>
+            <button type="button" class="routing-retry-button" :disabled="routingLoading || !selectedKey" @click="selectedKey && retryRoutingProfile(selectedKey.id)"><Icon name="refresh" size="xs" /> {{ t('keys.routingRetry') }}</button>
+          </div>
 
-          <div v-if="formData.routing_mode === 'smart'" class="routing-workspace">
-            <div class="routing-section-head">
-              <div>
-                <h4>{{ t('keys.routingCandidates') }}</h4>
-                <p>{{ t('keys.routingCandidatesHint') }}</p>
+          <div v-if="formData.routing_mode === 'smart'" class="routing-workspace" :aria-busy="routingLoading">
+            <p v-if="routingLoading" class="routing-loading-hint">{{ t('keys.routingLoading') }}</p>
+            <div class="routing-safety-note" role="note"><Icon name="shield" size="sm" /><span><strong>{{ t('keys.routingSafetyTitle') }}</strong> {{ t('keys.routingSafetyHint') }}</span></div>
+            <div class="routing-workspace-box">
+              <div class="routing-workspace-header">
+                <label class="input-label mb-0">{{ t('keys.routingCandidates') }}</label>
+                <span class="routing-count" aria-live="polite">{{ t('keys.routingCandidateCount', { count: formData.routing_group_ids.length }) }}</span>
               </div>
-              <span class="routing-count">{{ formData.routing_group_ids.length }}/8</span>
-            </div>
-            <div class="routing-candidate-box">
-              <div v-if="formData.routing_group_ids.length" class="routing-chip-list">
-                <span v-for="groupId in formData.routing_group_ids" :key="groupId" class="routing-chip">
-                  <span class="routing-chip-dot" />
-                  {{ routingGroupLabel(groupId) }}
-                  <button type="button" :aria-label="`${t('common.delete')} ${routingGroupLabel(groupId)}`" @click="removeRoutingGroup(groupId)"><Icon name="x" size="xs" /></button>
-                </span>
+              <p class="routing-field-hint">{{ t('keys.routingCandidatesHint') }}</p>
+              <div v-if="selectedRoutingGroups.length" class="routing-selected-list" role="list" :aria-label="t('keys.routingCandidates')">
+                <div v-for="(group, index) in selectedRoutingGroups" :key="group.id" class="routing-selected-row" :class="{ invalid: !group.eligible, dragging: routingDraggedGroupId === group.id, 'drag-over-before': routingDragOverGroupId === group.id && routingDragOverPlacement === 'before', 'drag-over-after': routingDragOverGroupId === group.id && routingDragOverPlacement === 'after' }" role="listitem" :aria-setsize="selectedRoutingGroups.length" :aria-posinset="index + 1" @dragover="handleRoutingGroupDragOver(group.id, $event)" @dragleave="handleRoutingGroupDragLeave(group.id, $event)" @drop.prevent="dropRoutingGroup(group.id)">
+                  <span class="routing-order">{{ index + 1 }}</span>
+                  <button type="button" class="routing-drag-handle" :aria-label="t('keys.dragRoutingCandidate')" :title="t('keys.dragRoutingCandidate')" :aria-keyshortcuts="'ArrowUp ArrowDown Home End'" :disabled="routingLoading" draggable="true" @dragstart="startRoutingGroupDrag(group.id, $event)" @dragend="clearRoutingGroupDrag" @keydown="handleRoutingCandidateKeydown($event, group.id)"><Icon name="sort" size="xs" /></button>
+                  <span class="routing-selected-copy"><strong>{{ group.label }}</strong><small>{{ group.description }}</small></span>
+                  <span class="routing-group-status" :class="group.eligible ? 'eligible' : 'invalid'" :title="group.eligible ? t('keys.routingCandidateReady') : t('keys.routingCandidateInvalidShort')"><Icon :name="group.eligible ? 'checkCircle' : 'exclamationTriangle'" size="xs" /><span>{{ group.eligible ? t('keys.routingCandidateReady') : t('keys.routingCandidateInvalidShort') }}</span></span>
+                  <button type="button" class="routing-icon-button" :disabled="routingLoading || index === 0" :aria-label="t('keys.moveRoutingCandidateUp')" :title="t('keys.moveRoutingCandidateUp')" @click="moveRoutingGroup(group.id, -1)"><Icon name="chevronUp" size="xs" /></button>
+                  <button type="button" class="routing-icon-button" :disabled="routingLoading || index === selectedRoutingGroups.length - 1" :aria-label="t('keys.moveRoutingCandidateDown')" :title="t('keys.moveRoutingCandidateDown')" @click="moveRoutingGroup(group.id, 1)"><Icon name="chevronDown" size="xs" /></button>
+                  <button type="button" class="routing-icon-button danger" :disabled="routingLoading" :aria-label="`${t('common.delete')} ${group.label}`" :title="t('common.delete')" @click="removeRoutingGroup(group.id)"><Icon name="x" size="xs" /></button>
+                </div>
               </div>
               <div v-else class="routing-empty">{{ t('keys.routingCandidatesEmpty') }}</div>
-              <select v-model="routingCandidateToAdd" class="routing-add-select" :aria-label="t('keys.selectRoutingCandidates')" @change="addRoutingGroup">
-                <option :value="null">{{ t('keys.addRoutingCandidate') }}</option>
-                <option v-for="option in availableRoutingGroupOptions" :key="option.value" :value="option.value">{{ option.label }} · {{ option.description }}</option>
-              </select>
-            </div>
+              <Select v-model="routingCandidateToAdd" class="routing-add-select" :options="availableRoutingGroupOptions" :placeholder="t('keys.addRoutingCandidate')" :searchable="true" :search-placeholder="t('keys.searchRoutingCandidates')" :empty-text="t('keys.routingCandidatesNoMatch')" :disabled="routingLoading || routingProfileLoadError || formData.routing_group_ids.length >= 8 || availableRoutingGroupOptions.length === 0" :aria-label="t('keys.selectRoutingCandidates')" @update:model-value="addRoutingGroup">
+                <template #option="{ option }"><span class="routing-select-option"><strong>{{ option.label }}</strong><small>{{ option.description }}</small></span></template>
+              </Select>
+              <p v-if="routingSubmitAttempted && routingCandidateValidationError" class="routing-validation-error" role="alert">{{ routingCandidateValidationError }}</p>
 
-            <div class="routing-section-head mt-5">
-              <div>
-                <h4>{{ t('keys.routingStrategy') }}</h4>
-                <p>{{ t('keys.routingStrategyHint') }}</p>
+              <div class="routing-strategy-block">
+                <div class="routing-workspace-header"><label class="input-label mb-0">{{ t('keys.routingStrategy') }}</label></div>
+                <p class="routing-field-hint">{{ t('keys.routingStrategyHint') }}</p>
+                <div class="routing-strategy-grid" role="radiogroup" :aria-label="t('keys.routingStrategy')">
+                  <button
+                    v-for="strategy in routingStrategies"
+                    :key="strategy.value"
+                    type="button"
+                    role="radio"
+                    class="routing-strategy-card"
+                    :class="[{ selected: formData.routing_strategy === strategy.value }, strategy.value === 'custom' && 'custom']"
+                    :aria-checked="formData.routing_strategy === strategy.value"
+                    :tabindex="formData.routing_strategy === strategy.value ? 0 : -1"
+                    :data-routing-strategy="strategy.value"
+                    :disabled="routingLoading"
+                    @click="selectRoutingStrategy(strategy.value)"
+                    @keydown="handleRoutingStrategyKeydown($event, strategy.value)"
+                  >
+                    <span class="routing-strategy-icon" :class="strategy.tone"><Icon :name="strategy.icon" size="sm" /></span>
+                    <span class="routing-strategy-copy"><strong>{{ strategy.label }}</strong><small>{{ strategy.description }}</small><em>{{ strategy.weightSummary }}</em></span>
+                    <Icon v-if="formData.routing_strategy === strategy.value" name="check" size="sm" class="routing-strategy-check" />
+                  </button>
+                </div>
+                <div v-if="formData.routing_strategy === 'custom'" class="routing-custom-weights" :class="{ invalid: !routingWeightsValid }">
+                  <div class="routing-custom-weight-total" :class="routingWeightsValid ? 'valid' : 'invalid'" aria-live="polite">{{ t('keys.routingWeightTotal') }}: {{ routingWeightTotal }}%</div>
+                  <label v-for="field in routingWeightFields" :key="field.key"><span>{{ t(field.label) }}</span><div class="routing-number-input"><input v-model.number="formData[field.key]" :disabled="routingLoading" type="number" min="0" max="100" step="1" :aria-label="t(field.label)" /><b>%</b></div></label>
+                  <p v-if="!routingWeightsValid" class="routing-validation-error" role="alert">{{ t('keys.routingWeightInvalid') }}</p>
+                </div>
               </div>
-              <span class="routing-weight-total" :class="routingWeightTotal === 100 ? 'valid' : 'invalid'">{{ routingWeightTotal }}%</span>
-            </div>
-            <div class="routing-strategy-grid">
-              <button v-for="strategy in routingStrategies" :key="strategy.value" type="button" class="routing-strategy-card" :class="{ selected: formData.routing_strategy === strategy.value }" @click="formData.routing_strategy = strategy.value">
-                <span class="routing-strategy-icon" :class="strategy.tone"><Icon :name="strategy.icon" size="sm" /></span>
-                <span class="routing-strategy-copy">
-                  <strong>{{ strategy.label }}</strong>
-                  <small>{{ strategy.description }}</small>
-                  <em>{{ strategy.weightSummary }}</em>
-                </span>
-                <Icon v-if="formData.routing_strategy === strategy.value" name="check" size="sm" class="routing-strategy-check" />
-              </button>
             </div>
 
-            <div v-if="formData.routing_strategy === 'custom'" class="routing-custom-weights">
-              <label v-for="field in ([['routing_price_weight', 'keys.priceWeight'], ['routing_speed_weight', 'keys.speedWeight'], ['routing_success_weight', 'keys.successWeight']] as const)" :key="field[0]">
-                <span>{{ t(field[1]) }}</span>
-                <div class="routing-number-input"><input v-model.number="formData[field[0]]" type="number" min="0" max="100" /><b>%</b></div>
-              </label>
+            <div v-if="showEditModal && selectedKey" class="routing-preview-section">
+              <button type="button" class="routing-preview-toggle" :aria-expanded="routingPreviewExpanded" @click="routingPreviewExpanded = !routingPreviewExpanded"><span><Icon name="search" size="xs" /> {{ t('keys.routingPreview') }}</span><Icon :name="routingPreviewExpanded ? 'chevronUp' : 'chevronDown'" size="xs" /></button>
+              <p class="routing-field-hint">{{ t('keys.routingPreviewHint') }}</p>
+              <div v-if="routingPreviewExpanded" class="routing-preview-content">
+                <div class="routing-preview-controls"><input v-model="routingPreviewModel" class="routing-preview-input" type="text" :placeholder="t('keys.routingPreviewModelPlaceholder')" :aria-label="t('keys.routingPreviewModel')" :disabled="routingPreviewLoading || routingLoading" @keyup.enter="previewRouting" /><Select v-model="routingPreviewEndpoint" class="routing-preview-endpoint" :options="routingPreviewEndpointOptions" :disabled="routingPreviewLoading || routingLoading" :aria-label="t('keys.routingPreviewEndpoint')" /><button type="button" class="routing-preview-button" :disabled="routingPreviewLoading || routingLoading" @click="previewRouting"><Icon name="search" size="xs" /> {{ t('keys.routingPreviewAction') }}</button></div>
+                <p v-if="routingPreviewError" class="routing-validation-error" role="alert">{{ routingPreviewError }}</p>
+                <div v-if="routingPreviewGroups.length" class="routing-preview-list"><div v-for="(group, index) in routingPreviewGroups" :key="group.group_id" class="routing-preview-row" :class="{ eligible: group.eligible }"><span class="routing-preview-rank">{{ index + 1 }}</span><span class="routing-preview-copy"><strong>{{ group.name || `#${group.group_id}` }}</strong><small>{{ group.eligible ? `${t('keys.routingPreviewScore')}: ${group.score.toFixed(1)}` : (group.reason || t('keys.routingCandidateInvalid')) }}</small></span><span v-if="group.eligible" class="routing-preview-metrics"><span :title="t('keys.routingPreviewSuccess')">{{ group.success_rate ? `${Math.round(group.success_rate * 100)}%` : '-' }}</span><span :title="t('keys.routingPreviewSpeed')">{{ group.speed_ms ? `${Math.round(group.speed_ms)}ms` : '-' }}</span><span :title="t('keys.routingPreviewSamples')">n={{ group.samples }}</span></span></div></div>
+              </div>
             </div>
           </div>
         </section>
@@ -979,7 +1029,7 @@
           <button
             form="key-form"
             type="submit"
-            :disabled="submitting"
+            :disabled="submitting || routingLoading || routingProfileLoadError"
             class="btn btn-primary"
             data-tour="key-form-submit"
           >
@@ -1180,7 +1230,7 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, reactive, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
+	import { ref, reactive, computed, nextTick, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
 	import { useI18n } from 'vue-i18n'
 	import { useAppStore } from '@/stores/app'
 	import { useOnboardingStore } from '@/stores/onboarding'
@@ -1189,7 +1239,8 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 
 const { t } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
-import { getSmartRouting, updateSmartRouting, type SmartRoutingProfile } from '@/custom/modules/smart-routing/api'
+import { getSmartRouting, updateSmartRouting, previewSmartRouting, type SmartRoutingProfile, type SmartRoutingGroup } from '@/custom/modules/smart-routing/api'
+import { reorderRoutingGroups, reorderRoutingGroupsByKeyboard, type RoutingDropPlacement, type RoutingKeyboardMove } from '@/custom/modules/smart-routing/reorder'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import DataTable from '@/components/common/DataTable.vue'
@@ -1244,6 +1295,7 @@ const allColumns = computed<Column[]>(() => [
   { key: 'id', label: t('keys.id'), sortable: true },
   { key: 'key', label: t('keys.apiKey'), sortable: false },
   { key: 'group', label: t('keys.group'), sortable: false },
+  { key: 'routing', label: t('keys.routingListLabel'), sortable: false },
   { key: 'current_concurrency', label: t('keys.currentConcurrency'), sortable: true },
   { key: 'usage', label: t('keys.usage'), sortable: false },
   { key: 'rate_limit', label: t('keys.rateLimitColumn'), sortable: false },
@@ -1334,6 +1386,35 @@ const columns = computed<Column[]>(() =>
 )
 
 const apiKeys = ref<ApiKey[]>([])
+
+interface RoutingListSummary {
+  profile: SmartRoutingProfile | null
+  loading: boolean
+  error: boolean
+  loadedAt: number
+}
+
+const routingListSummaries = ref<Record<number, RoutingListSummary>>({})
+const routingListGeneration = ref(0)
+const routingSummaryCacheTtlMs = 30_000
+
+const routingListSummaryIsSmart = (summary?: RoutingListSummary) =>
+  Boolean(summary?.profile?.enabled && summary.profile.mode === 'smart')
+
+const routingListSummaryCandidateCount = (summary?: RoutingListSummary) =>
+  summary?.profile?.groups?.filter((group) => group.enabled).length ?? 0
+
+const routingListSummaryStatusLabel = (summary?: RoutingListSummary) => {
+  if (!routingListSummaryIsSmart(summary)) return t('keys.routingStatusDisabled')
+  return routingListSummaryCandidateCount(summary) > 0
+    ? t('keys.routingStatusActive')
+    : t('keys.routingStatusNoCandidates')
+}
+
+const routingListSummaryStatusClass = (summary?: RoutingListSummary) => {
+  if (!routingListSummaryIsSmart(summary)) return 'disabled'
+  return routingListSummaryCandidateCount(summary) > 0 ? 'active' : 'warning'
+}
 const groups = ref<Group[]>([])
 const loading = ref(false)
 const submitting = ref(false)
@@ -1370,7 +1451,19 @@ const pendingCcsRow = ref<ApiKey | null>(null)
 const selectedKey = ref<ApiKey | null>(null)
 const routingProfile = ref<SmartRoutingProfile | null>(null)
 const routingLoading = ref(false)
+const routingProfileLoadError = ref(false)
 const routingCandidateToAdd = ref<number | null>(null)
+const routingSubmitAttempted = ref(false)
+const routingDraggedGroupId = ref<number | null>(null)
+const routingDragOverGroupId = ref<number | null>(null)
+const routingDragOverPlacement = ref<RoutingDropPlacement | null>(null)
+const routingPreviewModel = ref('')
+const routingPreviewEndpoint = ref<'chat_completions' | 'responses' | 'messages'>('chat_completions')
+const routingPreviewLoading = ref(false)
+const routingPreviewGroups = ref<SmartRoutingGroup[]>([])
+const routingPreviewError = ref('')
+const routingPreviewExpanded = ref(false)
+let routingRequestGeneration = 0
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
@@ -1423,27 +1516,168 @@ const formData = ref({
   ,routing_group_ids: [] as number[]
 })
 
-const routingWeightTotal = computed(() => formData.value.routing_price_weight + formData.value.routing_speed_weight + formData.value.routing_success_weight)
-const routingGroupOptions = computed(() => {
-  const primary = formData.value.group_id
-  return groups.value
-    .filter((group) => group.id !== primary)
-    .map((group) => ({ value: group.id, label: group.name, description: `${group.platform} · ${group.rate_multiplier}x` }))
+type RoutingWeightKey = 'routing_price_weight' | 'routing_speed_weight' | 'routing_success_weight'
+type RoutingStrategy = SmartRoutingProfile['strategy']
+
+const routingWeightFields: Array<{ key: RoutingWeightKey; label: string }> = [
+  { key: 'routing_price_weight', label: 'keys.priceWeight' },
+  { key: 'routing_speed_weight', label: 'keys.speedWeight' },
+  { key: 'routing_success_weight', label: 'keys.successWeight' }
+]
+
+const routingPreviewEndpointOptions = computed(() => [
+  { value: 'chat_completions', label: t('keys.routingEndpointChatCompletions') },
+  { value: 'responses', label: t('keys.routingEndpointResponses') },
+  { value: 'messages', label: t('keys.routingEndpointMessages') }
+])
+
+const routingWeightValue = (value: number | null | undefined) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : 0
+}
+
+const routingWeightTotal = computed(() =>
+  routingWeightValue(formData.value.routing_price_weight) +
+  routingWeightValue(formData.value.routing_speed_weight) +
+  routingWeightValue(formData.value.routing_success_weight)
+)
+
+const routingWeightsValid = computed(() => {
+  const weights = routingWeightFields.map(({ key }) => routingWeightValue(formData.value[key]))
+  return weights.every((weight) => Number.isInteger(weight) && weight >= 0 && weight <= 100) && routingWeightTotal.value === 100
 })
-const availableRoutingGroupOptions = computed(() => routingGroupOptions.value.filter((option) => !formData.value.routing_group_ids.includes(option.value)))
+
+const primaryRoutingGroup = computed(() => groups.value.find((group) => group.id === formData.value.group_id) || null)
+
+const isRoutingCompatibleGroup = (group: Group) => {
+  const primary = primaryRoutingGroup.value
+  return Boolean(
+    primary &&
+    group.id !== primary.id &&
+    group.status === 'active' &&
+    group.platform !== 'composite' &&
+    primary.platform !== 'composite' &&
+    group.platform === primary.platform &&
+    group.subscription_type === primary.subscription_type
+  )
+}
+
+interface RoutingGroupOption {
+  [key: string]: unknown
+  value: number
+  label: string
+  description: string
+  platform: GroupPlatform
+  subscriptionType: SubscriptionType
+  rate: number
+}
+
+const routingGroupOptions = computed<RoutingGroupOption[]>(() =>
+  groups.value
+    .filter(isRoutingCompatibleGroup)
+    .map((group) => ({
+      value: group.id,
+      label: group.name,
+      description: `${group.platform} · ${group.subscription_type} · ${group.rate_multiplier}x`,
+      platform: group.platform,
+      subscriptionType: group.subscription_type,
+      rate: group.rate_multiplier
+    }))
+)
+
+const availableRoutingGroupOptions = computed(() =>
+  routingGroupOptions.value.filter((option) => !formData.value.routing_group_ids.includes(option.value))
+)
+
+const selectedRoutingGroups = computed(() =>
+  formData.value.routing_group_ids.map((groupId) => {
+    const option = routingGroupOptions.value.find((candidate) => candidate.value === groupId)
+    const group = groups.value.find((candidate) => candidate.id === groupId)
+    return {
+      id: groupId,
+      label: option?.label || group?.name || `#${groupId}`,
+      description: option?.description || (group ? `${group.platform} · ${group.subscription_type} · ${group.rate_multiplier}x` : t('keys.routingCandidateUnavailable')),
+      eligible: Boolean(option)
+    }
+  })
+)
+
+const routingCandidateValidationError = computed(() => {
+  if (routingLoading.value) return ''
+  if (!formData.value.routing_group_ids.length) return t('keys.routingCandidatesRequired')
+  if (formData.value.routing_group_ids.length > 8) return t('keys.routingCandidatesLimit')
+  if (selectedRoutingGroups.value.some((group) => !group.eligible)) return t('keys.routingCandidateInvalid')
+  return ''
+})
+
 const routingStrategies = computed(() => [
   { value: 'auto' as const, label: t('keys.strategyAuto'), description: t('keys.strategyAutoDesc'), weightSummary: `${t('keys.priceWeight')} 40% · ${t('keys.speedWeight')} 30% · ${t('keys.successWeight')} 30%`, icon: 'sparkles', tone: 'teal' },
-  { value: 'price' as const, label: t('keys.strategyPrice'), description: t('keys.strategyPriceDesc'), weightSummary: `${t('keys.priceWeight')} 100%`, icon: 'dollar', tone: 'green' },
-  { value: 'speed' as const, label: t('keys.strategySpeed'), description: t('keys.strategySpeedDesc'), weightSummary: `${t('keys.speedWeight')} 70%`, icon: 'bolt', tone: 'amber' },
-  { value: 'success' as const, label: t('keys.strategySuccess'), description: t('keys.strategySuccessDesc'), weightSummary: `${t('keys.successWeight')} 70%`, icon: 'shield', tone: 'rose' },
-  { value: 'custom' as const, label: t('keys.strategyCustom'), description: t('keys.strategyCustomDesc'), weightSummary: `${t('keys.priceWeight')} ${formData.value.routing_price_weight}% · ${t('keys.speedWeight')} ${formData.value.routing_speed_weight}% · ${t('keys.successWeight')} ${formData.value.routing_success_weight}%`, icon: 'chart', tone: 'violet' }
+  { value: 'price' as const, label: t('keys.strategyPrice'), description: t('keys.strategyPriceDesc'), weightSummary: `${t('keys.priceWeight')} 100% · ${t('keys.speedWeight')} 0% · ${t('keys.successWeight')} 0%`, icon: 'dollar', tone: 'green' },
+  { value: 'speed' as const, label: t('keys.strategySpeed'), description: t('keys.strategySpeedDesc'), weightSummary: `${t('keys.priceWeight')} 15% · ${t('keys.speedWeight')} 70% · ${t('keys.successWeight')} 15%`, icon: 'bolt', tone: 'amber' },
+  { value: 'success' as const, label: t('keys.strategySuccess'), description: t('keys.strategySuccessDesc'), weightSummary: `${t('keys.priceWeight')} 15% · ${t('keys.speedWeight')} 15% · ${t('keys.successWeight')} 70%`, icon: 'shield', tone: 'rose' },
+  { value: 'custom' as const, label: t('keys.strategyCustom'), description: t('keys.strategyCustomDesc'), weightSummary: `${t('keys.priceWeight')} ${routingWeightValue(formData.value.routing_price_weight)}% · ${t('keys.speedWeight')} ${routingWeightValue(formData.value.routing_speed_weight)}% · ${t('keys.successWeight')} ${routingWeightValue(formData.value.routing_success_weight)}%`, icon: 'chart', tone: 'violet' }
 ] as const)
 
-const routingGroupLabel = (groupId: number) => routingGroupOptions.value.find((option) => option.value === groupId)?.label || `#${groupId}`
+const routingStrategyOptions = computed(() => routingStrategies.value.map(({ value, label }) => ({ value, label })))
 
-const addRoutingGroup = () => {
-  const groupId = routingCandidateToAdd.value
-  if (groupId && !formData.value.routing_group_ids.includes(groupId) && formData.value.routing_group_ids.length < 8) {
+const selectRoutingStrategy = (strategy: RoutingStrategy) => {
+  formData.value.routing_strategy = strategy
+  if (strategy === 'auto') {
+    formData.value.routing_price_weight = 40
+    formData.value.routing_speed_weight = 30
+    formData.value.routing_success_weight = 30
+  } else if (strategy === 'price') {
+    formData.value.routing_price_weight = 100
+    formData.value.routing_speed_weight = 0
+    formData.value.routing_success_weight = 0
+  } else if (strategy === 'speed') {
+    formData.value.routing_price_weight = 15
+    formData.value.routing_speed_weight = 70
+    formData.value.routing_success_weight = 15
+  } else if (strategy === 'success') {
+    formData.value.routing_price_weight = 15
+    formData.value.routing_speed_weight = 15
+    formData.value.routing_success_weight = 70
+  }
+}
+
+const handleRoutingStrategySelect = (value: unknown) => {
+  if (typeof value !== 'string') return
+  if (routingStrategies.value.some((strategy) => strategy.value === value)) {
+    selectRoutingStrategy(value as RoutingStrategy)
+  }
+}
+
+const routingModeValues = ['single', 'smart'] as const
+
+const focusRoutingMode = (mode: (typeof routingModeValues)[number]) => {
+  void nextTick(() => {
+    document.querySelector<HTMLElement>(`[data-routing-mode="${mode}"]`)?.focus()
+  })
+}
+
+const handleRoutingModeKeydown = (event: KeyboardEvent, current: (typeof routingModeValues)[number]) => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  const currentIndex = routingModeValues.indexOf(current)
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? routingModeValues.length - 1
+      : (currentIndex + (event.key === 'ArrowLeft' ? -1 : 1) + routingModeValues.length) % routingModeValues.length
+  const nextMode = routingModeValues[nextIndex]
+  formData.value.routing_mode = nextMode
+  focusRoutingMode(nextMode)
+}
+
+const addRoutingGroup = (value?: number | string | boolean | null) => {
+  const rawGroupId = value ?? routingCandidateToAdd.value
+  if (typeof rawGroupId === 'boolean') {
+    routingCandidateToAdd.value = null
+    return
+  }
+  const groupId = rawGroupId === null || rawGroupId === undefined || rawGroupId === '' ? null : Number(rawGroupId)
+  if (groupId !== null && Number.isInteger(groupId) && availableRoutingGroupOptions.value.some((option) => option.value === groupId) && formData.value.routing_group_ids.length < 8) {
     formData.value.routing_group_ids.push(groupId)
   }
   routingCandidateToAdd.value = null
@@ -1453,23 +1687,141 @@ const removeRoutingGroup = (groupId: number) => {
   formData.value.routing_group_ids = formData.value.routing_group_ids.filter((id) => id !== groupId)
 }
 
+const moveRoutingGroup = (groupId: number, direction: -1 | 1) => {
+  if (routingLoading.value) return
+  const currentIndex = formData.value.routing_group_ids.indexOf(groupId)
+  const nextIndex = currentIndex + direction
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= formData.value.routing_group_ids.length) return
+  const targetGroupId = formData.value.routing_group_ids[nextIndex]
+  formData.value.routing_group_ids = reorderRoutingGroups(
+    formData.value.routing_group_ids,
+    groupId,
+    targetGroupId,
+    direction === 1 ? 'after' : 'before'
+  )
+}
+
+const handleRoutingCandidateKeydown = (event: KeyboardEvent, groupId: number) => {
+  if (routingLoading.value || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  const movementByKey: Record<string, RoutingKeyboardMove> = {
+    ArrowUp: 'up',
+    ArrowDown: 'down',
+    Home: 'home',
+    End: 'end'
+  }
+  formData.value.routing_group_ids = reorderRoutingGroupsByKeyboard(
+    formData.value.routing_group_ids,
+    groupId,
+    movementByKey[event.key]
+  )
+}
+
+const startRoutingGroupDrag = (groupId: number, event: DragEvent) => {
+  if (routingLoading.value) {
+    event.preventDefault()
+    return
+  }
+  routingDraggedGroupId.value = groupId
+  routingDragOverGroupId.value = null
+  routingDragOverPlacement.value = null
+  event.dataTransfer?.setData('text/plain', String(groupId))
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+}
+
+const handleRoutingGroupDragOver = (targetGroupId: number, event: DragEvent) => {
+  if (routingLoading.value || routingDraggedGroupId.value === null || routingDraggedGroupId.value === targetGroupId) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  const target = event.currentTarget as HTMLElement | null
+  const placement: RoutingDropPlacement = target && event.clientY > target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2
+    ? 'after'
+    : 'before'
+  routingDragOverGroupId.value = targetGroupId
+  routingDragOverPlacement.value = placement
+}
+
+const handleRoutingGroupDragLeave = (targetGroupId: number, event: DragEvent) => {
+  if (routingDragOverGroupId.value !== targetGroupId) return
+  const target = event.currentTarget as HTMLElement | null
+  const related = event.relatedTarget as Node | null
+  if (target && related && target.contains(related)) return
+  routingDragOverGroupId.value = null
+  routingDragOverPlacement.value = null
+}
+
+const dropRoutingGroup = (targetGroupId: number) => {
+  const draggedGroupId = routingDraggedGroupId.value
+  const placement = routingDragOverPlacement.value || 'before'
+  clearRoutingGroupDrag()
+  if (routingLoading.value || draggedGroupId === null || draggedGroupId === targetGroupId) return
+  formData.value.routing_group_ids = reorderRoutingGroups(
+    formData.value.routing_group_ids,
+    draggedGroupId,
+    targetGroupId,
+    placement
+  )
+}
+
+const clearRoutingGroupDrag = () => {
+  routingDraggedGroupId.value = null
+  routingDragOverGroupId.value = null
+  routingDragOverPlacement.value = null
+}
+
+const previewRouting = async () => {
+  if (!selectedKey.value) return
+  const model = routingPreviewModel.value.trim()
+  if (!model) {
+    routingPreviewError.value = t('keys.routingPreviewModelRequired')
+    routingPreviewGroups.value = []
+    return
+  }
+  routingPreviewLoading.value = true
+  routingPreviewError.value = ''
+  try {
+    const result = await previewSmartRouting(selectedKey.value.id, model, routingPreviewEndpoint.value)
+    routingPreviewGroups.value = result.groups
+  } catch (error: any) {
+    routingPreviewGroups.value = []
+    routingPreviewError.value = error?.response?.data?.detail || error?.message || t('keys.routingPreviewFailed')
+  } finally {
+    routingPreviewLoading.value = false
+  }
+}
+
 const loadRoutingProfile = async (keyId: number) => {
+  const generation = ++routingRequestGeneration
   routingLoading.value = true
+  routingProfileLoadError.value = false
   try {
     const profile = await getSmartRouting(keyId)
-    routingProfile.value = profile
-    formData.value.routing_mode = profile.mode
-    formData.value.routing_enabled = profile.enabled
+    if (generation !== routingRequestGeneration || !showEditModal.value || selectedKey.value?.id !== keyId) return
+    const profileGroups = Array.isArray(profile.groups) ? profile.groups : []
+    routingProfile.value = { ...profile, groups: profileGroups }
+    // A persisted smart profile can be intentionally disabled by operations.
+    // Do not turn it back on merely because a user edits an unrelated key field.
+    formData.value.routing_mode = profile.enabled && profile.mode === 'smart' ? 'smart' : 'single'
+    formData.value.routing_enabled = profile.enabled && profile.mode === 'smart'
     formData.value.routing_strategy = profile.strategy
     formData.value.routing_price_weight = profile.price_weight
     formData.value.routing_speed_weight = profile.speed_weight
     formData.value.routing_success_weight = profile.success_weight
-    formData.value.routing_group_ids = profile.groups.filter((group) => group.enabled).map((group) => group.group_id)
+    formData.value.routing_group_ids = profileGroups.filter((group) => group.enabled).map((group) => group.group_id)
   } catch {
-    routingProfile.value = null
+    if (generation === routingRequestGeneration && showEditModal.value && selectedKey.value?.id === keyId) {
+      routingProfile.value = null
+      routingProfileLoadError.value = true
+    }
   } finally {
-    routingLoading.value = false
+    if (generation === routingRequestGeneration) routingLoading.value = false
   }
+}
+
+const retryRoutingProfile = (keyId: number) => {
+  if (routingLoading.value) return
+  routingProfileLoadError.value = false
+  void loadRoutingProfile(keyId)
 }
 
 // 自定义Key验证
@@ -1574,6 +1926,58 @@ const isAbortError = (error: unknown) => {
   return name === 'AbortError' || code === 'ERR_CANCELED'
 }
 
+const loadRoutingListSummaries = (items: ApiKey[]) => {
+  const generation = ++routingListGeneration.value
+  const now = Date.now()
+  const previous = routingListSummaries.value
+  const next: Record<number, RoutingListSummary> = {}
+
+  for (const key of items) {
+    const cached = previous[key.id]
+    if (cached && !cached.error && now - cached.loadedAt < routingSummaryCacheTtlMs) {
+      next[key.id] = cached
+    } else {
+      next[key.id] = {
+        profile: null,
+        loading: true,
+        error: false,
+        loadedAt: cached?.loadedAt ?? 0
+      }
+    }
+  }
+  routingListSummaries.value = next
+
+  // Route profiles are an optional overlay and must not delay the API-key list.
+  void Promise.all(items.map(async (key) => {
+    const cached = previous[key.id]
+    if (cached && !cached.error && now - cached.loadedAt < routingSummaryCacheTtlMs) return
+    try {
+      const profile = await getSmartRouting(key.id)
+      if (generation !== routingListGeneration.value) return
+      routingListSummaries.value = {
+        ...routingListSummaries.value,
+        [key.id]: {
+          profile: { ...profile, groups: Array.isArray(profile.groups) ? profile.groups : [] },
+          loading: false,
+          error: false,
+          loadedAt: Date.now()
+        }
+      }
+    } catch {
+      if (generation !== routingListGeneration.value) return
+      routingListSummaries.value = {
+        ...routingListSummaries.value,
+        [key.id]: {
+          profile: null,
+          loading: false,
+          error: true,
+          loadedAt: Date.now()
+        }
+      }
+    }
+  }))
+}
+
 const loadApiKeys = async () => {
   abortController?.abort()
   const controller = new AbortController()
@@ -1602,6 +2006,7 @@ const loadApiKeys = async () => {
     apiKeys.value = response.items
     pagination.value.total = response.total
     pagination.value.pages = response.pages
+    loadRoutingListSummaries(response.items)
 
     // Load usage stats for all API keys in the list
     if (response.items.length > 0) {
@@ -1681,6 +2086,16 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
 }
 
 const editKey = (key: ApiKey) => {
+  routingProfile.value = null
+  routingProfileLoadError.value = false
+  routingCandidateToAdd.value = null
+  routingSubmitAttempted.value = false
+  clearRoutingGroupDrag()
+  routingPreviewModel.value = ''
+  routingPreviewEndpoint.value = 'chat_completions'
+  routingPreviewGroups.value = []
+  routingPreviewError.value = ''
+  routingPreviewExpanded.value = false
   selectedKey.value = key
   const hasIPRestriction = (key.ip_whitelist?.length > 0) || (key.ip_blacklist?.length > 0)
   const hasExpiration = !!key.expires_at
@@ -1766,12 +2181,57 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
   dropdownPosition.value = null
   if (key.group_id === newGroupId) return
 
+  let previousRouting: SmartRoutingProfile | null = null
+  let safeRouting: SmartRoutingProfile | null = null
+  let groupUpdateSucceeded = false
   try {
+    // The inline group picker bypasses the edit modal. Disable an active smart
+    // profile first so candidates validated against the old primary group can
+    // never be used while the key's primary group is changing.
+    previousRouting = await getSmartRouting(key.id)
+    const routingActive = previousRouting.enabled && previousRouting.mode === 'smart'
+    if (routingActive) {
+      safeRouting = await updateSmartRouting(key.id, {
+        version: previousRouting.version,
+        enabled: false,
+        mode: 'single',
+        strategy: 'auto',
+        price_weight: 40,
+        speed_weight: 30,
+        success_weight: 30,
+        sticky_ttl_seconds: previousRouting.sticky_ttl_seconds,
+        exploration_rate: previousRouting.exploration_rate,
+        group_ids: []
+      })
+    }
     await keysAPI.update(key.id, { group_id: newGroupId })
+    groupUpdateSucceeded = true
     appStore.showSuccess(t('keys.groupChangedSuccess'))
     loadApiKeys()
-  } catch (error) {
-    appStore.showError(t('keys.failedToChangeGroup'))
+  } catch (error: any) {
+    // If the primary-group update failed after routing was disabled, restore
+    // the exact previous profile using the new version. If restoration itself
+    // fails, the conservative single-group state is safer than stale routing.
+    if (!groupUpdateSucceeded && safeRouting && previousRouting) {
+      try {
+        await updateSmartRouting(key.id, {
+          version: safeRouting.version,
+          enabled: previousRouting.enabled,
+          mode: previousRouting.mode,
+          strategy: previousRouting.strategy,
+          price_weight: previousRouting.price_weight,
+          speed_weight: previousRouting.speed_weight,
+          success_weight: previousRouting.success_weight,
+          sticky_ttl_seconds: previousRouting.sticky_ttl_seconds,
+          exploration_rate: previousRouting.exploration_rate,
+          group_ids: previousRouting.groups.filter(group => group.enabled).map(group => group.group_id)
+        })
+      } catch {
+        // Keep the original error visible; single-group fail-closed is safer.
+      }
+    }
+    const errorMsg = error?.response?.data?.detail || error?.message || t('keys.failedToChangeGroup')
+    appStore.showError(errorMsg)
   }
 }
 
@@ -1793,14 +2253,30 @@ const confirmDelete = (key: ApiKey) => {
 }
 
 const handleSubmit = async () => {
+  routingSubmitAttempted.value = true
   // Validate group_id is required
   if (formData.value.group_id === null) {
     appStore.showError(t('keys.groupRequired'))
     return
   }
-  if (formData.value.routing_mode === 'smart' && routingWeightTotal.value !== 100) {
-    appStore.showError(t('keys.routingWeightInvalid'))
+  if (showEditModal.value && routingProfileLoadError.value) {
+    appStore.showError(t('keys.routingLoadFailed'))
     return
+  }
+  const primaryGroupChanged = Boolean(
+    showEditModal.value &&
+    selectedKey.value &&
+    selectedKey.value.group_id !== formData.value.group_id
+  )
+  if (formData.value.routing_mode === 'smart') {
+    if (!routingWeightsValid.value && !primaryGroupChanged) {
+      appStore.showError(t('keys.routingWeightInvalid'))
+      return
+    }
+    if (routingCandidateValidationError.value && !primaryGroupChanged) {
+      appStore.showError(routingCandidateValidationError.value)
+      return
+    }
   }
 
   // Validate custom key if enabled
@@ -1856,8 +2332,10 @@ const handleSubmit = async () => {
   let editedKeyUpdateSucceeded = false
   try {
     if (showEditModal.value && selectedKey.value) {
-      if (formData.value.routing_mode === 'smart' && routingWeightTotal.value !== 100) {
-        throw new Error(t('keys.routingWeightInvalid'))
+      const groupChanged = selectedKey.value.group_id !== formData.value.group_id
+      if (formData.value.routing_mode === 'smart') {
+        if (!routingWeightsValid.value && !groupChanged) throw new Error(t('keys.routingWeightInvalid'))
+        if (routingCandidateValidationError.value && !groupChanged) throw new Error(routingCandidateValidationError.value)
       }
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
@@ -1873,7 +2351,8 @@ const handleSubmit = async () => {
       if (shouldSubmitEditStatus(selectedKey.value, formData.value.status)) {
         updates.status = formData.value.status
       }
-      const groupChanged = selectedKey.value.group_id !== formData.value.group_id
+      const routingFallbackToSingle = formData.value.routing_mode === 'smart' &&
+        (!routingWeightsValid.value || Boolean(routingCandidateValidationError.value))
       editedKeyGroupChanged = groupChanged
       const previousRouting = routingProfile.value
       let safeRoutingProfile: SmartRoutingProfile | null = null
@@ -1916,16 +2395,17 @@ const handleSubmit = async () => {
       }
       await updateSmartRouting(selectedKey.value.id, {
         version: (safeRoutingProfile || routingProfile.value)?.version,
-        enabled: formData.value.routing_mode === 'smart',
-        mode: formData.value.routing_mode,
-        strategy: formData.value.routing_strategy,
-        price_weight: formData.value.routing_price_weight,
-        speed_weight: formData.value.routing_speed_weight,
-        success_weight: formData.value.routing_success_weight,
+        enabled: formData.value.routing_mode === 'smart' && !routingFallbackToSingle,
+        mode: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? 'smart' : 'single',
+        strategy: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_strategy : 'auto',
+        price_weight: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_price_weight : 40,
+        speed_weight: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_speed_weight : 30,
+        success_weight: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_success_weight : 30,
         sticky_ttl_seconds: routingProfile.value?.sticky_ttl_seconds ?? 1800,
         exploration_rate: routingProfile.value?.exploration_rate ?? 0.05,
-        group_ids: formData.value.routing_mode === 'smart' ? formData.value.routing_group_ids : []
+        group_ids: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_group_ids : []
       })
+      if (routingFallbackToSingle) appStore.showWarning(t('keys.routingResetAfterGroupChange'))
       appStore.showSuccess(t('keys.keyUpdatedSuccess'))
     } else {
       const customKey = formData.value.use_custom_key ? formData.value.custom_key : undefined
@@ -1941,7 +2421,8 @@ const handleSubmit = async () => {
       )
       createdKeyId = createdKey.id
       if (formData.value.routing_mode === 'smart') {
-        if (routingWeightTotal.value !== 100) throw new Error(t('keys.routingWeightInvalid'))
+        if (!routingWeightsValid.value) throw new Error(t('keys.routingWeightInvalid'))
+        if (routingCandidateValidationError.value) throw new Error(routingCandidateValidationError.value)
         await updateSmartRouting(createdKey.id, {
           enabled: true,
           mode: 'smart',
@@ -2021,6 +2502,20 @@ const handleDelete = async () => {
 }
 
 const closeModals = () => {
+  routingRequestGeneration += 1
+  // A profile may have changed while editing. Drop list summaries so the next
+  // page refresh cannot display a stale mode or candidate count.
+  routingListSummaries.value = {}
+  routingLoading.value = false
+  routingProfile.value = null
+  routingProfileLoadError.value = false
+  routingCandidateToAdd.value = null
+  routingSubmitAttempted.value = false
+  clearRoutingGroupDrag()
+  routingPreviewModel.value = ''
+  routingPreviewEndpoint.value = 'chat_completions'
+  routingPreviewGroups.value = []
+  routingPreviewError.value = ''
   showCreateModal.value = false
   showEditModal.value = false
   selectedKey.value = null
@@ -2050,6 +2545,11 @@ const closeModals = () => {
     ,routing_success_weight: 30
     ,routing_group_ids: []
   }
+}
+
+const openCreateModal = () => {
+  closeModals()
+  showCreateModal.value = true
 }
 
 // Show reset quota confirmation dialog
@@ -2208,18 +2708,31 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  routingRequestGeneration += 1
+  routingListGeneration.value += 1
   document.removeEventListener('click', closeGroupSelector)
   if (resetTimer) clearInterval(resetTimer)
 })
 </script>
 
 <style scoped>
+/* Legacy routing rules are kept below as a reference; the compact reference-aligned
+ * layer that follows is the only active routing editor styling. */
+/*
 .routing-panel {
   color: #172033;
 }
 
+.routing-field-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .routing-segmented {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
   gap: 3px;
   padding: 3px;
   border: 1px solid #e5e7eb;
@@ -2228,8 +2741,8 @@ onUnmounted(() => {
 }
 
 .routing-segmented button {
-  min-height: 32px;
-  padding: 0 12px;
+  min-height: 35px;
+  padding: 0 10px;
   border-radius: 6px;
   color: #667085;
   font-size: 12px;
@@ -2243,11 +2756,34 @@ onUnmounted(() => {
   box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
 }
 
-.routing-workspace {
-  padding: 14px;
-  border: 1px solid #e6e9ef;
-  border-radius: 10px;
-  background: #fbfcfe;
+.routing-segmented button:disabled,
+.routing-strategy-card:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.routing-segmented button:focus-visible,
+.routing-strategy-card:focus-visible,
+.routing-icon-button:focus-visible {
+  outline: 2px solid rgb(20 184 166 / 55%);
+  outline-offset: 2px;
+}
+
+.routing-mode-hint {
+  margin: 0;
+  color: #98a2b3;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.routing-smart-content {
+  margin-top: 24px;
+}
+
+.routing-loading-hint {
+  margin: 0 0 10px;
+  color: #667085;
+  font-size: 11px;
 }
 
 .routing-section-head {
@@ -2282,72 +2818,172 @@ onUnmounted(() => {
 .routing-weight-total.valid { color: #0f9f8d; }
 .routing-weight-total.invalid { color: #dc5b62; }
 
+.routing-candidates-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #edf0f4;
+}
+
 .routing-candidate-box {
   margin-top: 10px;
-  padding: 8px;
+  padding: 9px;
   border: 1px solid #dfe4ec;
   border-radius: 9px;
   background: #fff;
 }
 
-.routing-chip-list {
-  display: flex;
-  flex-wrap: wrap;
+.routing-selected-list {
+  display: grid;
   gap: 6px;
-  min-height: 30px;
 }
 
-.routing-chip {
-  display: inline-flex;
+.routing-selected-row {
+  display: flex;
   align-items: center;
   gap: 6px;
-  max-width: 100%;
-  padding: 5px 7px 5px 9px;
-  border: 1px solid #bdeee7;
-  border-radius: 6px;
-  background: #effcf9;
-  color: #126d66;
-  font-size: 12px;
-  font-weight: 600;
+  min-width: 0;
+  padding: 7px 5px 7px 7px;
+  border: 1px solid #edf0f4;
+  border-radius: 7px;
+  background: #fbfcfe;
 }
 
-.routing-chip-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: #14b8a6;
+.routing-selected-row.invalid {
+  border-color: #f2c5c8;
+  background: #fff8f8;
 }
 
-.routing-chip button {
+.routing-selected-row.dragging {
+  opacity: .55;
+  border-color: #2cc4b4;
+}
+
+.routing-selected-row.drag-over-before {
+  border-top-color: #16a394;
+  box-shadow: inset 0 2px 0 #16a394;
+}
+
+.routing-selected-row.drag-over-after {
+  border-bottom-color: #16a394;
+  box-shadow: inset 0 -2px 0 #16a394;
+}
+
+.routing-order {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 2px;
-  color: #5b9a94;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: #eef2f6;
+  color: #667085;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
-.routing-chip button:hover { color: #b42318; }
+.routing-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #98a2b3;
+  cursor: grab;
+}
+
+.routing-drag-handle:active { cursor: grabbing; }
+.routing-drag-handle:disabled { cursor: not-allowed; opacity: .45; }
+
+.routing-selected-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.routing-selected-copy strong {
+  overflow: hidden;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routing-selected-copy small {
+  overflow: hidden;
+  color: #98a2b3;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routing-invalid-badge {
+  flex: 0 0 auto;
+  color: #c24d55;
+  font-size: 10px;
+}
+
+.routing-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #667085;
+  transition: color .16s ease, background .16s ease;
+}
+
+.routing-icon-button:hover:not(:disabled) { color: #0f766e; background: #effcf9; }
+.routing-icon-button:disabled { cursor: not-allowed; color: #cbd5e1; }
+.routing-icon-button.danger:hover:not(:disabled) { color: #b42318; background: #fff1f2; }
 
 .routing-empty {
-  padding: 5px 3px 8px;
+  padding: 7px 3px 9px;
   color: #98a2b3;
   font-size: 12px;
 }
 
 .routing-add-select {
   width: 100%;
-  min-height: 34px;
   margin-top: 8px;
-  padding: 0 10px;
-  border: 1px dashed #cbd5e1;
-  border-radius: 7px;
-  background: #f8fafc;
-  color: #667085;
-  font-size: 12px;
-  outline: none;
 }
 
-.routing-add-select:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgb(20 184 166 / 12%); }
+.routing-add-select :deep(.select-trigger) {
+  min-height: 36px;
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.routing-add-select :deep(.select-trigger:focus-visible) {
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgb(20 184 166 / 12%);
+}
+
+.routing-select-option {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.routing-select-option strong {
+  color: #344054;
+  font-size: 12px;
+}
+
+.routing-select-option small {
+  color: #98a2b3;
+  font-size: 10px;
+}
 
 .routing-strategy-grid {
   display: grid;
@@ -2362,25 +2998,28 @@ onUnmounted(() => {
   align-items: flex-start;
   gap: 9px;
   min-width: 0;
-  padding: 11px;
+  min-height: 84px;
+  padding: 12px;
   border: 1px solid #e4e7ec;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
   text-align: left;
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
 .routing-strategy-card:hover { border-color: #a8ddd7; transform: translateY(-1px); }
+.routing-strategy-card:disabled:hover { border-color: #e4e7ec; transform: none; }
 .routing-strategy-card.selected { border-color: #2cc4b4; background: #f1fcfa; box-shadow: 0 0 0 1px #2cc4b4 inset; }
+.routing-strategy-card.custom { grid-column: 1 / -1; }
 
 .routing-strategy-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 27px;
-  width: 27px;
-  height: 27px;
-  border-radius: 7px;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
 }
 .routing-strategy-icon.teal { color: #0f9f8d; background: #dff8f4; }
 .routing-strategy-icon.green { color: #17845a; background: #e3f8ee; }
@@ -2390,7 +3029,7 @@ onUnmounted(() => {
 
 .routing-strategy-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
 .routing-strategy-copy strong { color: #344054; font-size: 12px; line-height: 1.25; }
-.routing-strategy-copy small { color: #667085; font-size: 10px; line-height: 1.35; }
+.routing-strategy-copy small { color: #667085; font-size: 11px; line-height: 1.4; }
 .routing-strategy-copy em { color: #98a2b3; font-size: 10px; font-style: normal; font-variant-numeric: tabular-nums; }
 .routing-strategy-check { flex: 0 0 auto; color: #0f9f8d; }
 
@@ -2403,19 +3042,989 @@ onUnmounted(() => {
   border-top: 1px solid #edf0f4;
 }
 
+.routing-custom-weights.invalid { border-top-color: #f2c5c8; }
+
+.routing-custom-weight-total {
+  grid-column: 1 / -1;
+  color: #667085;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.routing-custom-weight-total.valid { color: #0f9f8d; }
+.routing-custom-weight-total.invalid { color: #dc5b62; }
+
+.routing-preview-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #edf0f4;
+}
+
+.routing-preview-controls {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.routing-preview-input {
+  min-width: 0;
+  flex: 1;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #dfe4ec;
+  border-radius: 7px;
+  background: #fff;
+  color: #344054;
+  font-size: 12px;
+  outline: none;
+}
+
+.routing-preview-input:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgb(20 184 166 / 10%); }
+
+.routing-preview-endpoint {
+  flex: 0 0 132px;
+  min-width: 0;
+}
+
+.routing-preview-endpoint :deep(.select-trigger) { min-height: 36px; }
+
+.routing-preview-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 11px;
+  border-radius: 7px;
+  background: #eafaf7;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.routing-preview-button:disabled { cursor: wait; opacity: .6; }
+
+.routing-preview-list {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.routing-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid #edf0f4;
+  border-radius: 7px;
+  background: #fbfcfe;
+}
+
+.routing-preview-row:not(.eligible) { background: #fff8f8; border-color: #f2c5c8; }
+.routing-preview-rank { flex: 0 0 20px; color: #98a2b3; font-size: 11px; text-align: center; }
+.routing-preview-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
+.routing-preview-copy strong { overflow: hidden; color: #344054; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.routing-preview-copy small { overflow: hidden; color: #98a2b3; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.routing-preview-metric { color: #0f9f8d; font-size: 11px; font-variant-numeric: tabular-nums; }
+
 .routing-custom-weights label { color: #667085; font-size: 11px; }
 .routing-number-input { display: flex; align-items: center; margin-top: 5px; border: 1px solid #dfe4ec; border-radius: 6px; background: #fff; }
 .routing-number-input:focus-within { border-color: #14b8a6; box-shadow: 0 0 0 3px rgb(20 184 166 / 10%); }
 .routing-number-input input { width: 100%; min-width: 0; padding: 7px 8px; border: 0; background: transparent; color: #344054; font-size: 12px; outline: none; }
 .routing-number-input b { padding-right: 8px; color: #98a2b3; font-size: 11px; font-weight: 500; }
 
+.routing-validation-error {
+  margin: 7px 0 0;
+  color: #c24d55;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.routing-profile-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #f2c5c8;
+  border-radius: 7px;
+  background: #fff8f8;
+}
+
+.routing-profile-error .routing-validation-error {
+  margin: 0;
+}
+
+.routing-retry-button {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 7px;
+  border-radius: 5px;
+  color: #b42318;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.routing-retry-button:hover:not(:disabled) { background: #ffeded; }
+.routing-retry-button:disabled { cursor: wait; opacity: .55; }
+
+.key-routing-cell {
+  display: flex;
+  min-width: 100px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.key-routing-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.key-routing-badge-smart { color: #0f766e; background: #eafaf7; }
+.key-routing-badge-single { color: #667085; background: #f1f3f5; }
+.key-routing-badge-muted { color: #98a2b3; background: #f6f7f9; }
+.key-routing-count,
+.key-routing-status { color: #98a2b3; font-size: 10px; line-height: 1.2; }
+.key-routing-status.active { color: #0f9f8d; }
+.key-routing-status.disabled { color: #98a2b3; }
+.key-routing-status.warning { color: #bc7614; }
+
+.routing-custom-weights .routing-validation-error {
+  grid-column: 1 / -1;
+}
+
+.dark .routing-panel { color: #e5e7eb; }
+.dark .routing-profile-error { border-color: #713d46; background: #2a2025; }
+.dark .routing-retry-button { color: #fda4af; }
+.dark .routing-retry-button:hover:not(:disabled) { background: #3b232a; }
+.dark .key-routing-badge-smart { color: #5eead4; background: #153433; }
+.dark .key-routing-badge-single { color: #aeb8c5; background: #303846; }
+.dark .key-routing-badge-muted { color: #8994a5; background: #252d38; }
+.dark .key-routing-status.active { color: #5eead4; }
+.dark .key-routing-status.warning { color: #fbbf24; }
+.dark .routing-segmented { border-color: #394150; background: #202733; }
+.dark .routing-segmented button { color: #9aa4b2; }
+.dark .routing-segmented button.active { color: #5eead4; background: #293241; }
+.dark .routing-mode-hint,
+.dark .routing-loading-hint,
+.dark .routing-section-head p,
+.dark .routing-selected-copy small,
+.dark .routing-select-option small { color: #8994a5; }
+.dark .routing-candidates-section { border-top-color: #303846; }
+.dark .routing-candidate-box,
+.dark .routing-selected-row,
+.dark .routing-number-input { border-color: #3b4554; background: #202733; }
+.dark .routing-selected-row.invalid { border-color: #713d46; background: #2a2025; }
+.dark .routing-selected-copy strong,
+.dark .routing-select-option strong,
+.dark .routing-strategy-copy strong { color: #e5e7eb; }
+.dark .routing-order { background: #303846; color: #aeb8c5; }
+.dark .routing-add-select :deep(.select-trigger) { border-color: #4b5666; background: #202733; }
+.dark .routing-strategy-card,
+.dark .routing-number-input { border-color: #3b4554; background: #202733; }
+.dark .routing-strategy-card.selected { border-color: #2cc4b4; background: #153433; }
+.dark .routing-custom-weights { border-top-color: #303846; }
+.dark .routing-custom-weights.invalid { border-top-color: #713d46; }
+.dark .routing-number-input input { color: #e5e7eb; }
+.dark .routing-preview-section { border-top-color: #303846; }
+.dark .routing-preview-input,
+.dark .routing-preview-row { border-color: #3b4554; background: #202733; }
+.dark .routing-preview-row:not(.eligible) { border-color: #713d46; background: #2a2025; }
+.dark .routing-preview-input { color: #e5e7eb; }
+.dark .routing-preview-copy strong { color: #e5e7eb; }
+
+*/
+
+/*
+Smart-routing editor visual hierarchy. Keep the controls dense, but make
+safety state, strategy, candidates, and preview read as separate tools.
+.routing-panel {
+  margin-top: 2px;
+  color: #172033;
+}
+
+.routing-panel-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.routing-panel-heading-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #dce5f7;
+  border-radius: 10px;
+  color: #4663a8;
+  background: #eff3ff;
+}
+
+.routing-panel-heading-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.routing-panel-kicker {
+  color: #667085;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.routing-panel-heading-copy strong {
+  color: #1f2937;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.routing-panel-heading-copy p {
+  margin: 1px 0 0;
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.routing-panel-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 23px;
+  padding: 0 8px;
+  border: 1px solid #e3e7ee;
+  border-radius: 999px;
+  color: #667085;
+  background: #f8fafc;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.routing-panel-status.active {
+  border-color: #b9dfd9;
+  color: #0f766e;
+  background: #eefbf8;
+}
+
+.routing-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #98a2b3;
+}
+
+.routing-panel-status.active .routing-status-dot {
+  background: #16a394;
+  box-shadow: 0 0 0 3px rgb(22 163 148 / 12%);
+}
+
+.routing-segmented {
+  gap: 5px;
+  padding: 4px;
+  border-color: #e1e6ef;
+  border-radius: 11px;
+  background: #f6f8fb;
+}
+
+.routing-segmented button {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 58px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #667085;
+  text-align: left;
+}
+
+.routing-segmented button > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #98a2b3;
+}
+
+.routing-segmented button.active {
+  border-color: #dbe3f4;
+  color: #31477c;
+  background: #fff;
+  box-shadow: 0 2px 6px rgb(31 41 55 / 8%);
+}
+
+.routing-segmented button.active > svg {
+  color: #4663a8;
+}
+
+.routing-mode-option-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.routing-mode-option-copy strong {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.routing-mode-option-copy small {
+  overflow: hidden;
+  color: #98a2b3;
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routing-mode-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 8px;
+  color: #667085;
+}
+
+.routing-mode-hint svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #8090ad;
+}
+
+.routing-error-copy {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.routing-error-copy > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #c24d55;
+}
+
+.routing-smart-content {
+  margin-top: 16px;
+}
+
+.routing-loading-hint {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  margin-bottom: 10px;
+  padding: 0 9px;
+  border: 1px solid #e4e9f2;
+  border-radius: 7px;
+  color: #667085;
+  background: #f8fafc;
+}
+
+.routing-safety-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid #d8e4f5;
+  border-radius: 9px;
+  color: #435b82;
+  background: #f3f7fd;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.routing-safety-note > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #4663a8;
+}
+
+.routing-safety-note > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.routing-safety-note strong {
+  color: #31477c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.routing-section-head {
+  margin-top: 18px;
+}
+
+.routing-section-head h4 {
+  color: #26344f;
+  font-size: 13px;
+}
+
+.routing-section-head p {
+  max-width: 50ch;
+  color: #7b879c;
+}
+
+.routing-strategy-grid {
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.routing-strategy-card {
+  min-height: 88px;
+  padding: 11px;
+  border-color: #e2e7ef;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgb(16 24 40 / 2%);
+}
+
+.routing-strategy-card:hover {
+  border-color: #aebcdf;
+  background: #fbfcff;
+  transform: translateY(-1px);
+}
+
+.routing-strategy-card.selected {
+  border-color: #6f86cf;
+  background: #f1f4ff;
+  box-shadow: 0 0 0 1px #6f86cf inset, 0 2px 5px rgb(70 99 168 / 8%);
+}
+
+.routing-strategy-icon {
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+}
+
+.routing-strategy-icon.teal { color: #4663a8; background: #e9efff; }
+.routing-strategy-icon.green { color: #17845a; background: #e5f7ee; }
+.routing-strategy-icon.amber { color: #a76514; background: #fff2dd; }
+.routing-strategy-icon.rose { color: #b54f66; background: #ffedf1; }
+.routing-strategy-icon.violet { color: #6f58b7; background: #f0ecff; }
+
+.routing-strategy-copy strong {
+  color: #26344f;
+  font-size: 12px;
+}
+
+.routing-strategy-copy small {
+  color: #6f7c91;
+  font-size: 10.5px;
+}
+
+.routing-strategy-copy em {
+  color: #98a2b3;
+  font-size: 9.5px;
+}
+
+.routing-strategy-check { color: #4663a8; }
+
+.routing-candidates-section,
+.routing-preview-section {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top-color: #e7ebf2;
+}
+
+.routing-count {
+  padding: 3px 7px;
+  border: 1px solid #e2e7ef;
+  border-radius: 999px;
+  color: #667085;
+  background: #f8fafc;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.routing-candidate-box {
+  margin-top: 9px;
+  padding: 8px;
+  border-color: #dfe5ee;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.routing-selected-row {
+  min-height: 43px;
+  padding: 7px 5px 7px 7px;
+  border-color: #e4e9f1;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.routing-order {
+  width: 21px;
+  height: 21px;
+  border: 1px solid #e0e6ef;
+  border-radius: 6px;
+  color: #667085;
+  background: #f4f6fa;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.routing-selected-copy strong { color: #26344f; font-size: 11.5px; }
+.routing-selected-copy small { color: #8490a3; font-size: 9.5px; }
+
+.routing-group-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.routing-group-status.eligible { color: #17845a; }
+.routing-group-status.invalid { color: #b54f66; }
+
+.key-routing-badge {
+  gap: 4px;
+  border: 1px solid transparent;
+}
+
+.key-routing-badge-smart { border-color: #cfe7e3; color: #0f766e; background: #eefbf8; }
+.key-routing-badge-single { border-color: #e1e5eb; color: #667085; background: #f6f7f9; }
+
+.key-routing-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.key-routing-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #aeb8c5;
+}
+
+.key-routing-status.active .key-routing-status-dot { background: #16a394; }
+.key-routing-status.warning .key-routing-status-dot { background: #d4932f; }
+
+.routing-icon-button:hover:not(:disabled) { color: #4663a8; background: #eef2ff; }
+.routing-icon-button.danger:hover:not(:disabled) { color: #b42318; background: #fff1f2; }
+
+.routing-add-select :deep(.select-trigger) {
+  min-height: 38px;
+  border-color: #cbd5e1;
+  border-style: solid;
+  background: #fff;
+}
+
+.routing-add-select :deep(.select-trigger)::before {
+  content: '+';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  border-radius: 50%;
+  color: #4663a8;
+  background: #e9efff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.routing-preview-controls { gap: 7px; margin-top: 9px; }
+
+.routing-preview-input,
+.routing-number-input {
+  border-color: #d6dde8;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.routing-preview-input:focus,
+.routing-number-input:focus-within {
+  border-color: #6f86cf;
+  box-shadow: 0 0 0 3px rgb(70 99 168 / 11%);
+}
+
+.routing-preview-button {
+  border: 1px solid #cbd6f1;
+  border-radius: 7px;
+  color: #3d5798;
+  background: #eef2ff;
+}
+
+.routing-preview-button:hover:not(:disabled) { background: #e2e9ff; }
+
+.routing-preview-list { gap: 5px; margin-top: 9px; }
+
+.routing-preview-row {
+  min-height: 44px;
+  padding: 7px;
+  border-color: #e4e9f1;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.routing-preview-row:not(.eligible) {
+  border-color: #f2c5c8;
+  background: #fff8f8;
+}
+
+.routing-preview-copy strong { color: #26344f; font-size: 11px; }
+.routing-preview-copy small { color: #8490a3; font-size: 9.5px; }
+
+.routing-preview-metrics {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.routing-preview-metrics span {
+  min-width: 33px;
+  padding: 3px 4px;
+  border: 1px solid #e1e7f0;
+  border-radius: 5px;
+  color: #4663a8;
+  background: #f4f6fd;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.routing-custom-weights {
+  gap: 9px;
+  margin-top: 9px;
+  padding-top: 11px;
+  border-top-color: #e7ebf2;
+}
+
+.routing-custom-weight-total.valid { color: #17845a; }
+.routing-custom-weight-total.invalid { color: #b54f66; }
+
+.routing-validation-error { color: #b54f66; }
+
+.dark .routing-panel-heading-icon { border-color: #394768; color: #aebdf1; background: #25304b; }
+.dark .routing-panel-heading-copy strong,
+.dark .routing-section-head h4,
+.dark .routing-strategy-copy strong,
+.dark .routing-selected-copy strong,
+.dark .routing-preview-copy strong { color: #e9edf5; }
+.dark .routing-panel-heading-copy p,
+.dark .routing-mode-hint,
+.dark .routing-mode-option-copy small,
+.dark .routing-section-head p,
+.dark .routing-selected-copy small,
+.dark .routing-preview-copy small { color: #9aa6ba; }
+.dark .routing-panel-status { border-color: #3d4657; color: #9aa6ba; background: #202733; }
+.dark .routing-panel-status.active { border-color: #2f6d68; color: #77d5c8; background: #1c3638; }
+.dark .routing-segmented { border-color: #394150; background: #202733; }
+.dark .routing-segmented button.active { border-color: #3d4a68; color: #b8c4ef; background: #293241; }
+.dark .routing-segmented button.active > svg { color: #aebdf1; }
+.dark .routing-safety-note { border-color: #3b4b70; color: #b9c5df; background: #222d45; }
+.dark .routing-safety-note > svg,
+.dark .routing-safety-note strong { color: #aebdf1; }
+.dark .routing-strategy-card { border-color: #3b4554; background: #202733; }
+.dark .routing-strategy-card:hover { border-color: #5a6fa8; background: #252d3b; }
+.dark .routing-strategy-card.selected { border-color: #6f86cf; background: #283450; }
+.dark .routing-strategy-copy small { color: #a5b0c0; }
+.dark .routing-strategy-check { color: #aebdf1; }
+.dark .routing-candidates-section,
+.dark .routing-preview-section,
+.dark .routing-custom-weights { border-top-color: #303846; }
+.dark .routing-count { border-color: #3b4554; color: #aeb8c5; background: #202733; }
+.dark .routing-candidate-box,
+.dark .routing-selected-row,
+.dark .routing-preview-row,
+.dark .routing-preview-input,
+.dark .routing-number-input { border-color: #3b4554; background: #202733; }
+.dark .routing-selected-row.invalid,
+.dark .routing-preview-row:not(.eligible) { border-color: #713d46; background: #2a2025; }
+.dark .routing-order { border-color: #3b4554; color: #aeb8c5; background: #303846; }
+.dark .routing-add-select :deep(.select-trigger) { border-color: #4b5666; background: #202733; }
+.dark .routing-add-select :deep(.select-trigger)::before { color: #b8c4ef; background: #313d62; }
+.dark .routing-preview-input,
+.dark .routing-number-input input { color: #e5e7eb; }
+.dark .routing-preview-button { border-color: #4d5d8c; color: #b8c4ef; background: #2a3654; }
+.dark .routing-preview-button:hover:not(:disabled) { background: #344263; }
+.dark .routing-preview-metrics span { border-color: #3b4b70; color: #b8c4ef; background: #283450; }
+.dark .key-routing-badge-smart { border-color: #2f6d68; }
+.dark .key-routing-badge-single { border-color: #3b4554; }
+.dark .routing-group-status.eligible { color: #70d3a6; }
+.dark .routing-group-status.invalid { color: #f2a4b0; }
+
 @media (max-width: 520px) {
   .routing-panel { padding-top: 16px; }
-  .routing-panel > .mb-4 { align-items: flex-start; flex-direction: column; }
+  .routing-panel-heading { grid-template-columns: auto minmax(0, 1fr); }
+  .routing-panel-status { grid-column: 2; justify-self: start; }
+  .routing-segmented { grid-template-columns: 1fr; }
+  .routing-segmented button { min-height: 51px; }
+  .routing-mode-option-copy small { white-space: normal; }
+  .routing-profile-error { align-items: flex-start; flex-direction: column; }
+  .routing-retry-button { align-self: flex-end; }
+  .routing-strategy-grid { grid-template-columns: 1fr; }
+  .routing-strategy-card.custom { grid-column: auto; }
+  .routing-custom-weights { grid-template-columns: 1fr; }
+  .routing-invalid-badge { display: none; }
+  .routing-group-status span { display: none; }
+  .routing-group-status { margin-left: auto; }
+  .routing-preview-controls { flex-direction: column; }
+  .routing-preview-input,
+  .routing-preview-endpoint { width: 100%; }
+  .routing-preview-button { width: 100%; }
+  .routing-preview-metrics { gap: 3px; }
+  .routing-preview-metrics span { min-width: 28px; padding: 3px; }
+}
+
+*/
+
+/* Compact reference-aligned routing editor. */
+.key-routing-cell { display: flex; min-width: 100px; flex-direction: column; align-items: flex-start; gap: 4px; }
+.key-routing-badge { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 7px; border: 1px solid transparent; border-radius: 5px; font-size: 11px; font-weight: 600; line-height: 1; }
+.key-routing-badge-smart { border-color: #cdebe4; color: #0f766e; background: #f1fbf8; }
+.key-routing-badge-single { border-color: #e5e7eb; color: #6b7280; background: #f5f6f7; }
+.key-routing-badge-muted { border-color: #edf0f4; color: #9ca3af; background: #f8fafc; }
+.key-routing-count, .key-routing-status { color: #9ca3af; font-size: 10px; line-height: 1.2; }
+.key-routing-status { display: inline-flex; align-items: center; gap: 4px; }
+.key-routing-status.active { color: #0f9f8d; }
+.key-routing-status.warning { color: #b7791f; }
+.key-routing-status-dot { width: 5px; height: 5px; border-radius: 50%; background: #aeb8c5; }
+.key-routing-status.active .key-routing-status-dot { background: #16a394; }
+.key-routing-status.warning .key-routing-status-dot { background: #d4932f; }
+
+.routing-panel {
+  margin-top: 0;
+  color: #111827;
+}
+
+.routing-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.routing-segmented {
+  display: inline-flex;
+  width: auto;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.routing-segmented button {
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 4px;
+  color: #4b5563;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.routing-segmented button.active {
+  color: #fff;
+  background: #0f9f8d;
+  box-shadow: none;
+}
+
+.routing-segmented button:disabled { cursor: wait; opacity: .65; }
+.routing-segmented button:focus-visible,
+.routing-drag-handle:focus-visible,
+.routing-icon-button:focus-visible,
+.routing-preview-toggle:focus-visible { outline: 2px solid rgb(15 159 141 / 45%); outline-offset: 2px; }
+
+.routing-mode-hint,
+.routing-field-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 6px 0 0;
+  color: #9ca3af;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.routing-mode-hint svg { flex: 0 0 auto; margin-top: 1px; color: #9ca3af; }
+
+.routing-profile-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #b91c1c;
+  background: #fff7f7;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.routing-error-copy { display: inline-flex; min-width: 0; align-items: flex-start; gap: 6px; }
+.routing-error-copy svg { flex: 0 0 auto; margin-top: 1px; }
+.routing-retry-button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; color: #b91c1c; font-size: 11px; font-weight: 600; }
+.routing-retry-button:hover:not(:disabled) { text-decoration: underline; }
+.routing-retry-button:disabled { cursor: wait; opacity: .55; }
+
+.routing-workspace { margin-top: 12px; }
+.routing-loading-hint { margin: 0 0 8px; color: #6b7280; font-size: 11px; }
+
+.routing-safety-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid #cdebe4;
+  border-radius: 6px;
+  color: #28766e;
+  background: #f1fbf8;
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.routing-safety-note svg { flex: 0 0 auto; margin-top: 1px; color: #0f9f8d; }
+.routing-safety-note strong { margin-right: 4px; color: #0f766e; font-weight: 700; }
+
+.routing-workspace-box {
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.routing-workspace-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.routing-count { flex: 0 0 auto; color: #9ca3af; font-size: 10px; font-variant-numeric: tabular-nums; }
+.routing-workspace-box > .routing-field-hint { margin-top: 4px; }
+
+.routing-selected-list { display: grid; gap: 4px; margin-top: 8px; max-height: 150px; overflow-y: auto; }
+.routing-selected-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 35px;
+  padding: 4px 4px 4px 6px;
+  border: 1px solid #edf0f4;
+  border-radius: 5px;
+  background: #fbfcfe;
+}
+.routing-selected-row.invalid { border-color: #fecaca; background: #fff8f8; }
+.routing-selected-row.dragging { opacity: .55; }
+.routing-selected-row.drag-over-before { border-top: 2px solid #0f9f8d; }
+.routing-selected-row.drag-over-after { border-bottom: 2px solid #0f9f8d; }
+.routing-order { display: inline-flex; flex: 0 0 18px; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; color: #6b7280; background: #f1f3f5; font-size: 10px; font-variant-numeric: tabular-nums; }
+.routing-drag-handle { display: inline-flex; flex: 0 0 18px; align-items: center; justify-content: center; width: 18px; height: 22px; padding: 0; color: #9ca3af; cursor: grab; }
+.routing-drag-handle:active { cursor: grabbing; }
+.routing-drag-handle:disabled { cursor: not-allowed; opacity: .45; }
+.routing-selected-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
+.routing-selected-copy strong { overflow: hidden; color: #374151; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.routing-selected-copy small { overflow: hidden; color: #9ca3af; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.routing-group-status { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 2px; color: #0f9f8d; font-size: 9px; font-weight: 600; white-space: nowrap; }
+.routing-group-status.invalid { color: #dc2626; }
+.routing-icon-button { display: inline-flex; flex: 0 0 22px; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; color: #9ca3af; }
+.routing-icon-button:hover:not(:disabled) { color: #0f766e; background: #effcf9; }
+.routing-icon-button.danger:hover:not(:disabled) { color: #dc2626; background: #fff1f2; }
+.routing-icon-button:disabled { cursor: not-allowed; opacity: .4; }
+.routing-empty { margin-top: 8px; padding: 8px; border: 1px dashed #d1d5db; border-radius: 5px; color: #9ca3af; font-size: 11px; text-align: center; }
+
+.routing-add-select { width: 100%; margin-top: 8px; }
+.routing-add-select :deep(.select-trigger) { min-height: 34px; border-style: dashed; border-radius: 5px; background: #fff; }
+.routing-select-option { display: flex; min-width: 0; flex-direction: column; gap: 1px; }
+.routing-select-option strong { color: #374151; font-size: 11px; }
+.routing-select-option small { color: #9ca3af; font-size: 9px; }
+
+.routing-strategy-block { margin-top: 13px; padding-top: 12px; border-top: 1px solid #edf0f4; }
+.routing-weight-total { flex: 0 0 auto; color: #9ca3af; font-size: 10px; font-variant-numeric: tabular-nums; }
+.routing-weight-total.valid { color: #0f9f8d; }
+.routing-weight-total.invalid { color: #dc2626; }
+.routing-weight-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.routing-weight-grid label { color: #6b7280; font-size: 10px; }
+.routing-number-input { display: flex; align-items: center; margin-top: 4px; border: 1px solid #dfe4ec; border-radius: 5px; background: #fff; }
+.routing-number-input:focus-within { border-color: #0f9f8d; box-shadow: 0 0 0 2px rgb(15 159 141 / 10%); }
+.routing-number-input input { width: 100%; min-width: 0; padding: 7px 8px; border: 0; background: transparent; color: #374151; font-size: 12px; outline: none; }
+.routing-number-input b { padding-right: 7px; color: #9ca3af; font-size: 10px; font-weight: 500; }
+.routing-strategy-select { margin-top: 9px; }
+.routing-strategy-select :deep(.select-trigger) { min-height: 34px; border-radius: 5px; }
+.routing-validation-error { margin: 6px 0 0; color: #dc2626; font-size: 10px; line-height: 1.4; }
+
+.routing-preview-section { margin-top: 12px; padding-top: 11px; border-top: 1px solid #edf0f4; }
+.routing-preview-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; color: #374151; font-size: 11px; font-weight: 600; }
+.routing-preview-toggle > span { display: inline-flex; align-items: center; gap: 5px; }
+.routing-preview-toggle:hover { color: #0f766e; }
+.routing-preview-section > .routing-field-hint { margin-top: 4px; }
+.routing-preview-content { margin-top: 8px; }
+.routing-preview-controls { display: flex; align-items: stretch; gap: 6px; }
+.routing-preview-input { min-width: 0; flex: 1; min-height: 34px; padding: 0 9px; border: 1px solid #dfe4ec; border-radius: 5px; color: #374151; font-size: 11px; outline: none; }
+.routing-preview-input:focus { border-color: #0f9f8d; box-shadow: 0 0 0 2px rgb(15 159 141 / 10%); }
+.routing-preview-endpoint { flex: 0 0 112px; min-width: 0; }
+.routing-preview-endpoint :deep(.select-trigger) { min-height: 34px; border-radius: 5px; }
+.routing-preview-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 4px; min-height: 34px; padding: 0 9px; border: 1px solid #cdebe4; border-radius: 5px; color: #0f766e; background: #f1fbf8; font-size: 11px; font-weight: 600; }
+.routing-preview-button:hover:not(:disabled) { background: #e4f7f2; }
+.routing-preview-button:disabled { cursor: wait; opacity: .6; }
+.routing-preview-list { display: grid; gap: 4px; margin-top: 8px; }
+.routing-preview-row { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 36px; padding: 5px 6px; border: 1px solid #edf0f4; border-radius: 5px; background: #fbfcfe; }
+.routing-preview-row:not(.eligible) { border-color: #fecaca; background: #fff8f8; }
+.routing-preview-rank { flex: 0 0 16px; color: #9ca3af; font-size: 10px; text-align: center; }
+.routing-preview-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
+.routing-preview-copy strong { overflow: hidden; color: #374151; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.routing-preview-copy small { overflow: hidden; color: #9ca3af; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.routing-preview-metrics { display: inline-flex; flex: 0 0 auto; gap: 3px; }
+.routing-preview-metrics span { min-width: 28px; padding: 2px 3px; border: 1px solid #e1e7f0; border-radius: 4px; color: #4663a8; background: #f4f6fd; font-size: 9px; font-variant-numeric: tabular-nums; text-align: center; }
+
+.dark .routing-panel { color: #e5e7eb; }
+.dark .routing-segmented { border-color: #374151; background: #202733; }
+.dark .routing-segmented button { color: #9ca3af; }
+.dark .routing-segmented button.active { color: #fff; background: #0f9f8d; }
+.dark .routing-mode-hint, .dark .routing-field-hint, .dark .routing-count, .dark .routing-selected-copy small, .dark .routing-select-option small { color: #9ca3af; }
+.dark .routing-safety-note { border-color: #2f6d68; color: #a7d9d2; background: #1c3638; }
+.dark .routing-safety-note strong { color: #77d5c8; }
+.dark .routing-workspace-box, .dark .routing-selected-row, .dark .routing-number-input, .dark .routing-preview-input, .dark .routing-preview-row { border-color: #374151; background: #202733; }
+.dark .routing-selected-row.invalid, .dark .routing-preview-row:not(.eligible) { border-color: #713d46; background: #2a2025; }
+.dark .routing-selected-copy strong, .dark .routing-preview-copy strong, .dark .routing-preview-toggle { color: #e5e7eb; }
+.dark .routing-number-input input, .dark .routing-preview-input { color: #e5e7eb; }
+.dark .routing-add-select :deep(.select-trigger), .dark .routing-strategy-select :deep(.select-trigger), .dark .routing-preview-endpoint :deep(.select-trigger) { border-color: #4b5666; background: #202733; }
+.dark .routing-number-input, .dark .routing-preview-input { border-color: #4b5666; }
+.dark .routing-strategy-block, .dark .routing-preview-section { border-top-color: #303846; }
+.dark .routing-preview-button { border-color: #2f6d68; color: #77d5c8; background: #1c3638; }
+
+@media (max-width: 520px) {
+  .routing-panel-header { align-items: flex-start; flex-direction: column; }
   .routing-segmented { width: 100%; }
   .routing-segmented button { flex: 1; }
-  .routing-workspace { padding: 11px; }
-  .routing-strategy-grid { grid-template-columns: 1fr; }
-  .routing-custom-weights { grid-template-columns: 1fr; }
+  .routing-profile-error { align-items: flex-start; flex-direction: column; }
+  .routing-retry-button { align-self: flex-end; }
+  .routing-group-status span { display: none; }
+  .routing-group-status { margin-left: auto; }
+  .routing-weight-grid { grid-template-columns: 1fr; }
+  .routing-preview-controls { flex-direction: column; }
+  .routing-preview-input, .routing-preview-endpoint, .routing-preview-button { width: 100%; }
 }
 </style>

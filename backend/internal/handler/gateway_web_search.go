@@ -228,6 +228,9 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 			).Info("gateway.web_search.search_price_per_1k_explicit_free")
 		}
 	}
+	usageAPIKey := snapshotAPIKeyForUsage(apiKey)
+	usageSubscription := snapshotSubscriptionForUsage(subscription)
+	usageAccount := snapshotAccountForUsage(account)
 	h.submitMandatoryUsageRecordTask(c.Request.Context(), func(ctx context.Context) {
 		if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
 			Result: &service.ForwardResult{
@@ -236,10 +239,10 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 				SearchCount: 1,
 				Duration:    0,
 			},
-			APIKey:             apiKey,
-			User:               apiKey.User,
-			Account:            account,
-			Subscription:       subscription,
+			APIKey:             usageAPIKey,
+			User:               usageAPIKey.User,
+			Account:            usageAccount,
+			Subscription:       usageSubscription,
 			InboundEndpoint:    inboundEndpoint,
 			UpstreamEndpoint:   upstreamEndpoint,
 			UserAgent:          userAgent,

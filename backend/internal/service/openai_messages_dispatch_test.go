@@ -1,11 +1,42 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSelectedMessagesDispatchModelUsesCurrentRoutedGroup(t *testing.T) {
+	t.Parallel()
+
+	primary := &Group{
+		Platform: PlatformOpenAI,
+		MessagesDispatchModelConfig: OpenAIMessagesDispatchModelConfig{
+			SonnetMappedModel: "gpt-primary",
+		},
+	}
+	candidate := &Group{
+		Platform: PlatformOpenAI,
+		MessagesDispatchModelConfig: OpenAIMessagesDispatchModelConfig{
+			SonnetMappedModel: "gpt-candidate",
+		},
+	}
+	key := &APIKey{Group: primary}
+	svc := &OpenAIGatewayService{}
+	ctx := WithAPIKeyContext(
+		WithOpenAIMessagesDispatch(context.Background(), true),
+		key,
+	)
+
+	require.Equal(t, "gpt-primary", svc.selectedMessagesDispatchModel(ctx, "claude-sonnet-4-5"))
+	key.Group = candidate
+	require.Equal(t, "gpt-candidate", svc.selectedMessagesDispatchModel(ctx, "claude-sonnet-4-5"))
+
+	// Normal Chat/Responses scheduling must not inherit Messages-only aliases.
+	require.Equal(t, "claude-sonnet-4-5", svc.selectedMessagesDispatchModel(context.Background(), "claude-sonnet-4-5"))
+}
 
 func TestNormalizeOpenAIMessagesDispatchModelConfig(t *testing.T) {
 	t.Parallel()

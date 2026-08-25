@@ -6,6 +6,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	mathrand "math/rand"
@@ -98,7 +99,12 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 // SelectAccountWithLoadAwareness selects account with load-awareness and wait plan.
 // metadataUserID: 用于客户端亲和调度，从中提取客户端 ID
 // sub2apiUserID: 系统用户 ID，用于二维亲和调度
-func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, metadataUserID string, sub2apiUserID int64) (*AccountSelectionResult, error) {
+func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, metadataUserID string, sub2apiUserID int64) (selection *AccountSelectionResult, err error) {
+	defer func() {
+		if errors.Is(err, ErrNoAvailableAccounts) {
+			MarkSmartRoutingGroupExhausted(ctx)
+		}
+	}()
 	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
 	// 调试日志：记录调度入口参数
 	excludedIDsList := make([]int64, 0, len(excludedIDs))
@@ -774,45 +780,155 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 // actual group selected for this request. Resolver failures fail open to the
 // caller's original group to preserve existing availability.
 func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *int64, sessionHash, requestedModel string, excludedIDs map[int64]struct{}) *int64 {
-	if s == nil || s.smartRoutingResolver == nil || groupID == nil {
+	if s == nil || s.smartRoutingResolver == nil || s.groupRepo == nil || groupID == nil {
 		return groupID
 	}
 	apiKey, ok := APIKeyFromContext(ctx)
 	if !ok || apiKey == nil || apiKey.ID <= 0 {
 		return groupID
 	}
-	decision, err := s.smartRoutingResolver.Resolve(ctx, apiKey, requestedModel, sessionHash, excludedIDs)
-	if err != nil || decision == nil || decision.GroupID <= 0 {
-		return groupID
+	primaryGroupID := *groupID
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.MainGroupID > 0 {
+		primaryGroupID = state.MainGroupID
 	}
-	if decision.GroupID == *groupID {
-		return groupID
-	}
-	group, err := s.groupRepo.GetByIDLite(ctx, decision.GroupID)
-	if err != nil || group == nil {
-		return groupID
-	}
-	resolved := decision.GroupID
-	apiKey.GroupID = &resolved
-	apiKey.Group = group
+	// Keep the authenticated primary snapshot available for fail-open restore.
+	// The resolver mutates apiKey.Group while trying candidates; if the group
+	// repository is unavailable during restore, retaining a candidate pointer
+	// beside the primary ID would make downstream billing/mapping inconsistent.
+	primaryGroupSnapshot := apiKey.Group
 	if state := SmartRoutingStateFromContext(ctx); state != nil {
-		if state.CurrentGroupID > 0 && state.CurrentGroupID != resolved {
-			state.GroupSwitches++
+		if state.PrimaryGroupSnapshot != nil && state.PrimaryGroupSnapshot.ID == primaryGroupID {
+			primaryGroupSnapshot = state.PrimaryGroupSnapshot
+		} else if primaryGroupSnapshot != nil && primaryGroupSnapshot.ID == primaryGroupID {
+			// Capture the authenticated snapshot before this call can mutate the
+			// API key to a candidate. Later failover attempts must not mistake the
+			// previous candidate pointer for the primary group.
+			state.PrimaryGroupSnapshot = primaryGroupSnapshot
 		}
-		state.CurrentGroupID = resolved
-		if state.TriedGroups == nil {
-			state.TriedGroups = map[int64]struct{}{}
-		}
-		state.TriedGroups[resolved] = struct{}{}
 	}
-	slog.Info("smart_routing.group_selected",
-		"api_key_id", apiKey.ID,
-		"group_id", resolved,
-		"fallback_depth", decision.FallbackDepth,
-		"reason", decision.Reason,
-		"model", requestedModel,
-	)
-	return &resolved
+	restorePrimary := func() *int64 {
+		resolved := primaryGroupID
+		// A rejected/exhausted candidate must never remain on the mutable key.
+		// Reloading the primary group also restores the billing snapshot used by
+		// asynchronous usage recording; a nil group here would lose subscription
+		// ownership even though the scheduler is about to use the primary ID.
+		if s.groupRepo != nil {
+			if primary, err := s.groupRepo.GetByIDLite(ctx, primaryGroupID); err == nil && primary != nil {
+				apiKey.Group = primary
+			} else if primaryGroupSnapshot != nil && primaryGroupSnapshot.ID == primaryGroupID {
+				apiKey.Group = primaryGroupSnapshot
+			}
+		} else if primaryGroupSnapshot != nil && primaryGroupSnapshot.ID == primaryGroupID {
+			apiKey.Group = primaryGroupSnapshot
+		}
+		// Keep the two API-key fields coherent even when the scheduler was
+		// called with the primary ID while a previous attempt left a candidate
+		// Group pointer on the request-local key.
+		if apiKey.Group == nil || apiKey.Group.ID != primaryGroupID {
+			apiKey.Group = nil
+		}
+		apiKey.GroupID = &resolved
+		if state := SmartRoutingStateFromContext(ctx); state != nil {
+			state.CurrentGroupID = primaryGroupID
+		}
+		return &resolved
+	}
+	for attempts := 0; attempts < 10; attempts++ {
+		decision, err := s.smartRoutingResolver.Resolve(ctx, apiKey, requestedModel, sessionHash, excludedIDs)
+		if err != nil || decision == nil || decision.GroupID <= 0 {
+			return restorePrimary()
+		}
+		// The Overlay may deliberately return the current candidate while the
+		// account scheduler still has another eligible account in that group.
+		// Keep the request on that group so account-level retry semantics remain
+		// intact; restoring the primary here would turn an intra-group retry into
+		// an unintended cross-group switch and could change billing.
+		if decision.GroupID == *groupID {
+			return groupID
+		}
+		group, err := s.groupRepo.GetByIDLite(ctx, decision.GroupID)
+		if err != nil || group == nil {
+			// The candidate was selected before its group snapshot could be
+			// hydrated. Fail open to the authenticated primary and restore its
+			// billing/mapping snapshot; returning the current candidate ID here
+			// would leave APIKey.Group and APIKey.GroupID out of sync.
+			return restorePrimary()
+		}
+		if !s.checkSmartRoutingCandidateBilling(ctx, apiKey, group) {
+			continue
+		}
+		resolved := decision.GroupID
+		apiKey.GroupID = &resolved
+		apiKey.Group = group
+		if state := SmartRoutingStateFromContext(ctx); state != nil {
+			if state.CurrentGroupID > 0 && state.CurrentGroupID != resolved {
+				state.GroupSwitches++
+			}
+			state.CurrentGroupID = resolved
+			if state.TriedGroups == nil {
+				state.TriedGroups = map[int64]struct{}{}
+			}
+			state.TriedGroups[resolved] = struct{}{}
+		}
+		MarkSmartRoutingCandidateSelected(ctx, resolved)
+		slog.Info("smart_routing.group_selected",
+			"api_key_id", apiKey.ID,
+			"group_id", resolved,
+			"fallback_depth", decision.FallbackDepth,
+			"reason", decision.Reason,
+			"model", requestedModel,
+		)
+		return &resolved
+	}
+	return restorePrimary()
+}
+
+// CommitSmartRoutingGroup records the selected group only after the caller
+// has completed account admission. The resolver intentionally does not write
+// sticky state during group selection because billing or profit admission can
+// still reject the selected account afterward.
+func (s *GatewayService) CommitSmartRoutingGroup(ctx context.Context, apiKey *APIKey, groupID *int64, sessionHash string) {
+	if s == nil || s.smartRoutingResolver == nil || apiKey == nil || groupID == nil || *groupID <= 0 {
+		return
+	}
+	if committer, ok := s.smartRoutingResolver.(SmartRoutingStickyCommitter); ok {
+		committer.CommitSticky(ctx, apiKey.ID, *groupID, sessionHash)
+	}
+}
+
+func (s *GatewayService) checkSmartRoutingCandidateBilling(ctx context.Context, apiKey *APIKey, group *Group) bool {
+	if s == nil || apiKey == nil || group == nil {
+		return true
+	}
+	if s.billingCacheService == nil {
+		// A candidate must never bypass group billing because the optional
+		// billing service was not wired. The caller can still fall back to the
+		// already-authenticated primary group.
+		return false
+	}
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || apiKey.GroupID == nil || group.ID == *apiKey.GroupID || group.ID == state.MainGroupID {
+		return true
+	}
+	if state.BillingRejectedGroups == nil {
+		state.BillingRejectedGroups = make(map[int64]struct{})
+	}
+	if _, rejected := state.BillingRejectedGroups[group.ID]; rejected {
+		return false
+	}
+	if state.BillingCheckedGroups == nil {
+		state.BillingCheckedGroups = make(map[int64]struct{})
+	}
+	if _, checked := state.BillingCheckedGroups[group.ID]; checked {
+		return true
+	}
+	if err := s.billingCacheService.CheckSmartRoutingGroupEligibility(ctx, apiKey.User, apiKey, group); err != nil {
+		state.BillingRejectedGroups[group.ID] = struct{}{}
+		slog.Warn("smart_routing.candidate_billing_rejected", "api_key_id", apiKey.ID, "group_id", group.ID, "error", err)
+		return false
+	}
+	state.BillingCheckedGroups[group.ID] = struct{}{}
+	return true
 }
 
 func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates []*Account, groupID *int64, sessionHash string, preferOAuth bool) (*AccountSelectionResult, bool, error) {
