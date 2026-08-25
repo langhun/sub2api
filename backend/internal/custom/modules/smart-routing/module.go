@@ -351,15 +351,18 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model string,
 			if m.accounts == nil {
 				return nil, nil
 			}
-			accounts, _ := m.accounts.ListSchedulableByGroupIDAndPlatform(ctx, state.CurrentGroupID, platform)
-			if len(accounts) <= len(excluded) {
+			remaining := m.remainingModelAccounts(ctx, state.CurrentGroupID, platform, model, excluded)
+			if remaining <= 0 {
 				state.TriedGroups[g.GroupID] = struct{}{}
 				continue
 			}
 		}
 		if state.CurrentGroupID > 0 && len(excluded) > 0 {
-			accounts, _ := m.accounts.ListSchedulableByGroupIDAndPlatform(ctx, state.CurrentGroupID, key.Group.Platform)
-			if len(accounts) > len(excluded) {
+			platform := ""
+			if key.Group != nil {
+				platform = key.Group.Platform
+			}
+			if m.remainingModelAccounts(ctx, state.CurrentGroupID, platform, model, excluded) > 0 {
 				return nil, nil
 			}
 		}
@@ -367,6 +370,28 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model string,
 		return &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: depth, Reason: g.Reason}, nil
 	}
 	return nil, nil
+}
+
+func (m *Module) remainingModelAccounts(ctx context.Context, groupID int64, platform, model string, excluded map[int64]struct{}) int {
+	if m.accounts == nil {
+		return 0
+	}
+	accounts, err := m.accounts.ListSchedulableByGroupIDAndPlatform(ctx, groupID, platform)
+	if err != nil {
+		return 0
+	}
+	remaining := 0
+	for i := range accounts {
+		account := &accounts[i]
+		if _, skip := excluded[account.ID]; skip {
+			continue
+		}
+		if model != "" && (!account.IsModelSupported(model) || !account.IsSchedulableForModelWithContext(ctx, model)) {
+			continue
+		}
+		remaining++
+	}
+	return remaining
 }
 
 func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, model string, excluded map[int64]struct{}) ([]Group, error) {
@@ -438,8 +463,7 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				out = append(out, g)
 				continue
 			}
-			accounts, err := m.accounts.ListSchedulableByGroupIDAndPlatform(ctx, g.GroupID, main.Platform)
-			if err != nil || len(accounts) == 0 {
+			if m.remainingModelAccounts(ctx, g.GroupID, main.Platform, model, excluded) == 0 {
 				g.Reason = "no schedulable accounts"
 				out = append(out, g)
 				continue
