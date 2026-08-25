@@ -249,8 +249,15 @@ func (s *OpenAIGatewayService) resolveOpenAIProfitControlGate(ctx context.Contex
 	//（composite 请求即父分组）的"用户覆盖 ?? 分组默认 × 高峰因子"计算，
 	// 因此优先取认证中间件放入 ctx 的分组；ctx 中无有效分组（内部调用）时
 	// 退回调度分组组合，直连 openai 分组场景两者等价。
+	// Smart routing mutates the request-local API key to the actual selected
+	// group. Prefer that group for the downstream/user rate so the profit gate
+	// and the eventual usage charge use the same pricing basis. For ordinary
+	// composite/fallback requests the API key remains on the authenticated
+	// parent, so retain the existing ctxkey.Group behavior.
 	billingGroup := group
-	if ctxGroup, ok := ctx.Value(ctxkey.Group).(*Group); ok && IsGroupContextValid(ctxGroup) {
+	if routedKey, ok := APIKeyFromContext(ctx); ok && routedKey.GroupID != nil && routedKey.Group != nil && *routedKey.GroupID == *groupID && IsGroupContextValid(routedKey.Group) {
+		billingGroup = routedKey.Group
+	} else if ctxGroup, ok := ctx.Value(ctxkey.Group).(*Group); ok && IsGroupContextValid(ctxGroup) {
 		billingGroup = ctxGroup
 	}
 	downstream := billingGroup.RateMultiplier

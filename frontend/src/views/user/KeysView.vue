@@ -1796,6 +1796,8 @@ const handleSubmit = async () => {
 
   submitting.value = true
   let createdKeyId: number | null = null
+  let editedKeyGroupChanged = false
+  let editedKeyUpdateSucceeded = false
   try {
     if (showEditModal.value && selectedKey.value) {
       if (formData.value.routing_mode === 'smart' && routingWeightTotal.value !== 100) {
@@ -1816,6 +1818,7 @@ const handleSubmit = async () => {
         updates.status = formData.value.status
       }
       const groupChanged = selectedKey.value.group_id !== formData.value.group_id
+      editedKeyGroupChanged = groupChanged
       const previousRouting = routingProfile.value
       let safeRoutingProfile: SmartRoutingProfile | null = null
       if (groupChanged) {
@@ -1837,6 +1840,7 @@ const handleSubmit = async () => {
       }
       try {
         await keysAPI.update(selectedKey.value.id, updates)
+        editedKeyUpdateSucceeded = true
       } catch (error) {
         if (safeRoutingProfile && previousRouting) {
           await updateSmartRouting(selectedKey.value.id, {
@@ -1903,6 +1907,28 @@ const handleSubmit = async () => {
     closeModals()
     loadApiKeys()
   } catch (error: any) {
+    // The key and routing profile are persisted by separate APIs. If the
+    // primary group changed but the follow-up routing write failed (including
+    // an indeterminate timeout), force a conservative single-group profile so
+    // candidates validated against the old primary can never remain active.
+    if (editedKeyGroupChanged && editedKeyUpdateSucceeded && selectedKey.value) {
+      try {
+        await updateSmartRouting(selectedKey.value.id, {
+          enabled: false,
+          mode: 'single',
+          strategy: 'auto',
+          price_weight: 40,
+          speed_weight: 30,
+          success_weight: 30,
+          sticky_ttl_seconds: 1800,
+          exploration_rate: 0.05,
+          group_ids: []
+        })
+      } catch {
+        // Keep the original error visible. The backend also fail-opens to the
+        // primary group when routing configuration cannot be read.
+      }
+    }
     if (createdKeyId !== null) {
       try {
         await keysAPI.delete(createdKeyId)

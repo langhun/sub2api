@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -336,14 +338,22 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	if state.EndpointType != "chat_completions" && state.EndpointType != "responses" && state.EndpointType != "messages" {
 		return nil, nil
 	}
+	if mapped := service.OpenAIForwardModelFromContext(ctx); mapped != "" {
+		model = mapped
+	}
 	if state.TriedGroups == nil {
 		state.TriedGroups = make(map[int64]struct{})
+	}
+	maxSwitches := state.MaxGroupSwitches
+	if maxSwitches <= 0 {
+		maxSwitches = 2
 	}
 	ranked, err := m.rank(ctx, key, p, model, excluded)
 	if err != nil {
 		return nil, err
 	}
-	if stickyID := m.getStickyGroup(ctx, key.ID, p.Version, sessionHash); stickyID > 0 {
+	stickyID := m.getStickyGroup(ctx, key.ID, p.Version, sessionHash)
+	if stickyID > 0 {
 		for i := range ranked {
 			if ranked[i].GroupID == stickyID && ranked[i].Eligible {
 				ranked[0], ranked[i] = ranked[i], ranked[0]
@@ -356,6 +366,12 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 			continue
 		}
 		if _, tried := state.TriedGroups[g.GroupID]; tried {
+			continue
+		}
+		if !routeStateAllowsGroup(state, g.GroupID, stickyID, maxSwitches) {
+			// previous_response_id chains cannot be replayed against another
+			// group. Let the normal selector return its explicit no-account
+			// error instead of silently changing the conversation owner.
 			continue
 		}
 		if g.GroupID == state.CurrentGroupID && len(excluded) > 0 {
@@ -383,9 +399,50 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		}
 		depth := len(state.TriedGroups)
 		m.setStickyGroup(ctx, key.ID, p.Version, sessionHash, g.GroupID, time.Duration(p.StickyTTL)*time.Second)
-		return &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: depth, Reason: g.Reason}, nil
+		decision := &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: depth, Reason: g.Reason}
+		m.recordDecision(ctx, key, p, model, g, decision)
+		return decision, nil
 	}
 	return nil, nil
+}
+
+func routeStateAllowsGroup(state *service.SmartRoutingRequestState, groupID, stickyID int64, maxSwitches int) bool {
+	if state == nil {
+		return true
+	}
+	if state.ContinuityLocked {
+		continuityGroupID := state.MainGroupID
+		if stickyID > 0 {
+			continuityGroupID = stickyID
+		}
+		if groupID != continuityGroupID {
+			return false
+		}
+	}
+	return state.CurrentGroupID <= 0 || groupID == state.CurrentGroupID || state.GroupSwitches < maxSwitches
+}
+
+// recordDecision is deliberately asynchronous and best-effort. Routing
+// telemetry must never add latency or turn a healthy request into a 5xx when
+// the audit table is unavailable.
+func (m *Module) recordDecision(ctx context.Context, key *service.APIKey, p *Profile, model string, group Group, decision *service.SmartRouteDecision) {
+	if m == nil || m.repo == nil || m.repo.db == nil || key == nil || p == nil || decision == nil {
+		return
+	}
+	requestID, _ := ctx.Value(ctxkey.RequestID).(string)
+	if requestID == "" {
+		return
+	}
+	snapshot, _ := json.Marshal(map[string]any{"price": group.Price, "success_rate": group.SuccessRate, "speed_ms": group.SpeedMs, "score": group.Score, "samples": group.Samples})
+	endpoint := ""
+	if state := service.SmartRoutingStateFromContext(ctx); state != nil {
+		endpoint = state.EndpointType
+	}
+	go func() {
+		writeCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _ = m.repo.db.ExecContext(writeCtx, `INSERT INTO custom_route_decisions (request_id,api_key_id,profile_id,requested_model,endpoint_type,selected_group_id,strategy,score_snapshot,fallback_depth,decision_reason) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, requestID, key.ID, p.APIKeyID, model, endpoint, group.GroupID, p.Strategy, snapshot, decision.FallbackDepth, decision.Reason)
+	}()
 }
 
 func (m *Module) stickyKey(apiKeyID, version int64, sessionHash string) string {

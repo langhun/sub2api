@@ -30,3 +30,13 @@ func openAIForwardModelFromContext(ctx context.Context) (openAIForwardModel, boo
 	forwardModel, ok := ctx.Value(openAIForwardModelContextKey{}).(openAIForwardModel)
 	return forwardModel, ok
 }
+
+// OpenAIForwardModelFromContext returns the final channel-mapped model used
+// for account capability filtering. Empty means the request has no mapping.
+func OpenAIForwardModelFromContext(ctx context.Context) string {
+	model, ok := openAIForwardModelFromContext(ctx)
+	if !ok {
+		return ""
+	}
+	return model.model
+}

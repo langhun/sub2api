@@ -38,6 +38,16 @@ type SmartRoutingRequestState struct {
 	CurrentGroupID int64
 	TriedGroups    map[int64]struct{}
 	EndpointType   string
+	// GroupSwitches counts transitions away from the primary/current group.
+	// Smart routing uses a small hard limit to prevent an upstream retry loop
+	// from walking an unbounded candidate list.
+	GroupSwitches    int
+	MaxGroupSwitches int
+	// ContinuityLocked is set for requests carrying previous_response_id.
+	// Such requests must stay in the primary group; silently moving the
+	// response chain to another group would produce an upstream 404/401 or,
+	// worse, a semantically different conversation.
+	ContinuityLocked bool
 }
 
 // WithSmartRoutingState stores mutable request-local state. A pointer is used

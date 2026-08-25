@@ -2139,6 +2139,9 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 	apiKey.GroupID = &resolved
 	apiKey.Group = group
 	if state := SmartRoutingStateFromContext(ctx); state != nil {
+		if state.CurrentGroupID > 0 && state.CurrentGroupID != resolved {
+			state.GroupSwitches++
+		}
 		state.CurrentGroupID = resolved
 		if state.TriedGroups == nil {
 			state.TriedGroups = map[int64]struct{}{}

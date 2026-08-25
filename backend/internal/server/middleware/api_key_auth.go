@@ -185,7 +185,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 		if cfg.RunMode == config.RunModeSimple {
 			c.Request = c.Request.WithContext(service.WithAPIKeyContext(c.Request.Context(), apiKey))
-			state := &service.SmartRoutingRequestState{TriedGroups: map[int64]struct{}{}, EndpointType: smartRoutingEndpoint(c.Request.URL.Path)}
+			state := &service.SmartRoutingRequestState{TriedGroups: map[int64]struct{}{}, EndpointType: smartRoutingEndpoint(c.Request.URL.Path), MaxGroupSwitches: 2}
 			if apiKey.GroupID != nil {
 				state.MainGroupID, state.CurrentGroupID = *apiKey.GroupID, *apiKey.GroupID
 			}
@@ -289,7 +289,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			c.Set(string(ContextKeySubscription), subscription)
 		}
 		c.Request = c.Request.WithContext(service.WithAPIKeyContext(c.Request.Context(), apiKey))
-		state := &service.SmartRoutingRequestState{TriedGroups: map[int64]struct{}{}, EndpointType: smartRoutingEndpoint(c.Request.URL.Path)}
+		state := &service.SmartRoutingRequestState{TriedGroups: map[int64]struct{}{}, EndpointType: smartRoutingEndpoint(c.Request.URL.Path), MaxGroupSwitches: 2}
 		if apiKey.GroupID != nil {
 			state.MainGroupID, state.CurrentGroupID = *apiKey.GroupID, *apiKey.GroupID
 		}
