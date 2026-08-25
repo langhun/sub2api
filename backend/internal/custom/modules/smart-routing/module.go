@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -379,7 +380,19 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 	if main == nil {
 		return nil, fmt.Errorf("primary group unavailable")
 	}
-	candidates := append([]Group{{GroupID: main.ID, Name: main.Name, Platform: main.Platform, Price: main.RateMultiplier, Eligible: true}}, p.Groups...)
+	allowed := map[int64]bool{}
+	if m.apiKeys != nil {
+		available, err := m.apiKeys.GetAvailableGroups(ctx, key.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("refresh routing group permissions: %w", err)
+		}
+		for _, group := range available {
+			allowed[group.ID] = true
+		}
+	}
+	now := time.Now()
+	mainEffectivePrice := main.RateMultiplier * main.PeakMultiplierAt(now)
+	candidates := append([]Group{{GroupID: main.ID, Name: main.Name, Platform: main.Platform, Price: mainEffectivePrice, Eligible: true}}, p.Groups...)
 	seen := map[int64]bool{}
 	out := make([]Group, 0, len(candidates))
 	for _, g := range candidates {
@@ -388,19 +401,34 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		}
 		seen[g.GroupID] = true
 		if g.GroupID != main.ID {
+			if !g.Enabled {
+				g.Reason = "candidate disabled"
+				out = append(out, g)
+				continue
+			}
 			full, err := m.groups.GetByIDLite(ctx, g.GroupID)
 			if err != nil || full == nil {
 				g.Reason = "group not found"
 				out = append(out, g)
 				continue
 			}
-			g.Name, g.Platform, g.Price = full.Name, full.Platform, full.RateMultiplier
+			g.Name, g.Platform, g.Price = full.Name, full.Platform, full.RateMultiplier*full.PeakMultiplierAt(now)
 			if full.Status != service.StatusActive || full.Platform != main.Platform || full.SubscriptionType != main.SubscriptionType || full.Platform == service.PlatformComposite {
 				g.Reason = "incompatible group"
 				out = append(out, g)
 				continue
 			}
-			if g.Price > main.RateMultiplier+1e-9 {
+			if m.apiKeys != nil && !allowed[g.GroupID] {
+				g.Reason = "permission or subscription unavailable"
+				out = append(out, g)
+				continue
+			}
+			if len(main.ModelPricing) > 0 || len(full.ModelPricing) > 0 {
+				g.Reason = "model-specific pricing requires explicit comparison"
+				out = append(out, g)
+				continue
+			}
+			if g.Price > mainEffectivePrice+1e-9 {
 				g.Reason = "price exceeds primary group"
 				out = append(out, g)
 				continue

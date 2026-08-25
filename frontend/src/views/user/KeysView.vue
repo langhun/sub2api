@@ -1795,6 +1795,7 @@ const handleSubmit = async () => {
   } : { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 }
 
   submitting.value = true
+  let createdKeyId: number | null = null
   try {
     if (showEditModal.value && selectedKey.value) {
       if (formData.value.routing_mode === 'smart' && routingWeightTotal.value !== 100) {
@@ -1840,6 +1841,7 @@ const handleSubmit = async () => {
         expiresInDays,
         rateLimitData
       )
+      createdKeyId = createdKey.id
       if (formData.value.routing_mode === 'smart') {
         if (routingWeightTotal.value !== 100) throw new Error(t('keys.routingWeightInvalid'))
         await updateSmartRouting(createdKey.id, {
@@ -1863,6 +1865,13 @@ const handleSubmit = async () => {
     closeModals()
     loadApiKeys()
   } catch (error: any) {
+    if (createdKeyId !== null) {
+      try {
+        await keysAPI.delete(createdKeyId)
+      } catch {
+        // Keep the original error visible; the key can be removed manually.
+      }
+    }
     const errorMsg = error.response?.data?.detail || error.message || t('keys.failedToSave')
     appStore.showError(errorMsg)
     // Don't advance tour on error
