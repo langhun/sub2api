@@ -248,7 +248,7 @@ import { addAdminSupportTicketMessage, createAdminSupportTicket, getAdminSupport
 import TicketConversation from '../components/TicketConversation.vue'
 import { markSupportTicketSeen } from '../notifications'
 import { ticketPriorities, ticketPriorityClass, ticketStatusBannerClass, ticketStatuses, ticketStatusClass, ticketStatusIconClass, ticketStatusLocaleKey } from '../presentation'
-import { useSupportTicketDetailPolling } from '../ticketPolling'
+import { mergeSupportTicket, useSupportTicketDetailPolling } from '../ticketPolling'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -322,25 +322,25 @@ async function loadTicket(id: string) {
 }
 function applyPolledTicket(next: SupportTicket) {
   const current = ticket.value
-  if (current && editForm.status === current.status) editForm.status = next.status
-  if (current && editForm.priority === current.priority) editForm.priority = next.priority
-  ticket.value = next
-  markSupportTicketSeen('admin', next)
+  if (!current) return
+  if (editForm.status === current.status) editForm.status = next.status
+  if (editForm.priority === current.priority) editForm.priority = next.priority
+  mergeSupportTicket(current, next)
+  markSupportTicketSeen('admin', current)
 }
 function loadCurrent() { const id = String(route.params.id || ''); return id ? loadTicket(id) : loadList() }
 function loadMore() { return loadList(page.value + 1) }
 function applyFilters() { return loadList(1) }
 async function sendMessage() {
   if (!ticket.value || !messageBody.value || !canSendMessage.value) return
-  try { submitting.value = true; await addAdminSupportTicketMessage(ticket.value.public_id, { body: messageBody.value, internal: internalNote.value }); messageBody.value = ''; internalNote.value = false; await loadTicket(ticket.value.public_id); conversation.value?.scrollToLatest(); appStore.showSuccess(t('supportTickets.sendSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
+  try { submitting.value = true; const next = await addAdminSupportTicketMessage(ticket.value.public_id, { body: messageBody.value, internal: internalNote.value }); messageBody.value = ''; internalNote.value = false; applyPolledTicket(next); conversation.value?.scrollToLatest(); appStore.showSuccess(t('supportTickets.sendSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
 }
 async function updateTicket() {
   if (!ticket.value) return
   try {
     submitting.value = true
-    if (editForm.status !== ticket.value.status) await updateAdminSupportTicket(ticket.value.public_id, { status: editForm.status })
-    if (editForm.priority !== ticket.value.priority) await updateAdminSupportTicket(ticket.value.public_id, { priority: editForm.priority })
-    await loadTicket(ticket.value.public_id)
+    if (editForm.status !== ticket.value.status) applyPolledTicket(await updateAdminSupportTicket(ticket.value.public_id, { status: editForm.status }))
+    if (editForm.priority !== ticket.value.priority) applyPolledTicket(await updateAdminSupportTicket(ticket.value.public_id, { priority: editForm.priority }))
     appStore.showSuccess(t('admin.supportTickets.updateSuccess'))
   } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
 }

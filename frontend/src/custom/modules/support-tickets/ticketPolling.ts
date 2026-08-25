@@ -14,6 +14,21 @@ function latestMessageID(ticket: SupportTicket): number | undefined {
   return ticket.messages?.[ticket.messages.length - 1]?.id
 }
 
+export function mergeSupportTicket(current: SupportTicket, next: SupportTicket): SupportTicket {
+  const currentMessages = current.messages ?? []
+  const nextMessages = next.messages ?? []
+  const sharedPrefix = currentMessages.length <= nextMessages.length
+    && currentMessages.every((message, index) => message.id === nextMessages[index]?.id)
+
+  if (sharedPrefix) currentMessages.push(...nextMessages.slice(currentMessages.length))
+  else currentMessages.splice(0, currentMessages.length, ...nextMessages)
+
+  const messages = currentMessages
+  Object.assign(current, next)
+  current.messages = messages
+  return current
+}
+
 export function supportTicketChanged(current: SupportTicket | null, next: SupportTicket): boolean {
   if (!current || current.public_id !== next.public_id) return true
   return current.updated_at !== next.updated_at

@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SupportTicket } from '../api'
-import { supportTicketChanged, useSupportTicketDetailPolling } from '../ticketPolling'
+import { mergeSupportTicket, supportTicketChanged, useSupportTicketDetailPolling } from '../ticketPolling'
 
 function ticket(overrides: Partial<SupportTicket> = {}): SupportTicket {
   return {
@@ -105,5 +105,13 @@ describe('support ticket detail polling', () => {
     const next = ticket({ messages: [...(current.messages ?? []), { id: 2, author_type: 'admin', message_type: 'reply', body: 'Reply', created_at: current.updated_at }] })
     expect(supportTicketChanged(current, next)).toBe(true)
     expect(supportTicketChanged(current, ticket())).toBe(false)
+  })
+
+  it('appends messages in place without replacing the ticket object', () => {
+    const current = ticket()
+    const next = ticket({ messages: [...(current.messages ?? []), { id: 2, author_type: 'admin', message_type: 'reply', body: 'Reply', created_at: current.updated_at }] })
+    const result = mergeSupportTicket(current, next)
+    expect(result).toBe(current)
+    expect(current.messages?.map((message) => message.id)).toEqual([1, 2])
   })
 })

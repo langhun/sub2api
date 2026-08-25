@@ -173,7 +173,7 @@ import { addSupportTicketMessage, createSupportTicket, getSupportTicket, listSup
 import TicketConversation from './components/TicketConversation.vue'
 import { markSupportTicketSeen } from './notifications'
 import { ticketCategories, ticketPriorityClass, ticketStatusBannerClass, ticketStatusClass, ticketStatusIconClass, ticketStatusLocaleKey } from './presentation'
-import { useSupportTicketDetailPolling } from './ticketPolling'
+import { mergeSupportTicket, useSupportTicketDetailPolling } from './ticketPolling'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -217,8 +217,9 @@ async function loadTicket(id: string) {
   try { loading.value = true; ticket.value = await getSupportTicket(id); markSupportTicketSeen('user', ticket.value); loadError.value = '' } catch (error) { loadError.value = errorMessage(error) } finally { loading.value = false }
 }
 function applyPolledTicket(next: SupportTicket) {
-  ticket.value = next
-  markSupportTicketSeen('user', next)
+  if (!ticket.value) return
+  mergeSupportTicket(ticket.value, next)
+  markSupportTicketSeen('user', ticket.value)
 }
 function loadCurrent() { const id = String(route.params.id || ''); return id ? loadTicket(id) : loadList() }
 function loadMore() { return loadList(page.value + 1) }
@@ -227,11 +228,11 @@ async function createTicket() {
 }
 async function sendReply() {
   if (!ticket.value || !replyBody.value) return
-  try { submitting.value = true; await addSupportTicketMessage(ticket.value.public_id, { body: replyBody.value }); replyBody.value = ''; await loadTicket(ticket.value.public_id); conversation.value?.scrollToLatest(); appStore.showSuccess(t('supportTickets.sendSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
+  try { submitting.value = true; const next = await addSupportTicketMessage(ticket.value.public_id, { body: replyBody.value }); replyBody.value = ''; applyPolledTicket(next); conversation.value?.scrollToLatest(); appStore.showSuccess(t('supportTickets.sendSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
 }
 async function reopen() {
   if (!ticket.value) return
-  try { submitting.value = true; await reopenSupportTicket(ticket.value.public_id); await loadTicket(ticket.value.public_id); appStore.showSuccess(t('supportTickets.reopenSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
+  try { submitting.value = true; const next = await reopenSupportTicket(ticket.value.public_id); applyPolledTicket(next); appStore.showSuccess(t('supportTickets.reopenSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
 }
 
 watch(() => route.params.id, () => { ticket.value = null; replyBody.value = ''; loadCurrent() })
