@@ -325,6 +325,11 @@ async function toggleEnabled(row: ChannelMonitor) {
 }
 
 async function handleRunNow(row: ChannelMonitor) {
+  // Re-read the mode before gating the action. The settings page can update
+  // the backend while this view still has an older injected/public snapshot.
+  if (typeof appStore.fetchPublicSettings === 'function') {
+    await appStore.fetchPublicSettings(true)
+  }
   if (!isV1Mode.value) {
     appStore.showError(t('admin.channelMonitor.runFailed'))
     return
@@ -385,7 +390,18 @@ async function confirmDelete() {
 watch(adminMonitorTab, (tab) => {
   if (tab === 'legacy' && monitors.value.length === 0) void reload()
 })
-onMounted(() => {
+watch(isV1Mode, (v1) => {
+  // Settings can be changed in another tab or immediately before navigating
+  // here. Keep the visible panel aligned with the server's current mode.
+  adminMonitorTab.value = v1 ? 'legacy' : 'v2'
+})
+onMounted(async () => {
+  // SSR/injected public settings may still describe the previous mode after a
+  // settings update. Refresh once before loading the mode-specific workflow.
+  if (typeof appStore.fetchPublicSettings === 'function') {
+    await appStore.fetchPublicSettings(true)
+  }
+  adminMonitorTab.value = isV1Mode.value ? 'legacy' : 'v2'
   if (adminMonitorTab.value === 'legacy') void reload()
 })
 onUnmounted(() => {
