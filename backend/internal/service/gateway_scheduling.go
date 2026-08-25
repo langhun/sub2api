@@ -32,7 +32,7 @@ func (s *GatewayService) SelectAccountForModel(ctx context.Context, groupID *int
 
 // SelectAccountForModelWithExclusions selects an account supporting the requested model while excluding specified accounts.
 func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*Account, error) {
-	groupID = s.resolveSmartRoutingGroup(ctx, groupID, requestedModel, excludedIDs)
+	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
 	// 优先检查 context 中的强制平台（/antigravity 路由）
 	var platform string
 	forcePlatform, hasForcePlatform := ctx.Value(ctxkey.ForcePlatform).(string)
@@ -99,7 +99,7 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 // metadataUserID: 用于客户端亲和调度，从中提取客户端 ID
 // sub2apiUserID: 系统用户 ID，用于二维亲和调度
 func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, metadataUserID string, sub2apiUserID int64) (*AccountSelectionResult, error) {
-	groupID = s.resolveSmartRoutingGroup(ctx, groupID, requestedModel, excludedIDs)
+	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
 	// 调试日志：记录调度入口参数
 	excludedIDsList := make([]int64, 0, len(excludedIDs))
 	for id := range excludedIDs {
@@ -773,7 +773,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 // request-local APIKey object, so billing and usage recording observe the
 // actual group selected for this request. Resolver failures fail open to the
 // caller's original group to preserve existing availability.
-func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *int64, requestedModel string, excludedIDs map[int64]struct{}) *int64 {
+func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *int64, sessionHash, requestedModel string, excludedIDs map[int64]struct{}) *int64 {
 	if s == nil || s.smartRoutingResolver == nil || groupID == nil {
 		return groupID
 	}
@@ -781,7 +781,7 @@ func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *
 	if !ok || apiKey == nil || apiKey.ID <= 0 {
 		return groupID
 	}
-	decision, err := s.smartRoutingResolver.Resolve(ctx, apiKey, requestedModel, excludedIDs)
+	decision, err := s.smartRoutingResolver.Resolve(ctx, apiKey, requestedModel, sessionHash, excludedIDs)
 	if err != nil || decision == nil || decision.GroupID <= 0 {
 		return groupID
 	}

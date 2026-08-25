@@ -19,9 +19,9 @@ import (
 	openairt "github.com/Wei-Shaw/sub2api/internal/custom/modules/openai-rt"
 	rechargepromotions "github.com/Wei-Shaw/sub2api/internal/custom/modules/recharge-promotions"
 	registrationprotection "github.com/Wei-Shaw/sub2api/internal/custom/modules/registration-protection"
+	smartrouting "github.com/Wei-Shaw/sub2api/internal/custom/modules/smart-routing"
 	supportcontacts "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-contacts"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
-	smartrouting "github.com/Wei-Shaw/sub2api/internal/custom/modules/smart-routing"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -101,7 +101,7 @@ func NewRuntime(
 		apiKeyService.SetCreationPolicy(registrationPolicy)
 		apiKeyService.SetRequestPolicy(registrationPolicy)
 	}
-	smartRouting := smartrouting.NewModule(db, apiKeyService, groupRepo, accountRepo, gatewayService)
+	smartRouting := smartrouting.NewModule(db, apiKeyService, groupRepo, accountRepo, gatewayService, redisClient)
 	var (
 		balanceCache  platform.BalanceCacheInvalidator
 		concurrency   platform.UserConcurrencyWriter

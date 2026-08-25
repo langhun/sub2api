@@ -15,7 +15,7 @@ type SmartRouteDecision struct {
 // interface in the service package avoids importing custom code into upstream
 // gateway packages.
 type SmartRoutingResolver interface {
-	Resolve(ctx context.Context, apiKey *APIKey, requestedModel string, excludedAccountIDs map[int64]struct{}) (*SmartRouteDecision, error)
+	Resolve(ctx context.Context, apiKey *APIKey, requestedModel, sessionHash string, excludedAccountIDs map[int64]struct{}) (*SmartRouteDecision, error)
 }
 
 type apiKeyContextKey struct{}

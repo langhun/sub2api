@@ -775,6 +775,11 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	user := input.User
 	account := input.Account
 	subscription := input.Subscription
+	if subscription != nil && apiKey != nil && apiKey.GroupID != nil && subscription.GroupID != *apiKey.GroupID && s.userSubRepo != nil {
+		if refreshed, refreshErr := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, *apiKey.GroupID); refreshErr == nil && refreshed != nil {
+			subscription = refreshed
+		}
+	}
 	ApplyForwardImageBillingResolution(result)
 	logServiceTierBillingDowngrade("service.gateway", account, result.RequestID, ApplyForwardServiceTierBillingResolution(result))
 

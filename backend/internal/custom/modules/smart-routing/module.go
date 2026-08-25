@@ -2,6 +2,7 @@ package smartrouting
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -178,10 +180,11 @@ type Module struct {
 	groups   service.GroupRepository
 	accounts service.AccountRepository
 	gateway  *service.GatewayService
+	redis    *redis.Client
 }
 
-func NewModule(db *sql.DB, apiKeys *service.APIKeyService, groups service.GroupRepository, accounts service.AccountRepository, gateway *service.GatewayService) *Module {
-	m := &Module{repo: NewRepository(db), apiKeys: apiKeys, groups: groups, accounts: accounts, gateway: gateway}
+func NewModule(db *sql.DB, apiKeys *service.APIKeyService, groups service.GroupRepository, accounts service.AccountRepository, gateway *service.GatewayService, redisClient *redis.Client) *Module {
+	m := &Module{repo: NewRepository(db), apiKeys: apiKeys, groups: groups, accounts: accounts, gateway: gateway, redis: redisClient}
 	if gateway != nil {
 		gateway.SetSmartRoutingResolver(m)
 	}
@@ -314,7 +317,7 @@ func (m *Module) preview(c *gin.Context) {
 	c.JSON(200, gin.H{"profile": p, "groups": ranked})
 }
 
-func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model string, excluded map[int64]struct{}) (*service.SmartRouteDecision, error) {
+func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessionHash string, excluded map[int64]struct{}) (*service.SmartRouteDecision, error) {
 	if key == nil || key.GroupID == nil {
 		return nil, nil
 	}
@@ -335,6 +338,14 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model string,
 	ranked, err := m.rank(ctx, key, p, model, excluded)
 	if err != nil {
 		return nil, err
+	}
+	if stickyID := m.getStickyGroup(ctx, key.ID, p.Version, sessionHash); stickyID > 0 {
+		for i := range ranked {
+			if ranked[i].GroupID == stickyID && ranked[i].Eligible {
+				ranked[0], ranked[i] = ranked[i], ranked[0]
+				break
+			}
+		}
 	}
 	for _, g := range ranked {
 		if !g.Eligible {
@@ -367,9 +378,34 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model string,
 			}
 		}
 		depth := len(state.TriedGroups)
+		m.setStickyGroup(ctx, key.ID, p.Version, sessionHash, g.GroupID, time.Duration(p.StickyTTL)*time.Second)
 		return &service.SmartRouteDecision{GroupID: g.GroupID, FallbackDepth: depth, Reason: g.Reason}, nil
 	}
 	return nil, nil
+}
+
+func (m *Module) stickyKey(apiKeyID, version int64, sessionHash string) string {
+	digest := sha256.Sum256([]byte(sessionHash))
+	return fmt.Sprintf("custom:route:sticky:apikey:%d:v%d:%x", apiKeyID, version, digest[:])
+}
+
+func (m *Module) getStickyGroup(ctx context.Context, apiKeyID, version int64, sessionHash string) int64 {
+	if m.redis == nil || apiKeyID <= 0 || version <= 0 || sessionHash == "" {
+		return 0
+	}
+	value, err := m.redis.Get(ctx, m.stickyKey(apiKeyID, version, sessionHash)).Result()
+	if err != nil {
+		return 0
+	}
+	id, _ := strconv.ParseInt(value, 10, 64)
+	return id
+}
+
+func (m *Module) setStickyGroup(ctx context.Context, apiKeyID, version int64, sessionHash string, groupID int64, ttl time.Duration) {
+	if m.redis == nil || apiKeyID <= 0 || version <= 0 || sessionHash == "" || groupID <= 0 || ttl <= 0 {
+		return
+	}
+	_ = m.redis.Set(ctx, m.stickyKey(apiKeyID, version, sessionHash), strconv.FormatInt(groupID, 10), ttl).Err()
 }
 
 func (m *Module) remainingModelAccounts(ctx context.Context, groupID int64, platform, model string, excluded map[int64]struct{}) int {
