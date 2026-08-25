@@ -788,6 +788,15 @@ type GatewayService struct {
 	tlsFPProfileService   *TLSFingerprintProfileService
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	smartRoutingResolver SmartRoutingResolver
+}
+
+// SetSmartRoutingResolver attaches the optional Overlay resolver. Nil keeps
+// the upstream single-group scheduling path untouched.
+func (s *GatewayService) SetSmartRoutingResolver(resolver SmartRoutingResolver) {
+	if s != nil {
+		s.smartRoutingResolver = resolver
+	}
 }
 
 // NewGatewayService creates a new GatewayService

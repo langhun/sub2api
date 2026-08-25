@@ -336,7 +336,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	publicSettingsProvider := server.ProvidePublicSettingsInjectionProvider(settingService, settingsRegistry)
 	activityWalletCapabilities := platform.ProvideActivityWalletCapabilities(billingCacheService, userRepository, subscriptionService, client, leaderLockCache)
 	generator := codeformat.NewGenerator(settingsRegistry)
-	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator, paymentService, authService, apiKeyService, redisClient)
+	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator, paymentService, authService, apiKeyService, groupRepository, accountRepository, gatewayService, redisClient)
 	if err != nil {
 		return nil, err
 	}
@@ -451,11 +451,15 @@ func provideCleanup(
 
 		parallelSteps := []cleanupStep{
 			{"PluginManager", func() error {
-				if pluginManager != nil { pluginManager.Stop() }
+				if pluginManager != nil {
+					pluginManager.Stop()
+				}
 				return nil
 			}},
 			{"OpenAIQuotaAutoResetService", func() error {
-				if openAIAutoReset != nil { openAIAutoReset.Stop() }
+				if openAIAutoReset != nil {
+					openAIAutoReset.Stop()
+				}
 				return nil
 			}},
 			{"CustomActivityRuntime", func() error {

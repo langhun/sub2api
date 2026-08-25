@@ -26,6 +26,9 @@ func ProvideRuntime(
 	paymentService *service.PaymentService,
 	authService *service.AuthService,
 	apiKeyService *service.APIKeyService,
+	groupRepo service.GroupRepository,
+	accountRepo service.AccountRepository,
+	gatewayService *service.GatewayService,
 	redisClient *redis.Client,
 ) (*Runtime, error) {
 	runtime, err := NewRuntime(
@@ -41,6 +44,9 @@ func ProvideRuntime(
 		paymentService,
 		authService,
 		apiKeyService,
+		groupRepo,
+		accountRepo,
+		gatewayService,
 		redisClient,
 	)
 	if err != nil {

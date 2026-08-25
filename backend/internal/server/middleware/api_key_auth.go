@@ -184,6 +184,12 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// ── 4. SimpleMode → early return ─────────────────────────────
 
 		if cfg.RunMode == config.RunModeSimple {
+			c.Request = c.Request.WithContext(service.WithAPIKeyContext(c.Request.Context(), apiKey))
+			state := &service.SmartRoutingRequestState{TriedGroups: map[int64]struct{}{}, EndpointType: smartRoutingEndpoint(c.Request.URL.Path)}
+			if apiKey.GroupID != nil {
+				state.MainGroupID, state.CurrentGroupID = *apiKey.GroupID, *apiKey.GroupID
+			}
+			c.Request = c.Request.WithContext(service.WithSmartRoutingState(c.Request.Context(), state))
 			c.Set(string(ContextKeyAPIKey), apiKey)
 			c.Set(string(ContextKeyUser), AuthSubject{
 				UserID:      apiKey.User.ID,
@@ -282,6 +288,12 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		if subscription != nil {
 			c.Set(string(ContextKeySubscription), subscription)
 		}
+		c.Request = c.Request.WithContext(service.WithAPIKeyContext(c.Request.Context(), apiKey))
+		state := &service.SmartRoutingRequestState{TriedGroups: map[int64]struct{}{}, EndpointType: smartRoutingEndpoint(c.Request.URL.Path)}
+		if apiKey.GroupID != nil {
+			state.MainGroupID, state.CurrentGroupID = *apiKey.GroupID, *apiKey.GroupID
+		}
+		c.Request = c.Request.WithContext(service.WithSmartRoutingState(c.Request.Context(), state))
 		c.Set(string(ContextKeyAPIKey), apiKey)
 		c.Set(string(ContextKeyUser), AuthSubject{
 			UserID:      apiKey.User.ID,
@@ -304,6 +316,19 @@ func apiKeyHeadersTooLarge(c *gin.Context) bool {
 	return len(c.GetHeader("Authorization")) > maxAPIKeyAuthorizationHeaderBytes ||
 		len(c.GetHeader("x-api-key")) > service.MaxAPIKeyCredentialBytes ||
 		len(c.GetHeader("x-goog-api-key")) > service.MaxAPIKeyCredentialBytes
+}
+
+func smartRoutingEndpoint(path string) string {
+	switch {
+	case strings.HasSuffix(path, "/chat/completions"):
+		return "chat_completions"
+	case strings.HasSuffix(path, "/responses"):
+		return "responses"
+	case strings.HasSuffix(path, "/messages"):
+		return "messages"
+	default:
+		return "unsupported"
+	}
 }
 
 func hasAPIKeyCredentialInput(c *gin.Context) bool {

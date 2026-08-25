@@ -21,6 +21,7 @@ import (
 	registrationprotection "github.com/Wei-Shaw/sub2api/internal/custom/modules/registration-protection"
 	supportcontacts "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-contacts"
 	supporttickets "github.com/Wei-Shaw/sub2api/internal/custom/modules/support-tickets"
+	smartrouting "github.com/Wei-Shaw/sub2api/internal/custom/modules/smart-routing"
 	"github.com/Wei-Shaw/sub2api/internal/custom/platform"
 	customsettings "github.com/Wei-Shaw/sub2api/internal/custom/settings"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -50,6 +51,7 @@ type Runtime struct {
 	RegistrationRisk    *registrationprotection.Module
 	RechargePromotions  *rechargepromotions.Module
 	SupportContacts     *supportcontacts.Module
+	SmartRouting        *smartrouting.Module
 	UsageQuerySettings  UsageQuerySettings
 }
 
@@ -67,6 +69,9 @@ func NewRuntime(
 	paymentService *service.PaymentService,
 	authService *service.AuthService,
 	apiKeyService *service.APIKeyService,
+	groupRepo service.GroupRepository,
+	accountRepo service.AccountRepository,
+	gatewayService *service.GatewayService,
 	redisClient *redis.Client,
 ) (*Runtime, error) {
 	bepusdt.Register()
@@ -96,6 +101,7 @@ func NewRuntime(
 		apiKeyService.SetCreationPolicy(registrationPolicy)
 		apiKeyService.SetRequestPolicy(registrationPolicy)
 	}
+	smartRouting := smartrouting.NewModule(db, apiKeyService, groupRepo, accountRepo, gatewayService)
 	var (
 		balanceCache  platform.BalanceCacheInvalidator
 		concurrency   platform.UserConcurrencyWriter
@@ -182,6 +188,7 @@ func NewRuntime(
 		RegistrationRisk:    registrationRiskModule,
 		RechargePromotions:  rechargePromotions,
 		SupportContacts:     supportcontacts.NewModule(db),
+		SmartRouting:        smartRouting,
 		UsageQuerySettings:  customSettingsRegistry,
 	}, nil
 }

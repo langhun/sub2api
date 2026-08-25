@@ -143,6 +143,14 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	user := input.User
 	account := input.Account
 	subscription := input.Subscription
+	// Smart routing may select another same-type subscription group after the
+	// auth middleware loaded the primary group's subscription. Refresh the
+	// billing subscription by the actual selected group before charging.
+	if subscription != nil && apiKey != nil && apiKey.GroupID != nil && subscription.GroupID != *apiKey.GroupID && s.userSubRepo != nil {
+		if refreshed, refreshErr := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, *apiKey.GroupID); refreshErr == nil && refreshed != nil {
+			subscription = refreshed
+		}
+	}
 	if !isGrokVideoUsageResult(result, nil) {
 		ApplyOpenAIImageBillingResolution(result)
 	}

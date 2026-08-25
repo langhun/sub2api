@@ -84,6 +84,13 @@ func RegisterRoutes(
 		admin.Use(middleware.AdminComplianceGuard(settingService))
 		runtime.SupportContacts.RegisterRoutes(admin, public)
 	}
+	if runtime.SmartRouting != nil {
+		v1 := r.Group("/api/v1")
+		authenticated := v1.Group("")
+		authenticated.Use(gin.HandlerFunc(jwtAuth))
+		authenticated.Use(middleware.BackendModeUserGuard(settingService))
+		runtime.SmartRouting.RegisterRoutes(authenticated)
+	}
 	if runtime.ActivityCheckin != nil {
 		v1 := r.Group("/api/v1")
 		authenticated := v1.Group("")

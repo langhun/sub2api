@@ -507,6 +507,36 @@
           </Select>
         </div>
 
+        <section v-if="showEditModal || showCreateModal" class="space-y-3 border-t border-gray-200 pt-4 dark:border-dark-600">
+          <div class="flex items-center justify-between">
+            <label class="input-label mb-0">{{ t('keys.routingMode') }}</label>
+            <div class="inline-flex rounded-md border border-gray-200 p-0.5 dark:border-dark-600">
+              <button type="button" class="px-3 py-1.5 text-sm" :class="formData.routing_mode === 'single' ? 'rounded bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'" @click="formData.routing_mode = 'single'">{{ t('keys.singleGroup') }}</button>
+              <button type="button" class="px-3 py-1.5 text-sm" :class="formData.routing_mode === 'smart' ? 'rounded bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'" @click="formData.routing_mode = 'smart'">{{ t('keys.smartRouting') }}</button>
+            </div>
+          </div>
+          <div v-if="formData.routing_mode === 'smart'" class="space-y-3 rounded-md border border-gray-200 p-3 dark:border-dark-600">
+            <label class="input-label">{{ t('keys.routingCandidates') }}</label>
+            <select v-model="formData.routing_group_ids" multiple class="input min-h-24" :aria-label="t('keys.selectRoutingCandidates')">
+              <option v-for="option in routingGroupOptions" :key="option.value" :value="option.value">{{ option.label }} ({{ option.description }})</option>
+            </select>
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <label v-for="field in ([['routing_price_weight', 'keys.priceWeight'], ['routing_speed_weight', 'keys.speedWeight'], ['routing_success_weight', 'keys.successWeight']] as const)" :key="field[0]" class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t(field[1]) }}
+                <input v-model.number="formData[field[0]]" type="number" min="0" max="100" class="input mt-1" />
+              </label>
+            </div>
+            <p class="text-xs" :class="routingWeightTotal === 100 ? 'text-emerald-600' : 'text-red-500'">{{ t('keys.routingWeightTotal') }}: {{ routingWeightTotal }}%</p>
+            <Select v-model="formData.routing_strategy" :options="[
+              { value: 'auto', label: t('keys.strategyAuto') },
+              { value: 'price', label: t('keys.strategyPrice') },
+              { value: 'speed', label: t('keys.strategySpeed') },
+              { value: 'success', label: t('keys.strategySuccess') },
+              { value: 'custom', label: t('keys.strategyCustom') }
+            ]" />
+          </div>
+        </section>
+
         <!-- Custom Key Section (only for create) -->
         <div v-if="!showEditModal" class="space-y-3">
           <div class="flex items-center justify-between">
@@ -1126,6 +1156,7 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 
 const { t } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
+import { getSmartRouting, updateSmartRouting, type SmartRoutingProfile } from '@/custom/modules/smart-routing/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import DataTable from '@/components/common/DataTable.vue'
@@ -1304,6 +1335,8 @@ const showCcsClientSelect = ref(false)
 const showColumnDropdown = ref(false)
 const pendingCcsRow = ref<ApiKey | null>(null)
 const selectedKey = ref<ApiKey | null>(null)
+const routingProfile = ref<SmartRoutingProfile | null>(null)
+const routingLoading = ref(false)
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
@@ -1347,7 +1380,41 @@ const formData = ref({
   enable_expiration: false,
   expiration_preset: '30' as '7' | '30' | '90' | 'custom',
   expiration_date: ''
+  ,routing_mode: 'single' as 'single' | 'smart'
+  ,routing_enabled: false
+  ,routing_strategy: 'auto' as SmartRoutingProfile['strategy']
+  ,routing_price_weight: 40
+  ,routing_speed_weight: 30
+  ,routing_success_weight: 30
+  ,routing_group_ids: [] as number[]
 })
+
+const routingWeightTotal = computed(() => formData.value.routing_price_weight + formData.value.routing_speed_weight + formData.value.routing_success_weight)
+const routingGroupOptions = computed(() => {
+  const primary = formData.value.group_id
+  return groups.value
+    .filter((group) => group.id !== primary)
+    .map((group) => ({ value: group.id, label: group.name, description: `${group.platform} · ${group.rate_multiplier}x` }))
+})
+
+const loadRoutingProfile = async (keyId: number) => {
+  routingLoading.value = true
+  try {
+    const profile = await getSmartRouting(keyId)
+    routingProfile.value = profile
+    formData.value.routing_mode = profile.mode
+    formData.value.routing_enabled = profile.enabled
+    formData.value.routing_strategy = profile.strategy
+    formData.value.routing_price_weight = profile.price_weight
+    formData.value.routing_speed_weight = profile.speed_weight
+    formData.value.routing_success_weight = profile.success_weight
+    formData.value.routing_group_ids = profile.groups.filter((group) => group.enabled).map((group) => group.group_id)
+  } catch {
+    routingProfile.value = null
+  } finally {
+    routingLoading.value = false
+  }
+}
 
 // 自定义Key验证
 const customKeyError = computed(() => {
@@ -1578,9 +1645,17 @@ const editKey = (key: ApiKey) => {
     rate_limit_7d: key.rate_limit_7d || null,
     enable_expiration: hasExpiration,
     expiration_preset: 'custom',
-    expiration_date: key.expires_at ? formatDateTimeLocal(key.expires_at) : ''
+    expiration_date: key.expires_at ? formatDateTimeLocal(key.expires_at) : '',
+    routing_mode: 'single',
+    routing_enabled: false,
+    routing_strategy: 'auto',
+    routing_price_weight: 40,
+    routing_speed_weight: 30,
+    routing_success_weight: 30,
+    routing_group_ids: []
   }
   showEditModal.value = true
+  void loadRoutingProfile(key.id)
 }
 
 const toggleKeyStatus = async (key: ApiKey) => {
@@ -1667,6 +1742,10 @@ const handleSubmit = async () => {
     appStore.showError(t('keys.groupRequired'))
     return
   }
+  if (formData.value.routing_mode === 'smart' && routingWeightTotal.value !== 100) {
+    appStore.showError(t('keys.routingWeightInvalid'))
+    return
+  }
 
   // Validate custom key if enabled
   if (!showEditModal.value && formData.value.use_custom_key) {
@@ -1718,6 +1797,9 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     if (showEditModal.value && selectedKey.value) {
+      if (formData.value.routing_mode === 'smart' && routingWeightTotal.value !== 100) {
+        throw new Error(t('keys.routingWeightInvalid'))
+      }
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
         group_id: formData.value.group_id,
@@ -1733,10 +1815,22 @@ const handleSubmit = async () => {
         updates.status = formData.value.status
       }
       await keysAPI.update(selectedKey.value.id, updates)
+      await updateSmartRouting(selectedKey.value.id, {
+        version: routingProfile.value?.version,
+        enabled: formData.value.routing_mode === 'smart',
+        mode: formData.value.routing_mode,
+        strategy: formData.value.routing_strategy,
+        price_weight: formData.value.routing_price_weight,
+        speed_weight: formData.value.routing_speed_weight,
+        success_weight: formData.value.routing_success_weight,
+        sticky_ttl_seconds: routingProfile.value?.sticky_ttl_seconds ?? 1800,
+        exploration_rate: routingProfile.value?.exploration_rate ?? 0.05,
+        group_ids: formData.value.routing_mode === 'smart' ? formData.value.routing_group_ids : []
+      })
       appStore.showSuccess(t('keys.keyUpdatedSuccess'))
     } else {
       const customKey = formData.value.use_custom_key ? formData.value.custom_key : undefined
-      await keysAPI.create(
+      const createdKey = await keysAPI.create(
         formData.value.name,
         formData.value.group_id,
         customKey,
@@ -1746,6 +1840,20 @@ const handleSubmit = async () => {
         expiresInDays,
         rateLimitData
       )
+      if (formData.value.routing_mode === 'smart') {
+        if (routingWeightTotal.value !== 100) throw new Error(t('keys.routingWeightInvalid'))
+        await updateSmartRouting(createdKey.id, {
+          enabled: true,
+          mode: 'smart',
+          strategy: formData.value.routing_strategy,
+          price_weight: formData.value.routing_price_weight,
+          speed_weight: formData.value.routing_speed_weight,
+          success_weight: formData.value.routing_success_weight,
+          sticky_ttl_seconds: 1800,
+          exploration_rate: 0.05,
+          group_ids: formData.value.routing_group_ids
+        })
+      }
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
       if (onboardingStore.isCurrentStep('[data-tour="key-form-submit"]')) {
@@ -1755,7 +1863,7 @@ const handleSubmit = async () => {
     closeModals()
     loadApiKeys()
   } catch (error: any) {
-    const errorMsg = error.response?.data?.detail || t('keys.failedToSave')
+    const errorMsg = error.response?.data?.detail || error.message || t('keys.failedToSave')
     appStore.showError(errorMsg)
     // Don't advance tour on error
   } finally {
@@ -1805,6 +1913,13 @@ const closeModals = () => {
     enable_expiration: false,
     expiration_preset: '30',
     expiration_date: ''
+    ,routing_mode: 'single'
+    ,routing_enabled: false
+    ,routing_strategy: 'auto'
+    ,routing_price_weight: 40
+    ,routing_speed_weight: 30
+    ,routing_success_weight: 30
+    ,routing_group_ids: []
   }
 }
 
