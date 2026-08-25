@@ -1815,9 +1815,47 @@ const handleSubmit = async () => {
       if (shouldSubmitEditStatus(selectedKey.value, formData.value.status)) {
         updates.status = formData.value.status
       }
-      await keysAPI.update(selectedKey.value.id, updates)
+      const groupChanged = selectedKey.value.group_id !== formData.value.group_id
+      const previousRouting = routingProfile.value
+      let safeRoutingProfile: SmartRoutingProfile | null = null
+      if (groupChanged) {
+        // Disable routing before changing the primary group. This prevents a
+        // transient request from using candidates validated against the old
+        // primary group while the two user-facing APIs are being updated.
+        safeRoutingProfile = await updateSmartRouting(selectedKey.value.id, {
+          version: previousRouting?.version,
+          enabled: false,
+          mode: 'single',
+          strategy: 'auto',
+          price_weight: 40,
+          speed_weight: 30,
+          success_weight: 30,
+          sticky_ttl_seconds: 1800,
+          exploration_rate: 0.05,
+          group_ids: []
+        })
+      }
+      try {
+        await keysAPI.update(selectedKey.value.id, updates)
+      } catch (error) {
+        if (safeRoutingProfile && previousRouting) {
+          await updateSmartRouting(selectedKey.value.id, {
+            version: safeRoutingProfile.version,
+            enabled: previousRouting.enabled,
+            mode: previousRouting.mode,
+            strategy: previousRouting.strategy,
+            price_weight: previousRouting.price_weight,
+            speed_weight: previousRouting.speed_weight,
+            success_weight: previousRouting.success_weight,
+            sticky_ttl_seconds: previousRouting.sticky_ttl_seconds,
+            exploration_rate: previousRouting.exploration_rate,
+            group_ids: previousRouting.groups.filter(group => group.enabled).map(group => group.group_id)
+          })
+        }
+        throw error
+      }
       await updateSmartRouting(selectedKey.value.id, {
-        version: routingProfile.value?.version,
+        version: (safeRoutingProfile || routingProfile.value)?.version,
         enabled: formData.value.routing_mode === 'smart',
         mode: formData.value.routing_mode,
         strategy: formData.value.routing_strategy,
