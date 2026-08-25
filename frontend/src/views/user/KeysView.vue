@@ -507,33 +507,66 @@
           </Select>
         </div>
 
-        <section v-if="showEditModal || showCreateModal" class="space-y-3 border-t border-gray-200 pt-4 dark:border-dark-600">
-          <div class="flex items-center justify-between">
-            <label class="input-label mb-0">{{ t('keys.routingMode') }}</label>
-            <div class="inline-flex rounded-md border border-gray-200 p-0.5 dark:border-dark-600">
-              <button type="button" class="px-3 py-1.5 text-sm" :class="formData.routing_mode === 'single' ? 'rounded bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'" @click="formData.routing_mode = 'single'">{{ t('keys.singleGroup') }}</button>
-              <button type="button" class="px-3 py-1.5 text-sm" :class="formData.routing_mode === 'smart' ? 'rounded bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'" @click="formData.routing_mode = 'smart'">{{ t('keys.smartRouting') }}</button>
+        <section v-if="showEditModal || showCreateModal" class="routing-panel border-t border-gray-200 pt-5 dark:border-dark-600">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <label class="input-label mb-0">{{ t('keys.routingMode') }}</label>
+              <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('keys.routingModeHint') }}</p>
+            </div>
+            <div class="routing-segmented" role="tablist" :aria-label="t('keys.routingMode')">
+              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'single'" :class="{ active: formData.routing_mode === 'single' }" @click="formData.routing_mode = 'single'">{{ t('keys.singleGroup') }}</button>
+              <button type="button" role="tab" :aria-selected="formData.routing_mode === 'smart'" :class="{ active: formData.routing_mode === 'smart' }" @click="formData.routing_mode = 'smart'">{{ t('keys.smartRouting') }}</button>
             </div>
           </div>
-          <div v-if="formData.routing_mode === 'smart'" class="space-y-3 rounded-md border border-gray-200 p-3 dark:border-dark-600">
-            <label class="input-label">{{ t('keys.routingCandidates') }}</label>
-            <select v-model="formData.routing_group_ids" multiple class="input min-h-24" :aria-label="t('keys.selectRoutingCandidates')">
-              <option v-for="option in routingGroupOptions" :key="option.value" :value="option.value">{{ option.label }} ({{ option.description }})</option>
-            </select>
-            <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <label v-for="field in ([['routing_price_weight', 'keys.priceWeight'], ['routing_speed_weight', 'keys.speedWeight'], ['routing_success_weight', 'keys.successWeight']] as const)" :key="field[0]" class="text-xs text-gray-500 dark:text-gray-400">
-                {{ t(field[1]) }}
-                <input v-model.number="formData[field[0]]" type="number" min="0" max="100" class="input mt-1" />
+
+          <div v-if="formData.routing_mode === 'smart'" class="routing-workspace">
+            <div class="routing-section-head">
+              <div>
+                <h4>{{ t('keys.routingCandidates') }}</h4>
+                <p>{{ t('keys.routingCandidatesHint') }}</p>
+              </div>
+              <span class="routing-count">{{ formData.routing_group_ids.length }}/8</span>
+            </div>
+            <div class="routing-candidate-box">
+              <div v-if="formData.routing_group_ids.length" class="routing-chip-list">
+                <span v-for="groupId in formData.routing_group_ids" :key="groupId" class="routing-chip">
+                  <span class="routing-chip-dot" />
+                  {{ routingGroupLabel(groupId) }}
+                  <button type="button" :aria-label="`${t('common.delete')} ${routingGroupLabel(groupId)}`" @click="removeRoutingGroup(groupId)"><Icon name="x" size="xs" /></button>
+                </span>
+              </div>
+              <div v-else class="routing-empty">{{ t('keys.routingCandidatesEmpty') }}</div>
+              <select v-model="routingCandidateToAdd" class="routing-add-select" :aria-label="t('keys.selectRoutingCandidates')" @change="addRoutingGroup">
+                <option :value="null">{{ t('keys.addRoutingCandidate') }}</option>
+                <option v-for="option in availableRoutingGroupOptions" :key="option.value" :value="option.value">{{ option.label }} · {{ option.description }}</option>
+              </select>
+            </div>
+
+            <div class="routing-section-head mt-5">
+              <div>
+                <h4>{{ t('keys.routingStrategy') }}</h4>
+                <p>{{ t('keys.routingStrategyHint') }}</p>
+              </div>
+              <span class="routing-weight-total" :class="routingWeightTotal === 100 ? 'valid' : 'invalid'">{{ routingWeightTotal }}%</span>
+            </div>
+            <div class="routing-strategy-grid">
+              <button v-for="strategy in routingStrategies" :key="strategy.value" type="button" class="routing-strategy-card" :class="{ selected: formData.routing_strategy === strategy.value }" @click="formData.routing_strategy = strategy.value">
+                <span class="routing-strategy-icon" :class="strategy.tone"><Icon :name="strategy.icon" size="sm" /></span>
+                <span class="routing-strategy-copy">
+                  <strong>{{ strategy.label }}</strong>
+                  <small>{{ strategy.description }}</small>
+                  <em>{{ strategy.weightSummary }}</em>
+                </span>
+                <Icon v-if="formData.routing_strategy === strategy.value" name="check" size="sm" class="routing-strategy-check" />
+              </button>
+            </div>
+
+            <div v-if="formData.routing_strategy === 'custom'" class="routing-custom-weights">
+              <label v-for="field in ([['routing_price_weight', 'keys.priceWeight'], ['routing_speed_weight', 'keys.speedWeight'], ['routing_success_weight', 'keys.successWeight']] as const)" :key="field[0]">
+                <span>{{ t(field[1]) }}</span>
+                <div class="routing-number-input"><input v-model.number="formData[field[0]]" type="number" min="0" max="100" /><b>%</b></div>
               </label>
             </div>
-            <p class="text-xs" :class="routingWeightTotal === 100 ? 'text-emerald-600' : 'text-red-500'">{{ t('keys.routingWeightTotal') }}: {{ routingWeightTotal }}%</p>
-            <Select v-model="formData.routing_strategy" :options="[
-              { value: 'auto', label: t('keys.strategyAuto') },
-              { value: 'price', label: t('keys.strategyPrice') },
-              { value: 'speed', label: t('keys.strategySpeed') },
-              { value: 'success', label: t('keys.strategySuccess') },
-              { value: 'custom', label: t('keys.strategyCustom') }
-            ]" />
           </div>
         </section>
 
@@ -1337,6 +1370,7 @@ const pendingCcsRow = ref<ApiKey | null>(null)
 const selectedKey = ref<ApiKey | null>(null)
 const routingProfile = ref<SmartRoutingProfile | null>(null)
 const routingLoading = ref(false)
+const routingCandidateToAdd = ref<number | null>(null)
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
@@ -1396,6 +1430,28 @@ const routingGroupOptions = computed(() => {
     .filter((group) => group.id !== primary)
     .map((group) => ({ value: group.id, label: group.name, description: `${group.platform} · ${group.rate_multiplier}x` }))
 })
+const availableRoutingGroupOptions = computed(() => routingGroupOptions.value.filter((option) => !formData.value.routing_group_ids.includes(option.value)))
+const routingStrategies = computed(() => [
+  { value: 'auto' as const, label: t('keys.strategyAuto'), description: t('keys.strategyAutoDesc'), weightSummary: `${t('keys.priceWeight')} 40% · ${t('keys.speedWeight')} 30% · ${t('keys.successWeight')} 30%`, icon: 'sparkles', tone: 'teal' },
+  { value: 'price' as const, label: t('keys.strategyPrice'), description: t('keys.strategyPriceDesc'), weightSummary: `${t('keys.priceWeight')} 100%`, icon: 'dollar', tone: 'green' },
+  { value: 'speed' as const, label: t('keys.strategySpeed'), description: t('keys.strategySpeedDesc'), weightSummary: `${t('keys.speedWeight')} 70%`, icon: 'bolt', tone: 'amber' },
+  { value: 'success' as const, label: t('keys.strategySuccess'), description: t('keys.strategySuccessDesc'), weightSummary: `${t('keys.successWeight')} 70%`, icon: 'shield', tone: 'rose' },
+  { value: 'custom' as const, label: t('keys.strategyCustom'), description: t('keys.strategyCustomDesc'), weightSummary: `${t('keys.priceWeight')} ${formData.value.routing_price_weight}% · ${t('keys.speedWeight')} ${formData.value.routing_speed_weight}% · ${t('keys.successWeight')} ${formData.value.routing_success_weight}%`, icon: 'chart', tone: 'violet' }
+] as const)
+
+const routingGroupLabel = (groupId: number) => routingGroupOptions.value.find((option) => option.value === groupId)?.label || `#${groupId}`
+
+const addRoutingGroup = () => {
+  const groupId = routingCandidateToAdd.value
+  if (groupId && !formData.value.routing_group_ids.includes(groupId) && formData.value.routing_group_ids.length < 8) {
+    formData.value.routing_group_ids.push(groupId)
+  }
+  routingCandidateToAdd.value = null
+}
+
+const removeRoutingGroup = (groupId: number) => {
+  formData.value.routing_group_ids = formData.value.routing_group_ids.filter((id) => id !== groupId)
+}
 
 const loadRoutingProfile = async (keyId: number) => {
   routingLoading.value = true
@@ -2156,3 +2212,210 @@ onUnmounted(() => {
   if (resetTimer) clearInterval(resetTimer)
 })
 </script>
+
+<style scoped>
+.routing-panel {
+  color: #172033;
+}
+
+.routing-segmented {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.routing-segmented button {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+  transition: color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+
+.routing-segmented button.active {
+  color: #0f766e;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
+}
+
+.routing-workspace {
+  padding: 14px;
+  border: 1px solid #e6e9ef;
+  border-radius: 10px;
+  background: #fbfcfe;
+}
+
+.routing-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.routing-section-head h4 {
+  margin: 0;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.routing-section-head p {
+  margin: 4px 0 0;
+  color: #98a2b3;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.routing-count,
+.routing-weight-total {
+  flex-shrink: 0;
+  color: #667085;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.routing-weight-total.valid { color: #0f9f8d; }
+.routing-weight-total.invalid { color: #dc5b62; }
+
+.routing-candidate-box {
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #dfe4ec;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.routing-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.routing-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 7px 5px 9px;
+  border: 1px solid #bdeee7;
+  border-radius: 6px;
+  background: #effcf9;
+  color: #126d66;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.routing-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #14b8a6;
+}
+
+.routing-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  color: #5b9a94;
+}
+
+.routing-chip button:hover { color: #b42318; }
+
+.routing-empty {
+  padding: 5px 3px 8px;
+  color: #98a2b3;
+  font-size: 12px;
+}
+
+.routing-add-select {
+  width: 100%;
+  min-height: 34px;
+  margin-top: 8px;
+  padding: 0 10px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #667085;
+  font-size: 12px;
+  outline: none;
+}
+
+.routing-add-select:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgb(20 184 166 / 12%); }
+
+.routing-strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.routing-strategy-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+  text-align: left;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.routing-strategy-card:hover { border-color: #a8ddd7; transform: translateY(-1px); }
+.routing-strategy-card.selected { border-color: #2cc4b4; background: #f1fcfa; box-shadow: 0 0 0 1px #2cc4b4 inset; }
+
+.routing-strategy-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 27px;
+  width: 27px;
+  height: 27px;
+  border-radius: 7px;
+}
+.routing-strategy-icon.teal { color: #0f9f8d; background: #dff8f4; }
+.routing-strategy-icon.green { color: #17845a; background: #e3f8ee; }
+.routing-strategy-icon.amber { color: #bc7614; background: #fff2dc; }
+.routing-strategy-icon.rose { color: #c65767; background: #ffebef; }
+.routing-strategy-icon.violet { color: #7657c9; background: #f0ebff; }
+
+.routing-strategy-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.routing-strategy-copy strong { color: #344054; font-size: 12px; line-height: 1.25; }
+.routing-strategy-copy small { color: #667085; font-size: 10px; line-height: 1.35; }
+.routing-strategy-copy em { color: #98a2b3; font-size: 10px; font-style: normal; font-variant-numeric: tabular-nums; }
+.routing-strategy-check { flex: 0 0 auto; color: #0f9f8d; }
+
+.routing-custom-weights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #edf0f4;
+}
+
+.routing-custom-weights label { color: #667085; font-size: 11px; }
+.routing-number-input { display: flex; align-items: center; margin-top: 5px; border: 1px solid #dfe4ec; border-radius: 6px; background: #fff; }
+.routing-number-input:focus-within { border-color: #14b8a6; box-shadow: 0 0 0 3px rgb(20 184 166 / 10%); }
+.routing-number-input input { width: 100%; min-width: 0; padding: 7px 8px; border: 0; background: transparent; color: #344054; font-size: 12px; outline: none; }
+.routing-number-input b { padding-right: 8px; color: #98a2b3; font-size: 11px; font-weight: 500; }
+
+@media (max-width: 520px) {
+  .routing-panel { padding-top: 16px; }
+  .routing-panel > .mb-4 { align-items: flex-start; flex-direction: column; }
+  .routing-segmented { width: 100%; }
+  .routing-segmented button { flex: 1; }
+  .routing-workspace { padding: 11px; }
+  .routing-strategy-grid { grid-template-columns: 1fr; }
+  .routing-custom-weights { grid-template-columns: 1fr; }
+}
+</style>
