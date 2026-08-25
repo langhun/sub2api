@@ -148,6 +148,12 @@ func Validate(config Config) error {
 	if config.ClusterMedium <= 0 || config.ClusterHigh < config.ClusterMedium || config.TrialHours <= 0 || config.TrialRPM <= 0 || config.TrialConcurrency <= 0 || config.TrialCostLimit <= 0 || config.PaymentAmount <= 0 {
 		return fmt.Errorf("registration protection limits must be positive")
 	}
+	if config.ClusterWindow6h > 1000 || config.ClusterWindow24h > 5000 || config.ClusterMedium > 100 || config.ClusterHigh > 100 {
+		return fmt.Errorf("registration cluster limits exceed the safe maximum")
+	}
+	if config.TrialHours > 168 || config.TrialRPM > 600 || config.TrialConcurrency > 32 || config.TrialCostLimit > 10000 || config.PaymentAmount > 100000 {
+		return fmt.Errorf("registration trial limits exceed the safe maximum")
+	}
 	return nil
 }
 

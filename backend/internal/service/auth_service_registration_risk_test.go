@@ -21,13 +21,15 @@ type registrationRiskPolicyStub struct {
 type registrationRiskPolicyInput struct {
 	clientIP  string
 	userAgent string
+	deviceID  string
 	source    string
 }
 
-func (s *registrationRiskPolicyStub) Begin(_ context.Context, clientIP, userAgent, signupSource string) (RegistrationRiskReservation, error) {
+func (s *registrationRiskPolicyStub) Begin(_ context.Context, clientIP, userAgent, deviceID, signupSource string) (RegistrationRiskReservation, error) {
 	s.inputs = append(s.inputs, registrationRiskPolicyInput{
 		clientIP:  clientIP,
 		userAgent: userAgent,
+		deviceID:  deviceID,
 		source:    signupSource,
 	})
 	if s.err != nil {
@@ -42,6 +44,7 @@ func (s *registrationRiskPolicyStub) IsRewardBlocked(context.Context, int64) (bo
 
 type registrationRiskReservationStub struct {
 	rewardBlocked bool
+	blockSignup   bool
 	blockOnCommit bool
 	commitErr     error
 	abortErr      error
@@ -49,7 +52,8 @@ type registrationRiskReservationStub struct {
 	aborts        int
 }
 
-func (s *registrationRiskReservationStub) RewardBlocked() bool { return s.rewardBlocked }
+func (s *registrationRiskReservationStub) RewardBlocked() bool     { return s.rewardBlocked }
+func (s *registrationRiskReservationStub) BlockRegistration() bool { return s.blockSignup }
 
 func (s *registrationRiskReservationStub) Commit(_ context.Context, userID int64) error {
 	s.committedIDs = append(s.committedIDs, userID)
@@ -77,8 +81,8 @@ func TestAuthService_Register_RegistrationRiskDuplicateSuppressesSignupRewards(t
 	repo := &userRepoStub{nextID: 801}
 	assigner := &defaultSubscriptionAssignerStub{}
 	svc := newAuthService(repo, map[string]string{
-		SettingKeyRegistrationEnabled:    "true",
-		SettingKeyDefaultSubscriptions:   `[{"group_id":11,"validity_days":30}]`,
+		SettingKeyRegistrationEnabled:  "true",
+		SettingKeyDefaultSubscriptions: `[{"group_id":11,"validity_days":30}]`,
 	}, nil, nil)
 	svc.defaultSubAssigner = assigner
 	riskReservation := &registrationRiskReservationStub{rewardBlocked: true}
@@ -117,6 +121,20 @@ func TestAuthService_Register_RegistrationRiskUnavailableFailsClosedForRewards(t
 	require.NotNil(t, user)
 	require.Zero(t, user.Balance)
 	require.Empty(t, assigner.calls)
+}
+
+func TestAuthService_Register_HighRegistrationRiskBlocksBeforeUserCreation(t *testing.T) {
+	repo := &userRepoStub{nextID: 807}
+	svc := newAuthService(repo, map[string]string{SettingKeyRegistrationEnabled: "true"}, nil, nil)
+	riskReservation := &registrationRiskReservationStub{blockSignup: true}
+	svc.SetRegistrationRiskPolicy(&registrationRiskPolicyStub{reservation: riskReservation})
+
+	_, user, err := svc.Register(WithRegistrationClientMetadata(context.Background(), "203.0.113.80", "Mozilla/5.0"), "blocked@example.com", "password")
+
+	require.ErrorIs(t, err, ErrRegistrationRiskBlocked)
+	require.Nil(t, user)
+	require.Empty(t, repo.created)
+	require.Equal(t, 1, riskReservation.aborts)
 }
 
 func TestAuthService_Register_RegistrationRiskCommitFailureLeavesPersistedBalanceAtZero(t *testing.T) {

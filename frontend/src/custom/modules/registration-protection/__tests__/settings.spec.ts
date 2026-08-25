@@ -6,6 +6,7 @@ import {
   defaultRegistrationProtectionSettings,
   readRegistrationProtectionSettings,
   registrationProtectionSettingsPanels,
+  validateRegistrationProtectionSettings,
 } from '../settings'
 
 describe('registration protection settings', () => {
@@ -46,6 +47,23 @@ describe('registration protection settings', () => {
       registration_alias_protection_enabled: false,
       registration_reward_fingerprint_protection_enabled: true,
     })
+  })
+
+  it('rejects unsafe or inverted limits before saving', () => {
+    const defaults = defaultRegistrationProtectionSettings()
+    expect(validateRegistrationProtectionSettings({
+      ...defaults,
+      registration_cluster_window_6h: 6,
+      registration_cluster_window_24h: 3,
+    })).toContain('24')
+    expect(validateRegistrationProtectionSettings({
+      ...defaults,
+      registration_trial_rpm_limit: 601,
+    })).toContain('安全上限')
+    expect(registrationProtectionSettingsPanels[0].validate({
+      ...defaults,
+      registration_cluster_high_threshold: 2,
+    }, {})).toContain('高风险阈值')
   })
 
   it('renders both switches and emits changes', async () => {

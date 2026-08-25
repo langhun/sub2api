@@ -36,6 +36,7 @@ var (
 type BeginInput struct {
 	ClientIP  string
 	UserAgent string
+	DeviceID  string
 	Source    string
 }
 
@@ -107,7 +108,7 @@ func (s *Store) Begin(ctx context.Context, input BeginInput) (*Reservation, erro
 	if s == nil || s.db == nil {
 		return nil, ErrUnavailable
 	}
-	hash, ok := FingerprintHash(input.ClientIP, input.UserAgent)
+	hash, ok := FingerprintHashWithDevice(input.ClientIP, input.UserAgent, input.DeviceID)
 	reservation := &Reservation{
 		store:           s,
 		fingerprintHash: hash,
@@ -340,12 +341,20 @@ func NormalizeClientIP(value string) string {
 // FingerprintHash computes the opaque identifier used by the persistence
 // layer. Empty metadata is not recorded because it cannot distinguish clients.
 func FingerprintHash(clientIP, userAgent string) (string, bool) {
+	return FingerprintHashWithDevice(clientIP, userAgent, "")
+}
+
+// FingerprintHashWithDevice adds an optional opaque device token to the
+// fingerprint. IP and User-Agent remain separately scored by cluster risk;
+// this value only improves correlation when a client rotates either signal.
+func FingerprintHashWithDevice(clientIP, userAgent, deviceID string) (string, bool) {
 	ip := NormalizeClientIP(clientIP)
 	ua := NormalizeUserAgent(userAgent)
 	if ip == "" || ua == "" {
 		return "", false
 	}
-	sum := sha256.Sum256([]byte(ip + "\x00" + ua))
+	device := strings.TrimSpace(deviceID)
+	sum := sha256.Sum256([]byte(ip + "\x00" + ua + "\x00" + device))
 	return hex.EncodeToString(sum[:]), true
 }
 

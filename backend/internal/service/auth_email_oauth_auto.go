@@ -177,7 +177,10 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	}
 
 	providerType = normalizeOAuthSignupSource(providerType)
-	riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, providerType)
+	riskReservation, rewardBlocked, riskErr := s.beginRegistrationRisk(ctx, providerType)
+	if riskErr != nil {
+		return nil, riskErr
+	}
 	riskSettled := false
 	defer func() {
 		if !riskSettled {

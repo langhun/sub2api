@@ -81,7 +81,7 @@ func fingerprintEnabled(values map[string]string) bool {
 
 // Begin implements service.RegistrationRiskPolicy. When the feature is
 // disabled, registration remains unchanged and no fingerprint is persisted.
-func (p *Policy) Begin(ctx context.Context, clientIP, userAgent, signupSource string) (service.RegistrationRiskReservation, error) {
+func (p *Policy) Begin(ctx context.Context, clientIP, userAgent, deviceID, signupSource string) (service.RegistrationRiskReservation, error) {
 	if p == nil || (p.fingerprint == nil && p.risk == nil) {
 		return nil, nil
 	}
@@ -92,18 +92,37 @@ func (p *Policy) Begin(ctx context.Context, clientIP, userAgent, signupSource st
 	if err != nil {
 		return nil, err
 	}
-	input := BeginInput{ClientIP: clientIP, UserAgent: userAgent, Source: signupSource}
+	input := BeginInput{ClientIP: clientIP, UserAgent: userAgent, DeviceID: deviceID, Source: signupSource}
 	if !fingerprintEnabled(values) {
 		if !contract.Bool(values, registrationsettings.KeyClusterEnabled, true) {
 			return nil, nil
 		}
-		return riskReservation{risk: p.risk, input: input}, nil
+		decision := RiskDecision{Action: RiskActionNone}
+		if p.risk != nil {
+			decision, err = p.risk.Preflight(ctx, input, false)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if decision.Action == RiskActionHigh {
+			return nil, service.ErrRegistrationRiskBlocked
+		}
+		return &riskReservation{risk: p.risk, input: input, decision: decision}, nil
 	}
 	reservation, err := p.fingerprint.Begin(ctx, input)
 	if err != nil {
 		return nil, err
 	}
-	return riskReservation{store: p.fingerprint, reservation: reservation, risk: p.risk, input: input}, nil
+	exactRepeat := reservation.RewardBlocked()
+	decision := RiskDecision{Action: RiskActionNone}
+	if p.risk != nil {
+		decision, err = p.risk.Preflight(ctx, input, exactRepeat)
+		if err != nil {
+			_ = p.fingerprint.Abort(ctx, reservation)
+			return nil, err
+		}
+	}
+	return &riskReservation{store: p.fingerprint, reservation: reservation, risk: p.risk, input: input, decision: decision}, nil
 }
 
 // CheckinRewardAllowed implements the check-in reward gate. Existing accounts
@@ -224,13 +243,18 @@ type riskReservation struct {
 	reservation *Reservation
 	risk        *RiskStore
 	input       BeginInput
+	decision    RiskDecision
 }
 
-func (r riskReservation) RewardBlocked() bool {
-	return r.reservation != nil && r.reservation.RewardBlocked()
+func (r *riskReservation) RewardBlocked() bool {
+	return (r.reservation != nil && r.reservation.RewardBlocked()) || r.decision.Action == RiskActionHigh
 }
 
-func (r riskReservation) Commit(ctx context.Context, userID int64) error {
+func (r *riskReservation) BlockRegistration() bool {
+	return r.decision.Action == RiskActionHigh
+}
+
+func (r *riskReservation) Commit(ctx context.Context, userID int64) error {
 	exactRepeat := false
 	if r.reservation != nil {
 		result, err := r.store.Commit(ctx, r.reservation, userID)
@@ -242,11 +266,14 @@ func (r riskReservation) Commit(ctx context.Context, userID int64) error {
 	if r.risk == nil {
 		return nil
 	}
-	_, err := r.risk.Evaluate(ctx, userID, r.input, exactRepeat)
+	decision, err := r.risk.Evaluate(ctx, userID, r.input, exactRepeat)
+	if err == nil {
+		r.decision = decision
+	}
 	return err
 }
 
-func (r riskReservation) Abort(ctx context.Context) error {
+func (r *riskReservation) Abort(ctx context.Context) error {
 	if r.reservation == nil {
 		return nil
 	}

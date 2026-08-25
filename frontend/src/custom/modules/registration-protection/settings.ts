@@ -94,6 +94,26 @@ export const registrationProtectionSettingsPanels: readonly CustomSettingsPanel[
         ...settings,
       }
     },
-    validate: () => '',
+    validate: (form) => validateRegistrationProtectionSettings(readRegistrationProtectionSettings(form)),
   },
 ]
+
+export function validateRegistrationProtectionSettings(settings: RegistrationProtectionSettings): string {
+  const positive = [
+    settings.registration_cluster_window_6h,
+    settings.registration_cluster_window_24h,
+    settings.registration_cluster_medium_threshold,
+    settings.registration_cluster_high_threshold,
+    settings.registration_trial_hours,
+    settings.registration_trial_cost_limit,
+    settings.registration_trial_rpm_limit,
+    settings.registration_trial_concurrency,
+    settings.registration_payment_unlock_amount,
+  ]
+  if (positive.some((value) => !Number.isFinite(value) || value <= 0)) return '注册风控限制必须是大于 0 的有效数字'
+  if (settings.registration_cluster_window_24h < settings.registration_cluster_window_6h) return '24 小时网段窗口不能小于 6 小时窗口'
+  if (settings.registration_cluster_high_threshold < settings.registration_cluster_medium_threshold) return '高风险阈值不能小于中风险阈值'
+  if (settings.registration_cluster_window_6h > 1000 || settings.registration_cluster_window_24h > 5000 || settings.registration_cluster_medium_threshold > 100 || settings.registration_cluster_high_threshold > 100) return '网段聚集限制超过安全上限'
+  if (settings.registration_trial_hours > 168 || settings.registration_trial_rpm_limit > 600 || settings.registration_trial_concurrency > 32 || settings.registration_trial_cost_limit > 10000 || settings.registration_payment_unlock_amount > 100000) return '试用限制超过安全上限'
+  return ''
+}

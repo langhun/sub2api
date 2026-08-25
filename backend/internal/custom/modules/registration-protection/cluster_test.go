@@ -1,6 +1,10 @@
 package registrationprotection
 
-import "testing"
+import (
+	"testing"
+
+	registrationsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/registration-protection/settings"
+)
 
 func TestNormalizeNetworkIPv4Uses24(t *testing.T) {
 	got, ok := normalizeNetwork("203.0.113.37")
@@ -20,5 +24,28 @@ func TestHashValueDoesNotExposeInput(t *testing.T) {
 	const input = "203.0.113.0/24"
 	if got := hashValue(input); got == input || len(got) != 64 {
 		t.Fatalf("hashValue() = %q", got)
+	}
+}
+
+func TestScoreRiskDecisionIncludesCurrentRegistration(t *testing.T) {
+	config := registrationsettings.Default()
+	decision := scoreRiskDecision(config, "network", "ua", "203.0.113.0/24", 3, 5, false)
+	if decision.Action != RiskActionHigh {
+		t.Fatalf("expected high risk at both cluster thresholds, got %q (%d)", decision.Action, decision.Score)
+	}
+	if len(decision.Signals) != 2 {
+		t.Fatalf("expected both cluster signals, got %#v", decision.Signals)
+	}
+}
+
+func TestScoreRiskDecisionExactRepeatBlocksAtMediumThreshold(t *testing.T) {
+	config := registrationsettings.Default()
+	decision := scoreRiskDecision(config, "network", "ua", "203.0.113.0/24", 0, 0, true)
+	if decision.Action != RiskActionNone {
+		t.Fatalf("exact repeat without cluster history should remain non-blocking, got %q", decision.Action)
+	}
+	decision = scoreRiskDecision(config, "network", "ua", "203.0.113.0/24", config.ClusterWindow6h, 0, true)
+	if decision.Action != RiskActionHigh {
+		t.Fatalf("exact repeat at the medium cluster threshold should be high, got %q", decision.Action)
 	}
 }

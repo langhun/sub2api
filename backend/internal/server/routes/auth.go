@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler"
@@ -10,6 +11,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -34,7 +36,13 @@ func RegisterAuthRoutes(
 	// Keep registration risk metadata on the request context so every email and
 	// OAuth account-creation path shares the same trusted IP/UA input.
 	auth.Use(func(c *gin.Context) {
-		ctx := service.WithRegistrationClientMetadata(c.Request.Context(), ip.GetClientIP(c), c.GetHeader("User-Agent"))
+		deviceID, err := c.Cookie("sub2api_reg_device")
+		if err != nil || deviceID == "" {
+			deviceID = uuid.NewString()
+			c.SetSameSite(http.SameSiteLaxMode)
+			c.SetCookie("sub2api_reg_device", deviceID, 30*24*60*60, "/", "", c.Request.TLS != nil, true)
+		}
+		ctx := service.WithRegistrationClientMetadata(c.Request.Context(), ip.GetTrustedClientIP(c), c.GetHeader("User-Agent"), deviceID)
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	})

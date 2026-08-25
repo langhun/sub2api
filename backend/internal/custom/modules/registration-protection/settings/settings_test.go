@@ -40,3 +40,14 @@ func TestFromValuesPreservesTrialAndRiskSwitches(t *testing.T) {
 	require.False(t, config.TrialEnabled)
 	require.False(t, config.PaymentUnlock)
 }
+
+func TestValidateRejectsUnsafeUpperBounds(t *testing.T) {
+	config := Default()
+	config.TrialRPM = 601
+	require.ErrorContains(t, Validate(config), "safe maximum")
+
+	config = Default()
+	config.ClusterHigh = 2
+	config.ClusterMedium = 3
+	require.Error(t, Validate(config))
+}

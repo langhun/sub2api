@@ -71,6 +71,7 @@ func (m *Module) list(c *gin.Context) {
 			return
 		}
 		_ = json.Unmarshal(raw, &item.Signals)
+		item.Email = maskRiskEmail(item.Email)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -78,6 +79,19 @@ func (m *Module) list(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+func maskRiskEmail(email string) string {
+	email = strings.TrimSpace(email)
+	local, domain, ok := strings.Cut(email, "@")
+	if !ok || local == "" || domain == "" {
+		return ""
+	}
+	if len([]rune(local)) <= 2 {
+		return "*@" + domain
+	}
+	runes := []rune(local)
+	return string(runes[0]) + "***" + string(runes[len(runes)-1]) + "@" + domain
 }
 
 func (m *Module) updateOverride(c *gin.Context, action string) {

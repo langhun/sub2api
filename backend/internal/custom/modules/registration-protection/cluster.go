@@ -13,6 +13,7 @@ import (
 
 	registrationsettings "github.com/Wei-Shaw/sub2api/internal/custom/modules/registration-protection/settings"
 	"github.com/Wei-Shaw/sub2api/internal/custom/settings/contract"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -33,6 +34,69 @@ type RiskDecision struct {
 	NetworkHash string
 	UAHash      string
 	Network     string
+}
+
+// Preflight evaluates the signals that are already durable before an account
+// exists. The current registration is included in the window counts so a
+// high-risk attempt can be rejected before any balance or account side effect.
+func (s *RiskStore) Preflight(ctx context.Context, input BeginInput, exactRepeat bool) (RiskDecision, error) {
+	if s == nil || s.db == nil {
+		return RiskDecision{}, ErrUnavailable
+	}
+	config := registrationsettings.Default()
+	if s.settings != nil {
+		values, err := s.settings.GetMultiple(ctx, registrationsettings.Keys())
+		if err != nil {
+			return RiskDecision{}, fmt.Errorf("read registration risk settings: %w", err)
+		}
+		config = registrationsettings.FromValues(values)
+	}
+	if !config.ClusterEnabled {
+		return RiskDecision{Action: RiskActionNone}, nil
+	}
+	network, ok := normalizeNetwork(input.ClientIP)
+	ua := NormalizeUserAgent(input.UserAgent)
+	if !ok || ua == "" {
+		return RiskDecision{Action: RiskActionNone}, nil
+	}
+	networkHash := hashValue(network)
+	uaHash := hashValue(ua)
+	var count6h, count24h int
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FILTER (WHERE registered_at >= NOW() - INTERVAL '6 hours'),
+		       COUNT(*) FILTER (WHERE registered_at >= NOW() - INTERVAL '24 hours')
+		FROM custom_registration_cluster_events
+		WHERE network_hash = $1 AND user_agent_hash = $2`, networkHash, uaHash).Scan(&count6h, &count24h); err != nil {
+		return RiskDecision{}, fmt.Errorf("count registration cluster events: %w", err)
+	}
+	return scoreRiskDecision(config, networkHash, uaHash, network, count6h+1, count24h+1, exactRepeat), nil
+}
+
+func scoreRiskDecision(config registrationsettings.Config, networkHash, uaHash, network string, count6h, count24h int, exactRepeat bool) RiskDecision {
+	score := 0
+	signals := make([]string, 0, 4)
+	if count6h >= config.ClusterWindow6h {
+		score += 3
+		signals = append(signals, "cluster_6h")
+	}
+	if count24h >= config.ClusterWindow24h {
+		score += 3
+		signals = append(signals, "cluster_24h")
+	}
+	if exactRepeat {
+		score += 2
+		signals = append(signals, "exact_fingerprint_repeat")
+	}
+	action := RiskActionNone
+	if score >= config.ClusterHigh || (exactRepeat && score >= config.ClusterMedium) {
+		action = RiskActionHigh
+	} else if score >= config.ClusterMedium {
+		action = RiskActionMedium
+	}
+	if action == RiskActionHigh && !config.AutoHighLock {
+		action = RiskActionMedium
+	}
+	return RiskDecision{Score: score, Action: action, Signals: signals, NetworkHash: networkHash, UAHash: uaHash, Network: network}
 }
 
 // RiskStore keeps cluster aggregation separate from the exact fingerprint
@@ -89,29 +153,8 @@ func (s *RiskStore) Evaluate(ctx context.Context, userID int64, input BeginInput
 		WHERE network_hash = $1 AND user_agent_hash = $2`, networkHash, uaHash).Scan(&count6h, &count24h); err != nil {
 		return RiskDecision{}, fmt.Errorf("count registration cluster events: %w", err)
 	}
-	score := 0
-	signals := make([]string, 0, 4)
-	if count6h >= config.ClusterWindow6h {
-		score += 3
-		signals = append(signals, "cluster_6h")
-	}
-	if count24h >= config.ClusterWindow24h {
-		score += 3
-		signals = append(signals, "cluster_24h")
-	}
-	if exactRepeat {
-		score += 2
-		signals = append(signals, "exact_fingerprint_repeat")
-	}
-	action := RiskActionNone
-	if score >= config.ClusterHigh || (exactRepeat && score >= config.ClusterMedium) {
-		action = RiskActionHigh
-	} else if score >= config.ClusterMedium {
-		action = RiskActionMedium
-	}
-	if action == RiskActionHigh && !config.AutoHighLock {
-		action = RiskActionMedium
-	}
+	decision := scoreRiskDecision(config, networkHash, uaHash, network, count6h, count24h, exactRepeat)
+	score, signals, action := decision.Score, decision.Signals, decision.Action
 	expires := time.Now().UTC().Add(24 * time.Hour)
 	encoded, _ := json.Marshal(signals)
 	_, err := s.db.ExecContext(ctx, `
@@ -124,7 +167,8 @@ func (s *RiskStore) Evaluate(ctx context.Context, userID int64, input BeginInput
 	if err != nil {
 		return RiskDecision{}, fmt.Errorf("persist registration risk profile: %w", err)
 	}
-	return RiskDecision{Score: score, Action: action, Signals: signals, ExpiresAt: expires, NetworkHash: networkHash, UAHash: uaHash, Network: network}, nil
+	decision.ExpiresAt = expires
+	return decision, nil
 }
 
 func (s *RiskStore) Decision(ctx context.Context, userID int64) (RiskDecision, error) {
@@ -242,15 +286,29 @@ func (s *RiskStore) AllowTrialRPM(ctx context.Context, userID int64) error {
 	if !config.TrialEnabled {
 		return nil
 	}
-	key := fmt.Sprintf("custom:registration-trial:rpm:%d:%d", userID, time.Now().UTC().Unix()/60)
-	count, err := s.redis.Incr(ctx, key).Result()
+	key := fmt.Sprintf("custom:registration-trial:rpm:%d", userID)
+	now := time.Now().UTC().UnixMilli()
+	windowStart := now - int64(time.Minute/time.Millisecond)
+	result, err := s.redis.Eval(ctx, `
+		local key = KEYS[1]
+		local now = tonumber(ARGV[1])
+		local start = tonumber(ARGV[2])
+		local limit = tonumber(ARGV[3])
+		redis.call('ZREMRANGEBYSCORE', key, 0, start)
+		local count = redis.call('ZCARD', key)
+		if count >= limit then
+			redis.call('EXPIRE', key, 120)
+			return count + 1
+		end
+		redis.call('ZADD', key, now, ARGV[1] .. ':' .. redis.call('INCR', key .. ':seq'))
+		redis.call('EXPIRE', key, 120)
+		redis.call('EXPIRE', key .. ':seq', 120)
+		return count + 1
+	`, []string{key}, now, windowStart, config.TrialRPM).Int64()
 	if err != nil {
 		return err
 	}
-	if count == 1 {
-		_ = s.redis.Expire(ctx, key, 2*time.Minute).Err()
-	}
-	if count > int64(config.TrialRPM) {
+	if result > int64(config.TrialRPM) {
 		return ErrTrialRPMLimit
 	}
 	return nil
@@ -271,18 +329,47 @@ func (s *RiskStore) AllowTrialCost(ctx context.Context, userID int64) error {
 	if !config.TrialEnabled {
 		return nil
 	}
-	var used float64
-	err := s.db.QueryRowContext(ctx, `
-		SELECT COALESCE(SUM(total_cost), 0)
-		FROM usage_logs
-		WHERE user_id = $1 AND created_at >= NOW() - ($2 * INTERVAL '1 hour')`, userID, config.TrialHours).Scan(&used)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if used >= config.TrialCostLimit {
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, userID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM custom_registration_trial_cost_reservations WHERE user_id = $1 AND expires_at <= NOW()`, userID); err != nil {
+		return err
+	}
+	var used, reserved float64
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COALESCE(SUM(total_cost), 0)
+		FROM usage_logs
+		WHERE user_id = $1 AND created_at >= NOW() - ($2 * INTERVAL '1 hour')`, userID, config.TrialHours).Scan(&used); err != nil {
+		return err
+	}
+	if err := tx.QueryRowContext(ctx, `
+		SELECT COALESCE(SUM(reserved_cost), 0)
+		FROM custom_registration_trial_cost_reservations
+		WHERE user_id = $1 AND expires_at > NOW() AND settled_at IS NULL AND released_at IS NULL`, userID).Scan(&reserved); err != nil {
+		return err
+	}
+	// Reserve one RPM-sized slice of the configured budget. The reservation is
+	// short-lived and conservative, preventing concurrent requests from all
+	// passing the same aggregate-cost check before usage logs are written.
+	reserve := config.TrialCostLimit / float64(config.TrialRPM)
+	if reserve < 0.01 {
+		reserve = 0.01
+	}
+	if used+reserved+reserve > config.TrialCostLimit {
 		return ErrTrialCostLimit
 	}
-	return nil
+	requestHash := hashValue(fmt.Sprintf("%d:%s", userID, uuid.NewString()))
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO custom_registration_trial_cost_reservations (user_id, request_hash, reserved_cost, expires_at)
+		VALUES ($1, $2, $3, NOW() + INTERVAL '2 minutes')`, userID, requestHash, reserve); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *RiskStore) TrialActive(ctx context.Context, userID int64) bool {

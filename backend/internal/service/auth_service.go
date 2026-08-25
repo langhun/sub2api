@@ -48,6 +48,7 @@ var (
 	ErrInvitationCodeRequired  = infraerrors.BadRequest("INVITATION_CODE_REQUIRED", "invitation code is required")
 	ErrInvitationCodeInvalid   = infraerrors.BadRequest("INVITATION_CODE_INVALID", "invalid or used invitation code")
 	ErrOAuthInvitationRequired = infraerrors.Forbidden("OAUTH_INVITATION_REQUIRED", "invitation code required to complete oauth registration")
+	ErrRegistrationRiskBlocked = infraerrors.Forbidden("REGISTRATION_RISK_BLOCKED", "registration cannot be completed at this time")
 	ErrCaptchaProviderConflict = infraerrors.ServiceUnavailable("CAPTCHA_PROVIDER_CONFLICT", "multiple captcha providers are enabled")
 )
 
@@ -102,24 +103,29 @@ type RegistrationEmailPolicy interface {
 
 // RegistrationClientMetadata is supplied by HTTP authentication handlers.
 // The risk module hashes these values before persistence; the core service
-// never stores the raw User-Agent or client address.
+// never stores the raw User-Agent, device token or client address.
 type RegistrationClientMetadata struct {
 	ClientIP  string
 	UserAgent string
+	DeviceID  string
 }
 
 type registrationClientMetadataContextKey struct{}
 
 // WithRegistrationClientMetadata attaches request metadata used by the
 // optional registration reward protection module.
-func WithRegistrationClientMetadata(ctx context.Context, clientIP, userAgent string) context.Context {
+func WithRegistrationClientMetadata(ctx context.Context, clientIP, userAgent string, deviceID ...string) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return context.WithValue(ctx, registrationClientMetadataContextKey{}, RegistrationClientMetadata{
+	metadata := RegistrationClientMetadata{
 		ClientIP:  strings.TrimSpace(clientIP),
 		UserAgent: strings.TrimSpace(userAgent),
-	})
+	}
+	if len(deviceID) > 0 {
+		metadata.DeviceID = strings.TrimSpace(deviceID[0])
+	}
+	return context.WithValue(ctx, registrationClientMetadataContextKey{}, metadata)
 }
 
 // RegistrationClientMetadataFromContext returns request metadata attached by
@@ -141,10 +147,17 @@ type RegistrationRiskReservation interface {
 	Abort(ctx context.Context) error
 }
 
+// RegistrationRiskGate is an optional capability implemented by Overlay
+// reservations that can make a pre-registration decision. Keeping this
+// separate preserves compatibility with older custom policies.
+type RegistrationRiskGate interface {
+	BlockRegistration() bool
+}
+
 // RegistrationRiskPolicy is intentionally narrow so the upstream service does
 // not depend on Overlay storage or schema details.
 type RegistrationRiskPolicy interface {
-	Begin(ctx context.Context, clientIP, userAgent, signupSource string) (RegistrationRiskReservation, error)
+	Begin(ctx context.Context, clientIP, userAgent, deviceID, signupSource string) (RegistrationRiskReservation, error)
 	IsRewardBlocked(ctx context.Context, userID int64) (bool, error)
 }
 
@@ -243,20 +256,37 @@ func (s *AuthService) SetSignupBalanceLedger(ledger SignupBalanceLedger) {
 // beginRegistrationRisk keeps risk-storage failures fail-closed for signup
 // rewards while allowing the account itself to be created. This prevents a
 // temporary Overlay store outage from becoming a registration outage.
-func (s *AuthService) beginRegistrationRisk(ctx context.Context, signupSource string) (RegistrationRiskReservation, bool) {
+func (s *AuthService) beginRegistrationRisk(ctx context.Context, signupSource string) (RegistrationRiskReservation, bool, error) {
 	if s == nil || s.registrationRiskPolicy == nil {
-		return nil, false
+		return nil, false, nil
 	}
 	metadata := RegistrationClientMetadataFromContext(ctx)
-	reservation, err := s.registrationRiskPolicy.Begin(ctx, metadata.ClientIP, metadata.UserAgent, signupSource)
+	reservation, err := s.registrationRiskPolicy.Begin(ctx, metadata.ClientIP, metadata.UserAgent, metadata.DeviceID, signupSource)
 	if err != nil {
+		if errors.Is(err, ErrRegistrationRiskBlocked) {
+			return nil, true, err
+		}
 		logger.LegacyPrintf("service.auth", "[Auth] Registration risk unavailable; suppressing signup rewards: %v", err)
-		return nil, true
+		return nil, true, nil
 	}
 	if reservation == nil {
-		return nil, false
+		return nil, false, nil
 	}
-	return reservation, reservation.RewardBlocked()
+	if s.registrationRiskBlocksSignup(reservation) {
+		if abortErr := reservation.Abort(ctx); abortErr != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to release blocked registration risk reservation: %v", abortErr)
+		}
+		return nil, true, ErrRegistrationRiskBlocked
+	}
+	return reservation, reservation.RewardBlocked(), nil
+}
+
+func (s *AuthService) registrationRiskBlocksSignup(reservation RegistrationRiskReservation) bool {
+	if reservation == nil {
+		return false
+	}
+	gate, ok := reservation.(RegistrationRiskGate)
+	return ok && gate.BlockRegistration()
 }
 
 func (s *AuthService) commitRegistrationRisk(ctx context.Context, reservation RegistrationRiskReservation, userID int64) bool {
@@ -416,7 +446,10 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		return "", nil, err
 	}
 
-	riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, "email")
+	riskReservation, rewardBlocked, riskErr := s.beginRegistrationRisk(ctx, "email")
+	if riskErr != nil {
+		return "", nil, riskErr
+	}
 	riskSettled := false
 	defer func() {
 		if !riskSettled {
@@ -602,14 +635,9 @@ func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string, loc
 	}, nil
 }
 
-// VerifyCaptchaForRegister 在注册场景下验证当前启用的验证码。
-// 当邮箱验证开启且已提交验证码时，说明验证码发送阶段已完成验证码校验，
-// 此处跳过二次校验，避免一次性 token 在注册提交时重复使用导致误报失败。
-func (s *AuthService) VerifyCaptchaForRegister(ctx context.Context, proof CaptchaProof, remoteIP, verifyCode string) error {
-	if s.IsEmailVerifyEnabled(ctx) && strings.TrimSpace(verifyCode) != "" {
-		logger.LegacyPrintf("service.auth", "%s", "[Auth] Email verify flow detected, skip duplicate captcha check on register")
-		return nil
-	}
+// VerifyCaptchaForRegister 在注册提交阶段再次验证注册 action。邮箱验证码
+// 只证明邮箱控制权，不能替代当前注册动作的人机校验。
+func (s *AuthService) VerifyCaptchaForRegister(ctx context.Context, proof CaptchaProof, remoteIP, _ string) error {
 	return s.VerifyCaptchaForAction(ctx, proof, remoteIP, captchaActionRegister)
 }
 
@@ -820,7 +848,10 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			}
 
 			signupSource := inferLegacySignupSource(email)
-			riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, signupSource)
+			riskReservation, rewardBlocked, riskErr := s.beginRegistrationRisk(ctx, signupSource)
+			if riskErr != nil {
+				return "", nil, riskErr
+			}
 			riskSettled := false
 			defer func() {
 				if !riskSettled {
@@ -989,7 +1020,10 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			if strings.TrimSpace(signupSource) == "" {
 				signupSource = inferLegacySignupSource(email)
 			}
-			riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, signupSource)
+			riskReservation, rewardBlocked, riskErr := s.beginRegistrationRisk(ctx, signupSource)
+			if riskErr != nil {
+				return nil, nil, riskErr
+			}
 			riskSettled := false
 			defer func() {
 				if !riskSettled {

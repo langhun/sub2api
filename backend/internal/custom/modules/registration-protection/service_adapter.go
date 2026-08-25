@@ -18,13 +18,14 @@ func NewServicePolicyAdapter(store *Store) *ServicePolicyAdapter {
 	return &ServicePolicyAdapter{store: store}
 }
 
-func (p *ServicePolicyAdapter) Begin(ctx context.Context, clientIP, userAgent, signupSource string) (service.RegistrationRiskReservation, error) {
+func (p *ServicePolicyAdapter) Begin(ctx context.Context, clientIP, userAgent, deviceID, signupSource string) (service.RegistrationRiskReservation, error) {
 	if p == nil || p.store == nil {
 		return nil, ErrUnavailable
 	}
 	reservation, err := p.store.Begin(ctx, BeginInput{
 		ClientIP:  clientIP,
 		UserAgent: userAgent,
+		DeviceID:  deviceID,
 		Source:    signupSource,
 	})
 	if err != nil {

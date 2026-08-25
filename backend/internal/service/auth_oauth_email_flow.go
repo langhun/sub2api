@@ -146,7 +146,10 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 	}
 
 	signupSource = normalizeOAuthSignupSource(signupSource)
-	riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, signupSource)
+	riskReservation, rewardBlocked, riskErr := s.beginRegistrationRisk(ctx, signupSource)
+	if riskErr != nil {
+		return nil, nil, riskErr
+	}
 	riskSettled := false
 	defer func() {
 		if !riskSettled {
@@ -239,7 +242,10 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	}
 
 	signupSource = normalizeOAuthSignupSource(signupSource)
-	riskReservation, rewardBlocked := s.beginRegistrationRisk(ctx, signupSource)
+	riskReservation, rewardBlocked, riskErr := s.beginRegistrationRisk(ctx, signupSource)
+	if riskErr != nil {
+		return nil, nil, riskErr
+	}
 	riskSettled := false
 	defer func() {
 		if !riskSettled {

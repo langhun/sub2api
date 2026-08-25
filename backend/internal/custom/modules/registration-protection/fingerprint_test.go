@@ -25,6 +25,11 @@ func TestFingerprintHashNormalizesMetadataWithoutPersistingRawUserAgent(t *testi
 	if stringsContainInsensitive(first, "mozilla") {
 		t.Fatal("fingerprint must not contain raw User-Agent text")
 	}
+	withDevice, ok := FingerprintHashWithDevice("203.0.113.10", "Mozilla/5.0", "device-a")
+	withoutDevice, ok2 := FingerprintHashWithDevice("203.0.113.10", "Mozilla/5.0", "device-b")
+	require.True(t, ok)
+	require.True(t, ok2)
+	require.NotEqual(t, withDevice, withoutDevice)
 }
 
 func TestStoreBeginCommitFirstRegistration(t *testing.T) {
