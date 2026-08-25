@@ -180,13 +180,17 @@ type Module struct {
 	groups   service.GroupRepository
 	accounts service.AccountRepository
 	gateway  *service.GatewayService
+	openAI   *service.OpenAIGatewayService
 	redis    *redis.Client
 }
 
-func NewModule(db *sql.DB, apiKeys *service.APIKeyService, groups service.GroupRepository, accounts service.AccountRepository, gateway *service.GatewayService, redisClient *redis.Client) *Module {
-	m := &Module{repo: NewRepository(db), apiKeys: apiKeys, groups: groups, accounts: accounts, gateway: gateway, redis: redisClient}
+func NewModule(db *sql.DB, apiKeys *service.APIKeyService, groups service.GroupRepository, accounts service.AccountRepository, gateway *service.GatewayService, openAI *service.OpenAIGatewayService, redisClient *redis.Client) *Module {
+	m := &Module{repo: NewRepository(db), apiKeys: apiKeys, groups: groups, accounts: accounts, gateway: gateway, openAI: openAI, redis: redisClient}
 	if gateway != nil {
 		gateway.SetSmartRoutingResolver(m)
+	}
+	if openAI != nil {
+		openAI.SetSmartRoutingResolver(m)
 	}
 	return m
 }

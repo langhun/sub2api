@@ -29,6 +29,7 @@ func ProvideRuntime(
 	groupRepo service.GroupRepository,
 	accountRepo service.AccountRepository,
 	gatewayService *service.GatewayService,
+	openAIGatewayService *service.OpenAIGatewayService,
 	redisClient *redis.Client,
 ) (*Runtime, error) {
 	runtime, err := NewRuntime(
@@ -47,6 +48,7 @@ func ProvideRuntime(
 		groupRepo,
 		accountRepo,
 		gatewayService,
+		openAIGatewayService,
 		redisClient,
 	)
 	if err != nil {

@@ -434,6 +434,7 @@ type OpenAIGatewayService struct {
 	balanceNotifyService  *BalanceNotifyService
 	settingService        *SettingService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	smartRoutingResolver  SmartRoutingResolver
 	liveAttestation       liveattestation.Provider
 	liveAttestationCipher SecretEncryptor
 
@@ -474,6 +475,14 @@ type OpenAIGatewayService struct {
 	// 剥离跨账号回带（openai_codex_turn_state.go）。
 	openaiCodexTurnStateOrigins sync.Map
 	openaiCodexTurnStateWrites  atomic.Uint64
+}
+
+// SetSmartRoutingResolver attaches the optional Overlay resolver to OpenAI
+// scheduling. Nil preserves the legacy single-group path.
+func (s *OpenAIGatewayService) SetSmartRoutingResolver(resolver SmartRoutingResolver) {
+	if s != nil {
+		s.smartRoutingResolver = resolver
+	}
 }
 
 // NewOpenAIGatewayService creates a new OpenAIGatewayService

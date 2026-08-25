@@ -72,6 +72,7 @@ func NewRuntime(
 	groupRepo service.GroupRepository,
 	accountRepo service.AccountRepository,
 	gatewayService *service.GatewayService,
+	openAIGatewayService *service.OpenAIGatewayService,
 	redisClient *redis.Client,
 ) (*Runtime, error) {
 	bepusdt.Register()
@@ -101,7 +102,7 @@ func NewRuntime(
 		apiKeyService.SetCreationPolicy(registrationPolicy)
 		apiKeyService.SetRequestPolicy(registrationPolicy)
 	}
-	smartRouting := smartrouting.NewModule(db, apiKeyService, groupRepo, accountRepo, gatewayService, redisClient)
+	smartRouting := smartrouting.NewModule(db, apiKeyService, groupRepo, accountRepo, gatewayService, openAIGatewayService, redisClient)
 	var (
 		balanceCache  platform.BalanceCacheInvalidator
 		concurrency   platform.UserConcurrencyWriter

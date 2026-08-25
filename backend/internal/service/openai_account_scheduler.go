@@ -2111,11 +2111,41 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 	useUpstreamTokenCost bool,
 	platformOverride ...string,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	groupID = s.resolveSmartRoutingGroup(ctx, groupID, sessionHash, requestedModel, excludedIDs)
 	platform := PlatformOpenAI
 	if len(platformOverride) > 0 {
 		platform = platformOverride[0]
 	}
 	return s.selectAccountWithScheduler(ctx, groupID, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability, "", requireCompact, platform, previousResponseCanMove, useUpstreamTokenCost)
+}
+
+func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *int64, sessionHash, requestedModel string, excludedIDs map[int64]struct{}) *int64 {
+	if s == nil || s.smartRoutingResolver == nil || s.channelService == nil || groupID == nil {
+		return groupID
+	}
+	apiKey, ok := APIKeyFromContext(ctx)
+	if !ok || apiKey == nil || apiKey.ID <= 0 {
+		return groupID
+	}
+	decision, err := s.smartRoutingResolver.Resolve(ctx, apiKey, requestedModel, sessionHash, excludedIDs)
+	if err != nil || decision == nil || decision.GroupID <= 0 || decision.GroupID == *groupID {
+		return groupID
+	}
+	group, err := s.channelService.groupRepo.GetByIDLite(ctx, decision.GroupID)
+	if err != nil || group == nil {
+		return groupID
+	}
+	resolved := decision.GroupID
+	apiKey.GroupID = &resolved
+	apiKey.Group = group
+	if state := SmartRoutingStateFromContext(ctx); state != nil {
+		state.CurrentGroupID = resolved
+		if state.TriedGroups == nil {
+			state.TriedGroups = map[int64]struct{}{}
+		}
+		state.TriedGroups[resolved] = struct{}{}
+	}
+	return &resolved
 }
 
 func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImages(

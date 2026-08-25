@@ -336,7 +336,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	publicSettingsProvider := server.ProvidePublicSettingsInjectionProvider(settingService, settingsRegistry)
 	activityWalletCapabilities := platform.ProvideActivityWalletCapabilities(billingCacheService, userRepository, subscriptionService, client, leaderLockCache)
 	generator := codeformat.NewGenerator(settingsRegistry)
-	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator, paymentService, authService, apiKeyService, groupRepository, accountRepository, gatewayService, redisClient)
+	runtime, err := custom.ProvideRuntime(client, db, activityWalletCapabilities, redeemService, adminService, openAIOAuthService, compositeTokenCacheInvalidator, settingsRegistry, generator, paymentService, authService, apiKeyService, groupRepository, accountRepository, gatewayService, openAIGatewayService, redisClient)
 	if err != nil {
 		return nil, err
 	}
