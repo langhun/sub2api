@@ -44,6 +44,7 @@
         <div class="grid xl:grid-cols-[minmax(0,1fr)_280px]">
           <div class="min-w-0 xl:border-r xl:border-gray-200 dark:xl:border-dark-700">
             <TicketConversation
+              ref="conversation"
               :messages="ticket.messages ?? []"
               own-author="user"
               :user-label="senderLabel('user')"
@@ -51,6 +52,7 @@
               :system-label="senderLabel('system')"
               :internal-note-label="senderLabel('system')"
               :empty-label="t('supportTickets.noMessages')"
+              :new-messages-label="t('supportTickets.newMessages')"
             />
 
             <form v-if="canReply" class="border-t border-gray-200 bg-white p-4 sm:p-5 dark:border-dark-700 dark:bg-dark-900" @submit.prevent="sendReply">
@@ -171,6 +173,7 @@ import { addSupportTicketMessage, createSupportTicket, getSupportTicket, listSup
 import TicketConversation from './components/TicketConversation.vue'
 import { markSupportTicketSeen } from './notifications'
 import { ticketCategories, ticketPriorityClass, ticketStatusBannerClass, ticketStatusClass, ticketStatusIconClass, ticketStatusLocaleKey } from './presentation'
+import { useSupportTicketDetailPolling } from './ticketPolling'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -187,6 +190,7 @@ const loadError = ref('')
 const showCreate = ref(false)
 const replyBody = ref('')
 const createForm = reactive({ subject: '', category: 'other' as SupportTicketCategory, body: '' })
+const conversation = ref<{ scrollToLatest: (behavior?: 'auto' | 'smooth') => void } | null>(null)
 const canReply = computed(() => ticket.value?.status === 'open' || ticket.value?.status === 'waiting_user')
 
 function errorMessage(error: unknown) { return (error as { message?: string })?.message || t('supportTickets.loadFailed') }
@@ -212,6 +216,10 @@ async function loadList(nextPage = 1) {
 async function loadTicket(id: string) {
   try { loading.value = true; ticket.value = await getSupportTicket(id); markSupportTicketSeen('user', ticket.value); loadError.value = '' } catch (error) { loadError.value = errorMessage(error) } finally { loading.value = false }
 }
+function applyPolledTicket(next: SupportTicket) {
+  ticket.value = next
+  markSupportTicketSeen('user', next)
+}
 function loadCurrent() { const id = String(route.params.id || ''); return id ? loadTicket(id) : loadList() }
 function loadMore() { return loadList(page.value + 1) }
 async function createTicket() {
@@ -219,7 +227,7 @@ async function createTicket() {
 }
 async function sendReply() {
   if (!ticket.value || !replyBody.value) return
-  try { submitting.value = true; await addSupportTicketMessage(ticket.value.public_id, { body: replyBody.value }); replyBody.value = ''; await loadTicket(ticket.value.public_id); appStore.showSuccess(t('supportTickets.sendSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
+  try { submitting.value = true; await addSupportTicketMessage(ticket.value.public_id, { body: replyBody.value }); replyBody.value = ''; await loadTicket(ticket.value.public_id); conversation.value?.scrollToLatest(); appStore.showSuccess(t('supportTickets.sendSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
 }
 async function reopen() {
   if (!ticket.value) return
@@ -227,5 +235,12 @@ async function reopen() {
 }
 
 watch(() => route.params.id, () => { ticket.value = null; replyBody.value = ''; loadCurrent() })
+useSupportTicketDetailPolling({
+  ticketID: () => String(route.params.id || ''),
+  currentTicket: ticket,
+  fetchTicket: getSupportTicket,
+  onTicket: applyPolledTicket,
+  shouldPause: () => loading.value || submitting.value,
+})
 onMounted(loadCurrent)
 </script>

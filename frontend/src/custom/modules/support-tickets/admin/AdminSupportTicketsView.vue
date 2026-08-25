@@ -51,6 +51,7 @@
         <div class="grid xl:grid-cols-[minmax(0,1fr)_300px]">
           <div class="min-w-0 xl:border-r xl:border-gray-200 dark:xl:border-dark-700">
             <TicketConversation
+              ref="conversation"
               :messages="ticket.messages ?? []"
               own-author="admin"
               :user-label="requesterLabel(ticket)"
@@ -58,6 +59,7 @@
               :system-label="senderLabel('system')"
               :internal-note-label="t('admin.supportTickets.internalNote')"
               :empty-label="t('supportTickets.noMessages')"
+              :new-messages-label="t('supportTickets.newMessages')"
             />
 
             <form class="border-t border-gray-200 bg-white p-4 sm:p-5 dark:border-dark-700 dark:bg-dark-900" @submit.prevent="sendMessage">
@@ -246,6 +248,7 @@ import { addAdminSupportTicketMessage, createAdminSupportTicket, getAdminSupport
 import TicketConversation from '../components/TicketConversation.vue'
 import { markSupportTicketSeen } from '../notifications'
 import { ticketPriorities, ticketPriorityClass, ticketStatusBannerClass, ticketStatuses, ticketStatusClass, ticketStatusIconClass, ticketStatusLocaleKey } from '../presentation'
+import { useSupportTicketDetailPolling } from '../ticketPolling'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -272,6 +275,7 @@ const selectedUser = ref<SimpleUser | null>(null)
 const createForm = reactive({ category: 'account' as SupportTicketCategory, subject: '', body: '' })
 const filters = reactive({ status: '' as SupportTicketStatus | '', priority: '' as SupportTicketPriority | '' })
 const editForm = reactive({ status: 'open' as SupportTicketStatus, priority: 'normal' as SupportTicketPriority })
+const conversation = ref<{ scrollToLatest: (behavior?: 'auto' | 'smooth') => void } | null>(null)
 const ticketCategories: SupportTicketCategory[] = ['account', 'billing', 'api', 'model', 'feature', 'other']
 const canSendMessage = computed(() => internalNote.value || ticket.value?.status === 'open' || ticket.value?.status === 'waiting_user')
 const replyUnavailableHint = computed(() => ticket.value?.status === 'resolved' ? t('admin.supportTickets.replyRequiresReopen') : t('admin.supportTickets.replyClosed'))
@@ -316,12 +320,19 @@ async function loadList(nextPage = 1) {
 async function loadTicket(id: string) {
   try { loading.value = true; ticket.value = await getAdminSupportTicket(id); markSupportTicketSeen('admin', ticket.value); editForm.status = ticket.value.status; editForm.priority = ticket.value.priority; loadError.value = '' } catch (error) { loadError.value = errorMessage(error) } finally { loading.value = false }
 }
+function applyPolledTicket(next: SupportTicket) {
+  const current = ticket.value
+  if (current && editForm.status === current.status) editForm.status = next.status
+  if (current && editForm.priority === current.priority) editForm.priority = next.priority
+  ticket.value = next
+  markSupportTicketSeen('admin', next)
+}
 function loadCurrent() { const id = String(route.params.id || ''); return id ? loadTicket(id) : loadList() }
 function loadMore() { return loadList(page.value + 1) }
 function applyFilters() { return loadList(1) }
 async function sendMessage() {
   if (!ticket.value || !messageBody.value || !canSendMessage.value) return
-  try { submitting.value = true; await addAdminSupportTicketMessage(ticket.value.public_id, { body: messageBody.value, internal: internalNote.value }); messageBody.value = ''; internalNote.value = false; await loadTicket(ticket.value.public_id); appStore.showSuccess(t('supportTickets.sendSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
+  try { submitting.value = true; await addAdminSupportTicketMessage(ticket.value.public_id, { body: messageBody.value, internal: internalNote.value }); messageBody.value = ''; internalNote.value = false; await loadTicket(ticket.value.public_id); conversation.value?.scrollToLatest(); appStore.showSuccess(t('supportTickets.sendSuccess')) } catch (error) { appStore.showError(errorMessage(error)) } finally { submitting.value = false }
 }
 async function updateTicket() {
   if (!ticket.value) return
@@ -335,6 +346,13 @@ async function updateTicket() {
 }
 
 watch(() => route.params.id, () => { ticket.value = null; messageBody.value = ''; internalNote.value = false; loadCurrent() })
+useSupportTicketDetailPolling({
+  ticketID: () => String(route.params.id || ''),
+  currentTicket: ticket,
+  fetchTicket: getAdminSupportTicket,
+  onTicket: applyPolledTicket,
+  shouldPause: () => loading.value || submitting.value,
+})
 onMounted(loadCurrent)
 onBeforeUnmount(() => { if (userSearchTimeout) clearTimeout(userSearchTimeout) })
 </script>

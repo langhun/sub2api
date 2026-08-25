@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import TicketConversation from '../components/TicketConversation.vue'
 import type { SupportTicketMessage } from '../api'
@@ -19,6 +19,7 @@ function mountConversation(ownAuthor: 'user' | 'admin') {
       systemLabel: 'System',
       internalNoteLabel: 'Internal note',
       emptyLabel: 'No messages',
+      newMessagesLabel: 'New messages',
     },
   })
 }
@@ -38,5 +39,49 @@ describe('TicketConversation', () => {
     expect(rows[0].classes()).toContain('justify-end')
     expect(rows[1].classes()).toContain('justify-start')
     expect(wrapper.text()).toContain('We are checking it')
+  })
+
+  it('keeps history position and offers a jump when a new message arrives', async () => {
+    const wrapper = mountConversation('user')
+    await flushPromises()
+    const conversation = wrapper.get('[data-testid="ticket-conversation"]').element as HTMLElement
+    Object.defineProperties(conversation, {
+      scrollHeight: { configurable: true, value: 1000 },
+      clientHeight: { configurable: true, value: 400 },
+    })
+    conversation.scrollTop = 100
+    await wrapper.get('[data-testid="ticket-conversation"]').trigger('scroll')
+
+    await wrapper.setProps({
+      messages: [...messages, { id: 4, author_type: 'admin', message_type: 'reply', body: 'New reply', created_at: '2026-08-06T01:10:00Z' }],
+    })
+    await flushPromises()
+
+    expect(conversation.scrollTop).toBe(100)
+    expect(wrapper.get('[data-testid="ticket-new-messages"]').text()).toContain('New messages')
+
+    await wrapper.get('[data-testid="ticket-new-messages"]').trigger('click')
+    expect(conversation.scrollTop).toBe(1000)
+    expect(wrapper.find('[data-testid="ticket-new-messages"]').exists()).toBe(false)
+  })
+
+  it('follows new messages automatically while already at the bottom', async () => {
+    const wrapper = mountConversation('admin')
+    await flushPromises()
+    const conversation = wrapper.get('[data-testid="ticket-conversation"]').element as HTMLElement
+    Object.defineProperties(conversation, {
+      scrollHeight: { configurable: true, value: 1200 },
+      clientHeight: { configurable: true, value: 400 },
+    })
+    conversation.scrollTop = 800
+    await wrapper.get('[data-testid="ticket-conversation"]').trigger('scroll')
+
+    await wrapper.setProps({
+      messages: [...messages, { id: 4, author_type: 'user', message_type: 'reply', body: 'Latest reply', created_at: '2026-08-06T01:10:00Z' }],
+    })
+    await flushPromises()
+
+    expect(conversation.scrollTop).toBe(1200)
+    expect(wrapper.find('[data-testid="ticket-new-messages"]').exists()).toBe(false)
   })
 })

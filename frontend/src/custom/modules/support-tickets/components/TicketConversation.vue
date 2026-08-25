@@ -1,13 +1,21 @@
 <template>
-  <div data-testid="ticket-conversation" role="log" aria-live="polite" class="min-h-96 bg-gray-50/80 px-4 py-6 sm:px-6 dark:bg-dark-900/40">
-    <div v-if="messages.length === 0" class="flex min-h-72 flex-col items-center justify-center text-center">
+  <div class="relative bg-gray-50/80 dark:bg-dark-900/40">
+    <div
+      ref="scrollContainer"
+      data-testid="ticket-conversation"
+      role="log"
+      aria-live="polite"
+      class="h-[clamp(20rem,55vh,36rem)] overflow-y-auto overscroll-contain px-4 py-6 sm:px-6"
+      @scroll="onScroll"
+    >
+      <div v-if="messages.length === 0" class="flex min-h-full flex-col items-center justify-center text-center">
       <span class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm ring-1 ring-gray-200 dark:bg-dark-800 dark:ring-dark-700">
         <Icon name="chat" size="lg" />
       </span>
       <p class="mt-3 text-sm text-gray-500 dark:text-dark-400">{{ emptyLabel }}</p>
     </div>
 
-    <div v-else class="space-y-6">
+      <div v-else class="space-y-6">
       <article
         v-for="message in messages"
         :key="message.id"
@@ -48,11 +56,24 @@
           </div>
         </div>
       </article>
+      </div>
     </div>
+
+    <button
+      v-if="hasNewMessages"
+      type="button"
+      data-testid="ticket-new-messages"
+      class="btn btn-primary btn-sm absolute bottom-4 left-1/2 z-10 -translate-x-1/2 shadow-lg"
+      @click="scrollToLatest('smooth')"
+    >
+      {{ newMessagesLabel }}
+      <Icon name="arrowDown" size="xs" />
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
+import { nextTick, onMounted, ref, watch } from 'vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTimeToMinute } from '@/utils/format'
 import type { SupportTicketMessage } from '../api'
@@ -65,7 +86,48 @@ const props = defineProps<{
   systemLabel: string
   internalNoteLabel: string
   emptyLabel: string
+  newMessagesLabel: string
 }>()
+
+const scrollContainer = ref<HTMLElement | null>(null)
+const hasNewMessages = ref(false)
+let followsLatest = true
+
+function isNearBottom(element: HTMLElement): boolean {
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 72
+}
+
+function onScroll() {
+  const element = scrollContainer.value
+  if (!element) return
+  followsLatest = isNearBottom(element)
+  if (followsLatest) hasNewMessages.value = false
+}
+
+function scrollToLatest(behavior: 'auto' | 'smooth' = 'auto') {
+  const element = scrollContainer.value
+  if (!element) return
+  if (typeof element.scrollTo === 'function') element.scrollTo({ top: element.scrollHeight, behavior })
+  else element.scrollTop = element.scrollHeight
+  followsLatest = true
+  hasNewMessages.value = false
+}
+
+watch(
+  () => props.messages.map((message) => message.id).join(','),
+  async (current, previous) => {
+    if (current === previous) return
+    const shouldFollow = followsLatest
+    await nextTick()
+    if (shouldFollow) scrollToLatest()
+    else hasNewMessages.value = true
+  },
+)
+
+onMounted(async () => {
+  await nextTick()
+  scrollToLatest()
+})
 
 function isOwn(message: SupportTicketMessage) { return message.author_type === props.ownAuthor }
 function authorLabel(message: SupportTicketMessage) {
@@ -78,4 +140,6 @@ function authorIcon(message: SupportTicketMessage): 'user' | 'chat' | 'infoCircl
   if (message.author_type === 'admin') return 'chat'
   return 'infoCircle'
 }
+
+defineExpose({ scrollToLatest })
 </script>
