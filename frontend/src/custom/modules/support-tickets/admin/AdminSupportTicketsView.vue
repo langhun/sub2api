@@ -62,7 +62,7 @@
               :new-messages-label="t('supportTickets.newMessages')"
             />
 
-            <form class="border-t border-gray-200 bg-white p-4 sm:p-5 dark:border-dark-700 dark:bg-dark-900" @submit.prevent="sendMessage">
+            <form class="sticky bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-8px_20px_-18px_rgba(15,23,42,0.45)] backdrop-blur sm:p-5 dark:border-dark-700 dark:bg-dark-900/95" @submit.prevent="sendMessage">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <label class="input-label mb-0" for="admin-ticket-reply">{{ internalNote ? t('admin.supportTickets.internalNote') : t('admin.supportTickets.replyToUser') }}</label>
                 <div class="inline-flex w-fit rounded-lg bg-gray-100 p-1 text-sm dark:bg-dark-800" role="group" :aria-label="t('admin.supportTickets.messageMode')">

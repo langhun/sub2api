@@ -5,7 +5,7 @@
       data-testid="ticket-conversation"
       role="log"
       aria-live="polite"
-      class="h-[clamp(20rem,55vh,36rem)] overflow-y-auto overscroll-contain px-4 py-6 sm:px-6"
+      class="h-[clamp(16rem,calc(100vh-27rem),34rem)] min-h-64 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5"
       @scroll="onScroll"
     >
       <div v-if="messages.length === 0" class="flex min-h-full flex-col items-center justify-center text-center">

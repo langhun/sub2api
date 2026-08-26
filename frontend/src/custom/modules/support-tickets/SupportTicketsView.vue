@@ -55,7 +55,7 @@
               :new-messages-label="t('supportTickets.newMessages')"
             />
 
-            <form v-if="canReply" class="border-t border-gray-200 bg-white p-4 sm:p-5 dark:border-dark-700 dark:bg-dark-900" @submit.prevent="sendReply">
+            <form v-if="canReply" class="sticky bottom-0 z-10 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-8px_20px_-18px_rgba(15,23,42,0.45)] backdrop-blur sm:p-5 dark:border-dark-700 dark:bg-dark-900/95" @submit.prevent="sendReply">
               <label class="input-label" for="ticket-reply">{{ t('supportTickets.reply') }}</label>
               <textarea id="ticket-reply" v-model.trim="replyBody" data-testid="ticket-reply" class="input min-h-28 resize-y" :placeholder="t('supportTickets.replyPlaceholder')" maxlength="5000" required />
               <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
