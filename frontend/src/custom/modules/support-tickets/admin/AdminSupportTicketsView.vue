@@ -1,7 +1,7 @@
 <template>
   <AppLayout>
     <div class="mx-auto -mt-2 max-w-7xl space-y-3 md:-mt-3 lg:-mt-4">
-      <header v-if="!ticket" class="flex min-h-0 justify-end">
+      <header class="flex min-h-0 justify-end">
         <button v-if="ticket" class="btn btn-secondary self-start sm:self-auto" type="button" @click="goToList">
           <Icon name="arrowLeft" size="sm" />
           {{ t('supportTickets.backToList') }}
@@ -29,7 +29,6 @@
 
       <section v-else-if="ticket" class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
         <div class="flex items-center gap-3 px-4 py-2.5 sm:px-5">
-          <button class="btn btn-secondary btn-sm shrink-0" type="button" @click="goToList"><Icon name="arrowLeft" size="sm" />{{ t('supportTickets.backToList') }}</button>
           <div class="min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-2">
             <span class="shrink-0 font-mono text-[11px] text-gray-400 dark:text-dark-500">{{ ticket.public_id }}</span>
             <h2 class="truncate text-base font-semibold text-gray-900 dark:text-white">{{ ticket.subject }}</h2>
