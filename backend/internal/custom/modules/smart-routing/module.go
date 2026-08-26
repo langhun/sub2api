@@ -117,7 +117,7 @@ func (r *Repository) Get(ctx context.Context, keyID int64) (*Profile, error) {
 		// Version 0 is the optimistic-lock sentinel for a profile that does
 		// not exist yet. Returning 1 here lets two clients both submit their
 		// first edit with the same version and silently overwrite each other.
-		return &Profile{APIKeyID: keyID, Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 1800, ExplorationRate: 0.05, Version: 0, Groups: []Group{}}, nil
+		return &Profile{APIKeyID: keyID, Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 0, ExplorationRate: 0.05, Version: 0, Groups: []Group{}}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -563,19 +563,15 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		state.SmartRoutingActive = false
 		return nil, nil
 	}
-	stickyID := m.getStickyGroup(ctx, key.ID, p.Version, sessionHash)
-	if stickyID > 0 {
-		for i := range ranked {
-			if ranked[i].GroupID == stickyID && ranked[i].Eligible {
-				ranked[0], ranked[i] = ranked[i], ranked[0]
-				break
-			}
-		}
-	} else if exploreIndex := m.explorationIndex(key, p, ranked, state.MainGroupID, sessionHash, model); exploreIndex >= 0 {
-		// Exploration is applied only after hard eligibility and price checks,
-		// and never overrides an existing sticky binding. This gives a cold
-		// candidate a bounded opportunity without making routing nondeterministic
-		// for a given key/session.
+	// Smart routing deliberately does not pin a request session to a group.
+	// Re-score the primary and candidates on every request so a recovered,
+	// lower-cost primary group is selected immediately. Upstream account-level
+	// stickiness remains responsible for provider session continuity.
+	stickyID := int64(0)
+	if exploreIndex := m.explorationIndex(key, p, ranked, state.MainGroupID, sessionHash, model); exploreIndex >= 0 {
+		// Exploration is applied only after hard eligibility and price checks.
+		// This gives a cold candidate a bounded opportunity without making routing
+		// nondeterministic for a given key/session.
 		ranked[0], ranked[exploreIndex] = ranked[exploreIndex], ranked[0]
 	}
 	for _, g := range ranked {
@@ -648,18 +644,13 @@ func smartRoutingForcePlatform(ctx context.Context) bool {
 	return ok && strings.TrimSpace(forcePlatform) != ""
 }
 
-// CommitSticky records a group only after the gateway has passed billing and
-// account admission. Keeping this separate from Resolve prevents an
-// ineligible candidate from poisoning the session's sticky binding.
+// CommitSticky is retained as a compatibility hook for the upstream gateway.
+// Smart routing no longer persists cross-group sticky bindings; upstream
+// account-level stickiness still runs independently after account admission.
 func (m *Module) CommitSticky(ctx context.Context, apiKeyID, groupID int64, sessionHash string) {
-	if m == nil || m.repo == nil || apiKeyID <= 0 || groupID <= 0 || sessionHash == "" {
-		return
-	}
-	p, err := m.repo.Get(ctx, apiKeyID)
-	if err != nil || p == nil || !p.Enabled || p.Mode != "smart" || !routingProfileUsable(p) {
-		return
-	}
-	m.setStickyGroup(ctx, apiKeyID, p.Version, sessionHash, groupID, time.Duration(p.StickyTTL)*time.Second)
+	// Cross-group stickiness was intentionally removed. Keep this no-op method
+	// to satisfy the optional upstream hook without breaking old binaries or
+	// persisted route profiles that still contain sticky_ttl_seconds.
 }
 
 func routeStateAllowsGroup(state *service.SmartRoutingRequestState, groupID, stickyID int64, maxSwitches int) bool {

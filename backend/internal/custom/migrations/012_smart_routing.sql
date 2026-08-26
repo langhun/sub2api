@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS custom_api_key_route_profiles (
     price_weight DOUBLE PRECISION NOT NULL DEFAULT 40,
     speed_weight DOUBLE PRECISION NOT NULL DEFAULT 30,
     success_weight DOUBLE PRECISION NOT NULL DEFAULT 30,
-    sticky_ttl_seconds INTEGER NOT NULL DEFAULT 1800,
+    -- Retained for backwards-compatible reads; cross-group sticky routing is disabled.
+    sticky_ttl_seconds INTEGER NOT NULL DEFAULT 0,
     exploration_rate DOUBLE PRECISION NOT NULL DEFAULT 0.05,
     version BIGINT NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

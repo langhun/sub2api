@@ -2391,7 +2391,7 @@ const handleSubmit = async () => {
           price_weight: 40,
           speed_weight: 30,
           success_weight: 30,
-          sticky_ttl_seconds: 1800,
+          sticky_ttl_seconds: 0,
           exploration_rate: 0.05,
           group_ids: []
         })
@@ -2437,7 +2437,7 @@ const handleSubmit = async () => {
         price_weight: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_price_weight : 40,
         speed_weight: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_speed_weight : 30,
         success_weight: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_success_weight : 30,
-        sticky_ttl_seconds: routingProfile.value?.sticky_ttl_seconds ?? 1800,
+        sticky_ttl_seconds: 0,
         exploration_rate: routingProfile.value?.exploration_rate ?? 0.05,
         group_ids: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_group_ids : []
       })
@@ -2466,7 +2466,7 @@ const handleSubmit = async () => {
           price_weight: formData.value.routing_price_weight,
           speed_weight: formData.value.routing_speed_weight,
           success_weight: formData.value.routing_success_weight,
-          sticky_ttl_seconds: 1800,
+          sticky_ttl_seconds: 0,
           exploration_rate: 0.05,
           group_ids: formData.value.routing_group_ids
         })
@@ -2494,7 +2494,7 @@ const handleSubmit = async () => {
           price_weight: 40,
           speed_weight: 30,
           success_weight: 30,
-          sticky_ttl_seconds: 1800,
+          sticky_ttl_seconds: 0,
           exploration_rate: 0.05,
           group_ids: []
         })
