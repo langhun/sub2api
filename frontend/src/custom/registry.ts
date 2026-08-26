@@ -31,6 +31,7 @@ import { rechargePromotionSettingsPanels } from './modules/recharge-promotions/s
 import SupportContactEntry from './modules/support-contacts/SupportContactEntry.vue'
 import { supportContactsSettingsPanels } from './modules/support-contacts/settings'
 import { registrationProtectionSettingsPanels } from './modules/registration-protection/settings'
+import { formatAuditAction } from './modules/audit-log-localization/actionLabels'
 import './payments'
 export {
   customPaymentDefinition,
@@ -106,6 +107,10 @@ export const customLedgerDisplay = {
   isBalanceType: (type: string) => isActivityBalanceType(type) || isRegistrationBalanceType(type),
   historyTypeKey: (type: string) => activityHistoryTypeKey(type) ?? registrationHistoryTypeKey(type),
 } as const
+
+// Audit identifiers remain stable backend data. This Overlay only supplies the
+// operator-facing label rendered by the fixed upstream audit-log mount point.
+export const customAuditLogDisplay = { formatAction: formatAuditAction } as const
 
 // This must stay structural rather than a string index signature. Intersecting
 // the latter with the upstream settings form turns every upstream field into

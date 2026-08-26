@@ -38,6 +38,7 @@ const adminOrdersViewSource = readFileSync(resolve(directory, '../../views/admin
 const profileSource = readFileSync(resolve(directory, '../../views/user/ProfileView.vue'), 'utf8')
 const redeemSource = readFileSync(resolve(directory, '../../views/user/RedeemView.vue'), 'utf8')
 const docsSource = readFileSync(resolve(directory, '../modules/docs/DocsView.vue'), 'utf8')
+const auditLogSource = readFileSync(resolve(directory, '../../views/admin/AuditLogView.vue'), 'utf8')
 
 describe('custom overlay registry', () => {
   it('aggregates routes and navigation from custom modules', () => {
@@ -139,6 +140,13 @@ describe('custom overlay registry', () => {
     expect(paymentViewSource).not.toContain('@/custom/modules/recharge-promotions/RechargePromotionSummary.vue')
     expect(userOrdersViewSource).toContain("import { customPaymentOrderDetailExtensions } from '@/custom/registry'")
     expect(adminOrdersViewSource).toContain("import { customPaymentOrderDetailExtensions } from '@/custom/registry'")
+  })
+
+  it('mounts audit action labels through the registry without embedding translations in the page', () => {
+    expect(auditLogSource).toContain("import { customAuditLogDisplay } from '@/custom/registry'")
+    expect(auditLogSource).toContain('auditActionLabel(row.action)')
+    expect(auditLogSource).toContain('auditActionLabel(detail.action)')
+    expect(auditLogSource).not.toContain('批量创建账号今日统计')
   })
 
   it('registers custom payment business outside shared payment components', () => {
