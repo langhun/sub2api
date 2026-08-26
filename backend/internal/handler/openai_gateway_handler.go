@@ -535,6 +535,14 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	var lastFailoverErr *service.UpstreamFailoverError
 	var oauth429FailoverState service.OpenAIOAuth429FailoverState
 	var passthroughFailoverState openAIPassthroughFailoverState
+	resetSmartRoutingAccountFailover := func() {
+		failedAccountIDs = make(map[int64]struct{})
+		sameAccountRetryCount = make(map[int64]int)
+		switchCount = 0
+		lastFailoverErr = nil
+		var freshOAuth429State service.OpenAIOAuth429FailoverState
+		oauth429FailoverState = freshOAuth429State
+	}
 
 	// 生图意图的 /v1/responses 请求必须调度到确实支持 Responses API 的账号，否则
 	// 会在 forward 阶段被静默降级为无法生图的 Chat Completions 直转（#4417）。
@@ -602,6 +610,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				}
 				h.handleStreamingAwareError(c, cls.Status, cls.ErrType, cls.Message, streamStarted)
 				return
+			}
+			if service.TrySmartRoutingGroupFailover(c.Request.Context(), lastFailoverErr, openAISmartRoutingSelectionOutputStarted(c)) {
+				resetSmartRoutingAccountFailover()
+				continue
 			}
 			if lastFailoverErr != nil {
 				h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
@@ -817,6 +829,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						return
 					}
 					if openAIFirstOutputFailoverExhausted(failoverErr, &firstOutputTimeoutSwitchCount) {
+						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, false) {
+							resetSmartRoutingAccountFailover()
+							continue
+						}
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -845,11 +861,19 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					failedAccountIDs[account.ID] = struct{}{}
 					lastFailoverErr = failoverErr
 					if switchCount >= maxAccountSwitches {
+						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, false) {
+							resetSmartRoutingAccountFailover()
+							continue
+						}
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
 					switchCount++
 					if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
+						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, false) {
+							resetSmartRoutingAccountFailover()
+							continue
+						}
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -1199,6 +1223,14 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	// Recomputed after each scheduler call because smart routing can mutate the
 	// request-local API key to a different candidate group.
 	effectiveMappedModel := ""
+	resetSmartRoutingAccountFailover := func() {
+		failedAccountIDs = make(map[int64]struct{})
+		sameAccountRetryCount = make(map[int64]int)
+		switchCount = 0
+		lastFailoverErr = nil
+		var freshOAuth429State service.OpenAIOAuth429FailoverState
+		oauth429FailoverState = freshOAuth429State
+	}
 
 	// 分组利润控制：Messages 文本入口同样请求级装门并固定 pricingAt。
 	msgPricingCtx, pricingAt := h.gatewayService.WithOpenAIRequestPricingContext(c.Request.Context(), apiKey.GroupID)
@@ -1247,6 +1279,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					return
 				}
 			} else {
+				if service.TrySmartRoutingGroupFailover(c.Request.Context(), lastFailoverErr, gatewayStreamSemanticOutputStarted(c)) {
+					resetSmartRoutingAccountFailover()
+					continue
+				}
 				if lastFailoverErr != nil {
 					h.handleAnthropicFailoverExhausted(c, lastFailoverErr, streamStarted)
 				} else {
@@ -1440,11 +1476,19 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					failedAccountIDs[account.ID] = struct{}{}
 					lastFailoverErr = failoverErr
 					if switchCount >= maxAccountSwitches {
+						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, gatewayStreamSemanticOutputStarted(c)) {
+							resetSmartRoutingAccountFailover()
+							continue
+						}
 						h.handleAnthropicFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
 					switchCount++
 					if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
+						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, gatewayStreamSemanticOutputStarted(c)) {
+							resetSmartRoutingAccountFailover()
+							continue
+						}
 						h.handleAnthropicFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -3219,6 +3263,14 @@ func openAIRequestAllowsFailoverReplay(c *gin.Context) bool {
 		return false
 	}
 	return !failoverClientGone(c)
+}
+
+// openAISmartRoutingSelectionOutputStarted reports semantic output already
+// visible before account selection failed. Compact SSE keepalive comments can
+// commit the response headers and write bytes while the scheduler is waiting,
+// but they are deliberately excluded from the cross-group replay boundary.
+func openAISmartRoutingSelectionOutputStarted(c *gin.Context) bool {
+	return c != nil && service.OpenAICompactKeepaliveAdjustedWrittenSize(c) > 0
 }
 
 func openAIFirstOutputFailoverExhausted(failoverErr *service.UpstreamFailoverError, switchCount *int) bool {

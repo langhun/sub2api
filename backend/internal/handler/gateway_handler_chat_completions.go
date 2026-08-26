@@ -196,6 +196,10 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 				failoverClientGone(c)
 				return
 			default:
+				if service.TrySmartRoutingGroupFailover(c.Request.Context(), fs.LastFailoverErr, gatewayStreamSemanticOutputStarted(c)) {
+					fs = NewFailoverState(h.maxAccountSwitches, false)
+					continue
+				}
 				if fs.LastFailoverErr != nil {
 					h.handleCCFailoverExhausted(c, fs.LastFailoverErr, streamStarted)
 				} else {
@@ -321,6 +325,16 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 				case FailoverContinue:
 					continue
 				case FailoverExhausted:
+					// A selector can exhaust a group without producing an upstream
+					// error (capacity, RPM, or profit gates). Smart routing must still
+					// get a chance to advance to the next compatible candidate.
+					if service.TrySmartRoutingGroupFailover(c.Request.Context(), fs.LastFailoverErr, gatewayStreamSemanticOutputStarted(c)) {
+						// Account failover state is scoped to the exhausted group. A
+						// fresh state lets the next candidate use its own accounts and
+						// retry budget without replaying the previous exclusion set.
+						fs = NewFailoverState(h.maxAccountSwitches, false)
+						continue
+					}
 					h.handleCCFailoverExhausted(c, fs.LastFailoverErr, streamStarted)
 					return
 				case FailoverCanceled:

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,23 @@ func TestOpenAIForwardMayFailoverOnlyAfterNonSemanticWrite(t *testing.T) {
 		SafeToFailoverAfterWrite: true,
 	}))
 	require.False(t, openAIForwardMayFailover(c, before, &service.UpstreamFailoverError{}))
+}
+
+func TestOpenAISmartRoutingSelectionOutputStartedIgnoresCompactKeepalive(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest("POST", "/v1/responses/compact", nil)
+	service.MarkOpenAICompactClientStream(c)
+
+	stop := service.StartOpenAICompactSSEKeepalive(c, 5*time.Millisecond)
+	defer stop()
+	require.Eventually(t, c.Writer.Written, time.Second, time.Millisecond)
+	require.False(t, openAISmartRoutingSelectionOutputStarted(c), "keepalive comments are not semantic output")
+
+	_, err := c.Writer.Write([]byte("data: semantic\n\n"))
+	require.NoError(t, err)
+	require.True(t, openAISmartRoutingSelectionOutputStarted(c))
 }
 
 func TestOpenAIFirstOutputFailoverStopsAfterOneAccountSwitch(t *testing.T) {

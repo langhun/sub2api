@@ -480,8 +480,8 @@
       width="key-form"
       @close="closeModals"
     >
-      <form id="key-form" @submit.prevent="handleSubmit" class="space-y-5">
-        <div>
+      <form id="key-form" @submit.prevent="handleSubmit" class="key-editor-form space-y-5" :class="{ 'routing-smart-form': formData.routing_mode === 'smart' }">
+        <div class="routing-name-field">
           <label class="input-label">{{ t('keys.nameLabel') }}</label>
           <input
             v-model="formData.name"
@@ -493,7 +493,7 @@
           />
         </div>
 
-        <div>
+        <div class="routing-primary-group">
           <label class="input-label">{{ t('keys.groupLabel') }}</label>
           <Select
             v-model="formData.group_id"
@@ -537,7 +537,7 @@
           </Select>
         </div>
 
-        <section v-if="showEditModal || showCreateModal" class="routing-panel border-t border-gray-200 pt-4 dark:border-dark-600">
+        <section v-if="showEditModal || showCreateModal" class="routing-panel">
           <div class="routing-panel-header">
             <label class="input-label mb-0">{{ t('keys.routingMode') }}</label>
             <div class="routing-segmented" role="tablist" :aria-label="t('keys.routingMode')">
@@ -545,7 +545,7 @@
               <button type="button" role="tab" :aria-selected="formData.routing_mode === 'smart'" :tabindex="formData.routing_mode === 'smart' ? 0 : -1" data-routing-mode="smart" :class="{ active: formData.routing_mode === 'smart' }" :disabled="routingLoading" @click="formData.routing_mode = 'smart'" @keydown="handleRoutingModeKeydown($event, 'smart')">{{ t('keys.smartRouting') }}</button>
             </div>
           </div>
-          <p class="routing-mode-hint"><Icon name="infoCircle" size="xs" /> {{ formData.routing_mode === 'smart' ? t('keys.routingSmartModeHint') : t('keys.routingSingleModeHint') }}</p>
+          <p class="routing-mode-hint">{{ formData.routing_mode === 'smart' ? t('keys.routingModeHint') : t('keys.routingSingleModeHint') }}</p>
           <div v-if="routingProfileLoadError" class="routing-profile-error" role="alert">
             <span class="routing-error-copy"><Icon name="exclamationTriangle" size="sm" /><span>{{ t('keys.routingLoadFailed') }}</span></span>
             <button type="button" class="routing-retry-button" :disabled="routingLoading || !selectedKey" @click="selectedKey && retryRoutingProfile(selectedKey.id)"><Icon name="refresh" size="xs" /> {{ t('keys.routingRetry') }}</button>
@@ -553,11 +553,53 @@
 
           <div v-if="formData.routing_mode === 'smart'" class="routing-workspace" :aria-busy="routingLoading">
             <p v-if="routingLoading" class="routing-loading-hint">{{ t('keys.routingLoading') }}</p>
-            <div class="routing-safety-note" role="note"><Icon name="shield" size="sm" /><span><strong>{{ t('keys.routingSafetyTitle') }}</strong> {{ t('keys.routingSafetyHint') }}</span></div>
-            <div class="routing-workspace-box">
+            <div class="routing-strategy-block">
+              <div class="routing-workspace-header"><label class="input-label mb-0">{{ t('keys.routingStrategy') }}</label></div>
+              <p class="routing-field-hint">{{ t('keys.routingStrategyHint') }}</p>
+              <div class="routing-strategy-grid" role="radiogroup" :aria-label="t('keys.routingStrategy')">
+                <button
+                  v-for="strategy in routingStrategies"
+                  :key="strategy.value"
+                  type="button"
+                  role="radio"
+                  class="routing-strategy-card"
+                  :class="[{ selected: formData.routing_strategy === strategy.value }, strategy.value === 'custom' && 'custom']"
+                  :aria-checked="formData.routing_strategy === strategy.value"
+                  :tabindex="formData.routing_strategy === strategy.value ? 0 : -1"
+                  :data-routing-strategy="strategy.value"
+                  :disabled="routingLoading"
+                  @click="selectRoutingStrategy(strategy.value)"
+                  @keydown="handleRoutingStrategyKeydown($event, strategy.value)"
+                >
+                  <span class="routing-strategy-icon" :class="strategy.tone"><Icon :name="strategy.icon" size="sm" /></span>
+                  <span class="routing-strategy-copy"><strong>{{ strategy.label }}</strong><small>{{ strategy.description }}</small><em>{{ strategy.weightSummary }}</em></span>
+                </button>
+              </div>
+              <div class="routing-mobile-strategy-select">
+                <Select
+                  v-model="formData.routing_strategy"
+                  :options="routingStrategyOptions"
+                  :disabled="routingLoading"
+                  :aria-label="t('keys.routingStrategy')"
+                  @update:model-value="handleRoutingStrategySelect"
+                />
+              </div>
+              <div v-if="formData.routing_strategy === 'custom'" class="routing-custom-weights" :class="{ invalid: !routingWeightsValid }">
+                <div class="routing-custom-weight-total" :class="routingWeightsValid ? 'valid' : 'invalid'" aria-live="polite">{{ t('keys.routingWeightTotal') }}: {{ routingWeightTotal }}%</div>
+                <label v-for="field in routingWeightFields" :key="field.key"><span>{{ t(field.label) }}</span><div class="routing-number-input"><input v-model.number="formData[field.key]" :disabled="routingLoading" type="number" min="0" max="100" step="1" :aria-label="t(field.label)" /><b>%</b></div></label>
+                <p v-if="!routingWeightsValid" class="routing-validation-error" role="alert">{{ t('keys.routingWeightInvalid') }}</p>
+              </div>
+              <div v-if="formData.routing_strategy === 'custom'" class="routing-mobile-weight-editor" :class="{ invalid: !routingWeightsValid }">
+                <div class="routing-custom-weight-total" :class="routingWeightsValid ? 'valid' : 'invalid'" aria-live="polite">{{ t('keys.routingWeightTotal') }}: {{ routingWeightTotal }}%</div>
+                <label v-for="field in routingWeightFields" :key="`mobile-${field.key}`"><span>{{ t(field.label) }}</span><div class="routing-number-input"><input v-model.number="formData[field.key]" :disabled="routingLoading" type="number" min="0" max="100" step="1" :aria-label="t(field.label)" @focus="handleMobileWeightFocus" /><b>%</b></div></label>
+                <p v-if="!routingWeightsValid" class="routing-validation-error" role="alert">{{ t('keys.routingWeightInvalid') }}</p>
+              </div>
+            </div>
+
+            <div class="routing-candidates-block">
               <div class="routing-workspace-header">
                 <label class="input-label mb-0">{{ t('keys.routingCandidates') }}</label>
-                <span class="routing-count" aria-live="polite">{{ t('keys.routingCandidateCount', { count: formData.routing_group_ids.length }) }}</span>
+                <span class="routing-count" aria-live="polite">{{ formData.routing_group_ids.length }}{{ t('keys.routingCandidateCountSuffix') }}</span>
               </div>
               <p class="routing-field-hint">{{ t('keys.routingCandidatesHint') }}</p>
               <div v-if="selectedRoutingGroups.length" class="routing-selected-list" role="list" :aria-label="t('keys.routingCandidates')">
@@ -576,37 +618,9 @@
                 <template #option="{ option }"><span class="routing-select-option"><strong>{{ option.label }}</strong><small>{{ option.description }}</small></span></template>
               </Select>
               <p v-if="routingSubmitAttempted && routingCandidateValidationError" class="routing-validation-error" role="alert">{{ routingCandidateValidationError }}</p>
-
-              <div class="routing-strategy-block">
-                <div class="routing-workspace-header"><label class="input-label mb-0">{{ t('keys.routingStrategy') }}</label></div>
-                <p class="routing-field-hint">{{ t('keys.routingStrategyHint') }}</p>
-                <div class="routing-strategy-grid" role="radiogroup" :aria-label="t('keys.routingStrategy')">
-                  <button
-                    v-for="strategy in routingStrategies"
-                    :key="strategy.value"
-                    type="button"
-                    role="radio"
-                    class="routing-strategy-card"
-                    :class="[{ selected: formData.routing_strategy === strategy.value }, strategy.value === 'custom' && 'custom']"
-                    :aria-checked="formData.routing_strategy === strategy.value"
-                    :tabindex="formData.routing_strategy === strategy.value ? 0 : -1"
-                    :data-routing-strategy="strategy.value"
-                    :disabled="routingLoading"
-                    @click="selectRoutingStrategy(strategy.value)"
-                    @keydown="handleRoutingStrategyKeydown($event, strategy.value)"
-                  >
-                    <span class="routing-strategy-icon" :class="strategy.tone"><Icon :name="strategy.icon" size="sm" /></span>
-                    <span class="routing-strategy-copy"><strong>{{ strategy.label }}</strong><small>{{ strategy.description }}</small><em>{{ strategy.weightSummary }}</em></span>
-                    <Icon v-if="formData.routing_strategy === strategy.value" name="check" size="sm" class="routing-strategy-check" />
-                  </button>
-                </div>
-                <div v-if="formData.routing_strategy === 'custom'" class="routing-custom-weights" :class="{ invalid: !routingWeightsValid }">
-                  <div class="routing-custom-weight-total" :class="routingWeightsValid ? 'valid' : 'invalid'" aria-live="polite">{{ t('keys.routingWeightTotal') }}: {{ routingWeightTotal }}%</div>
-                  <label v-for="field in routingWeightFields" :key="field.key"><span>{{ t(field.label) }}</span><div class="routing-number-input"><input v-model.number="formData[field.key]" :disabled="routingLoading" type="number" min="0" max="100" step="1" :aria-label="t(field.label)" /><b>%</b></div></label>
-                  <p v-if="!routingWeightsValid" class="routing-validation-error" role="alert">{{ t('keys.routingWeightInvalid') }}</p>
-                </div>
-              </div>
             </div>
+
+            <div class="routing-safety-note" role="note"><Icon name="shield" size="sm" /><span><strong>{{ t('keys.routingSafetyTitle') }}</strong> {{ t('keys.routingSafetyHint') }}</span></div>
 
             <div v-if="showEditModal && selectedKey" class="routing-preview-section">
               <button type="button" class="routing-preview-toggle" :aria-expanded="routingPreviewExpanded" @click="routingPreviewExpanded = !routingPreviewExpanded"><span><Icon name="search" size="xs" /> {{ t('keys.routingPreview') }}</span><Icon :name="routingPreviewExpanded ? 'chevronUp' : 'chevronDown'" size="xs" /></button>
@@ -1464,6 +1478,10 @@ const routingPreviewGroups = ref<SmartRoutingGroup[]>([])
 const routingPreviewError = ref('')
 const routingPreviewExpanded = ref(false)
 let routingRequestGeneration = 0
+// Preview calls are independent from profile loading.  A request can outlive
+// the editor (or be superseded by a newer model), so only the latest request
+// for the still-open key may update the preview state.
+let routingPreviewRequestGeneration = 0
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
@@ -1641,11 +1659,38 @@ const selectRoutingStrategy = (strategy: RoutingStrategy) => {
   }
 }
 
+const routingStrategyValues: RoutingStrategy[] = ['auto', 'price', 'speed', 'success', 'custom']
+
 const handleRoutingStrategySelect = (value: unknown) => {
-  if (typeof value !== 'string') return
-  if (routingStrategies.value.some((strategy) => strategy.value === value)) {
-    selectRoutingStrategy(value as RoutingStrategy)
+  if (typeof value !== 'string' || !routingStrategyValues.includes(value as RoutingStrategy)) return
+  selectRoutingStrategy(value as RoutingStrategy)
+}
+
+const handleMobileWeightFocus = () => {
+  if (formData.value.routing_strategy !== 'custom') {
+    selectRoutingStrategy('custom')
   }
+}
+
+const focusRoutingStrategy = (strategy: RoutingStrategy) => {
+  void nextTick(() => {
+    document.querySelector<HTMLElement>(`[data-routing-strategy="${strategy}"]`)?.focus()
+  })
+}
+
+const handleRoutingStrategyKeydown = (event: KeyboardEvent, current: RoutingStrategy) => {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  const currentIndex = routingStrategyValues.indexOf(current)
+  const previous = event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? routingStrategyValues.length - 1
+      : (currentIndex + (previous ? -1 : 1) + routingStrategyValues.length) % routingStrategyValues.length
+  const nextStrategy = routingStrategyValues[nextIndex]
+  selectRoutingStrategy(nextStrategy)
+  focusRoutingStrategy(nextStrategy)
 }
 
 const routingModeValues = ['single', 'smart'] as const
@@ -1770,23 +1815,30 @@ const clearRoutingGroupDrag = () => {
 }
 
 const previewRouting = async () => {
-  if (!selectedKey.value) return
+  const generation = ++routingPreviewRequestGeneration
+  const keyId = selectedKey.value?.id
+  if (!keyId || !showEditModal.value) return
   const model = routingPreviewModel.value.trim()
   if (!model) {
     routingPreviewError.value = t('keys.routingPreviewModelRequired')
     routingPreviewGroups.value = []
+    routingPreviewLoading.value = false
     return
   }
   routingPreviewLoading.value = true
   routingPreviewError.value = ''
   try {
-    const result = await previewSmartRouting(selectedKey.value.id, model, routingPreviewEndpoint.value)
+    const result = await previewSmartRouting(keyId, model, routingPreviewEndpoint.value)
+    if (generation !== routingPreviewRequestGeneration || !showEditModal.value || selectedKey.value?.id !== keyId) return
     routingPreviewGroups.value = result.groups
   } catch (error: any) {
+    if (generation !== routingPreviewRequestGeneration || !showEditModal.value || selectedKey.value?.id !== keyId) return
     routingPreviewGroups.value = []
     routingPreviewError.value = error?.response?.data?.detail || error?.message || t('keys.routingPreviewFailed')
   } finally {
-    routingPreviewLoading.value = false
+    if (generation === routingPreviewRequestGeneration && showEditModal.value && selectedKey.value?.id === keyId) {
+      routingPreviewLoading.value = false
+    }
   }
 }
 
@@ -1978,6 +2030,19 @@ const loadRoutingListSummaries = (items: ApiKey[]) => {
   }))
 }
 
+// Keep the list summary visible while an editor is merely opened or closed.
+// Invalidate only after a routing-affecting write so unrelated rows do not
+// briefly fall through to the misleading single-group display.
+const invalidateRoutingListSummary = (keyId: number | null | undefined) => {
+  if (!keyId) return
+  const current = routingListSummaries.value[keyId]
+  if (!current) return
+  routingListSummaries.value = {
+    ...routingListSummaries.value,
+    [keyId]: { ...current, loading: true, loadedAt: 0 }
+  }
+}
+
 const loadApiKeys = async () => {
   abortController?.abort()
   const controller = new AbortController()
@@ -2086,6 +2151,8 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
 }
 
 const editKey = (key: ApiKey) => {
+  routingPreviewRequestGeneration += 1
+  routingPreviewLoading.value = false
   routingProfile.value = null
   routingProfileLoadError.value = false
   routingCandidateToAdd.value = null
@@ -2207,27 +2274,40 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
     await keysAPI.update(key.id, { group_id: newGroupId })
     groupUpdateSucceeded = true
     appStore.showSuccess(t('keys.groupChangedSuccess'))
+    invalidateRoutingListSummary(key.id)
     loadApiKeys()
   } catch (error: any) {
-    // If the primary-group update failed after routing was disabled, restore
-    // the exact previous profile using the new version. If restoration itself
-    // fails, the conservative single-group state is safer than stale routing.
+    // A timeout/error from the primary-group API is ambiguous: the database
+    // write may have committed even when the client did not receive a
+    // response. Restore the old routing profile only after a fresh key read
+    // proves that the primary group is still unchanged. Otherwise keep the
+    // profile disabled; re-enabling candidates validated against the old
+    // primary could route requests to an incompatible group.
+    let primaryGroupConfirmedUnchanged = false
     if (!groupUpdateSucceeded && safeRouting && previousRouting) {
       try {
-        await updateSmartRouting(key.id, {
-          version: safeRouting.version,
-          enabled: previousRouting.enabled,
-          mode: previousRouting.mode,
-          strategy: previousRouting.strategy,
-          price_weight: previousRouting.price_weight,
-          speed_weight: previousRouting.speed_weight,
-          success_weight: previousRouting.success_weight,
-          sticky_ttl_seconds: previousRouting.sticky_ttl_seconds,
-          exploration_rate: previousRouting.exploration_rate,
-          group_ids: previousRouting.groups.filter(group => group.enabled).map(group => group.group_id)
-        })
+        const currentKey = await keysAPI.getById(key.id)
+        primaryGroupConfirmedUnchanged = currentKey.group_id === key.group_id
       } catch {
-        // Keep the original error visible; single-group fail-closed is safer.
+        // An unavailable read cannot establish that the write rolled back.
+      }
+      if (primaryGroupConfirmedUnchanged) {
+        try {
+          await updateSmartRouting(key.id, {
+            version: safeRouting.version,
+            enabled: previousRouting.enabled,
+            mode: previousRouting.mode,
+            strategy: previousRouting.strategy,
+            price_weight: previousRouting.price_weight,
+            speed_weight: previousRouting.speed_weight,
+            success_weight: previousRouting.success_weight,
+            sticky_ttl_seconds: previousRouting.sticky_ttl_seconds,
+            exploration_rate: previousRouting.exploration_rate,
+            group_ids: previousRouting.groups.filter(group => group.enabled).map(group => group.group_id)
+          })
+        } catch {
+          // Keep the original error visible; single-group fail-closed is safer.
+        }
       }
     }
     const errorMsg = error?.response?.data?.detail || error?.message || t('keys.failedToChangeGroup')
@@ -2377,7 +2457,20 @@ const handleSubmit = async () => {
         await keysAPI.update(selectedKey.value.id, updates)
         editedKeyUpdateSucceeded = true
       } catch (error) {
+        // A failed response is not proof that the primary-group update was
+        // rolled back. Only restore the old routing profile after a fresh
+        // read confirms the key still has its old primary group; otherwise
+        // leave the already-disabled profile in place.
+        let primaryGroupConfirmedUnchanged = false
         if (safeRoutingProfile && previousRouting) {
+          try {
+            const currentKey = await keysAPI.getById(selectedKey.value.id)
+            primaryGroupConfirmedUnchanged = currentKey.group_id === selectedKey.value.group_id
+          } catch {
+            // An unavailable read cannot establish that the write rolled back.
+          }
+        }
+        if (primaryGroupConfirmedUnchanged && safeRoutingProfile && previousRouting) {
           await updateSmartRouting(selectedKey.value.id, {
             version: safeRoutingProfile.version,
             enabled: previousRouting.enabled,
@@ -2441,6 +2534,7 @@ const handleSubmit = async () => {
         onboardingStore.nextStep(500)
       }
     }
+    invalidateRoutingListSummary(showEditModal.value ? selectedKey.value?.id : createdKeyId)
     closeModals()
     loadApiKeys()
   } catch (error: any) {
@@ -2503,10 +2597,9 @@ const handleDelete = async () => {
 
 const closeModals = () => {
   routingRequestGeneration += 1
-  // A profile may have changed while editing. Drop list summaries so the next
-  // page refresh cannot display a stale mode or candidate count.
-  routingListSummaries.value = {}
+  routingPreviewRequestGeneration += 1
   routingLoading.value = false
+  routingPreviewLoading.value = false
   routingProfile.value = null
   routingProfileLoadError.value = false
   routingCandidateToAdd.value = null
@@ -3821,36 +3914,38 @@ safety state, strategy, candidates, and preview read as separate tools.
 
 .routing-panel-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .routing-segmented {
-  display: inline-flex;
-  width: auto;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #fff;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #edf0f3;
+  border-radius: 9px;
+  background: #f5f6f8;
 }
 
 .routing-segmented button {
-  min-height: 30px;
+  flex: 1;
+  min-height: 36px;
   padding: 0 11px;
-  border-radius: 4px;
-  color: #4b5563;
+  border-radius: 7px;
+  color: #667085;
   background: transparent;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1;
 }
 
 .routing-segmented button.active {
-  color: #fff;
-  background: #0f9f8d;
-  box-shadow: none;
+  color: #138f84;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(16 24 40 / 10%), inset 0 0 0 1px rgb(19 143 132 / 4%);
 }
 
 .routing-segmented button:disabled { cursor: wait; opacity: .65; }
@@ -3864,9 +3959,9 @@ safety state, strategy, candidates, and preview read as separate tools.
   display: flex;
   align-items: flex-start;
   gap: 5px;
-  margin: 6px 0 0;
-  color: #9ca3af;
-  font-size: 11px;
+  margin: 9px 0 0;
+  color: #667085;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -3893,7 +3988,7 @@ safety state, strategy, candidates, and preview read as separate tools.
 .routing-retry-button:hover:not(:disabled) { text-decoration: underline; }
 .routing-retry-button:disabled { cursor: wait; opacity: .55; }
 
-.routing-workspace { margin-top: 12px; }
+.routing-workspace { margin-top: 17px; }
 .routing-loading-hint { margin: 0 0 8px; color: #6b7280; font-size: 11px; }
 
 .routing-safety-note {
@@ -3961,7 +4056,49 @@ safety state, strategy, candidates, and preview read as separate tools.
 .routing-select-option strong { color: #374151; font-size: 11px; }
 .routing-select-option small { color: #9ca3af; font-size: 9px; }
 
-.routing-strategy-block { margin-top: 13px; padding-top: 12px; border-top: 1px solid #edf0f4; }
+.routing-strategy-block { margin-top: 0; padding-top: 0; }
+.routing-strategy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.routing-strategy-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  min-height: 112px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  color: #374151;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color .14s ease, background-color .14s ease, box-shadow .14s ease;
+}
+.routing-strategy-card:hover:not(:disabled) { border-color: #9fd9cf; background: #fbfefd; }
+.routing-strategy-card:focus-visible { outline: 2px solid rgb(15 159 141 / 35%); outline-offset: 1px; }
+.routing-strategy-card:disabled { cursor: wait; opacity: .6; }
+.routing-strategy-card.selected { border-color: #67d8cf; background: #effcfb; box-shadow: 0 0 0 1px #a6eee8 inset; }
+.routing-strategy-card.custom { grid-column: 1 / -1; }
+.routing-strategy-icon { display: inline-flex; flex: 0 0 30px; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; }
+.routing-strategy-icon.teal { color: #0f766e; background: #e4f7f2; }
+.routing-strategy-icon.green { color: #17845a; background: #e6f7ee; }
+.routing-strategy-icon.amber { color: #a76514; background: #fff2dd; }
+.routing-strategy-icon.rose { color: #b54f66; background: #ffedf1; }
+.routing-strategy-icon.violet { color: #6f58b7; background: #f0ecff; }
+.routing-strategy-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
+.routing-strategy-copy strong { color: #25324a; font-size: 13px; font-weight: 700; line-height: 1.25; }
+.routing-strategy-copy small { display: -webkit-box; overflow: hidden; color: #667085; font-size: 11px; line-height: 1.4; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.routing-strategy-copy em { color: #8b95a5; font-size: 10px; font-style: normal; font-variant-numeric: tabular-nums; line-height: 1.35; white-space: normal; }
+.routing-strategy-check { flex: 0 0 auto; margin-top: 1px; color: #0f9f8d; }
+.routing-strategy-card.custom { min-height: 76px; }
+.routing-candidates-block { margin-top: 16px; padding-top: 12px; border-top: 1px solid #edf0f4; }
+.routing-custom-weights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 8px; padding-top: 9px; border-top: 1px solid #edf0f4; }
+.routing-custom-weights label { display: block; min-width: 0; color: #6b7280; font-size: 10px; }
+.routing-custom-weight-total { grid-column: 1 / -1; color: #9ca3af; font-size: 10px; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.routing-custom-weight-total.valid { color: #0f9f8d; }
+.routing-custom-weight-total.invalid { color: #dc2626; }
+.routing-custom-weights.invalid { border-top-color: #fecaca; }
 .routing-weight-total { flex: 0 0 auto; color: #9ca3af; font-size: 10px; font-variant-numeric: tabular-nums; }
 .routing-weight-total.valid { color: #0f9f8d; }
 .routing-weight-total.invalid { color: #dc2626; }
@@ -4001,8 +4138,8 @@ safety state, strategy, candidates, and preview read as separate tools.
 
 .dark .routing-panel { color: #e5e7eb; }
 .dark .routing-segmented { border-color: #374151; background: #202733; }
-.dark .routing-segmented button { color: #9ca3af; }
-.dark .routing-segmented button.active { color: #fff; background: #0f9f8d; }
+.dark .routing-segmented button { color: #aeb8c5; }
+.dark .routing-segmented button.active { color: #77d5c8; background: #1c3638; box-shadow: 0 1px 3px rgb(0 0 0 / 22%), inset 0 0 0 1px rgb(119 213 200 / 12%); }
 .dark .routing-mode-hint, .dark .routing-field-hint, .dark .routing-count, .dark .routing-selected-copy small, .dark .routing-select-option small { color: #9ca3af; }
 .dark .routing-safety-note { border-color: #2f6d68; color: #a7d9d2; background: #1c3638; }
 .dark .routing-safety-note strong { color: #77d5c8; }
@@ -4012,7 +4149,12 @@ safety state, strategy, candidates, and preview read as separate tools.
 .dark .routing-number-input input, .dark .routing-preview-input { color: #e5e7eb; }
 .dark .routing-add-select :deep(.select-trigger), .dark .routing-strategy-select :deep(.select-trigger), .dark .routing-preview-endpoint :deep(.select-trigger) { border-color: #4b5666; background: #202733; }
 .dark .routing-number-input, .dark .routing-preview-input { border-color: #4b5666; }
-.dark .routing-strategy-block, .dark .routing-preview-section { border-top-color: #303846; }
+.dark .routing-strategy-card { border-color: #374151; background: #202733; }
+.dark .routing-strategy-card.selected { border-color: #57cfc6; background: #173b39; box-shadow: 0 0 0 1px #2f6d68 inset; }
+.dark .routing-strategy-copy strong { color: #e9edf5; }
+.dark .routing-strategy-copy small { color: #aeb8c5; }
+.dark .routing-strategy-copy em { color: #8f9bad; }
+.dark .routing-strategy-block, .dark .routing-candidates-block, .dark .routing-preview-section { border-top-color: #303846; }
 .dark .routing-preview-button { border-color: #2f6d68; color: #77d5c8; background: #1c3638; }
 
 @media (max-width: 520px) {
@@ -4023,8 +4165,157 @@ safety state, strategy, candidates, and preview read as separate tools.
   .routing-retry-button { align-self: flex-end; }
   .routing-group-status span { display: none; }
   .routing-group-status { margin-left: auto; }
+  .routing-strategy-grid { grid-template-columns: 1fr; }
+  .routing-strategy-card.custom { grid-column: auto; }
+  .routing-custom-weights { grid-template-columns: 1fr; }
+  .routing-custom-weight-total { grid-column: auto; }
   .routing-weight-grid { grid-template-columns: 1fr; }
   .routing-preview-controls { flex-direction: column; }
   .routing-preview-input, .routing-preview-endpoint, .routing-preview-button { width: 100%; }
 }
+
+/* Final layout guards for the reference-sized editor.  The form keeps its
+ * existing single-group flow; only smart routing gets an explicit visual
+ * order so the primary group remains available without dominating the panel. */
+.routing-mobile-strategy-select,
+.routing-mobile-weight-editor { display: none; }
+
+.routing-smart-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.routing-smart-form > * { margin-top: 0 !important; }
+
+.routing-workspace {
+  display: flex;
+  flex-direction: column;
+}
+
+.routing-workspace > .routing-loading-hint { order: 0; }
+.routing-workspace > .routing-strategy-block { order: 1; }
+.routing-workspace > .routing-candidates-block { order: 2; }
+.routing-workspace > .routing-safety-note { order: 3; }
+.routing-workspace > .routing-preview-section { order: 4; }
+
+@media (max-width: 520px) {
+  .routing-smart-form { gap: 16px; }
+
+  /* On narrow screens the candidate pool is the primary action. */
+  .routing-workspace > .routing-candidates-block { order: 1; }
+  .routing-workspace > .routing-strategy-block { order: 2; }
+
+  .routing-candidates-block {
+    margin-top: 0;
+    padding: 12px;
+    border: 1px solid #e6e9ef;
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .routing-candidates-block .routing-field-hint { margin-top: 5px; }
+  .routing-selected-list { max-height: 180px; }
+
+  .routing-strategy-grid,
+  .routing-custom-weights { display: none; }
+
+  .routing-strategy-block {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .routing-strategy-block > .routing-workspace-header,
+  .routing-strategy-block > .routing-field-hint { display: none; }
+
+  .routing-mobile-strategy-select {
+    display: block;
+    order: 2;
+    margin-top: 10px;
+  }
+
+  .routing-mobile-strategy-select :deep(.select-trigger) {
+    min-height: 44px;
+    border: 2px solid #4dd4c7;
+    border-radius: 10px;
+    color: #0f766e;
+    background: #fff;
+    box-shadow: 0 0 0 2px rgb(77 212 199 / 12%);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .routing-mobile-weight-editor {
+    display: grid;
+    order: 1;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .routing-mobile-weight-editor > label {
+    display: block;
+    min-width: 0;
+    color: #667085;
+    font-size: 12px;
+  }
+
+  .routing-mobile-weight-editor .routing-number-input {
+    min-height: 48px;
+    margin-top: 5px;
+    border-radius: 10px;
+  }
+
+  .routing-mobile-weight-editor .routing-number-input input {
+    min-height: 44px;
+    padding: 9px 12px;
+    font-size: 15px;
+  }
+
+  .routing-mobile-weight-editor .routing-number-input b {
+    padding-right: 12px;
+    font-size: 12px;
+  }
+
+  .routing-mobile-weight-editor .routing-custom-weight-total {
+    order: 4;
+    margin-top: 1px;
+    color: #0f9f8d;
+    font-size: 13px;
+  }
+
+  .routing-mobile-weight-editor > label:nth-of-type(1) { order: 1; }
+  .routing-mobile-weight-editor > label:nth-of-type(2) { order: 2; }
+  .routing-mobile-weight-editor > label:nth-of-type(3) { order: 3; }
+  .routing-mobile-weight-editor .routing-validation-error { order: 5; }
+
+  .routing-safety-note {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 9px 10px;
+    font-size: 10px;
+  }
+
+  .routing-selected-row {
+    gap: 4px;
+    min-height: 42px;
+    padding: 5px 4px 5px 6px;
+  }
+
+  .routing-selected-copy strong { font-size: 11px; }
+  .routing-selected-copy small { font-size: 9px; }
+  .routing-icon-button { flex-basis: 24px; width: 24px; height: 24px; }
+  .routing-add-select :deep(.select-trigger) { min-height: 42px; }
+}
+
+.dark .routing-candidates-block { border-color: #374151; background: #202733; }
+.dark .routing-mobile-strategy-select :deep(.select-trigger) {
+  border-color: #57cfc6;
+  color: #77d5c8;
+  background: #202733;
+  box-shadow: 0 0 0 2px rgb(87 207 198 / 12%);
+}
+.dark .routing-mobile-weight-editor > label { color: #aeb8c5; }
 </style>

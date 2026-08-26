@@ -105,6 +105,13 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 	requestCtx, pricingAt := service.WithGatewayTokenRequestPricing(requestCtx)
 	if service.IsImageGenerationIntentForPlatform("/v1/responses", reqModel, body, openAICompatibleRequestPlatform(c.Request.Context(), apiKey)) {
 		requestCtx = service.WithOpenAIImageGenerationIntent(requestCtx)
+		// The routing resolver runs before the forwarding adapter and only sees
+		// the request-local state. Keep the semantic image intent in sync with
+		// the context hint so text-only smart routing cannot move a Responses
+		// image request to a group with different capability or pricing.
+		if state := service.SmartRoutingStateFromContext(requestCtx); state != nil {
+			state.ImageGenerationIntent = true
+		}
 	}
 	c.Request = c.Request.WithContext(requestCtx)
 
@@ -205,6 +212,10 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				failoverClientGone(c)
 				return
 			default:
+				if service.TrySmartRoutingGroupFailover(requestCtx, fs.LastFailoverErr, gatewayStreamSemanticOutputStarted(c)) {
+					fs = NewFailoverState(h.maxAccountSwitches, false)
+					continue
+				}
 				if fs.LastFailoverErr != nil {
 					h.handleResponsesFailoverExhausted(c, fs.LastFailoverErr, streamStarted)
 				} else {
@@ -316,6 +327,13 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				case FailoverContinue:
 					continue
 				case FailoverExhausted:
+					if service.TrySmartRoutingGroupFailover(requestCtx, fs.LastFailoverErr, gatewayStreamSemanticOutputStarted(c)) {
+						// Account failover state is scoped to the exhausted group.
+						// Reset it before entering the next candidate group so its
+						// accounts are not excluded by the previous group's IDs.
+						fs = NewFailoverState(h.maxAccountSwitches, false)
+						continue
+					}
 					h.handleResponsesFailoverExhausted(c, fs.LastFailoverErr, streamStarted)
 					return
 				case FailoverCanceled:

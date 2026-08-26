@@ -39,6 +39,19 @@ func gatewayStreamHasOnlyHeartbeats(c *gin.Context) bool {
 	return heartbeatBytes > 0 && c.Writer.Size() == heartbeatBytes
 }
 
+// gatewayStreamSemanticOutputStarted reports whether client-visible output
+// contains anything beyond the gateway's own SSE keepalive frames.  Slot and
+// queue waits can commit a streaming response before an upstream attempt is
+// admitted; those heartbeat bytes are safe to discard when deciding whether a
+// smart-routing group may be retried.  Any other bytes, including a real SSE
+// event or a non-streaming response body, make replay unsafe.
+func gatewayStreamSemanticOutputStarted(c *gin.Context) bool {
+	if c == nil || c.Writer == nil || c.Writer.Size() <= 0 {
+		return false
+	}
+	return !gatewayStreamHasOnlyHeartbeats(c)
+}
+
 // claudeCodeValidator is a singleton validator for Claude Code client detection
 var claudeCodeValidator = service.NewClaudeCodeValidator()
 

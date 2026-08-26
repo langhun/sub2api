@@ -6,11 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
 type routingGroupRepoStub struct {
@@ -44,6 +49,9 @@ func TestRepositoryGetReturnsEmptyGroupsForLegacyProfile(t *testing.T) {
 	if profile == nil || profile.Groups == nil || len(profile.Groups) != 0 {
 		t.Fatalf("legacy profile groups = %#v, want a non-nil empty slice", profile.Groups)
 	}
+	if profile.Version != 0 {
+		t.Fatalf("legacy profile version = %d, want 0 sentinel", profile.Version)
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet SQL expectations: %v", err)
 	}
@@ -75,6 +83,77 @@ func TestRepositoryGetReturnsEmptyGroupsForProfileWithoutCandidates(t *testing.T
 	}
 }
 
+func TestRoutingProfileUsableRejectsMalformedPersistedValues(t *testing.T) {
+	base := &Profile{
+		Mode:            "smart",
+		Strategy:        "auto",
+		PriceWeight:     40,
+		SpeedWeight:     30,
+		SuccessWeight:   30,
+		StickyTTL:       1800,
+		ExplorationRate: 0.05,
+		Groups:          []Group{{GroupID: 7, Enabled: true}},
+	}
+	if !routingProfileUsable(base) {
+		t.Fatal("valid smart profile must be usable")
+	}
+	cases := []struct {
+		name string
+		mut  func(*Profile)
+	}{
+		{name: "nan weight", mut: func(p *Profile) { p.PriceWeight = math.NaN() }},
+		{name: "infinite weight", mut: func(p *Profile) { p.SpeedWeight = math.Inf(1) }},
+		{name: "wrong sum", mut: func(p *Profile) { p.SuccessWeight = 29 }},
+		{name: "negative ttl", mut: func(p *Profile) { p.StickyTTL = -1 }},
+		{name: "infinite exploration", mut: func(p *Profile) { p.ExplorationRate = math.Inf(1) }},
+		{name: "invalid group id", mut: func(p *Profile) { p.Groups[0].GroupID = 0 }},
+		{name: "duplicate group", mut: func(p *Profile) { p.Groups = append(p.Groups, Group{GroupID: 7, Enabled: true}) }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			profile := *base
+			profile.Groups = append([]Group(nil), base.Groups...)
+			tc.mut(&profile)
+			if routingProfileUsable(&profile) {
+				t.Fatalf("malformed profile should be rejected: %#v", profile)
+			}
+		})
+	}
+}
+
+func TestResolveClearsActiveMarkerWhenRoutingPreflightFails(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewRepository(db)
+	mock.ExpectQuery("SELECT api_key_id").WithArgs(int64(46)).WillReturnRows(sqlmock.NewRows([]string{
+		"api_key_id", "enabled", "mode", "strategy", "price_weight", "speed_weight", "success_weight", "sticky_ttl_seconds", "exploration_rate", "version",
+	}).AddRow(int64(46), true, "smart", "auto", 40.0, 30.0, 30.0, 1800, 0.05, 1))
+	mock.ExpectQuery("SELECT rg.group_id").WithArgs(int64(46)).WillReturnRows(sqlmock.NewRows([]string{
+		"group_id", "sort_order", "enabled", "name", "platform",
+	}).AddRow(int64(2), 0, true, "backup", "openai"))
+
+	mainID := int64(1)
+	main := &service.Group{ID: mainID, Platform: service.PlatformOpenAI}
+	state := &service.SmartRoutingRequestState{MainGroupID: mainID, CurrentGroupID: mainID, EndpointType: "chat_completions"}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+	m := &Module{repo: repo}
+	key := &service.APIKey{ID: 46, GroupID: &mainID, Group: main}
+
+	if _, err := m.Resolve(ctx, key, "gpt-test", "", nil); err == nil {
+		t.Fatal("Resolve should report a routing preflight dependency error")
+	}
+	if state.SmartRoutingActive {
+		t.Fatal("routing must be inactive after preflight failure so handlers do not retry the primary as a smart route")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations: %v", err)
+	}
+}
+
 func TestRepositorySavePersistsCandidateOrder(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -85,6 +164,7 @@ func TestRepositorySavePersistsCandidateOrder(t *testing.T) {
 	repo := NewRepository(db)
 	mock.ExpectBegin()
 	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(int64(43)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT version FROM custom_api_key_route_profiles").WithArgs(int64(43)).WillReturnError(sql.ErrNoRows)
 	mock.ExpectExec("INSERT INTO custom_api_key_route_profiles").WithArgs(
 		int64(43), true, "smart", "auto", 40.0, 30.0, 30.0, 1800, 0.05,
 	).WillReturnResult(sqlmock.NewResult(0, 1))
@@ -121,11 +201,118 @@ func TestRepositorySavePersistsCandidateOrder(t *testing.T) {
 	}
 }
 
+func TestRepositorySaveRejectsVersionZeroWhenProfileExists(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewRepository(db)
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(int64(44)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT version FROM custom_api_key_route_profiles").WithArgs(int64(44)).WillReturnRows(
+		sqlmock.NewRows([]string{"version"}).AddRow(int64(1)),
+	)
+	mock.ExpectRollback()
+
+	_, err = repo.Save(context.Background(), 44, UpdateRequest{
+		Version:         0,
+		Mode:            "single",
+		Strategy:        "auto",
+		PriceWeight:     40,
+		SpeedWeight:     30,
+		SuccessWeight:   30,
+		StickyTTL:       1800,
+		ExplorationRate: 0.05,
+	})
+	if err == nil || err.Error() != "routing profile version conflict" {
+		t.Fatalf("Save error = %v, want version conflict", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations: %v", err)
+	}
+}
+
+func TestRepositorySaveRejectsStaleCreateAndUpdateVersions(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewRepository(db)
+	mock.ExpectBegin()
+	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(int64(44)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("SELECT version FROM custom_api_key_route_profiles").WithArgs(int64(44)).WillReturnRows(sqlmock.NewRows([]string{"version"}).AddRow(int64(2)))
+	if _, err := repo.Save(context.Background(), 44, UpdateRequest{
+		Version:         0,
+		Enabled:         true,
+		Mode:            "smart",
+		Strategy:        "auto",
+		PriceWeight:     40,
+		SpeedWeight:     30,
+		SuccessWeight:   30,
+		StickyTTL:       1800,
+		ExplorationRate: 0.05,
+		GroupIDs:        []int64{9},
+	}); err == nil || !strings.Contains(err.Error(), "version conflict") {
+		t.Fatalf("version 0 against existing profile error = %v, want conflict", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations: %v", err)
+	}
+
+	db2, mock2, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New second db: %v", err)
+	}
+	defer db2.Close()
+	repo2 := NewRepository(db2)
+	mock2.ExpectBegin()
+	mock2.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(int64(45)).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock2.ExpectQuery("SELECT version FROM custom_api_key_route_profiles").WithArgs(int64(45)).WillReturnError(sql.ErrNoRows)
+	if _, err := repo2.Save(context.Background(), 45, UpdateRequest{
+		Version:         2,
+		Enabled:         true,
+		Mode:            "smart",
+		Strategy:        "auto",
+		PriceWeight:     40,
+		SpeedWeight:     30,
+		SuccessWeight:   30,
+		StickyTTL:       1800,
+		ExplorationRate: 0.05,
+		GroupIDs:        []int64{9},
+	}); err == nil || !strings.Contains(err.Error(), "version conflict") {
+		t.Fatalf("nonzero version against missing profile error = %v, want conflict", err)
+	}
+	if err := mock2.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations for missing profile: %v", err)
+	}
+}
+
 func (s *routingAccountRepoStub) ListSchedulableByGroupIDAndPlatform(_ context.Context, groupID int64, _ string) ([]service.Account, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
 	return s.groups[groupID], nil
+}
+
+func (s *routingAccountRepoStub) ListSchedulableByGroupIDAndPlatforms(_ context.Context, groupID int64, _ []string) ([]service.Account, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.groups[groupID], nil
+}
+
+func allowRoutingGroups(ids ...int64) availableGroupsChecker {
+	return func(context.Context, int64) ([]service.Group, error) {
+		groups := make([]service.Group, 0, len(ids))
+		for _, id := range ids {
+			groups = append(groups, service.Group{ID: id})
+		}
+		return groups, nil
+	}
 }
 
 func TestValidateUpdateWeightsAndCandidates(t *testing.T) {
@@ -147,6 +334,40 @@ func TestValidateUpdateWeightsAndCandidates(t *testing.T) {
 	invalid.GroupIDs = []int64{2, 2}
 	if err := validateUpdate(invalid); err == nil {
 		t.Fatal("expected duplicate candidate validation error")
+	}
+}
+
+func TestValidateGroupsRejectsCrossPlatformAndSubscriptionCandidates(t *testing.T) {
+	primaryID := int64(501)
+	primary := &service.Group{
+		ID: primaryID, Platform: service.PlatformOpenAI,
+		SubscriptionType: service.SubscriptionTypeStandard,
+	}
+	candidates := []service.Group{
+		{ID: 502, Platform: service.PlatformGemini, SubscriptionType: service.SubscriptionTypeStandard},
+		{ID: 503, Platform: service.PlatformAnthropic, SubscriptionType: service.SubscriptionTypeStandard},
+		{ID: 504, Platform: service.PlatformComposite, SubscriptionType: service.SubscriptionTypeStandard},
+		{ID: 505, Platform: service.PlatformOpenAI, SubscriptionType: service.SubscriptionTypeSubscription},
+	}
+	m := &Module{availableGroups: func(context.Context, int64) ([]service.Group, error) {
+		return append([]service.Group{{ID: primaryID, Platform: primary.Platform, SubscriptionType: primary.SubscriptionType}}, candidates...), nil
+	}}
+	key := &service.APIKey{ID: 506, UserID: 7, GroupID: &primaryID, Group: primary}
+	for _, candidate := range candidates {
+		req := &UpdateRequest{Mode: "smart", GroupIDs: []int64{candidate.ID}}
+		if err := m.validateGroups(&gin.Context{Request: httptest.NewRequest(http.MethodPut, "/", nil)}, key, req); err == nil {
+			t.Fatalf("candidate %d (%s/%s) was accepted", candidate.ID, candidate.Platform, candidate.SubscriptionType)
+		}
+	}
+}
+
+func TestValidateGroupsFailsClosedWhenPermissionServiceMissing(t *testing.T) {
+	primaryID := int64(507)
+	m := &Module{}
+	key := &service.APIKey{ID: 508, UserID: 7, GroupID: &primaryID, Group: &service.Group{ID: primaryID, Platform: service.PlatformOpenAI, SubscriptionType: service.SubscriptionTypeStandard}}
+	req := &UpdateRequest{Mode: "smart", GroupIDs: []int64{509}}
+	if err := m.validateGroups(&gin.Context{Request: httptest.NewRequest(http.MethodPut, "/", nil)}, key, req); err == nil {
+		t.Fatal("missing permission service must reject candidate validation")
 	}
 }
 
@@ -180,13 +401,20 @@ func TestRouteStateHardLimitsSwitchesAndContinuity(t *testing.T) {
 	if routeStateAllowsGroup(state, 3, 0, 2) {
 		t.Fatal("expected third group switch to be blocked")
 	}
+	if !routeStateAllowsGroup(state, 1, 0, 2) {
+		t.Fatal("primary group must remain available as the safe fallback at the switch limit")
+	}
 	state.GroupSwitches = 1
 	if !routeStateAllowsGroup(state, 3, 0, 2) {
 		t.Fatal("expected second group switch to remain allowed")
 	}
 	state.ContinuityLocked = true
+	state.GroupSwitches = 2
 	if routeStateAllowsGroup(state, 3, 2, 2) {
 		t.Fatal("continuation must stay on sticky group")
+	}
+	if routeStateAllowsGroup(state, 1, 2, 2) {
+		t.Fatal("continuation must not fall back to the primary group when sticky group differs")
 	}
 }
 
@@ -254,9 +482,10 @@ func TestRankMarksCompatibleCandidateEligible(t *testing.T) {
 		SubscriptionType: "standard",
 	}
 	m := &Module{
-		repo:     &Repository{},
-		groups:   &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidate.ID: candidate}},
-		accounts: &routingAccountRepoStub{groups: map[int64][]service.Account{candidate.ID: {{ID: 10, Status: service.StatusActive, Schedulable: true}}}},
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(mainID, candidate.ID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidate.ID: candidate}},
+		accounts:        &routingAccountRepoStub{groups: map[int64][]service.Account{candidate.ID: {{ID: 10, Status: service.StatusActive, Schedulable: true}}}},
 	}
 	key := &service.APIKey{ID: 9, GroupID: &mainID, Group: main}
 	profile := &Profile{
@@ -282,14 +511,111 @@ func TestRankMarksCompatibleCandidateEligible(t *testing.T) {
 	t.Fatalf("rank did not return candidate group: %#v", ranked)
 }
 
+func TestRankRejectsCrossPlatformAndCompositeCandidates(t *testing.T) {
+	mainID := int64(101)
+	main := &service.Group{
+		ID:               mainID,
+		Name:             "openai-primary",
+		Platform:         service.PlatformOpenAI,
+		RateMultiplier:   1,
+		Status:           service.StatusActive,
+		SubscriptionType: "standard",
+	}
+	ids := []int64{102, 103, 104}
+	groups := map[int64]*service.Group{mainID: main}
+	accounts := map[int64][]service.Account{}
+	profileGroups := make([]Group, 0, len(ids))
+	for i, id := range ids {
+		platform := service.PlatformAnthropic
+		if i == 1 {
+			platform = service.PlatformGemini
+		} else if i == 2 {
+			platform = service.PlatformComposite
+		}
+		groups[id] = &service.Group{
+			ID:               id,
+			Name:             "incompatible",
+			Platform:         platform,
+			RateMultiplier:   0.5,
+			Status:           service.StatusActive,
+			SubscriptionType: "standard",
+		}
+		accounts[id] = []service.Account{{ID: id, Status: service.StatusActive, Schedulable: true}}
+		profileGroups = append(profileGroups, Group{GroupID: id, Enabled: true})
+	}
+	m := &Module{
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(append([]int64{mainID}, ids...)...),
+		groups:          &routingGroupRepoStub{groups: groups},
+		accounts:        &routingAccountRepoStub{groups: accounts},
+	}
+	key := &service.APIKey{ID: 1, UserID: 7, GroupID: &mainID, Group: main}
+	ranked, err := m.rank(context.Background(), key, &Profile{
+		Strategy:      "auto",
+		PriceWeight:   40,
+		SpeedWeight:   30,
+		SuccessWeight: 30,
+		Groups:        profileGroups,
+	}, "gpt-5", map[int64]struct{}{})
+	if err != nil {
+		t.Fatalf("rank returned error: %v", err)
+	}
+	for _, candidate := range ranked {
+		if candidate.GroupID == mainID {
+			continue
+		}
+		if candidate.Eligible {
+			t.Fatalf("cross-platform/composite candidate %d unexpectedly eligible: %#v", candidate.GroupID, candidate)
+		}
+		if candidate.Reason != "incompatible group" {
+			t.Fatalf("candidate %d reason = %q, want incompatible group", candidate.GroupID, candidate.Reason)
+		}
+	}
+}
+
+func TestRankFailsClosedWhenPermissionServiceUnavailable(t *testing.T) {
+	mainID := int64(1)
+	candidateID := int64(2)
+	main := &service.Group{ID: mainID, Name: "primary", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
+	candidate := &service.Group{ID: candidateID, Name: "backup", Platform: service.PlatformOpenAI, RateMultiplier: 0.8, Status: service.StatusActive, SubscriptionType: "standard"}
+	m := &Module{
+		repo:     &Repository{},
+		groups:   &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidateID: candidate}},
+		accounts: &routingAccountRepoStub{groups: map[int64][]service.Account{mainID: {{ID: 1, Status: service.StatusActive, Schedulable: true}}, candidateID: {{ID: 2, Status: service.StatusActive, Schedulable: true}}}},
+	}
+	key := &service.APIKey{ID: 9, UserID: 42, GroupID: &mainID, Group: main}
+	profile := &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidateID, Enabled: true}}}
+
+	ranked, err := m.rank(context.Background(), key, profile, "", map[int64]struct{}{})
+	if err != nil {
+		t.Fatalf("rank returned error: %v", err)
+	}
+	for _, group := range ranked {
+		switch group.GroupID {
+		case mainID:
+			if !group.Eligible {
+				t.Fatalf("primary must remain eligible during permission dependency outage: %#v", group)
+			}
+		case candidateID:
+			if group.Eligible {
+				t.Fatal("candidate must be ineligible when permission dependency is unavailable")
+			}
+			if group.Reason != "permission service unavailable" {
+				t.Fatalf("candidate reason = %q, want permission service unavailable", group.Reason)
+			}
+		}
+	}
+}
+
 func TestRankSkipsPrimaryWhenAccountQueryConfirmsNoAccounts(t *testing.T) {
 	mainID := int64(1)
 	main := &service.Group{ID: mainID, Name: "primary", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
 	candidate := &service.Group{ID: 2, Name: "backup", Platform: service.PlatformOpenAI, RateMultiplier: 0.8, Status: service.StatusActive, SubscriptionType: "standard"}
 	m := &Module{
-		repo:     &Repository{},
-		groups:   &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidate.ID: candidate}},
-		accounts: &routingAccountRepoStub{groups: map[int64][]service.Account{candidate.ID: {{ID: 10, Status: service.StatusActive, Schedulable: true}}}},
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(mainID, candidate.ID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidate.ID: candidate}},
+		accounts:        &routingAccountRepoStub{groups: map[int64][]service.Account{candidate.ID: {{ID: 10, Status: service.StatusActive, Schedulable: true}}}},
 	}
 	key := &service.APIKey{ID: 9, GroupID: &mainID, Group: main}
 	profile := &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidate.ID, Enabled: true}}}
@@ -317,9 +643,10 @@ func TestRankKeepsPrimaryOnAccountRepositoryError(t *testing.T) {
 	main := &service.Group{ID: mainID, Name: "primary", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
 	candidate := &service.Group{ID: 2, Name: "backup", Platform: service.PlatformOpenAI, RateMultiplier: 0.8, Status: service.StatusActive, SubscriptionType: "standard"}
 	m := &Module{
-		repo:     &Repository{},
-		groups:   &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidate.ID: candidate}},
-		accounts: &routingAccountRepoStub{err: errors.New("account repository unavailable")},
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(mainID, candidate.ID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidate.ID: candidate}},
+		accounts:        &routingAccountRepoStub{err: errors.New("account repository unavailable")},
 	}
 	key := &service.APIKey{ID: 9, GroupID: &mainID, Group: main}
 	profile := &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidate.ID, Enabled: true}}}
@@ -338,6 +665,35 @@ func TestRankKeepsPrimaryOnAccountRepositoryError(t *testing.T) {
 	}
 }
 
+func TestRankCountsMixedSchedulingAntigravityAccounts(t *testing.T) {
+	mainID := int64(1)
+	main := &service.Group{ID: mainID, Name: "primary", Platform: service.PlatformAnthropic, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
+	candidate := &service.Group{ID: 2, Name: "backup", Platform: service.PlatformAnthropic, RateMultiplier: 0.8, Status: service.StatusActive, SubscriptionType: "standard"}
+	mixedAccount := service.Account{ID: 10, Platform: service.PlatformAntigravity, Status: service.StatusActive, Schedulable: true, Extra: map[string]any{"mixed_scheduling": true}}
+	m := &Module{
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(mainID, candidate.ID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidate.ID: candidate}},
+		accounts:        &routingAccountRepoStub{groups: map[int64][]service.Account{candidate.ID: {mixedAccount}}},
+	}
+	key := &service.APIKey{ID: 9, GroupID: &mainID, Group: main}
+	profile := &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidate.ID, Enabled: true}}}
+
+	ranked, err := m.rank(context.Background(), key, profile, "", map[int64]struct{}{})
+	if err != nil {
+		t.Fatalf("rank returned error: %v", err)
+	}
+	for _, group := range ranked {
+		if group.GroupID == candidate.ID {
+			if !group.Eligible {
+				t.Fatalf("mixed-scheduling candidate must remain eligible: %#v", group)
+			}
+			return
+		}
+	}
+	t.Fatalf("rank did not return candidate group: %#v", ranked)
+}
+
 func TestRankRejectsNonFinitePeakMultiplier(t *testing.T) {
 	mainID := int64(1)
 	main := &service.Group{ID: mainID, Name: "primary", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
@@ -352,9 +708,10 @@ func TestRankRejectsNonFinitePeakMultiplier(t *testing.T) {
 		PeakRateMultiplier: math.NaN(),
 	}
 	m := &Module{
-		repo:     &Repository{},
-		groups:   &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidate.ID: candidate}},
-		accounts: &routingAccountRepoStub{groups: map[int64][]service.Account{candidate.ID: {{ID: 10, Status: service.StatusActive, Schedulable: true}}}},
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(mainID, candidate.ID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{mainID: main, candidate.ID: candidate}},
+		accounts:        &routingAccountRepoStub{groups: map[int64][]service.Account{candidate.ID: {{ID: 10, Status: service.StatusActive, Schedulable: true}}}},
 	}
 	key := &service.APIKey{ID: 9, GroupID: &mainID, Group: main}
 	profile := &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidate.ID, Enabled: true}}}
@@ -374,6 +731,77 @@ func TestRankRejectsNonFinitePeakMultiplier(t *testing.T) {
 	t.Fatalf("rank did not return candidate group: %#v", ranked)
 }
 
+func TestRankRejectsLongContextCandidateWhenPrimaryDisabled(t *testing.T) {
+	primaryID, candidateID := int64(1), int64(2)
+	primary := &service.Group{ID: primaryID, Name: "primary", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard", LongContextPricingEnabled: false}
+	candidate := &service.Group{ID: candidateID, Name: "backup", Platform: service.PlatformOpenAI, RateMultiplier: 0.8, Status: service.StatusActive, SubscriptionType: "standard", LongContextPricingEnabled: true}
+	m := &Module{
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(primaryID, candidateID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{primaryID: primary, candidateID: candidate}},
+		accounts:        &routingAccountRepoStub{groups: map[int64][]service.Account{primaryID: {{ID: 1, Platform: service.PlatformOpenAI, Status: service.StatusActive, Schedulable: true}}, candidateID: {{ID: 2, Platform: service.PlatformOpenAI, Status: service.StatusActive, Schedulable: true}}}},
+	}
+	key := &service.APIKey{ID: 9, GroupID: &primaryID, Group: primary}
+	profile := &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidateID, Enabled: true}}}
+	ranked, err := m.rank(context.Background(), key, profile, "gpt-5", map[int64]struct{}{})
+	if err != nil {
+		t.Fatalf("rank returned error: %v", err)
+	}
+	for _, group := range ranked {
+		if group.GroupID == candidateID {
+			if group.Eligible || group.Reason != "long-context pricing exceeds primary group" {
+				t.Fatalf("candidate = %#v, want long-context price protection rejection", group)
+			}
+			return
+		}
+	}
+	t.Fatalf("rank did not return candidate group: %#v", ranked)
+}
+
+func TestRankRejectsOpenAILongContextAccountOptInWhenPrimaryDisabled(t *testing.T) {
+	primaryID, candidateID := int64(1), int64(2)
+	primary := &service.Group{ID: primaryID, Name: "primary", Platform: service.PlatformOpenAI, RateMultiplier: 1, Status: service.StatusActive, SubscriptionType: "standard"}
+	candidate := &service.Group{ID: candidateID, Name: "backup", Platform: service.PlatformOpenAI, RateMultiplier: 0.8, Status: service.StatusActive, SubscriptionType: "standard"}
+	m := &Module{
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(primaryID, candidateID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{primaryID: primary, candidateID: candidate}},
+		accounts: &routingAccountRepoStub{groups: map[int64][]service.Account{
+			primaryID:   {{ID: 1, Platform: service.PlatformOpenAI, Status: service.StatusActive, Schedulable: true}},
+			candidateID: {{ID: 2, Platform: service.PlatformOpenAI, Status: service.StatusActive, Schedulable: true, Extra: map[string]any{"openai_long_context_billing_enabled": true}}},
+		}},
+	}
+	key := &service.APIKey{ID: 9, GroupID: &primaryID, Group: primary}
+	profile := &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidateID, Enabled: true}}}
+	ranked, err := m.rank(context.Background(), key, profile, "gpt-5", map[int64]struct{}{})
+	if err != nil {
+		t.Fatalf("rank returned error: %v", err)
+	}
+	for _, group := range ranked {
+		if group.GroupID == candidateID {
+			if group.Eligible || group.Reason != "long-context pricing exceeds primary group" {
+				t.Fatalf("candidate = %#v, want account long-context price protection rejection", group)
+			}
+			return
+		}
+	}
+	t.Fatalf("rank did not return candidate group: %#v", ranked)
+}
+
+func TestLongContextPricingCapabilityRejectsMixedOpenAIAccountFlags(t *testing.T) {
+	group := &service.Group{ID: 2, Platform: service.PlatformOpenAI}
+	m := &Module{accounts: &routingAccountRepoStub{groups: map[int64][]service.Account{
+		group.ID: {
+			{ID: 1, Platform: service.PlatformOpenAI, Status: service.StatusActive, Schedulable: true, Extra: map[string]any{"openai_long_context_billing_enabled": true}},
+			{ID: 2, Platform: service.PlatformOpenAI, Status: service.StatusActive, Schedulable: true, Extra: map[string]any{"openai_long_context_billing_enabled": false}},
+		},
+	}}}
+	enabled, known := m.longContextPricingCapability(context.Background(), group)
+	if enabled || known {
+		t.Fatalf("mixed account flags = enabled:%v known:%v, want unknown disabled", enabled, known)
+	}
+}
+
 func TestCandidateEndpointAllowedHonorsGroupGates(t *testing.T) {
 	state := &service.SmartRoutingRequestState{EndpointType: "responses"}
 	ctx := service.WithSmartRoutingState(context.Background(), state)
@@ -388,6 +816,21 @@ func TestCandidateEndpointAllowedHonorsGroupGates(t *testing.T) {
 	}
 	if !candidateEndpointAllowed(ctx, &service.Group{Platform: service.PlatformAnthropic}) {
 		t.Fatal("native Anthropic messages group should remain eligible")
+	}
+}
+
+func TestSmartRoutingDisabledForExplicitForcePlatformRoute(t *testing.T) {
+	base := context.Background()
+	if smartRoutingForcePlatform(base) {
+		t.Fatal("ordinary HTTP context must not be treated as force-platform")
+	}
+	forced := context.WithValue(base, ctxkey.ForcePlatform, service.PlatformAntigravity)
+	if !smartRoutingForcePlatform(forced) {
+		t.Fatal("explicit force-platform context must disable smart routing")
+	}
+	blank := context.WithValue(base, ctxkey.ForcePlatform, "")
+	if smartRoutingForcePlatform(blank) {
+		t.Fatal("blank force-platform marker must not disable ordinary routing")
 	}
 }
 
@@ -462,7 +905,10 @@ func TestSortRankedGroupsHonorsPersistedOrderOnTies(t *testing.T) {
 }
 
 func TestRankUsesPersistedOrderForEqualScores(t *testing.T) {
-	mainID := int64(1)
+	// Use a primary ID greater than every candidate so this test proves the
+	// primary's implicit priority instead of passing through the group_id
+	// stability fallback.
+	mainID := int64(10)
 	main := &service.Group{
 		ID:               mainID,
 		Name:             "primary",
@@ -486,9 +932,10 @@ func TestRankUsesPersistedOrderForEqualScores(t *testing.T) {
 		accounts[id] = []service.Account{{ID: id, Status: service.StatusActive, Schedulable: true}}
 	}
 	m := &Module{
-		repo:     &Repository{},
-		groups:   &routingGroupRepoStub{groups: groups},
-		accounts: &routingAccountRepoStub{groups: accounts},
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(mainID, 7, 8, 9),
+		groups:          &routingGroupRepoStub{groups: groups},
+		accounts:        &routingAccountRepoStub{groups: accounts},
 	}
 	key := &service.APIKey{ID: 9, GroupID: &mainID, Group: main}
 	profile := &Profile{
@@ -515,5 +962,71 @@ func TestRankUsesPersistedOrderForEqualScores(t *testing.T) {
 	}
 	if want := []int64{mainID, 8, 7, 9}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("eligible ranked groups = %v, want %v", got, want)
+	}
+}
+
+func TestResolveDisablesSmartRoutingAfterRankFailure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	const keyID int64 = 91
+	mock.ExpectQuery("SELECT api_key_id").WithArgs(keyID).WillReturnRows(sqlmock.NewRows([]string{
+		"api_key_id", "enabled", "mode", "strategy", "price_weight", "speed_weight", "success_weight", "sticky_ttl_seconds", "exploration_rate", "version",
+	}).AddRow(keyID, true, "smart", "auto", 40.0, 30.0, 30.0, 1800, 0.05, 1))
+	mock.ExpectQuery("SELECT rg.group_id").WithArgs(keyID).WillReturnRows(sqlmock.NewRows([]string{
+		"group_id", "sort_order", "enabled", "name", "platform",
+	}).AddRow(int64(2), 0, true, "backup", service.PlatformOpenAI))
+
+	primaryID := int64(1)
+	primary := &service.Group{
+		ID:               primaryID,
+		Name:             "primary",
+		Platform:         service.PlatformOpenAI,
+		RateMultiplier:   1,
+		Status:           service.StatusActive,
+		SubscriptionType: "standard",
+	}
+	m := &Module{
+		repo:   NewRepository(db),
+		groups: &routingGroupRepoStub{groups: map[int64]*service.Group{primaryID: primary}},
+		availableGroups: func(context.Context, int64) ([]service.Group, error) {
+			return nil, errors.New("permission backend unavailable")
+		},
+	}
+	key := &service.APIKey{ID: keyID, UserID: 7, GroupID: &primaryID, Group: primary}
+	state := &service.SmartRoutingRequestState{
+		MainGroupID:    primaryID,
+		CurrentGroupID: primaryID,
+		EndpointType:   "chat_completions",
+	}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+
+	decision, err := m.Resolve(ctx, key, "gpt-5", "", nil)
+	if err == nil {
+		t.Fatal("expected rank failure")
+	}
+	if decision != nil {
+		t.Fatalf("decision = %#v, want nil on rank failure", decision)
+	}
+	if state.SmartRoutingActive {
+		t.Fatal("SmartRoutingActive must be cleared after rank failure")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations: %v", err)
+	}
+}
+
+func TestResolveDisablesSmartRoutingWhenRepositoryUnavailable(t *testing.T) {
+	state := &service.SmartRoutingRequestState{SmartRoutingActive: true}
+	ctx := service.WithSmartRoutingState(context.Background(), state)
+	_, err := (&Module{}).Resolve(ctx, &service.APIKey{}, "gpt-5", "", nil)
+	if err == nil {
+		t.Fatal("expected repository-unavailable error")
+	}
+	if state.SmartRoutingActive {
+		t.Fatal("SmartRoutingActive must be cleared when repository is unavailable")
 	}
 }

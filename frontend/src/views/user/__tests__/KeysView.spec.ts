@@ -12,6 +12,10 @@ const {
   getAvailableGroups,
   getUserGroupRates,
   getSmartRouting,
+  getKeyById,
+  updateKey,
+  updateSmartRouting,
+  previewSmartRouting,
   showError,
   showSuccess,
   copyToClipboard,
@@ -24,6 +28,10 @@ const {
   getAvailableGroups: vi.fn(),
   getUserGroupRates: vi.fn(),
   getSmartRouting: vi.fn(),
+  getKeyById: vi.fn(),
+  updateKey: vi.fn(),
+  updateSmartRouting: vi.fn(),
+  previewSmartRouting: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   copyToClipboard: vi.fn(),
@@ -33,9 +41,13 @@ const {
 
 const messages: Record<string, string> = {
   'common.actions': 'Actions',
+  'common.cancel': 'Cancel',
+  'common.create': 'Create',
+  'common.edit': 'Edit',
   'common.name': 'Name',
   'common.refresh': 'Refresh',
   'common.status': 'Status',
+  'common.update': 'Update',
   'keys.apiKey': 'API Key',
   'keys.allGroups': 'All Groups',
   'keys.allStatus': 'All Status',
@@ -45,6 +57,9 @@ const messages: Record<string, string> = {
   'keys.expiresAt': 'Expires',
   'keys.group': 'Group',
   'keys.routingListLabel': 'Routing',
+  'keys.routingLoadFailed': 'Routing configuration could not be loaded.',
+  'keys.routingCandidatesRequired': 'Smart routing requires at least one candidate group.',
+  'keys.routingCandidateInvalid': 'Smart routing candidate groups are not compatible.',
   'keys.routingSummaryUnavailable': 'Unavailable',
   'keys.routingSummaryLoading': 'Loading',
   'keys.routingCandidateCountSuffix': ' selected',
@@ -69,7 +84,8 @@ vi.mock('@/api', () => ({
   keysAPI: {
     list: listKeys,
     create: vi.fn(),
-    update: vi.fn(),
+    getById: getKeyById,
+    update: updateKey,
     delete: vi.fn(),
     toggleStatus: vi.fn(),
   },
@@ -107,8 +123,8 @@ vi.mock('@/composables/useClipboard', () => ({
 
 vi.mock('@/custom/modules/smart-routing/api', () => ({
   getSmartRouting,
-  updateSmartRouting: vi.fn(),
-  previewSmartRouting: vi.fn(),
+  updateSmartRouting,
+  previewSmartRouting,
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -186,6 +202,9 @@ const DataTableStub = {
           <slot name="cell-id" :value="row.id" :row="row" />
         </div>
         <slot name="cell-name" :value="row.name" :row="row" />
+        <div v-if="columns.some((col) => col.key === 'group')" data-test="key-group">
+          <slot name="cell-group" :row="row" />
+        </div>
         <div v-if="columns.some((col) => col.key === 'routing')" data-test="routing-summary">
           <slot name="cell-routing" :row="row" />
         </div>
@@ -197,6 +216,9 @@ const DataTableStub = {
           data-test="last-used-ip"
         >
           <slot name="cell-last_used_ip" :value="row.last_used_ip" :row="row" />
+        </div>
+        <div data-test="key-actions">
+          <slot name="cell-actions" :row="row" />
         </div>
       </div>
       <slot name="empty" />
@@ -234,6 +256,24 @@ const IconStub = {
   template: '<span data-test="icon">{{ name }}</span>',
 }
 
+const GroupOptionItemStub = {
+  props: ['name', 'description'],
+  template: '<span>{{ name }} {{ description }}</span>',
+}
+
+const BaseDialogStub = {
+  name: 'BaseDialog',
+  props: ['show', 'title'],
+  emits: ['close'],
+  template: `
+    <div v-if="show" data-test="base-dialog">
+      <h3>{{ title }}</h3>
+      <slot />
+      <slot name="footer" />
+    </div>
+  `,
+}
+
 const mountView = async () => {
   const wrapper = mount(KeysView, {
     global: {
@@ -242,7 +282,7 @@ const mountView = async () => {
         TablePageLayout: TablePageLayoutStub,
         DataTable: DataTableStub,
         Pagination: PaginationStub,
-        BaseDialog: true,
+        BaseDialog: BaseDialogStub,
         ConfirmDialog: true,
         EmptyState: true,
         Select: SelectStub,
@@ -251,7 +291,7 @@ const mountView = async () => {
         UseKeyModal: true,
         EndpointPopover: true,
         GroupBadge: true,
-        GroupOptionItem: true,
+        GroupOptionItem: GroupOptionItemStub,
         Teleport: true,
       },
     },
@@ -285,6 +325,10 @@ describe('user KeysView column settings', () => {
     getAvailableGroups.mockReset()
     getUserGroupRates.mockReset()
     getSmartRouting.mockReset()
+    getKeyById.mockReset()
+    updateKey.mockReset()
+    updateSmartRouting.mockReset()
+    previewSmartRouting.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
     copyToClipboard.mockReset()
@@ -430,7 +474,7 @@ describe('user KeysView column settings', () => {
   })
 
   it('renders smart routing mode and enabled candidate count in the list', async () => {
-    getSmartRouting.mockResolvedValueOnce({
+    getSmartRouting.mockResolvedValue({
       api_key_id: 1,
       enabled: true,
       mode: 'smart',
@@ -462,6 +506,447 @@ describe('user KeysView column settings', () => {
 
     expect(wrapper.get('[data-test="routing-summary"]').text()).toContain('Unavailable')
     expect(wrapper.get('[data-test="routing-summary"]').text()).not.toContain('Single group')
+  })
+
+  it('shows a profile load error and disables save even while edit mode remains single-group', async () => {
+    const key = { ...createApiKey(), group_id: 42 }
+    listKeys.mockResolvedValueOnce({
+      items: [key],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    getAvailableGroups.mockResolvedValueOnce([{
+      id: 42,
+      name: 'Primary',
+      status: 'active',
+      platform: 'openai',
+      subscription_type: 'standard',
+      rate_multiplier: 1,
+    }])
+    getSmartRouting.mockRejectedValue(new Error('routing unavailable'))
+
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Edit').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('.routing-profile-error').text()).toContain('Routing configuration could not be loaded.')
+    expect((wrapper.get('[data-tour="key-form-submit"]').element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('ignores a stale routing preview response after a newer preview starts', async () => {
+    const key = {
+      ...createApiKey(),
+      group_id: 42,
+      group: {
+        id: 42,
+        name: 'Primary',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+      },
+    }
+    const secondKey = {
+      ...key,
+      id: 2,
+      name: 'second-key',
+      key: 'sk-second-key',
+    }
+    listKeys.mockResolvedValueOnce({ items: [key, secondKey], total: 2, page: 1, page_size: 20, pages: 1 })
+    getAvailableGroups.mockResolvedValueOnce([{
+      id: 42,
+      name: 'Primary',
+      status: 'active',
+      platform: 'openai',
+      subscription_type: 'standard',
+      rate_multiplier: 1,
+    }])
+    getSmartRouting.mockResolvedValue({
+      api_key_id: key.id,
+      enabled: true,
+      mode: 'smart',
+      strategy: 'auto',
+      price_weight: 40,
+      speed_weight: 30,
+      success_weight: 30,
+      sticky_ttl_seconds: 1800,
+      exploration_rate: 0.05,
+      version: 2,
+      groups: [],
+    })
+
+    let resolveOld!: (value: { groups: unknown[] }) => void
+    let resolveNew!: (value: { groups: unknown[] }) => void
+    previewSmartRouting.mockImplementation((_keyId: number, model: string) => new Promise((resolve) => {
+      if (model === 'old-model') resolveOld = resolve
+      else resolveNew = resolve
+    }))
+
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Edit').trigger('click')
+    await flushPromises()
+    await wrapper.get('.routing-preview-toggle').trigger('click')
+
+    const input = wrapper.get('.routing-preview-input')
+    const previewButton = wrapper.get('.routing-preview-button')
+    await input.setValue('old-model')
+    await previewButton.trigger('click')
+
+    // Closing the first editor and opening another key invalidates the first
+    // request. Its late response must not paint into the second editor.
+    await getButtonByText(wrapper, 'Cancel').trigger('click')
+    const editButtons = wrapper.findAll('button').filter((button) => button.text().includes('Edit'))
+    await editButtons[1].trigger('click')
+    await flushPromises()
+    await wrapper.get('.routing-preview-toggle').trigger('click')
+    const secondInput = wrapper.get('.routing-preview-input')
+    const secondPreviewButton = wrapper.get('.routing-preview-button')
+    await secondInput.setValue('new-model')
+    await secondPreviewButton.trigger('click')
+
+    resolveOld({ groups: [{ group_id: 11, name: 'Old result', eligible: true, score: 1, success_rate: 1, speed_ms: 10, samples: 20 }] })
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Old result')
+
+    resolveNew({ groups: [{ group_id: 12, name: 'New result', eligible: true, score: 2, success_rate: 1, speed_ms: 10, samples: 20 }] })
+    await flushPromises()
+    expect(wrapper.text()).toContain('New result')
+    expect(wrapper.text()).not.toContain('Old result')
+  })
+
+  it('keeps routing disabled when an inline primary-group update may have committed before timeout', async () => {
+    const key = {
+      ...createApiKey(),
+      group_id: 42,
+      group: {
+        id: 42,
+        name: 'Primary',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+      },
+    }
+    const primary = {
+      id: 42,
+      name: 'Primary',
+      status: 'active',
+      platform: 'openai',
+      subscription_type: 'standard',
+      rate_multiplier: 1,
+    }
+    const candidate = {
+      id: 43,
+      name: 'Candidate',
+      status: 'active',
+      platform: 'openai',
+      subscription_type: 'standard',
+      rate_multiplier: 1,
+    }
+    const profile = {
+      api_key_id: 1,
+      enabled: true,
+      mode: 'smart' as const,
+      strategy: 'auto' as const,
+      price_weight: 40,
+      speed_weight: 30,
+      success_weight: 30,
+      sticky_ttl_seconds: 1800,
+      exploration_rate: 0.05,
+      version: 2,
+      groups: [{ group_id: 43, sort_order: 0, enabled: true }],
+    }
+    listKeys.mockResolvedValueOnce({
+      items: [key],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    getAvailableGroups.mockResolvedValueOnce([primary, candidate])
+    getSmartRouting.mockResolvedValue(profile)
+    updateSmartRouting.mockResolvedValueOnce({ ...profile, enabled: false, mode: 'single', version: 3, groups: [] })
+    updateKey.mockRejectedValueOnce(new Error('network timeout'))
+    // The group update may have committed even though the client saw a timeout.
+    getKeyById.mockResolvedValue({ ...key, group_id: 43 })
+
+    const wrapper = await mountView()
+    await wrapper.get('button[title="keys.clickToChangeGroup"]').trigger('click')
+    await nextTick()
+
+    const candidateButton = wrapper.findAll('button').find((button) => button.text().includes('Candidate'))
+    expect(candidateButton).toBeDefined()
+    await candidateButton!.trigger('click')
+    await flushPromises()
+
+    expect(getKeyById).toHaveBeenCalledWith(1)
+    expect(updateSmartRouting).toHaveBeenCalledTimes(1)
+    expect(updateSmartRouting.mock.calls[0][0]).toBe(1)
+    expect(updateSmartRouting.mock.calls[0][1]).toMatchObject({ enabled: false, mode: 'single', group_ids: [] })
+    expect(showError).toHaveBeenCalled()
+  })
+
+  it('persists the candidate order produced by drag sorting', async () => {
+    const key = {
+      ...createApiKey(),
+      group_id: 42,
+      group: {
+        id: 42,
+        name: 'Primary',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+      },
+    }
+    const groups = [
+      { id: 42, name: 'Primary', status: 'active', platform: 'openai', subscription_type: 'standard', rate_multiplier: 1 },
+      { id: 43, name: 'Candidate A', status: 'active', platform: 'openai', subscription_type: 'standard', rate_multiplier: 1 },
+      { id: 44, name: 'Candidate B', status: 'active', platform: 'openai', subscription_type: 'standard', rate_multiplier: 1 },
+    ]
+    const profile = {
+      api_key_id: 1,
+      enabled: true,
+      mode: 'smart' as const,
+      strategy: 'auto' as const,
+      price_weight: 40,
+      speed_weight: 30,
+      success_weight: 30,
+      sticky_ttl_seconds: 1800,
+      exploration_rate: 0.05,
+      version: 2,
+      groups: [
+        { group_id: 43, sort_order: 0, enabled: true },
+        { group_id: 44, sort_order: 1, enabled: true },
+      ],
+    }
+    listKeys.mockResolvedValueOnce({ items: [key], total: 1, page: 1, page_size: 20, pages: 1 })
+    getAvailableGroups.mockResolvedValueOnce(groups)
+    getSmartRouting.mockResolvedValue(profile)
+    updateKey.mockResolvedValueOnce(key)
+    updateSmartRouting.mockResolvedValueOnce({
+      ...profile,
+      version: 3,
+      groups: [
+        { group_id: 44, sort_order: 0, enabled: true },
+        { group_id: 43, sort_order: 1, enabled: true },
+      ],
+    })
+
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Edit').trigger('click')
+    await flushPromises()
+
+    const rows = wrapper.findAll('.routing-selected-row')
+    const handles = wrapper.findAll('.routing-drag-handle')
+    expect(rows).toHaveLength(2)
+    expect(handles).toHaveLength(2)
+
+    const dataTransfer = {
+      setData: vi.fn(),
+      effectAllowed: 'none',
+      dropEffect: 'none',
+    } as unknown as DataTransfer
+    await handles[0].trigger('dragstart', { dataTransfer })
+    await rows[1].trigger('dragover', { clientY: 1, dataTransfer })
+    await rows[1].trigger('drop', { dataTransfer })
+    await nextTick()
+
+    const reorderedRows = wrapper.findAll('.routing-selected-row')
+    expect(reorderedRows[0].text()).toContain('Candidate B')
+    expect(reorderedRows[1].text()).toContain('Candidate A')
+
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+
+    expect(updateSmartRouting).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ version: 2, group_ids: [44, 43] })
+    )
+  })
+
+  it('defers the empty-candidate validation until smart-mode submit is attempted', async () => {
+    getAvailableGroups.mockResolvedValueOnce([
+      {
+        id: 42,
+        name: 'Primary',
+        status: 'active',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+      },
+      {
+        id: 43,
+        name: 'Candidate',
+        status: 'active',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+      },
+    ])
+
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Create API Key').trigger('click')
+    await nextTick()
+
+    const selects = wrapper.get('[data-test="base-dialog"]').findAllComponents({ name: 'Select' })
+    await selects[0].vm.$emit('update:modelValue', 42)
+    await nextTick()
+    await wrapper.get('[data-routing-mode="smart"]').trigger('click')
+    await nextTick()
+
+    expect(wrapper.find('.routing-candidates-block .routing-validation-error').exists()).toBe(false)
+
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('.routing-candidates-block .routing-validation-error').text()).toContain('Smart routing requires at least one candidate group.')
+  })
+
+  it('strictly excludes cross-platform and composite groups from OpenAI routing', async () => {
+    const key = {
+      ...createApiKey(),
+      group_id: 42,
+      group: {
+        id: 42,
+        name: 'OpenAI Primary',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+      },
+    }
+    const groups = [
+      { id: 42, name: 'OpenAI Primary', status: 'active', platform: 'openai', subscription_type: 'standard', rate_multiplier: 1 },
+      { id: 43, name: 'OpenAI Candidate', status: 'active', platform: 'openai', subscription_type: 'standard', rate_multiplier: 1 },
+      { id: 44, name: 'Gemini Candidate', status: 'active', platform: 'gemini', subscription_type: 'standard', rate_multiplier: 1 },
+      { id: 45, name: 'Anthropic Candidate', status: 'active', platform: 'anthropic', subscription_type: 'standard', rate_multiplier: 1 },
+      { id: 46, name: 'Composite Candidate', status: 'active', platform: 'composite', subscription_type: 'standard', rate_multiplier: 1 },
+      { id: 47, name: 'OpenAI Subscription Candidate', status: 'active', platform: 'openai', subscription_type: 'subscription', rate_multiplier: 1 },
+    ]
+    listKeys.mockResolvedValueOnce({ items: [key], total: 1, page: 1, page_size: 20, pages: 1 })
+    getAvailableGroups.mockResolvedValueOnce(groups)
+    getSmartRouting.mockResolvedValue({
+      api_key_id: 1,
+      enabled: false,
+      mode: 'single',
+      strategy: 'auto',
+      price_weight: 40,
+      speed_weight: 30,
+      success_weight: 30,
+      sticky_ttl_seconds: 1800,
+      exploration_rate: 0.05,
+      version: 1,
+      groups: [],
+    })
+
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Edit').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-routing-mode="smart"]').trigger('click')
+    await nextTick()
+
+    const candidateSelect = wrapper.get('.routing-add-select').findComponent({ name: 'Select' })
+    const options = candidateSelect.props('options') as Array<{ value: number; label: string }>
+    expect(options.map((option) => option.value)).toEqual([43])
+    expect(options.map((option) => option.label)).toEqual(['OpenAI Candidate'])
+    expect(wrapper.text()).not.toContain('Gemini Candidate')
+    expect(wrapper.text()).not.toContain('Anthropic Candidate')
+    expect(wrapper.text()).not.toContain('Composite Candidate')
+  })
+
+  it('blocks saving a stale cross-platform candidate from an OpenAI key', async () => {
+    const key = {
+      ...createApiKey(),
+      group_id: 42,
+      group: {
+        id: 42,
+        name: 'OpenAI Primary',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+      },
+    }
+    const groups = [
+      { id: 42, name: 'OpenAI Primary', status: 'active', platform: 'openai', subscription_type: 'standard', rate_multiplier: 1 },
+      { id: 44, name: 'Gemini Candidate', status: 'active', platform: 'gemini', subscription_type: 'standard', rate_multiplier: 1 },
+    ]
+    listKeys.mockResolvedValueOnce({ items: [key], total: 1, page: 1, page_size: 20, pages: 1 })
+    getAvailableGroups.mockResolvedValueOnce(groups)
+    getSmartRouting.mockResolvedValue({
+      api_key_id: 1,
+      enabled: true,
+      mode: 'smart',
+      strategy: 'auto',
+      price_weight: 40,
+      speed_weight: 30,
+      success_weight: 30,
+      sticky_ttl_seconds: 1800,
+      exploration_rate: 0.05,
+      version: 2,
+      groups: [{ group_id: 44, sort_order: 0, enabled: true }],
+    })
+
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Edit').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.routing-selected-row.invalid').exists()).toBe(true)
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith('Smart routing candidate groups are not compatible.')
+    expect(updateKey).not.toHaveBeenCalled()
+    expect(updateSmartRouting).not.toHaveBeenCalled()
+  })
+
+  it('only renders the mobile weight editor for the custom strategy', async () => {
+    getAvailableGroups.mockResolvedValueOnce([
+      {
+        id: 42,
+        name: 'Primary',
+        status: 'active',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+      },
+      {
+        id: 43,
+        name: 'Candidate',
+        status: 'active',
+        platform: 'openai',
+        subscription_type: 'standard',
+        rate_multiplier: 1,
+      },
+    ])
+
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Create API Key').trigger('click')
+    await nextTick()
+
+    const selects = wrapper.get('[data-test="base-dialog"]').findAllComponents({ name: 'Select' })
+    await selects[0].vm.$emit('update:modelValue', 42)
+    await wrapper.get('[data-routing-mode="smart"]').trigger('click')
+    await nextTick()
+
+    expect(wrapper.find('.routing-mobile-weight-editor').exists()).toBe(false)
+
+    await wrapper.get('[data-routing-strategy="custom"]').trigger('click')
+    await nextTick()
+    expect(wrapper.find('.routing-mobile-weight-editor').exists()).toBe(true)
+  })
+
+  it('keeps the primary group before the smart-routing workspace', async () => {
+    const wrapper = await mountView()
+    await getButtonByText(wrapper, 'Create API Key').trigger('click')
+    await wrapper.get('[data-routing-mode="smart"]').trigger('click')
+    await nextTick()
+
+    const formChildren = Array.from(wrapper.get('#key-form').element.children)
+    const primaryGroupIndex = formChildren.indexOf(wrapper.get('.routing-primary-group').element)
+    const routingPanelIndex = formChildren.indexOf(wrapper.get('.routing-panel').element)
+
+    expect(primaryGroupIndex).toBeGreaterThanOrEqual(0)
+    expect(routingPanelIndex).toBeGreaterThan(primaryGroupIndex)
   })
 
   it('marks current concurrency as sortable', async () => {

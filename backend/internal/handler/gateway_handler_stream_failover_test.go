@@ -120,3 +120,46 @@ func TestStreamWrittenGuard_NoByteWritten_GuardNotTriggered(t *testing.T) {
 	require.False(t, guardTriggered,
 		"未写入任何字节时，守卫条件必须为 false，应允许正常 failover 继续")
 }
+
+func TestGatewayStreamSemanticOutputStarted_IgnoresOnlyHeartbeats(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, tc := range []struct {
+		name      string
+		heartbeat string
+	}{
+		{name: "comment", heartbeat: ": keepalive\n\n"},
+		{name: "anthropic_ping_event", heartbeat: "event: ping\ndata: {\"type\":\"ping\"}\n\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+			// Concurrency and user-message queue waits may commit an SSE response
+			// with keepalive frames before an upstream account is selected. Those
+			// bytes do not expose model output and must not block smart-routing
+			// failover.
+			written, err := c.Writer.Write([]byte(tc.heartbeat))
+			require.NoError(t, err)
+			recordGatewayStreamHeartbeat(c, written)
+			require.False(t, gatewayStreamSemanticOutputStarted(c))
+
+			_, err = c.Writer.Write([]byte("data: semantic\n\n"))
+			require.NoError(t, err)
+			require.True(t, gatewayStreamSemanticOutputStarted(c),
+				"any semantic SSE bytes must block cross-group replay")
+		})
+	}
+}
+
+func TestGatewayStreamSemanticOutputStartedTreatsUntrackedBytesAsOutput(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	_, err := c.Writer.Write([]byte("data: untracked\n\n"))
+	require.NoError(t, err)
+	require.True(t, gatewayStreamSemanticOutputStarted(c),
+		"untracked bytes must remain conservative and block cross-group replay")
+}

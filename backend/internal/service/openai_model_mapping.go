@@ -2,6 +2,98 @@ package service
 
 import "strings"
 
+// knownForeignModelFamilyForModel returns the well-known upstream model
+// family encoded in model. It intentionally recognizes only families whose
+// protocol/provider ownership is unambiguous; unknown names remain eligible
+// for OpenAI-compatible custom providers.
+//
+// Model IDs are not guaranteed to use one canonical spelling. In addition to
+// the usual "gemini-*" / "claude-*" forms, providers commonly expose IDs such
+// as "google/gemini-*", "models/gemini-*", "anthropic/claude-*", and
+// compact aliases such as "gemini3-*" / "claude3-*". The classifier checks
+// path/namespace segments while preserving boundaries so names like
+// "geminix-proxy" and "claudette" are not misclassified.
+func knownForeignModelFamilyForModel(model string) string {
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	if normalized == "" {
+		return ""
+	}
+
+	// Bedrock IDs carry the provider namespace before the model name. Keep the
+	// explicit prefixes for compatibility with the existing dispatch guard,
+	// including IDs whose model segment is not yet in our family table.
+	for _, prefix := range []struct {
+		prefix string
+		family string
+	}{
+		{prefix: "anthropic.", family: "anthropic"},
+		{prefix: "amazon.", family: "anthropic"},
+		{prefix: "us.anthropic.", family: "anthropic"},
+		{prefix: "global.anthropic.", family: "anthropic"},
+	} {
+		if strings.HasPrefix(normalized, prefix.prefix) {
+			return prefix.family
+		}
+	}
+
+	// Slash, dot, colon, and underscore are namespace/variant separators in
+	// the model IDs seen in the gateway. Hyphens stay inside a segment so the
+	// boundary checks below can distinguish gemini-* from geminix-*.
+	segments := strings.FieldsFunc(normalized, func(r rune) bool {
+		switch r {
+		case '/', '.', ':', '_':
+			return true
+		default:
+			return false
+		}
+	})
+	for _, segment := range segments {
+		switch {
+		case modelFamilyPrefixMatch(segment, "gemini"):
+			return "gemini"
+		case modelFamilyPrefixMatch(segment, "claude"):
+			return "anthropic"
+		}
+	}
+
+	return ""
+}
+
+func modelFamilyPrefixMatch(segment, family string) bool {
+	if segment == family {
+		return true
+	}
+	if !strings.HasPrefix(segment, family) {
+		return false
+	}
+	rest := segment[len(family):]
+	if rest == "" {
+		return true
+	}
+	// A hyphen or a numeric suffix covers the ordinary and compact forms
+	// (gemini-2.5, gemini3, claude3-opus). Do not reject arbitrary aliases that
+	// merely happen to begin with the family spelling (for example geminix).
+	return rest[0] == '-' || (rest[0] >= '0' && rest[0] <= '9')
+}
+
+// SmartRoutingAccountModelCompatible rejects an account-level mapping that
+// would send an OpenAI/GPT request to a known foreign provider family. It is
+// intentionally scoped to smart-routing admission; ordinary account mapping
+// behavior remains unchanged for legacy single-group requests.
+func SmartRoutingAccountModelCompatible(account *Account, requestedModel string) bool {
+	if account == nil || strings.TrimSpace(requestedModel) == "" {
+		return account != nil
+	}
+	if account.Platform != PlatformOpenAI && account.Platform != PlatformGrok {
+		return true
+	}
+	mapped, matched := account.ResolveMappedModel(requestedModel)
+	if !matched {
+		return true
+	}
+	return knownForeignModelFamilyForModel(mapped) == ""
+}
+
 // resolveOpenAIForwardModel 解析 OpenAI 兼容转发使用的模型。
 // messagesDispatchMappedModel 是调用方已为 /v1/messages 解析的显式调度结果；
 // 普通 OpenAI 请求必须传空，避免将分组配置作为通用模型兜底。

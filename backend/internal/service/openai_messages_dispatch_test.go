@@ -60,6 +60,71 @@ func TestNormalizeOpenAIMessagesDispatchModelConfig(t *testing.T) {
 	}, cfg.ExactModelMappings)
 }
 
+func TestNormalizeOpenAIMessagesDispatchModelConfigRejectsForeignModelFamilies(t *testing.T) {
+	t.Parallel()
+
+	cfg := normalizeOpenAIMessagesDispatchModelConfig(OpenAIMessagesDispatchModelConfig{
+		OpusMappedModel:   "gemini-3.1-pro",
+		SonnetMappedModel: "claude-sonnet-4-6",
+		HaikuMappedModel:  "us.anthropic.claude-haiku-4-5-v1:0",
+		ExactModelMappings: map[string]string{
+			"claude-opus-4-6":   "gemini-3.1-pro",
+			"claude-sonnet-4-6": "gpt-5.4",
+		},
+	})
+
+	require.Empty(t, cfg.OpusMappedModel)
+	require.Empty(t, cfg.SonnetMappedModel)
+	require.Empty(t, cfg.HaikuMappedModel)
+	require.Equal(t, map[string]string{"claude-sonnet-4-6": "gpt-5.4"}, cfg.ExactModelMappings)
+}
+
+func TestSmartRoutingAccountModelCompatibleRejectsForeignMappingOnlyForRoutedAdmission(t *testing.T) {
+	t.Parallel()
+
+	foreign := []string{"gemini-3.1-pro", "google/gemini-2.5-pro", "models/gemini-2.5-flash", "claude3-opus", "anthropic/claude-sonnet-4-6", "us.anthropic.claude-3"}
+	for _, mapped := range foreign {
+		account := &Account{Platform: PlatformOpenAI, Credentials: map[string]any{
+			"model_mapping": map[string]any{"gpt-5": mapped},
+		}}
+		if SmartRoutingAccountModelCompatible(account, "gpt-5") {
+			t.Fatalf("foreign mapping %q was accepted", mapped)
+		}
+	}
+
+	custom := &Account{Platform: PlatformOpenAI, Credentials: map[string]any{
+		"model_mapping": map[string]any{"gpt-5": "my-openai-compatible-model"},
+	}}
+	if !SmartRoutingAccountModelCompatible(custom, "gpt-5") {
+		t.Fatal("unknown OpenAI-compatible mapping should remain allowed")
+	}
+	anthropic := &Account{Platform: PlatformAnthropic, Credentials: map[string]any{
+		"model_mapping": map[string]any{"claude-sonnet-4-6": "claude-sonnet-4-6"},
+	}}
+	if !SmartRoutingAccountModelCompatible(anthropic, "claude-sonnet-4-6") {
+		t.Fatal("helper must not reject native Anthropic mappings")
+	}
+}
+
+func TestGroupResolveMessagesDispatchModelCannotDispatchToForeignPlatformModel(t *testing.T) {
+	t.Parallel()
+
+	group := &Group{
+		Platform: PlatformOpenAI,
+		MessagesDispatchModelConfig: OpenAIMessagesDispatchModelConfig{
+			OpusMappedModel: "gemini-3.1-pro",
+			ExactModelMappings: map[string]string{
+				"claude-special": "claude-opus-4-6",
+			},
+		},
+	}
+
+	// A rejected family-specific override falls back to the built-in OpenAI
+	// target. A rejected exact mapping has no safe fallback and is ignored.
+	require.Equal(t, defaultOpenAIMessagesDispatchOpusMappedModel, group.ResolveMessagesDispatchModel("claude-opus-4-6"))
+	require.Empty(t, group.ResolveMessagesDispatchModel("claude-special"))
+}
+
 func TestGroupResolveMessagesDispatchModel_GrokRequiresCrossClientMapping(t *testing.T) {
 	original := xai.RuntimeModelMappingOptions()
 	t.Cleanup(func() { xai.SetRuntimeModelMappingOptions(original) })

@@ -632,6 +632,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		fs := NewFailoverState(h.maxAccountSwitches, hasBoundSession)
 		retryWithFallback := false
 
+	smartRoutingAttempt:
 		for {
 			attemptParsedReq, err := parsedReq.CloneForBody(body)
 			if err != nil {
@@ -674,13 +675,21 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				action := fs.HandleSelectionExhausted(c.Request.Context())
 				switch action {
 				case FailoverContinue:
-					ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
+					ctx := service.WithSingleAccountRetry(
+						c.Request.Context(),
+						h.gatewayService.IsSingleAntigravityAccountGroup(c.Request.Context(), currentAPIKey.GroupID),
+						h.metadataBridgeEnabled(),
+					)
 					c.Request = c.Request.WithContext(ctx)
 					continue
 				case FailoverCanceled:
 					failoverClientGone(c)
 					return
 				default: // FailoverExhausted
+					if service.TrySmartRoutingGroupFailover(c.Request.Context(), fs.LastFailoverErr, gatewayStreamSemanticOutputStarted(c)) {
+						retryWithFallback = true
+						break smartRoutingAttempt
+					}
 					if fs.LastFailoverErr != nil {
 						h.handleFailoverExhausted(c, fs.LastFailoverErr, platform, streamStarted)
 					} else {
@@ -695,6 +704,14 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				selectedCtx := service.WithGroupContext(c.Request.Context(), currentAPIKey.Group)
 				selectedCtx = h.gatewayService.WithGatewayGroupPricingContext(selectedCtx, currentAPIKey.GroupID, pricingAt)
 				attemptChannelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(selectedCtx, currentAPIKey.GroupID, reqModel)
+				// SingleAccountRetry is scoped to the selected group's Antigravity
+				// account pool. Refresh it after smart routing so a candidate does not
+				// inherit the primary group's single-account behavior.
+				selectedCtx = service.WithSingleAccountRetry(
+					selectedCtx,
+					h.gatewayService.IsSingleAntigravityAccountGroup(selectedCtx, currentAPIKey.GroupID),
+					h.metadataBridgeEnabled(),
+				)
 				c.Request = c.Request.WithContext(selectedCtx)
 				parsedReq.GroupID = currentAPIKey.GroupID
 			}
@@ -1029,6 +1046,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					case FailoverContinue:
 						continue
 					case FailoverExhausted:
+						if service.TrySmartRoutingGroupFailover(c.Request.Context(), fs.LastFailoverErr, gatewayStreamSemanticOutputStarted(c)) {
+							retryWithFallback = true
+							break smartRoutingAttempt
+						}
 						h.handleFailoverExhausted(c, fs.LastFailoverErr, account.Platform, streamStarted)
 						return
 					case FailoverCanceled:

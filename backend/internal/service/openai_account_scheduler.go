@@ -1800,6 +1800,10 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 	if req.RequestedModel != "" && !account.IsModelSupported(req.RequestedModel) {
 		return false, "model_not_supported"
 	}
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive &&
+		!SmartRoutingAccountModelCompatible(account, req.RequestedModel) {
+		return false, "smart_routing_foreign_model_mapping"
+	}
 	if req.GroupID != nil && s != nil && s.service != nil &&
 		s.service.needsUpstreamChannelRestrictionCheck(ctx, req.GroupID) &&
 		s.service.isUpstreamModelRestrictedByChannel(ctx, *req.GroupID, account, req.RequestedModel, req.RequireCompact) {
@@ -2161,20 +2165,36 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 			state.PrimaryGroupSnapshot = primaryGroupSnapshot
 		}
 	}
+	// apiKey.Group is mutable across retries. Freeze the primary platform and
+	// subscription contract separately so a stale resolver result cannot cross
+	// into Gemini/Anthropic/Composite after the candidate is reloaded.
+	primaryRoutingGroup := primaryGroupSnapshot
+	if (primaryRoutingGroup == nil || primaryRoutingGroup.ID != primaryGroupID) && s.channelService != nil && s.channelService.groupRepo != nil {
+		if primary, err := s.channelService.groupRepo.GetByIDLite(ctx, primaryGroupID); err == nil && primary != nil && primary.ID == primaryGroupID {
+			primaryRoutingGroup = primary
+		}
+	}
+	currentCandidateCompatible := func(candidateID int64) bool {
+		if candidateID == primaryGroupID {
+			return true
+		}
+		candidate, err := s.channelService.groupRepo.GetByIDLite(ctx, candidateID)
+		// A group may be disabled between ranking and admission. It must fail
+		// closed at this second read instead of entering the account scheduler.
+		return err == nil && candidate != nil && candidate.Status == StatusActive && SmartRoutingGroupsCompatible(primaryRoutingGroup, candidate)
+	}
 	restorePrimary := func() *int64 {
 		resolved := primaryGroupID
 		// Do not leave a billing-rejected candidate on the mutable API key. The
 		// group object is restored with the ID so usage recording retains the
 		// primary subscription context during a later async callback.
+		var currentPrimary *Group
 		if s.channelService != nil && s.channelService.groupRepo != nil {
-			if primary, err := s.channelService.groupRepo.GetByIDLite(ctx, primaryGroupID); err == nil && primary != nil {
-				apiKey.Group = primary
-			} else if primaryGroupSnapshot != nil && primaryGroupSnapshot.ID == primaryGroupID {
-				apiKey.Group = primaryGroupSnapshot
+			if primary, err := s.channelService.groupRepo.GetByIDLite(ctx, primaryGroupID); err == nil {
+				currentPrimary = primary
 			}
-		} else if primaryGroupSnapshot != nil && primaryGroupSnapshot.ID == primaryGroupID {
-			apiKey.Group = primaryGroupSnapshot
 		}
+		apiKey.Group = SmartRoutingPrimaryRestoreGroup(primaryGroupSnapshot, currentPrimary, primaryGroupID)
 		// A retry may pass the primary ID while apiKey.Group still references a
 		// previously selected candidate. Never leave those fields divergent.
 		if apiKey.Group == nil || apiKey.Group.ID != primaryGroupID {
@@ -2186,7 +2206,48 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 		}
 		return &resolved
 	}
+	// Re-read the authenticated primary before admitting a candidate. The
+	// resolver's ranking snapshot can race an administrator changing the
+	// primary group platform, subscription type, or row identity; continuing
+	// with the old contract could route an OpenAI request into Gemini/Anthropic
+	// billing. Fail closed to the primary when the fresh contract is missing or
+	// changed.
+	refreshPrimaryContract := func() bool {
+		if primaryRoutingGroup == nil || s.channelService == nil || s.channelService.groupRepo == nil {
+			MarkSmartRoutingContractInvalid(ctx)
+			return false
+		}
+		current, err := s.channelService.groupRepo.GetByIDLite(ctx, primaryGroupID)
+		if err != nil || current == nil {
+			MarkSmartRoutingContractInvalid(ctx)
+			slog.Warn("smart_routing.primary_contract_unavailable",
+				"api_key_id", apiKey.ID,
+				"group_id", primaryGroupID,
+				"error", err,
+			)
+			return false
+		}
+		if !SmartRoutingPrimaryContractMatches(primaryRoutingGroup, current, primaryGroupID) {
+			MarkSmartRoutingContractInvalid(ctx)
+			slog.Warn("smart_routing.primary_contract_changed",
+				"api_key_id", apiKey.ID,
+				"group_id", primaryGroupID,
+				"snapshot_platform", primaryRoutingGroup.Platform,
+				"current_platform", current.Platform,
+				"snapshot_subscription_type", primaryRoutingGroup.SubscriptionType,
+				"current_subscription_type", current.SubscriptionType,
+			)
+			return false
+		}
+		return true
+	}
+	if !refreshPrimaryContract() {
+		return restorePrimary()
+	}
 	for attempts := 0; attempts < 10; attempts++ {
+		if !refreshPrimaryContract() {
+			return restorePrimary()
+		}
 		decision, err := s.smartRoutingResolver.Resolve(ctx, apiKey, requestedModel, sessionHash, excludedIDs)
 		if err != nil || decision == nil || decision.GroupID <= 0 {
 			return restorePrimary()
@@ -2196,13 +2257,58 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 		// the same; doing so would bypass the existing group's remaining accounts
 		// and can change the request's billing group.
 		if decision.GroupID == *groupID {
+			if !currentCandidateCompatible(decision.GroupID) {
+				if state := SmartRoutingStateFromContext(ctx); state != nil {
+					if state.TriedGroups == nil {
+						state.TriedGroups = make(map[int64]struct{})
+					}
+					state.TriedGroups[decision.GroupID] = struct{}{}
+				}
+				return restorePrimary()
+			}
 			return groupID
+		}
+		// Re-check the primary again after Resolve and before candidate
+		// hydration so a concurrent group edit cannot slip through the admission
+		// boundary.
+		if !refreshPrimaryContract() {
+			return restorePrimary()
 		}
 		group, err := s.channelService.groupRepo.GetByIDLite(ctx, decision.GroupID)
 		if err != nil || group == nil {
 			// Do not return an unhydrated candidate ID. The request-local key may
 			// still carry a previous candidate snapshot, so restoring the primary
 			// keeps pricing, permissions, and model mapping coherent.
+			return restorePrimary()
+		}
+		// This is a second, post-hydration hard boundary. rank() performs the
+		// same check, but group edits and stale resolver data can race that read.
+		// Mark the rejected ID tried so repeated stale decisions terminate in the
+		// documented primary-group fallback instead of looping.
+		if group.Status != StatusActive || !SmartRoutingGroupsCompatible(primaryRoutingGroup, group) {
+			if state := SmartRoutingStateFromContext(ctx); state != nil {
+				if state.TriedGroups == nil {
+					state.TriedGroups = make(map[int64]struct{})
+				}
+				state.TriedGroups[decision.GroupID] = struct{}{}
+			}
+			primaryPlatform, candidatePlatform := "", ""
+			if primaryRoutingGroup != nil {
+				primaryPlatform = primaryRoutingGroup.Platform
+			}
+			if group != nil {
+				candidatePlatform = group.Platform
+			}
+			slog.Warn("smart_routing.incompatible_candidate_rejected",
+				"api_key_id", apiKey.ID,
+				"group_id", decision.GroupID,
+				"primary_platform", primaryPlatform,
+				"candidate_platform", candidatePlatform,
+			)
+			// A post-ranking contract change is a TOCTOU violation. Do not ask
+			// the Overlay for another candidate: its snapshot may be stale too,
+			// and widening the pool could cross the primary billing/protocol
+			// boundary. Restore the frozen primary immediately.
 			return restorePrimary()
 		}
 		if !s.checkSmartRoutingCandidateBilling(ctx, apiKey, group) {
@@ -2380,6 +2486,12 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 	previousResponseCanMove bool,
 	useUpstreamTokenCost bool,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	if !SmartRoutingContractValid(ctx) {
+		if key, ok := APIKeyFromContext(ctx); ok {
+			RestoreSmartRoutingPrimarySnapshot(ctx, key)
+		}
+		return nil, OpenAIAccountScheduleDecision{}, fmt.Errorf("%w: smart routing group contract invalid", ErrNoAvailableAccounts)
+	}
 	ctx = s.withOpenAIQuotaAutoPauseContext(ctx)
 	ctx = s.withOpenAIGroupPrivacyRequirement(ctx, groupID)
 	// 分组利润控制：唯一文本调度入口的防御性装门。handler 文本

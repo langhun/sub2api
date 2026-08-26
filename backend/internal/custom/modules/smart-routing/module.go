@@ -114,7 +114,10 @@ func (r *Repository) Get(ctx context.Context, keyID int64) (*Profile, error) {
 	err := r.db.QueryRowContext(ctx, `SELECT api_key_id, enabled, mode, strategy, price_weight, speed_weight, success_weight, sticky_ttl_seconds, exploration_rate, version FROM custom_api_key_route_profiles WHERE api_key_id=$1`, keyID).
 		Scan(&p.APIKeyID, &p.Enabled, &p.Mode, &p.Strategy, &p.PriceWeight, &p.SpeedWeight, &p.SuccessWeight, &p.StickyTTL, &p.ExplorationRate, &p.Version)
 	if errors.Is(err, sql.ErrNoRows) {
-		return &Profile{APIKeyID: keyID, Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 1800, ExplorationRate: 0.05, Version: 1, Groups: []Group{}}, nil
+		// Version 0 is the optimistic-lock sentinel for a profile that does
+		// not exist yet. Returning 1 here lets two clients both submit their
+		// first edit with the same version and silently overwrite each other.
+		return &Profile{APIKeyID: keyID, Mode: "single", Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, StickyTTL: 1800, ExplorationRate: 0.05, Version: 0, Groups: []Group{}}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -158,18 +161,18 @@ func (r *Repository) Save(ctx context.Context, keyID int64, req UpdateRequest) (
 	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, keyID); err != nil {
 		return nil, err
 	}
-	if req.Version > 0 {
-		var current int64
-		err = tx.QueryRowContext(ctx, `SELECT version FROM custom_api_key_route_profiles WHERE api_key_id=$1 FOR UPDATE`, keyID).Scan(&current)
-		if err == nil && current != req.Version {
+	var current int64
+	err = tx.QueryRowContext(ctx, `SELECT version FROM custom_api_key_route_profiles WHERE api_key_id=$1 FOR UPDATE`, keyID).Scan(&current)
+	exists := err == nil
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	if req.Version == 0 {
+		if exists {
 			return nil, fmt.Errorf("routing profile version conflict")
 		}
-		if errors.Is(err, sql.ErrNoRows) && req.Version != 1 {
-			return nil, fmt.Errorf("routing profile version conflict")
-		}
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, err
-		}
+	} else if !exists || current != req.Version {
+		return nil, fmt.Errorf("routing profile version conflict")
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO custom_api_key_route_profiles (api_key_id,enabled,mode,strategy,price_weight,speed_weight,success_weight,sticky_ttl_seconds,exploration_rate,version) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,1) ON CONFLICT (api_key_id) DO UPDATE SET enabled=EXCLUDED.enabled, mode=EXCLUDED.mode, strategy=EXCLUDED.strategy, price_weight=EXCLUDED.price_weight, speed_weight=EXCLUDED.speed_weight, success_weight=EXCLUDED.success_weight, sticky_ttl_seconds=EXCLUDED.sticky_ttl_seconds, exploration_rate=EXCLUDED.exploration_rate, version=custom_api_key_route_profiles.version+1, updated_at=NOW()`, keyID, req.Enabled, req.Mode, req.Strategy, req.PriceWeight, req.SpeedWeight, req.SuccessWeight, req.StickyTTL, req.ExplorationRate)
 	if err != nil {
@@ -193,6 +196,9 @@ func (r *Repository) Save(ctx context.Context, keyID int64, req UpdateRequest) (
 }
 
 func validateUpdate(req UpdateRequest) error {
+	if req.Version < 0 {
+		return fmt.Errorf("version must not be negative")
+	}
 	if req.Mode != "single" && req.Mode != "smart" {
 		return fmt.Errorf("mode must be single or smart")
 	}
@@ -227,18 +233,60 @@ func validateUpdate(req UpdateRequest) error {
 	return nil
 }
 
+type availableGroupsChecker func(context.Context, int64) ([]service.Group, error)
+
+// routingProfileUsable guards the read path as well as validateUpdate. A
+// profile can predate current validation or be changed outside the API; bad
+// values must never reach score sorting or Redis TTL arithmetic. Returning
+// false makes Resolve fail open to the authenticated primary group.
+func routingProfileUsable(p *Profile) bool {
+	if p == nil || p.Mode != "smart" {
+		return false
+	}
+	if p.Strategy != "auto" && p.Strategy != "price" && p.Strategy != "speed" && p.Strategy != "success" && p.Strategy != "custom" {
+		return false
+	}
+	if !finiteNonNegative(p.PriceWeight) || !finiteNonNegative(p.SpeedWeight) || !finiteNonNegative(p.SuccessWeight) || math.Abs(p.PriceWeight+p.SpeedWeight+p.SuccessWeight-100) > 0.001 {
+		return false
+	}
+	if p.StickyTTL < 0 || p.StickyTTL > 86400 || !finiteNonNegative(p.ExplorationRate) || p.ExplorationRate > 0.05 {
+		return false
+	}
+	if len(p.Groups) == 0 || len(p.Groups) > defaultMaxCandidates {
+		return false
+	}
+	seen := make(map[int64]struct{}, len(p.Groups))
+	for _, group := range p.Groups {
+		if group.GroupID <= 0 {
+			return false
+		}
+		if _, exists := seen[group.GroupID]; exists {
+			return false
+		}
+		seen[group.GroupID] = struct{}{}
+	}
+	return true
+}
+
 type Module struct {
-	repo     *Repository
-	apiKeys  *service.APIKeyService
-	groups   service.GroupRepository
-	accounts service.AccountRepository
-	gateway  *service.GatewayService
-	openAI   *service.OpenAIGatewayService
-	redis    *redis.Client
+	repo    *Repository
+	apiKeys *service.APIKeyService
+	// availableGroups is kept as a narrow dependency so candidate permission
+	// checks fail closed when the API-key service is unavailable. NewModule
+	// wires the real service; tests can provide an explicit read-only stub.
+	availableGroups availableGroupsChecker
+	groups          service.GroupRepository
+	accounts        service.AccountRepository
+	gateway         *service.GatewayService
+	openAI          *service.OpenAIGatewayService
+	redis           *redis.Client
 }
 
 func NewModule(db *sql.DB, apiKeys *service.APIKeyService, groups service.GroupRepository, accounts service.AccountRepository, gateway *service.GatewayService, openAI *service.OpenAIGatewayService, redisClient *redis.Client) *Module {
 	m := &Module{repo: NewRepository(db), apiKeys: apiKeys, groups: groups, accounts: accounts, gateway: gateway, openAI: openAI, redis: redisClient}
+	if apiKeys != nil {
+		m.availableGroups = apiKeys.GetAvailableGroups
+	}
 	if gateway != nil {
 		gateway.SetSmartRoutingResolver(m)
 	}
@@ -333,7 +381,14 @@ func (m *Module) validateGroups(ctx *gin.Context, key *service.APIKey, req *Upda
 	if key.GroupID == nil || key.Group == nil {
 		return fmt.Errorf("primary group is required")
 	}
-	allowed, err := m.apiKeys.GetAvailableGroups(ctx.Request.Context(), key.UserID)
+	checkAvailableGroups := m.availableGroups
+	if checkAvailableGroups == nil && m.apiKeys != nil {
+		checkAvailableGroups = m.apiKeys.GetAvailableGroups
+	}
+	if checkAvailableGroups == nil {
+		return fmt.Errorf("group permission service unavailable")
+	}
+	allowed, err := checkAvailableGroups(ctx.Request.Context(), key.UserID)
 	if err != nil {
 		return err
 	}
@@ -400,22 +455,31 @@ func (m *Module) preview(c *gin.Context) {
 }
 
 func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessionHash string, excluded map[int64]struct{}) (*service.SmartRouteDecision, error) {
+	// Clear the per-request marker before any validation or dependency check.
+	// A resolver error (including an unavailable repository or malformed key)
+	// must fail open to the authenticated primary group and must not leave the
+	// scheduler eligible to re-enter the smart-routing retry loop.
+	var state *service.SmartRoutingRequestState
+	if ctx != nil {
+		state = service.SmartRoutingStateFromContext(ctx)
+	}
+	if state != nil {
+		state.SmartRoutingActive = false
+	}
 	if m == nil || m.repo == nil {
 		return nil, errors.New("smart routing repository unavailable")
 	}
 	if key == nil || key.GroupID == nil {
 		return nil, nil
 	}
-	state := service.SmartRoutingStateFromContext(ctx)
-	if state != nil {
-		// A profile can be disabled or replaced while a long request is
-		// retrying. Clear the per-request marker before reloading it so a stale
-		// active flag cannot make a legacy/single-group error loop.
-		state.SmartRoutingActive = false
-	}
 	p, err := m.repo.Get(ctx, key.ID)
 	if err != nil || p == nil || !p.Enabled || p.Mode != "smart" {
 		return nil, err
+	}
+	if !routingProfileUsable(p) {
+		// Treat malformed persisted configuration as disabled for this request.
+		// The authenticated primary group remains the only safe fallback.
+		return nil, nil
 	}
 	if state == nil {
 		return nil, nil
@@ -439,6 +503,13 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		return nil, nil
 	}
 	if state.EndpointType != "chat_completions" && state.EndpointType != "responses" && state.EndpointType != "messages" {
+		return nil, nil
+	}
+	// Explicit platform routes (currently /antigravity/...) intentionally
+	// override the normal group scheduler. Their account pool and billing
+	// semantics are different from the text HTTP contract, so an Anthropic or
+	// OpenAI key must not be smart-routed into that forced transport.
+	if smartRoutingForcePlatform(ctx) {
 		return nil, nil
 	}
 	// Image generation has a different capability and billing contract. MVP
@@ -468,7 +539,29 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	}
 	ranked, err := m.rank(ctx, key, p, model, excluded)
 	if err != nil {
+		// A routing preflight failure is a fail-open degradation to the
+		// authenticated primary group, not an active smart-routing request.
+		// Clear the marker before returning so handlers do not re-enter their
+		// cross-group retry loop after a primary-group failure.
+		state.SmartRoutingActive = false
 		return nil, err
+	}
+	// `rank` deliberately returns diagnostic rows for ineligible candidates so
+	// the preview endpoint can explain why they were filtered. They are not a
+	// route, however. Clear the active marker before returning nil when the
+	// complete candidate pool is unavailable; otherwise the scheduler can
+	// treat the restored primary as an active smart route and re-enter its
+	// retry loop indefinitely.
+	hasEligible := false
+	for _, candidate := range ranked {
+		if candidate.Eligible {
+			hasEligible = true
+			break
+		}
+	}
+	if !hasEligible {
+		state.SmartRoutingActive = false
+		return nil, nil
 	}
 	stickyID := m.getStickyGroup(ctx, key.ID, p.Version, sessionHash)
 	if stickyID > 0 {
@@ -532,6 +625,11 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		m.recordDecision(ctx, key, p, model, g, decision)
 		return decision, nil
 	}
+	// Every eligible row may already be tried, rejected by continuity, or
+	// beyond the switch budget. There is no next route for this invocation;
+	// disable the marker so the caller falls back once to the primary group
+	// rather than spinning through the same resolver path.
+	state.SmartRoutingActive = false
 	return nil, nil
 }
 
@@ -542,6 +640,14 @@ func smartRoutingPrimaryPlatformAllowed(group *service.Group, endpoint string) b
 	return group.Platform != service.PlatformAnthropic || endpoint == "messages"
 }
 
+func smartRoutingForcePlatform(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	forcePlatform, ok := ctx.Value(ctxkey.ForcePlatform).(string)
+	return ok && strings.TrimSpace(forcePlatform) != ""
+}
+
 // CommitSticky records a group only after the gateway has passed billing and
 // account admission. Keeping this separate from Resolve prevents an
 // ineligible candidate from poisoning the session's sticky binding.
@@ -550,7 +656,7 @@ func (m *Module) CommitSticky(ctx context.Context, apiKeyID, groupID int64, sess
 		return
 	}
 	p, err := m.repo.Get(ctx, apiKeyID)
-	if err != nil || p == nil || !p.Enabled || p.Mode != "smart" {
+	if err != nil || p == nil || !p.Enabled || p.Mode != "smart" || !routingProfileUsable(p) {
 		return
 	}
 	m.setStickyGroup(ctx, apiKeyID, p.Version, sessionHash, groupID, time.Duration(p.StickyTTL)*time.Second)
@@ -568,6 +674,13 @@ func routeStateAllowsGroup(state *service.SmartRoutingRequestState, groupID, sti
 		if groupID != continuityGroupID {
 			return false
 		}
+	}
+	// The primary group is the documented safe-degradation target. Returning
+	// to it after candidate exhaustion is not another candidate switch, so the
+	// switch budget must not block this path. Continuity-locked requests have
+	// already been constrained to their continuity group above.
+	if groupID == state.MainGroupID {
+		return true
 	}
 	return state.CurrentGroupID <= 0 || groupID == state.CurrentGroupID || state.GroupSwitches < maxSwitches
 }
@@ -672,7 +785,18 @@ func (m *Module) remainingModelAccountsKnown(ctx context.Context, groupID int64,
 	if m == nil || m.accounts == nil {
 		return 0, false
 	}
-	accounts, err := m.accounts.ListSchedulableByGroupIDAndPlatform(ctx, groupID, platform)
+	useMixedScheduling := platform == service.PlatformAnthropic || platform == service.PlatformGemini
+	var accounts []service.Account
+	var err error
+	if useMixedScheduling {
+		// GatewayService.selectAccountWithMixedScheduling uses the native
+		// platform plus mixed-scheduling Antigravity accounts. The routing
+		// preflight must inspect the same pool or it can incorrectly exclude a
+		// healthy candidate before the scheduler gets a chance to select it.
+		accounts, err = m.accounts.ListSchedulableByGroupIDAndPlatforms(ctx, groupID, []string{platform, service.PlatformAntigravity})
+	} else {
+		accounts, err = m.accounts.ListSchedulableByGroupIDAndPlatform(ctx, groupID, platform)
+	}
 	if err != nil {
 		return 0, false
 	}
@@ -698,10 +822,19 @@ func (m *Module) remainingModelAccountsKnown(ctx context.Context, groupID int64,
 	remaining := 0
 	for i := range accounts {
 		account := &accounts[i]
+		if useMixedScheduling && account.Platform == service.PlatformAntigravity && !account.IsMixedSchedulingEnabled() {
+			continue
+		}
 		if _, skip := excluded[account.ID]; skip {
 			continue
 		}
 		if model != "" && (!account.IsModelSupported(model) || !account.IsSchedulableForModelWithContext(ctx, model)) {
+			continue
+		}
+		if state := service.SmartRoutingStateFromContext(ctx); state != nil &&
+			(state.SmartRoutingActive || state.EndpointType != "") &&
+			(account.Platform == service.PlatformOpenAI || account.Platform == service.PlatformGrok) &&
+			!service.SmartRoutingAccountModelCompatible(account, model) {
 			continue
 		}
 		if !account.IsSchedulable() {
@@ -773,8 +906,17 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		return nil, fmt.Errorf("primary group unavailable")
 	}
 	allowed := map[int64]bool{}
-	if m.apiKeys != nil {
-		available, err := m.apiKeys.GetAvailableGroups(ctx, key.UserID)
+	permissionServiceUnavailable := false
+	checkAvailableGroups := m.availableGroups
+	if checkAvailableGroups == nil && m.apiKeys != nil {
+		// Preserve compatibility for in-package construction while keeping the
+		// production path fail-closed when neither dependency is wired.
+		checkAvailableGroups = m.apiKeys.GetAvailableGroups
+	}
+	if checkAvailableGroups == nil {
+		permissionServiceUnavailable = true
+	} else {
+		available, err := checkAvailableGroups(ctx, key.UserID)
 		if err != nil {
 			return nil, fmt.Errorf("refresh routing group permissions: %w", err)
 		}
@@ -815,7 +957,10 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 	}
 	mainModel := m.dispatchModelForGroup(ctx, main, model)
 	mainEffectivePrice, mainPriceValid := effectivePrice(main)
-	mainCandidate := Group{GroupID: main.ID, Name: main.Name, Platform: main.Platform, Price: mainEffectivePrice, Eligible: true}
+	// The primary group is implicit and does not have a persisted route-group
+	// sort order. Keep it ahead of the first configured candidate on score ties;
+	// configured candidates still follow their drag order starting at zero.
+	mainCandidate := Group{GroupID: main.ID, SortOrder: -1, Name: main.Name, Platform: main.Platform, Price: mainEffectivePrice, Eligible: true}
 	if !mainPriceValid {
 		mainCandidate.Eligible = false
 		mainCandidate.Reason = "primary group price unavailable"
@@ -870,6 +1015,11 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				out = append(out, g)
 				continue
 			}
+			if comparable, reason := m.longContextPricingComparable(ctx, main, full); !comparable {
+				g.Reason = reason
+				out = append(out, g)
+				continue
+			}
 			if !candidateEndpointAllowed(ctx, full) {
 				g.Reason = "endpoint not supported by group"
 				out = append(out, g)
@@ -881,7 +1031,12 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				out = append(out, g)
 				continue
 			}
-			if m.apiKeys != nil && !allowed[g.GroupID] {
+			if permissionServiceUnavailable {
+				g.Reason = "permission service unavailable"
+				out = append(out, g)
+				continue
+			}
+			if !allowed[g.GroupID] {
 				g.Reason = "permission or subscription unavailable"
 				out = append(out, g)
 				continue
@@ -1075,6 +1230,71 @@ func (m *Module) pricingComparable(ctx context.Context, groupID int64, model str
 		}
 	}
 	return true
+}
+
+// longContextPricingComparable verifies that selecting a candidate cannot
+// introduce a long-context surcharge that the primary route would not apply.
+// Group.LongContextPricingEnabled is the normal gate. OpenAI accounts also
+// have an explicit opt-in that can enable the same ladder even when the group
+// toggle is off, so the schedulable account pool is part of this comparison.
+// Unknown account state fails closed only when the candidate may enable the
+// surcharge; a definitely-disabled candidate is safe even if the primary
+// pool is temporarily unavailable.
+func (m *Module) longContextPricingComparable(ctx context.Context, primary, candidate *service.Group) (bool, string) {
+	primaryEnabled, primaryKnown := m.longContextPricingCapability(ctx, primary)
+	candidateEnabled, candidateKnown := m.longContextPricingCapability(ctx, candidate)
+	if !candidateKnown {
+		return false, "long-context pricing unavailable for comparison"
+	}
+	if !candidateEnabled {
+		return true, ""
+	}
+	if !primaryKnown {
+		return false, "long-context pricing unavailable for comparison"
+	}
+	if !primaryEnabled {
+		return false, "long-context pricing exceeds primary group"
+	}
+	return true, ""
+}
+
+// longContextPricingCapability returns whether a group can apply context-tier
+// pricing for at least one schedulable account. The account flag is relevant
+// only to OpenAI; other platforms are governed solely by the group toggle.
+func (m *Module) longContextPricingCapability(ctx context.Context, group *service.Group) (enabled, known bool) {
+	if group == nil {
+		return false, false
+	}
+	if group.LongContextPricingEnabled || group.Platform != service.PlatformOpenAI {
+		return group.LongContextPricingEnabled, true
+	}
+	if m == nil || m.accounts == nil {
+		return false, false
+	}
+	accounts, err := m.accounts.ListSchedulableByGroupIDAndPlatform(ctx, group.ID, service.PlatformOpenAI)
+	if err != nil {
+		return false, false
+	}
+	if len(accounts) == 0 {
+		// Account admission will reject an empty pool separately. Treat the
+		// capability as known-disabled here so it cannot create a false price
+		// mismatch while preserving the normal no-account reason.
+		return false, true
+	}
+	seenEnabled, seenDisabled := false, false
+	for i := range accounts {
+		if accounts[i].IsOpenAILongContextBillingEnabled() {
+			seenEnabled = true
+		} else {
+			seenDisabled = true
+		}
+	}
+	if seenEnabled && seenDisabled {
+		// A request may land on either account. There is no safe single price
+		// baseline for routing, so force the candidate out of the pool.
+		return false, false
+	}
+	return seenEnabled, true
 }
 
 // candidateEndpointAllowed mirrors endpoint-level group gates that run in the

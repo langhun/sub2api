@@ -51,7 +51,21 @@ const (
 
 func normalizeOpenAIMessagesDispatchMappedModel(model string) string {
 	model = NormalizeOpenAICompatRequestedModel(strings.TrimSpace(model))
-	return strings.TrimSpace(model)
+	model = strings.TrimSpace(model)
+	if !isOpenAIMessagesDispatchTarget(model) {
+		return ""
+	}
+	return model
+}
+
+// isOpenAIMessagesDispatchTarget rejects model families that belong to a
+// different upstream protocol. Messages dispatch runs on an OpenAI group, so
+// accepting a gemini-* or claude-* target would make a model alias look like a
+// cross-platform route even though the account stayed OpenAI. Custom OpenAI-
+// compatible providers may use their own model names, so only known foreign
+// families are denied here rather than imposing a gpt-* allowlist.
+func isOpenAIMessagesDispatchTarget(model string) bool {
+	return strings.TrimSpace(model) != "" && knownForeignModelFamilyForModel(model) == ""
 }
 
 func normalizeOpenAIMessagesDispatchModelConfig(cfg OpenAIMessagesDispatchModelConfig) OpenAIMessagesDispatchModelConfig {

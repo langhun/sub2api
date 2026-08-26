@@ -130,16 +130,139 @@ type SmartRoutingRequestState struct {
 	// from walking an unbounded candidate list.
 	GroupSwitches    int
 	MaxGroupSwitches int
+	// SmartRoutingPrimaryRetryUsed prevents an exhausted primary group from
+	// re-entering the resolver forever when every candidate is unavailable and
+	// the resolver restores the primary without increasing GroupSwitches.
+	SmartRoutingPrimaryRetryUsed bool
 	// SmartRoutingActive is set only after the Overlay has confirmed an
 	// enabled smart profile for a supported text HTTP endpoint. It prevents
 	// ordinary single-group requests from retrying their selection loop when
 	// the account pool is empty.
 	SmartRoutingActive bool
+	// ContractInvalid is set when the primary group contract changes (platform,
+	// subscription type, status, or identity) while a smart-routed request is
+	// in flight. Restoring the frozen snapshot keeps billing metadata coherent,
+	// but must not allow downstream schedulers to reload the changed row by ID.
+	ContractInvalid bool
 	// ContinuityLocked is set for requests carrying previous_response_id.
 	// Such requests must stay in the primary group; silently moving the
 	// response chain to another group would produce an upstream 404/401 or,
 	// worse, a semantically different conversation.
 	ContinuityLocked bool
+}
+
+// SmartRoutingContractValid is the request-level fail-closed gate. Ordinary
+// single-group requests have no active smart-routing state and remain
+// unchanged; once smart routing is active, a detected contract race aborts
+// before any platform/account pool is resolved.
+func SmartRoutingContractValid(ctx context.Context) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	return state == nil || !state.ContractInvalid
+}
+
+func MarkSmartRoutingContractInvalid(ctx context.Context) {
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		state.ContractInvalid = true
+	}
+}
+
+// SmartRoutingGroupsCompatible is the shared hard boundary for a routed
+// candidate. A candidate may only use the same concrete upstream platform and
+// billing/subscription type as the authenticated primary group. Composite
+// groups are deliberately excluded because their target platform is resolved
+// per request and therefore cannot provide the same protocol or price
+// contract. Keep this check independent of scoring, permissions, exploration,
+// or billing so no later decision can widen the candidate pool.
+func SmartRoutingGroupsCompatible(primary, candidate *Group) bool {
+	if primary == nil || candidate == nil {
+		return false
+	}
+	// A routed candidate is admitted only while it is active. The ranker also
+	// applies this filter, but the resolver performs a second check after
+	// hydrating the group to close the rank-to-dispatch TOCTOU window. The
+	// primary group is intentionally not checked here: it is the authenticated
+	// request's existing fallback target and normal group/account scheduling
+	// remains responsible for its availability.
+	if candidate.Status != StatusActive {
+		return false
+	}
+	if primary.Platform == "" || candidate.Platform == "" {
+		return false
+	}
+	if primary.Platform == PlatformComposite || candidate.Platform == PlatformComposite {
+		return false
+	}
+	if primary.Platform != candidate.Platform {
+		return false
+	}
+	return primary.SubscriptionType == candidate.SubscriptionType
+}
+
+// SmartRoutingPrimaryContractMatches verifies the primary group immediately
+// before a routed candidate is admitted.  Authentication captures a request
+// snapshot, while administrators can edit a group concurrently; if its
+// platform or subscription type changed, the old routing decision is stale and
+// must fall back to the primary path.  A nil snapshot is tolerated for legacy
+// internal callers, but the freshly loaded primary still has to be concrete,
+// active, and non-composite.
+func SmartRoutingPrimaryContractMatches(snapshot, current *Group, primaryID int64) bool {
+	if current == nil || primaryID <= 0 || current.ID != primaryID || current.Status != StatusActive {
+		return false
+	}
+	if current.Platform == "" || current.Platform == PlatformComposite {
+		return false
+	}
+	if snapshot == nil {
+		return true
+	}
+	if snapshot.ID != primaryID || snapshot.Platform == "" || snapshot.Platform == PlatformComposite {
+		return false
+	}
+	return snapshot.Platform == current.Platform && snapshot.SubscriptionType == current.SubscriptionType
+}
+
+// SmartRoutingPrimaryRestoreGroup chooses the request-local group object to
+// publish when a candidate route is rejected.  A fresh database row is only
+// safe when it still matches the ingress snapshot's protocol and billing
+// contract.  If an administrator changed the primary while the request was
+// in flight, retain the frozen snapshot instead of leaking the new platform
+// (for example Gemini) into an OpenAI request.  Legacy callers without a
+// snapshot may still use a concrete fresh primary as their best available
+// restore value.
+func SmartRoutingPrimaryRestoreGroup(snapshot, current *Group, primaryID int64) *Group {
+	if primaryID <= 0 {
+		return nil
+	}
+	if snapshot != nil && snapshot.ID == primaryID {
+		if current != nil && SmartRoutingPrimaryContractMatches(snapshot, current, primaryID) {
+			return current
+		}
+		return snapshot
+	}
+	if current != nil && current.ID == primaryID {
+		return current
+	}
+	return nil
+}
+
+// SmartRoutingResolvedGroupAllowed is the final admission check after legacy
+// group resolution (for example Claude-Code fallback traversal) has hydrated
+// a group from the repository.  Comparing IDs alone is insufficient: the
+// primary row may have been edited in place from OpenAI to Gemini while a
+// request was in flight.  Keep ordinary single-group callers unchanged by
+// returning true when smart routing is inactive.
+func SmartRoutingResolvedGroupAllowed(ctx context.Context, group *Group, groupID *int64) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return true
+	}
+	if group == nil || groupID == nil || group.ID != *groupID || state.PrimaryGroupSnapshot == nil {
+		return false
+	}
+	if state.MainGroupID > 0 && *groupID == state.MainGroupID {
+		return SmartRoutingPrimaryContractMatches(state.PrimaryGroupSnapshot, group, state.MainGroupID)
+	}
+	return SmartRoutingGroupsCompatible(state.PrimaryGroupSnapshot, group)
 }
 
 // WithSmartRoutingState stores mutable request-local state. A pointer is used
@@ -149,8 +272,55 @@ func WithSmartRoutingState(ctx context.Context, state *SmartRoutingRequestState)
 }
 
 func SmartRoutingStateFromContext(ctx context.Context) *SmartRoutingRequestState {
+	if ctx == nil {
+		return nil
+	}
 	state, _ := ctx.Value(smartRoutingStateContextKey{}).(*SmartRoutingRequestState)
 	return state
+}
+
+// SmartRoutingGroupResolutionChanged reports whether a downstream legacy
+// resolver changed the group selected by the smart-routing overlay.  A
+// Claude-Code fallback (or any future implicit fallback) is allowed for
+// ordinary single-group requests, but it must never widen a smart route to a
+// group that was not selected and hard-filtered by the overlay.  Callers use
+// this as a final guard after the legacy group resolver has run.
+func SmartRoutingGroupResolutionChanged(ctx context.Context, selectedGroupID, resolvedGroupID *int64) bool {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive {
+		return false
+	}
+	if selectedGroupID == nil || resolvedGroupID == nil {
+		return true
+	}
+	return *selectedGroupID != *resolvedGroupID
+}
+
+// RestoreSmartRoutingPrimarySnapshot puts the request-local API key back on
+// the authenticated primary after a downstream legacy resolver (for example
+// Claude-Code fallback) attempts to change the selected group. This is a
+// defensive billing/mapping invariant: returning an error while leaving
+// apiKey.Group pointed at the candidate can make deferred usage recording use
+// the wrong platform or subscription.
+func RestoreSmartRoutingPrimarySnapshot(ctx context.Context, key *APIKey) {
+	if key == nil {
+		return
+	}
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || state.MainGroupID <= 0 {
+		return
+	}
+	primaryID := state.MainGroupID
+	if state.PrimaryGroupSnapshot != nil && state.PrimaryGroupSnapshot.ID == primaryID {
+		key.Group = state.PrimaryGroupSnapshot
+	} else if key.Group == nil || key.Group.ID != primaryID {
+		// Do not retain a candidate pointer next to a primary ID when no trusted
+		// snapshot is available. The caller will surface the routing error and
+		// downstream billing must fail closed rather than charge the candidate.
+		key.Group = nil
+	}
+	key.GroupID = &primaryID
+	state.CurrentGroupID = primaryID
 }
 
 // MarkSmartRoutingCandidateSelected records a successful candidate admission.
@@ -179,7 +349,11 @@ func MarkSmartRoutingCandidateSelected(ctx context.Context, groupID int64) {
 // (for example, an RPM or capacity gate rejected the whole group).
 func MarkSmartRoutingGroupExhausted(ctx context.Context) {
 	state := SmartRoutingStateFromContext(ctx)
-	if state == nil || !state.SmartRoutingActive || state.CurrentGroupID <= 0 {
+	if state == nil || !state.SmartRoutingActive || state.CurrentGroupID <= 0 || state.ContinuityLocked {
+		// Continuity-locked requests (for example Responses requests carrying
+		// previous_response_id) are never eligible for cross-group replay. Do
+		// not mark the group exhausted because that marker can leak into a later
+		// retry decision on the same request context.
 		return
 	}
 	if state.TriedGroups == nil {
@@ -188,30 +362,68 @@ func MarkSmartRoutingGroupExhausted(ctx context.Context) {
 	state.TriedGroups[state.CurrentGroupID] = struct{}{}
 }
 
-// ShouldRetrySmartRoutingGroup reports whether a selector error exhausted a
-// routed candidate before an account ID could be returned. Handlers use this
-// to re-enter the resolver once; primary-group and single-group requests stay
-// on their existing immediate-error path.
+// TrySmartRoutingGroupFailover advances the request to another configured
+// group after an upstream account failover budget or account-selection
+// exhaustion. A nil failoverErr is valid when the scheduler exhausted its
+// exclusion set without an upstream error (for example, every account was
+// rejected by a profit gate); the active smart-routing state is still the
+// authority for whether a group switch is allowed. It is kept as a single
+// guard so every HTTP gateway applies the same billing and streaming boundary:
+// a non-retryable error, a cancelled request, or any bytes written to the
+// client must remain on the current group and terminate normally.
+//
+// The caller must reset its account-level failover state when this returns
+// true. Account IDs and retry counters are scoped to the group that just
+// failed; carrying them into a candidate group can incorrectly exclude a
+// healthy account or skip its first retry budget.
+func TrySmartRoutingGroupFailover(ctx context.Context, failoverErr *UpstreamFailoverError, outputStarted bool) bool {
+	if outputStarted || ctx == nil || ctx.Err() != nil {
+		return false
+	}
+	if failoverErr != nil && !failoverErr.ShouldRetryNextAccount() {
+		return false
+	}
+	MarkSmartRoutingGroupExhausted(ctx)
+	return ShouldRetrySmartRoutingGroup(ctx)
+}
+
+// ShouldRetrySmartRoutingGroup reports whether a selector error exhausted the
+// current group before an account ID could be returned. It is enabled only
+// after the resolver has confirmed an active smart profile, so ordinary
+// single-group requests keep their existing immediate-error path. The primary
+// group may enter the resolver once while switch budget remains; after the
+// resolver has exhausted the candidate budget, the final primary restore does
+// not re-enter the loop.
 func ShouldRetrySmartRoutingGroup(ctx context.Context) bool {
 	state := SmartRoutingStateFromContext(ctx)
-	if state == nil || state.MainGroupID <= 0 || state.CurrentGroupID <= 0 || state.CurrentGroupID == state.MainGroupID {
+	if state == nil || !state.SmartRoutingActive || state.MainGroupID <= 0 || state.CurrentGroupID <= 0 {
 		return false
 	}
 	maxSwitches := state.MaxGroupSwitches
 	if maxSwitches <= 0 {
 		maxSwitches = 2
 	}
-	if state.GroupSwitches >= maxSwitches {
+	// At the switch budget's boundary the resolver still needs one pass to
+	// return to the primary group as the documented safe degradation target.
+	// A primary selection is not another candidate switch.
+	if state.GroupSwitches > maxSwitches {
 		return false
+	}
+	_, tried := state.TriedGroups[state.CurrentGroupID]
+	if !tried || state.ContinuityLocked {
+		return false
+	}
+	if state.CurrentGroupID == state.MainGroupID {
+		if state.SmartRoutingPrimaryRetryUsed || state.GroupSwitches >= maxSwitches {
+			return false
+		}
+		state.SmartRoutingPrimaryRetryUsed = true
+		return true
 	}
 	state.selectedMu.RLock()
 	_, selected := state.SmartRoutingSelectedGroups[state.CurrentGroupID]
 	state.selectedMu.RUnlock()
-	if !selected {
-		return false
-	}
-	_, tried := state.TriedGroups[state.CurrentGroupID]
-	return tried
+	return selected
 }
 
 // IsSmartRoutingCandidateSelected reports whether the API key snapshot points
