@@ -34,6 +34,29 @@ func TestMigrationChecksumsTreatLineEndingsAsEquivalent(t *testing.T) {
 	}
 }
 
+func TestSmartRoutingMigrationAcceptsPreviouslyAppliedChecksum(t *testing.T) {
+	content, err := files.ReadFile("012_smart_routing.sql")
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	_, compatible := migrationChecksums(strings.TrimSpace(string(content)))
+	for _, checksum := range historicalMigrationChecksums["012_smart_routing.sql"] {
+		if _, ok := compatible[checksum]; ok {
+			t.Fatalf("historical checksum must be explicitly accepted by Apply, not current content: %s", checksum)
+		}
+	}
+	const deployed = "f8788dd4063924c194ee09180cd6d9073ba22c02e149ecd3c57a12c99bf6627e"
+	found := false
+	for _, checksum := range historicalMigrationChecksums["012_smart_routing.sql"] {
+		if checksum == deployed {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing deployed smart-routing checksum compatibility entry")
+	}
+}
+
 func TestActivityRedeemMetadataMigrationPreservesLegacyColumns(t *testing.T) {
 	content, err := files.ReadFile("001_activity_redeem_metadata.sql")
 	if err != nil {

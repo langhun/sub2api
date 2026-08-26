@@ -19,6 +19,12 @@ import (
 var files embed.FS
 
 var historicalMigrationChecksums = map[string][]string{
+	// 012 was already applied in production before the sticky-routing field
+	// was made backwards-compatible. Keep that deployed checksum accepted so
+	// changing the migration source does not brick startup on existing data.
+	"012_smart_routing.sql": {
+		"f8788dd4063924c194ee09180cd6d9073ba22c02e149ecd3c57a12c99bf6627e",
+	},
 	// This checksum was recorded by the first production candidate that applied
 	// 005 before the final release artifact was built. Keep the migration file
 	// immutable and accept only that known deployed revision.
