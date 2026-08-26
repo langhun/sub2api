@@ -1,13 +1,7 @@
 <template>
   <AppLayout>
     <div class="mx-auto -mt-2 max-w-7xl space-y-3 md:-mt-3 lg:-mt-4">
-      <header class="flex min-h-10 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-2">
-          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 ring-1 ring-primary-100 dark:bg-primary-900/20 dark:text-primary-300 dark:ring-primary-900/60">
-            <Icon name="inbox" size="sm" />
-          </span>
-          <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ t('supportTickets.title') }}</h1>
-        </div>
+      <header class="flex min-h-0 justify-end">
         <button v-if="!ticket" class="btn btn-primary self-start sm:self-auto" type="button" @click="showCreate = true">
           <Icon name="plus" size="sm" />
           {{ t('supportTickets.newTicket') }}

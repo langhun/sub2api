@@ -12,7 +12,7 @@ describe('support tickets module routes and navigation', () => {
       expect.objectContaining({ path: '/admin/support/tickets', meta: expect.objectContaining({ requiresAuth: true, requiresAdmin: true, requiresFeature: 'support_ticket_enabled' }) }),
       expect.objectContaining({ path: '/admin/support/tickets/:id', meta: expect.objectContaining({ requiresAuth: true, requiresAdmin: true }) }),
     ]))
-    expect(supportTicketRoutes.every((route) => route.meta?.hideHeaderTitle === true)).toBe(true)
+    expect(supportTicketRoutes.every((route) => route.meta?.hideHeaderTitle !== true)).toBe(true)
   })
 
   it('registers both sidebar entries through the custom overlay', () => {
