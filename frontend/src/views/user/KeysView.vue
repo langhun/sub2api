@@ -477,7 +477,7 @@
     <BaseDialog
       :show="showCreateModal || showEditModal"
       :title="showEditModal ? t('keys.editKey') : t('keys.createKey')"
-      width="key-form"
+      width="normal"
       @close="closeModals"
     >
       <form id="key-form" @submit.prevent="handleSubmit" class="key-editor-form space-y-5" :class="{ 'routing-smart-form': formData.routing_mode === 'smart' }">
@@ -622,17 +622,6 @@
 
             <div class="routing-safety-note" role="note"><Icon name="shield" size="sm" /><span><strong>{{ t('keys.routingSafetyTitle') }}</strong> {{ t('keys.routingSafetyHint') }}</span></div>
 
-            <div v-if="showEditModal && selectedKey" class="routing-preview-section">
-              <button type="button" class="routing-preview-toggle" :aria-expanded="routingPreviewExpanded" @click="routingPreviewExpanded = !routingPreviewExpanded"><span><Icon name="search" size="xs" /> {{ t('keys.routingPreview') }}</span><Icon :name="routingPreviewExpanded ? 'chevronUp' : 'chevronDown'" size="xs" /></button>
-              <p class="routing-field-hint">{{ t('keys.routingPreviewHint') }}</p>
-              <div v-if="routingPreviewExpanded" class="routing-preview-content">
-                <div class="routing-preview-controls"><input v-model="routingPreviewModel" class="routing-preview-input" type="text" :placeholder="t('keys.routingPreviewModelPlaceholder')" :aria-label="t('keys.routingPreviewModel')" :disabled="routingPreviewLoading || routingLoading" @keyup.enter="previewRouting" /><Select v-model="routingPreviewEndpoint" class="routing-preview-endpoint" :options="routingPreviewEndpointOptions" :disabled="routingPreviewLoading || routingLoading" :aria-label="t('keys.routingPreviewEndpoint')" /><button type="button" class="routing-preview-button" :disabled="routingPreviewLoading || routingLoading" @click="previewRouting"><Icon name="search" size="xs" /> {{ t('keys.routingPreviewAction') }}</button></div>
-                <p v-if="routingPreviewError" class="routing-validation-error" role="alert">{{ routingPreviewError }}</p>
-                <div v-if="routingPreviewGroups.length" class="routing-preview-list"><div v-for="(group, index) in routingPreviewGroups" :key="group.group_id" class="routing-preview-row" :class="{ eligible: group.eligible }"><span class="routing-preview-rank">{{ index + 1 }}</span><span class="routing-preview-copy"><strong>{{ group.name || `#${group.group_id}` }}</strong><small>{{ group.eligible ? `${t('keys.routingPreviewScore')}: ${group.score.toFixed(1)}` : previewReasonLabel(group.reason) }}</small></span><span v-if="group.eligible" class="routing-preview-metrics"><span :title="t('keys.routingPreviewSuccess')">{{ group.success_rate ? `${Math.round(group.success_rate * 100)}%` : '-' }}</span><span :title="t('keys.routingPreviewSpeed')">{{ group.speed_ms ? `${Math.round(group.speed_ms)}ms` : '-' }}</span><span :title="t('keys.routingPreviewSamples')">n={{ group.samples }}</span></span></div></div>
-                <div v-else-if="!routingPreviewLoading && !routingPreviewError" class="routing-preview-empty">{{ t('keys.routingPreviewEmpty') }}</div>
-                <p v-if="routingPreviewGroups.length && routingPreviewGroups.every(group => !group.eligible)" class="routing-preview-note">{{ t('keys.routingPreviewPrimaryFallback') }}</p>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -1255,7 +1244,7 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 
 const { t } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
-import { getSmartRouting, updateSmartRouting, previewSmartRouting, type SmartRoutingProfile, type SmartRoutingGroup } from '@/custom/modules/smart-routing/api'
+import { getSmartRouting, updateSmartRouting, type SmartRoutingProfile } from '@/custom/modules/smart-routing/api'
 import { reorderRoutingGroups, reorderRoutingGroupsByKeyboard, type RoutingDropPlacement, type RoutingKeyboardMove } from '@/custom/modules/smart-routing/reorder'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -1473,17 +1462,10 @@ const routingSubmitAttempted = ref(false)
 const routingDraggedGroupId = ref<number | null>(null)
 const routingDragOverGroupId = ref<number | null>(null)
 const routingDragOverPlacement = ref<RoutingDropPlacement | null>(null)
-const routingPreviewModel = ref('')
-const routingPreviewEndpoint = ref<'chat_completions' | 'responses' | 'messages'>('chat_completions')
-const routingPreviewLoading = ref(false)
-const routingPreviewGroups = ref<SmartRoutingGroup[]>([])
-const routingPreviewError = ref('')
-const routingPreviewExpanded = ref(false)
 let routingRequestGeneration = 0
 // Preview calls are independent from profile loading.  A request can outlive
 // the editor (or be superseded by a newer model), so only the latest request
 // for the still-open key may update the preview state.
-let routingPreviewRequestGeneration = 0
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
@@ -1544,26 +1526,6 @@ const routingWeightFields: Array<{ key: RoutingWeightKey; label: string }> = [
   { key: 'routing_speed_weight', label: 'keys.speedWeight' },
   { key: 'routing_success_weight', label: 'keys.successWeight' }
 ]
-
-const routingPreviewEndpointOptions = computed(() => [
-  { value: 'chat_completions', label: t('keys.routingEndpointChatCompletions') },
-  { value: 'responses', label: t('keys.routingEndpointResponses') },
-  { value: 'messages', label: t('keys.routingEndpointMessages') }
-])
-
-const previewReasonLabel = (reason?: string) => {
-  const key = {
-    'channel model pricing requires explicit comparison': 'keys.routingReasonPriceComparison',
-    'model-specific pricing requires explicit comparison': 'keys.routingReasonModelPricing',
-    'price unavailable for comparison': 'keys.routingReasonPriceUnavailable',
-    'price exceeds primary group': 'keys.routingReasonPriceHigher',
-    'no schedulable accounts': 'keys.routingReasonNoAccounts',
-    'incompatible group': 'keys.routingReasonIncompatible',
-    'permission or subscription unavailable': 'keys.routingReasonPermission',
-    'endpoint not supported by group': 'keys.routingReasonEndpoint',
-  } as Record<string, string>
-  return reason && key[reason] ? t(key[reason]) : (reason || t('keys.routingCandidateInvalid'))
-}
 
 const routingWeightValue = (value: number | null | undefined) => {
   const numeric = Number(value)
@@ -1828,34 +1790,6 @@ const clearRoutingGroupDrag = () => {
   routingDraggedGroupId.value = null
   routingDragOverGroupId.value = null
   routingDragOverPlacement.value = null
-}
-
-const previewRouting = async () => {
-  const generation = ++routingPreviewRequestGeneration
-  const keyId = selectedKey.value?.id
-  if (!keyId || !showEditModal.value) return
-  const model = routingPreviewModel.value.trim()
-  if (!model) {
-    routingPreviewError.value = t('keys.routingPreviewModelRequired')
-    routingPreviewGroups.value = []
-    routingPreviewLoading.value = false
-    return
-  }
-  routingPreviewLoading.value = true
-  routingPreviewError.value = ''
-  try {
-    const result = await previewSmartRouting(keyId, model, routingPreviewEndpoint.value)
-    if (generation !== routingPreviewRequestGeneration || !showEditModal.value || selectedKey.value?.id !== keyId) return
-    routingPreviewGroups.value = result.groups
-  } catch (error: any) {
-    if (generation !== routingPreviewRequestGeneration || !showEditModal.value || selectedKey.value?.id !== keyId) return
-    routingPreviewGroups.value = []
-    routingPreviewError.value = error?.response?.data?.detail || error?.message || t('keys.routingPreviewFailed')
-  } finally {
-    if (generation === routingPreviewRequestGeneration && showEditModal.value && selectedKey.value?.id === keyId) {
-      routingPreviewLoading.value = false
-    }
-  }
 }
 
 const loadRoutingProfile = async (keyId: number) => {
@@ -2167,18 +2101,11 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
 }
 
 const editKey = (key: ApiKey) => {
-  routingPreviewRequestGeneration += 1
-  routingPreviewLoading.value = false
   routingProfile.value = null
   routingProfileLoadError.value = false
   routingCandidateToAdd.value = null
   routingSubmitAttempted.value = false
   clearRoutingGroupDrag()
-  routingPreviewModel.value = ''
-  routingPreviewEndpoint.value = 'chat_completions'
-  routingPreviewGroups.value = []
-  routingPreviewError.value = ''
-  routingPreviewExpanded.value = false
   selectedKey.value = key
   const hasIPRestriction = (key.ip_whitelist?.length > 0) || (key.ip_blacklist?.length > 0)
   const hasExpiration = !!key.expires_at
@@ -2613,18 +2540,12 @@ const handleDelete = async () => {
 
 const closeModals = () => {
   routingRequestGeneration += 1
-  routingPreviewRequestGeneration += 1
   routingLoading.value = false
-  routingPreviewLoading.value = false
   routingProfile.value = null
   routingProfileLoadError.value = false
   routingCandidateToAdd.value = null
   routingSubmitAttempted.value = false
   clearRoutingGroupDrag()
-  routingPreviewModel.value = ''
-  routingPreviewEndpoint.value = 'chat_completions'
-  routingPreviewGroups.value = []
-  routingPreviewError.value = ''
   showCreateModal.value = false
   showEditModal.value = false
   selectedKey.value = null

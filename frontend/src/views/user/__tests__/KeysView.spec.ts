@@ -535,86 +535,10 @@ describe('user KeysView column settings', () => {
     expect((wrapper.get('[data-tour="key-form-submit"]').element as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('ignores a stale routing preview response after a newer preview starts', async () => {
-    const key = {
-      ...createApiKey(),
-      group_id: 42,
-      group: {
-        id: 42,
-        name: 'Primary',
-        platform: 'openai',
-        subscription_type: 'standard',
-        rate_multiplier: 1,
-      },
-    }
-    const secondKey = {
-      ...key,
-      id: 2,
-      name: 'second-key',
-      key: 'sk-second-key',
-    }
-    listKeys.mockResolvedValueOnce({ items: [key, secondKey], total: 2, page: 1, page_size: 20, pages: 1 })
-    getAvailableGroups.mockResolvedValueOnce([{
-      id: 42,
-      name: 'Primary',
-      status: 'active',
-      platform: 'openai',
-      subscription_type: 'standard',
-      rate_multiplier: 1,
-    }])
-    getSmartRouting.mockResolvedValue({
-      api_key_id: key.id,
-      enabled: true,
-      mode: 'smart',
-      strategy: 'auto',
-      price_weight: 40,
-      speed_weight: 30,
-      success_weight: 30,
-      sticky_ttl_seconds: 1800,
-      exploration_rate: 0.05,
-      version: 2,
-      groups: [],
-    })
-
-    let resolveOld!: (value: { groups: unknown[] }) => void
-    let resolveNew!: (value: { groups: unknown[] }) => void
-    previewSmartRouting.mockImplementation((_keyId: number, model: string) => new Promise((resolve) => {
-      if (model === 'old-model') resolveOld = resolve
-      else resolveNew = resolve
-    }))
-
+  it('does not render the removed routing preview controls', async () => {
     const wrapper = await mountView()
-    await getButtonByText(wrapper, 'Edit').trigger('click')
-    await flushPromises()
-    await wrapper.get('.routing-preview-toggle').trigger('click')
-
-    const input = wrapper.get('.routing-preview-input')
-    const previewButton = wrapper.get('.routing-preview-button')
-    await input.setValue('old-model')
-    await previewButton.trigger('click')
-
-    // Closing the first editor and opening another key invalidates the first
-    // request. Its late response must not paint into the second editor.
-    await getButtonByText(wrapper, 'Cancel').trigger('click')
-    const editButtons = wrapper.findAll('button').filter((button) => button.text().includes('Edit'))
-    await editButtons[1].trigger('click')
-    await flushPromises()
-    await wrapper.get('.routing-preview-toggle').trigger('click')
-    const secondInput = wrapper.get('.routing-preview-input')
-    const secondPreviewButton = wrapper.get('.routing-preview-button')
-    await secondInput.setValue('new-model')
-    await secondPreviewButton.trigger('click')
-
-    resolveOld({ groups: [{ group_id: 11, name: 'Old result', eligible: true, score: 1, success_rate: 1, speed_ms: 10, samples: 20 }] })
-    await flushPromises()
-    expect(wrapper.text()).not.toContain('Old result')
-
-    resolveNew({ groups: [{ group_id: 12, name: 'New result', eligible: true, score: 2, success_rate: 1, speed_ms: 10, samples: 20 }] })
-    await flushPromises()
-    expect(wrapper.text()).toContain('New result')
-    expect(wrapper.text()).not.toContain('Old result')
+    expect(wrapper.find('.routing-preview-toggle').exists()).toBe(false)
   })
-
   it('keeps routing disabled when an inline primary-group update may have committed before timeout', async () => {
     const key = {
       ...createApiKey(),
