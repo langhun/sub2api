@@ -127,7 +127,7 @@ export default {
     routingModeHint: '所选分组共同组成可参与路由的候选池；服务端会按当前策略在运行时评估推荐分组。',
     routingSingleModeHint: '请求始终使用主分组，行为与原有密钥一致。',
     routingSafetyTitle: '价格与权限保护已开启',
-    routingSafetyHint: '只会使用同平台、同计费类型且不高于主分组价格的分组；已产生输出后不会跨组重试。',
+    routingSafetyHint: '只会使用同平台、同计费类型且有权限的分组；价格用于排序，主分组不可用时可切换到其他候选，按实际命中分组计费。',
     singleGroup: '单分组',
     smartRouting: '智能路由',
     routingCandidates: '候选分组',

@@ -977,11 +977,6 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 			mainCandidate.Reason = "no schedulable accounts"
 		}
 	}
-	if mainPriceValid && !m.pricingComparableForGroups(ctx, main, main, model) {
-		mainCandidate.Eligible = false
-		mainCandidate.Reason = "channel model pricing requires explicit comparison"
-		mainPriceValid = false
-	}
 	candidates := append([]Group{mainCandidate}, p.Groups...)
 	seen := map[int64]bool{}
 	out := make([]Group, 0, len(candidates))
@@ -1026,11 +1021,6 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				continue
 			}
 			candidateModel := m.dispatchModelForGroup(ctx, full, model)
-			if !m.pricingComparableForGroups(ctx, main, full, model) || (candidateModel != model && !m.pricingComparableForGroups(ctx, main, full, candidateModel)) {
-				g.Reason = "channel model pricing requires explicit comparison"
-				out = append(out, g)
-				continue
-			}
 			if permissionServiceUnavailable {
 				g.Reason = "permission service unavailable"
 				out = append(out, g)
@@ -1041,16 +1031,10 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				out = append(out, g)
 				continue
 			}
-			if len(main.ModelPricing) > 0 || len(full.ModelPricing) > 0 {
-				g.Reason = "model-specific pricing requires explicit comparison"
-				out = append(out, g)
-				continue
-			}
-			if g.Price > mainEffectivePrice+1e-9 {
-				g.Reason = "price exceeds primary group"
-				out = append(out, g)
-				continue
-			}
+			// Candidate price is a scoring signal, not a hard eligibility gate.
+			// A more expensive Plus group must still be available as a failover
+			// when a discounted primary group is exhausted; actual billing uses
+			// the group that serves the request.
 			if m.accounts == nil {
 				g.Reason = "account scheduler unavailable"
 				out = append(out, g)
@@ -1102,6 +1086,7 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 	}
 	minP, maxP := eligible[0].Price, eligible[0].Price
 	maxS, minS := eligible[0].SuccessRate, eligible[0].SuccessRate
+	minSpeed, maxSpeed := int64(0), int64(0)
 	for _, g := range eligible {
 		if g.Price < minP {
 			minP = g.Price
@@ -1115,6 +1100,12 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		if g.SuccessRate < minS {
 			minS = g.SuccessRate
 		}
+		if g.SpeedMs > 0 && (minSpeed == 0 || g.SpeedMs < minSpeed) {
+			minSpeed = g.SpeedMs
+		}
+		if g.SpeedMs > maxSpeed {
+			maxSpeed = g.SpeedMs
+		}
 	}
 	for _, g := range eligible {
 		priceScore := 100.0
@@ -1125,13 +1116,7 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		if maxS > minS {
 			successScore = 100 * (g.SuccessRate - minS) / (maxS - minS)
 		}
-		speedScore := 50.0
-		if g.SpeedMs > 0 {
-			speedScore = 100000 / float64(g.SpeedMs)
-			if speedScore > 100 {
-				speedScore = 100
-			}
-		}
+		speedScore := relativeSpeedScore(g.SpeedMs, minSpeed, maxSpeed)
 		wP, wS, wE := p.PriceWeight, p.SpeedWeight, p.SuccessWeight
 		switch p.Strategy {
 		case "price":
@@ -1146,6 +1131,22 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 	}
 	sortRankedGroups(out)
 	return out, nil
+}
+
+func relativeSpeedScore(speedMs, minSpeed, maxSpeed int64) float64 {
+	if speedMs <= 0 || maxSpeed <= 0 {
+		return 50
+	}
+	if maxSpeed == minSpeed {
+		return 100
+	}
+	if speedMs < minSpeed {
+		speedMs = minSpeed
+	}
+	if speedMs > maxSpeed {
+		speedMs = maxSpeed
+	}
+	return 100 * float64(maxSpeed-speedMs) / float64(maxSpeed-minSpeed)
 }
 
 // sortRankedGroups keeps the score as the primary decision signal and uses

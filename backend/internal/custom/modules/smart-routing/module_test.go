@@ -511,6 +511,19 @@ func TestRankMarksCompatibleCandidateEligible(t *testing.T) {
 	t.Fatalf("rank did not return candidate group: %#v", ranked)
 }
 
+func TestRankAllowsHigherPricedCompatibleFallback(t *testing.T) {
+	primaryID, candidateID := int64(2001), int64(2002)
+	primary := &service.Group{ID: primaryID, Name: "特惠", Platform: service.PlatformOpenAI, RateMultiplier: 0.25, Status: service.StatusActive, SubscriptionType: "standard"}
+	candidate := &service.Group{ID: candidateID, Name: "Plus", Platform: service.PlatformOpenAI, RateMultiplier: 1.0, Status: service.StatusActive, SubscriptionType: "standard"}
+	m := &Module{repo: &Repository{}, availableGroups: allowRoutingGroups(primaryID, candidateID), groups: &routingGroupRepoStub{groups: map[int64]*service.Group{primaryID: primary, candidateID: candidate}}, accounts: &routingAccountRepoStub{groups: map[int64][]service.Account{candidateID: {{ID: 21, Status: service.StatusActive, Schedulable: true}}}}}
+	ranked, err := m.rank(context.Background(), &service.APIKey{ID: 20, GroupID: &primaryID, Group: primary}, &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidateID, Enabled: true}}}, "gpt-5", nil)
+	if err != nil { t.Fatal(err) }
+	for _, group := range ranked {
+		if group.GroupID == candidateID && group.Eligible { return }
+	}
+	t.Fatal("higher-priced compatible fallback must remain eligible")
+}
+
 func TestRankRejectsCrossPlatformAndCompositeCandidates(t *testing.T) {
 	mainID := int64(101)
 	main := &service.Group{
@@ -901,6 +914,15 @@ func TestSortRankedGroupsHonorsPersistedOrderOnTies(t *testing.T) {
 	sortRankedGroups(groups)
 	if got := []int64{groups[0].GroupID, groups[1].GroupID, groups[2].GroupID, groups[3].GroupID}; !reflect.DeepEqual(got, []int64{8, 7, 9, 6}) {
 		t.Fatalf("sorted group order = %v, want [8 7 9 6]", got)
+	}
+}
+
+func TestRankSpeedScoreUsesRelativeLatency(t *testing.T) {
+	minSpeed, maxSpeed := int64(100), int64(900)
+	fast := relativeSpeedScore(100, minSpeed, maxSpeed)
+	slow := relativeSpeedScore(900, minSpeed, maxSpeed)
+	if fast <= slow || fast != 100 || slow != 0 {
+		t.Fatalf("relative speed scores = %.1f/%.1f, want fast=100 slow=0", fast, slow)
 	}
 }
 

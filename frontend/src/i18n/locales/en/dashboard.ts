@@ -127,7 +127,7 @@ export default {
     routingModeHint: 'Selected groups form the candidate pool. The server evaluates and recommends a group at runtime using the current strategy.',
     routingSingleModeHint: 'Requests always use the primary group, matching the existing key behavior.',
     routingSafetyTitle: 'Price and permission guardrails are on',
-    routingSafetyHint: 'Only same-platform, same-billing groups at or below the primary price are eligible; requests with visible output never retry across groups.',
+    routingSafetyHint: 'Only same-platform, same-billing groups with permission are used. Price affects ranking; if the primary is unavailable, a candidate may serve the request and is billed at its actual group price.',
     singleGroup: 'Single group',
     smartRouting: 'Smart routing',
     routingCandidates: 'Candidate groups',
