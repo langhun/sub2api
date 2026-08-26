@@ -1,7 +1,7 @@
 <template>
   <AppLayout>
     <div class="mx-auto -mt-2 max-w-7xl space-y-3 md:-mt-3 lg:-mt-4">
-      <header class="flex min-h-0 justify-end">
+      <header v-if="!ticket" class="flex min-h-0 justify-end">
         <button v-if="ticket" class="btn btn-secondary self-start sm:self-auto" type="button" @click="goToList">
           <Icon name="arrowLeft" size="sm" />
           {{ t('supportTickets.backToList') }}
@@ -105,6 +105,7 @@
           </div>
 
           <aside class="order-first border-b border-gray-200 p-5 xl:order-last xl:border-b-0 dark:border-dark-700">
+            <button class="btn btn-secondary mb-4 w-full" type="button" @click="goToList"><Icon name="arrowLeft" size="sm" />{{ t('supportTickets.backToList') }}</button>
             <form class="space-y-4 xl:sticky xl:top-20" @submit.prevent="updateTicket">
               <div class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white"><Icon name="cog" size="sm" />{{ t('admin.supportTickets.details') }}</div>
               <label class="block"><span class="input-label">{{ t('supportTickets.status') }}</span><select v-model="editForm.status" class="input"><option v-for="status in ticketStatuses" :key="status" :value="status">{{ statusLabel(status) }}</option></select></label>
