@@ -1,10 +1,10 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-7xl space-y-5">
-      <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3">
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 ring-1 ring-primary-100 dark:bg-primary-900/20 dark:text-primary-300 dark:ring-primary-900/60">
-            <Icon name="inbox" size="lg" />
+    <div class="mx-auto max-w-7xl space-y-3">
+      <header class="flex min-h-10 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 ring-1 ring-primary-100 dark:bg-primary-900/20 dark:text-primary-300 dark:ring-primary-900/60">
+            <Icon name="inbox" size="sm" />
           </span>
           <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ t('supportTickets.title') }}</h1>
         </div>
@@ -28,7 +28,7 @@
       </div>
 
       <section v-else-if="ticket" class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
-        <div class="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+         <div class="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-6">
           <div class="min-w-0">
             <p class="break-all font-mono text-xs text-gray-400 dark:text-dark-500">{{ ticket.public_id }}</p>
             <h2 class="mt-1 break-words text-lg font-semibold text-gray-900 dark:text-white">{{ ticket.subject }}</h2>
