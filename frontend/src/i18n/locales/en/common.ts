@@ -351,10 +351,14 @@ export default {
       backToLogin: 'Back to Login',
       invitationRequired:
         'This {providerName} account is not yet registered. The site requires an invitation code — please enter one to complete registration.',
+      localPasswordHint:
+        '{providerName} only verifies your identity. Set a password for this site; it is not your {providerName} password. The password is stored only here.',
+      localPasswordLabel: 'Site password',
+      localPasswordPlaceholder: 'Set a site password (at least 6 characters)',
       invalidPendingToken: 'The registration token has expired. Please sign in again.',
       completeRegistration: 'Complete Registration',
       completing: 'Completing registration…',
-      completeRegistrationFailed: 'Registration failed. Please check your invitation code and try again.'
+      completeRegistrationFailed: 'Registration failed. Check your password or restart the sign-in flow and try again.'
     },
     oauthFlow: {
       profileDetailsTitle: 'Use {providerName} profile details',

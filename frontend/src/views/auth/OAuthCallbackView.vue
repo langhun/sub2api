@@ -18,6 +18,9 @@
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
           {{ registrationHint }}
         </p>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          {{ t('auth.oidc.localPasswordHint', { providerName }) }}
+        </p>
 
         <div class="mt-6 space-y-4">
           <div>
@@ -31,12 +34,12 @@
             />
           </div>
           <div>
-            <label class="input-label">{{ t('auth.passwordLabel') }}</label>
+            <label class="input-label">{{ t('auth.oidc.localPasswordLabel') }}</label>
             <input
               v-model="password"
               type="password"
               class="input w-full"
-              :placeholder="t('auth.createPasswordPlaceholder')"
+              :placeholder="t('auth.oidc.localPasswordPlaceholder')"
               :disabled="isSubmitting"
               autocomplete="new-password"
               @keyup.enter="handleSubmitRegistration"

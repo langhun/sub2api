@@ -349,10 +349,13 @@ export default {
       callbackMissingToken: '登录信息缺失，请返回重试。',
       backToLogin: '返回登录',
       invitationRequired: '该 {providerName} 账号尚未注册，站点已开启邀请码注册，请输入邀请码以完成注册。',
+      localPasswordHint: '{providerName} 仅用于验证身份，请设置一个本站登录密码；这不是 {providerName} 密码。密码仅保存在本站。',
+      localPasswordLabel: '本站登录密码',
+      localPasswordPlaceholder: '设置至少 6 位的本站密码',
       invalidPendingToken: '注册凭证已失效，请重新登录。',
       completeRegistration: '完成注册',
       completing: '正在完成注册...',
-      completeRegistrationFailed: '注册失败，请检查邀请码后重试。'
+      completeRegistrationFailed: '注册失败，请检查密码或重新开始登录流程后重试。'
     },
     oauthFlow: {
       profileDetailsTitle: '使用 {providerName} 资料',
