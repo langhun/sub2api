@@ -628,7 +628,9 @@
               <div v-if="routingPreviewExpanded" class="routing-preview-content">
                 <div class="routing-preview-controls"><input v-model="routingPreviewModel" class="routing-preview-input" type="text" :placeholder="t('keys.routingPreviewModelPlaceholder')" :aria-label="t('keys.routingPreviewModel')" :disabled="routingPreviewLoading || routingLoading" @keyup.enter="previewRouting" /><Select v-model="routingPreviewEndpoint" class="routing-preview-endpoint" :options="routingPreviewEndpointOptions" :disabled="routingPreviewLoading || routingLoading" :aria-label="t('keys.routingPreviewEndpoint')" /><button type="button" class="routing-preview-button" :disabled="routingPreviewLoading || routingLoading" @click="previewRouting"><Icon name="search" size="xs" /> {{ t('keys.routingPreviewAction') }}</button></div>
                 <p v-if="routingPreviewError" class="routing-validation-error" role="alert">{{ routingPreviewError }}</p>
-                <div v-if="routingPreviewGroups.length" class="routing-preview-list"><div v-for="(group, index) in routingPreviewGroups" :key="group.group_id" class="routing-preview-row" :class="{ eligible: group.eligible }"><span class="routing-preview-rank">{{ index + 1 }}</span><span class="routing-preview-copy"><strong>{{ group.name || `#${group.group_id}` }}</strong><small>{{ group.eligible ? `${t('keys.routingPreviewScore')}: ${group.score.toFixed(1)}` : (group.reason || t('keys.routingCandidateInvalid')) }}</small></span><span v-if="group.eligible" class="routing-preview-metrics"><span :title="t('keys.routingPreviewSuccess')">{{ group.success_rate ? `${Math.round(group.success_rate * 100)}%` : '-' }}</span><span :title="t('keys.routingPreviewSpeed')">{{ group.speed_ms ? `${Math.round(group.speed_ms)}ms` : '-' }}</span><span :title="t('keys.routingPreviewSamples')">n={{ group.samples }}</span></span></div></div>
+                <div v-if="routingPreviewGroups.length" class="routing-preview-list"><div v-for="(group, index) in routingPreviewGroups" :key="group.group_id" class="routing-preview-row" :class="{ eligible: group.eligible }"><span class="routing-preview-rank">{{ index + 1 }}</span><span class="routing-preview-copy"><strong>{{ group.name || `#${group.group_id}` }}</strong><small>{{ group.eligible ? `${t('keys.routingPreviewScore')}: ${group.score.toFixed(1)}` : previewReasonLabel(group.reason) }}</small></span><span v-if="group.eligible" class="routing-preview-metrics"><span :title="t('keys.routingPreviewSuccess')">{{ group.success_rate ? `${Math.round(group.success_rate * 100)}%` : '-' }}</span><span :title="t('keys.routingPreviewSpeed')">{{ group.speed_ms ? `${Math.round(group.speed_ms)}ms` : '-' }}</span><span :title="t('keys.routingPreviewSamples')">n={{ group.samples }}</span></span></div></div>
+                <div v-else-if="!routingPreviewLoading && !routingPreviewError" class="routing-preview-empty">{{ t('keys.routingPreviewEmpty') }}</div>
+                <p v-if="routingPreviewGroups.length && routingPreviewGroups.every(group => !group.eligible)" class="routing-preview-note">{{ t('keys.routingPreviewPrimaryFallback') }}</p>
               </div>
             </div>
           </div>
@@ -1548,6 +1550,20 @@ const routingPreviewEndpointOptions = computed(() => [
   { value: 'responses', label: t('keys.routingEndpointResponses') },
   { value: 'messages', label: t('keys.routingEndpointMessages') }
 ])
+
+const previewReasonLabel = (reason?: string) => {
+  const key = {
+    'channel model pricing requires explicit comparison': 'keys.routingReasonPriceComparison',
+    'model-specific pricing requires explicit comparison': 'keys.routingReasonModelPricing',
+    'price unavailable for comparison': 'keys.routingReasonPriceUnavailable',
+    'price exceeds primary group': 'keys.routingReasonPriceHigher',
+    'no schedulable accounts': 'keys.routingReasonNoAccounts',
+    'incompatible group': 'keys.routingReasonIncompatible',
+    'permission or subscription unavailable': 'keys.routingReasonPermission',
+    'endpoint not supported by group': 'keys.routingReasonEndpoint',
+  } as Record<string, string>
+  return reason && key[reason] ? t(key[reason]) : (reason || t('keys.routingCandidateInvalid'))
+}
 
 const routingWeightValue = (value: number | null | undefined) => {
   const numeric = Number(value)

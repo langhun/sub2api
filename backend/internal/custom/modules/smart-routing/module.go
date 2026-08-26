@@ -977,7 +977,7 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 			mainCandidate.Reason = "no schedulable accounts"
 		}
 	}
-	if mainPriceValid && (!m.pricingComparable(ctx, main.ID, model) || (mainModel != model && !m.pricingComparable(ctx, main.ID, mainModel))) {
+	if mainPriceValid && !m.pricingComparableForGroups(ctx, main, main, model) {
 		mainCandidate.Eligible = false
 		mainCandidate.Reason = "channel model pricing requires explicit comparison"
 		mainPriceValid = false
@@ -1026,7 +1026,7 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 				continue
 			}
 			candidateModel := m.dispatchModelForGroup(ctx, full, model)
-			if !m.pricingComparable(ctx, full.ID, model) || (candidateModel != model && !m.pricingComparable(ctx, full.ID, candidateModel)) {
+			if !m.pricingComparableForGroups(ctx, main, full, model) || (candidateModel != model && !m.pricingComparableForGroups(ctx, main, full, candidateModel)) {
 				g.Reason = "channel model pricing requires explicit comparison"
 				out = append(out, g)
 				continue
@@ -1216,20 +1216,85 @@ func (m *Module) dispatchModelForGroup(ctx context.Context, group *service.Group
 	return model
 }
 
-func (m *Module) pricingComparable(ctx context.Context, groupID int64, model string) bool {
-	if m != nil && m.gateway != nil {
-		ok, err := m.gateway.CheckSmartRoutingPricingComparable(ctx, groupID, model)
-		if err != nil || !ok {
-			return false
-		}
+func (m *Module) pricingComparableForGroups(ctx context.Context, primary, candidate *service.Group, model string) bool {
+	if m == nil || primary == nil || candidate == nil {
+		return false
 	}
-	if m != nil && m.openAI != nil {
-		ok, err := m.openAI.CheckSmartRoutingPricingComparable(ctx, groupID, model)
-		if err != nil || !ok {
-			return false
-		}
+	if m.gateway == nil && m.openAI == nil {
+		return true
 	}
-	return true
+	check := func(groupID int64) bool {
+		if m.gateway != nil {
+			ok, err := m.gateway.CheckSmartRoutingPricingComparable(ctx, groupID, model)
+			if err == nil && ok {
+				return true
+			}
+		}
+		if m.openAI != nil {
+			ok, err := m.openAI.CheckSmartRoutingPricingComparable(ctx, groupID, model)
+			if err == nil && ok {
+				return true
+			}
+		}
+		return false
+	}
+	if primary.ID == candidate.ID {
+		return check(primary.ID) || m.explicitChannelPricingComparable(ctx, primary, candidate, model)
+	}
+	if check(primary.ID) && check(candidate.ID) {
+		return true
+	}
+	return m.explicitChannelPricingComparable(ctx, primary, candidate, model)
+}
+
+// explicitChannelPricingComparable is the narrow escape from the legacy
+// "any channel mapping means unknown price" rule. It only accepts a pair when
+// both groups expose the same billing mode and every explicit unit price is
+// known; the candidate must not be more expensive after its group multiplier.
+func (m *Module) explicitChannelPricingComparable(ctx context.Context, primary, candidate *service.Group, model string) bool {
+	lookup := func(groupID int64) *service.ChannelModelPricing {
+		models := []string{model}
+		if m.gateway != nil {
+			gid := groupID
+			if mapped, _ := m.gateway.ResolveChannelMappingAndRestrict(ctx, &gid, model); mapped.Mapped && strings.TrimSpace(mapped.MappedModel) != "" {
+				models = append(models, strings.TrimSpace(mapped.MappedModel))
+			}
+		}
+		if m.openAI != nil {
+			gid := groupID
+			if mapped, _ := m.openAI.ResolveChannelMappingAndRestrict(ctx, &gid, model); mapped.Mapped && strings.TrimSpace(mapped.MappedModel) != "" {
+				models = append(models, strings.TrimSpace(mapped.MappedModel))
+			}
+		}
+		for _, lookupModel := range models {
+			if m.gateway != nil {
+				if p := m.gateway.GetSmartRoutingChannelModelPricing(ctx, groupID, lookupModel); p != nil {
+					return p
+				}
+			}
+			if m.openAI != nil {
+				if p := m.openAI.GetSmartRoutingChannelModelPricing(ctx, groupID, lookupModel); p != nil {
+					return p
+				}
+			}
+		}
+		return nil
+	}
+	left, right := lookup(primary.ID), lookup(candidate.ID)
+	if left == nil || right == nil || left.BillingMode != right.BillingMode {
+		return false
+	}
+	leftMul, rightMul := primary.RateMultiplier, candidate.RateMultiplier
+	if leftMul < 0 || rightMul < 0 {
+		return false
+	}
+	compare := func(a, b *float64) bool {
+		if a == nil || b == nil {
+			return a == nil && b == nil
+		}
+		return *b*rightMul <= *a*leftMul+1e-12
+	}
+	return compare(left.InputPrice, right.InputPrice) && compare(left.OutputPrice, right.OutputPrice) && compare(left.PerRequestPrice, right.PerRequestPrice)
 }
 
 // longContextPricingComparable verifies that selecting a candidate cannot

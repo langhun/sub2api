@@ -588,6 +588,15 @@ func (s *OpenAIGatewayService) ResolveChannelMappingAndRestrict(ctx context.Cont
 	return s.channelService.ResolveChannelMappingAndRestrict(ctx, groupID, model)
 }
 
+// GetSmartRoutingChannelModelPricing exposes the immutable channel price
+// snapshot needed by the Overlay to compare two otherwise compatible groups.
+func (s *OpenAIGatewayService) GetSmartRoutingChannelModelPricing(ctx context.Context, groupID int64, model string) *ChannelModelPricing {
+	if s == nil || s.channelService == nil {
+		return nil
+	}
+	return s.channelService.GetChannelModelPricing(ctx, groupID, model)
+}
+
 func (s *OpenAIGatewayService) isCodexImageGenerationBridgeEnabled(ctx context.Context, account *Account, apiKey *APIKey) bool {
 	if override := account.CodexImageGenerationBridgeOverride(); override != nil {
 		return *override
