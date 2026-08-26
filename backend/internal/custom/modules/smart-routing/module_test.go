@@ -517,9 +517,13 @@ func TestRankAllowsHigherPricedCompatibleFallback(t *testing.T) {
 	candidate := &service.Group{ID: candidateID, Name: "Plus", Platform: service.PlatformOpenAI, RateMultiplier: 1.0, Status: service.StatusActive, SubscriptionType: "standard"}
 	m := &Module{repo: &Repository{}, availableGroups: allowRoutingGroups(primaryID, candidateID), groups: &routingGroupRepoStub{groups: map[int64]*service.Group{primaryID: primary, candidateID: candidate}}, accounts: &routingAccountRepoStub{groups: map[int64][]service.Account{candidateID: {{ID: 21, Status: service.StatusActive, Schedulable: true}}}}}
 	ranked, err := m.rank(context.Background(), &service.APIKey{ID: 20, GroupID: &primaryID, Group: primary}, &Profile{Strategy: "auto", PriceWeight: 40, SpeedWeight: 30, SuccessWeight: 30, Groups: []Group{{GroupID: candidateID, Enabled: true}}}, "gpt-5", nil)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, group := range ranked {
-		if group.GroupID == candidateID && group.Eligible { return }
+		if group.GroupID == candidateID && group.Eligible {
+			return
+		}
 	}
 	t.Fatal("higher-priced compatible fallback must remain eligible")
 }
@@ -648,6 +652,60 @@ func TestRankSkipsPrimaryWhenAccountQueryConfirmsNoAccounts(t *testing.T) {
 				t.Fatalf("candidate with an account must remain eligible: %#v", group)
 			}
 		}
+	}
+}
+
+func TestRankReturnsToRecoveredDiscountPrimaryWithoutGroupStickiness(t *testing.T) {
+	primaryID, plusID, proID := int64(2101), int64(2102), int64(2103)
+	primary := &service.Group{ID: primaryID, Name: "GPT-特惠", Platform: service.PlatformOpenAI, RateMultiplier: 0.08, Status: service.StatusActive, SubscriptionType: "standard"}
+	plus := &service.Group{ID: plusID, Name: "GPT-Plus", Platform: service.PlatformOpenAI, RateMultiplier: 0.15, Status: service.StatusActive, SubscriptionType: "standard"}
+	pro := &service.Group{ID: proID, Name: "GPT-Pro", Platform: service.PlatformOpenAI, RateMultiplier: 0.25, Status: service.StatusActive, SubscriptionType: "standard"}
+	accountRepo := &routingAccountRepoStub{groups: map[int64][]service.Account{
+		plusID: {{ID: 22, Status: service.StatusActive, Schedulable: true}},
+		proID:  {{ID: 23, Status: service.StatusActive, Schedulable: true}},
+	}}
+	m := &Module{
+		repo:            &Repository{},
+		availableGroups: allowRoutingGroups(primaryID, plusID, proID),
+		groups:          &routingGroupRepoStub{groups: map[int64]*service.Group{primaryID: primary, plusID: plus, proID: pro}},
+		accounts:        accountRepo,
+	}
+	key := &service.APIKey{ID: 21, UserID: 7, GroupID: &primaryID, Group: primary}
+	profile := &Profile{
+		Strategy:      "custom",
+		PriceWeight:   60,
+		SpeedWeight:   20,
+		SuccessWeight: 20,
+		Groups: []Group{
+			{GroupID: plusID, SortOrder: 0, Enabled: true},
+			{GroupID: proID, SortOrder: 1, Enabled: true},
+		},
+	}
+
+	firstEligible := func() int64 {
+		ranked, err := m.rank(context.Background(), key, profile, "gpt-5", map[int64]struct{}{})
+		if err != nil {
+			t.Fatalf("rank returned error: %v", err)
+		}
+		for _, group := range ranked {
+			if group.Eligible {
+				return group.GroupID
+			}
+		}
+		t.Fatal("rank returned no eligible group")
+		return 0
+	}
+
+	if got := firstEligible(); got != plusID {
+		t.Fatalf("route with unavailable primary = %d, want Plus %d", got, plusID)
+	}
+
+	// Simulate the primary account becoming schedulable before the next request.
+	// The same key/profile is reused: a cross-group sticky binding must not keep
+	// the request on Plus after the lower-priced primary has recovered.
+	accountRepo.groups[primaryID] = []service.Account{{ID: 21, Status: service.StatusActive, Schedulable: true}}
+	if got := firstEligible(); got != primaryID {
+		t.Fatalf("route after primary recovery = %d, want discounted primary %d", got, primaryID)
 	}
 }
 
