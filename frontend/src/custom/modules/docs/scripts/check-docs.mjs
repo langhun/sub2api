@@ -20,15 +20,20 @@ const externalImage = /!\[[^\]]*\]\((?!asset:)[^)]+\)/gi
 const assetReference = /asset:([A-Za-z0-9/_-]+\.(?:png|webp))/g
 const documentedAsset = /!\[([^\]]+)\]\(asset:([A-Za-z0-9/_-]+\.(?:png|webp))\s+["']([^"']+)["']\)/g
 const forbiddenSourceDomain = /(?:aiapipay|old\.aiapipay)\.com|api\.your-domain\.com|gateway\.example/gi
+const forbiddenTutorialMaterial = /\bkrill\b|api-slb\.krill-ai\.net|gpt-5\.6-sol|纯\s*pro\s*池|绝不降级|pure\s+pro\s+pool|no\s+downgrade/gi
 
 const brandedApiAddresses = assetGeneratorSource.match(/https:\/\/api\.daigua\.icu(?:\/v1)?/g) || []
-if (brandedApiAddresses.length !== 7) errors.push('generic illustrations must contain seven DaiGua public API addresses')
+if (brandedApiAddresses.length < 12) errors.push('generic illustrations are missing DaiGua public API addresses for the expanded client guides')
 if (/api\.example\.com/i.test(assetGeneratorSource)) errors.push('generic illustrations still contain the placeholder API domain')
+if (forbiddenTutorialMaterial.test(assetGeneratorSource)) errors.push('generic illustrations contain third-party tutorial branding or unsupported claims')
+forbiddenTutorialMaterial.lastIndex = 0
 
 const verifiedAtMatch = catalogSource.match(/const verifiedAt = '(\d{4}-\d{2}-\d{2})'/)
 if (!verifiedAtMatch) errors.push('catalog is missing a valid verification date')
 if (baselineSlugs.length !== 14) errors.push('baseline topic list must contain fourteen slugs')
 if (forbiddenSourceDomain.test(catalogSource)) errors.push('catalog contains a retired or placeholder source domain')
+if (forbiddenTutorialMaterial.test(catalogSource)) errors.push('catalog contains third-party tutorial branding or unsupported claims')
+forbiddenTutorialMaterial.lastIndex = 0
 
 const sourceUrls = [
   ...catalogSource.matchAll(/\burl:\s*'(https?:\/\/[^']+)'/g),
@@ -42,6 +47,8 @@ for (const url of sourceUrls) {
 
 const readmeSource = readFileSync(join(moduleRoot, 'README.md'), 'utf8')
 if (forbiddenSourceDomain.test(readmeSource)) errors.push('README contains a retired or placeholder source domain')
+if (forbiddenTutorialMaterial.test(readmeSource)) errors.push('README contains third-party tutorial branding or unsupported claims')
+forbiddenTutorialMaterial.lastIndex = 0
 
 for (const slug of slugs) {
   if (!catalogSource.includes(`slug: '${slug}'`)) errors.push(`catalog is missing ${slug}`)
@@ -66,6 +73,8 @@ for (const slug of slugs) {
     if (dangerousMarkdown.test(content)) errors.push(`${locale}/${slug}.md contains dangerous Markdown or HTML`)
     dangerousMarkdown.lastIndex = 0
     if (/api\.your-domain\.com|gateway\.example|old\.aiapipay\.com|aiapipay\.com/i.test(content)) errors.push(`${locale}/${slug}.md contains a retired or placeholder domain`)
+    if (forbiddenTutorialMaterial.test(content)) errors.push(`${locale}/${slug}.md contains third-party tutorial branding or unsupported claims`)
+    forbiddenTutorialMaterial.lastIndex = 0
     const registeredAssets = new Set()
     for (const match of content.matchAll(assetReference)) {
       if (!existsSync(join(moduleRoot, 'assets', match[1]))) errors.push(`${locale}/${slug}.md references missing asset ${match[1]}`)

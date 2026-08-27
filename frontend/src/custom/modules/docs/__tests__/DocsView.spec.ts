@@ -135,8 +135,8 @@ describe('DocsView', () => {
   it('searches topic bodies and navigates to a result', async () => {
     const { wrapper, router } = await mountView()
     await wrapper.get('input[type="search"]').setValue('OpenCode')
-    expect(wrapper.text()).toContain('Grok CLI 与编程客户端')
-    const topic = wrapper.findAll('.docs-topic-link').find((button) => button.text().includes('Grok CLI'))
+    expect(wrapper.text()).toContain('编程客户端与 CLI 接入')
+    const topic = wrapper.findAll('.docs-topic-link').find((button) => button.text().includes('编程客户端'))
     expect(topic).toBeTruthy()
     await topic!.trigger('click')
     await flushPromises()

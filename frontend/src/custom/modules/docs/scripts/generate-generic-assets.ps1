@@ -121,15 +121,18 @@ Draw-Step $g 2 205 390 770 48 'Key 从环境变量读取'
 Draw-Step $g 3 205 440 770 48 '保持 Responses 协议'
 Save-Canvas $canvas 'assets/grok/grok-cli-config.png'
 
-$canvas = New-Canvas 'Codex 自定义 Provider' 'DaiGua 脱敏配置参考图 - 使用 Responses'
+$canvas = New-Canvas 'Codex 自定义 Responses Provider' '本机核验 Codex CLI 0.147.0 - 字段值已脱敏'
 $g = $canvas.Graphics
 Draw-Panel $g 140 120 1160 710
-$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#111827')), 190, 170, 800, 600)
-$lines = @('model_provider = "site-grok"','model = "<grok-model-id>"','','[model_providers.site-grok]','base_url = "https://api.daigua.icu/v1"','env_key = "SUB2API_API_KEY"','wire_api = "responses"','requires_openai_auth = false','supports_websockets = false')
-for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 13), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#E5E7EB')), 220, 195 + ($i * 56)) }
-Draw-Step $g 1 205 405 770 48 '复制本站 api_base_url'
-Draw-Step $g 2 205 461 770 48 '从环境变量读取 Key'
-Draw-Step $g 3 205 517 770 48 '保持 Responses 协议'
+$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#F8FAFC')), 190, 170, 760, 590)
+$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#2563EB')), 190, 170, 8, 590)
+$g.DrawString('config.toml', [System.Drawing.Font]::new($fontFamily, 12, [System.Drawing.FontStyle]::Bold), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#1D4ED8')), 224, 196)
+$lines = @('model_provider = "daigua"','model = "<model-id>"','','[model_providers.daigua]','base_url = "https://api.daigua.icu/v1"','env_key = "SUB2API_API_KEY"','wire_api = "responses"','requires_openai_auth = false','supports_websockets = false')
+for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 12), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#172B4D')), 224, 240 + ($i * 52)) }
+Draw-NumberedNote $g 1 990 185 260 'Base URL' '使用本站完整 /v1 地址'
+Draw-NumberedNote $g 2 990 300 260 'Responses' 'wire_api 保持 responses'
+Draw-NumberedNote $g 3 990 415 260 'Key 来源' '只保存环境变量名称'
+Draw-NumberedNote $g 4 990 530 260 'WebSocket' '兼容路由默认关闭'
 Save-Canvas $canvas 'assets/grok/codex-provider.png'
 
 $canvas = New-Canvas 'Claude Code 配置' 'DaiGua 脱敏配置示意图 - 使用 Messages 协议'
@@ -138,7 +141,7 @@ Draw-Panel $g 140 120 1160 710
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#F8FAFC')), 190, 170, 760, 590)
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#0F766E')), 190, 170, 8, 590)
 $g.DrawString('PowerShell', [System.Drawing.Font]::new($fontFamily, 12, [System.Drawing.FontStyle]::Bold), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#0F766E')), 224, 198)
-$lines = @('$env:ANTHROPIC_BASE_URL="https://api.daigua.icu"','$env:ANTHROPIC_API_KEY="sk-demo-replace-me"','$env:ANTHROPIC_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_SONNET_MODEL="<grok-model-id>"','$env:ANTHROPIC_DEFAULT_HAIKU_MODEL="<grok-model-id>"','claude --model <grok-model-id> -p "Reply only OK"')
+$lines = @('$env:ANTHROPIC_BASE_URL="https://api.daigua.icu"','$env:ANTHROPIC_API_KEY="sk-demo-replace-me"','$env:ANTHROPIC_MODEL="<model-id>"','$env:ANTHROPIC_DEFAULT_SONNET_MODEL="<model-id>"','$env:ANTHROPIC_DEFAULT_HAIKU_MODEL="<model-id>"','claude --model <model-id> -p "Reply only OK"')
 for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 12), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#172B4D')), 224, 252 + ($i * 68)) }
 Draw-NumberedNote $g 1 990 185 260 '站点根地址' '这里不要带 /v1'
 Draw-NumberedNote $g 2 990 300 260 '优先 API Key' '不要同时设置 Token'
@@ -152,13 +155,86 @@ Draw-Panel $g 140 120 1160 710
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#F8FAFC')), 190, 170, 760, 590)
 $g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#2563EB')), 190, 170, 8, 590)
 $g.DrawString('opencode.json', [System.Drawing.Font]::new($fontFamily, 12, [System.Drawing.FontStyle]::Bold), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#1D4ED8')), 224, 198)
-$lines = @('{','  "provider": {','    "site": {','      "npm": "@ai-sdk/openai-compatible",','      "options": {','        "baseURL": "https://api.daigua.icu/v1",','        "apiKey": "{env:SUB2API_API_KEY}"','      },','      "models": { "<grok-model-id>": {} }','    }','  }','}')
+$lines = @('{','  "provider": {','    "daigua": {','      "npm": "@ai-sdk/openai-compatible",','      "options": {','        "baseURL": "https://api.daigua.icu/v1",','        "apiKey": "{env:SUB2API_API_KEY}"','      },','      "models": { "<model-id>": {} }','    }','  }','}')
 for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 11), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#172B4D')), 224, 244 + ($i * 39)) }
 Draw-NumberedNote $g 1 990 190 260 '兼容 Provider' '选择 openai-compatible'
 Draw-NumberedNote $g 2 990 305 260 '完整 Base URL' '使用本站 /v1 地址'
 Draw-NumberedNote $g 3 990 420 260 '环境变量 Key' '不要写入配置文件'
 Draw-NumberedNote $g 4 990 535 260 '模型 ID' '先通过 Chat 最小测试'
 Save-Canvas $canvas 'assets/grok/opencode-provider.png'
+
+$canvas = New-Canvas 'OpenClaw 自定义 Provider' '官方字段参考 - DaiGua 地址与示例值已脱敏'
+$g = $canvas.Graphics
+Draw-Panel $g 150 116 1140 720
+Draw-Field $g 'Provider ID' 'daigua' 230 165 720
+Draw-Field $g 'Base URL' 'https://api.daigua.icu/v1' 230 280 720
+Draw-Field $g 'API' 'openai-completions' 230 395 720
+Draw-Field $g 'Model catalog' '<model-id>  /  DaiGua Model' 230 510 720
+Draw-Button $g 'Test connection' 740 675 210 '#087A5B'
+Draw-NumberedNote $g 1 990 170 250 '添加 Provider' '名称建议使用 daigua'
+Draw-NumberedNote $g 2 990 285 250 '填写 Base URL' '地址以 /v1 结尾'
+Draw-NumberedNote $g 3 990 400 250 '选择协议' '首次使用 Chat Completions'
+Draw-NumberedNote $g 4 990 515 250 '登记模型' '必须写入模型列表'
+Save-Canvas $canvas 'assets/clients/openclaw-provider.png'
+
+$canvas = New-Canvas 'Hermes Agent Custom Provider' '官方向导字段参考 - 运行 hermes model'
+$g = $canvas.Graphics
+Draw-Panel $g 170 120 1100 710
+Draw-Field $g 'Provider type' 'Custom / OpenAI-compatible' 245 180 720
+Draw-Field $g 'Provider name' 'daigua' 245 295 720
+Draw-Field $g 'Base URL' 'https://api.daigua.icu/v1' 245 410 720
+Draw-Field $g 'API Key' 'sk-demo-replace-me' 245 525 720
+Draw-Field $g 'Model' '<model-id>' 245 640 720
+Draw-Step $g 1 235 170 750 94 '选择 Custom Provider'
+Draw-Step $g 2 235 285 750 94 '设置识别名称'
+Draw-Step $g 3 235 400 750 94 '复制本站 /v1 地址'
+Draw-Step $g 4 235 515 750 94 '使用客户端专用 Key'
+Draw-Step $g 5 235 630 750 94 '填写 /models 返回 ID'
+Save-Canvas $canvas 'assets/clients/hermes-custom-provider.png'
+
+$canvas = New-Canvas 'WorkBuddy 自定义 API' '官方模型设置字段参考 - 默认自动补全 Chat 端点'
+$g = $canvas.Graphics
+Draw-Panel $g 150 116 1140 720
+Draw-Field $g '供应商' '自定义 API' 230 165 720
+Draw-Field $g 'URL' 'https://api.daigua.icu/v1' 230 280 720
+Draw-Field $g 'API Key' 'sk-demo-replace-me' 230 395 720
+Draw-Field $g '模型名' '<model-id>' 230 510 720
+Draw-Field $g '自定义协议' '关闭 - 自动追加 /chat/completions' 230 625 720
+Draw-NumberedNote $g 1 990 170 250 '选择自定义 API' '不要使用内置套餐入口'
+Draw-NumberedNote $g 2 990 285 250 '填写 /v1 地址' '不要重复写完整端点'
+Draw-NumberedNote $g 3 990 400 250 '专用 Key' '仅保存在本地配置'
+Draw-NumberedNote $g 4 990 515 250 '精确模型 ID' '来自当前 Key 的 /models'
+Draw-NumberedNote $g 5 990 630 250 '保持关闭' '让客户端自动补全路径'
+Save-Canvas $canvas 'assets/clients/workbuddy-custom-api.png'
+
+$canvas = New-Canvas 'ZCode 自定义供应商' '官方模型设置字段参考 - 选择 OpenAI-compatible'
+$g = $canvas.Graphics
+Draw-Panel $g 160 116 1120 720
+Draw-Field $g '供应商名称' 'DaiGua' 240 175 710
+Draw-Field $g '协议' 'OpenAI-compatible' 240 295 710
+Draw-Field $g 'API 基础 URL' 'https://api.daigua.icu/v1' 240 415 710
+Draw-Field $g 'API Key' 'sk-demo-replace-me' 240 535 710
+Draw-Field $g '模型 ID' '<model-id>' 240 655 710
+Draw-Step $g 1 230 165 740 94 '添加自定义供应商'
+Draw-Step $g 2 230 285 740 94 '选择 OpenAI 协议'
+Draw-Step $g 3 230 405 740 94 '复制本站 /v1 地址'
+Draw-Step $g 4 230 525 740 94 '填写客户端专用 Key'
+Draw-Step $g 5 230 645 740 94 '手动登记模型 ID'
+Save-Canvas $canvas 'assets/clients/zcode-custom-provider.png'
+
+$canvas = New-Canvas 'OpenAI SDK 与 curl' 'DaiGua 最小 Responses 请求 - 示例值均已脱敏'
+$g = $canvas.Graphics
+Draw-Panel $g 140 120 1160 710
+$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#F8FAFC')), 190, 170, 800, 590)
+$g.FillRectangle([System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#0F766E')), 190, 170, 8, 590)
+$g.DrawString('curl', [System.Drawing.Font]::new($fontFamily, 12, [System.Drawing.FontStyle]::Bold), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#0F766E')), 224, 198)
+$lines = @('curl "https://api.daigua.icu/v1/responses" \','  -H "Authorization: Bearer sk-demo-replace-me" \','  -H "Content-Type: application/json" \','  -d ''{','    "model": "<model-id>",','    "input": "Reply only OK"','  }''')
+for ($i = 0; $i -lt $lines.Count; $i++) { $g.DrawString($lines[$i], [System.Drawing.Font]::new('Consolas', 12), [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#172B4D')), 224, 250 + ($i * 60)) }
+Draw-NumberedNote $g 1 1020 185 230 '完整端点' 'Responses 使用 /v1/responses'
+Draw-NumberedNote $g 2 1020 300 230 '示例 Key' '提交前只保留 sk-demo'
+Draw-NumberedNote $g 3 1020 415 230 '动态模型' '复制 /models 的精确 ID'
+Draw-NumberedNote $g 4 1020 530 230 '最小输入' '先验证纯文本返回 OK'
+Save-Canvas $canvas 'assets/sdk/openai-curl.png'
 
 $canvas = New-Canvas 'SillyTavern API 连接' 'DaiGua 脱敏字段布局参考图 - SillyTavern 1.18'
 $g = $canvas.Graphics

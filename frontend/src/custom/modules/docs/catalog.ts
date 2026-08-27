@@ -13,7 +13,7 @@ export interface DocsSource {
 export interface DocsScreenshot {
   asset: string
   client: string
-  capture: 'reference-layout'
+  capture: 'reference-layout' | 'real-client'
   version: string
   capturedAt: string
   slug: string
@@ -57,7 +57,7 @@ export function resolveDocsAsset(path: string): string {
   return assetModules[`./assets/${normalized}`] || ''
 }
 
-const verifiedAt = '2026-08-18'
+const verifiedAt = '2026-08-27'
 const repositorySource: DocsSource = {
   kind: 'implementation',
   label: 'DaiGua gateway and frontend implementation',
@@ -74,11 +74,12 @@ function screenshot(
   version: string,
   zh: string,
   en: string,
+  capture: DocsScreenshot['capture'] = 'reference-layout',
 ): DocsScreenshot {
   return {
     asset,
     client,
-    capture: 'reference-layout',
+    capture,
     version,
     capturedAt: verifiedAt,
     slug,
@@ -149,9 +150,10 @@ const entries: Omit<DocsEntry, 'body'>[] = [
   },
   {
     slug: 'sdk-openai', category: 'sdk', audience: 'user', order: 90,
-    title: { zh: 'OpenAI SDK 与 Codex', en: 'OpenAI SDK and Codex' },
-    summary: { zh: '配置 Python、Node.js 和 Codex。', en: 'Configure Python, Node.js, and Codex.' },
-    updatedAt: verifiedAt, clientVersion: 'OpenAI SDK/Codex 2026-08', sources: [official('OpenAI Responses guide', 'https://developers.openai.com/api/docs/guides/responses-vs-chat-completions'), official('OpenAI Codex configuration', 'https://developers.openai.com/codex/config-file/config-reference')], screenshots: [],
+    title: { zh: 'OpenAI SDK 与 curl', en: 'OpenAI SDK and curl' },
+    summary: { zh: '使用 curl、OpenAI Python 和 Node.js SDK 调用 Responses 或 Chat Completions。', en: 'Use curl and OpenAI Python or Node.js SDKs with Responses or Chat Completions.' },
+    updatedAt: verifiedAt, clientVersion: 'OpenAI SDK 2026-08', sources: [official('OpenAI Responses guide', 'https://developers.openai.com/api/docs/guides/responses-vs-chat-completions'), official('OpenAI API libraries', 'https://developers.openai.com/api/docs/libraries')],
+    screenshots: [screenshot('sdk-openai', 'sdk/openai-curl.png', 'OpenAI SDK 与 curl 字段参考', '2026-08', 'OpenAI SDK 和 curl 的 DaiGua Base URL、Key、模型与 Responses 最小请求参考图', 'DaiGua Base URL, key, model, and minimal Responses request reference for OpenAI SDK and curl')],
     related: ['install-guide', 'chat-completions', 'grok-cli'],
   },
   {
@@ -211,15 +213,32 @@ const entries: Omit<DocsEntry, 'body'>[] = [
   },
   {
     slug: 'grok-cli', category: 'clients', audience: 'user', order: 160,
-    title: { zh: 'Grok CLI 与编程客户端', en: 'Grok CLI and coding clients' },
-    summary: { zh: '配置 Grok CLI、Codex、Claude Code 与 OpenCode。', en: 'Configure Grok CLI, Codex, Claude Code, and OpenCode.' },
-    updatedAt: verifiedAt, clientVersion: 'Grok Build/Codex/Claude Code/OpenCode 2026-08',
-    sources: [official('xAI Grok Build settings', 'https://docs.x.ai/build/settings'), official('OpenAI Codex configuration', 'https://developers.openai.com/codex/config-file/config-reference'), official('Anthropic Claude Code LLM gateway', 'https://docs.anthropic.com/en/docs/claude-code/llm-gateway'), official('Anthropic Claude Code authentication', 'https://docs.anthropic.com/en/docs/claude-code/authentication'), official('OpenCode providers', 'https://opencode.ai/docs/providers/'), repositorySource],
+    title: { zh: '编程客户端与 CLI 接入', en: 'Coding clients and CLI integration' },
+    summary: { zh: '配置 Grok CLI、Codex、Claude Code、OpenCode、OpenClaw、Hermes、WorkBuddy 与 ZCode。', en: 'Configure Grok CLI, Codex, Claude Code, OpenCode, OpenClaw, Hermes, WorkBuddy, and ZCode.' },
+    updatedAt: verifiedAt, clientVersion: 'Codex CLI 0.147.0；其他客户端官方文档核验于 2026-08-27',
+    sources: [
+      official('xAI Grok Build settings', 'https://docs.x.ai/build/settings'),
+      official('OpenAI Codex configuration', 'https://developers.openai.com/codex/config-file/config-reference'),
+      official('Anthropic Claude Code LLM gateway', 'https://docs.anthropic.com/en/docs/claude-code/llm-gateway'),
+      official('Anthropic Claude Code authentication', 'https://docs.anthropic.com/en/docs/claude-code/authentication'),
+      official('OpenCode providers', 'https://opencode.ai/docs/providers/'),
+      official('OpenClaw model providers', 'https://docs.openclaw.ai/concepts/model-providers'),
+      github('OpenClaw repository', 'https://github.com/openclaw/openclaw'),
+      official('Hermes Agent providers', 'https://hermes-agent.nousresearch.com/docs/zh-Hans/integrations/providers'),
+      github('Hermes Agent repository', 'https://github.com/NousResearch/hermes-agent'),
+      official('WorkBuddy model configuration', 'https://www.workbuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Model'),
+      official('ZCode model configuration', 'https://zcode.z.ai/cn/docs/configuration'),
+      repositorySource,
+    ],
     screenshots: [
       screenshot('grok-cli', 'grok/grok-cli-config.png', 'Grok Build CLI 配置参考', '2026-08', 'Grok Build CLI 的 DaiGua 脱敏 Responses 配置参考图', 'DaiGua redacted Responses configuration reference for Grok Build CLI'),
-      screenshot('grok-cli', 'grok/codex-provider.png', 'Codex 配置参考', '2026-08', 'Codex 自定义 Responses Provider 的 DaiGua 脱敏配置参考图', 'DaiGua redacted custom Responses provider reference for Codex'),
+      screenshot('grok-cli', 'grok/codex-provider.png', 'Codex CLI 配置核验', '0.147.0', 'Codex 0.147.0 自定义 Responses Provider 的 DaiGua 配置核验图', 'DaiGua custom Responses provider verification for Codex 0.147.0'),
       screenshot('grok-cli', 'grok/claude-code-env.png', 'Claude Code 配置参考', '2026-08', 'Claude Code 网关环境变量和最小测试的 DaiGua 脱敏配置参考图', 'DaiGua redacted Claude Code gateway variables and minimal test reference'),
       screenshot('grok-cli', 'grok/opencode-provider.png', 'OpenCode 配置参考', '2026-08', 'OpenCode Chat 兼容 Provider 的 DaiGua 脱敏配置参考图', 'DaiGua redacted Chat-compatible provider reference for OpenCode'),
+      screenshot('grok-cli', 'clients/openclaw-provider.png', 'OpenClaw Model Providers 字段参考', '官方文档 2026-08', 'OpenClaw 自定义 Provider、Base URL、Key、协议和模型列表的 DaiGua 中文参考图', 'Chinese DaiGua reference for OpenClaw custom provider, Base URL, key, protocol, and model catalog'),
+      screenshot('grok-cli', 'clients/hermes-custom-provider.png', 'Hermes Agent Custom Provider 字段参考', '官方文档 2026-08', 'Hermes Agent Custom Provider 向导的 DaiGua 中文字段参考图', 'Chinese DaiGua field reference for the Hermes Agent Custom Provider wizard'),
+      screenshot('grok-cli', 'clients/workbuddy-custom-api.png', 'WorkBuddy 自定义 API 字段参考', '官方文档 2026-08', 'WorkBuddy 自定义 API、自动端点和模型能力开关的 DaiGua 中文参考图', 'Chinese DaiGua reference for WorkBuddy Custom API, automatic endpoint, and model capability options'),
+      screenshot('grok-cli', 'clients/zcode-custom-provider.png', 'ZCode 自定义供应商字段参考', '官方文档 2026-08', 'ZCode 自定义 OpenAI 供应商地址、Key 和模型登记的 DaiGua 中文参考图', 'Chinese DaiGua reference for ZCode custom OpenAI provider URL, key, and model registration'),
     ],
     related: ['grok', 'sdk-openai', 'troubleshooting'],
   },

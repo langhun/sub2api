@@ -36,6 +36,12 @@ describe('documentation catalog', () => {
         { kind: 'official', url: 'https://docs.x.ai/build/settings' },
         { kind: 'official', url: 'https://docs.anthropic.com/en/docs/claude-code/authentication' },
         { kind: 'official', url: 'https://opencode.ai/docs/providers/' },
+        { kind: 'official', url: 'https://docs.openclaw.ai/concepts/model-providers' },
+        { kind: 'github', url: 'https://github.com/openclaw/openclaw' },
+        { kind: 'official', url: 'https://hermes-agent.nousresearch.com/docs/zh-Hans/integrations/providers' },
+        { kind: 'github', url: 'https://github.com/NousResearch/hermes-agent' },
+        { kind: 'official', url: 'https://www.workbuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Model' },
+        { kind: 'official', url: 'https://zcode.z.ai/cn/docs/configuration' },
       ],
       'sdk-anthropic': [
         { kind: 'official', url: 'https://docs.anthropic.com/en/api/client-sdks' },
@@ -55,10 +61,10 @@ describe('documentation catalog', () => {
     for (const [slug, sources] of Object.entries(expectedSources)) {
       const entry = docsCatalog.find((item) => item.slug === slug)
       expect(entry).toBeTruthy()
-      expect(entry!.updatedAt).toBe('2026-08-18')
+      expect(entry!.updatedAt).toBe('2026-08-27')
 
       for (const expected of sources) {
-        expect(entry!.sources).toContainEqual(expect.objectContaining({ ...expected, verifiedAt: '2026-08-18' }))
+        expect(entry!.sources).toContainEqual(expect.objectContaining({ ...expected, verifiedAt: '2026-08-27' }))
       }
     }
   })
@@ -67,12 +73,12 @@ describe('documentation catalog', () => {
     const screenshots = docsCatalog.flatMap((entry) => entry.screenshots)
     const uniqueAssets = new Set(screenshots.map((screenshot) => screenshot.asset))
 
-    expect(screenshots.length).toBeGreaterThanOrEqual(8)
-    expect(uniqueAssets.size).toBe(8)
+    expect(screenshots.length).toBeGreaterThanOrEqual(13)
+    expect(uniqueAssets.size).toBe(13)
 
     for (const screenshot of screenshots) {
       expect(resolveDocsAsset(screenshot.asset)).toBeTruthy()
-      expect(screenshot.capture).toBe('reference-layout')
+      expect(['reference-layout', 'real-client']).toContain(screenshot.capture)
       expect(screenshot.slug).toBe(docsCatalog.find((entry) => entry.screenshots.includes(screenshot))?.slug)
       expect(screenshot.capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/)
       expect(screenshot.version).not.toHaveLength(0)
@@ -96,6 +102,23 @@ describe('documentation catalog', () => {
     }
   })
 
+  it('covers the expanded coding clients and neutral service FAQs', () => {
+    const clients = docsCatalog.find((entry) => entry.slug === 'grok-cli')!
+    for (const name of ['OpenClaw', 'Hermes Agent', 'WorkBuddy', 'ZCode']) {
+      expect(clients.body.zh).toContain(name)
+      expect(clients.body.en).toContain(name)
+    }
+
+    const billing = docsCatalog.find((entry) => entry.slug === 'billing')!
+    expect(billing.body.zh).toContain('分组默认倍率')
+    expect(billing.body.zh).toContain('为什么没有退款按钮')
+    expect(billing.body.en).toContain('Why is there no refund button?')
+
+    const models = docsCatalog.find((entry) => entry.slug === 'models')!
+    expect(models.body.zh).toContain('模型 ID 是调用契约')
+    expect(models.body.en).toContain('A model ID is a request contract')
+  })
+
   it('contains no external images, old domains, or credential-like keys', () => {
     for (const entry of docsCatalog) {
       for (const body of Object.values(entry.body)) {
@@ -104,6 +127,7 @@ describe('documentation catalog', () => {
         expect(body).not.toMatch(/\bsk-(?!demo-)[A-Za-z0-9_-]{12,}\b/)
         expect(body).not.toMatch(/<\s*(?:script|iframe|object|embed|form|img|video|audio|source|picture)\b|\bon(?:error|load|click)\s*=|(?:javascript|vbscript|data:text\/html)\s*:/i)
         expect(body).not.toMatch(/\b(?:xai-[A-Za-z0-9_-]{12,}|eyJ[A-Za-z0-9_-]{16,}\.)\b/)
+        expect(body).not.toMatch(/\bkrill\b|api-slb\.krill-ai\.net|gpt-5\.6-sol|纯\s*pro\s*池|绝不降级|pure\s+pro\s+pool|no\s+downgrade/i)
       }
     }
   })
