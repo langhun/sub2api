@@ -842,7 +842,7 @@ describe('EmailVerifyView', () => {
     expect(pushMock).toHaveBeenCalledWith('/dashboard')
   })
 
-  it('acquires a fresh Tencent proof for final email registration', async () => {
+  it('does not require another Tencent proof for final email registration', async () => {
     getPublicSettingsMock.mockResolvedValue({
       turnstile_enabled: false,
       turnstile_site_key: '',
@@ -861,7 +861,6 @@ describe('EmailVerifyView', () => {
       })
     )
     registerMock.mockResolvedValue({})
-    verifyActionMock.mockResolvedValue({ token: 'final-ticket', randstr: '@final-rand' })
 
     const wrapper = mount(EmailVerifyView, {
       global: {
@@ -871,7 +870,6 @@ describe('EmailVerifyView', () => {
           TurnstileWidget: {
             template: '<span />',
             methods: {
-              verifyAction: verifyActionMock,
               reset: createTurnstileResetMock,
             },
           },
@@ -894,16 +892,15 @@ describe('EmailVerifyView', () => {
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
 
-    expect(verifyActionMock).toHaveBeenCalledTimes(1)
     expect(registerMock).toHaveBeenCalledWith(expect.objectContaining({
       email: 'normal@example.com',
       verify_code: '654321',
-      tencent_captcha_ticket: 'final-ticket',
-      tencent_captcha_randstr: '@final-rand',
+      tencent_captcha_ticket: undefined,
+      tencent_captcha_randstr: undefined,
     }))
   })
 
-  it('requires a fresh Turnstile proof after the email code request is consumed', async () => {
+  it('does not require a second Turnstile proof after the email code request is consumed', async () => {
     getPublicSettingsMock.mockResolvedValue({
       turnstile_enabled: true,
       turnstile_site_key: 'site-key',
@@ -925,12 +922,7 @@ describe('EmailVerifyView', () => {
         stubs: {
           AuthLayout: { template: '<div><slot /><slot name="footer" /></div>' },
           Icon: true,
-          TurnstileWidget: {
-            template: '<button data-testid="final-turnstile" @click="$emit(\'verify\', \'fresh-proof\')">verify</button>',
-            methods: {
-              reset: createTurnstileResetMock,
-            },
-          },
+          TurnstileWidget: true,
           transition: false,
         },
       },
@@ -940,16 +932,10 @@ describe('EmailVerifyView', () => {
     await wrapper.get('#code').setValue('789012')
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
-    expect(registerMock).not.toHaveBeenCalled()
-
-    await wrapper.get('[data-testid="final-turnstile"]').trigger('click')
-    await wrapper.get('form').trigger('submit.prevent')
-    await flushPromises()
-
     expect(registerMock).toHaveBeenCalledWith(expect.objectContaining({
       email: 'turnstile@example.com',
       verify_code: '789012',
-      turnstile_token: 'fresh-proof',
+      turnstile_token: undefined,
     }))
   })
 })

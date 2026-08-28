@@ -67,7 +67,7 @@
         </div>
 
         <!-- Turnstile Widget for Resend -->
-        <div v-if="!isPendingOAuthFlow() && (captchaEnabled || (turnstileEnabled && showResendTurnstile))">
+        <div v-if="actionCaptchaEnabled || (turnstileEnabled && showResendTurnstile)">
           <TurnstileWidget
             ref="turnstileRef"
             :site-key="turnstileSiteKey"
@@ -422,60 +422,36 @@ function startCountdown(seconds: number): void {
 function onTurnstileVerify(token: string, randstr = ''): void {
   resendTurnstileToken.value = token
   resendTencentCaptchaRandstr.value = randstr
-  if (!isPendingOAuthFlow()) {
-    createAccountTurnstileToken.value = token
-    createAccountTencentCaptchaRandstr.value = randstr
-  }
   errors.value.turnstile = ''
 }
 
 function onTurnstileExpire(): void {
   resendTurnstileToken.value = ''
   resendTencentCaptchaRandstr.value = ''
-  if (!isPendingOAuthFlow()) {
-    createAccountTurnstileToken.value = ''
-    createAccountTencentCaptchaRandstr.value = ''
-  }
   errors.value.turnstile = t('auth.turnstileExpired')
 }
 
 function onTurnstileError(): void {
   resendTurnstileToken.value = ''
   resendTencentCaptchaRandstr.value = ''
-  if (!isPendingOAuthFlow()) {
-    createAccountTurnstileToken.value = ''
-    createAccountTencentCaptchaRandstr.value = ''
-  }
   errors.value.turnstile = t('auth.turnstileFailed')
 }
 
 function onCreateAccountTurnstileVerify(token: string, randstr = ''): void {
   createAccountTurnstileToken.value = token
   createAccountTencentCaptchaRandstr.value = randstr
-  if (isPendingOAuthFlow()) {
-    resendTurnstileToken.value = token
-    resendTencentCaptchaRandstr.value = randstr
-  }
   errors.value.turnstile = ''
 }
 
 function onCreateAccountTurnstileExpire(): void {
   createAccountTurnstileToken.value = ''
   createAccountTencentCaptchaRandstr.value = ''
-  if (isPendingOAuthFlow()) {
-    resendTurnstileToken.value = ''
-    resendTencentCaptchaRandstr.value = ''
-  }
   errors.value.turnstile = t('auth.turnstileExpired')
 }
 
 function onCreateAccountTurnstileError(): void {
   createAccountTurnstileToken.value = ''
   createAccountTencentCaptchaRandstr.value = ''
-  if (isPendingOAuthFlow()) {
-    resendTurnstileToken.value = ''
-    resendTencentCaptchaRandstr.value = ''
-  }
   errors.value.turnstile = t('auth.turnstileFailed')
 }
 
@@ -488,9 +464,7 @@ function resetCreateAccountTurnstile(): void {
 async function acquireResendActionProof(): Promise<boolean> {
   if (!actionCaptchaEnabled.value) return true
 
-  const proof = await (isPendingOAuthFlow()
-    ? createAccountTurnstileRef.value?.verifyAction?.()
-    : turnstileRef.value?.verifyAction?.())
+  const proof = await turnstileRef.value?.verifyAction()
   if (!proof) return false
 
   resendTurnstileToken.value = proof.token
@@ -499,23 +473,13 @@ async function acquireResendActionProof(): Promise<boolean> {
 }
 
 async function acquireCreateAccountActionProof(): Promise<boolean> {
-  if (!captchaEnabled.value) return true
+  if (!isPendingOAuthFlow() || !actionCaptchaEnabled.value) return true
 
-  if (actionCaptchaEnabled.value) {
-    const proof = await (isPendingOAuthFlow()
-      ? createAccountTurnstileRef.value?.verifyAction?.()
-      : turnstileRef.value?.verifyAction?.())
-    if (!proof) return false
+  const proof = await createAccountTurnstileRef.value?.verifyAction?.()
+  if (!proof) return false
 
-    createAccountTurnstileToken.value = proof.token
-    createAccountTencentCaptchaRandstr.value = proof.randstr
-    return true
-  }
-
-  if (!createAccountTurnstileToken.value) {
-    errors.value.turnstile = t('auth.completeVerification')
-    return false
-  }
+  createAccountTurnstileToken.value = proof.token
+  createAccountTencentCaptchaRandstr.value = proof.randstr
   return true
 }
 
