@@ -1009,6 +1009,8 @@ export default {
       allowOveragesTooltip:
         '仅在免费配额被明确判定为耗尽后才会使用 AI Credits。普通并发 429 限流不会切换到超量请求。',
       creating: '创建中...',
+      fromModel: '源模型',
+      toModel: '目标模型',
       updating: '更新中...',
       accountCreated: '账号创建成功',
       accountUpdated: '账号更新成功',

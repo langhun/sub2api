@@ -1515,7 +1515,7 @@
             <span><span class="block text-sm text-gray-700 dark:text-gray-300">{{ t("admin.groups.modelPricing.longContext") }}</span><span class="block text-xs text-gray-500">{{ t("admin.groups.modelPricing.longContextHint") }}</span></span>
           </label>
           <div class="mt-3 space-y-2">
-            <PricingEntryCard v-for="(entry, index) in createForm.model_pricing" :key="index" :entry="entry" :platform="createForm.platform" hide-token-intervals @update="createForm.model_pricing[index] = $event" @remove="createForm.model_pricing.splice(index, 1)" />
+            <PricingEntryCard v-for="(entry, index) in createForm.model_pricing" :key="pricingEntryKey(entry)" :entry="entry" :platform="createForm.platform" hide-token-intervals @update="updateGroupPricing(createForm.model_pricing, index, $event)" @remove="createForm.model_pricing.splice(index, 1)" />
           </div>
         </div>
 
@@ -3243,7 +3243,7 @@
             <span><span class="block text-sm text-gray-700 dark:text-gray-300">{{ t("admin.groups.modelPricing.longContext") }}</span><span class="block text-xs text-gray-500">{{ t("admin.groups.modelPricing.longContextHint") }}</span></span>
           </label>
           <div class="mt-3 space-y-2">
-            <PricingEntryCard v-for="(entry, index) in editForm.model_pricing" :key="index" :entry="entry" :platform="editForm.platform" hide-token-intervals @update="editForm.model_pricing[index] = $event" @remove="editForm.model_pricing.splice(index, 1)" />
+            <PricingEntryCard v-for="(entry, index) in editForm.model_pricing" :key="pricingEntryKey(entry)" :entry="entry" :platform="editForm.platform" hide-token-intervals @update="updateGroupPricing(editForm.model_pricing, index, $event)" @remove="editForm.model_pricing.splice(index, 1)" />
           </div>
         </div>
 
@@ -4536,6 +4536,22 @@ const emptyGroupPricing = (): PricingFormEntry => ({
 
 const addGroupPricing = (entries: PricingFormEntry[]) =>
   entries.push(emptyGroupPricing());
+
+// Stable per-entry key so PricingEntryCard keeps its local state across
+// splices; entries are merged in place on update to preserve identity.
+const pricingEntryKeys = new WeakMap<object, number>();
+let pricingEntryKeySeq = 0;
+const pricingEntryKey = (entry: PricingFormEntry): number => {
+  let key = pricingEntryKeys.get(entry);
+  if (key === undefined) {
+    key = ++pricingEntryKeySeq;
+    pricingEntryKeys.set(entry, key);
+  }
+  return key;
+};
+const updateGroupPricing = (entries: PricingFormEntry[], index: number, value: PricingFormEntry) => {
+  Object.assign(entries[index], value);
+};
 
 const groupPricingFromAPI = (
   pricing: ChannelModelPricing[] | undefined,
@@ -6087,7 +6103,7 @@ const handleCreateGroup = async () => {
     }
   } catch (error: any) {
     appStore.showError(
-      error.response?.data?.detail || t("admin.groups.failedToCreate"),
+      extractApiErrorMessage(error, t("admin.groups.failedToCreate")),
     );
     console.error("Error creating group:", error);
     // Don't advance tour on error
@@ -6358,7 +6374,7 @@ const handleUpdateGroup = async () => {
     loadGroups();
   } catch (error: any) {
     appStore.showError(
-      error.response?.data?.detail || t("admin.groups.failedToUpdate"),
+      extractApiErrorMessage(error, t("admin.groups.failedToUpdate")),
     );
     console.error("Error updating group:", error);
   } finally {
@@ -6476,9 +6492,7 @@ const loadCompositeRoutes = async () => {
     });
   } catch (error: any) {
     appStore.showError(
-      error.response?.data?.detail ||
-        error.response?.data?.message ||
-        t("admin.groups.compositeRoutes.failedToLoad"),
+      extractApiErrorMessage(error, t("admin.groups.compositeRoutes.failedToLoad")),
     );
     console.error("Error loading composite routes:", error);
   } finally {
@@ -6543,9 +6557,7 @@ const saveCompositeRoute = async () => {
     await loadCompositeRoutes();
   } catch (error: any) {
     appStore.showError(
-      error.response?.data?.detail ||
-        error.response?.data?.message ||
-        t("admin.groups.compositeRoutes.failedToSave"),
+      extractApiErrorMessage(error, t("admin.groups.compositeRoutes.failedToSave")),
     );
     console.error("Error saving composite route:", error);
   } finally {
@@ -6568,9 +6580,7 @@ const deleteCompositeRoute = async (route: CompositeModelRoute) => {
     await loadCompositeRoutes();
   } catch (error: any) {
     appStore.showError(
-      error.response?.data?.detail ||
-        error.response?.data?.message ||
-        t("admin.groups.compositeRoutes.failedToDelete"),
+      extractApiErrorMessage(error, t("admin.groups.compositeRoutes.failedToDelete")),
     );
     console.error("Error deleting composite route:", error);
   }
@@ -6591,9 +6601,7 @@ const previewCompositeRoute = async () => {
     );
   } catch (error: any) {
     appStore.showError(
-      error.response?.data?.detail ||
-        error.response?.data?.message ||
-        t("admin.groups.compositeRoutes.failedToPreview"),
+      extractApiErrorMessage(error, t("admin.groups.compositeRoutes.failedToPreview")),
     );
     console.error("Error previewing composite route:", error);
   } finally {
@@ -6617,7 +6625,7 @@ const confirmDelete = async () => {
     loadGroups();
   } catch (error: any) {
     appStore.showError(
-      error.response?.data?.detail || t("admin.groups.failedToDelete"),
+      extractApiErrorMessage(error, t("admin.groups.failedToDelete")),
     );
     console.error("Error deleting group:", error);
   }
@@ -6820,7 +6828,7 @@ const saveSortOrder = async () => {
     loadGroups();
   } catch (error: any) {
     appStore.showError(
-      error.response?.data?.detail || t("admin.groups.failedToUpdateSortOrder"),
+      extractApiErrorMessage(error, t("admin.groups.failedToUpdateSortOrder")),
     );
     console.error("Error updating sort order:", error);
   } finally {

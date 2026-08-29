@@ -207,6 +207,7 @@ import Toggle from '@/components/common/Toggle.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { blindboxAPI, type PrizeItem } from '@/custom/modules/activity/api/admin/blindbox'
 import * as groupAPI from '@/api/admin/groups'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const props = defineProps<{
   enabled: boolean
@@ -302,7 +303,7 @@ async function saveItem() {
     closeModal()
     await loadData()
   } catch (e: any) {
-    operationError.value = e?.response?.data?.detail || t('common.error')
+    operationError.value = extractApiErrorMessage(e, t('common.error'))
   } finally {
     saving.value = false
   }
@@ -320,7 +321,7 @@ async function confirmDelete() {
     pendingDelete.value = null
     await loadData()
   } catch (e: any) {
-    operationError.value = e?.response?.data?.detail || t('common.error')
+    operationError.value = extractApiErrorMessage(e, t('common.error'))
   }
 }
 

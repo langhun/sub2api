@@ -580,7 +580,10 @@ export default {
         selectStatus: '选择状态',
         rpmLimit: '每分钟请求数 (RPM)',
         rpmLimitPlaceholder: '0 表示不限制',
-        rpmLimitHint: '该用户每分钟最大请求数，0 = 不限制；仅在所用分组未设置 rpm_limit 时作为兜底生效'
+        rpmLimitHint: '该用户每分钟最大请求数，0 = 不限制；仅在所用分组未设置 rpm_limit 时作为兜底生效',
+        concurrencyPlaceholder: '0 表示不限制，-1 禁用',
+        concurrencyHint: '-1 表示禁用该用户的 API 访问，0 表示不限制。',
+        passwordCopied: '密码已复制'
       },
       adjustBalance: '调整余额',
       adjustConcurrency: '调整并发数',

@@ -1269,6 +1269,7 @@ import {
   buildCcSwitchImportDeeplink,
   type CcSwitchClientType
 } from '@/utils/ccswitchImport'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 // Helper to format date for datetime-local input
 const formatDateTimeLocal = (isoDate: string): string => {
@@ -2253,7 +2254,7 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
         }
       }
     }
-    const errorMsg = error?.response?.data?.detail || error?.message || t('keys.failedToChangeGroup')
+    const errorMsg = extractApiErrorMessage(error, error?.message) || t('keys.failedToChangeGroup')
     appStore.showError(errorMsg)
   }
 }
@@ -2510,7 +2511,7 @@ const handleSubmit = async () => {
         // Keep the original error visible; the key can be removed manually.
       }
     }
-    const errorMsg = error.response?.data?.detail || error.message || t('keys.failedToSave')
+    const errorMsg = extractApiErrorMessage(error, '') || t('keys.failedToSave')
     appStore.showError(errorMsg)
     // Don't advance tour on error
   } finally {
@@ -2607,7 +2608,7 @@ const resetQuotaUsed = async () => {
       selectedKey.value.quota_used = 0
     }
   } catch (error: any) {
-    const errorMsg = error.response?.data?.detail || t('keys.failedToResetQuota')
+    const errorMsg = extractApiErrorMessage(error, t('keys.failedToResetQuota'))
     appStore.showError(errorMsg)
   }
 }
@@ -2638,7 +2639,7 @@ const resetRateLimitUsage = async () => {
       selectedKey.value = refreshedKey
     }
   } catch (error: any) {
-    const errorMsg = error.response?.data?.detail || t('keys.failedToResetRateLimit')
+    const errorMsg = extractApiErrorMessage(error, t('keys.failedToResetRateLimit'))
     appStore.showError(errorMsg)
   }
 }

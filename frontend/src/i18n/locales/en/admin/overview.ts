@@ -515,7 +515,10 @@ export default {
         selectStatus: 'Select status',
         rpmLimit: 'Requests Per Minute (RPM)',
         rpmLimitPlaceholder: '0 = unlimited',
-        rpmLimitHint: 'Max requests per minute for this user; 0 = unlimited. Acts as a fallback only when the group has no rpm_limit set.'
+        rpmLimitHint: 'Max requests per minute for this user; 0 = unlimited. Acts as a fallback only when the group has no rpm_limit set.',
+        concurrencyPlaceholder: '0 = unlimited, -1 disables',
+        concurrencyHint: '-1 disables the user API access, 0 means unlimited.',
+        passwordCopied: 'Password copied'
       },
       columns: {
         user: 'User',
@@ -1167,6 +1170,14 @@ export default {
         tooltip: 'Configure specific model requests to be routed to designated accounts. Supports wildcard matching, e.g., claude-opus-* matches all opus models.',
         enabled: 'Enabled',
         disabled: 'Disabled',
+      claudeMaxSimulation: {
+        title: 'Claude Max Usage Simulation',
+        tooltip:
+          'When enabled, for Claude models without upstream cache-write usage, the system deterministically maps tokens to a small input plus 1h cache creation while keeping total tokens unchanged.',
+        enabled: 'Enabled (simulate 1h cache)',
+        disabled: 'Disabled',
+        hint: 'Only token categories in usage billing logs are adjusted. No per-request mapping state is persisted.'
+      },
         disabledHint: 'Routing rules will only take effect when enabled',
         addRule: 'Add Routing Rule',
         modelPattern: 'Model Pattern',
@@ -1187,14 +1198,6 @@ export default {
         tooltip: 'When enabled, if the request contains MCP tools, an XML format call protocol prompt will be injected into the system prompt. Disable this to avoid interference with certain clients.',
         enabled: 'Enabled',
         disabled: 'Disabled'
-      },
-      claudeMaxSimulation: {
-        title: 'Claude Max Usage Simulation',
-        tooltip:
-          'When enabled, for Claude models without upstream cache-write usage, the system deterministically maps tokens to a small input plus 1h cache creation while keeping total tokens unchanged.',
-        enabled: 'Enabled (simulate 1h cache)',
-        disabled: 'Disabled',
-        hint: 'Only token categories in usage billing logs are adjusted. No per-request mapping state is persisted.'
       },
       supportedScopes: {
         title: 'Supported Model Families',

@@ -2347,7 +2347,7 @@ const handleSetPrivacy = async (a: Account) => {
     }
   } catch (error: any) {
     console.error('Failed to set privacy:', error)
-    appStore.showError(error?.response?.data?.message || t('admin.accounts.privacyFailed'))
+    appStore.showError(extractApiErrorMessage(error, t('admin.accounts.privacyFailed')))
   }
 }
 const onRevertFallback = async (a: Account) => {
@@ -2357,7 +2357,7 @@ const onRevertFallback = async (a: Account) => {
     reload()
   } catch (error: any) {
     console.error('Failed to revert proxy fallback:', error)
-    appStore.showError(error?.response?.data?.message || t('admin.accounts.revertProxyFailed'))
+    appStore.showError(extractApiErrorMessage(error, t('admin.accounts.revertProxyFailed')))
   }
 }
 const handleCreateSparkShadow = (a: Account) => {
@@ -2375,7 +2375,7 @@ const confirmCreateSparkShadow = async () => {
     reload()
   } catch (error: any) {
     console.error('Failed to create spark shadow:', error)
-    appStore.showError(error?.response?.data?.message || t('admin.accounts.createSparkShadowFailed'))
+    appStore.showError(extractApiErrorMessage(error, t('admin.accounts.createSparkShadowFailed')))
   }
 }
 const handleDelete = (a: Account) => { deletingAcc.value = a; showDeleteDialog.value = true }

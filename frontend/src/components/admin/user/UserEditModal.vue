@@ -129,7 +129,7 @@ const generatePassword = () => {
   form.password = p
 }
 const copyPassword = async () => {
-  if (form.password && await copyToClipboard(form.password, t('admin.users.passwordCopied'))) {
+  if (form.password && await copyToClipboard(form.password, t('admin.users.form.passwordCopied'))) {
     passwordCopied.value = true; setTimeout(() => passwordCopied.value = false, 2000)
   }
 }

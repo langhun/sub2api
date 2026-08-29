@@ -650,6 +650,7 @@ import {
 } from '@/api/admin/system'
 import { useClipboard } from '@/composables/useClipboard'
 import Icon from '@/components/icons/Icon.vue'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const GITHUB_REPO = 'Wei-Shaw/sub2api'
 // Docker Hub image published by CI (tags carry no "v" prefix, e.g. weishaw/sub2api:0.1.146)
@@ -767,7 +768,7 @@ async function handleUpdate() {
     appStore.clearVersionCache()
   } catch (error: unknown) {
     const err = error as { response?: { data?: { message?: string } }; message?: string }
-    updateError.value = err.response?.data?.message || err.message || t('version.updateFailed')
+    updateError.value = extractApiErrorMessage(err, '') || t('version.updateFailed')
   } finally {
     updating.value = false
   }
@@ -806,7 +807,7 @@ async function loadRollbackVersions() {
   } catch (error: unknown) {
     const err = error as { response?: { data?: { message?: string } }; message?: string }
     rollbackVersionsError.value =
-      err.response?.data?.message || err.message || t('version.loadVersionsFailed')
+      extractApiErrorMessage(err, '') || t('version.loadVersionsFailed')
   } finally {
     rollbackVersionsLoading.value = false
   }
@@ -842,7 +843,7 @@ async function handleRollback() {
     appStore.clearVersionCache()
   } catch (error: unknown) {
     const err = error as { response?: { data?: { message?: string } }; message?: string }
-    rollbackError.value = err.response?.data?.message || err.message || t('version.rollbackFailed')
+    rollbackError.value = extractApiErrorMessage(err, '') || t('version.rollbackFailed')
   } finally {
     rollingBack.value = false
   }

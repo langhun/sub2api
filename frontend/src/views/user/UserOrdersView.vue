@@ -78,7 +78,7 @@
       </template>
     </BaseDialog>
 
-    <BaseDialog :show="selectedOrder !== null" :title="t('payment.orders.orderDetail')" width="normal" @close="selectedOrder = null">
+    <BaseDialog :show="selectedOrder !== null" :title="t('payment.admin.orderDetail')" width="normal" @close="selectedOrder = null">
       <div v-if="selectedOrder" class="space-y-4">
         <div class="grid grid-cols-2 gap-3 text-sm">
           <div><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderNo') }}</p><p class="font-medium text-gray-900 dark:text-white">{{ selectedOrder.out_trade_no }}</p></div>

@@ -5,6 +5,7 @@ import { useAppStore } from '@/stores/app'
 import { opsAPI } from '@/api/admin/ops'
 import type { OpsAlertRuntimeSettings } from '../types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -134,7 +135,7 @@ async function loadSettings() {
     alertSettings.value = await opsAPI.getAlertRuntimeSettings()
   } catch (err: any) {
     console.error('[OpsRuntimeSettingsCard] Failed to load runtime settings', err)
-    appStore.showError(err?.response?.data?.detail || t('admin.ops.runtime.loadFailed'))
+    appStore.showError(extractApiErrorMessage(err, t('admin.ops.runtime.loadFailed')))
   } finally {
     loading.value = false
   }
@@ -225,7 +226,7 @@ async function saveAlertSettings() {
     appStore.showSuccess(t('admin.ops.runtime.saveSuccess'))
   } catch (err: any) {
     console.error('[OpsRuntimeSettingsCard] Failed to save alert runtime settings', err)
-    appStore.showError(err?.response?.data?.detail || t('admin.ops.runtime.saveFailed'))
+    appStore.showError(extractApiErrorMessage(err, t('admin.ops.runtime.saveFailed')))
   } finally {
     saving.value = false
   }
@@ -329,12 +330,12 @@ onMounted(() => {
       </div>
 
       <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-700/50">
-        <div class="mb-2 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.ops.runtime.metricThresholds') }}</div>
-        <p class="mb-4 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.runtime.metricThresholdsHint') }}</p>
+        <div class="mb-2 text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.ops.settings.metricThresholds') }}</div>
+        <p class="mb-4 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.settings.metricThresholdsHint') }}</p>
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <div class="mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.ops.runtime.slaMinPercent') }}</div>
+            <div class="mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.ops.settings.slaMinPercent') }}</div>
             <input
               v-model.number="draftAlert.thresholds.sla_percent_min"
               type="number"
@@ -344,13 +345,13 @@ onMounted(() => {
               class="input"
               placeholder="99.5"
             />
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.runtime.slaMinPercentHint') }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.settings.slaMinPercentHint') }}</p>
           </div>
 
 
 
           <div>
-            <div class="mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.ops.runtime.ttftP99MaxMs') }}</div>
+            <div class="mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.ops.settings.ttftP99MaxMs') }}</div>
             <input
               v-model.number="draftAlert.thresholds.ttft_p99_ms_max"
               type="number"
@@ -359,11 +360,11 @@ onMounted(() => {
               class="input"
               placeholder="500"
             />
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.runtime.ttftP99MaxMsHint') }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.settings.ttftP99MaxMsHint') }}</p>
           </div>
 
           <div>
-            <div class="mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.ops.runtime.requestErrorRateMaxPercent') }}</div>
+            <div class="mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.ops.settings.requestErrorRateMaxPercent') }}</div>
             <input
               v-model.number="draftAlert.thresholds.request_error_rate_percent_max"
               type="number"
@@ -373,11 +374,11 @@ onMounted(() => {
               class="input"
               placeholder="5"
             />
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.runtime.requestErrorRateMaxPercentHint') }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.settings.requestErrorRateMaxPercentHint') }}</p>
           </div>
 
           <div>
-            <div class="mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.ops.runtime.upstreamErrorRateMaxPercent') }}</div>
+            <div class="mb-1 text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('admin.ops.settings.upstreamErrorRateMaxPercent') }}</div>
             <input
               v-model.number="draftAlert.thresholds.upstream_error_rate_percent_max"
               type="number"
@@ -387,7 +388,7 @@ onMounted(() => {
               class="input"
               placeholder="5"
             />
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.runtime.upstreamErrorRateMaxPercentHint') }}</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.ops.settings.upstreamErrorRateMaxPercentHint') }}</p>
           </div>
         </div>
       </div>
