@@ -75,7 +75,11 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if err != nil {
 		return nil, err
 	}
-	sel, err := s.selectCreateOrderInstance(ctx, req, cfg, payAmount)
+	// Single-transaction limits cap the recharge amount the user entered, not
+	// the fee-inclusive charge: the fee is the site's own surcharge, and
+	// comparing payAmount would reject an exactly-at-limit recharge
+	// (e.g. a 200 cap blocking a 200 recharge with a 1.6% fee).
+	sel, err := s.selectCreateOrderInstance(ctx, req, cfg, limitAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -369,12 +373,12 @@ func (s *PaymentService) checkDailyLimit(ctx context.Context, tx *dbent.Tx, user
 	return nil
 }
 
-func (s *PaymentService) selectCreateOrderInstance(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig, payAmount float64) (*payment.InstanceSelection, error) {
+func (s *PaymentService) selectCreateOrderInstance(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig, limitAmount float64) (*payment.InstanceSelection, error) {
 	selectCtx, err := s.prepareCreateOrderSelectionContext(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	sel, err := s.loadBalancer.SelectInstance(selectCtx, "", req.PaymentType, payment.Strategy(cfg.LoadBalanceStrategy), payAmount)
+	sel, err := s.loadBalancer.SelectInstance(selectCtx, "", req.PaymentType, payment.Strategy(cfg.LoadBalanceStrategy), limitAmount)
 	if err != nil {
 		return nil, infraerrors.ServiceUnavailable("PAYMENT_GATEWAY_ERROR", "method_not_configured").
 			WithMetadata(map[string]string{"payment_type": req.PaymentType})

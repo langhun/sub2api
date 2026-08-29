@@ -354,22 +354,44 @@ describe('PaymentView recharge workspace', () => {
     expect(wrapper.text()).not.toContain('payment.rechargeRateTitle')
   })
 
-  it('uses final gateway pay amount when evaluating a method minimum', async () => {
+  it('evaluates method limits against the recharge amount, not the fee-inclusive pay amount', async () => {
+    // Limits cap what the user recharges; the site fee is a surcharge on top
+    // and must not reject an exactly-at-limit amount.
     const wrapper = await mountRecharge({ recharge_fee_rate: 5 }, {
       currency: 'CNY',
       single_min: 20,
+      single_max: 20,
     })
 
-    wrapper.getComponent(AmountInput).vm.$emit('update:modelValue', 19.05)
+    wrapper.getComponent(AmountInput).vm.$emit('update:modelValue', 20)
     await flushPromises()
 
     const selector = wrapper.getComponent({ name: 'PaymentMethodSelector' })
     expect(selector.props('methods')[0]).toMatchObject({
       available: true,
       minimum_amount: 20,
+      maximum_amount: 20,
       currency: 'CNY',
     })
     expect(wrapper.get('[data-testid="recharge-submit"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('disables the method only when the recharge amount itself exceeds the cap', async () => {
+    const wrapper = await mountRecharge({ recharge_fee_rate: 1.6 }, {
+      currency: 'CNY',
+      single_min: 0,
+      single_max: 200,
+    })
+
+    wrapper.getComponent(AmountInput).vm.$emit('update:modelValue', 201)
+    await flushPromises()
+
+    const selector = wrapper.getComponent({ name: 'PaymentMethodSelector' })
+    expect(selector.props('methods')[0]).toMatchObject({
+      available: false,
+      unavailable_reason: 'maximum',
+      maximum_amount: 200,
+    })
   })
 
   it('shows a concrete minimum instead of a generic unavailable message', async () => {

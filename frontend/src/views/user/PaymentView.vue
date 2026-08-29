@@ -673,12 +673,14 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
   enabledMethods.value.map((type) => {
     const ml = visibleMethods.value[type]
     const currency = normalizePaymentCurrency(ml?.currency)
-    const payAmount = rechargeAmountsForCurrency(validAmount.value, currency).total
+    // Single-transaction limits cap the recharge amount the user enters; the
+    // fee is the site's surcharge on top and must not shrink the usable range
+    // (a 200 cap would otherwise reject an exactly-200 recharge).
     return {
       type,
       display_name: ml?.display_name,
       fee_rate: ml?.fee_rate ?? 0,
-      ...paymentMethodAvailability(payAmount, type),
+      ...paymentMethodAvailability(validAmount.value, type),
       minimum_amount: ml?.single_min,
       maximum_amount: ml?.single_max,
       currency,
@@ -692,18 +694,14 @@ const amountError = computed(() => {
   // card stays visible so users can see exactly how much is required.
   const ml = selectedLimit.value
   if (ml) {
-    if (ml.single_min > 0 && totalAmount.value < ml.single_min) {
+    if (ml.single_min > 0 && validAmount.value < ml.single_min) {
       return t('payment.minimumToUse', { amount: formatSelectedPaymentAmount(ml.single_min) })
     }
-    if (ml.single_max > 0 && totalAmount.value > ml.single_max) {
+    if (ml.single_max > 0 && validAmount.value > ml.single_max) {
       return t('payment.maximumToUse', { amount: formatSelectedPaymentAmount(ml.single_max) })
     }
   }
-  if (!enabledMethods.value.some((m) => {
-    const currency = normalizePaymentCurrency(visibleMethods.value[m]?.currency)
-    const payAmount = rechargeAmountsForCurrency(validAmount.value, currency).total
-    return amountFitsMethod(payAmount, m)
-  })) {
+  if (!enabledMethods.value.some((m) => amountFitsMethod(validAmount.value, m))) {
     return t('payment.amountNoMethod')
   }
   return ''
@@ -711,7 +709,7 @@ const amountError = computed(() => {
 
 const canSubmit = computed(() =>
   validAmount.value > 0
-    && amountFitsMethod(totalAmount.value, selectedMethod.value)
+    && amountFitsMethod(validAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
 
@@ -763,12 +761,9 @@ const canSubmitSubscription = computed(() =>
 )
 
 // Auto-switch to first available method when current selection can't handle the amount
-watch(() => [totalAmount.value, selectedMethod.value] as const, ([amt, method]) => {
+watch(() => [validAmount.value, selectedMethod.value] as const, ([amt, method]) => {
   if (amt <= 0 || amountFitsMethod(amt, method)) return
-  const available = enabledMethods.value.find((m) => {
-    const currency = normalizePaymentCurrency(visibleMethods.value[m]?.currency)
-    return amountFitsMethod(rechargeAmountsForCurrency(validAmount.value, currency).total, m)
-  })
+  const available = enabledMethods.value.find((m) => amountFitsMethod(amt, m))
   if (available) selectedMethod.value = available
 })
 
