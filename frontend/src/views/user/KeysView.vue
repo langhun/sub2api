@@ -2385,7 +2385,7 @@ const handleSubmit = async () => {
         // transient request from using candidates validated against the old
         // primary group while the two user-facing APIs are being updated.
         safeRoutingProfile = await updateSmartRouting(selectedKey.value.id, {
-          version: previousRouting?.version,
+          version: previousRouting?.version ?? 0,
           enabled: false,
           mode: 'single',
           strategy: 'auto',
@@ -2431,7 +2431,7 @@ const handleSubmit = async () => {
         throw error
       }
       await updateSmartRouting(selectedKey.value.id, {
-        version: (safeRoutingProfile || routingProfile.value)?.version,
+        version: (safeRoutingProfile || routingProfile.value)?.version ?? 0,
         enabled: formData.value.routing_mode === 'smart' && !routingFallbackToSingle,
         mode: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? 'smart' : 'single',
         strategy: formData.value.routing_mode === 'smart' && !routingFallbackToSingle ? formData.value.routing_strategy : 'auto',
@@ -2461,6 +2461,7 @@ const handleSubmit = async () => {
         if (!routingWeightsValid.value) throw new Error(t('keys.routingWeightInvalid'))
         if (routingCandidateValidationError.value) throw new Error(routingCandidateValidationError.value)
         await updateSmartRouting(createdKey.id, {
+          version: 0,
           enabled: true,
           mode: 'smart',
           strategy: formData.value.routing_strategy,
@@ -2488,7 +2489,9 @@ const handleSubmit = async () => {
     // candidates validated against the old primary can never remain active.
     if (editedKeyGroupChanged && editedKeyUpdateSucceeded && selectedKey.value) {
       try {
+        const rollbackProfile = await getSmartRouting(selectedKey.value.id).catch(() => null)
         await updateSmartRouting(selectedKey.value.id, {
+          version: rollbackProfile?.version ?? 0,
           enabled: false,
           mode: 'single',
           strategy: 'auto',

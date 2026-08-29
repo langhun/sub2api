@@ -2333,18 +2333,6 @@ func (s *OpenAIGatewayService) resolveSmartRoutingGroup(ctx context.Context, gro
 	return restorePrimary()
 }
 
-// CommitSmartRoutingGroup records the selected group after account admission.
-// Group resolution itself must remain side-effect free until the handler has
-// passed its final slot and profit checks.
-func (s *OpenAIGatewayService) CommitSmartRoutingGroup(ctx context.Context, apiKey *APIKey, groupID *int64, sessionHash string) {
-	if s == nil || s.smartRoutingResolver == nil || apiKey == nil || groupID == nil || *groupID <= 0 {
-		return
-	}
-	if committer, ok := s.smartRoutingResolver.(SmartRoutingStickyCommitter); ok {
-		committer.CommitSticky(ctx, apiKey.ID, *groupID, sessionHash)
-	}
-}
-
 func (s *OpenAIGatewayService) checkSmartRoutingCandidateBilling(ctx context.Context, apiKey *APIKey, group *Group) bool {
 	if s == nil || apiKey == nil || group == nil {
 		return true

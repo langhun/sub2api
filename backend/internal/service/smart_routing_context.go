@@ -24,13 +24,6 @@ type SmartRoutingResolver interface {
 	Resolve(ctx context.Context, apiKey *APIKey, requestedModel, sessionHash string, excludedAccountIDs map[int64]struct{}) (*SmartRouteDecision, error)
 }
 
-// SmartRoutingStickyCommitter is an optional Overlay hook. Selection and
-// sticky persistence are deliberately separate so failed billing/account
-// admission cannot pin a session to a group that was never used.
-type SmartRoutingStickyCommitter interface {
-	CommitSticky(ctx context.Context, apiKeyID, groupID int64, sessionHash string)
-}
-
 // SmartRoutingAuditRecorder is implemented by the Overlay audit sink. The
 // route decision is created when a group is scored, while the account is only
 // known after the scheduler has passed slot and profit admission. Keeping this
@@ -51,9 +44,6 @@ func CommitSmartRoutingAdmission(ctx context.Context, resolver SmartRoutingResol
 	key, ok := APIKeyFromContext(ctx)
 	if !ok || key == nil || key.ID <= 0 {
 		return
-	}
-	if committer, ok := resolver.(SmartRoutingStickyCommitter); ok {
-		committer.CommitSticky(ctx, key.ID, *groupID, sessionHash)
 	}
 	if recorder, ok := resolver.(SmartRoutingAuditRecorder); ok {
 		recorder.RecordSelectedAccount(ctx, key.ID, *groupID, accountID)

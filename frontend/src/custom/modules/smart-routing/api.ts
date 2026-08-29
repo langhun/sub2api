@@ -31,7 +31,8 @@ export interface SmartRoutingProfile {
 }
 
 export interface SmartRoutingUpdate {
-  version?: number
+  /** Required optimistic-lock version; GET the profile first and pass profile.version. */
+  version: number
   enabled: boolean
   mode: 'single' | 'smart'
   strategy: SmartRoutingProfile['strategy']

@@ -1076,19 +1076,6 @@ func (s *GatewayService) resolveSmartRoutingGroup(ctx context.Context, groupID *
 	return restorePrimary()
 }
 
-// CommitSmartRoutingGroup records the selected group only after the caller
-// has completed account admission. The resolver intentionally does not write
-// sticky state during group selection because billing or profit admission can
-// still reject the selected account afterward.
-func (s *GatewayService) CommitSmartRoutingGroup(ctx context.Context, apiKey *APIKey, groupID *int64, sessionHash string) {
-	if s == nil || s.smartRoutingResolver == nil || apiKey == nil || groupID == nil || *groupID <= 0 {
-		return
-	}
-	if committer, ok := s.smartRoutingResolver.(SmartRoutingStickyCommitter); ok {
-		committer.CommitSticky(ctx, apiKey.ID, *groupID, sessionHash)
-	}
-}
-
 func (s *GatewayService) checkSmartRoutingCandidateBilling(ctx context.Context, apiKey *APIKey, group *Group) bool {
 	if s == nil || apiKey == nil || group == nil {
 		return true

@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"math"
 	"net/http"
 	"sort"
@@ -27,13 +29,15 @@ const (
 )
 
 type Profile struct {
-	APIKeyID        int64   `json:"api_key_id"`
-	Enabled         bool    `json:"enabled"`
-	Mode            string  `json:"mode"`
-	Strategy        string  `json:"strategy"`
-	PriceWeight     float64 `json:"price_weight"`
-	SpeedWeight     float64 `json:"speed_weight"`
-	SuccessWeight   float64 `json:"success_weight"`
+	APIKeyID      int64   `json:"api_key_id"`
+	Enabled       bool    `json:"enabled"`
+	Mode          string  `json:"mode"`
+	Strategy      string  `json:"strategy"`
+	PriceWeight   float64 `json:"price_weight"`
+	SpeedWeight   float64 `json:"speed_weight"`
+	SuccessWeight float64 `json:"success_weight"`
+	// Deprecated: cross-group stickiness was removed; the field is retained
+	// only so existing persisted profiles keep round-tripping.
 	StickyTTL       int     `json:"sticky_ttl_seconds"`
 	ExplorationRate float64 `json:"exploration_rate"`
 	Version         int64   `json:"version"`
@@ -57,13 +61,15 @@ type Group struct {
 }
 
 type UpdateRequest struct {
-	Version         int64   `json:"version"`
-	Enabled         bool    `json:"enabled"`
-	Mode            string  `json:"mode"`
-	Strategy        string  `json:"strategy"`
-	PriceWeight     float64 `json:"price_weight"`
-	SpeedWeight     float64 `json:"speed_weight"`
-	SuccessWeight   float64 `json:"success_weight"`
+	Version       int64   `json:"version"`
+	Enabled       bool    `json:"enabled"`
+	Mode          string  `json:"mode"`
+	Strategy      string  `json:"strategy"`
+	PriceWeight   float64 `json:"price_weight"`
+	SpeedWeight   float64 `json:"speed_weight"`
+	SuccessWeight float64 `json:"success_weight"`
+	// Deprecated: cross-group stickiness was removed; the field is retained
+	// only so existing persisted profiles keep round-tripping.
 	StickyTTL       int     `json:"sticky_ttl_seconds"`
 	ExplorationRate float64 `json:"exploration_rate"`
 	GroupIDs        []int64 `json:"group_ids"`
@@ -91,20 +97,28 @@ func (m *Module) loadStats(ctx context.Context, groupID int64, model string) sta
 	// Keep the realtime and fallback windows in one query. A route with a cold
 	// candidate can otherwise issue two DB round trips per group on every first
 	// request, multiplying latency exactly when the pool is warming up.
-	_ = m.repo.db.QueryRowContext(ctx, `SELECT
+	// A failed scan degrades every candidate to the cold-start baseline; log it
+	// so stats outages don't silently turn routing into pure price ordering.
+	if err := m.repo.db.QueryRowContext(ctx, `SELECT
 		COUNT(*) FILTER (WHERE ul.duration_ms IS NOT NULL AND ul.created_at>=NOW()-INTERVAL '15 minutes'),
 		COUNT(*) FILTER (WHERE ul.duration_ms IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ops_error_logs oe WHERE oe.request_id=ul.request_id) AND ul.created_at>=NOW()-INTERVAL '15 minutes'),
 		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(ul.first_token_ms, ul.duration_ms)) FILTER (WHERE ul.duration_ms IS NOT NULL AND ul.created_at>=NOW()-INTERVAL '15 minutes'),0)::bigint,
 		COUNT(*) FILTER (WHERE ul.duration_ms IS NOT NULL AND ul.created_at>=NOW()-INTERVAL '1 hour'),
 		COUNT(*) FILTER (WHERE ul.duration_ms IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ops_error_logs oe WHERE oe.request_id=ul.request_id) AND ul.created_at>=NOW()-INTERVAL '1 hour'),
 		COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY COALESCE(ul.first_token_ms, ul.duration_ms)) FILTER (WHERE ul.duration_ms IS NOT NULL AND ul.created_at>=NOW()-INTERVAL '1 hour'),0)::bigint
-		FROM usage_logs ul WHERE ul.group_id=$1 AND ($2='' OR ul.requested_model=$2) AND ul.created_at>=NOW()-INTERVAL '1 hour'`, groupID, model).Scan(&st.Samples, &st.Success, &st.SpeedMs, &st.FallbackSamples, &st.FallbackSuccess, &st.FallbackSpeedMs)
+		FROM usage_logs ul WHERE ul.group_id=$1 AND ($2='' OR ul.requested_model=$2) AND ul.created_at>=NOW()-INTERVAL '1 hour'`, groupID, model).Scan(&st.Samples, &st.Success, &st.SpeedMs, &st.FallbackSamples, &st.FallbackSuccess, &st.FallbackSpeedMs); err != nil {
+		slog.Warn("smart_routing_stats_load_failed", "group_id", groupID, "model", model, "error", err)
+	}
 	return st
 }
 
 type Repository struct{ db *sql.DB }
 
 func NewRepository(db *sql.DB) *Repository { return &Repository{db: db} }
+
+// ErrVersionConflict is returned when a save races another writer or omits
+// the current version of an existing profile.
+var ErrVersionConflict = errors.New("routing profile version conflict")
 
 func (r *Repository) Get(ctx context.Context, keyID int64) (*Profile, error) {
 	if r == nil || r.db == nil {
@@ -169,10 +183,10 @@ func (r *Repository) Save(ctx context.Context, keyID int64, req UpdateRequest) (
 	}
 	if req.Version == 0 {
 		if exists {
-			return nil, fmt.Errorf("routing profile version conflict")
+			return nil, ErrVersionConflict
 		}
 	} else if !exists || current != req.Version {
-		return nil, fmt.Errorf("routing profile version conflict")
+		return nil, ErrVersionConflict
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO custom_api_key_route_profiles (api_key_id,enabled,mode,strategy,price_weight,speed_weight,success_weight,sticky_ttl_seconds,exploration_rate,version) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,1) ON CONFLICT (api_key_id) DO UPDATE SET enabled=EXCLUDED.enabled, mode=EXCLUDED.mode, strategy=EXCLUDED.strategy, price_weight=EXCLUDED.price_weight, speed_weight=EXCLUDED.speed_weight, success_weight=EXCLUDED.success_weight, sticky_ttl_seconds=EXCLUDED.sticky_ttl_seconds, exploration_rate=EXCLUDED.exploration_rate, version=custom_api_key_route_profiles.version+1, updated_at=NOW()`, keyID, req.Enabled, req.Mode, req.Strategy, req.PriceWeight, req.SpeedWeight, req.SuccessWeight, req.StickyTTL, req.ExplorationRate)
 	if err != nil {
@@ -367,7 +381,13 @@ func (m *Module) update(c *gin.Context) {
 	}
 	p, err := m.repo.Save(c.Request.Context(), key.ID, req)
 	if err != nil {
-		c.JSON(400, gin.H{"detail": err.Error()})
+		// Only caller-fixable conflicts are client errors; DB failures and
+		// post-commit reads must surface as 500, not a misleading 400.
+		if errors.Is(err, ErrVersionConflict) {
+			c.JSON(400, gin.H{"detail": err.Error()})
+		} else {
+			c.JSON(500, gin.H{"detail": err.Error()})
+		}
 		return
 	}
 	c.JSON(200, p)
@@ -418,7 +438,12 @@ func (m *Module) preview(c *gin.Context) {
 		return
 	}
 	var req PreviewRequest
-	_ = c.ShouldBindJSON(&req)
+	// An empty body is allowed (defaults apply), but malformed JSON must not be
+	// silently treated as an empty request.
+	if err := c.ShouldBindJSON(&req); err != nil && err != io.EOF {
+		c.JSON(http.StatusBadRequest, gin.H{"detail": "Invalid request: " + err.Error()})
+		return
+	}
 	req.Model = strings.TrimSpace(req.Model)
 	req.Endpoint = strings.TrimSpace(req.Endpoint)
 	if req.Model == "" {
@@ -567,11 +592,11 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 	// Re-score the primary and candidates on every request so a recovered,
 	// lower-cost primary group is selected immediately. Upstream account-level
 	// stickiness remains responsible for provider session continuity.
-	stickyID := int64(0)
 	if exploreIndex := m.explorationIndex(key, p, ranked, state.MainGroupID, sessionHash, model); exploreIndex >= 0 {
-		// Exploration is applied only after hard eligibility and price checks.
-		// This gives a cold candidate a bounded opportunity without making routing
-		// nondeterministic for a given key/session.
+		// Exploration is applied only after hard eligibility checks. It gives a
+		// cold candidate a bounded opportunity without making routing
+		// nondeterministic for a given key/session. Price is a soft signal, so
+		// even price-only strategies may explore.
 		ranked[0], ranked[exploreIndex] = ranked[exploreIndex], ranked[0]
 	}
 	for _, g := range ranked {
@@ -581,7 +606,7 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		if _, rejected := state.BillingRejectedGroups[g.GroupID]; rejected {
 			continue
 		}
-		if !routeStateAllowsGroup(state, g.GroupID, stickyID, maxSwitches) {
+		if !routeStateAllowsGroup(state, g.GroupID, maxSwitches) {
 			// previous_response_id chains cannot be replayed against another
 			// group. Let the normal selector return its explicit no-account
 			// error instead of silently changing the conversation owner.
@@ -592,14 +617,13 @@ func (m *Module) Resolve(ctx context.Context, key *service.APIKey, model, sessio
 		// when it is admitted, so this check must run before the TriedGroups
 		// filter on subsequent scheduler calls.
 		if g.GroupID == state.CurrentGroupID && len(excluded) > 0 {
-			platform := ""
-			if key.Group != nil {
-				platform = key.Group.Platform
-			}
 			if m.accounts == nil {
 				return nil, nil
 			}
-			remaining, known := m.remainingModelAccountsKnown(ctx, state.CurrentGroupID, platform, m.dispatchModelForGroup(ctx, key.Group, model), excluded)
+			// g.Platform is hydrated in rank(); key.Group is a mutable gateway
+			// pointer that may be nil mid-failover, and an empty platform would
+			// make the account lookup report zero remaining accounts.
+			remaining, known := m.remainingModelAccountsKnown(ctx, state.CurrentGroupID, g.Platform, m.dispatchModelForGroup(ctx, key.Group, model), excluded)
 			if !known {
 				// Preserve the primary route when account discovery is unavailable;
 				// an infrastructure error is not evidence that the group is empty.
@@ -644,25 +668,12 @@ func smartRoutingForcePlatform(ctx context.Context) bool {
 	return ok && strings.TrimSpace(forcePlatform) != ""
 }
 
-// CommitSticky is retained as a compatibility hook for the upstream gateway.
-// Smart routing no longer persists cross-group sticky bindings; upstream
-// account-level stickiness still runs independently after account admission.
-func (m *Module) CommitSticky(ctx context.Context, apiKeyID, groupID int64, sessionHash string) {
-	// Cross-group stickiness was intentionally removed. Keep this no-op method
-	// to satisfy the optional upstream hook without breaking old binaries or
-	// persisted route profiles that still contain sticky_ttl_seconds.
-}
-
-func routeStateAllowsGroup(state *service.SmartRoutingRequestState, groupID, stickyID int64, maxSwitches int) bool {
+func routeStateAllowsGroup(state *service.SmartRoutingRequestState, groupID int64, maxSwitches int) bool {
 	if state == nil {
 		return true
 	}
 	if state.ContinuityLocked {
-		continuityGroupID := state.MainGroupID
-		if stickyID > 0 {
-			continuityGroupID = stickyID
-		}
-		if groupID != continuityGroupID {
+		if groupID != state.MainGroupID {
 			return false
 		}
 	}
@@ -736,30 +747,6 @@ func (m *Module) RecordSelectedAccount(ctx context.Context, apiKeyID, groupID, a
 			}
 		}
 	}()
-}
-
-func (m *Module) stickyKey(apiKeyID, version int64, sessionHash string) string {
-	digest := sha256.Sum256([]byte(sessionHash))
-	return fmt.Sprintf("custom:route:sticky:apikey:%d:v%d:%x", apiKeyID, version, digest[:])
-}
-
-func (m *Module) getStickyGroup(ctx context.Context, apiKeyID, version int64, sessionHash string) int64 {
-	if m.redis == nil || apiKeyID <= 0 || version <= 0 || sessionHash == "" {
-		return 0
-	}
-	value, err := m.redis.Get(ctx, m.stickyKey(apiKeyID, version, sessionHash)).Result()
-	if err != nil {
-		return 0
-	}
-	id, _ := strconv.ParseInt(value, 10, 64)
-	return id
-}
-
-func (m *Module) setStickyGroup(ctx context.Context, apiKeyID, version int64, sessionHash string, groupID int64, ttl time.Duration) {
-	if m.redis == nil || apiKeyID <= 0 || version <= 0 || sessionHash == "" || groupID <= 0 || ttl <= 0 {
-		return
-	}
-	_ = m.redis.Set(ctx, m.stickyKey(apiKeyID, version, sessionHash), strconv.FormatInt(groupID, 10), ttl).Err()
 }
 
 func (m *Module) remainingModelAccounts(ctx context.Context, groupID int64, platform, model string, excluded map[int64]struct{}) int {
@@ -888,9 +875,16 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 	}
 	main := key.Group
 	if state := service.SmartRoutingStateFromContext(ctx); state != nil && state.MainGroupID > 0 {
-		main, _ = m.groups.GetByIDLite(ctx, state.MainGroupID)
-	}
-	if main == nil && key.GroupID != nil {
+		// During failover the gateway rewrites key.GroupID to the last candidate,
+		// so state.MainGroupID is the only trustworthy baseline. Falling back to
+		// key.GroupID here would score candidates against the wrong group.
+		var err error
+		main, err = m.groups.GetByIDLite(ctx, state.MainGroupID)
+		if err != nil || main == nil {
+			return nil, fmt.Errorf("primary group %d unavailable: %w", state.MainGroupID, err)
+		}
+	} else if main == nil && key.GroupID != nil {
+		// First resolve on a request: key.GroupID is still the authed primary.
 		main, _ = m.groups.GetByIDLite(ctx, *key.GroupID)
 	}
 	if main == nil {

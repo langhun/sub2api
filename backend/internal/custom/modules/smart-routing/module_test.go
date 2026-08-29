@@ -398,23 +398,23 @@ func TestValidateUpdateRejectsNonFiniteNumbers(t *testing.T) {
 
 func TestRouteStateHardLimitsSwitchesAndContinuity(t *testing.T) {
 	state := &service.SmartRoutingRequestState{MainGroupID: 1, CurrentGroupID: 2, GroupSwitches: 2, ContinuityLocked: false}
-	if routeStateAllowsGroup(state, 3, 0, 2) {
+	if routeStateAllowsGroup(state, 3, 2) {
 		t.Fatal("expected third group switch to be blocked")
 	}
-	if !routeStateAllowsGroup(state, 1, 0, 2) {
+	if !routeStateAllowsGroup(state, 1, 2) {
 		t.Fatal("primary group must remain available as the safe fallback at the switch limit")
 	}
 	state.GroupSwitches = 1
-	if !routeStateAllowsGroup(state, 3, 0, 2) {
+	if !routeStateAllowsGroup(state, 3, 2) {
 		t.Fatal("expected second group switch to remain allowed")
 	}
 	state.ContinuityLocked = true
 	state.GroupSwitches = 2
-	if routeStateAllowsGroup(state, 3, 2, 2) {
-		t.Fatal("continuation must stay on sticky group")
+	if routeStateAllowsGroup(state, 3, 2) {
+		t.Fatal("continuity-locked request must not switch to another candidate")
 	}
-	if routeStateAllowsGroup(state, 1, 2, 2) {
-		t.Fatal("continuation must not fall back to the primary group when sticky group differs")
+	if !routeStateAllowsGroup(state, 1, 2) {
+		t.Fatal("continuity-locked request must keep the primary group as its continuity target")
 	}
 }
 
