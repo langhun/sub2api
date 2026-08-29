@@ -127,10 +127,11 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 	}
 
 	if isOpenAIImageRateLimitError(statusCode, responseBody) {
-		if s != nil && s.rateLimitService != nil {
-			_ = s.rateLimitService.HandleOpenAIImageRateLimit(stateCtx, account, statusCode, headers, responseBody)
+		if s != nil && s.rateLimitService != nil && s.rateLimitService.HandleOpenAIImageRateLimit(stateCtx, account, statusCode, headers, responseBody) {
+			return false
 		}
-		return false
+		// Handler did not persist the model cooldown — fall through to the
+		// generic account-error rules below.
 	}
 
 	// Self-built images requests always carry a matching image_generation tool, so a
@@ -138,10 +139,11 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 	// image capability. Gated on the self-built marker: passthrough clients control
 	// their own tools/tool_choice and could otherwise poison a healthy account.
 	if isOpenAIImagesSelfBuiltRequest(ctx) && isOpenAIImageCapabilityLossError(statusCode, responseBody) {
-		if s != nil && s.rateLimitService != nil {
-			_ = s.rateLimitService.HandleOpenAIImageCapabilityLoss(stateCtx, account, statusCode, responseBody)
+		if s != nil && s.rateLimitService != nil && s.rateLimitService.HandleOpenAIImageCapabilityLoss(stateCtx, account, statusCode, responseBody) {
+			return false
 		}
-		return false
+		// Handler did not persist the cooldown — fall through to the generic
+		// account-error rules below so the account still gets some disposition.
 	}
 
 	if s == nil || account == nil {

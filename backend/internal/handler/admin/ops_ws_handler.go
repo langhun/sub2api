@@ -75,13 +75,19 @@ const (
 var qpsWSIdleStopMu sync.Mutex
 var qpsWSIdleStopTimer *time.Timer
 
-func cancelQPSWSIdleStop() {
+// cancelQPSWSIdleStopAndStart cancels any pending idle-stop and (re)starts the
+// QPS cache. The idle-stop timer callback takes the same mutex around its idle
+// check and cache stop, so callback and connection-start serialize: either the
+// callback stops the cache before this restart (start waits for the old loop
+// and relaunches), or the timer is cleared first and never fires.
+func cancelQPSWSIdleStopAndStart(opsService *service.OpsService) {
 	qpsWSIdleStopMu.Lock()
+	defer qpsWSIdleStopMu.Unlock()
 	if qpsWSIdleStopTimer != nil {
 		qpsWSIdleStopTimer.Stop()
 		qpsWSIdleStopTimer = nil
 	}
-	qpsWSIdleStopMu.Unlock()
+	qpsWSCache.start(opsService)
 }
 
 func scheduleQPSWSIdleStop() {
@@ -91,13 +97,14 @@ func scheduleQPSWSIdleStop() {
 		return
 	}
 	qpsWSIdleStopTimer = time.AfterFunc(qpsWSIdleStopDelay, func() {
-		// Only stop if truly idle at fire time.
+		qpsWSIdleStopMu.Lock()
+		defer qpsWSIdleStopMu.Unlock()
+		qpsWSIdleStopTimer = nil
+		// Only stop if truly idle at fire time; a concurrent new connection
+		// serializes on this mutex before restarting the cache.
 		if wsConnCount.Load() == 0 {
 			qpsWSCache.Stop()
 		}
-		qpsWSIdleStopMu.Lock()
-		qpsWSIdleStopTimer = nil
-		qpsWSIdleStopMu.Unlock()
 	})
 	qpsWSIdleStopMu.Unlock()
 }
@@ -333,10 +340,10 @@ func (h *OpsHandler) QPSWSHandler(c *gin.Context) {
 		return
 	}
 
-	cancelQPSWSIdleStop()
 	// Lazily start the background refresh loop so unit tests that never hit the
 	// websocket route don't spawn goroutines that depend on DB/Redis stubs.
-	qpsWSCache.start(h.opsService)
+	// This also cancels any pending idle-stop atomically with the restart.
+	cancelQPSWSIdleStopAndStart(h.opsService)
 
 	// Reserve a global slot before upgrading the connection to keep the limit strict.
 	if !tryAcquireOpsWSTotalSlot(opsWSLimits.MaxConns) {

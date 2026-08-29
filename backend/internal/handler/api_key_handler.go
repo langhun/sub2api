@@ -48,7 +48,7 @@ type CreateAPIKeyRequest struct {
 
 // UpdateAPIKeyRequest represents the update API key request payload
 type UpdateAPIKeyRequest struct {
-	Name        string    `json:"name"`
+	Name        *string   `json:"name"` // nil 不修改；传空字符串清空名称（与 GroupID/Status 的语义不同，Name 为值类型时无法区分"未传"与"清空"）
 	GroupID     *int64    `json:"group_id"`
 	Status      string    `json:"status" binding:"omitempty,oneof=active inactive"`
 	IPWhitelist *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
@@ -261,8 +261,8 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 		RateLimit7d:         req.RateLimit7d,
 		ResetRateLimitUsage: req.ResetRateLimitUsage,
 	}
-	if req.Name != "" {
-		svcReq.Name = &req.Name
+	if req.Name != nil {
+		svcReq.Name = req.Name
 	}
 	svcReq.GroupID = req.GroupID
 	if req.Status != "" {
