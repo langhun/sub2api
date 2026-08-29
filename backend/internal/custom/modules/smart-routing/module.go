@@ -880,8 +880,11 @@ func (m *Module) rank(ctx context.Context, key *service.APIKey, p *Profile, mode
 		// key.GroupID here would score candidates against the wrong group.
 		var err error
 		main, err = m.groups.GetByIDLite(ctx, state.MainGroupID)
-		if err != nil || main == nil {
+		if err != nil {
 			return nil, fmt.Errorf("primary group %d unavailable: %w", state.MainGroupID, err)
+		}
+		if main == nil {
+			return nil, fmt.Errorf("primary group %d not found", state.MainGroupID)
 		}
 	} else if main == nil && key.GroupID != nil {
 		// First resolve on a request: key.GroupID is still the authed primary.

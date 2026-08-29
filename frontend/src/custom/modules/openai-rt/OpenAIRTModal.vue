@@ -95,7 +95,7 @@ const loadToken = async () => {
     const result = await getOpenAIRT(props.account.id)
     oldToken.value = result.refresh_token
   } catch (error: any) {
-    errorMessage.value = extractApiErrorMessage(error, error?.message) || t('admin.openaiRt.loadFailed')
+    errorMessage.value = extractApiErrorMessage(error, '') || t('admin.openaiRt.loadFailed')
   } finally {
     loading.value = false
   }
@@ -136,7 +136,7 @@ const replaceToken = async () => {
     const reason = error?.reason || error?.response?.data?.reason
     errorMessage.value = reason === 'OPENAI_RT_INVALID'
       ? t('admin.openaiRt.invalidToken')
-      : extractApiErrorMessage(error, error?.message) || t('admin.openaiRt.replaceFailed')
+      : extractApiErrorMessage(error, '') || t('admin.openaiRt.replaceFailed')
   } finally {
     replacing.value = false
   }

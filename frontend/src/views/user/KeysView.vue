@@ -2254,7 +2254,7 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
         }
       }
     }
-    const errorMsg = extractApiErrorMessage(error, error?.message) || t('keys.failedToChangeGroup')
+    const errorMsg = extractApiErrorMessage(error, '') || t('keys.failedToChangeGroup')
     appStore.showError(errorMsg)
   }
 }
