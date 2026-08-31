@@ -83,6 +83,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 	if state := service.SmartRoutingStateFromContext(c.Request.Context()); state != nil {
 		state.ContinuityLocked = strings.TrimSpace(gjson.GetBytes(body, "previous_response_id").String()) != ""
 	}
+	bindRequestedReasoningEffort(c, body, reqModel)
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
 	if !compositeTargetPlatformResolved(c, apiKey, reqModel) {
 		h.responsesErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by composite groups")
@@ -364,6 +365,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 
 		quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
 		sessionID := service.ExtractClientSessionID(c)
+		stampForwardRequestedReasoningEffort(result, service.RequestedReasoningEffortFromContext(c.Request.Context()))
 		usageAPIKey := snapshotAPIKeyForUsage(apiKey)
 		usageSubscription := snapshotSubscriptionForUsage(subscription)
 		usageAccount := snapshotAccountForUsage(account)
