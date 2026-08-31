@@ -48,6 +48,10 @@ vi.mock('vue-i18n', async () => {
       t: (key: string, params?: Record<string, string>) => {
         if (key === 'payment.minimumToUse') return `最低充值 ${params?.amount ?? ''} 可使用`
         if (key === 'payment.maximumToUse') return `最高充值 ${params?.amount ?? ''} 可使用`
+        if (key === 'payment.rechargeRatePreview') {
+          translate(key, params)
+          return ''
+        }
         return translate(key, params)
       },
     }),
