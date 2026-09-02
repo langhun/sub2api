@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 const { appStore, replace } = vi.hoisted(() => ({
   appStore: {
     publicSettingsLoaded: false,
-    cachedPublicSettings: null as { default_homepage: 'default' | 'dino' } | null,
+    cachedPublicSettings: null as { default_homepage: 'default' | 'dino' | 'pixel' } | null,
     fetchPublicSettings: vi.fn(),
   },
   replace: vi.fn(),
@@ -24,6 +24,7 @@ describe('brand-home root redirect', () => {
   it.each([
     ['default', '/home'],
     ['dino', '/Dino'],
+    ['pixel', '/Pixel'],
   ] as const)('loads %s default_homepage before redirecting to %s', async (defaultHomepage, target) => {
     appStore.publicSettingsLoaded = false
     appStore.cachedPublicSettings = null

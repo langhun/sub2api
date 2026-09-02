@@ -14,6 +14,7 @@ const KeyDefaultHomepage = "default_homepage"
 const (
 	HomepageDefault = "default"
 	HomepageDino    = "dino"
+	HomepagePixel   = "pixel"
 )
 
 type Config struct {
@@ -64,8 +65,8 @@ func Values(config Config) (map[string]string, error) {
 }
 
 func Validate(config Config) error {
-	if config.DefaultHomepage != HomepageDefault && config.DefaultHomepage != HomepageDino {
-		return fmt.Errorf("default_homepage must be %q or %q", HomepageDefault, HomepageDino)
+	if config.DefaultHomepage != HomepageDefault && config.DefaultHomepage != HomepageDino && config.DefaultHomepage != HomepagePixel {
+		return fmt.Errorf("default_homepage must be %q, %q, or %q", HomepageDefault, HomepageDino, HomepagePixel)
 	}
 	return nil
 }
@@ -77,6 +78,9 @@ func Public(config Config) map[string]any {
 func normalize(value string) string {
 	if strings.EqualFold(strings.TrimSpace(value), HomepageDino) {
 		return HomepageDino
+	}
+	if strings.EqualFold(strings.TrimSpace(value), HomepagePixel) {
+		return HomepagePixel
 	}
 	return HomepageDefault
 }

@@ -2,7 +2,7 @@ import type { CustomSettingsPanel, CustomSettingsValues } from '../../registry'
 import BrandHomeSettingsPanel from './admin/BrandHomeSettingsPanel.vue'
 
 interface BrandHomeSettings {
-  default_homepage: 'default' | 'dino'
+  default_homepage: 'default' | 'dino' | 'pixel'
 }
 
 const defaultBrandHomeSettings = (): BrandHomeSettings => ({
@@ -11,9 +11,10 @@ const defaultBrandHomeSettings = (): BrandHomeSettings => ({
 
 function readSettings(settings: CustomSettingsValues): BrandHomeSettings {
   const values = settings as Record<string, unknown>
-  return values.default_homepage === 'dino'
-    ? { default_homepage: 'dino' }
-    : defaultBrandHomeSettings()
+  if (values.default_homepage === 'dino' || values.default_homepage === 'pixel') {
+    return { default_homepage: values.default_homepage }
+  }
+  return defaultBrandHomeSettings()
 }
 
 export const brandHomeSettingsPanels: readonly CustomSettingsPanel[] = [

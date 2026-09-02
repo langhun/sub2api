@@ -19,14 +19,15 @@ onMounted(async () => {
     }
   }
 
-  const target = getDefaultHomepage(appStore.cachedPublicSettings) === 'dino' ? '/Dino' : '/home'
+  const mode = getDefaultHomepage(appStore.cachedPublicSettings)
+  const target = mode === 'dino' ? '/Dino' : mode === 'pixel' ? '/Pixel' : '/home'
   await router.replace(target)
 })
 
-function getDefaultHomepage(settings: unknown): 'default' | 'dino' {
+function getDefaultHomepage(settings: unknown): 'default' | 'dino' | 'pixel' {
   if (typeof settings !== 'object' || settings === null) return 'default'
-  return (settings as { default_homepage?: unknown }).default_homepage === 'dino'
-    ? 'dino'
-    : 'default'
+  const homepage = (settings as { default_homepage?: unknown }).default_homepage
+  if (homepage === 'dino' || homepage === 'pixel') return homepage
+  return 'default'
 }
 </script>

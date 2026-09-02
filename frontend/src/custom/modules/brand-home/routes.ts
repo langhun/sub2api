@@ -11,6 +11,15 @@ export const brandHomeRoutes: readonly RouteRecordRaw[] = [
     },
   },
   {
+    path: '/Pixel',
+    name: 'PixelHome',
+    component: () => import('@/custom/modules/brand-home/PixelHomeView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'DaiGua',
+    },
+  },
+  {
     path: '/',
     name: 'RootHome',
     component: () => import('@/custom/modules/brand-home/RootHomeView.vue'),

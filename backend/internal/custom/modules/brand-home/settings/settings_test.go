@@ -11,6 +11,11 @@ func TestFromValuesKeepsLegacyDinoSetting(t *testing.T) {
 	require.Equal(t, HomepageDino, config.DefaultHomepage)
 }
 
+func TestFromValuesKeepsPixelSetting(t *testing.T) {
+	config := FromValues(map[string]string{KeyDefaultHomepage: "PIXEL"})
+	require.Equal(t, HomepagePixel, config.DefaultHomepage)
+}
+
 func TestFromValuesDefaultsInvalidLegacySetting(t *testing.T) {
 	config := FromValues(map[string]string{KeyDefaultHomepage: "unknown"})
 	require.Equal(t, HomepageDefault, config.DefaultHomepage)

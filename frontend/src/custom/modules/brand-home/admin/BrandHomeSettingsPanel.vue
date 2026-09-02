@@ -5,10 +5,11 @@
     </label>
     <select v-model="form.default_homepage" class="input">
       <option value="default">{{ localText('默认介绍页', 'Default introduction') }}</option>
+      <option value="pixel">{{ localText('像素风主页', 'Pixel home') }}</option>
       <option value="dino">Dino</option>
     </select>
     <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-      {{ localText('访问根路径 / 时使用的首页；两个页面始终可通过 /home 和 /Dino 访问。', 'Selects the page shown at /. Both pages remain available at /home and /Dino.') }}
+      {{ localText('访问根路径 / 时使用的首页；三个页面始终可通过 /home、/Pixel 和 /Dino 访问。', 'Selects the page shown at /. All options remain available at /home, /Pixel, and /Dino.') }}
     </p>
   </div>
 </template>
@@ -18,7 +19,7 @@ import { reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 interface BrandHomeSettings {
-  default_homepage: 'default' | 'dino'
+  default_homepage: 'default' | 'dino' | 'pixel'
 }
 
 const props = defineProps<{ modelValue: BrandHomeSettings }>()

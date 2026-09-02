@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 const { appStore, replace } = vi.hoisted(() => ({
   appStore: {
     publicSettingsLoaded: true,
-    cachedPublicSettings: { default_homepage: 'default' as 'default' | 'dino' },
+    cachedPublicSettings: { default_homepage: 'default' as 'default' | 'dino' | 'pixel' },
     fetchPublicSettings: vi.fn(),
   },
   replace: vi.fn(),
@@ -22,9 +22,10 @@ import RootHomeView from '../RootHomeView.vue'
 import { brandHomeRoutes } from '../routes'
 
 describe('brand-home routes', () => {
-  it('registers the root and Dino routes', () => {
+  it('registers the root, Pixel, and Dino routes', () => {
     expect(brandHomeRoutes).toMatchObject([
       { path: '/Dino', name: 'DaiGua' },
+      { path: '/Pixel', name: 'PixelHome' },
       { path: '/', name: 'RootHome' },
     ])
   })
@@ -32,6 +33,7 @@ describe('brand-home routes', () => {
   it.each([
     ['default', '/home'],
     ['dino', '/Dino'],
+    ['pixel', '/Pixel'],
   ] as const)('redirects %s homepage mode to %s', async (defaultHomepage, target) => {
     appStore.publicSettingsLoaded = true
     appStore.cachedPublicSettings = { default_homepage: defaultHomepage }
