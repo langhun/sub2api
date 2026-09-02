@@ -275,7 +275,14 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		// group was checked before routing, but a candidate may impose a stricter
 		// ceiling; reapply it to the attempt body after the candidate context is
 		// installed so routing cannot bypass that policy.
-		if cappedBody, changed := applyOpenAIReasoningEffortPolicyForRequest(c, apiKey, forwardBody); changed {
+		if cappedBody, changed, policyErr := applyOpenAIReasoningEffortPolicyForRequest(c, apiKey, forwardBody); policyErr != nil {
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+				accountReleaseFunc = nil
+			}
+			respondOpenAIReasoningEffortPolicyError(c, policyErr, h.errorResponse)
+			return
+		} else if changed {
 			forwardBody = cappedBody
 		}
 		writerSizeBeforeForward := c.Writer.Size()

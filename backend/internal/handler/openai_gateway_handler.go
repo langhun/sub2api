@@ -787,7 +787,14 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		// Reapply the selected group's reasoning ceiling after smart routing. The
 		// primary group was validated before selection, but candidates may impose
 		// a stricter policy and must not receive an uncapped attempt body.
-		if cappedBody, changed := applyOpenAIReasoningEffortPolicyForRequest(c, apiKey, attemptForwardBody); changed {
+		if cappedBody, changed, policyErr := applyOpenAIReasoningEffortPolicyForRequest(c, apiKey, attemptForwardBody); policyErr != nil {
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+				accountReleaseFunc = nil
+			}
+			respondOpenAIReasoningEffortPolicyError(c, policyErr, h.errorResponse)
+			return
+		} else if changed {
 			attemptForwardBody = cappedBody
 		}
 		attemptBody := h.deriveOpenAIForwardAttemptBody(reqLog, attemptForwardBody, account, &passthroughFailoverState)
