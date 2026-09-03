@@ -193,8 +193,6 @@ export default {
     myAccount: 'My Account',
     lightMode: 'Light Mode',
     darkMode: 'Dark Mode',
-    glassTheme: 'Glass Theme',
-    classicTheme: 'Classic Theme',
     collapse: 'Collapse',
     expand: 'Expand',
     logout: 'Logout',

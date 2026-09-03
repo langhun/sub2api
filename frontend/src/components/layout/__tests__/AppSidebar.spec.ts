@@ -53,3 +53,12 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
   })
 })
+
+describe('AppSidebar theme controls', () => {
+  it('does not expose a user theme-style override', () => {
+    expect(componentSource).not.toContain('toggleThemeStyle')
+    expect(componentSource).not.toContain('theme-style-change')
+    expect(componentSource).not.toContain("t('nav.classicTheme')")
+    expect(componentSource).not.toContain("t('nav.glassTheme')")
+  })
+})

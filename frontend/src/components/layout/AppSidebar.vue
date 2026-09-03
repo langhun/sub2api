@@ -163,19 +163,6 @@
         }}</span>
       </button>
 
-      <button
-        type="button"
-        @click="toggleThemeStyle"
-        class="sidebar-link mb-2 w-full"
-        :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
-        :title="sidebarCollapsed ? (themeStyle === 'glass' ? t('nav.classicTheme') : t('nav.glassTheme')) : undefined"
-      >
-        <Icon name="sparkles" class="h-5 w-5 flex-shrink-0" :class="themeStyle === 'glass' ? 'text-primary-500' : ''" />
-        <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">
-          {{ themeStyle === 'glass' ? t('nav.classicTheme') : t('nav.glassTheme') }}
-        </span>
-      </button>
-
       <!-- Collapse Button -->
       <button
         @click="toggleSidebar"
@@ -212,7 +199,6 @@ import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 import { customNavigation, type CustomNavigationItem } from '@/custom/registry'
-import { applyThemeStyle, readThemeStyle, type ThemeStyle } from '@/utils/theme'
 
 interface NavItem extends CustomNavigationItem {
   children?: NavItem[]
@@ -253,7 +239,6 @@ const mobileOpen = computed(() => appStore.mobileOpen)
 const isAdmin = computed(() => authStore.isAdmin)
 const sidebarNavRef = ref<HTMLElement | null>(null)
 const isDark = ref(document.documentElement.classList.contains('dark'))
-const themeStyle = ref<ThemeStyle>(readThemeStyle())
 
 const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
 
@@ -877,18 +862,6 @@ function toggleTheme() {
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
 }
 
-function toggleThemeStyle() {
-  themeStyle.value = themeStyle.value === 'glass' ? 'classic' : 'glass'
-  applyThemeStyle(themeStyle.value)
-}
-
-function handleThemeStyleChange(event: Event) {
-  const style = (event as CustomEvent<ThemeStyle>).detail
-  if (style === 'glass' || style === 'classic') {
-    themeStyle.value = style
-  }
-}
-
 function closeMobile() {
   appStore.setMobileOpen(false)
 }
@@ -980,7 +953,6 @@ watch(
 )
 
 onMounted(() => {
-  window.addEventListener('theme-style-change', handleThemeStyleChange)
   void refreshBatchImageAccess()
   if (isAdmin.value) {
     adminSettingsStore.fetch()
@@ -996,7 +968,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('theme-style-change', handleThemeStyleChange)
   if (sidebarNavRef.value) {
     appStore.sidebarScrollTop = sidebarNavRef.value.scrollTop
   }
