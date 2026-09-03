@@ -1,7 +1,8 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark-950">
-    <!-- Background Decoration -->
-    <div class="pointer-events-none fixed inset-0 bg-mesh-gradient"></div>
+  <div class="relative min-h-screen bg-transparent">
+    <!-- Continuous ambient layer keeps the operational surface calm while
+         allowing the glass cards and navigation to provide depth. -->
+    <div class="app-ambient" aria-hidden="true"></div>
 
     <!-- Sidebar -->
     <AppSidebar />
