@@ -13,6 +13,7 @@ import type {
   AuthResponse,
   ActionCaptchaRequestProof
 } from '@/types'
+import { isPreviewAdminMode } from '@/utils/devPreview'
 
 const AUTH_TOKEN_KEY = 'auth_token'
 const AUTH_USER_KEY = 'auth_user'
@@ -21,11 +22,6 @@ const TOKEN_EXPIRES_AT_KEY = 'token_expires_at' // 存储过期时间戳而非�
 const PENDING_AUTH_SESSION_KEY = 'pending_auth_session'
 const AUTO_REFRESH_INTERVAL = 60 * 1000 // 60 seconds for user data refresh
 const TOKEN_REFRESH_BUFFER = 120 * 1000 // 120 seconds before expiry to refresh token
-
-// Development-only visual preview. It is activated only by an explicit query
-// flag in Vite dev mode and never runs in production builds.
-export const isPreviewAdminMode = (): boolean =>
-  import.meta.env.DEV && new URLSearchParams(window.location.search).get('preview') === 'admin'
 
 type PendingAuthTokenField = 'pending_auth_token' | 'pending_oauth_token'
 

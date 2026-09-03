@@ -4,7 +4,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { useAuthStore, isPreviewAdminMode } from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useAdminComplianceStore } from '@/stores/adminCompliance'
@@ -15,6 +15,7 @@ import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
 import { resolveFeatureFlagKey } from '@/utils/featureFlags'
 import { customRoutes } from '@/custom/registry'
+import { isPreviewAdminMode } from '@/utils/devPreview'
 
 /**
  * Route definitions with lazy loading

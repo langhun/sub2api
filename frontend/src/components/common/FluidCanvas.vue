@@ -25,8 +25,14 @@ onMounted(() => {
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
   const media = window.matchMedia('(prefers-color-scheme: dark)')
   const onMediaChange = () => handle.setParams(document.documentElement.classList.contains('dark') ? darkParams : lightParams)
-  media.addEventListener('change', onMediaChange)
-  dispose = () => { themeObserver.disconnect(); media.removeEventListener('change', onMediaChange); handle.dispose() }
+  if (typeof media.addEventListener === 'function') media.addEventListener('change', onMediaChange)
+  else media.addListener?.(onMediaChange)
+  dispose = () => {
+    themeObserver.disconnect()
+    if (typeof media.removeEventListener === 'function') media.removeEventListener('change', onMediaChange)
+    else media.removeListener?.(onMediaChange)
+    handle.dispose()
+  }
 })
 
 onBeforeUnmount(() => dispose?.())

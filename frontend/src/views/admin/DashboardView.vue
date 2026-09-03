@@ -363,7 +363,7 @@ import Select from '@/components/common/Select.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
-import { isPreviewAdminMode } from '@/stores/auth'
+import { isPreviewAdminMode } from '@/utils/devPreview'
 
 import {
   Chart as ChartJS,

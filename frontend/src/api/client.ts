@@ -14,13 +14,8 @@ import {
 } from './adminUIRequest'
 import { refreshAuthTokens } from './tokenRefresh'
 import { getAPIBaseURL } from './url'
+import { isPreviewAdminMode } from '@/utils/devPreview'
 export { buildApiUrl, buildGatewayUrl } from './url'
-
-// Keep local visual previews inside the requested admin route even when the
-// backend has no configured database session. This is deliberately gated to
-// Vite dev mode and the explicit query flag.
-const isLocalVisualPreview = (): boolean =>
-  import.meta.env.DEV && new URLSearchParams(window.location.search).get('preview') === 'admin'
 
 // ==================== Axios Instance Configuration ====================
 
@@ -169,7 +164,7 @@ apiClient.interceptors.response.use(
       // 401: Try to refresh the token if we have a refresh token
       // This handles TOKEN_EXPIRED, INVALID_TOKEN, TOKEN_REVOKED, etc.
       if (status === 401 && !originalRequest._retry) {
-        if (isLocalVisualPreview()) {
+        if (isPreviewAdminMode()) {
           return Promise.reject({
             status,
             code: apiData.code,
