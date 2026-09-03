@@ -18,7 +18,7 @@
     data-testid="compact-home"
     class="relative flex min-h-screen flex-col bg-transparent text-gray-900 dark:text-white"
   >
-    <div class="app-ambient" aria-hidden="true"></div>
+    <div class="app-ambient" aria-hidden="true"><FluidCanvas /></div>
     <header class="border-b border-gray-200 px-4 py-4 sm:px-6 dark:border-dark-800">
       <nav class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div class="flex min-w-0 flex-1 items-center gap-3">
@@ -96,7 +96,7 @@
     v-else
     class="relative flex min-h-screen flex-col overflow-hidden bg-transparent"
   >
-    <div class="app-ambient" aria-hidden="true"></div>
+    <div class="app-ambient" aria-hidden="true"><FluidCanvas /></div>
 
     <!-- Header -->
     <header class="relative z-20 px-6 py-4">
@@ -187,7 +187,7 @@
     <main class="relative z-10 flex-1 px-6 py-16">
       <div class="mx-auto max-w-6xl">
         <!-- Hero Section - Left/Right Layout -->
-        <div class="mb-12 flex flex-col items-center justify-between gap-12 lg:flex-row lg:gap-16">
+        <div class="c3api-hero mb-12 flex flex-col items-center justify-center gap-8 text-center">
           <!-- Left: Text Content -->
           <div class="flex-1 text-center lg:text-left">
             <h1
@@ -212,7 +212,7 @@
           </div>
 
           <!-- Right: Terminal Animation -->
-          <div class="flex flex-1 justify-center lg:justify-end">
+          <div class="c3api-hero-terminal flex flex-1 justify-center">
             <div class="terminal-container">
               <div class="terminal-window">
                 <!-- Window header -->
@@ -278,13 +278,13 @@
         </div>
 
         <!-- Features Grid -->
-        <div class="mb-12 grid gap-6 md:grid-cols-3">
+        <div class="mb-12 grid gap-5 md:grid-cols-3">
           <!-- Feature 1: Unified Gateway -->
           <div
-            class="group rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:border-dark-700/50 dark:bg-dark-800/60"
+            class="group card p-5 transition-all duration-300 hover:-translate-y-0.5"
           >
             <div
-              class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30 transition-transform group-hover:scale-110"
+              class="mb-4 flex h-10 w-10 items-center justify-center rounded-[10px] bg-primary-100 text-primary-600 transition-transform group-hover:scale-105 dark:bg-primary-900/30 dark:text-primary-400"
             >
               <Icon name="server" size="lg" class="text-white" />
             </div>
@@ -298,10 +298,10 @@
 
           <!-- Feature 2: Account Pool -->
           <div
-            class="group rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:border-dark-700/50 dark:bg-dark-800/60"
+            class="group card p-5 transition-all duration-300 hover:-translate-y-0.5"
           >
             <div
-              class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-110"
+              class="mb-4 flex h-10 w-10 items-center justify-center rounded-[10px] bg-primary-100 text-primary-600 transition-transform group-hover:scale-105 dark:bg-primary-900/30 dark:text-primary-400"
             >
               <svg
                 class="h-6 w-6 text-white"
@@ -327,10 +327,10 @@
 
           <!-- Feature 3: Billing & Quota -->
           <div
-            class="group rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:border-dark-700/50 dark:bg-dark-800/60"
+            class="group card p-5 transition-all duration-300 hover:-translate-y-0.5"
           >
             <div
-              class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30 transition-transform group-hover:scale-110"
+              class="mb-4 flex h-10 w-10 items-center justify-center rounded-[10px] bg-primary-100 text-primary-600 transition-transform group-hover:scale-105 dark:bg-primary-900/30 dark:text-primary-400"
             >
               <svg
                 class="h-6 w-6 text-white"
@@ -485,6 +485,7 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { sanitizeHtml } from '@/utils/sanitize'
+import FluidCanvas from '@/components/common/FluidCanvas.vue'
 
 const { t } = useI18n()
 

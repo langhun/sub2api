@@ -2,7 +2,7 @@
   <div class="relative min-h-screen bg-transparent">
     <!-- Continuous ambient layer keeps the operational surface calm while
          allowing the glass cards and navigation to provide depth. -->
-    <div class="app-ambient" aria-hidden="true"></div>
+    <div class="app-ambient" aria-hidden="true"><FluidCanvas /></div>
 
     <!-- Sidebar -->
     <AppSidebar />
@@ -16,8 +16,10 @@
       <AppHeader />
 
       <!-- Main Content -->
-      <main class="p-4 md:p-6 lg:p-8">
-        <slot />
+      <main class="px-4 pb-6 pt-7 md:px-6 lg:px-8 lg:pb-8 lg:pt-9">
+        <div class="mx-auto flex w-full max-w-[1440px] flex-col">
+          <slot />
+        </div>
       </main>
     </div>
   </div>
@@ -32,6 +34,7 @@ import { useOnboardingTour } from '@/composables/useOnboardingTour'
 import { useOnboardingStore } from '@/stores/onboarding'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
+import FluidCanvas from '@/components/common/FluidCanvas.vue'
 
 const appStore = useAppStore()
 const authStore = useAuthStore()

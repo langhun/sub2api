@@ -1,6 +1,6 @@
 <template>
   <header class="glass sticky top-3 z-30 mx-3 rounded-[20px] border border-gray-200/50 shadow-sm dark:border-dark-700/50 lg:mx-5">
-    <div class="flex h-16 items-center justify-between gap-2 px-2 sm:px-4 md:px-6">
+    <div class="flex h-14 items-center justify-between gap-2 px-2 sm:px-4 md:px-5">
       <!-- Left: Mobile Menu Toggle + Page Title -->
       <div class="flex shrink-0 items-center gap-2 sm:gap-4">
         <button
