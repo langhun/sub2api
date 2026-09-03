@@ -16,6 +16,7 @@
   --ui-primary-strong: #0066cc;
   --ui-border: rgba(19, 45, 83, 0.26);
   --ui-border-soft: rgba(19, 45, 83, 0.16);
+  --ui-border-render: rgba(19, 45, 83, 0.14);
   --ui-shadow: 0 10px 36px rgba(19, 45, 83, 0.16);
   --ui-shadow-soft: 0 4px 16px rgba(19, 45, 83, 0.10);
   --ui-blur: 14px;
@@ -26,7 +27,7 @@
 
 .dark {
   --ui-bg: #0c121b;
-  --ui-surface: rgb(34 38 47 / 48%);
+  --ui-surface: rgb(34 38 47 / 42%);
   --ui-surface-strong: rgb(34 38 47 / 72%);
   --ui-text: #f5f5f7;
   --ui-muted: #b8b8c0;
@@ -34,6 +35,7 @@
   --ui-primary-strong: #3aa1ff;
   --ui-border: rgba(148, 180, 220, 0.32);
   --ui-border-soft: rgba(148, 180, 220, 0.20);
+  --ui-border-render: rgba(148, 180, 220, 0.18);
   --ui-shadow: 0 10px 36px rgba(2, 6, 14, 0.50);
   --ui-shadow-soft: 0 4px 18px rgba(2, 6, 14, 0.32);
 }
@@ -835,21 +837,44 @@ html[data-glass] body {
 
 html[data-glass] #app {
   min-height: 100vh;
-  isolation: isolate;
 }
 
-html[data-glass] .app-ambient {
+html[data-glass] [data-glass-ambient] {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
   overflow: hidden;
   background:
-    radial-gradient(920px 520px at 50% -12%, rgba(160, 200, 255, 0.28), transparent 72%),
-    linear-gradient(180deg, rgba(156, 193, 231, 0.22) 0%, rgba(156, 193, 231, 0) 42%),
-    radial-gradient(900px 460px at 50% 112%, rgba(156, 193, 231, 0.14), transparent 72%),
-    var(--ui-bg);
-  animation: ui-ambient-breathe 12s ease-in-out infinite alternate;
+    radial-gradient(760px 420px at 50% -8%, rgba(160, 200, 255, 0.26), transparent 70%),
+    linear-gradient(180deg, rgba(156, 193, 231, 0.22) 0%, rgba(156, 193, 231, 0) 38%),
+    radial-gradient(900px 420px at 50% 108%, rgba(156, 193, 231, 0.14), transparent 70%);
+}
+
+html[data-glass].dark [data-glass-ambient] {
+  background:
+    radial-gradient(760px 420px at 50% -8%, rgba(110, 165, 255, 0.13), transparent 70%),
+    linear-gradient(180deg, rgba(94, 143, 224, 0.13) 0%, rgba(94, 143, 224, 0) 46%),
+    radial-gradient(900px 420px at 50% 108%, rgba(94, 143, 224, 0.09), transparent 70%);
+}
+
+html[data-glass] [data-glass-fluid-canvas] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-glass] [data-glass-ambient] {
+    animation: glass-breathe 9s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes glass-breathe {
+  from { opacity: 0.86; }
+  to { opacity: 1; }
 }
 
 /* c3api component parity: keep the existing Vue templates, but normalize
@@ -871,7 +896,7 @@ html[data-glass] .card,
 html[data-glass] .card-glass,
 html[data-glass] .glass-card {
   border-radius: 14px !important;
-  border-color: var(--ui-border) !important;
+  border-color: var(--ui-border-render) !important;
   background: var(--ui-surface) !important;
   box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(14px);
@@ -909,19 +934,22 @@ html[data-glass] .select,
 html[data-glass] select,
 html[data-glass] textarea {
   border-radius: 10px !important;
-  border-color: var(--ui-border) !important;
+  border-color: var(--ui-border-render) !important;
   background: var(--ui-surface-strong) !important;
   box-shadow: none !important;
 }
 
 html[data-glass] .sidebar {
-  width: 264px !important;
-  border-right-color: var(--ui-border) !important;
+  border-right-color: var(--ui-border-render) !important;
   background: var(--ui-surface) !important;
   box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
+
+/* Width is owned by the Vue template so the collapsed state remains 72px. */
+html[data-glass] .sidebar[class~="w-[232px]"] { width: 232px !important; }
+html[data-glass] .sidebar[class~="w-[72px]"] { width: 72px !important; }
 
 html[data-glass] .sidebar-header {
   height: 80px;
@@ -948,7 +976,7 @@ html[data-glass] .sidebar-link:hover {
 html[data-glass] .sidebar-link-active {
   background: rgb(255 255 255 / 88%) !important;
   color: #1d1d1f !important;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 8%), 0 0 0 1px rgb(0 0 0 / 6%);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 6%);
 }
 
 html[data-glass] .sidebar-section-title {
@@ -969,7 +997,7 @@ html[data-glass].dark .sidebar-link:hover {
 html[data-glass].dark .sidebar-link-active {
   background: rgb(255 255 255 / 11%) !important;
   color: #fff !important;
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 10%);
+  box-shadow: 0 1px 3px rgb(2 6 14 / 22%);
 }
 
 html[data-glass] .dropdown,
@@ -978,7 +1006,7 @@ html[data-glass] .dialog-container,
 html[data-glass] .toast {
   border-radius: 14px !important;
   background: var(--ui-surface-strong) !important;
-  border-color: var(--ui-border) !important;
+  border-color: var(--ui-border-render) !important;
   box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -996,19 +1024,6 @@ html[data-glass] .c3api-hero-terminal {
   display: none;
 }
 
-html[data-glass].dark .app-ambient {
-  background:
-    radial-gradient(920px 520px at 50% -12%, rgba(74, 126, 204, 0.22), transparent 72%),
-    linear-gradient(180deg, rgba(63, 104, 171, 0.16) 0%, rgba(63, 104, 171, 0) 48%),
-    radial-gradient(900px 460px at 50% 112%, rgba(63, 104, 171, 0.12), transparent 72%),
-    var(--ui-bg);
-}
-
-@keyframes ui-ambient-breathe {
-  from { opacity: 0.88; }
-  to { opacity: 1; }
-}
-
 html[data-glass] .glass,
 html[data-glass] .glass-card,
 html[data-glass] .card,
@@ -1019,8 +1034,8 @@ html[data-glass] .dropdown,
 html[data-glass] .toast,
 html[data-glass] .page-header {
   background: var(--ui-surface) !important;
-  border-color: var(--ui-border) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52), var(--ui-shadow) !important;
+  border-color: var(--ui-border-render) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), var(--ui-shadow) !important;
   backdrop-filter: blur(var(--ui-blur));
   -webkit-backdrop-filter: blur(var(--ui-blur));
 }
@@ -1039,8 +1054,8 @@ html[data-glass].dark .page-header {
 
 html[data-glass] .sidebar {
   background: var(--ui-surface) !important;
-  border-color: var(--ui-border) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52), var(--ui-shadow) !important;
+  border-color: var(--ui-border-render) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), var(--ui-shadow) !important;
   backdrop-filter: blur(var(--ui-blur));
   -webkit-backdrop-filter: blur(var(--ui-blur));
 }
@@ -1048,7 +1063,7 @@ html[data-glass] .sidebar {
 html[data-glass] .sidebar-link-active {
   background: var(--ui-surface-strong) !important;
   color: var(--ui-text) !important;
-  box-shadow: 0 1px 3px rgba(19, 45, 83, 0.10), inset 0 0 0 1px var(--ui-border-soft);
+  box-shadow: 0 1px 3px rgba(19, 45, 83, 0.08);
 }
 
 html[data-glass] .btn-primary {
@@ -1063,13 +1078,17 @@ html[data-glass] .btn-primary:hover {
 
 html[data-glass] .btn-secondary,
 html[data-glass] .btn-ghost,
+html[data-glass] .date-picker-trigger,
+html[data-glass] .select-trigger,
 html[data-glass] .input,
 html[data-glass] .select,
 html[data-glass] select,
 html[data-glass] textarea {
-  border-color: var(--ui-border) !important;
+  border-color: var(--ui-border-render) !important;
 }
 
+html[data-glass] .date-picker-trigger,
+html[data-glass] .select-trigger,
 html[data-glass] .input,
 html[data-glass] .select,
 html[data-glass] select,
@@ -1079,11 +1098,32 @@ html[data-glass] textarea {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
+/* Portalled controls do not inherit component-scoped selectors. */
+html[data-glass] .date-picker-dropdown,
+html[data-glass] .select-dropdown,
+html[data-glass] .select-dropdown-portal,
+html[data-glass] .batch-prompt-popover,
+html[data-glass] [role="listbox"] {
+  background: var(--ui-surface-strong) !important;
+  border-color: var(--ui-border-render) !important;
+  box-shadow: var(--ui-shadow) !important;
+  backdrop-filter: blur(var(--ui-blur));
+  -webkit-backdrop-filter: blur(var(--ui-blur));
+}
+
+html[data-glass] .date-picker-dropdown [class~="bg-white"],
+html[data-glass] .date-picker-dropdown [class~="bg-gray-50"],
+html[data-glass] .select-dropdown [class~="bg-white"],
+html[data-glass] .select-dropdown-portal [class~="bg-white"],
+html[data-glass] [role="listbox"] [class~="bg-white"] {
+  background: var(--ui-surface) !important;
+}
+
 html[data-glass] .table-container,
 html[data-glass] .table-wrapper,
 html[data-glass] .table,
 html[data-glass] table {
-  border-color: var(--ui-border) !important;
+  border-color: var(--ui-border-render) !important;
 }
 
 html[data-glass] .table th,
@@ -1172,7 +1212,7 @@ html[data-glass].dark [class~="border-dark-600"],
 html[data-glass].dark [class~="border-dark-700"],
 html[data-glass].dark [class~="border-dark-700/50"],
 html[data-glass].dark [class~="border-dark-800"] {
-  border-color: var(--ui-border) !important;
+  border-color: var(--ui-border-render) !important;
 }
 
 html[data-glass] [class~="text-gray-900"],
@@ -1215,7 +1255,7 @@ html[data-glass] .skeleton {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-glass] .app-ambient {
+  html[data-glass] [data-glass-ambient] {
     animation: none;
   }
 }

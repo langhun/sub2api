@@ -10,6 +10,7 @@ import (
 )
 
 const KeyDefaultHomepage = "default_homepage"
+const KeyThemeStyle = "theme_style"
 
 const (
 	HomepageDefault = "default"
@@ -17,12 +18,18 @@ const (
 	HomepagePixel   = "pixel"
 )
 
+const (
+	ThemeGlass   = "glass"
+	ThemeClassic = "classic"
+)
+
 type Config struct {
 	DefaultHomepage string
+	ThemeStyle      string
 }
 
 func Default() Config {
-	return Config{DefaultHomepage: HomepageDefault}
+	return Config{DefaultHomepage: HomepageDefault, ThemeStyle: ThemeGlass}
 }
 
 type Reader struct{ store contract.Store }
@@ -51,28 +58,34 @@ func (r *Reader) Write(ctx context.Context, config Config) error {
 	return r.store.SetMultiple(ctx, values)
 }
 
-func Keys() []string { return []string{KeyDefaultHomepage} }
+func Keys() []string { return []string{KeyDefaultHomepage, KeyThemeStyle} }
 
 func FromValues(values map[string]string) Config {
-	return Config{DefaultHomepage: normalize(values[KeyDefaultHomepage])}
+	return Config{
+		DefaultHomepage: normalize(values[KeyDefaultHomepage]),
+		ThemeStyle:      normalizeTheme(values[KeyThemeStyle]),
+	}
 }
 
 func Values(config Config) (map[string]string, error) {
 	if err := Validate(config); err != nil {
 		return nil, err
 	}
-	return map[string]string{KeyDefaultHomepage: config.DefaultHomepage}, nil
+	return map[string]string{KeyDefaultHomepage: config.DefaultHomepage, KeyThemeStyle: config.ThemeStyle}, nil
 }
 
 func Validate(config Config) error {
 	if config.DefaultHomepage != HomepageDefault && config.DefaultHomepage != HomepageDino && config.DefaultHomepage != HomepagePixel {
 		return fmt.Errorf("default_homepage must be %q, %q, or %q", HomepageDefault, HomepageDino, HomepagePixel)
 	}
+	if config.ThemeStyle != ThemeGlass && config.ThemeStyle != ThemeClassic {
+		return fmt.Errorf("theme_style must be %q or %q", ThemeGlass, ThemeClassic)
+	}
 	return nil
 }
 
 func Public(config Config) map[string]any {
-	return map[string]any{KeyDefaultHomepage: config.DefaultHomepage}
+	return map[string]any{KeyDefaultHomepage: config.DefaultHomepage, KeyThemeStyle: config.ThemeStyle}
 }
 
 func normalize(value string) string {
@@ -83,4 +96,11 @@ func normalize(value string) string {
 		return HomepagePixel
 	}
 	return HomepageDefault
+}
+
+func normalizeTheme(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), ThemeClassic) {
+		return ThemeClassic
+	}
+	return ThemeGlass
 }

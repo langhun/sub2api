@@ -22,6 +22,11 @@ const PENDING_AUTH_SESSION_KEY = 'pending_auth_session'
 const AUTO_REFRESH_INTERVAL = 60 * 1000 // 60 seconds for user data refresh
 const TOKEN_REFRESH_BUFFER = 120 * 1000 // 120 seconds before expiry to refresh token
 
+// Development-only visual preview. It is activated only by an explicit query
+// flag in Vite dev mode and never runs in production builds.
+export const isPreviewAdminMode = (): boolean =>
+  import.meta.env.DEV && new URLSearchParams(window.location.search).get('preview') === 'admin'
+
 type PendingAuthTokenField = 'pending_auth_token' | 'pending_oauth_token'
 
 interface PendingAuthSessionSummary {
@@ -107,6 +112,26 @@ export const useAuthStore = defineStore('auth', () => {
    * Also starts auto-refresh and immediately fetches latest user data
    */
   function checkAuth(): void {
+    if (isPreviewAdminMode()) {
+      token.value = 'local-visual-preview'
+      user.value = {
+        id: 0,
+        username: 'preview-admin',
+        email: 'preview@localhost',
+        role: 'admin',
+        balance: 0,
+        concurrency: 0,
+        status: 'active',
+        allowed_groups: null,
+        balance_notify_enabled: false,
+        balance_notify_threshold: null,
+        balance_notify_extra_emails: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      return
+    }
+
     const savedToken = localStorage.getItem(AUTH_TOKEN_KEY)
     const savedUser = localStorage.getItem(AUTH_USER_KEY)
     const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
@@ -433,6 +458,9 @@ export const useAuthStore = defineStore('auth', () => {
    * @throws Error if not authenticated or request fails
    */
   async function refreshUser(): Promise<User> {
+    if (isPreviewAdminMode() && user.value) {
+      return user.value
+    }
     if (!token.value) {
       throw new Error('Not authenticated')
     }

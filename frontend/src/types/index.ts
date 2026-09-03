@@ -239,6 +239,7 @@ export interface PublicSettings {
   contact_info: string
   doc_url: string
   home_content: string
+  theme_style?: 'glass' | 'classic'
   compact_home_enabled: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean

@@ -9,6 +9,7 @@ import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
 import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, useAdminComplianceStore, useAdminSettingsStore } from '@/stores'
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
+import FluidCanvas from '@/components/common/FluidCanvas.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -138,6 +139,7 @@ onMounted(async () => {
 
 <template>
   <NavigationProgress />
+  <div data-glass-ambient aria-hidden="true"><FluidCanvas /></div>
   <RouterView />
   <Toast />
   <AnnouncementPopup />

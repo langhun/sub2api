@@ -14,6 +14,7 @@ import {
 } from '@/api/admin/system'
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
 import { customPublicSettingsDefaults } from '@/custom/publicSettings'
+import { applyThemeStyle } from '@/utils/theme'
 import { registerFeatureFlagSettingsSource } from '@/utils/featureFlags'
 
 export const useAppStore = defineStore('app', () => {
@@ -297,6 +298,9 @@ export const useAppStore = defineStore('app', () => {
       window.__APP_CONFIG__ = { ...config }
     }
     cachedPublicSettings.value = config
+    if (config.theme_style === 'classic' || config.theme_style === 'glass') {
+      applyThemeStyle(config.theme_style)
+    }
     siteName.value = config.site_name || 'Sub2API'
     siteLogo.value = config.site_logo || ''
     siteVersion.value = config.version || ''

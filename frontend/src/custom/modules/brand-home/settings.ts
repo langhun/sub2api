@@ -3,18 +3,23 @@ import BrandHomeSettingsPanel from './admin/BrandHomeSettingsPanel.vue'
 
 interface BrandHomeSettings {
   default_homepage: 'default' | 'dino' | 'pixel'
+  theme_style: 'glass' | 'classic'
 }
 
 const defaultBrandHomeSettings = (): BrandHomeSettings => ({
   default_homepage: 'default',
+  theme_style: 'glass',
 })
 
 function readSettings(settings: CustomSettingsValues): BrandHomeSettings {
   const values = settings as Record<string, unknown>
-  if (values.default_homepage === 'dino' || values.default_homepage === 'pixel') {
-    return { default_homepage: values.default_homepage }
+  const defaultHomepage = values.default_homepage === 'dino' || values.default_homepage === 'pixel'
+    ? values.default_homepage
+    : 'default'
+  return {
+    default_homepage: defaultHomepage,
+    theme_style: values.theme_style === 'classic' ? 'classic' : 'glass',
   }
-  return defaultBrandHomeSettings()
 }
 
 export const brandHomeSettingsPanels: readonly CustomSettingsPanel[] = [
@@ -23,10 +28,10 @@ export const brandHomeSettingsPanels: readonly CustomSettingsPanel[] = [
     placement: 'site',
     order: 10,
     component: BrandHomeSettingsPanel,
-    settingKeys: ['default_homepage'],
+    settingKeys: ['default_homepage', 'theme_style'],
     createForm: defaultBrandHomeSettings,
     fromSettings: readSettings,
-    toPayload: (form) => ({ default_homepage: readSettings(form).default_homepage }),
+    toPayload: (form) => readSettings(form),
     validate: () => '',
   },
 ]

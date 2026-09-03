@@ -23,14 +23,17 @@ onMounted(() => {
     handle.setParams(document.documentElement.classList.contains('dark') ? darkParams : lightParams)
   })
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-  dispose = () => { themeObserver.disconnect(); handle.dispose() }
+  const media = window.matchMedia('(prefers-color-scheme: dark)')
+  const onMediaChange = () => handle.setParams(document.documentElement.classList.contains('dark') ? darkParams : lightParams)
+  media.addEventListener('change', onMediaChange)
+  dispose = () => { themeObserver.disconnect(); media.removeEventListener('change', onMediaChange); handle.dispose() }
 })
 
 onBeforeUnmount(() => dispose?.())
 </script>
 
 <template>
-  <canvas ref="canvas" class="fluid-canvas" aria-hidden="true" />
+  <canvas ref="canvas" class="fluid-canvas" data-glass-fluid-canvas aria-hidden="true" />
 </template>
 
 <style scoped>
@@ -40,13 +43,6 @@ onBeforeUnmount(() => dispose?.())
   width: 100%;
   height: 100%;
   display: block;
-  pointer-events: auto;
-  opacity: 0.42;
-  mix-blend-mode: multiply;
-}
-
-:global(.dark) .fluid-canvas {
-  opacity: 0.5;
-  mix-blend-mode: screen;
+  pointer-events: none;
 }
 </style>

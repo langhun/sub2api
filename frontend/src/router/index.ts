@@ -4,7 +4,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, isPreviewAdminMode } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useAdminComplianceStore } from '@/stores/adminCompliance'
@@ -800,6 +800,20 @@ router.beforeEach(async (to, _from, next) => {
   if (!authInitialized) {
     authStore.checkAuth()
     authInitialized = true
+  }
+  if (isPreviewAdminMode() && !authStore.isAuthenticated) {
+    authStore.checkAuth()
+  }
+
+  // Carry the explicit visual-preview flag across admin menu navigation so
+  // each screen remains inspectable without a database-backed session.
+  if (isPreviewAdminMode() && to.path.startsWith('/admin') && to.query.preview !== 'admin') {
+    next({
+      path: to.path,
+      query: { ...to.query, preview: 'admin' },
+      hash: to.hash,
+    })
+    return
   }
 
   // Set page title

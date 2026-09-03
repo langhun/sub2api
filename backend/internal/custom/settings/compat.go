@@ -12,6 +12,7 @@ import (
 type Compatibility struct {
 	CodeFormatSettings                             codeformatsettings.Config                        `json:"code_format_settings"`
 	DefaultHomepage                                string                                           `json:"default_homepage"`
+	ThemeStyle                                     string                                           `json:"theme_style"`
 	GameHallEnabled                                bool                                             `json:"game_hall_enabled"`
 	RegistrationAliasProtectionEnabled             bool                                             `json:"registration_alias_protection_enabled"`
 	RegistrationRewardFingerprintProtectionEnabled bool                                             `json:"registration_reward_fingerprint_protection_enabled"`
@@ -69,6 +70,7 @@ type Compatibility struct {
 // such as transfer limits and check-in amounts remain administrator-only.
 type PublicCompatibility struct {
 	DefaultHomepage                 string                                           `json:"default_homepage"`
+	ThemeStyle                      string                                           `json:"theme_style"`
 	GameHallEnabled                 bool                                             `json:"game_hall_enabled"`
 	SupportTicketEnabled            bool                                             `json:"support_ticket_enabled"`
 	GameSlotsEnabled                bool                                             `json:"game_slots_enabled"`
@@ -104,6 +106,7 @@ type PublicCompatibility struct {
 type Patch struct {
 	CodeFormatSettings                             *codeformatsettings.Config                        `json:"code_format_settings"`
 	DefaultHomepage                                *string                                           `json:"default_homepage"`
+	ThemeStyle                                     *string                                           `json:"theme_style"`
 	GameHallEnabled                                *bool                                             `json:"game_hall_enabled"`
 	RegistrationAliasProtectionEnabled             *bool                                             `json:"registration_alias_protection_enabled"`
 	RegistrationRewardFingerprintProtectionEnabled *bool                                             `json:"registration_reward_fingerprint_protection_enabled"`
@@ -161,7 +164,7 @@ type Patch struct {
 // setting. It lets the admin settings handler avoid unrelated writes to the
 // module store while keeping the flat JSON request contract.
 func (p Patch) HasChanges() bool {
-	return p.CodeFormatSettings != nil || p.DefaultHomepage != nil || p.GameHallEnabled != nil || p.RegistrationAliasProtectionEnabled != nil || p.RegistrationRewardFingerprintProtectionEnabled != nil || p.RegistrationClusterProtectionEnabled != nil || p.RegistrationClusterWindow6h != nil || p.RegistrationClusterWindow24h != nil || p.RegistrationClusterMediumThreshold != nil || p.RegistrationClusterHighThreshold != nil || p.RegistrationAutoHighRiskLockEnabled != nil || p.RegistrationTrialEnabled != nil || p.RegistrationTrialHours != nil || p.RegistrationTrialCostLimit != nil || p.RegistrationTrialRPMLimit != nil || p.RegistrationTrialConcurrency != nil || p.RegistrationPaymentUnlockEnabled != nil || p.RegistrationPaymentUnlockAmount != nil || p.SupportTicketEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
+	return p.CodeFormatSettings != nil || p.DefaultHomepage != nil || p.ThemeStyle != nil || p.GameHallEnabled != nil || p.RegistrationAliasProtectionEnabled != nil || p.RegistrationRewardFingerprintProtectionEnabled != nil || p.RegistrationClusterProtectionEnabled != nil || p.RegistrationClusterWindow6h != nil || p.RegistrationClusterWindow24h != nil || p.RegistrationClusterMediumThreshold != nil || p.RegistrationClusterHighThreshold != nil || p.RegistrationAutoHighRiskLockEnabled != nil || p.RegistrationTrialEnabled != nil || p.RegistrationTrialHours != nil || p.RegistrationTrialCostLimit != nil || p.RegistrationTrialRPMLimit != nil || p.RegistrationTrialConcurrency != nil || p.RegistrationPaymentUnlockEnabled != nil || p.RegistrationPaymentUnlockAmount != nil || p.SupportTicketEnabled != nil || p.GameSlotsEnabled != nil || p.GameSlotsMinBet != nil || p.GameSlotsMaxBet != nil ||
 		p.GameExchangeMinAmount != nil || p.GameExchangeMaxAmount != nil || p.GameExchangeDailyLimit != nil || p.GameExchangeAllowDGToBalance != nil ||
 		p.CheckinEnabled != nil || p.CheckinMinBalance != nil || p.CheckinMaxBalance != nil || p.CheckinLuckEnabled != nil ||
 		p.CheckinLuckMinMultiplier != nil || p.CheckinLuckMaxMultiplier != nil || p.CheckinBlindboxEnabled != nil ||
@@ -209,6 +212,7 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 	return Compatibility{
 		CodeFormatSettings: codeFormat,
 		DefaultHomepage:    brandHome.DefaultHomepage,
+		ThemeStyle:         brandHome.ThemeStyle,
 		GameHallEnabled:    gameHall.Enabled, GameSlotsEnabled: gameHall.SlotsEnabled,
 		RegistrationAliasProtectionEnabled:             registrationProtection.AliasEnabled,
 		RegistrationRewardFingerprintProtectionEnabled: registrationProtection.FingerprintEnabled,
@@ -253,6 +257,7 @@ func CompatibilityFromSnapshot(snapshot Snapshot) Compatibility {
 func (c Compatibility) Public() PublicCompatibility {
 	return PublicCompatibility{
 		DefaultHomepage: c.DefaultHomepage,
+		ThemeStyle:      c.ThemeStyle,
 		GameHallEnabled: c.GameHallEnabled, GameSlotsEnabled: c.GameSlotsEnabled,
 		SupportTicketEnabled: c.SupportTicketEnabled,
 		GameSlotsMinBet:      c.GameSlotsMinBet, GameSlotsMaxBet: c.GameSlotsMaxBet,
@@ -289,6 +294,9 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	if p.DefaultHomepage != nil {
 		brandHome.DefaultHomepage = *p.DefaultHomepage
 	}
+	if p.ThemeStyle != nil {
+		brandHome.ThemeStyle = *p.ThemeStyle
+	}
 	if p.GameHallEnabled != nil {
 		gameHall.Enabled = *p.GameHallEnabled
 	}
@@ -298,19 +306,45 @@ func (p Patch) Apply(snapshot Snapshot) Snapshot {
 	if p.RegistrationRewardFingerprintProtectionEnabled != nil {
 		registrationProtection.FingerprintEnabled = *p.RegistrationRewardFingerprintProtectionEnabled
 	}
-	if p.RegistrationClusterProtectionEnabled != nil { registrationProtection.ClusterEnabled = *p.RegistrationClusterProtectionEnabled }
-	if p.RegistrationClusterWindow6h != nil { registrationProtection.ClusterWindow6h = *p.RegistrationClusterWindow6h }
-	if p.RegistrationClusterWindow24h != nil { registrationProtection.ClusterWindow24h = *p.RegistrationClusterWindow24h }
-	if p.RegistrationClusterMediumThreshold != nil { registrationProtection.ClusterMedium = *p.RegistrationClusterMediumThreshold }
-	if p.RegistrationClusterHighThreshold != nil { registrationProtection.ClusterHigh = *p.RegistrationClusterHighThreshold }
-	if p.RegistrationAutoHighRiskLockEnabled != nil { registrationProtection.AutoHighLock = *p.RegistrationAutoHighRiskLockEnabled }
-	if p.RegistrationTrialEnabled != nil { registrationProtection.TrialEnabled = *p.RegistrationTrialEnabled }
-	if p.RegistrationTrialHours != nil { registrationProtection.TrialHours = *p.RegistrationTrialHours }
-	if p.RegistrationTrialCostLimit != nil { registrationProtection.TrialCostLimit = *p.RegistrationTrialCostLimit }
-	if p.RegistrationTrialRPMLimit != nil { registrationProtection.TrialRPM = *p.RegistrationTrialRPMLimit }
-	if p.RegistrationTrialConcurrency != nil { registrationProtection.TrialConcurrency = *p.RegistrationTrialConcurrency }
-	if p.RegistrationPaymentUnlockEnabled != nil { registrationProtection.PaymentUnlock = *p.RegistrationPaymentUnlockEnabled }
-	if p.RegistrationPaymentUnlockAmount != nil { registrationProtection.PaymentAmount = *p.RegistrationPaymentUnlockAmount }
+	if p.RegistrationClusterProtectionEnabled != nil {
+		registrationProtection.ClusterEnabled = *p.RegistrationClusterProtectionEnabled
+	}
+	if p.RegistrationClusterWindow6h != nil {
+		registrationProtection.ClusterWindow6h = *p.RegistrationClusterWindow6h
+	}
+	if p.RegistrationClusterWindow24h != nil {
+		registrationProtection.ClusterWindow24h = *p.RegistrationClusterWindow24h
+	}
+	if p.RegistrationClusterMediumThreshold != nil {
+		registrationProtection.ClusterMedium = *p.RegistrationClusterMediumThreshold
+	}
+	if p.RegistrationClusterHighThreshold != nil {
+		registrationProtection.ClusterHigh = *p.RegistrationClusterHighThreshold
+	}
+	if p.RegistrationAutoHighRiskLockEnabled != nil {
+		registrationProtection.AutoHighLock = *p.RegistrationAutoHighRiskLockEnabled
+	}
+	if p.RegistrationTrialEnabled != nil {
+		registrationProtection.TrialEnabled = *p.RegistrationTrialEnabled
+	}
+	if p.RegistrationTrialHours != nil {
+		registrationProtection.TrialHours = *p.RegistrationTrialHours
+	}
+	if p.RegistrationTrialCostLimit != nil {
+		registrationProtection.TrialCostLimit = *p.RegistrationTrialCostLimit
+	}
+	if p.RegistrationTrialRPMLimit != nil {
+		registrationProtection.TrialRPM = *p.RegistrationTrialRPMLimit
+	}
+	if p.RegistrationTrialConcurrency != nil {
+		registrationProtection.TrialConcurrency = *p.RegistrationTrialConcurrency
+	}
+	if p.RegistrationPaymentUnlockEnabled != nil {
+		registrationProtection.PaymentUnlock = *p.RegistrationPaymentUnlockEnabled
+	}
+	if p.RegistrationPaymentUnlockAmount != nil {
+		registrationProtection.PaymentAmount = *p.RegistrationPaymentUnlockAmount
+	}
 	if p.SupportTicketEnabled != nil {
 		supportTickets.Enabled = *p.SupportTicketEnabled
 	}

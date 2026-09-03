@@ -7,11 +7,12 @@ import { useAppStore } from '@/stores/app'
 import { updateFavicon } from '@/utils/branding'
 import { isIOSDevice } from '@/utils/device'
 import './style.css'
+import { applyThemeStyle, readThemeStyle } from '@/utils/theme'
 
 // Enable the shared glass theme without coupling page components to a
 // particular design implementation. The attribute also gives us a clean
 // rollback switch for embedded deployments.
-document.documentElement.dataset.glass = 'true'
+applyThemeStyle(readThemeStyle())
 
 function initIOSViewportZoomFix() {
   // iOS Safari 在输入框字号小于 16px 时聚焦会自动放大页面，且失焦后不会恢复。

@@ -23,12 +23,14 @@ func TestHandlerMountProjectsAndAppliesCustomSettingsWithoutCoreFieldKnowledge(t
 	require.NoError(t, err)
 	require.Equal(t, true, public["checkin_enabled"])
 	require.Equal(t, "default", public["default_homepage"])
+	require.Equal(t, "glass", public["theme_style"])
 	require.NotContains(t, public, "checkin_min_balance")
 
 	formats := codeformatsettings.Default()
 	formats.RedPacket.Prefix = "RP"
 	payload, err := json.Marshal(map[string]any{
 		"default_homepage":     "dino",
+		"theme_style":          "classic",
 		"code_format_settings": formats,
 	})
 	require.NoError(t, err)
@@ -37,6 +39,7 @@ func TestHandlerMountProjectsAndAppliesCustomSettingsWithoutCoreFieldKnowledge(t
 	require.True(t, changed)
 	require.NoError(t, mount.ApplyUpdate(context.Background(), payload))
 	require.Equal(t, "dino", store.values["default_homepage"])
+	require.Equal(t, "classic", store.values["theme_style"])
 	require.NotContains(t, store.values, "transfer_enabled")
 	require.Equal(t, formats, codeformatsettings.FromValues(store.values))
 	admin, err = mount.Admin(context.Background())

@@ -1,6 +1,5 @@
 <template>
-  <div class="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
-    <div class="app-ambient" aria-hidden="true"><FluidCanvas /></div>
+  <div class="relative z-10 flex min-h-screen items-center justify-center overflow-hidden p-4">
 
     <!-- Content Container -->
     <div class="relative z-10 w-full max-w-md">
@@ -44,7 +43,6 @@
 import { computed, onMounted } from 'vue'
 import { useAppStore } from '@/stores'
 import { sanitizeUrl } from '@/utils/url'
-import FluidCanvas from '@/components/common/FluidCanvas.vue'
 
 const appStore = useAppStore()
 
