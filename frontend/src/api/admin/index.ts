@@ -124,5 +124,5 @@ export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from 
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
 export type { ContentModerationConfig, ContentModerationLog, ModerationMode } from './riskControl'
-export type { RegistrationRiskItem, RegistrationRiskListResponse, RegistrationRiskOverrideResponse } from './registrationRisk'
+export type { RegistrationRiskEvidence, RegistrationRiskItem, RegistrationRiskListResponse, RegistrationRiskOverrideResponse } from './registrationRisk'
 export type { PluginInstallation, PluginCompatibility, PluginUISession, PluginTestResult } from './plugins'
