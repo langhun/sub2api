@@ -27,9 +27,9 @@ html[data-glass]:not(.dark) {
   --ui-subglass: rgba(255, 255, 255, 0.45);
   --ui-subglass-hover: rgba(255, 255, 255, 0.70);
 
-  --ui-border: rgba(19, 45, 83, 0.26);
-  --ui-border-soft: rgba(19, 45, 83, 0.16);
-  --ui-border-render: rgba(19, 45, 83, 0.14);
+  --ui-border: transparent;
+  --ui-border-soft: transparent;
+  --ui-border-render: transparent;
 
   --ui-shadow: inset 0 1px 0 rgb(255 255 255 / 50%), 0 10px 36px rgb(19 45 83 / 16%);
   --ui-blur: 14px;
@@ -56,9 +56,9 @@ html.dark {
   --ui-subglass: rgba(255, 255, 255, 0.08);
   --ui-subglass-hover: rgba(255, 255, 255, 0.16);
 
-  --ui-border: rgba(148, 180, 220, 0.32);
-  --ui-border-soft: rgba(148, 180, 220, 0.20);
-  --ui-border-render: rgba(148, 180, 220, 0.18);
+  --ui-border: transparent;
+  --ui-border-soft: transparent;
+  --ui-border-render: transparent;
 
   --ui-shadow: inset 0 1px 0 rgb(255 255 255 / 7%), 0 10px 36px rgb(2 6 14 / 50%);
   --ui-blur: 14px;
@@ -142,8 +142,8 @@ html[data-glass] .glass-card,
 html[data-glass] .stat-card,
 html[data-glass] .table-scroll-container,
 html[data-glass] [class*="rounded-3xl"] {
+  border: none !important;
   border-radius: 14px !important;
-  border: 1px solid var(--ui-border-render) !important;
   background: var(--ui-surface) !important;
   box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(var(--ui-blur)) !important;
@@ -159,7 +159,8 @@ html[data-glass] .card-header,
 html[data-glass] .card-body,
 html[data-glass] .card-footer,
 html[data-glass] [class*="border-b"] {
-  border-color: var(--ui-border-soft) !important;
+  border: none !important;
+  border-bottom: none !important;
 }
 
 /* ==========================================================================
@@ -173,7 +174,7 @@ html[data-glass] header {
   top: 14px !important;
   margin: 14px 16px 0 16px !important;
   border-radius: 18px !important;
-  border: 1px solid var(--ui-border-render) !important;
+  border: none !important;
   background: var(--ui-surface) !important;
   box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(var(--ui-blur)) !important;
@@ -196,18 +197,30 @@ html[data-glass] header {
    ========================================================================== */
 html[data-theme="apple"] .sidebar,
 html[data-glass] .sidebar {
-  border-right: 1px solid var(--ui-border-render) !important;
+  border: none !important;
+  border-right: none !important;
   background: var(--ui-surface) !important;
-  box-shadow: 1px 0 20px rgba(19, 45, 83, 0.03) !important;
+  box-shadow: 6px 0 24px -4px rgba(19, 45, 83, 0.04) !important;
   backdrop-filter: blur(var(--ui-blur)) !important;
   -webkit-backdrop-filter: blur(var(--ui-blur)) !important;
 }
 
+html[data-theme="apple"].dark .sidebar,
+html[data-glass].dark .sidebar {
+  border: none !important;
+  border-right: none !important;
+  box-shadow: 8px 0 32px -4px rgba(0, 0, 0, 0.35) !important;
+}
+
 html[data-theme="apple"] .sidebar-header,
-html[data-glass] .sidebar-header {
-  height: 76px;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--ui-border-soft) !important;
+html[data-glass] .sidebar-header,
+html[data-theme="apple"] .sidebar .mt-auto,
+html[data-glass] .sidebar .mt-auto {
+  height: 80px !important;
+  padding: 0 20px !important;
+  border: none !important;
+  border-bottom: none !important;
+  border-top: none !important;
 }
 
 html[data-theme="apple"] .sidebar-link,
@@ -309,7 +322,7 @@ html[data-glass] [class*="quick-action"] a {
   background: var(--ui-subglass) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
-  border: 1px solid var(--ui-border-render) !important;
+  border: none !important;
   box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.35), 0 3px 10px rgba(19, 45, 83, 0.04) !important;
   border-radius: 14px !important;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -344,7 +357,7 @@ html[data-glass] .select-trigger {
   background: var(--ui-subglass) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid var(--ui-border-render) !important;
+  border: none !important;
   color: var(--ui-text) !important;
   border-radius: 10px !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
