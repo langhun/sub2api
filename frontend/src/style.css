@@ -1,5 +1,6 @@
 /* Import Apple Theme */
 @import './custom/modules/apple-theme/theme.css';
+@import './custom/modules/apple-theme/theme-backgrounds.css';
 
 @tailwind base;
 @tailwind components;

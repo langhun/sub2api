@@ -1,0 +1,169 @@
+/* Fluid Backgrounds for All Themes */
+
+/* Apple Theme - 原始蓝灰色 */
+html[data-theme='apple'] [data-glass-ambient] {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(147, 197, 253, 0.15), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(191, 219, 254, 0.12), transparent 50%),
+    linear-gradient(135deg,
+      rgba(224, 242, 254, 0.3) 0%,
+      rgba(186, 230, 253, 0.2) 50%,
+      rgba(147, 197, 253, 0.15) 100%
+    );
+}
+
+html[data-theme='apple'].dark [data-glass-ambient] {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.08), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(37, 99, 235, 0.06), transparent 50%),
+    linear-gradient(135deg,
+      rgba(15, 23, 42, 0.95) 0%,
+      rgba(30, 41, 59, 0.9) 50%,
+      rgba(15, 23, 42, 0.95) 100%
+    );
+}
+
+/* Arctic Skyline - 北极天际（深邃蓝） */
+html[data-theme='arctic'] [data-glass-ambient] {
+  background:
+    radial-gradient(circle at 25% 25%, rgba(224, 242, 254, 0.4), transparent 60%),
+    radial-gradient(circle at 75% 75%, rgba(186, 230, 253, 0.3), transparent 60%),
+    linear-gradient(135deg,
+      #e0f2fe 0%,
+      #bae6fd 25%,
+      #7dd3fc 50%,
+      #38bdf8 75%,
+      #0ea5e9 100%
+    );
+}
+
+html[data-theme='arctic'].dark [data-glass-ambient] {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(30, 58, 138, 0.3), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(37, 99, 235, 0.2), transparent 50%),
+    linear-gradient(135deg,
+      #0f172a 0%,
+      #1e3a8a 30%,
+      #2563eb 60%,
+      #3b82f6 80%,
+      #60a5fa 100%
+    );
+}
+
+/* Frosted Lilac - 霜冻薰衣草（紫色）*/
+html[data-theme='lilac'] [data-glass-ambient] {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(245, 243, 255, 0.5), transparent 60%),
+    radial-gradient(circle at 70% 70%, rgba(221, 214, 254, 0.4), transparent 60%),
+    linear-gradient(135deg,
+      #f5f3ff 0%,
+      #ede9fe 25%,
+      #ddd6fe 50%,
+      #c4b5fd 75%,
+      #a78bfa 100%
+    );
+}
+
+html[data-theme='lilac'].dark [data-glass-ambient] {
+  background:
+    radial-gradient(circle at 25% 25%, rgba(91, 42, 134, 0.3), transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(124, 58, 237, 0.2), transparent 50%),
+    linear-gradient(135deg,
+      #2d1b45 0%,
+      #5b2a86 30%,
+      #7c3aed 50%,
+      #8b5cf6 70%,
+      #a78bfa 85%,
+      #c4b5fd 100%
+    );
+}
+
+/* Ocean Glass - 海洋玻璃（青绿）*/
+html[data-theme='ocean'] [data-glass-ambient] {
+  background:
+    radial-gradient(circle at 35% 20%, rgba(230, 255, 251, 0.5), transparent 60%),
+    radial-gradient(circle at 65% 80%, rgba(167, 243, 208, 0.4), transparent 60%),
+    linear-gradient(135deg,
+      #e6fffb 0%,
+      #a7f3d0 25%,
+      #6ee7b7 50%,
+      #34d399 75%,
+      #14b8a6 100%
+    );
+}
+
+html[data-theme='ocean'].dark [data-glass-ambient] {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(14, 165, 165, 0.2), transparent 50%),
+    radial-gradient(circle at 70% 70%, rgba(52, 211, 153, 0.15), transparent 50%),
+    linear-gradient(135deg,
+      #0b1320 0%,
+      #0ea5a5 30%,
+      #14b8a6 50%,
+      #2dd4bf 70%,
+      #5eead4 100%
+    );
+}
+
+/* Warm Gradient - 温暖渐变（橙粉）*/
+html[data-theme='warm'] [data-glass-ambient] {
+  background:
+    radial-gradient(circle at 40% 30%, rgba(255, 247, 237, 0.6), transparent 60%),
+    radial-gradient(circle at 60% 70%, rgba(254, 215, 170, 0.4), transparent 60%),
+    linear-gradient(135deg,
+      #fff7ed 0%,
+      #ffedd5 20%,
+      #fed7aa 40%,
+      #fdba74 60%,
+      #fb923c 80%,
+      #f97316 100%
+    );
+}
+
+html[data-theme='warm'].dark [data-glass-ambient] {
+  background:
+    radial-gradient(circle at 35% 25%, rgba(124, 45, 18, 0.3), transparent 50%),
+    radial-gradient(circle at 65% 75%, rgba(194, 65, 12, 0.2), transparent 50%),
+    linear-gradient(135deg,
+      #1a0f0a 0%,
+      #7c2d12 25%,
+      #c2410c 50%,
+      #ea580c 70%,
+      #f97316 85%,
+      #fb923c 100%
+    );
+}
+
+/* Fluid Canvas positioning */
+html[data-theme='apple'] [data-glass-fluid-canvas],
+html[data-theme='arctic'] [data-glass-fluid-canvas],
+html[data-theme='lilac'] [data-glass-fluid-canvas],
+html[data-theme='ocean'] [data-glass-fluid-canvas],
+html[data-theme='warm'] [data-glass-fluid-canvas] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Breathing animation */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-theme='apple'] [data-glass-ambient],
+  html[data-theme='arctic'] [data-glass-ambient],
+  html[data-theme='lilac'] [data-glass-ambient],
+  html[data-theme='ocean'] [data-glass-ambient],
+  html[data-theme='warm'] [data-glass-ambient] {
+    animation: glass-breathe 9s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes glass-breathe {
+  from { opacity: 0.86; }
+  to { opacity: 1; }
+}

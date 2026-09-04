@@ -1,7 +1,7 @@
 import { ref, watch, computed } from 'vue'
 
 export type ThemeMode = 'light' | 'dark' | 'auto'
-export type ThemeStyle = 'default' | 'apple'
+export type ThemeStyle = 'default' | 'apple' | 'arctic' | 'lilac' | 'ocean' | 'warm'
 
 const THEME_MODE_KEY = 'theme-mode'
 const THEME_STYLE_KEY = 'theme-style'

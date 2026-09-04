@@ -1,11 +1,11 @@
 <template>
   <div
     class="min-h-screen"
-    :class="themeStyle === 'apple' ? 'bg-transparent' : 'bg-gray-50 dark:bg-dark-950'"
+    :class="['apple', 'arctic', 'lilac', 'ocean', 'warm'].includes(themeStyle) ? 'bg-transparent' : 'bg-gray-50 dark:bg-dark-950'"
   >
-    <!-- Apple Theme Fluid Background -->
+    <!-- Glass Theme Fluid Background -->
     <div
-      v-if="themeStyle === 'apple'"
+      v-if="['apple', 'arctic', 'lilac', 'ocean', 'warm'].includes(themeStyle)"
       data-glass-ambient
       aria-hidden="true"
       style="position: fixed; inset: 0; z-index: 0; pointer-events: none;"
