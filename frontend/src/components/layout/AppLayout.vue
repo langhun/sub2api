@@ -9,7 +9,13 @@
     <!-- Main Content Area -->
     <div
       class="relative min-h-screen transition-all duration-300"
-      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64']"
+      :class="[
+        sidebarCollapsed
+          ? 'lg:ml-[72px]'
+          : locale === 'en'
+            ? 'lg:ml-[232px]'
+            : 'lg:ml-[182px]'
+      ]"
     >
       <!-- Header -->
       <AppHeader />
@@ -25,6 +31,7 @@
 <script setup lang="ts">
 import '@/styles/onboarding.css'
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
 import { useOnboardingTour } from '@/composables/useOnboardingTour'
@@ -34,6 +41,7 @@ import AppHeader from './AppHeader.vue'
 
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const { locale } = useI18n()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const isAdmin = computed(() => authStore.user?.role === 'admin')
 
