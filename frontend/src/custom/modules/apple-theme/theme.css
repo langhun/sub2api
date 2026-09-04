@@ -193,76 +193,89 @@ html[data-glass] header {
 }
 
 /* ==========================================================================
-   侧边栏 (Sidebar)
+   侧边栏 (Sidebar) - 100% 还原 DaiGua 官方尺寸、字重、颜色与玻璃透光度
    ========================================================================== */
 html[data-theme="apple"] .sidebar,
 html[data-glass] .sidebar {
   border: none !important;
-  border-right: none !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.45) !important;
   background: var(--ui-surface) !important;
-  box-shadow: 6px 0 24px -4px rgba(19, 45, 83, 0.04) !important;
-  backdrop-filter: blur(var(--ui-blur)) !important;
-  -webkit-backdrop-filter: blur(var(--ui-blur)) !important;
+  box-shadow: inset 0 1px #ffffff42, var(--ui-shadow) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
 }
 
 html[data-theme="apple"].dark .sidebar,
 html[data-glass].dark .sidebar {
   border: none !important;
-  border-right: none !important;
-  box-shadow: 8px 0 32px -4px rgba(0, 0, 0, 0.35) !important;
+  border-right: 1px solid rgba(148, 180, 220, 0.18) !important;
+  box-shadow: inset 0 1px #ffffff14, var(--ui-shadow) !important;
 }
 
 html[data-theme="apple"] .sidebar-header,
-html[data-glass] .sidebar-header,
-html[data-theme="apple"] .sidebar .mt-auto,
-html[data-glass] .sidebar .mt-auto {
+html[data-glass] .sidebar-header {
   height: 80px !important;
   padding: 0 20px !important;
-  border: none !important;
-  border-bottom: none !important;
-  border-top: none !important;
+  border-bottom: 0 !important;
 }
 
+html[data-theme="apple"] .sidebar-nav,
+html[data-glass] .sidebar-nav {
+  padding: 0 12px 12px !important;
+}
+
+/* 侧边栏菜单项：规范字重 500，舒展间距与高度 */
 html[data-theme="apple"] .sidebar-link,
 html[data-glass] .sidebar-link {
-  min-height: 40px;
+  min-height: 40px !important;
   border-radius: 10px !important;
-  padding: 0 12px;
-  color: #6e6e73;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0 12px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #6e6e73 !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 html[data-theme="apple"]:not(.dark) .sidebar-link:hover,
 html[data-glass]:not(.dark) .sidebar-link:hover {
-  background: rgba(0, 0, 0, 0.04) !important;
+  background: #0000000a !important;
   color: #1d1d1f !important;
-}
-
-html[data-theme="apple"].dark .sidebar-link,
-html[data-glass].dark .sidebar-link {
-  color: #a1a1a6;
-}
-
-html[data-theme="apple"].dark .sidebar-link:hover,
-html[data-glass].dark .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.07) !important;
-  color: #f5f5f7;
 }
 
 html[data-theme="apple"]:not(.dark) .sidebar-link-active,
 html[data-glass]:not(.dark) .sidebar-link-active {
-  background: rgba(255, 255, 255, 0.88) !important;
+  background: #ffffffe0 !important;
   color: #1d1d1f !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px #0000000f !important;
   font-weight: 600 !important;
+}
+
+/* 深色模式菜单项 - 100% 像素级对齐图 1 DaiGua！ */
+html[data-theme="apple"].dark .sidebar-link,
+html[data-glass].dark .sidebar-link {
+  color: #a1a1a6 !important;
+  font-weight: 500 !important;
+}
+
+html[data-theme="apple"].dark .sidebar-link:hover,
+html[data-glass].dark .sidebar-link:hover {
+  background: #ffffff12 !important;
+  color: #f5f5f7 !important;
 }
 
 html[data-theme="apple"].dark .sidebar-link-active,
 html[data-glass].dark .sidebar-link-active {
-  background: rgba(255, 255, 255, 0.11) !important;
+  background: #ffffff1c !important;
   color: #ffffff !important;
-  box-shadow: 0 1px 3px rgba(2, 6, 14, 0.22);
+  box-shadow: 0 1px 3px #02060e38 !important;
   font-weight: 600 !important;
+}
+
+html[data-theme="apple"] .sidebar-section-title,
+html[data-glass] .sidebar-section-title {
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+  color: var(--ui-muted) !important;
 }
 
 /* ==========================================================================
