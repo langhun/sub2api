@@ -1,72 +1,116 @@
-/* Apple Glass Theme - 完全按照 c3api 原版设计 */
+/* Apple Glass Theme - 按照 DaiGua 视觉效果 */
 
 :root {
   /* Glass settings */
-  --glass-blur: 14px;
+  --glass-blur: 20px;
   --glass-frost: 1;
-  --glass-card-light: rgb(255 255 255 / 42%);
-  --glass-card-dark: rgb(34 38 47 / 42%);
-
-  /* Light mode base */
-  --dsw-alias-bg-base: #F4F8FD;
 }
 
-:root.dark {
-  /* Dark mode base */
-  --dsw-alias-bg-base: #0C121B;
+:root[data-theme="apple"] {
+  /* Light mode - 清新青绿色 */
+  --apple-background: #D0EBE6;
+  --apple-foreground: #1a1d2e;
+  --apple-card: rgba(255, 255, 255, 0.25);
+  --apple-border: rgba(74, 158, 142, 0.15);
+  --apple-primary: #4A9E8E;
+  --apple-primary-foreground: #ffffff;
 }
 
-/* Apply glass theme when data-theme="apple" */
+:root[data-theme="apple"].dark {
+  /* Dark mode - 深蓝黑色 */
+  --apple-background: #1a2838;
+  --apple-foreground: #e8edf5;
+  --apple-card: rgba(30, 40, 60, 0.25);
+  --apple-border: rgba(100, 130, 180, 0.15);
+  --apple-primary: #5B9FD8;
+  --apple-primary-foreground: #ffffff;
+}
+
+/* Apply glass theme */
+html[data-theme="apple"] {
+  background: var(--apple-background);
+  color: var(--apple-foreground);
+}
+
 html[data-theme="apple"] body {
-  background: var(--dsw-alias-bg-base);
+  background: transparent;
 }
 
-html[data-theme="apple"] #root {
-  min-height: 100vh;
-}
-
-/* Glass surfaces */
-html[data-theme="apple"] [class~="bg-card"],
-html[data-theme="apple"] [class~="bg-popover"],
-html[data-theme="apple"] [class~="bg-secondary"],
+/* Glass surfaces - 极度透明 */
 html[data-theme="apple"] [class*="bg-white"],
 html[data-theme="apple"] [class*="bg-gray"],
-html[data-theme="apple"] [class*="rounded"] {
-  background: var(--glass-card-light) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+html[data-theme="apple"] [class*="rounded"],
+html[data-theme="apple"] .card {
+  background: var(--apple-card) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  border: 1px solid var(--apple-border) !important;
 }
 
-html[data-theme="apple"].dark [class~="bg-card"],
-html[data-theme="apple"].dark [class~="bg-popover"],
-html[data-theme="apple"].dark [class~="bg-secondary"],
 html[data-theme="apple"].dark [class*="bg-white"],
 html[data-theme="apple"].dark [class*="bg-gray"],
+html[data-theme="apple"].dark [class*="dark:bg-dark"],
 html[data-theme="apple"].dark [class*="rounded"],
-html[data-theme="apple"].dark [class*="dark:bg-dark"] {
-  background: var(--glass-card-dark) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+html[data-theme="apple"].dark .card {
+  background: var(--apple-card) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  border: 1px solid var(--apple-border) !important;
 }
 
-/* Fluid ambient background */
+/* Sidebar */
+html[data-theme="apple"] aside {
+  background: var(--apple-card) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  border-right: 1px solid var(--apple-border) !important;
+}
+
+/* Header */
+html[data-theme="apple"] header {
+  background: var(--apple-card) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  border-bottom: 1px solid var(--apple-border) !important;
+}
+
+/* Dropdown */
+html[data-theme="apple"] [class*="dropdown"],
+html[data-theme="apple"] [role="menu"] {
+  background: var(--apple-card) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  border: 1px solid var(--apple-border) !important;
+  z-index: 9999 !important;
+}
+
+/* Fluid background */
 html[data-theme="apple"] [data-glass-ambient] {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  overflow: hidden;
+  /* 浅色：青绿色渐变 */
   background:
-    radial-gradient(760px 420px at 50% -8%, rgba(160, 200, 255, 0.26), transparent 70%),
-    linear-gradient(180deg, rgba(156, 193, 231, 0.22) 0%, rgba(156, 193, 231, 0) 38%),
-    radial-gradient(900px 420px at 50% 108%, rgba(156, 193, 231, 0.14), transparent 70%);
+    radial-gradient(circle at 30% 20%, rgba(74, 158, 142, 0.15), transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(126, 200, 187, 0.12), transparent 50%),
+    linear-gradient(135deg,
+      rgba(208, 235, 230, 0.3) 0%,
+      rgba(224, 242, 239, 0.2) 50%,
+      rgba(208, 235, 230, 0.3) 100%
+    );
 }
 
 html[data-theme="apple"].dark [data-glass-ambient] {
+  /* 深色：深蓝色渐变 */
   background:
-    radial-gradient(760px 420px at 50% -8%, rgba(110, 165, 255, 0.13), transparent 70%),
-    linear-gradient(180deg, rgba(94, 143, 224, 0.13) 0%, rgba(94, 143, 224, 0) 46%),
-    radial-gradient(900px 420px at 50% 108%, rgba(94, 143, 224, 0.09), transparent 70%);
+    radial-gradient(circle at 30% 20%, rgba(91, 159, 216, 0.1), transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(30, 58, 95, 0.15), transparent 50%),
+    linear-gradient(135deg,
+      rgba(26, 40, 56, 0.95) 0%,
+      rgba(30, 50, 70, 0.9) 50%,
+      rgba(26, 40, 56, 0.95) 100%
+    );
 }
 
 html[data-theme="apple"] [data-glass-fluid-canvas] {
@@ -74,17 +118,17 @@ html[data-theme="apple"] [data-glass-fluid-canvas] {
   inset: 0;
   width: 100%;
   height: 100%;
-  display: block;
+  opacity: 0.5;
 }
 
 /* Breathing animation */
 @media (prefers-reduced-motion: no-preference) {
   html[data-theme="apple"] [data-glass-ambient] {
-    animation: glass-breathe 9s ease-in-out infinite alternate;
+    animation: glass-breathe 12s ease-in-out infinite alternate;
   }
 }
 
 @keyframes glass-breathe {
-  from { opacity: 0.86; }
+  from { opacity: 0.9; }
   to { opacity: 1; }
 }

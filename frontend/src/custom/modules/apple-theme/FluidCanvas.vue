@@ -32,7 +32,7 @@ const LIGHT_PARAMS: FluidParams = {
   offsetY: 65,
   color1: '#4A9E8E',  // 青绿色
   color2: '#7EC8BB',  // 浅青绿
-  color3: '#E0F2EF',  // 极淡青绿
+  color3: '#D0EBE6',  // 极淡青绿
 }
 
 const DARK_PARAMS: FluidParams = {
@@ -42,7 +42,7 @@ const DARK_PARAMS: FluidParams = {
   distortBoost: 1.35,
   noiseBoost: 0,
   swirlBoost: 0.45,
-  speed: 18,
+  speed: 16,
   distortion: 22,
   swirl: 14,
   swirlIterations: 8,
@@ -53,9 +53,9 @@ const DARK_PARAMS: FluidParams = {
   shapeScale: 10,
   offsetX: 0,
   offsetY: 65,
-  color1: '#1e3a5a',  // 深蓝
-  color2: '#2d4a6f',  // 中蓝
-  color3: '#3d5a80',  // 浅蓝
+  color1: '#2d4a6f',  // 深蓝
+  color2: '#3d5a85',  // 中蓝
+  color3: '#1a2838',  // 深蓝黑
 }
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
