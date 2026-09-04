@@ -408,6 +408,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					}
 					h.gatewayService.RecordOpenAIAccountSwitch()
 					failedAccountIDs[account.ID] = struct{}{}
+					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 					lastFailoverErr = failoverErr
 					if switchCount >= maxAccountSwitches {
 						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, gatewayStreamSemanticOutputStarted(c)) {

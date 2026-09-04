@@ -2184,6 +2184,77 @@ func TestOpenAIGatewayService_RecheckSelectedOpenAIAccountFromDB_SimpleModeUsesF
 	require.NotNil(t, standardSvc.recheckSelectedOpenAIAccountFromDB(context.Background(), &ungrouped, nil, PlatformOpenAI, "gpt-5.1", false, ""))
 }
 
+func TestOpenAIGatewayService_SmartRoutingFreshRecheckRejectsMovedAccountWithoutSnapshot(t *testing.T) {
+	groupID, otherGroupID := int64(34401), int64(34402)
+	stale := &Account{ID: 34401, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, GroupIDs: []int64{groupID}}
+	fresh := *stale
+	fresh.GroupIDs = []int64{otherGroupID}
+	svc := &OpenAIGatewayService{
+		accountRepo: schedulerTestOpenAIAccountRepo{accounts: []Account{fresh}},
+		cfg:         &config.Config{RunMode: config.RunModeSimple},
+	}
+	state := &SmartRoutingRequestState{MainGroupID: groupID, CurrentGroupID: groupID, SmartRoutingActive: true}
+	ctx := WithSmartRoutingState(context.Background(), state)
+
+	got := svc.recheckSelectedOpenAIAccountFromDB(ctx, stale, &groupID, PlatformOpenAI, "gpt-5.1", false, "")
+	require.Nil(t, got, "a stale sticky account moved to another group must be rejected even without a scheduler snapshot")
+}
+
+func TestOpenAIGatewayService_SmartRoutingListUsesFreshGroupPoolInSimpleMode(t *testing.T) {
+	groupID, otherGroupID := int64(34411), int64(34412)
+	accounts := []Account{
+		{ID: 34411, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, GroupIDs: []int64{otherGroupID}},
+		{ID: 34412, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, GroupIDs: []int64{groupID}},
+	}
+	svc := &OpenAIGatewayService{
+		accountRepo: schedulerGroupAwareOpenAIAccountRepo{schedulerTestOpenAIAccountRepo{accounts: accounts}},
+		cfg:         &config.Config{RunMode: config.RunModeSimple},
+		schedulerSnapshot: &SchedulerSnapshotService{cache: &openAISnapshotCacheStub{
+			snapshotAccounts: []*Account{&accounts[0]},
+		}},
+	}
+	state := &SmartRoutingRequestState{MainGroupID: groupID, CurrentGroupID: groupID, SmartRoutingActive: true}
+	ctx := WithSmartRoutingState(context.Background(), state)
+
+	got, err := svc.listSchedulableAccounts(ctx, &groupID, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, int64(34412), got[0].ID)
+}
+
+func TestOpenAIGatewayService_SmartRoutingListFailsClosedWithoutAccountRepository(t *testing.T) {
+	groupID := int64(34421)
+	accounts := []*Account{{ID: 34421, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true, GroupIDs: []int64{groupID}}}
+	svc := &OpenAIGatewayService{
+		cfg: &config.Config{RunMode: config.RunModeSimple},
+		schedulerSnapshot: &SchedulerSnapshotService{cache: &openAISnapshotCacheStub{
+			snapshotAccounts: accounts,
+		}},
+	}
+	state := &SmartRoutingRequestState{MainGroupID: groupID, CurrentGroupID: groupID, SmartRoutingActive: true}
+	ctx := WithSmartRoutingState(context.Background(), state)
+
+	got, err := svc.listSchedulableAccounts(ctx, &groupID, PlatformOpenAI)
+	require.ErrorIs(t, err, ErrNoAvailableAccounts)
+	require.Nil(t, got)
+}
+
+func TestGatewayService_SmartRoutingFinalAdmissionRejectsMovedAccountAndReleasesSlot(t *testing.T) {
+	groupID, otherGroupID := int64(34431), int64(34432)
+	stale := &Account{ID: 34431, Platform: PlatformAnthropic, Status: StatusActive, Schedulable: true, GroupIDs: []int64{groupID}}
+	fresh := *stale
+	fresh.GroupIDs = []int64{otherGroupID}
+	svc := &GatewayService{accountRepo: schedulerTestOpenAIAccountRepo{accounts: []Account{fresh}}}
+	state := &SmartRoutingRequestState{MainGroupID: groupID, CurrentGroupID: groupID, SmartRoutingActive: true}
+	ctx := WithSmartRoutingState(context.Background(), state)
+	released := false
+
+	selection, err := svc.newSelectionResult(ctx, stale, true, func() { released = true }, nil)
+	require.ErrorIs(t, err, ErrNoAvailableAccounts)
+	require.Nil(t, selection)
+	require.True(t, released, "a failed final admission must release the acquired account slot")
+}
+
 func TestOpenAIGatewayService_SelectAccountWithScheduler_PreviousResponseSticky(t *testing.T) {
 	ctx := context.Background()
 	groupID := int64(9)

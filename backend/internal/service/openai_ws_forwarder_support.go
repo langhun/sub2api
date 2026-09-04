@@ -532,6 +532,10 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 	if s == nil {
 		return 0, nil, "", nil
 	}
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive &&
+		(groupID == nil || *groupID <= 0 || s.accountRepo == nil) {
+		return 0, nil, "", nil
+	}
 	responseID := strings.TrimSpace(previousResponseID)
 	if responseID == "" {
 		return 0, nil, "", nil
@@ -553,6 +557,11 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 
 	account, err := s.getSchedulableAccount(ctx, accountID)
 	if err != nil || account == nil {
+		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+		return 0, nil, "", nil
+	}
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive &&
+		!s.openAIAccountMatchesSchedulingGroupForRequest(ctx, account, groupID) {
 		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 		return 0, nil, "", nil
 	}
@@ -600,7 +609,7 @@ func (s *OpenAIGatewayService) resolveAccountByPreviousResponseIDForCapability(
 			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
 			return 0, nil, "", nil
 		}
-		if !s.openAIAccountMatchesSchedulingGroup(latest, groupID) {
+		if !s.openAIAccountMatchesSchedulingGroupForRequest(ctx, latest, groupID) {
 			return 0, nil, "", nil
 		}
 		if s.openAIGroupRequiresPrivacySet(ctx, groupID) && !latest.IsPrivacySet() {

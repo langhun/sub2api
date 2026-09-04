@@ -967,6 +967,18 @@ func (s *GatewayService) BindStickySession(ctx context.Context, groupID *int64, 
 	return s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), sessionHash, accountID, stickySessionTTL)
 }
 
+// ClearSmartRoutingStickySession removes a failed account binding without
+// changing the legacy single-group sticky behavior. Smart routing re-scores
+// groups on every request, so retaining a failed credential here would force a
+// later request back onto a route that the current request already rejected.
+func (s *GatewayService) ClearSmartRoutingStickySession(ctx context.Context, groupID *int64, sessionHash string) {
+	state := SmartRoutingStateFromContext(ctx)
+	if s == nil || state == nil || !state.SmartRoutingActive || strings.TrimSpace(sessionHash) == "" || s.cache == nil {
+		return
+	}
+	_ = s.cache.DeleteSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
+}
+
 // bindGatewayStickySessionDuringSelection preserves the normal eager sticky
 // behavior unless a profit gate is installed. Profit-controlled requests bind
 // only after the terminal post-slot check, otherwise a rejected candidate could

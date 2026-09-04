@@ -905,6 +905,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						return
 					}
 					if openAIFirstOutputFailoverExhausted(failoverErr, &firstOutputTimeoutSwitchCount) {
+						h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, false) {
 							resetSmartRoutingAccountFailover()
 							continue
@@ -935,6 +936,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					}
 					h.gatewayService.RecordOpenAIAccountSwitch()
 					failedAccountIDs[account.ID] = struct{}{}
+					// Do not keep a credential sticky after it has failed and the
+					// request is about to move on. The next request must be free to
+					// re-evaluate the recovered primary/candidate pool.
+					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 					lastFailoverErr = failoverErr
 					if switchCount >= maxAccountSwitches {
 						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, false) {
@@ -1551,6 +1556,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					}
 					h.gatewayService.RecordOpenAIAccountSwitch()
 					failedAccountIDs[account.ID] = struct{}{}
+					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 					lastFailoverErr = failoverErr
 					if switchCount >= maxAccountSwitches {
 						if service.TrySmartRoutingGroupFailover(c.Request.Context(), failoverErr, gatewayStreamSemanticOutputStarted(c)) {
@@ -2585,6 +2591,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 		h.gatewayService.RecordOpenAIAccountSwitch()
 		failedAccountIDs[account.ID] = struct{}{}
+		h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, sessionHash)
 		lastFailoverErr = failoverErr
 		if switchCount >= maxAccountSwitches {
 			closeOpenAIWSFailoverExhausted(c, wsConn, failoverErr)

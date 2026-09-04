@@ -219,3 +219,14 @@ func (s *OpenAIGatewayService) deleteStickySessionAccountID(ctx context.Context,
 	}
 	return err
 }
+
+// ClearSmartRoutingStickySession removes the account-level session binding for
+// the current routed group. Legacy single-group requests deliberately keep the
+// existing upstream sticky behavior.
+func (s *OpenAIGatewayService) ClearSmartRoutingStickySession(ctx context.Context, groupID *int64, sessionHash string) {
+	state := SmartRoutingStateFromContext(ctx)
+	if state == nil || !state.SmartRoutingActive || strings.TrimSpace(sessionHash) == "" {
+		return
+	}
+	_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
+}

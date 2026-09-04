@@ -324,6 +324,9 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 					return
 				}
 				action := fs.HandleFailoverError(requestCtx, h.gatewayService, account.ID, account.Platform, account.GetPoolModeRetryCount(), failoverErr)
+				if _, failed := fs.FailedAccountIDs[account.ID]; failed {
+					h.gatewayService.ClearSmartRoutingStickySession(requestCtx, apiKey.GroupID, sessionHash)
+				}
 				switch action {
 				case FailoverContinue:
 					continue

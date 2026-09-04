@@ -434,6 +434,13 @@ func openAICompatibleAccountEligibilityFailureReasonBeforeProfit(ctx context.Con
 	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
 		return "model_not_supported"
 	}
+	// Smart routing has a stricter mapping contract than legacy single-group
+	// requests. A stale or over-broad account mapping must never send a GPT
+	// request to a foreign provider family (for example Gemini or Claude).
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive &&
+		!SmartRoutingAccountModelCompatible(account, requestedModel) {
+		return "smart_routing_foreign_model_mapping"
+	}
 	if !account.SupportsOpenAIEndpointCapability(requiredCapability) {
 		if account.IsGrok() && requiredCapability == OpenAIEndpointCapabilityGrokMediaGeneration {
 			_, reason := account.GrokMediaGenerationEligibility()
@@ -973,7 +980,7 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 		return nil
 	}
 	account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, groupID, platform, requestedModel, requireCompact, requiredCapability)
-	if account == nil || !s.openAIAccountMatchesSchedulingGroup(account, groupID) {
+	if account == nil || !s.openAIAccountMatchesSchedulingGroupForRequest(ctx, account, groupID) {
 		_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 		return nil
 	}
@@ -1192,7 +1199,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 					account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, groupID, platform, requestedModel, requireCompact, requiredCapability)
 					if account == nil {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
-					} else if !s.openAIAccountMatchesSchedulingGroup(account, groupID) {
+					} else if !s.openAIAccountMatchesSchedulingGroupForRequest(ctx, account, groupID) {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 					} else if s.isOpenAIAccountRequestRuntimeBlocked(account, requestedModel) {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
@@ -1471,6 +1478,23 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 
 func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, groupID *int64, platform string) ([]Account, error) {
 	platform = NormalizeOpenAICompatiblePlatform(platform)
+	// Smart routing must not rely on a group-agnostic/simple-mode snapshot. A
+	// group binding can be revoked while a cached account pool is still alive;
+	// read the authoritative group-scoped pool for every routed attempt.
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		if groupID == nil || *groupID <= 0 || s.accountRepo == nil {
+			return nil, fmt.Errorf("%w: smart routing requires authoritative group account lookup", ErrNoAvailableAccounts)
+		}
+		accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, *groupID, platform)
+		if err != nil {
+			return nil, fmt.Errorf("query smart-routing accounts failed: %w", err)
+		}
+		accounts = s.filterOpenAIAccountsBySchedulingThreshold(ctx, accounts)
+		if platform == PlatformGrok {
+			accounts = s.filterGrokFreeQuotaAccountsForOpenAI(ctx, accounts)
+		}
+		return accounts, nil
+	}
 	if s.schedulerSnapshot != nil {
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, false)
 		if err != nil {
@@ -1582,6 +1606,25 @@ func (s *OpenAIGatewayService) recheckSelectedOpenAIAccountFromDBBeforeProfit(ct
 		return nil
 	}
 	platform = NormalizeOpenAICompatiblePlatform(platform)
+	// Routed requests require a fresh account row even when the scheduler
+	// snapshot is disabled or unavailable. Otherwise an old sticky/cache copy
+	// can survive a group unbind or schedulable=false update.
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		if groupID == nil || *groupID <= 0 || s.accountRepo == nil {
+			return nil
+		}
+		latest, err := s.accountRepo.GetByID(ctx, account.ID)
+		if err != nil || latest == nil || !openAIStickyAccountMatchesGroup(latest, groupID) {
+			return nil
+		}
+		if !isOpenAICompatibleAccountEligibleForRequestBeforeProfit(ctx, latest, platform, requestedModel, requireCompact, requiredCapability) {
+			return nil
+		}
+		if s.isOpenAIAccountBlockedBySchedulingThreshold(ctx, latest) || !parentHealthyForShadow(latest, s.parentAccountLookup(ctx)) || s.isOpenAIProxyStreamQuarantined(ctx, latest) {
+			return nil
+		}
+		return latest
+	}
 	if s.schedulerSnapshot == nil || s.accountRepo == nil {
 		if s.openAIGroupRequiresPrivacySet(ctx, groupID) && !account.IsPrivacySet() {
 			return nil
@@ -1605,7 +1648,7 @@ func (s *OpenAIGatewayService) recheckSelectedOpenAIAccountFromDBBeforeProfit(ct
 	if err != nil || latest == nil {
 		return nil
 	}
-	if !s.openAIAccountMatchesSchedulingGroup(latest, groupID) {
+	if !s.openAIAccountMatchesSchedulingGroupForRequest(ctx, latest, groupID) {
 		return nil
 	}
 	if s.openAIGroupRequiresPrivacySet(ctx, groupID) && !latest.IsPrivacySet() {
@@ -1634,6 +1677,20 @@ func (s *OpenAIGatewayService) openAIAccountMatchesSchedulingGroup(account *Acco
 		return account != nil
 	}
 	return openAIStickyAccountMatchesGroup(account, groupID)
+}
+
+// openAIAccountMatchesSchedulingGroupForRequest keeps legacy simple-mode
+// semantics for ordinary requests while making smart-routing admission strict.
+// A routed candidate must carry an explicit membership in the selected group;
+// missing metadata is treated as unsafe rather than as a global-pool account.
+func (s *OpenAIGatewayService) openAIAccountMatchesSchedulingGroupForRequest(ctx context.Context, account *Account, groupID *int64) bool {
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		if groupID == nil || *groupID <= 0 {
+			return false
+		}
+		return openAIStickyAccountMatchesGroup(account, groupID)
+	}
+	return s.openAIAccountMatchesSchedulingGroup(account, groupID)
 }
 
 func (s *OpenAIGatewayService) getSchedulableAccount(ctx context.Context, accountID int64) (*Account, error) {

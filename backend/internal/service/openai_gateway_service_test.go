@@ -751,6 +751,21 @@ func (c *stubGatewayCache) DeleteSessionAccountID(ctx context.Context, groupID i
 	return nil
 }
 
+func TestGatewayServiceClearSmartRoutingStickySession(t *testing.T) {
+	groupID := int64(21)
+	cache := &stubGatewayCache{sessionBindings: map[string]int64{"session-hash": 194673}}
+	svc := &GatewayService{cache: cache}
+
+	svc.ClearSmartRoutingStickySession(context.Background(), &groupID, "session-hash")
+	require.Equal(t, int64(194673), cache.sessionBindings["session-hash"], "single-group requests must keep legacy stickiness")
+
+	ctx := WithSmartRoutingState(context.Background(), &SmartRoutingRequestState{SmartRoutingActive: true})
+	svc.ClearSmartRoutingStickySession(ctx, &groupID, "session-hash")
+
+	require.NotContains(t, cache.sessionBindings, "session-hash")
+	require.Equal(t, 1, cache.deletedSessions["session-hash"])
+}
+
 func (c *stubGatewayCache) SetGrokVideoPendingBilling(_ context.Context, _ string, _ []byte, _ time.Duration) error {
 	return nil
 }

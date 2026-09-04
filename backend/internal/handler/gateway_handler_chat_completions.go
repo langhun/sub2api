@@ -322,6 +322,9 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 					return
 				}
 				action := fs.HandleFailoverError(c.Request.Context(), h.gatewayService, account.ID, account.Platform, account.GetPoolModeRetryCount(), failoverErr)
+				if _, failed := fs.FailedAccountIDs[account.ID]; failed {
+					h.gatewayService.ClearSmartRoutingStickySession(c.Request.Context(), apiKey.GroupID, selectionSessionHash)
+				}
 				switch action {
 				case FailoverContinue:
 					continue

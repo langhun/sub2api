@@ -1303,6 +1303,42 @@ func (s *GatewayService) resolvePlatform(ctx context.Context, groupID *int64, gr
 }
 
 func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, bool, error) {
+	useMixed := (platform == PlatformAnthropic || platform == PlatformGemini) && !hasForcePlatform
+	// Smart routing must use the authoritative group-scoped query. The shared
+	// snapshot is intentionally group-agnostic in simple mode and may retain a
+	// removed binding long enough to route an account into the wrong group.
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		if groupID == nil || *groupID <= 0 || s.accountRepo == nil {
+			return nil, useMixed, fmt.Errorf("%w: smart routing requires authoritative group account lookup", ErrNoAvailableAccounts)
+		}
+		var (
+			accounts []Account
+			err      error
+		)
+		if useMixed {
+			accounts, err = s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, *groupID, []string{platform, PlatformAntigravity})
+		} else {
+			accounts, err = s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, *groupID, platform)
+		}
+		if err != nil {
+			return nil, useMixed, err
+		}
+		if useMixed {
+			filtered := make([]Account, 0, len(accounts))
+			for _, acc := range accounts {
+				if acc.Platform == PlatformAntigravity && !acc.IsMixedSchedulingEnabled() {
+					continue
+				}
+				filtered = append(filtered, acc)
+			}
+			accounts = filtered
+		}
+		accounts = s.filterAccountsBySchedulingThreshold(ctx, accounts)
+		if platform == PlatformGrok || strings.EqualFold(platform, PlatformGrok) {
+			accounts = s.filterGrokFreeQuotaAccountsForGateway(ctx, accounts)
+		}
+		return accounts, useMixed, nil
+	}
 	if s.schedulerSnapshot != nil {
 		accounts, useMixed, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
 		if err == nil {
@@ -1329,7 +1365,6 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 		}
 		return accounts, useMixed, err
 	}
-	useMixed := (platform == PlatformAnthropic || platform == PlatformGemini) && !hasForcePlatform
 	if useMixed {
 		platforms := []string{platform, PlatformAntigravity}
 		var accounts []Account
@@ -1459,7 +1494,12 @@ func (s *GatewayService) isAccountInGroup(account *Account, groupID *int64) bool
 	}
 	if groupID == nil {
 		// 无分组的 API Key 只能使用未分组的账号
-		return len(account.AccountGroups) == 0
+		return len(account.AccountGroups) == 0 && len(account.GroupIDs) == 0
+	}
+	for _, accountGroupID := range account.GroupIDs {
+		if accountGroupID == *groupID {
+			return true
+		}
 	}
 	for _, ag := range account.AccountGroups {
 		if ag.GroupID == *groupID {
@@ -1828,7 +1868,24 @@ func (s *GatewayService) isAccountBlockedBySchedulingThreshold(ctx context.Conte
 }
 
 func (s *GatewayService) hydrateSelectedAccount(ctx context.Context, account *Account) (*Account, error) {
-	if account == nil || s.schedulerSnapshot == nil {
+	if account == nil {
+		return account, nil
+	}
+	if state := SmartRoutingStateFromContext(ctx); state != nil && state.SmartRoutingActive {
+		if state.CurrentGroupID <= 0 || s.accountRepo == nil {
+			return nil, fmt.Errorf("%w: smart routing final account lookup unavailable", ErrNoAvailableAccounts)
+		}
+		hydrated, err := s.accountRepo.GetByID(ctx, account.ID)
+		if err != nil || hydrated == nil {
+			return nil, fmt.Errorf("%w: smart routing selected account is no longer available", ErrNoAvailableAccounts)
+		}
+		currentGroupID := state.CurrentGroupID
+		if !s.isAccountInGroup(hydrated, &currentGroupID) || !hydrated.IsSchedulable() || hydrated.Platform != account.Platform {
+			return nil, fmt.Errorf("%w: smart routing selected account contract changed", ErrNoAvailableAccounts)
+		}
+		return hydrated, nil
+	}
+	if s.schedulerSnapshot == nil {
 		return account, nil
 	}
 	hydrated, err := s.schedulerSnapshot.GetAccount(ctx, account.ID)
@@ -1844,6 +1901,9 @@ func (s *GatewayService) hydrateSelectedAccount(ctx context.Context, account *Ac
 func (s *GatewayService) newSelectionResult(ctx context.Context, account *Account, acquired bool, release func(), waitPlan *AccountWaitPlan) (*AccountSelectionResult, error) {
 	hydrated, err := s.hydrateSelectedAccount(ctx, account)
 	if err != nil {
+		if acquired && release != nil {
+			release()
+		}
 		return nil, err
 	}
 	return attachSelectionProfitGate(ctx, &AccountSelectionResult{
