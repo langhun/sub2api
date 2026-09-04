@@ -1,462 +1,154 @@
-/* ==========================================================================
-   Apple Liquid Glass (液态玻璃) 设计系统
-   - 配色：100% 呆瓜纯正明快青绿流光 (#D0EBE6 + 青绿水波)
-   - 材质：Apple 官方 Liquid Glass 规范 (折射微光、浮雕磁贴、通透表头)
-   ========================================================================== */
-
+/* Apple Liquid Glass Theme - 100% 呆瓜 (api.daigua.icu) 原装无损生产环境样式 */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --glass-blur: 20px;
-  --glass-blur-sm: 12px;
+  --ui-bg: #f4f8fd;
+  --ui-surface: rgb(255 255 255 / 42%);
+  --ui-surface-strong: rgb(255 255 255 / 66%);
+  --ui-text: #1d1d1f;
+  --ui-muted: #6e6e73;
+  --ui-primary: #0071e3;
+  --ui-primary-strong: #0066cc;
+  --ui-border: rgba(19, 45, 83, .26);
+  --ui-border-soft: rgba(19, 45, 83, .16);
+  --ui-border-render: rgba(19, 45, 83, .14);
+  --ui-shadow: inset 0 1px 0 rgb(255 255 255 / 50%), 0 10px 36px rgb(19 45 83 / 16%);
+  --ui-shadow-soft: 0 4px 16px rgba(19, 45, 83, .1);
+  --ui-blur: 14px;
+  --ui-radius: 14px;
+  --ui-radius-sm: 10px;
+  --ui-radius-lg: 20px;
 }
 
-/* ==========================================================================
-   浅色模式 (Light Mode) - 呆瓜纯正青绿底色 + Apple 液态水玻
-   ========================================================================== */
-:root[data-theme="apple"],
-html[data-theme="apple"]:not(.dark) {
-  /* 基础底色：呆瓜标志性清新纯正青绿 (#D0EBE6) */
-  --lg-bg: #D0EBE6;
-  --lg-text: #0f172a;
-  --lg-text-secondary: #334155;
-  --lg-text-muted: #475569;
-
-  /* 液态玻璃材质：透出温润青绿水波，晶莹清澈 */
-  --lg-surface: rgba(255, 255, 255, 0.35);
-  --lg-surface-hover: rgba(255, 255, 255, 0.48);
-  --lg-surface-strong: rgba(255, 255, 255, 0.65);
-  --lg-surface-subtle: rgba(255, 255, 255, 0.20);
-
-  /* 浮动可交互微磁贴 (Elevated Tiles)：温润白玉卡片，用于快捷操作等交互项 */
-  --lg-tile: rgba(255, 255, 255, 0.86);
-  --lg-tile-hover: #ffffff;
-
-  /* 边缘微光描边 (Specular Rim Highlight) */
-  --lg-border: rgba(255, 255, 255, 0.65);
-  --lg-border-soft: rgba(74, 158, 142, 0.18);
-  --lg-border-render: rgba(74, 158, 142, 0.15);
-
-  /* 呆瓜纯正青绿强调色 */
-  --lg-primary: #4A9E8E;
-  --lg-primary-hover: #3d8a7c;
-  --lg-primary-light: rgba(74, 158, 142, 0.12);
-
-  /* 液态玻璃物理光影：顶层 1px 微反光线 + 柔润环境暗影 */
-  --lg-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.85), 0 8px 26px rgba(45, 95, 85, 0.07);
-  --lg-shadow-sm: inset 0 1px 1px 0 rgba(255, 255, 255, 0.70), 0 3px 10px rgba(45, 95, 85, 0.04);
-  --lg-shadow-lg: inset 0 1px 2px 0 rgba(255, 255, 255, 0.95), 0 18px 45px rgba(45, 95, 85, 0.12);
+.dark {
+  --ui-bg: #0c121b;
+  --ui-surface: rgb(34 38 47 / 42%);
+  --ui-surface-strong: rgb(34 38 47 / 72%);
+  --ui-text: #f5f5f7;
+  --ui-muted: #b8b8c0;
+  --ui-primary: #2997ff;
+  --ui-primary-strong: #3aa1ff;
+  --ui-border: rgba(148, 180, 220, .32);
+  --ui-border-soft: rgba(148, 180, 220, .2);
+  --ui-border-render: rgba(148, 180, 220, .18);
+  --ui-shadow: inset 0 1px 0 rgb(255 255 255 / 7%), 0 10px 36px rgb(2 6 14 / 50%);
+  --ui-shadow-soft: 0 4px 18px rgba(2 6 14, .32);
 }
 
-/* ==========================================================================
-   深色模式 (Dark Mode) - 呆瓜深蓝黑底色 + 暗夜晶体水玻
-   ========================================================================== */
-:root[data-theme="apple"].dark,
-html[data-theme="apple"].dark {
-  --lg-bg: #1a2838;
-  --lg-text: #f8fafc;
-  --lg-text-secondary: #cbd5e1;
-  --lg-text-muted: #94a3b8;
+html[data-theme="apple"], html[data-glass] .stat-card{border-radius:14px;border-color:var(--ui-border-render);background:var(--ui-surface);box-shadow:var(--ui-shadow);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+html[data-theme="apple"], html[data-glass] .stat-card{background:var(--ui-surface);border-color:var(--ui-border-render);box-shadow:inset 0 1px #ffffff42,var(--ui-shadow);backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur))}
+html[data-theme="apple"], html[data-glass].dark .stat-card{box-shadow:inset 0 1px #ffffff14,var(--ui-shadow)}
+html[data-theme="apple"], html[data-glass]{background:var(--ui-bg);color:var(--ui-text);font-family:-apple-system,BlinkMacSystemFont,SF Pro Text,Geist,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif}
+html[data-theme="apple"], html[data-glass] body{min-height:100vh;background:var(--ui-bg);color:var(--ui-text)}
+html[data-theme="apple"], html[data-glass] #app{min-height:100vh}
+html[data-theme="apple"], html[data-glass] [data-glass-ambient]{position:fixed;top:0;right:0;bottom:0;left:0;z-index:0;pointer-events:none;overflow:hidden;background:radial-gradient(760px 420px at 50% -8%,rgba(160,200,255,.26),transparent 70%),linear-gradient(180deg,#9cc1e738,#9cc1e700 38%),radial-gradient(900px 420px at 50% 108%,rgba(156,193,231,.14),transparent 70%)}
+html[data-theme="apple"], html[data-glass].dark [data-glass-ambient]{background:radial-gradient(760px 420px at 50% -8%,rgba(110,165,255,.13),transparent 70%),linear-gradient(180deg,#5e8fe021,#5e8fe000 46%),radial-gradient(900px 420px at 50% 108%,rgba(94,143,224,.09),transparent 70%)}
+html[data-theme="apple"], html[data-glass] [data-glass-fluid-canvas]{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;display:block}
+html[data-theme="apple"], html[data-glass] [data-glass-ambient]{animation:glass-breathe 9s ease-in-out infinite alternate}
+html[data-theme="apple"], html[data-glass]{font-family:Geist Variable,-apple-system,BlinkMacSystemFont,SF Pro Text,Segoe UI,Helvetica Neue,Arial,PingFang SC,sans-serif;--ui-radius: 14px;--ui-radius-sm: 10px;--ui-shadow: inset 0 1px 0 rgb(255 255 255 / 50%), 0 10px 36px rgb(19 45 83 / 16%)}
+html[data-theme="apple"], html[data-glass].dark{--ui-shadow: inset 0 1px 0 rgb(255 255 255 / 7%), 0 10px 36px rgb(2 6 14 / 50%)}
+html[data-theme="apple"], html[data-glass] .card,html[data-theme="apple"], html[data-glass] .card-glass,html[data-theme="apple"], html[data-glass] .glass-card{border-radius:14px!important;border-color:var(--ui-border-render)!important;background:var(--ui-surface)!important;box-shadow:var(--ui-shadow)!important;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+html[data-theme="apple"], html[data-glass] .card-header,html[data-theme="apple"], html[data-glass] .card-body,html[data-theme="apple"], html[data-glass] .card-footer{border-color:var(--ui-border-soft)!important}
+html[data-theme="apple"], html[data-glass] .btn{border-radius:10px!important;box-shadow:none}
+html[data-theme="apple"], html[data-glass] .btn-primary{background:var(--ui-primary)!important;background-image:none!important;box-shadow:none!important}
+html[data-theme="apple"], html[data-glass] .btn-secondary,html[data-theme="apple"], html[data-glass] .btn-ghost{border-radius:10px!important}
+html[data-theme="apple"], html[data-glass] .input,html[data-theme="apple"], html[data-glass] .select,html[data-theme="apple"], html[data-glass] select,html[data-theme="apple"], html[data-glass] textarea{border-radius:10px!important;border-color:var(--ui-border-render)!important;background:var(--ui-surface-strong)!important;box-shadow:none!important}
+html[data-theme="apple"], html[data-glass] .sidebar{border-right-color:var(--ui-border-render)!important;background:var(--ui-surface)!important;box-shadow:var(--ui-shadow)!important;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+html[data-theme="apple"], html[data-glass] .sidebar[class~="w-[232px]"]{width:232px!important}
+html[data-theme="apple"], html[data-glass] .sidebar[class~="w-[72px]"]{width:72px!important}
+html[data-theme="apple"], html[data-glass] .sidebar-header{height:80px;padding:0 20px;border-bottom:0}
+html[data-theme="apple"], html[data-glass] .sidebar-nav{padding:0 12px 12px}
+html[data-theme="apple"], html[data-glass] .sidebar-link{min-height:40px;border-radius:10px!important;padding:0 12px;color:#6e6e73}
+html[data-theme="apple"], html[data-glass] .sidebar-link:hover{background:#0000000a!important;color:#1d1d1f}
+html[data-theme="apple"], html[data-glass] .sidebar-link-active{background:#ffffffe0!important;color:#1d1d1f!important;box-shadow:0 1px 3px #0000000f}
+html[data-theme="apple"], html[data-glass] .sidebar-section-title{text-transform:none;letter-spacing:.02em;color:var(--ui-muted)}
+html[data-theme="apple"], html[data-glass].dark .sidebar-link{color:#a1a1a6}
+html[data-theme="apple"], html[data-glass].dark .sidebar-link:hover{background:#ffffff12!important;color:#f5f5f7}
+html[data-theme="apple"], html[data-glass].dark .sidebar-link-active{background:#ffffff1c!important;color:#fff!important;box-shadow:0 1px 3px #02060e38}
+html[data-theme="apple"], html[data-glass] .dropdown,html[data-theme="apple"], html[data-glass] .modal-content,html[data-theme="apple"], html[data-glass] .dialog-container,html[data-theme="apple"], html[data-glass] .toast{border-radius:14px!important;background:var(--ui-surface-strong)!important;border-color:var(--ui-border-render)!important;box-shadow:var(--ui-shadow)!important;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+html[data-theme="apple"], html[data-glass] .c3api-hero>div:first-child{max-width:42rem;flex:none}
+html[data-theme="apple"], html[data-glass] .c3api-hero-terminal{display:none}
+html[data-theme="apple"], html[data-glass] .glass,html[data-theme="apple"], html[data-glass] .glass-card,html[data-theme="apple"], html[data-glass] .card,html[data-theme="apple"], html[data-glass] .card-glass,html[data-theme="apple"], html[data-glass] .modal-content,html[data-theme="apple"], html[data-glass] .dialog-container,html[data-theme="apple"], html[data-glass] .dropdown,html[data-theme="apple"], html[data-glass] .toast,html[data-theme="apple"], html[data-glass] .page-header{background:var(--ui-surface)!important;border-color:var(--ui-border-render)!important;box-shadow:inset 0 1px #ffffff42,var(--ui-shadow)!important;backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur))}
+html[data-theme="apple"], html[data-glass].dark .glass,html[data-theme="apple"], html[data-glass].dark .glass-card,html[data-theme="apple"], html[data-glass].dark .card,html[data-theme="apple"], html[data-glass].dark .card-glass,html[data-theme="apple"], html[data-glass].dark .modal-content,html[data-theme="apple"], html[data-glass].dark .dialog-container,html[data-theme="apple"], html[data-glass].dark .dropdown,html[data-theme="apple"], html[data-glass].dark .toast,html[data-theme="apple"], html[data-glass].dark .page-header{box-shadow:inset 0 1px #ffffff14,var(--ui-shadow)!important}
+html[data-theme="apple"], html[data-glass] .sidebar{background:var(--ui-surface)!important;border-color:var(--ui-border-render)!important;box-shadow:inset 0 1px #ffffff42,var(--ui-shadow)!important;backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur))}
+html[data-theme="apple"], html[data-glass] .sidebar-link-active{background:var(--ui-surface-strong)!important;color:var(--ui-text)!important;box-shadow:0 1px 3px #132d5314}
+html[data-theme="apple"], html[data-glass] .btn-primary{background:var(--ui-primary)!important;color:#fff!important;box-shadow:0 8px 20px color-mix(in srgb,var(--ui-primary) 28%,transparent)!important}
+html[data-theme="apple"], html[data-glass] .btn-primary:hover{background:var(--ui-primary-strong)!important}
+html[data-theme="apple"], html[data-glass] .btn-secondary,html[data-theme="apple"], html[data-glass] .btn-ghost,html[data-theme="apple"], html[data-glass] .date-picker-trigger,html[data-theme="apple"], html[data-glass] .select-trigger,html[data-theme="apple"], html[data-glass] .input,html[data-theme="apple"], html[data-glass] .select,html[data-theme="apple"], html[data-glass] select,html[data-theme="apple"], html[data-glass] textarea{border-color:var(--ui-border-render)!important}
+html[data-theme="apple"], html[data-glass] .date-picker-trigger,html[data-theme="apple"], html[data-glass] .select-trigger,html[data-theme="apple"], html[data-glass] .input,html[data-theme="apple"], html[data-glass] .select,html[data-theme="apple"], html[data-glass] select,html[data-theme="apple"], html[data-glass] textarea{background:var(--ui-surface-strong)!important;color:var(--ui-text)!important;box-shadow:inset 0 1px #ffffff3d}
+html[data-theme="apple"], html[data-glass] .date-picker-dropdown,html[data-theme="apple"], html[data-glass] .select-dropdown,html[data-theme="apple"], html[data-glass] .select-dropdown-portal,html[data-theme="apple"], html[data-glass] .batch-prompt-popover,html[data-theme="apple"], html[data-glass] [role=listbox]{background:var(--ui-surface-strong)!important;border-color:var(--ui-border-render)!important;box-shadow:var(--ui-shadow)!important;backdrop-filter:blur(var(--ui-blur));-webkit-backdrop-filter:blur(var(--ui-blur))}
+html[data-theme="apple"], html[data-glass] .date-picker-dropdown [class~=bg-white],html[data-theme="apple"], html[data-glass] .date-picker-dropdown [class~=bg-gray-50],html[data-theme="apple"], html[data-glass] .select-dropdown [class~=bg-white],html[data-theme="apple"], html[data-glass] .select-dropdown-portal [class~=bg-white],html[data-theme="apple"], html[data-glass] [role=listbox] [class~=bg-white]{background:var(--ui-surface)!important}
+html[data-theme="apple"], html[data-glass] .table-container,html[data-theme="apple"], html[data-glass] .table-wrapper,html[data-theme="apple"], html[data-glass] .table,html[data-theme="apple"], html[data-glass] table{border-color:var(--ui-border-render)!important}
+html[data-theme="apple"], html[data-glass] .table th,html[data-theme="apple"], html[data-glass] table thead,html[data-theme="apple"], html[data-glass] table thead th{background:var(--ui-surface)!important;border-color:var(--ui-border-soft)!important;color:var(--ui-muted)}
+html[data-theme="apple"], html[data-glass] .table td,html[data-theme="apple"], html[data-glass] table tbody td{border-color:var(--ui-border-soft)!important}
+html[data-theme="apple"], html[data-glass] .table tbody tr:hover,html[data-theme="apple"], html[data-glass] table tbody tr:hover{background:color-mix(in srgb,var(--ui-primary) 6%,transparent)!important}
+html[data-theme="apple"], html[data-glass] [class~=bg-white],html[data-theme="apple"], html[data-glass] [class~="bg-white/90"],html[data-theme="apple"], html[data-glass] [class~="bg-white/80"],html[data-theme="apple"], html[data-glass] [class~="bg-white/70"],html[data-theme="apple"], html[data-glass] [class~="bg-white/60"]{background-color:var(--ui-surface-strong)!important}
+html[data-theme="apple"], html[data-glass] [class~=bg-gray-50],html[data-theme="apple"], html[data-glass] [class~=bg-gray-100]{background-color:var(--ui-bg)!important}
+html[data-theme="apple"], html[data-glass] [class~="bg-gray-50/80"],html[data-theme="apple"], html[data-glass] [class~="bg-gray-50/60"]{background-color:var(--ui-surface)!important}
+html[data-theme="apple"], html[data-glass] [class~=bg-blue-100],html[data-theme="apple"], html[data-glass] [class~=bg-indigo-100],html[data-theme="apple"], html[data-glass] [class~=bg-purple-100],html[data-theme="apple"], html[data-glass] [class~=bg-violet-100],html[data-theme="apple"], html[data-glass] [class~=bg-green-100],html[data-theme="apple"], html[data-glass] [class~=bg-emerald-100],html[data-theme="apple"], html[data-glass] [class~=bg-amber-100],html[data-theme="apple"], html[data-glass] [class~=bg-orange-100],html[data-theme="apple"], html[data-glass] [class~=bg-rose-100]{background-color:#0071e31a!important}
+html[data-theme="apple"], html[data-glass].dark [class~="bg-blue-900/30"],html[data-theme="apple"], html[data-glass].dark [class~="bg-indigo-900/30"],html[data-theme="apple"], html[data-glass].dark [class~="bg-purple-900/30"],html[data-theme="apple"], html[data-glass].dark [class~="bg-violet-900/30"],html[data-theme="apple"], html[data-glass].dark [class~="bg-green-900/30"],html[data-theme="apple"], html[data-glass].dark [class~="bg-emerald-900/30"],html[data-theme="apple"], html[data-glass].dark [class~="bg-amber-900/30"],html[data-theme="apple"], html[data-glass].dark [class~="bg-orange-900/30"],html[data-theme="apple"], html[data-glass].dark [class~="bg-rose-900/30"]{background-color:#2997ff24!important}
+html[data-theme="apple"], html[data-glass].dark [class~=bg-dark-950]{background-color:var(--ui-bg)!important}
+html[data-theme="apple"], html[data-glass].dark [class~=bg-dark-800],html[data-theme="apple"], html[data-glass].dark [class~="bg-dark-800/80"],html[data-theme="apple"], html[data-glass].dark [class~="bg-dark-800/70"],html[data-theme="apple"], html[data-glass].dark [class~="bg-dark-800/60"],html[data-theme="apple"], html[data-glass].dark [class~=bg-dark-900],html[data-theme="apple"], html[data-glass].dark [class~="bg-dark-900/95"],html[data-theme="apple"], html[data-glass].dark [class~="bg-dark-900/80"],html[data-theme="apple"], html[data-glass].dark [class~="bg-dark-900/60"]{background-color:var(--ui-surface-strong)!important}
+html[data-theme="apple"], html[data-glass] [class~=border-gray-100],html[data-theme="apple"], html[data-glass] [class~=border-gray-200],html[data-theme="apple"], html[data-glass] [class~="border-gray-200/50"],html[data-theme="apple"], html[data-glass] [class~=border-gray-300],html[data-theme="apple"], html[data-glass].dark [class~=border-dark-600],html[data-theme="apple"], html[data-glass].dark [class~=border-dark-700],html[data-theme="apple"], html[data-glass].dark [class~="border-dark-700/50"],html[data-theme="apple"], html[data-glass].dark [class~=border-dark-800]{border-color:var(--ui-border-render)!important}
+html[data-theme="apple"], html[data-glass] [class~=text-gray-900],html[data-theme="apple"], html[data-glass] [class~=text-gray-800],html[data-theme="apple"], html[data-glass].dark [class~=text-white]{color:var(--ui-text)!important}
+html[data-theme="apple"], html[data-glass] [class~=text-gray-700],html[data-theme="apple"], html[data-glass] [class~=text-gray-600],html[data-theme="apple"], html[data-glass] [class~=text-gray-500],html[data-theme="apple"], html[data-glass] [class~=text-gray-400],html[data-theme="apple"], html[data-glass].dark [class~=text-dark-200],html[data-theme="apple"], html[data-glass].dark [class~=text-dark-300],html[data-theme="apple"], html[data-glass].dark [class~=text-dark-400],html[data-theme="apple"], html[data-glass].dark [class~=text-dark-500]{color:var(--ui-muted)!important}
+html[data-theme="apple"], html[data-glass] .modal-overlay,html[data-theme="apple"], html[data-glass] .dialog-overlay{background:#07101e6b!important;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+html[data-theme="apple"], html[data-glass] .tabs{background:var(--ui-surface)!important;border:1px solid var(--ui-border-soft)}
+html[data-theme="apple"], html[data-glass] .tab-active{background:var(--ui-surface-strong)!important;color:var(--ui-text)!important;box-shadow:var(--ui-shadow-soft)}
+html[data-theme="apple"], html[data-glass] .skeleton{background:color-mix(in srgb,var(--ui-muted) 18%,transparent)!important}
+html[data-theme="apple"], html[data-glass] [data-glass-ambient]{animation:none}
 
-  --lg-surface: rgba(26, 40, 56, 0.45);
-  --lg-surface-hover: rgba(30, 50, 70, 0.60);
-  --lg-surface-strong: rgba(30, 50, 70, 0.78);
-  --lg-surface-subtle: rgba(26, 40, 56, 0.25);
-
-  --lg-tile: rgba(35, 55, 80, 0.80);
-  --lg-tile-hover: rgba(45, 70, 100, 0.95);
-
-  --lg-border: rgba(100, 130, 180, 0.28);
-  --lg-border-soft: rgba(100, 130, 180, 0.18);
-  --lg-border-render: rgba(100, 130, 180, 0.15);
-
-  --lg-primary: #5B9FD8;
-  --lg-primary-hover: #70b0ea;
-  --lg-primary-light: rgba(91, 159, 216, 0.16);
-
-  --lg-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.14), 0 12px 35px rgba(0, 0, 0, 0.45);
-  --lg-shadow-sm: inset 0 1px 1px 0 rgba(255, 255, 255, 0.10), 0 4px 14px rgba(0, 0, 0, 0.30);
-  --lg-shadow-lg: inset 0 1px 2px 0 rgba(255, 255, 255, 0.20), 0 22px 55px rgba(0, 0, 0, 0.60);
-}
-
-/* ==========================================================================
-   页面基础与高清字体排印 (Inter + 苹果/UI 系统高锐度字体族)
-   ========================================================================== */
-html[data-theme="apple"] {
-  background: var(--lg-bg) !important;
-  color: var(--lg-text) !important;
-  font-family: 'Inter', 'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'tnum';
-  text-rendering: optimizeLegibility;
-}
-
-html[data-theme="apple"] body {
-  min-height: 100vh;
-  background: transparent !important;
-  color: var(--lg-text) !important;
-}
-
-/* ==========================================================================
-   底层流体光影环境 (100% 呆瓜标志性纯正青绿流光)
-   ========================================================================== */
-html[data-theme="apple"] [data-glass-ambient] {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(74, 158, 142, 0.28), transparent 60%),
-    radial-gradient(circle at 70% 80%, rgba(126, 200, 187, 0.25), transparent 60%),
-    linear-gradient(135deg,
-      rgba(208, 235, 230, 0.85) 0%,
-      rgba(224, 242, 239, 0.65) 50%,
-      rgba(208, 235, 230, 0.85) 100%
-    );
-}
-
-html[data-theme="apple"].dark [data-glass-ambient] {
-  background:
-    radial-gradient(circle at 30% 20%, rgba(91, 159, 216, 0.22), transparent 60%),
-    radial-gradient(circle at 70% 80%, rgba(30, 58, 95, 0.35), transparent 60%),
-    linear-gradient(135deg,
-      rgba(26, 40, 56, 0.95) 0%,
-      rgba(30, 50, 70, 0.90) 50%,
-      rgba(26, 40, 56, 0.95) 100%
-    );
-}
-
-html[data-theme="apple"] [data-glass-fluid-canvas] {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  opacity: 0.65;
-}
-
-/* ==========================================================================
-   顶栏 (Header) - 悬浮圆角水滴岛 (Floating Capsule Island)
-   ========================================================================== */
+/* 顶栏悬浮水玻圆角胶囊 */
+html[data-glass] header.glass,
+html[data-glass] header,
 html[data-theme="apple"] header.glass,
 html[data-theme="apple"] header {
   position: sticky !important;
   top: 14px !important;
   margin: 14px 16px 0 16px !important;
   border-radius: 18px !important;
-  border: 1px solid var(--lg-border) !important;
-  background: var(--lg-surface) !important;
-  box-shadow: var(--lg-shadow) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%) !important;
+  border: 1px solid var(--ui-border-render) !important;
+  background: var(--ui-surface) !important;
+  box-shadow: var(--ui-shadow) !important;
+  backdrop-filter: blur(var(--ui-blur));
+  -webkit-backdrop-filter: blur(var(--ui-blur));
   z-index: 30 !important;
-  transition: all 0.2s ease;
 }
-
 @media (min-width: 1024px) {
+  html[data-glass] header.glass,
+  html[data-glass] header,
   html[data-theme="apple"] header.glass,
   html[data-theme="apple"] header {
     margin: 14px 24px 0 24px !important;
   }
 }
 
-html[data-theme="apple"] header h1 {
-  color: var(--lg-text) !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.01em;
-}
-
-html[data-theme="apple"] header p {
-  color: var(--lg-text-muted) !important;
-  font-size: 0.75rem !important;
-}
-
-/* ==========================================================================
-   侧边栏 (Sidebar) - 透澈青绿水玻 + 纯白微浮雕药丸激活项
-   ========================================================================== */
-html[data-theme="apple"] aside.sidebar {
-  border-right: 1px solid var(--lg-border-soft) !important;
-  background: var(--lg-surface) !important;
-  box-shadow: 1px 0 20px rgba(45, 95, 85, 0.03) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%) !important;
-}
-
-html[data-theme="apple"] .sidebar-header {
-  height: 76px;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--lg-border-soft) !important;
-}
-
-html[data-theme="apple"] .sidebar-brand-title {
-  color: var(--lg-text) !important;
-  font-weight: 700 !important;
-}
-
-html[data-theme="apple"] .sidebar-nav {
-  padding: 0 12px 14px;
-}
-
-html[data-theme="apple"] .sidebar-link {
-  min-height: 40px;
-  border-radius: 12px !important;
-  padding: 0 12px;
-  color: var(--lg-text-secondary) !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-html[data-theme="apple"]:not(.dark) .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.35) !important;
-  color: #0f172a !important;
-}
-
-html[data-theme="apple"].dark .sidebar-link {
-  color: var(--lg-text-secondary) !important;
-}
-
-html[data-theme="apple"].dark .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #ffffff !important;
-}
-
-/* 激活菜单项：纯白温润凝胶卡片 */
-html[data-theme="apple"]:not(.dark) .sidebar-link-active {
-  background: var(--lg-tile-hover) !important;
-  color: #0f172a !important;
-  box-shadow: 0 2px 8px rgba(45, 95, 85, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.95) !important;
-  font-weight: 600 !important;
-}
-
-html[data-theme="apple"].dark .sidebar-link-active {
-  background: var(--lg-tile) !important;
-  color: #ffffff !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.30) !important;
-  font-weight: 600 !important;
-}
-
-html[data-theme="apple"] .sidebar-section-title {
-  text-transform: none;
-  letter-spacing: 0.03em;
-  color: var(--lg-text-muted) !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-}
-
-/* ==========================================================================
-   液态玻璃主卡片 (Liquid Glass Cards & Panels)
-   ========================================================================== */
-html[data-theme="apple"] .card,
-html[data-theme="apple"] .card-glass,
-html[data-theme="apple"] .glass-card,
-html[data-theme="apple"] .stat-card {
-  border-radius: 16px !important;
-  border: 1px solid var(--lg-border) !important;
-  background: var(--lg-surface) !important;
-  box-shadow: var(--lg-shadow) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%) !important;
-  position: relative;
-}
-
-html[data-theme="apple"] .card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--lg-shadow-lg) !important;
-  border-color: rgba(255, 255, 255, 0.85) !important;
-}
-
-html[data-theme="apple"] .card-header,
-html[data-theme="apple"] .card-body,
-html[data-theme="apple"] .card-footer {
-  border-color: var(--lg-border-soft) !important;
-}
-
-/* 卡片内部核心大数字：黑实加粗，清晰立显 */
-html[data-theme="apple"] .stat-value,
-html[data-theme="apple"] .card [class*="text-2xl"],
-html[data-theme="apple"] .card [class*="text-xl font-bold"],
-html[data-theme="apple"] .card [class*="text-3xl"] {
-  color: var(--lg-text) !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.02em;
-}
-
-/* 卡片次级标签 */
-html[data-theme="apple"] .stat-label,
-html[data-theme="apple"] .card [class*="text-xs font-medium text-gray-"],
-html[data-theme="apple"] .card [class*="text-sm font-medium text-gray-"] {
-  color: var(--lg-text-muted) !important;
-}
-
-/* 统计卡左侧图标小圆角底座：微透柔光，不遮挡水波 */
-html[data-theme="apple"] .card [class*="bg-blue-100"],
-html[data-theme="apple"] .card [class*="bg-sky-100"],
-html[data-theme="apple"] .card [class*="bg-indigo-100"] {
-  background-color: rgba(74, 158, 142, 0.15) !important;
-}
-html[data-theme="apple"] .card [class*="bg-green-100"],
-html[data-theme="apple"] .card [class*="bg-emerald-100"] {
-  background-color: rgba(16, 185, 129, 0.15) !important;
-}
-html[data-theme="apple"] .card [class*="bg-purple-100"],
-html[data-theme="apple"] .card [class*="bg-violet-100"] {
-  background-color: rgba(147, 51, 234, 0.15) !important;
-}
-html[data-theme="apple"] .card [class*="bg-amber-100"],
-html[data-theme="apple"] .card [class*="bg-orange-100"] {
-  background-color: rgba(245, 158, 11, 0.15) !important;
-}
-
-/* ==========================================================================
-   浮动选项微磁贴 (Elevated Tiles) - 快捷操作项“批量生图”、“分组定价”等
-   具有清晰的实体卡片感，绝不平摊隐形
-   ========================================================================== */
-html[data-theme="apple"] .card button.group,
-html[data-theme="apple"] .card a.group,
-html[data-theme="apple"] [class*="quick-action"] button,
-html[data-theme="apple"] [class*="quick-action"] a {
-  background: var(--lg-tile) !important;
-  border: 1px solid var(--lg-border) !important;
-  box-shadow: 0 2px 8px rgba(45, 95, 85, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+/* 快捷操作项：浅色微浮雕纯白小卡片（一眼即明是选项） */
+html[data-glass]:not(.dark) .card button.group,
+html[data-glass]:not(.dark) .card a.group,
+html[data-theme="apple"]:not(.dark) .card button.group,
+html[data-theme="apple"]:not(.dark) .card a.group {
+  background: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 2px 8px rgba(19, 45, 83, 0.05), inset 0 1px 0 #ffffff !important;
   border-radius: 14px !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.2s ease !important;
 }
-
-html[data-theme="apple"] .card button.group:hover,
-html[data-theme="apple"] .card a.group:hover,
-html[data-theme="apple"] [class*="quick-action"] button:hover,
-html[data-theme="apple"] [class*="quick-action"] a:hover {
-  background: var(--lg-tile-hover) !important;
+html[data-glass]:not(.dark) .card button.group:hover,
+html[data-glass]:not(.dark) .card a.group:hover,
+html[data-theme="apple"]:not(.dark) .card button.group:hover,
+html[data-theme="apple"]:not(.dark) .card a.group:hover {
+  background: #ffffff !important;
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(45, 95, 85, 0.10), inset 0 1px 0 #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 6px 18px rgba(19, 45, 83, 0.10), inset 0 1px 0 #ffffff !important;
 }
 
-/* ==========================================================================
-   表格系统 (Table) - 彻底清除突兀死白条，呈现纯净水光感
-   ========================================================================== */
-html[data-theme="apple"] .table-container,
-html[data-theme="apple"] .table-wrapper,
-html[data-theme="apple"] .table,
-html[data-theme="apple"] table {
-  background: transparent !important;
-  border-color: var(--lg-border-soft) !important;
-}
-
-/* 表头：完全透明，杜绝死白底色！仅保留下方发丝级微光分割线 */
-html[data-theme="apple"] .table th,
-html[data-theme="apple"] table thead,
-html[data-theme="apple"] table thead th {
-  background: transparent !important;
-  border-bottom: 1px solid var(--lg-border-soft) !important;
-  color: var(--lg-text-muted) !important;
-  font-weight: 600 !important;
-  font-size: 0.75rem !important;
-  letter-spacing: 0.02em;
-}
-
-/* 数据行：清透，hover 悬停时带有水波折射微光 */
-html[data-theme="apple"] .table tbody tr,
-html[data-theme="apple"] table tbody tr,
-html[data-theme="apple"] .table td,
-html[data-theme="apple"] table tbody td {
-  background: transparent !important;
-  border-bottom: 1px solid var(--lg-border-render) !important;
-  color: var(--lg-text) !important;
-}
-
-html[data-theme="apple"]:not(.dark) .table tbody tr:hover,
-html[data-theme="apple"]:not(.dark) table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.32) !important;
-}
-
-html[data-theme="apple"].dark .table tbody tr:hover,
-html[data-theme="apple"].dark table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.06) !important;
-}
-
-/* ==========================================================================
-   控件：输入框、选择器、时间范围等浮动组件
-   ========================================================================== */
-html[data-theme="apple"]:not(.dark) .input,
-html[data-theme="apple"]:not(.dark) .select,
-html[data-theme="apple"]:not(.dark) select,
-html[data-theme="apple"]:not(.dark) textarea,
-html[data-theme="apple"]:not(.dark) .date-picker-trigger,
-html[data-theme="apple"]:not(.dark) .select-trigger {
-  border-radius: 12px !important;
-  border: 1px solid var(--lg-border) !important;
-  background: var(--lg-tile) !important;
-  color: var(--lg-text) !important;
-  box-shadow: 0 2px 6px rgba(45, 95, 85, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
-  transition: all 0.2s ease;
-}
-
-html[data-theme="apple"]:not(.dark) .input:focus,
-html[data-theme="apple"]:not(.dark) .date-picker-trigger:focus,
-html[data-theme="apple"]:not(.dark) .select-trigger:focus {
-  background: #ffffff !important;
-  border-color: var(--lg-primary) !important;
-  box-shadow: 0 0 0 3px rgba(74, 158, 142, 0.22) !important;
-  outline: none !important;
-}
-
-/* 按钮系统 */
-html[data-theme="apple"] .btn-primary {
-  background: var(--lg-primary) !important;
-  background-image: none !important;
-  color: #fff !important;
-  border-radius: 12px !important;
-  box-shadow: 0 6px 18px rgba(74, 158, 142, 0.30) !important;
-  font-weight: 500 !important;
-}
-
-html[data-theme="apple"] .btn-primary:hover {
-  background: var(--lg-primary-hover) !important;
-  transform: translateY(-1px);
-}
-
-html[data-theme="apple"] .btn-secondary,
-html[data-theme="apple"] button.btn-secondary {
-  border-radius: 12px !important;
-  border: 1px solid var(--lg-border) !important;
-  background: var(--lg-tile) !important;
-  color: var(--lg-text) !important;
-  box-shadow: 0 2px 6px rgba(45, 95, 85, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
-}
-
-html[data-theme="apple"] .btn-secondary:hover {
-  background: #ffffff !important;
-  transform: translateY(-1px);
-}
-
-/* ==========================================================================
-   图表 Tab 胶囊切换器 (模型分布 / 用户消费榜)
-   ========================================================================== */
-html[data-theme="apple"] [class*="inline-flex rounded-lg border"],
-html[data-theme="apple"] [class*="inline-flex rounded-lg bg-gray-100"] {
-  background: rgba(255, 255, 255, 0.35) !important;
-  border: 1px solid var(--lg-border-soft) !important;
-  border-radius: 12px !important;
-  padding: 3px !important;
-}
-
-html[data-theme="apple"] [class*="inline-flex rounded-lg"] button[class*="bg-white"] {
-  background: #ffffff !important;
-  color: var(--lg-text) !important;
-  box-shadow: 0 2px 6px rgba(45, 95, 85, 0.06) !important;
-  border-radius: 9px !important;
-  font-weight: 600 !important;
-}
-
-/* ==========================================================================
-   下拉菜单与弹窗层级管理 (彻底解决被下方卡片遮挡的问题)
-   ========================================================================== */
+/* 解决下拉菜单被遮挡 */
+html[data-glass] .card:has([class*="dropdown"]),
+html[data-glass] .card:has(.dropdown),
+html[data-glass] .card:has([role="listbox"]),
+html[data-glass] .card:has(.date-picker-dropdown),
+html[data-glass] .card:focus-within,
 html[data-theme="apple"] .card:has([class*="dropdown"]),
 html[data-theme="apple"] .card:has(.dropdown),
 html[data-theme="apple"] .card:has([role="listbox"]),
@@ -466,8 +158,14 @@ html[data-theme="apple"] .card:focus-within {
   position: relative !important;
 }
 
+html[data-glass] .dropdown,
+html[data-glass] [class*="dropdown-menu them"],
+html[data-glass] .date-picker-dropdown,
+html[data-glass] .select-dropdown,
+html[data-glass] .select-dropdown-portal,
+html[data-glass] [role="listbox"],
 html[data-theme="apple"] .dropdown,
-html[data-theme="apple"] [class*="dropdown-menu"],
+html[data-theme="apple"] [class*="dropdown-menu them"],
 html[data-theme="apple"] .date-picker-dropdown,
 html[data-theme="apple"] .select-dropdown,
 html[data-theme="apple"] .select-dropdown-portal,
@@ -475,73 +173,17 @@ html[data-theme="apple"] [role="listbox"] {
   z-index: 99999 !important;
   position: absolute;
   border-radius: 16px !important;
-  background: rgba(255, 255, 255, 0.90) !important;
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
-  box-shadow: 0 16px 45px rgba(45, 95, 85, 0.12), inset 0 1px 0 #ffffff !important;
   backdrop-filter: blur(28px) !important;
   -webkit-backdrop-filter: blur(28px) !important;
 }
 
-html[data-theme="apple"].dark .dropdown,
-html[data-theme="apple"].dark [class*="dropdown-menu"],
-html[data-theme="apple"].dark .date-picker-dropdown,
-html[data-theme="apple"].dark .select-dropdown,
-html[data-theme="apple"].dark [role="listbox"] {
-  background: rgba(26, 40, 56, 0.90) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
-}
-
-/* ==========================================================================
-   模态框与对话框 (Modals & Dialogs)
-   ========================================================================== */
-html[data-theme="apple"] .modal-overlay,
-html[data-theme="apple"] .dialog-overlay {
-  background: rgba(26, 40, 56, 0.40) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 50 !important;
-}
-
-html[data-theme="apple"] .modal-content,
-html[data-theme="apple"] .dialog-container {
-  border-radius: 20px !important;
-  border: 1px solid var(--lg-border) !important;
-  background: rgba(255, 255, 255, 0.88) !important;
-  box-shadow: var(--lg-shadow-lg) !important;
-  backdrop-filter: blur(28px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
-}
-
-html[data-theme="apple"].dark .modal-content,
-html[data-theme="apple"].dark .dialog-container {
-  background: rgba(26, 40, 56, 0.88) !important;
-}
-
-/* ==========================================================================
-   状态小徽章与胶囊 (Badges)
-   ========================================================================== */
-html[data-theme="apple"] .badge {
-  border-radius: 8px !important;
-  font-weight: 500 !important;
-}
-
-html[data-theme="apple"] .badge-primary {
-  background: rgba(74, 158, 142, 0.15) !important;
-  color: var(--lg-primary) !important;
-}
-
-html[data-theme="apple"] .badge-success {
-  background: rgba(16, 185, 129, 0.15) !important;
-  color: #059669 !important;
-}
-
-html[data-theme="apple"] .badge-warning {
-  background: rgba(245, 158, 11, 0.15) !important;
-  color: #d97706 !important;
-}
-
-html[data-theme="apple"] .badge-danger {
-  background: rgba(239, 68, 68, 0.15) !important;
-  color: #dc2626 !important;
+/* 解决表头生硬突兀死白条：透明底色，发丝微分割线 */
+html[data-glass] .table th,
+html[data-glass] table thead,
+html[data-glass] table thead th,
+html[data-theme="apple"] .table th,
+html[data-theme="apple"] table thead,
+html[data-theme="apple"] table thead th {
+  background: transparent !important;
+  border-bottom: 1px solid var(--ui-border-soft) !important;
 }

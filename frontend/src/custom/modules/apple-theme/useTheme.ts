@@ -48,6 +48,11 @@ function applyTheme() {
 
   // Apply theme style
   html.setAttribute('data-theme', themeStyle.value)
+  if (themeStyle.value === 'apple') {
+    html.dataset.glass = 'true'
+  } else {
+    delete html.dataset.glass
+  }
 
   console.log('[useTheme] DOM updated:', {
     'data-theme': html.getAttribute('data-theme'),
