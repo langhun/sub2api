@@ -479,3 +479,112 @@ html[data-glass] .dialog-container {
   backdrop-filter: blur(28px) !important;
   -webkit-backdrop-filter: blur(28px) !important;
 }
+
+/* ==========================================================================
+   帮助文档 (/docs) 与全站 Markdown 代码块 (Terminal Liquid Glass) 彻底除黑
+   ========================================================================== */
+html[data-theme="apple"] .docs-shell,
+html[data-glass] .docs-shell {
+  background: var(--ui-surface) !important;
+  border-radius: 16px !important;
+  border: none !important;
+  box-shadow: var(--ui-shadow) !important;
+  backdrop-filter: blur(var(--ui-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--ui-blur)) !important;
+}
+
+html[data-theme="apple"] .docs-header,
+html[data-glass] .docs-header,
+html[data-theme="apple"] .docs-page-header,
+html[data-glass] .docs-page-header {
+  background: transparent !important;
+  border-bottom: 1px solid var(--ui-border-soft) !important;
+}
+
+html[data-theme="apple"] .docs-navigation,
+html[data-glass] .docs-navigation,
+html[data-theme="apple"] .docs-toc,
+html[data-glass] .docs-toc {
+  background: transparent !important;
+  border-color: var(--ui-border-soft) !important;
+}
+
+/* 激活的文档章节链接：微晶水玻胶囊 */
+html[data-theme="apple"]:not(.dark) .docs-topic-link-active,
+html[data-glass]:not(.dark) .docs-topic-link-active {
+  background: rgba(255, 255, 255, 0.65) !important;
+  color: #0f172a !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(19, 45, 83, 0.05) !important;
+}
+
+html[data-theme="apple"].dark .docs-topic-link-active,
+html[data-glass].dark .docs-topic-link-active {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 彻底根除代码块的黑炭死色！全站 pre / code 全面重塑为 Apple Liquid Glass 终端 */
+html[data-theme="apple"]:not(.dark) pre,
+html[data-glass]:not(.dark) pre,
+html[data-theme="apple"]:not(.dark) .docs-markdown pre,
+html[data-glass]:not(.dark) .docs-markdown pre {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.70) !important;
+  box-shadow: inset 0 1px 1px #ffffff, 0 4px 16px rgba(19, 45, 83, 0.05) !important;
+  color: #0f172a !important;
+  border-radius: 12px !important;
+}
+
+html[data-theme="apple"].dark pre,
+html[data-glass].dark pre,
+html[data-theme="apple"].dark .docs-markdown pre,
+html[data-glass].dark .docs-markdown pre {
+  background: rgba(20, 30, 44, 0.50) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  color: #f1f5f9 !important;
+  border-radius: 12px !important;
+}
+
+/* 复制按钮毛玻璃化 */
+html[data-theme="apple"]:not(.dark) .docs-copy-button,
+html[data-glass]:not(.dark) .docs-copy-button {
+  background: rgba(255, 255, 255, 0.80) !important;
+  border: 1px solid rgba(255, 255, 255, 0.90) !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 6px !important;
+}
+
+html[data-theme="apple"].dark .docs-copy-button,
+html[data-glass].dark .docs-copy-button {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+  border-radius: 6px !important;
+}
+
+/* 行内代码 */
+html[data-theme="apple"]:not(.dark) code:not(pre code),
+html[data-glass]:not(.dark) code:not(pre code) {
+  background: rgba(255, 255, 255, 0.55) !important;
+  color: #0f172a !important;
+  border-radius: 6px !important;
+}
+
+html[data-theme="apple"].dark code:not(pre code),
+html[data-glass].dark code:not(pre code) {
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #f8fafc !important;
+  border-radius: 6px !important;
+}
