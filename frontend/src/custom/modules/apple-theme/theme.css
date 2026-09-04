@@ -1,320 +1,102 @@
-/* Apple Theme CSS Variables - 基于 DaiGua 深色玻璃设计 */
+/* Apple Theme - 原始 c3api 青绿色设计 */
 
 :root[data-theme='apple'] {
-  /* Glass effect settings */
-  --glass-blur: 20px;
-  --glass-frost: 1;
+  /* Glass settings */
+  --glass-blur: 14px;
 
-  /* Light mode colors - 浅蓝灰色调 */
-  --apple-background: #E8EFF7;
-  --apple-foreground: #1a1d2e;
-  --apple-card: rgba(255, 255, 255, 0.25);
-  --apple-card-foreground: #1a1d2e;
-  --apple-primary: #3b82f6;
+  /* Light - 青绿色 */
+  --apple-background: #F4F8FD;
+  --apple-foreground: #1d1d1f;
+  --apple-card: rgba(255, 255, 255, 0.42);
+  --apple-card-foreground: #1d1d1f;
+  --apple-primary: #0071e3;
   --apple-primary-foreground: #ffffff;
-  --apple-border: rgba(59, 130, 246, 0.15);
-  --apple-input: #64748b;
-  --apple-ring: #3b82f6;
-  --apple-radius: 0.75rem;
+  --apple-border: rgba(19, 45, 83, 0.26);
+  --apple-input: #86868b;
+  --apple-ring: #0071e3;
+  --apple-radius: 0.625rem;
 }
 
 :root[data-theme='apple'].dark {
-  /* Dark mode colors - 深蓝黑色调 */
-  --apple-background: #0a0e1a;
-  --apple-foreground: #e2e8f0;
-  --apple-card: rgba(15, 23, 42, 0.4);
-  --apple-card-foreground: #e2e8f0;
-  --apple-primary: #60a5fa;
-  --apple-primary-foreground: #0f172a;
-  --apple-border: rgba(96, 165, 250, 0.2);
-  --apple-input: #475569;
-  --apple-ring: #60a5fa;
-}
-
-/* Arctic Skyline Theme - 北极天际（深邃蓝色） */
-:root[data-theme='arctic'] {
-  --glass-blur: 20px;
-  --apple-background: #e0f2fe;
-  --apple-foreground: #0c4a6e;
-  --apple-card: rgba(255, 255, 255, 0.3);
-  --apple-card-foreground: #0c4a6e;
-  --apple-primary: #0284c7;
+  /* Dark - 深青绿 */
+  --apple-background: #0C121B;
+  --apple-foreground: #f5f5f7;
+  --apple-card: rgba(34, 38, 47, 0.42);
+  --apple-card-foreground: #f5f5f7;
+  --apple-primary: #2997ff;
   --apple-primary-foreground: #ffffff;
-  --apple-border: rgba(2, 132, 199, 0.15);
-  --apple-input: #0369a1;
-  --apple-ring: #0284c7;
-  --apple-radius: 0.75rem;
+  --apple-border: rgba(148, 180, 220, 0.32);
+  --apple-input: #555560;
+  --apple-ring: #2997ff;
 }
 
-:root[data-theme='arctic'].dark {
-  --apple-background: #0f172a;
-  --apple-foreground: #e0f2fe;
-  --apple-card: rgba(30, 58, 138, 0.3);
-  --apple-card-foreground: #e0f2fe;
-  --apple-primary: #60a5fa;
-  --apple-primary-foreground: #0f172a;
-  --apple-border: rgba(96, 165, 250, 0.2);
-  --apple-input: #1e40af;
-  --apple-ring: #60a5fa;
-}
-
-/* Frosted Lilac Theme - 霜冻薰衣草（紫色系） */
-:root[data-theme='lilac'] {
-  --glass-blur: 20px;
-  --apple-background: #f5f3ff;
-  --apple-foreground: #4c1d95;
-  --apple-card: rgba(255, 255, 255, 0.3);
-  --apple-card-foreground: #4c1d95;
-  --apple-primary: #7c3aed;
-  --apple-primary-foreground: #ffffff;
-  --apple-border: rgba(124, 58, 237, 0.15);
-  --apple-input: #6d28d9;
-  --apple-ring: #7c3aed;
-  --apple-radius: 0.75rem;
-}
-
-:root[data-theme='lilac'].dark {
-  --apple-background: #2d1b45;
-  --apple-foreground: #f5f3ff;
-  --apple-card: rgba(91, 42, 134, 0.3);
-  --apple-card-foreground: #f5f3ff;
-  --apple-primary: #c4b5fd;
-  --apple-primary-foreground: #2d1b45;
-  --apple-border: rgba(196, 181, 253, 0.2);
-  --apple-input: #5b2a86;
-  --apple-ring: #c4b5fd;
-}
-
-/* Ocean Glass Theme - 海洋玻璃（青绿色） */
-:root[data-theme='ocean'] {
-  --glass-blur: 20px;
-  --apple-background: #e6fffb;
-  --apple-foreground: #064e3b;
-  --apple-card: rgba(255, 255, 255, 0.3);
-  --apple-card-foreground: #064e3b;
-  --apple-primary: #14b8a6;
-  --apple-primary-foreground: #ffffff;
-  --apple-border: rgba(20, 184, 166, 0.15);
-  --apple-input: #0f766e;
-  --apple-ring: #14b8a6;
-  --apple-radius: 0.75rem;
-}
-
-:root[data-theme='ocean'].dark {
-  --apple-background: #0b1320;
-  --apple-foreground: #e6fffb;
-  --apple-card: rgba(14, 165, 165, 0.2);
-  --apple-card-foreground: #e6fffb;
-  --apple-primary: #5eead4;
-  --apple-primary-foreground: #0b1320;
-  --apple-border: rgba(94, 234, 212, 0.2);
-  --apple-input: #0ea5a5;
-  --apple-ring: #5eead4;
-}
-
-/* Warm Gradient Theme - 温暖渐变（橙粉色） */
-:root[data-theme='warm'] {
-  --glass-blur: 20px;
-  --apple-background: #fff7ed;
-  --apple-foreground: #7c2d12;
-  --apple-card: rgba(255, 255, 255, 0.3);
-  --apple-card-foreground: #7c2d12;
-  --apple-primary: #f97316;
-  --apple-primary-foreground: #ffffff;
-  --apple-border: rgba(249, 115, 22, 0.15);
-  --apple-input: #ea580c;
-  --apple-ring: #f97316;
-  --apple-radius: 0.75rem;
-}
-
-:root[data-theme='warm'].dark {
-  --apple-background: #1a0f0a;
-  --apple-foreground: #fff7ed;
-  --apple-card: rgba(124, 45, 18, 0.3);
-  --apple-card-foreground: #fff7ed;
-  --apple-primary: #fb923c;
-  --apple-primary-foreground: #1a0f0a;
-  --apple-border: rgba(251, 146, 60, 0.2);
-  --apple-input: #c2410c;
-  --apple-ring: #fb923c;
-}
-
-/* Space Theme - 太空科幻（深邃低对比度）*/
-:root[data-theme='space'] {
-  --glass-blur: 20px;
-  /* 浅色模式：柔和的银灰色 */
-  --apple-background: #0E1116;
-  --apple-foreground: #C3CAD4;
-  --apple-card: rgba(42, 47, 56, 0.25);
-  --apple-card-foreground: #C3CAD4;
-  --apple-primary: #39C6D6;
-  --apple-primary-foreground: #06101F;
-  --apple-border: rgba(57, 198, 214, 0.15);
-  --apple-input: #6D7786;
-  --apple-ring: #39C6D6;
-  --apple-radius: 0.75rem;
-}
-
-:root[data-theme='space'].dark {
-  /* 深色模式：深邃的太空黑 */
-  --apple-background: #0B1026;
-  --apple-foreground: #8AA4FF;
-  --apple-card: rgba(24, 32, 74, 0.25);
-  --apple-card-foreground: #8AA4FF;
-  --apple-primary: #8AA4FF;
-  --apple-primary-foreground: #0B1026;
-  --apple-border: rgba(138, 164, 255, 0.12);
-  --apple-input: #2B3A73;
-  --apple-ring: #8AA4FF;
-}
-
-/* Apply Theme Variables - 所有玻璃主题 */
-:root[data-theme='apple'] body,
-:root[data-theme='arctic'] body,
-:root[data-theme='lilac'] body,
-:root[data-theme='ocean'] body,
-:root[data-theme='warm'] body,
-:root[data-theme='space'] body {
-  background: var(--apple-background) !important;
+/* Apply theme */
+:root[data-theme='apple'] body {
+  background: var(--apple-background);
   color: var(--apple-foreground);
 }
 
-/* Glass effect backgrounds - 更透明更模糊 */
+/* Glass cards */
 :root[data-theme='apple'] .card,
-:root[data-theme='arctic'] .card,
-:root[data-theme='lilac'] .card,
-:root[data-theme='ocean'] .card,
-:root[data-theme='warm'] .card,
-:root[data-theme='apple'] .glass-card,
-:root[data-theme='arctic'] .glass-card,
-:root[data-theme='lilac'] .glass-card,
-:root[data-theme='ocean'] .glass-card,
-:root[data-theme='warm'] .glass-card,
 :root[data-theme='apple'] [class*='rounded'],
-:root[data-theme='arctic'] [class*='rounded'],
-:root[data-theme='lilac'] [class*='rounded'],
-:root[data-theme='ocean'] [class*='rounded'],
-:root[data-theme='warm'] [class*='rounded'],
 :root[data-theme='apple'] [class*='bg-white'],
-:root[data-theme='arctic'] [class*='bg-white'],
-:root[data-theme='lilac'] [class*='bg-white'],
-:root[data-theme='ocean'] [class*='bg-white'],
-:root[data-theme='warm'] [class*='bg-white'],
-:root[data-theme='apple'] [class*='bg-gray'],
-:root[data-theme='arctic'] [class*='bg-gray'],
-:root[data-theme='lilac'] [class*='bg-gray'],
-:root[data-theme='ocean'] [class*='bg-gray'],
-:root[data-theme='warm'] [class*='bg-gray'] {
+:root[data-theme='apple'] [class*='bg-gray'] {
   background: var(--apple-card) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
   border: 1px solid var(--apple-border) !important;
 }
 
-/* 深色模式特殊处理 */
-:root[data-theme='apple'].dark .bg-white,
-:root[data-theme='arctic'].dark .bg-white,
-:root[data-theme='lilac'].dark .bg-white,
-:root[data-theme='ocean'].dark .bg-white,
-:root[data-theme='warm'].dark .bg-white,
-:root[data-theme='apple'].dark [class*='dark:bg-dark'],
-:root[data-theme='arctic'].dark [class*='dark:bg-dark'],
-:root[data-theme='lilac'].dark [class*='dark:bg-dark'],
-:root[data-theme='ocean'].dark [class*='dark:bg-dark'],
-:root[data-theme='warm'].dark [class*='dark:bg-dark'],
+:root[data-theme='apple'].dark [class*='bg-white'],
 :root[data-theme='apple'].dark [class*='bg-gray'],
-:root[data-theme='arctic'].dark [class*='bg-gray'],
-:root[data-theme='lilac'].dark [class*='bg-gray'],
-:root[data-theme='ocean'].dark [class*='bg-gray'],
-:root[data-theme='warm'].dark [class*='bg-gray'] {
+:root[data-theme='apple'].dark [class*='dark:bg-dark'] {
   background: var(--apple-card) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid var(--apple-border) !important;
 }
 
-/* 侧边栏玻璃效果 */
-:root[data-theme='apple'] .sidebar,
-:root[data-theme='arctic'] .sidebar,
-:root[data-theme='lilac'] .sidebar,
-:root[data-theme='ocean'] .sidebar,
-:root[data-theme='warm'] .sidebar,
-:root[data-theme='apple'] aside,
-:root[data-theme='arctic'] aside,
-:root[data-theme='lilac'] aside,
-:root[data-theme='ocean'] aside,
-:root[data-theme='warm'] aside {
+/* Sidebar */
+:root[data-theme='apple'] aside {
   background: var(--apple-card) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
   border-right: 1px solid var(--apple-border) !important;
 }
 
-/* 顶部导航栏玻璃效果 */
-:root[data-theme='apple'] header,
-:root[data-theme='arctic'] header,
-:root[data-theme='lilac'] header,
-:root[data-theme='ocean'] header,
-:root[data-theme='warm'] header {
+/* Header */
+:root[data-theme='apple'] header {
   background: var(--apple-card) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
   border-bottom: 1px solid var(--apple-border) !important;
 }
 
-/* 下拉菜单玻璃效果 - 确保在最顶层 */
+/* Dropdown menu */
 :root[data-theme='apple'] [class*='dropdown'],
-:root[data-theme='arctic'] [class*='dropdown'],
-:root[data-theme='lilac'] [class*='dropdown'],
-:root[data-theme='ocean'] [class*='dropdown'],
-:root[data-theme='warm'] [class*='dropdown'],
-:root[data-theme='apple'] [role='menu'],
-:root[data-theme='arctic'] [role='menu'],
-:root[data-theme='lilac'] [role='menu'],
-:root[data-theme='ocean'] [role='menu'],
-:root[data-theme='warm'] [role='menu'],
-:root[data-theme='apple'] .menu,
-:root[data-theme='arctic'] .menu,
-:root[data-theme='lilac'] .menu,
-:root[data-theme='ocean'] .menu,
-:root[data-theme='warm'] .menu {
+:root[data-theme='apple'] [role='menu'] {
   background: var(--apple-card) !important;
-  backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
   border: 1px solid var(--apple-border) !important;
   z-index: 9999 !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Fluid ambient: WebGL 流体由 FluidCanvas 渲染 */
-
+/* Fluid background */
 html[data-theme='apple'] [data-glass-ambient] {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  overflow: hidden;
-  /* 浅色模式：柔和的蓝灰色渐变 */
   background:
-    radial-gradient(circle at 30% 20%, rgba(147, 197, 253, 0.15), transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(191, 219, 254, 0.12), transparent 50%),
-    linear-gradient(135deg,
-      rgba(224, 242, 254, 0.3) 0%,
-      rgba(186, 230, 253, 0.2) 50%,
-      rgba(147, 197, 253, 0.15) 100%
-    );
+    radial-gradient(760px 420px at 50% -8%, rgba(160, 200, 255, 0.26), transparent 70%),
+    linear-gradient(180deg, rgba(156, 193, 231, 0.22) 0%, rgba(156, 193, 231, 0) 38%),
+    radial-gradient(900px 420px at 50% 108%, rgba(156, 193, 231, 0.14), transparent 70%);
 }
 
 html[data-theme='apple'].dark [data-glass-ambient] {
-  /* 深色模式：深邃的蓝黑色渐变 */
   background:
-    radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.08), transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(37, 99, 235, 0.06), transparent 50%),
-    linear-gradient(135deg,
-      rgba(15, 23, 42, 0.95) 0%,
-      rgba(30, 41, 59, 0.9) 50%,
-      rgba(15, 23, 42, 0.95) 100%
-    );
+    radial-gradient(760px 420px at 50% -8%, rgba(110, 165, 255, 0.13), transparent 70%),
+    linear-gradient(180deg, rgba(94, 143, 224, 0.13) 0%, rgba(94, 143, 224, 0) 46%),
+    radial-gradient(900px 420px at 50% 108%, rgba(94, 143, 224, 0.09), transparent 70%);
 }
 
 html[data-theme='apple'] [data-glass-fluid-canvas] {
@@ -322,48 +104,21 @@ html[data-theme='apple'] [data-glass-fluid-canvas] {
   inset: 0;
   width: 100%;
   height: 100%;
-  display: block;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   html[data-theme='apple'] [data-glass-ambient] {
-    animation: glass-breathe 9s ease-in-out infinite alternate;
+    animation: breathe 9s ease-in-out infinite alternate;
   }
 }
 
-@keyframes glass-breathe {
+@keyframes breathe {
   from { opacity: 0.86; }
   to { opacity: 1; }
 }
 
-/* Override primary colors when Apple theme is active */
-:root[data-theme='apple'] {
-  --primary-50: rgba(0, 113, 227, 0.05);
-  --primary-100: rgba(0, 113, 227, 0.1);
-  --primary-500: var(--apple-primary);
-  --primary-600: var(--apple-primary);
-  --primary-700: var(--apple-primary);
-}
-
-/* Apply to buttons */
+/* Primary button */
 :root[data-theme='apple'] .btn-primary {
   background: var(--apple-primary);
   color: var(--apple-primary-foreground);
-  box-shadow: 0 4px 6px -1px rgba(0, 113, 227, 0.25);
-}
-
-:root[data-theme='apple'].dark .btn-primary {
-  background: var(--apple-primary);
-  box-shadow: 0 4px 6px -1px rgba(41, 151, 255, 0.25);
-}
-
-/* Input fields with Apple styling */
-:root[data-theme='apple'] .input {
-  border-radius: var(--apple-radius);
-  border-color: var(--apple-border);
-}
-
-:root[data-theme='apple'] .input:focus {
-  border-color: var(--apple-primary);
-  ring-color: var(--apple-ring);
 }
