@@ -100,6 +100,7 @@ describe('custom overlay registry', () => {
       'brand-home',
       'game-hall',
       'activity-entry-switches',
+      'apple-theme',
       'activity',
       'recharge-promotions',
       'registration-protection',

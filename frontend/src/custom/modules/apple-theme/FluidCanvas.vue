@@ -12,6 +12,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { attachFluidShader, type FluidParams } from './fluidShader'
 import { useTheme } from './useTheme'
 
+// 与 api.daigua.icu 原版完全一致的流体参数配置
 const LIGHT_PARAMS: FluidParams = {
   mouseRadius: 0.22,
   mouseStrength: 1.1,
@@ -30,9 +31,9 @@ const LIGHT_PARAMS: FluidParams = {
   shapeScale: 10,
   offsetX: 0,
   offsetY: 65,
-  color1: '#4A9E8E',  // 青绿色
-  color2: '#7EC8BB',  // 浅青绿
-  color3: '#D0EBE6',  // 极淡青绿
+  color1: '#4A9E8E',
+  color2: '#7EC8BB',
+  color3: '#E0F2EF',
 }
 
 const DARK_PARAMS: FluidParams = {
@@ -42,7 +43,7 @@ const DARK_PARAMS: FluidParams = {
   distortBoost: 1.35,
   noiseBoost: 0,
   swirlBoost: 0.45,
-  speed: 16,
+  speed: 18,
   distortion: 22,
   swirl: 14,
   swirlIterations: 8,
@@ -53,9 +54,9 @@ const DARK_PARAMS: FluidParams = {
   shapeScale: 10,
   offsetX: 0,
   offsetY: 65,
-  color1: '#2d4a6f',  // 深蓝
-  color2: '#3d5a85',  // 中蓝
-  color3: '#1a2838',  // 深蓝黑
+  color1: '#1E3A5F',
+  color2: '#2A4A7A',
+  color3: '#0C121B',
 }
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -64,23 +65,16 @@ let cleanup: (() => void) | null = null
 
 onMounted(() => {
   const canvas = canvasRef.value
-  if (!canvas) {
-    console.error('[FluidCanvas] Canvas element not found')
-    return
-  }
-
-  console.log('[FluidCanvas] Initializing fluid shader...', effectiveMode.value)
+  if (!canvas) return
 
   const initial = effectiveMode.value === 'dark' ? DARK_PARAMS : LIGHT_PARAMS
   const handle = attachFluidShader(canvas, initial)
 
   const unwatch = watch(effectiveMode, (mode) => {
-    console.log('[FluidCanvas] Theme changed to:', mode)
     handle.setParams(mode === 'dark' ? DARK_PARAMS : LIGHT_PARAMS)
   })
 
   cleanup = () => {
-    console.log('[FluidCanvas] Cleaning up')
     unwatch()
     handle.dispose()
   }
