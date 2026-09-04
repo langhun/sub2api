@@ -6,22 +6,22 @@
 }
 
 /* ==========================================================================
-   液态玻璃核心变量定义 (Light & Dark) - 取自 api.daigua.icu 生产环境
+   液态玻璃核心变量定义 (Light & Dark)
    ========================================================================== */
 :root[data-theme="apple"],
 html[data-theme="apple"]:not(.dark) {
   --ui-bg: #f4f8fd;
-  --ui-surface: rgb(255 255 255 / 42%);
-  --ui-surface-strong: rgb(255 255 255 / 66%);
+  --ui-surface: rgb(255 255 255 / 36%);
+  --ui-surface-strong: rgb(255 255 255 / 55%);
   --ui-text: #1d1d1f;
   --ui-muted: #6e6e73;
   --ui-primary: #0071e3;
   --ui-primary-strong: #0066cc;
-  --ui-border: rgba(19, 45, 83, 0.26);
-  --ui-border-soft: rgba(19, 45, 83, 0.16);
-  --ui-border-render: rgba(19, 45, 83, 0.14);
-  --ui-shadow: inset 0 1px 0 rgb(255 255 255 / 50%), 0 10px 36px rgb(19 45 83 / 16%);
-  --ui-shadow-soft: 0 4px 16px rgba(19, 45, 83, 0.10);
+  --ui-border: rgba(19, 45, 83, 0.22);
+  --ui-border-soft: rgba(19, 45, 83, 0.14);
+  --ui-border-render: rgba(19, 45, 83, 0.12);
+  --ui-shadow: inset 0 1px 0 rgb(255 255 255 / 50%), 0 10px 36px rgb(19 45 83 / 14%);
+  --ui-shadow-soft: 0 4px 16px rgba(19, 45, 83, 0.08);
   --ui-blur: 14px;
   --ui-radius: 14px;
   --ui-radius-sm: 10px;
@@ -93,43 +93,33 @@ html[data-theme="apple"] [data-glass-fluid-canvas] {
 }
 
 /* ==========================================================================
-   液态玻璃卡片 (Liquid Glass Cards & Panels)
+   顶栏 (Header) - 还原图 2 独立悬浮圆角水玻面板
    ========================================================================== */
-html[data-theme="apple"] .card,
-html[data-theme="apple"] .card-glass,
-html[data-theme="apple"] .glass-card,
-html[data-theme="apple"] .stat-card {
-  border-radius: 14px !important;
-  border: 1px solid var(--ui-border-render) !important;
-  background: var(--ui-surface) !important;
-  box-shadow: var(--ui-shadow) !important;
-  backdrop-filter: blur(var(--ui-blur));
-  -webkit-backdrop-filter: blur(var(--ui-blur));
-}
-
-html[data-theme="apple"] .card-header,
-html[data-theme="apple"] .card-body,
-html[data-theme="apple"] .card-footer {
-  border-color: var(--ui-border-soft) !important;
-}
-
-/* 顶栏 (Header) - 平整贴顶液态水玻 */
 html[data-theme="apple"] header.glass,
 html[data-theme="apple"] header {
   position: sticky !important;
-  top: 0 !important;
-  margin: 0 !important;
-  border-radius: 0 !important;
-  border: none !important;
-  border-bottom: 1px solid var(--ui-border-soft) !important;
+  top: 14px !important;
+  margin: 14px 16px 0 16px !important;
+  border-radius: 18px !important;
+  border: 1px solid var(--ui-border-render) !important;
   background: var(--ui-surface) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), var(--ui-shadow) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), var(--ui-shadow) !important;
   backdrop-filter: blur(var(--ui-blur));
   -webkit-backdrop-filter: blur(var(--ui-blur));
   z-index: 30 !important;
+  transition: all 0.2s ease;
 }
 
-/* 侧边栏 (Sidebar) - 液态水玻侧栏 + 纯白高光胶囊激活项 */
+@media (min-width: 1024px) {
+  html[data-theme="apple"] header.glass,
+  html[data-theme="apple"] header {
+    margin: 14px 24px 0 24px !important;
+  }
+}
+
+/* ==========================================================================
+   侧边栏 (Sidebar) - 液态水玻侧栏 + 纯白高光胶囊激活项
+   ========================================================================== */
 html[data-theme="apple"] .sidebar {
   border-right: 1px solid var(--ui-border-render) !important;
   background: var(--ui-surface) !important;
@@ -190,7 +180,115 @@ html[data-theme="apple"] .sidebar-section-title {
   color: var(--ui-muted);
 }
 
-/* 按钮规范 */
+/* ==========================================================================
+   液态玻璃卡片 (Liquid Glass Cards & Panels)
+   ========================================================================== */
+html[data-theme="apple"] .card,
+html[data-theme="apple"] .card-glass,
+html[data-theme="apple"] .glass-card,
+html[data-theme="apple"] .stat-card {
+  border-radius: 14px !important;
+  border: 1px solid var(--ui-border-render) !important;
+  background: var(--ui-surface) !important;
+  box-shadow: var(--ui-shadow) !important;
+  backdrop-filter: blur(var(--ui-blur));
+  -webkit-backdrop-filter: blur(var(--ui-blur));
+}
+
+html[data-theme="apple"] .card-header,
+html[data-theme="apple"] .card-body,
+html[data-theme="apple"] .card-footer {
+  border-color: var(--ui-border-soft) !important;
+}
+
+/* 包含下拉菜单的卡片提高层叠上下文，避免被下层卡片遮挡 */
+html[data-theme="apple"] .card:has([class*="dropdown"]),
+html[data-theme="apple"] .card:has(.dropdown),
+html[data-theme="apple"] .card:has([role="listbox"]),
+html[data-theme="apple"] .card:has(.date-picker-dropdown),
+html[data-theme="apple"] .card:focus-within {
+  z-index: 25 !important;
+  position: relative !important;
+}
+
+/* ==========================================================================
+   下拉菜单、弹窗与层级修复 (解决“下拉被挡住”)
+   ========================================================================== */
+html[data-theme="apple"] .dropdown,
+html[data-theme="apple"] [class*="dropdown-menu"],
+html[data-theme="apple"] .date-picker-dropdown,
+html[data-theme="apple"] .select-dropdown,
+html[data-theme="apple"] .select-dropdown-portal,
+html[data-theme="apple"] [role="listbox"] {
+  z-index: 99999 !important;
+  position: absolute;
+  border-radius: 14px !important;
+  background: var(--ui-surface-strong) !important;
+  border: 1px solid var(--ui-border-render) !important;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+}
+
+html[data-theme="apple"] .modal-content,
+html[data-theme="apple"] .dialog-container,
+html[data-theme="apple"] .toast {
+  border-radius: 14px !important;
+  background: var(--ui-surface-strong) !important;
+  border: 1px solid var(--ui-border-render) !important;
+  box-shadow: var(--ui-shadow) !important;
+  backdrop-filter: blur(var(--ui-blur));
+  -webkit-backdrop-filter: blur(var(--ui-blur));
+  z-index: 99999 !important;
+}
+
+/* ==========================================================================
+   表格 (Table) 优化：彻底解决“中间太白、有点晃眼”
+   ========================================================================== */
+html[data-theme="apple"] .table-container,
+html[data-theme="apple"] .table-wrapper,
+html[data-theme="apple"] .table,
+html[data-theme="apple"] table {
+  border-color: var(--ui-border-render) !important;
+  background: transparent !important;
+}
+
+html[data-theme="apple"] .table th,
+html[data-theme="apple"] table thead,
+html[data-theme="apple"] table thead th {
+  background: rgba(255, 255, 255, 0.28) !important;
+  border-color: var(--ui-border-soft) !important;
+  color: var(--ui-muted);
+  font-weight: 500;
+}
+
+html[data-theme="apple"].dark .table th,
+html[data-theme="apple"].dark table thead th {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 数据行保持高透明度，不叠多层白，消除晃眼感 */
+html[data-theme="apple"] .table tbody tr,
+html[data-theme="apple"] table tbody tr,
+html[data-theme="apple"] .table td,
+html[data-theme="apple"] table tbody td {
+  background: transparent !important;
+  border-color: var(--ui-border-soft) !important;
+}
+
+html[data-theme="apple"] .table tbody tr:hover,
+html[data-theme="apple"] table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+}
+
+html[data-theme="apple"].dark .table tbody tr:hover,
+html[data-theme="apple"].dark table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* ==========================================================================
+   按钮、输入框与选择器
+   ========================================================================== */
 html[data-theme="apple"] .btn {
   border-radius: 10px !important;
   box-shadow: none;
@@ -213,7 +311,6 @@ html[data-theme="apple"] .btn-ghost {
   border-color: var(--ui-border-render) !important;
 }
 
-/* 输入框与选择器 */
 html[data-theme="apple"] .input,
 html[data-theme="apple"] .select,
 html[data-theme="apple"] select,
@@ -227,64 +324,20 @@ html[data-theme="apple"] .select-trigger {
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.24) !important;
 }
 
-/* 下拉菜单、弹窗与 Toast */
-html[data-theme="apple"] .dropdown,
-html[data-theme="apple"] .modal-content,
-html[data-theme="apple"] .dialog-container,
-html[data-theme="apple"] .toast,
-html[data-theme="apple"] .date-picker-dropdown,
-html[data-theme="apple"] .select-dropdown,
-html[data-theme="apple"] .select-dropdown-portal,
-html[data-theme="apple"] [role="listbox"] {
-  border-radius: 14px !important;
-  background: var(--ui-surface-strong) !important;
-  border: 1px solid var(--ui-border-render) !important;
-  box-shadow: var(--ui-shadow) !important;
-  backdrop-filter: blur(var(--ui-blur));
-  -webkit-backdrop-filter: blur(var(--ui-blur));
-}
-
-/* 表格 (Table) */
-html[data-theme="apple"] .table-container,
-html[data-theme="apple"] .table-wrapper,
-html[data-theme="apple"] .table,
-html[data-theme="apple"] table {
-  border-color: var(--ui-border-render) !important;
-}
-
-html[data-theme="apple"] .table th,
-html[data-theme="apple"] table thead,
-html[data-theme="apple"] table thead th {
-  background: var(--ui-surface) !important;
-  border-color: var(--ui-border-soft) !important;
-  color: var(--ui-muted);
-  font-weight: 500;
-}
-
-html[data-theme="apple"] .table td,
-html[data-theme="apple"] table tbody td {
-  border-color: var(--ui-border-soft) !important;
-}
-
-html[data-theme="apple"] .table tbody tr:hover,
-html[data-theme="apple"] table tbody tr:hover {
-  background: color-mix(in srgb, var(--ui-primary) 6%, transparent) !important;
-}
-
 /* ==========================================================================
-   将页面自带的实白/实灰背景精准映射为液态玻璃 - 100% 还原图 1
+   将页面自带的实白/实灰背景精准映射为温和透光玻璃 - 杜绝大面积死白
    ========================================================================== */
-html[data-theme="apple"] [class~="bg-white"],
-html[data-theme="apple"] [class~="bg-white/90"],
-html[data-theme="apple"] [class~="bg-white/80"],
-html[data-theme="apple"] [class~="bg-white/70"],
-html[data-theme="apple"] [class~="bg-white/60"] {
+html[data-theme="apple"] [class~="bg-white"]:not(tr):not(td):not(th),
+html[data-theme="apple"] [class~="bg-white/90"]:not(tr):not(td):not(th),
+html[data-theme="apple"] [class~="bg-white/80"]:not(tr):not(td):not(th),
+html[data-theme="apple"] [class~="bg-white/70"]:not(tr):not(td):not(th),
+html[data-theme="apple"] [class~="bg-white/60"]:not(tr):not(td):not(th) {
   background-color: var(--ui-surface-strong) !important;
 }
 
 html[data-theme="apple"] [class~="bg-gray-50"],
 html[data-theme="apple"] [class~="bg-gray-100"] {
-  background-color: var(--ui-bg) !important;
+  background-color: transparent !important;
 }
 
 html[data-theme="apple"] [class~="bg-gray-50/80"],

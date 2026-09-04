@@ -51,9 +51,6 @@
         <!-- Language Switcher -->
         <LocaleSwitcher />
 
-        <!-- Theme Switcher -->
-        <ThemeSwitcher />
-
         <!-- Subscription Progress (for users with active subscriptions) -->
         <SubscriptionProgressMini v-if="user" />
 
@@ -276,7 +273,6 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { customHeaderActions } from '@/custom/registry'
 import { customSupportContactEntries } from '@/custom/registry'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
-import ThemeSwitcher from '@/custom/modules/apple-theme/ThemeSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
