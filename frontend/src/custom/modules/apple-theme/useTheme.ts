@@ -33,6 +33,12 @@ function applyTheme() {
   const html = document.documentElement
   const mode = effectiveMode.value
 
+  console.log('[useTheme] Applying theme:', {
+    themeMode: themeMode.value,
+    themeStyle: themeStyle.value,
+    effectiveMode: mode,
+  })
+
   // Apply dark class
   if (mode === 'dark') {
     html.classList.add('dark')
@@ -42,6 +48,11 @@ function applyTheme() {
 
   // Apply theme style
   html.setAttribute('data-theme', themeStyle.value)
+
+  console.log('[useTheme] DOM updated:', {
+    'data-theme': html.getAttribute('data-theme'),
+    'dark class': html.classList.contains('dark'),
+  })
 
   // Save to localStorage
   localStorage.setItem(THEME_MODE_KEY, themeMode.value)

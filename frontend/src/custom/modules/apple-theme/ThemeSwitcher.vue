@@ -101,11 +101,13 @@ function closeDropdown() {
 }
 
 function selectStyle(style: ThemeStyle) {
+  console.log('[ThemeSwitcher] Selecting style:', style)
   setThemeStyle(style)
   closeDropdown()
 }
 
 function selectMode(mode: ThemeMode) {
+  console.log('[ThemeSwitcher] Selecting mode:', mode)
   setThemeMode(mode)
   closeDropdown()
 }
