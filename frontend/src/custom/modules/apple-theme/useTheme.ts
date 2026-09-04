@@ -49,9 +49,9 @@ function applyTheme() {
   // Apply theme style
   html.setAttribute('data-theme', themeStyle.value)
   if (themeStyle.value === 'apple') {
-    html.dataset.glass = 'true'
+    html.setAttribute('data-glass', 'true')
   } else {
-    delete html.dataset.glass
+    html.removeAttribute('data-glass')
   }
 
   console.log('[useTheme] DOM updated:', {
