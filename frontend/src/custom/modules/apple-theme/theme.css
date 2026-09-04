@@ -122,24 +122,107 @@ html[data-theme="apple"] header {
   }
 }
 
-/* 快捷操作项：浅色微浮雕纯白小卡片（一眼即明是选项） */
+/* ==========================================================================
+   Apple 官方子毛玻璃 (Sub-Glass / Concentric Glass) - 快捷操作、选项卡片
+   彻底告别“深色太黑、浅色太白”的死色块，还原纯正透光水晶与白玉毛玻璃
+   ========================================================================== */
+
+/* 浅色模式子毛玻璃选项卡片 */
 html[data-glass]:not(.dark) .card button.group,
 html[data-glass]:not(.dark) .card a.group,
 html[data-theme="apple"]:not(.dark) .card button.group,
 html[data-theme="apple"]:not(.dark) .card a.group {
-  background: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.95) !important;
-  box-shadow: 0 2px 8px rgba(19, 45, 83, 0.05), inset 0 1px 0 #ffffff !important;
+  background: rgba(255, 255, 255, 0.42) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.75), 0 4px 14px rgba(19, 45, 83, 0.05) !important;
   border-radius: 14px !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
+
 html[data-glass]:not(.dark) .card button.group:hover,
 html[data-glass]:not(.dark) .card a.group:hover,
 html[data-theme="apple"]:not(.dark) .card button.group:hover,
 html[data-theme="apple"]:not(.dark) .card a.group:hover {
-  background: #ffffff !important;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(19, 45, 83, 0.10), inset 0 1px 0 #ffffff !important;
+  background: rgba(255, 255, 255, 0.65) !important;
+  border-color: rgba(255, 255, 255, 0.90) !important;
+  box-shadow: inset 0 1px 1px 0 #ffffff, 0 8px 24px rgba(19, 45, 83, 0.08) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* 深色模式子毛玻璃选项卡片 - 通透晶体，绝不死黑 */
+html[data-glass].dark .card button.group,
+html[data-glass].dark .card a.group,
+html[data-theme="apple"].dark .card button.group,
+html[data-theme="apple"].dark .card a.group {
+  background: rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 4px 16px rgba(0, 0, 0, 0.30) !important;
+  border-radius: 14px !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+html[data-glass].dark .card button.group:hover,
+html[data-glass].dark .card a.group:hover,
+html[data-theme="apple"].dark .card button.group:hover,
+html[data-theme="apple"].dark .card a.group:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* 时间范围、刷新按钮、粒度选择器 - Apple 子毛玻璃控件 */
+html[data-glass]:not(.dark) .date-picker-trigger,
+html[data-glass]:not(.dark) .select-trigger,
+html[data-glass]:not(.dark) button.btn-secondary,
+html[data-theme="apple"]:not(.dark) .date-picker-trigger,
+html[data-theme="apple"]:not(.dark) .select-trigger,
+html[data-theme="apple"]:not(.dark) button.btn-secondary {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.70), 0 2px 8px rgba(19, 45, 83, 0.04) !important;
+}
+
+html[data-glass].dark .date-picker-trigger,
+html[data-glass].dark .select-trigger,
+html[data-glass].dark button.btn-secondary,
+html[data-theme="apple"].dark .date-picker-trigger,
+html[data-theme="apple"].dark .select-trigger,
+html[data-theme="apple"].dark button.btn-secondary {
+  background: rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 图表 Tab 切换胶囊 (模型分布 / 用户消费榜) - 浅色半透明光凝胶，深色透光水晶 */
+html[data-glass]:not(.dark) [class*="inline-flex rounded-lg border"] button[class*="bg-white"],
+html[data-glass]:not(.dark) [class*="inline-flex rounded-lg bg-gray-100"] button[class*="bg-white"],
+html[data-theme="apple"]:not(.dark) [class*="inline-flex rounded-lg border"] button[class*="bg-white"],
+html[data-theme="apple"]:not(.dark) [class*="inline-flex rounded-lg bg-gray-100"] button[class*="bg-white"] {
+  background: rgba(255, 255, 255, 0.72) !important;
+  box-shadow: 0 2px 8px rgba(19, 45, 83, 0.06), inset 0 1px 0 #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.80) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+html[data-glass].dark [class*="inline-flex rounded-lg border"] button[class*="dark:bg-dark-700"],
+html[data-glass].dark [class*="inline-flex rounded-lg bg-gray-100"] button[class*="dark:bg-dark-700"],
+html[data-theme="apple"].dark [class*="inline-flex rounded-lg border"] button[class*="dark:bg-dark-700"],
+html[data-theme="apple"].dark [class*="inline-flex rounded-lg bg-gray-100"] button[class*="dark:bg-dark-700"] {
+  background: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
 }
 
 /* 解决下拉菜单被遮挡 */
@@ -185,4 +268,202 @@ html[data-theme="apple"] table thead,
 html[data-theme="apple"] table thead th {
   background: transparent !important;
   border-bottom: 1px solid var(--ui-border-soft) !important;
+}
+
+/* ==========================================================================
+   全系统核心控件 Liquid Glass 深度强化
+   覆盖：按钮、徽章、模态框、Tabs、分页、输入控件等
+   ========================================================================== */
+
+/* 1. 按钮系统 (Buttons) */
+html[data-glass] .btn-primary,
+html[data-theme="apple"] .btn-primary {
+  background: var(--ui-primary) !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 4px 14px rgba(0, 113, 227, 0.32) !important;
+  border-radius: 10px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+html[data-glass] .btn-primary:hover,
+html[data-theme="apple"] .btn-primary:hover {
+  background: var(--ui-primary-strong) !important;
+  box-shadow: 0 6px 18px rgba(0, 113, 227, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+html[data-glass] .btn-secondary,
+html[data-theme="apple"] .btn-secondary {
+  background: var(--ui-surface-strong) !important;
+  backdrop-filter: blur(var(--ui-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--ui-blur)) !important;
+  border: 1px solid var(--ui-border-render) !important;
+  color: var(--ui-text) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40), 0 2px 6px rgba(19, 45, 83, 0.04) !important;
+  border-radius: 10px !important;
+  transition: all 0.2s ease !important;
+}
+
+html[data-glass]:not(.dark) .btn-secondary:hover,
+html[data-theme="apple"]:not(.dark) .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.85) !important;
+  transform: translateY(-1px);
+}
+
+html[data-glass].dark .btn-secondary:hover,
+html[data-theme="apple"].dark .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  transform: translateY(-1px);
+}
+
+html[data-glass] .btn-ghost,
+html[data-theme="apple"] .btn-ghost {
+  color: var(--ui-text) !important;
+  border-radius: 10px !important;
+  transition: all 0.15s ease;
+}
+
+html[data-glass]:not(.dark) .btn-ghost:hover,
+html[data-theme="apple"]:not(.dark) .btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+html[data-glass].dark .btn-ghost:hover,
+html[data-theme="apple"].dark .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+/* 2. 表单与输入控件 (Inputs, Selects, Textareas) */
+html[data-glass]:not(.dark) .input,
+html[data-glass]:not(.dark) select,
+html[data-glass]:not(.dark) textarea,
+html[data-theme="apple"]:not(.dark) .input,
+html[data-theme="apple"]:not(.dark) select,
+html[data-theme="apple"]:not(.dark) textarea {
+  background: rgba(255, 255, 255, 0.60) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--ui-border-render) !important;
+  color: var(--ui-text) !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.60) !important;
+}
+
+html[data-glass].dark .input,
+html[data-glass].dark select,
+html[data-glass].dark textarea,
+html[data-theme="apple"].dark .input,
+html[data-theme="apple"].dark select,
+html[data-theme="apple"].dark textarea {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--ui-border-render) !important;
+  color: var(--ui-text) !important;
+  border-radius: 10px !important;
+}
+
+html[data-glass] .input:focus,
+html[data-glass] select:focus,
+html[data-glass] textarea:focus,
+html[data-theme="apple"] .input:focus,
+html[data-theme="apple"] select:focus,
+html[data-theme="apple"] textarea:focus {
+  border-color: var(--ui-primary) !important;
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.22) !important;
+  outline: none !important;
+}
+
+/* 3. 模态框与对话框 (Modals & Dialogs) */
+html[data-glass] .modal-overlay,
+html[data-glass] .dialog-overlay,
+html[data-theme="apple"] .modal-overlay,
+html[data-theme="apple"] .dialog-overlay {
+  background: rgba(7, 16, 30, 0.38) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  z-index: 50 !important;
+}
+
+html[data-glass] .modal-content,
+html[data-glass] .dialog-container,
+html[data-theme="apple"] .modal-content,
+html[data-theme="apple"] .dialog-container {
+  border-radius: 20px !important;
+  border: 1px solid var(--ui-border-render) !important;
+  background: var(--ui-surface-strong) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.40) !important;
+  backdrop-filter: blur(32px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
+}
+
+html[data-glass] .modal-header,
+html[data-glass] .dialog-header,
+html[data-theme="apple"] .modal-header,
+html[data-theme="apple"] .dialog-header {
+  border-bottom: 1px solid var(--ui-border-soft) !important;
+}
+
+html[data-glass] .modal-footer,
+html[data-glass] .dialog-footer,
+html[data-theme="apple"] .modal-footer,
+html[data-theme="apple"] .dialog-footer {
+  border-top: 1px solid var(--ui-border-soft) !important;
+}
+
+/* 4. 徽章与标签 (Badges) */
+html[data-glass] .badge,
+html[data-theme="apple"] .badge {
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+}
+
+html[data-glass]:not(.dark) .badge-primary,
+html[data-theme="apple"]:not(.dark) .badge-primary {
+  background: rgba(0, 113, 227, 0.10) !important;
+  color: #0071e3 !important;
+}
+
+html[data-glass]:not(.dark) .badge-success,
+html[data-theme="apple"]:not(.dark) .badge-success {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #059669 !important;
+}
+
+html[data-glass]:not(.dark) .badge-warning,
+html[data-theme="apple"]:not(.dark) .badge-warning {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: #d97706 !important;
+}
+
+html[data-glass]:not(.dark) .badge-danger,
+html[data-theme="apple"]:not(.dark) .badge-danger {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #dc2626 !important;
+}
+
+/* 5. 分页组件 (Pagination) */
+html[data-glass] .pagination button,
+html[data-theme="apple"] .pagination button {
+  background: var(--ui-surface) !important;
+  border: 1px solid var(--ui-border-render) !important;
+  border-radius: 8px !important;
+  color: var(--ui-text) !important;
+  transition: all 0.2s ease;
+}
+
+html[data-glass] .pagination button:hover,
+html[data-theme="apple"] .pagination button:hover {
+  background: var(--ui-surface-strong) !important;
+}
+
+html[data-glass] .pagination button.active,
+html[data-theme="apple"] .pagination button.active {
+  background: var(--ui-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--ui-primary) !important;
 }
