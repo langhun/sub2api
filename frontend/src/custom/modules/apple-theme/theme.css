@@ -1,7 +1,7 @@
 /* ==========================================================================
    Apple Liquid Glass (液态玻璃) 设计系统
-   - 配色方案：100% 还原 DaiGua 官方清澈明快青玉流光（绝不偏深偏暗）
-   - 材质规范：严格遵循 Apple 官方 Liquid Glass 规范（折射边缘、内高光、浮雕微磁贴）
+   - 配色：100% 呆瓜纯正明快青绿流光 (#D0EBE6 + 青绿水波)
+   - 材质：Apple 官方 Liquid Glass 规范 (折射微光、浮雕磁贴、通透表头)
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -12,21 +12,21 @@
 }
 
 /* ==========================================================================
-   浅色模式 (Light Mode) - DaiGua 原版明快清澈青玉底 + Apple 液态水玻
+   浅色模式 (Light Mode) - 呆瓜纯正青绿底色 + Apple 液态水玻
    ========================================================================== */
 :root[data-theme="apple"],
 html[data-theme="apple"]:not(.dark) {
-  /* 基础底色：DaiGua 官方纯澈浅蓝白底色，配合流体流动呈现清新青绿 */
-  --lg-bg: #f4f8fd;
+  /* 基础底色：呆瓜标志性清新纯正青绿 (#D0EBE6) */
+  --lg-bg: #D0EBE6;
   --lg-text: #0f172a;
   --lg-text-secondary: #334155;
-  --lg-text-muted: #64748b;
+  --lg-text-muted: #475569;
 
-  /* 液态玻璃主材质：DaiGua 官方 42% 通透水玻，清澈透光，绝不泛白 */
-  --lg-surface: rgb(255 255 255 / 42%);
-  --lg-surface-hover: rgb(255 255 255 / 55%);
-  --lg-surface-strong: rgb(255 255 255 / 68%);
-  --lg-surface-subtle: rgb(255 255 255 / 22%);
+  /* 液态玻璃材质：透出温润青绿水波，晶莹清澈 */
+  --lg-surface: rgba(255, 255, 255, 0.35);
+  --lg-surface-hover: rgba(255, 255, 255, 0.48);
+  --lg-surface-strong: rgba(255, 255, 255, 0.65);
+  --lg-surface-subtle: rgba(255, 255, 255, 0.20);
 
   /* 浮动可交互微磁贴 (Elevated Tiles)：温润白玉卡片，用于快捷操作等交互项 */
   --lg-tile: rgba(255, 255, 255, 0.86);
@@ -34,49 +34,49 @@ html[data-theme="apple"]:not(.dark) {
 
   /* 边缘微光描边 (Specular Rim Highlight) */
   --lg-border: rgba(255, 255, 255, 0.65);
-  --lg-border-soft: rgba(19, 45, 83, 0.14);
-  --lg-border-render: rgba(19, 45, 83, 0.12);
+  --lg-border-soft: rgba(74, 158, 142, 0.18);
+  --lg-border-render: rgba(74, 158, 142, 0.15);
 
-  /* Apple 官方科技蓝 */
-  --lg-primary: #0071e3;
-  --lg-primary-hover: #0077ed;
-  --lg-primary-light: rgba(0, 113, 227, 0.10);
+  /* 呆瓜纯正青绿强调色 */
+  --lg-primary: #4A9E8E;
+  --lg-primary-hover: #3d8a7c;
+  --lg-primary-light: rgba(74, 158, 142, 0.12);
 
-  /* 液态玻璃物理光影：顶层 1px 细微光反光 + 柔润水影 */
-  --lg-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.80), 0 10px 30px rgba(19, 45, 83, 0.08);
-  --lg-shadow-sm: inset 0 1px 1px 0 rgba(255, 255, 255, 0.70), 0 3px 10px rgba(19, 45, 83, 0.05);
-  --lg-shadow-lg: inset 0 1px 2px 0 rgba(255, 255, 255, 0.90), 0 20px 48px rgba(19, 45, 83, 0.12);
+  /* 液态玻璃物理光影：顶层 1px 微反光线 + 柔润环境暗影 */
+  --lg-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.85), 0 8px 26px rgba(45, 95, 85, 0.07);
+  --lg-shadow-sm: inset 0 1px 1px 0 rgba(255, 255, 255, 0.70), 0 3px 10px rgba(45, 95, 85, 0.04);
+  --lg-shadow-lg: inset 0 1px 2px 0 rgba(255, 255, 255, 0.95), 0 18px 45px rgba(45, 95, 85, 0.12);
 }
 
 /* ==========================================================================
-   深色模式 (Dark Mode) - 深空星夜深蓝 + 暗夜晶体水玻
+   深色模式 (Dark Mode) - 呆瓜深蓝黑底色 + 暗夜晶体水玻
    ========================================================================== */
 :root[data-theme="apple"].dark,
 html[data-theme="apple"].dark {
-  --lg-bg: #0c121b;
+  --lg-bg: #1a2838;
   --lg-text: #f8fafc;
   --lg-text-secondary: #cbd5e1;
   --lg-text-muted: #94a3b8;
 
-  --lg-surface: rgb(34 38 47 / 42%);
-  --lg-surface-hover: rgb(34 38 47 / 58%);
-  --lg-surface-strong: rgb(34 38 47 / 75%);
-  --lg-surface-subtle: rgb(34 38 47 / 22%);
+  --lg-surface: rgba(26, 40, 56, 0.45);
+  --lg-surface-hover: rgba(30, 50, 70, 0.60);
+  --lg-surface-strong: rgba(30, 50, 70, 0.78);
+  --lg-surface-subtle: rgba(26, 40, 56, 0.25);
 
-  --lg-tile: rgba(30, 48, 76, 0.78);
-  --lg-tile-hover: rgba(38, 62, 98, 0.92);
+  --lg-tile: rgba(35, 55, 80, 0.80);
+  --lg-tile-hover: rgba(45, 70, 100, 0.95);
 
-  --lg-border: rgba(148, 180, 220, 0.32);
-  --lg-border-soft: rgba(148, 180, 220, 0.20);
-  --lg-border-render: rgba(148, 180, 220, 0.18);
+  --lg-border: rgba(100, 130, 180, 0.28);
+  --lg-border-soft: rgba(100, 130, 180, 0.18);
+  --lg-border-render: rgba(100, 130, 180, 0.15);
 
-  --lg-primary: #2997ff;
-  --lg-primary-hover: #3aa1ff;
-  --lg-primary-light: rgba(41, 151, 255, 0.15);
+  --lg-primary: #5B9FD8;
+  --lg-primary-hover: #70b0ea;
+  --lg-primary-light: rgba(91, 159, 216, 0.16);
 
-  --lg-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.12), 0 12px 35px rgba(2, 6, 14, 0.50);
-  --lg-shadow-sm: inset 0 1px 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(2, 6, 14, 0.32);
-  --lg-shadow-lg: inset 0 1px 2px 0 rgba(255, 255, 255, 0.18), 0 22px 55px rgba(2, 6, 14, 0.65);
+  --lg-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.14), 0 12px 35px rgba(0, 0, 0, 0.45);
+  --lg-shadow-sm: inset 0 1px 1px 0 rgba(255, 255, 255, 0.10), 0 4px 14px rgba(0, 0, 0, 0.30);
+  --lg-shadow-lg: inset 0 1px 2px 0 rgba(255, 255, 255, 0.20), 0 22px 55px rgba(0, 0, 0, 0.60);
 }
 
 /* ==========================================================================
@@ -97,7 +97,7 @@ html[data-theme="apple"] body {
 }
 
 /* ==========================================================================
-   底层流体光影环境 (DaiGua 原版环境参数 - 明快清新，不闷不深)
+   底层流体光影环境 (100% 呆瓜标志性纯正青绿流光)
    ========================================================================== */
 html[data-theme="apple"] [data-glass-ambient] {
   position: fixed;
@@ -109,16 +109,24 @@ html[data-theme="apple"] [data-glass-ambient] {
   pointer-events: none;
   overflow: hidden;
   background:
-    radial-gradient(760px 420px at 50% -8%, rgba(160, 200, 255, 0.26), transparent 70%),
-    linear-gradient(180deg, rgba(156, 193, 231, 0.22) 0%, rgba(156, 193, 231, 0) 38%),
-    radial-gradient(900px 420px at 50% 108%, rgba(156, 193, 231, 0.14), transparent 70%);
+    radial-gradient(circle at 30% 20%, rgba(74, 158, 142, 0.28), transparent 60%),
+    radial-gradient(circle at 70% 80%, rgba(126, 200, 187, 0.25), transparent 60%),
+    linear-gradient(135deg,
+      rgba(208, 235, 230, 0.85) 0%,
+      rgba(224, 242, 239, 0.65) 50%,
+      rgba(208, 235, 230, 0.85) 100%
+    );
 }
 
 html[data-theme="apple"].dark [data-glass-ambient] {
   background:
-    radial-gradient(760px 420px at 50% -8%, rgba(110, 165, 255, 0.13), transparent 70%),
-    linear-gradient(180deg, rgba(94, 143, 224, 0.13) 0%, rgba(94, 143, 224, 0) 46%),
-    radial-gradient(900px 420px at 50% 108%, rgba(94, 143, 224, 0.09), transparent 70%);
+    radial-gradient(circle at 30% 20%, rgba(91, 159, 216, 0.22), transparent 60%),
+    radial-gradient(circle at 70% 80%, rgba(30, 58, 95, 0.35), transparent 60%),
+    linear-gradient(135deg,
+      rgba(26, 40, 56, 0.95) 0%,
+      rgba(30, 50, 70, 0.90) 50%,
+      rgba(26, 40, 56, 0.95) 100%
+    );
 }
 
 html[data-theme="apple"] [data-glass-fluid-canvas] {
@@ -130,6 +138,7 @@ html[data-theme="apple"] [data-glass-fluid-canvas] {
   width: 100%;
   height: 100%;
   display: block;
+  opacity: 0.65;
 }
 
 /* ==========================================================================
@@ -169,12 +178,12 @@ html[data-theme="apple"] header p {
 }
 
 /* ==========================================================================
-   侧边栏 (Sidebar) - 透澈水玻 + 纯白微浮雕药丸激活项
+   侧边栏 (Sidebar) - 透澈青绿水玻 + 纯白微浮雕药丸激活项
    ========================================================================== */
 html[data-theme="apple"] aside.sidebar {
   border-right: 1px solid var(--lg-border-soft) !important;
   background: var(--lg-surface) !important;
-  box-shadow: 1px 0 20px rgba(19, 45, 83, 0.03) !important;
+  box-shadow: 1px 0 20px rgba(45, 95, 85, 0.03) !important;
   backdrop-filter: blur(var(--glass-blur)) saturate(190%) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%) !important;
 }
@@ -220,14 +229,14 @@ html[data-theme="apple"].dark .sidebar-link:hover {
 html[data-theme="apple"]:not(.dark) .sidebar-link-active {
   background: var(--lg-tile-hover) !important;
   color: #0f172a !important;
-  box-shadow: 0 2px 8px rgba(19, 45, 83, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 2px 8px rgba(45, 95, 85, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.95) !important;
   font-weight: 600 !important;
 }
 
 html[data-theme="apple"].dark .sidebar-link-active {
   background: var(--lg-tile) !important;
   color: #ffffff !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(2, 6, 14, 0.30) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.30) !important;
   font-weight: 600 !important;
 }
 
@@ -288,19 +297,19 @@ html[data-theme="apple"] .card [class*="text-sm font-medium text-gray-"] {
 html[data-theme="apple"] .card [class*="bg-blue-100"],
 html[data-theme="apple"] .card [class*="bg-sky-100"],
 html[data-theme="apple"] .card [class*="bg-indigo-100"] {
-  background-color: rgba(0, 113, 227, 0.12) !important;
+  background-color: rgba(74, 158, 142, 0.15) !important;
 }
 html[data-theme="apple"] .card [class*="bg-green-100"],
 html[data-theme="apple"] .card [class*="bg-emerald-100"] {
-  background-color: rgba(16, 185, 129, 0.12) !important;
+  background-color: rgba(16, 185, 129, 0.15) !important;
 }
 html[data-theme="apple"] .card [class*="bg-purple-100"],
 html[data-theme="apple"] .card [class*="bg-violet-100"] {
-  background-color: rgba(147, 51, 234, 0.12) !important;
+  background-color: rgba(147, 51, 234, 0.15) !important;
 }
 html[data-theme="apple"] .card [class*="bg-amber-100"],
 html[data-theme="apple"] .card [class*="bg-orange-100"] {
-  background-color: rgba(245, 158, 11, 0.12) !important;
+  background-color: rgba(245, 158, 11, 0.15) !important;
 }
 
 /* ==========================================================================
@@ -313,7 +322,7 @@ html[data-theme="apple"] [class*="quick-action"] button,
 html[data-theme="apple"] [class*="quick-action"] a {
   background: var(--lg-tile) !important;
   border: 1px solid var(--lg-border) !important;
-  box-shadow: 0 2px 8px rgba(19, 45, 83, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 2px 8px rgba(45, 95, 85, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   border-radius: 14px !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
@@ -324,7 +333,7 @@ html[data-theme="apple"] [class*="quick-action"] button:hover,
 html[data-theme="apple"] [class*="quick-action"] a:hover {
   background: var(--lg-tile-hover) !important;
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(19, 45, 83, 0.08), inset 0 1px 0 #ffffff !important;
+  box-shadow: 0 6px 18px rgba(45, 95, 85, 0.10), inset 0 1px 0 #ffffff !important;
   border-color: rgba(255, 255, 255, 0.95) !important;
 }
 
@@ -384,7 +393,7 @@ html[data-theme="apple"]:not(.dark) .select-trigger {
   border: 1px solid var(--lg-border) !important;
   background: var(--lg-tile) !important;
   color: var(--lg-text) !important;
-  box-shadow: 0 2px 6px rgba(19, 45, 83, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 2px 6px rgba(45, 95, 85, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   transition: all 0.2s ease;
 }
 
@@ -393,7 +402,7 @@ html[data-theme="apple"]:not(.dark) .date-picker-trigger:focus,
 html[data-theme="apple"]:not(.dark) .select-trigger:focus {
   background: #ffffff !important;
   border-color: var(--lg-primary) !important;
-  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.18) !important;
+  box-shadow: 0 0 0 3px rgba(74, 158, 142, 0.22) !important;
   outline: none !important;
 }
 
@@ -403,7 +412,7 @@ html[data-theme="apple"] .btn-primary {
   background-image: none !important;
   color: #fff !important;
   border-radius: 12px !important;
-  box-shadow: 0 6px 18px rgba(0, 113, 227, 0.28) !important;
+  box-shadow: 0 6px 18px rgba(74, 158, 142, 0.30) !important;
   font-weight: 500 !important;
 }
 
@@ -418,7 +427,7 @@ html[data-theme="apple"] button.btn-secondary {
   border: 1px solid var(--lg-border) !important;
   background: var(--lg-tile) !important;
   color: var(--lg-text) !important;
-  box-shadow: 0 2px 6px rgba(19, 45, 83, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 2px 6px rgba(45, 95, 85, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
 }
 
 html[data-theme="apple"] .btn-secondary:hover {
@@ -440,7 +449,7 @@ html[data-theme="apple"] [class*="inline-flex rounded-lg bg-gray-100"] {
 html[data-theme="apple"] [class*="inline-flex rounded-lg"] button[class*="bg-white"] {
   background: #ffffff !important;
   color: var(--lg-text) !important;
-  box-shadow: 0 2px 6px rgba(19, 45, 83, 0.06) !important;
+  box-shadow: 0 2px 6px rgba(45, 95, 85, 0.06) !important;
   border-radius: 9px !important;
   font-weight: 600 !important;
 }
@@ -468,7 +477,7 @@ html[data-theme="apple"] [role="listbox"] {
   border-radius: 16px !important;
   background: rgba(255, 255, 255, 0.90) !important;
   border: 1px solid rgba(255, 255, 255, 0.85) !important;
-  box-shadow: 0 16px 45px rgba(19, 45, 83, 0.12), inset 0 1px 0 #ffffff !important;
+  box-shadow: 0 16px 45px rgba(45, 95, 85, 0.12), inset 0 1px 0 #ffffff !important;
   backdrop-filter: blur(28px) !important;
   -webkit-backdrop-filter: blur(28px) !important;
 }
@@ -478,7 +487,7 @@ html[data-theme="apple"].dark [class*="dropdown-menu"],
 html[data-theme="apple"].dark .date-picker-dropdown,
 html[data-theme="apple"].dark .select-dropdown,
 html[data-theme="apple"].dark [role="listbox"] {
-  background: rgba(20, 32, 50, 0.90) !important;
+  background: rgba(26, 40, 56, 0.90) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   box-shadow: 0 16px 45px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
 }
@@ -488,7 +497,7 @@ html[data-theme="apple"].dark [role="listbox"] {
    ========================================================================== */
 html[data-theme="apple"] .modal-overlay,
 html[data-theme="apple"] .dialog-overlay {
-  background: rgba(7, 16, 30, 0.40) !important;
+  background: rgba(26, 40, 56, 0.40) !important;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 50 !important;
@@ -506,7 +515,7 @@ html[data-theme="apple"] .dialog-container {
 
 html[data-theme="apple"].dark .modal-content,
 html[data-theme="apple"].dark .dialog-container {
-  background: rgba(20, 32, 50, 0.88) !important;
+  background: rgba(26, 40, 56, 0.88) !important;
 }
 
 /* ==========================================================================
@@ -518,21 +527,21 @@ html[data-theme="apple"] .badge {
 }
 
 html[data-theme="apple"] .badge-primary {
-  background: rgba(0, 113, 227, 0.12) !important;
+  background: rgba(74, 158, 142, 0.15) !important;
   color: var(--lg-primary) !important;
 }
 
 html[data-theme="apple"] .badge-success {
-  background: rgba(16, 185, 129, 0.12) !important;
+  background: rgba(16, 185, 129, 0.15) !important;
   color: #059669 !important;
 }
 
 html[data-theme="apple"] .badge-warning {
-  background: rgba(245, 158, 11, 0.12) !important;
+  background: rgba(245, 158, 11, 0.15) !important;
   color: #d97706 !important;
 }
 
 html[data-theme="apple"] .badge-danger {
-  background: rgba(239, 68, 68, 0.12) !important;
+  background: rgba(239, 68, 68, 0.15) !important;
   color: #dc2626 !important;
 }
