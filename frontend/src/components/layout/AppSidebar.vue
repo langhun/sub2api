@@ -198,6 +198,7 @@ import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
+import { useTheme } from '@/custom/modules/apple-theme/useTheme'
 import { customNavigation, type CustomNavigationItem } from '@/custom/registry'
 
 interface NavItem extends CustomNavigationItem {
@@ -856,10 +857,13 @@ function toggleSidebar() {
   appStore.toggleSidebar()
 }
 
+const { setThemeMode } = useTheme()
+
 function toggleTheme() {
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  setThemeMode(isDark.value ? 'dark' : 'light')
 }
 
 function closeMobile() {

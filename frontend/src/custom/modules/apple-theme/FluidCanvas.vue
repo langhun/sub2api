@@ -8,9 +8,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { attachFluidShader, type FluidParams } from './fluidShader'
-import { useTheme } from './useTheme'
 
 // 100% 呆瓜 (api.daigua.icu) 原版流体参数配置
 const LIGHT_PARAMS: FluidParams = {
@@ -59,23 +58,36 @@ const DARK_PARAMS: FluidParams = {
   color3: '#0C121B',
 }
 
+function isDark(): boolean {
+  return document.documentElement.classList.contains('dark')
+}
+
 const canvasRef = ref<HTMLCanvasElement | null>(null)
-const { effectiveMode } = useTheme()
 let cleanup: (() => void) | null = null
 
 onMounted(() => {
   const canvas = canvasRef.value
   if (!canvas) return
 
-  const initial = effectiveMode.value === 'dark' ? DARK_PARAMS : LIGHT_PARAMS
+  // 初始按 DOM 上的实际 dark 类名挂载
+  const initial = isDark() ? DARK_PARAMS : LIGHT_PARAMS
   const handle = attachFluidShader(canvas, initial)
 
-  const unwatch = watch(effectiveMode, (mode) => {
-    handle.setParams(mode === 'dark' ? DARK_PARAMS : LIGHT_PARAMS)
+  // 采用与 c3api 官方完全相同的 MutationObserver，监听 class 类名变化（原地无刷新换色）
+  const observer = new MutationObserver(() => {
+    handle.setParams(isDark() ? DARK_PARAMS : LIGHT_PARAMS)
   })
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+
+  const media = window.matchMedia('(prefers-color-scheme: dark)')
+  const onMediaChange = () => {
+    handle.setParams(isDark() ? DARK_PARAMS : LIGHT_PARAMS)
+  }
+  media.addEventListener('change', onMediaChange)
 
   cleanup = () => {
-    unwatch()
+    observer.disconnect()
+    media.removeEventListener('change', onMediaChange)
     handle.dispose()
   }
 })
