@@ -55,13 +55,32 @@
   color: var(--apple-foreground);
 }
 
-/* Glass effect backgrounds */
-:root[data-theme='apple'] [class~='bg-card'],
-:root[data-theme='apple'] [class~='card'],
-:root[data-theme='apple'] [class~='glass-card'] {
+/* Apple theme root background */
+:root[data-theme='apple'] {
+  background: var(--apple-background);
+}
+
+/* Glass effect backgrounds - 强制半透明 */
+:root[data-theme='apple'] .card,
+:root[data-theme='apple'] .glass-card,
+:root[data-theme='apple'] [class*='card'] {
   background: var(--apple-card) !important;
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+}
+
+/* 确保所有白色/深色背景都变成玻璃效果 */
+:root[data-theme='apple'] .bg-white {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+:root[data-theme='apple'].dark .bg-white,
+:root[data-theme='apple'].dark [class*='dark:bg-dark'] {
+  background: rgba(34, 38, 47, 0.7) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
 }
 
 /* Fluid ambient: WebGL 流体由 FluidCanvas 渲染，此处仅保留容器与呼吸动效 */

@@ -1,7 +1,15 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark-950">
+  <div
+    class="min-h-screen"
+    :class="themeStyle === 'apple' ? 'bg-transparent' : 'bg-gray-50 dark:bg-dark-950'"
+  >
     <!-- Apple Theme Fluid Background -->
-    <div v-if="themeStyle === 'apple'" data-glass-ambient aria-hidden="true" class="pointer-events-none fixed inset-0 z-[-1]">
+    <div
+      v-if="themeStyle === 'apple'"
+      data-glass-ambient
+      aria-hidden="true"
+      style="position: fixed; inset: 0; z-index: 0; pointer-events: none;"
+    >
       <FluidCanvas />
     </div>
 
@@ -9,11 +17,12 @@
     <div v-else class="pointer-events-none fixed inset-0 bg-mesh-gradient"></div>
 
     <!-- Sidebar -->
-    <AppSidebar />
+    <AppSidebar style="position: relative; z-index: 30;" />
 
     <!-- Main Content Area -->
     <div
       class="relative min-h-screen transition-all duration-300"
+      style="position: relative; z-index: 10;"
       :class="[
         sidebarCollapsed
           ? 'lg:ml-[72px]'

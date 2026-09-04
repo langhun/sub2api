@@ -60,10 +60,16 @@ const DARK_PARAMS: FluidParams = {
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const { effectiveMode } = useTheme()
+let cleanup: (() => void) | null = null
 
 onMounted(() => {
   const canvas = canvasRef.value
-  if (!canvas) return
+  if (!canvas) {
+    console.error('[FluidCanvas] Canvas element not found')
+    return
+  }
+
+  console.log('[FluidCanvas] Initializing fluid shader...')
 
   // 初始化流体着色器
   const initial = effectiveMode.value === 'dark' ? DARK_PARAMS : LIGHT_PARAMS
@@ -71,12 +77,20 @@ onMounted(() => {
 
   // 监听主题变化
   const unwatch = watch(effectiveMode, (mode) => {
+    console.log('[FluidCanvas] Theme changed to:', mode)
     handle.setParams(mode === 'dark' ? DARK_PARAMS : LIGHT_PARAMS)
   })
 
-  onBeforeUnmount(() => {
+  cleanup = () => {
+    console.log('[FluidCanvas] Cleaning up')
     unwatch()
     handle.dispose()
-  })
+  }
+})
+
+onBeforeUnmount(() => {
+  if (cleanup) {
+    cleanup()
+  }
 })
 </script>

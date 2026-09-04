@@ -208,18 +208,24 @@ export interface FluidShaderHandle {
  * @returns the live handle.
  */
 export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams): FluidShaderHandle {
+  console.log('[FluidShader] Attaching to canvas:', canvas)
+
   const gl = canvas.getContext('webgl2', {
     alpha: true,
     premultipliedAlpha: false,
     powerPreference: 'low-power',
   })
+
   if (gl === null) {
+    console.error('[FluidShader] WebGL2 context not available')
     return {
       setParams: () => {},
       stir: () => {},
       dispose: () => {},
     }
   }
+
+  console.log('[FluidShader] WebGL2 context created successfully')
 
   const compile = (type: number, source: string): WebGLShader | null => {
     const shader = gl.createShader(type)
@@ -252,12 +258,15 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
   const flowProgram = link(FLOW_SHADER)
   const displayProgram = link(DISPLAY_SHADER)
   if (flowProgram === null || displayProgram === null) {
+    console.error('[FluidShader] Failed to link shaders')
     return {
       setParams: () => {},
       stir: () => {},
       dispose: () => {},
     }
   }
+
+  console.log('[FluidShader] Shaders compiled and linked successfully')
 
   const flow = {
     prev: gl.getUniformLocation(flowProgram, 'u_prev'),
