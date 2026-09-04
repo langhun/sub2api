@@ -32,6 +32,7 @@ import SupportContactEntry from './modules/support-contacts/SupportContactEntry.
 import { supportContactsSettingsPanels } from './modules/support-contacts/settings'
 import { registrationProtectionSettingsPanels } from './modules/registration-protection/settings'
 import { formatAuditAction } from './modules/audit-log-localization/actionLabels'
+import { appleThemeSettingsPanels } from './modules/apple-theme/settings'
 import './payments'
 export {
   customPaymentDefinition,
@@ -154,6 +155,7 @@ export const customNotificationCenterExtensions: readonly CustomNotificationCent
 
 export const customSettingsPanels: readonly CustomSettingsPanel[] = [
   ...brandHomeSettingsPanels,
+  ...appleThemeSettingsPanels,
   ...gameHallSettingsPanels,
   ...activitySettingsPanels,
   ...rechargePromotionSettingsPanels,

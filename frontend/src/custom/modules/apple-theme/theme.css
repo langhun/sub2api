@@ -1,0 +1,129 @@
+/* Apple Theme CSS Variables - Based on c3api design */
+
+:root[data-theme='apple'] {
+  /* Glass effect settings */
+  --glass-blur: 14px;
+  --glass-frost: 1;
+  --glass-card-light: rgb(255 255 255 / 42%);
+  --glass-card-dark: rgb(34 38 47 / 42%);
+
+  /* Light mode colors */
+  --dsw-alias-bg-base: #F4F8FD;
+  --apple-background: var(--dsw-alias-bg-base);
+  --apple-foreground: #1d1d1f;
+  --apple-card: var(--glass-card-light);
+  --apple-card-foreground: #1d1d1f;
+  --apple-primary: #0071e3;
+  --apple-primary-foreground: #ffffff;
+  --apple-secondary: rgba(255, 255, 255, 0.28);
+  --apple-secondary-foreground: #1d1d1f;
+  --apple-muted: rgba(255, 255, 255, 0.18);
+  --apple-muted-foreground: #6e6e73;
+  --apple-accent: rgba(0, 113, 227, 0.08);
+  --apple-accent-foreground: #1d1d1f;
+  --apple-destructive: #dc2626;
+  --apple-border: rgba(19, 45, 83, 0.26);
+  --apple-input: #86868b;
+  --apple-ring: #0071e3;
+  --apple-radius: 0.625rem;
+}
+
+:root[data-theme='apple'].dark {
+  /* Dark mode colors */
+  --dsw-alias-bg-base: #0C121B;
+  --apple-background: var(--dsw-alias-bg-base);
+  --apple-foreground: #f5f5f7;
+  --apple-card: var(--glass-card-dark);
+  --apple-card-foreground: #f5f5f7;
+  --apple-primary: #2997ff;
+  --apple-primary-foreground: #ffffff;
+  --apple-secondary: rgba(34, 38, 47, 0.42);
+  --apple-secondary-foreground: #f5f5f7;
+  --apple-muted: rgba(34, 38, 47, 0.28);
+  --apple-muted-foreground: #b8b8c0;
+  --apple-accent: rgba(41, 151, 255, 0.12);
+  --apple-accent-foreground: #f5f5f7;
+  --apple-destructive: #ff453a;
+  --apple-border: rgba(148, 180, 220, 0.32);
+  --apple-input: #555560;
+  --apple-ring: #2997ff;
+}
+
+/* Apply Apple Theme Variables */
+:root[data-theme='apple'] body {
+  background: var(--apple-background);
+  color: var(--apple-foreground);
+}
+
+/* Glass effect backgrounds */
+:root[data-theme='apple'] [class~='bg-card'],
+:root[data-theme='apple'] [class~='card'],
+:root[data-theme='apple'] [class~='glass-card'] {
+  background: var(--apple-card) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Ambient background gradient */
+:root[data-theme='apple']::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(760px 420px at 50% -8%, rgba(160, 200, 255, 0.26), transparent 70%),
+    linear-gradient(180deg, rgba(156, 193, 231, 0.22) 0%, rgba(156, 193, 231, 0) 38%),
+    radial-gradient(900px 420px at 50% 108%, rgba(156, 193, 231, 0.14), transparent 70%);
+}
+
+:root[data-theme='apple'].dark::before {
+  background:
+    radial-gradient(760px 420px at 50% -8%, rgba(110, 165, 255, 0.13), transparent 70%),
+    linear-gradient(180deg, rgba(94, 143, 224, 0.13) 0%, rgba(94, 143, 224, 0) 46%),
+    radial-gradient(900px 420px at 50% 108%, rgba(94, 143, 224, 0.09), transparent 70%);
+}
+
+/* Breathing animation */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme='apple']::before {
+    animation: apple-breathe 9s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes apple-breathe {
+  from { opacity: 0.86; }
+  to { opacity: 1; }
+}
+
+/* Override primary colors when Apple theme is active */
+:root[data-theme='apple'] {
+  --primary-50: rgba(0, 113, 227, 0.05);
+  --primary-100: rgba(0, 113, 227, 0.1);
+  --primary-500: var(--apple-primary);
+  --primary-600: var(--apple-primary);
+  --primary-700: var(--apple-primary);
+}
+
+/* Apply to buttons */
+:root[data-theme='apple'] .btn-primary {
+  background: var(--apple-primary);
+  color: var(--apple-primary-foreground);
+  box-shadow: 0 4px 6px -1px rgba(0, 113, 227, 0.25);
+}
+
+:root[data-theme='apple'].dark .btn-primary {
+  background: var(--apple-primary);
+  box-shadow: 0 4px 6px -1px rgba(41, 151, 255, 0.25);
+}
+
+/* Input fields with Apple styling */
+:root[data-theme='apple'] .input {
+  border-radius: var(--apple-radius);
+  border-color: var(--apple-border);
+}
+
+:root[data-theme='apple'] .input:focus {
+  border-color: var(--apple-primary);
+  ring-color: var(--apple-ring);
+}

@@ -9,6 +9,10 @@ import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
 import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, useAdminComplianceStore, useAdminSettingsStore } from '@/stores'
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
+import { useTheme } from '@/custom/modules/apple-theme/useTheme'
+
+// Initialize theme
+const { } = useTheme()
 
 const router = useRouter()
 const route = useRoute()

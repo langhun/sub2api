@@ -1,3 +1,6 @@
+/* Import Apple Theme */
+@import './custom/modules/apple-theme/theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -539,7 +542,7 @@
   /* ============ 侧边栏 ============ */
   .sidebar {
     @apply fixed inset-y-0 left-0 z-40;
-    @apply w-64 bg-white dark:bg-dark-900;
+    @apply w-[182px] bg-white dark:bg-dark-900;
     @apply border-r border-gray-200 dark:border-dark-800;
     @apply flex flex-col;
     @apply transition-transform duration-300;
