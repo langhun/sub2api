@@ -53,9 +53,9 @@ const DARK_PARAMS: FluidParams = {
   shapeScale: 10,
   offsetX: 0,
   offsetY: 65,
-  color1: '#1E3A5F',  // 深青蓝
-  color2: '#2A4A7A',  // 中青蓝
-  color3: '#0C121B',  // 深蓝黑
+  color1: '#1e3a5a',  // 深蓝
+  color2: '#2d4a6f',  // 中蓝
+  color3: '#3d5a80',  // 浅蓝
 }
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)

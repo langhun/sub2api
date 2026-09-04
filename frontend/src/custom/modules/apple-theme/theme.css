@@ -18,16 +18,16 @@
 }
 
 :root[data-theme='apple'].dark {
-  /* Dark - 深青绿 */
-  --apple-background: #0C121B;
-  --apple-foreground: #f5f5f7;
-  --apple-card: rgba(34, 38, 47, 0.42);
-  --apple-card-foreground: #f5f5f7;
-  --apple-primary: #2997ff;
+  /* Dark - 深蓝色调（不是青绿） */
+  --apple-background: #0a1628;
+  --apple-foreground: #e8edf5;
+  --apple-card: rgba(26, 42, 62, 0.42);
+  --apple-card-foreground: #e8edf5;
+  --apple-primary: #3b82f6;
   --apple-primary-foreground: #ffffff;
-  --apple-border: rgba(148, 180, 220, 0.32);
-  --apple-input: #555560;
-  --apple-ring: #2997ff;
+  --apple-border: rgba(59, 130, 246, 0.2);
+  --apple-input: #475569;
+  --apple-ring: #3b82f6;
 }
 
 /* Apply theme */
@@ -94,9 +94,15 @@ html[data-theme='apple'] [data-glass-ambient] {
 
 html[data-theme='apple'].dark [data-glass-ambient] {
   background:
-    radial-gradient(760px 420px at 50% -8%, rgba(110, 165, 255, 0.13), transparent 70%),
-    linear-gradient(180deg, rgba(94, 143, 224, 0.13) 0%, rgba(94, 143, 224, 0) 46%),
-    radial-gradient(900px 420px at 50% 108%, rgba(94, 143, 224, 0.09), transparent 70%);
+    radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.12), transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(37, 99, 235, 0.08), transparent 50%),
+    linear-gradient(135deg,
+      #0a1628 0%,
+      #1e3a5a 30%,
+      #2d4a6f 50%,
+      #1e3a5a 70%,
+      #0a1628 100%
+    );
 }
 
 html[data-theme='apple'] [data-glass-fluid-canvas] {
