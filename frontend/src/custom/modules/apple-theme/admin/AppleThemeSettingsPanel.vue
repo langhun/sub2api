@@ -56,6 +56,7 @@
 </template>
 
 <script setup lang="ts">
+import { reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 interface AppleThemeForm {
@@ -65,7 +66,15 @@ interface AppleThemeForm {
 
 const { t } = useI18n()
 
-defineProps<{
-  form: AppleThemeForm
-}>()
+const props = defineProps<{ modelValue: AppleThemeForm }>()
+const emit = defineEmits<{ 'update:modelValue': [value: AppleThemeForm] }>()
+const form = reactive<AppleThemeForm>({ ...props.modelValue })
+
+watch(() => props.modelValue, (value) => {
+  Object.assign(form, value)
+}, { deep: true })
+
+watch(form, (value) => {
+  emit('update:modelValue', { ...value })
+}, { deep: true })
 </script>

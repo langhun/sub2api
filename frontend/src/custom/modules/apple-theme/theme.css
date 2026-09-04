@@ -64,34 +64,42 @@
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
-/* Ambient background gradient */
-:root[data-theme='apple']::before {
-  content: '';
+/* Fluid ambient: WebGL 流体由 FluidCanvas 渲染，此处仅保留容器与呼吸动效 */
+
+html[data-theme='apple'] [data-glass-ambient] {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  overflow: hidden;
   background:
     radial-gradient(760px 420px at 50% -8%, rgba(160, 200, 255, 0.26), transparent 70%),
     linear-gradient(180deg, rgba(156, 193, 231, 0.22) 0%, rgba(156, 193, 231, 0) 38%),
     radial-gradient(900px 420px at 50% 108%, rgba(156, 193, 231, 0.14), transparent 70%);
 }
 
-:root[data-theme='apple'].dark::before {
+html[data-theme='apple'].dark [data-glass-ambient] {
   background:
     radial-gradient(760px 420px at 50% -8%, rgba(110, 165, 255, 0.13), transparent 70%),
     linear-gradient(180deg, rgba(94, 143, 224, 0.13) 0%, rgba(94, 143, 224, 0) 46%),
     radial-gradient(900px 420px at 50% 108%, rgba(94, 143, 224, 0.09), transparent 70%);
 }
 
-/* Breathing animation */
+html[data-theme='apple'] [data-glass-fluid-canvas] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  :root[data-theme='apple']::before {
-    animation: apple-breathe 9s ease-in-out infinite alternate;
+  html[data-theme='apple'] [data-glass-ambient] {
+    animation: glass-breathe 9s ease-in-out infinite alternate;
   }
 }
 
-@keyframes apple-breathe {
+@keyframes glass-breathe {
   from { opacity: 0.86; }
   to { opacity: 1; }
 }

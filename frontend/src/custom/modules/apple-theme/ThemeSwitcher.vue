@@ -1,7 +1,7 @@
 <template>
   <div class="relative inline-block">
     <button
-      @click="toggleDropdown"
+      @click.stop="toggleDropdown"
       class="btn-ghost btn-icon"
       :aria-label="t('theme.toggle')"
     >
