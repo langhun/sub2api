@@ -16,6 +16,7 @@ export default {
     toggle: '切换主题',
     styleLabel: '主题风格',
     styleDefault: '默认',
+    styleSpace: '太空科幻 🚀',
     styleApple: 'Apple 玻璃',
     styleArctic: '北极天际 🌌',
     styleLilac: '霜冻薰衣草 💜',

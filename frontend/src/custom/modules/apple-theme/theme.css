@@ -139,12 +139,42 @@
   --apple-ring: #fb923c;
 }
 
+/* Space Theme - 太空科幻（深邃低对比度）*/
+:root[data-theme='space'] {
+  --glass-blur: 20px;
+  /* 浅色模式：柔和的银灰色 */
+  --apple-background: #0E1116;
+  --apple-foreground: #C3CAD4;
+  --apple-card: rgba(42, 47, 56, 0.25);
+  --apple-card-foreground: #C3CAD4;
+  --apple-primary: #39C6D6;
+  --apple-primary-foreground: #06101F;
+  --apple-border: rgba(57, 198, 214, 0.15);
+  --apple-input: #6D7786;
+  --apple-ring: #39C6D6;
+  --apple-radius: 0.75rem;
+}
+
+:root[data-theme='space'].dark {
+  /* 深色模式：深邃的太空黑 */
+  --apple-background: #0B1026;
+  --apple-foreground: #8AA4FF;
+  --apple-card: rgba(24, 32, 74, 0.25);
+  --apple-card-foreground: #8AA4FF;
+  --apple-primary: #8AA4FF;
+  --apple-primary-foreground: #0B1026;
+  --apple-border: rgba(138, 164, 255, 0.12);
+  --apple-input: #2B3A73;
+  --apple-ring: #8AA4FF;
+}
+
 /* Apply Theme Variables - 所有玻璃主题 */
 :root[data-theme='apple'] body,
 :root[data-theme='arctic'] body,
 :root[data-theme='lilac'] body,
 :root[data-theme='ocean'] body,
-:root[data-theme='warm'] body {
+:root[data-theme='warm'] body,
+:root[data-theme='space'] body {
   background: var(--apple-background) !important;
   color: var(--apple-foreground);
 }

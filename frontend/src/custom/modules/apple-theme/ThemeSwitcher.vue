@@ -79,6 +79,7 @@ const isOpen = ref(false)
 
 const themeStyles = [
   { value: 'default' as ThemeStyle, label: 'theme.styleDefault', icon: 'cog' as const },
+  { value: 'space' as ThemeStyle, label: 'theme.styleSpace', icon: 'sparkles' as const },
   { value: 'apple' as ThemeStyle, label: 'theme.styleApple', icon: 'sparkles' as const },
   { value: 'arctic' as ThemeStyle, label: 'theme.styleArctic', icon: 'sparkles' as const },
   { value: 'lilac' as ThemeStyle, label: 'theme.styleLilac', icon: 'sparkles' as const },

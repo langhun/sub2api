@@ -16,6 +16,7 @@ export default {
     toggle: 'Toggle theme',
     styleLabel: 'Theme Style',
     styleDefault: 'Default',
+    styleSpace: 'Space Sci-Fi 🚀',
     styleApple: 'Apple Glass',
     styleArctic: 'Arctic Skyline 🌌',
     styleLilac: 'Frosted Lilac 💜',

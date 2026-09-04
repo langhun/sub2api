@@ -93,6 +93,23 @@ const WARM_DARK: FluidParams = {
   color3: '#431407',  // 深棕
 }
 
+// Space - 太空科幻（深邃、低对比度、不刺眼）
+const SPACE_LIGHT: FluidParams = {
+  ...baseParams,
+  speed: 12,  // 慢一点，更飘渺
+  color1: '#2A2F38',  // 深灰
+  color2: '#6D7786',  // 中灰
+  color3: '#C3CAD4',  // 浅灰
+}
+
+const SPACE_DARK: FluidParams = {
+  ...baseParams,
+  speed: 10,  // 更慢，像在太空漂浮
+  color1: '#18204A',  // 深邃蓝
+  color2: '#2B3A73',  // 宇宙蓝
+  color3: '#1B2A55',  // 暗蓝
+}
+
 // Apple (原始) - 蓝灰色
 const APPLE_LIGHT: FluidParams = {
   ...baseParams,
@@ -125,6 +142,8 @@ function getFluidParams(): FluidParams {
       return isDark ? OCEAN_DARK : OCEAN_LIGHT
     case 'warm':
       return isDark ? WARM_DARK : WARM_LIGHT
+    case 'space':
+      return isDark ? SPACE_DARK : SPACE_LIGHT
     case 'apple':
     default:
       return isDark ? APPLE_DARK : APPLE_LIGHT
