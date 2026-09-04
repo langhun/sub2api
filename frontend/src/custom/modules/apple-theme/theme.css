@@ -1,100 +1,77 @@
 /* ==========================================================================
-   Apple Liquid Glass (液态玻璃) 全局设计系统 - 全站 100% 无死角覆盖
-   - 配色方案：100% 呆瓜官方明快青绿流光与深空星夜
-   - 材质规范：Apple 官方 Liquid Glass 规范（透光折射、发丝微光描边、无任何实黑与死白遮挡）
+   Apple Liquid Glass (液态玻璃) 设计系统
+   100% 提取并对齐 api.daigua.icu 线上生产环境真实计算属性
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 :root {
-  --glass-blur: 16px;
-  --glass-blur-sm: 10px;
-  --glass-blur-lg: 28px;
+  --glass-blur: 14px;
 }
 
 /* ==========================================================================
-   核心色彩与光学变量定义
+   浅色模式 (Light Mode) - 100% 对齐 api.daigua.icu
    ========================================================================== */
 :root[data-theme="apple"]:not(.dark),
 :root[data-glass]:not(.dark),
 html[data-theme="apple"]:not(.dark),
 html[data-glass]:not(.dark) {
   --ui-bg: #f4f8fd;
-  --ui-text: #0f172a;
-  --ui-text-secondary: #334155;
-  --ui-muted: #64748b;
-
-  /* 主水玻材质：38% 通透水玻，清澈见底，透出青绿水波 */
-  --ui-surface: rgb(255 255 255 / 38%);
-  --ui-surface-strong: rgb(255 255 255 / 58%);
-  --ui-surface-subtle: rgb(255 255 255 / 20%);
-
-  /* 子毛玻璃微卡片材质 (Nested Glass Tiles)：48% 透光水玻，绝无死白膏药感 */
-  --ui-subglass: rgba(255, 255, 255, 0.48);
-  --ui-subglass-hover: rgba(255, 255, 255, 0.70);
-
-  /* 边缘微光描边 (Specular Rim Highlight) */
-  --ui-border: rgba(255, 255, 255, 0.65);
-  --ui-border-soft: rgba(19, 45, 83, 0.14);
-  --ui-border-render: rgba(19, 45, 83, 0.10);
-
-  /* Apple 科技蓝 */
+  --ui-text: #1d1d1f;
+  --ui-muted: #6e6e73;
   --ui-primary: #0071e3;
   --ui-primary-strong: #0066cc;
-  --ui-primary-light: rgba(0, 113, 227, 0.10);
 
-  /* 物理折射光影：顶面微反光线 + 柔润环境暗影 */
-  --ui-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.80), 0 10px 30px rgba(19, 45, 83, 0.07);
-  --ui-shadow-soft: inset 0 1px 1px 0 rgba(255, 255, 255, 0.65), 0 3px 10px rgba(19, 45, 83, 0.04);
-  --ui-shadow-lg: inset 0 1px 2px 0 rgba(255, 255, 255, 0.90), 0 20px 48px rgba(19, 45, 83, 0.12);
-  --ui-blur: 16px;
+  --ui-surface: rgb(255 255 255 / 42%);
+  --ui-surface-strong: rgb(255 255 255 / 66%);
+  --ui-surface-subtle: rgb(255 255 255 / 25%);
+
+  --ui-subglass: rgba(255, 255, 255, 0.45);
+  --ui-subglass-hover: rgba(255, 255, 255, 0.70);
+
+  --ui-border: rgba(19, 45, 83, 0.26);
+  --ui-border-soft: rgba(19, 45, 83, 0.16);
+  --ui-border-render: rgba(19, 45, 83, 0.14);
+
+  --ui-shadow: inset 0 1px 0 rgb(255 255 255 / 50%), 0 10px 36px rgb(19 45 83 / 16%);
+  --ui-blur: 14px;
 }
 
+/* ==========================================================================
+   深色模式 (Dark Mode) - 100% 对齐 api.daigua.icu
+   ========================================================================== */
 :root[data-theme="apple"].dark,
 :root[data-glass].dark,
 html[data-theme="apple"].dark,
 html[data-glass].dark,
 html.dark {
   --ui-bg: #0c121b;
-  --ui-text: #f8fafc;
-  --ui-text-secondary: #cbd5e1;
-  --ui-muted: #94a3b8;
-
-  /* 深色主水玻材质：38% 透光水晶，让深蓝暗夜水波完全穿透，彻底根治死黑沉闷！ */
-  --ui-surface: rgba(22, 36, 56, 0.40);
-  --ui-surface-strong: rgba(26, 42, 66, 0.55);
-  --ui-surface-subtle: rgba(22, 36, 56, 0.22);
-
-  /* 深色子毛玻璃微卡片材质：通透水晶按键，绝无深黑补丁感 */
-  --ui-subglass: rgba(255, 255, 255, 0.08);
-  --ui-subglass-hover: rgba(255, 255, 255, 0.15);
-
-  /* 边缘微光描边 */
-  --ui-border: rgba(148, 180, 220, 0.28);
-  --ui-border-soft: rgba(148, 180, 220, 0.16);
-  --ui-border-render: rgba(148, 180, 220, 0.12);
-
-  /* 明亮科技蓝 */
+  --ui-text: #f5f5f7;
+  --ui-muted: #b8b8c0;
   --ui-primary: #2997ff;
   --ui-primary-strong: #3aa1ff;
-  --ui-primary-light: rgba(41, 151, 255, 0.15);
 
-  /* 暗夜物理折射光影：顶面微反光线 + 深空阴影 */
-  --ui-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.12), 0 12px 35px rgba(2, 6, 14, 0.45);
-  --ui-shadow-soft: inset 0 1px 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(2, 6, 14, 0.28);
-  --ui-shadow-lg: inset 0 1px 2px 0 rgba(255, 255, 255, 0.18), 0 22px 55px rgba(2, 6, 14, 0.60);
-  --ui-blur: 16px;
+  --ui-surface: rgb(34 38 47 / 42%);
+  --ui-surface-strong: rgb(34 38 47 / 72%);
+  --ui-surface-subtle: rgb(34 38 47 / 22%);
+
+  --ui-subglass: rgba(255, 255, 255, 0.08);
+  --ui-subglass-hover: rgba(255, 255, 255, 0.16);
+
+  --ui-border: rgba(148, 180, 220, 0.32);
+  --ui-border-soft: rgba(148, 180, 220, 0.20);
+  --ui-border-render: rgba(148, 180, 220, 0.18);
+
+  --ui-shadow: inset 0 1px 0 rgb(255 255 255 / 7%), 0 10px 36px rgb(2 6 14 / 50%);
+  --ui-blur: 14px;
 }
 
 /* ==========================================================================
-   页面基底与高清排印
-   ========================================================================= */
+   页面基底与排印
+   ========================================================================== */
 html[data-theme="apple"],
 html[data-glass] {
   background: var(--ui-bg) !important;
   color: var(--ui-text) !important;
-  font-family: 'Inter', 'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'tnum';
+  font-family: Geist Variable, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   text-rendering: optimizeLegibility;
 }
 
@@ -106,7 +83,7 @@ html[data-glass] body {
 }
 
 /* ==========================================================================
-   底层流体光影环境 (DaiGua 原版环境参数 - 纯正青绿水波)
+   底层流体光影环境 (完全复刻 api.daigua.icu)
    ========================================================================== */
 html[data-theme="apple"] [data-glass-ambient],
 html[data-glass] [data-glass-ambient] {
@@ -122,6 +99,7 @@ html[data-glass] [data-glass-ambient] {
     radial-gradient(760px 420px at 50% -8%, rgba(160, 200, 255, 0.26), transparent 70%),
     linear-gradient(180deg, rgba(156, 193, 231, 0.22) 0%, rgba(156, 193, 231, 0) 38%),
     radial-gradient(900px 420px at 50% 108%, rgba(156, 193, 231, 0.14), transparent 70%);
+  animation: glass-breathe 9s ease-in-out infinite alternate;
 }
 
 html[data-theme="apple"].dark [data-glass-ambient],
@@ -144,9 +122,13 @@ html[data-glass] [data-glass-fluid-canvas] {
   display: block;
 }
 
+@keyframes glass-breathe {
+  from { opacity: 0.86; }
+  to { opacity: 1; }
+}
+
 /* ==========================================================================
    全站所有主卡片、面板、容器 (Liquid Glass Surfaces)
-   彻底覆盖 .card, .stat-card, .table-scroll-container, rounded-3xl 等
    ========================================================================== */
 html[data-theme="apple"] .card,
 html[data-theme="apple"] .card-glass,
@@ -160,7 +142,7 @@ html[data-glass] .glass-card,
 html[data-glass] .stat-card,
 html[data-glass] .table-scroll-container,
 html[data-glass] [class*="rounded-3xl"] {
-  border-radius: 16px !important;
+  border-radius: 14px !important;
   border: 1px solid var(--ui-border-render) !important;
   background: var(--ui-surface) !important;
   box-shadow: var(--ui-shadow) !important;
@@ -169,7 +151,6 @@ html[data-glass] [class*="rounded-3xl"] {
   position: relative;
 }
 
-/* 顶部与底部分割线柔和透明 */
 html[data-theme="apple"] .card-header,
 html[data-theme="apple"] .card-body,
 html[data-theme="apple"] .card-footer,
@@ -182,7 +163,7 @@ html[data-glass] [class*="border-b"] {
 }
 
 /* ==========================================================================
-   顶栏 (Header) 与侧边栏 (Sidebar)
+   顶栏 (Header) - 悬浮圆角水滴岛
    ========================================================================== */
 html[data-theme="apple"] header.glass,
 html[data-theme="apple"] header,
@@ -210,6 +191,9 @@ html[data-glass] header {
   }
 }
 
+/* ==========================================================================
+   侧边栏 (Sidebar)
+   ========================================================================== */
 html[data-theme="apple"] .sidebar,
 html[data-glass] .sidebar {
   border-right: 1px solid var(--ui-border-render) !important;
@@ -229,43 +213,47 @@ html[data-glass] .sidebar-header {
 html[data-theme="apple"] .sidebar-link,
 html[data-glass] .sidebar-link {
   min-height: 40px;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   padding: 0 12px;
-  color: var(--ui-text-secondary) !important;
+  color: #6e6e73;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html[data-theme="apple"]:not(.dark) .sidebar-link:hover,
 html[data-glass]:not(.dark) .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.35) !important;
-  color: #0f172a !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #1d1d1f !important;
+}
+
+html[data-theme="apple"].dark .sidebar-link,
+html[data-glass].dark .sidebar-link {
+  color: #a1a1a6;
 }
 
 html[data-theme="apple"].dark .sidebar-link:hover,
 html[data-glass].dark .sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #f5f5f7;
 }
 
 html[data-theme="apple"]:not(.dark) .sidebar-link-active,
 html[data-glass]:not(.dark) .sidebar-link-active {
-  background: #ffffff !important;
-  color: #0f172a !important;
-  box-shadow: 0 2px 8px rgba(19, 45, 83, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.95) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  color: #1d1d1f !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   font-weight: 600 !important;
 }
 
 html[data-theme="apple"].dark .sidebar-link-active,
 html[data-glass].dark .sidebar-link-active {
-  background: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.11) !important;
   color: #ffffff !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18), 0 2px 8px rgba(2, 6, 14, 0.30) !important;
+  box-shadow: 0 1px 3px rgba(2, 6, 14, 0.22);
   font-weight: 600 !important;
 }
 
 /* ==========================================================================
-   全系统表格根治方案 (100% 清除所有表格内的死黑斑块与死白硬块)
-   无论原组件写了什么 dark:bg-dark-800, bg-white，只要在 table 内部全部强制透明！
+   表格系统 (Table) - 清除死黑死白，恢复纯净水光感
    ========================================================================== */
 html[data-theme="apple"] table,
 html[data-theme="apple"] thead,
@@ -286,7 +274,6 @@ html[data-glass] td {
   border-color: var(--ui-border-soft) !important;
 }
 
-/* 表头：完全透明轻盈，绝无生硬底色 */
 html[data-theme="apple"] th,
 html[data-theme="apple"] thead th,
 html[data-glass] th,
@@ -298,7 +285,6 @@ html[data-glass] thead th {
   letter-spacing: 0.02em;
 }
 
-/* 表格数据行：划过时呈现折射微光高亮 */
 html[data-theme="apple"]:not(.dark) tbody tr:hover,
 html[data-glass]:not(.dark) tbody tr:hover {
   background: rgba(255, 255, 255, 0.28) !important;
@@ -311,8 +297,6 @@ html[data-glass].dark tbody tr:hover {
 
 /* ==========================================================================
    子毛玻璃交互微卡片 (Sub-Glass Tiles)
-   包含：快捷操作项、可点击功能块、列表项小磁贴
-   彻底解决“浅色死白、深色死黑”！
    ========================================================================== */
 html[data-theme="apple"] .card button.group,
 html[data-theme="apple"] .card a.group,
@@ -325,8 +309,8 @@ html[data-glass] [class*="quick-action"] a {
   background: var(--ui-subglass) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
-  border: 1px solid var(--ui-border) !important;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.40), 0 3px 10px rgba(19, 45, 83, 0.04) !important;
+  border: 1px solid var(--ui-border-render) !important;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.35), 0 3px 10px rgba(19, 45, 83, 0.04) !important;
   border-radius: 14px !important;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
@@ -345,7 +329,7 @@ html[data-glass] [class*="quick-action"] a:hover {
 }
 
 /* ==========================================================================
-   表单与输入控件 (Inputs, Selects, DatePickers, Triggers)
+   表单与输入控件
    ========================================================================== */
 html[data-theme="apple"] .input,
 html[data-theme="apple"] select,
@@ -363,7 +347,7 @@ html[data-glass] .select-trigger {
   border: 1px solid var(--ui-border-render) !important;
   color: var(--ui-text) !important;
   border-radius: 10px !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
   transition: all 0.2s ease !important;
 }
 
@@ -383,8 +367,7 @@ html[data-glass] .select-trigger:focus {
 }
 
 /* ==========================================================================
-   全站所有暗黑实色类名的强力统摄层 (强制变透光水玻)
-   把散落在 50 多个页面里的 dark:bg-dark-* / dark:bg-gray-* 全部洗净！
+   全站暗黑实色类名清洗
    ========================================================================== */
 html[data-theme="apple"].dark [class*="dark:bg-dark-"]:not(tr):not(td):not(th),
 html[data-theme="apple"].dark [class*="dark:bg-gray-"]:not(tr):not(td):not(th),
@@ -398,7 +381,6 @@ html[data-glass].dark [class*="dark:bg-black"]:not(tr):not(td):not(th) {
   border-color: var(--ui-border-render) !important;
 }
 
-/* 浅色模式下的实心类名清洗 */
 html[data-theme="apple"]:not(.dark) [class*="bg-white"]:not(tr):not(td):not(th):not(.sidebar-link-active),
 html[data-glass]:not(.dark) [class*="bg-white"]:not(tr):not(td):not(th):not(.sidebar-link-active) {
   background-color: var(--ui-surface-strong) !important;
@@ -411,17 +393,8 @@ html[data-glass]:not(.dark) [class*="bg-gray-100"] {
   background-color: transparent !important;
 }
 
-/* 警示条、通知条 (如提示词审计页面警告) */
-html[data-theme="apple"] [class*="border-amber-"],
-html[data-theme="apple"] [class*="bg-amber-"],
-html[data-glass] [class*="border-amber-"],
-html[data-glass] [class*="bg-amber-"] {
-  background-color: rgba(245, 158, 11, 0.12) !important;
-  border-color: rgba(245, 158, 11, 0.35) !important;
-}
-
 /* ==========================================================================
-   弹窗、下拉、Popover 层级保护
+   下拉菜单与弹窗
    ========================================================================== */
 html[data-theme="apple"] .card:has([class*="dropdown"]),
 html[data-theme="apple"] .card:has(.dropdown),
@@ -451,15 +424,14 @@ html[data-glass] .select-dropdown-portal,
 html[data-glass] [role="listbox"] {
   z-index: 99999 !important;
   position: absolute;
-  border-radius: 16px !important;
+  border-radius: 14px !important;
   background: var(--ui-surface-strong) !important;
-  border: 1px solid var(--ui-border) !important;
-  box-shadow: var(--ui-shadow-lg) !important;
+  border: 1px solid var(--ui-border-render) !important;
+  box-shadow: var(--ui-shadow) !important;
   backdrop-filter: blur(28px) !important;
   -webkit-backdrop-filter: blur(28px) !important;
 }
 
-/* 模态框遮罩与面板 */
 html[data-theme="apple"] .modal-overlay,
 html[data-theme="apple"] .dialog-overlay,
 html[data-glass] .modal-overlay,
@@ -474,10 +446,10 @@ html[data-theme="apple"] .modal-content,
 html[data-theme="apple"] .dialog-container,
 html[data-glass] .modal-content,
 html[data-glass] .dialog-container {
-  border-radius: 20px !important;
-  border: 1px solid var(--ui-border) !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--ui-border-render) !important;
   background: var(--ui-surface-strong) !important;
-  box-shadow: var(--ui-shadow-lg) !important;
-  backdrop-filter: blur(32px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
+  box-shadow: var(--ui-shadow) !important;
+  backdrop-filter: blur(28px) !important;
+  -webkit-backdrop-filter: blur(28px) !important;
 }

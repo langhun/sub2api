@@ -11,7 +11,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { attachFluidShader, type FluidParams } from './fluidShader'
 
-// 100% 呆瓜 (api.daigua.icu) 原版流体参数配置
+// 100% 呆瓜 (api.daigua.icu) 线上生产环境流体参数
 const LIGHT_PARAMS: FluidParams = {
   mouseRadius: 0.22,
   mouseStrength: 1.1,
@@ -69,11 +69,9 @@ onMounted(() => {
   const canvas = canvasRef.value
   if (!canvas) return
 
-  // 初始按 DOM 上的实际 dark 类名挂载
   const initial = isDark() ? DARK_PARAMS : LIGHT_PARAMS
   const handle = attachFluidShader(canvas, initial)
 
-  // 采用与 c3api 官方完全相同的 MutationObserver，监听 class 类名变化（原地无刷新换色）
   const observer = new MutationObserver(() => {
     handle.setParams(isDark() ? DARK_PARAMS : LIGHT_PARAMS)
   })
