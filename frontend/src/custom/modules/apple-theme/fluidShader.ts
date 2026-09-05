@@ -355,8 +355,8 @@ export function attachFluidShader(canvas: HTMLCanvasElement, params: FluidParams
     initial[4 * i + 2] = 128
     initial[4 * i + 3] = 255
   }
-  let targetA = makeTarget(flowWidth, flowHeight, initial)
-  let targetB = makeTarget(flowWidth, flowHeight, initial)
+  const targetA = makeTarget(flowWidth, flowHeight, initial)
+  const targetB = makeTarget(flowWidth, flowHeight, initial)
 
   // Mouse input is disabled only for touch/coarse-pointer devices.
   // Windows desktop browsers still receive precise pointer interaction.
