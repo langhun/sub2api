@@ -1016,6 +1016,9 @@ defineExpose({
 /* 操作列固定 */
 .sticky-col-right {
   right: 0;
+  width: max-content;
+  min-width: max-content;
+  white-space: nowrap;
 }
 
 /* 表头 sticky 列 - 需要比普通表头单元格更高的 z-index */
