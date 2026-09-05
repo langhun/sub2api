@@ -429,6 +429,13 @@ html[data-glass] .select-trigger:focus {
   background-color: transparent !important;
 }
 
+/* 监控矩阵中的维度和数值只承载文字，不应被全局白底清洗成色块。 */
+:is(html[data-theme="apple"], html[data-glass]) .dimension-cell,
+:is(html[data-theme="apple"], html[data-glass]) .summary-value {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 :is(html[data-theme="apple"], html[data-glass]) .btn-secondary {
   background: var(--ui-subglass) !important;
   border-color: transparent !important;
