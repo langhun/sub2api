@@ -110,6 +110,23 @@ server {
         proxy_pass http://127.0.0.1:8080;
     }
 
+    # The OpenAI-compatible alias must be rewritten to the backend's
+    # canonical /v1/* routes; otherwise it falls through to the frontend.
+    location = /openai/v1 {
+        return 308 /openai/v1/;
+    }
+
+    location ^~ /openai/v1/ {
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 1800s;
+        proxy_send_timeout 1800s;
+        proxy_pass http://127.0.0.1:8080/v1/;
+    }
+
     location / {
         limit_req zone=sub2api_api burst=60 nodelay;
         proxy_http_version 1.1;
