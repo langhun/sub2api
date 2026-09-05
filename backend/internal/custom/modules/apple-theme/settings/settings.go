@@ -20,6 +20,7 @@ const (
 	ModeAuto  = "auto"
 	ModeLight = "light"
 	ModeDark  = "dark"
+	ModeTime  = "time"
 )
 
 const (
@@ -95,8 +96,8 @@ func Values(config Config) (map[string]string, error) {
 }
 
 func Validate(config Config) error {
-	if config.DefaultThemeMode != ModeAuto && config.DefaultThemeMode != ModeLight && config.DefaultThemeMode != ModeDark {
-		return fmt.Errorf("default_theme_mode must be %q, %q, or %q", ModeAuto, ModeLight, ModeDark)
+	if config.DefaultThemeMode != ModeAuto && config.DefaultThemeMode != ModeLight && config.DefaultThemeMode != ModeDark && config.DefaultThemeMode != ModeTime {
+		return fmt.Errorf("default_theme_mode must be %q, %q, %q, or %q", ModeAuto, ModeLight, ModeDark, ModeTime)
 	}
 	return nil
 }
@@ -119,6 +120,8 @@ func normalizeMode(value string) string {
 		return ModeLight
 	case ModeDark:
 		return ModeDark
+	case ModeTime:
+		return ModeTime
 	default:
 		return ModeAuto
 	}

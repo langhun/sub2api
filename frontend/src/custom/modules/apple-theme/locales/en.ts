@@ -8,6 +8,7 @@ export default {
       defaultModeLabel: 'Default Theme Mode',
       defaultModeHint: 'Choose the default theme mode for new users',
       modeAuto: 'Auto (Follow System)',
+      modeTime: 'Local Time (Light 07:00-19:00)',
       modeLight: 'Light Mode',
       modeDark: 'Dark Mode',
     },
@@ -18,5 +19,6 @@ export default {
     modeLight: 'Light',
     modeDark: 'Dark',
     modeAuto: 'Auto',
+    modeTime: 'Local Time',
   },
 }

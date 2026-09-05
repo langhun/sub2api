@@ -3,7 +3,7 @@ import AppleThemeSettingsPanel from './admin/AppleThemeSettingsPanel.vue'
 
 interface AppleThemeSettings {
   enable_apple_theme: boolean
-  default_theme_mode: 'light' | 'dark' | 'auto'
+  default_theme_mode: 'light' | 'dark' | 'auto' | 'time'
 }
 
 const defaultAppleThemeSettings = (): AppleThemeSettings => ({
@@ -18,7 +18,8 @@ function readSettings(settings: CustomSettingsValues): AppleThemeSettings {
     default_theme_mode:
       values.default_theme_mode === 'light' ||
       values.default_theme_mode === 'dark' ||
-      values.default_theme_mode === 'auto'
+      values.default_theme_mode === 'auto' ||
+      values.default_theme_mode === 'time'
         ? values.default_theme_mode
         : 'auto',
   }

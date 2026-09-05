@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { applyGlobalThemeSettings, useTheme } from '../useTheme'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { applyGlobalThemeSettings, getTimeBasedTheme, useTheme } from '../useTheme'
 
 describe('useTheme', () => {
   beforeEach(() => {
@@ -7,6 +7,10 @@ describe('useTheme', () => {
     document.documentElement.className = ''
     document.documentElement.removeAttribute('data-glass')
     document.documentElement.removeAttribute('data-theme')
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('uses server settings for the global theme style and ignores local overrides', () => {
@@ -39,5 +43,25 @@ describe('useTheme', () => {
 
     expect(useTheme().effectiveMode.value).toBe('light')
     expect(localStorage.getItem('theme')).toBe('light')
+  })
+
+  it('uses the browser local time for time mode', () => {
+    expect(getTimeBasedTheme(new Date(2026, 8, 5, 6, 59))).toBe('dark')
+    expect(getTimeBasedTheme(new Date(2026, 8, 5, 7, 0))).toBe('light')
+    expect(getTimeBasedTheme(new Date(2026, 8, 5, 18, 59))).toBe('light')
+    expect(getTimeBasedTheme(new Date(2026, 8, 5, 19, 0))).toBe('dark')
+  })
+
+  it('accepts the time-based server default', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 8, 5, 20, 0))
+
+    applyGlobalThemeSettings({ enable_apple_theme: true, default_theme_mode: 'time' })
+    expect(useTheme().themeMode.value).toBe('time')
+    expect(useTheme().effectiveMode.value).toBe('dark')
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+
+    useTheme().setThemeMode('time')
+    expect(localStorage.getItem('theme')).toBe('time')
   })
 })

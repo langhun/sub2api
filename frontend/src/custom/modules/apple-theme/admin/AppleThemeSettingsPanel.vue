@@ -44,6 +44,7 @@
           class="input"
         >
           <option value="auto">{{ t('custom.appleTheme.modeAuto') }}</option>
+          <option value="time">{{ t('custom.appleTheme.modeTime') }}</option>
           <option value="light">{{ t('custom.appleTheme.modeLight') }}</option>
           <option value="dark">{{ t('custom.appleTheme.modeDark') }}</option>
         </select>
@@ -61,7 +62,7 @@ import { useI18n } from 'vue-i18n'
 
 interface AppleThemeForm {
   enable_apple_theme: boolean
-  default_theme_mode: 'light' | 'dark' | 'auto'
+  default_theme_mode: 'light' | 'dark' | 'auto' | 'time'
 }
 
 const { t } = useI18n()

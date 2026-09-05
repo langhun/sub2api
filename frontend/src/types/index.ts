@@ -241,7 +241,7 @@ export interface PublicSettings {
   home_content: string
   theme_style?: 'glass' | 'classic'
   enable_apple_theme?: boolean
-  default_theme_mode?: 'light' | 'dark' | 'auto'
+  default_theme_mode?: 'light' | 'dark' | 'auto' | 'time'
   compact_home_enabled: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean

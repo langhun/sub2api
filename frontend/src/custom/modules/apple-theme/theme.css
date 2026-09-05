@@ -221,6 +221,11 @@ html[data-glass] .sidebar-header {
   border-bottom: 0 !important;
 }
 
+html[data-theme="apple"] .sidebar > .border-t,
+html[data-glass] .sidebar > .border-t {
+  border-top: 0 !important;
+}
+
 html[data-theme="apple"] .sidebar-nav,
 html[data-glass] .sidebar-nav {
   padding: 0 12px 12px !important;

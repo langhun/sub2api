@@ -8,6 +8,7 @@ export default {
       defaultModeLabel: '默认主题模式',
       defaultModeHint: '为新用户选择默认主题模式',
       modeAuto: '自动（跟随系统）',
+      modeTime: '按本地时间（07:00-19:00 浅色）',
       modeLight: '浅色模式',
       modeDark: '深色模式',
     },
@@ -18,5 +19,6 @@ export default {
     modeLight: '浅色',
     modeDark: '深色',
     modeAuto: '自动',
+    modeTime: '按本地时间',
   },
 }

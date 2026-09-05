@@ -170,9 +170,9 @@ if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
 const { themeMode, themeStyle, effectiveMode, setThemeMode } = useTheme()
 ```
 
-- `themeMode`: 'light' | 'dark' | 'auto'
+- `themeMode`: 'light' | 'dark' | 'auto' | 'time'
 - `themeStyle`: 'default' | 'apple'
-- `effectiveMode`: 实际生效的模式（auto 会解析为 light 或 dark）
+- `effectiveMode`: 实际生效的模式（auto 跟随系统，time 按浏览器本地时间在 07:00-19:00 使用浅色）
 
 ### 配置所有权
 

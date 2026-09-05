@@ -21,6 +21,11 @@ func TestFromValuesPrefersExplicitSwitchAndNormalizesMode(t *testing.T) {
 	require.Equal(t, ModeDark, config.DefaultThemeMode)
 }
 
+func TestFromValuesNormalizesTimeMode(t *testing.T) {
+	config := FromValues(map[string]string{KeyDefaultThemeMode: " TIME "})
+	require.Equal(t, ModeTime, config.DefaultThemeMode)
+}
+
 func TestValuesWritesNewAndLegacyCompatibilityKeys(t *testing.T) {
 	values, err := Values(Config{Enabled: true, DefaultThemeMode: ModeLight})
 	require.NoError(t, err)
@@ -31,4 +36,8 @@ func TestValuesWritesNewAndLegacyCompatibilityKeys(t *testing.T) {
 
 func TestValidateRejectsUnsupportedMode(t *testing.T) {
 	require.ErrorContains(t, Validate(Config{Enabled: true, DefaultThemeMode: "sepia"}), KeyDefaultThemeMode)
+}
+
+func TestValidateAcceptsTimeMode(t *testing.T) {
+	require.NoError(t, Validate(Config{Enabled: true, DefaultThemeMode: ModeTime}))
 }

@@ -56,6 +56,7 @@ const themeModes = [
   { value: 'light' as ThemeMode, label: 'theme.modeLight', icon: 'sun' as const },
   { value: 'dark' as ThemeMode, label: 'theme.modeDark', icon: 'moon' as const },
   { value: 'auto' as ThemeMode, label: 'theme.modeAuto', icon: 'globe' as const },
+  { value: 'time' as ThemeMode, label: 'theme.modeTime', icon: 'clock' as const },
 ]
 
 function toggleDropdown() {
