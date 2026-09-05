@@ -606,14 +606,14 @@ html[data-glass].dark .docs-copy-button {
 /* 行内代码 */
 html[data-theme="apple"]:not(.dark) code:not(pre code),
 html[data-glass]:not(.dark) code:not(pre code) {
-  background: rgba(255, 255, 255, 0.55) !important;
+  background: transparent !important;
   color: #0f172a !important;
   border-radius: 6px !important;
 }
 
 html[data-theme="apple"].dark code:not(pre code),
 html[data-glass].dark code:not(pre code) {
-  background: rgba(255, 255, 255, 0.10) !important;
+  background: transparent !important;
   color: #f8fafc !important;
   border-radius: 6px !important;
 }
