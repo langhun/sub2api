@@ -154,11 +154,9 @@ html[data-glass] [class*="rounded-3xl"] {
 html[data-theme="apple"] .card-header,
 html[data-theme="apple"] .card-body,
 html[data-theme="apple"] .card-footer,
-html[data-theme="apple"] [class*="border-b"],
 html[data-glass] .card-header,
 html[data-glass] .card-body,
-html[data-glass] .card-footer,
-html[data-glass] [class*="border-b"] {
+html[data-glass] .card-footer {
   border: none !important;
   border-bottom: none !important;
 }
@@ -166,10 +164,8 @@ html[data-glass] [class*="border-b"] {
 /* ==========================================================================
    顶栏 (Header) - 悬浮圆角水滴岛
    ========================================================================== */
-html[data-theme="apple"] header.glass,
-html[data-theme="apple"] header,
-html[data-glass] header.glass,
-html[data-glass] header {
+html[data-theme="apple"] .app-header,
+html[data-glass] .app-header {
   position: sticky !important;
   top: 14px !important;
   margin: 14px 16px 0 16px !important;
@@ -184,10 +180,8 @@ html[data-glass] header {
 }
 
 @media (min-width: 1024px) {
-  html[data-theme="apple"] header.glass,
-  html[data-theme="apple"] header,
-  html[data-glass] header.glass,
-  html[data-glass] header {
+  html[data-theme="apple"] .app-header,
+  html[data-glass] .app-header {
     margin: 14px 24px 0 24px !important;
   }
 }
@@ -330,16 +324,19 @@ html[data-glass].dark tbody tr:hover {
 }
 
 
-/* Fixed action cells need a readable glass layer while preserving the table surface. */
-html[data-theme="apple"] .table-wrapper tbody .sticky-col-right,
-html[data-glass] .table-wrapper tbody .sticky-col-right {
-  background: var(--ui-surface) !important;
+/* Blur overlapping content without adding a second tinted table surface. */
+html[data-theme="apple"] .table-wrapper.is-scrollable .sticky-col,
+html[data-glass] .table-wrapper.is-scrollable .sticky-col,
+html[data-theme="apple"] .table-wrapper .table-header,
+html[data-glass] .table-wrapper .table-header {
+  background: transparent !important;
+  background-color: transparent !important;
   backdrop-filter: blur(18px) saturate(110%) !important;
   -webkit-backdrop-filter: blur(18px) saturate(110%) !important;
 }
 
-/* ==========================================================================`r
-   子毛玻璃交互微卡片 (Sub-Glass Tiles)`r
+/* ==========================================================================
+   子毛玻璃交互微卡片 (Sub-Glass Tiles)
    ========================================================================== */
 html[data-theme="apple"] .card button.group,
 html[data-theme="apple"] .card a.group,
@@ -412,44 +409,60 @@ html[data-glass] .select-trigger:focus {
 /* ==========================================================================
    全站暗黑实色类名清洗
    ========================================================================== */
-html[data-theme="apple"].dark [class*="dark:bg-dark-"]:not(tr):not(td):not(th),
-html[data-theme="apple"].dark [class*="dark:bg-gray-"]:not(tr):not(td):not(th),
-html[data-theme="apple"].dark [class*="dark:bg-slate-"]:not(tr):not(td):not(th),
-html[data-theme="apple"].dark [class*="dark:bg-black"]:not(tr):not(td):not(th),
-html[data-glass].dark [class*="dark:bg-dark-"]:not(tr):not(td):not(th),
-html[data-glass].dark [class*="dark:bg-gray-"]:not(tr):not(td):not(th),
-html[data-glass].dark [class*="dark:bg-slate-"]:not(tr):not(td):not(th),
-html[data-glass].dark [class*="dark:bg-black"]:not(tr):not(td):not(th) {
+:is(html[data-theme="apple"], html[data-glass]).dark :is(
+  [class^="dark:bg-dark-"], [class*=" dark:bg-dark-"],
+  [class^="dark:bg-gray-"], [class*=" dark:bg-gray-"],
+  [class^="dark:bg-slate-"], [class*=" dark:bg-slate-"],
+  [class~="dark:bg-black"]
+):not(:is(table, thead, tbody, tfoot, tr, td, th, pre, code, .card, .input, .select-trigger, .date-picker-trigger)) {
   background-color: var(--ui-surface) !important;
   border-color: var(--ui-border-render) !important;
 }
 
-html[data-theme="apple"]:not(.dark) [class*="bg-white"]:not(tr):not(td):not(th):not(.sidebar-link-active),
-html[data-glass]:not(.dark) [class*="bg-white"]:not(tr):not(td):not(th):not(.sidebar-link-active) {
-  background-color: var(--ui-surface-strong) !important;
+:is(html[data-theme="apple"], html[data-glass]):not(.dark) :is(
+  .bg-white, [class^="bg-white/"], [class*=" bg-white/"]
+):not(:is(table, thead, tbody, tfoot, tr, td, th, pre, code, .card, .input, .select-trigger, .date-picker-trigger, .sidebar-link-active)) {
+  background-color: var(--ui-surface) !important;
 }
 
-html[data-theme="apple"]:not(.dark) [class*="bg-gray-50"],
-html[data-theme="apple"]:not(.dark) [class*="bg-gray-100"],
-html[data-glass]:not(.dark) [class*="bg-gray-50"],
-html[data-glass]:not(.dark) [class*="bg-gray-100"] {
+:is(html[data-theme="apple"], html[data-glass]):not(.dark) :is(.bg-gray-50, .bg-gray-100) {
   background-color: transparent !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .btn-secondary {
+  background: var(--ui-subglass) !important;
+  border-color: transparent !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .btn-secondary:hover:not(:disabled) {
+  background: var(--ui-subglass-hover) !important;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .pagination-bar {
+  border: 0 !important;
+  border-radius: 14px;
+  background: var(--ui-surface) !important;
+  backdrop-filter: blur(var(--ui-blur));
+  -webkit-backdrop-filter: blur(var(--ui-blur));
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .support-tickets-page > section {
+  background: var(--ui-surface) !important;
+  border-color: transparent !important;
+  border-radius: 14px;
+}
+
+:is(html[data-theme="apple"], html[data-glass]) .support-tickets-page > section > button + button {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ui-text) 10%, transparent);
 }
 
 /* ==========================================================================
    下拉菜单与弹窗
    ========================================================================== */
-html[data-theme="apple"] .card:has([class*="dropdown"]),
-html[data-theme="apple"] .card:has(.dropdown),
-html[data-theme="apple"] .card:has([role="listbox"]),
-html[data-theme="apple"] .card:has(.date-picker-dropdown),
-html[data-theme="apple"] .card:focus-within,
-html[data-glass] .card:has([class*="dropdown"]),
-html[data-glass] .card:has(.dropdown),
-html[data-glass] .card:has([role="listbox"]),
-html[data-glass] .card:has(.date-picker-dropdown),
-html[data-glass] .card:focus-within {
-  z-index: 35 !important;
+:is(html[data-theme="apple"], html[data-glass]) .card:has(:is([role="listbox"], .date-picker-dropdown, .dropdown-menu)) {
+  z-index: 20;
   position: relative !important;
 }
 
@@ -465,8 +478,6 @@ html[data-glass] .date-picker-dropdown,
 html[data-glass] .select-dropdown,
 html[data-glass] .select-dropdown-portal,
 html[data-glass] [role="listbox"] {
-  z-index: 99999 !important;
-  position: absolute;
   border-radius: 14px !important;
   border: none !important;
   background: var(--ui-surface-strong) !important;

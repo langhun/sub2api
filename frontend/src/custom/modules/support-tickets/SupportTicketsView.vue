@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto -mt-2 max-w-7xl space-y-3 md:-mt-3 lg:-mt-4">
+    <div class="support-tickets-page w-full min-w-0 space-y-4">
       <header v-if="!ticket" class="flex min-h-0 justify-end">
         <button v-if="!ticket" class="btn btn-primary self-start sm:self-auto" type="button" @click="showCreate = true">
           <Icon name="plus" size="sm" />
